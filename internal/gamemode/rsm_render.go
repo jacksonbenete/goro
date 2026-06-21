@@ -79,7 +79,11 @@ func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rs
 	})
 
 	var triangles []modelTriangle
-	boundsCache := make(map[*res.RSM]rsmBounds)
+	type boundsCacheKey struct {
+		rsm  *res.RSM
+		root string
+	}
+	boundsCache := make(map[boundsCacheKey]rsmBounds)
 	nodeMatrixCache := make(map[*res.RSM]map[string]mat4)
 	for _, visiblePlacement := range visible {
 		placement := visiblePlacement.model
@@ -100,10 +104,12 @@ func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rs
 			continue
 		}
 
-		bounds, ok := boundsCache[rsm]
+		nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
+		boundsKey := boundsCacheKey{rsm: rsm, root: selectedRSMRootName(rsm, placement.NodeName)}
+		bounds, ok := boundsCache[boundsKey]
 		if !ok {
-			bounds = calculateRSMBounds(rsm)
-			boundsCache[rsm] = bounds
+			bounds = calculateRSMBoundsForNodes(rsm, nodeIndices)
+			boundsCache[boundsKey] = bounds
 		}
 		nodeMatrices, ok := nodeMatrixCache[rsm]
 		if !ok {
@@ -116,9 +122,8 @@ func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rs
 			baseX:     baseX,
 			baseY:     baseY,
 			matrix:    buildRSMInstanceMatrix(rsm, placement, baseX, baseY, bounds.model),
-			mainBox:   bounds.main,
 		}
-		for nodeIndex := range rsm.Nodes {
+		for _, nodeIndex := range nodeIndices {
 			node := &rsm.Nodes[nodeIndex]
 			for _, tri := range buildRSMNodeTriangles(rsm, node, nodeMatrices[node.Name], instance, projection, float64(width), float64(height)) {
 				triangles = append(triangles, tri)
@@ -147,10 +152,60 @@ func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rs
 	}
 }
 
+func selectedRSMRootName(rsm *res.RSM, rootName string) string {
+	if rsm == nil || rootName == "" {
+		return ""
+	}
+	for i := range rsm.Nodes {
+		if rsm.Nodes[i].Name == rootName {
+			return rootName
+		}
+	}
+	return ""
+}
+
+func selectedRSMNodeIndices(rsm *res.RSM, rootName string) []int {
+	if rsm == nil || len(rsm.Nodes) == 0 {
+		return nil
+	}
+	rootName = selectedRSMRootName(rsm, rootName)
+	if rootName == "" {
+		indices := make([]int, len(rsm.Nodes))
+		for i := range indices {
+			indices[i] = i
+		}
+		return indices
+	}
+
+	selected := map[string]struct{}{rootName: {}}
+	changed := true
+	for changed {
+		changed = false
+		for i := range rsm.Nodes {
+			node := &rsm.Nodes[i]
+			if _, ok := selected[node.Name]; ok {
+				continue
+			}
+			if _, ok := selected[node.ParentName]; !ok {
+				continue
+			}
+			selected[node.Name] = struct{}{}
+			changed = true
+		}
+	}
+
+	indices := make([]int, 0, len(selected))
+	for i := range rsm.Nodes {
+		if _, ok := selected[rsm.Nodes[i].Name]; ok {
+			indices = append(indices, i)
+		}
+	}
+	return indices
+}
+
 type modelInstance struct {
 	placement res.RSWModel
 	bounds    modelBounds
-	mainBox   modelBounds
 	baseX     float64
 	baseY     float64
 	matrix    mat4
@@ -163,9 +218,9 @@ func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, ins
 
 	localMatrix := mat4Identity()
 	localMatrix = mat4Translate(localMatrix, modelPoint3{
-		x: -(instance.mainBox.min.x + instance.mainBox.max.x) * 0.5,
-		y: instance.mainBox.max.y,
-		z: -(instance.mainBox.min.z + instance.mainBox.max.z) * 0.5,
+		x: -(instance.bounds.min.x + instance.bounds.max.x) * 0.5,
+		y: instance.bounds.max.y,
+		z: -(instance.bounds.min.z + instance.bounds.max.z) * 0.5,
 	})
 	localMatrix = mat4Scale(localMatrix, modelPoint3{x: 1, y: -1, z: 1})
 	localMatrix = mat4Multiply(localMatrix, nodeMatrix)
@@ -272,13 +327,24 @@ func buildRSMNodeMatrices(rsm *res.RSM) map[string]mat4 {
 }
 
 func calculateRSMBounds(rsm *res.RSM) rsmBounds {
+	indices := make([]int, len(rsm.Nodes))
+	for i := range indices {
+		indices[i] = i
+	}
+	return calculateRSMBoundsForNodes(rsm, indices)
+}
+
+func calculateRSMBoundsForNodes(rsm *res.RSM, nodeIndices []int) rsmBounds {
 	bounds := rsmBounds{
 		model: emptyModelBounds(),
 		main:  modelBounds{},
 		nodes: make(map[string]modelBounds, len(rsm.Nodes)),
 	}
 	nodeMatrices := buildRSMNodeMatrices(rsm)
-	for nodeIndex := range rsm.Nodes {
+	for _, nodeIndex := range nodeIndices {
+		if nodeIndex < 0 || nodeIndex >= len(rsm.Nodes) {
+			continue
+		}
 		node := &rsm.Nodes[nodeIndex]
 		matrix := nodeMatrices[node.Name]
 		if len(rsm.Nodes) != 1 {
@@ -295,7 +361,8 @@ func calculateRSMBounds(rsm *res.RSM) rsmBounds {
 	if bounds.model.empty() {
 		bounds.model = modelBounds{}
 	}
-	if main := rsmMainNode(rsm); main != nil {
+	if len(nodeIndices) > 0 && nodeIndices[0] >= 0 && nodeIndices[0] < len(rsm.Nodes) {
+		main := &rsm.Nodes[nodeIndices[0]]
 		bounds.main = bounds.nodes[main.Name]
 	}
 	if bounds.main.empty() {

@@ -3,6 +3,7 @@ package gamemode
 import (
 	"math"
 	"os"
+	"sort"
 	"testing"
 
 	"github.com/kivutar/goro/internal/res"
@@ -67,7 +68,6 @@ func TestDebugGeffenCenterModels(t *testing.T) {
 		instance := modelInstance{
 			placement: placement,
 			bounds:    bounds.model,
-			mainBox:   bounds.main,
 			baseX:     baseX,
 			baseY:     baseY,
 			matrix:    buildRSMInstanceMatrix(rsm, placement, baseX, baseY, bounds.model),
@@ -95,12 +95,108 @@ func TestDebugGeffenCenterModels(t *testing.T) {
 	}
 }
 
+func TestDebugIzludeModelSizes(t *testing.T) {
+	if os.Getenv("GORO_DEBUG_IZLUDE_RSM") != "1" {
+		t.Skip("set GORO_DEBUG_IZLUDE_RSM=1")
+	}
+	manager, err := res.NewManager("/home/kivutar/Téléchargements/OldRO")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gndData, err := manager.ReadFile("data\\izlude.gnd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gnd, err := res.ParseGND(gndData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rswData, err := manager.ReadFile("data\\izlude.rsw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rsw, err := res.ParseRSW(rswData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type modelSize struct {
+		index         int
+		filename      string
+		nodeName      string
+		version       string
+		nodes         int
+		selectedNodes int
+		scale         res.RSWVector3
+		width         float64
+		height        float64
+		depth         float64
+		placement     res.RSWModel
+	}
+	var sizes []modelSize
+	seen := make(map[string]struct{})
+	for index, placement := range rsw.Models {
+		if placement.Filename == "" {
+			continue
+		}
+		key := placement.Filename
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		rsm, err := loadRSMModel(manager, placement.Filename)
+		if err != nil {
+			continue
+		}
+		nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
+		bounds := calculateRSMBoundsForNodes(rsm, nodeIndices).model
+		scale := vectorFromRSW(placement.Scale)
+		sizes = append(sizes, modelSize{
+			index:         index,
+			filename:      placement.Filename,
+			nodeName:      placement.NodeName,
+			version:       string([]byte{'0' + rsm.VersionMajor, '.', '0' + rsm.VersionMinor}),
+			nodes:         len(rsm.Nodes),
+			selectedNodes: len(nodeIndices),
+			scale:         placement.Scale,
+			width:         math.Abs(bounds.max.x-bounds.min.x) * math.Abs(scale.x),
+			height:        math.Abs(bounds.max.y-bounds.min.y) * math.Abs(scale.y),
+			depth:         math.Abs(bounds.max.z-bounds.min.z) * math.Abs(scale.z),
+			placement:     placement,
+		})
+	}
+	sort.SliceStable(sizes, func(i, j int) bool {
+		return sizes[i].height > sizes[j].height
+	})
+	limit := minInt(24, len(sizes))
+	for i := 0; i < limit; i++ {
+		size := sizes[i]
+		t.Logf("#%d %s node=%q v=%s nodes=%d selected=%d scale=(%.2f,%.2f,%.2f) dims=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f)",
+			size.index,
+			size.filename,
+			size.nodeName,
+			size.version,
+			size.nodes,
+			size.selectedNodes,
+			size.scale.X,
+			size.scale.Y,
+			size.scale.Z,
+			size.width,
+			size.height,
+			size.depth,
+			size.placement.Position.X+float32(gnd.Width),
+			size.placement.Position.Y,
+			size.placement.Position.Z+float32(gnd.Height),
+		)
+	}
+}
+
 func debugRSMModelMatrix(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance) mat4 {
 	localMatrix := mat4Identity()
 	localMatrix = mat4Translate(localMatrix, modelPoint3{
-		x: -(instance.mainBox.min.x + instance.mainBox.max.x) * 0.5,
-		y: instance.mainBox.max.y,
-		z: -(instance.mainBox.min.z + instance.mainBox.max.z) * 0.5,
+		x: -(instance.bounds.min.x + instance.bounds.max.x) * 0.5,
+		y: instance.bounds.max.y,
+		z: -(instance.bounds.min.z + instance.bounds.max.z) * 0.5,
 	})
 	localMatrix = mat4Scale(localMatrix, modelPoint3{x: 1, y: -1, z: 1})
 	localMatrix = mat4Multiply(localMatrix, nodeMatrix)
