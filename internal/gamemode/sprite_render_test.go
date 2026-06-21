@@ -60,6 +60,13 @@ func TestSpriteMotionIndexUsesActionDelay(t *testing.T) {
 	}
 }
 
+func TestSpriteLayerCenterTreatsPositiveYAsScreenDown(t *testing.T) {
+	_, y := spriteLayerCenter(5, 5, res.ACTLayer{Y: 3})
+	if y != 8 {
+		t.Fatalf("layer center Y = %.1f, want 8.0", y)
+	}
+}
+
 func TestDebugPlayerSpriteBillboard(t *testing.T) {
 	if os.Getenv("GORO_DEBUG_PLAYER_SPRITE") != "1" {
 		t.Skip("set GORO_DEBUG_PLAYER_SPRITE=1")

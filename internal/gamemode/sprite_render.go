@@ -345,10 +345,15 @@ func drawSpriteLayer(target *ebiten.Image, img *ebiten.Image, layer res.ACTLayer
 	if layer.Angle != 0 {
 		opts.GeoM.Rotate(float64(layer.Angle) * math.Pi / 180)
 	}
-	opts.GeoM.Translate(centerX+float64(layer.X), centerY-float64(layer.Y))
+	layerCenterX, layerCenterY := spriteLayerCenter(centerX, centerY, layer)
+	opts.GeoM.Translate(layerCenterX, layerCenterY)
 	opts.Filter = ebiten.FilterNearest
 	opts.ColorScale.Scale(layer.Color[0], layer.Color[1], layer.Color[2], layer.Color[3])
 	target.DrawImage(img, &opts)
+}
+
+func spriteLayerCenter(centerX, centerY float64, layer res.ACTLayer) (float64, float64) {
+	return centerX + float64(layer.X), centerY + float64(layer.Y)
 }
 
 func normalizeSpriteDirection(direction int) int {
