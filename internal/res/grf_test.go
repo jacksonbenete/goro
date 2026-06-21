@@ -40,6 +40,18 @@ func TestGRFReadPlainCompressedEntry(t *testing.T) {
 	}
 }
 
+func TestNormalizeGRFNamePreservesNonUTF8Bytes(t *testing.T) {
+	input := string([]byte{'D', 'A', 'T', 'A', '/', 0xc7, 0xca, '/', 'T', 'E', 'X', 0xf8, '.', 'B', 'M', 'P'})
+	got := normalizeGRFName(input)
+	want := string([]byte{'d', 'a', 't', 'a', '\\', 0xc7, 0xca, '\\', 't', 'e', 'x', 0xf8, '.', 'b', 'm', 'p'})
+	if got != want {
+		t.Fatalf("normalizeGRFName bytes = % x, want % x", []byte(got), []byte(want))
+	}
+	if bytes.Contains([]byte(got), []byte{0xef, 0xbf, 0xbd}) {
+		t.Fatalf("normalizeGRFName introduced UTF-8 replacement bytes: % x", []byte(got))
+	}
+}
+
 func TestGRFRealArchiveWhenConfigured(t *testing.T) {
 	path := os.Getenv("GORO_TEST_GRF")
 	if path == "" {

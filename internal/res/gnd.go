@@ -1,11 +1,11 @@
 package res
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"image/color"
 	"math"
-	"strings"
 )
 
 type GND struct {
@@ -153,10 +153,25 @@ func (g *GND) Surface(index int) (GNDSurface, bool) {
 }
 
 func fixedBinaryString(data []byte) string {
-	if index := strings.IndexByte(string(data), 0); index >= 0 {
+	if index := bytes.IndexByte(data, 0); index >= 0 {
 		data = data[:index]
 	}
-	return strings.TrimSpace(string(data))
+	for len(data) > 0 && isASCIIWhitespace(data[0]) {
+		data = data[1:]
+	}
+	for len(data) > 0 && isASCIIWhitespace(data[len(data)-1]) {
+		data = data[:len(data)-1]
+	}
+	return string(data)
+}
+
+func isASCIIWhitespace(c byte) bool {
+	switch c {
+	case ' ', '\t', '\n', '\r', '\v', '\f':
+		return true
+	default:
+		return false
+	}
 }
 
 type gndReader struct {

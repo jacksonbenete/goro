@@ -89,7 +89,7 @@ func (g *GRF) Names() []string {
 }
 
 func (g *GRF) NamesWithSuffix(suffix string) []string {
-	suffix = strings.ToLower(strings.ReplaceAll(suffix, "/", "\\"))
+	suffix = normalizeGRFName(suffix)
 	suffixes := []string{suffix}
 	if slash := strings.LastIndex(suffix, "\\"); slash >= 0 && slash+1 < len(suffix) {
 		suffixes = append(suffixes, suffix[slash+1:])
@@ -261,6 +261,17 @@ func (g *GRF) parseEntries(table []byte, count int, wideOffset bool) error {
 }
 
 func normalizeGRFName(name string) string {
-	name = strings.ReplaceAll(name, "/", "\\")
-	return strings.ToLower(strings.TrimPrefix(name, "\\"))
+	data := []byte(name)
+	for len(data) > 0 && data[0] == '\\' {
+		data = data[1:]
+	}
+	for i, c := range data {
+		switch {
+		case c == '/':
+			data[i] = '\\'
+		case c >= 'A' && c <= 'Z':
+			data[i] = c + ('a' - 'A')
+		}
+	}
+	return string(data)
 }

@@ -68,6 +68,15 @@ func TestParseGND(t *testing.T) {
 	}
 }
 
+func TestFixedBinaryStringPreservesNonUTF8Bytes(t *testing.T) {
+	raw := []byte{' ', 0xc7, 0xca, '\\', 'P', 'R', 'T', 0xf8, '.', 'b', 'm', 'p', ' ', 0, 'x'}
+	got := fixedBinaryString(raw)
+	want := string([]byte{0xc7, 0xca, '\\', 'P', 'R', 'T', 0xf8, '.', 'b', 'm', 'p'})
+	if got != want {
+		t.Fatalf("fixedBinaryString bytes = % x, want % x", []byte(got), []byte(want))
+	}
+}
+
 func writeI32(buf *bytes.Buffer, value int32) {
 	var tmp [4]byte
 	binary.LittleEndian.PutUint32(tmp[:], uint32(value))
