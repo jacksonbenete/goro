@@ -78,6 +78,17 @@ func (p sceneProjection) Depth(x, y, z float64) float64 {
 	return -(x + y)
 }
 
+func (p sceneProjection) VisibleForTriangle(x, y, z float64) bool {
+	if !p.camera {
+		return true
+	}
+	clipX, clipY, clipZ, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
+	if clipW <= 1 || !finite4(clipX, clipY, clipZ, clipW) {
+		return false
+	}
+	return clipZ >= -clipW && clipZ <= clipW
+}
+
 func (p sceneProjection) projectCamera(x, y, z float64) screenPoint {
 	clipX, clipY, _, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
 	if clipW <= 0.001 || !finite4(clipX, clipY, clipW, 1) {
@@ -116,11 +127,11 @@ func sceneCameraMatrix(width, height, targetX, targetY, targetZ float64) mat4 {
 
 func mat4LookAt(eye, target, up modelPoint3) mat4 {
 	forward := normalize3(modelPoint3{x: target.x - eye.x, y: target.y - eye.y, z: target.z - eye.z})
-	right := normalize3(cross3(forward, up))
+	right := normalize3(cross3(up, forward))
 	if right == (modelPoint3{}) {
 		right = modelPoint3{x: 1}
 	}
-	cameraUp := cross3(right, forward)
+	cameraUp := cross3(forward, right)
 	out := mat4Identity()
 	out[0], out[1], out[2] = right.x, cameraUp.x, -forward.x
 	out[4], out[5], out[6] = right.y, cameraUp.y, -forward.y
@@ -185,7 +196,7 @@ func sceneCameraYaw() float64 {
 }
 
 func sceneCameraZoom() float64 {
-	return sceneFloatEnv("GORO_CAMERA_ZOOM", 125)
+	return sceneFloatEnv("GORO_CAMERA_ZOOM", 420)
 }
 
 func sceneCameraFOV() float64 {

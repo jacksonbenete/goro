@@ -151,6 +151,19 @@ func TestDebugIzludeModelSizes(t *testing.T) {
 		nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
 		bounds := calculateRSMBoundsForNodes(rsm, nodeIndices).model
 		scale := vectorFromRSW(placement.Scale)
+		if index == 587 || index == 599 {
+			t.Logf("detail #%d rawBounds min=(%.1f,%.1f,%.1f) max=(%.1f,%.1f,%.1f) openMidgardOffset=(%.1f,%.1f,%.1f)",
+				index,
+				bounds.min.x,
+				bounds.min.y,
+				bounds.min.z,
+				bounds.max.x,
+				bounds.max.y,
+				bounds.max.z,
+				-(bounds.min.x+bounds.max.x)*0.5,
+				-bounds.max.y,
+				-(bounds.min.z+bounds.max.z)*0.5)
+		}
 		sizes = append(sizes, modelSize{
 			index:         index,
 			filename:      placement.Filename,
@@ -171,9 +184,10 @@ func TestDebugIzludeModelSizes(t *testing.T) {
 	limit := minInt(24, len(sizes))
 	for i := 0; i < limit; i++ {
 		size := sizes[i]
-		t.Logf("#%d %s node=%q v=%s nodes=%d selected=%d scale=(%.2f,%.2f,%.2f) dims=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f)",
+		t.Logf("#%d %s nameBytes=%x node=%q v=%s nodes=%d selected=%d scale=(%.2f,%.2f,%.2f) rot=(%.1f,%.1f,%.1f) dims=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f)",
 			size.index,
 			size.filename,
+			[]byte(size.filename),
 			size.nodeName,
 			size.version,
 			size.nodes,
@@ -181,6 +195,9 @@ func TestDebugIzludeModelSizes(t *testing.T) {
 			size.scale.X,
 			size.scale.Y,
 			size.scale.Z,
+			size.placement.Rotation.X,
+			size.placement.Rotation.Y,
+			size.placement.Rotation.Z,
 			size.width,
 			size.height,
 			size.depth,
@@ -188,6 +205,69 @@ func TestDebugIzludeModelSizes(t *testing.T) {
 			size.placement.Position.Y,
 			size.placement.Position.Z+float32(gnd.Height),
 		)
+	}
+
+	for _, index := range []int{63, 587} {
+		placement := rsw.Models[index]
+		rsm, err := loadRSMModel(manager, placement.Filename)
+		if err != nil {
+			t.Fatalf("%d %s: %v", index, placement.Filename, err)
+		}
+		nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
+		bounds := calculateRSMBoundsForNodes(rsm, nodeIndices).model
+		baseX := float64(placement.Position.X) + float64(gnd.Width)
+		baseY := float64(placement.Position.Z) + float64(gnd.Height)
+		terrain := terrainHeightAt(&worldstate.World{GND: gnd}, baseX, baseY)
+		projection := newSceneProjectionForSize(1024, 768, int(math.Round(baseX)), int(math.Round(baseY)), terrain)
+		nodes := buildRSMNodeMatrices(rsm)
+		instance := modelInstance{
+			placement: placement,
+			bounds:    bounds,
+			baseX:     baseX,
+			baseY:     baseY,
+			matrix:    buildRSMInstanceMatrix(rsm, placement, baseX, baseY, bounds),
+		}
+		minX, minY := math.Inf(1), math.Inf(1)
+		maxX, maxY := math.Inf(-1), math.Inf(-1)
+		minClipW, maxClipW := math.Inf(1), math.Inf(-1)
+		visibleVertices := 0
+		totalVertices := 0
+		for _, nodeIndex := range nodeIndices {
+			node := &rsm.Nodes[nodeIndex]
+			modelMatrix := debugRSMModelMatrix(rsm, node, nodes[node.Name], instance)
+			for _, vertex := range node.Vertices {
+				world := mat4TransformPoint(modelMatrix, vectorFromRSM(vertex))
+				totalVertices++
+				_, _, _, clipW := mat4TransformVec4(projection.viewProjection, world.x, world.y, world.z, 1)
+				minClipW = math.Min(minClipW, clipW)
+				maxClipW = math.Max(maxClipW, clipW)
+				if projection.VisibleForTriangle(world.x, world.z, world.y) {
+					visibleVertices++
+				}
+				point := projection.Project(world.x, world.z, world.y)
+				minX = math.Min(minX, float64(point.x))
+				minY = math.Min(minY, float64(point.y))
+				maxX = math.Max(maxX, float64(point.x))
+				maxY = math.Max(maxY, float64(point.y))
+			}
+		}
+		t.Logf("screen #%d base=(%.1f,%.1f,%.1f) terrain=%.1f deltaY=%.1f screen=(%.1f,%.1f)-(%.1f,%.1f) size=(%.1fx%.1f) clipW=(%.1f,%.1f) visibleVerts=%d/%d",
+			index,
+			baseX,
+			baseY,
+			placement.Position.Y,
+			terrain,
+			float64(placement.Position.Y)-terrain,
+			minX,
+			minY,
+			maxX,
+			maxY,
+			maxX-minX,
+			maxY-minY,
+			minClipW,
+			maxClipW,
+			visibleVertices,
+			totalVertices)
 	}
 }
 

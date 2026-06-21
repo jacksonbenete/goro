@@ -32,6 +32,7 @@ type WorldMode struct {
 	playerView    *humanoidSpriteView
 	actorViews    map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss map[actorSpriteKey]struct{}
+	rsmDebugLog   map[string]struct{}
 }
 
 type actorSpriteKey struct {
@@ -57,6 +58,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.playerView = nil
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
+	m.rsmDebugLog = make(map[string]struct{})
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {

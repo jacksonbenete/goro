@@ -67,6 +67,20 @@ func TestCameraProjectionCentersPlayerCell(t *testing.T) {
 	}
 }
 
+func TestCameraProjectionMapsPositiveXToScreenRight(t *testing.T) {
+	projection := sceneProjection{
+		screenW:        800,
+		screenH:        600,
+		camera:         true,
+		viewProjection: sceneCameraMatrix(800, 600, 10.5, 20.5, 5),
+	}
+	center := projection.Project(10.5, 20.5, 5)
+	right := projection.Project(11.5, 20.5, 5)
+	if right.x <= center.x {
+		t.Fatalf("positive world X projected to %.1f, center %.1f; want screen right", right.x, center.x)
+	}
+}
+
 func TestCameraProjectionMovesHigherWorldPointUpScreen(t *testing.T) {
 	projection := sceneProjection{
 		screenW:        800,

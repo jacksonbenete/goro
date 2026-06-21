@@ -1,7 +1,9 @@
 package gamemode
 
 import (
+	"bytes"
 	"image/color"
+	"log"
 	"math"
 	"os"
 	"sort"
@@ -123,6 +125,7 @@ func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rs
 			baseY:     baseY,
 			matrix:    buildRSMInstanceMatrix(rsm, placement, baseX, baseY, bounds.model),
 		}
+		m.logRSMTransformDebug(placement, instance)
 		for _, nodeIndex := range nodeIndices {
 			node := &rsm.Nodes[nodeIndex]
 			for _, tri := range buildRSMNodeTriangles(rsm, node, nodeMatrices[node.Name], instance, projection, float64(width), float64(height)) {
@@ -150,6 +153,59 @@ func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rs
 		}
 		drawColoredTriangle(screen, m.whitePixel, tri.points, tri.color)
 	}
+}
+
+func (m *WorldMode) logRSMTransformDebug(placement res.RSWModel, instance modelInstance) {
+	if os.Getenv("GORO_DEBUG_RSM_TRANSFORMS") != "1" || !isRSMDebugBridgeName(placement.Filename) {
+		return
+	}
+	if m.rsmDebugLog == nil {
+		m.rsmDebugLog = make(map[string]struct{})
+	}
+	key := placement.Filename + "|" + placement.NodeName
+	if _, ok := m.rsmDebugLog[key]; ok {
+		return
+	}
+	m.rsmDebugLog[key] = struct{}{}
+	refOffset := modelPoint3{
+		x: -(instance.bounds.min.x + instance.bounds.max.x) * 0.5,
+		y: -instance.bounds.max.y,
+		z: -(instance.bounds.min.z + instance.bounds.max.z) * 0.5,
+	}
+	log.Printf("RSMDBG actor rawModel=%q nameBytes=%x node=%q pos=(%.3f,%.3f,%.3f) rot=(%.3f,%.3f,%.3f) scale=(%.3f,%.3f,%.3f) boundsMin=(%.3f,%.3f,%.3f) boundsMax=(%.3f,%.3f,%.3f) openMidgardOffset=(%.3f,%.3f,%.3f) localAnchor=(%.3f,%.3f,%.3f) worldT=(%.3f,%.3f,%.3f)",
+		placement.Filename,
+		[]byte(placement.Filename),
+		placement.NodeName,
+		placement.Position.X,
+		placement.Position.Y,
+		placement.Position.Z,
+		placement.Rotation.X,
+		placement.Rotation.Y,
+		placement.Rotation.Z,
+		placement.Scale.X,
+		placement.Scale.Y,
+		placement.Scale.Z,
+		instance.bounds.min.x,
+		instance.bounds.min.y,
+		instance.bounds.min.z,
+		instance.bounds.max.x,
+		instance.bounds.max.y,
+		instance.bounds.max.z,
+		refOffset.x,
+		refOffset.y,
+		refOffset.z,
+		refOffset.x,
+		-refOffset.y,
+		refOffset.z,
+		instance.matrix[12],
+		instance.matrix[13],
+		instance.matrix[14])
+}
+
+func isRSMDebugBridgeName(name string) bool {
+	data := []byte(name)
+	return bytes.Contains(data, []byte{0xb9, 0xe8, 0xb4, 0xd9, 0xb8, 0xae}) ||
+		bytes.Contains(data, []byte{0xb9, 0xe8})
 }
 
 func selectedRSMRootName(rsm *res.RSM, rootName string) string {
@@ -255,6 +311,11 @@ func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, ins
 		a := worldVerts[face.VertexIndices[0]]
 		b := worldVerts[face.VertexIndices[1]]
 		c := worldVerts[face.VertexIndices[2]]
+		if !projection.VisibleForTriangle(a.x, a.z, a.y) ||
+			!projection.VisibleForTriangle(b.x, b.z, b.y) ||
+			!projection.VisibleForTriangle(c.x, c.z, c.y) {
+			continue
+		}
 		depth := (projection.Depth(a.x, a.z, a.y) + projection.Depth(b.x, b.z, b.y) + projection.Depth(c.x, c.z, c.y)) / 3
 		textureName, uvs := rsmFaceTexture(rsm, node, face)
 		triangles = append(triangles, modelTriangle{
