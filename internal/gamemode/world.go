@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,18 +21,17 @@ import (
 )
 
 type WorldMode struct {
-	status         string
-	walkCooldown   int
-	tickCooldown   int
-	whitePixel     *ebiten.Image
-	textures       map[string]*ebiten.Image
-	textureMiss    map[string]struct{}
-	rswMarkers     bool
-	rsmRender      bool
-	playerView     *playerSpriteView
-	playerHeadView *playerSpriteView
-	actorViews     map[actorSpriteKey]*humanoidSpriteView
-	actorViewMiss  map[actorSpriteKey]struct{}
+	status        string
+	walkCooldown  int
+	tickCooldown  int
+	whitePixel    *ebiten.Image
+	textures      map[string]*ebiten.Image
+	textureMiss   map[string]struct{}
+	rswMarkers    bool
+	rsmRender     bool
+	playerView    *humanoidSpriteView
+	actorViews    map[actorSpriteKey]*humanoidSpriteView
+	actorViewMiss map[actorSpriteKey]struct{}
 }
 
 type actorSpriteKey struct {
@@ -55,22 +55,15 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.rswMarkers = os.Getenv("GORO_DEBUG_RSW_MARKERS") == "1"
 	m.rsmRender = os.Getenv("GORO_RENDER_RSM") != "0"
 	m.playerView = nil
-	m.playerHeadView = nil
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
-	if view, status := loadPlayerSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
+	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
 		m.playerView = view
 		playerStatus = status
 	} else {
 		playerStatus = status
-	}
-	if view, status := loadPlayerHeadSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
-		m.playerHeadView = view
-		playerStatus += " " + status
-	} else {
-		playerStatus += " " + status
 	}
 	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, ctx.Session.Sex, playerStatus)
 	if ctx.World.MapName == "" {
@@ -207,7 +200,6 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	playerX := float64(ctx.World.Player.X)
 	playerY := float64(ctx.World.Player.Y)
-	playerZ := terrainHeightAt(ctx.World, playerX, playerY)
 	projection := newSceneProjection(screen, ctx.World.Player.X, ctx.World.Player.Y, cameraTargetHeightAt(ctx.World, playerX, playerY))
 
 	if ctx.World.GND != nil {
@@ -218,10 +210,10 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 		if ctx.World.RSW != nil && m.rswMarkers {
 			drawRSWModelMarkers(screen, ctx.World.RSW, ctx.World.GND, projection)
 		}
-		m.drawActors(screen, ctx, projection)
+		m.drawSceneActors(screen, ctx, projection)
 	} else if ctx.World.GAT != nil {
 		drawGAT(screen, ctx.World.GAT, ctx.World.Player.X, ctx.World.Player.Y)
-		m.drawActors(screen, ctx, projection)
+		m.drawSceneActors(screen, ctx, projection)
 	} else {
 		const tile = 32
 		for x := 0; x < width; x += tile {
@@ -232,12 +224,6 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 		}
 	}
 
-	playerPoint := projection.Project(cellCenter(playerX), cellCenter(playerY), playerZ)
-	centerX := float64(playerPoint.x) - 6
-	centerY := float64(playerPoint.y) - 6
-	if !m.drawPlayerSprite(ctx, screen, float64(playerPoint.x), float64(playerPoint.y)) {
-		drawPanel(screen, centerX, centerY, 24, 24)
-	}
 	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir)
 	debugText(screen, 24, 44, "%s", m.status)
 	if ctx.World.GND != nil {
@@ -295,7 +281,7 @@ func isLocalActor(ctx Context, id uint32) bool {
 }
 
 func applySelfMoveAck(ctx Context, ack network.SelfMoveAck) {
-	ctx.World.SetPlayerPosition(ack.ToX, ack.ToY, ctx.World.Dir)
+	ctx.World.SetPlayerMovement(ack.FromX, ack.FromY, ack.ToX, ack.ToY, ctx.World.Dir)
 	ctx.Session.PlayerX = ack.ToX
 	ctx.Session.PlayerY = ack.ToY
 }
@@ -399,28 +385,63 @@ func maxInt(a, b int) int {
 	return b
 }
 
-func (m *WorldMode) drawActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
-	if len(ctx.World.Actors) == 0 {
-		return
-	}
+type sceneActorDrawEntry struct {
+	actor    worldstate.Actor
+	screenX  float64
+	screenY  float64
+	depth    float64
+	isPlayer bool
+}
+
+func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
+	entries := make([]sceneActorDrawEntry, 0, len(ctx.World.Actors)+1)
+	player := ctx.World.Player
+	player.ID = ctx.Session.CharID
+	player.Job = selectedCharacter(ctx.Session).Job
+	player.Head = selectedCharacter(ctx.Session).Hair
+	player.Sex = ctx.Session.Sex
+	player.Dir = ctx.World.Dir
+	entries = appendActorDrawEntry(entries, ctx.World, projection, player, true, now, width, height)
 	for _, actor := range ctx.World.Actors {
 		if actor.ID == ctx.Session.AccountID || actor.ID == ctx.Session.CharID {
 			continue
 		}
-		actorX, actorY := actor.RenderPosition(now)
-		point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainHeightAt(ctx.World, actorX, actorY))
-		if point.x < -32 || point.y < -32 || point.x > float32(width+32) || point.y > float32(height+32) {
-			continue
-		}
-		if m.drawActorSprite(screen, ctx, actor, float64(point.x), float64(point.y)) {
-			continue
-		}
-		x := float64(point.x) - 6
-		y := float64(point.y) - 20
-		drawActorMarker(screen, x, y, actor, now)
+		entries = appendActorDrawEntry(entries, ctx.World, projection, actor, false, now, width, height)
 	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].depth > entries[j].depth
+	})
+	for _, entry := range entries {
+		if entry.isPlayer {
+			if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY) {
+				continue
+			}
+			drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
+			continue
+		}
+		if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY) {
+			continue
+		}
+		drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, now)
+	}
+}
+
+func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
+	actorX, actorY := actor.RenderPosition(now)
+	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainHeightAt(world, actorX, actorY))
+	if point.x < -96 || point.y < -160 || point.x > float32(screenWidth+96) || point.y > float32(screenHeight+96) {
+		return entries
+	}
+	depth := projection.Depth(cellCenter(actorX), cellCenter(actorY), terrainHeightAt(world, actorX, actorY))
+	return append(entries, sceneActorDrawEntry{
+		actor:    actor,
+		screenX:  float64(point.x),
+		screenY:  float64(point.y),
+		depth:    depth,
+		isPlayer: isPlayer,
+	})
 }
 
 func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY float64) bool {
@@ -447,7 +468,15 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 		view = loaded
 		log.Printf("actor sprite resources id=%d job=%d head=%d sex=%d %s", actor.ID, key.job, key.head, key.sex, status)
 	}
-	return drawHumanoidSprite(screen, view.body, view.head, 0, actor.Dir, centerX, centerY)
+	state := spriteState{
+		actionFamily: spriteActionIdle,
+		direction:    actor.Dir,
+		moving:       actor.IsMovingAt(time.Now()),
+	}
+	if state.moving {
+		state.actionFamily = spriteActionWalk
+	}
+	return drawHumanoidBillboard(screen, view, state, centerX, centerY)
 }
 
 func drawActorMarker(screen *ebiten.Image, x, y float64, actor worldstate.Actor, now time.Time) {

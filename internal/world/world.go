@@ -74,6 +74,25 @@ func (w *World) SetPlayerPosition(x, y, dir int) {
 	w.Player.Y = y
 	w.Player.Dir = dir
 	w.Dir = dir
+	w.Player.Moving = false
+	w.Player.FromX = x
+	w.Player.FromY = y
+	w.Player.ToX = x
+	w.Player.ToY = y
+}
+
+func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
+	w.Player.X = toX
+	w.Player.Y = toY
+	w.Player.Dir = dir
+	w.Player.FromX = fromX
+	w.Player.FromY = fromY
+	w.Player.ToX = toX
+	w.Player.ToY = toY
+	w.Player.Moving = true
+	w.Player.MoveStarted = time.Now()
+	w.Player.MoveDuration = actorMovementDuration(fromX, fromY, toX, toY)
+	w.Dir = dir
 }
 
 func (w *World) UpsertActor(actor Actor) {

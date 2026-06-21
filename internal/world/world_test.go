@@ -58,6 +58,20 @@ func TestActorRenderPositionInterpolates(t *testing.T) {
 	}
 }
 
+func TestSetPlayerMovementInterpolatesLocalPlayer(t *testing.T) {
+	w := New()
+	w.SetPlayerMovement(10, 20, 12, 24, 3)
+	if !w.Player.Moving {
+		t.Fatal("player should be moving")
+	}
+	if w.Player.X != 12 || w.Player.Y != 24 || w.Player.FromX != 10 || w.Player.FromY != 20 || w.Player.ToX != 12 || w.Player.ToY != 24 {
+		t.Fatalf("unexpected player movement: %+v", w.Player)
+	}
+	if w.Dir != 3 || w.Player.Dir != 3 {
+		t.Fatalf("direction = world %d player %d, want 3", w.Dir, w.Player.Dir)
+	}
+}
+
 func TestRemoveActor(t *testing.T) {
 	w := New()
 	w.UpsertActor(Actor{ID: 2000002, X: 1, Y: 2})

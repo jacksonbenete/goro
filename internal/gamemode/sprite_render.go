@@ -10,6 +10,19 @@ import (
 	"github.com/kivutar/goro/internal/session"
 )
 
+const (
+	spriteActionIdle = iota
+	spriteActionWalk
+	spriteActionSit
+)
+
+const (
+	humanoidBillboardWidth   = 160
+	humanoidBillboardHeight  = 160
+	humanoidBillboardAnchorX = 80
+	humanoidBillboardAnchorY = 120
+)
+
 type playerSpriteView struct {
 	spr     *res.SPR
 	act     *res.ACT
@@ -24,8 +37,29 @@ type spriteFrameKey struct {
 }
 
 type humanoidSpriteView struct {
-	body *playerSpriteView
-	head *playerSpriteView
+	body       *playerSpriteView
+	head       *playerSpriteView
+	billboards map[humanoidBillboardKey]*spriteBillboard
+	started    time.Time
+}
+
+type humanoidBillboardKey struct {
+	actionFamily int
+	direction    int
+	bodyMotion   int
+	headMotion   int
+}
+
+type spriteBillboard struct {
+	image   *ebiten.Image
+	anchorX float64
+	anchorY float64
+}
+
+type spriteState struct {
+	actionFamily int
+	direction    int
+	moving       bool
 }
 
 func loadPlayerSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
@@ -38,16 +72,26 @@ func loadPlayerHeadSpriteView(manager *res.Manager, character session.Character,
 	return view, status
 }
 
+func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte) (*humanoidSpriteView, string) {
+	return loadHumanoidSpriteView(manager, int(character.Job), int(character.Hair), sex, "player")
+}
+
 func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, label string) (*humanoidSpriteView, string) {
 	body, bodyStatus := loadBodySpriteView(manager, job, sex, label+" body")
 	if body == nil {
 		return nil, bodyStatus
 	}
 	headView, headStatus := loadHeadSpriteView(manager, job, head, sex, label+" head")
-	if headView == nil {
-		return &humanoidSpriteView{body: body}, bodyStatus + " " + headStatus
+	view := &humanoidSpriteView{
+		body:       body,
+		head:       headView,
+		billboards: make(map[humanoidBillboardKey]*spriteBillboard),
+		started:    time.Now(),
 	}
-	return &humanoidSpriteView{body: body, head: headView}, bodyStatus + " " + headStatus
+	if headView == nil {
+		return view, bodyStatus + " " + headStatus
+	}
+	return view, bodyStatus + " " + headStatus
 }
 
 func loadBodySpriteView(manager *res.Manager, job int, sex byte, label string) (*playerSpriteView, string) {
@@ -110,61 +154,147 @@ func selectedCharacter(s *session.Session) session.Character {
 }
 
 func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY float64) bool {
-	return drawHumanoidSprite(screen, m.playerView, m.playerHeadView, 0, ctx.World.Dir, centerX, centerY)
+	moving := ctx.World.Player.IsMovingAt(time.Now())
+	state := spriteState{
+		actionFamily: spriteActionIdle,
+		direction:    normalizeSpriteDirection(ctx.World.Dir),
+		moving:       moving,
+	}
+	if moving {
+		state.actionFamily = spriteActionWalk
+	}
+	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY)
 }
 
-func drawHumanoidSprite(screen *ebiten.Image, bodyView, headView *playerSpriteView, actionID int, direction int, centerX, centerY float64) bool {
-	if bodyView == nil || bodyView.act == nil || bodyView.spr == nil {
+func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state spriteState, centerX, centerY float64) bool {
+	billboard, ok := humanoidBillboardForState(view, state, time.Now())
+	if !ok {
 		return false
 	}
-	bodyPosX, bodyPosY, rendered := drawSpriteView(screen, bodyView, actionID, direction, centerX, centerY, 0, 0)
-	if headView != nil {
-		_, _, headRendered := drawAttachedSpriteView(screen, headView, actionID, direction, centerX, centerY, bodyPosX, bodyPosY)
-		rendered = rendered || headRendered
-	}
-	return rendered
+	var opts ebiten.DrawImageOptions
+	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
+	opts.GeoM.Translate(centerX, centerY)
+	opts.Filter = ebiten.FilterNearest
+	screen.DrawImage(billboard.image, &opts)
+	return true
 }
 
-func drawAttachedSpriteView(screen *ebiten.Image, view *playerSpriteView, actionID int, direction int, centerX, centerY float64, parentPosX, parentPosY int32) (int32, int32, bool) {
-	action, ok := view.act.ActionFor(actionID, direction)
-	if !ok || len(action.Animations) == 0 {
-		return 0, 0, false
+func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
+	if view == nil || view.body == nil || view.body.act == nil || view.body.spr == nil {
+		return nil, false
+	}
+	state.direction = normalizeSpriteDirection(state.direction)
+	bodyActionIndex, bodyAction, ok := resolveSpriteAction(view.body.act, state.actionFamily, state.direction)
+	if !ok || len(bodyAction.Animations) == 0 {
+		return nil, false
+	}
+	bodyMotion := spriteMotionIndex(bodyAction, view.started, now, state.moving)
+	headMotion := 0
+	if view.head != nil {
+		if _, headAction, headOK := resolveSpriteAction(view.head.act, state.actionFamily, state.direction); headOK && len(headAction.Animations) > 0 {
+			headMotion = spriteMotionIndex(headAction, view.started, now, state.moving)
+			if headMotion >= len(headAction.Animations) {
+				headMotion = len(headAction.Animations) - 1
+			}
+		}
+	}
+	key := humanoidBillboardKey{
+		actionFamily: bodyActionIndex / 8,
+		direction:    bodyActionIndex % 8,
+		bodyMotion:   bodyMotion,
+		headMotion:   headMotion,
+	}
+	if billboard, ok := view.billboards[key]; ok {
+		return billboard, true
+	}
+	billboard, ok := composeHumanoidBillboard(view, key.actionFamily, key.direction, bodyAction, bodyMotion, headMotion)
+	if !ok {
+		return nil, false
+	}
+	view.billboards[key] = billboard
+	return billboard, true
+}
+
+func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) (*spriteBillboard, bool) {
+	if bodyMotion < 0 || bodyMotion >= len(bodyAction.Animations) {
+		return nil, false
+	}
+	target := ebiten.NewImage(humanoidBillboardWidth, humanoidBillboardHeight)
+	bodyAnim := bodyAction.Animations[bodyMotion]
+	bodyPosX, bodyPosY, bodyDrawn := drawSpriteAnimation(target, view.body, bodyAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, 0, 0)
+	drawn := bodyDrawn
+	if view.head != nil && view.head.act != nil && view.head.spr != nil {
+		if _, headAction, ok := resolveSpriteAction(view.head.act, actionFamily, direction); ok && len(headAction.Animations) > 0 {
+			if headMotion < 0 || headMotion >= len(headAction.Animations) {
+				headMotion = 0
+			}
+			headAnim := headAction.Animations[headMotion]
+			headPosX, headPosY := int32(0), int32(0)
+			if len(headAnim.Pos) > 0 {
+				headPosX = bodyPosX - headAnim.Pos[0].X
+				headPosY = bodyPosY - headAnim.Pos[0].Y
+			}
+			_, _, headDrawn := drawSpriteAnimation(target, view.head, headAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headPosX, headPosY)
+			drawn = drawn || headDrawn
+		}
+	}
+	if !drawn {
+		return nil, false
+	}
+	return &spriteBillboard{
+		image:   target,
+		anchorX: humanoidBillboardAnchorX,
+		anchorY: humanoidBillboardAnchorY,
+	}, true
+}
+
+func resolveSpriteAction(act *res.ACT, actionFamily, direction int) (int, res.ACTAction, bool) {
+	if act == nil || len(act.Actions) == 0 {
+		return 0, res.ACTAction{}, false
+	}
+	direction = normalizeSpriteDirection(direction)
+	preferred := actionFamily*8 + direction
+	if preferred >= 0 && preferred < len(act.Actions) && len(act.Actions[preferred].Animations) > 0 {
+		return preferred, act.Actions[preferred], true
+	}
+	base := actionFamily * 8
+	if base >= 0 && base < len(act.Actions) && len(act.Actions[base].Animations) > 0 {
+		return base, act.Actions[base], true
+	}
+	for index, action := range act.Actions {
+		if len(action.Animations) > 0 {
+			return index, action, true
+		}
+	}
+	return 0, res.ACTAction{}, false
+}
+
+func spriteMotionIndex(action res.ACTAction, started time.Time, now time.Time, loop bool) int {
+	if len(action.Animations) == 0 {
+		return 0
 	}
 	delay := action.DelayMS
 	if delay <= 0 {
 		delay = 150
 	}
-	animIndex := int(time.Since(view.started).Milliseconds()/int64(delay)) % len(action.Animations)
-	anim := action.Animations[animIndex]
-	posX, posY := int32(0), int32(0)
-	if len(anim.Pos) > 0 {
-		posX = parentPosX - anim.Pos[0].X
-		posY = parentPosY - anim.Pos[0].Y
+	elapsed := now.Sub(started)
+	if elapsed < 0 {
+		elapsed = 0
 	}
-	return drawSpriteAnimation(screen, view, anim, centerX, centerY, posX, posY)
+	index := int(float64(elapsed.Milliseconds()) / float64(delay))
+	if loop || len(action.Animations) == 1 {
+		return index % len(action.Animations)
+	}
+	return index % len(action.Animations)
 }
 
-func drawSpriteView(screen *ebiten.Image, view *playerSpriteView, actionID int, direction int, centerX, centerY float64, offsetX, offsetY int32) (int32, int32, bool) {
-	action, ok := view.act.ActionFor(actionID, direction)
-	if !ok || len(action.Animations) == 0 {
-		return 0, 0, false
-	}
-	delay := action.DelayMS
-	if delay <= 0 {
-		delay = 150
-	}
-	animIndex := int(time.Since(view.started).Milliseconds()/int64(delay)) % len(action.Animations)
-	anim := action.Animations[animIndex]
-	posX, posY := offsetX, offsetY
-	if len(anim.Pos) > 0 {
-		posX += anim.Pos[0].X
-		posY += anim.Pos[0].Y
-	}
-	return drawSpriteAnimation(screen, view, anim, centerX, centerY, posX, posY)
-}
-
-func drawSpriteAnimation(screen *ebiten.Image, view *playerSpriteView, anim res.ACTAnimation, centerX, centerY float64, posX, posY int32) (int32, int32, bool) {
+func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) (int32, int32, bool) {
 	rendered := false
+	baseX, baseY := posX, posY
+	if len(anim.Pos) > 0 {
+		baseX += anim.Pos[0].X
+		baseY += anim.Pos[0].Y
+	}
 	for _, layer := range anim.Layers {
 		if layer.Index < 0 {
 			continue
@@ -173,10 +303,10 @@ func drawSpriteAnimation(screen *ebiten.Image, view *playerSpriteView, anim res.
 		if !ok {
 			continue
 		}
-		drawSpriteLayer(screen, img, layer, centerX+float64(posX), centerY-float64(posY))
+		drawSpriteLayer(target, img, layer, anchorX+float64(baseX), anchorY+float64(baseY))
 		rendered = true
 	}
-	return posX, posY, rendered
+	return baseX, baseY, rendered
 }
 
 func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*ebiten.Image, bool) {
@@ -193,7 +323,7 @@ func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*ebite
 	return img, true
 }
 
-func drawSpriteLayer(screen *ebiten.Image, img *ebiten.Image, layer res.ACTLayer, centerX, centerY float64) {
+func drawSpriteLayer(target *ebiten.Image, img *ebiten.Image, layer res.ACTLayer, centerX, centerY float64) {
 	bounds := img.Bounds()
 	width := float64(bounds.Dx())
 	height := float64(bounds.Dy())
@@ -218,5 +348,13 @@ func drawSpriteLayer(screen *ebiten.Image, img *ebiten.Image, layer res.ACTLayer
 	opts.GeoM.Translate(centerX+float64(layer.X), centerY-float64(layer.Y))
 	opts.Filter = ebiten.FilterNearest
 	opts.ColorScale.Scale(layer.Color[0], layer.Color[1], layer.Color[2], layer.Color[3])
-	screen.DrawImage(img, &opts)
+	target.DrawImage(img, &opts)
+}
+
+func normalizeSpriteDirection(direction int) int {
+	direction %= 8
+	if direction < 0 {
+		direction += 8
+	}
+	return direction
 }
