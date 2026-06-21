@@ -1,0 +1,105 @@
+package network
+
+import (
+	"encoding/binary"
+	"testing"
+)
+
+func TestParseAccountAcceptLogin(t *testing.T) {
+	data := make([]byte, 47+32)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0069)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint32(data[4:8], 100)
+	binary.LittleEndian.PutUint32(data[8:12], 200)
+	binary.LittleEndian.PutUint32(data[12:16], 5)
+	copy(data[20:46], []byte("2026-06-21 15:00:00"))
+	data[46] = 11
+
+	base := 47
+	copy(data[base:base+4], []byte{127, 0, 0, 1})
+	binary.LittleEndian.PutUint16(data[base+4:base+6], 6121)
+	copy(data[base+6:base+26], []byte("Char Server"))
+	binary.LittleEndian.PutUint16(data[base+26:base+28], 42)
+
+	parsed, err := ParseAccountAcceptLogin(Packet{ID: 0x0069, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.AuthCode != 100 || parsed.AccountID != 200 || parsed.UserLevel != 5 || parsed.Sex != 1 {
+		t.Fatalf("unexpected header: %+v", parsed)
+	}
+	if len(parsed.CharServer) != 1 {
+		t.Fatalf("servers = %d", len(parsed.CharServer))
+	}
+	server := parsed.CharServer[0]
+	if server.Address != "127.0.0.1" || server.Port != 6121 || server.Name != "Char Server" || server.UserCount != 42 {
+		t.Fatalf("unexpected server: %+v", server)
+	}
+}
+
+func TestParseCharListLegacy108(t *testing.T) {
+	data := make([]byte, 24+108)
+	binary.LittleEndian.PutUint16(data[0:2], 0x006B)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	char := data[24:]
+	binary.LittleEndian.PutUint32(char[0:4], 1234)
+	binary.LittleEndian.PutUint16(char[42:44], 70)
+	binary.LittleEndian.PutUint16(char[44:46], 100)
+	binary.LittleEndian.PutUint16(char[52:54], 7)
+	binary.LittleEndian.PutUint16(char[58:60], 42)
+	copy(char[74:98], []byte("Alice"))
+	char[98] = 9
+	char[104] = 2
+	char[105] = 5
+
+	parsed, err := ParseCharList(Packet{ID: 0x006B, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Layout != "legacy_24_108" {
+		t.Fatalf("layout = %s", parsed.Layout)
+	}
+	if len(parsed.Characters) != 1 {
+		t.Fatalf("characters = %d", len(parsed.Characters))
+	}
+	got := parsed.Characters[0]
+	if got.ID != 1234 || got.Name != "Alice" || got.HP != 70 || got.MaxHP != 100 || got.Job != 7 || got.Level != 42 || got.Str != 9 || got.Slot != 2 || got.HairColor != 5 {
+		t.Fatalf("unexpected character: %+v", got)
+	}
+}
+
+func TestParseZoneServerNotify(t *testing.T) {
+	data := make([]byte, 28)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0071)
+	binary.LittleEndian.PutUint32(data[2:6], 1234)
+	copy(data[6:22], []byte("prontera.gat"))
+	copy(data[22:26], []byte{127, 0, 0, 1})
+	binary.LittleEndian.PutUint16(data[26:28], 5121)
+
+	zone, err := ParseZoneServerNotify(Packet{ID: 0x0071, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if zone.CharID != 1234 || zone.MapName != "prontera" || zone.Address != "127.0.0.1" || zone.Port != 5121 {
+		t.Fatalf("unexpected zone: %+v", zone)
+	}
+}
+
+func TestParseMapAcceptEnter(t *testing.T) {
+	data := make([]byte, 11)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0073)
+	binary.LittleEndian.PutUint32(data[2:6], 123)
+	data[6], data[7], data[8] = packPosition(150, 200, 3)
+
+	enter, err := ParseMapAcceptEnter(Packet{ID: 0x0073, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if enter.ServerTick != 123 || enter.X != 150 || enter.Y != 200 || enter.Dir != 3 {
+		t.Fatalf("unexpected enter: %+v", enter)
+	}
+}
+
+func packPosition(x, y, dir int) (byte, byte, byte) {
+	return byte(x >> 2), byte(((x & 0x03) << 6) | ((y >> 4) & 0x3f)), byte(((y & 0x0f) << 4) | (dir & 0x0f))
+}

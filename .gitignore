@@ -1,0 +1,5 @@
+/goro
+/goro.exe
+*.test
+*.out
+*.log

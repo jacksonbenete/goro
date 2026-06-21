@@ -1,0 +1,126 @@
+package res
+
+import (
+	"errors"
+	"os"
+	"testing"
+)
+
+func TestGNDRealFileWhenConfigured(t *testing.T) {
+	path := os.Getenv("GORO_TEST_GND")
+	if path == "" {
+		t.Skip("set GORO_TEST_GND to run against a real GND file")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gnd, err := ParseGND(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gnd.Width <= 0 || gnd.Height <= 0 || len(gnd.Cells) != gnd.Width*gnd.Height {
+		t.Fatalf("invalid parsed gnd: %dx%d cells=%d", gnd.Width, gnd.Height, len(gnd.Cells))
+	}
+	if len(gnd.Surfaces) == 0 {
+		t.Fatal("real gnd has no surfaces")
+	}
+}
+
+func TestGNDRealArchiveWhenConfigured(t *testing.T) {
+	path := os.Getenv("GORO_TEST_GRF")
+	if path == "" {
+		t.Skip("set GORO_TEST_GRF to run against a real archive")
+	}
+	name := os.Getenv("GORO_TEST_GND_FILE")
+	if name == "" {
+		name = "geffen_in.gnd"
+	}
+
+	grf, err := OpenGRF(path)
+	if err != nil {
+		if errors.Is(err, ErrGRFUnsupportedVersion) {
+			t.Skip(err)
+		}
+		t.Fatal(err)
+	}
+	defer grf.Close()
+
+	if !grf.Has(name) {
+		matches := grf.NamesWithSuffix(name)
+		if len(matches) == 0 {
+			t.Skipf("%s not present in %s", name, path)
+		}
+		name = matches[0]
+	}
+	data, err := grf.ReadFile(name)
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	gnd, err := ParseGND(data)
+	if err != nil {
+		t.Fatalf("parse %s: %v", name, err)
+	}
+	if gnd.Width <= 0 || gnd.Height <= 0 || len(gnd.Surfaces) == 0 {
+		t.Fatalf("invalid parsed gnd %s: %dx%d surfaces=%d", name, gnd.Width, gnd.Height, len(gnd.Surfaces))
+	}
+}
+
+func TestGNDRealArchiveTexturesWhenConfigured(t *testing.T) {
+	path := os.Getenv("GORO_TEST_GRF")
+	if path == "" {
+		t.Skip("set GORO_TEST_GRF to run against a real archive")
+	}
+	name := os.Getenv("GORO_TEST_GND_FILE")
+	if name == "" {
+		name = "geffen_in.gnd"
+	}
+
+	grf, err := OpenGRF(path)
+	if err != nil {
+		if errors.Is(err, ErrGRFUnsupportedVersion) {
+			t.Skip(err)
+		}
+		t.Fatal(err)
+	}
+	defer grf.Close()
+
+	if !grf.Has(name) {
+		matches := grf.NamesWithSuffix(name)
+		if len(matches) == 0 {
+			t.Skipf("%s not present in %s", name, path)
+		}
+		name = matches[0]
+	}
+	data, err := grf.ReadFile(name)
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	gnd, err := ParseGND(data)
+	if err != nil {
+		t.Fatalf("parse %s: %v", name, err)
+	}
+
+	manager := &Manager{Archives: []*GRF{grf}}
+	found := 0
+	for _, texture := range gnd.Textures {
+		if texture == "" {
+			continue
+		}
+		img, source, err := LoadImage(manager, GroundTextureCandidates(texture))
+		if err != nil {
+			continue
+		}
+		if img.Bounds().Dx() <= 0 || img.Bounds().Dy() <= 0 {
+			t.Fatalf("invalid texture %s from %s: %v", texture, source, img.Bounds())
+		}
+		found++
+		if found >= 3 {
+			break
+		}
+	}
+	if found == 0 {
+		t.Fatalf("decoded no textures from %s (%d names)", name, len(gnd.Textures))
+	}
+	t.Logf("decoded %d textures from %s", found, name)
+}
