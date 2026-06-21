@@ -15,8 +15,14 @@ type GND struct {
 	Height       int
 	Zoom         float32
 	Textures     []string
+	Lightmaps    []GNDLightmap
 	Surfaces     []GNDSurface
 	Cells        []GNDCell
+}
+
+type GNDLightmap struct {
+	Alpha [4]uint8
+	Color [4]color.RGBA
 }
 
 type GNDSurface struct {
@@ -66,21 +72,36 @@ func ParseGND(data []byte) (*GND, error) {
 	}
 
 	lightmapCount := int(reader.i32())
-	_ = reader.i32()
-	_ = reader.i32()
-	_ = reader.i32()
+	lightmapWidth := int(reader.i32())
+	lightmapHeight := int(reader.i32())
+	lightmapFormat := int(reader.i32())
 	if lightmapCount < 0 {
 		return nil, fmt.Errorf("invalid gnd lightmap count=%d", lightmapCount)
 	}
+	if lightmapWidth <= 0 || lightmapHeight <= 0 || lightmapFormat <= 0 {
+		return nil, fmt.Errorf("invalid gnd lightmap header count=%d size=%dx%d format=%d", lightmapCount, lightmapWidth, lightmapHeight, lightmapFormat)
+	}
+	lightmaps := make([]GNDLightmap, lightmapCount)
 	if minor == 7 {
-		reader.skip(lightmapCount * 256)
+		for i := range lightmaps {
+			lightmaps[i] = decodeGNDLightmapRaw(reader.bytes(256))
+		}
 	} else {
-		reader.skip(lightmapCount * 16)
+		indexes := make([][4]int, lightmapCount)
+		for i := range indexes {
+			indexes[i] = [4]int{int(reader.i32()), int(reader.i32()), int(reader.i32()), int(reader.i32())}
+		}
 		colorChannelCount := int(reader.i32())
 		if colorChannelCount < 0 {
 			return nil, fmt.Errorf("invalid gnd color channel count=%d", colorChannelCount)
 		}
-		reader.skip(colorChannelCount * 40)
+		colorChannels := make([][40]byte, colorChannelCount)
+		for i := range colorChannels {
+			copy(colorChannels[i][:], reader.bytes(40))
+		}
+		for i, index := range indexes {
+			lightmaps[i] = decodeGNDLightmapIndexed(index, colorChannels)
+		}
 	}
 
 	surfaceCount := int(reader.i32())
@@ -129,6 +150,7 @@ func ParseGND(data []byte) (*GND, error) {
 		Height:       height,
 		Zoom:         zoom,
 		Textures:     textures,
+		Lightmaps:    lightmaps,
 		Surfaces:     surfaces,
 		Cells:        cells,
 	}, nil
@@ -150,6 +172,75 @@ func (g *GND) Surface(index int) (GNDSurface, bool) {
 		return GNDSurface{}, false
 	}
 	return g.Surfaces[index], true
+}
+
+func (g *GND) Lightmap(index int) (GNDLightmap, bool) {
+	if g == nil || index < 0 || index >= len(g.Lightmaps) {
+		return GNDLightmap{}, false
+	}
+	return g.Lightmaps[index], true
+}
+
+func decodeGNDLightmapRaw(data []byte) GNDLightmap {
+	var lightmap GNDLightmap
+	if len(data) < 256 {
+		return lightmap
+	}
+	for i, sample := range gndLightmapVertexSamples {
+		pixel := sample.y*8 + sample.x
+		lightmap.Alpha[i] = data[pixel]
+		base := 64 + pixel*3
+		lightmap.Color[i] = color.RGBA{R: data[base], G: data[base+1], B: data[base+2], A: 255}
+	}
+	return lightmap
+}
+
+func decodeGNDLightmapIndexed(index [4]int, channels [][40]byte) GNDLightmap {
+	var lightmap GNDLightmap
+	if len(channels) == 0 {
+		return lightmap
+	}
+	for _, channelID := range index {
+		if channelID < 0 || channelID >= len(channels) {
+			return lightmap
+		}
+	}
+	a := unpackGNDLightmap5BitChannel(channels[index[0]])
+	r := unpackGNDLightmap5BitChannel(channels[index[1]])
+	g := unpackGNDLightmap5BitChannel(channels[index[2]])
+	b := unpackGNDLightmap5BitChannel(channels[index[3]])
+	for i, sample := range gndLightmapVertexSamples {
+		src := sample.x*8 + sample.y
+		lightmap.Alpha[i] = a[src]
+		lightmap.Color[i] = color.RGBA{R: r[src], G: g[src], B: b[src], A: 255}
+	}
+	return lightmap
+}
+
+func unpackGNDLightmap5BitChannel(channel [40]byte) [64]uint8 {
+	var out [64]uint8
+	for i := range out {
+		bitOffset := i * 5
+		byteOffset := bitOffset / 8
+		bitShift := bitOffset % 8
+		if bitShift >= 4 {
+			out[i] = ((channel[byteOffset] & byte(0xf8>>bitShift)) << bitShift) |
+				((channel[byteOffset+1] & byte(0xf8<<(8-bitShift))) >> (8 - bitShift))
+		} else {
+			out[i] = (channel[byteOffset] & byte(0xf8>>bitShift)) << bitShift
+		}
+	}
+	return out
+}
+
+var gndLightmapVertexSamples = [...]struct {
+	y int
+	x int
+}{
+	{y: 1, x: 1},
+	{y: 1, x: 5},
+	{y: 5, x: 1},
+	{y: 5, x: 5},
 }
 
 func fixedBinaryString(data []byte) string {

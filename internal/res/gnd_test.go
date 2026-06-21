@@ -77,6 +77,40 @@ func TestFixedBinaryStringPreservesNonUTF8Bytes(t *testing.T) {
 	}
 }
 
+func TestUnpackGNDLightmap5BitChannel(t *testing.T) {
+	var channel [40]byte
+	for i := range channel {
+		channel[i] = 0xff
+	}
+	values := unpackGNDLightmap5BitChannel(channel)
+	for i, value := range values {
+		if value != 248 {
+			t.Fatalf("value[%d] = %d, want 248", i, value)
+		}
+	}
+}
+
+func TestDecodeGNDLightmapRaw(t *testing.T) {
+	raw := make([]byte, 256)
+	for i, sample := range gndLightmapVertexSamples {
+		pixel := sample.y*8 + sample.x
+		raw[pixel] = byte(32 + i)
+		base := 64 + pixel*3
+		raw[base] = byte(64 + i)
+		raw[base+1] = byte(96 + i)
+		raw[base+2] = byte(128 + i)
+	}
+	lightmap := decodeGNDLightmapRaw(raw)
+	for i := range lightmap.Alpha {
+		if lightmap.Alpha[i] != byte(32+i) {
+			t.Fatalf("alpha[%d] = %d", i, lightmap.Alpha[i])
+		}
+		if lightmap.Color[i].R != byte(64+i) || lightmap.Color[i].G != byte(96+i) || lightmap.Color[i].B != byte(128+i) {
+			t.Fatalf("color[%d] = %+v", i, lightmap.Color[i])
+		}
+	}
+}
+
 func writeI32(buf *bytes.Buffer, value int32) {
 	var tmp [4]byte
 	binary.LittleEndian.PutUint32(tmp[:], uint32(value))

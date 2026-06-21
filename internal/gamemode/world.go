@@ -637,13 +637,14 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 			if cell.Top >= 0 {
 				surface, ok := gnd.Surface(cell.Top)
 				if ok {
+					vertexOrder := [4]int{0, 1, 3, 2}
 					points := [4]screenPoint{
 						projection.Project(float64(x)*2, float64(y)*2, float64(cell.Heights[0])),
 						projection.Project(float64(x+1)*2, float64(y)*2, float64(cell.Heights[1])),
 						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(cell.Heights[3])),
 						projection.Project(float64(x)*2, float64(y+1)*2, float64(cell.Heights[2])),
 					}
-					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, [4]int{0, 1, 3, 2}), []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, 1.0, float64(width), float64(height))
+					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, 1.0, float64(width), float64(height))
 				}
 			}
 
@@ -651,6 +652,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 				neighbor, neighborOK := gnd.Cell(x, y+1)
 				surface, surfaceOK := gnd.Surface(cell.Front)
 				if neighborOK && surfaceOK {
+					vertexOrder := [4]int{2, 1, 3, 0}
 					points := [4]screenPoint{
 						projection.Project(float64(x)*2, float64(y+1)*2, float64(neighbor.Heights[0])),
 						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(cell.Heights[3])),
@@ -658,7 +660,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 						projection.Project(float64(x)*2, float64(y+1)*2, float64(cell.Heights[2])),
 					}
 					heights := [4]float32{neighbor.Heights[0], cell.Heights[3], neighbor.Heights[1], cell.Heights[2]}
-					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, [4]int{2, 1, 3, 0}), []uint16{0, 1, 2, 0, 1, 3}, surface, heights, 0.82, float64(width), float64(height))
+					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 1, 3}, surface, heights, 0.82, float64(width), float64(height))
 				}
 			}
 
@@ -666,6 +668,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 				neighbor, neighborOK := gnd.Cell(x+1, y)
 				surface, surfaceOK := gnd.Surface(cell.Right)
 				if neighborOK && surfaceOK {
+					vertexOrder := [4]int{1, 0, 3, 2}
 					points := [4]screenPoint{
 						projection.Project(float64(x+1)*2, float64(y)*2, float64(cell.Heights[1])),
 						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(cell.Heights[3])),
@@ -673,21 +676,21 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(neighbor.Heights[2])),
 					}
 					heights := [4]float32{cell.Heights[1], cell.Heights[3], neighbor.Heights[0], neighbor.Heights[2]}
-					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, [4]int{1, 0, 3, 2}), []uint16{0, 1, 2, 2, 3, 1}, surface, heights, 0.9, float64(width), float64(height))
+					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 3, 1}, surface, heights, 0.9, float64(width), float64(height))
 				}
 			}
 		}
 	}
 }
 
-func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, surface res.GNDSurface, heights [4]float32, brightness float64, screenWidth, screenHeight float64) {
+func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, points [4]screenPoint, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, brightness float64, screenWidth, screenHeight float64) {
 	if quadOutside(points, screenWidth, screenHeight) {
 		return
 	}
 
 	textureName := gndTextureName(gnd, surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
-		drawTexturedSurface(screen, texture, points, uvs, indices, surfaceTint(surface.Color, heights, brightness))
+		drawTexturedSurface(screen, texture, points, uvs, indices, surfaceVertexTints(gnd, surface, vertexOrder, heights, brightness))
 		return
 	}
 	drawColoredSurface(screen, m.whitePixel, points, indices, groundSurfaceColor(textureName, surface.Color, heights, brightness))
@@ -833,6 +836,32 @@ func surfaceTint(surfaceColor color.RGBA, heights [4]float32, brightness float64
 	}
 }
 
+func surfaceVertexTints(gnd *res.GND, surface res.GNDSurface, vertexOrder [4]int, heights [4]float32, brightness float64) [4]color.RGBA {
+	if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
+		return lightmapSurfaceVertexTints(surface.Color, lightmap, vertexOrder, brightness)
+	}
+	tint := surfaceTint(surface.Color, heights, brightness)
+	return [4]color.RGBA{tint, tint, tint, tint}
+}
+
+func lightmapSurfaceVertexTints(surfaceColor color.RGBA, lightmap res.GNDLightmap, vertexOrder [4]int, brightness float64) [4]color.RGBA {
+	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	if surfaceColor.A != 0 {
+		base = surfaceColor
+	}
+	var tints [4]color.RGBA
+	for i, sourceVertex := range vertexOrder {
+		light := float64(lightmap.Alpha[sourceVertex]) / 255 * brightness
+		tints[i] = color.RGBA{
+			R: clampColor(float64(base.R) * light),
+			G: clampColor(float64(base.G) * light),
+			B: clampColor(float64(base.B) * light),
+			A: 255,
+		}
+	}
+	return tints
+}
+
 func groundSurfaceColor(textureName string, surfaceColor color.RGBA, heights [4]float32, brightness float64) color.RGBA {
 	base := textureColor(textureName)
 	if surfaceColor.A != 0 && !(surfaceColor.R == 255 && surfaceColor.G == 255 && surfaceColor.B == 255) {
@@ -892,25 +921,34 @@ func drawColoredSurface(screen, white *ebiten.Image, points [4]screenPoint, indi
 	screen.DrawTriangles(vertices, indices, white, nil)
 }
 
-func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, tint color.RGBA) {
+func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
 	bounds := texture.Bounds()
 	w := float32(bounds.Dx())
 	h := float32(bounds.Dy())
-	r := float32(tint.R) / 255
-	g := float32(tint.G) / 255
-	b := float32(tint.B) / 255
-	a := float32(tint.A) / 255
 	vertices := []ebiten.Vertex{
-		{DstX: points[0].x, DstY: points[0].y, SrcX: uvs[0].u * w, SrcY: uvs[0].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		{DstX: points[1].x, DstY: points[1].y, SrcX: uvs[1].u * w, SrcY: uvs[1].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		{DstX: points[2].x, DstY: points[2].y, SrcX: uvs[2].u * w, SrcY: uvs[2].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		{DstX: points[3].x, DstY: points[3].y, SrcX: uvs[3].u * w, SrcY: uvs[3].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
+		texturedSurfaceVertex(points[0], uvs[0], tints[0], w, h),
+		texturedSurfaceVertex(points[1], uvs[1], tints[1], w, h),
+		texturedSurfaceVertex(points[2], uvs[2], tints[2], w, h),
+		texturedSurfaceVertex(points[3], uvs[3], tints[3], w, h),
 	}
 	op := &ebiten.DrawTrianglesOptions{
 		Filter:  ebiten.FilterLinear,
 		Address: ebiten.AddressRepeat,
 	}
 	screen.DrawTriangles(vertices, indices, texture, op)
+}
+
+func texturedSurfaceVertex(point screenPoint, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) ebiten.Vertex {
+	return ebiten.Vertex{
+		DstX:   point.x,
+		DstY:   point.y,
+		SrcX:   uv.u * textureWidth,
+		SrcY:   uv.v * textureHeight,
+		ColorR: float32(tint.R) / 255,
+		ColorG: float32(tint.G) / 255,
+		ColorB: float32(tint.B) / 255,
+		ColorA: float32(tint.A) / 255,
+	}
 }
 
 func drawGAT(screen *ebiten.Image, gat *res.GAT, playerX, playerY int) {

@@ -163,7 +163,7 @@ func TestGNDRealArchiveTextureDebugWhenConfigured(t *testing.T) {
 		t.Fatalf("parse %s: %v", name, err)
 	}
 
-	t.Logf("%s: size=%dx%d textures=%d surfaces=%d", name, gnd.Width, gnd.Height, len(gnd.Textures), len(gnd.Surfaces))
+	t.Logf("%s: size=%dx%d textures=%d lightmaps=%d surfaces=%d", name, gnd.Width, gnd.Height, len(gnd.Textures), len(gnd.Lightmaps), len(gnd.Surfaces))
 	manager := &Manager{Archives: []*GRF{grf}}
 	for i, texture := range gnd.Textures {
 		if i >= 24 {
@@ -212,7 +212,11 @@ func TestGNDRealArchiveTextureDebugWhenConfigured(t *testing.T) {
 			if surface.TextureID >= 0 && surface.TextureID < len(gnd.Textures) {
 				texture = gnd.Textures[surface.TextureID]
 			}
-			t.Logf("cell %d,%d top=%d tex=%d %q u=%v v=%v h=%v", x, y, cell.Top, surface.TextureID, texture, surface.U, surface.V, cell.Heights)
+			lightmap := GNDLightmap{}
+			if surface.LightmapID >= 0 && surface.LightmapID < len(gnd.Lightmaps) {
+				lightmap = gnd.Lightmaps[surface.LightmapID]
+			}
+			t.Logf("cell %d,%d top=%d tex=%d %q lm=%d alpha=%v u=%v v=%v h=%v", x, y, cell.Top, surface.TextureID, texture, surface.LightmapID, lightmap.Alpha, surface.U, surface.V, cell.Heights)
 		}
 	}
 }
