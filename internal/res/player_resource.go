@@ -18,6 +18,18 @@ const (
 	weaponLightSuffix     = "\xB0\xCB\xB1\xA4"
 )
 
+var accessoryLuaCandidates = []string{
+	"data\\luafiles514\\lua files\\datainfo\\accessoryid.lub",
+	"data\\lua files\\datainfo\\accessoryid.lub",
+	"lua files\\datainfo\\accessoryid.lub",
+}
+
+var accessoryNameLuaCandidates = []string{
+	"data\\luafiles514\\lua files\\datainfo\\accname.lub",
+	"data\\lua files\\datainfo\\accname.lub",
+	"lua files\\datainfo\\accname.lub",
+}
+
 var playerJobTokens = map[int]string{
 	0:  "\xC3\xCA\xBA\xB8\xC0\xDA",
 	1:  "\xB0\xCB\xBB\xE7",
@@ -80,6 +92,43 @@ func PlayerAccessoryResourceCandidates(job int, head int, sex byte, viewID int, 
 	}
 	return []string{
 		fmt.Sprintf("%s%s\\%s%s%s.%s", playerAccessoryRoot, sexToken, sexToken, separator, resourceName, extension),
+	}
+}
+
+func (m *Manager) AccessoryResourceName(viewID int) (string, bool) {
+	if viewID <= 0 {
+		return "", false
+	}
+	if !m.accessoryNamesLoaded {
+		m.loadAccessoryResourceNames()
+	}
+	name, ok := m.accessoryNames[viewID]
+	return name, ok && name != ""
+}
+
+func (m *Manager) loadAccessoryResourceNames() {
+	m.accessoryNamesLoaded = true
+	m.accessoryNames = make(map[int]string)
+	globals := make(map[string]luaValue)
+	for _, candidates := range [][]string{accessoryLuaCandidates, accessoryNameLuaCandidates} {
+		_, data, ok := m.ReadFirst(candidates)
+		if !ok {
+			return
+		}
+		if err := executeLua51Bytecode(data, globals); err != nil {
+			return
+		}
+	}
+	table := globals["AccNameTable"]
+	if table.kind != luaTable {
+		return
+	}
+	for key, value := range table.table {
+		index, ok := key.(int)
+		if !ok || value.kind != luaString || value.str == "" {
+			continue
+		}
+		m.accessoryNames[index] = value.str
 	}
 }
 

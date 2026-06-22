@@ -176,6 +176,11 @@ func loadAccessorySpriteView(manager *res.Manager, job int, head int, sex byte, 
 	if viewID <= 0 {
 		return nil, ""
 	}
+	if resourceName == "" {
+		if name, ok := manager.AccessoryResourceName(viewID); ok {
+			resourceName = name
+		}
+	}
 	if viewID != 185 && resourceName == "" {
 		return nil, fmt.Sprintf("%s skipped: missing accessory resource table", label)
 	}

@@ -14,6 +14,9 @@ type Manager struct {
 	ClientInfo ClientInfo
 	FoundFiles []string
 	Archives   []*GRF
+
+	accessoryNames       map[int]string
+	accessoryNamesLoaded bool
 }
 
 func NewManager(root string) (*Manager, error) {
