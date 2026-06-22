@@ -81,6 +81,35 @@ func TestResolveSpriteActionUsesDirectIndexForCompactNonPCAct(t *testing.T) {
 	}
 }
 
+func TestPreferNonPCActUpgradeForLegacyMonsterAct(t *testing.T) {
+	if !preferNonPCActUpgrade(1002, 8, 72) {
+		t.Fatal("expected richer monster ACT to upgrade legacy directional ACT")
+	}
+	if preferNonPCActUpgrade(1002, 40, 72) {
+		t.Fatal("did not expect upgrade when current ACT already has action families")
+	}
+	if preferNonPCActUpgrade(47, 8, 72) {
+		t.Fatal("did not expect NPC ACT upgrade")
+	}
+	if preferNonPCActUpgrade(1002, 8, 16) {
+		t.Fatal("did not expect small candidate ACT upgrade")
+	}
+}
+
+func TestActFitsSPRRejectsMissingFrame(t *testing.T) {
+	spr := &res.SPR{Frames: make([]res.SPRFrame, 2), RGBAIndex: 2}
+	act := &res.ACT{Actions: []res.ACTAction{{
+		Animations: []res.ACTAnimation{{Layers: []res.ACTLayer{{Index: 1}}}},
+	}}}
+	if !actFitsSPR(act, spr) {
+		t.Fatal("expected ACT to fit SPR")
+	}
+	act.Actions[0].Animations[0].Layers[0].Index = 2
+	if actFitsSPR(act, spr) {
+		t.Fatal("expected ACT with missing frame to be rejected")
+	}
+}
+
 func TestSpriteMotionIndexUsesActionDelay(t *testing.T) {
 	action := res.ACTAction{
 		Animations: []res.ACTAnimation{{}, {}, {}},

@@ -138,7 +138,16 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSp
 	if !ok {
 		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
 	}
-	return loadSpriteView(manager, res.NonPCSpriteResourceCandidates(job, resourceName, "act"), res.NonPCSpriteResourceCandidates(job, resourceName, "spr"), nil, label+" "+resourceName)
+	view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(job, resourceName, "act"), res.NonPCSpriteResourceCandidates(job, resourceName, "spr"), nil, label+" "+resourceName)
+	if view == nil {
+		return nil, status
+	}
+	if upgraded, source, ok := loadRicherNonPCAct(manager, job, resourceName, len(view.act.Actions), view.spr); ok {
+		view.act = upgraded
+		view.actSource = source
+		status += fmt.Sprintf(" act-upgraded=%s actions=%d", source, len(upgraded.Actions))
+	}
+	return view, status
 }
 
 func characterHeadPalette(character session.Character) int {
@@ -272,6 +281,64 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 		billboards:    make(map[singleSpriteBillboardKey]*spriteBillboard),
 		started:       time.Now(),
 	}, fmt.Sprintf("%s: %s actions=%d frames=%d%s", label, sprSource, len(act.Actions), len(spr.Frames), paletteStatus)
+}
+
+func loadRicherNonPCAct(manager *res.Manager, job int, resourceName string, currentActions int, spr *res.SPR) (*res.ACT, string, bool) {
+	if manager == nil || job < 1000 || currentActions > 8 {
+		return nil, "", false
+	}
+	var best *res.ACT
+	bestSource := ""
+	for _, archive := range manager.Archives {
+		for _, candidate := range res.NonPCSpriteResourceCandidates(job, resourceName, "act") {
+			data, err := archive.ReadFile(candidate)
+			if err != nil {
+				continue
+			}
+			act, err := res.ParseACT(data)
+			if err != nil {
+				continue
+			}
+			if !preferNonPCActUpgrade(job, currentActions, len(act.Actions)) {
+				continue
+			}
+			if !actFitsSPR(act, spr) {
+				continue
+			}
+			if best == nil || len(act.Actions) > len(best.Actions) {
+				best = act
+				bestSource = archive.Path() + ":" + candidate
+			}
+		}
+	}
+	return best, bestSource, best != nil
+}
+
+func preferNonPCActUpgrade(job int, currentActions, candidateActions int) bool {
+	return job >= 1000 && currentActions > 0 && currentActions <= 8 && candidateActions >= 40
+}
+
+func actFitsSPR(act *res.ACT, spr *res.SPR) bool {
+	if act == nil || spr == nil {
+		return false
+	}
+	for _, action := range act.Actions {
+		for _, anim := range action.Animations {
+			for _, layer := range anim.Layers {
+				if layer.Index < 0 {
+					continue
+				}
+				index := int(layer.Index)
+				if layer.SPRType == res.SPRFrameRGBA {
+					index += spr.RGBAIndex
+				}
+				if index < 0 || index >= len(spr.Frames) {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func loadSpritePalette(manager *res.Manager, candidates []string) (*res.Palette, string, string) {
