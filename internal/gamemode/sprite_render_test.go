@@ -104,6 +104,17 @@ func TestHumanoidIdleUsesFirstBodyMotion(t *testing.T) {
 	}
 }
 
+func TestNonPCIdleBodyMotionAnimates(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    100,
+	}
+	got := bodyMotionForState(action, spriteState{actionFamily: spriteActionIdle, loopIdle: true}, time.Unix(0, 0), time.Unix(0, 0).Add(250*time.Millisecond))
+	if got != 2 {
+		t.Fatalf("nonpc idle body motion = %d, want 2", got)
+	}
+}
+
 func TestHumanoidWalkBodyMotionAnimates(t *testing.T) {
 	action := res.ACTAction{
 		Animations: []res.ACTAnimation{{}, {}, {}},

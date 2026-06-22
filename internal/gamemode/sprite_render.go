@@ -101,6 +101,7 @@ type spriteState struct {
 	moving       bool
 	started      time.Time
 	loop         bool
+	loopIdle     bool
 	moveSpeedMS  int
 	walkDistance float64
 }
@@ -896,6 +897,9 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 		return walkMotionIndex(action, state.walkDistance)
 	}
 	if state.actionFamily == spriteActionWalk || state.loop {
+		return spriteMotionIndexWithDelay(action, started, now, true, delayMS)
+	}
+	if state.actionFamily == spriteActionIdle && state.loopIdle {
 		return spriteMotionIndexWithDelay(action, started, now, true, delayMS)
 	}
 	if !state.started.IsZero() {

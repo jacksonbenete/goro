@@ -1646,6 +1646,7 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
 		moving:       actor.IsMovingAt(now),
+		loopIdle:     true,
 		moveSpeedMS:  actor.Speed,
 	}
 	if state.moving {
