@@ -60,6 +60,28 @@ func TestSpriteMotionIndexUsesActionDelay(t *testing.T) {
 	}
 }
 
+func TestHumanoidIdleUsesFirstBodyMotion(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    100,
+	}
+	got := bodyMotionForState(action, spriteState{actionFamily: spriteActionIdle}, time.Unix(0, 0), time.Unix(0, 0).Add(250*time.Millisecond))
+	if got != 0 {
+		t.Fatalf("idle body motion = %d, want 0", got)
+	}
+}
+
+func TestHumanoidWalkBodyMotionAnimates(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    100,
+	}
+	got := bodyMotionForState(action, spriteState{actionFamily: spriteActionWalk}, time.Unix(0, 0), time.Unix(0, 0).Add(250*time.Millisecond))
+	if got != 2 {
+		t.Fatalf("walk body motion = %d, want 2", got)
+	}
+}
+
 func TestAttachmentDeltaMatchesAttachPointAttribute(t *testing.T) {
 	base := res.ACTAnimation{Pos: []res.ACTPosition{
 		{X: 1, Y: 2, Attr: 7},

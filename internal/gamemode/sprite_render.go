@@ -318,7 +318,7 @@ func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now 
 	if !ok || len(bodyAction.Animations) == 0 {
 		return nil, false
 	}
-	bodyMotion := spriteMotionIndex(bodyAction, view.started, now, state.moving)
+	bodyMotion := bodyMotionForState(bodyAction, state, view.started, now)
 	headMotion := 0
 	if view.head != nil {
 		if _, headAction, headOK := resolveSpriteAction(view.head.act, state.actionFamily, state.direction); headOK && len(headAction.Animations) > 0 {
@@ -666,7 +666,17 @@ func spriteMotionIndex(action res.ACTAction, started time.Time, now time.Time, l
 	if loop || len(action.Animations) == 1 {
 		return index % len(action.Animations)
 	}
-	return index % len(action.Animations)
+	if index >= len(action.Animations) {
+		return len(action.Animations) - 1
+	}
+	return index
+}
+
+func bodyMotionForState(action res.ACTAction, state spriteState, started time.Time, now time.Time) int {
+	if state.actionFamily != spriteActionWalk {
+		return 0
+	}
+	return spriteMotionIndex(action, started, now, true)
 }
 
 func selectHeadMotion(actionFamily int, bodyMotion int, headAction res.ACTAction) int {
