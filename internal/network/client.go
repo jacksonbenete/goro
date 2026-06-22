@@ -76,6 +76,7 @@ func (c *Client) Send(data []byte) error {
 	}
 	_, err := conn.Write(data)
 	if err != nil {
+		c.clearConn(conn)
 		c.addError(err)
 	}
 	return err
@@ -186,10 +187,20 @@ func (c *Client) readLoop(conn net.Conn) {
 			if err != io.EOF {
 				c.addError(err)
 			}
-			c.setStatus("offline")
+			c.clearConn(conn)
 			return
 		}
 	}
+}
+
+func (c *Client) clearConn(conn net.Conn) {
+	c.mu.Lock()
+	if c.conn == conn {
+		c.conn = nil
+		c.status = "offline"
+	}
+	c.mu.Unlock()
+	_ = conn.Close()
 }
 
 func (c *Client) setStatus(status string) {

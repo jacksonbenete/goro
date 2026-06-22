@@ -37,7 +37,6 @@ type WorldMode struct {
 	nonPCViews    map[int]*playerSpriteView
 	nonPCViewMiss map[int]struct{}
 	rsmDebugLog   map[string]struct{}
-	nameRequests  map[uint32]time.Time
 }
 
 type actorSpriteKey struct {
@@ -72,7 +71,6 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.nonPCViews = make(map[int]*playerSpriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmDebugLog = make(map[string]struct{})
-	m.nameRequests = make(map[uint32]time.Time)
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
@@ -174,7 +172,6 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	for _, err := range ctx.Network.DrainErrors() {
 		log.Printf("network frame error: %v", err)
 	}
-	m.requestMissingActorNames(ctx, time.Now())
 
 	if m.tickCooldown > 0 {
 		m.tickCooldown--
@@ -677,29 +674,6 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	})
 }
 
-func (m *WorldMode) requestMissingActorNames(ctx Context, now time.Time) {
-	if ctx.Network == nil || ctx.World == nil {
-		return
-	}
-	if m.nameRequests == nil {
-		m.nameRequests = make(map[uint32]time.Time)
-	}
-	for _, actor := range ctx.World.Actors {
-		if actor.ID == 0 || isLocalActor(ctx, actor.ID) || hasActorServerName(actor) {
-			continue
-		}
-		if last, ok := m.nameRequests[actor.ID]; ok && now.Sub(last) < 2*time.Second {
-			continue
-		}
-		m.nameRequests[actor.ID] = now
-		_ = ctx.Network.SendNameRequest(actor.ID)
-	}
-}
-
-func hasActorServerName(actor worldstate.Actor) bool {
-	return sanitizeActorName(actor.Name) != ""
-}
-
 func actorDisplayName(ctx Context, actor worldstate.Actor, isPlayer bool) string {
 	if isPlayer {
 		if name := sanitizeActorName(selectedCharacterName(ctx.Session)); name != "" {
@@ -768,10 +742,7 @@ func drawActorNameLabel(screen *ebiten.Image, label string, centerX, baseY, scal
 		scale = 1
 	}
 	x := int(centerX) - len(label)*3
-	y := int(baseY - 96*scale)
-	if y < 0 {
-		y = 0
-	}
+	y := int(baseY + 13*scale)
 	debugText(screen, x+1, y+1, "%s", label)
 	debugText(screen, x, y, "%s", label)
 }
