@@ -17,6 +17,7 @@ import (
 	"github.com/kivutar/goro/internal/network"
 	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
+	"github.com/kivutar/goro/internal/session"
 	worldstate "github.com/kivutar/goro/internal/world"
 )
 
@@ -134,6 +135,20 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse actor vanish 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			removeNetworkActor(ctx, vanish)
+			continue
+		}
+		if look, ok, err := network.ParseActorLookChange(pkt); err != nil {
+			log.Printf("parse actor look change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			if applyActorLookChange(ctx, look) {
+				if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, selectedCharacter(ctx.Session), ctx.Session.Sex); view != nil {
+					m.playerView = view
+					log.Printf("player sprite changed type=%d value=%d %s", look.Type, look.Value, status)
+				} else {
+					m.playerView = nil
+					log.Printf("player sprite reload failed after look change type=%d value=%d: %s", look.Type, look.Value, status)
+				}
+			}
 			continue
 		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
@@ -286,6 +301,80 @@ func removeNetworkActor(ctx Context, vanish network.ActorVanish) {
 		return
 	}
 	ctx.World.RemoveActor(vanish.ID)
+}
+
+func applyActorLookChange(ctx Context, look network.ActorLookChange) bool {
+	if look.ID == 0 {
+		return false
+	}
+	if isLocalActor(ctx, look.ID) {
+		applyCharacterLookChange(ctx.Session, look)
+		applyWorldActorLookChange(&ctx.World.Player, look)
+		return true
+	}
+	actor, ok := ctx.World.Actors[look.ID]
+	if !ok {
+		actor = worldstate.Actor{ID: look.ID, Name: "actor", Appearance: true}
+	}
+	applyWorldActorLookChange(&actor, look)
+	ctx.World.UpsertActor(actor)
+	return false
+}
+
+func applyCharacterLookChange(sessionState *session.Session, look network.ActorLookChange) {
+	update := func(character *session.Character) {
+		switch look.Type {
+		case 0:
+			character.Job = int16(look.Value)
+		case 1:
+			character.Hair = int16(look.Value)
+		case 2:
+			character.Weapon = int16(look.Value & 0xFFFF)
+			character.Shield = int16((look.Value >> 16) & 0xFFFF)
+		case 3:
+			character.HeadLow = int16(look.Value)
+		case 4:
+			character.HeadTop = int16(look.Value)
+		case 5:
+			character.HeadMid = int16(look.Value)
+		case 6:
+			character.HeadPal = int16(look.Value)
+			if look.Value <= 255 {
+				character.HairColor = uint8(look.Value)
+			}
+		case 7:
+			character.BodyPal = int16(look.Value)
+		case 8:
+			character.Shield = int16(look.Value)
+		}
+	}
+	update(&sessionState.Selected)
+	for index := range sessionState.Characters {
+		if sessionState.Characters[index].ID == sessionState.CharID || sessionState.Characters[index].ID == sessionState.Selected.ID {
+			update(&sessionState.Characters[index])
+		}
+	}
+}
+
+func applyWorldActorLookChange(actor *worldstate.Actor, look network.ActorLookChange) {
+	actor.Appearance = true
+	switch look.Type {
+	case 0:
+		actor.Job = int16(look.Value)
+	case 1:
+		actor.Head = int16(look.Value)
+	case 2:
+		actor.Weapon = int16(look.Value & 0xFFFF)
+		actor.Shield = int16((look.Value >> 16) & 0xFFFF)
+	case 3:
+		actor.HeadLow = int16(look.Value)
+	case 4:
+		actor.HeadTop = int16(look.Value)
+	case 5:
+		actor.HeadMid = int16(look.Value)
+	case 8:
+		actor.Shield = int16(look.Value)
+	}
 }
 
 func isLocalActor(ctx Context, id uint32) bool {

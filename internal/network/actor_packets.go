@@ -46,6 +46,12 @@ type ActorSetPosition struct {
 	Y  int
 }
 
+type ActorLookChange struct {
+	ID    uint32
+	Type  uint8
+	Value uint32
+}
+
 func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 	switch packet.ID {
 	case 0x0078:
@@ -210,6 +216,31 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		}, true, nil
 	default:
 		return ActorEntry{}, false, nil
+	}
+}
+
+func ParseActorLookChange(packet Packet) (ActorLookChange, bool, error) {
+	switch packet.ID {
+	case 0x00C3:
+		if len(packet.Data) < 8 {
+			return ActorLookChange{}, false, fmt.Errorf("ZC_CHANGE_LOOK too short: %d", len(packet.Data))
+		}
+		return ActorLookChange{
+			ID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Type:  packet.Data[6],
+			Value: uint32(packet.Data[7]),
+		}, true, nil
+	case 0x01D7, 0x0229:
+		if len(packet.Data) < 11 {
+			return ActorLookChange{}, false, fmt.Errorf("ZC_CHANGE_LOOK2 too short: %d", len(packet.Data))
+		}
+		return ActorLookChange{
+			ID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Type:  packet.Data[6],
+			Value: binary.LittleEndian.Uint32(packet.Data[7:11]),
+		}, true, nil
+	default:
+		return ActorLookChange{}, false, nil
 	}
 }
 

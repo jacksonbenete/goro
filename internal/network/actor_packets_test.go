@@ -114,6 +114,41 @@ func TestParseActorVanish(t *testing.T) {
 	}
 }
 
+func TestParseActorLookChangeModern(t *testing.T) {
+	data := make([]byte, 11)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01D7)
+	binary.LittleEndian.PutUint32(data[2:6], 2000006)
+	data[6] = 2
+	binary.LittleEndian.PutUint32(data[7:11], uint32(2101)<<16|1201)
+
+	look, ok, err := ParseActorLookChange(Packet{ID: 0x01D7, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("look change not parsed")
+	}
+	if look.ID != 2000006 || look.Type != 2 || look.Value != uint32(2101)<<16|1201 {
+		t.Fatalf("unexpected look change: %+v", look)
+	}
+}
+
+func TestParseActorLookChangeLegacy(t *testing.T) {
+	data := make([]byte, 8)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00C3)
+	binary.LittleEndian.PutUint32(data[2:6], 2000006)
+	data[6] = 4
+	data[7] = 7
+
+	look, ok, err := ParseActorLookChange(Packet{ID: 0x00C3, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || look.ID != 2000006 || look.Type != 4 || look.Value != 7 {
+		t.Fatalf("unexpected legacy look change: ok=%v look=%+v", ok, look)
+	}
+}
+
 func TestParseSelfMoveAck(t *testing.T) {
 	data := make([]byte, 12)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0087)
