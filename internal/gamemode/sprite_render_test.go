@@ -94,6 +94,36 @@ func TestHumanoidWalkHeadMotionFollowsBodyMotion(t *testing.T) {
 	}
 }
 
+func TestPlayerRenderLayerOrderMatchesDefaultOpenMidgardFallback(t *testing.T) {
+	got := playerRenderLayerOrder(nil, 0, 0)
+	want := [8]int{7, 0, 1, 4, 3, 2, 5, 6}
+	if got != want {
+		t.Fatalf("order = %v, want %v", got, want)
+	}
+}
+
+func TestPlayerRenderLayerOrderKeepsBodyBeforeHead(t *testing.T) {
+	imf := &res.IMF{Layers: make([]res.IMFLayer, 2)}
+	for layer := range imf.Layers {
+		imf.Layers[layer].Actions = []res.IMFAction{{
+			Motions: []res.IMFMotion{{Priority: int32(1 - layer)}},
+		}}
+	}
+	got := playerRenderLayerOrder(imf, 0, 0)
+	bodyIndex, headIndex := -1, -1
+	for index, layer := range got {
+		if layer == 0 && bodyIndex < 0 {
+			bodyIndex = index
+		}
+		if layer == 1 && headIndex < 0 {
+			headIndex = index
+		}
+	}
+	if bodyIndex < 0 || headIndex < 0 || bodyIndex > headIndex {
+		t.Fatalf("body/head order = %v, body=%d head=%d", got, bodyIndex, headIndex)
+	}
+}
+
 func TestSpriteLayerCenterTreatsPositiveYAsScreenDown(t *testing.T) {
 	_, y := spriteLayerCenter(5, 5, res.ACTLayer{Y: 3})
 	if y != 8 {

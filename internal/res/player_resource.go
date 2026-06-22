@@ -5,6 +5,7 @@ import "fmt"
 const (
 	playerHumanSpriteRoot = "data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\"
 	playerPaletteRoot     = "data\\palette\\"
+	playerIMFRoot         = "data\\imf\\"
 	playerBodyDir         = "\xB8\xF6\xC5\xEB"
 	playerHeadDir         = "\xB8\xD3\xB8\xAE\xC5\xEB"
 	playerPaletteBodyDir  = "\xB8\xF6"
@@ -55,6 +56,19 @@ func PlayerHeadResourceCandidates(job int, head int, sex byte, extension string)
 	return []string{
 		fmt.Sprintf("%s%s\\%s\\%d_%s.%s", playerHumanSpriteRoot, playerHeadDir, sexToken, head, sexToken, extension),
 	}
+}
+
+func PlayerIMFResourceCandidates(job int, sex byte) []string {
+	sexToken := PlayerSexToken(sex)
+	tokens := []string{PlayerJobToken(job)}
+	if tokens[0] != playerJobTokens[0] {
+		tokens = append(tokens, playerJobTokens[0])
+	}
+	out := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		out = append(out, fmt.Sprintf("%s%s_%s.imf", playerIMFRoot, token, sexToken))
+	}
+	return out
 }
 
 func PlayerBodyPaletteResourceCandidates(job int, sex byte, palette int, extension string) []string {

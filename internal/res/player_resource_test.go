@@ -19,3 +19,14 @@ func TestHasPlayerJobToken(t *testing.T) {
 		t.Fatal("unknown job token should not report as renderable")
 	}
 }
+
+func TestPlayerIMFResourceCandidates(t *testing.T) {
+	got := PlayerIMFResourceCandidates(1, 1)
+	want := "data\\imf\\\xB0\xCB\xBB\xE7_\xB3\xB2.imf"
+	if len(got) == 0 || got[0] != want {
+		t.Fatalf("first imf candidate = %q, want %q", got, want)
+	}
+	if got[len(got)-1] != "data\\imf\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2.imf" {
+		t.Fatalf("fallback imf candidate = %q", got[len(got)-1])
+	}
+}

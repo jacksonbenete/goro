@@ -41,6 +41,8 @@ type spriteFrameKey struct {
 type humanoidSpriteView struct {
 	body       *playerSpriteView
 	head       *playerSpriteView
+	imf        *res.IMF
+	imfSource  string
 	billboards map[humanoidBillboardKey]*spriteBillboard
 	started    time.Time
 }
@@ -91,16 +93,19 @@ func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, b
 		return nil, bodyStatus
 	}
 	headView, headStatus := loadHeadSpriteView(manager, job, head, sex, headPalette, label+" head")
+	imf, imfSource, imfStatus := loadPlayerIMF(manager, job, sex)
 	view := &humanoidSpriteView{
 		body:       body,
 		head:       headView,
+		imf:        imf,
+		imfSource:  imfSource,
 		billboards: make(map[humanoidBillboardKey]*spriteBillboard),
 		started:    time.Now(),
 	}
 	if headView == nil {
-		return view, bodyStatus + " " + headStatus
+		return view, bodyStatus + " " + headStatus + imfStatus
 	}
-	return view, bodyStatus + " " + headStatus
+	return view, bodyStatus + " " + headStatus + imfStatus
 }
 
 func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, label string) (*playerSpriteView, string) {
@@ -109,6 +114,18 @@ func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, la
 
 func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, palette int, label string) (*playerSpriteView, string) {
 	return loadSpriteView(manager, res.PlayerHeadResourceCandidates(job, head, sex, "act"), res.PlayerHeadResourceCandidates(job, head, sex, "spr"), res.PlayerHeadPaletteResourceCandidates(job, head, sex, palette, "pal"), label)
+}
+
+func loadPlayerIMF(manager *res.Manager, job int, sex byte) (*res.IMF, string, string) {
+	data, source, err := readFirstResource(manager, res.PlayerIMFResourceCandidates(job, sex))
+	if err != nil {
+		return nil, "", " imf=missing"
+	}
+	imf, err := res.ParseIMF(data)
+	if err != nil {
+		return nil, "", fmt.Sprintf(" imf=%s parse-error=%v", source, err)
+	}
+	return imf, source, fmt.Sprintf(" imf=%s", source)
 }
 
 func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates []string, palCandidates []string, label string) (*playerSpriteView, string) {
@@ -244,19 +261,12 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 		return nil, false
 	}
 	target := ebiten.NewImage(humanoidBillboardWidth, humanoidBillboardHeight)
-	bodyAnim := bodyAction.Animations[bodyMotion]
-	bodyDrawn := drawSpriteAnimation(target, view.body, bodyAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, 0, 0)
-	drawn := bodyDrawn
-	if view.head != nil && view.head.act != nil && view.head.spr != nil {
-		if _, headAction, ok := resolveSpriteAction(view.head.act, actionFamily, direction); ok && len(headAction.Animations) > 0 {
-			if headMotion < 0 || headMotion >= len(headAction.Animations) {
-				headMotion = 0
-			}
-			headAnim := headAction.Animations[headMotion]
-			headPosX, headPosY := attachmentDelta(bodyAnim, headAnim)
-			headDrawn := drawSpriteAnimation(target, view.head, headAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headPosX, headPosY)
-			drawn = drawn || headDrawn
-		}
+	bodyActionIndex := actionFamily*8 + direction
+	drawn := false
+	if view.imf != nil {
+		drawn = drawPlayerIMFLayers(target, view, bodyActionIndex, bodyMotion, headMotion)
+	} else {
+		drawn = drawFallbackHumanoidLayers(target, view, actionFamily, direction, bodyAction, bodyMotion, headMotion)
 	}
 	if !drawn {
 		return nil, false
@@ -266,6 +276,192 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 		anchorX: humanoidBillboardAnchorX,
 		anchorY: humanoidBillboardAnchorY,
 	}, true
+}
+
+func drawFallbackHumanoidLayers(target *ebiten.Image, view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) bool {
+	bodyAnim := bodyAction.Animations[bodyMotion]
+	drawn := drawSpriteAnimation(target, view.body, bodyAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, 0, 0)
+	if view.head != nil && view.head.act != nil && view.head.spr != nil {
+		if _, headAction, ok := resolveSpriteAction(view.head.act, actionFamily, direction); ok && len(headAction.Animations) > 0 {
+			if headMotion < 0 || headMotion >= len(headAction.Animations) {
+				headMotion = 0
+			}
+			headAnim := headAction.Animations[headMotion]
+			headPosX, headPosY := attachmentDelta(bodyAnim, headAnim)
+			drawn = drawSpriteAnimation(target, view.head, headAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headPosX, headPosY) || drawn
+		}
+	}
+	return drawn
+}
+
+func drawPlayerIMFLayers(target *ebiten.Image, view *humanoidSpriteView, actionIndex, bodyMotion, headMotion int) bool {
+	order := playerRenderLayerOrder(view.imf, actionIndex, bodyMotion)
+	bodyAnim, bodyAnimOK := actionAnimation(view.body.act, actionIndex, bodyMotion)
+	drawn := false
+	for _, layer := range order {
+		switch layer {
+		case 0:
+			drawn = drawPlayerIMFLayer(target, view.body, view.imf, 0, actionIndex, bodyMotion, nil) || drawn
+		case 1:
+			if view.head == nil || view.head.act == nil || view.head.spr == nil {
+				continue
+			}
+			var attachBase *res.ACTAnimation
+			if bodyAnimOK {
+				attachBase = &bodyAnim
+			}
+			drawn = drawPlayerIMFLayer(target, view.head, view.imf, 1, actionIndex, headMotion, attachBase) || drawn
+		}
+	}
+	return drawn
+}
+
+func drawPlayerIMFLayer(target *ebiten.Image, sprite *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, motionIndex int, attachBase *res.ACTAnimation) bool {
+	if sprite == nil || sprite.act == nil || sprite.spr == nil {
+		return false
+	}
+	if actionIndex < 0 || actionIndex >= len(sprite.act.Actions) {
+		return false
+	}
+	action := sprite.act.Actions[actionIndex]
+	if motionIndex < 0 || motionIndex >= len(action.Animations) {
+		return false
+	}
+	anim := action.Animations[motionIndex]
+	resolvedLayer := layerPriority
+	if imf != nil {
+		if layer := imf.LayerForPriority(layerPriority, actionIndex, motionIndex); layer >= 0 {
+			resolvedLayer = layer
+		}
+	}
+	if resolvedLayer < 0 || resolvedLayer >= len(anim.Layers) {
+		return false
+	}
+	pointX, pointY := int32(0), int32(0)
+	if imf != nil {
+		pointX, pointY = imf.Point(resolvedLayer, actionIndex, motionIndex)
+	}
+	layer := anim.Layers[resolvedLayer]
+	if attachBase != nil {
+		dx, dy := attachmentDelta(*attachBase, anim)
+		pointX += dx
+		pointY += dy
+	}
+	return drawSpriteLayerByValue(target, sprite, layer, humanoidBillboardAnchorX+float64(pointX), humanoidBillboardAnchorY+float64(pointY))
+}
+
+func actionAnimation(act *res.ACT, actionIndex, motionIndex int) (res.ACTAnimation, bool) {
+	if act == nil || actionIndex < 0 || actionIndex >= len(act.Actions) {
+		return res.ACTAnimation{}, false
+	}
+	action := act.Actions[actionIndex]
+	if motionIndex < 0 || motionIndex >= len(action.Animations) {
+		return res.ACTAnimation{}, false
+	}
+	return action.Animations[motionIndex], true
+}
+
+func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
+	if imf == nil {
+		return [8]int{7, 0, 1, 4, 3, 2, 5, 6}
+	}
+	resolveLayerPriority := func(priority int) int {
+		layer := imf.LayerForPriority(priority, actionIndex, motionIndex)
+		if layer < 0 {
+			layer = priority
+		}
+		return layer
+	}
+
+	dir := actionIndex & 7
+	headLayerPassed := false
+	bodyAndAccessoryExchanged := 0
+	var order [8]int
+	outIndex := 0
+	for pass := 7; pass >= 0; pass-- {
+		layer := 0
+		if dir >= 2 && dir <= 5 {
+			if pass == 7 {
+				layer = 7
+			} else if pass >= 5 && pass <= 6 {
+				layer = resolveLayerPriority(pass - 5)
+			} else {
+				layer = 6 - pass
+			}
+		} else if pass >= 6 && pass <= 7 {
+			layer = resolveLayerPriority(pass - 6)
+		} else {
+			layer = 7 - pass
+		}
+
+		originalLayer := layer
+		if (headLayerPassed || layer == 1) && layer == 0 {
+			headLayerPassed = true
+			layer = 2
+			bodyAndAccessoryExchanged++
+		}
+		if !headLayerPassed && layer == 1 {
+			headLayerPassed = true
+		}
+		if bodyAndAccessoryExchanged == 1 && originalLayer == 2 {
+			bodyAndAccessoryExchanged = 2
+			layer = 0
+		}
+		if layer >= 8 {
+			layer = 0
+		}
+		if layer == 2 {
+			layer = 4
+		} else if layer == 4 {
+			layer = 2
+		}
+		order[outIndex] = layer
+		outIndex++
+	}
+
+	bodyIndex, headIndex := -1, -1
+	for index, layer := range order {
+		if layer == 0 && bodyIndex < 0 {
+			bodyIndex = index
+		} else if layer == 1 && headIndex < 0 {
+			headIndex = index
+		}
+	}
+	if bodyIndex >= 0 && headIndex >= 0 && headIndex < bodyIndex {
+		order[bodyIndex], order[headIndex] = order[headIndex], order[bodyIndex]
+	}
+
+	var reordered [8]int
+	var delayed [8]int
+	delayedCount := 0
+	reorderedCount := 0
+	headDrawn := false
+	for _, layer := range order {
+		if !headDrawn && isHeadAccessoryLayer(layer) {
+			delayed[delayedCount] = layer
+			delayedCount++
+			continue
+		}
+		reordered[reorderedCount] = layer
+		reorderedCount++
+		if layer == 1 {
+			headDrawn = true
+			for index := 0; index < delayedCount; index++ {
+				reordered[reorderedCount] = delayed[index]
+				reorderedCount++
+			}
+			delayedCount = 0
+		}
+	}
+	for index := 0; index < delayedCount; index++ {
+		reordered[reorderedCount] = delayed[index]
+		reorderedCount++
+	}
+	return reordered
+}
+
+func isHeadAccessoryLayer(layer int) bool {
+	return layer == 2 || layer == 3 || layer == 4
 }
 
 func resolveSpriteAction(act *res.ACT, actionFamily, direction int) (int, res.ACTAction, bool) {
@@ -332,6 +528,18 @@ func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.
 		rendered = true
 	}
 	return rendered
+}
+
+func drawSpriteLayerByValue(target *ebiten.Image, view *playerSpriteView, layer res.ACTLayer, centerX, centerY float64) bool {
+	if layer.Index < 0 {
+		return false
+	}
+	img, ok := spriteViewImage(view, layer.Index, layer.SPRType)
+	if !ok {
+		return false
+	}
+	drawSpriteLayer(target, img, layer, centerX, centerY)
+	return true
 }
 
 func attachmentDelta(baseAnim, attachedAnim res.ACTAnimation) (int32, int32) {
