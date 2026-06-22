@@ -60,6 +60,40 @@ func TestSpriteMotionIndexUsesActionDelay(t *testing.T) {
 	}
 }
 
+func TestAttachmentDeltaMatchesAttachPointAttribute(t *testing.T) {
+	base := res.ACTAnimation{Pos: []res.ACTPosition{
+		{X: 1, Y: 2, Attr: 7},
+		{X: 30, Y: 40, Attr: 2},
+	}}
+	attached := res.ACTAnimation{Pos: []res.ACTPosition{
+		{X: 10, Y: 15, Attr: 2},
+	}}
+	x, y := attachmentDelta(base, attached)
+	if x != 20 || y != 25 {
+		t.Fatalf("attachment delta = (%d,%d), want (20,25)", x, y)
+	}
+}
+
+func TestHumanoidIdleHeadMotionDoesNotCycle(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    100,
+	}
+	if got := selectHeadMotion(spriteActionIdle, 2, action); got != 0 {
+		t.Fatalf("idle head motion = %d, want 0", got)
+	}
+}
+
+func TestHumanoidWalkHeadMotionFollowsBodyMotion(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    100,
+	}
+	if got := selectHeadMotion(spriteActionWalk, 2, action); got != 2 {
+		t.Fatalf("walk head motion = %d, want 2", got)
+	}
+}
+
 func TestSpriteLayerCenterTreatsPositiveYAsScreenDown(t *testing.T) {
 	_, y := spriteLayerCenter(5, 5, res.ACTLayer{Y: 3})
 	if y != 8 {
@@ -98,11 +132,6 @@ func TestDebugPlayerSpriteBillboard(t *testing.T) {
 func spriteAnimationBounds(view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) (float64, float64, float64, float64) {
 	minX, minY := math.Inf(1), math.Inf(1)
 	maxX, maxY := math.Inf(-1), math.Inf(-1)
-	baseX, baseY := posX, posY
-	if len(anim.Pos) > 0 {
-		baseX += anim.Pos[0].X
-		baseY += anim.Pos[0].Y
-	}
 	for _, layer := range anim.Layers {
 		if layer.Index < 0 {
 			continue
@@ -115,8 +144,8 @@ func spriteAnimationBounds(view *playerSpriteView, anim res.ACTAnimation, anchor
 			continue
 		}
 		frame := view.spr.Frames[frameIndex]
-		cx := anchorX + float64(baseX) + float64(layer.X)
-		cy := anchorY + float64(baseY) + float64(layer.Y)
+		cx := anchorX + float64(posX) + float64(layer.X)
+		cy := anchorY + float64(posY) + float64(layer.Y)
 		w := float64(frame.Width)
 		h := float64(frame.Height)
 		minX = math.Min(minX, cx-w/2)

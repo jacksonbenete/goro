@@ -41,6 +41,7 @@ type ACTLayer struct {
 type ACTPosition struct {
 	X int32
 	Y int32
+	Attr int32
 }
 
 func ParseACT(data []byte) (*ACT, error) {
@@ -161,8 +162,7 @@ func (r *actReader) readLayers(act *ACT) (ACTAnimation, error) {
 		anim.Pos = make([]ACTPosition, count)
 		for i := range anim.Pos {
 			r.skip(4)
-			anim.Pos[i] = ACTPosition{X: r.i32(), Y: r.i32()}
-			r.skip(4)
+			anim.Pos[i] = ACTPosition{X: r.i32(), Y: r.i32(), Attr: r.i32()}
 		}
 	}
 	if r.err != nil {

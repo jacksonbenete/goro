@@ -219,10 +219,7 @@ func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now 
 	headMotion := 0
 	if view.head != nil {
 		if _, headAction, headOK := resolveSpriteAction(view.head.act, state.actionFamily, state.direction); headOK && len(headAction.Animations) > 0 {
-			headMotion = spriteMotionIndex(headAction, view.started, now, state.moving)
-			if headMotion >= len(headAction.Animations) {
-				headMotion = len(headAction.Animations) - 1
-			}
+			headMotion = selectHeadMotion(state.actionFamily, bodyMotion, headAction)
 		}
 	}
 	key := humanoidBillboardKey{
@@ -248,7 +245,7 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 	}
 	target := ebiten.NewImage(humanoidBillboardWidth, humanoidBillboardHeight)
 	bodyAnim := bodyAction.Animations[bodyMotion]
-	bodyPosX, bodyPosY, bodyDrawn := drawSpriteAnimation(target, view.body, bodyAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, 0, 0)
+	bodyDrawn := drawSpriteAnimation(target, view.body, bodyAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, 0, 0)
 	drawn := bodyDrawn
 	if view.head != nil && view.head.act != nil && view.head.spr != nil {
 		if _, headAction, ok := resolveSpriteAction(view.head.act, actionFamily, direction); ok && len(headAction.Animations) > 0 {
@@ -256,12 +253,8 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 				headMotion = 0
 			}
 			headAnim := headAction.Animations[headMotion]
-			headPosX, headPosY := int32(0), int32(0)
-			if len(headAnim.Pos) > 0 {
-				headPosX = bodyPosX - headAnim.Pos[0].X
-				headPosY = bodyPosY - headAnim.Pos[0].Y
-			}
-			_, _, headDrawn := drawSpriteAnimation(target, view.head, headAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headPosX, headPosY)
+			headPosX, headPosY := attachmentDelta(bodyAnim, headAnim)
+			headDrawn := drawSpriteAnimation(target, view.head, headAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headPosX, headPosY)
 			drawn = drawn || headDrawn
 		}
 	}
@@ -315,13 +308,18 @@ func spriteMotionIndex(action res.ACTAction, started time.Time, now time.Time, l
 	return index % len(action.Animations)
 }
 
-func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) (int32, int32, bool) {
-	rendered := false
-	baseX, baseY := posX, posY
-	if len(anim.Pos) > 0 {
-		baseX += anim.Pos[0].X
-		baseY += anim.Pos[0].Y
+func selectHeadMotion(actionFamily int, bodyMotion int, headAction res.ACTAction) int {
+	if len(headAction.Animations) == 0 {
+		return 0
 	}
+	if actionFamily == spriteActionWalk && bodyMotion >= 0 && bodyMotion < len(headAction.Animations) {
+		return bodyMotion
+	}
+	return 0
+}
+
+func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) bool {
+	rendered := false
 	for _, layer := range anim.Layers {
 		if layer.Index < 0 {
 			continue
@@ -330,10 +328,24 @@ func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.
 		if !ok {
 			continue
 		}
-		drawSpriteLayer(target, img, layer, anchorX+float64(baseX), anchorY+float64(baseY))
+		drawSpriteLayer(target, img, layer, anchorX+float64(posX), anchorY+float64(posY))
 		rendered = true
 	}
-	return baseX, baseY, rendered
+	return rendered
+}
+
+func attachmentDelta(baseAnim, attachedAnim res.ACTAnimation) (int32, int32) {
+	if len(baseAnim.Pos) == 0 || len(attachedAnim.Pos) == 0 {
+		return 0, 0
+	}
+	attached := attachedAnim.Pos[0]
+	for _, base := range baseAnim.Pos {
+		if base.Attr == attached.Attr {
+			return base.X - attached.X, base.Y - attached.Y
+		}
+	}
+	base := baseAnim.Pos[0]
+	return base.X - attached.X, base.Y - attached.Y
 }
 
 func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*ebiten.Image, bool) {
