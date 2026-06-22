@@ -34,6 +34,8 @@ type Character struct {
 	Luk       uint8
 	Hair      int16
 	HairColor uint8
+	HeadPal   int16
+	BodyPal   int16
 }
 
 type CharList struct {
@@ -219,6 +221,8 @@ func parseCharacter108(data []byte) Character {
 		Luk:       data[103],
 		Slot:      data[104],
 		HairColor: data[105],
+		HeadPal:   int16(binary.LittleEndian.Uint16(data[70:72])),
+		BodyPal:   int16(binary.LittleEndian.Uint16(data[72:74])),
 	}
 }
 
@@ -242,6 +246,11 @@ func parseLegacyCharacter106(data []byte) Character {
 	}
 	if len(data) >= 106 {
 		character.Slot = uint8(binary.LittleEndian.Uint16(data[104:106]))
+	}
+	character.HeadPal = int16(binary.LittleEndian.Uint16(data[70:72]))
+	character.BodyPal = int16(binary.LittleEndian.Uint16(data[72:74]))
+	if character.HairColor == 0 && character.HeadPal > 0 && character.HeadPal <= 255 {
+		character.HairColor = uint8(character.HeadPal)
 	}
 	return character
 }

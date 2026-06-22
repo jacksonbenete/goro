@@ -4,8 +4,12 @@ import "fmt"
 
 const (
 	playerHumanSpriteRoot = "data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\"
+	playerPaletteRoot     = "data\\palette\\"
 	playerBodyDir         = "\xB8\xF6\xC5\xEB"
 	playerHeadDir         = "\xB8\xD3\xB8\xAE\xC5\xEB"
+	playerPaletteBodyDir  = "\xB8\xF6"
+	playerPaletteHeadDir  = "\xB8\xD3\xB8\xAE"
+	playerPaletteHeadFile = "\xB8\xD3\xB8\xAE"
 	playerFemaleSex       = "\xBF\xA9"
 	playerMaleSex         = "\xB3\xB2"
 )
@@ -50,6 +54,33 @@ func PlayerHeadResourceCandidates(job int, head int, sex byte, extension string)
 	head = NormalizePlayerHead(head, job)
 	return []string{
 		fmt.Sprintf("%s%s\\%s\\%d_%s.%s", playerHumanSpriteRoot, playerHeadDir, sexToken, head, sexToken, extension),
+	}
+}
+
+func PlayerBodyPaletteResourceCandidates(job int, sex byte, palette int, extension string) []string {
+	if palette <= 0 {
+		return nil
+	}
+	sexToken := PlayerSexToken(sex)
+	tokens := []string{PlayerJobToken(job)}
+	if tokens[0] != playerJobTokens[0] {
+		tokens = append(tokens, playerJobTokens[0])
+	}
+	out := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		out = append(out, fmt.Sprintf("%s%s\\%s_%s_%d.%s", playerPaletteRoot, playerPaletteBodyDir, token, sexToken, palette, extension))
+	}
+	return out
+}
+
+func PlayerHeadPaletteResourceCandidates(job int, head int, sex byte, palette int, extension string) []string {
+	if palette <= 0 {
+		return nil
+	}
+	sexToken := PlayerSexToken(sex)
+	head = NormalizePlayerHead(head, job)
+	return []string{
+		fmt.Sprintf("%s%s\\%s%d_%s_%d.%s", playerPaletteRoot, playerPaletteHeadDir, playerPaletteHeadFile, head, sexToken, palette, extension),
 	}
 }
 

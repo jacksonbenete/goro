@@ -24,11 +24,13 @@ const (
 )
 
 type playerSpriteView struct {
-	spr     *res.SPR
-	act     *res.ACT
-	source  string
-	images  map[spriteFrameKey]*ebiten.Image
-	started time.Time
+	spr           *res.SPR
+	act           *res.ACT
+	source        string
+	palette       *res.Palette
+	paletteSource string
+	images        map[spriteFrameKey]*ebiten.Image
+	started       time.Time
 }
 
 type spriteFrameKey struct {
@@ -63,25 +65,32 @@ type spriteState struct {
 }
 
 func loadPlayerSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
-	view, status := loadBodySpriteView(manager, int(character.Job), sex, "player body")
+	view, status := loadBodySpriteView(manager, int(character.Job), sex, int(character.BodyPal), "player body")
 	return view, fmt.Sprintf("sprite-sex=%s(%d) %s", res.PlayerSexLabel(sex), sex, status)
 }
 
 func loadPlayerHeadSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
-	view, status := loadHeadSpriteView(manager, int(character.Job), int(character.Hair), sex, "player head")
+	view, status := loadHeadSpriteView(manager, int(character.Job), int(character.Hair), sex, characterHeadPalette(character), "player head")
 	return view, status
 }
 
 func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte) (*humanoidSpriteView, string) {
-	return loadHumanoidSpriteView(manager, int(character.Job), int(character.Hair), sex, "player")
+	return loadHumanoidSpriteView(manager, int(character.Job), int(character.Hair), sex, int(character.BodyPal), characterHeadPalette(character), "player")
 }
 
-func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, label string) (*humanoidSpriteView, string) {
-	body, bodyStatus := loadBodySpriteView(manager, job, sex, label+" body")
+func characterHeadPalette(character session.Character) int {
+	if character.HeadPal > 0 {
+		return int(character.HeadPal)
+	}
+	return int(character.HairColor)
+}
+
+func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, bodyPalette int, headPalette int, label string) (*humanoidSpriteView, string) {
+	body, bodyStatus := loadBodySpriteView(manager, job, sex, bodyPalette, label+" body")
 	if body == nil {
 		return nil, bodyStatus
 	}
-	headView, headStatus := loadHeadSpriteView(manager, job, head, sex, label+" head")
+	headView, headStatus := loadHeadSpriteView(manager, job, head, sex, headPalette, label+" head")
 	view := &humanoidSpriteView{
 		body:       body,
 		head:       headView,
@@ -94,15 +103,15 @@ func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, l
 	return view, bodyStatus + " " + headStatus
 }
 
-func loadBodySpriteView(manager *res.Manager, job int, sex byte, label string) (*playerSpriteView, string) {
-	return loadSpriteView(manager, res.PlayerBodyResourceCandidates(job, sex, "act"), res.PlayerBodyResourceCandidates(job, sex, "spr"), label)
+func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, label string) (*playerSpriteView, string) {
+	return loadSpriteView(manager, res.PlayerBodyResourceCandidates(job, sex, "act"), res.PlayerBodyResourceCandidates(job, sex, "spr"), res.PlayerBodyPaletteResourceCandidates(job, sex, palette, "pal"), label)
 }
 
-func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, label string) (*playerSpriteView, string) {
-	return loadSpriteView(manager, res.PlayerHeadResourceCandidates(job, head, sex, "act"), res.PlayerHeadResourceCandidates(job, head, sex, "spr"), label)
+func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, palette int, label string) (*playerSpriteView, string) {
+	return loadSpriteView(manager, res.PlayerHeadResourceCandidates(job, head, sex, "act"), res.PlayerHeadResourceCandidates(job, head, sex, "spr"), res.PlayerHeadPaletteResourceCandidates(job, head, sex, palette, "pal"), label)
 }
 
-func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates []string, label string) (*playerSpriteView, string) {
+func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates []string, palCandidates []string, label string) (*playerSpriteView, string) {
 	actData, actSource, err := readFirstResource(manager, actCandidates)
 	if err != nil {
 		return nil, fmt.Sprintf("%s act: %v", label, err)
@@ -119,13 +128,31 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 	if err != nil {
 		return nil, fmt.Sprintf("%s spr parse %s: %v", label, sprSource, err)
 	}
+	palette, paletteSource, paletteStatus := loadSpritePalette(manager, palCandidates)
 	return &playerSpriteView{
-		spr:     spr,
-		act:     act,
-		source:  sprSource,
-		images:  make(map[spriteFrameKey]*ebiten.Image),
-		started: time.Now(),
-	}, fmt.Sprintf("%s: %s actions=%d frames=%d", label, sprSource, len(act.Actions), len(spr.Frames))
+		spr:           spr,
+		act:           act,
+		source:        sprSource,
+		palette:       palette,
+		paletteSource: paletteSource,
+		images:        make(map[spriteFrameKey]*ebiten.Image),
+		started:       time.Now(),
+	}, fmt.Sprintf("%s: %s actions=%d frames=%d%s", label, sprSource, len(act.Actions), len(spr.Frames), paletteStatus)
+}
+
+func loadSpritePalette(manager *res.Manager, candidates []string) (*res.Palette, string, string) {
+	if len(candidates) == 0 {
+		return nil, "", ""
+	}
+	data, source, err := readFirstResource(manager, candidates)
+	if err != nil {
+		return nil, "", " palette=default"
+	}
+	palette, err := res.ParsePAL(data)
+	if err != nil {
+		return nil, "", fmt.Sprintf(" palette=%s parse-error=%v", source, err)
+	}
+	return &palette, source, fmt.Sprintf(" palette=%s", source)
 }
 
 func readFirstResource(manager *res.Manager, candidates []string) ([]byte, string, error) {
@@ -314,7 +341,7 @@ func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*ebite
 	if img, ok := view.images[key]; ok {
 		return img, true
 	}
-	frame, ok := view.spr.FrameImage(int(index), int(sprType))
+	frame, ok := view.spr.FrameImageWithPalette(int(index), int(sprType), view.palette)
 	if !ok {
 		return nil, false
 	}

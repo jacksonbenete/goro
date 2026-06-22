@@ -39,6 +39,32 @@ func TestParseSPRIndexedFrame(t *testing.T) {
 	}
 }
 
+func TestSPRFrameImageWithPaletteOverride(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString("SP")
+	buf.WriteByte(1)
+	buf.WriteByte(1)
+	writeTestU16(&buf, 1)
+	writeTestU16(&buf, 1)
+	writeTestU16(&buf, 1)
+	buf.WriteByte(1)
+	buf.Write(make([]byte, 1024))
+
+	spr, err := ParseSPR(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var palette Palette
+	palette[1] = [4]byte{40, 50, 60, 255}
+	img, ok := spr.FrameImageWithPalette(0, SPRFramePalette, &palette)
+	if !ok {
+		t.Fatal("frame image missing")
+	}
+	if got := img.Pix[:4]; got[0] != 40 || got[1] != 50 || got[2] != 60 || got[3] != 255 {
+		t.Fatalf("unexpected override pixel: %v", got)
+	}
+}
+
 func TestParseSPRRLEFrame(t *testing.T) {
 	var rle bytes.Buffer
 	rle.WriteByte(5)
@@ -108,6 +134,17 @@ func TestParseACTLayer(t *testing.T) {
 	}
 	if math.Abs(float64(action.DelayMS-150)) > 0.001 {
 		t.Fatalf("delay = %f", action.DelayMS)
+	}
+}
+
+func TestPlayerPaletteResourceCandidates(t *testing.T) {
+	body := PlayerBodyPaletteResourceCandidates(0, 1, 3, "pal")
+	if len(body) != 1 || body[0] != "data\\palette\\\xB8\xF6\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_3.pal" {
+		t.Fatalf("body palette candidates = %#v", body)
+	}
+	head := PlayerHeadPaletteResourceCandidates(0, 2, 0, 4, "pal")
+	if len(head) != 1 || head[0] != "data\\palette\\\xB8\xD3\xB8\xAE\\\xB8\xD3\xB8\xAE2_\xBF\xA9_4.pal" {
+		t.Fatalf("head palette candidates = %#v", head)
 	}
 }
 

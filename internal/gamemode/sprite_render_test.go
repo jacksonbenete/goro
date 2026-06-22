@@ -76,7 +76,7 @@ func TestDebugPlayerSpriteBillboard(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, sex := range []byte{0, 1} {
-		view, status := loadHumanoidSpriteView(manager, 0, 1, sex, "debug player")
+		view, status := loadHumanoidSpriteView(manager, 0, 1, sex, 0, 0, "debug player")
 		if view == nil {
 			t.Logf("sex=%d load failed: %s", sex, status)
 			continue

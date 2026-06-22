@@ -47,6 +47,8 @@ func TestParseCharListLegacy108(t *testing.T) {
 	binary.LittleEndian.PutUint16(char[44:46], 100)
 	binary.LittleEndian.PutUint16(char[52:54], 7)
 	binary.LittleEndian.PutUint16(char[58:60], 42)
+	binary.LittleEndian.PutUint16(char[70:72], 5)
+	binary.LittleEndian.PutUint16(char[72:74], 6)
 	copy(char[74:98], []byte("Alice"))
 	char[98] = 9
 	char[104] = 2
@@ -63,7 +65,7 @@ func TestParseCharListLegacy108(t *testing.T) {
 		t.Fatalf("characters = %d", len(parsed.Characters))
 	}
 	got := parsed.Characters[0]
-	if got.ID != 1234 || got.Name != "Alice" || got.HP != 70 || got.MaxHP != 100 || got.Job != 7 || got.Level != 42 || got.Str != 9 || got.Slot != 2 || got.HairColor != 5 {
+	if got.ID != 1234 || got.Name != "Alice" || got.HP != 70 || got.MaxHP != 100 || got.Job != 7 || got.Level != 42 || got.Str != 9 || got.Slot != 2 || got.HairColor != 5 || got.HeadPal != 5 || got.BodyPal != 6 {
 		t.Fatalf("unexpected character: %+v", got)
 	}
 }

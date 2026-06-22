@@ -47,6 +47,8 @@ type Character struct {
 	Luk       uint8
 	Hair      int16
 	HairColor uint8
+	HeadPal   int16
+	BodyPal   int16
 }
 
 type ZoneServer struct {

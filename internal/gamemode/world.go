@@ -67,7 +67,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	} else {
 		playerStatus = status
 	}
-	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, ctx.Session.Sex, playerStatus)
+	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
 	if ctx.World.MapName == "" {
 		m.status = "no map selected"
 		return
@@ -460,7 +460,7 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 	}
 	view, ok := m.actorViews[key]
 	if !ok {
-		loaded, status := loadHumanoidSpriteView(ctx.Resources, key.job, key.head, key.sex, "actor")
+		loaded, status := loadHumanoidSpriteView(ctx.Resources, key.job, key.head, key.sex, 0, 0, "actor")
 		if loaded == nil {
 			m.actorViewMiss[key] = struct{}{}
 			log.Printf("actor sprite unavailable id=%d job=%d head=%d sex=%d: %s", actor.ID, key.job, key.head, key.sex, status)

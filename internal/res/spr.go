@@ -17,7 +17,7 @@ type SPR struct {
 	IndexedCount int
 	RGBACount    int
 	RGBAIndex    int
-	Palette      [256][4]byte
+	Palette      Palette
 	Frames       []SPRFrame
 }
 
@@ -86,6 +86,10 @@ func (s *SPR) versionAtLeast(major, minor int) bool {
 }
 
 func (s *SPR) FrameImage(index int, sprType int) (*image.NRGBA, bool) {
+	return s.FrameImageWithPalette(index, sprType, nil)
+}
+
+func (s *SPR) FrameImageWithPalette(index int, sprType int, palette *Palette) (*image.NRGBA, bool) {
 	if sprType == SPRFrameRGBA {
 		index += s.RGBAIndex
 	}
@@ -97,6 +101,10 @@ func (s *SPR) FrameImage(index int, sprType int) (*image.NRGBA, bool) {
 		return nil, false
 	}
 	out := image.NewNRGBA(image.Rect(0, 0, frame.Width, frame.Height))
+	framePalette := &s.Palette
+	if palette != nil {
+		framePalette = palette
+	}
 	switch frame.Type {
 	case SPRFramePalette:
 		for y := 0; y < frame.Height; y++ {
@@ -104,7 +112,7 @@ func (s *SPR) FrameImage(index int, sprType int) (*image.NRGBA, bool) {
 			dstRow := y * out.Stride
 			for x := 0; x < frame.Width; x++ {
 				paletteIndex := frame.Data[srcRow+x]
-				pal := s.Palette[paletteIndex]
+				pal := framePalette[paletteIndex]
 				dst := dstRow + x*4
 				out.Pix[dst+0] = pal[0]
 				out.Pix[dst+1] = pal[1]
