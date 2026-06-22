@@ -36,9 +36,14 @@ type WorldMode struct {
 }
 
 type actorSpriteKey struct {
-	job  int
-	head int
-	sex  byte
+	job     int
+	head    int
+	sex     byte
+	weapon  int
+	shield  int
+	headTop int
+	headMid int
+	headLow int
 }
 
 func NewWorldMode() *WorldMode {
@@ -67,7 +72,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	} else {
 		playerStatus = status
 	}
-	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
+	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
 	if ctx.World.MapName == "" {
 		m.status = "no map selected"
 		return
@@ -261,6 +266,11 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 		Dir:        entry.Dir,
 		Job:        entry.Job,
 		Head:       entry.Head,
+		Weapon:     entry.Weapon,
+		Shield:     entry.Shield,
+		HeadTop:    entry.HeadTop,
+		HeadMid:    entry.HeadMid,
+		HeadLow:    entry.HeadLow,
 		Sex:        entry.Sex,
 		Appearance: entry.Appearance,
 		Moving:     entry.Moving,
@@ -451,16 +461,30 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 		return false
 	}
 	key := actorSpriteKey{
-		job:  int(actor.Job),
-		head: int(actor.Head),
-		sex:  actor.Sex,
+		job:     int(actor.Job),
+		head:    int(actor.Head),
+		sex:     actor.Sex,
+		weapon:  int(actor.Weapon),
+		shield:  int(actor.Shield),
+		headTop: int(actor.HeadTop),
+		headMid: int(actor.HeadMid),
+		headLow: int(actor.HeadLow),
 	}
 	if _, ok := m.actorViewMiss[key]; ok {
 		return false
 	}
 	view, ok := m.actorViews[key]
 	if !ok {
-		loaded, status := loadHumanoidSpriteView(ctx.Resources, key.job, key.head, key.sex, 0, 0, "actor")
+		loaded, status := loadHumanoidSpriteViewWithAppearance(ctx.Resources, humanoidAppearance{
+			job:     key.job,
+			head:    key.head,
+			sex:     key.sex,
+			weapon:  key.weapon,
+			shield:  key.shield,
+			headTop: key.headTop,
+			headMid: key.headMid,
+			headLow: key.headLow,
+		}, "actor")
 		if loaded == nil {
 			m.actorViewMiss[key] = struct{}{}
 			log.Printf("actor sprite unavailable id=%d job=%d head=%d sex=%d: %s", actor.ID, key.job, key.head, key.sex, status)

@@ -9,6 +9,11 @@ type ActorEntry struct {
 	ID         uint32
 	Job        int16
 	Head       int16
+	Weapon     int16
+	Shield     int16
+	HeadTop    int16
+	HeadMid    int16
+	HeadLow    int16
 	Sex        uint8
 	Appearance bool
 	X          int
@@ -53,6 +58,11 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ID:         binary.LittleEndian.Uint32(packet.Data[3:7]),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
+			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
+			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[27:29])),
+			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[29:31])),
+			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[31:33])),
+			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[33:35])),
 			Sex:        packet.Data[46],
 			Appearance: true,
 			X:          x,
@@ -68,6 +78,11 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
 			Sex:        packet.Data[45],
 			Appearance: true,
 			X:          x,
@@ -83,6 +98,11 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
 			Sex:        packet.Data[49],
 			Appearance: true,
 			X:          toX,
@@ -133,6 +153,11 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
 			Sex:        packet.Data[45],
 			Appearance: true,
 			X:          x,
@@ -148,6 +173,11 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
 			Sex:        packet.Data[45],
 			Appearance: true,
 			X:          x,
@@ -163,6 +193,11 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
 			Sex:        packet.Data[49],
 			Appearance: true,
 			X:          toX,

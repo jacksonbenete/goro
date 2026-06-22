@@ -26,6 +26,7 @@ const (
 type playerSpriteView struct {
 	spr           *res.SPR
 	act           *res.ACT
+	actSource     string
 	source        string
 	palette       *res.Palette
 	paletteSource string
@@ -39,12 +40,31 @@ type spriteFrameKey struct {
 }
 
 type humanoidSpriteView struct {
-	body       *playerSpriteView
-	head       *playerSpriteView
-	imf        *res.IMF
-	imfSource  string
-	billboards map[humanoidBillboardKey]*spriteBillboard
-	started    time.Time
+	body            *playerSpriteView
+	head            *playerSpriteView
+	accessoryBottom *playerSpriteView
+	accessoryMid    *playerSpriteView
+	accessoryTop    *playerSpriteView
+	weapon          *playerSpriteView
+	weaponLight     *playerSpriteView
+	shield          *playerSpriteView
+	imf             *res.IMF
+	imfSource       string
+	billboards      map[humanoidBillboardKey]*spriteBillboard
+	started         time.Time
+}
+
+type humanoidAppearance struct {
+	job         int
+	head        int
+	sex         byte
+	bodyPalette int
+	headPalette int
+	weapon      int
+	shield      int
+	headTop     int
+	headMid     int
+	headLow     int
 }
 
 type humanoidBillboardKey struct {
@@ -77,7 +97,18 @@ func loadPlayerHeadSpriteView(manager *res.Manager, character session.Character,
 }
 
 func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte) (*humanoidSpriteView, string) {
-	return loadHumanoidSpriteView(manager, int(character.Job), int(character.Hair), sex, int(character.BodyPal), characterHeadPalette(character), "player")
+	return loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
+		job:         int(character.Job),
+		head:        int(character.Hair),
+		sex:         sex,
+		bodyPalette: int(character.BodyPal),
+		headPalette: characterHeadPalette(character),
+		weapon:      int(character.Weapon),
+		shield:      int(character.Shield),
+		headTop:     int(character.HeadTop),
+		headMid:     int(character.HeadMid),
+		headLow:     int(character.HeadLow),
+	}, "player")
 }
 
 func characterHeadPalette(character session.Character) int {
@@ -88,24 +119,49 @@ func characterHeadPalette(character session.Character) int {
 }
 
 func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, bodyPalette int, headPalette int, label string) (*humanoidSpriteView, string) {
-	body, bodyStatus := loadBodySpriteView(manager, job, sex, bodyPalette, label+" body")
+	return loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
+		job:         job,
+		head:        head,
+		sex:         sex,
+		bodyPalette: bodyPalette,
+		headPalette: headPalette,
+	}, label)
+}
+
+func loadHumanoidSpriteViewWithAppearance(manager *res.Manager, appearance humanoidAppearance, label string) (*humanoidSpriteView, string) {
+	body, bodyStatus := loadBodySpriteView(manager, appearance.job, appearance.sex, appearance.bodyPalette, label+" body")
 	if body == nil {
 		return nil, bodyStatus
 	}
-	headView, headStatus := loadHeadSpriteView(manager, job, head, sex, headPalette, label+" head")
-	imf, imfSource, imfStatus := loadPlayerIMF(manager, job, sex)
+	headView, headStatus := loadHeadSpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headPalette, label+" head")
+	imf, imfSource, imfStatus := loadPlayerIMF(manager, appearance.job, appearance.sex)
+	accessoryBottom, accessoryBottomStatus := loadAccessorySpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headLow, "", label+" accessory-bottom")
+	accessoryMid, accessoryMidStatus := loadAccessorySpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headMid, "", label+" accessory-mid")
+	accessoryTop, accessoryTopStatus := loadAccessorySpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headTop, "", label+" accessory-top")
+	weapon, weaponStatus := loadWeaponOverlaySpriteView(manager, appearance.job, appearance.sex, appearance.weapon, false, label+" weapon")
+	weaponLight, weaponLightStatus := loadWeaponOverlaySpriteView(manager, appearance.job, appearance.sex, appearance.weapon, true, label+" weapon-light")
+	shield, shieldStatus := loadShieldOverlaySpriteView(manager, appearance.job, appearance.sex, appearance.shield, label+" shield")
 	view := &humanoidSpriteView{
-		body:       body,
-		head:       headView,
-		imf:        imf,
-		imfSource:  imfSource,
-		billboards: make(map[humanoidBillboardKey]*spriteBillboard),
-		started:    time.Now(),
+		body:            body,
+		head:            headView,
+		accessoryBottom: accessoryBottom,
+		accessoryMid:    accessoryMid,
+		accessoryTop:    accessoryTop,
+		weapon:          weapon,
+		weaponLight:     weaponLight,
+		shield:          shield,
+		imf:             imf,
+		imfSource:       imfSource,
+		billboards:      make(map[humanoidBillboardKey]*spriteBillboard),
+		started:         time.Now(),
 	}
-	if headView == nil {
-		return view, bodyStatus + " " + headStatus + imfStatus
+	status := bodyStatus + " " + headStatus + imfStatus
+	for _, overlayStatus := range []string{accessoryBottomStatus, accessoryMidStatus, accessoryTopStatus, weaponStatus, weaponLightStatus, shieldStatus} {
+		if overlayStatus != "" {
+			status += " " + overlayStatus
+		}
 	}
-	return view, bodyStatus + " " + headStatus + imfStatus
+	return view, status
 }
 
 func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, label string) (*playerSpriteView, string) {
@@ -114,6 +170,30 @@ func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, la
 
 func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, palette int, label string) (*playerSpriteView, string) {
 	return loadSpriteView(manager, res.PlayerHeadResourceCandidates(job, head, sex, "act"), res.PlayerHeadResourceCandidates(job, head, sex, "spr"), res.PlayerHeadPaletteResourceCandidates(job, head, sex, palette, "pal"), label)
+}
+
+func loadAccessorySpriteView(manager *res.Manager, job int, head int, sex byte, viewID int, resourceName string, label string) (*playerSpriteView, string) {
+	if viewID <= 0 {
+		return nil, ""
+	}
+	if viewID != 185 && resourceName == "" {
+		return nil, fmt.Sprintf("%s skipped: missing accessory resource table", label)
+	}
+	return loadSpriteView(manager, res.PlayerAccessoryResourceCandidates(job, head, sex, viewID, resourceName, "act"), res.PlayerAccessoryResourceCandidates(job, head, sex, viewID, resourceName, "spr"), nil, label)
+}
+
+func loadWeaponOverlaySpriteView(manager *res.Manager, job int, sex byte, weapon int, secondLayer bool, label string) (*playerSpriteView, string) {
+	if weapon <= 0 {
+		return nil, ""
+	}
+	return loadSpriteView(manager, res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "act"), res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "spr"), nil, label)
+}
+
+func loadShieldOverlaySpriteView(manager *res.Manager, job int, sex byte, shield int, label string) (*playerSpriteView, string) {
+	if shield <= 0 {
+		return nil, ""
+	}
+	return loadSpriteView(manager, res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "act"), res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "spr"), nil, label)
 }
 
 func loadPlayerIMF(manager *res.Manager, job int, sex byte) (*res.IMF, string, string) {
@@ -149,6 +229,7 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 	return &playerSpriteView{
 		spr:           spr,
 		act:           act,
+		actSource:     actSource,
 		source:        sprSource,
 		palette:       palette,
 		paletteSource: paletteSource,
@@ -311,6 +392,24 @@ func drawPlayerIMFLayers(target *ebiten.Image, view *humanoidSpriteView, actionI
 				attachBase = &bodyAnim
 			}
 			drawn = drawPlayerIMFLayer(target, view.head, view.imf, 1, actionIndex, headMotion, attachBase) || drawn
+		case 2:
+			if bodyAnimOK {
+				drawn = drawAttachedAccessoryMotion(target, view.accessoryBottom, view.head, bodyAnim, actionIndex, headMotion) || drawn
+			}
+		case 3:
+			if bodyAnimOK {
+				drawn = drawAttachedAccessoryMotion(target, view.accessoryMid, view.head, bodyAnim, actionIndex, headMotion) || drawn
+			}
+		case 4:
+			if bodyAnimOK {
+				drawn = drawAttachedAccessoryMotion(target, view.accessoryTop, view.head, bodyAnim, actionIndex, headMotion) || drawn
+			}
+		case 5:
+			drawn = drawPlayerOverlayMotion(target, view.weapon, view.body, view.imf, 5, actionIndex, bodyMotion) || drawn
+		case 6:
+			drawn = drawPlayerOverlayMotion(target, view.weaponLight, view.body, view.imf, 6, actionIndex, bodyMotion) || drawn
+		case 7:
+			drawn = drawPlayerOverlayMotion(target, view.shield, view.body, view.imf, 7, actionIndex, bodyMotion) || drawn
 		}
 	}
 	return drawn
@@ -359,6 +458,67 @@ func actionAnimation(act *res.ACT, actionIndex, motionIndex int) (res.ACTAnimati
 		return res.ACTAnimation{}, false
 	}
 	return action.Animations[motionIndex], true
+}
+
+func drawAttachedAccessoryMotion(target *ebiten.Image, accessory *playerSpriteView, head *playerSpriteView, bodyAnim res.ACTAnimation, actionIndex, headMotionIndex int) bool {
+	if accessory == nil || accessory.act == nil || accessory.spr == nil || head == nil || head.act == nil || head.spr == nil {
+		return false
+	}
+	headAnim, ok := actionAnimation(head.act, actionIndex, headMotionIndex)
+	if !ok {
+		return false
+	}
+	accessoryMotion := headMotionIndex
+	accessoryAnim, ok := actionAnimation(accessory.act, actionIndex, accessoryMotion)
+	if !ok {
+		accessoryAnim, ok = actionAnimation(accessory.act, actionIndex, 0)
+	}
+	if !ok {
+		return false
+	}
+	headDX, headDY := attachmentDelta(bodyAnim, headAnim)
+	accessoryDX, accessoryDY := attachmentDelta(headAnim, accessoryAnim)
+	return drawSpriteAnimation(target, accessory, accessoryAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headDX+accessoryDX, headDY+accessoryDY)
+}
+
+func drawPlayerOverlayMotion(target *ebiten.Image, overlay *playerSpriteView, body *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, bodyMotion int) bool {
+	if overlay == nil || overlay.act == nil || overlay.spr == nil || body == nil || body.act == nil || imf == nil {
+		return false
+	}
+	motionIndex := resolveOverlayMotionIndex(overlay.act, body.act, actionIndex, bodyMotion)
+	overlayAnim, ok := actionAnimation(overlay.act, actionIndex, motionIndex)
+	if !ok {
+		overlayAnim, ok = actionAnimation(overlay.act, actionIndex, 0)
+	}
+	if !ok {
+		return false
+	}
+	pointX, pointY := imf.Point(layerPriority, actionIndex, bodyMotion)
+	return drawSpriteAnimation(target, overlay, overlayAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, pointX, pointY)
+}
+
+func resolveOverlayMotionIndex(overlayAct *res.ACT, bodyAct *res.ACT, actionIndex, bodyMotion int) int {
+	if overlayAct == nil || actionIndex < 0 || actionIndex >= len(overlayAct.Actions) {
+		return bodyMotion
+	}
+	overlayMotionCount := len(overlayAct.Actions[actionIndex].Animations)
+	if overlayMotionCount <= 0 {
+		return 0
+	}
+	motionIndex := bodyMotion
+	if bodyAct != nil && actionIndex >= 0 && actionIndex < len(bodyAct.Actions) {
+		bodyMotionCount := len(bodyAct.Actions[actionIndex].Animations)
+		if bodyMotionCount > 0 && overlayMotionCount > bodyMotionCount && overlayMotionCount%bodyMotionCount == 0 {
+			motionIndex = bodyMotion * (overlayMotionCount / bodyMotionCount)
+		}
+	}
+	if motionIndex < 0 {
+		return 0
+	}
+	if motionIndex >= overlayMotionCount {
+		return overlayMotionCount - 1
+	}
+	return motionIndex
 }
 
 func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {

@@ -30,3 +30,27 @@ func TestPlayerIMFResourceCandidates(t *testing.T) {
 		t.Fatalf("fallback imf candidate = %q", got[len(got)-1])
 	}
 }
+
+func TestPlayerWeaponOverlayResourceCandidates(t *testing.T) {
+	got := PlayerWeaponOverlayResourceCandidates(0, 1, 1201, false, "act")
+	want := "data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_\xB4\xDC\xB0\xCB.act"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("weapon overlay = %q, want %q", got, want)
+	}
+}
+
+func TestPlayerShieldOverlayResourceCandidates(t *testing.T) {
+	got := PlayerShieldOverlayResourceCandidates(0, 1, 2101, "spr")
+	want := "data\\sprite\\\xB9\xE6\xC6\xD0\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_guard.spr"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("shield overlay = %q, want %q", got, want)
+	}
+}
+
+func TestPlayerAccessoryResourceCandidates(t *testing.T) {
+	got := PlayerAccessoryResourceCandidates(0, 3, 0, 100, "sample", "act")
+	want := "data\\sprite\\\xBE\xC7\xBC\xBC\xBB\xE7\xB8\xAE\\\xBF\xA9\\\xBF\xA9_sample.act"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("accessory overlay = %q, want %q", got, want)
+	}
+}

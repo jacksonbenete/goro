@@ -36,6 +36,11 @@ type Character struct {
 	HairColor uint8
 	HeadPal   int16
 	BodyPal   int16
+	Weapon    int16
+	Shield    int16
+	HeadTop   int16
+	HeadMid   int16
+	HeadLow   int16
 }
 
 type CharList struct {
@@ -211,7 +216,12 @@ func parseCharacter108(data []byte) Character {
 		MaxSP:     int16(binary.LittleEndian.Uint16(data[48:50])),
 		Job:       int16(binary.LittleEndian.Uint16(data[52:54])),
 		Hair:      int16(binary.LittleEndian.Uint16(data[54:56])),
+		Weapon:    int16(binary.LittleEndian.Uint16(data[56:58])),
 		Level:     int16(binary.LittleEndian.Uint16(data[58:60])),
+		HeadLow:   int16(binary.LittleEndian.Uint16(data[62:64])),
+		Shield:    int16(binary.LittleEndian.Uint16(data[64:66])),
+		HeadTop:   int16(binary.LittleEndian.Uint16(data[66:68])),
+		HeadMid:   int16(binary.LittleEndian.Uint16(data[68:70])),
 		Name:      fixedString(data[74:98]),
 		Str:       data[98],
 		Agi:       data[99],
@@ -228,21 +238,26 @@ func parseCharacter108(data []byte) Character {
 
 func parseLegacyCharacter106(data []byte) Character {
 	character := Character{
-		ID:    binary.LittleEndian.Uint32(data[0:4]),
-		HP:    int16(binary.LittleEndian.Uint16(data[42:44])),
-		MaxHP: int16(binary.LittleEndian.Uint16(data[44:46])),
-		SP:    int16(binary.LittleEndian.Uint16(data[46:48])),
-		MaxSP: int16(binary.LittleEndian.Uint16(data[48:50])),
-		Job:   int16(binary.LittleEndian.Uint16(data[52:54])),
-		Hair:  int16(binary.LittleEndian.Uint16(data[54:56])),
-		Level: int16(binary.LittleEndian.Uint16(data[58:60])),
-		Name:  fixedString(data[74:98]),
-		Str:   data[98],
-		Agi:   data[99],
-		Vit:   data[100],
-		Int:   data[101],
-		Dex:   data[102],
-		Luk:   data[103],
+		ID:      binary.LittleEndian.Uint32(data[0:4]),
+		HP:      int16(binary.LittleEndian.Uint16(data[42:44])),
+		MaxHP:   int16(binary.LittleEndian.Uint16(data[44:46])),
+		SP:      int16(binary.LittleEndian.Uint16(data[46:48])),
+		MaxSP:   int16(binary.LittleEndian.Uint16(data[48:50])),
+		Job:     int16(binary.LittleEndian.Uint16(data[52:54])),
+		Hair:    int16(binary.LittleEndian.Uint16(data[54:56])),
+		Weapon:  int16(binary.LittleEndian.Uint16(data[56:58])),
+		Level:   int16(binary.LittleEndian.Uint16(data[58:60])),
+		HeadLow: int16(binary.LittleEndian.Uint16(data[62:64])),
+		Shield:  int16(binary.LittleEndian.Uint16(data[64:66])),
+		HeadTop: int16(binary.LittleEndian.Uint16(data[66:68])),
+		HeadMid: int16(binary.LittleEndian.Uint16(data[68:70])),
+		Name:    fixedString(data[74:98]),
+		Str:     data[98],
+		Agi:     data[99],
+		Vit:     data[100],
+		Int:     data[101],
+		Dex:     data[102],
+		Luk:     data[103],
 	}
 	if len(data) >= 106 {
 		character.Slot = uint8(binary.LittleEndian.Uint16(data[104:106]))

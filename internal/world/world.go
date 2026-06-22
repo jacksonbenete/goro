@@ -27,6 +27,11 @@ type Actor struct {
 	Dir          int
 	Job          int16
 	Head         int16
+	Weapon       int16
+	Shield       int16
+	HeadTop      int16
+	HeadMid      int16
+	HeadLow      int16
 	Sex          byte
 	Appearance   bool
 	Moving       bool
@@ -106,6 +111,11 @@ func (w *World) UpsertActor(actor Actor) {
 		if !actor.Appearance {
 			actor.Job = existing.Job
 			actor.Head = existing.Head
+			actor.Weapon = existing.Weapon
+			actor.Shield = existing.Shield
+			actor.HeadTop = existing.HeadTop
+			actor.HeadMid = existing.HeadMid
+			actor.HeadLow = existing.HeadLow
 			actor.Sex = existing.Sex
 			actor.Appearance = existing.Appearance
 		}

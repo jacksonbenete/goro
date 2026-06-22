@@ -49,6 +49,11 @@ type Character struct {
 	HairColor uint8
 	HeadPal   int16
 	BodyPal   int16
+	Weapon    int16
+	Shield    int16
+	HeadTop   int16
+	HeadMid   int16
+	HeadLow   int16
 }
 
 type ZoneServer struct {

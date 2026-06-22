@@ -297,6 +297,11 @@ func convertCharacter(character network.Character) session.Character {
 		HairColor: character.HairColor,
 		HeadPal:   character.HeadPal,
 		BodyPal:   character.BodyPal,
+		Weapon:    character.Weapon,
+		Shield:    character.Shield,
+		HeadTop:   character.HeadTop,
+		HeadMid:   character.HeadMid,
+		HeadLow:   character.HeadLow,
 	}
 }
 

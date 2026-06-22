@@ -4,6 +4,8 @@ import "fmt"
 
 const (
 	playerHumanSpriteRoot = "data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\"
+	playerAccessoryRoot   = "data\\sprite\\\xBE\xC7\xBC\xBC\xBB\xE7\xB8\xAE\\"
+	playerShieldRoot      = "data\\sprite\\\xB9\xE6\xC6\xD0\\"
 	playerPaletteRoot     = "data\\palette\\"
 	playerIMFRoot         = "data\\imf\\"
 	playerBodyDir         = "\xB8\xF6\xC5\xEB"
@@ -13,6 +15,7 @@ const (
 	playerPaletteHeadFile = "\xB8\xD3\xB8\xAE"
 	playerFemaleSex       = "\xBF\xA9"
 	playerMaleSex         = "\xB3\xB2"
+	weaponLightSuffix     = "\xB0\xCB\xB1\xA4"
 )
 
 var playerJobTokens = map[int]string{
@@ -50,11 +53,33 @@ func PlayerBodyResourceCandidates(job int, sex byte, extension string) []string 
 	return out
 }
 
+func PlayerBodyResourcePath(job int, sex byte, extension string) string {
+	sexToken := PlayerSexToken(sex)
+	return fmt.Sprintf("%s%s\\%s\\%s_%s.%s", playerHumanSpriteRoot, playerBodyDir, sexToken, PlayerJobToken(job), sexToken, extension)
+}
+
 func PlayerHeadResourceCandidates(job int, head int, sex byte, extension string) []string {
 	sexToken := PlayerSexToken(sex)
 	head = NormalizePlayerHead(head, job)
 	return []string{
 		fmt.Sprintf("%s%s\\%s\\%d_%s.%s", playerHumanSpriteRoot, playerHeadDir, sexToken, head, sexToken, extension),
+	}
+}
+
+func PlayerAccessoryResourceCandidates(job int, head int, sex byte, viewID int, resourceName string, extension string) []string {
+	if viewID == 185 {
+		return PlayerHeadResourceCandidates(job, head, sex, extension)
+	}
+	if viewID <= 0 || resourceName == "" {
+		return nil
+	}
+	sexToken := PlayerSexToken(sex)
+	separator := "_"
+	if resourceName[0] == '_' {
+		separator = ""
+	}
+	return []string{
+		fmt.Sprintf("%s%s\\%s%s%s.%s", playerAccessoryRoot, sexToken, sexToken, separator, resourceName, extension),
 	}
 }
 
@@ -69,6 +94,45 @@ func PlayerIMFResourceCandidates(job int, sex byte) []string {
 		out = append(out, fmt.Sprintf("%s%s_%s.imf", playerIMFRoot, token, sexToken))
 	}
 	return out
+}
+
+func PlayerWeaponOverlayResourceCandidates(job int, sex byte, weaponValue int, secondLayer bool, extension string) []string {
+	if weaponValue <= 0 {
+		return nil
+	}
+	weaponType := PlayerWeaponType(weaponValue)
+	if weaponType <= 0 {
+		return nil
+	}
+	if secondLayer && !PlayerWeaponOverlaySupportsSecondLayer(weaponType) {
+		return nil
+	}
+	token := PlayerWeaponOverlayToken(weaponType)
+	if token == "" {
+		return nil
+	}
+	sexToken := PlayerSexToken(sex)
+	jobToken := PlayerJobToken(job)
+	if secondLayer {
+		return []string{
+			fmt.Sprintf("%s%s\\%s_%s_%s_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, token, weaponLightSuffix, extension),
+		}
+	}
+	return []string{
+		fmt.Sprintf("%s%s\\%s_%s_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, token, extension),
+	}
+}
+
+func PlayerShieldOverlayResourceCandidates(job int, sex byte, shield int, extension string) []string {
+	token := PlayerShieldToken(shield)
+	if token == "" {
+		return nil
+	}
+	sexToken := PlayerSexToken(sex)
+	jobToken := PlayerJobToken(job)
+	return []string{
+		fmt.Sprintf("%s%s\\%s_%s_%s.%s", playerShieldRoot, jobToken, jobToken, sexToken, token, extension),
+	}
 }
 
 func PlayerBodyPaletteResourceCandidates(job int, sex byte, palette int, extension string) []string {
@@ -147,4 +211,132 @@ func NormalizePlayerHead(head int, job int) int {
 		return 13
 	}
 	return head
+}
+
+func PlayerWeaponType(weaponValue int) int {
+	if weaponValue <= 0 {
+		return 0
+	}
+	if weaponValue <= 31 {
+		return weaponValue
+	}
+	switch {
+	case weaponValue >= 1101 && weaponValue <= 1119:
+		return 2
+	case weaponValue >= 1201 && weaponValue <= 1250:
+		return 1
+	case weaponValue >= 1301 && weaponValue <= 1399:
+		return 9
+	case weaponValue >= 1401 && weaponValue <= 1499:
+		return 4
+	case weaponValue >= 1501 && weaponValue <= 1599:
+		return 8
+	case weaponValue >= 1601 && weaponValue <= 1699:
+		return 10
+	case weaponValue >= 1701 && weaponValue <= 1799:
+		return 11
+	case weaponValue >= 1801 && weaponValue <= 1899:
+		return 12
+	case weaponValue >= 1901 && weaponValue <= 1949:
+		return 13
+	case weaponValue >= 1950 && weaponValue <= 1999:
+		return 14
+	default:
+		return 0
+	}
+}
+
+func PlayerWeaponOverlaySupportsSecondLayer(weaponType int) bool {
+	switch weaponType {
+	case 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 25, 26, 27, 28, 29, 30:
+		return true
+	default:
+		return false
+	}
+}
+
+func PlayerWeaponOverlayToken(weaponType int) string {
+	switch weaponType {
+	case 1:
+		return "\xB4\xDC\xB0\xCB"
+	case 2, 3:
+		return "\xB0\xCB"
+	case 4, 5:
+		return "\xC3\xA2"
+	case 6, 7:
+		return "\xB5\xB5\xB3\xA2"
+	case 8, 9:
+		return "\xC5\xAC\xB7\xB4"
+	case 10, 23:
+		return "\xB7\xCE\xB5\xE5"
+	case 11:
+		return "\xC8\xB0"
+	case 12:
+		return "\xB3\xCA\xC5\xAC"
+	case 13:
+		return "\xBE\xC7\xB1\xE2"
+	case 14:
+		return "\xC3\xA4\xC2\xEF"
+	case 15:
+		return "\xC3\xA5"
+	case 16:
+		return "\xC4\xAB\xC5\xB8\xB8\xA3_\xC4\xAB\xC5\xB8\xB8\xA3"
+	case 17:
+		return "\xB1\xC7\xC3\xD1"
+	case 18:
+		return "\xB6\xF3\xC0\xCC\xC7\xC3"
+	case 19:
+		return "\xB1\xE2\xB0\xFC\xC3\xD1"
+	case 20:
+		return "\xBC\xA6\xB0\xC7"
+	case 22:
+		return "\xBC\xF6\xB8\xAE\xB0\xCB"
+	case 25:
+		return "\xB4\xDC\xB0\xCB_\xB4\xDC\xB0\xCB"
+	case 26:
+		return "\xB0\xCB_\xB0\xCB"
+	case 27:
+		return "\xB5\xB5\xB3\xA2_\xB5\xB5\xB3\xA2"
+	case 28:
+		return "\xB4\xDC\xB0\xCB_\xB0\xCB"
+	case 29:
+		return "\xB4\xDC\xB0\xCB_\xB5\xB5\xB3\xA2"
+	case 30:
+		return "\xB0\xCB_\xB5\xB5\xB3\xA2"
+	default:
+		return ""
+	}
+}
+
+func PlayerShieldToken(shield int) string {
+	if shield <= 0 {
+		return ""
+	}
+	viewID := shield
+	if shield > 4 {
+		switch shield {
+		case 2101, 2102:
+			viewID = 1
+		case 2103, 2104:
+			viewID = 2
+		case 2105, 2106:
+			viewID = 3
+		case 2107, 2108, 2110, 2111:
+			viewID = 4
+		default:
+			return ""
+		}
+	}
+	switch viewID {
+	case 1:
+		return "guard"
+	case 2:
+		return "buckler"
+	case 3:
+		return "shield"
+	case 4:
+		return "mirrorshield"
+	default:
+		return ""
+	}
 }
