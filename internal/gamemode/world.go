@@ -797,7 +797,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, 
 
 func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, entry sceneActorDrawEntry) {
 	if entry.isPlayer {
-		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale) {
+		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir) {
 			return
 		}
 		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)

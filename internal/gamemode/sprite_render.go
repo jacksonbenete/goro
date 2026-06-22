@@ -298,11 +298,11 @@ func selectedCharacter(s *session.Session) session.Character {
 	return session.Character{ID: s.CharID, Name: "Player", Job: 0}
 }
 
-func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64) bool {
+func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64, direction int) bool {
 	moving := ctx.World.Player.IsMovingAt(time.Now())
 	state := spriteState{
 		actionFamily: spriteActionIdle,
-		direction:    ctx.World.Dir,
+		direction:    direction,
 		moving:       moving,
 	}
 	if moving {

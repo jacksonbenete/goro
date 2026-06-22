@@ -161,6 +161,38 @@ func TestFollowCameraInterpolatesTowardPlayerLikeReferenceView(t *testing.T) {
 	}
 }
 
+func TestAppendActorDrawEntryUsesPathRenderDirection(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	actor := worldstate.Actor{
+		X:            2,
+		Y:            1,
+		Dir:          4,
+		Moving:       true,
+		FromX:        0,
+		FromY:        0,
+		ToX:          2,
+		ToY:          1,
+		MoveStarted:  now.Add(-225 * time.Millisecond),
+		MoveDuration: 450 * time.Millisecond,
+		MovePath: []worldstate.WalkStep{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+			{X: 2, Y: 1},
+		},
+	}
+	projection := newSceneProjectionForTarget(800, 600, 0.5, 1.5, 0)
+
+	entries := appendActorDrawEntry(nil, world, projection, actor, "actor", false, now, 800, 600)
+	if len(entries) != 1 {
+		t.Fatalf("entries = %d, want 1", len(entries))
+	}
+	if got, want := entries[0].actor.Dir, worldstate.DirectionFromDelta(0, 1, 1, 1, 4); got != want {
+		t.Fatalf("entry direction = %d, want %d", got, want)
+	}
+}
+
 func TestCameraFollowFactorIsClamped(t *testing.T) {
 	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "2")
 	if got := cameraFollowFactor(); got != 1 {
