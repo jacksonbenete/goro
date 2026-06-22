@@ -92,22 +92,30 @@ func TestUnpackGNDLightmap5BitChannel(t *testing.T) {
 
 func TestDecodeGNDLightmapRaw(t *testing.T) {
 	raw := make([]byte, 256)
-	for i, sample := range gndLightmapVertexSamples {
-		pixel := sample.y*8 + sample.x
-		raw[pixel] = byte(32 + i)
-		base := 64 + pixel*3
-		raw[base] = byte(64 + i)
-		raw[base+1] = byte(96 + i)
-		raw[base+2] = byte(128 + i)
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			pixel := y*8 + x
+			raw[pixel] = byte(32 + pixel)
+			base := 64 + pixel*3
+			raw[base] = byte(64 + pixel)
+			raw[base+1] = byte(96 + pixel)
+			raw[base+2] = byte(128 + pixel)
+		}
 	}
 	lightmap := decodeGNDLightmapRaw(raw)
-	for i := range lightmap.Alpha {
-		if lightmap.Alpha[i] != byte(32+i) {
-			t.Fatalf("alpha[%d] = %d", i, lightmap.Alpha[i])
+	for y := range lightmap.Alpha {
+		for x := range lightmap.Alpha[y] {
+			pixel := y*8 + x
+			if lightmap.Alpha[y][x] != byte(32+pixel) {
+				t.Fatalf("alpha[%d][%d] = %d", y, x, lightmap.Alpha[y][x])
+			}
+			if lightmap.Color[y][x].R != byte(64+pixel) || lightmap.Color[y][x].G != byte(96+pixel) || lightmap.Color[y][x].B != byte(128+pixel) {
+				t.Fatalf("color[%d][%d] = %+v", y, x, lightmap.Color[y][x])
+			}
 		}
-		if lightmap.Color[i].R != byte(64+i) || lightmap.Color[i].G != byte(96+i) || lightmap.Color[i].B != byte(128+i) {
-			t.Fatalf("color[%d] = %+v", i, lightmap.Color[i])
-		}
+	}
+	if got := GNDLightmapRenderAlpha(lightmap, 3); got != lightmap.Alpha[7][7] {
+		t.Fatalf("render corner alpha = %d, want %d", got, lightmap.Alpha[7][7])
 	}
 }
 

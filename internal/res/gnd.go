@@ -21,8 +21,8 @@ type GND struct {
 }
 
 type GNDLightmap struct {
-	Alpha [4]uint8
-	Color [4]color.RGBA
+	Alpha [8][8]uint8
+	Color [8][8]color.RGBA
 }
 
 type GNDSurface struct {
@@ -186,11 +186,13 @@ func decodeGNDLightmapRaw(data []byte) GNDLightmap {
 	if len(data) < 256 {
 		return lightmap
 	}
-	for i, sample := range gndLightmapVertexSamples {
-		pixel := sample.y*8 + sample.x
-		lightmap.Alpha[i] = data[pixel]
-		base := 64 + pixel*3
-		lightmap.Color[i] = color.RGBA{R: data[base], G: data[base+1], B: data[base+2], A: 255}
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			pixel := y*8 + x
+			lightmap.Alpha[y][x] = data[pixel]
+			base := 64 + pixel*3
+			lightmap.Color[y][x] = color.RGBA{R: data[base], G: data[base+1], B: data[base+2], A: 255}
+		}
 	}
 	return lightmap
 }
@@ -209,12 +211,55 @@ func decodeGNDLightmapIndexed(index [4]int, channels [][40]byte) GNDLightmap {
 	r := unpackGNDLightmap5BitChannel(channels[index[1]])
 	g := unpackGNDLightmap5BitChannel(channels[index[2]])
 	b := unpackGNDLightmap5BitChannel(channels[index[3]])
-	for i, sample := range gndLightmapVertexSamples {
-		src := sample.x*8 + sample.y
-		lightmap.Alpha[i] = a[src]
-		lightmap.Color[i] = color.RGBA{R: r[src], G: g[src], B: b[src], A: 255}
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			src := x*8 + y
+			lightmap.Alpha[y][x] = a[src]
+			lightmap.Color[y][x] = color.RGBA{R: r[src], G: g[src], B: b[src], A: 255}
+		}
 	}
 	return lightmap
+}
+
+func GNDLightmapRenderAlpha(lightmap GNDLightmap, sourceVertex int) uint8 {
+	if sourceVertex < 0 || sourceVertex >= len(gndLightmapRenderVertexSamples) {
+		return 255
+	}
+	sample := gndLightmapRenderVertexSamples[sourceVertex]
+	return lightmap.Alpha[sample.y][sample.x]
+}
+
+func GNDLightmapSampleAlpha(lightmap GNDLightmap, s, t float64) uint8 {
+	x := 1 + clampFloat(s, 0, 1)*6
+	y := 1 + clampFloat(t, 0, 1)*6
+	x0 := int(math.Floor(x))
+	y0 := int(math.Floor(y))
+	x1 := min(7, x0+1)
+	y1 := min(7, y0+1)
+	fx := x - float64(x0)
+	fy := y - float64(y0)
+
+	top := lerpFloat(float64(lightmap.Alpha[y0][x0]), float64(lightmap.Alpha[y0][x1]), fx)
+	bottom := lerpFloat(float64(lightmap.Alpha[y1][x0]), float64(lightmap.Alpha[y1][x1]), fx)
+	return uint8(math.Round(lerpFloat(top, bottom, fy)))
+}
+
+func lerpFloat(a, b, t float64) float64 {
+	return a + (b-a)*t
+}
+
+func clampFloat(value, low, high float64) float64 {
+	return math.Min(high, math.Max(low, value))
+}
+
+var gndLightmapRenderVertexSamples = [...]struct {
+	y int
+	x int
+}{
+	{y: 1, x: 1},
+	{y: 1, x: 7},
+	{y: 7, x: 1},
+	{y: 7, x: 7},
 }
 
 func unpackGNDLightmap5BitChannel(channel [40]byte) [64]uint8 {
@@ -231,16 +276,6 @@ func unpackGNDLightmap5BitChannel(channel [40]byte) [64]uint8 {
 		}
 	}
 	return out
-}
-
-var gndLightmapVertexSamples = [...]struct {
-	y int
-	x int
-}{
-	{y: 1, x: 1},
-	{y: 1, x: 5},
-	{y: 5, x: 1},
-	{y: 5, x: 5},
 }
 
 func fixedBinaryString(data []byte) string {

@@ -2324,6 +2324,10 @@ func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, g
 
 	textureName := gndTextureName(gnd, surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
+		if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok && isTopGNDLightmapQuad(vertexOrder, indices) {
+			drawTexturedLightmappedSurface(screen, texture, points, uvs, surface.Color, lightmap, brightness)
+			return
+		}
 		drawTexturedSurface(screen, texture, points, uvs, indices, surfaceVertexTints(gnd, surface, vertexOrder, heights, brightness))
 		return
 	}
@@ -2485,7 +2489,7 @@ func lightmapSurfaceVertexTints(surfaceColor color.RGBA, lightmap res.GNDLightma
 	}
 	var tints [4]color.RGBA
 	for i, sourceVertex := range vertexOrder {
-		light := float64(lightmap.Alpha[sourceVertex]) / 255 * brightness
+		light := float64(res.GNDLightmapRenderAlpha(lightmap, sourceVertex)) / 255 * brightness
 		tints[i] = color.RGBA{
 			R: clampColor(float64(base.R) * light),
 			G: clampColor(float64(base.G) * light),
@@ -2570,6 +2574,90 @@ func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, u
 		Address: ebiten.AddressRepeat,
 	}
 	screen.DrawTriangles(vertices, indices, texture, op)
+}
+
+func isTopGNDLightmapQuad(vertexOrder [4]int, indices []uint16) bool {
+	return vertexOrder == [4]int{0, 1, 3, 2} &&
+		len(indices) == 6 &&
+		indices[0] == 0 && indices[1] == 1 && indices[2] == 2 &&
+		indices[3] == 0 && indices[4] == 2 && indices[5] == 3
+}
+
+func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, brightness float64) {
+	const steps = 6
+	bounds := texture.Bounds()
+	textureWidth := float32(bounds.Dx())
+	textureHeight := float32(bounds.Dy())
+	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	if surfaceColor.A != 0 {
+		base = surfaceColor
+	}
+
+	vertices := make([]ebiten.Vertex, 0, (steps+1)*(steps+1))
+	for y := 0; y <= steps; y++ {
+		t := float64(y) / steps
+		for x := 0; x <= steps; x++ {
+			s := float64(x) / steps
+			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255 * brightness
+			tint := color.RGBA{
+				R: clampColor(float64(base.R) * alpha),
+				G: clampColor(float64(base.G) * alpha),
+				B: clampColor(float64(base.B) * alpha),
+				A: 255,
+			}
+			vertices = append(vertices, texturedSurfaceVertex(
+				bilerpScreenPoint(points, s, t),
+				bilerpTexturePoint(uvs, s, t),
+				tint,
+				textureWidth,
+				textureHeight,
+			))
+		}
+	}
+
+	indices := make([]uint16, 0, steps*steps*6)
+	row := steps + 1
+	for y := 0; y < steps; y++ {
+		for x := 0; x < steps; x++ {
+			topLeft := uint16(y*row + x)
+			topRight := uint16(y*row + x + 1)
+			bottomLeft := uint16((y+1)*row + x)
+			bottomRight := uint16((y+1)*row + x + 1)
+			indices = append(indices, topLeft, topRight, bottomRight, topLeft, bottomRight, bottomLeft)
+		}
+	}
+
+	op := &ebiten.DrawTrianglesOptions{
+		Filter:  ebiten.FilterLinear,
+		Address: ebiten.AddressRepeat,
+	}
+	screen.DrawTriangles(vertices, indices, texture, op)
+}
+
+func bilerpScreenPoint(points [4]screenPoint, s, t float64) screenPoint {
+	top := lerpScreenPoint(points[0], points[1], s)
+	bottom := lerpScreenPoint(points[3], points[2], s)
+	return lerpScreenPoint(top, bottom, t)
+}
+
+func lerpScreenPoint(a, b screenPoint, t float64) screenPoint {
+	return screenPoint{
+		x: float32(float64(a.x) + (float64(b.x)-float64(a.x))*t),
+		y: float32(float64(a.y) + (float64(b.y)-float64(a.y))*t),
+	}
+}
+
+func bilerpTexturePoint(points [4]texturePoint, s, t float64) texturePoint {
+	top := lerpTexturePoint(points[0], points[1], s)
+	bottom := lerpTexturePoint(points[3], points[2], s)
+	return lerpTexturePoint(top, bottom, t)
+}
+
+func lerpTexturePoint(a, b texturePoint, t float64) texturePoint {
+	return texturePoint{
+		u: float32(float64(a.u) + (float64(b.u)-float64(a.u))*t),
+		v: float32(float64(a.v) + (float64(b.v)-float64(a.v))*t),
+	}
 }
 
 func texturedSurfaceVertex(point screenPoint, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) ebiten.Vertex {
