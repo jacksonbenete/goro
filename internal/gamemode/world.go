@@ -1078,6 +1078,7 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 		ToY:           entry.ToY,
 		ObjectType:    entry.ObjectType,
 		HasObjectType: entry.HasObjectType,
+		Speed:         entry.Speed,
 	})
 }
 
@@ -1606,6 +1607,7 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
 		moving:       actor.IsMovingAt(time.Now()),
+		moveSpeedMS:  actor.Speed,
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk
@@ -1641,6 +1643,7 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
 		moving:       actor.IsMovingAt(time.Now()),
+		moveSpeedMS:  actor.Speed,
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk

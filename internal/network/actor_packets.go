@@ -26,6 +26,7 @@ type ActorEntry struct {
 	ToY           int
 	ObjectType    uint8
 	HasObjectType bool
+	Speed         int
 }
 
 type ActorVanish struct {
@@ -85,6 +86,7 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ObjectType:    packet.Data[2],
 			HasObjectType: true,
 			ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
+			Speed:         int(binary.LittleEndian.Uint16(packet.Data[7:9])),
 			Job:           int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
 			Head:          int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
 			Weapon:        int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
@@ -105,6 +107,7 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		x, y, dir := unpackPos(packet.Data[46:49])
 		return ActorEntry{
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
 			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
@@ -125,6 +128,7 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		fromX, fromY, toX, toY := unpackMovePos(packet.Data[50:56])
 		return ActorEntry{
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
 			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
@@ -151,6 +155,7 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ObjectType:    packet.Data[2],
 			HasObjectType: true,
 			ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
+			Speed:         int(binary.LittleEndian.Uint16(packet.Data[7:9])),
 			Job:           int16(binary.LittleEndian.Uint16(packet.Data[21:23])),
 			Head:          int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
 			Sex:           packet.Data[36],
@@ -181,6 +186,7 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		x, y, dir := unpackPos(packet.Data[46:49])
 		return ActorEntry{
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
 			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
@@ -201,6 +207,7 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		x, y, dir := unpackPos(packet.Data[46:49])
 		return ActorEntry{
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
 			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
@@ -221,6 +228,7 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		fromX, fromY, toX, toY := unpackMovePos(packet.Data[50:56])
 		return ActorEntry{
 			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
 			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
 			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
 			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
@@ -275,6 +283,7 @@ func parseActorMoveEntryModern(packet Packet) (ActorEntry, error) {
 		ObjectType:    packet.Data[2],
 		HasObjectType: true,
 		ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
+		Speed:         int(binary.LittleEndian.Uint16(packet.Data[7:9])),
 		Job:           int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
 		Head:          int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
 		Weapon:        int16(weaponValue & 0xFFFF),
@@ -313,6 +322,7 @@ func parseActorMoveEntryVariable(packet Packet, hasRobe bool) (ActorEntry, error
 		ObjectType:    packet.Data[4],
 		HasObjectType: true,
 		ID:            binary.LittleEndian.Uint32(packet.Data[5:9]),
+		Speed:         int(binary.LittleEndian.Uint16(packet.Data[9:11])),
 		Job:           int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
 		Head:          int16(binary.LittleEndian.Uint16(packet.Data[21:23])),
 		Weapon:        int16(weaponValue & 0xFFFF),

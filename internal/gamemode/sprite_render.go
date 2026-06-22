@@ -101,6 +101,7 @@ type spriteState struct {
 	moving       bool
 	started      time.Time
 	loop         bool
+	moveSpeedMS  int
 }
 
 func loadPlayerSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
@@ -316,6 +317,7 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX,
 		actionFamily: spriteActionIdle,
 		direction:    direction,
 		moving:       moving,
+		moveSpeedMS:  ctx.World.Player.Speed,
 	}
 	if moving {
 		state.actionFamily = spriteActionWalk
@@ -409,7 +411,7 @@ func singleSpriteBillboardForState(view *playerSpriteView, state spriteState, no
 	if !ok || len(action.Animations) == 0 {
 		return nil, false
 	}
-	motion := spriteMotionIndex(action, view.started, now, true)
+	motion := bodyMotionForState(action, state, view.started, now)
 	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion}
 	if billboard, ok := view.billboards[key]; ok {
 		return billboard, true
@@ -852,10 +854,14 @@ func resolveSpriteAction(act *res.ACT, actionFamily, direction int) (int, res.AC
 }
 
 func spriteMotionIndex(action res.ACTAction, started time.Time, now time.Time, loop bool) int {
+	return spriteMotionIndexWithDelay(action, started, now, loop, float64(action.DelayMS))
+}
+
+func spriteMotionIndexWithDelay(action res.ACTAction, started time.Time, now time.Time, loop bool, delayMS float64) int {
 	if len(action.Animations) == 0 {
 		return 0
 	}
-	delay := action.DelayMS
+	delay := delayMS
 	if delay <= 0 {
 		delay = 150
 	}
@@ -863,7 +869,7 @@ func spriteMotionIndex(action res.ACTAction, started time.Time, now time.Time, l
 	if elapsed < 0 {
 		elapsed = 0
 	}
-	index := int(float64(elapsed.Milliseconds()) / float64(delay))
+	index := int(float64(elapsed.Milliseconds()) / delay)
 	if loop || len(action.Animations) == 1 {
 		return index % len(action.Animations)
 	}
@@ -877,16 +883,23 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 	if !state.started.IsZero() {
 		started = state.started
 	}
+	delayMS := float64(action.DelayMS)
+	if state.actionFamily == spriteActionWalk && state.moveSpeedMS > 0 {
+		if delayMS <= 0 {
+			delayMS = 150
+		}
+		delayMS = delayMS * float64(state.moveSpeedMS) / 150
+	}
 	if state.actionFamily == spriteActionWalk || state.loop {
-		return spriteMotionIndex(action, started, now, true)
+		return spriteMotionIndexWithDelay(action, started, now, true, delayMS)
 	}
 	if !state.started.IsZero() {
-		return spriteMotionIndex(action, started, now, false)
+		return spriteMotionIndexWithDelay(action, started, now, false, delayMS)
 	}
 	if state.actionFamily != spriteActionWalk {
 		return 0
 	}
-	return spriteMotionIndex(action, started, now, true)
+	return spriteMotionIndexWithDelay(action, started, now, true, delayMS)
 }
 
 func selectHeadMotion(actionFamily int, bodyMotion int, headAction res.ACTAction) int {

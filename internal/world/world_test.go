@@ -75,6 +75,35 @@ func TestUpsertActorMovePreservesObjectType(t *testing.T) {
 	}
 }
 
+func TestUpsertActorMoveUsesActorSpeed(t *testing.T) {
+	w := New()
+	w.UpsertActor(Actor{
+		ID:    2000001,
+		X:     10,
+		Y:     20,
+		Speed: 400,
+	})
+
+	w.UpsertActor(Actor{
+		ID:     2000001,
+		X:      11,
+		Y:      20,
+		Moving: true,
+		FromX:  10,
+		FromY:  20,
+		ToX:    11,
+		ToY:    20,
+	})
+
+	actor := w.Actors[2000001]
+	if actor.Speed != 400 {
+		t.Fatalf("speed = %d, want preserved 400", actor.Speed)
+	}
+	if actor.MoveDuration != 400*time.Millisecond {
+		t.Fatalf("duration = %s, want 400ms", actor.MoveDuration)
+	}
+}
+
 func TestActorRenderPositionInterpolates(t *testing.T) {
 	now := time.Now()
 	actor := Actor{
@@ -92,6 +121,32 @@ func TestActorRenderPositionInterpolates(t *testing.T) {
 	x, y := actor.RenderPosition(now)
 	if x != 15 || y != 25 {
 		t.Fatalf("position = %.2f, %.2f, want 15, 25", x, y)
+	}
+}
+
+func TestActorRenderPositionFollowsSpeedScaledWalkPath(t *testing.T) {
+	now := time.Now()
+	actor := Actor{
+		X:            2,
+		Y:            0,
+		Moving:       true,
+		FromX:        0,
+		FromY:        0,
+		ToX:          2,
+		ToY:          0,
+		Speed:        400,
+		MoveStarted:  now.Add(-600 * time.Millisecond),
+		MoveDuration: 800 * time.Millisecond,
+		MovePath: []WalkStep{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 2, Y: 0},
+		},
+	}
+
+	x, y := actor.RenderPosition(now)
+	if x != 1.5 || y != 0 {
+		t.Fatalf("position = %.2f, %.2f, want 1.50, 0.00", x, y)
 	}
 }
 

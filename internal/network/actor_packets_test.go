@@ -9,6 +9,7 @@ func TestParseActorStandEntry2(t *testing.T) {
 	data := make([]byte, 54)
 	binary.LittleEndian.PutUint16(data[0:2], 0x01D8)
 	binary.LittleEndian.PutUint32(data[2:6], 2000001)
+	binary.LittleEndian.PutUint16(data[6:8], 400)
 	binary.LittleEndian.PutUint16(data[14:16], 1002)
 	binary.LittleEndian.PutUint16(data[16:18], 7)
 	data[45] = 1
@@ -24,7 +25,7 @@ func TestParseActorStandEntry2(t *testing.T) {
 	if !entry.Appearance {
 		t.Fatal("stand entry should include appearance")
 	}
-	if entry.ID != 2000001 || entry.Job != 1002 || entry.Head != 7 || entry.Sex != 1 || entry.X != 102 || entry.Y != 134 || entry.Dir != 3 {
+	if entry.ID != 2000001 || entry.Speed != 400 || entry.Job != 1002 || entry.Head != 7 || entry.Sex != 1 || entry.X != 102 || entry.Y != 134 || entry.Dir != 3 {
 		t.Fatalf("unexpected entry: %+v", entry)
 	}
 }
@@ -34,6 +35,7 @@ func TestParseActorStandEntryLegacy(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[0:2], 0x0078)
 	data[2] = 5
 	binary.LittleEndian.PutUint32(data[3:7], 2000003)
+	binary.LittleEndian.PutUint16(data[7:9], 420)
 	binary.LittleEndian.PutUint16(data[15:17], 1011)
 	binary.LittleEndian.PutUint16(data[17:19], 2)
 	data[46] = 0
@@ -46,7 +48,7 @@ func TestParseActorStandEntryLegacy(t *testing.T) {
 	if !ok {
 		t.Fatal("not parsed")
 	}
-	if entry.ID != 2000003 || entry.Job != 1011 || entry.ObjectType != 5 || entry.X != 44 || entry.Y != 55 || entry.Dir != 6 {
+	if entry.ID != 2000003 || entry.Speed != 420 || entry.Job != 1011 || entry.ObjectType != 5 || entry.X != 44 || entry.Y != 55 || entry.Dir != 6 {
 		t.Fatalf("unexpected entry: %+v", entry)
 	}
 }
@@ -55,6 +57,7 @@ func TestParseActorMoveEntry2(t *testing.T) {
 	data := make([]byte, 60)
 	binary.LittleEndian.PutUint16(data[0:2], 0x01DA)
 	binary.LittleEndian.PutUint32(data[2:6], 2000002)
+	binary.LittleEndian.PutUint16(data[6:8], 480)
 	binary.LittleEndian.PutUint16(data[14:16], 1002)
 	data[49] = 0
 	data[50], data[51], data[52], data[53], data[54], data[55] = packMovePosition(10, 20, 30, 40)
@@ -71,6 +74,9 @@ func TestParseActorMoveEntry2(t *testing.T) {
 	}
 	if entry.FromX != 10 || entry.FromY != 20 || entry.ToX != 30 || entry.ToY != 40 || entry.X != 30 || entry.Y != 40 {
 		t.Fatalf("unexpected move entry: %+v", entry)
+	}
+	if entry.Speed != 480 {
+		t.Fatalf("speed = %d, want 480", entry.Speed)
 	}
 }
 
@@ -101,6 +107,7 @@ func TestParseActorMoveEntryModern(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[0:2], 0x022C)
 	data[2] = 5
 	binary.LittleEndian.PutUint32(data[3:7], 1100001)
+	binary.LittleEndian.PutUint16(data[7:9], 360)
 	binary.LittleEndian.PutUint16(data[17:19], 1002)
 	binary.LittleEndian.PutUint16(data[19:21], 3)
 	binary.LittleEndian.PutUint32(data[21:25], uint32(2101)<<16|1201)
@@ -117,7 +124,7 @@ func TestParseActorMoveEntryModern(t *testing.T) {
 	if !ok || !entry.Moving || !entry.Appearance {
 		t.Fatalf("modern move entry not parsed: ok=%v entry=%+v", ok, entry)
 	}
-	if entry.ID != 1100001 || entry.ObjectType != 5 || entry.Job != 1002 || entry.Head != 3 || entry.Weapon != 1201 || entry.Shield != 2101 || entry.HeadLow != 11 || entry.HeadTop != 22 || entry.HeadMid != 33 || entry.Sex != 1 {
+	if entry.ID != 1100001 || entry.Speed != 360 || entry.ObjectType != 5 || entry.Job != 1002 || entry.Head != 3 || entry.Weapon != 1201 || entry.Shield != 2101 || entry.HeadLow != 11 || entry.HeadTop != 22 || entry.HeadMid != 33 || entry.Sex != 1 {
 		t.Fatalf("unexpected appearance: %+v", entry)
 	}
 	if entry.FromX != 10 || entry.FromY != 20 || entry.ToX != 11 || entry.ToY != 21 || entry.X != 11 || entry.Y != 21 {
@@ -131,6 +138,7 @@ func TestParseActorMoveEntryVariableRobe(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
 	data[4] = 5
 	binary.LittleEndian.PutUint32(data[5:9], 1100002)
+	binary.LittleEndian.PutUint16(data[9:11], 620)
 	binary.LittleEndian.PutUint16(data[19:21], 1063)
 	binary.LittleEndian.PutUint16(data[21:23], 4)
 	binary.LittleEndian.PutUint32(data[23:27], uint32(2102)<<16|1202)
@@ -147,7 +155,7 @@ func TestParseActorMoveEntryVariableRobe(t *testing.T) {
 	if !ok || !entry.Moving || !entry.Appearance {
 		t.Fatalf("robe move entry not parsed: ok=%v entry=%+v", ok, entry)
 	}
-	if entry.ID != 1100002 || entry.ObjectType != 5 || entry.Job != 1063 || entry.Head != 4 || entry.Weapon != 1202 || entry.Shield != 2102 || entry.HeadLow != 12 || entry.HeadTop != 23 || entry.HeadMid != 34 || entry.Sex != 0 {
+	if entry.ID != 1100002 || entry.Speed != 620 || entry.ObjectType != 5 || entry.Job != 1063 || entry.Head != 4 || entry.Weapon != 1202 || entry.Shield != 2102 || entry.HeadLow != 12 || entry.HeadTop != 23 || entry.HeadMid != 34 || entry.Sex != 0 {
 		t.Fatalf("unexpected robe appearance: %+v", entry)
 	}
 	if entry.FromX != 30 || entry.FromY != 40 || entry.ToX != 31 || entry.ToY != 41 || entry.X != 31 || entry.Y != 41 {
@@ -161,6 +169,7 @@ func TestParseActorMoveEntryVariableNoRobe(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
 	data[4] = 5
 	binary.LittleEndian.PutUint32(data[5:9], 1100003)
+	binary.LittleEndian.PutUint16(data[9:11], 390)
 	binary.LittleEndian.PutUint16(data[19:21], 1002)
 	binary.LittleEndian.PutUint16(data[21:23], 5)
 	binary.LittleEndian.PutUint32(data[23:27], uint32(2103)<<16|1203)
@@ -177,7 +186,7 @@ func TestParseActorMoveEntryVariableNoRobe(t *testing.T) {
 	if !ok || !entry.Moving || !entry.Appearance {
 		t.Fatalf("variable move entry not parsed: ok=%v entry=%+v", ok, entry)
 	}
-	if entry.ID != 1100003 || entry.ObjectType != 5 || entry.Job != 1002 || entry.Head != 5 || entry.Weapon != 1203 || entry.Shield != 2103 || entry.HeadLow != 13 || entry.HeadTop != 24 || entry.HeadMid != 35 || entry.Sex != 1 {
+	if entry.ID != 1100003 || entry.Speed != 390 || entry.ObjectType != 5 || entry.Job != 1002 || entry.Head != 5 || entry.Weapon != 1203 || entry.Shield != 2103 || entry.HeadLow != 13 || entry.HeadTop != 24 || entry.HeadMid != 35 || entry.Sex != 1 {
 		t.Fatalf("unexpected variable appearance: %+v", entry)
 	}
 	if entry.FromX != 50 || entry.FromY != 60 || entry.ToX != 51 || entry.ToY != 61 || entry.X != 51 || entry.Y != 61 {
