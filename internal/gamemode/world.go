@@ -1329,7 +1329,7 @@ func (c *followCamera) Projection(ctx Context, width, height int, now time.Time)
 		c.Update(ctx, now)
 	}
 	c.store(ctx)
-	return newSceneProjectionForTarget(width, height, c.x, c.y, c.z)
+	return newSceneProjectionForTargetYaw(width, height, c.x, c.y, c.z, cameraYawForMap(ctx))
 }
 
 func (c *followCamera) store(ctx Context) {
@@ -1361,6 +1361,13 @@ func cameraFollowFactor() float64 {
 		return 1
 	}
 	return value
+}
+
+func cameraYawForMap(ctx Context) float64 {
+	if ctx.Resources != nil && ctx.World != nil && ctx.Resources.IsIndoorMap(ctx.World.MapName) {
+		return 45
+	}
+	return sceneCameraYaw()
 }
 
 func upsertNetworkActor(ctx Context, entry network.ActorEntry) {

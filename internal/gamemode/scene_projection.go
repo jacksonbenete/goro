@@ -38,6 +38,10 @@ func newSceneProjectionForSize(width, height, playerX, playerY int, playerZ floa
 }
 
 func newSceneProjectionForTarget(width, height int, targetX, targetY, targetZ float64) sceneProjection {
+	return newSceneProjectionForTargetYaw(width, height, targetX, targetY, targetZ, sceneCameraYaw())
+}
+
+func newSceneProjectionForTargetYaw(width, height int, targetX, targetY, targetZ, yaw float64) sceneProjection {
 	projection := sceneProjection{
 		playerX:     targetX,
 		playerY:     targetY,
@@ -52,7 +56,7 @@ func newSceneProjectionForTarget(width, height int, targetX, targetY, targetZ fl
 	}
 	if os.Getenv("GORO_SCENE_PROJECTION") != "flat" {
 		projection.camera = true
-		projection.viewProjection = sceneCameraMatrix(float64(width), float64(height), targetX, targetY, targetZ)
+		projection.viewProjection = sceneCameraMatrixWithYaw(float64(width), float64(height), targetX, targetY, targetZ, yaw)
 	}
 	return projection
 }
@@ -105,13 +109,17 @@ func (p sceneProjection) projectCamera(x, y, z float64) screenPoint {
 }
 
 func sceneCameraMatrix(width, height, targetX, targetY, targetZ float64) mat4 {
+	return sceneCameraMatrixWithYaw(width, height, targetX, targetY, targetZ, sceneCameraYaw())
+}
+
+func sceneCameraMatrixWithYaw(width, height, targetX, targetY, targetZ, yawDegrees float64) mat4 {
 	distance := sceneCameraZoom() * 0.5
 	pitch := sceneCameraPitch()
 	if pitch > 180 {
 		pitch -= 180
 	}
 	pitch = degreesToRadians(pitch)
-	yaw := degreesToRadians(sceneCameraYaw())
+	yaw := degreesToRadians(yawDegrees)
 	horizontal := math.Cos(pitch) * distance
 	target := modelPoint3{x: targetX, y: targetZ, z: targetY}
 	eye := modelPoint3{

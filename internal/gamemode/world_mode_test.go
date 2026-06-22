@@ -2,6 +2,8 @@ package gamemode
 
 import (
 	"math"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -707,6 +709,33 @@ func TestCameraFollowFactorIsClamped(t *testing.T) {
 	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "-1")
 	if got := cameraFollowFactor(); got != 0 {
 		t.Fatalf("camera follow factor = %.2f, want 0", got)
+	}
+}
+
+func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
+	t.Setenv("GORO_CAMERA_YAW", "123")
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.Mkdir(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "indoorrswtable.txt"), []byte("geffen_in.rsw#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := Context{
+		Resources: manager,
+		World:     &worldstate.World{MapName: "geffen_in"},
+	}
+	if got := cameraYawForMap(ctx); got != 45 {
+		t.Fatalf("indoor camera yaw = %.1f, want 45.0", got)
+	}
+	ctx.World.MapName = "prontera"
+	if got := cameraYawForMap(ctx); got != 123 {
+		t.Fatalf("outdoor camera yaw = %.1f, want env override 123.0", got)
 	}
 }
 

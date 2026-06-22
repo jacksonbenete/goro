@@ -19,6 +19,8 @@ type Manager struct {
 	accessoryNamesLoaded   bool
 	jobResourceNames       map[int]string
 	jobResourceNamesLoaded bool
+	indoorRswNames         map[string]struct{}
+	indoorRswNamesLoaded   bool
 }
 
 func NewManager(root string) (*Manager, error) {
@@ -111,6 +113,58 @@ func (m *Manager) ReadFirst(names []string) (string, []byte, bool) {
 		}
 	}
 	return "", nil, false
+}
+
+func (m *Manager) IsIndoorMap(mapName string) bool {
+	m.loadIndoorRswNames()
+	_, ok := m.indoorRswNames[normalizeRswNameForCameraTable(mapName)]
+	return ok
+}
+
+func (m *Manager) loadIndoorRswNames() {
+	if m.indoorRswNamesLoaded {
+		return
+	}
+	m.indoorRswNamesLoaded = true
+	m.indoorRswNames = make(map[string]struct{})
+	data, err := m.ReadFile("data\\indoorrswtable.txt")
+	if err != nil {
+		data, err = m.ReadFile("data/indoorrswtable.txt")
+	}
+	if err != nil {
+		return
+	}
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(strings.TrimRight(rawLine, "\r"))
+		if strings.HasPrefix(line, "//") {
+			continue
+		}
+		if index := strings.IndexByte(line, '#'); index >= 0 {
+			line = line[:index]
+		}
+		key := normalizeRswNameForCameraTable(line)
+		if key != "" {
+			m.indoorRswNames[key] = struct{}{}
+		}
+	}
+}
+
+func normalizeRswNameForCameraTable(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if name == "" {
+		return ""
+	}
+	if index := strings.LastIndexAny(name, `\/`); index >= 0 {
+		name = name[index+1:]
+	}
+	name = strings.TrimRight(name, "#")
+	switch {
+	case strings.HasSuffix(name, ".gat"):
+		name = strings.TrimSuffix(name, ".gat") + ".rsw"
+	case !strings.Contains(name, "."):
+		name += ".rsw"
+	}
+	return name
 }
 
 func (m *Manager) scanKnownFiles() {
