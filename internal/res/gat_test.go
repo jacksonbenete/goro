@@ -28,7 +28,7 @@ func TestParseGAT(t *testing.T) {
 	if !ok {
 		t.Fatal("missing first cell")
 	}
-	if first.Type&GATTypeWalkable == 0 || first.Heights[0] != 2 {
+	if first.Type&GATTypeWalkable == 0 || first.Heights[0] != -2 {
 		t.Fatalf("unexpected first cell: %+v", first)
 	}
 	second, ok := gat.Cell(1, 0)

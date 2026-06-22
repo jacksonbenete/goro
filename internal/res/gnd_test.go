@@ -64,7 +64,7 @@ func TestParseGND(t *testing.T) {
 	if !ok {
 		t.Fatal("missing cell")
 	}
-	if cell.Top != 0 || cell.Front != -1 || cell.Right != -1 || cell.Heights[0] != 2 {
+	if cell.Top != 0 || cell.Front != -1 || cell.Right != -1 || cell.Heights[0] != -2 {
 		t.Fatalf("unexpected cell: %+v", cell)
 	}
 }

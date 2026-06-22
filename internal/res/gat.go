@@ -59,7 +59,7 @@ func ParseGAT(data []byte) (*GAT, error) {
 	for i := 0; i < cellCount; i++ {
 		cell := GATCell{}
 		for h := 0; h < 4; h++ {
-			cell.Heights[h] = math.Float32frombits(binary.LittleEndian.Uint32(data[offset:offset+4])) * 0.2
+			cell.Heights[h] = -math.Float32frombits(binary.LittleEndian.Uint32(data[offset:offset+4])) * 0.2
 			offset += 4
 		}
 		cell.RawType = binary.LittleEndian.Uint32(data[offset : offset+4])

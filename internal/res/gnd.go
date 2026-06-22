@@ -132,7 +132,7 @@ func ParseGND(data []byte) (*GND, error) {
 	for i := range cells {
 		var cell GNDCell
 		for j := range cell.Heights {
-			cell.Heights[j] = reader.f32() * 0.2
+			cell.Heights[j] = -reader.f32() * 0.2
 		}
 		cell.Top = int(reader.i32())
 		cell.Front = int(reader.i32())

@@ -2268,6 +2268,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 	startY := max(0, groundCenterY-radiusY)
 	endY := min(gnd.Height-1, groundCenterY+radiusY)
 	lighting := sceneLightingFromRSW(rsw)
+	surfaces := make([]gndSurfaceDraw, 0, (endX-startX+1)*(endY-startY+1))
 
 	for y := startY; y <= endY; y++ {
 		for x := startX; x <= endX; x++ {
@@ -2286,7 +2287,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
 						{x: float64(x) * 2, y: float64(cell.Heights[2]), z: float64(y+1) * 2},
 					}
-					m.drawGNDSurface(screen, manager, gnd, projectGNDQuad(projection, verts), surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, quadNormal(verts), lighting, float64(width), float64(height))
+					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, lighting))
 				}
 			}
 
@@ -2302,7 +2303,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 						{x: float64(x+1) * 2, y: float64(neighbor.Heights[1]), z: float64(y+1) * 2},
 					}
 					heights := [4]float32{cell.Heights[2], cell.Heights[3], neighbor.Heights[0], neighbor.Heights[1]}
-					m.drawGNDSurface(screen, manager, gnd, projectGNDQuad(projection, verts), surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, quadNormal(verts), lighting, float64(width), float64(height))
+					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, lighting))
 				}
 			}
 
@@ -2318,28 +2319,68 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 						{x: float64(x+1) * 2, y: float64(neighbor.Heights[0]), z: float64(y) * 2},
 					}
 					heights := [4]float32{cell.Heights[3], cell.Heights[1], neighbor.Heights[2], neighbor.Heights[0]}
-					m.drawGNDSurface(screen, manager, gnd, projectGNDQuad(projection, verts), surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, quadNormal(verts), lighting, float64(width), float64(height))
+					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, lighting))
 				}
 			}
 		}
 	}
+	sortGNDSurfaces(surfaces)
+	for _, surface := range surfaces {
+		m.drawGNDSurface(screen, manager, gnd, surface, float64(width), float64(height))
+	}
 }
 
-func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, points [4]screenPoint, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, normal modelPoint3, lighting sceneLighting, screenWidth, screenHeight float64) {
-	if quadOutside(points, screenWidth, screenHeight) {
+type gndSurfaceDraw struct {
+	points      [4]screenPoint
+	uvs         [4]texturePoint
+	vertexOrder [4]int
+	indices     []uint16
+	surface     res.GNDSurface
+	heights     [4]float32
+	normal      modelPoint3
+	lighting    sceneLighting
+	depth       float64
+}
+
+func sortGNDSurfaces(surfaces []gndSurfaceDraw) {
+	sort.SliceStable(surfaces, func(i, j int) bool {
+		return surfaces[i].depth > surfaces[j].depth
+	})
+}
+
+func newGNDSurfaceDraw(projection sceneProjection, verts [4]modelPoint3, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, lighting sceneLighting) gndSurfaceDraw {
+	depth := 0.0
+	for _, vert := range verts {
+		depth += projection.Depth(vert.x, vert.z, vert.y)
+	}
+	return gndSurfaceDraw{
+		points:      projectGNDQuad(projection, verts),
+		uvs:         uvs,
+		vertexOrder: vertexOrder,
+		indices:     indices,
+		surface:     surface,
+		heights:     heights,
+		normal:      quadNormal(verts),
+		lighting:    lighting,
+		depth:       depth / float64(len(verts)),
+	}
+}
+
+func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw, screenWidth, screenHeight float64) {
+	if quadOutside(draw.points, screenWidth, screenHeight) {
 		return
 	}
 
-	textureName := gndTextureName(gnd, surface.TextureID)
+	textureName := gndTextureName(gnd, draw.surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
-		if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
-			drawTexturedLightmappedSurface(screen, texture, points, uvs, surface.Color, lightmap, lighting.groundScale(normal))
+		if lightmap, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
+			drawTexturedLightmappedSurface(screen, texture, draw.points, draw.uvs, draw.surface.Color, lightmap, draw.lighting.groundScale(draw.normal))
 			return
 		}
-		drawTexturedSurface(screen, texture, points, uvs, indices, surfaceVertexTints(gnd, surface, vertexOrder, heights, normal, lighting))
+		drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, surfaceVertexTints(gnd, draw.surface, draw.vertexOrder, draw.heights, draw.normal, draw.lighting))
 		return
 	}
-	drawColoredSurface(screen, m.whitePixel, points, indices, groundSurfaceColor(textureName, surface.Color, heights, normal, lighting))
+	drawColoredSurface(screen, m.whitePixel, draw.points, draw.indices, groundSurfaceColor(textureName, draw.surface.Color, draw.heights, draw.normal, draw.lighting))
 }
 
 func drawRSWModelMarkers(screen *ebiten.Image, rsw *res.RSW, gnd *res.GND, projection sceneProjection) {

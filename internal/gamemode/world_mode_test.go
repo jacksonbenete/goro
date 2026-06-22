@@ -754,6 +754,22 @@ func TestSceneLightingFromRSWMatchesReferenceDirection(t *testing.T) {
 	}
 }
 
+func TestSortGNDSurfacesDrawsFarBeforeNear(t *testing.T) {
+	surfaces := []gndSurfaceDraw{
+		{depth: 2},
+		{depth: 8},
+		{depth: 4},
+	}
+	sortGNDSurfaces(surfaces)
+	got := []float64{surfaces[0].depth, surfaces[1].depth, surfaces[2].depth}
+	want := []float64{8, 4, 2}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("surface order = %v, want %v", got, want)
+		}
+	}
+}
+
 func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 1002})
