@@ -146,6 +146,13 @@ func TestPlayerRenderLayerOrderKeepsBodyBeforeHead(t *testing.T) {
 	}
 }
 
+func TestPlayerRenderLayerOrderRestoresMissingHeadLayer(t *testing.T) {
+	order := ensureRenderLayerPresent([8]int{0, 0, 5, 6, 7, 4, 3, 2}, 1)
+	if order != [8]int{0, 1, 5, 6, 7, 4, 3, 2} {
+		t.Fatalf("order = %v", order)
+	}
+}
+
 func TestSpriteLayerCenterTreatsPositiveYAsScreenDown(t *testing.T) {
 	_, y := spriteLayerCenter(5, 5, res.ACTLayer{Y: 3})
 	if y != 8 {
@@ -199,6 +206,10 @@ func TestPlayerSpriteCompositionIncludesHeadWithWeapon(t *testing.T) {
 	if !ok {
 		t.Fatalf("body action missing: %s", status)
 	}
+	order := playerRenderLayerOrder(view.imf, bodyActionIndex, 0)
+	if !layerOrderContains(order, 1) {
+		t.Fatalf("render order omits head layer: order=%v status=%s", order, status)
+	}
 	bodyAnim := bodyAction.Animations[0]
 	headAnim, ok := actionAnimation(view.head.act, bodyActionIndex, 0)
 	if !ok {
@@ -226,6 +237,15 @@ func TestPlayerSpriteCompositionIncludesHeadWithWeapon(t *testing.T) {
 		t.Fatalf("head bounds too low: bounds=(%.1f,%.1f)-(%.1f,%.1f) point=(%d,%d) attach=(%d,%d) layer=%+v status=%s", minX, minY, maxX, maxY, pointX, pointY, dx, dy, layer, status)
 	}
 	t.Logf("head bounds=(%.1f,%.1f)-(%.1f,%.1f) point=(%d,%d) attach=(%d,%d) layer=%+v", minX, minY, maxX, maxY, pointX, pointY, dx, dy, layer)
+}
+
+func layerOrderContains(order [8]int, layer int) bool {
+	for _, value := range order {
+		if value == layer {
+			return true
+		}
+	}
+	return false
 }
 
 func spriteAnimationBounds(view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) (float64, float64, float64, float64) {

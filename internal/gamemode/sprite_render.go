@@ -637,11 +637,33 @@ func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
 		reordered[reorderedCount] = delayed[index]
 		reorderedCount++
 	}
+	reordered = ensureRenderLayerPresent(reordered, 0)
+	reordered = ensureRenderLayerPresent(reordered, 1)
 	return reordered
 }
 
 func isHeadAccessoryLayer(layer int) bool {
 	return layer == 2 || layer == 3 || layer == 4
+}
+
+func ensureRenderLayerPresent(order [8]int, required int) [8]int {
+	counts := make(map[int]int, len(order))
+	for _, layer := range order {
+		counts[layer]++
+	}
+	if counts[required] > 0 {
+		return order
+	}
+	for index := len(order) - 1; index >= 0; index-- {
+		layer := order[index]
+		if counts[layer] > 1 {
+			counts[layer]--
+			order[index] = required
+			return order
+		}
+	}
+	order[len(order)-1] = required
+	return order
 }
 
 func resolveSpriteAction(act *res.ACT, actionFamily, direction int) (int, res.ACTAction, bool) {
