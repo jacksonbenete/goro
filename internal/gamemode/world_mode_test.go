@@ -117,6 +117,172 @@ func TestActorBillboardScreenScaleKeepsFlatProjectionNative(t *testing.T) {
 	}
 }
 
+func TestClickedAttackTargetPicksMobOnly(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    6,
+		HasObjectType: true,
+	})
+	ctx := Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	npcPoint := projection.Project(cellCenter(11), cellCenter(20), 0)
+
+	if actor, ok := clickedAttackTarget(ctx, projection, int(npcPoint.x), int(npcPoint.y), now); ok {
+		t.Fatalf("npc should not be attack-clickable: %+v", actor)
+	}
+
+	world.UpsertActor(worldstate.Actor{
+		ID:            400,
+		X:             12,
+		Y:             20,
+		ObjectType:    5,
+		HasObjectType: true,
+	})
+	mobPoint := projection.Project(cellCenter(12), cellCenter(20), 0)
+
+	actor, ok := clickedAttackTarget(ctx, projection, int(mobPoint.x), int(mobPoint.y), now)
+	if !ok {
+		t.Fatal("expected mob hit")
+	}
+	if actor.ID != 400 {
+		t.Fatalf("target id = %d, want 400", actor.ID)
+	}
+}
+
+func TestAttackTargetWithinRangeUsesMeleeAdjacency(t *testing.T) {
+	if !attackTargetWithinRange(10, 20, 11, 21) {
+		t.Fatal("diagonal adjacent target should be in melee range")
+	}
+	if attackTargetWithinRange(10, 20, 12, 20) {
+		t.Fatal("two cells away should be out of melee range")
+	}
+}
+
+func TestAttackApproachCellChoosesClosestWalkableNeighbor(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 112, Y: 302}
+	world.GAT = &res.GAT{
+		Width:  200,
+		Height: 400,
+		Cells:  make([]res.GATCell, 200*400),
+	}
+	for i := range world.GAT.Cells {
+		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
+	}
+	ctx := Context{World: world}
+	actor := worldstate.Actor{ID: 300, X: 116, Y: 303}
+
+	x, y, ok := attackApproachCell(ctx, actor)
+	if !ok {
+		t.Fatal("expected approach cell")
+	}
+	if x != 115 || y != 302 {
+		t.Fatalf("approach = %d,%d, want 115,302", x, y)
+	}
+
+	world.GAT.Cells[302*world.GAT.Width+115] = res.GATCell{}
+	x, y, ok = attackApproachCell(ctx, actor)
+	if !ok {
+		t.Fatal("expected fallback approach cell")
+	}
+	if x == 115 && y == 302 {
+		t.Fatalf("blocked approach cell was selected")
+	}
+}
+
+func TestContinuePendingAttackSchedulesDelayedAction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{
+		pendingAttack: attackIntent{
+			targetID: 300,
+			expires:  time.Now().Add(time.Second),
+		},
+	}
+	ctx := Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+
+	mode.continuePendingAttack(ctx, "test")
+
+	if mode.pendingAttack.targetID != 300 {
+		t.Fatalf("pending target cleared")
+	}
+	if mode.pendingAttack.readyAt.IsZero() {
+		t.Fatal("pending attack was not scheduled")
+	}
+	if mode.pendingAttack.readyAt.Sub(time.Now()) > 100*time.Millisecond {
+		t.Fatalf("readyAt too far in future: %s", mode.pendingAttack.readyAt.Sub(time.Now()))
+	}
+}
+
+func TestPendingAttackReadyAtWaitsForWalkEnd(t *testing.T) {
+	now := time.Unix(100, 0)
+	player := worldstate.Actor{
+		Moving:       true,
+		MoveStarted:  now.Add(-100 * time.Millisecond),
+		MoveDuration: 600 * time.Millisecond,
+	}
+
+	got := pendingAttackReadyAt(player, now)
+	want := now.Add(560 * time.Millisecond)
+	if !got.Equal(want) {
+		t.Fatalf("readyAt = %s, want %s", got.Sub(now), want.Sub(now))
+	}
+}
+
+func TestAttackRetryDueUsesOpenMidgardInterval(t *testing.T) {
+	now := time.Unix(100, 0)
+	if !attackRetryDue(time.Time{}, now) {
+		t.Fatal("zero last attack should be due")
+	}
+	if attackRetryDue(now.Add(-attackRetryInterval+time.Millisecond), now) {
+		t.Fatal("attack should not retry before the interval")
+	}
+	if !attackRetryDue(now.Add(-attackRetryInterval), now) {
+		t.Fatal("attack should retry at the interval")
+	}
+}
+
+func TestLockAttackKeepsExistingRetryTimersForSameTarget(t *testing.T) {
+	firstAttack := time.Unix(100, 0)
+	firstChase := time.Unix(101, 0)
+	mode := &WorldMode{
+		lockedAttackID: 300,
+		lastAttackAt:   firstAttack,
+		lastChaseAt:    firstChase,
+	}
+
+	mode.lockAttack(300)
+	if mode.lastAttackAt != firstAttack || mode.lastChaseAt != firstChase {
+		t.Fatal("same target lock reset retry timers")
+	}
+
+	mode.lockAttack(400)
+	if mode.lockedAttackID != 400 {
+		t.Fatalf("locked target = %d, want 400", mode.lockedAttackID)
+	}
+	if !mode.lastAttackAt.IsZero() || !mode.lastChaseAt.IsZero() {
+		t.Fatal("new target lock should reset retry timers")
+	}
+}
+
 func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()

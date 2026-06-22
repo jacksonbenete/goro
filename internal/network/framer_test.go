@@ -88,3 +88,94 @@ func TestPacketLengths2008FramesVariable01F1(t *testing.T) {
 		t.Fatalf("second packet = %s", packets[1])
 	}
 }
+
+func TestPacketLengths2008FramesActionNotify2(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := make([]byte, 0, 39)
+	data = append(data, 0xe1, 0x02)
+	data = append(data, make([]byte, 31)...)
+	data = append(data, 0xb6, 0x00, 0x44, 0x33, 0x22, 0x11)
+
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x02E1 || len(packets[0].Data) != 33 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
+func TestPacketLengths2008FramesItemFallEntry(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := make([]byte, 0, 23)
+	data = append(data, 0x9e, 0x00)
+	data = append(data, make([]byte, 15)...)
+	data = append(data, 0xb6, 0x00, 0x44, 0x33, 0x22, 0x11)
+
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x009E || len(packets[0].Data) != 17 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
+func TestPacketLengths2008FramesPartyHPUpdate(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := []byte{
+		0x06, 0x01,
+		0x01, 0x80, 0x00, 0x00,
+		0x58, 0x00,
+		0xb0, 0x00,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	}
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x0106 || len(packets[0].Data) != 10 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
+func TestPacketLengths2008FramesVariableChatRoomUpdate(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := []byte{
+		0xdf, 0x00, 0x0c, 0x00,
+		0x44, 0x33, 0x22, 0x11,
+		0xb4, 0x8e, 0x06, 0x8e,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	}
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x00DF || len(packets[0].Data) != 12 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}

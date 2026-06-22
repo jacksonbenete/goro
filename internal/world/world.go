@@ -22,28 +22,30 @@ type World struct {
 }
 
 type Actor struct {
-	ID           uint32
-	Name         string
-	X            int
-	Y            int
-	Dir          int
-	Job          int16
-	Head         int16
-	Weapon       int16
-	Shield       int16
-	HeadTop      int16
-	HeadMid      int16
-	HeadLow      int16
-	Sex          byte
-	Appearance   bool
-	Moving       bool
-	FromX        int
-	FromY        int
-	ToX          int
-	ToY          int
-	MoveStarted  time.Time
-	MoveDuration time.Duration
-	MovePath     []WalkStep
+	ID            uint32
+	Name          string
+	X             int
+	Y             int
+	Dir           int
+	Job           int16
+	Head          int16
+	Weapon        int16
+	Shield        int16
+	HeadTop       int16
+	HeadMid       int16
+	HeadLow       int16
+	Sex           byte
+	Appearance    bool
+	Moving        bool
+	FromX         int
+	FromY         int
+	ToX           int
+	ToY           int
+	MoveStarted   time.Time
+	MoveDuration  time.Duration
+	MovePath      []WalkStep
+	ObjectType    uint8
+	HasObjectType bool
 }
 
 type WalkStep struct {
@@ -128,6 +130,10 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.HeadLow = existing.HeadLow
 			actor.Sex = existing.Sex
 			actor.Appearance = existing.Appearance
+		}
+		if !actor.HasObjectType {
+			actor.ObjectType = existing.ObjectType
+			actor.HasObjectType = existing.HasObjectType
 		}
 		if actor.Moving && actor.FromX == 0 && actor.FromY == 0 {
 			actor.FromX = existing.X

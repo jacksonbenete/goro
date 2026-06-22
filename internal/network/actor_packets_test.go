@@ -187,6 +187,78 @@ func TestParseActorSetPosition(t *testing.T) {
 	}
 }
 
+func TestParseAttackFailureForDistance(t *testing.T) {
+	data := make([]byte, 16)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0139)
+	binary.LittleEndian.PutUint32(data[2:6], 0x11223344)
+	binary.LittleEndian.PutUint16(data[6:8], uint16(int16(164)))
+	binary.LittleEndian.PutUint16(data[8:10], uint16(int16(281)))
+	binary.LittleEndian.PutUint16(data[10:12], uint16(int16(165)))
+	binary.LittleEndian.PutUint16(data[12:14], uint16(int16(282)))
+	binary.LittleEndian.PutUint16(data[14:16], 1)
+
+	failure, ok, err := ParseAttackFailureForDistance(Packet{ID: 0x0139, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("attack failure not parsed")
+	}
+	if failure.TargetID != 0x11223344 || failure.TargetX != 164 || failure.TargetY != 281 || failure.SourceX != 165 || failure.SourceY != 282 || failure.AttackRange != 1 {
+		t.Fatalf("unexpected attack failure: %+v", failure)
+	}
+}
+
+func TestParseActorActionNotifyLegacy(t *testing.T) {
+	data := make([]byte, 29)
+	binary.LittleEndian.PutUint16(data[0:2], 0x008A)
+	binary.LittleEndian.PutUint32(data[2:6], 2000000)
+	binary.LittleEndian.PutUint32(data[6:10], 110014894)
+	binary.LittleEndian.PutUint32(data[10:14], 123456)
+	binary.LittleEndian.PutUint32(data[14:18], 432)
+	binary.LittleEndian.PutUint32(data[18:22], 288)
+	binary.LittleEndian.PutUint16(data[22:24], 42)
+	binary.LittleEndian.PutUint16(data[24:26], 1)
+	data[26] = 0
+	binary.LittleEndian.PutUint16(data[27:29], 0)
+
+	action, ok, err := ParseActorActionNotify(Packet{ID: 0x008A, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("action notify not parsed")
+	}
+	if action.SourceID != 2000000 || action.TargetID != 110014894 || action.Damage != 42 || action.HitCount != 1 || action.Action != 0 {
+		t.Fatalf("unexpected action: %+v", action)
+	}
+}
+
+func TestParseActorActionNotify2(t *testing.T) {
+	data := make([]byte, 33)
+	binary.LittleEndian.PutUint16(data[0:2], 0x02E1)
+	binary.LittleEndian.PutUint32(data[2:6], 2000000)
+	binary.LittleEndian.PutUint32(data[6:10], 110014894)
+	binary.LittleEndian.PutUint32(data[10:14], 123456)
+	binary.LittleEndian.PutUint32(data[14:18], 432)
+	binary.LittleEndian.PutUint32(data[18:22], 288)
+	binary.LittleEndian.PutUint32(data[22:26], 1234)
+	binary.LittleEndian.PutUint16(data[26:28], 2)
+	data[28] = 8
+	binary.LittleEndian.PutUint32(data[29:33], 7)
+
+	action, ok, err := ParseActorActionNotify(Packet{ID: 0x02E1, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("action notify2 not parsed")
+	}
+	if action.SourceID != 2000000 || action.TargetID != 110014894 || action.Damage != 1234 || action.HitCount != 2 || action.Action != 8 || action.LeftDamage != 7 {
+		t.Fatalf("unexpected action: %+v", action)
+	}
+}
+
 func packMovePosition(fromX, fromY, toX, toY int) (byte, byte, byte, byte, byte, byte) {
 	return byte(fromX >> 2),
 		byte(((fromX & 0x03) << 6) | ((fromY >> 4) & 0x3f)),

@@ -188,3 +188,45 @@ func TestBuildWalkToXYPacketFor2021ClientDate(t *testing.T) {
 		t.Fatalf("unexpected dest: got % x want %02x %02x %02x", packet[2:5], want0, want1, want2)
 	}
 }
+
+func TestBuildActionRequestPacketFor2008ClientDate(t *testing.T) {
+	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionAttack, 20080910)
+	if len(packet) != 19 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if packet[0] != 0x90 || packet[1] != 0x01 {
+		t.Fatalf("unexpected opcode: % x", packet[:2])
+	}
+	if got := packet[5:9]; got[0] != 0x44 || got[1] != 0x33 || got[2] != 0x22 || got[3] != 0x11 {
+		t.Fatalf("unexpected target: % x", got)
+	}
+	if packet[18] != ActionAttack {
+		t.Fatalf("action = %d", packet[18])
+	}
+}
+
+func TestBuildActionRequestPacketFor2012ClientDate(t *testing.T) {
+	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionAttack, 20120410)
+	want := []byte{0x69, 0x03, 0x44, 0x33, 0x22, 0x11, 0x07}
+	if len(packet) != len(want) {
+		t.Fatalf("len = %d", len(packet))
+	}
+	for i := range want {
+		if packet[i] != want[i] {
+			t.Fatalf("packet = % x, want % x", packet, want)
+		}
+	}
+}
+
+func TestBuildActionRequestPacketFor2021ClientDate(t *testing.T) {
+	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionAttack, 20211103)
+	want := []byte{0x37, 0x04, 0x44, 0x33, 0x22, 0x11, 0x07}
+	if len(packet) != len(want) {
+		t.Fatalf("len = %d", len(packet))
+	}
+	for i := range want {
+		if packet[i] != want[i] {
+			t.Fatalf("packet = % x, want % x", packet, want)
+		}
+	}
+}

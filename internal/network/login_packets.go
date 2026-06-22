@@ -1,16 +1,29 @@
 package network
 
+import (
+	"encoding/binary"
+	"fmt"
+	"time"
+)
+
 const (
-	PacketCAPlainLogin uint16 = 0x0064
-	PacketCAEnter      uint16 = 0x0065
-	PacketCZSelectChar uint16 = 0x0066
-	PacketCZLoadEndAck uint16 = 0x007D
-	PacketCZTickSend   uint16 = 0x0089
-	PacketCZTickSendRE uint16 = 0x0360
-	PacketCZReqName    uint16 = 0x0094
-	PacketCZWalkToXY   uint16 = 0x00A7
-	PacketCZWalkToXYRE uint16 = 0x035F
-	PacketCZEnter2     uint16 = 0x0436
+	PacketCAPlainLogin     uint16 = 0x0064
+	PacketCAEnter          uint16 = 0x0065
+	PacketCZSelectChar     uint16 = 0x0066
+	PacketCZLoadEndAck     uint16 = 0x007D
+	PacketCZTickSend       uint16 = 0x0089
+	PacketCZTickSendRE     uint16 = 0x0360
+	PacketCZReqName        uint16 = 0x0094
+	PacketCZWalkToXY       uint16 = 0x00A7
+	PacketCZWalkToXYRE     uint16 = 0x035F
+	PacketCZRequestAct     uint16 = 0x0190
+	PacketCZRequestAct2    uint16 = 0x0437
+	PacketCZRequestAct2012 uint16 = 0x0369
+	PacketCZEnter2         uint16 = 0x0436
+)
+
+const (
+	ActionAttack uint8 = 7
 )
 
 type AccountLogin struct {
@@ -133,6 +146,61 @@ func BuildWalkToXYPacketForClientDate(x, y, clientDate int) ([]byte, bool) {
 	}
 	_, _ = w.Write(dest[:])
 	return w.Bytes(), true
+}
+
+func BuildActionRequestPacket(targetGID uint32, action uint8) []byte {
+	return BuildActionRequestPacketForClientDate(targetGID, action, 20080910)
+}
+
+func BuildActionRequestPacketForClientDate(targetGID uint32, action uint8, clientDate int) []byte {
+	switch {
+	case clientDate >= 20211103:
+		return buildCompactActionRequestPacket(PacketCZRequestAct2, targetGID, action)
+	case clientDate >= 20120410:
+		return buildCompactActionRequestPacket(PacketCZRequestAct2012, targetGID, action)
+	default:
+		return buildLegacyActionRequestPacket(targetGID, action)
+	}
+}
+
+func buildCompactActionRequestPacket(opcode uint16, targetGID uint32, action uint8) []byte {
+	var w Writer
+	w.Uint16(opcode)
+	w.Uint32(targetGID)
+	w.Uint8(action)
+	return w.Bytes()
+}
+
+func buildLegacyActionRequestPacket(targetGID uint32, action uint8) []byte {
+	packet := make([]byte, 19)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZRequestAct)
+	fillLegacyPacketPadding(packet[2:5])
+	binary.LittleEndian.PutUint32(packet[5:9], targetGID)
+	fillLegacyPacketPadding(packet[9:18])
+	packet[18] = action
+	return packet
+}
+
+func fillLegacyPacketPadding(pad []byte) {
+	if len(pad) == 0 {
+		return
+	}
+	now := uint32(time.Now().UnixMilli())
+	text := fmt.Sprintf("%x", now^(now>>uint(len(pad))))
+	if text == "" {
+		text = "0"
+	}
+	src := len(text) - 1
+	fallback := text[len(text)-1]
+	for i := range pad {
+		if src >= 0 {
+			pad[i] = text[src]
+			src--
+		} else {
+			pad[i] = fallback
+		}
+	}
+	pad[len(pad)-1] = 0
 }
 
 func EncodeMoveDestination(x, y int) ([3]byte, bool) {

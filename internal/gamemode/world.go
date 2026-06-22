@@ -23,22 +23,27 @@ import (
 )
 
 type WorldMode struct {
-	status        string
-	walkCooldown  int
-	tickCooldown  int
-	camera        followCamera
-	whitePixel    *ebiten.Image
-	textures      map[string]*ebiten.Image
-	textureMiss   map[string]struct{}
-	rswMarkers    bool
-	rsmRender     bool
-	playerView    *humanoidSpriteView
-	actorViews    map[actorSpriteKey]*humanoidSpriteView
-	actorViewMiss map[actorSpriteKey]struct{}
-	nonPCViews    map[int]*playerSpriteView
-	nonPCViewMiss map[int]struct{}
-	rsmDebugLog   map[string]struct{}
-	pendingWarp   bool
+	status         string
+	walkCooldown   int
+	tickCooldown   int
+	camera         followCamera
+	whitePixel     *ebiten.Image
+	textures       map[string]*ebiten.Image
+	textureMiss    map[string]struct{}
+	rswMarkers     bool
+	rsmRender      bool
+	playerView     *humanoidSpriteView
+	actorViews     map[actorSpriteKey]*humanoidSpriteView
+	actorViewMiss  map[actorSpriteKey]struct{}
+	nonPCViews     map[int]*playerSpriteView
+	nonPCViewMiss  map[int]struct{}
+	rsmDebugLog    map[string]struct{}
+	pendingWarp    bool
+	pendingAttack  attackIntent
+	lockedAttackID uint32
+	lastAttackAt   time.Time
+	lastChaseAt    time.Time
+	damageFloaters []damageFloater
 }
 
 type actorSpriteKey struct {
@@ -51,6 +56,22 @@ type actorSpriteKey struct {
 	headMid int
 	headLow int
 }
+
+type attackIntent struct {
+	targetID uint32
+	expires  time.Time
+	readyAt  time.Time
+}
+
+type damageFloater struct {
+	actorID uint32
+	x       int
+	y       int
+	text    string
+	expires time.Time
+}
+
+const attackRetryInterval = 1200 * time.Millisecond
 
 func NewWorldMode() *WorldMode {
 	return &WorldMode{}
@@ -172,6 +193,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			applySelfMoveAck(ctx, ack)
 			m.status = fmt.Sprintf("walk ack: %d,%d -> %d,%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY)
 			log.Printf("walk ack from=%d,%d to=%d,%d tick=%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY, ack.ServerTick)
+			m.continuePendingAttack(ctx, "walk ack")
 			continue
 		}
 		if position, ok, err := network.ParseActorSetPosition(pkt); err != nil {
@@ -182,12 +204,21 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 				log.Printf("local position fix id=%d x=%d y=%d", position.ID, position.X, position.Y)
 			}
 			applyActorSetPosition(ctx, position)
+			if isLocalActor(ctx, position.ID) {
+				m.continuePendingAttack(ctx, "position fix")
+			}
 			continue
 		}
 		if vanish, ok, err := network.ParseActorVanish(pkt); err != nil {
 			log.Printf("parse actor vanish 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			removeNetworkActor(ctx, vanish)
+			if m.pendingAttack.targetID == vanish.ID {
+				m.pendingAttack = attackIntent{}
+			}
+			if m.lockedAttackID == vanish.ID {
+				m.clearLockedAttack()
+			}
 			continue
 		}
 		if look, ok, err := network.ParseActorLookChange(pkt); err != nil {
@@ -204,6 +235,18 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			}
 			continue
 		}
+		if action, ok, err := network.ParseActorActionNotify(pkt); err != nil {
+			log.Printf("parse actor action 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyActorActionNotify(ctx, action)
+			continue
+		}
+		if failure, ok, err := network.ParseAttackFailureForDistance(pkt); err != nil {
+			log.Printf("parse attack distance failure 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyAttackFailureForDistance(ctx, failure)
+			continue
+		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
 			log.Printf("parse actor entry 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -213,6 +256,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	for _, err := range ctx.Network.DrainErrors() {
 		log.Printf("network frame error: %v", err)
 	}
+
+	m.processPendingAttack(ctx)
+	m.processLockedAttack(ctx)
 
 	if m.tickCooldown > 0 {
 		m.tickCooldown--
@@ -246,20 +292,29 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	}
 	if ctx.Input.MouseJustPressed(ebiten.MouseButtonLeft) && m.walkCooldown == 0 {
 		projection := m.sceneProjection(ctx, ctx.Config.Window.Width, ctx.Config.Window.Height, now)
+		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
+			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+			m.requestAttack(ctx, actor, "click")
+			return nil, nil
+		}
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			log.Printf("click walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
+			m.clearLockedAttack()
 			m.requestWalk(ctx, targetX, targetY, "click")
 		}
 	}
 	if (dx != 0 || dy != 0) && m.walkCooldown == 0 {
 		targetX := ctx.World.Player.X + dx
 		targetY := ctx.World.Player.Y + dy
+		m.clearLockedAttack()
 		m.requestWalk(ctx, targetX, targetY, "key")
 	}
 	return nil, nil
 }
 
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
+	m.pendingAttack = attackIntent{}
+	m.clearLockedAttack()
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
 	log.Printf("map change current=%s target=%s x=%d y=%d server_move=%t addr=%s port=%d reuse_loaded=%t", currentMap, change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port, reuseLoadedMap)
@@ -333,6 +388,289 @@ func (m *WorldMode) requestWalk(ctx Context, targetX, targetY int, source string
 	}
 }
 
+func (m *WorldMode) requestAttack(ctx Context, actor worldstate.Actor, source string) {
+	if ctx.Network == nil {
+		m.status = "attack request failed: not connected"
+		m.walkCooldown = 30
+		return
+	}
+	m.lockAttack(actor.ID)
+	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
+		m.sendAttackAction(ctx, actor, source)
+		return
+	}
+	targetX, targetY, ok := attackApproachCell(ctx, actor)
+	if !ok {
+		m.status = fmt.Sprintf("%s attack chase blocked: %d", source, actor.ID)
+		log.Printf("%s attack chase blocked target=%d player=%d,%d target=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+		m.walkCooldown = 12
+		return
+	}
+	m.pendingAttack = attackIntent{
+		targetID: actor.ID,
+		expires:  time.Now().Add(8 * time.Second),
+	}
+	log.Printf("%s attack chase target=%d player=%d,%d target=%d,%d chase=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetX, targetY)
+	m.requestWalk(ctx, targetX, targetY, source+" attack chase")
+}
+
+func (m *WorldMode) lockAttack(targetID uint32) {
+	if targetID == 0 || m.lockedAttackID == targetID {
+		return
+	}
+	m.lockedAttackID = targetID
+	m.lastAttackAt = time.Time{}
+	m.lastChaseAt = time.Time{}
+}
+
+func (m *WorldMode) clearLockedAttack() {
+	m.lockedAttackID = 0
+	m.lastAttackAt = time.Time{}
+	m.lastChaseAt = time.Time{}
+}
+
+func (m *WorldMode) continuePendingAttack(ctx Context, source string) {
+	if m.pendingAttack.targetID == 0 {
+		return
+	}
+	now := time.Now()
+	if now.After(m.pendingAttack.expires) {
+		log.Printf("%s pending attack expired target=%d", source, m.pendingAttack.targetID)
+		m.pendingAttack = attackIntent{}
+		return
+	}
+	actor, ok := ctx.World.Actors[m.pendingAttack.targetID]
+	if !ok {
+		log.Printf("%s pending attack target vanished id=%d", source, m.pendingAttack.targetID)
+		m.pendingAttack = attackIntent{}
+		return
+	}
+	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
+		log.Printf("%s pending attack still out of range target=%d player=%d,%d target=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+		return
+	}
+	readyAt := pendingAttackReadyAt(ctx.World.Player, now)
+	if m.pendingAttack.readyAt.IsZero() || readyAt.After(m.pendingAttack.readyAt) {
+		m.pendingAttack.readyAt = readyAt
+	}
+	log.Printf("%s pending attack scheduled target=%d delay_ms=%d", source, actor.ID, maxInt(0, int(m.pendingAttack.readyAt.Sub(now).Milliseconds())))
+}
+
+func (m *WorldMode) processPendingAttack(ctx Context) {
+	if m.pendingAttack.targetID == 0 || m.pendingAttack.readyAt.IsZero() {
+		return
+	}
+	now := time.Now()
+	if now.After(m.pendingAttack.expires) {
+		log.Printf("pending attack expired target=%d", m.pendingAttack.targetID)
+		m.pendingAttack = attackIntent{}
+		return
+	}
+	if now.Before(m.pendingAttack.readyAt) {
+		return
+	}
+	actor, ok := ctx.World.Actors[m.pendingAttack.targetID]
+	if !ok {
+		log.Printf("pending attack target vanished id=%d", m.pendingAttack.targetID)
+		m.pendingAttack = attackIntent{}
+		return
+	}
+	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
+		log.Printf("pending attack became out of range target=%d player=%d,%d target=%d,%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+		m.pendingAttack.readyAt = time.Time{}
+		m.requestAttack(ctx, actor, "pending")
+		return
+	}
+	m.pendingAttack = attackIntent{}
+	m.sendAttackAction(ctx, actor, "pending")
+}
+
+func (m *WorldMode) processLockedAttack(ctx Context) {
+	if m.lockedAttackID == 0 || ctx.Network == nil {
+		return
+	}
+	if m.pendingAttack.targetID == m.lockedAttackID {
+		return
+	}
+	now := time.Now()
+	if ctx.World.Player.IsMovingAt(now) {
+		return
+	}
+	actor, ok := ctx.World.Actors[m.lockedAttackID]
+	if !ok {
+		log.Printf("locked attack target vanished id=%d", m.lockedAttackID)
+		m.clearLockedAttack()
+		return
+	}
+	if !actorCanBeAttackClicked(ctx, actor) {
+		log.Printf("locked attack target no longer attackable id=%d object_type=%d", actor.ID, actor.ObjectType)
+		m.clearLockedAttack()
+		return
+	}
+	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
+		if !attackRetryDue(m.lastAttackAt, now) {
+			return
+		}
+		log.Printf("locked attack retry target=%d player=%d,%d target=%d,%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+		m.sendAttackAction(ctx, actor, "locked")
+		return
+	}
+	if !attackRetryDue(m.lastChaseAt, now) {
+		return
+	}
+	m.lastChaseAt = now
+	log.Printf("locked attack chase retry target=%d player=%d,%d target=%d,%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+	m.requestAttack(ctx, actor, "locked")
+}
+
+func attackRetryDue(last time.Time, now time.Time) bool {
+	return last.IsZero() || now.Sub(last) >= attackRetryInterval
+}
+
+func pendingAttackReadyAt(player worldstate.Actor, now time.Time) time.Time {
+	readyAt := now.Add(60 * time.Millisecond)
+	if player.IsMovingAt(now) && player.MoveDuration > 0 {
+		walkReadyAt := player.MoveStarted.Add(player.MoveDuration).Add(60 * time.Millisecond)
+		if walkReadyAt.After(readyAt) {
+			readyAt = walkReadyAt
+		}
+	}
+	return readyAt
+}
+
+func (m *WorldMode) sendAttackAction(ctx Context, actor worldstate.Actor, source string) {
+	if err := ctx.Network.SendActionRequest(actor.ID, network.ActionAttack); err == nil {
+		m.status = fmt.Sprintf("%s attack request: %d", source, actor.ID)
+		m.lastAttackAt = time.Now()
+		m.walkCooldown = 12
+	} else {
+		m.status = source + " attack request failed: " + err.Error()
+		log.Printf("%s attack request failed target=%d action=%d: %v", source, actor.ID, network.ActionAttack, err)
+		m.walkCooldown = 30
+	}
+}
+
+func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {
+	log.Printf("actor action src=%d dst=%d damage=%d left_damage=%d hits=%d action=%d src_speed=%d dst_speed=%d tick=%d", action.SourceID, action.TargetID, action.Damage, action.LeftDamage, action.HitCount, action.Action, action.SourceSpeed, action.TargetSpeed, action.ServerTick)
+	x, y := ctx.World.Player.X, ctx.World.Player.Y
+	if actor, ok := ctx.World.Actors[action.TargetID]; ok {
+		x, y = actor.X, actor.Y
+	} else if isLocalActor(ctx, action.TargetID) {
+		x, y = ctx.World.Player.X, ctx.World.Player.Y
+	}
+	text := actionDamageText(action)
+	if text == "" {
+		return
+	}
+	m.damageFloaters = append(m.damageFloaters, damageFloater{
+		actorID: action.TargetID,
+		x:       x,
+		y:       y,
+		text:    text,
+		expires: time.Now().Add(900 * time.Millisecond),
+	})
+}
+
+func (m *WorldMode) applyAttackFailureForDistance(ctx Context, failure network.AttackFailureForDistance) {
+	attackRange := maxInt(1, failure.AttackRange)
+	log.Printf("attack distance failure target=%d server_player=%d,%d server_target=%d,%d range=%d client_player=%d,%d", failure.TargetID, failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY, attackRange, ctx.World.Player.X, ctx.World.Player.Y)
+	ctx.World.SetPlayerPosition(failure.SourceX, failure.SourceY, ctx.World.Player.Dir)
+	if actor, ok := ctx.World.Actors[failure.TargetID]; ok {
+		actor.X = failure.TargetX
+		actor.Y = failure.TargetY
+		actor.Moving = false
+		actor.FromX = failure.TargetX
+		actor.FromY = failure.TargetY
+		actor.ToX = failure.TargetX
+		actor.ToY = failure.TargetY
+		actor.MovePath = nil
+		ctx.World.UpsertActor(actor)
+	}
+	if m.lockedAttackID != failure.TargetID && m.pendingAttack.targetID != failure.TargetID {
+		return
+	}
+	m.pendingAttack = attackIntent{}
+	m.lastAttackAt = time.Now()
+	if !attackTargetWithinRange(failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY) {
+		if actor, ok := ctx.World.Actors[failure.TargetID]; ok {
+			m.requestAttack(ctx, actor, "attack failure")
+		}
+	}
+}
+
+func actionDamageText(action network.ActorActionNotify) string {
+	total := action.Damage + action.LeftDamage
+	if total > 0 {
+		return strconv.Itoa(int(total))
+	}
+	if action.Action == 10 {
+		return "crit"
+	}
+	if action.Action == 11 {
+		return "miss"
+	}
+	if action.Action == 0 || action.Action == 7 {
+		return "miss"
+	}
+	return ""
+}
+
+func attackTargetWithinRange(playerX, playerY, targetX, targetY int) bool {
+	return maxInt(absInt(playerX-targetX), absInt(playerY-targetY)) <= 1
+}
+
+func attackApproachCell(ctx Context, actor worldstate.Actor) (int, int, bool) {
+	bestX, bestY := 0, 0
+	bestDistance := math.Inf(1)
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			x := actor.X + dx
+			y := actor.Y + dy
+			if !walkTargetInBounds(ctx, x, y) {
+				continue
+			}
+			if ctx.World.GAT != nil && !ctx.World.GAT.Walkable(x, y) {
+				continue
+			}
+			distance := math.Hypot(float64(x-ctx.World.Player.X), float64(y-ctx.World.Player.Y))
+			if distance < bestDistance {
+				bestDistance = distance
+				bestX = x
+				bestY = y
+			}
+		}
+	}
+	return bestX, bestY, bestDistance < math.Inf(1)
+}
+
+func (m *WorldMode) drawDamageFloaters(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
+	if len(m.damageFloaters) == 0 {
+		return
+	}
+	active := m.damageFloaters[:0]
+	for _, floater := range m.damageFloaters {
+		if now.After(floater.expires) {
+			continue
+		}
+		active = append(active, floater)
+		x, y := float64(floater.x), float64(floater.y)
+		if actor, ok := ctx.World.Actors[floater.actorID]; ok {
+			x, y = actor.RenderPosition(now)
+		} else if isLocalActor(ctx, floater.actorID) {
+			x, y = ctx.World.Player.RenderPosition(now)
+		}
+		terrainZ := terrainHeightAt(ctx.World, x, y)
+		point := projection.Project(cellCenter(x), cellCenter(y), terrainZ)
+		remaining := floater.expires.Sub(now)
+		rise := float64(900*time.Millisecond-remaining) / float64(900*time.Millisecond) * 28
+		debugText(screen, int(point.x)-8, int(point.y)-90-int(rise), "%s", floater.text)
+	}
+	m.damageFloaters = active
+}
+
 func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	clear(screen)
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
@@ -362,6 +700,8 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 			drawLine(screen, 0, float64(y), float64(width), float64(y), render.ColorGrid)
 		}
 	}
+
+	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir)
 	debugText(screen, 24, 44, "%s", m.status)
@@ -462,24 +802,26 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 		dir = directionFromDelta(entry.FromX, entry.FromY, entry.ToX, entry.ToY, dir)
 	}
 	ctx.World.UpsertActor(worldstate.Actor{
-		ID:         entry.ID,
-		X:          entry.X,
-		Y:          entry.Y,
-		Dir:        dir,
-		Job:        entry.Job,
-		Head:       entry.Head,
-		Weapon:     entry.Weapon,
-		Shield:     entry.Shield,
-		HeadTop:    entry.HeadTop,
-		HeadMid:    entry.HeadMid,
-		HeadLow:    entry.HeadLow,
-		Sex:        entry.Sex,
-		Appearance: entry.Appearance,
-		Moving:     entry.Moving,
-		FromX:      entry.FromX,
-		FromY:      entry.FromY,
-		ToX:        entry.ToX,
-		ToY:        entry.ToY,
+		ID:            entry.ID,
+		X:             entry.X,
+		Y:             entry.Y,
+		Dir:           dir,
+		Job:           entry.Job,
+		Head:          entry.Head,
+		Weapon:        entry.Weapon,
+		Shield:        entry.Shield,
+		HeadTop:       entry.HeadTop,
+		HeadMid:       entry.HeadMid,
+		HeadLow:       entry.HeadLow,
+		Sex:           entry.Sex,
+		Appearance:    entry.Appearance,
+		Moving:        entry.Moving,
+		FromX:         entry.FromX,
+		FromY:         entry.FromY,
+		ToX:           entry.ToX,
+		ToY:           entry.ToY,
+		ObjectType:    entry.ObjectType,
+		HasObjectType: entry.HasObjectType,
 	})
 }
 
@@ -686,6 +1028,60 @@ func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY i
 	return bestX, bestY, bestDistance < math.Inf(1)
 }
 
+func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.Actor, bool) {
+	if ctx.World == nil {
+		return worldstate.Actor{}, false
+	}
+	bestDistance := math.Inf(1)
+	var best worldstate.Actor
+	for _, actor := range ctx.World.Actors {
+		if !actorCanBeAttackClicked(ctx, actor) {
+			continue
+		}
+		actorX, actorY := actor.RenderPosition(now)
+		terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
+		point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
+		scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
+		if !pointInActorPickBounds(float64(mouseX), float64(mouseY), float64(point.x), float64(point.y), scale) {
+			continue
+		}
+		dx := float64(point.x) - float64(mouseX)
+		dy := float64(point.y) - float64(mouseY)
+		distance := dx*dx + dy*dy
+		if distance < bestDistance {
+			bestDistance = distance
+			best = actor
+		}
+	}
+	return best, bestDistance < math.Inf(1)
+}
+
+func actorCanBeAttackClicked(ctx Context, actor worldstate.Actor) bool {
+	if isLocalActor(ctx, actor.ID) {
+		return false
+	}
+	if actor.ID == 0 || !actor.HasObjectType {
+		return false
+	}
+	switch actor.ObjectType {
+	case actorObjectTypeMob, actorObjectTypeNPCABR, actorObjectTypeNPCBionic:
+		return true
+	default:
+		return false
+	}
+}
+
+func pointInActorPickBounds(mouseX, mouseY, centerX, centerY, scale float64) bool {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	left := centerX - 44*scale
+	right := centerX + 44*scale
+	top := centerY - float64(humanoidBillboardAnchorY)*scale
+	bottom := centerY + 20*scale
+	return mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= bottom
+}
+
 func clickWalkSearchRadius() int {
 	raw := os.Getenv("GORO_CLICK_WALK_RADIUS")
 	if raw == "" {
@@ -712,6 +1108,13 @@ func maxInt(a, b int) int {
 	return b
 }
 
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
+
 type sceneActorDrawEntry struct {
 	actor    worldstate.Actor
 	label    string
@@ -725,6 +1128,9 @@ type sceneActorDrawEntry struct {
 const (
 	actorBillboardCellWorldUnits  = 5.0
 	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
+	actorObjectTypeMob            = 5
+	actorObjectTypeNPCABR         = 13
+	actorObjectTypeNPCBionic      = 14
 )
 
 func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {

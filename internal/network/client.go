@@ -153,6 +153,17 @@ func (c *Client) SendWalkToXY(x, y int) error {
 	return err
 }
 
+func (c *Client) SendActionRequest(targetGID uint32, action uint8) error {
+	packet := BuildActionRequestPacketForClientDate(targetGID, action, c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQUEST_ACT opcode=0x%04X target=%d action=%d client_date=%d", ID(packet), targetGID, action, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQUEST_ACT failed opcode=0x%04X len=%d target=%d action=%d client_date=%d: %v", ID(packet), len(packet), targetGID, action, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) Pump() {
 }
 

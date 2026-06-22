@@ -6,25 +6,26 @@ import (
 )
 
 type ActorEntry struct {
-	ID         uint32
-	Job        int16
-	Head       int16
-	Weapon     int16
-	Shield     int16
-	HeadTop    int16
-	HeadMid    int16
-	HeadLow    int16
-	Sex        uint8
-	Appearance bool
-	X          int
-	Y          int
-	Dir        int
-	Moving     bool
-	FromX      int
-	FromY      int
-	ToX        int
-	ToY        int
-	ObjectType uint8
+	ID            uint32
+	Job           int16
+	Head          int16
+	Weapon        int16
+	Shield        int16
+	HeadTop       int16
+	HeadMid       int16
+	HeadLow       int16
+	Sex           uint8
+	Appearance    bool
+	X             int
+	Y             int
+	Dir           int
+	Moving        bool
+	FromX         int
+	FromY         int
+	ToX           int
+	ToY           int
+	ObjectType    uint8
+	HasObjectType bool
 }
 
 type ActorVanish struct {
@@ -52,6 +53,27 @@ type ActorLookChange struct {
 	Value uint32
 }
 
+type ActorActionNotify struct {
+	SourceID    uint32
+	TargetID    uint32
+	ServerTick  uint32
+	SourceSpeed int32
+	TargetSpeed int32
+	Damage      int32
+	HitCount    uint16
+	Action      uint8
+	LeftDamage  int32
+}
+
+type AttackFailureForDistance struct {
+	TargetID    uint32
+	TargetX     int
+	TargetY     int
+	SourceX     int
+	SourceY     int
+	AttackRange int
+}
+
 func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 	switch packet.ID {
 	case 0x0078:
@@ -60,20 +82,21 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		}
 		x, y, dir := unpackPos(packet.Data[47:50])
 		return ActorEntry{
-			ObjectType: packet.Data[2],
-			ID:         binary.LittleEndian.Uint32(packet.Data[3:7]),
-			Job:        int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
-			Head:       int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
-			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
-			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[27:29])),
-			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[29:31])),
-			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[31:33])),
-			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[33:35])),
-			Sex:        packet.Data[46],
-			Appearance: true,
-			X:          x,
-			Y:          y,
-			Dir:        dir,
+			ObjectType:    packet.Data[2],
+			HasObjectType: true,
+			ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
+			Job:           int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
+			Head:          int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
+			Weapon:        int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
+			HeadLow:       int16(binary.LittleEndian.Uint16(packet.Data[27:29])),
+			Shield:        int16(binary.LittleEndian.Uint16(packet.Data[29:31])),
+			HeadTop:       int16(binary.LittleEndian.Uint16(packet.Data[31:33])),
+			HeadMid:       int16(binary.LittleEndian.Uint16(packet.Data[33:35])),
+			Sex:           packet.Data[46],
+			Appearance:    true,
+			X:             x,
+			Y:             y,
+			Dir:           dir,
 		}, true, nil
 	case 0x0079, 0x007A:
 		if len(packet.Data) < 53 {
@@ -125,15 +148,16 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		}
 		x, y, dir := unpackPos(packet.Data[37:40])
 		return ActorEntry{
-			ObjectType: packet.Data[2],
-			ID:         binary.LittleEndian.Uint32(packet.Data[3:7]),
-			Job:        int16(binary.LittleEndian.Uint16(packet.Data[21:23])),
-			Head:       int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
-			Sex:        packet.Data[36],
-			Appearance: true,
-			X:          x,
-			Y:          y,
-			Dir:        dir,
+			ObjectType:    packet.Data[2],
+			HasObjectType: true,
+			ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
+			Job:           int16(binary.LittleEndian.Uint16(packet.Data[21:23])),
+			Head:          int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
+			Sex:           packet.Data[36],
+			Appearance:    true,
+			X:             x,
+			Y:             y,
+			Dir:           dir,
 		}, true, nil
 	case 0x0086:
 		if len(packet.Data) < 16 {
@@ -219,6 +243,58 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 	}
 }
 
+func ParseActorActionNotify(packet Packet) (ActorActionNotify, bool, error) {
+	switch packet.ID {
+	case 0x008A:
+		if len(packet.Data) < 29 {
+			return ActorActionNotify{}, false, fmt.Errorf("ZC_NOTIFY_ACT too short: %d", len(packet.Data))
+		}
+		return ActorActionNotify{
+			SourceID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+			TargetID:    binary.LittleEndian.Uint32(packet.Data[6:10]),
+			ServerTick:  binary.LittleEndian.Uint32(packet.Data[10:14]),
+			SourceSpeed: int32(binary.LittleEndian.Uint32(packet.Data[14:18])),
+			TargetSpeed: int32(binary.LittleEndian.Uint32(packet.Data[18:22])),
+			Damage:      int32(int16(binary.LittleEndian.Uint16(packet.Data[22:24]))),
+			HitCount:    binary.LittleEndian.Uint16(packet.Data[24:26]),
+			Action:      packet.Data[26],
+			LeftDamage:  int32(int16(binary.LittleEndian.Uint16(packet.Data[27:29]))),
+		}, true, nil
+	case 0x02E1:
+		if len(packet.Data) < 33 {
+			return ActorActionNotify{}, false, fmt.Errorf("ZC_NOTIFY_ACT2 too short: %d", len(packet.Data))
+		}
+		return ActorActionNotify{
+			SourceID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+			TargetID:    binary.LittleEndian.Uint32(packet.Data[6:10]),
+			ServerTick:  binary.LittleEndian.Uint32(packet.Data[10:14]),
+			SourceSpeed: int32(binary.LittleEndian.Uint32(packet.Data[14:18])),
+			TargetSpeed: int32(binary.LittleEndian.Uint32(packet.Data[18:22])),
+			Damage:      int32(binary.LittleEndian.Uint32(packet.Data[22:26])),
+			HitCount:    binary.LittleEndian.Uint16(packet.Data[26:28]),
+			Action:      packet.Data[28],
+			LeftDamage:  int32(binary.LittleEndian.Uint32(packet.Data[29:33])),
+		}, true, nil
+	case 0x08C8:
+		if len(packet.Data) < 34 {
+			return ActorActionNotify{}, false, fmt.Errorf("ZC_NOTIFY_ACT3 too short: %d", len(packet.Data))
+		}
+		return ActorActionNotify{
+			SourceID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+			TargetID:    binary.LittleEndian.Uint32(packet.Data[6:10]),
+			ServerTick:  binary.LittleEndian.Uint32(packet.Data[10:14]),
+			SourceSpeed: int32(binary.LittleEndian.Uint32(packet.Data[14:18])),
+			TargetSpeed: int32(binary.LittleEndian.Uint32(packet.Data[18:22])),
+			Damage:      int32(binary.LittleEndian.Uint32(packet.Data[22:26])),
+			HitCount:    binary.LittleEndian.Uint16(packet.Data[27:29]),
+			Action:      packet.Data[29],
+			LeftDamage:  int32(binary.LittleEndian.Uint32(packet.Data[30:34])),
+		}, true, nil
+	default:
+		return ActorActionNotify{}, false, nil
+	}
+}
+
 func ParseActorLookChange(packet Packet) (ActorLookChange, bool, error) {
 	switch packet.ID {
 	case 0x00C3:
@@ -285,6 +361,23 @@ func ParseActorSetPosition(packet Packet) (ActorSetPosition, bool, error) {
 		ID: binary.LittleEndian.Uint32(packet.Data[2:6]),
 		X:  int(int16(binary.LittleEndian.Uint16(packet.Data[6:8]))),
 		Y:  int(int16(binary.LittleEndian.Uint16(packet.Data[8:10]))),
+	}, true, nil
+}
+
+func ParseAttackFailureForDistance(packet Packet) (AttackFailureForDistance, bool, error) {
+	if packet.ID != 0x0139 {
+		return AttackFailureForDistance{}, false, nil
+	}
+	if len(packet.Data) < 16 {
+		return AttackFailureForDistance{}, false, fmt.Errorf("ZC_ATTACK_FAILURE_FOR_DISTANCE too short: %d", len(packet.Data))
+	}
+	return AttackFailureForDistance{
+		TargetID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+		TargetX:     int(int16(binary.LittleEndian.Uint16(packet.Data[6:8]))),
+		TargetY:     int(int16(binary.LittleEndian.Uint16(packet.Data[8:10]))),
+		SourceX:     int(int16(binary.LittleEndian.Uint16(packet.Data[10:12]))),
+		SourceY:     int(int16(binary.LittleEndian.Uint16(packet.Data[12:14]))),
+		AttackRange: int(int16(binary.LittleEndian.Uint16(packet.Data[14:16]))),
 	}, true, nil
 }
 

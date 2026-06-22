@@ -48,6 +48,33 @@ func TestUpsertActorMovePreservesAppearance(t *testing.T) {
 	}
 }
 
+func TestUpsertActorMovePreservesObjectType(t *testing.T) {
+	w := New()
+	w.UpsertActor(Actor{
+		ID:            2000001,
+		X:             10,
+		Y:             20,
+		ObjectType:    5,
+		HasObjectType: true,
+	})
+
+	w.UpsertActor(Actor{
+		ID:     2000001,
+		X:      12,
+		Y:      24,
+		Moving: true,
+		FromX:  10,
+		FromY:  20,
+		ToX:    12,
+		ToY:    24,
+	})
+
+	actor := w.Actors[2000001]
+	if actor.ObjectType != 5 || !actor.HasObjectType {
+		t.Fatalf("object type not preserved: %+v", actor)
+	}
+}
+
 func TestActorRenderPositionInterpolates(t *testing.T) {
 	now := time.Now()
 	actor := Actor{
