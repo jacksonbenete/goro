@@ -799,6 +799,10 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 	}
 	value := int(change.Value)
 	switch change.VarID {
+	case network.StatusBaseExp:
+		ctx.Session.Progress.BaseExp = change.Value
+	case network.StatusJobExp:
+		ctx.Session.Progress.JobExp = change.Value
 	case network.StatusHP:
 		ctx.Session.Vitals.HP = value
 		ctx.Session.Selected.HP = clampInt16(value)
@@ -811,10 +815,31 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 	case network.StatusMaxSP:
 		ctx.Session.Vitals.MaxSP = value
 		ctx.Session.Selected.MaxSP = clampInt16(value)
+	case network.StatusBaseLevel:
+		ctx.Session.Progress.BaseLevel = value
+		ctx.Session.Selected.Level = clampInt16(value)
+	case network.StatusNextBaseExp:
+		ctx.Session.Progress.NextBaseExp = change.Value
+	case network.StatusNextJobExp:
+		ctx.Session.Progress.NextJobExp = change.Value
+	case network.StatusJobLevel:
+		ctx.Session.Progress.JobLevel = value
 	default:
 		return
 	}
-	log.Printf("parameter change var=%d value=%d hp=%d/%d sp=%d/%d", change.VarID, value, ctx.Session.Vitals.HP, ctx.Session.Vitals.MaxHP, ctx.Session.Vitals.SP, ctx.Session.Vitals.MaxSP)
+	log.Printf("parameter change var=%d value=%d hp=%d/%d sp=%d/%d base_lv=%d job_lv=%d base_exp=%d/%d job_exp=%d/%d",
+		change.VarID,
+		change.Value,
+		ctx.Session.Vitals.HP,
+		ctx.Session.Vitals.MaxHP,
+		ctx.Session.Vitals.SP,
+		ctx.Session.Vitals.MaxSP,
+		ctx.Session.Progress.BaseLevel,
+		ctx.Session.Progress.JobLevel,
+		ctx.Session.Progress.BaseExp,
+		ctx.Session.Progress.NextBaseExp,
+		ctx.Session.Progress.JobExp,
+		ctx.Session.Progress.NextJobExp)
 }
 
 func clampInt16(value int) int16 {
@@ -911,10 +936,21 @@ func drawVitalsHUD(screen *ebiten.Image, ctx Context) {
 	if vitals.HP == 0 && vitals.MaxHP == 0 && vitals.SP == 0 && vitals.MaxSP == 0 {
 		vitals = sessionVitalsFromCharacter(ctx.Session.Selected)
 	}
+	progress := ctx.Session.Progress
+	if progress.BaseLevel == 0 {
+		progress = sessionProgressFromCharacter(ctx.Session.Selected)
+		progress.JobLevel = ctx.Session.Progress.JobLevel
+		progress.BaseExp = ctx.Session.Progress.BaseExp
+		progress.NextBaseExp = ctx.Session.Progress.NextBaseExp
+		progress.JobExp = ctx.Session.Progress.JobExp
+		progress.NextJobExp = ctx.Session.Progress.NextJobExp
+	}
 	width := screen.Bounds().Dx()
-	x := maxInt(24, width-220)
+	x := maxInt(24, width-300)
 	debugText(screen, x, 24, "HP %d / %d", vitals.HP, vitals.MaxHP)
 	debugText(screen, x, 44, "SP %d / %d", vitals.SP, vitals.MaxSP)
+	debugText(screen, x, 64, "Base Lv %d  EXP %s", progress.BaseLevel, formatProgressValue(progress.BaseExp, progress.NextBaseExp))
+	debugText(screen, x, 84, "Job  Lv %d  EXP %s", progress.JobLevel, formatProgressValue(progress.JobExp, progress.NextJobExp))
 }
 
 func sessionVitalsFromCharacter(character session.Character) session.Vitals {
@@ -924,6 +960,19 @@ func sessionVitalsFromCharacter(character session.Character) session.Vitals {
 		SP:    int(character.SP),
 		MaxSP: int(character.MaxSP),
 	}
+}
+
+func sessionProgressFromCharacter(character session.Character) session.Progress {
+	return session.Progress{
+		BaseLevel: int(character.Level),
+	}
+}
+
+func formatProgressValue(current, next int64) string {
+	if next > 0 {
+		return fmt.Sprintf("%d / %d", current, next)
+	}
+	return fmt.Sprintf("%d", current)
 }
 
 func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {

@@ -40,3 +40,21 @@ func TestParseLongParameterChange(t *testing.T) {
 		t.Fatalf("change = %+v", change)
 	}
 }
+
+func TestParseLongParameterChangeKeepsUnsignedValue(t *testing.T) {
+	data := make([]byte, 8)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00B1)
+	binary.LittleEndian.PutUint16(data[2:4], StatusBaseExp)
+	binary.LittleEndian.PutUint32(data[4:8], 0xFFFFFFFF)
+
+	change, ok, err := ParseParameterChange(Packet{ID: 0x00B1, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("long parameter change not parsed")
+	}
+	if change.VarID != StatusBaseExp || change.Value != 4294967295 {
+		t.Fatalf("change = %+v", change)
+	}
+}

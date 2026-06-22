@@ -15,6 +15,7 @@ type Session struct {
 	PlayerY     int
 	PlayerDir   int
 	Vitals      Vitals
+	Progress    Progress
 }
 
 func New() *Session {
@@ -62,6 +63,15 @@ type Vitals struct {
 	MaxHP int
 	SP    int
 	MaxSP int
+}
+
+type Progress struct {
+	BaseLevel   int
+	JobLevel    int
+	BaseExp     int64
+	NextBaseExp int64
+	JobExp      int64
+	NextJobExp  int64
 }
 
 type ZoneServer struct {

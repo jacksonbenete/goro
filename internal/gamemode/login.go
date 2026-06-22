@@ -327,6 +327,7 @@ func convertCharacter(character network.Character) session.Character {
 func setSelectedCharacter(sessionState *session.Session, character session.Character) {
 	sessionState.Selected = character
 	sessionState.Vitals = sessionVitalsFromCharacter(character)
+	sessionState.Progress = sessionProgressFromCharacter(character)
 }
 
 func describeConnection(conn res.Connection) string {

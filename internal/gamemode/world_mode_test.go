@@ -301,6 +301,49 @@ func TestApplyParameterChangeUpdatesVitals(t *testing.T) {
 	}
 }
 
+func TestApplyParameterChangeUpdatesProgress(t *testing.T) {
+	sessionState := &session.Session{
+		Selected: session.Character{Level: 4},
+		Progress: session.Progress{
+			BaseLevel: 4,
+		},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusBaseExp, Value: 123})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusNextBaseExp, Value: 1000})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusJobExp, Value: 45})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusNextJobExp, Value: 500})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusBaseLevel, Value: 5})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusJobLevel, Value: 3})
+
+	if sessionState.Progress.BaseLevel != 5 || sessionState.Progress.JobLevel != 3 {
+		t.Fatalf("levels = base %d job %d", sessionState.Progress.BaseLevel, sessionState.Progress.JobLevel)
+	}
+	if sessionState.Progress.BaseExp != 123 || sessionState.Progress.NextBaseExp != 1000 || sessionState.Progress.JobExp != 45 || sessionState.Progress.NextJobExp != 500 {
+		t.Fatalf("progress = %+v", sessionState.Progress)
+	}
+	if sessionState.Selected.Level != 5 {
+		t.Fatalf("selected level = %d, want 5", sessionState.Selected.Level)
+	}
+}
+
+func TestSessionProgressFromCharacterUsesBaseLevel(t *testing.T) {
+	progress := sessionProgressFromCharacter(session.Character{Level: 12})
+	if progress.BaseLevel != 12 {
+		t.Fatalf("base level = %d, want 12", progress.BaseLevel)
+	}
+}
+
+func TestFormatProgressValue(t *testing.T) {
+	if got := formatProgressValue(12, 100); got != "12 / 100" {
+		t.Fatalf("formatted progress = %q", got)
+	}
+	if got := formatProgressValue(12, 0); got != "12" {
+		t.Fatalf("formatted progress without next = %q", got)
+	}
+}
+
 func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
