@@ -2,6 +2,7 @@ package gamemode
 
 import (
 	"testing"
+	"time"
 
 	"github.com/kivutar/goro/internal/network"
 	"github.com/kivutar/goro/internal/session"
@@ -112,5 +113,60 @@ func TestActorBillboardScreenScaleKeepsFlatProjectionNative(t *testing.T) {
 	projection := sceneProjection{}
 	if got := actorBillboardScreenScale(projection, 10.5, 20.5, 5); got != 1 {
 		t.Fatalf("flat billboard scale = %.3f, want 1", got)
+	}
+}
+
+func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		X:            20,
+		Y:            30,
+		Moving:       true,
+		FromX:        10,
+		FromY:        20,
+		ToX:          20,
+		ToY:          30,
+		MoveStarted:  now.Add(-750 * time.Millisecond),
+		MoveDuration: 1500 * time.Millisecond,
+	}
+	ctx := Context{World: world}
+
+	camera := followCamera{}
+	camera.Update(ctx, now)
+
+	if camera.x != 15.5 || camera.y != 25.5 {
+		t.Fatalf("camera target = %.2f, %.2f, want rendered player center 15.5, 25.5", camera.x, camera.y)
+	}
+	if world.Camera.X != camera.x || world.Camera.Y != camera.y {
+		t.Fatalf("world camera = %.2f, %.2f, want %.2f, %.2f", world.Camera.X, world.Camera.Y, camera.x, camera.y)
+	}
+}
+
+func TestFollowCameraInterpolatesTowardPlayerLikeReferenceView(t *testing.T) {
+	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "0.25")
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 10, Y: 20}
+	ctx := Context{World: world}
+
+	camera := followCamera{}
+	now := time.Now()
+	camera.Update(ctx, now)
+	world.Player = worldstate.Actor{X: 14, Y: 20}
+	camera.Update(ctx, now.Add(time.Second/60))
+
+	if camera.x != 11.5 || camera.y != 20.5 {
+		t.Fatalf("camera target = %.2f, %.2f, want 11.5, 20.5", camera.x, camera.y)
+	}
+}
+
+func TestCameraFollowFactorIsClamped(t *testing.T) {
+	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "2")
+	if got := cameraFollowFactor(); got != 1 {
+		t.Fatalf("camera follow factor = %.2f, want 1", got)
+	}
+	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "-1")
+	if got := cameraFollowFactor(); got != 0 {
+		t.Fatalf("camera follow factor = %.2f, want 0", got)
 	}
 }

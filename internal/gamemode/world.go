@@ -25,6 +25,7 @@ type WorldMode struct {
 	status        string
 	walkCooldown  int
 	tickCooldown  int
+	camera        followCamera
 	whitePixel    *ebiten.Image
 	textures      map[string]*ebiten.Image
 	textureMiss   map[string]struct{}
@@ -57,6 +58,7 @@ func (m *WorldMode) Name() string {
 
 func (m *WorldMode) Enter(ctx Context) {
 	m.status = "loading map"
+	m.camera.Reset()
 	m.textures = make(map[string]*ebiten.Image)
 	m.textureMiss = make(map[string]struct{})
 	m.rswMarkers = os.Getenv("GORO_DEBUG_RSW_MARKERS") == "1"
@@ -172,6 +174,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		}
 	}
 
+	now := time.Now()
+	m.camera.Update(ctx, now)
+
 	dx, dy := 0, 0
 	if ctx.Input.Pressed(ebiten.KeyArrowLeft) {
 		dx--
@@ -189,7 +194,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		m.walkCooldown--
 	}
 	if ctx.Input.MouseJustPressed(ebiten.MouseButtonLeft) && m.walkCooldown == 0 {
-		projection := newSceneProjectionForSize(ctx.Config.Window.Width, ctx.Config.Window.Height, ctx.World.Player.X, ctx.World.Player.Y, cameraTargetHeightAt(ctx.World, float64(ctx.World.Player.X), float64(ctx.World.Player.Y)))
+		projection := m.sceneProjection(ctx, ctx.Config.Window.Width, ctx.Config.Window.Height, now)
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			m.requestWalk(ctx, targetX, targetY, "click")
 		}
@@ -220,9 +225,9 @@ func (m *WorldMode) requestWalk(ctx Context, targetX, targetY int, source string
 func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	clear(screen)
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
-	playerX := float64(ctx.World.Player.X)
-	playerY := float64(ctx.World.Player.Y)
-	projection := newSceneProjection(screen, ctx.World.Player.X, ctx.World.Player.Y, cameraTargetHeightAt(ctx.World, playerX, playerY))
+	now := time.Now()
+	playerX, playerY := ctx.World.Player.RenderPosition(now)
+	projection := m.sceneProjection(ctx, width, height, now)
 
 	if ctx.World.GND != nil {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, projection)
@@ -267,6 +272,73 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 		debugText(screen, 24, y, "gat: %dx%d", ctx.World.GAT.Width, ctx.World.GAT.Height)
 		debugText(screen, 24, y+20, "actors: %d", len(ctx.World.Actors))
 	}
+}
+
+type followCamera struct {
+	initialized bool
+	x           float64
+	y           float64
+	z           float64
+}
+
+func (c *followCamera) Reset() {
+	*c = followCamera{}
+}
+
+func (c *followCamera) Update(ctx Context, now time.Time) {
+	targetX, targetY, targetZ := playerCameraTarget(ctx.World, now)
+	if !c.initialized {
+		c.x = targetX
+		c.y = targetY
+		c.z = targetZ
+		c.initialized = true
+		c.store(ctx)
+		return
+	}
+	factor := cameraFollowFactor()
+	c.x += (targetX - c.x) * factor
+	c.y += (targetY - c.y) * factor
+	c.z += (targetZ - c.z) * factor
+	c.store(ctx)
+}
+
+func (c *followCamera) Projection(ctx Context, width, height int, now time.Time) sceneProjection {
+	if !c.initialized {
+		c.Update(ctx, now)
+	}
+	c.store(ctx)
+	return newSceneProjectionForTarget(width, height, c.x, c.y, c.z)
+}
+
+func (c *followCamera) store(ctx Context) {
+	if ctx.World == nil {
+		return
+	}
+	ctx.World.Camera.X = c.x
+	ctx.World.Camera.Y = c.y
+}
+
+func (m *WorldMode) sceneProjection(ctx Context, width, height int, now time.Time) sceneProjection {
+	return m.camera.Projection(ctx, width, height, now)
+}
+
+func playerCameraTarget(world *worldstate.World, now time.Time) (float64, float64, float64) {
+	if world == nil {
+		return 0.5, 0.5, 0
+	}
+	playerX, playerY := world.Player.RenderPosition(now)
+	return cellCenter(playerX), cellCenter(playerY), cameraTargetHeightAt(world, playerX, playerY)
+}
+
+func cameraFollowFactor() float64 {
+	value := sceneFloatEnv("GORO_CAMERA_FOLLOW_FACTOR", 0.1)
+	if value < 0 {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
 }
 
 func upsertNetworkActor(ctx Context, entry network.ActorEntry) {

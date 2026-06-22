@@ -34,12 +34,14 @@ func newSceneProjection(screen *ebiten.Image, playerX, playerY int, playerZ floa
 }
 
 func newSceneProjectionForSize(width, height, playerX, playerY int, playerZ float64) sceneProjection {
-	centerX := float64(playerX) + 0.5
-	centerY := float64(playerY) + 0.5
+	return newSceneProjectionForTarget(width, height, cellCenter(float64(playerX)), cellCenter(float64(playerY)), playerZ)
+}
+
+func newSceneProjectionForTarget(width, height int, targetX, targetY, targetZ float64) sceneProjection {
 	projection := sceneProjection{
-		playerX:     centerX,
-		playerY:     centerY,
-		playerZ:     playerZ,
+		playerX:     targetX,
+		playerY:     targetY,
+		playerZ:     targetZ,
 		centerX:     float64(width) * 0.5,
 		centerY:     float64(height) * 0.5,
 		screenW:     float64(width),
@@ -50,7 +52,7 @@ func newSceneProjectionForSize(width, height, playerX, playerY int, playerZ floa
 	}
 	if os.Getenv("GORO_SCENE_PROJECTION") != "flat" {
 		projection.camera = true
-		projection.viewProjection = sceneCameraMatrix(float64(width), float64(height), centerX, centerY, playerZ)
+		projection.viewProjection = sceneCameraMatrix(float64(width), float64(height), targetX, targetY, targetZ)
 	}
 	return projection
 }
