@@ -1,6 +1,8 @@
 package world
 
 import (
+	"container/heap"
+	"math"
 	"time"
 
 	"github.com/kivutar/goro/internal/res"
@@ -41,6 +43,12 @@ type Actor struct {
 	ToY          int
 	MoveStarted  time.Time
 	MoveDuration time.Duration
+	MovePath     []WalkStep
+}
+
+type WalkStep struct {
+	X int
+	Y int
 }
 
 type Camera struct {
@@ -84,6 +92,7 @@ func (w *World) SetPlayerPosition(x, y, dir int) {
 	w.Player.FromY = y
 	w.Player.ToX = x
 	w.Player.ToY = y
+	w.Player.MovePath = nil
 }
 
 func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
@@ -96,7 +105,8 @@ func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
 	w.Player.ToY = toY
 	w.Player.Moving = true
 	w.Player.MoveStarted = time.Now()
-	w.Player.MoveDuration = actorMovementDuration(fromX, fromY, toX, toY)
+	w.Player.MovePath = walkPath(w.GAT, fromX, fromY, toX, toY)
+	w.Player.MoveDuration = actorMovementDuration(w.Player.MovePath, fromX, fromY, toX, toY)
 	w.Dir = dir
 }
 
@@ -130,12 +140,14 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.ToY = actor.Y
 		}
 		actor.MoveStarted = time.Now()
-		actor.MoveDuration = actorMovementDuration(actor.FromX, actor.FromY, actor.ToX, actor.ToY)
+		actor.MovePath = walkPath(w.GAT, actor.FromX, actor.FromY, actor.ToX, actor.ToY)
+		actor.MoveDuration = actorMovementDuration(actor.MovePath, actor.FromX, actor.FromY, actor.ToX, actor.ToY)
 	} else {
 		actor.FromX = actor.X
 		actor.FromY = actor.Y
 		actor.ToX = actor.X
 		actor.ToY = actor.Y
+		actor.MovePath = nil
 	}
 	w.Actors[actor.ID] = actor
 }
@@ -153,6 +165,9 @@ func (a Actor) RenderPosition(now time.Time) (float64, float64) {
 		return float64(a.X), float64(a.Y)
 	}
 	elapsed := now.Sub(a.MoveStarted)
+	if len(a.MovePath) >= 2 {
+		return renderPathPosition(a.MovePath, elapsed)
+	}
 	t := float64(elapsed) / float64(a.MoveDuration)
 	if t < 0 {
 		t = 0
@@ -164,17 +179,252 @@ func (a Actor) RenderPosition(now time.Time) (float64, float64) {
 	return x, y
 }
 
-func actorMovementDuration(fromX, fromY, toX, toY int) time.Duration {
+func (a Actor) RenderDirection(now time.Time) int {
+	if !a.IsMovingAt(now) || len(a.MovePath) < 2 {
+		return a.Dir
+	}
+	elapsed := now.Sub(a.MoveStarted)
+	from, to := renderPathSegment(a.MovePath, elapsed)
+	if from == to {
+		return a.Dir
+	}
+	return DirectionFromDelta(from.X, from.Y, to.X, to.Y, a.Dir)
+}
+
+func actorMovementDuration(path []WalkStep, fromX, fromY, toX, toY int) time.Duration {
+	if len(path) >= 2 {
+		total := time.Duration(0)
+		for i := 1; i < len(path); i++ {
+			total += movementSegmentDuration(path[i].X-path[i-1].X, path[i].Y-path[i-1].Y)
+		}
+		if total > 0 {
+			return total
+		}
+	}
 	dx := absInt(toX - fromX)
 	dy := absInt(toY - fromY)
+	if dx == 0 && dy == 0 {
+		return movementSegmentDuration(0, 0)
+	}
+	return movementSegmentDuration(dx, dy)
+}
+
+func movementSegmentDuration(dx, dy int) time.Duration {
+	if dx < 0 {
+		dx = -dx
+	}
+	if dy < 0 {
+		dy = -dy
+	}
+	if dx == 0 && dy == 0 {
+		return 150 * time.Millisecond
+	}
+	if dx != 0 && dy != 0 && dx == dy {
+		return time.Duration(math.Round(float64(dx)*150*math.Sqrt2)) * time.Millisecond
+	}
 	steps := dx
 	if dy > steps {
 		steps = dy
 	}
-	if steps < 1 {
-		steps = 1
-	}
 	return time.Duration(steps) * 150 * time.Millisecond
+}
+
+func renderPathPosition(path []WalkStep, elapsed time.Duration) (float64, float64) {
+	from, to := renderPathSegment(path, elapsed)
+	segmentElapsed := elapsed - pathElapsedBeforeSegment(path, from, to)
+	duration := movementSegmentDuration(to.X-from.X, to.Y-from.Y)
+	if duration <= 0 {
+		return float64(to.X), float64(to.Y)
+	}
+	t := float64(segmentElapsed) / float64(duration)
+	if t < 0 {
+		t = 0
+	} else if t > 1 {
+		t = 1
+	}
+	x := float64(from.X) + float64(to.X-from.X)*t
+	y := float64(from.Y) + float64(to.Y-from.Y)*t
+	return x, y
+}
+
+func renderPathSegment(path []WalkStep, elapsed time.Duration) (WalkStep, WalkStep) {
+	if len(path) == 0 {
+		return WalkStep{}, WalkStep{}
+	}
+	if len(path) == 1 || elapsed <= 0 {
+		return path[0], path[0]
+	}
+	remaining := elapsed
+	for i := 1; i < len(path); i++ {
+		duration := movementSegmentDuration(path[i].X-path[i-1].X, path[i].Y-path[i-1].Y)
+		if remaining < duration || i == len(path)-1 {
+			return path[i-1], path[i]
+		}
+		remaining -= duration
+	}
+	return path[len(path)-1], path[len(path)-1]
+}
+
+func pathElapsedBeforeSegment(path []WalkStep, from, to WalkStep) time.Duration {
+	total := time.Duration(0)
+	for i := 1; i < len(path); i++ {
+		if path[i-1] == from && path[i] == to {
+			return total
+		}
+		total += movementSegmentDuration(path[i].X-path[i-1].X, path[i].Y-path[i-1].Y)
+	}
+	return total
+}
+
+func walkPath(gat *res.GAT, fromX, fromY, toX, toY int) []WalkStep {
+	if fromX == toX && fromY == toY {
+		return []WalkStep{{X: fromX, Y: fromY}}
+	}
+	if gat == nil || !gat.InBounds(fromX, fromY) || !gat.InBounds(toX, toY) {
+		return []WalkStep{{X: fromX, Y: fromY}, {X: toX, Y: toY}}
+	}
+	if path, ok := findWalkPath(gat, fromX, fromY, toX, toY); ok {
+		return path
+	}
+	return []WalkStep{{X: fromX, Y: fromY}, {X: toX, Y: toY}}
+}
+
+func findWalkPath(gat *res.GAT, fromX, fromY, toX, toY int) ([]WalkStep, bool) {
+	start := pathPoint{x: fromX, y: fromY}
+	goal := pathPoint{x: toX, y: toY}
+	open := &pathHeap{}
+	heap.Init(open)
+	startNode := &pathNode{point: start, g: 0, f: pathHeuristic(start, goal)}
+	heap.Push(open, startNode)
+	nodes := map[pathPoint]*pathNode{start: startNode}
+	closed := make(map[pathPoint]struct{})
+
+	for open.Len() > 0 {
+		current := heap.Pop(open).(*pathNode)
+		if _, ok := closed[current.point]; ok {
+			continue
+		}
+		if current.point == goal {
+			return reconstructPath(current), true
+		}
+		closed[current.point] = struct{}{}
+		for _, next := range pathNeighbors(gat, current.point, goal) {
+			if _, ok := closed[next]; ok {
+				continue
+			}
+			cost := current.g + pathStepCost(current.point, next)
+			node, ok := nodes[next]
+			if !ok {
+				node = &pathNode{point: next, g: cost, f: cost + pathHeuristic(next, goal), parent: current}
+				nodes[next] = node
+				heap.Push(open, node)
+				continue
+			}
+			if cost < node.g {
+				node.g = cost
+				node.f = cost + pathHeuristic(next, goal)
+				node.parent = current
+				heap.Push(open, node)
+			}
+		}
+	}
+	return nil, false
+}
+
+type pathPoint struct {
+	x int
+	y int
+}
+
+type pathNode struct {
+	point  pathPoint
+	g      int
+	f      int
+	parent *pathNode
+}
+
+type pathHeap []*pathNode
+
+func (h pathHeap) Len() int { return len(h) }
+func (h pathHeap) Less(i, j int) bool {
+	if h[i].f == h[j].f {
+		return h[i].g > h[j].g
+	}
+	return h[i].f < h[j].f
+}
+func (h pathHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+func (h *pathHeap) Push(x any)   { *h = append(*h, x.(*pathNode)) }
+func (h *pathHeap) Pop() any {
+	old := *h
+	n := len(old)
+	node := old[n-1]
+	*h = old[:n-1]
+	return node
+}
+
+func pathNeighbors(gat *res.GAT, point pathPoint, goal pathPoint) []pathPoint {
+	var out []pathPoint
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			next := pathPoint{x: point.x + dx, y: point.y + dy}
+			if !gat.InBounds(next.x, next.y) {
+				continue
+			}
+			if !gat.Walkable(next.x, next.y) {
+				continue
+			}
+			if dx != 0 && dy != 0 && (!gat.Walkable(point.x+dx, point.y) || !gat.Walkable(point.x, point.y+dy)) {
+				continue
+			}
+			out = append(out, next)
+		}
+	}
+	return out
+}
+
+func pathStepCost(from, to pathPoint) int {
+	if from.x != to.x && from.y != to.y {
+		return 14
+	}
+	return 10
+}
+
+func pathHeuristic(from, to pathPoint) int {
+	dx := absInt(to.x - from.x)
+	dy := absInt(to.y - from.y)
+	if dx < dy {
+		return 14*dx + 10*(dy-dx)
+	}
+	return 14*dy + 10*(dx-dy)
+}
+
+func reconstructPath(node *pathNode) []WalkStep {
+	var reversed []WalkStep
+	for node != nil {
+		reversed = append(reversed, WalkStep{X: node.point.x, Y: node.point.y})
+		node = node.parent
+	}
+	path := make([]WalkStep, len(reversed))
+	for i := range reversed {
+		path[i] = reversed[len(reversed)-1-i]
+	}
+	return path
+}
+
+func DirectionFromDelta(fromX, fromY, toX, toY int, fallback int) int {
+	dx := toX - fromX
+	dy := toY - fromY
+	if dx == 0 && dy == 0 {
+		if fallback < 0 {
+			return 0
+		}
+		return fallback & 7
+	}
+	actionDir := int(math.Round(-math.Atan2(float64(dy), float64(dx))/(math.Pi/4)+6)) & 7
+	return (4 - actionDir) & 7
 }
 
 func absInt(v int) int {

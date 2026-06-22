@@ -3,6 +3,8 @@ package world
 import (
 	"testing"
 	"time"
+
+	"github.com/kivutar/goro/internal/res"
 )
 
 func TestUpsertActorMovePreservesAppearance(t *testing.T) {
@@ -80,6 +82,56 @@ func TestSetPlayerMovementInterpolatesLocalPlayer(t *testing.T) {
 	}
 }
 
+func TestActorRenderPositionFollowsWalkPath(t *testing.T) {
+	now := time.Now()
+	actor := Actor{
+		X:            2,
+		Y:            1,
+		Dir:          0,
+		Moving:       true,
+		FromX:        0,
+		FromY:        0,
+		ToX:          2,
+		ToY:          1,
+		MoveStarted:  now.Add(-225 * time.Millisecond),
+		MoveDuration: 450 * time.Millisecond,
+		MovePath: []WalkStep{
+			{X: 0, Y: 0},
+			{X: 0, Y: 1},
+			{X: 1, Y: 1},
+			{X: 2, Y: 1},
+		},
+	}
+
+	x, y := actor.RenderPosition(now)
+	if x != 0.5 || y != 1 {
+		t.Fatalf("position = %.2f, %.2f, want 0.50, 1.00", x, y)
+	}
+	if got := actor.RenderDirection(now); got != DirectionFromDelta(0, 1, 1, 1, 0) {
+		t.Fatalf("direction = %d", got)
+	}
+}
+
+func TestSetPlayerMovementBuildsPathAroundObstacle(t *testing.T) {
+	w := New()
+	w.GAT = testGAT(3, 3, map[WalkStep]bool{
+		{X: 1, Y: 0}: true,
+	})
+
+	w.SetPlayerMovement(0, 0, 2, 0, 0)
+	if len(w.Player.MovePath) < 4 {
+		t.Fatalf("path too short: %+v", w.Player.MovePath)
+	}
+	for _, step := range w.Player.MovePath {
+		if step.X == 1 && step.Y == 0 {
+			t.Fatalf("path crosses blocked cell: %+v", w.Player.MovePath)
+		}
+	}
+	if got := w.Player.MoveDuration; got <= 300*time.Millisecond {
+		t.Fatalf("duration = %s, want longer than direct two-cell move", got)
+	}
+}
+
 func TestRemoveActor(t *testing.T) {
 	w := New()
 	w.UpsertActor(Actor{ID: 2000002, X: 1, Y: 2})
@@ -87,4 +139,22 @@ func TestRemoveActor(t *testing.T) {
 	if _, ok := w.Actors[2000002]; ok {
 		t.Fatal("actor was not removed")
 	}
+}
+
+func testGAT(width, height int, blocked map[WalkStep]bool) *res.GAT {
+	gat := &res.GAT{
+		Width:  width,
+		Height: height,
+		Cells:  make([]res.GATCell, width*height),
+	}
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			cellType := res.GATTypeWalkable | res.GATTypeSnipable
+			if blocked[WalkStep{X: x, Y: y}] {
+				cellType = res.GATTypeNone
+			}
+			gat.Cells[y*width+x] = res.GATCell{Type: cellType}
+		}
+	}
+	return gat
 }

@@ -638,13 +638,7 @@ func walkTargetInBounds(ctx Context, x, y int) bool {
 }
 
 func directionFromDelta(fromX, fromY, toX, toY int, fallback int) int {
-	dx := toX - fromX
-	dy := toY - fromY
-	if dx == 0 && dy == 0 {
-		return normalizeDirectionIndex(fallback)
-	}
-	actionDir := int(math.Round(-math.Atan2(float64(dy), float64(dx))/(math.Pi/4)+6)) & 7
-	return (4 - actionDir) & 7
+	return worldstate.DirectionFromDelta(fromX, fromY, toX, toY, normalizeDirectionIndex(fallback))
 }
 
 func cameraTargetHeightAt(world *worldstate.World, x, y float64) float64 {
@@ -817,6 +811,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, entry
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, label string, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
 	actorX, actorY := actor.RenderPosition(now)
+	actor.Dir = actor.RenderDirection(now)
 	terrainZ := terrainHeightAt(world, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	if point.x < -96 || point.y < -160 || point.x > float32(screenWidth+96) || point.y > float32(screenHeight+96) {
