@@ -2,6 +2,7 @@ package gamemode
 
 import (
 	"math"
+	"os"
 	"testing"
 
 	"github.com/kivutar/goro/internal/res"
@@ -64,6 +65,22 @@ func TestCameraProjectionCentersPlayerCell(t *testing.T) {
 	point := projection.Project(10.5, 20.5, 5)
 	if math.Abs(float64(point.x)-400) > 0.01 || math.Abs(float64(point.y)-300) > 0.01 {
 		t.Fatalf("projected point = %.1f, %.1f, want 400, 300", point.x, point.y)
+	}
+}
+
+func TestSceneCameraDefaultZoomMatchesCloseReferenceDistance(t *testing.T) {
+	old, hadOld := os.LookupEnv("GORO_CAMERA_ZOOM")
+	t.Cleanup(func() {
+		if hadOld {
+			os.Setenv("GORO_CAMERA_ZOOM", old)
+		} else {
+			os.Unsetenv("GORO_CAMERA_ZOOM")
+		}
+	})
+	os.Unsetenv("GORO_CAMERA_ZOOM")
+
+	if got := sceneCameraZoom() * 0.5; got != 150 {
+		t.Fatalf("default camera distance = %.1f, want 150.0", got)
 	}
 }
 

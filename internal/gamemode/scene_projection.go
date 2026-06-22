@@ -196,7 +196,7 @@ func sceneCameraYaw() float64 {
 }
 
 func sceneCameraZoom() float64 {
-	return sceneFloatEnv("GORO_CAMERA_ZOOM", 420)
+	return sceneFloatEnv("GORO_CAMERA_ZOOM", 300)
 }
 
 func sceneCameraFOV() float64 {

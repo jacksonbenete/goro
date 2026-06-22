@@ -30,7 +30,7 @@ GORO_RSM_RENDER_RADIUS=60 ./scripts/run-oldro.sh
 GORO_DEBUG_RSM_TRANSFORMS=1 ./scripts/run-oldro.sh
 GORO_SCENE_PROJECTION=flat ./scripts/run-oldro.sh
 GORO_SCENE_HEIGHT_SCALE=2.8 ./scripts/run-oldro.sh
-GORO_CAMERA_PITCH=230 GORO_CAMERA_YAW=0 GORO_CAMERA_ZOOM=420 GORO_CAMERA_FOV=15 ./scripts/run-oldro.sh
+GORO_CAMERA_PITCH=230 GORO_CAMERA_YAW=0 GORO_CAMERA_ZOOM=300 GORO_CAMERA_FOV=15 ./scripts/run-oldro.sh
 GORO_CAMERA_TARGET_Z=8 ./scripts/run-oldro.sh
 GORO_CAMERA_FOLLOW_TERRAIN_HEIGHT=1 ./scripts/run-oldro.sh
 GORO_PACKET_CLIENT_DATE=20080910 ./scripts/run-oldro.sh
