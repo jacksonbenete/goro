@@ -15,8 +15,10 @@ type Manager struct {
 	FoundFiles []string
 	Archives   []*GRF
 
-	accessoryNames       map[int]string
-	accessoryNamesLoaded bool
+	accessoryNames         map[int]string
+	accessoryNamesLoaded   bool
+	jobResourceNames       map[int]string
+	jobResourceNamesLoaded bool
 }
 
 func NewManager(root string) (*Manager, error) {

@@ -31,6 +31,7 @@ type playerSpriteView struct {
 	palette       *res.Palette
 	paletteSource string
 	images        map[spriteFrameKey]*ebiten.Image
+	billboards    map[singleSpriteBillboardKey]*spriteBillboard
 	started       time.Time
 }
 
@@ -74,6 +75,11 @@ type humanoidBillboardKey struct {
 	headMotion   int
 }
 
+type singleSpriteBillboardKey struct {
+	actionIndex int
+	motion      int
+}
+
 type spriteBillboard struct {
 	image   *ebiten.Image
 	anchorX float64
@@ -109,6 +115,14 @@ func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Charac
 		headMid:     int(character.HeadMid),
 		headLow:     int(character.HeadLow),
 	}, "player")
+}
+
+func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSpriteView, string) {
+	resourceName, ok := manager.JobResourceName(job)
+	if !ok {
+		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
+	}
+	return loadSpriteView(manager, res.NonPCSpriteResourceCandidates(job, resourceName, "act"), res.NonPCSpriteResourceCandidates(job, resourceName, "spr"), nil, label+" "+resourceName)
 }
 
 func characterHeadPalette(character session.Character) int {
@@ -239,6 +253,7 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 		palette:       palette,
 		paletteSource: paletteSource,
 		images:        make(map[spriteFrameKey]*ebiten.Image),
+		billboards:    make(map[singleSpriteBillboardKey]*spriteBillboard),
 		started:       time.Now(),
 	}, fmt.Sprintf("%s: %s actions=%d frames=%d%s", label, sprSource, len(act.Actions), len(spr.Frames), paletteStatus)
 }
@@ -301,6 +316,20 @@ func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state
 	if !ok {
 		return false
 	}
+	drawSpriteBillboard(screen, billboard, centerX, centerY, scale)
+	return true
+}
+
+func drawSingleSpriteBillboard(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64) bool {
+	billboard, ok := singleSpriteBillboardForState(view, state, time.Now())
+	if !ok {
+		return false
+	}
+	drawSpriteBillboard(screen, billboard, centerX, centerY, scale)
+	return true
+}
+
+func drawSpriteBillboard(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
@@ -310,7 +339,6 @@ func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state
 	opts.GeoM.Translate(centerX, centerY)
 	opts.Filter = ebiten.FilterNearest
 	screen.DrawImage(billboard.image, &opts)
-	return true
 }
 
 func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
@@ -346,6 +374,31 @@ func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now 
 	return billboard, true
 }
 
+func singleSpriteBillboardForState(view *playerSpriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
+	if view == nil || view.act == nil || view.spr == nil {
+		return nil, false
+	}
+	state.direction = spriteDirectionFromWorldDir(state.direction)
+	actionIndex, action, ok := resolveSpriteAction(view.act, state.actionFamily, state.direction)
+	if !ok || len(action.Animations) == 0 {
+		return nil, false
+	}
+	motion := spriteMotionIndex(action, view.started, now, true)
+	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion}
+	if billboard, ok := view.billboards[key]; ok {
+		return billboard, true
+	}
+	if motion < 0 || motion >= len(action.Animations) {
+		return nil, false
+	}
+	billboard, ok := composeSingleSpriteBillboard(view, action.Animations[motion])
+	if !ok {
+		return nil, false
+	}
+	view.billboards[key] = billboard
+	return billboard, true
+}
+
 func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) (*spriteBillboard, bool) {
 	if bodyMotion < 0 || bodyMotion >= len(bodyAction.Animations) {
 		return nil, false
@@ -366,6 +419,84 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 		anchorX: humanoidBillboardAnchorX,
 		anchorY: humanoidBillboardAnchorY,
 	}, true
+}
+
+func composeSingleSpriteBillboard(view *playerSpriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
+	minX, minY, maxX, maxY, ok := spriteAnimationLayerBounds(view, anim)
+	if !ok {
+		return nil, false
+	}
+	const padding = 4.0
+	minX -= padding
+	minY -= padding
+	maxX += padding
+	maxY += padding
+	width := int(math.Ceil(maxX - minX))
+	height := int(math.Ceil(maxY - minY))
+	if width <= 0 || height <= 0 {
+		return nil, false
+	}
+	target := ebiten.NewImage(width, height)
+	anchorX := -minX
+	anchorY := -minY
+	if !drawSpriteAnimation(target, view, anim, anchorX, anchorY, 0, 0) {
+		return nil, false
+	}
+	return &spriteBillboard{
+		image:   target,
+		anchorX: anchorX,
+		anchorY: anchorY,
+	}, true
+}
+
+func spriteAnimationLayerBounds(view *playerSpriteView, anim res.ACTAnimation) (float64, float64, float64, float64, bool) {
+	minX, minY := math.Inf(1), math.Inf(1)
+	maxX, maxY := math.Inf(-1), math.Inf(-1)
+	ok := false
+	for _, layer := range anim.Layers {
+		if layer.Index < 0 {
+			continue
+		}
+		width, height, frameOK := spriteLayerFrameSize(view, layer.Index, layer.SPRType)
+		if !frameOK {
+			continue
+		}
+		scaleX := math.Abs(float64(layer.ScaleX))
+		scaleY := math.Abs(float64(layer.ScaleY))
+		if scaleX == 0 {
+			scaleX = 1
+		}
+		if scaleY == 0 {
+			scaleY = 1
+		}
+		width *= scaleX
+		height *= scaleY
+		centerX, centerY := spriteLayerCenter(0, 0, layer)
+		minX = math.Min(minX, centerX-width*0.5)
+		maxX = math.Max(maxX, centerX+width*0.5)
+		minY = math.Min(minY, centerY-height*0.5)
+		maxY = math.Max(maxY, centerY+height*0.5)
+		ok = true
+	}
+	return minX, minY, maxX, maxY, ok
+}
+
+func spriteLayerFrameSize(view *playerSpriteView, index int32, sprType int32) (float64, float64, bool) {
+	if view == nil || view.spr == nil {
+		return 0, 0, false
+	}
+	frameIndex := int(index)
+	if sprType == res.SPRFrameRGBA {
+		frameIndex += view.spr.RGBAIndex
+	}
+	if frameIndex < 0 || frameIndex >= len(view.spr.Frames) {
+		return 0, 0, false
+	}
+	frame := view.spr.Frames[frameIndex]
+	if frame.Width <= 0 || frame.Height <= 0 {
+		return 0, 0, false
+	}
+	return float64(frame.Width), float64(frame.Height), true
 }
 
 func drawFallbackHumanoidLayers(target *ebiten.Image, view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) bool {

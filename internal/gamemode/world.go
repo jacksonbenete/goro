@@ -34,6 +34,8 @@ type WorldMode struct {
 	playerView    *humanoidSpriteView
 	actorViews    map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss map[actorSpriteKey]struct{}
+	nonPCViews    map[int]*playerSpriteView
+	nonPCViewMiss map[int]struct{}
 	rsmDebugLog   map[string]struct{}
 }
 
@@ -66,6 +68,8 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.playerView = nil
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
+	m.nonPCViews = make(map[int]*playerSpriteView)
+	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmDebugLog = make(map[string]struct{})
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
@@ -642,7 +646,7 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 
 func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64) bool {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
-		return false
+		return m.drawNonPCSprite(screen, ctx, actor, centerX, centerY, scale)
 	}
 	key := actorSpriteKey{
 		job:     int(actor.Job),
@@ -687,6 +691,34 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 		state.actionFamily = spriteActionWalk
 	}
 	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale)
+}
+
+func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64) bool {
+	job := int(actor.Job)
+	if _, ok := m.nonPCViewMiss[job]; ok {
+		return false
+	}
+	view, ok := m.nonPCViews[job]
+	if !ok {
+		loaded, status := loadNonPCSpriteView(ctx.Resources, job, "nonpc")
+		if loaded == nil {
+			m.nonPCViewMiss[job] = struct{}{}
+			log.Printf("nonpc sprite unavailable id=%d job=%d: %s", actor.ID, job, status)
+			return false
+		}
+		m.nonPCViews[job] = loaded
+		view = loaded
+		log.Printf("nonpc sprite resources id=%d job=%d %s", actor.ID, job, status)
+	}
+	state := spriteState{
+		actionFamily: spriteActionIdle,
+		direction:    actor.Dir,
+		moving:       actor.IsMovingAt(time.Now()),
+	}
+	if state.moving {
+		state.actionFamily = spriteActionWalk
+	}
+	return drawSingleSpriteBillboard(screen, view, state, centerX, centerY, scale)
 }
 
 func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) float64 {

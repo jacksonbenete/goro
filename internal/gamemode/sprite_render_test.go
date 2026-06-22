@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/kivutar/goro/internal/res"
 )
 
@@ -257,6 +258,52 @@ func TestPlayerSpriteCompositionIncludesHeadWithWeapon(t *testing.T) {
 		t.Fatalf("head bounds too low: bounds=(%.1f,%.1f)-(%.1f,%.1f) point=(%d,%d) attach=(%d,%d) layer=%+v status=%s", minX, minY, maxX, maxY, pointX, pointY, dx, dy, layer, status)
 	}
 	t.Logf("head bounds=(%.1f,%.1f)-(%.1f,%.1f) point=(%d,%d) attach=(%d,%d) layer=%+v", minX, minY, maxX, maxY, pointX, pointY, dx, dy, layer)
+}
+
+func TestComposeSingleSpriteBillboardUsesAnimationBounds(t *testing.T) {
+	view := &playerSpriteView{
+		spr: &res.SPR{
+			RGBAIndex: 0,
+			Frames: []res.SPRFrame{{
+				Type:   res.SPRFrameRGBA,
+				Width:  20,
+				Height: 60,
+				Data:   solidRGBAFrame(20, 60),
+			}},
+		},
+		act:        &res.ACT{},
+		images:     make(map[spriteFrameKey]*ebiten.Image),
+		billboards: make(map[singleSpriteBillboardKey]*spriteBillboard),
+	}
+	anim := res.ACTAnimation{Layers: []res.ACTLayer{{
+		Index:   0,
+		SPRType: res.SPRFrameRGBA,
+		X:       3,
+		Y:       -20,
+		ScaleX:  1,
+		ScaleY:  1,
+		Color:   [4]float32{1, 1, 1, 1},
+	}}}
+
+	billboard, ok := composeSingleSpriteBillboard(view, anim)
+	if !ok {
+		t.Fatal("expected single sprite billboard")
+	}
+	if billboard.image.Bounds().Dx() != 28 || billboard.image.Bounds().Dy() != 68 {
+		t.Fatalf("billboard size = %dx%d, want 28x68", billboard.image.Bounds().Dx(), billboard.image.Bounds().Dy())
+	}
+	if billboard.anchorX != 11 || billboard.anchorY != 54 {
+		t.Fatalf("billboard anchor = %.1f, %.1f, want 11, 54", billboard.anchorX, billboard.anchorY)
+	}
+}
+
+func solidRGBAFrame(width, height int) []byte {
+	data := make([]byte, width*height*4)
+	for i := 0; i < len(data); i += 4 {
+		data[i+0] = 255
+		data[i+3] = 255
+	}
+	return data
 }
 
 func layerOrderContains(order [8]int, layer int) bool {
