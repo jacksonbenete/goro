@@ -824,5 +824,5 @@ func normalizeDirectionIndex(direction int) int {
 }
 
 func spriteDirectionFromWorldDir(direction int) int {
-	return (normalizeDirectionIndex(direction) + 4) & 7
+	return (4 - normalizeDirectionIndex(direction)) & 7
 }
