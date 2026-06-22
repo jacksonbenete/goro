@@ -96,6 +96,95 @@ func TestParseActorMoveUpdate(t *testing.T) {
 	}
 }
 
+func TestParseActorMoveEntryModern(t *testing.T) {
+	data := make([]byte, 65)
+	binary.LittleEndian.PutUint16(data[0:2], 0x022C)
+	data[2] = 5
+	binary.LittleEndian.PutUint32(data[3:7], 1100001)
+	binary.LittleEndian.PutUint16(data[17:19], 1002)
+	binary.LittleEndian.PutUint16(data[19:21], 3)
+	binary.LittleEndian.PutUint32(data[21:25], uint32(2101)<<16|1201)
+	binary.LittleEndian.PutUint16(data[25:27], 11)
+	binary.LittleEndian.PutUint16(data[31:33], 22)
+	binary.LittleEndian.PutUint16(data[33:35], 33)
+	data[54] = 1
+	data[55], data[56], data[57], data[58], data[59], data[60] = packMovePosition(10, 20, 11, 21)
+
+	entry, ok, err := ParseActorEntry(Packet{ID: 0x022C, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !entry.Moving || !entry.Appearance {
+		t.Fatalf("modern move entry not parsed: ok=%v entry=%+v", ok, entry)
+	}
+	if entry.ID != 1100001 || entry.ObjectType != 5 || entry.Job != 1002 || entry.Head != 3 || entry.Weapon != 1201 || entry.Shield != 2101 || entry.HeadLow != 11 || entry.HeadTop != 22 || entry.HeadMid != 33 || entry.Sex != 1 {
+		t.Fatalf("unexpected appearance: %+v", entry)
+	}
+	if entry.FromX != 10 || entry.FromY != 20 || entry.ToX != 11 || entry.ToY != 21 || entry.X != 11 || entry.Y != 21 {
+		t.Fatalf("unexpected movement: %+v", entry)
+	}
+}
+
+func TestParseActorMoveEntryVariableRobe(t *testing.T) {
+	data := make([]byte, 71)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0856)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	data[4] = 5
+	binary.LittleEndian.PutUint32(data[5:9], 1100002)
+	binary.LittleEndian.PutUint16(data[19:21], 1063)
+	binary.LittleEndian.PutUint16(data[21:23], 4)
+	binary.LittleEndian.PutUint32(data[23:27], uint32(2102)<<16|1202)
+	binary.LittleEndian.PutUint16(data[27:29], 12)
+	binary.LittleEndian.PutUint16(data[33:35], 23)
+	binary.LittleEndian.PutUint16(data[35:37], 34)
+	data[58] = 0
+	data[59], data[60], data[61], data[62], data[63], data[64] = packMovePosition(30, 40, 31, 41)
+
+	entry, ok, err := ParseActorEntry(Packet{ID: 0x0856, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !entry.Moving || !entry.Appearance {
+		t.Fatalf("robe move entry not parsed: ok=%v entry=%+v", ok, entry)
+	}
+	if entry.ID != 1100002 || entry.ObjectType != 5 || entry.Job != 1063 || entry.Head != 4 || entry.Weapon != 1202 || entry.Shield != 2102 || entry.HeadLow != 12 || entry.HeadTop != 23 || entry.HeadMid != 34 || entry.Sex != 0 {
+		t.Fatalf("unexpected robe appearance: %+v", entry)
+	}
+	if entry.FromX != 30 || entry.FromY != 40 || entry.ToX != 31 || entry.ToY != 41 || entry.X != 31 || entry.Y != 41 {
+		t.Fatalf("unexpected robe movement: %+v", entry)
+	}
+}
+
+func TestParseActorMoveEntryVariableNoRobe(t *testing.T) {
+	data := make([]byte, 69)
+	binary.LittleEndian.PutUint16(data[0:2], 0x07F7)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	data[4] = 5
+	binary.LittleEndian.PutUint32(data[5:9], 1100003)
+	binary.LittleEndian.PutUint16(data[19:21], 1002)
+	binary.LittleEndian.PutUint16(data[21:23], 5)
+	binary.LittleEndian.PutUint32(data[23:27], uint32(2103)<<16|1203)
+	binary.LittleEndian.PutUint16(data[27:29], 13)
+	binary.LittleEndian.PutUint16(data[33:35], 24)
+	binary.LittleEndian.PutUint16(data[35:37], 35)
+	data[56] = 1
+	data[57], data[58], data[59], data[60], data[61], data[62] = packMovePosition(50, 60, 51, 61)
+
+	entry, ok, err := ParseActorEntry(Packet{ID: 0x07F7, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !entry.Moving || !entry.Appearance {
+		t.Fatalf("variable move entry not parsed: ok=%v entry=%+v", ok, entry)
+	}
+	if entry.ID != 1100003 || entry.ObjectType != 5 || entry.Job != 1002 || entry.Head != 5 || entry.Weapon != 1203 || entry.Shield != 2103 || entry.HeadLow != 13 || entry.HeadTop != 24 || entry.HeadMid != 35 || entry.Sex != 1 {
+		t.Fatalf("unexpected variable appearance: %+v", entry)
+	}
+	if entry.FromX != 50 || entry.FromY != 60 || entry.ToX != 51 || entry.ToY != 61 || entry.X != 51 || entry.Y != 61 {
+		t.Fatalf("unexpected variable movement: %+v", entry)
+	}
+}
+
 func TestParseActorVanish(t *testing.T) {
 	data := make([]byte, 7)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0080)

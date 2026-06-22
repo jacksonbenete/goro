@@ -238,9 +238,98 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ToY:        toY,
 			Moving:     true,
 		}, true, nil
+	case 0x022C, 0x02EC:
+		entry, err := parseActorMoveEntryModern(packet)
+		if err != nil {
+			return ActorEntry{}, false, err
+		}
+		return entry, true, nil
+	case 0x07F7:
+		entry, err := parseActorMoveEntryVariable(packet, false)
+		if err != nil {
+			return ActorEntry{}, false, err
+		}
+		return entry, true, nil
+	case 0x0856:
+		entry, err := parseActorMoveEntryVariable(packet, true)
+		if err != nil {
+			return ActorEntry{}, false, err
+		}
+		return entry, true, nil
 	default:
 		return ActorEntry{}, false, nil
 	}
+}
+
+func parseActorMoveEntryModern(packet Packet) (ActorEntry, error) {
+	minLength := 65
+	if packet.ID == 0x02EC {
+		minLength = 67
+	}
+	if len(packet.Data) < minLength {
+		return ActorEntry{}, fmt.Errorf("ZC_NOTIFY_MOVEENTRY modern 0x%04X too short: %d", packet.ID, len(packet.Data))
+	}
+	fromX, fromY, toX, toY := unpackMovePos(packet.Data[55:61])
+	weaponValue := binary.LittleEndian.Uint32(packet.Data[21:25])
+	return ActorEntry{
+		ObjectType:    packet.Data[2],
+		HasObjectType: true,
+		ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
+		Job:           int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
+		Head:          int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
+		Weapon:        int16(weaponValue & 0xFFFF),
+		Shield:        int16((weaponValue >> 16) & 0xFFFF),
+		HeadLow:       int16(binary.LittleEndian.Uint16(packet.Data[25:27])),
+		HeadTop:       int16(binary.LittleEndian.Uint16(packet.Data[31:33])),
+		HeadMid:       int16(binary.LittleEndian.Uint16(packet.Data[33:35])),
+		Sex:           packet.Data[54],
+		Appearance:    true,
+		X:             toX,
+		Y:             toY,
+		FromX:         fromX,
+		FromY:         fromY,
+		ToX:           toX,
+		ToY:           toY,
+		Moving:        true,
+	}, nil
+}
+
+func parseActorMoveEntryVariable(packet Packet, hasRobe bool) (ActorEntry, error) {
+	minLength := 69
+	if hasRobe {
+		minLength = 71
+	}
+	if len(packet.Data) < minLength {
+		return ActorEntry{}, fmt.Errorf("ZC_NOTIFY_MOVEENTRY variable 0x%04X too short: %d", packet.ID, len(packet.Data))
+	}
+	moveOffset := 57
+	if hasRobe {
+		moveOffset = 59
+	}
+	sexOffset := moveOffset - 1
+	fromX, fromY, toX, toY := unpackMovePos(packet.Data[moveOffset : moveOffset+6])
+	weaponValue := binary.LittleEndian.Uint32(packet.Data[23:27])
+	return ActorEntry{
+		ObjectType:    packet.Data[4],
+		HasObjectType: true,
+		ID:            binary.LittleEndian.Uint32(packet.Data[5:9]),
+		Job:           int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
+		Head:          int16(binary.LittleEndian.Uint16(packet.Data[21:23])),
+		Weapon:        int16(weaponValue & 0xFFFF),
+		Shield:        int16((weaponValue >> 16) & 0xFFFF),
+		HeadLow:       int16(binary.LittleEndian.Uint16(packet.Data[27:29])),
+		HeadTop:       int16(binary.LittleEndian.Uint16(packet.Data[33:35])),
+		HeadMid:       int16(binary.LittleEndian.Uint16(packet.Data[35:37])),
+		Sex:           packet.Data[sexOffset],
+		Appearance:    true,
+		X:             toX,
+		Y:             toY,
+		FromX:         fromX,
+		FromY:         fromY,
+		ToX:           toX,
+		ToY:           toY,
+		Moving:        true,
+	}, nil
 }
 
 func ParseActorActionNotify(packet Packet) (ActorActionNotify, bool, error) {
