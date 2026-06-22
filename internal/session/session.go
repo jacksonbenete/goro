@@ -14,6 +14,7 @@ type Session struct {
 	PlayerX     int
 	PlayerY     int
 	PlayerDir   int
+	Vitals      Vitals
 }
 
 func New() *Session {
@@ -54,6 +55,13 @@ type Character struct {
 	HeadTop   int16
 	HeadMid   int16
 	HeadLow   int16
+}
+
+type Vitals struct {
+	HP    int
+	MaxHP int
+	SP    int
+	MaxSP int
 }
 
 type ZoneServer struct {

@@ -121,7 +121,7 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 						m.status = "select character failed: " + err.Error()
 					} else {
 						ctx.Session.CharID = list.Characters[0].ID
-						ctx.Session.Selected = convertCharacter(list.Characters[0])
+						setSelectedCharacter(ctx.Session, convertCharacter(list.Characters[0]))
 						m.status = fmt.Sprintf("selected character %s", list.Characters[0].Name)
 					}
 				}
@@ -322,6 +322,11 @@ func convertCharacter(character network.Character) session.Character {
 		HeadMid:   character.HeadMid,
 		HeadLow:   character.HeadLow,
 	}
+}
+
+func setSelectedCharacter(sessionState *session.Session, character session.Character) {
+	sessionState.Selected = character
+	sessionState.Vitals = sessionVitalsFromCharacter(character)
 }
 
 func describeConnection(conn res.Connection) string {

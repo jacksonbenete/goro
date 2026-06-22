@@ -283,6 +283,24 @@ func TestLockAttackKeepsExistingRetryTimersForSameTarget(t *testing.T) {
 	}
 }
 
+func TestApplyParameterChangeUpdatesVitals(t *testing.T) {
+	sessionState := &session.Session{
+		Selected: session.Character{HP: 70, MaxHP: 100, SP: 20, MaxSP: 30},
+		Vitals:   session.Vitals{HP: 70, MaxHP: 100, SP: 20, MaxSP: 30},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusHP, Value: 42})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusMaxSP, Value: 55})
+
+	if sessionState.Vitals.HP != 42 || sessionState.Vitals.MaxHP != 100 || sessionState.Vitals.SP != 20 || sessionState.Vitals.MaxSP != 55 {
+		t.Fatalf("vitals = %+v", sessionState.Vitals)
+	}
+	if sessionState.Selected.HP != 42 || sessionState.Selected.MaxSP != 55 {
+		t.Fatalf("selected vitals = hp %d maxsp %d", sessionState.Selected.HP, sessionState.Selected.MaxSP)
+	}
+}
+
 func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()

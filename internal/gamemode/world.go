@@ -247,6 +247,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.applyAttackFailureForDistance(ctx, failure)
 			continue
 		}
+		if change, ok, err := network.ParseParameterChange(pkt); err != nil {
+			log.Printf("parse parameter change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyParameterChange(ctx, change)
+			continue
+		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
 			log.Printf("parse actor entry 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -598,6 +604,40 @@ func (m *WorldMode) applyAttackFailureForDistance(ctx Context, failure network.A
 	}
 }
 
+func applyParameterChange(ctx Context, change network.ParameterChange) {
+	if ctx.Session == nil {
+		return
+	}
+	value := int(change.Value)
+	switch change.VarID {
+	case network.StatusHP:
+		ctx.Session.Vitals.HP = value
+		ctx.Session.Selected.HP = clampInt16(value)
+	case network.StatusMaxHP:
+		ctx.Session.Vitals.MaxHP = value
+		ctx.Session.Selected.MaxHP = clampInt16(value)
+	case network.StatusSP:
+		ctx.Session.Vitals.SP = value
+		ctx.Session.Selected.SP = clampInt16(value)
+	case network.StatusMaxSP:
+		ctx.Session.Vitals.MaxSP = value
+		ctx.Session.Selected.MaxSP = clampInt16(value)
+	default:
+		return
+	}
+	log.Printf("parameter change var=%d value=%d hp=%d/%d sp=%d/%d", change.VarID, value, ctx.Session.Vitals.HP, ctx.Session.Vitals.MaxHP, ctx.Session.Vitals.SP, ctx.Session.Vitals.MaxSP)
+}
+
+func clampInt16(value int) int16 {
+	if value < -32768 {
+		return -32768
+	}
+	if value > 32767 {
+		return 32767
+	}
+	return int16(value)
+}
+
 func actionDamageText(action network.ActorActionNotify) string {
 	total := action.Damage + action.LeftDamage
 	if total > 0 {
@@ -671,6 +711,29 @@ func (m *WorldMode) drawDamageFloaters(screen *ebiten.Image, ctx Context, projec
 	m.damageFloaters = active
 }
 
+func drawVitalsHUD(screen *ebiten.Image, ctx Context) {
+	if ctx.Session == nil {
+		return
+	}
+	vitals := ctx.Session.Vitals
+	if vitals.HP == 0 && vitals.MaxHP == 0 && vitals.SP == 0 && vitals.MaxSP == 0 {
+		vitals = sessionVitalsFromCharacter(ctx.Session.Selected)
+	}
+	width := screen.Bounds().Dx()
+	x := maxInt(24, width-220)
+	debugText(screen, x, 24, "HP %d / %d", vitals.HP, vitals.MaxHP)
+	debugText(screen, x, 44, "SP %d / %d", vitals.SP, vitals.MaxSP)
+}
+
+func sessionVitalsFromCharacter(character session.Character) session.Vitals {
+	return session.Vitals{
+		HP:    int(character.HP),
+		MaxHP: int(character.MaxHP),
+		SP:    int(character.SP),
+		MaxSP: int(character.MaxSP),
+	}
+}
+
 func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	clear(screen)
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
@@ -705,6 +768,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 
 	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir)
 	debugText(screen, 24, 44, "%s", m.status)
+	drawVitalsHUD(screen, ctx)
 	if ctx.World.GND != nil {
 		debugText(screen, 24, 64, "gnd: %dx%d textures=%d surfaces=%d", ctx.World.GND.Width, ctx.World.GND.Height, len(ctx.World.GND.Textures), len(ctx.World.GND.Surfaces))
 		debugText(screen, 24, 84, "textures: loaded=%d missing=%d", len(m.textures), len(m.textureMiss))
