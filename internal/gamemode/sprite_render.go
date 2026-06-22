@@ -283,7 +283,7 @@ func selectedCharacter(s *session.Session) session.Character {
 	return session.Character{ID: s.CharID, Name: "Player", Job: 0}
 }
 
-func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY float64) bool {
+func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64) bool {
 	moving := ctx.World.Player.IsMovingAt(time.Now())
 	state := spriteState{
 		actionFamily: spriteActionIdle,
@@ -293,16 +293,20 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX,
 	if moving {
 		state.actionFamily = spriteActionWalk
 	}
-	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY)
+	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY, scale)
 }
 
-func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state spriteState, centerX, centerY float64) bool {
+func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state spriteState, centerX, centerY, scale float64) bool {
 	billboard, ok := humanoidBillboardForState(view, state, time.Now())
 	if !ok {
 		return false
 	}
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
+	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(centerX, centerY)
 	opts.Filter = ebiten.FilterNearest
 	screen.DrawImage(billboard.image, &opts)

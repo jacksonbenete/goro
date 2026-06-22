@@ -68,7 +68,7 @@ func TestCameraProjectionCentersPlayerCell(t *testing.T) {
 	}
 }
 
-func TestSceneCameraDefaultZoomMatchesCloseReferenceDistance(t *testing.T) {
+func TestSceneCameraDefaultZoomUsesGameplayScale(t *testing.T) {
 	old, hadOld := os.LookupEnv("GORO_CAMERA_ZOOM")
 	t.Cleanup(func() {
 		if hadOld {
@@ -79,8 +79,8 @@ func TestSceneCameraDefaultZoomMatchesCloseReferenceDistance(t *testing.T) {
 	})
 	os.Unsetenv("GORO_CAMERA_ZOOM")
 
-	if got := sceneCameraZoom() * 0.5; got != 150 {
-		t.Fatalf("default camera distance = %.1f, want 150.0", got)
+	if got := sceneCameraZoom() * 0.5; got != 75 {
+		t.Fatalf("default camera distance = %.1f, want 75.0", got)
 	}
 }
 

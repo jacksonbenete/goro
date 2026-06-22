@@ -73,6 +73,10 @@ func TestDirectionFromDeltaUsesRathenaDirectionOrder(t *testing.T) {
 		{name: "southeast", toX: 11, toY: 9, want: 5},
 		{name: "east", toX: 11, toY: 10, want: 6},
 		{name: "northeast", toX: 11, toY: 11, want: 7},
+		{name: "long mostly north", toX: 11, toY: 20, want: 0},
+		{name: "long mostly west", toX: 0, toY: 11, want: 2},
+		{name: "long mostly south", toX: 11, toY: 0, want: 4},
+		{name: "long mostly east", toX: 20, toY: 11, want: 6},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -83,5 +87,30 @@ func TestDirectionFromDeltaUsesRathenaDirectionOrder(t *testing.T) {
 	}
 	if got := directionFromDelta(10, 10, 10, 10, -1); got != 7 {
 		t.Fatalf("stationary fallback = %d, want 7", got)
+	}
+}
+
+func TestActorBillboardScreenScaleUsesProjectedReferenceHeight(t *testing.T) {
+	if actorBillboardWorldHeightUnit != 5 {
+		t.Fatalf("actor billboard world height = %.1f, want 5.0", actorBillboardWorldHeightUnit)
+	}
+
+	projection := sceneProjection{
+		screenW:        800,
+		screenH:        600,
+		camera:         true,
+		viewProjection: sceneCameraMatrix(800, 600, 10.5, 20.5, 5),
+	}
+
+	scale := actorBillboardScreenScale(projection, 10.5, 20.5, 5)
+	if scale <= 0 || scale >= 1 {
+		t.Fatalf("camera billboard scale = %.3f, want between 0 and 1", scale)
+	}
+}
+
+func TestActorBillboardScreenScaleKeepsFlatProjectionNative(t *testing.T) {
+	projection := sceneProjection{}
+	if got := actorBillboardScreenScale(projection, 10.5, 20.5, 5); got != 1 {
+		t.Fatalf("flat billboard scale = %.3f, want 1", got)
 	}
 }

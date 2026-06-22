@@ -421,39 +421,13 @@ func walkTargetInBounds(ctx Context, x, y int) bool {
 }
 
 func directionFromDelta(fromX, fromY, toX, toY int, fallback int) int {
-	dx := signInt(toX - fromX)
-	dy := signInt(toY - fromY)
-	switch {
-	case dx == 0 && dy > 0:
-		return 0
-	case dx < 0 && dy > 0:
-		return 1
-	case dx < 0 && dy == 0:
-		return 2
-	case dx < 0 && dy < 0:
-		return 3
-	case dx == 0 && dy < 0:
-		return 4
-	case dx > 0 && dy < 0:
-		return 5
-	case dx > 0 && dy == 0:
-		return 6
-	case dx > 0 && dy > 0:
-		return 7
-	default:
+	dx := toX - fromX
+	dy := toY - fromY
+	if dx == 0 && dy == 0 {
 		return normalizeDirectionIndex(fallback)
 	}
-}
-
-func signInt(value int) int {
-	switch {
-	case value < 0:
-		return -1
-	case value > 0:
-		return 1
-	default:
-		return 0
-	}
+	actionDir := int(math.Round(-math.Atan2(float64(dy), float64(dx))/(math.Pi/4)+6)) & 7
+	return (4 - actionDir) & 7
 }
 
 func cameraTargetHeightAt(world *worldstate.World, x, y float64) float64 {
@@ -531,9 +505,15 @@ type sceneActorDrawEntry struct {
 	actor    worldstate.Actor
 	screenX  float64
 	screenY  float64
+	scale    float64
 	depth    float64
 	isPlayer bool
 }
+
+const (
+	actorBillboardCellWorldUnits  = 5.0
+	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
+)
 
 func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
@@ -557,13 +537,13 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 	})
 	for _, entry := range entries {
 		if entry.isPlayer {
-			if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY) {
+			if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale) {
 				continue
 			}
 			drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
 			continue
 		}
-		if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY) {
+		if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale) {
 			continue
 		}
 		drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, now)
@@ -572,21 +552,23 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
 	actorX, actorY := actor.RenderPosition(now)
-	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainHeightAt(world, actorX, actorY))
+	terrainZ := terrainHeightAt(world, actorX, actorY)
+	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	if point.x < -96 || point.y < -160 || point.x > float32(screenWidth+96) || point.y > float32(screenHeight+96) {
 		return entries
 	}
-	depth := projection.Depth(cellCenter(actorX), cellCenter(actorY), terrainHeightAt(world, actorX, actorY))
+	depth := projection.Depth(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	return append(entries, sceneActorDrawEntry{
 		actor:    actor,
 		screenX:  float64(point.x),
 		screenY:  float64(point.y),
+		scale:    actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ),
 		depth:    depth,
 		isPlayer: isPlayer,
 	})
 }
 
-func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY float64) bool {
+func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64) bool {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return false
 	}
@@ -632,7 +614,20 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 	if state.moving {
 		state.actionFamily = spriteActionWalk
 	}
-	return drawHumanoidBillboard(screen, view, state, centerX, centerY)
+	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale)
+}
+
+func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) float64 {
+	if !projection.camera {
+		return 1
+	}
+	base := projection.Project(x, y, z)
+	top := projection.Project(x, y, z+actorBillboardWorldHeightUnit)
+	projectedHeight := math.Hypot(float64(top.x-base.x), float64(top.y-base.y))
+	if projectedHeight <= 0 || math.IsNaN(projectedHeight) || math.IsInf(projectedHeight, 0) {
+		return 1
+	}
+	return projectedHeight / float64(humanoidBillboardAnchorY)
 }
 
 func drawActorMarker(screen *ebiten.Image, x, y float64, actor worldstate.Actor, now time.Time) {
