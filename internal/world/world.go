@@ -104,10 +104,10 @@ func (w *World) UpsertActor(actor Actor) {
 	if actor.ID == 0 {
 		return
 	}
-	if actor.Name == "" {
-		actor.Name = "actor"
-	}
 	if existing, ok := w.Actors[actor.ID]; ok {
+		if actor.Name == "" {
+			actor.Name = existing.Name
+		}
 		if !actor.Appearance {
 			actor.Job = existing.Job
 			actor.Head = existing.Head

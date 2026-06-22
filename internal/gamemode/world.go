@@ -37,6 +37,7 @@ type WorldMode struct {
 	nonPCViews    map[int]*playerSpriteView
 	nonPCViewMiss map[int]struct{}
 	rsmDebugLog   map[string]struct{}
+	nameRequests  map[uint32]time.Time
 }
 
 type actorSpriteKey struct {
@@ -71,6 +72,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.nonPCViews = make(map[int]*playerSpriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmDebugLog = make(map[string]struct{})
+	m.nameRequests = make(map[uint32]time.Time)
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
@@ -121,6 +123,12 @@ func (m *WorldMode) Enter(ctx Context) {
 
 func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	for _, pkt := range ctx.Network.DrainPackets() {
+		if ack, ok, err := network.ParseActorNameAck(pkt); err != nil {
+			log.Printf("parse actor name ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyActorNameAck(ctx, ack)
+			continue
+		}
 		if ack, ok, err := network.ParseSelfMoveAck(pkt); err != nil {
 			log.Printf("parse self move ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -166,6 +174,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	for _, err := range ctx.Network.DrainErrors() {
 		log.Printf("network frame error: %v", err)
 	}
+	m.requestMissingActorNames(ctx, time.Now())
 
 	if m.tickCooldown > 0 {
 		m.tickCooldown--
@@ -355,7 +364,6 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 	}
 	ctx.World.UpsertActor(worldstate.Actor{
 		ID:         entry.ID,
-		Name:       "actor",
 		X:          entry.X,
 		Y:          entry.Y,
 		Dir:        dir,
@@ -394,7 +402,7 @@ func applyActorLookChange(ctx Context, look network.ActorLookChange) bool {
 	}
 	actor, ok := ctx.World.Actors[look.ID]
 	if !ok {
-		actor = worldstate.Actor{ID: look.ID, Name: "actor", Appearance: true}
+		actor = worldstate.Actor{ID: look.ID, Appearance: true}
 	}
 	applyWorldActorLookChange(&actor, look)
 	ctx.World.UpsertActor(actor)
@@ -476,11 +484,27 @@ func applyActorSetPosition(ctx Context, position network.ActorSetPosition) {
 		return
 	}
 	ctx.World.UpsertActor(worldstate.Actor{
-		ID:   position.ID,
-		Name: "actor",
-		X:    position.X,
-		Y:    position.Y,
+		ID: position.ID,
+		X:  position.X,
+		Y:  position.Y,
 	})
+}
+
+func applyActorNameAck(ctx Context, ack network.ActorNameAck) {
+	name := sanitizeActorName(ack.Name)
+	if name == "" || ctx.World == nil {
+		return
+	}
+	if isLocalActor(ctx, ack.ID) {
+		ctx.World.Player.Name = name
+		return
+	}
+	actor, ok := ctx.World.Actors[ack.ID]
+	if !ok {
+		return
+	}
+	actor.Name = name
+	ctx.World.Actors[ack.ID] = actor
 }
 
 func walkTargetInBounds(ctx Context, x, y int) bool {
@@ -579,6 +603,7 @@ func maxInt(a, b int) int {
 
 type sceneActorDrawEntry struct {
 	actor    worldstate.Actor
+	label    string
 	screenX  float64
 	screenY  float64
 	scale    float64
@@ -597,16 +622,20 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 	entries := make([]sceneActorDrawEntry, 0, len(ctx.World.Actors)+1)
 	player := ctx.World.Player
 	player.ID = ctx.Session.CharID
-	player.Job = selectedCharacter(ctx.Session).Job
-	player.Head = selectedCharacter(ctx.Session).Hair
+	character := selectedCharacter(ctx.Session)
+	player.Job = character.Job
+	player.Head = character.Hair
 	player.Sex = ctx.Session.Sex
+	if character.Name != "" {
+		player.Name = character.Name
+	}
 	player.Dir = ctx.World.Dir
-	entries = appendActorDrawEntry(entries, ctx.World, projection, player, true, now, width, height)
+	entries = appendActorDrawEntry(entries, ctx.World, projection, player, actorDisplayName(ctx, player, true), true, now, width, height)
 	for _, actor := range ctx.World.Actors {
 		if actor.ID == ctx.Session.AccountID || actor.ID == ctx.Session.CharID {
 			continue
 		}
-		entries = appendActorDrawEntry(entries, ctx.World, projection, actor, false, now, width, height)
+		entries = appendActorDrawEntry(entries, ctx.World, projection, actor, actorDisplayName(ctx, actor, false), false, now, width, height)
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -624,9 +653,12 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 		}
 		drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, now)
 	}
+	for _, entry := range entries {
+		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
+	}
 }
 
-func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
+func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, label string, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
 	actorX, actorY := actor.RenderPosition(now)
 	terrainZ := terrainHeightAt(world, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
@@ -636,12 +668,112 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	depth := projection.Depth(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	return append(entries, sceneActorDrawEntry{
 		actor:    actor,
+		label:    label,
 		screenX:  float64(point.x),
 		screenY:  float64(point.y),
 		scale:    actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ),
 		depth:    depth,
 		isPlayer: isPlayer,
 	})
+}
+
+func (m *WorldMode) requestMissingActorNames(ctx Context, now time.Time) {
+	if ctx.Network == nil || ctx.World == nil {
+		return
+	}
+	if m.nameRequests == nil {
+		m.nameRequests = make(map[uint32]time.Time)
+	}
+	for _, actor := range ctx.World.Actors {
+		if actor.ID == 0 || isLocalActor(ctx, actor.ID) || hasActorServerName(actor) {
+			continue
+		}
+		if last, ok := m.nameRequests[actor.ID]; ok && now.Sub(last) < 2*time.Second {
+			continue
+		}
+		m.nameRequests[actor.ID] = now
+		_ = ctx.Network.SendNameRequest(actor.ID)
+	}
+}
+
+func hasActorServerName(actor worldstate.Actor) bool {
+	return sanitizeActorName(actor.Name) != ""
+}
+
+func actorDisplayName(ctx Context, actor worldstate.Actor, isPlayer bool) string {
+	if isPlayer {
+		if name := sanitizeActorName(selectedCharacterName(ctx.Session)); name != "" {
+			return name
+		}
+		return sanitizeActorName(actor.Name)
+	}
+	if name := sanitizeActorName(actor.Name); name != "" {
+		return name
+	}
+	if res.HasPlayerJobToken(int(actor.Job)) || ctx.Resources == nil {
+		return ""
+	}
+	if resourceName, ok := ctx.Resources.JobResourceName(int(actor.Job)); ok {
+		return displayNameFromResource(resourceName)
+	}
+	return ""
+}
+
+func selectedCharacterName(s *session.Session) string {
+	if s == nil {
+		return ""
+	}
+	return selectedCharacter(s).Name
+}
+
+func sanitizeActorName(name string) string {
+	name = strings.TrimSpace(name)
+	if hash := strings.IndexByte(name, '#'); hash >= 0 {
+		name = strings.TrimSpace(name[:hash])
+	}
+	if strings.EqualFold(name, "actor") {
+		return ""
+	}
+	return name
+}
+
+func displayNameFromResource(name string) string {
+	name = strings.TrimSpace(strings.TrimSuffix(name, ".spr"))
+	name = strings.TrimSuffix(name, ".act")
+	name = strings.ReplaceAll(name, "_", " ")
+	name = strings.ToLower(strings.TrimSpace(name))
+	fields := strings.Fields(name)
+	for i, field := range fields {
+		fields[i] = titleASCIIWord(field)
+	}
+	return strings.Join(fields, " ")
+}
+
+func titleASCIIWord(word string) string {
+	if word == "" {
+		return ""
+	}
+	if word[0] < 'a' || word[0] > 'z' {
+		return word
+	}
+	return strings.ToUpper(word[:1]) + word[1:]
+}
+
+func drawActorNameLabel(screen *ebiten.Image, label string, centerX, baseY, scale float64) {
+	label = sanitizeActorName(label)
+	if label == "" {
+		return
+	}
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	x := int(centerX) - len(label)*3
+	y := int(baseY - 96*scale)
+	if y < 0 {
+		y = 0
+	}
+	debugText(screen, x+1, y+1, "%s", label)
+	debugText(screen, x, y, "%s", label)
 }
 
 func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64) bool {

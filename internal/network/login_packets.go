@@ -6,6 +6,7 @@ const (
 	PacketCZSelectChar uint16 = 0x0066
 	PacketCZLoadEndAck uint16 = 0x007D
 	PacketCZTickSend   uint16 = 0x0089
+	PacketCZReqName    uint16 = 0x0094
 	PacketCZWalkToXY   uint16 = 0x00A7
 	PacketCZWalkToXYRE uint16 = 0x035F
 	PacketCZEnter2     uint16 = 0x0436
@@ -65,6 +66,13 @@ func BuildTickSendPacket(clientTick uint32) []byte {
 	w.Uint8(0)
 	w.Uint8(0)
 	w.Uint32(clientTick)
+	return w.Bytes()
+}
+
+func BuildNameRequestPacket(gid uint32) []byte {
+	var w Writer
+	w.Uint16(PacketCZReqName)
+	w.Uint32(gid)
 	return w.Bytes()
 }
 

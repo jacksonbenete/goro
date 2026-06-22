@@ -41,6 +41,9 @@ func TestUpsertActorMovePreservesAppearance(t *testing.T) {
 	if !actor.Moving || actor.FromX != 10 || actor.FromY != 20 || actor.ToX != 12 || actor.ToY != 24 {
 		t.Fatalf("movement not stored: %+v", actor)
 	}
+	if actor.Name != "remote" {
+		t.Fatalf("name = %q, want remote", actor.Name)
+	}
 }
 
 func TestActorRenderPositionInterpolates(t *testing.T) {

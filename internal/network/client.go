@@ -113,6 +113,10 @@ func (c *Client) SendTick(clientTick uint32) error {
 	return c.Send(BuildTickSendPacket(clientTick))
 }
 
+func (c *Client) SendNameRequest(gid uint32) error {
+	return c.Send(BuildNameRequestPacket(gid))
+}
+
 func (c *Client) SendMapServerEnter(accountID, charID, authCode, clientTick uint32, sex uint8) error {
 	packet := BuildMapServerEnterPacket(MapServerEnter{
 		AccountID:  accountID,

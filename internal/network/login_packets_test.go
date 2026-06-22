@@ -69,6 +69,19 @@ func TestBuildTickSendPacket(t *testing.T) {
 	}
 }
 
+func TestBuildNameRequestPacket(t *testing.T) {
+	packet := BuildNameRequestPacket(0x11223344)
+	want := []byte{0x94, 0x00, 0x44, 0x33, 0x22, 0x11}
+	if len(packet) != len(want) {
+		t.Fatalf("len = %d", len(packet))
+	}
+	for i := range want {
+		if packet[i] != want[i] {
+			t.Fatalf("packet = % x, want % x", packet, want)
+		}
+	}
+}
+
 func TestBuildWalkToXYPacket(t *testing.T) {
 	packet, ok := BuildWalkToXYPacket(150, 200)
 	if !ok {

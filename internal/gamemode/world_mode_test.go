@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/internal/network"
+	"github.com/kivutar/goro/internal/res"
 	"github.com/kivutar/goro/internal/session"
 	worldstate "github.com/kivutar/goro/internal/world"
 )
@@ -168,5 +169,69 @@ func TestCameraFollowFactorIsClamped(t *testing.T) {
 	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "-1")
 	if got := cameraFollowFactor(); got != 0 {
 		t.Fatalf("camera follow factor = %.2f, want 0", got)
+	}
+}
+
+func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{ID: 300, Job: 1002})
+	ctx := Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+
+	applyActorNameAck(ctx, network.ActorNameAck{ID: 300, Name: "Guide#prontera"})
+
+	if got := world.Actors[300].Name; got != "Guide" {
+		t.Fatalf("actor name = %q, want Guide", got)
+	}
+}
+
+func TestApplyActorNameAckUpdatesLocalPlayer(t *testing.T) {
+	world := worldstate.New()
+	ctx := Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+
+	applyActorNameAck(ctx, network.ActorNameAck{ID: 200, Name: "Kivutar"})
+
+	if got := world.Player.Name; got != "Kivutar" {
+		t.Fatalf("player name = %q, want Kivutar", got)
+	}
+}
+
+func TestActorDisplayNameUsesSelectedCharacterForPlayer(t *testing.T) {
+	ctx := Context{Session: &session.Session{CharID: 200, Selected: session.Character{ID: 200, Name: "Kivutar"}}}
+
+	if got := actorDisplayName(ctx, worldstate.Actor{Name: "Player"}, true); got != "Kivutar" {
+		t.Fatalf("display name = %q, want Kivutar", got)
+	}
+}
+
+func TestActorDisplayNameUsesServerNameBeforeFallback(t *testing.T) {
+	ctx := Context{Resources: &res.Manager{}}
+	actor := worldstate.Actor{Name: "Kafra Employee#izlude", Job: 1002}
+
+	if got := actorDisplayName(ctx, actor, false); got != "Kafra Employee" {
+		t.Fatalf("display name = %q, want Kafra Employee", got)
+	}
+}
+
+func TestActorDisplayNameFallsBackToNonPCResource(t *testing.T) {
+	ctx := Context{Resources: &res.Manager{}}
+	actor := worldstate.Actor{Job: 1002}
+
+	if got := actorDisplayName(ctx, actor, false); got != "Poring" {
+		t.Fatalf("display name = %q, want Poring", got)
+	}
+}
+
+func TestActorDisplayNameDoesNotLabelUnnamedPlayerJob(t *testing.T) {
+	ctx := Context{Resources: &res.Manager{}}
+	actor := worldstate.Actor{Job: 0}
+
+	if got := actorDisplayName(ctx, actor, false); got != "" {
+		t.Fatalf("display name = %q, want empty", got)
 	}
 }
