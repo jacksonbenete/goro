@@ -157,13 +157,7 @@ func ParseZoneServerNotify(packet Packet) (ZoneServerNotify, error) {
 		return ZoneServerNotify{}, fmt.Errorf("HC_NOTIFY_ZONESVR too short: %d", len(packet.Data))
 	}
 
-	mapName := fixedString(packet.Data[6:22])
-	for _, ext := range []string{".gat", ".rsw"} {
-		if strings.HasSuffix(strings.ToLower(mapName), ext) {
-			mapName = mapName[:len(mapName)-len(ext)]
-			break
-		}
-	}
+	mapName := normalizeMapName(fixedString(packet.Data[6:22]))
 
 	return ZoneServerNotify{
 		CharID:  binary.LittleEndian.Uint32(packet.Data[2:6]),

@@ -1,6 +1,7 @@
 package gamemode
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"image/color"
@@ -37,6 +38,7 @@ type WorldMode struct {
 	nonPCViews    map[int]*playerSpriteView
 	nonPCViewMiss map[int]struct{}
 	rsmDebugLog   map[string]struct{}
+	pendingWarp   bool
 }
 
 type actorSpriteKey struct {
@@ -61,6 +63,11 @@ func (m *WorldMode) Name() string {
 func (m *WorldMode) Enter(ctx Context) {
 	m.status = "loading map"
 	m.camera.Reset()
+	ctx.World.GAT = nil
+	ctx.World.GND = nil
+	ctx.World.RSW = nil
+	ctx.World.RSM = nil
+	ctx.World.RSMFail = 0
 	m.textures = make(map[string]*ebiten.Image)
 	m.textureMiss = make(map[string]struct{})
 	m.rswMarkers = os.Getenv("GORO_DEBUG_RSW_MARKERS") == "1"
@@ -71,6 +78,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.nonPCViews = make(map[int]*playerSpriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmDebugLog = make(map[string]struct{})
+	m.pendingWarp = false
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
@@ -121,6 +129,20 @@ func (m *WorldMode) Enter(ctx Context) {
 
 func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	for _, pkt := range ctx.Network.DrainPackets() {
+		if change, ok, err := network.ParseMapChange(pkt); err != nil {
+			log.Printf("parse map change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			return m.handleMapChange(ctx, change), nil
+		}
+		if enter, err := network.ParseMapAcceptEnter(pkt); err == nil {
+			applyMapAcceptEnter(ctx, enter)
+			m.status = fmt.Sprintf("entered map %s at %d,%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
+			if m.pendingWarp {
+				m.pendingWarp = false
+				return NewWorldMode(), nil
+			}
+			continue
+		}
 		if ack, ok, err := network.ParseActorNameAck(pkt); err != nil {
 			log.Printf("parse actor name ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -215,6 +237,35 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		m.requestWalk(ctx, targetX, targetY, "key")
 	}
 	return nil, nil
+}
+
+func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
+	log.Printf("map change map=%s x=%d y=%d server_move=%t addr=%s port=%d", change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port)
+	ctx.World.MapName = change.MapName
+	ctx.Session.Zone.MapName = change.MapName
+	applyWarpPosition(ctx, change.X, change.Y)
+	ctx.World.Actors = make(map[uint32]worldstate.Actor)
+	if change.ServerMove {
+		ctx.Session.Zone.Address = change.Address
+		ctx.Session.Zone.Port = change.Port
+		dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := ctx.Network.Connect(dialCtx, change.Address, int(change.Port))
+		cancel()
+		if err != nil {
+			m.status = "map reconnect failed: " + err.Error()
+			log.Printf("map reconnect failed map=%s addr=%s port=%d: %v", change.MapName, change.Address, change.Port, err)
+			return nil
+		}
+		if err := ctx.Network.SendMapServerEnter(ctx.Session.AccountID, ctx.Session.CharID, ctx.Session.AuthCode, uint32(time.Now().UnixMilli()), ctx.Session.Sex); err != nil {
+			m.status = "map re-enter failed: " + err.Error()
+			log.Printf("map re-enter failed map=%s addr=%s port=%d: %v", change.MapName, change.Address, change.Port, err)
+			return nil
+		}
+		m.pendingWarp = true
+		m.status = fmt.Sprintf("waiting for map enter: %s %s:%d", change.MapName, change.Address, change.Port)
+		return nil
+	}
+	return NewWorldMode()
 }
 
 func (m *WorldMode) requestWalk(ctx Context, targetX, targetY int, source string) {
@@ -471,6 +522,24 @@ func applySelfMoveAck(ctx Context, ack network.SelfMoveAck) {
 	ctx.World.SetPlayerMovement(ack.FromX, ack.FromY, ack.ToX, ack.ToY, dir)
 	ctx.Session.PlayerX = ack.ToX
 	ctx.Session.PlayerY = ack.ToY
+}
+
+func applyMapAcceptEnter(ctx Context, enter network.MapAcceptEnter) {
+	ctx.Session.PlayerX = enter.X
+	ctx.Session.PlayerY = enter.Y
+	ctx.Session.PlayerDir = enter.Dir
+	ctx.Session.Playing = true
+	ctx.World.SetPlayerPosition(enter.X, enter.Y, enter.Dir)
+}
+
+func applyWarpPosition(ctx Context, x, y int) {
+	dir := ctx.World.Dir
+	if ctx.Session.PlayerDir != 0 {
+		dir = ctx.Session.PlayerDir
+	}
+	ctx.Session.PlayerX = x
+	ctx.Session.PlayerY = y
+	ctx.World.SetPlayerPosition(x, y, dir)
 }
 
 func applyActorSetPosition(ctx Context, position network.ActorSetPosition) {

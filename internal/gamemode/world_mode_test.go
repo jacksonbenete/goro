@@ -201,6 +201,33 @@ func TestApplyActorNameAckUpdatesLocalPlayer(t *testing.T) {
 	}
 }
 
+func TestHandleMapChangeSameServerUpdatesMapAndResetsActors(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "prontera"
+	world.SetPlayerPosition(10, 20, 4)
+	world.UpsertActor(worldstate.Actor{ID: 300, Name: "Remote", X: 11, Y: 20})
+	sessionState := &session.Session{AccountID: 100, CharID: 200, PlayerDir: 4}
+	ctx := Context{
+		Session: sessionState,
+		World:   world,
+	}
+
+	next := (&WorldMode{}).handleMapChange(ctx, network.MapChange{MapName: "geffen", X: 120, Y: 80})
+
+	if next == nil || next.Name() != "world" {
+		t.Fatalf("next mode = %#v, want world", next)
+	}
+	if world.MapName != "geffen" || sessionState.Zone.MapName != "geffen" {
+		t.Fatalf("map = world %q session %q, want geffen", world.MapName, sessionState.Zone.MapName)
+	}
+	if world.Player.X != 120 || world.Player.Y != 80 || sessionState.PlayerX != 120 || sessionState.PlayerY != 80 {
+		t.Fatalf("position = world %d,%d session %d,%d", world.Player.X, world.Player.Y, sessionState.PlayerX, sessionState.PlayerY)
+	}
+	if len(world.Actors) != 0 {
+		t.Fatalf("actors were not cleared: %+v", world.Actors)
+	}
+}
+
 func TestActorDisplayNameUsesSelectedCharacterForPlayer(t *testing.T) {
 	ctx := Context{Session: &session.Session{CharID: 200, Selected: session.Character{ID: 200, Name: "Kivutar"}}}
 

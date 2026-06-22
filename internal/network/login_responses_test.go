@@ -107,6 +107,46 @@ func TestParseMapAcceptEnter(t *testing.T) {
 	}
 }
 
+func TestParseMapChangeSameServer(t *testing.T) {
+	data := make([]byte, 22)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0091)
+	copy(data[2:18], []byte("geffen.gat"))
+	binary.LittleEndian.PutUint16(data[18:20], 120)
+	binary.LittleEndian.PutUint16(data[20:22], 80)
+
+	change, ok, err := ParseMapChange(Packet{ID: 0x0091, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("packet was not parsed")
+	}
+	if change.MapName != "geffen" || change.X != 120 || change.Y != 80 || change.ServerMove {
+		t.Fatalf("unexpected map change: %+v", change)
+	}
+}
+
+func TestParseMapChangeServerMove(t *testing.T) {
+	data := make([]byte, 28)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0092)
+	copy(data[2:18], []byte("izlude.rsw"))
+	binary.LittleEndian.PutUint16(data[18:20], 33)
+	binary.LittleEndian.PutUint16(data[20:22], 44)
+	copy(data[22:26], []byte{127, 0, 0, 1})
+	binary.LittleEndian.PutUint16(data[26:28], 5121)
+
+	change, ok, err := ParseMapChange(Packet{ID: 0x0092, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("packet was not parsed")
+	}
+	if change.MapName != "izlude" || change.X != 33 || change.Y != 44 || change.Address != "127.0.0.1" || change.Port != 5121 || !change.ServerMove {
+		t.Fatalf("unexpected map change: %+v", change)
+	}
+}
+
 func packPosition(x, y, dir int) (byte, byte, byte) {
 	return byte(x >> 2), byte(((x & 0x03) << 6) | ((y >> 4) & 0x3f)), byte(((y & 0x0f) << 4) | (dir & 0x0f))
 }
