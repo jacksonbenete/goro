@@ -400,6 +400,107 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 }
 
+func TestCombatHitDelayUsesActionSoundMotion(t *testing.T) {
+	action := res.ACTAction{Animations: []res.ACTAnimation{
+		{Sound: -1},
+		{Sound: -1},
+		{Sound: 0},
+		{Sound: -1},
+	}}
+	if got := combatHitDelayFromAction(action, 800*time.Millisecond); got != 400*time.Millisecond {
+		t.Fatalf("hit delay = %s, want 400ms", got)
+	}
+}
+
+func TestCombatHitDelayFallsBackToMidpoint(t *testing.T) {
+	action := res.ACTAction{Animations: []res.ACTAnimation{
+		{Sound: -1},
+		{Sound: -1},
+		{Sound: -1},
+		{Sound: -1},
+	}}
+	if got := combatHitDelayFromAction(action, 800*time.Millisecond); got != 400*time.Millisecond {
+		t.Fatalf("hit delay = %s, want midpoint", got)
+	}
+}
+
+func TestActionSoundNameResolvesACTSound(t *testing.T) {
+	act := &res.ACT{Sounds: []string{"attack.wav"}}
+	action := res.ACTAction{Animations: []res.ACTAnimation{{Sound: -1}, {Sound: 0}}}
+	if got := actionSoundName(act, action, 1); got != "attack.wav" {
+		t.Fatalf("sound = %q, want attack.wav", got)
+	}
+}
+
+func TestApplyActorActionNotifyUsesMobACTHitPhase(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 11, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             10,
+		Y:             20,
+		Dir:           4,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{
+		nonPCViews: map[int]*playerSpriteView{
+			1002: {
+				act: &res.ACT{
+					Actions: []res.ACTAction{
+						{},
+						{},
+						{Animations: []res.ACTAnimation{
+							{Sound: -1},
+							{Sound: -1},
+							{Sound: 0},
+							{Sound: -1},
+						}},
+					},
+					Sounds: []string{"poring_attack.wav"},
+				},
+			},
+		},
+	}
+	ctx := Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+			Sex:       0,
+			Selected:  session.Character{ID: 150000, Job: 0, Hair: 1, Weapon: 1201},
+		},
+		World: world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    300,
+		TargetID:    2000000,
+		SourceSpeed: 800,
+		TargetSpeed: 480,
+		Damage:      1,
+		Action:      0,
+	})
+
+	sourceAnim, ok := mode.actorAnims[300]
+	if !ok {
+		t.Fatal("source animation missing")
+	}
+	targetAnim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("local target animation missing")
+	}
+	if got := targetAnim.started.Sub(sourceAnim.started); got != 400*time.Millisecond {
+		t.Fatalf("hit delay = %s, want ACT sound phase", got)
+	}
+	if len(mode.scheduledSounds) != 2 {
+		t.Fatalf("scheduled sounds = %+v, want attack and hit sounds", mode.scheduledSounds)
+	}
+	if !mode.scheduledSounds[0].at.Equal(targetAnim.started) || mode.scheduledSounds[0].paths[0] != "poring_attack.wav" {
+		t.Fatalf("attack sound = %+v targetStarted=%s", mode.scheduledSounds[0], targetAnim.started)
+	}
+}
+
 func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()

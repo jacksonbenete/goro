@@ -39,6 +39,24 @@ func TestAudioPathCandidatesPreferBGMDirectory(t *testing.T) {
 	t.Fatalf("candidates %v did not include %q", got, want)
 }
 
+func TestSFXPathCandidatesUseWavDataDirectories(t *testing.T) {
+	got := sfxPathCandidates("_enemy_hit_normal1.wav")
+	for _, want := range []string{"_enemy_hit_normal1.wav", "wav\\_enemy_hit_normal1.wav", "data\\wav\\_enemy_hit_normal1.wav"} {
+		if !containsString(got, want) {
+			t.Fatalf("candidates %v did not include %q", got, want)
+		}
+	}
+}
+
+func TestSFXPathCandidatesAppendWavExtension(t *testing.T) {
+	got := sfxPathCandidates("effect\\attack")
+	for _, want := range []string{"effect\\attack.wav", "wav\\effect\\attack.wav", "data\\wav\\effect\\attack.wav"} {
+		if !containsString(got, want) {
+			t.Fatalf("candidates %v did not include %q", got, want)
+		}
+	}
+}
+
 func TestResamplePCM16StereoUpsamplePreservesConstantSignal(t *testing.T) {
 	var src []byte
 	for range 64 {
@@ -90,4 +108,13 @@ func absInt16Diff(a, b int16) int {
 		return -diff
 	}
 	return diff
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	ebitenaudio "github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/kivutar/goro/internal/res"
 	"github.com/kvark128/minimp3"
 )
@@ -17,14 +18,15 @@ import (
 const defaultSampleRate = 44100
 
 type BGM struct {
-	resources *res.Manager
-	context   *ebitenaudio.Context
-	player    *ebitenaudio.Player
-	table     map[string]string
-	current   string
-	playerID  int
-	enabled   bool
-	volume    float64
+	resources  *res.Manager
+	context    *ebitenaudio.Context
+	player     *ebitenaudio.Player
+	table      map[string]string
+	current    string
+	playerID   int
+	enabled    bool
+	volume     float64
+	sfxPlayers []*ebitenaudio.Player
 }
 
 func NewBGM(resources *res.Manager, enabled bool, volume float64) *BGM {
@@ -106,6 +108,34 @@ func (b *BGM) Play(path string) error {
 	player.Play()
 	log.Printf("bgm playing id=%d path=%s source=%s decoder=%s bytes=%d pcm_len=%d sample_rate=%d volume=%.2f", b.playerID, path, source, decoder, len(data), len(pcm), context.SampleRate(), b.volume)
 	return nil
+}
+
+func (b *BGM) PlaySFX(path string) (string, error) {
+	if b == nil {
+		return "", nil
+	}
+	path = normalizeSFXPath(path)
+	if path == "" {
+		return "", nil
+	}
+	data, source, err := readSFXFile(b.resources, path)
+	if err != nil {
+		return "", err
+	}
+	context := b.ensureContext(defaultSampleRate)
+	stream, err := wav.DecodeWithSampleRate(context.SampleRate(), bytes.NewReader(data))
+	if err != nil {
+		return source, fmt.Errorf("decode sfx %s: %w", source, err)
+	}
+	player, err := context.NewPlayer(stream)
+	if err != nil {
+		return source, fmt.Errorf("player sfx %s: %w", source, err)
+	}
+	player.SetVolume(b.volume)
+	b.trimSFXPlayers()
+	b.sfxPlayers = append(b.sfxPlayers, player)
+	player.Play()
+	return source, nil
 }
 
 func decodeNativePCM(data []byte) ([]byte, int, string, error) {
@@ -324,6 +354,7 @@ func (b *BGM) Stop() {
 		return
 	}
 	b.stopCurrent()
+	b.stopSFX()
 	b.current = ""
 }
 
@@ -337,6 +368,50 @@ func (b *BGM) stopCurrent() {
 		log.Printf("bgm close failed: %v", err)
 	}
 	b.player = nil
+}
+
+func (b *BGM) trimSFXPlayers() {
+	if len(b.sfxPlayers) == 0 {
+		return
+	}
+	active := b.sfxPlayers[:0]
+	for _, player := range b.sfxPlayers {
+		if player == nil {
+			continue
+		}
+		if player.IsPlaying() {
+			active = append(active, player)
+			continue
+		}
+		if err := player.Close(); err != nil {
+			log.Printf("sfx close failed: %v", err)
+		}
+	}
+	const maxSFXPlayers = 32
+	for len(active) > maxSFXPlayers {
+		player := active[0]
+		active = active[1:]
+		if player != nil {
+			player.Pause()
+			if err := player.Close(); err != nil {
+				log.Printf("sfx close failed: %v", err)
+			}
+		}
+	}
+	b.sfxPlayers = active
+}
+
+func (b *BGM) stopSFX() {
+	for _, player := range b.sfxPlayers {
+		if player == nil {
+			continue
+		}
+		player.Pause()
+		if err := player.Close(); err != nil {
+			log.Printf("sfx close failed: %v", err)
+		}
+	}
+	b.sfxPlayers = nil
 }
 
 func (b *BGM) ResolveMapBGM(mapName string) string {
@@ -439,6 +514,19 @@ func readAudioFile(manager *res.Manager, path string) ([]byte, string, error) {
 	return nil, "", fmt.Errorf("bgm not found: %s", path)
 }
 
+func readSFXFile(manager *res.Manager, path string) ([]byte, string, error) {
+	if manager == nil {
+		return nil, "", fmt.Errorf("resource manager is nil")
+	}
+	for _, candidate := range sfxPathCandidates(path) {
+		data, err := manager.ReadFile(candidate)
+		if err == nil {
+			return data, candidate, nil
+		}
+	}
+	return nil, "", fmt.Errorf("sfx not found: %s", path)
+}
+
 func audioPathCandidates(path string) []string {
 	normalized := normalizeAudioPath(path)
 	if normalized == "" {
@@ -457,6 +545,45 @@ func audioPathCandidates(path string) []string {
 	}
 	if filepath.Ext(normalized) == "" {
 		candidates = append(candidates, normalized+".mp3", slash+".mp3")
+	}
+	return uniqueStrings(candidates)
+}
+
+func normalizeSFXPath(path string) string {
+	path = strings.TrimSpace(path)
+	path = strings.Trim(path, "\"")
+	path = strings.ReplaceAll(path, "/", "\\")
+	path = strings.TrimPrefix(path, ".\\")
+	path = strings.TrimPrefix(path, "data\\")
+	if path == "" {
+		return ""
+	}
+	if filepath.Ext(path) == "" {
+		path += ".wav"
+	}
+	return path
+}
+
+func sfxPathCandidates(path string) []string {
+	normalized := normalizeSFXPath(path)
+	if normalized == "" {
+		return nil
+	}
+	slash := strings.ReplaceAll(normalized, "\\", "/")
+	candidates := []string{normalized, slash}
+	lower := strings.ToLower(normalized)
+	if strings.HasPrefix(lower, "wav\\") {
+		candidates = append(candidates,
+			"data\\"+normalized,
+			"data/"+slash,
+		)
+	} else {
+		candidates = append(candidates,
+			"wav\\"+normalized,
+			"wav/"+slash,
+			"data\\wav\\"+normalized,
+			"data/wav/"+slash,
+		)
 	}
 	return uniqueStrings(candidates)
 }
