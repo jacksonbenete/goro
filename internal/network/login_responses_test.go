@@ -147,6 +147,28 @@ func TestParseMapChangeServerMove(t *testing.T) {
 	}
 }
 
+func TestParseMapChangeServerMoveDomain(t *testing.T) {
+	data := make([]byte, 156)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0AC7)
+	copy(data[2:18], []byte("izlude_in.gat"))
+	binary.LittleEndian.PutUint16(data[18:20], 65)
+	binary.LittleEndian.PutUint16(data[20:22], 87)
+	copy(data[22:26], []byte{127, 0, 0, 1})
+	binary.LittleEndian.PutUint16(data[26:28], 5121)
+	copy(data[28:], []byte("localhost"))
+
+	change, ok, err := ParseMapChange(Packet{ID: 0x0AC7, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("packet was not parsed")
+	}
+	if change.MapName != "izlude_in" || change.X != 65 || change.Y != 87 || change.Address != "127.0.0.1" || change.Port != 5121 || !change.ServerMove {
+		t.Fatalf("unexpected map change: %+v", change)
+	}
+}
+
 func packPosition(x, y, dir int) (byte, byte, byte) {
 	return byte(x >> 2), byte(((x & 0x03) << 6) | ((y >> 4) & 0x3f)), byte(((y & 0x0f) << 4) | (dir & 0x0f))
 }

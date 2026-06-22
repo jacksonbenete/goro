@@ -111,7 +111,14 @@ func (c *Client) SendLoadEndAck() error {
 }
 
 func (c *Client) SendTick(clientTick uint32) error {
-	return c.Send(BuildTickSendPacket(clientTick))
+	packet := BuildTickSendPacketForClientDate(clientTick, c.clientDate)
+	err := c.Send(packet)
+	if err == nil && os.Getenv("GORO_NET_TRACE") == "1" {
+		log.Printf("sent CZ_REQUEST_TIME opcode=0x%04X tick=%d client_date=%d", ID(packet), clientTick, c.clientDate)
+	} else if err != nil {
+		log.Printf("send CZ_REQUEST_TIME failed opcode=0x%04X len=%d client_date=%d: %v", ID(packet), len(packet), c.clientDate, err)
+	}
+	return err
 }
 
 func (c *Client) SendNameRequest(gid uint32) error {
@@ -119,13 +126,16 @@ func (c *Client) SendNameRequest(gid uint32) error {
 }
 
 func (c *Client) SendMapServerEnter(accountID, charID, authCode, clientTick uint32, sex uint8) error {
-	packet := BuildMapServerEnterPacket(MapServerEnter{
+	packet := BuildMapServerEnterPacketForClientDate(MapServerEnter{
 		AccountID:  accountID,
 		CharID:     charID,
 		AuthCode:   authCode,
 		ClientTick: clientTick,
 		Sex:        sex,
-	})
+	}, c.clientDate)
+	if os.Getenv("GORO_NET_TRACE") == "1" {
+		log.Printf("sent CZ_ENTER2 opcode=0x%04X len=%d client_date=%d sex_offset=%d", ID(packet), len(packet), c.clientDate, len(packet)-1)
+	}
 	return c.Send(packet)
 }
 
@@ -134,7 +144,13 @@ func (c *Client) SendWalkToXY(x, y int) error {
 	if !ok {
 		return fmt.Errorf("invalid walk destination %d,%d", x, y)
 	}
-	return c.Send(packet)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQUEST_MOVE opcode=0x%04X dst=%d,%d client_date=%d", ID(packet), x, y, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQUEST_MOVE failed opcode=0x%04X len=%d dst=%d,%d client_date=%d: %v", ID(packet), len(packet), x, y, c.clientDate, err)
+	}
+	return err
 }
 
 func (c *Client) Pump() {

@@ -228,6 +228,35 @@ func TestHandleMapChangeSameServerUpdatesMapAndResetsActors(t *testing.T) {
 	}
 }
 
+func TestHandleMapChangeSameLoadedMapReusesModeAndSnapsCamera(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "izlude"
+	world.GND = &res.GND{}
+	world.SetPlayerPosition(10, 20, 4)
+	world.UpsertActor(worldstate.Actor{ID: 300, Name: "Remote", X: 11, Y: 20})
+	sessionState := &session.Session{AccountID: 100, CharID: 200, PlayerDir: 4}
+	ctx := Context{
+		Session: sessionState,
+		World:   world,
+	}
+	mode := &WorldMode{}
+
+	next := mode.handleMapChange(ctx, network.MapChange{MapName: "izlude", X: 114, Y: 145})
+
+	if next != nil {
+		t.Fatalf("next mode = %#v, want nil same-mode reuse", next)
+	}
+	if world.Player.X != 114 || world.Player.Y != 145 || sessionState.PlayerX != 114 || sessionState.PlayerY != 145 {
+		t.Fatalf("position = world %d,%d session %d,%d", world.Player.X, world.Player.Y, sessionState.PlayerX, sessionState.PlayerY)
+	}
+	if len(world.Actors) != 0 {
+		t.Fatalf("actors were not cleared: %+v", world.Actors)
+	}
+	if !mode.camera.initialized || mode.camera.x != 114.5 || mode.camera.y != 145.5 {
+		t.Fatalf("camera = initialized %t %.2f,%.2f, want 114.5,145.5", mode.camera.initialized, mode.camera.x, mode.camera.y)
+	}
+}
+
 func TestActorDisplayNameUsesSelectedCharacterForPlayer(t *testing.T) {
 	ctx := Context{Session: &session.Session{CharID: 200, Selected: session.Character{ID: 200, Name: "Kivutar"}}}
 

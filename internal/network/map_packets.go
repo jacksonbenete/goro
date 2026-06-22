@@ -18,7 +18,7 @@ type MapChange struct {
 
 func ParseMapChange(packet Packet) (MapChange, bool, error) {
 	switch packet.ID {
-	case 0x0091, 0x0092:
+	case 0x0091, 0x0092, 0x0AC7:
 	default:
 		return MapChange{}, false, nil
 	}
@@ -33,7 +33,7 @@ func ParseMapChange(packet Packet) (MapChange, bool, error) {
 	if change.MapName == "" {
 		return MapChange{}, false, fmt.Errorf("ZC_CHANGEMAP 0x%04X missing map name", packet.ID)
 	}
-	if packet.ID == 0x0092 {
+	if packet.ID == 0x0092 || packet.ID == 0x0AC7 {
 		if len(packet.Data) < 28 {
 			return MapChange{}, false, fmt.Errorf("ZC_CHANGEMAPSERVER too short: %d", len(packet.Data))
 		}

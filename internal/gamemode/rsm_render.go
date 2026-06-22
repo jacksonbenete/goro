@@ -41,6 +41,16 @@ type rsmBounds struct {
 type mat4 [16]float64
 
 func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection) {
+	triangles := m.collectRSMModelTriangles(screen, manager, rsw, models, gnd, projection)
+	for _, tri := range triangles {
+		m.drawModelTriangle(screen, manager, tri)
+	}
+}
+
+func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection) []modelTriangle {
+	if rsw == nil || gnd == nil || models == nil {
+		return nil
+	}
 	if m.whitePixel == nil {
 		m.whitePixel = ebiten.NewImage(1, 1)
 		m.whitePixel.Fill(color.White)
@@ -146,13 +156,15 @@ func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rs
 	sort.SliceStable(triangles, func(i, j int) bool {
 		return triangles[i].depth > triangles[j].depth
 	})
-	for _, tri := range triangles {
-		if texture := m.groundTexture(manager, tri.textureName); texture != nil {
-			drawTexturedTriangle(screen, texture, tri.points, tri.uvs, tri.color)
-			continue
-		}
-		drawColoredTriangle(screen, m.whitePixel, tri.points, tri.color)
+	return triangles
+}
+
+func (m *WorldMode) drawModelTriangle(screen *ebiten.Image, manager *res.Manager, tri modelTriangle) {
+	if texture := m.groundTexture(manager, tri.textureName); texture != nil {
+		drawTexturedTriangle(screen, texture, tri.points, tri.uvs, tri.color)
+		return
 	}
+	drawColoredTriangle(screen, m.whitePixel, tri.points, tri.color)
 }
 
 func (m *WorldMode) logRSMTransformDebug(placement res.RSWModel, instance modelInstance) {

@@ -56,6 +56,49 @@ func TestBuildLoadEndAckPacket(t *testing.T) {
 	}
 }
 
+func TestBuildMapServerEnterPacket(t *testing.T) {
+	packet := BuildMapServerEnterPacket(MapServerEnter{
+		AccountID:  0x11223344,
+		CharID:     0x55667788,
+		AuthCode:   0x99aabbcc,
+		ClientTick: 0xddeeff00,
+		Sex:        1,
+	})
+	if len(packet) != 19 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if packet[0] != 0x36 || packet[1] != 0x04 {
+		t.Fatalf("unexpected opcode: % x", packet[:2])
+	}
+	if packet[18] != 1 {
+		t.Fatalf("unexpected sex offset: % x", packet)
+	}
+}
+
+func TestBuildMapServerEnterPacketFor2021ClientDate(t *testing.T) {
+	packet := BuildMapServerEnterPacketForClientDate(MapServerEnter{
+		AccountID:  0x11223344,
+		CharID:     0x55667788,
+		AuthCode:   0x99aabbcc,
+		ClientTick: 0xddeeff00,
+		Sex:        1,
+	}, 20211103)
+	if len(packet) != 23 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if packet[0] != 0x36 || packet[1] != 0x04 {
+		t.Fatalf("unexpected opcode: % x", packet[:2])
+	}
+	if packet[22] != 1 {
+		t.Fatalf("unexpected sex offset: % x", packet)
+	}
+	for i := 18; i < 22; i++ {
+		if packet[i] != 0 {
+			t.Fatalf("expected zero padding at %d: % x", i, packet)
+		}
+	}
+}
+
 func TestBuildTickSendPacket(t *testing.T) {
 	packet := BuildTickSendPacket(0x11223344)
 	if len(packet) != 8 {
@@ -66,6 +109,19 @@ func TestBuildTickSendPacket(t *testing.T) {
 	}
 	if packet[4] != 0x44 || packet[5] != 0x33 || packet[6] != 0x22 || packet[7] != 0x11 {
 		t.Fatalf("unexpected tick bytes: % x", packet[4:8])
+	}
+}
+
+func TestBuildTickSendPacketFor2021ClientDate(t *testing.T) {
+	packet := BuildTickSendPacketForClientDate(0x11223344, 20211103)
+	if len(packet) != 6 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if packet[0] != 0x60 || packet[1] != 0x03 {
+		t.Fatalf("unexpected opcode: % x", packet[:2])
+	}
+	if packet[2] != 0x44 || packet[3] != 0x33 || packet[4] != 0x22 || packet[5] != 0x11 {
+		t.Fatalf("unexpected tick bytes: % x", packet[2:6])
 	}
 }
 

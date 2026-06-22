@@ -154,6 +154,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			applySelfMoveAck(ctx, ack)
 			m.status = fmt.Sprintf("walk ack: %d,%d -> %d,%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY)
+			log.Printf("walk ack from=%d,%d to=%d,%d tick=%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY, ack.ServerTick)
 			continue
 		}
 		if position, ok, err := network.ParseActorSetPosition(pkt); err != nil {
@@ -161,6 +162,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			if isLocalActor(ctx, position.ID) {
 				m.status = fmt.Sprintf("position fix: %d,%d", position.X, position.Y)
+				log.Printf("local position fix id=%d x=%d y=%d", position.ID, position.X, position.Y)
 			}
 			applyActorSetPosition(ctx, position)
 			continue
@@ -228,6 +230,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if ctx.Input.MouseJustPressed(ebiten.MouseButtonLeft) && m.walkCooldown == 0 {
 		projection := m.sceneProjection(ctx, ctx.Config.Window.Width, ctx.Config.Window.Height, now)
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
+			log.Printf("click walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
 			m.requestWalk(ctx, targetX, targetY, "click")
 		}
 	}
@@ -240,11 +243,29 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 }
 
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
-	log.Printf("map change map=%s x=%d y=%d server_move=%t addr=%s port=%d", change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port)
+	currentMap := ctx.World.MapName
+	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
+	log.Printf("map change current=%s target=%s x=%d y=%d server_move=%t addr=%s port=%d reuse_loaded=%t", currentMap, change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port, reuseLoadedMap)
 	ctx.World.MapName = change.MapName
 	ctx.Session.Zone.MapName = change.MapName
 	applyWarpPosition(ctx, change.X, change.Y)
 	ctx.World.Actors = make(map[uint32]worldstate.Actor)
+	if reuseLoadedMap {
+		m.camera.Reset()
+		m.camera.Update(ctx, time.Now())
+		if ctx.Network != nil {
+			if err := ctx.Network.SendLoadEndAck(); err != nil {
+				m.status = "same-map warp load-ack failed: " + err.Error()
+				log.Printf("same-map warp load ack failed map=%s x=%d y=%d: %v", change.MapName, change.X, change.Y, err)
+			} else {
+				m.tickCooldown = 1
+				m.status = fmt.Sprintf("warped on %s at %d,%d", change.MapName, change.X, change.Y)
+			}
+		} else {
+			m.status = fmt.Sprintf("warped on %s at %d,%d", change.MapName, change.X, change.Y)
+		}
+		return nil
+	}
 	if change.ServerMove {
 		ctx.Session.Zone.Address = change.Address
 		ctx.Session.Zone.Port = change.Port
@@ -268,17 +289,29 @@ func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode 
 	return NewWorldMode()
 }
 
+func sameLoadedMap(ctx Context, mapName string) bool {
+	if ctx.World == nil || ctx.World.MapName == "" || mapName == "" {
+		return false
+	}
+	if !strings.EqualFold(ctx.World.MapName, mapName) {
+		return false
+	}
+	return ctx.World.GND != nil || ctx.World.GAT != nil
+}
+
 func (m *WorldMode) requestWalk(ctx Context, targetX, targetY int, source string) {
 	if !walkTargetInBounds(ctx, targetX, targetY) {
 		m.status = fmt.Sprintf("%s walk blocked by map bounds: %d,%d", source, targetX, targetY)
 		m.walkCooldown = 12
 		return
 	}
+	log.Printf("%s walk request from=%d,%d to=%d,%d", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
 	if err := ctx.Network.SendWalkToXY(targetX, targetY); err == nil {
 		m.status = fmt.Sprintf("%s walk request: %d,%d", source, targetX, targetY)
 		m.walkCooldown = 12
 	} else {
 		m.status = source + " walk request failed: " + err.Error()
+		log.Printf("%s walk request failed from=%d,%d to=%d,%d: %v", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, err)
 		m.walkCooldown = 30
 	}
 }
@@ -293,12 +326,13 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	if ctx.World.GND != nil {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, projection)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
-			m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection)
+			m.drawSceneModelsAndActors(screen, ctx, projection)
+		} else {
+			m.drawSceneActors(screen, ctx, projection)
 		}
 		if ctx.World.RSW != nil && m.rswMarkers {
 			drawRSWModelMarkers(screen, ctx.World.RSW, ctx.World.GND, projection)
 		}
-		m.drawSceneActors(screen, ctx, projection)
 	} else if ctx.World.GAT != nil {
 		drawGAT(screen, ctx.World.GAT, ctx.World.Player.X, ctx.World.Player.Y)
 		m.drawSceneActors(screen, ctx, projection)
@@ -683,6 +717,50 @@ const (
 )
 
 func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
+	entries := m.collectSceneActorEntries(screen, ctx, projection)
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].depth > entries[j].depth
+	})
+	for _, entry := range entries {
+		m.drawSceneActorEntry(screen, ctx, entry)
+	}
+	for _, entry := range entries {
+		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
+	}
+}
+
+type sceneDrawEntry struct {
+	depth      float64
+	modelIndex int
+	actorIndex int
+}
+
+func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
+	models := m.collectRSMModelTriangles(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection)
+	actors := m.collectSceneActorEntries(screen, ctx, projection)
+	entries := make([]sceneDrawEntry, 0, len(models)+len(actors))
+	for i, tri := range models {
+		entries = append(entries, sceneDrawEntry{depth: tri.depth, modelIndex: i, actorIndex: -1})
+	}
+	for i, actor := range actors {
+		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i})
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].depth > entries[j].depth
+	})
+	for _, entry := range entries {
+		if entry.modelIndex >= 0 {
+			m.drawModelTriangle(screen, ctx.Resources, models[entry.modelIndex])
+			continue
+		}
+		m.drawSceneActorEntry(screen, ctx, actors[entry.actorIndex])
+	}
+	for _, actor := range actors {
+		drawActorNameLabel(screen, actor.label, actor.screenX, actor.screenY, actor.scale)
+	}
+}
+
+func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	entries := make([]sceneActorDrawEntry, 0, len(ctx.World.Actors)+1)
@@ -703,25 +781,21 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 		}
 		entries = appendActorDrawEntry(entries, ctx.World, projection, actor, actorDisplayName(ctx, actor, false), false, now, width, height)
 	}
-	sort.SliceStable(entries, func(i, j int) bool {
-		return entries[i].depth > entries[j].depth
-	})
-	for _, entry := range entries {
-		if entry.isPlayer {
-			if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale) {
-				continue
-			}
-			drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
-			continue
+	return entries
+}
+
+func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, entry sceneActorDrawEntry) {
+	if entry.isPlayer {
+		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale) {
+			return
 		}
-		if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale) {
-			continue
-		}
-		drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, now)
+		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
+		return
 	}
-	for _, entry := range entries {
-		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
+	if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale) {
+		return
 	}
+	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
 }
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, label string, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {

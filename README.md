@@ -33,7 +33,7 @@ GORO_SCENE_HEIGHT_SCALE=2.8 ./scripts/run-oldro.sh
 GORO_CAMERA_PITCH=230 GORO_CAMERA_YAW=0 GORO_CAMERA_ZOOM=150 GORO_CAMERA_FOV=15 ./scripts/run-oldro.sh
 GORO_CAMERA_TARGET_Z=8 ./scripts/run-oldro.sh
 GORO_CAMERA_FOLLOW_TERRAIN_HEIGHT=1 ./scripts/run-oldro.sh
-GORO_PACKET_CLIENT_DATE=20080910 ./scripts/run-oldro.sh
+GORO_PACKET_CLIENT_DATE=20211103 ./scripts/run-oldro.sh # only when rAthena is rebuilt for that packetver
 GORO_BUILD=0 ./scripts/run-oldro.sh
 ```
 

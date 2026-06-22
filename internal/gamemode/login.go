@@ -62,6 +62,29 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 	for _, pkt := range ctx.Network.DrainPackets() {
 		log.Printf("recv packet 0x%04X len=%d", pkt.ID, len(pkt.Data))
 		m.packets = append(m.packets, pkt.String())
+		if change, ok, err := network.ParseMapChange(pkt); err != nil {
+			m.packets = append(m.packets, "parse ZC_NPCACK_MAPMOVE: "+err.Error())
+		} else if ok {
+			ctx.World.MapName = change.MapName
+			ctx.Session.Zone.MapName = change.MapName
+			applyWarpPosition(ctx, change.X, change.Y)
+			ctx.Session.Playing = true
+			m.status = fmt.Sprintf("map change: %s at %d,%d", change.MapName, change.X, change.Y)
+			log.Printf("login map change map=%s x=%d y=%d server_move=%t addr=%s port=%d", change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port)
+			if change.ServerMove {
+				ctx.Session.Zone.Address = change.Address
+				ctx.Session.Zone.Port = change.Port
+				m.connectMapServer(ctx, network.ZoneServerNotify{
+					CharID:  ctx.Session.CharID,
+					MapName: change.MapName,
+					Address: change.Address,
+					Port:    change.Port,
+				})
+			} else {
+				m.enterWorld = true
+			}
+			continue
+		}
 		if pkt.ID == 0x0069 {
 			login, err := network.ParseAccountAcceptLogin(pkt)
 			if err != nil {
@@ -126,11 +149,7 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 			if err != nil {
 				m.packets = append(m.packets, "parse ZC_ACCEPT_ENTER: "+err.Error())
 			} else {
-				ctx.Session.PlayerX = enter.X
-				ctx.Session.PlayerY = enter.Y
-				ctx.Session.PlayerDir = enter.Dir
-				ctx.Session.Playing = true
-				ctx.World.SetPlayerPosition(enter.X, enter.Y, enter.Dir)
+				applyMapAcceptEnter(ctx, enter)
 				m.status = fmt.Sprintf("entered map %s at %d,%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
 				log.Printf("entered map=%s x=%d y=%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
 				m.enterWorld = true

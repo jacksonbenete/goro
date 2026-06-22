@@ -6,6 +6,7 @@ const (
 	PacketCZSelectChar uint16 = 0x0066
 	PacketCZLoadEndAck uint16 = 0x007D
 	PacketCZTickSend   uint16 = 0x0089
+	PacketCZTickSendRE uint16 = 0x0360
 	PacketCZReqName    uint16 = 0x0094
 	PacketCZWalkToXY   uint16 = 0x00A7
 	PacketCZWalkToXYRE uint16 = 0x035F
@@ -61,11 +62,20 @@ func BuildLoadEndAckPacket() []byte {
 }
 
 func BuildTickSendPacket(clientTick uint32) []byte {
+	return BuildTickSendPacketForClientDate(clientTick, 20080910)
+}
+
+func BuildTickSendPacketForClientDate(clientTick uint32, clientDate int) []byte {
 	var w Writer
-	w.Uint16(PacketCZTickSend)
-	w.Uint8(0)
-	w.Uint8(0)
-	w.Uint32(clientTick)
+	if clientDate > 20180307 {
+		w.Uint16(PacketCZTickSendRE)
+		w.Uint32(clientTick)
+	} else {
+		w.Uint16(PacketCZTickSend)
+		w.Uint8(0)
+		w.Uint8(0)
+		w.Uint32(clientTick)
+	}
 	return w.Bytes()
 }
 
@@ -85,12 +95,19 @@ type MapServerEnter struct {
 }
 
 func BuildMapServerEnterPacket(enter MapServerEnter) []byte {
+	return BuildMapServerEnterPacketForClientDate(enter, 20080910)
+}
+
+func BuildMapServerEnterPacketForClientDate(enter MapServerEnter, clientDate int) []byte {
 	var w Writer
 	w.Uint16(PacketCZEnter2)
 	w.Uint32(enter.AccountID)
 	w.Uint32(enter.CharID)
 	w.Uint32(enter.AuthCode)
 	w.Uint32(enter.ClientTick)
+	if clientDate >= 20211103 {
+		w.Uint32(0)
+	}
 	w.Uint8(enter.Sex)
 	return w.Bytes()
 }
