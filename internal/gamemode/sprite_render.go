@@ -438,20 +438,35 @@ func drawPlayerIMFLayer(target *ebiten.Image, sprite *playerSpriteView, imf *res
 			resolvedLayer = layer
 		}
 	}
-	if resolvedLayer < 0 || resolvedLayer >= len(anim.Layers) {
+	drawLayerIndex := visibleACTLayerIndex(anim, resolvedLayer, layerPriority)
+	if drawLayerIndex < 0 {
 		return false
 	}
 	pointX, pointY := int32(0), int32(0)
 	if imf != nil {
-		pointX, pointY = imf.Point(resolvedLayer, actionIndex, motionIndex)
+		pointX, pointY = imf.Point(drawLayerIndex, actionIndex, motionIndex)
 	}
-	layer := anim.Layers[resolvedLayer]
+	layer := anim.Layers[drawLayerIndex]
 	if attachBase != nil {
 		dx, dy := attachmentDelta(*attachBase, anim)
 		pointX += dx
 		pointY += dy
 	}
 	return drawSpriteLayerByValue(target, sprite, layer, humanoidBillboardAnchorX+float64(pointX), humanoidBillboardAnchorY+float64(pointY))
+}
+
+func visibleACTLayerIndex(anim res.ACTAnimation, candidates ...int) int {
+	for _, index := range candidates {
+		if index >= 0 && index < len(anim.Layers) && anim.Layers[index].Index >= 0 {
+			return index
+		}
+	}
+	for index, layer := range anim.Layers {
+		if layer.Index >= 0 {
+			return index
+		}
+	}
+	return -1
 }
 
 func actionAnimation(act *res.ACT, actionIndex, motionIndex int) (res.ACTAnimation, bool) {

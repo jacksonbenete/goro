@@ -181,6 +181,53 @@ func TestDebugPlayerSpriteBillboard(t *testing.T) {
 	}
 }
 
+func TestPlayerSpriteCompositionIncludesHeadWithWeapon(t *testing.T) {
+	manager, err := res.NewManager("/home/kivutar/Téléchargements/OldRO")
+	if err != nil {
+		t.Skip("OldRO data not available")
+	}
+	view, status := loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
+		job:    0,
+		head:   1,
+		sex:    0,
+		weapon: 1201,
+	}, "debug player")
+	if view == nil {
+		t.Skipf("debug player unavailable: %s", status)
+	}
+	bodyActionIndex, bodyAction, ok := resolveSpriteAction(view.body.act, spriteActionIdle, 0)
+	if !ok {
+		t.Fatalf("body action missing: %s", status)
+	}
+	bodyAnim := bodyAction.Animations[0]
+	headAnim, ok := actionAnimation(view.head.act, bodyActionIndex, 0)
+	if !ok {
+		t.Fatalf("head action missing: %s", status)
+	}
+	resolvedLayer := view.imf.LayerForPriority(1, bodyActionIndex, 0)
+	if resolvedLayer < 0 {
+		resolvedLayer = 1
+	}
+	if resolvedLayer < 0 || resolvedLayer >= len(headAnim.Layers) {
+		t.Fatalf("head resolved layer %d out of %d: %s", resolvedLayer, len(headAnim.Layers), status)
+	}
+	pointX, pointY := view.imf.Point(resolvedLayer, bodyActionIndex, 0)
+	dx, dy := attachmentDelta(bodyAnim, headAnim)
+	drawLayer := visibleACTLayerIndex(headAnim, resolvedLayer, 1)
+	if drawLayer < 0 {
+		t.Fatalf("no visible head layer: resolved=%d status=%s", resolvedLayer, status)
+	}
+	if drawLayer != resolvedLayer {
+		pointX, pointY = view.imf.Point(drawLayer, bodyActionIndex, 0)
+	}
+	layer := headAnim.Layers[drawLayer]
+	minX, minY, maxX, maxY := spriteLayerBounds(view.head, layer, humanoidBillboardAnchorX+float64(pointX+dx), humanoidBillboardAnchorY+float64(pointY+dy))
+	if minY > humanoidBillboardAnchorY-35 {
+		t.Fatalf("head bounds too low: bounds=(%.1f,%.1f)-(%.1f,%.1f) point=(%d,%d) attach=(%d,%d) layer=%+v status=%s", minX, minY, maxX, maxY, pointX, pointY, dx, dy, layer, status)
+	}
+	t.Logf("head bounds=(%.1f,%.1f)-(%.1f,%.1f) point=(%d,%d) attach=(%d,%d) layer=%+v", minX, minY, maxX, maxY, pointX, pointY, dx, dy, layer)
+}
+
 func spriteAnimationBounds(view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) (float64, float64, float64, float64) {
 	minX, minY := math.Inf(1), math.Inf(1)
 	maxX, maxY := math.Inf(-1), math.Inf(-1)
@@ -206,4 +253,28 @@ func spriteAnimationBounds(view *playerSpriteView, anim res.ACTAnimation, anchor
 		maxY = math.Max(maxY, cy+h/2)
 	}
 	return minX, minY, maxX, maxY
+}
+
+func spriteLayerBounds(view *playerSpriteView, layer res.ACTLayer, centerX, centerY float64) (float64, float64, float64, float64) {
+	frameIndex := int(layer.Index)
+	if layer.SPRType == res.SPRFrameRGBA {
+		frameIndex += view.spr.RGBAIndex
+	}
+	if frameIndex < 0 || frameIndex >= len(view.spr.Frames) {
+		return math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
+	}
+	width := float64(view.spr.Frames[frameIndex].Width)
+	height := float64(view.spr.Frames[frameIndex].Height)
+	scaleX := math.Abs(float64(layer.ScaleX))
+	scaleY := math.Abs(float64(layer.ScaleY))
+	if scaleX == 0 {
+		scaleX = 1
+	}
+	if scaleY == 0 {
+		scaleY = 1
+	}
+	layerCenterX, layerCenterY := spriteLayerCenter(centerX, centerY, layer)
+	halfW := width * scaleX / 2
+	halfH := height * scaleY / 2
+	return layerCenterX - halfW, layerCenterY - halfH, layerCenterX + halfW, layerCenterY + halfH
 }
