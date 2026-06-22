@@ -111,11 +111,13 @@ func (m *WorldMode) Enter(ctx Context) {
 		ctx.World.RSW = rsw
 		ctx.World.RSM, ctx.World.RSMFail = loadRSMModels(ctx.Resources, rsw, rsmLoadLimit())
 		m.status += fmt.Sprintf(" rsw=%s", rswSource)
+		m.playMapBGM(ctx, rswSource)
 	} else {
 		ctx.World.RSW = nil
 		ctx.World.RSM = nil
 		ctx.World.RSMFail = 0
 		m.status += " rsw: " + err.Error()
+		m.playMapBGM(ctx, ctx.World.MapName)
 	}
 	if err := ctx.Network.SendLoadEndAck(); err != nil {
 		m.status += " load-ack failed: " + err.Error()
@@ -124,6 +126,21 @@ func (m *WorldMode) Enter(ctx Context) {
 	}
 	if playerStatus != "" {
 		m.status += " " + playerStatus
+	}
+}
+
+func (m *WorldMode) playMapBGM(ctx Context, rswName string) {
+	if ctx.Audio == nil {
+		return
+	}
+	path, err := ctx.Audio.PlayMap(rswName)
+	if err != nil {
+		m.status += " bgm: " + err.Error()
+		log.Printf("bgm failed map=%s: %v", rswName, err)
+		return
+	}
+	if path != "" {
+		m.status += " bgm=" + path
 	}
 }
 

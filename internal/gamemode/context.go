@@ -3,6 +3,7 @@ package gamemode
 import (
 	"time"
 
+	gameaudio "github.com/kivutar/goro/internal/audio"
 	"github.com/kivutar/goro/internal/core"
 	"github.com/kivutar/goro/internal/input"
 	"github.com/kivutar/goro/internal/network"
@@ -18,5 +19,6 @@ type Context struct {
 	Session   *session.Session
 	World     *world.World
 	Network   *network.Client
+	Audio     *gameaudio.BGM
 	Started   time.Time
 }

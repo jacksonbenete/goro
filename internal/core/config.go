@@ -11,6 +11,7 @@ type Config struct {
 	Window  WindowConfig
 	Packet  PacketConfig
 	Login   LoginConfig
+	Audio   AudioConfig
 }
 
 type WindowConfig struct {
@@ -30,6 +31,11 @@ type LoginConfig struct {
 	AutoLogin bool
 }
 
+type AudioConfig struct {
+	BGM       bool
+	BGMVolume float64
+}
+
 func LoadConfig() Config {
 	return Config{
 		DataDir: resolveDataDir(),
@@ -47,6 +53,10 @@ func LoadConfig() Config {
 			Password:  os.Getenv("GORO_PASSWORD"),
 			AutoLogin: os.Getenv("GORO_AUTOLOGIN") == "1",
 		},
+		Audio: AudioConfig{
+			BGM:       os.Getenv("GORO_BGM") != "0",
+			BGMVolume: floatEnv("GORO_BGM_VOLUME", 0.55),
+		},
 	}
 }
 
@@ -56,6 +66,18 @@ func intEnv(name string, fallback int) int {
 		return fallback
 	}
 	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func floatEnv(name string, fallback float64) float64 {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
 		return fallback
 	}

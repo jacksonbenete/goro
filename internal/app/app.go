@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	gameaudio "github.com/kivutar/goro/internal/audio"
 	"github.com/kivutar/goro/internal/core"
 	"github.com/kivutar/goro/internal/gamemode"
 	"github.com/kivutar/goro/internal/input"
@@ -21,6 +22,7 @@ type Game struct {
 	session  *session.Session
 	world    *world.World
 	network  *network.Client
+	audio    *gameaudio.BGM
 	modes    *gamemode.Manager
 	started  time.Time
 }
@@ -38,6 +40,7 @@ func New(cfg core.Config) (*Game, error) {
 		session:  session.New(),
 		world:    world.New(),
 		network:  network.NewClient(cfg.Packet.ClientDate),
+		audio:    gameaudio.NewBGM(resource, cfg.Audio.BGM, cfg.Audio.BGMVolume),
 		started:  time.Now(),
 	}
 
@@ -72,6 +75,7 @@ func (g *Game) modeContext() gamemode.Context {
 		Session:   g.session,
 		World:     g.world,
 		Network:   g.network,
+		Audio:     g.audio,
 		Started:   g.started,
 	}
 }
