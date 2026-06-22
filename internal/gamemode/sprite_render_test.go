@@ -96,6 +96,38 @@ func TestPreferNonPCActUpgradeForLegacyMonsterAct(t *testing.T) {
 	}
 }
 
+func TestPoringDeathActionRealData(t *testing.T) {
+	root := os.Getenv("GORO_TEST_DATA_DIR")
+	if root == "" {
+		root = "/home/kivutar/Téléchargements/OldRO"
+	}
+	if _, err := os.Stat(root); err != nil {
+		t.Skip("OldRO data not available")
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, status := loadNonPCSpriteView(manager, 1002, "poring")
+	if view == nil {
+		t.Fatalf("Poring sprite failed: %s", status)
+	}
+	if len(view.act.Actions) < 40 {
+		t.Fatalf("Poring ACT was not upgraded: actions=%d status=%s", len(view.act.Actions), status)
+	}
+	index, action, ok := resolveSpriteAction(view.act, spriteActionNonPCDeath, 0)
+	if !ok {
+		t.Fatalf("Poring death action missing: %s", status)
+	}
+	t.Logf("Poring death action index=%d frames=%d delay=%.1f source=%s status=%s", index, len(action.Animations), action.DelayMS, view.actSource, status)
+	if index != spriteActionNonPCDeath*8 {
+		t.Fatalf("Poring death action index=%d, want %d", index, spriteActionNonPCDeath*8)
+	}
+	if len(action.Animations) < 2 {
+		t.Fatalf("Poring death frames=%d, want animated death", len(action.Animations))
+	}
+}
+
 func TestActFitsSPRRejectsMissingFrame(t *testing.T) {
 	spr := &res.SPR{Frames: make([]res.SPRFrame, 2), RGBAIndex: 2}
 	act := &res.ACT{Actions: []res.ACTAction{{

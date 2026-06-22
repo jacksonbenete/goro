@@ -142,10 +142,12 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSp
 	if view == nil {
 		return nil, status
 	}
-	if upgraded, source, ok := loadRicherNonPCAct(manager, job, resourceName, len(view.act.Actions), view.spr); ok {
-		view.act = upgraded
-		view.actSource = source
-		status += fmt.Sprintf(" act-upgraded=%s actions=%d", source, len(upgraded.Actions))
+	if upgrade, ok := loadRicherNonPCSpritePair(manager, job, resourceName, len(view.act.Actions)); ok {
+		view.act = upgrade.act
+		view.actSource = upgrade.actSource
+		view.spr = upgrade.spr
+		view.source = upgrade.sprSource
+		status += fmt.Sprintf(" sprite-upgraded act=%s spr=%s actions=%d frames=%d", upgrade.actSource, upgrade.sprSource, len(upgrade.act.Actions), len(upgrade.spr.Frames))
 	}
 	return view, status
 }
@@ -283,12 +285,18 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 	}, fmt.Sprintf("%s: %s actions=%d frames=%d%s", label, sprSource, len(act.Actions), len(spr.Frames), paletteStatus)
 }
 
-func loadRicherNonPCAct(manager *res.Manager, job int, resourceName string, currentActions int, spr *res.SPR) (*res.ACT, string, bool) {
+type nonPCSpritePairUpgrade struct {
+	act       *res.ACT
+	actSource string
+	spr       *res.SPR
+	sprSource string
+}
+
+func loadRicherNonPCSpritePair(manager *res.Manager, job int, resourceName string, currentActions int) (nonPCSpritePairUpgrade, bool) {
 	if manager == nil || job < 1000 || currentActions > 8 {
-		return nil, "", false
+		return nonPCSpritePairUpgrade{}, false
 	}
-	var best *res.ACT
-	bestSource := ""
+	var best nonPCSpritePairUpgrade
 	for _, archive := range manager.Archives {
 		for _, candidate := range res.NonPCSpriteResourceCandidates(job, resourceName, "act") {
 			data, err := archive.ReadFile(candidate)
@@ -302,16 +310,27 @@ func loadRicherNonPCAct(manager *res.Manager, job int, resourceName string, curr
 			if !preferNonPCActUpgrade(job, currentActions, len(act.Actions)) {
 				continue
 			}
-			if !actFitsSPR(act, spr) {
-				continue
-			}
-			if best == nil || len(act.Actions) > len(best.Actions) {
-				best = act
-				bestSource = archive.Path() + ":" + candidate
+			for _, sprCandidate := range res.NonPCSpriteResourceCandidates(job, resourceName, "spr") {
+				sprData, err := archive.ReadFile(sprCandidate)
+				if err != nil {
+					continue
+				}
+				spr, err := res.ParseSPR(sprData)
+				if err != nil || !actFitsSPR(act, spr) {
+					continue
+				}
+				if best.act == nil || len(act.Actions) > len(best.act.Actions) || len(act.Actions) == len(best.act.Actions) && len(spr.Frames) > len(best.spr.Frames) {
+					best = nonPCSpritePairUpgrade{
+						act:       act,
+						actSource: archive.Path() + ":" + candidate,
+						spr:       spr,
+						sprSource: archive.Path() + ":" + sprCandidate,
+					}
+				}
 			}
 		}
 	}
-	return best, bestSource, best != nil
+	return best, best.act != nil
 }
 
 func preferNonPCActUpgrade(job int, currentActions, candidateActions int) bool {
@@ -421,23 +440,38 @@ func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state
 }
 
 func drawSingleSpriteBillboard(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64) bool {
+	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, 1)
+}
+
+func drawSingleSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64, alpha float64) bool {
 	billboard, ok := singleSpriteBillboardForState(view, state, time.Now())
 	if !ok {
 		return false
 	}
-	drawSpriteBillboard(screen, billboard, centerX, centerY, scale)
+	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, alpha)
 	return true
 }
 
 func drawSpriteBillboard(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64) {
+	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, 1)
+}
+
+func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64, alpha float64) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
+	}
+	if alpha < 0 || math.IsNaN(alpha) {
+		alpha = 0
+	}
+	if alpha > 1 || math.IsInf(alpha, 0) {
+		alpha = 1
 	}
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(centerX, centerY)
 	opts.Filter = ebiten.FilterNearest
+	opts.ColorScale.ScaleAlpha(float32(alpha))
 	screen.DrawImage(billboard.image, &opts)
 }
 

@@ -1,6 +1,7 @@
 package gamemode
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -548,6 +549,9 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 	if removeAt, ok := mode.actorDeaths[300]; !ok || !removeAt.After(anim.started) {
 		t.Fatalf("death removal time = %s ok=%t", removeAt, ok)
 	}
+	if got := mode.actorDeaths[300].Sub(anim.started); got != nonPCDeathFadeDuration {
+		t.Fatalf("death visible duration = %s, want %s", got, nonPCDeathFadeDuration)
+	}
 	mode.processNonPCMotionSound(ctx, world.Actors[300], anim.started)
 	if len(mode.scheduledSounds) != 1 || mode.scheduledSounds[0].paths[0] != "poring_die.wav" {
 		t.Fatalf("death sounds = %+v", mode.scheduledSounds)
@@ -556,6 +560,27 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 	mode.cleanupDeadActors(ctx, mode.actorDeaths[300].Add(time.Millisecond))
 	if _, ok := world.Actors[300]; ok {
 		t.Fatal("dead actor was not removed after death hold")
+	}
+}
+
+func TestActorDeathAlphaFadesOverVisibleDuration(t *testing.T) {
+	started := time.Unix(10, 0)
+	mode := &WorldMode{
+		actorAnims: map[uint32]actorAnimation{
+			300: {actionFamily: spriteActionNonPCDeath, started: started, duration: nonPCDeathFadeDuration},
+		},
+		actorDeaths: map[uint32]time.Time{
+			300: started.Add(nonPCDeathFadeDuration),
+		},
+	}
+	if got := mode.actorDeathAlpha(300, started); got != 1 {
+		t.Fatalf("alpha at start = %.2f, want 1", got)
+	}
+	if got := mode.actorDeathAlpha(300, started.Add(nonPCDeathFadeDuration/2)); math.Abs(got-0.5) > 0.001 {
+		t.Fatalf("alpha halfway = %.2f, want 0.5", got)
+	}
+	if got := mode.actorDeathAlpha(300, started.Add(nonPCDeathFadeDuration)); got != 0 {
+		t.Fatalf("alpha at end = %.2f, want 0", got)
 	}
 }
 

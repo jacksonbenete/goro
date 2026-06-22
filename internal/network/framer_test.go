@@ -111,6 +111,28 @@ func TestPacketLengths2008FramesActionNotify2(t *testing.T) {
 	}
 }
 
+func TestPacketLengths2008FramesActionPosition(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := make([]byte, 0, 29)
+	data = append(data, 0x8b, 0x00)
+	data = append(data, make([]byte, 21)...)
+	data = append(data, 0xb6, 0x00, 0x44, 0x33, 0x22, 0x11)
+
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x008B || len(packets[0].Data) != 23 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
 func TestPacketLengths2008FramesItemFallEntry(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	data := make([]byte, 0, 23)

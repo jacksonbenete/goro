@@ -100,8 +100,7 @@ const (
 	defaultHitAnimationDuration    = 250 * time.Millisecond
 	defaultDeathAnimationDuration  = 900 * time.Millisecond
 	maxCombatAnimationDuration     = 5 * time.Second
-	deathCorpseHoldDuration        = 1290 * time.Millisecond
-	deathFadeDuration              = 510 * time.Millisecond
+	nonPCDeathFadeDuration         = 5 * time.Second
 )
 
 func NewWorldMode() *WorldMode {
@@ -1432,7 +1431,10 @@ func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
 	}
 	actionFamily := deathActionFamilyForActor(actor)
 	deathDuration := m.actorActionDuration(ctx, actor, actionFamily, defaultDeathAnimationDuration)
-	visibleDuration := maxDuration(deathDuration, deathCorpseHoldDuration) + deathFadeDuration
+	visibleDuration := deathDuration
+	if !local {
+		visibleDuration = maxDuration(deathDuration, nonPCDeathFadeDuration)
+	}
 	m.startCombatAnimation(ctx, id, actionFamily, now, visibleDuration)
 	if !local {
 		if m.actorDeaths == nil {
@@ -1469,6 +1471,33 @@ func (m *WorldMode) clearActorDeath(id uint32) {
 	delete(m.actorDeaths, id)
 	delete(m.actorAnims, id)
 	delete(m.actorSoundFrames, id)
+}
+
+func (m *WorldMode) actorDeathAlpha(id uint32, now time.Time) float64 {
+	removeAt, ok := m.actorDeaths[id]
+	if !ok {
+		return 1
+	}
+	started := now
+	if anim, ok := m.actorAnims[id]; ok && !anim.started.IsZero() {
+		started = anim.started
+	}
+	total := removeAt.Sub(started)
+	if total <= 0 {
+		return 0
+	}
+	elapsed := now.Sub(started)
+	if elapsed <= 0 {
+		return 1
+	}
+	alpha := 1 - float64(elapsed)/float64(total)
+	if alpha < 0 {
+		return 0
+	}
+	if alpha > 1 {
+		return 1
+	}
+	return alpha
 }
 
 func applyActorLookChange(ctx Context, look network.ActorLookChange) bool {
@@ -2016,7 +2045,7 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 	}
 	now := time.Now()
 	state := m.nonPCSpriteState(actor, now)
-	return drawSingleSpriteBillboard(screen, view, state, centerX, centerY, scale)
+	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, m.actorDeathAlpha(actor.ID, now))
 }
 
 func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spriteState {
