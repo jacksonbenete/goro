@@ -97,6 +97,7 @@ func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.
 	}
 	boundsCache := make(map[boundsCacheKey]rsmBounds)
 	nodeMatrixCache := make(map[*res.RSM]map[string]mat4)
+	lighting := sceneLightingFromRSW(rsw)
 	for _, visiblePlacement := range visible {
 		placement := visiblePlacement.model
 		if placement.Filename == "" {
@@ -138,7 +139,7 @@ func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.
 		m.logRSMTransformDebug(placement, instance)
 		for _, nodeIndex := range nodeIndices {
 			node := &rsm.Nodes[nodeIndex]
-			for _, tri := range buildRSMNodeTriangles(rsm, node, nodeMatrices[node.Name], instance, projection, float64(width), float64(height)) {
+			for _, tri := range buildRSMNodeTriangles(rsm, node, nodeMatrices[node.Name], instance, projection, lighting, float64(width), float64(height)) {
 				triangles = append(triangles, tri)
 				if maxFaces > 0 && len(triangles) >= maxFaces {
 					break
@@ -279,7 +280,7 @@ type modelInstance struct {
 	matrix    mat4
 }
 
-func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, projection sceneProjection, screenWidth, screenHeight float64) []modelTriangle {
+func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, projection sceneProjection, lighting sceneLighting, screenWidth, screenHeight float64) []modelTriangle {
 	if len(node.Vertices) == 0 || len(node.Faces) == 0 {
 		return nil
 	}
@@ -334,7 +335,7 @@ func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, ins
 			points:      points,
 			uvs:         uvs,
 			depth:       depth,
-			color:       rsmFaceColor(textureName, a, b, c),
+			color:       rsmFaceColor(textureName, a, b, c, lighting),
 			textureName: textureName,
 		})
 	}
@@ -671,21 +672,17 @@ func rsmFaceTexture(rsm *res.RSM, node *res.RSMNode, face res.RSMFace) (string, 
 	return textureName, uvs
 }
 
-func rsmFaceColor(textureName string, a, b, c modelPoint3) color.RGBA {
+func rsmFaceColor(textureName string, a, b, c modelPoint3, lighting sceneLighting) color.RGBA {
 	base := textureColor(textureName)
 	if textureName != "" {
 		base = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	}
 	normal := normalize3(cross3(sub3(b, a), sub3(c, a)))
-	light := normalize3(modelPoint3{x: -0.45, y: -0.78, z: -0.42})
-	diffuse := math.Abs(normal.x*light.x + normal.y*light.y + normal.z*light.z)
-	top := math.Max(0, normal.y)
-	side := math.Min(1, math.Abs(normal.x)+math.Abs(normal.z))
-	shade := 0.42 + diffuse*0.38 + top*0.16 + side*0.08
+	scale := lighting.modelScale(normal)
 	return color.RGBA{
-		R: clampColor(float64(base.R) * shade),
-		G: clampColor(float64(base.G) * shade),
-		B: clampColor(float64(base.B) * shade),
+		R: clampColor(float64(base.R) * scale.x),
+		G: clampColor(float64(base.G) * scale.y),
+		B: clampColor(float64(base.B) * scale.z),
 		A: 255,
 	}
 }

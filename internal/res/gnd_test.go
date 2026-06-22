@@ -3,6 +3,7 @@ package res
 import (
 	"bytes"
 	"encoding/binary"
+	"image/color"
 	"math"
 	"testing"
 )
@@ -116,6 +117,21 @@ func TestDecodeGNDLightmapRaw(t *testing.T) {
 	}
 	if got := GNDLightmapRenderAlpha(lightmap, 3); got != lightmap.Alpha[7][7] {
 		t.Fatalf("render corner alpha = %d, want %d", got, lightmap.Alpha[7][7])
+	}
+}
+
+func TestGNDLightmapSampleColorInterpolatesInnerTexels(t *testing.T) {
+	var lightmap GNDLightmap
+	lightmap.Color[1][1] = color.RGBA{R: 10, G: 20, B: 30, A: 255}
+	lightmap.Color[1][7] = color.RGBA{R: 50, G: 20, B: 30, A: 255}
+	lightmap.Color[7][1] = color.RGBA{R: 10, G: 80, B: 30, A: 255}
+	lightmap.Color[7][7] = color.RGBA{R: 50, G: 80, B: 110, A: 255}
+
+	if got := GNDLightmapSampleColor(lightmap, 0, 0); got != lightmap.Color[1][1] {
+		t.Fatalf("sample at origin = %#v, want %#v", got, lightmap.Color[1][1])
+	}
+	if got := GNDLightmapSampleColor(lightmap, 1, 1); got != lightmap.Color[7][7] {
+		t.Fatalf("sample at far corner = %#v, want %#v", got, lightmap.Color[7][7])
 	}
 }
 

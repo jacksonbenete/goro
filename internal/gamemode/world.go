@@ -1248,7 +1248,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	projection := m.sceneProjection(ctx, width, height, now)
 
 	if ctx.World.GND != nil {
-		m.drawGND(screen, ctx.Resources, ctx.World.GND, projection)
+		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
 			m.drawSceneModelsAndActors(screen, ctx, projection)
 		} else {
@@ -2250,7 +2250,7 @@ func loadRSMModel(manager *res.Manager, filename string) (*res.RSM, error) {
 	return res.ParseRSM(data)
 }
 
-func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, projection sceneProjection) {
+func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection) {
 	if m.whitePixel == nil {
 		m.whitePixel = ebiten.NewImage(1, 1)
 		m.whitePixel.Fill(color.White)
@@ -2267,6 +2267,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 	endX := min(gnd.Width-1, groundCenterX+radiusX)
 	startY := max(0, groundCenterY-radiusY)
 	endY := min(gnd.Height-1, groundCenterY+radiusY)
+	lighting := sceneLightingFromRSW(rsw)
 
 	for y := startY; y <= endY; y++ {
 		for x := startX; x <= endX; x++ {
@@ -2279,13 +2280,13 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 				surface, ok := gnd.Surface(cell.Top)
 				if ok {
 					vertexOrder := [4]int{0, 1, 3, 2}
-					points := [4]screenPoint{
-						projection.Project(float64(x)*2, float64(y)*2, float64(cell.Heights[0])),
-						projection.Project(float64(x+1)*2, float64(y)*2, float64(cell.Heights[1])),
-						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(cell.Heights[3])),
-						projection.Project(float64(x)*2, float64(y+1)*2, float64(cell.Heights[2])),
+					verts := [4]modelPoint3{
+						{x: float64(x) * 2, y: float64(cell.Heights[0]), z: float64(y) * 2},
+						{x: float64(x+1) * 2, y: float64(cell.Heights[1]), z: float64(y) * 2},
+						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
+						{x: float64(x) * 2, y: float64(cell.Heights[2]), z: float64(y+1) * 2},
 					}
-					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, 1.0, float64(width), float64(height))
+					m.drawGNDSurface(screen, manager, gnd, projectGNDQuad(projection, verts), surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, quadNormal(verts), lighting, float64(width), float64(height))
 				}
 			}
 
@@ -2293,15 +2294,15 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 				neighbor, neighborOK := gnd.Cell(x, y+1)
 				surface, surfaceOK := gnd.Surface(cell.Front)
 				if neighborOK && surfaceOK {
-					vertexOrder := [4]int{2, 1, 3, 0}
-					points := [4]screenPoint{
-						projection.Project(float64(x)*2, float64(y+1)*2, float64(neighbor.Heights[0])),
-						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(cell.Heights[3])),
-						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(neighbor.Heights[1])),
-						projection.Project(float64(x)*2, float64(y+1)*2, float64(cell.Heights[2])),
+					vertexOrder := [4]int{2, 3, 0, 1}
+					verts := [4]modelPoint3{
+						{x: float64(x) * 2, y: float64(cell.Heights[2]), z: float64(y+1) * 2},
+						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
+						{x: float64(x) * 2, y: float64(neighbor.Heights[0]), z: float64(y+1) * 2},
+						{x: float64(x+1) * 2, y: float64(neighbor.Heights[1]), z: float64(y+1) * 2},
 					}
-					heights := [4]float32{neighbor.Heights[0], cell.Heights[3], neighbor.Heights[1], cell.Heights[2]}
-					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 1, 3}, surface, heights, 0.82, float64(width), float64(height))
+					heights := [4]float32{cell.Heights[2], cell.Heights[3], neighbor.Heights[0], neighbor.Heights[1]}
+					m.drawGNDSurface(screen, manager, gnd, projectGNDQuad(projection, verts), surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, quadNormal(verts), lighting, float64(width), float64(height))
 				}
 			}
 
@@ -2309,36 +2310,36 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 				neighbor, neighborOK := gnd.Cell(x+1, y)
 				surface, surfaceOK := gnd.Surface(cell.Right)
 				if neighborOK && surfaceOK {
-					vertexOrder := [4]int{1, 0, 3, 2}
-					points := [4]screenPoint{
-						projection.Project(float64(x+1)*2, float64(y)*2, float64(cell.Heights[1])),
-						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(cell.Heights[3])),
-						projection.Project(float64(x+1)*2, float64(y)*2, float64(neighbor.Heights[0])),
-						projection.Project(float64(x+1)*2, float64(y+1)*2, float64(neighbor.Heights[2])),
+					vertexOrder := [4]int{3, 1, 2, 0}
+					verts := [4]modelPoint3{
+						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
+						{x: float64(x+1) * 2, y: float64(cell.Heights[1]), z: float64(y) * 2},
+						{x: float64(x+1) * 2, y: float64(neighbor.Heights[2]), z: float64(y+1) * 2},
+						{x: float64(x+1) * 2, y: float64(neighbor.Heights[0]), z: float64(y) * 2},
 					}
-					heights := [4]float32{cell.Heights[1], cell.Heights[3], neighbor.Heights[0], neighbor.Heights[2]}
-					m.drawGNDSurface(screen, manager, gnd, points, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 3, 1}, surface, heights, 0.9, float64(width), float64(height))
+					heights := [4]float32{cell.Heights[3], cell.Heights[1], neighbor.Heights[2], neighbor.Heights[0]}
+					m.drawGNDSurface(screen, manager, gnd, projectGNDQuad(projection, verts), surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, quadNormal(verts), lighting, float64(width), float64(height))
 				}
 			}
 		}
 	}
 }
 
-func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, points [4]screenPoint, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, brightness float64, screenWidth, screenHeight float64) {
+func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, points [4]screenPoint, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, normal modelPoint3, lighting sceneLighting, screenWidth, screenHeight float64) {
 	if quadOutside(points, screenWidth, screenHeight) {
 		return
 	}
 
 	textureName := gndTextureName(gnd, surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
-		if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok && isTopGNDLightmapQuad(vertexOrder, indices) {
-			drawTexturedLightmappedSurface(screen, texture, points, uvs, surface.Color, lightmap, brightness)
+		if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
+			drawTexturedLightmappedSurface(screen, texture, points, uvs, surface.Color, lightmap, lighting.groundScale(normal))
 			return
 		}
-		drawTexturedSurface(screen, texture, points, uvs, indices, surfaceVertexTints(gnd, surface, vertexOrder, heights, brightness))
+		drawTexturedSurface(screen, texture, points, uvs, indices, surfaceVertexTints(gnd, surface, vertexOrder, heights, normal, lighting))
 		return
 	}
-	drawColoredSurface(screen, m.whitePixel, points, indices, groundSurfaceColor(textureName, surface.Color, heights, brightness))
+	drawColoredSurface(screen, m.whitePixel, points, indices, groundSurfaceColor(textureName, surface.Color, heights, normal, lighting))
 }
 
 func drawRSWModelMarkers(screen *ebiten.Image, rsw *res.RSW, gnd *res.GND, projection sceneProjection) {
@@ -2467,47 +2468,157 @@ func surfaceUVs(surface res.GNDSurface, order [4]int) [4]texturePoint {
 	}
 }
 
-func surfaceTint(surfaceColor color.RGBA, heights [4]float32, brightness float64) color.RGBA {
+func projectGNDQuad(projection sceneProjection, verts [4]modelPoint3) [4]screenPoint {
+	return [4]screenPoint{
+		projection.Project(verts[0].x, verts[0].z, verts[0].y),
+		projection.Project(verts[1].x, verts[1].z, verts[1].y),
+		projection.Project(verts[2].x, verts[2].z, verts[2].y),
+		projection.Project(verts[3].x, verts[3].z, verts[3].y),
+	}
+}
+
+func quadNormal(verts [4]modelPoint3) modelPoint3 {
+	normal := normalize3(cross3(sub3(verts[1], verts[0]), sub3(verts[2], verts[0])))
+	if normal == (modelPoint3{}) {
+		return modelPoint3{y: 1}
+	}
+	return normal
+}
+
+type sceneLighting struct {
+	direction modelPoint3
+	diffuse   modelPoint3
+	ambient   modelPoint3
+	env       modelPoint3
+	opacity   float64
+}
+
+func sceneLightingFromRSW(rsw *res.RSW) sceneLighting {
+	longitude := 45.0
+	latitude := 45.0
+	diffuse := modelPoint3{x: 1, y: 1, z: 1}
+	ambient := modelPoint3{}
+	opacity := 1.0
+	if rsw != nil {
+		longitude = float64(rsw.Light.Longitude)
+		latitude = float64(rsw.Light.Latitude)
+		diffuse = modelPoint3{x: float64(rsw.Light.Diffuse[0]), y: float64(rsw.Light.Diffuse[1]), z: float64(rsw.Light.Diffuse[2])}
+		ambient = modelPoint3{x: float64(rsw.Light.Ambient[0]), y: float64(rsw.Light.Ambient[1]), z: float64(rsw.Light.Ambient[2])}
+		opacity = float64(rsw.Light.Opacity)
+	}
+	longitude = degreesToRadians(longitude)
+	latitude = degreesToRadians(latitude)
+	dir := normalize3(modelPoint3{
+		x: -math.Sin(longitude) * math.Sin(latitude),
+		y: -math.Cos(latitude),
+		z: -math.Cos(longitude) * math.Sin(latitude),
+	})
+	if dir == (modelPoint3{}) {
+		dir = normalize3(modelPoint3{x: -0.5, y: -0.7, z: -0.5})
+	}
+	diffuse = clampUnitPoint(diffuse)
+	ambient = clampUnitPoint(ambient)
+	opacity = math.Max(0, math.Min(1, opacity))
+	env := modelPoint3{
+		x: 1 - (1-ambient.x)*(1-diffuse.x),
+		y: 1 - (1-ambient.y)*(1-diffuse.y),
+		z: 1 - (1-ambient.z)*(1-diffuse.z),
+	}
+	return sceneLighting{
+		direction: dir,
+		diffuse:   diffuse,
+		ambient:   ambient,
+		env:       clampUnitPoint(env),
+		opacity:   opacity,
+	}
+}
+
+func (l sceneLighting) groundScale(normal modelPoint3) modelPoint3 {
+	weight := math.Max(dot3(normalize3(normal), l.direction), 0)
+	return modelPoint3{
+		x: clampUnit((l.ambient.x + l.diffuse.x*weight) * l.env.x),
+		y: clampUnit((l.ambient.y + l.diffuse.y*weight) * l.env.y),
+		z: clampUnit((l.ambient.z + l.diffuse.z*weight) * l.env.z),
+	}
+}
+
+func (l sceneLighting) modelScale(normal modelPoint3) modelPoint3 {
+	weight := math.Max(dot3(normalize3(normal), l.direction), 0)
+	weight = (1 - l.opacity) + weight*l.opacity
+	return modelPoint3{
+		x: clampUnit((l.ambient.x + l.diffuse.x*weight) * l.env.x),
+		y: clampUnit((l.ambient.y + l.diffuse.y*weight) * l.env.y),
+		z: clampUnit((l.ambient.z + l.diffuse.z*weight) * l.env.z),
+	}
+}
+
+func clampUnitPoint(point modelPoint3) modelPoint3 {
+	return modelPoint3{x: clampUnit(point.x), y: clampUnit(point.y), z: clampUnit(point.z)}
+}
+
+func clampUnit(value float64) float64 {
+	return math.Max(0, math.Min(1, value))
+}
+
+func surfaceTint(surfaceColor color.RGBA, heights [4]float32, normal modelPoint3, lighting sceneLighting) color.RGBA {
 	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	if surfaceColor.A != 0 {
 		base = surfaceColor
 	}
-	shade := groundHeightShade(heights) * brightness
+	scale := lighting.groundScale(normal)
+	heightShade := groundHeightShade(heights)
 	return color.RGBA{
-		R: clampColor(float64(base.R) * shade),
-		G: clampColor(float64(base.G) * shade),
-		B: clampColor(float64(base.B) * shade),
+		R: clampColor(float64(base.R) * scale.x * heightShade),
+		G: clampColor(float64(base.G) * scale.y * heightShade),
+		B: clampColor(float64(base.B) * scale.z * heightShade),
 		A: 255,
 	}
 }
 
-func surfaceVertexTints(gnd *res.GND, surface res.GNDSurface, vertexOrder [4]int, heights [4]float32, brightness float64) [4]color.RGBA {
+func surfaceVertexTints(gnd *res.GND, surface res.GNDSurface, vertexOrder [4]int, heights [4]float32, normal modelPoint3, lighting sceneLighting) [4]color.RGBA {
 	if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
-		return lightmapSurfaceVertexTints(surface.Color, lightmap, vertexOrder, brightness)
+		return lightmapSurfaceVertexTints(surface.Color, lightmap, vertexOrder, lighting.groundScale(normal))
 	}
-	tint := surfaceTint(surface.Color, heights, brightness)
+	tint := surfaceTint(surface.Color, heights, normal, lighting)
 	return [4]color.RGBA{tint, tint, tint, tint}
 }
 
-func lightmapSurfaceVertexTints(surfaceColor color.RGBA, lightmap res.GNDLightmap, vertexOrder [4]int, brightness float64) [4]color.RGBA {
+func lightmapSurfaceVertexTints(surfaceColor color.RGBA, lightmap res.GNDLightmap, vertexOrder [4]int, lightScale modelPoint3) [4]color.RGBA {
 	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	if surfaceColor.A != 0 {
 		base = surfaceColor
 	}
 	var tints [4]color.RGBA
 	for i, sourceVertex := range vertexOrder {
-		light := float64(res.GNDLightmapRenderAlpha(lightmap, sourceVertex)) / 255 * brightness
+		sample := gndLightmapRenderSample(sourceVertex)
+		alpha := float64(lightmap.Alpha[sample.y][sample.x]) / 255
+		lm := lightmap.Color[sample.y][sample.x]
 		tints[i] = color.RGBA{
-			R: clampColor(float64(base.R) * light),
-			G: clampColor(float64(base.G) * light),
-			B: clampColor(float64(base.B) * light),
+			R: clampColor(float64(base.R) * (lightScale.x*alpha + float64(lm.R)/255)),
+			G: clampColor(float64(base.G) * (lightScale.y*alpha + float64(lm.G)/255)),
+			B: clampColor(float64(base.B) * (lightScale.z*alpha + float64(lm.B)/255)),
 			A: 255,
 		}
 	}
 	return tints
 }
 
-func groundSurfaceColor(textureName string, surfaceColor color.RGBA, heights [4]float32, brightness float64) color.RGBA {
+func gndLightmapRenderSample(sourceVertex int) struct{ y, x int } {
+	switch sourceVertex {
+	case 0:
+		return struct{ y, x int }{y: 1, x: 1}
+	case 1:
+		return struct{ y, x int }{y: 1, x: 7}
+	case 2:
+		return struct{ y, x int }{y: 7, x: 1}
+	case 3:
+		return struct{ y, x int }{y: 7, x: 7}
+	default:
+		return struct{ y, x int }{y: 1, x: 1}
+	}
+}
+
+func groundSurfaceColor(textureName string, surfaceColor color.RGBA, heights [4]float32, normal modelPoint3, lighting sceneLighting) color.RGBA {
 	base := textureColor(textureName)
 	if surfaceColor.A != 0 && !(surfaceColor.R == 255 && surfaceColor.G == 255 && surfaceColor.B == 255) {
 		base.R = uint8((uint16(base.R)*2 + uint16(surfaceColor.R)) / 3)
@@ -2515,11 +2626,12 @@ func groundSurfaceColor(textureName string, surfaceColor color.RGBA, heights [4]
 		base.B = uint8((uint16(base.B)*2 + uint16(surfaceColor.B)) / 3)
 	}
 
-	shade := groundHeightShade(heights) * brightness
+	scale := lighting.groundScale(normal)
+	heightShade := groundHeightShade(heights)
 	return color.RGBA{
-		R: clampColor(float64(base.R) * shade),
-		G: clampColor(float64(base.G) * shade),
-		B: clampColor(float64(base.B) * shade),
+		R: clampColor(float64(base.R) * scale.x * heightShade),
+		G: clampColor(float64(base.G) * scale.y * heightShade),
+		B: clampColor(float64(base.B) * scale.z * heightShade),
 		A: 255,
 	}
 }
@@ -2583,14 +2695,7 @@ func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, u
 	screen.DrawTriangles(vertices, indices, texture, op)
 }
 
-func isTopGNDLightmapQuad(vertexOrder [4]int, indices []uint16) bool {
-	return vertexOrder == [4]int{0, 1, 3, 2} &&
-		len(indices) == 6 &&
-		indices[0] == 0 && indices[1] == 1 && indices[2] == 2 &&
-		indices[3] == 0 && indices[4] == 2 && indices[5] == 3
-}
-
-func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, brightness float64) {
+func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScale modelPoint3) {
 	const steps = 6
 	bounds := texture.Bounds()
 	textureWidth := float32(bounds.Dx())
@@ -2605,11 +2710,12 @@ func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]scr
 		t := float64(y) / steps
 		for x := 0; x <= steps; x++ {
 			s := float64(x) / steps
-			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255 * brightness
+			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255
+			lm := res.GNDLightmapSampleColor(lightmap, s, t)
 			tint := color.RGBA{
-				R: clampColor(float64(base.R) * alpha),
-				G: clampColor(float64(base.G) * alpha),
-				B: clampColor(float64(base.B) * alpha),
+				R: clampColor(float64(base.R) * (lightScale.x*alpha + float64(lm.R)/255)),
+				G: clampColor(float64(base.G) * (lightScale.y*alpha + float64(lm.G)/255)),
+				B: clampColor(float64(base.B) * (lightScale.z*alpha + float64(lm.B)/255)),
 				A: 255,
 			}
 			vertices = append(vertices, texturedSurfaceVertex(

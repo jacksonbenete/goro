@@ -75,7 +75,7 @@ func TestDebugGeffenCenterModels(t *testing.T) {
 		for nodeIndex := range rsm.Nodes {
 			node := &rsm.Nodes[nodeIndex]
 			modelMatrix := debugRSMModelMatrix(rsm, node, nodes[node.Name], instance)
-			triangles += len(buildRSMNodeTriangles(rsm, node, nodes[node.Name], instance, projection, 1024, 768))
+			triangles += len(buildRSMNodeTriangles(rsm, node, nodes[node.Name], instance, projection, sceneLightingFromRSW(world.RSW), 1024, 768))
 			for _, vertex := range node.Vertices {
 				world := mat4TransformPoint(modelMatrix, vectorFromRSM(vertex))
 				minWorldY = math.Min(minWorldY, world.y)

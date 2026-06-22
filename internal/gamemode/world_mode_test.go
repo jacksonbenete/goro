@@ -739,6 +739,21 @@ func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
 	}
 }
 
+func TestSceneLightingFromRSWMatchesReferenceDirection(t *testing.T) {
+	lighting := sceneLightingFromRSW(&res.RSW{Light: res.RSWLight{
+		Longitude: 45,
+		Latitude:  45,
+		Diffuse:   [3]float32{1, 1, 1},
+		Opacity:   1,
+	}})
+	want := modelPoint3{x: -0.5, y: -math.Sqrt2 / 2, z: -0.5}
+	if math.Abs(lighting.direction.x-want.x) > 0.0001 ||
+		math.Abs(lighting.direction.y-want.y) > 0.0001 ||
+		math.Abs(lighting.direction.z-want.z) > 0.0001 {
+		t.Fatalf("light direction = %+v, want %+v", lighting.direction, want)
+	}
+}
+
 func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 1002})

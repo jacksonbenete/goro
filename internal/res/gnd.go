@@ -244,6 +244,29 @@ func GNDLightmapSampleAlpha(lightmap GNDLightmap, s, t float64) uint8 {
 	return uint8(math.Round(lerpFloat(top, bottom, fy)))
 }
 
+func GNDLightmapSampleColor(lightmap GNDLightmap, s, t float64) color.RGBA {
+	x := 1 + clampFloat(s, 0, 1)*6
+	y := 1 + clampFloat(t, 0, 1)*6
+	x0 := int(math.Floor(x))
+	y0 := int(math.Floor(y))
+	x1 := min(7, x0+1)
+	y1 := min(7, y0+1)
+	fx := x - float64(x0)
+	fy := y - float64(y0)
+	return color.RGBA{
+		R: uint8(math.Round(lerpLightmapChannel(lightmap.Color[y0][x0].R, lightmap.Color[y0][x1].R, lightmap.Color[y1][x0].R, lightmap.Color[y1][x1].R, fx, fy))),
+		G: uint8(math.Round(lerpLightmapChannel(lightmap.Color[y0][x0].G, lightmap.Color[y0][x1].G, lightmap.Color[y1][x0].G, lightmap.Color[y1][x1].G, fx, fy))),
+		B: uint8(math.Round(lerpLightmapChannel(lightmap.Color[y0][x0].B, lightmap.Color[y0][x1].B, lightmap.Color[y1][x0].B, lightmap.Color[y1][x1].B, fx, fy))),
+		A: 255,
+	}
+}
+
+func lerpLightmapChannel(topLeft, topRight, bottomLeft, bottomRight uint8, fx, fy float64) float64 {
+	top := lerpFloat(float64(topLeft), float64(topRight), fx)
+	bottom := lerpFloat(float64(bottomLeft), float64(bottomRight), fx)
+	return lerpFloat(top, bottom, fy)
+}
+
 func lerpFloat(a, b, t float64) float64 {
 	return a + (b-a)*t
 }
