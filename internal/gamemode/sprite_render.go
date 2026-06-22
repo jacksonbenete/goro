@@ -102,6 +102,7 @@ type spriteState struct {
 	started      time.Time
 	loop         bool
 	moveSpeedMS  int
+	walkDistance float64
 }
 
 func loadPlayerSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
@@ -322,6 +323,7 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX,
 	if moving {
 		state.actionFamily = spriteActionWalk
 		state.loop = true
+		state.walkDistance = ctx.World.Player.RenderWalkDistance(now)
 	}
 	if ctx.Session != nil {
 		if anim, ok := m.actorAnimation(ctx.Session.CharID, now); ok {
@@ -890,6 +892,9 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 		}
 		delayMS = delayMS * float64(state.moveSpeedMS) / 150
 	}
+	if state.actionFamily == spriteActionWalk && state.walkDistance > 0 {
+		return walkMotionIndex(action, state.walkDistance)
+	}
 	if state.actionFamily == spriteActionWalk || state.loop {
 		return spriteMotionIndexWithDelay(action, started, now, true, delayMS)
 	}
@@ -900,6 +905,23 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 		return 0
 	}
 	return spriteMotionIndexWithDelay(action, started, now, true, delayMS)
+}
+
+const walkDistanceToMotion = 4.6 * 0.37 * 4 * 25
+
+func walkMotionIndex(action res.ACTAction, distance float64) int {
+	if len(action.Animations) == 0 {
+		return 0
+	}
+	delay := float64(action.DelayMS)
+	if delay <= 0 {
+		delay = 150
+	}
+	motion := int(math.Floor(distance * walkDistanceToMotion / delay))
+	if motion < 0 {
+		return 0
+	}
+	return motion % len(action.Animations)
 }
 
 func selectHeadMotion(actionFamily int, bodyMotion int, headAction res.ACTAction) int {

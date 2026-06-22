@@ -130,6 +130,18 @@ func TestHumanoidWalkBodyMotionScalesWithMoveSpeed(t *testing.T) {
 	}
 }
 
+func TestWalkBodyMotionUsesDistancePhase(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    150,
+	}
+	started := time.Unix(0, 0)
+	state := spriteState{actionFamily: spriteActionWalk, moveSpeedMS: 400, walkDistance: 1}
+	if got := bodyMotionForState(action, state, started, started.Add(399*time.Millisecond)); got != 1 {
+		t.Fatalf("walk body motion = %d, want distance-driven 1", got)
+	}
+}
+
 func TestTransientBodyMotionPlaysOnceFromStateStart(t *testing.T) {
 	action := res.ACTAction{
 		Animations: []res.ACTAnimation{{}, {}, {}},

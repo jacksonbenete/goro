@@ -1603,17 +1603,19 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 		view = loaded
 		log.Printf("actor sprite resources id=%d job=%d head=%d sex=%d %s", actor.ID, key.job, key.head, key.sex, status)
 	}
+	now := time.Now()
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
-		moving:       actor.IsMovingAt(time.Now()),
+		moving:       actor.IsMovingAt(now),
 		moveSpeedMS:  actor.Speed,
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk
 		state.loop = true
+		state.walkDistance = actor.RenderWalkDistance(now)
 	}
-	if anim, ok := m.actorAnimation(actor.ID, time.Now()); ok {
+	if anim, ok := m.actorAnimation(actor.ID, now); ok {
 		state.actionFamily = anim.actionFamily
 		state.started = anim.started
 		state.loop = false
@@ -1639,17 +1641,19 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 		view = loaded
 		log.Printf("nonpc sprite resources id=%d job=%d %s", actor.ID, job, status)
 	}
+	now := time.Now()
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
-		moving:       actor.IsMovingAt(time.Now()),
+		moving:       actor.IsMovingAt(now),
 		moveSpeedMS:  actor.Speed,
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk
 		state.loop = true
+		state.walkDistance = actor.RenderWalkDistance(now)
 	}
-	if anim, ok := m.actorAnimation(actor.ID, time.Now()); ok {
+	if anim, ok := m.actorAnimation(actor.ID, now); ok {
 		state.actionFamily = anim.actionFamily
 		state.started = anim.started
 		state.loop = false

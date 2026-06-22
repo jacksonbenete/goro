@@ -150,6 +150,70 @@ func TestActorRenderPositionFollowsSpeedScaledWalkPath(t *testing.T) {
 	}
 }
 
+func TestActorRenderWalkDistanceFollowsSpeedScaledPath(t *testing.T) {
+	now := time.Now()
+	actor := Actor{
+		X:            2,
+		Y:            0,
+		Moving:       true,
+		FromX:        0,
+		FromY:        0,
+		ToX:          2,
+		ToY:          0,
+		Speed:        400,
+		MoveStarted:  now.Add(-600 * time.Millisecond),
+		MoveDuration: 800 * time.Millisecond,
+		MovePath: []WalkStep{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 2, Y: 0},
+		},
+	}
+
+	if got := actor.RenderWalkDistance(now); got != 1.5 {
+		t.Fatalf("walk distance = %.2f, want 1.50", got)
+	}
+}
+
+func TestUpsertActorMovePreservesWalkPhaseWhileAlreadyMoving(t *testing.T) {
+	w := New()
+	started := time.Now().Add(-200 * time.Millisecond)
+	w.Actors[2000001] = Actor{
+		ID:            2000001,
+		X:             1,
+		Y:             0,
+		Moving:        true,
+		FromX:         0,
+		FromY:         0,
+		ToX:           1,
+		ToY:           0,
+		Speed:         400,
+		MoveStarted:   started,
+		MoveDuration:  400 * time.Millisecond,
+		MovePath:      []WalkStep{{X: 0, Y: 0}, {X: 1, Y: 0}},
+		WalkDistance:  2,
+		Appearance:    true,
+		HasObjectType: true,
+	}
+
+	w.UpsertActor(Actor{
+		ID:     2000001,
+		X:      2,
+		Y:      0,
+		Moving: true,
+		FromX:  1,
+		FromY:  0,
+		ToX:    2,
+		ToY:    0,
+		Speed:  400,
+	})
+
+	actor := w.Actors[2000001]
+	if actor.WalkDistance <= 2 {
+		t.Fatalf("walk distance offset = %.2f, want preserved progress greater than 2", actor.WalkDistance)
+	}
+}
+
 func TestSetPlayerMovementInterpolatesLocalPlayer(t *testing.T) {
 	w := New()
 	w.SetPlayerMovement(10, 20, 12, 24, 3)
