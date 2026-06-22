@@ -730,8 +730,8 @@ func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
 		Resources: manager,
 		World:     &worldstate.World{MapName: "geffen_in"},
 	}
-	if got := cameraYawForMap(ctx); got != 45 {
-		t.Fatalf("indoor camera yaw = %.1f, want 45.0", got)
+	if got := cameraYawForMap(ctx); got != -45 {
+		t.Fatalf("indoor camera yaw = %.1f, want -45.0", got)
 	}
 	ctx.World.MapName = "prontera"
 	if got := cameraYawForMap(ctx); got != 123 {

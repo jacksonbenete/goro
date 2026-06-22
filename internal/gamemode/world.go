@@ -1365,7 +1365,7 @@ func cameraFollowFactor() float64 {
 
 func cameraYawForMap(ctx Context) float64 {
 	if ctx.Resources != nil && ctx.World != nil && ctx.Resources.IsIndoorMap(ctx.World.MapName) {
-		return 45
+		return -45
 	}
 	return sceneCameraYaw()
 }
