@@ -273,12 +273,16 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 	if isLocalActor(ctx, entry.ID) {
 		return
 	}
+	dir := entry.Dir
+	if entry.Moving {
+		dir = directionFromDelta(entry.FromX, entry.FromY, entry.ToX, entry.ToY, dir)
+	}
 	ctx.World.UpsertActor(worldstate.Actor{
 		ID:         entry.ID,
 		Name:       "actor",
 		X:          entry.X,
 		Y:          entry.Y,
-		Dir:        entry.Dir,
+		Dir:        dir,
 		Job:        entry.Job,
 		Head:       entry.Head,
 		Weapon:     entry.Weapon,
@@ -382,7 +386,8 @@ func isLocalActor(ctx Context, id uint32) bool {
 }
 
 func applySelfMoveAck(ctx Context, ack network.SelfMoveAck) {
-	ctx.World.SetPlayerMovement(ack.FromX, ack.FromY, ack.ToX, ack.ToY, ctx.World.Dir)
+	dir := directionFromDelta(ack.FromX, ack.FromY, ack.ToX, ack.ToY, ctx.World.Dir)
+	ctx.World.SetPlayerMovement(ack.FromX, ack.FromY, ack.ToX, ack.ToY, dir)
 	ctx.Session.PlayerX = ack.ToX
 	ctx.Session.PlayerY = ack.ToY
 }
@@ -413,6 +418,42 @@ func walkTargetInBounds(ctx Context, x, y int) bool {
 		return x < ctx.World.GND.Width && y < ctx.World.GND.Height
 	}
 	return x <= 1023 && y <= 1023
+}
+
+func directionFromDelta(fromX, fromY, toX, toY int, fallback int) int {
+	dx := signInt(toX - fromX)
+	dy := signInt(toY - fromY)
+	switch {
+	case dx == 0 && dy > 0:
+		return 0
+	case dx < 0 && dy > 0:
+		return 1
+	case dx < 0 && dy == 0:
+		return 2
+	case dx < 0 && dy < 0:
+		return 3
+	case dx == 0 && dy < 0:
+		return 4
+	case dx > 0 && dy < 0:
+		return 5
+	case dx > 0 && dy == 0:
+		return 6
+	case dx > 0 && dy > 0:
+		return 7
+	default:
+		return normalizeDirectionIndex(fallback)
+	}
+}
+
+func signInt(value int) int {
+	switch {
+	case value < 0:
+		return -1
+	case value > 0:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func cameraTargetHeightAt(world *worldstate.World, x, y float64) float64 {

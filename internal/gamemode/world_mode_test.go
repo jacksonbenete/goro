@@ -57,3 +57,31 @@ func TestApplyRemoteActorLookChangeUpdatesWorldActor(t *testing.T) {
 		t.Fatalf("remote head top = %d, want 7", actor.HeadTop)
 	}
 }
+
+func TestDirectionFromDeltaUsesRathenaDirectionOrder(t *testing.T) {
+	cases := []struct {
+		name string
+		toX  int
+		toY  int
+		want int
+	}{
+		{name: "north", toX: 10, toY: 11, want: 0},
+		{name: "northwest", toX: 9, toY: 11, want: 1},
+		{name: "west", toX: 9, toY: 10, want: 2},
+		{name: "southwest", toX: 9, toY: 9, want: 3},
+		{name: "south", toX: 10, toY: 9, want: 4},
+		{name: "southeast", toX: 11, toY: 9, want: 5},
+		{name: "east", toX: 11, toY: 10, want: 6},
+		{name: "northeast", toX: 11, toY: 11, want: 7},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := directionFromDelta(10, 10, tt.toX, tt.toY, 6); got != tt.want {
+				t.Fatalf("directionFromDelta = %d, want %d", got, tt.want)
+			}
+		})
+	}
+	if got := directionFromDelta(10, 10, 10, 10, -1); got != 7 {
+		t.Fatalf("stationary fallback = %d, want 7", got)
+	}
+}

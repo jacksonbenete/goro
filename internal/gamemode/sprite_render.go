@@ -287,7 +287,7 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX,
 	moving := ctx.World.Player.IsMovingAt(time.Now())
 	state := spriteState{
 		actionFamily: spriteActionIdle,
-		direction:    normalizeSpriteDirection(ctx.World.Dir),
+		direction:    ctx.World.Dir,
 		moving:       moving,
 	}
 	if moving {
@@ -313,7 +313,7 @@ func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now 
 	if view == nil || view.body == nil || view.body.act == nil || view.body.spr == nil {
 		return nil, false
 	}
-	state.direction = normalizeSpriteDirection(state.direction)
+	state.direction = spriteDirectionFromWorldDir(state.direction)
 	bodyActionIndex, bodyAction, ok := resolveSpriteAction(view.body.act, state.actionFamily, state.direction)
 	if !ok || len(bodyAction.Animations) == 0 {
 		return nil, false
@@ -670,7 +670,7 @@ func resolveSpriteAction(act *res.ACT, actionFamily, direction int) (int, res.AC
 	if act == nil || len(act.Actions) == 0 {
 		return 0, res.ACTAction{}, false
 	}
-	direction = normalizeSpriteDirection(direction)
+	direction = normalizeDirectionIndex(direction)
 	preferred := actionFamily*8 + direction
 	if preferred >= 0 && preferred < len(act.Actions) && len(act.Actions[preferred].Animations) > 0 {
 		return preferred, act.Actions[preferred], true
@@ -815,10 +815,14 @@ func spriteLayerCenter(centerX, centerY float64, layer res.ACTLayer) (float64, f
 	return centerX + float64(layer.X), centerY + float64(layer.Y)
 }
 
-func normalizeSpriteDirection(direction int) int {
+func normalizeDirectionIndex(direction int) int {
 	direction %= 8
 	if direction < 0 {
 		direction += 8
 	}
 	return direction
+}
+
+func spriteDirectionFromWorldDir(direction int) int {
+	return (normalizeDirectionIndex(direction) + 4) & 7
 }

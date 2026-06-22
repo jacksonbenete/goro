@@ -9,7 +9,7 @@ import (
 	"github.com/kivutar/goro/internal/res"
 )
 
-func TestNormalizeSpriteDirection(t *testing.T) {
+func TestNormalizeDirectionIndex(t *testing.T) {
 	cases := map[int]int{
 		0:  0,
 		7:  7,
@@ -18,8 +18,28 @@ func TestNormalizeSpriteDirection(t *testing.T) {
 		-9: 7,
 	}
 	for input, want := range cases {
-		if got := normalizeSpriteDirection(input); got != want {
-			t.Fatalf("normalizeSpriteDirection(%d) = %d, want %d", input, got, want)
+		if got := normalizeDirectionIndex(input); got != want {
+			t.Fatalf("normalizeDirectionIndex(%d) = %d, want %d", input, got, want)
+		}
+	}
+}
+
+func TestSpriteDirectionFromWorldDirShowsBackForNorth(t *testing.T) {
+	cases := map[int]int{
+		0:  4,
+		1:  5,
+		2:  6,
+		3:  7,
+		4:  0,
+		5:  1,
+		6:  2,
+		7:  3,
+		8:  4,
+		-1: 3,
+	}
+	for input, want := range cases {
+		if got := spriteDirectionFromWorldDir(input); got != want {
+			t.Fatalf("spriteDirectionFromWorldDir(%d) = %d, want %d", input, got, want)
 		}
 	}
 }
