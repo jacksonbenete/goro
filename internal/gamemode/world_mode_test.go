@@ -135,7 +135,7 @@ func TestClickedAttackTargetPicksMobOnly(t *testing.T) {
 	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
 	npcPoint := projection.Project(cellCenter(11), cellCenter(20), 0)
 
-	if actor, ok := clickedAttackTarget(ctx, projection, int(npcPoint.x), int(npcPoint.y), now); ok {
+	if actor, ok := clickedAttackTarget(ctx, projection, int(npcPoint.x), int(npcPoint.y), now, nil); ok {
 		t.Fatalf("npc should not be attack-clickable: %+v", actor)
 	}
 
@@ -148,7 +148,7 @@ func TestClickedAttackTargetPicksMobOnly(t *testing.T) {
 	})
 	mobPoint := projection.Project(cellCenter(12), cellCenter(20), 0)
 
-	actor, ok := clickedAttackTarget(ctx, projection, int(mobPoint.x), int(mobPoint.y), now)
+	actor, ok := clickedAttackTarget(ctx, projection, int(mobPoint.x), int(mobPoint.y), now, nil)
 	if !ok {
 		t.Fatal("expected mob hit")
 	}
@@ -498,6 +498,103 @@ func TestApplyActorActionNotifyUsesMobACTHitPhase(t *testing.T) {
 	}
 	if !mode.scheduledSounds[0].at.Equal(targetAnim.started) || mode.scheduledSounds[0].paths[0] != "poring_attack.wav" {
 		t.Fatalf("attack sound = %+v targetStarted=%s", mode.scheduledSounds[0], targetAnim.started)
+	}
+}
+
+func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{
+		nonPCViews: map[int]*playerSpriteView{
+			1002: {
+				act: &res.ACT{
+					Actions: []res.ACTAction{
+						{},
+						{},
+						{},
+						{},
+						{Animations: []res.ACTAnimation{{Sound: 0}, {Sound: -1}}, DelayMS: 100},
+					},
+					Sounds: []string{"poring_die.wav"},
+				},
+			},
+		},
+	}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000}},
+		World:   world,
+	}
+
+	mode.applyActorVanish(ctx, network.ActorVanish{ID: 300, Reason: 1})
+
+	if _, ok := world.Actors[300]; !ok {
+		t.Fatal("dead actor was removed immediately")
+	}
+	anim, ok := mode.actorAnims[300]
+	if !ok {
+		t.Fatal("death animation missing")
+	}
+	if anim.actionFamily != spriteActionNonPCDeath {
+		t.Fatalf("death action = %d, want %d", anim.actionFamily, spriteActionNonPCDeath)
+	}
+	if removeAt, ok := mode.actorDeaths[300]; !ok || !removeAt.After(anim.started) {
+		t.Fatalf("death removal time = %s ok=%t", removeAt, ok)
+	}
+	mode.processNonPCMotionSound(ctx, world.Actors[300], anim.started)
+	if len(mode.scheduledSounds) != 1 || mode.scheduledSounds[0].paths[0] != "poring_die.wav" {
+		t.Fatalf("death sounds = %+v", mode.scheduledSounds)
+	}
+
+	mode.cleanupDeadActors(ctx, mode.actorDeaths[300].Add(time.Millisecond))
+	if _, ok := world.Actors[300]; ok {
+		t.Fatal("dead actor was not removed after death hold")
+	}
+}
+
+func TestProcessNonPCMotionSoundSchedulesIdleACTSound(t *testing.T) {
+	now := time.Unix(10, 0)
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	actor := worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	}
+	world.UpsertActor(actor)
+	mode := &WorldMode{
+		nonPCViews: map[int]*playerSpriteView{
+			1002: {
+				started: now,
+				act: &res.ACT{
+					Actions: []res.ACTAction{
+						{Animations: []res.ACTAnimation{{Sound: 0}, {Sound: -1}}, DelayMS: 100},
+					},
+					Sounds: []string{"poring_idle.wav"},
+				},
+			},
+		},
+	}
+	ctx := Context{World: world}
+
+	mode.processNonPCMotionSound(ctx, actor, now)
+	mode.processNonPCMotionSound(ctx, actor, now)
+
+	if len(mode.scheduledSounds) != 1 {
+		t.Fatalf("scheduled sounds = %+v, want one idle sound", mode.scheduledSounds)
+	}
+	if mode.scheduledSounds[0].paths[0] != "poring_idle.wav" {
+		t.Fatalf("idle sound = %+v", mode.scheduledSounds[0])
 	}
 }
 

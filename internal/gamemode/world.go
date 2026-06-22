@@ -23,29 +23,31 @@ import (
 )
 
 type WorldMode struct {
-	status          string
-	walkCooldown    int
-	tickCooldown    int
-	camera          followCamera
-	whitePixel      *ebiten.Image
-	textures        map[string]*ebiten.Image
-	textureMiss     map[string]struct{}
-	rswMarkers      bool
-	rsmRender       bool
-	playerView      *humanoidSpriteView
-	actorViews      map[actorSpriteKey]*humanoidSpriteView
-	actorViewMiss   map[actorSpriteKey]struct{}
-	nonPCViews      map[int]*playerSpriteView
-	nonPCViewMiss   map[int]struct{}
-	rsmDebugLog     map[string]struct{}
-	pendingWarp     bool
-	pendingAttack   attackIntent
-	lockedAttackID  uint32
-	lastAttackAt    time.Time
-	lastChaseAt     time.Time
-	actorAnims      map[uint32]actorAnimation
-	damageFloaters  []damageFloater
-	scheduledSounds []scheduledSound
+	status           string
+	walkCooldown     int
+	tickCooldown     int
+	camera           followCamera
+	whitePixel       *ebiten.Image
+	textures         map[string]*ebiten.Image
+	textureMiss      map[string]struct{}
+	rswMarkers       bool
+	rsmRender        bool
+	playerView       *humanoidSpriteView
+	actorViews       map[actorSpriteKey]*humanoidSpriteView
+	actorViewMiss    map[actorSpriteKey]struct{}
+	nonPCViews       map[int]*playerSpriteView
+	nonPCViewMiss    map[int]struct{}
+	rsmDebugLog      map[string]struct{}
+	pendingWarp      bool
+	pendingAttack    attackIntent
+	lockedAttackID   uint32
+	lastAttackAt     time.Time
+	lastChaseAt      time.Time
+	actorAnims       map[uint32]actorAnimation
+	damageFloaters   []damageFloater
+	scheduledSounds  []scheduledSound
+	actorDeaths      map[uint32]time.Time
+	actorSoundFrames map[uint32]actorSoundFrame
 }
 
 type actorSpriteKey struct {
@@ -79,6 +81,12 @@ type scheduledSound struct {
 	paths []string
 }
 
+type actorSoundFrame struct {
+	actionFamily int
+	motion       int
+	soundIndex   int
+}
+
 type actorAnimation struct {
 	actionFamily int
 	started      time.Time
@@ -90,7 +98,10 @@ const attackRetryInterval = 1200 * time.Millisecond
 const (
 	defaultAttackAnimationDuration = 600 * time.Millisecond
 	defaultHitAnimationDuration    = 250 * time.Millisecond
+	defaultDeathAnimationDuration  = 900 * time.Millisecond
 	maxCombatAnimationDuration     = 5 * time.Second
+	deathCorpseHoldDuration        = 1290 * time.Millisecond
+	deathFadeDuration              = 510 * time.Millisecond
 )
 
 func NewWorldMode() *WorldMode {
@@ -127,6 +138,8 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.actorAnims = make(map[uint32]actorAnimation)
 	m.damageFloaters = nil
 	m.scheduledSounds = nil
+	m.actorDeaths = make(map[uint32]time.Time)
+	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
@@ -239,14 +252,13 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if vanish, ok, err := network.ParseActorVanish(pkt); err != nil {
 			log.Printf("parse actor vanish 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			removeNetworkActor(ctx, vanish)
+			m.applyActorVanish(ctx, vanish)
 			if m.pendingAttack.targetID == vanish.ID {
 				m.pendingAttack = attackIntent{}
 			}
 			if m.lockedAttackID == vanish.ID {
 				m.clearLockedAttack()
 			}
-			delete(m.actorAnims, vanish.ID)
 			continue
 		}
 		if look, ok, err := network.ParseActorLookChange(pkt); err != nil {
@@ -284,6 +296,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
 			log.Printf("parse actor entry 0x%04X: %v", pkt.ID, err)
 		} else if ok {
+			m.clearActorDeath(entry.ID)
 			upsertNetworkActor(ctx, entry)
 		}
 	}
@@ -293,7 +306,10 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 
 	m.processPendingAttack(ctx)
 	m.processLockedAttack(ctx)
-	m.playDueScheduledSounds(ctx, time.Now())
+	now := time.Now()
+	m.cleanupDeadActors(ctx, now)
+	m.processActorMotionSounds(ctx, now)
+	m.playDueScheduledSounds(ctx, now)
 
 	if m.tickCooldown > 0 {
 		m.tickCooldown--
@@ -306,7 +322,6 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		}
 	}
 
-	now := time.Now()
 	m.camera.Update(ctx, now)
 
 	dx, dy := 0, 0
@@ -327,7 +342,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	}
 	if ctx.Input.MouseJustPressed(ebiten.MouseButtonLeft) && m.walkCooldown == 0 {
 		projection := m.sceneProjection(ctx, ctx.Config.Window.Width, ctx.Config.Window.Height, now)
-		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
+		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
 			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
 			m.requestAttack(ctx, actor, "click")
 			return nil, nil
@@ -735,6 +750,13 @@ func hurtActionFamilyForActor(actor worldstate.Actor) int {
 	return spriteActionNonPCHurt
 }
 
+func deathActionFamilyForActor(actor worldstate.Actor) int {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		return spriteActionPCDeath
+	}
+	return spriteActionNonPCDeath
+}
+
 func isSecondPCAttack(job int, sex byte, weaponValue int) bool {
 	weaponType := res.PlayerWeaponType(weaponValue)
 	switch job {
@@ -779,6 +801,31 @@ func combatDuration(speed int32, fallback time.Duration) time.Duration {
 		return maxCombatAnimationDuration
 	}
 	return duration
+}
+
+func actionAnimationDuration(action res.ACTAction, fallback time.Duration) time.Duration {
+	if len(action.Animations) == 0 {
+		return fallback
+	}
+	delayMS := float64(action.DelayMS)
+	if delayMS <= 0 {
+		delayMS = 150
+	}
+	duration := time.Duration(delayMS * float64(time.Millisecond) * float64(len(action.Animations)))
+	if duration <= 0 {
+		return fallback
+	}
+	if duration > maxCombatAnimationDuration {
+		return maxCombatAnimationDuration
+	}
+	return duration
+}
+
+func maxDuration(a, b time.Duration) time.Duration {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func combatHitDelayFromAction(action res.ACTAction, duration time.Duration) time.Duration {
@@ -827,6 +874,16 @@ func (m *WorldMode) nonPCActionACT(ctx Context, actor worldstate.Actor) *res.ACT
 		return nil
 	}
 	return view.act
+}
+
+func (m *WorldMode) actorActionDuration(ctx Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		return fallback
+	}
+	if action, ok := m.nonPCResolvedAction(ctx, actor, actionFamily); ok {
+		return actionAnimationDuration(action, fallback)
+	}
+	return fallback
 }
 
 func combatHitSFXCandidates(source worldstate.Actor, sourceOK bool, target worldstate.Actor, targetOK bool) []string {
@@ -886,6 +943,63 @@ func (m *WorldMode) playDueScheduledSounds(ctx Context, now time.Time) {
 		m.playSFXFirst(ctx, sound.paths...)
 	}
 	m.scheduledSounds = active
+}
+
+func (m *WorldMode) processActorMotionSounds(ctx Context, now time.Time) {
+	if ctx.World == nil || len(ctx.World.Actors) == 0 {
+		return
+	}
+	for _, actor := range ctx.World.Actors {
+		m.processNonPCMotionSound(ctx, actor, now)
+	}
+}
+
+func (m *WorldMode) processNonPCMotionSound(ctx Context, actor worldstate.Actor, now time.Time) {
+	if actor.ID == 0 || res.HasPlayerJobToken(int(actor.Job)) || !actorWithinSoundRange(ctx, actor, now) {
+		return
+	}
+	view := m.nonPCSpriteView(ctx, actor)
+	if view == nil || view.act == nil {
+		return
+	}
+	state := m.nonPCSpriteState(actor, now)
+	switch state.actionFamily {
+	case spriteActionNonPCAttack, spriteActionNonPCHurt:
+		return
+	}
+	_, action, ok := resolveSpriteAction(view.act, state.actionFamily, state.direction)
+	if !ok || len(action.Animations) == 0 {
+		return
+	}
+	motion := bodyMotionForState(action, state, view.started, now)
+	if motion < 0 || motion >= len(action.Animations) {
+		return
+	}
+	soundIndex := action.Animations[motion].Sound
+	current := actorSoundFrame{actionFamily: state.actionFamily, motion: motion, soundIndex: soundIndex}
+	if m.actorSoundFrames == nil {
+		m.actorSoundFrames = make(map[uint32]actorSoundFrame)
+	}
+	if previous, ok := m.actorSoundFrames[actor.ID]; ok && previous == current {
+		return
+	}
+	m.actorSoundFrames[actor.ID] = current
+	if soundIndex < 0 {
+		return
+	}
+	if sound := actionSoundName(view.act, action, motion); sound != "" {
+		m.scheduleSound(now, sound)
+	}
+}
+
+func actorWithinSoundRange(ctx Context, actor worldstate.Actor, now time.Time) bool {
+	if ctx.World == nil {
+		return false
+	}
+	actorX, actorY := actor.RenderPosition(now)
+	playerX, playerY := ctx.World.Player.RenderPosition(now)
+	const soundRangeCells = 25
+	return math.Hypot(actorX-playerX, actorY-playerY) <= soundRangeCells
 }
 
 func (m *WorldMode) playSFXFirst(ctx Context, paths ...string) {
@@ -1283,11 +1397,78 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 	})
 }
 
-func removeNetworkActor(ctx Context, vanish network.ActorVanish) {
-	if isLocalActor(ctx, vanish.ID) {
+func (m *WorldMode) applyActorVanish(ctx Context, vanish network.ActorVanish) {
+	log.Printf("actor vanish id=%d reason=%d", vanish.ID, vanish.Reason)
+	if vanish.Reason == 1 {
+		m.startActorDeath(ctx, vanish.ID)
 		return
 	}
 	ctx.World.RemoveActor(vanish.ID)
+	delete(m.actorAnims, vanish.ID)
+	delete(m.actorDeaths, vanish.ID)
+	delete(m.actorSoundFrames, vanish.ID)
+}
+
+func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
+	actor, ok, local := actorForCombatID(ctx, id)
+	if !ok {
+		if !local {
+			ctx.World.RemoveActor(id)
+		}
+		return
+	}
+	now := time.Now()
+	actor.Moving = false
+	actor.FromX = actor.X
+	actor.FromY = actor.Y
+	actor.ToX = actor.X
+	actor.ToY = actor.Y
+	actor.MovePath = nil
+	actor.WalkDistance = 0
+	if local {
+		ctx.World.Player.Moving = false
+	} else {
+		ctx.World.UpsertActor(actor)
+	}
+	actionFamily := deathActionFamilyForActor(actor)
+	deathDuration := m.actorActionDuration(ctx, actor, actionFamily, defaultDeathAnimationDuration)
+	visibleDuration := maxDuration(deathDuration, deathCorpseHoldDuration) + deathFadeDuration
+	m.startCombatAnimation(ctx, id, actionFamily, now, visibleDuration)
+	if !local {
+		if m.actorDeaths == nil {
+			m.actorDeaths = make(map[uint32]time.Time)
+		}
+		m.actorDeaths[id] = now.Add(visibleDuration)
+	}
+	log.Printf("actor death id=%d job=%d local=%t action=%d death_ms=%d remove_ms=%d", id, actor.Job, local, actionFamily, deathDuration.Milliseconds(), visibleDuration.Milliseconds())
+}
+
+func (m *WorldMode) cleanupDeadActors(ctx Context, now time.Time) {
+	if len(m.actorDeaths) == 0 || ctx.World == nil {
+		return
+	}
+	for id, removeAt := range m.actorDeaths {
+		if now.Before(removeAt) {
+			continue
+		}
+		ctx.World.RemoveActor(id)
+		delete(m.actorDeaths, id)
+		delete(m.actorAnims, id)
+		delete(m.actorSoundFrames, id)
+		if m.pendingAttack.targetID == id {
+			m.pendingAttack = attackIntent{}
+		}
+		if m.lockedAttackID == id {
+			m.clearLockedAttack()
+		}
+		log.Printf("actor death removed id=%d", id)
+	}
+}
+
+func (m *WorldMode) clearActorDeath(id uint32) {
+	delete(m.actorDeaths, id)
+	delete(m.actorAnims, id)
+	delete(m.actorSoundFrames, id)
 }
 
 func applyActorLookChange(ctx Context, look network.ActorLookChange) bool {
@@ -1486,13 +1667,16 @@ func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY i
 	return bestX, bestY, bestDistance < math.Inf(1)
 }
 
-func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.Actor, bool) {
+func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
 	if ctx.World == nil {
 		return worldstate.Actor{}, false
 	}
 	bestDistance := math.Inf(1)
 	var best worldstate.Actor
 	for _, actor := range ctx.World.Actors {
+		if _, dead := deadActors[actor.ID]; dead {
+			continue
+		}
 		if !actorCanBeAttackClicked(ctx, actor) {
 			continue
 		}
@@ -1831,6 +2015,11 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 		return false
 	}
 	now := time.Now()
+	state := m.nonPCSpriteState(actor, now)
+	return drawSingleSpriteBillboard(screen, view, state, centerX, centerY, scale)
+}
+
+func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spriteState {
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
@@ -1848,8 +2037,9 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 		state.started = anim.started
 		state.loop = false
 		state.moving = false
+		state.loopIdle = false
 	}
-	return drawSingleSpriteBillboard(screen, view, state, centerX, centerY, scale)
+	return state
 }
 
 func (m *WorldMode) nonPCSpriteView(ctx Context, actor worldstate.Actor) *playerSpriteView {
