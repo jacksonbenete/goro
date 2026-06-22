@@ -17,6 +17,15 @@ const (
 )
 
 const (
+	spriteActionNonPCAttack = 2
+	spriteActionNonPCHurt   = 3
+	spriteActionPCAttack1   = 5
+	spriteActionPCHurt      = 6
+	spriteActionPCAttack2   = 10
+	spriteActionPCAttack3   = 11
+)
+
+const (
 	humanoidBillboardWidth   = 160
 	humanoidBillboardHeight  = 160
 	humanoidBillboardAnchorX = 80
@@ -90,6 +99,8 @@ type spriteState struct {
 	actionFamily int
 	direction    int
 	moving       bool
+	started      time.Time
+	loop         bool
 }
 
 func loadPlayerSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
@@ -299,7 +310,8 @@ func selectedCharacter(s *session.Session) session.Character {
 }
 
 func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64, direction int) bool {
-	moving := ctx.World.Player.IsMovingAt(time.Now())
+	now := time.Now()
+	moving := ctx.World.Player.IsMovingAt(now)
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    direction,
@@ -307,6 +319,20 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX,
 	}
 	if moving {
 		state.actionFamily = spriteActionWalk
+		state.loop = true
+	}
+	if ctx.Session != nil {
+		if anim, ok := m.actorAnimation(ctx.Session.CharID, now); ok {
+			state.actionFamily = anim.actionFamily
+			state.started = anim.started
+			state.loop = false
+			state.moving = false
+		} else if anim, ok := m.actorAnimation(ctx.Session.AccountID, now); ok {
+			state.actionFamily = anim.actionFamily
+			state.started = anim.started
+			state.loop = false
+			state.moving = false
+		}
 	}
 	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY, scale)
 }
@@ -810,6 +836,9 @@ func resolveSpriteAction(act *res.ACT, actionFamily, direction int) (int, res.AC
 	if preferred >= 0 && preferred < len(act.Actions) && len(act.Actions[preferred].Animations) > 0 {
 		return preferred, act.Actions[preferred], true
 	}
+	if actionFamily >= 0 && actionFamily < len(act.Actions) && len(act.Actions[actionFamily].Animations) > 0 {
+		return actionFamily, act.Actions[actionFamily], true
+	}
 	base := actionFamily * 8
 	if base >= 0 && base < len(act.Actions) && len(act.Actions[base].Animations) > 0 {
 		return base, act.Actions[base], true
@@ -845,6 +874,15 @@ func spriteMotionIndex(action res.ACTAction, started time.Time, now time.Time, l
 }
 
 func bodyMotionForState(action res.ACTAction, state spriteState, started time.Time, now time.Time) int {
+	if !state.started.IsZero() {
+		started = state.started
+	}
+	if state.actionFamily == spriteActionWalk || state.loop {
+		return spriteMotionIndex(action, started, now, true)
+	}
+	if !state.started.IsZero() {
+		return spriteMotionIndex(action, started, now, false)
+	}
 	if state.actionFamily != spriteActionWalk {
 		return 0
 	}
@@ -858,7 +896,19 @@ func selectHeadMotion(actionFamily int, bodyMotion int, headAction res.ACTAction
 	if actionFamily == spriteActionWalk && bodyMotion >= 0 && bodyMotion < len(headAction.Animations) {
 		return bodyMotion
 	}
+	if isTransientPCAction(actionFamily) && bodyMotion >= 0 && bodyMotion < len(headAction.Animations) {
+		return bodyMotion
+	}
 	return 0
+}
+
+func isTransientPCAction(actionFamily int) bool {
+	switch actionFamily {
+	case spriteActionPCAttack1, spriteActionPCHurt, spriteActionPCAttack2, spriteActionPCAttack3:
+		return true
+	default:
+		return false
+	}
 }
 
 func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) bool {

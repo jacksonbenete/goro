@@ -69,6 +69,18 @@ func TestResolveSpriteActionFallsBackToFamilyBase(t *testing.T) {
 	}
 }
 
+func TestResolveSpriteActionUsesDirectIndexForCompactNonPCAct(t *testing.T) {
+	act := &res.ACT{Actions: make([]res.ACTAction, 5)}
+	act.Actions[spriteActionNonPCAttack] = res.ACTAction{Animations: []res.ACTAnimation{{}}, DelayMS: 100}
+	index, _, ok := resolveSpriteAction(act, spriteActionNonPCAttack, 4)
+	if !ok {
+		t.Fatal("expected action")
+	}
+	if index != spriteActionNonPCAttack {
+		t.Fatalf("index = %d, want %d", index, spriteActionNonPCAttack)
+	}
+}
+
 func TestSpriteMotionIndexUsesActionDelay(t *testing.T) {
 	action := res.ACTAction{
 		Animations: []res.ACTAnimation{{}, {}, {}},
@@ -103,6 +115,22 @@ func TestHumanoidWalkBodyMotionAnimates(t *testing.T) {
 	}
 }
 
+func TestTransientBodyMotionPlaysOnceFromStateStart(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    100,
+	}
+	started := time.Unix(10, 0)
+	got := bodyMotionForState(action, spriteState{actionFamily: spriteActionPCAttack2, started: started}, time.Unix(0, 0), started.Add(250*time.Millisecond))
+	if got != 2 {
+		t.Fatalf("attack body motion = %d, want 2", got)
+	}
+	got = bodyMotionForState(action, spriteState{actionFamily: spriteActionPCAttack2, started: started}, time.Unix(0, 0), started.Add(500*time.Millisecond))
+	if got != 2 {
+		t.Fatalf("finished attack body motion = %d, want final frame 2", got)
+	}
+}
+
 func TestAttachmentDeltaMatchesAttachPointAttribute(t *testing.T) {
 	base := res.ACTAnimation{Pos: []res.ACTPosition{
 		{X: 1, Y: 2, Attr: 7},
@@ -134,6 +162,16 @@ func TestHumanoidWalkHeadMotionFollowsBodyMotion(t *testing.T) {
 	}
 	if got := selectHeadMotion(spriteActionWalk, 2, action); got != 2 {
 		t.Fatalf("walk head motion = %d, want 2", got)
+	}
+}
+
+func TestHumanoidTransientHeadMotionFollowsBodyMotion(t *testing.T) {
+	action := res.ACTAction{
+		Animations: []res.ACTAnimation{{}, {}, {}},
+		DelayMS:    100,
+	}
+	if got := selectHeadMotion(spriteActionPCAttack2, 2, action); got != 2 {
+		t.Fatalf("attack head motion = %d, want 2", got)
 	}
 }
 

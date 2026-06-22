@@ -43,6 +43,7 @@ type WorldMode struct {
 	lockedAttackID uint32
 	lastAttackAt   time.Time
 	lastChaseAt    time.Time
+	actorAnims     map[uint32]actorAnimation
 	damageFloaters []damageFloater
 }
 
@@ -68,10 +69,23 @@ type damageFloater struct {
 	x       int
 	y       int
 	text    string
+	starts  time.Time
 	expires time.Time
 }
 
+type actorAnimation struct {
+	actionFamily int
+	started      time.Time
+	duration     time.Duration
+}
+
 const attackRetryInterval = 1200 * time.Millisecond
+
+const (
+	defaultAttackAnimationDuration = 600 * time.Millisecond
+	defaultHitAnimationDuration    = 250 * time.Millisecond
+	maxCombatAnimationDuration     = 5 * time.Second
+)
 
 func NewWorldMode() *WorldMode {
 	return &WorldMode{}
@@ -100,6 +114,12 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmDebugLog = make(map[string]struct{})
 	m.pendingWarp = false
+	m.pendingAttack = attackIntent{}
+	m.lockedAttackID = 0
+	m.lastAttackAt = time.Time{}
+	m.lastChaseAt = time.Time{}
+	m.actorAnims = make(map[uint32]actorAnimation)
+	m.damageFloaters = nil
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
@@ -219,6 +239,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			if m.lockedAttackID == vanish.ID {
 				m.clearLockedAttack()
 			}
+			delete(m.actorAnims, vanish.ID)
 			continue
 		}
 		if look, ok, err := network.ParseActorLookChange(pkt); err != nil {
@@ -558,9 +579,28 @@ func (m *WorldMode) sendAttackAction(ctx Context, actor worldstate.Actor, source
 
 func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {
 	log.Printf("actor action src=%d dst=%d damage=%d left_damage=%d hits=%d action=%d src_speed=%d dst_speed=%d tick=%d", action.SourceID, action.TargetID, action.Damage, action.LeftDamage, action.HitCount, action.Action, action.SourceSpeed, action.TargetSpeed, action.ServerTick)
+	now := time.Now()
+	source, sourceOK, sourceLocal := actorForCombatID(ctx, action.SourceID)
+	target, targetOK, targetLocal := actorForCombatID(ctx, action.TargetID)
+	if sourceOK && targetOK {
+		m.faceCombatSource(ctx, source, sourceLocal, target)
+	}
+	if sourceOK {
+		m.startCombatAnimation(ctx, action.SourceID, attackActionFamilyForActor(source), now, combatDuration(action.SourceSpeed, defaultAttackAnimationDuration))
+	}
+	hitAt := now.Add(combatDuration(action.SourceSpeed, 0))
+	if targetOK && actionHasHitReaction(action) {
+		if hitAt.Before(now) {
+			hitAt = now
+		}
+		m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
+		if targetLocal {
+			ctx.World.Player.Moving = false
+		}
+	}
 	x, y := ctx.World.Player.X, ctx.World.Player.Y
-	if actor, ok := ctx.World.Actors[action.TargetID]; ok {
-		x, y = actor.X, actor.Y
+	if targetOK {
+		x, y = target.X, target.Y
 	} else if isLocalActor(ctx, action.TargetID) {
 		x, y = ctx.World.Player.X, ctx.World.Player.Y
 	}
@@ -573,8 +613,157 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		x:       x,
 		y:       y,
 		text:    text,
-		expires: time.Now().Add(900 * time.Millisecond),
+		starts:  hitAt,
+		expires: hitAt.Add(900 * time.Millisecond),
 	})
+}
+
+func actorForCombatID(ctx Context, id uint32) (worldstate.Actor, bool, bool) {
+	if ctx.World == nil || id == 0 {
+		return worldstate.Actor{}, false, false
+	}
+	if isLocalActor(ctx, id) {
+		actor := ctx.World.Player
+		character := selectedCharacter(ctx.Session)
+		actor.ID = id
+		actor.Job = character.Job
+		actor.Head = character.Hair
+		actor.Weapon = character.Weapon
+		actor.Shield = character.Shield
+		actor.HeadTop = character.HeadTop
+		actor.HeadMid = character.HeadMid
+		actor.HeadLow = character.HeadLow
+		actor.Sex = ctx.Session.Sex
+		actor.Appearance = true
+		return actor, true, true
+	}
+	actor, ok := ctx.World.Actors[id]
+	return actor, ok, false
+}
+
+func (m *WorldMode) faceCombatSource(ctx Context, source worldstate.Actor, sourceLocal bool, target worldstate.Actor) {
+	dir := directionFromDelta(source.X, source.Y, target.X, target.Y, source.Dir)
+	if sourceLocal {
+		ctx.World.Player.Dir = dir
+		ctx.World.Dir = dir
+		return
+	}
+	source.Dir = dir
+	ctx.World.UpsertActor(source)
+}
+
+func (m *WorldMode) startActorAnimation(id uint32, actionFamily int, started time.Time, duration time.Duration) {
+	if id == 0 || actionFamily < 0 {
+		return
+	}
+	if m.actorAnims == nil {
+		m.actorAnims = make(map[uint32]actorAnimation)
+	}
+	m.actorAnims[id] = actorAnimation{
+		actionFamily: actionFamily,
+		started:      started,
+		duration:     duration,
+	}
+}
+
+func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
+	m.startActorAnimation(id, actionFamily, started, duration)
+	if ctx.Session == nil || !isLocalActor(ctx, id) {
+		return
+	}
+	m.startActorAnimation(ctx.Session.AccountID, actionFamily, started, duration)
+	m.startActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
+}
+
+func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bool) {
+	if m.actorAnims == nil || id == 0 {
+		return actorAnimation{}, false
+	}
+	anim, ok := m.actorAnims[id]
+	if !ok {
+		return actorAnimation{}, false
+	}
+	if anim.duration <= 0 {
+		anim.duration = defaultAttackAnimationDuration
+	}
+	if now.Before(anim.started) {
+		return actorAnimation{}, false
+	}
+	if !now.Before(anim.started.Add(anim.duration)) {
+		delete(m.actorAnims, id)
+		return actorAnimation{}, false
+	}
+	return anim, true
+}
+
+func attackActionFamilyForActor(actor worldstate.Actor) int {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		if isSecondPCAttack(int(actor.Job), actor.Sex, int(actor.Weapon)) {
+			return spriteActionPCAttack3
+		}
+		return spriteActionPCAttack2
+	}
+	return spriteActionNonPCAttack
+}
+
+func hurtActionFamilyForActor(actor worldstate.Actor) int {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		return spriteActionPCHurt
+	}
+	return spriteActionNonPCHurt
+}
+
+func isSecondPCAttack(job int, sex byte, weaponValue int) bool {
+	weaponType := res.PlayerWeaponType(weaponValue)
+	switch job {
+	case 0, 23, 4001, 4045:
+		if sex != 0 {
+			return weaponType == 2 || weaponType == 3 || (weaponType >= 6 && weaponType <= 10) || weaponType == 23
+		}
+		return weaponType == 1
+	case 1, 7, 13, 14, 21:
+		return weaponType >= 4 && weaponType <= 5
+	case 2, 5:
+		return weaponType == 1
+	case 3:
+		return weaponType != 11
+	case 6, 11, 17, 19, 20:
+		return weaponType == 11
+	case 8:
+		return weaponType == 15
+	case 10, 18:
+		return weaponType == 2 || (weaponType > 5 && weaponType <= 8)
+	case 12:
+		return weaponType == 16 || (weaponType > 24 && weaponType <= 30)
+	case 15:
+		return weaponType == 0 || weaponType == 12
+	case 16:
+		return weaponType == 5 || weaponType == 10 || weaponType == 15 || weaponType == 23
+	case 24:
+		return weaponType >= 18 && weaponType <= 21
+	case 25:
+		return weaponType == 22
+	default:
+		return false
+	}
+}
+
+func combatDuration(speed int32, fallback time.Duration) time.Duration {
+	if speed <= 0 {
+		return fallback
+	}
+	duration := time.Duration(speed) * time.Millisecond
+	if duration > maxCombatAnimationDuration {
+		return maxCombatAnimationDuration
+	}
+	return duration
+}
+
+func actionHasHitReaction(action network.ActorActionNotify) bool {
+	if action.Action == 4 || action.Action == 9 || action.Action == 11 {
+		return false
+	}
+	return action.Damage > 0 || action.LeftDamage > 0
 }
 
 func (m *WorldMode) applyAttackFailureForDistance(ctx Context, failure network.AttackFailureForDistance) {
@@ -696,6 +885,9 @@ func (m *WorldMode) drawDamageFloaters(screen *ebiten.Image, ctx Context, projec
 			continue
 		}
 		active = append(active, floater)
+		if now.Before(floater.starts) {
+			continue
+		}
 		x, y := float64(floater.x), float64(floater.y)
 		if actor, ok := ctx.World.Actors[floater.actorID]; ok {
 			x, y = actor.RenderPosition(now)
@@ -971,7 +1163,7 @@ func applyWorldActorLookChange(actor *worldstate.Actor, look network.ActorLookCh
 }
 
 func isLocalActor(ctx Context, id uint32) bool {
-	return id != 0 && (id == ctx.Session.AccountID || id == ctx.Session.CharID)
+	return ctx.Session != nil && id != 0 && (id == ctx.Session.AccountID || id == ctx.Session.CharID)
 }
 
 func applySelfMoveAck(ctx Context, ack network.SelfMoveAck) {
@@ -1417,6 +1609,13 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk
+		state.loop = true
+	}
+	if anim, ok := m.actorAnimation(actor.ID, time.Now()); ok {
+		state.actionFamily = anim.actionFamily
+		state.started = anim.started
+		state.loop = false
+		state.moving = false
 	}
 	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale)
 }
@@ -1445,6 +1644,13 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk
+		state.loop = true
+	}
+	if anim, ok := m.actorAnimation(actor.ID, time.Now()); ok {
+		state.actionFamily = anim.actionFamily
+		state.started = anim.started
+		state.loop = false
+		state.moving = false
 	}
 	return drawSingleSpriteBillboard(screen, view, state, centerX, centerY, scale)
 }

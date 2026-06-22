@@ -301,6 +301,62 @@ func TestApplyParameterChangeUpdatesVitals(t *testing.T) {
 	}
 }
 
+func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+			Sex:       0,
+			Selected:  session.Character{ID: 150000, Job: 0, Hair: 1, Weapon: 1201},
+		},
+		World: world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      42,
+		Action:      0,
+	})
+
+	sourceAnim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("local character animation missing")
+	}
+	if sourceAnim.actionFamily != spriteActionPCAttack3 {
+		t.Fatalf("source action = %d, want %d", sourceAnim.actionFamily, spriteActionPCAttack3)
+	}
+	targetAnim, ok := mode.actorAnims[300]
+	if !ok {
+		t.Fatal("target animation missing")
+	}
+	if targetAnim.actionFamily != spriteActionNonPCHurt {
+		t.Fatalf("target action = %d, want %d", targetAnim.actionFamily, spriteActionNonPCHurt)
+	}
+	if targetAnim.started.Sub(sourceAnim.started) != 580*time.Millisecond {
+		t.Fatalf("hit delay = %s, want 580ms", targetAnim.started.Sub(sourceAnim.started))
+	}
+	if world.Dir != worldstate.DirectionFromDelta(10, 20, 11, 20, 4) {
+		t.Fatalf("player dir = %d", world.Dir)
+	}
+	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
+		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
+	}
+}
+
 func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()
