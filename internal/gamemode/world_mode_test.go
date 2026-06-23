@@ -799,6 +799,62 @@ func TestWaterVisibleForCellUsesInvertedHeightConvention(t *testing.T) {
 	}
 }
 
+func TestClickedWalkCellByProjectedPolygonUsesWalkableGATCell(t *testing.T) {
+	world := worldstate.New()
+	world.Player.X = 5
+	world.Player.Y = 5
+	world.GAT = &res.GAT{
+		Width:  12,
+		Height: 12,
+		Cells:  make([]res.GATCell, 12*12),
+	}
+	for i := range world.GAT.Cells {
+		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
+	}
+	projection := sceneProjection{
+		playerX:     5.5,
+		playerY:     5.5,
+		centerX:     400,
+		centerY:     300,
+		tileW:       sceneTileW,
+		tileH:       sceneTileH,
+		heightScale: 2,
+	}
+	point := projection.Project(6.5, 5.5, 0)
+
+	x, y, ok := clickedWalkCellByProjectedPolygon(Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
+	if !ok || x != 6 || y != 5 {
+		t.Fatalf("clicked cell = %d,%d ok=%t, want 6,5 true", x, y, ok)
+	}
+}
+
+func TestClickedWalkCellByProjectedPolygonSkipsBlockedGATCell(t *testing.T) {
+	world := worldstate.New()
+	world.Player.X = 5
+	world.Player.Y = 5
+	world.GAT = &res.GAT{
+		Width:  12,
+		Height: 12,
+		Cells:  make([]res.GATCell, 12*12),
+	}
+	world.GAT.Cells[5*world.GAT.Width+6] = res.GATCell{Type: res.GATTypeNone}
+	projection := sceneProjection{
+		playerX:     5.5,
+		playerY:     5.5,
+		centerX:     400,
+		centerY:     300,
+		tileW:       sceneTileW,
+		tileH:       sceneTileH,
+		heightScale: 2,
+	}
+	point := projection.Project(6.5, 5.5, 0)
+
+	_, _, ok := clickedWalkCellByProjectedPolygon(Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
+	if ok {
+		t.Fatal("blocked cell should not be picked")
+	}
+}
+
 func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 1002})

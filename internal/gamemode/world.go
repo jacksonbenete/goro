@@ -1685,6 +1685,10 @@ func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY i
 		maxY = minInt(maxY, ctx.World.GND.Height*2-1)
 	}
 
+	if x, y, ok := clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY); ok {
+		return x, y, true
+	}
+
 	bestX, bestY := 0, 0
 	bestDistance := math.Inf(1)
 	for y := minY; y <= maxY; y++ {
@@ -1701,6 +1705,78 @@ func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY i
 		}
 	}
 	return bestX, bestY, bestDistance < math.Inf(1)
+}
+
+func clickedWalkCellByProjectedPolygon(ctx Context, projection sceneProjection, mouseX, mouseY, minX, maxX, minY, maxY int) (int, int, bool) {
+	if ctx.World == nil || ctx.World.GAT == nil {
+		return 0, 0, false
+	}
+	bestX, bestY := 0, 0
+	bestDepth := math.Inf(1)
+	found := false
+	for y := minY; y <= maxY; y++ {
+		for x := minX; x <= maxX; x++ {
+			if !ctx.World.GAT.Walkable(x, y) {
+				continue
+			}
+			points, depth, ok := projectedGATCell(projection, ctx.World.GAT, x, y)
+			if !ok {
+				continue
+			}
+			if !pointInProjectedGATCell(float64(mouseX), float64(mouseY), points) {
+				continue
+			}
+			if !found || depth < bestDepth {
+				found = true
+				bestDepth = depth
+				bestX = x
+				bestY = y
+			}
+		}
+	}
+	return bestX, bestY, found
+}
+
+func projectedGATCell(projection sceneProjection, gat *res.GAT, x, y int) ([4]screenPoint, float64, bool) {
+	cell, ok := gat.Cell(x, y)
+	if !ok {
+		return [4]screenPoint{}, 0, false
+	}
+	verts := [4]modelPoint3{
+		{x: float64(x), y: float64(cell.Heights[0]), z: float64(y)},
+		{x: float64(x + 1), y: float64(cell.Heights[1]), z: float64(y)},
+		{x: float64(x), y: float64(cell.Heights[2]), z: float64(y + 1)},
+		{x: float64(x + 1), y: float64(cell.Heights[3]), z: float64(y + 1)},
+	}
+	points := [4]screenPoint{
+		projection.Project(verts[0].x, verts[0].z, verts[0].y),
+		projection.Project(verts[1].x, verts[1].z, verts[1].y),
+		projection.Project(verts[2].x, verts[2].z, verts[2].y),
+		projection.Project(verts[3].x, verts[3].z, verts[3].y),
+	}
+	depth := math.Inf(1)
+	for _, vert := range verts {
+		depth = math.Min(depth, projection.Depth(vert.x, vert.z, vert.y))
+	}
+	return points, depth, true
+}
+
+func pointInProjectedGATCell(x, y float64, points [4]screenPoint) bool {
+	return pointInScreenTriangle(x, y, points[0], points[1], points[2]) ||
+		pointInScreenTriangle(x, y, points[2], points[1], points[3])
+}
+
+func pointInScreenTriangle(x, y float64, a, b, c screenPoint) bool {
+	d1 := screenTriangleSign(x, y, a, b)
+	d2 := screenTriangleSign(x, y, b, c)
+	d3 := screenTriangleSign(x, y, c, a)
+	hasNegative := d1 < 0 || d2 < 0 || d3 < 0
+	hasPositive := d1 > 0 || d2 > 0 || d3 > 0
+	return !(hasNegative && hasPositive)
+}
+
+func screenTriangleSign(x, y float64, a, b screenPoint) float64 {
+	return (x-float64(b.x))*(float64(a.y)-float64(b.y)) - (float64(a.x)-float64(b.x))*(y-float64(b.y))
 }
 
 func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
