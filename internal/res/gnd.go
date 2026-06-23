@@ -14,10 +14,23 @@ type GND struct {
 	Width        int
 	Height       int
 	Zoom         float32
+	Water        GNDWater
 	Textures     []string
 	Lightmaps    []GNDLightmap
 	Surfaces     []GNDSurface
 	Cells        []GNDCell
+}
+
+type GNDWater struct {
+	Present     bool
+	Level       float32
+	Type        int32
+	WaveHeight  float32
+	WaveSpeed   float32
+	WavePitch   float32
+	AnimSpeed   int32
+	SplitWidth  int32
+	SplitHeight int32
 }
 
 type GNDLightmap struct {
@@ -142,6 +155,23 @@ func ParseGND(data []byte) (*GND, error) {
 	if reader.err != nil {
 		return nil, reader.err
 	}
+	var water GNDWater
+	if minor >= 8 && reader.remaining() >= 32 {
+		water = GNDWater{
+			Present:     true,
+			Level:       -reader.f32() / 5,
+			Type:        reader.i32(),
+			WaveHeight:  reader.f32() / 5,
+			WaveSpeed:   reader.f32(),
+			WavePitch:   reader.f32(),
+			AnimSpeed:   reader.i32(),
+			SplitWidth:  reader.i32(),
+			SplitHeight: reader.i32(),
+		}
+		if minor >= 9 && water.SplitWidth > 0 && water.SplitHeight > 0 {
+			reader.skip(int(water.SplitWidth * water.SplitHeight * 24))
+		}
+	}
 
 	return &GND{
 		VersionMajor: major,
@@ -149,6 +179,7 @@ func ParseGND(data []byte) (*GND, error) {
 		Width:        width,
 		Height:       height,
 		Zoom:         zoom,
+		Water:        water,
 		Textures:     textures,
 		Lightmaps:    lightmaps,
 		Surfaces:     surfaces,
@@ -344,6 +375,13 @@ func (r *gndReader) bytes(n int) []byte {
 
 func (r *gndReader) skip(n int) {
 	_ = r.bytes(n)
+}
+
+func (r *gndReader) remaining() int {
+	if r.err != nil || r.offset >= len(r.data) {
+		return 0
+	}
+	return len(r.data) - r.offset
 }
 
 func (r *gndReader) u8() byte {

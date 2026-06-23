@@ -770,6 +770,35 @@ func TestSortGNDSurfacesDrawsFarBeforeNear(t *testing.T) {
 	}
 }
 
+func TestMapWaterPrefersGNDOverride(t *testing.T) {
+	gnd := &res.GND{Water: res.GNDWater{Present: true, Level: -4, Type: 3, WaveHeight: 2, WaveSpeed: 5, WavePitch: 20, AnimSpeed: 6}}
+	rsw := &res.RSW{Water: res.RSWWater{Level: -1, Type: 1}}
+	water, ok := mapWater(gnd, rsw)
+	if !ok {
+		t.Fatal("missing water")
+	}
+	if water.Level != -4 || water.Type != 3 || water.WaveHeight != 2 || water.AnimSpeed != 6 {
+		t.Fatalf("water = %+v, want GND override", water)
+	}
+}
+
+func TestWaterUVsUseFourTileRepeat(t *testing.T) {
+	uvs := waterUVs(3, 4)
+	if uvs[0] != (texturePoint{u: 0.75, v: 0}) || uvs[2] != (texturePoint{u: 1.0, v: 0.25}) {
+		t.Fatalf("water uvs = %+v", uvs)
+	}
+}
+
+func TestWaterVisibleForCellUsesInvertedHeightConvention(t *testing.T) {
+	water := res.RSWWater{Level: -2, WaveHeight: 0.5}
+	if !waterVisibleForCell(res.GNDCell{Heights: [4]float32{-3, -2, -2, -2}}, water) {
+		t.Fatal("expected water where terrain is below the water threshold")
+	}
+	if waterVisibleForCell(res.GNDCell{Heights: [4]float32{-1, -1.2, -0.5, 0}}, water) {
+		t.Fatal("unexpected water where all terrain vertices are above the water threshold")
+	}
+}
+
 func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 1002})

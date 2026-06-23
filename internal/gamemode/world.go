@@ -1248,7 +1248,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	projection := m.sceneProjection(ctx, width, height, now)
 
 	if ctx.World.GND != nil {
-		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection)
+		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
 			m.drawSceneModelsAndActors(screen, ctx, projection)
 		} else {
@@ -2250,7 +2250,7 @@ func loadRSMModel(manager *res.Manager, filename string) (*res.RSM, error) {
 	return res.ParseRSM(data)
 }
 
-func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection) {
+func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time) {
 	if m.whitePixel == nil {
 		m.whitePixel = ebiten.NewImage(1, 1)
 		m.whitePixel.Fill(color.White)
@@ -2288,6 +2288,9 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 						{x: float64(x) * 2, y: float64(cell.Heights[2]), z: float64(y+1) * 2},
 					}
 					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, lighting))
+					if waterDraw, ok := newGNDWaterDraw(projection, x, y, cell, gnd, rsw, now); ok {
+						surfaces = append(surfaces, waterDraw)
+					}
 				}
 			}
 
@@ -2339,6 +2342,10 @@ type gndSurfaceDraw struct {
 	heights     [4]float32
 	normal      modelPoint3
 	lighting    sceneLighting
+	water       bool
+	waterType   int
+	waterFrame  int
+	tint        color.RGBA
 	depth       float64
 }
 
@@ -2346,6 +2353,55 @@ func sortGNDSurfaces(surfaces []gndSurfaceDraw) {
 	sort.SliceStable(surfaces, func(i, j int) bool {
 		return surfaces[i].depth > surfaces[j].depth
 	})
+}
+
+func newGNDWaterDraw(projection sceneProjection, x, y int, cell res.GNDCell, gnd *res.GND, rsw *res.RSW, now time.Time) (gndSurfaceDraw, bool) {
+	water, ok := mapWater(gnd, rsw)
+	if !ok {
+		return gndSurfaceDraw{}, false
+	}
+	if !waterVisibleForCell(cell, water) {
+		return gndSurfaceDraw{}, false
+	}
+	heights := waterHeightsForCell(water, x, y, now)
+	verts := [4]modelPoint3{
+		{x: float64(x) * 2, y: float64(heights[0]), z: float64(y) * 2},
+		{x: float64(x+1) * 2, y: float64(heights[1]), z: float64(y) * 2},
+		{x: float64(x+1) * 2, y: float64(heights[3]), z: float64(y+1) * 2},
+		{x: float64(x) * 2, y: float64(heights[2]), z: float64(y+1) * 2},
+	}
+	draw := newGNDSurfaceDraw(
+		projection,
+		verts,
+		waterUVs(x, y),
+		[4]int{0, 1, 3, 2},
+		[]uint16{0, 1, 2, 0, 2, 3},
+		res.GNDSurface{},
+		heights,
+		sceneLighting{},
+	)
+	draw.water = true
+	draw.waterType = int(water.Type)
+	draw.waterFrame = waterFrameForTime(water, now)
+	draw.tint = waterTint(water, rsw)
+	return draw, true
+}
+
+func mapWater(gnd *res.GND, rsw *res.RSW) (res.RSWWater, bool) {
+	if gnd != nil && gnd.Water.Present {
+		return res.RSWWater{
+			Level:      gnd.Water.Level,
+			Type:       gnd.Water.Type,
+			WaveHeight: gnd.Water.WaveHeight,
+			WaveSpeed:  gnd.Water.WaveSpeed,
+			WavePitch:  gnd.Water.WavePitch,
+			AnimSpeed:  gnd.Water.AnimSpeed,
+		}, true
+	}
+	if rsw != nil {
+		return rsw.Water, true
+	}
+	return res.RSWWater{}, false
 }
 
 func newGNDSurfaceDraw(projection sceneProjection, verts [4]modelPoint3, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, lighting sceneLighting) gndSurfaceDraw {
@@ -2370,6 +2426,10 @@ func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, g
 	if quadOutside(draw.points, screenWidth, screenHeight) {
 		return
 	}
+	if draw.water {
+		m.drawWaterSurface(screen, manager, draw)
+		return
+	}
 
 	textureName := gndTextureName(gnd, draw.surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
@@ -2381,6 +2441,38 @@ func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, g
 		return
 	}
 	drawColoredSurface(screen, m.whitePixel, draw.points, draw.indices, groundSurfaceColor(textureName, draw.surface.Color, draw.heights, draw.normal, draw.lighting))
+}
+
+func (m *WorldMode) drawWaterSurface(screen *ebiten.Image, manager *res.Manager, draw gndSurfaceDraw) {
+	texture := m.waterTexture(manager, draw.waterType, draw.waterFrame)
+	if texture == nil {
+		drawColoredSurface(screen, m.whitePixel, draw.points, draw.indices, draw.tint)
+		return
+	}
+	tints := [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint}
+	drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, tints)
+}
+
+func (m *WorldMode) waterTexture(manager *res.Manager, waterType, frame int) *ebiten.Image {
+	frame = ((frame % 32) + 32) % 32
+	key := fmt.Sprintf("__water_%d_%02d", waterType, frame)
+	if texture, ok := m.textures[key]; ok {
+		return texture
+	}
+	if _, ok := m.textureMiss[key]; ok {
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, res.WaterTextureCandidates(waterType, frame))
+	if err != nil && waterType >= 0 {
+		img, _, err = res.LoadImage(manager, res.WaterTextureCandidates(waterType%6, frame))
+	}
+	if err != nil {
+		m.textureMiss[key] = struct{}{}
+		return nil
+	}
+	texture := ebiten.NewImageFromImage(img)
+	m.textures[key] = texture
+	return texture
 }
 
 func drawRSWModelMarkers(screen *ebiten.Image, rsw *res.RSW, gnd *res.GND, projection sceneProjection) {
@@ -2507,6 +2599,77 @@ func surfaceUVs(surface res.GNDSurface, order [4]int) [4]texturePoint {
 		{u: surface.U[order[2]], v: surface.V[order[2]]},
 		{u: surface.U[order[3]], v: surface.V[order[3]]},
 	}
+}
+
+func waterUVs(x, y int) [4]texturePoint {
+	const scale = 0.25
+	baseU := float32(x&3) * scale
+	baseV := float32(y&3) * scale
+	return [4]texturePoint{
+		{u: baseU, v: baseV},
+		{u: baseU + scale, v: baseV},
+		{u: baseU + scale, v: baseV + scale},
+		{u: baseU, v: baseV + scale},
+	}
+}
+
+func waterHeightsForCell(water res.RSWWater, x, y int, now time.Time) [4]float32 {
+	level := water.Level
+	if water.WaveHeight == 0 {
+		return [4]float32{level, level, level, level}
+	}
+	offset := waterOffsetForTime(water, now)
+	pitch := float64(water.WavePitch)
+	diagonal := float64(x + y)
+	h1 := waterSin(offset+pitch*diagonal)*water.WaveHeight + level
+	h0 := waterSin(offset+pitch*(diagonal-1))*water.WaveHeight + level
+	h3 := waterSin(offset+pitch*(diagonal+1))*water.WaveHeight + level
+	return [4]float32{h0, h1, h1, h3}
+}
+
+func waterVisibleForCell(cell res.GNDCell, water res.RSWWater) bool {
+	threshold := water.Level + water.WaveHeight
+	return cell.Heights[0] < threshold ||
+		cell.Heights[1] < threshold ||
+		cell.Heights[2] < threshold ||
+		cell.Heights[3] < threshold
+}
+
+func waterFrameForTime(water res.RSWWater, now time.Time) int {
+	animSpeed := int(water.AnimSpeed)
+	if animSpeed <= 0 {
+		animSpeed = 1
+	}
+	frame := int(now.UnixMilli()*60/1000) / animSpeed
+	return frame % 32
+}
+
+func waterOffsetForTime(water res.RSWWater, now time.Time) float64 {
+	offset := math.Mod(float64(now.UnixMilli()*60/1000)*float64(water.WaveSpeed), 360)
+	if offset > 180 {
+		offset -= 360
+	}
+	return offset
+}
+
+func waterSin(degrees float64) float32 {
+	return float32(math.Sin(degreesToRadians(degrees)))
+}
+
+func waterTint(water res.RSWWater, rsw *res.RSW) color.RGBA {
+	alpha := uint8(204)
+	if water.Type == 4 || water.Type == 6 {
+		alpha = 255
+	}
+	if rsw != nil && water.Type == 4 {
+		return color.RGBA{
+			R: clampColor(float64(rsw.Light.Ambient[0]) * 255),
+			G: clampColor(float64(rsw.Light.Ambient[1]) * 255),
+			B: clampColor(float64(rsw.Light.Ambient[2]) * 255),
+			A: alpha,
+		}
+	}
+	return color.RGBA{R: 255, G: 255, B: 255, A: alpha}
 }
 
 func projectGNDQuad(projection sceneProjection, verts [4]modelPoint3) [4]screenPoint {

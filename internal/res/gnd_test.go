@@ -69,6 +69,48 @@ func TestParseGND(t *testing.T) {
 	}
 }
 
+func TestParseGNDWaterBlockUsesWorldHeightConvention(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString("GRGN")
+	buf.WriteByte(1)
+	buf.WriteByte(8)
+	writeI32(&buf, 1)
+	writeI32(&buf, 1)
+	writeF32(&buf, 10)
+
+	writeI32(&buf, 0)
+	writeI32(&buf, 16)
+	writeI32(&buf, 0)
+	writeI32(&buf, 8)
+	writeI32(&buf, 8)
+	writeI32(&buf, 1)
+	writeI32(&buf, 0)
+	writeI32(&buf, 0)
+	for _, h := range []float32{0, 0, 0, 0} {
+		writeF32(&buf, h)
+	}
+	writeI32(&buf, -1)
+	writeI32(&buf, -1)
+	writeI32(&buf, -1)
+
+	writeF32(&buf, 10)
+	writeI32(&buf, 3)
+	writeF32(&buf, 5)
+	writeF32(&buf, 2)
+	writeF32(&buf, 50)
+	writeI32(&buf, 4)
+	writeI32(&buf, 0)
+	writeI32(&buf, 0)
+
+	gnd, err := ParseGND(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !gnd.Water.Present || gnd.Water.Level != -2 || gnd.Water.WaveHeight != 1 || gnd.Water.Type != 3 || gnd.Water.AnimSpeed != 4 {
+		t.Fatalf("unexpected water block: %+v", gnd.Water)
+	}
+}
+
 func TestFixedBinaryStringPreservesNonUTF8Bytes(t *testing.T) {
 	raw := []byte{' ', 0xc7, 0xca, '\\', 'P', 'R', 'T', 0xf8, '.', 'b', 'm', 'p', ' ', 0, 'x'}
 	got := fixedBinaryString(raw)

@@ -57,3 +57,25 @@ func GroundTextureCandidates(name string) []string {
 		strings.ReplaceAll(name, "\\", "/"),
 	}
 }
+
+func WaterTextureCandidates(waterType, frame int) []string {
+	if frame < 0 {
+		frame = 0
+	}
+	frame %= 32
+	name := fmt.Sprintf("water%d%02d.jpg", waterType, frame)
+	koreanFolder := "data\\texture\\\xbf\xf6\xc5\xcd\\"
+	return []string{
+		koreanFolder + name,
+		strings.ReplaceAll(koreanFolder, "\\", "/") + name,
+		"data\\texture\\water\\" + name,
+		"data/texture/water/" + name,
+		"texture\\water\\" + name,
+		"texture/water/" + name,
+		"data\\texture\\" + name,
+		"data/texture/" + name,
+		"texture\\" + name,
+		"texture/" + name,
+		name,
+	}
+}

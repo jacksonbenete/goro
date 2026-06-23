@@ -146,7 +146,7 @@ func ParseRSW(data []byte) (*RSW, error) {
 
 	if !rsw.versionAtLeast(2, 6) {
 		if rsw.versionAtLeast(1, 3) {
-			rsw.Water.Level = reader.f32() / 5
+			rsw.Water.Level = -reader.f32() / 5
 		}
 		if rsw.versionAtLeast(1, 8) {
 			rsw.Water.Type = reader.i32()
