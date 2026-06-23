@@ -100,6 +100,7 @@ type spriteBillboard struct {
 type spriteState struct {
 	actionFamily int
 	direction    int
+	cameraYaw    float64
 	moving       bool
 	started      time.Time
 	loop         bool
@@ -400,12 +401,13 @@ func selectedCharacter(s *session.Session) session.Character {
 	return session.Character{ID: s.CharID, Name: "Player", Job: 0}
 }
 
-func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64, direction int) bool {
+func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64, direction int, cameraYaw float64) bool {
 	now := time.Now()
 	moving := ctx.World.Player.IsMovingAt(now)
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    direction,
+		cameraYaw:    cameraYaw,
 		moving:       moving,
 		moveSpeedMS:  ctx.World.Player.Speed,
 	}
@@ -479,7 +481,7 @@ func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now 
 	if view == nil || view.body == nil || view.body.act == nil || view.body.spr == nil {
 		return nil, false
 	}
-	state.direction = spriteDirectionFromWorldDir(state.direction)
+	state.direction = spriteDirectionFromWorldDirForCamera(state.direction, state.cameraYaw)
 	bodyActionIndex, bodyAction, ok := resolveSpriteAction(view.body.act, state.actionFamily, state.direction)
 	if !ok || len(bodyAction.Animations) == 0 {
 		return nil, false
@@ -512,7 +514,7 @@ func singleSpriteBillboardForState(view *playerSpriteView, state spriteState, no
 	if view == nil || view.act == nil || view.spr == nil {
 		return nil, false
 	}
-	state.direction = spriteDirectionFromWorldDir(state.direction)
+	state.direction = spriteDirectionFromWorldDirForCamera(state.direction, state.cameraYaw)
 	actionIndex, action, ok := resolveSpriteAction(view.act, state.actionFamily, state.direction)
 	if !ok || len(action.Animations) == 0 {
 		return nil, false
@@ -1151,5 +1153,10 @@ func normalizeDirectionIndex(direction int) int {
 }
 
 func spriteDirectionFromWorldDir(direction int) int {
-	return (4 - normalizeDirectionIndex(direction)) & 7
+	return spriteDirectionFromWorldDirForCamera(direction, 0)
+}
+
+func spriteDirectionFromWorldDirForCamera(direction int, cameraYaw float64) int {
+	yawSteps := int(math.Round(cameraYaw / 45))
+	return (4 - normalizeDirectionIndex(direction) + yawSteps) & 7
 }

@@ -45,6 +45,29 @@ func TestSpriteDirectionFromWorldDirShowsBackForNorth(t *testing.T) {
 	}
 }
 
+func TestSpriteDirectionFromWorldDirAccountsForCameraYaw(t *testing.T) {
+	cases := []struct {
+		name      string
+		direction int
+		cameraYaw float64
+		want      int
+	}{
+		{name: "outdoor north", direction: 4, cameraYaw: 0, want: 0},
+		{name: "indoor north", direction: 4, cameraYaw: -45, want: 7},
+		{name: "indoor south", direction: 0, cameraYaw: -45, want: 3},
+		{name: "east camera north", direction: 4, cameraYaw: 90, want: 2},
+		{name: "rounded yaw", direction: 4, cameraYaw: 44, want: 1},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := spriteDirectionFromWorldDirForCamera(tt.direction, tt.cameraYaw); got != tt.want {
+				t.Fatalf("spriteDirectionFromWorldDirForCamera(%d, %.1f) = %d, want %d", tt.direction, tt.cameraYaw, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestResolveSpriteActionPrefersFamilyAndDirection(t *testing.T) {
 	act := &res.ACT{Actions: make([]res.ACTAction, 16)}
 	act.Actions[11] = res.ACTAction{Animations: []res.ACTAnimation{{}}, DelayMS: 100}

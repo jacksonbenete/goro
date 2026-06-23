@@ -1961,8 +1961,9 @@ func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, 
 }
 
 func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
+	cameraYaw := cameraYawForMap(ctx)
 	if entry.isPlayer {
-		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir) {
+		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir, cameraYaw) {
 			return
 		}
 		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
@@ -1976,7 +1977,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, proje
 		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), projection, entry.worldX, entry.worldY, entry.worldZ, time.Now())
 		return
 	}
-	if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale) {
+	if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale, cameraYaw) {
 		return
 	}
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
@@ -2085,9 +2086,9 @@ func drawActorNameLabel(screen *ebiten.Image, label string, centerX, baseY, scal
 	debugText(screen, x, y, "%s", label)
 }
 
-func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64) bool {
+func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64) bool {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
-		return m.drawNonPCSprite(screen, ctx, actor, centerX, centerY, scale)
+		return m.drawNonPCSprite(screen, ctx, actor, centerX, centerY, scale, cameraYaw)
 	}
 	key := actorSpriteKey{
 		job:     int(actor.Job),
@@ -2127,6 +2128,7 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
+		cameraYaw:    cameraYaw,
 		moving:       actor.IsMovingAt(now),
 		moveSpeedMS:  actor.Speed,
 	}
@@ -2144,13 +2146,14 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale)
 }
 
-func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64) bool {
+func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64) bool {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return false
 	}
 	now := time.Now()
 	state := m.nonPCSpriteState(actor, now)
+	state.cameraYaw = cameraYaw
 	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, m.actorDeathAlpha(actor.ID, now))
 }
 
