@@ -1,6 +1,7 @@
 package gamemode
 
 import (
+	"math"
 	"testing"
 
 	"github.com/kivutar/goro/internal/res"
@@ -53,6 +54,48 @@ func TestRSMInstanceMatrixUsesParsedRSWModelY(t *testing.T) {
 	point := mat4TransformPoint(matrix, modelPoint3{})
 	if point.y != -7 {
 		t.Fatalf("instance y = %.1f, want -7", point.y)
+	}
+}
+
+func TestRSMInstanceMatrixMirrorsVerticalBasisRotations(t *testing.T) {
+	rsm := &res.RSM{}
+	tests := []struct {
+		name      string
+		rotation  res.RSWVector3
+		point     modelPoint3
+		wantPoint modelPoint3
+	}{
+		{
+			name:      "pitch",
+			rotation:  res.RSWVector3{X: 90},
+			point:     modelPoint3{y: 1},
+			wantPoint: modelPoint3{z: -1},
+		},
+		{
+			name:      "yaw",
+			rotation:  res.RSWVector3{Y: 90},
+			point:     modelPoint3{x: 1},
+			wantPoint: modelPoint3{z: -1},
+		},
+		{
+			name:      "roll",
+			rotation:  res.RSWVector3{Z: 90},
+			point:     modelPoint3{x: 1},
+			wantPoint: modelPoint3{y: -1},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			matrix := buildRSMInstanceMatrix(rsm, res.RSWModel{
+				Rotation: tt.rotation,
+				Scale:    res.RSWVector3{X: 1, Y: 1, Z: 1},
+			}, 0, 0, modelBounds{})
+			got := mat4TransformPoint(matrix, tt.point)
+			if math.Abs(got.x-tt.wantPoint.x) > 0.0001 || math.Abs(got.y-tt.wantPoint.y) > 0.0001 || math.Abs(got.z-tt.wantPoint.z) > 0.0001 {
+				t.Fatalf("point = (%.3f, %.3f, %.3f), want (%.3f, %.3f, %.3f)", got.x, got.y, got.z, tt.wantPoint.x, tt.wantPoint.y, tt.wantPoint.z)
+			}
+		})
 	}
 }
 

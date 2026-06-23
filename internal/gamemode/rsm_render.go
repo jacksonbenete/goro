@@ -345,8 +345,8 @@ func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, ins
 func buildRSMInstanceMatrix(rsm *res.RSM, placement res.RSWModel, baseX, baseY float64, bounds modelBounds) mat4 {
 	matrix := mat4Identity()
 	matrix = mat4Translate(matrix, modelPoint3{x: baseX, y: float64(placement.Position.Y), z: baseY})
-	matrix = mat4RotateZ(matrix, degreesToRadians(float64(placement.Rotation.Z)))
-	matrix = mat4RotateX(matrix, degreesToRadians(float64(placement.Rotation.X)))
+	matrix = mat4RotateZ(matrix, degreesToRadians(float64(-placement.Rotation.Z)))
+	matrix = mat4RotateX(matrix, degreesToRadians(float64(-placement.Rotation.X)))
 	matrix = mat4RotateY(matrix, degreesToRadians(float64(placement.Rotation.Y)))
 	matrix = mat4Scale(matrix, vectorFromRSW(placement.Scale))
 
