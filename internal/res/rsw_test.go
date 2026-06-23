@@ -94,16 +94,16 @@ func TestParseRSW(t *testing.T) {
 	if rsw.Ground.Left != -200 || rsw.Ground.Right != 200 {
 		t.Fatalf("unexpected ground: %+v", rsw.Ground)
 	}
-	if len(rsw.Models) != 1 || rsw.Models[0].Filename != "building.rsm" || rsw.Models[0].Position.X != 2 || rsw.Models[0].Scale.Z != 3 {
+	if len(rsw.Models) != 1 || rsw.Models[0].Filename != "building.rsm" || rsw.Models[0].Position.X != 2 || rsw.Models[0].Position.Y != -4 || rsw.Models[0].Scale.Z != 3 {
 		t.Fatalf("unexpected models: %+v", rsw.Models)
 	}
-	if len(rsw.Lights) != 1 || rsw.Lights[0].Color.R != 255 || rsw.Lights[0].Color.B != 0 {
+	if len(rsw.Lights) != 1 || rsw.Lights[0].Position.Y != -5 || rsw.Lights[0].Color.R != 255 || rsw.Lights[0].Color.B != 0 {
 		t.Fatalf("unexpected lights: %+v", rsw.Lights)
 	}
-	if len(rsw.Sounds) != 1 || rsw.Sounds[0].File != "amb.wav" || rsw.Sounds[0].Cycle != 3.5 {
+	if len(rsw.Sounds) != 1 || rsw.Sounds[0].File != "amb.wav" || rsw.Sounds[0].Position.Y != -2 || rsw.Sounds[0].Cycle != 3.5 {
 		t.Fatalf("unexpected sounds: %+v", rsw.Sounds)
 	}
-	if len(rsw.Effects) != 1 || rsw.Effects[0].Delay != 25 || rsw.Effects[0].Param[3] != 4 {
+	if len(rsw.Effects) != 1 || rsw.Effects[0].Position.Y != -12 || rsw.Effects[0].Delay != 25 || rsw.Effects[0].Param[3] != 4 {
 		t.Fatalf("unexpected effects: %+v", rsw.Effects)
 	}
 }

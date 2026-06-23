@@ -42,17 +42,17 @@ func TestCalculateRSMBoundsSeparatesMainNodeFromModel(t *testing.T) {
 	}
 }
 
-func TestRSMInstanceMatrixKeepsRSWModelYPositive(t *testing.T) {
+func TestRSMInstanceMatrixUsesParsedRSWModelY(t *testing.T) {
 	rsm := &res.RSM{}
 	placement := res.RSWModel{
-		Position: res.RSWVector3{X: 10, Y: 7, Z: 20},
+		Position: res.RSWVector3{X: 10, Y: -7, Z: 20},
 		Scale:    res.RSWVector3{X: 1, Y: 1, Z: 1},
 	}
 
 	matrix := buildRSMInstanceMatrix(rsm, placement, 110, 220, modelBounds{})
 	point := mat4TransformPoint(matrix, modelPoint3{})
-	if point.y != 7 {
-		t.Fatalf("instance y = %.1f, want 7", point.y)
+	if point.y != -7 {
+		t.Fatalf("instance y = %.1f, want -7", point.y)
 	}
 }
 

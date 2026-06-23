@@ -233,7 +233,7 @@ func readRSWModel(reader *rswReader, rsw *RSW) RSWModel {
 	}
 	model.Filename = fixedBinaryString(reader.bytes(80))
 	model.NodeName = fixedBinaryString(reader.bytes(80))
-	model.Position = reader.scaledVector3(5)
+	model.Position = reader.scaledPosition3(5)
 	model.Rotation = reader.vector3()
 	model.Scale = reader.scaledVector3(5)
 	return model
@@ -242,7 +242,7 @@ func readRSWModel(reader *rswReader, rsw *RSW) RSWModel {
 func readRSWObjectLight(reader *rswReader) RSWObjectLight {
 	light := RSWObjectLight{
 		Name:     fixedBinaryString(reader.bytes(80)),
-		Position: reader.scaledVector3(5),
+		Position: reader.scaledPosition3(5),
 	}
 	light.Color = color.RGBA{
 		R: clampByte(reader.i32()),
@@ -258,7 +258,7 @@ func readRSWSound(reader *rswReader, rsw *RSW) RSWSound {
 	sound := RSWSound{
 		Name:     fixedBinaryString(reader.bytes(80)),
 		File:     fixedBinaryString(reader.bytes(80)),
-		Position: reader.scaledVector3(5),
+		Position: reader.scaledPosition3(5),
 		Volume:   reader.f32(),
 		Width:    reader.i32(),
 		Height:   reader.i32(),
@@ -273,7 +273,7 @@ func readRSWSound(reader *rswReader, rsw *RSW) RSWSound {
 func readRSWEffect(reader *rswReader) RSWEffect {
 	effect := RSWEffect{
 		Name:     fixedBinaryString(reader.bytes(80)),
-		Position: reader.scaledVector3(5),
+		Position: reader.scaledPosition3(5),
 		ID:       reader.i32(),
 		Delay:    reader.f32() * 10,
 	}
@@ -347,4 +347,9 @@ func (r *rswReader) vector3() RSWVector3 {
 func (r *rswReader) scaledVector3(scale float32) RSWVector3 {
 	v := r.vector3()
 	return RSWVector3{X: v.X / scale, Y: v.Y / scale, Z: v.Z / scale}
+}
+
+func (r *rswReader) scaledPosition3(scale float32) RSWVector3 {
+	v := r.vector3()
+	return RSWVector3{X: v.X / scale, Y: -v.Y / scale, Z: v.Z / scale}
 }
