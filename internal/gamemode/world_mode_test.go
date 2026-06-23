@@ -905,6 +905,66 @@ func TestClickedWalkCellByProjectedPolygonSkipsBlockedGATCell(t *testing.T) {
 	}
 }
 
+func TestHoveredWalkCellRequiresProjectedWalkableCell(t *testing.T) {
+	world := worldstate.New()
+	world.Player.X = 5
+	world.Player.Y = 5
+	world.GAT = &res.GAT{
+		Width:  12,
+		Height: 12,
+		Cells:  make([]res.GATCell, 12*12),
+	}
+	for i := range world.GAT.Cells {
+		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
+	}
+	projection := sceneProjection{
+		playerX:     5.5,
+		playerY:     5.5,
+		centerX:     400,
+		centerY:     300,
+		tileW:       sceneTileW,
+		tileH:       sceneTileH,
+		heightScale: 2,
+	}
+	point := projection.Project(6.5, 5.5, 0)
+
+	x, y, ok := hoveredWalkCell(Context{World: world}, projection, int(point.x), int(point.y))
+	if !ok || x != 6 || y != 5 {
+		t.Fatalf("hovered cell = %d,%d ok=%t, want 6,5 true", x, y, ok)
+	}
+	if _, _, ok := hoveredWalkCell(Context{World: world}, projection, -10000, -10000); ok {
+		t.Fatal("hover should not fall back to nearest cell outside the projected map")
+	}
+}
+
+func TestProjectedTileCursorCellUsesGATHeightsWithLift(t *testing.T) {
+	gat := &res.GAT{
+		Width:  4,
+		Height: 4,
+		Cells:  make([]res.GATCell, 16),
+	}
+	gat.Cells[2*gat.Width+1] = res.GATCell{Heights: [4]float32{2, 2, 2, 2}, Type: res.GATTypeWalkable}
+	projection := sceneProjection{
+		playerX:     1.5,
+		playerY:     2.5,
+		centerX:     400,
+		centerY:     300,
+		tileW:       sceneTileW,
+		tileH:       sceneTileH,
+		heightScale: 2,
+	}
+	now := time.Unix(0, 0)
+	points, ok := projectedTileCursorCell(projection, gat, 1, 2, now)
+	if !ok {
+		t.Fatal("missing cursor cell")
+	}
+	ground := projection.Project(1, 2, 2)
+	wantY := float64(ground.y) - tileCursorLift(now)*projection.heightScale
+	if math.Abs(float64(points[0].y)-wantY) > 0.001 {
+		t.Fatalf("cursor point y = %.4f, want %.4f", points[0].y, wantY)
+	}
+}
+
 func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 1002})

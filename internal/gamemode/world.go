@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
+	"image"
 	"image/color"
 	"log"
 	"math"
@@ -28,6 +29,7 @@ type WorldMode struct {
 	tickCooldown     int
 	camera           followCamera
 	whitePixel       *ebiten.Image
+	tileCursor       *ebiten.Image
 	textures         map[string]*ebiten.Image
 	textureMiss      map[string]struct{}
 	rswMarkers       bool
@@ -1312,6 +1314,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 
 	if ctx.World.GND != nil {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now)
+		m.drawTileCursor(screen, ctx, projection, now)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
 			m.drawSceneModelsAndActors(screen, ctx, projection)
 		} else {
@@ -1744,17 +1747,9 @@ func cameraTargetHeightAt(world *worldstate.World, x, y float64) float64 {
 }
 
 func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY int) (int, int, bool) {
-	radius := clickWalkSearchRadius()
-	minX := maxInt(0, ctx.World.Player.X-radius)
-	maxX := ctx.World.Player.X + radius
-	minY := maxInt(0, ctx.World.Player.Y-radius)
-	maxY := ctx.World.Player.Y + radius
-	if ctx.World.GAT != nil {
-		maxX = minInt(maxX, ctx.World.GAT.Width-1)
-		maxY = minInt(maxY, ctx.World.GAT.Height-1)
-	} else if ctx.World.GND != nil {
-		maxX = minInt(maxX, ctx.World.GND.Width*2-1)
-		maxY = minInt(maxY, ctx.World.GND.Height*2-1)
+	minX, maxX, minY, maxY, ok := walkTargetSearchBounds(ctx)
+	if !ok {
+		return 0, 0, false
 	}
 
 	if x, y, ok := clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY); ok {
@@ -1777,6 +1772,33 @@ func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY i
 		}
 	}
 	return bestX, bestY, bestDistance < math.Inf(1)
+}
+
+func hoveredWalkCell(ctx Context, projection sceneProjection, mouseX, mouseY int) (int, int, bool) {
+	minX, maxX, minY, maxY, ok := walkTargetSearchBounds(ctx)
+	if !ok {
+		return 0, 0, false
+	}
+	return clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY)
+}
+
+func walkTargetSearchBounds(ctx Context) (int, int, int, int, bool) {
+	if ctx.World == nil {
+		return 0, 0, 0, 0, false
+	}
+	radius := clickWalkSearchRadius()
+	minX := maxInt(0, ctx.World.Player.X-radius)
+	maxX := ctx.World.Player.X + radius
+	minY := maxInt(0, ctx.World.Player.Y-radius)
+	maxY := ctx.World.Player.Y + radius
+	if ctx.World.GAT != nil {
+		maxX = minInt(maxX, ctx.World.GAT.Width-1)
+		maxY = minInt(maxY, ctx.World.GAT.Height-1)
+	} else if ctx.World.GND != nil {
+		maxX = minInt(maxX, ctx.World.GND.Width*2-1)
+		maxY = minInt(maxY, ctx.World.GND.Height*2-1)
+	}
+	return minX, maxX, minY, maxY, minX <= maxX && minY <= maxY
 }
 
 func clickedWalkCellByProjectedPolygon(ctx Context, projection sceneProjection, mouseX, mouseY, minX, maxX, minY, maxY int) (int, int, bool) {
@@ -1807,6 +1829,97 @@ func clickedWalkCellByProjectedPolygon(ctx Context, projection sceneProjection, 
 		}
 	}
 	return bestX, bestY, found
+}
+
+func (m *WorldMode) drawTileCursor(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
+	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
+		return
+	}
+	x, y, ok := hoveredWalkCell(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
+	if !ok {
+		return
+	}
+	points, ok := projectedTileCursorCell(projection, ctx.World.GAT, x, y, now)
+	if !ok || quadHasInvalidPoint(points) || quadOutside(points, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())) {
+		return
+	}
+	drawTileCursorSurface(screen, m.tileCursorTexture(), points)
+}
+
+func projectedTileCursorCell(projection sceneProjection, gat *res.GAT, x, y int, now time.Time) ([4]screenPoint, bool) {
+	cell, ok := gat.Cell(x, y)
+	if !ok {
+		return [4]screenPoint{}, false
+	}
+	lift := tileCursorLift(now)
+	verts := [4]modelPoint3{
+		{x: float64(x), y: float64(cell.Heights[0]) + lift, z: float64(y)},
+		{x: float64(x + 1), y: float64(cell.Heights[1]) + lift, z: float64(y)},
+		{x: float64(x), y: float64(cell.Heights[2]) + lift, z: float64(y + 1)},
+		{x: float64(x + 1), y: float64(cell.Heights[3]) + lift, z: float64(y + 1)},
+	}
+	return [4]screenPoint{
+		projection.Project(verts[0].x, verts[0].z, verts[0].y),
+		projection.Project(verts[1].x, verts[1].z, verts[1].y),
+		projection.Project(verts[2].x, verts[2].z, verts[2].y),
+		projection.Project(verts[3].x, verts[3].z, verts[3].y),
+	}, true
+}
+
+func tileCursorLift(now time.Time) float64 {
+	seconds := float64(now.UnixNano()) / float64(time.Second)
+	return 0.06 + 0.025*math.Sin(seconds*math.Pi*2/1.2)
+}
+
+func (m *WorldMode) tileCursorTexture() *ebiten.Image {
+	if m.tileCursor != nil {
+		return m.tileCursor
+	}
+	const size = 64
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			dist := minInt(minInt(x, y), minInt(size-1-x, size-1-y))
+			alpha := uint8(0)
+			switch {
+			case dist < 3:
+				alpha = 190
+			case dist < 6:
+				alpha = 100
+			case dist < 11:
+				alpha = 32
+			}
+			if x == y || x == size-1-y {
+				alpha = maxUint8(alpha, 34)
+			}
+			if alpha > 0 {
+				img.SetRGBA(x, y, color.RGBA{R: 180, G: 230, B: 255, A: alpha})
+			}
+		}
+	}
+	m.tileCursor = ebiten.NewImageFromImage(img)
+	return m.tileCursor
+}
+
+func drawTileCursorSurface(screen, texture *ebiten.Image, points [4]screenPoint) {
+	if texture == nil {
+		return
+	}
+	bounds := texture.Bounds()
+	w := float32(bounds.Dx())
+	h := float32(bounds.Dy())
+	tint := color.RGBA{R: 255, G: 255, B: 255, A: 210}
+	vertices := []ebiten.Vertex{
+		texturedSurfaceVertex(points[0], texturePoint{u: 0, v: 0}, tint, w, h),
+		texturedSurfaceVertex(points[1], texturePoint{u: 1, v: 0}, tint, w, h),
+		texturedSurfaceVertex(points[2], texturePoint{u: 0, v: 1}, tint, w, h),
+		texturedSurfaceVertex(points[3], texturePoint{u: 1, v: 1}, tint, w, h),
+	}
+	op := &ebiten.DrawTrianglesOptions{
+		Filter:  ebiten.FilterLinear,
+		Address: ebiten.AddressClampToZero,
+	}
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, texture, op)
 }
 
 func projectedGATCell(projection sceneProjection, gat *res.GAT, x, y int) ([4]screenPoint, float64, bool) {
@@ -3388,6 +3501,13 @@ func textureColor(name string) color.RGBA {
 
 func clampColor(value float64) uint8 {
 	return uint8(min(255, max(0, int(value))))
+}
+
+func maxUint8(a, b uint8) uint8 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func drawColoredSurface(screen, white *ebiten.Image, points [4]screenPoint, indices []uint16, c color.RGBA) {
