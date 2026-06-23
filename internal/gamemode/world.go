@@ -2295,15 +2295,15 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 				neighbor, neighborOK := gnd.Cell(x, y+1)
 				surface, surfaceOK := gnd.Surface(cell.Front)
 				if neighborOK && surfaceOK {
-					vertexOrder := [4]int{2, 3, 0, 1}
+					vertexOrder := [4]int{0, 1, 3, 2}
 					verts := [4]modelPoint3{
 						{x: float64(x) * 2, y: float64(cell.Heights[2]), z: float64(y+1) * 2},
 						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
-						{x: float64(x) * 2, y: float64(neighbor.Heights[0]), z: float64(y+1) * 2},
 						{x: float64(x+1) * 2, y: float64(neighbor.Heights[1]), z: float64(y+1) * 2},
+						{x: float64(x) * 2, y: float64(neighbor.Heights[0]), z: float64(y+1) * 2},
 					}
-					heights := [4]float32{cell.Heights[2], cell.Heights[3], neighbor.Heights[0], neighbor.Heights[1]}
-					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, lighting))
+					heights := [4]float32{cell.Heights[2], cell.Heights[3], neighbor.Heights[1], neighbor.Heights[0]}
+					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, heights, lighting))
 				}
 			}
 
@@ -2311,15 +2311,15 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 				neighbor, neighborOK := gnd.Cell(x+1, y)
 				surface, surfaceOK := gnd.Surface(cell.Right)
 				if neighborOK && surfaceOK {
-					vertexOrder := [4]int{3, 1, 2, 0}
+					vertexOrder := [4]int{0, 1, 3, 2}
 					verts := [4]modelPoint3{
 						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
 						{x: float64(x+1) * 2, y: float64(cell.Heights[1]), z: float64(y) * 2},
-						{x: float64(x+1) * 2, y: float64(neighbor.Heights[2]), z: float64(y+1) * 2},
 						{x: float64(x+1) * 2, y: float64(neighbor.Heights[0]), z: float64(y) * 2},
+						{x: float64(x+1) * 2, y: float64(neighbor.Heights[2]), z: float64(y+1) * 2},
 					}
-					heights := [4]float32{cell.Heights[3], cell.Heights[1], neighbor.Heights[2], neighbor.Heights[0]}
-					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 2, 1, 3}, surface, heights, lighting))
+					heights := [4]float32{cell.Heights[3], cell.Heights[1], neighbor.Heights[0], neighbor.Heights[2]}
+					surfaces = append(surfaces, newGNDSurfaceDraw(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, heights, lighting))
 				}
 			}
 		}
