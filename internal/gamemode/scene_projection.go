@@ -26,6 +26,7 @@ type sceneProjection struct {
 	tileH          float64
 	heightScale    float64
 	camera         bool
+	cameraYaw      float64
 	viewProjection mat4
 }
 
@@ -56,6 +57,7 @@ func newSceneProjectionForTargetYaw(width, height int, targetX, targetY, targetZ
 	}
 	if os.Getenv("GORO_SCENE_PROJECTION") != "flat" {
 		projection.camera = true
+		projection.cameraYaw = yaw
 		projection.viewProjection = sceneCameraMatrixWithYaw(float64(width), float64(height), targetX, targetY, targetZ, yaw)
 	}
 	return projection

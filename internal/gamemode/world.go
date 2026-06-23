@@ -2646,15 +2646,10 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 
 	width := screen.Bounds().Dx()
 	height := screen.Bounds().Dy()
-	groundCenterX := int(math.Floor(projection.playerX * 0.5))
-	groundCenterY := int(math.Floor(projection.playerY * 0.5))
-
-	radiusX := int(float64(width)/projection.tileW) + 12
-	radiusY := int(float64(height)/projection.tileH) + 12
-	startX := max(0, groundCenterX-radiusX)
-	endX := min(gnd.Width-1, groundCenterX+radiusX)
-	startY := max(0, groundCenterY-radiusY)
-	endY := min(gnd.Height-1, groundCenterY+radiusY)
+	startX, endX, startY, endY, ok := gndDrawBounds(gnd, projection, width, height)
+	if !ok {
+		return
+	}
 	lighting := sceneLightingFromRSW(rsw)
 	surfaces := make([]gndSurfaceDraw, 0, (endX-startX+1)*(endY-startY+1))
 
@@ -2719,6 +2714,103 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 	for _, surface := range surfaces {
 		m.drawGNDSurface(screen, manager, gnd, surface, float64(width), float64(height))
 	}
+}
+
+func gndDrawBounds(gnd *res.GND, projection sceneProjection, screenWidth, screenHeight int) (int, int, int, int, bool) {
+	if gnd == nil || gnd.Width <= 0 || gnd.Height <= 0 {
+		return 0, 0, 0, 0, false
+	}
+
+	centerX := gndTileFromWorld(projection.playerX)
+	centerY := gndTileFromWorld(projection.playerY)
+	if projection.camera {
+		if minWorldX, maxWorldX, minWorldY, maxWorldY, ok := cameraGroundFootprint(projection, screenWidth, screenHeight); ok {
+			const margin = 24
+			startX := minInt(gndTileFromWorld(minWorldX), centerX) - margin
+			endX := maxInt(gndTileFromWorld(maxWorldX), centerX) + margin
+			startY := minInt(gndTileFromWorld(minWorldY), centerY) - margin
+			endY := maxInt(gndTileFromWorld(maxWorldY), centerY) + margin
+			return clampGNDRange(gnd, startX, endX, startY, endY)
+		}
+	}
+
+	radiusX := int(float64(screenWidth)/projection.tileW) + 12
+	radiusY := int(float64(screenHeight)/projection.tileH) + 12
+	return clampGNDRange(gnd, centerX-radiusX, centerX+radiusX, centerY-radiusY, centerY+radiusY)
+}
+
+func gndTileFromWorld(coord float64) int {
+	return int(math.Floor(coord * 0.5))
+}
+
+func clampGNDRange(gnd *res.GND, startX, endX, startY, endY int) (int, int, int, int, bool) {
+	startX = maxInt(0, startX)
+	endX = minInt(gnd.Width-1, endX)
+	startY = maxInt(0, startY)
+	endY = minInt(gnd.Height-1, endY)
+	return startX, endX, startY, endY, startX <= endX && startY <= endY
+}
+
+func cameraGroundFootprint(projection sceneProjection, screenWidth, screenHeight int) (float64, float64, float64, float64, bool) {
+	aspect := 1.0
+	if screenHeight > 0 {
+		aspect = float64(screenWidth) / float64(screenHeight)
+	}
+
+	distance := sceneCameraZoom() * 0.5
+	pitch := sceneCameraPitch()
+	if pitch > 180 {
+		pitch -= 180
+	}
+	pitch = degreesToRadians(pitch)
+	yaw := degreesToRadians(projection.cameraYaw)
+	horizontal := math.Cos(pitch) * distance
+	eye := modelPoint3{
+		x: projection.playerX + math.Sin(yaw)*horizontal,
+		y: projection.playerZ + math.Sin(pitch)*distance,
+		z: projection.playerY - math.Cos(yaw)*horizontal,
+	}
+	target := modelPoint3{x: projection.playerX, y: projection.playerZ, z: projection.playerY}
+	forward := normalize3(sub3(target, eye))
+	right := normalize3(cross3(modelPoint3{y: 1}, forward))
+	if right == (modelPoint3{}) {
+		right = modelPoint3{x: 1}
+	}
+	up := cross3(forward, right)
+	tanHalfFOV := math.Tan(degreesToRadians(sceneCameraFOV()) * 0.5)
+
+	samples := [][2]float64{
+		{-1, -1}, {1, -1}, {-1, 1}, {1, 1},
+		{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1},
+	}
+	minX, maxX := 0.0, 0.0
+	minY, maxY := 0.0, 0.0
+	found := false
+	for _, sample := range samples {
+		dir := normalize3(add3(add3(forward, mul3(right, sample[0]*tanHalfFOV*aspect)), mul3(up, sample[1]*tanHalfFOV)))
+		if math.Abs(dir.y) < 0.000001 {
+			continue
+		}
+		t := (projection.playerZ - eye.y) / dir.y
+		if t <= 0 || !isFinite(t) {
+			continue
+		}
+		hit := add3(eye, mul3(dir, t))
+		if !isFinite(hit.x) || !isFinite(hit.z) {
+			continue
+		}
+		if !found {
+			minX, maxX = hit.x, hit.x
+			minY, maxY = hit.z, hit.z
+			found = true
+			continue
+		}
+		minX = math.Min(minX, hit.x)
+		maxX = math.Max(maxX, hit.x)
+		minY = math.Min(minY, hit.z)
+		maxY = math.Max(maxY, hit.z)
+	}
+	return minX, maxX, minY, maxY, found
 }
 
 type gndSurfaceDraw struct {
@@ -2811,6 +2903,9 @@ func newGNDSurfaceDraw(projection sceneProjection, verts [4]modelPoint3, uvs [4]
 }
 
 func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw, screenWidth, screenHeight float64) {
+	if quadHasInvalidPoint(draw.points) {
+		return
+	}
 	if quadOutside(draw.points, screenWidth, screenHeight) {
 		return
 	}
@@ -2998,6 +3093,18 @@ func quadOutside(points [4]screenPoint, width, height float64) bool {
 		maxY = math.Max(maxY, float64(point.y))
 	}
 	return maxX < -32 || maxY < -32 || minX > width+32 || minY > height+32
+}
+
+func quadHasInvalidPoint(points [4]screenPoint) bool {
+	for _, point := range points {
+		if !isFinite(float64(point.x)) || !isFinite(float64(point.y)) {
+			return true
+		}
+		if point.x <= -1<<19 && point.y <= -1<<19 {
+			return true
+		}
+	}
+	return false
 }
 
 func gndTextureName(gnd *res.GND, textureID int) string {

@@ -790,6 +790,36 @@ func TestSortGNDSurfacesDrawsFarBeforeNear(t *testing.T) {
 	}
 }
 
+func TestGNDDrawBoundsUseCameraFootprint(t *testing.T) {
+	t.Setenv("GORO_SCENE_PROJECTION", "")
+	t.Setenv("GORO_CAMERA_ZOOM", "150")
+	t.Setenv("GORO_CAMERA_PITCH", "230")
+	t.Setenv("GORO_CAMERA_FOV", "15")
+
+	gnd := &res.GND{Width: 200, Height: 200}
+	projection := newSceneProjectionForTargetYaw(1024, 768, 200.5, 260.5, 8, 0)
+	startX, endX, startY, endY, ok := gndDrawBounds(gnd, projection, 1024, 768)
+	if !ok {
+		t.Fatal("missing GND bounds")
+	}
+	centerX := gndTileFromWorld(projection.playerX)
+	centerY := gndTileFromWorld(projection.playerY)
+	if startX > centerX || endX < centerX || startY > centerY || endY < centerY {
+		t.Fatalf("bounds %d..%d,%d..%d do not include center %d,%d", startX, endX, startY, endY, centerX, centerY)
+	}
+	oldSymmetricStartY := centerY - (int(768/sceneTileH) + 12)
+	if startY <= oldSymmetricStartY {
+		t.Fatalf("camera bounds startY=%d, want tighter than old symmetric startY=%d", startY, oldSymmetricStartY)
+	}
+}
+
+func TestQuadHasInvalidPointDetectsCameraSentinel(t *testing.T) {
+	points := [4]screenPoint{{x: -1 << 20, y: -1 << 20}, {x: 1, y: 1}, {x: 2, y: 1}, {x: 1, y: 2}}
+	if !quadHasInvalidPoint(points) {
+		t.Fatal("expected camera sentinel point to invalidate GND quad")
+	}
+}
+
 func TestMapWaterPrefersGNDOverride(t *testing.T) {
 	gnd := &res.GND{Water: res.GNDWater{Present: true, Level: -4, Type: 3, WaveHeight: 2, WaveSpeed: 5, WavePitch: 20, AnimSpeed: 6}}
 	rsw := &res.RSW{Water: res.RSWWater{Level: -1, Type: 1}}

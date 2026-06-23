@@ -778,6 +778,14 @@ func sub3(a, b modelPoint3) modelPoint3 {
 	return modelPoint3{x: a.x - b.x, y: a.y - b.y, z: a.z - b.z}
 }
 
+func add3(a, b modelPoint3) modelPoint3 {
+	return modelPoint3{x: a.x + b.x, y: a.y + b.y, z: a.z + b.z}
+}
+
+func mul3(v modelPoint3, scalar float64) modelPoint3 {
+	return modelPoint3{x: v.x * scalar, y: v.y * scalar, z: v.z * scalar}
+}
+
 func cross3(a, b modelPoint3) modelPoint3 {
 	return modelPoint3{
 		x: a.y*b.z - a.z*b.y,
