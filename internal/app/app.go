@@ -25,6 +25,8 @@ type Game struct {
 	audio    *gameaudio.BGM
 	modes    *gamemode.Manager
 	started  time.Time
+	screenW  int
+	screenH  int
 }
 
 func New(cfg core.Config) (*Game, error) {
@@ -42,6 +44,8 @@ func New(cfg core.Config) (*Game, error) {
 		network:  network.NewClient(cfg.Packet.ClientDate),
 		audio:    gameaudio.NewBGM(resource, cfg.Audio.BGM, cfg.Audio.BGMVolume),
 		started:  time.Now(),
+		screenW:  cfg.Window.Width,
+		screenH:  cfg.Window.Height,
 	}
 
 	ctx := g.modeContext()
@@ -62,8 +66,12 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	if outsideWidth <= 0 || outsideHeight <= 0 {
+		g.screenW = g.cfg.Window.Width
+		g.screenH = g.cfg.Window.Height
 		return g.cfg.Window.Width, g.cfg.Window.Height
 	}
+	g.screenW = outsideWidth
+	g.screenH = outsideHeight
 	return outsideWidth, outsideHeight
 }
 
@@ -77,5 +85,7 @@ func (g *Game) modeContext() gamemode.Context {
 		Network:   g.network,
 		Audio:     g.audio,
 		Started:   g.started,
+		ScreenW:   g.screenW,
+		ScreenH:   g.screenH,
 	}
 }

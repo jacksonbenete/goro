@@ -21,4 +21,17 @@ type Context struct {
 	Network   *network.Client
 	Audio     *gameaudio.BGM
 	Started   time.Time
+	ScreenW   int
+	ScreenH   int
+}
+
+func (c Context) ScreenSize() (int, int) {
+	width, height := c.ScreenW, c.ScreenH
+	if width <= 0 {
+		width = c.Config.Window.Width
+	}
+	if height <= 0 {
+		height = c.Config.Window.Height
+	}
+	return width, height
 }

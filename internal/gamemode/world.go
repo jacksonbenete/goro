@@ -340,7 +340,8 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		m.walkCooldown--
 	}
 	if ctx.Input.MouseJustPressed(ebiten.MouseButtonLeft) && m.walkCooldown == 0 {
-		projection := m.sceneProjection(ctx, ctx.Config.Window.Width, ctx.Config.Window.Height, now)
+		screenW, screenH := ctx.ScreenSize()
+		projection := m.sceneProjection(ctx, screenW, screenH, now)
 		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
 			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
 			m.requestAttack(ctx, actor, "click")
