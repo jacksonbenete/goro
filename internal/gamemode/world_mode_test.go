@@ -918,3 +918,15 @@ func TestActorDisplayNameDoesNotLabelUnnamedPlayerJob(t *testing.T) {
 		t.Fatalf("display name = %q, want empty", got)
 	}
 }
+
+func TestActorDisplayNameDoesNotLabelWarpPortal(t *testing.T) {
+	ctx := Context{Resources: &res.Manager{}}
+	actor := worldstate.Actor{Job: actorJobWarpPortal}
+
+	if got := actorDisplayName(ctx, actor, false); got != "" {
+		t.Fatalf("display name = %q, want empty", got)
+	}
+	if !isWarpActor(actor) {
+		t.Fatal("expected warp actor classification")
+	}
+}

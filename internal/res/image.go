@@ -20,7 +20,10 @@ func LoadImage(manager *Manager, candidates []string) (image.Image, string, erro
 		}
 		img, _, err := image.Decode(bytes.NewReader(data))
 		if err != nil {
-			return nil, candidate, fmt.Errorf("decode image: %w", err)
+			img, err = decodeTGA(data)
+			if err != nil {
+				return nil, candidate, fmt.Errorf("decode image: %w", err)
+			}
 		}
 		return applyROTransparency(img), candidate, nil
 	}
@@ -33,6 +36,16 @@ func applyROTransparency(img image.Image) *image.NRGBA {
 	draw.Draw(out, bounds, img, bounds.Min, draw.Src)
 	for i := 0; i < len(out.Pix); i += 4 {
 		if isROMagenta(out.Pix[i], out.Pix[i+1], out.Pix[i+2]) {
+			out.Pix[i+3] = 0
+		}
+	}
+	return out
+}
+
+func ApplyEffectTransparency(img image.Image) *image.NRGBA {
+	out := applyROTransparency(img)
+	for i := 0; i < len(out.Pix); i += 4 {
+		if out.Pix[i] < 3 && out.Pix[i+1] < 3 && out.Pix[i+2] < 3 {
 			out.Pix[i+3] = 0
 		}
 	}
@@ -77,5 +90,28 @@ func WaterTextureCandidates(waterType, frame int) []string {
 		"texture\\" + name,
 		"texture/" + name,
 		name,
+	}
+}
+
+func EffectTextureCandidates(name string) []string {
+	name = strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(name, ".tga"), ".bmp"))
+	if name == "" {
+		return nil
+	}
+	return []string{
+		"data\\texture\\effect\\" + name + ".tga",
+		"data\\texture\\effect\\" + name + ".bmp",
+		"data/texture/effect/" + name + ".tga",
+		"data/texture/effect/" + name + ".bmp",
+		"texture\\effect\\" + name + ".tga",
+		"texture\\effect\\" + name + ".bmp",
+		"texture/effect/" + name + ".tga",
+		"texture/effect/" + name + ".bmp",
+		"effect\\" + name + ".tga",
+		"effect\\" + name + ".bmp",
+		"effect/" + name + ".tga",
+		"effect/" + name + ".bmp",
+		name + ".tga",
+		name + ".bmp",
 	}
 }

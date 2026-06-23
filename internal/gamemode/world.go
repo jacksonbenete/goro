@@ -1798,6 +1798,9 @@ type sceneActorDrawEntry struct {
 	label    string
 	screenX  float64
 	screenY  float64
+	worldX   float64
+	worldY   float64
+	worldZ   float64
 	scale    float64
 	depth    float64
 	isPlayer bool
@@ -1806,6 +1809,7 @@ type sceneActorDrawEntry struct {
 const (
 	actorBillboardCellWorldUnits  = 5.0
 	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
+	actorJobWarpPortal            = 45
 	actorObjectTypeMob            = 5
 	actorObjectTypeNPCABR         = 13
 	actorObjectTypeNPCBionic      = 14
@@ -1817,7 +1821,7 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 		return entries[i].depth > entries[j].depth
 	})
 	for _, entry := range entries {
-		m.drawSceneActorEntry(screen, ctx, entry)
+		m.drawSceneActorEntry(screen, ctx, projection, entry)
 	}
 	for _, entry := range entries {
 		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
@@ -1848,7 +1852,7 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, 
 			m.drawModelTriangle(screen, ctx.Resources, models[entry.modelIndex])
 			continue
 		}
-		m.drawSceneActorEntry(screen, ctx, actors[entry.actorIndex])
+		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
 	}
 	for _, actor := range actors {
 		drawActorNameLabel(screen, actor.label, actor.screenX, actor.screenY, actor.scale)
@@ -1879,12 +1883,20 @@ func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, 
 	return entries
 }
 
-func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	if entry.isPlayer {
 		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir) {
 			return
 		}
 		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
+		return
+	}
+	if isWarpActor(entry.actor) {
+		if m.whitePixel == nil {
+			m.whitePixel = ebiten.NewImage(1, 1)
+			m.whitePixel.Fill(color.White)
+		}
+		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), projection, entry.worldX, entry.worldY, entry.worldZ, time.Now())
 		return
 	}
 	if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale) {
@@ -1907,6 +1919,9 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 		label:    label,
 		screenX:  float64(point.x),
 		screenY:  float64(point.y),
+		worldX:   cellCenter(actorX),
+		worldY:   cellCenter(actorY),
+		worldZ:   terrainZ,
 		scale:    actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ),
 		depth:    depth,
 		isPlayer: isPlayer,
@@ -1919,6 +1934,9 @@ func actorDisplayName(ctx Context, actor worldstate.Actor, isPlayer bool) string
 			return name
 		}
 		return sanitizeActorName(actor.Name)
+	}
+	if isWarpActor(actor) {
+		return ""
 	}
 	if name := sanitizeActorName(actor.Name); name != "" {
 		return name
@@ -1960,6 +1978,10 @@ func displayNameFromResource(name string) string {
 		fields[i] = titleASCIIWord(field)
 	}
 	return strings.Join(fields, " ")
+}
+
+func isWarpActor(actor worldstate.Actor) bool {
+	return actor.Job == actorJobWarpPortal
 }
 
 func titleASCIIWord(word string) string {
@@ -2118,6 +2140,174 @@ func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) floa
 		return 1
 	}
 	return projectedHeight / float64(humanoidBillboardAnchorY)
+}
+
+func drawWarpZoneEffect(screen, white, ringTexture *ebiten.Image, projection sceneProjection, x, y, z float64, now time.Time) {
+	const (
+		segments       = 64
+		ringCount      = 4
+		baseRadius     = 0.25
+		radiusRange    = 1.18
+		bandWidth      = 0.34
+		cycleSeconds   = 4.0
+		bottomBaseSize = 0.95
+		topBaseSize    = 1.58
+		heightBase     = 1.10
+		groundLift     = 0.04
+	)
+	z += groundLift
+	seconds := float64(now.UnixNano()) / float64(time.Second)
+
+	for i := 0; i < ringCount; i++ {
+		phase := math.Mod(seconds+float64(i), cycleSeconds) / cycleSeconds
+		sizeFactor := 1 - phase
+		heightFactor := phase * 2
+		if phase > 0.5 {
+			heightFactor = (1 - phase) * 2
+		}
+		alpha := uint8(102 * warpCycleFade(phase))
+		drawProjectedCylinderBand(
+			screen,
+			white,
+			ringTexture,
+			projection,
+			x,
+			y,
+			z,
+			bottomBaseSize*sizeFactor,
+			topBaseSize*sizeFactor,
+			heightBase*heightFactor,
+			color.RGBA{R: 155, G: 205, B: 255, A: alpha},
+			segments,
+		)
+	}
+	drawProjectedRadialGradient(screen, white, projection, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
+	for i := 0; i < ringCount; i++ {
+		phase := math.Mod(seconds*0.55+float64(i)/ringCount, 1)
+		radius := baseRadius + phase*radiusRange
+		alpha := uint8(155 * (1 - phase))
+		if alpha < 28 {
+			alpha = 28
+		}
+		drawProjectedSoftRing(screen, white, projection, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
+	}
+	pulse := 0.5 + 0.5*math.Sin(seconds*2.4)
+	drawProjectedSoftRing(screen, white, projection, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
+}
+
+func warpCycleFade(phase float64) float64 {
+	switch {
+	case phase < 0.25:
+		return phase / 0.25
+	case phase > 0.75:
+		return (1 - phase) / 0.25
+	default:
+		return 1
+	}
+}
+
+func drawProjectedRadialGradient(screen, white *ebiten.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
+	drawProjectedRingBand(screen, white, projection, x, y, z, innerRadius, outerRadius, c.A, 0, c, segments)
+}
+
+func drawProjectedSoftRing(screen, white *ebiten.Image, projection sceneProjection, x, y, z, radius, width float64, c color.RGBA, segments int) {
+	inner := math.Max(0, radius-width*0.5)
+	mid := math.Max(inner+0.01, radius)
+	outer := math.Max(mid+0.01, radius+width*0.5)
+	drawProjectedRingBand(screen, white, projection, x, y, z, inner, mid, 0, c.A, c, segments)
+	drawProjectedRingBand(screen, white, projection, x, y, z, mid, outer, c.A, 0, c, segments)
+}
+
+func drawProjectedCylinderBand(screen, white, texture *ebiten.Image, projection sceneProjection, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
+	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
+		return
+	}
+	vertices := make([]ebiten.Vertex, 0, (segments+1)*2)
+	indices := make([]uint16, 0, segments*6)
+	tint := c
+	srcW, srcH := float32(1), float32(1)
+	source := white
+	if texture != nil {
+		source = texture
+		bounds := texture.Bounds()
+		srcW = float32(bounds.Dx())
+		srcH = float32(bounds.Dy())
+	}
+	for i := 0; i <= segments; i++ {
+		u := float32(i) / float32(segments)
+		angle := float64(i) * 2 * math.Pi / float64(segments)
+		cosine := math.Cos(angle)
+		sine := math.Sin(angle)
+		vertices = append(vertices,
+			warpEffectTexturedVertex(projection.Project(x+cosine*bottomRadius, y+sine*bottomRadius, z), u*srcW, srcH, tint),
+			warpEffectTexturedVertex(projection.Project(x+cosine*topRadius, y+sine*topRadius, z+height), u*srcW, 0, tint),
+		)
+		if i == segments {
+			continue
+		}
+		base := uint16(i * 2)
+		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
+	}
+	screen.DrawTriangles(vertices, indices, source, &ebiten.DrawTrianglesOptions{
+		Blend:   ebiten.BlendLighter,
+		Filter:  ebiten.FilterLinear,
+		Address: ebiten.AddressRepeat,
+	})
+}
+
+func drawProjectedRingBand(screen, white *ebiten.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
+	if segments < 3 || outerRadius <= innerRadius {
+		return
+	}
+	vertices := make([]ebiten.Vertex, 0, (segments+1)*2)
+	indices := make([]uint16, 0, segments*6)
+	innerColor := c
+	outerColor := c
+	innerColor.A = innerAlpha
+	outerColor.A = outerAlpha
+	for i := 0; i <= segments; i++ {
+		angle := float64(i) * 2 * math.Pi / float64(segments)
+		cosine := math.Cos(angle)
+		sine := math.Sin(angle)
+		vertices = append(vertices,
+			warpEffectVertex(projection.Project(x+cosine*innerRadius, y+sine*innerRadius, z), innerColor),
+			warpEffectVertex(projection.Project(x+cosine*outerRadius, y+sine*outerRadius, z), outerColor),
+		)
+		if i == segments {
+			continue
+		}
+		base := uint16(i * 2)
+		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
+	}
+	screen.DrawTriangles(vertices, indices, white, &ebiten.DrawTrianglesOptions{
+		Blend: ebiten.BlendLighter,
+	})
+}
+
+func warpEffectTexturedVertex(point screenPoint, srcX, srcY float32, c color.RGBA) ebiten.Vertex {
+	return ebiten.Vertex{
+		DstX:   point.x,
+		DstY:   point.y,
+		SrcX:   srcX,
+		SrcY:   srcY,
+		ColorR: float32(c.R) / 255,
+		ColorG: float32(c.G) / 255,
+		ColorB: float32(c.B) / 255,
+		ColorA: float32(c.A) / 255,
+	}
+}
+
+func warpEffectVertex(point screenPoint, c color.RGBA) ebiten.Vertex {
+	return ebiten.Vertex{
+		DstX:   point.x,
+		DstY:   point.y,
+		SrcX:   0,
+		SrcY:   0,
+		ColorR: float32(c.R) / 255,
+		ColorG: float32(c.G) / 255,
+		ColorB: float32(c.B) / 255,
+		ColorA: float32(c.A) / 255,
+	}
 }
 
 func drawActorMarker(screen *ebiten.Image, x, y float64, actor worldstate.Actor, now time.Time) {
@@ -2471,6 +2661,33 @@ func (m *WorldMode) waterTexture(manager *res.Manager, waterType, frame int) *eb
 		return nil
 	}
 	texture := ebiten.NewImageFromImage(img)
+	m.textures[key] = texture
+	return texture
+}
+
+func (m *WorldMode) effectTexture(manager *res.Manager, name string) *ebiten.Image {
+	if manager == nil || strings.TrimSpace(name) == "" {
+		return nil
+	}
+	key := "__effect_" + strings.TrimSpace(name)
+	if m.textures == nil {
+		m.textures = make(map[string]*ebiten.Image)
+	}
+	if m.textureMiss == nil {
+		m.textureMiss = make(map[string]struct{})
+	}
+	if texture, ok := m.textures[key]; ok {
+		return texture
+	}
+	if _, ok := m.textureMiss[key]; ok {
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, res.EffectTextureCandidates(name))
+	if err != nil {
+		m.textureMiss[key] = struct{}{}
+		return nil
+	}
+	texture := ebiten.NewImageFromImage(res.ApplyEffectTransparency(img))
 	m.textures[key] = texture
 	return texture
 }
