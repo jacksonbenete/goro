@@ -48,6 +48,7 @@ type WorldMode struct {
 	scheduledSounds  []scheduledSound
 	actorDeaths      map[uint32]time.Time
 	actorSoundFrames map[uint32]actorSoundFrame
+	actorLife        map[uint32]actorLife
 }
 
 type actorSpriteKey struct {
@@ -91,6 +92,13 @@ type actorAnimation struct {
 	actionFamily int
 	started      time.Time
 	duration     time.Duration
+}
+
+type actorLife struct {
+	hp        int
+	maxHP     int
+	fromTiny  bool
+	updatedAt time.Time
 }
 
 const attackRetryInterval = 1200 * time.Millisecond
@@ -139,6 +147,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.scheduledSounds = nil
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
+	m.actorLife = make(map[uint32]actorLife)
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
@@ -278,6 +287,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse actor action 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.applyActorActionNotify(ctx, action)
+			continue
+		}
+		if life, ok, err := network.ParseActorHPUpdate(pkt); err != nil {
+			log.Printf("parse actor hp 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyActorHPUpdate(life)
 			continue
 		}
 		if failure, ok, err := network.ParseAttackFailureForDistance(pkt); err != nil {
@@ -631,6 +646,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		}
 		m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
 		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
+		m.applyCombatLifeFallback(ctx, target, targetLocal, action, hitAt)
 		if targetLocal {
 			ctx.World.Player.Moving = false
 		}
@@ -653,6 +669,52 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		starts:  hitAt,
 		expires: hitAt.Add(900 * time.Millisecond),
 	})
+}
+
+func (m *WorldMode) applyActorHPUpdate(update network.ActorHPUpdate) {
+	if update.ID == 0 || update.MaxHP <= 0 {
+		return
+	}
+	hp := update.HP
+	if hp < 0 {
+		hp = 0
+	}
+	if hp > update.MaxHP {
+		hp = update.MaxHP
+	}
+	if m.actorLife == nil {
+		m.actorLife = make(map[uint32]actorLife)
+	}
+	m.actorLife[update.ID] = actorLife{
+		hp:        hp,
+		maxHP:     update.MaxHP,
+		fromTiny:  update.Tiny,
+		updatedAt: time.Now(),
+	}
+	log.Printf("actor hp id=%d hp=%d max_hp=%d tiny=%t", update.ID, hp, update.MaxHP, update.Tiny)
+}
+
+func (m *WorldMode) applyCombatLifeFallback(ctx Context, target worldstate.Actor, targetLocal bool, action network.ActorActionNotify, hitAt time.Time) {
+	if targetLocal || !actorCanBeAttackClicked(ctx, target) {
+		return
+	}
+	damage := int(action.Damage + action.LeftDamage)
+	if damage <= 0 {
+		return
+	}
+	if m.actorLife == nil {
+		m.actorLife = make(map[uint32]actorLife)
+	}
+	life, ok := m.actorLife[target.ID]
+	if !ok || life.maxHP <= 0 {
+		life = actorLife{hp: 100, maxHP: 100}
+	}
+	life.hp -= damage
+	if life.hp < 0 {
+		life.hp = 0
+	}
+	life.updatedAt = hitAt
+	m.actorLife[target.ID] = life
 }
 
 func actorForCombatID(ctx Context, id uint32) (worldstate.Actor, bool, bool) {
@@ -1414,6 +1476,7 @@ func (m *WorldMode) applyActorVanish(ctx Context, vanish network.ActorVanish) {
 	delete(m.actorAnims, vanish.ID)
 	delete(m.actorDeaths, vanish.ID)
 	delete(m.actorSoundFrames, vanish.ID)
+	delete(m.actorLife, vanish.ID)
 }
 
 func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
@@ -1449,6 +1512,13 @@ func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
 			m.actorDeaths = make(map[uint32]time.Time)
 		}
 		m.actorDeaths[id] = now.Add(visibleDuration)
+		if m.actorLife != nil {
+			if life, ok := m.actorLife[id]; ok {
+				life.hp = 0
+				life.updatedAt = now
+				m.actorLife[id] = life
+			}
+		}
 	}
 	log.Printf("actor death id=%d job=%d local=%t action=%d death_ms=%d remove_ms=%d", id, actor.Job, local, actionFamily, deathDuration.Milliseconds(), visibleDuration.Milliseconds())
 }
@@ -1465,6 +1535,7 @@ func (m *WorldMode) cleanupDeadActors(ctx Context, now time.Time) {
 		delete(m.actorDeaths, id)
 		delete(m.actorAnims, id)
 		delete(m.actorSoundFrames, id)
+		delete(m.actorLife, id)
 		if m.pendingAttack.targetID == id {
 			m.pendingAttack = attackIntent{}
 		}
@@ -1901,6 +1972,9 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 		m.drawSceneActorEntry(screen, ctx, projection, entry)
 	}
 	for _, entry := range entries {
+		m.drawActorLifeBar(screen, ctx, entry)
+	}
+	for _, entry := range entries {
 		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
 	}
 }
@@ -1930,6 +2004,9 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, 
 			continue
 		}
 		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
+	}
+	for _, actor := range actors {
+		m.drawActorLifeBar(screen, ctx, actor)
 	}
 	for _, actor := range actors {
 		drawActorNameLabel(screen, actor.label, actor.screenX, actor.screenY, actor.scale)
@@ -2084,6 +2161,47 @@ func drawActorNameLabel(screen *ebiten.Image, label string, centerX, baseY, scal
 	y := int(baseY + 13*scale)
 	debugText(screen, x+1, y+1, "%s", label)
 	debugText(screen, x, y, "%s", label)
+}
+
+func (m *WorldMode) drawActorLifeBar(screen *ebiten.Image, ctx Context, entry sceneActorDrawEntry) {
+	life, ok := m.actorLifeForDisplay(ctx, entry.actor)
+	if !ok {
+		return
+	}
+	ratio := float64(life.hp) / float64(life.maxHP)
+	if ratio < 0 {
+		ratio = 0
+	} else if ratio > 1 {
+		ratio = 1
+	}
+	const width = 60.0
+	const height = 5.0
+	x := math.Round(entry.screenX - width/2)
+	y := math.Round(entry.screenY + 3*entry.scale)
+	fillWidth := math.Round((width - 2) * ratio)
+	fill := color.RGBA{R: 255, G: 0, B: 231, A: 255}
+	if ratio < 0.25 {
+		fill = color.RGBA{R: 255, G: 255, B: 0, A: 255}
+	}
+	ebitenutil.DrawRect(screen, x, y, width, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
+	ebitenutil.DrawRect(screen, x+1, y+1, width-2, height-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
+	if fillWidth > 0 {
+		ebitenutil.DrawRect(screen, x+1, y+1, fillWidth, 3, fill)
+	}
+}
+
+func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (actorLife, bool) {
+	if actor.ID == 0 || m.actorLife == nil {
+		return actorLife{}, false
+	}
+	if !actorCanBeAttackClicked(ctx, actor) {
+		return actorLife{}, false
+	}
+	life, ok := m.actorLife[actor.ID]
+	if !ok || life.maxHP <= 0 || life.hp < 0 {
+		return actorLife{}, false
+	}
+	return life, true
 }
 
 func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64) bool {

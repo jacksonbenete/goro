@@ -66,6 +66,13 @@ type ActorActionNotify struct {
 	LeftDamage  int32
 }
 
+type ActorHPUpdate struct {
+	ID    uint32
+	HP    int
+	MaxHP int
+	Tiny  bool
+}
+
 type AttackFailureForDistance struct {
 	TargetID    uint32
 	TargetX     int
@@ -73,6 +80,32 @@ type AttackFailureForDistance struct {
 	SourceX     int
 	SourceY     int
 	AttackRange int
+}
+
+func ParseActorHPUpdate(packet Packet) (ActorHPUpdate, bool, error) {
+	switch packet.ID {
+	case 0x0977:
+		if len(packet.Data) < 14 {
+			return ActorHPUpdate{}, false, fmt.Errorf("ZC_NOTIFY_MONSTER_HP too short: %d", len(packet.Data))
+		}
+		return ActorHPUpdate{
+			ID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+			HP:    int(binary.LittleEndian.Uint32(packet.Data[6:10])),
+			MaxHP: int(binary.LittleEndian.Uint32(packet.Data[10:14])),
+		}, true, nil
+	case 0x0A36:
+		if len(packet.Data) < 7 {
+			return ActorHPUpdate{}, false, fmt.Errorf("ZC_HP_INFO_TINY too short: %d", len(packet.Data))
+		}
+		return ActorHPUpdate{
+			ID:    binary.LittleEndian.Uint32(packet.Data[2:6]),
+			HP:    int(packet.Data[6]) * 5,
+			MaxHP: 100,
+			Tiny:  true,
+		}, true, nil
+	default:
+		return ActorHPUpdate{}, false, nil
+	}
 }
 
 func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {

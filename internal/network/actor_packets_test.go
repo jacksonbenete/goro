@@ -357,6 +357,43 @@ func TestParseActorActionNotify2(t *testing.T) {
 	}
 }
 
+func TestParseActorHPUpdate(t *testing.T) {
+	data := make([]byte, 14)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0977)
+	binary.LittleEndian.PutUint32(data[2:6], 110014894)
+	binary.LittleEndian.PutUint32(data[6:10], 42)
+	binary.LittleEndian.PutUint32(data[10:14], 100)
+
+	update, ok, err := ParseActorHPUpdate(Packet{ID: 0x0977, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("monster hp not parsed")
+	}
+	if update.ID != 110014894 || update.HP != 42 || update.MaxHP != 100 || update.Tiny {
+		t.Fatalf("unexpected hp update: %+v", update)
+	}
+}
+
+func TestParseActorHPTinyUpdate(t *testing.T) {
+	data := make([]byte, 7)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0A36)
+	binary.LittleEndian.PutUint32(data[2:6], 110014894)
+	data[6] = 13
+
+	update, ok, err := ParseActorHPUpdate(Packet{ID: 0x0A36, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("tiny hp not parsed")
+	}
+	if update.ID != 110014894 || update.HP != 65 || update.MaxHP != 100 || !update.Tiny {
+		t.Fatalf("unexpected tiny hp update: %+v", update)
+	}
+}
+
 func packMovePosition(fromX, fromY, toX, toY int) (byte, byte, byte, byte, byte, byte) {
 	return byte(fromX >> 2),
 		byte(((fromX & 0x03) << 6) | ((fromY >> 4) & 0x3f)),

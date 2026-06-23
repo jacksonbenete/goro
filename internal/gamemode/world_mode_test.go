@@ -401,6 +401,26 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
 		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
 	}
+	life, ok := mode.actorLife[300]
+	if !ok {
+		t.Fatal("target life fallback missing")
+	}
+	if life.hp != 58 || life.maxHP != 100 {
+		t.Fatalf("target life = %+v, want 58/100", life)
+	}
+}
+
+func TestApplyActorHPUpdateStoresExactLife(t *testing.T) {
+	mode := &WorldMode{}
+	mode.applyActorHPUpdate(network.ActorHPUpdate{ID: 300, HP: 12, MaxHP: 48})
+
+	life, ok := mode.actorLife[300]
+	if !ok {
+		t.Fatal("life missing")
+	}
+	if life.hp != 12 || life.maxHP != 48 || life.fromTiny {
+		t.Fatalf("life = %+v, want exact 12/48", life)
+	}
 }
 
 func TestCombatHitDelayUsesActionSoundMotion(t *testing.T) {
