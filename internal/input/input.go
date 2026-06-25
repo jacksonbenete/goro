@@ -63,6 +63,9 @@ var trackedKeys = []ebiten.Key{
 	ebiten.KeyArrowDown,
 	ebiten.KeyArrowLeft,
 	ebiten.KeyArrowRight,
+	ebiten.KeyQ,
+	ebiten.KeyE,
+	ebiten.KeyR,
 }
 
 var trackedButtons = []ebiten.MouseButton{

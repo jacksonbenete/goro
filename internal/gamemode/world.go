@@ -410,6 +410,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	}
 
 	m.camera.Update(ctx, now)
+	m.updateCameraRotation(ctx)
 
 	dx, dy := 0, 0
 	if ctx.Input.Pressed(ebiten.KeyArrowLeft) {
@@ -1444,7 +1445,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
-	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir)
+	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d yaw=%.1f", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir, projection.cameraYaw)
 	debugText(screen, 24, 44, "%s", m.status)
 	drawVitalsHUD(screen, ctx)
 	if ctx.World.GND != nil {
@@ -1475,6 +1476,7 @@ type followCamera struct {
 	x           float64
 	y           float64
 	z           float64
+	yawOffset   float64
 }
 
 func (c *followCamera) Reset() {
@@ -1498,12 +1500,20 @@ func (c *followCamera) Update(ctx Context, now time.Time) {
 	c.store(ctx)
 }
 
+func (c *followCamera) Rotate(delta float64) {
+	c.yawOffset = normalizeCameraYaw(c.yawOffset + delta)
+}
+
+func (c *followCamera) ResetRotation() {
+	c.yawOffset = 0
+}
+
 func (c *followCamera) Projection(ctx Context, width, height int, now time.Time) sceneProjection {
 	if !c.initialized {
 		c.Update(ctx, now)
 	}
 	c.store(ctx)
-	return newSceneProjectionForTargetYaw(width, height, c.x, c.y, c.z, cameraYawForMap(ctx))
+	return newSceneProjectionForTargetYaw(width, height, c.x, c.y, c.z, cameraYawForMap(ctx)+c.yawOffset)
 }
 
 func (c *followCamera) store(ctx Context) {
@@ -1516,6 +1526,22 @@ func (c *followCamera) store(ctx Context) {
 
 func (m *WorldMode) sceneProjection(ctx Context, width, height int, now time.Time) sceneProjection {
 	return m.camera.Projection(ctx, width, height, now)
+}
+
+func (m *WorldMode) updateCameraRotation(ctx Context) {
+	delta := 0.0
+	if ctx.Input.Pressed(ebiten.KeyQ) {
+		delta -= cameraRotateStep()
+	}
+	if ctx.Input.Pressed(ebiten.KeyE) {
+		delta += cameraRotateStep()
+	}
+	if delta != 0 {
+		m.camera.Rotate(delta)
+	}
+	if ctx.Input.JustPressed(ebiten.KeyR) {
+		m.camera.ResetRotation()
+	}
 }
 
 func playerCameraTarget(world *worldstate.World, now time.Time) (float64, float64, float64) {
@@ -1542,6 +1568,21 @@ func cameraYawForMap(ctx Context) float64 {
 		return -45
 	}
 	return sceneCameraYaw()
+}
+
+func cameraRotateStep() float64 {
+	return sceneFloatEnv("GORO_CAMERA_ROTATE_SPEED", 90) / 60
+}
+
+func normalizeCameraYaw(yaw float64) float64 {
+	yaw = math.Mod(yaw, 360)
+	if yaw <= -180 {
+		yaw += 360
+	}
+	if yaw > 180 {
+		yaw -= 360
+	}
+	return yaw
 }
 
 func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
@@ -2396,7 +2437,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, 
 }
 
 func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
-	cameraYaw := cameraYawForMap(ctx)
+	cameraYaw := projection.cameraYaw
 	if entry.isPlayer {
 		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir, cameraYaw, entry.shadow) {
 			return

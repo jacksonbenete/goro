@@ -863,6 +863,52 @@ func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
 	}
 }
 
+func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
+	t.Setenv("GORO_CAMERA_YAW", "15")
+	world := worldstate.New()
+	world.MapName = "prontera"
+	ctx := Context{World: world}
+	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0}
+
+	camera.Rotate(90)
+	projection := camera.Projection(ctx, 800, 600, time.Now())
+	if got := projection.cameraYaw; got != 105 {
+		t.Fatalf("projection yaw = %.1f, want 105.0", got)
+	}
+
+	camera.ResetRotation()
+	projection = camera.Projection(ctx, 800, 600, time.Now())
+	if got := projection.cameraYaw; got != 15 {
+		t.Fatalf("reset projection yaw = %.1f, want 15.0", got)
+	}
+}
+
+func TestFollowCameraProjectionKeepsIndoorBaseYaw(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.Mkdir(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "indoorrswtable.txt"), []byte("geffen_in.rsw#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := Context{
+		Resources: manager,
+		World:     &worldstate.World{MapName: "geffen_in"},
+	}
+	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0}
+
+	camera.Rotate(90)
+	projection := camera.Projection(ctx, 800, 600, time.Now())
+	if got := projection.cameraYaw; got != 45 {
+		t.Fatalf("indoor projection yaw = %.1f, want 45.0", got)
+	}
+}
+
 func TestSceneLightingFromRSWMatchesReferenceDirection(t *testing.T) {
 	lighting := sceneLightingFromRSW(&res.RSW{Light: res.RSWLight{
 		Longitude: 45,
