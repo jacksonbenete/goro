@@ -921,6 +921,48 @@ func TestCameraDragYawDeltaMatchesRobrowserScale(t *testing.T) {
 	}
 }
 
+func TestCameraWheelZoomFactorZoomsInOnWheelUp(t *testing.T) {
+	t.Setenv("GORO_CAMERA_WHEEL_ZOOM_STEP", "1.2")
+	if got := cameraWheelZoomFactor(1); got >= 1 {
+		t.Fatalf("wheel up factor = %.3f, want zoom-in factor below 1", got)
+	}
+	if got := cameraWheelZoomFactor(-1); got <= 1 {
+		t.Fatalf("wheel down factor = %.3f, want zoom-out factor above 1", got)
+	}
+}
+
+func TestCameraPinchZoomFactorZoomsInWhenFingersSpread(t *testing.T) {
+	t.Setenv("GORO_CAMERA_PINCH_ZOOM_SCALE", "200")
+	if got := cameraPinchZoomFactor(25); got >= 1 {
+		t.Fatalf("pinch spread factor = %.3f, want zoom-in factor below 1", got)
+	}
+	if got := cameraPinchZoomFactor(-25); got <= 1 {
+		t.Fatalf("pinch close factor = %.3f, want zoom-out factor above 1", got)
+	}
+}
+
+func TestFollowCameraZoomIsClampedAndProjected(t *testing.T) {
+	t.Setenv("GORO_CAMERA_ZOOM", "150")
+	t.Setenv("GORO_CAMERA_MIN_ZOOM", "100")
+	t.Setenv("GORO_CAMERA_MAX_ZOOM", "180")
+	world := worldstate.New()
+	ctx := Context{World: world}
+	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0}
+
+	camera.ZoomBy(0.1)
+	if got := camera.currentZoom(); got != 100 {
+		t.Fatalf("zoom in clamp = %.1f, want 100.0", got)
+	}
+	camera.ZoomBy(10)
+	if got := camera.currentZoom(); got != 180 {
+		t.Fatalf("zoom out clamp = %.1f, want 180.0", got)
+	}
+	projection := camera.Projection(ctx, 800, 600, time.Now())
+	if got := projection.cameraZoom; got != 180 {
+		t.Fatalf("projection zoom = %.1f, want 180.0", got)
+	}
+}
+
 func TestCursorRotateInfoMatchesRobrowser(t *testing.T) {
 	info := cursorInfo(cursorActionRotate)
 	if info.drawX != 18 || info.drawY != 26 || info.startX != 10 || info.startY != 0 || info.delayMult != 1 {

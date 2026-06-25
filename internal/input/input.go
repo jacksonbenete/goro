@@ -1,6 +1,11 @@
 package input
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"math"
+	"sort"
+
+	"github.com/hajimehoshi/ebiten/v2"
+)
 
 type State struct {
 	keys      map[ebiten.Key]bool
@@ -13,6 +18,20 @@ type State struct {
 	MouseDX  int
 	MouseDY  int
 	hasMouse bool
+
+	WheelX        float64
+	WheelY        float64
+	TouchPoints   []TouchPoint
+	PinchDelta    float64
+	touchIDs      []ebiten.TouchID
+	hasPinch      bool
+	pinchDistance float64
+}
+
+type TouchPoint struct {
+	ID ebiten.TouchID
+	X  int
+	Y  int
 }
 
 func NewState() *State {
@@ -49,6 +68,9 @@ func (s *State) Update() {
 		s.hasMouse = true
 	}
 	s.MouseX, s.MouseY = mouseX, mouseY
+
+	s.WheelX, s.WheelY = ebiten.Wheel()
+	s.updateTouches()
 }
 
 func (s *State) Pressed(key ebiten.Key) bool {
@@ -83,4 +105,33 @@ var trackedKeys = []ebiten.Key{
 var trackedButtons = []ebiten.MouseButton{
 	ebiten.MouseButtonLeft,
 	ebiten.MouseButtonRight,
+}
+
+func (s *State) updateTouches() {
+	s.touchIDs = ebiten.AppendTouchIDs(s.touchIDs[:0])
+	sort.Slice(s.touchIDs, func(i, j int) bool {
+		return s.touchIDs[i] < s.touchIDs[j]
+	})
+	s.TouchPoints = s.TouchPoints[:0]
+	for _, id := range s.touchIDs {
+		x, y := ebiten.TouchPosition(id)
+		s.TouchPoints = append(s.TouchPoints, TouchPoint{ID: id, X: x, Y: y})
+	}
+	s.PinchDelta = 0
+	if len(s.TouchPoints) < 2 {
+		s.hasPinch = false
+		s.pinchDistance = 0
+		return
+	}
+	distance := touchDistance(s.TouchPoints[0], s.TouchPoints[1])
+	if s.hasPinch {
+		s.PinchDelta = distance - s.pinchDistance
+	} else {
+		s.hasPinch = true
+	}
+	s.pinchDistance = distance
+}
+
+func touchDistance(a, b TouchPoint) float64 {
+	return math.Hypot(float64(a.X-b.X), float64(a.Y-b.Y))
 }

@@ -27,6 +27,7 @@ type sceneProjection struct {
 	heightScale    float64
 	camera         bool
 	cameraYaw      float64
+	cameraZoom     float64
 	viewProjection mat4
 }
 
@@ -43,6 +44,10 @@ func newSceneProjectionForTarget(width, height int, targetX, targetY, targetZ fl
 }
 
 func newSceneProjectionForTargetYaw(width, height int, targetX, targetY, targetZ, yaw float64) sceneProjection {
+	return newSceneProjectionForTargetYawZoom(width, height, targetX, targetY, targetZ, yaw, sceneCameraZoom())
+}
+
+func newSceneProjectionForTargetYawZoom(width, height int, targetX, targetY, targetZ, yaw, zoom float64) sceneProjection {
 	projection := sceneProjection{
 		playerX:     targetX,
 		playerY:     targetY,
@@ -55,10 +60,11 @@ func newSceneProjectionForTargetYaw(width, height int, targetX, targetY, targetZ
 		tileH:       sceneTileH,
 		heightScale: sceneHeightScale(),
 		cameraYaw:   yaw,
+		cameraZoom:  normalizeSceneCameraZoom(zoom),
 	}
 	if os.Getenv("GORO_SCENE_PROJECTION") != "flat" {
 		projection.camera = true
-		projection.viewProjection = sceneCameraMatrixWithYaw(float64(width), float64(height), targetX, targetY, targetZ, yaw)
+		projection.viewProjection = sceneCameraMatrixWithYawZoom(float64(width), float64(height), targetX, targetY, targetZ, yaw, projection.cameraZoom)
 	}
 	return projection
 }
@@ -115,7 +121,11 @@ func sceneCameraMatrix(width, height, targetX, targetY, targetZ float64) mat4 {
 }
 
 func sceneCameraMatrixWithYaw(width, height, targetX, targetY, targetZ, yawDegrees float64) mat4 {
-	distance := sceneCameraZoom() * 0.5
+	return sceneCameraMatrixWithYawZoom(width, height, targetX, targetY, targetZ, yawDegrees, sceneCameraZoom())
+}
+
+func sceneCameraMatrixWithYawZoom(width, height, targetX, targetY, targetZ, yawDegrees, zoom float64) mat4 {
+	distance := normalizeSceneCameraZoom(zoom) * 0.5
 	pitch := sceneCameraPitch()
 	if pitch > 180 {
 		pitch -= 180
@@ -208,11 +218,15 @@ func sceneCameraYaw() float64 {
 }
 
 func sceneCameraZoom() float64 {
-	return sceneFloatEnv("GORO_CAMERA_ZOOM", 150)
+	return normalizeSceneCameraZoom(sceneFloatEnv("GORO_CAMERA_ZOOM", 150))
 }
 
 func sceneCameraFOV() float64 {
 	return sceneFloatEnv("GORO_CAMERA_FOV", 15)
+}
+
+func normalizeSceneCameraZoom(zoom float64) float64 {
+	return clampCameraZoom(zoom)
 }
 
 func sceneFloatEnv(name string, fallback float64) float64 {

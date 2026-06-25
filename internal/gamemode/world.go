@@ -413,6 +413,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 
 	m.camera.Update(ctx, now)
 	m.updateCameraRotation(ctx)
+	m.updateCameraZoom(ctx)
 
 	dx, dy := 0, 0
 	if ctx.Input.Pressed(ebiten.KeyArrowLeft) {
@@ -1479,6 +1480,7 @@ type followCamera struct {
 	y           float64
 	z           float64
 	yawOffset   float64
+	zoom        float64
 }
 
 func (c *followCamera) Reset() {
@@ -1506,6 +1508,20 @@ func (c *followCamera) Rotate(delta float64) {
 	c.yawOffset = normalizeCameraYaw(c.yawOffset + delta)
 }
 
+func (c *followCamera) ZoomBy(factor float64) {
+	if factor <= 0 || !isFinite(factor) {
+		return
+	}
+	c.zoom = clampCameraZoom(c.currentZoom() * factor)
+}
+
+func (c *followCamera) currentZoom() float64 {
+	if c.zoom <= 0 || !isFinite(c.zoom) {
+		return sceneCameraZoom()
+	}
+	return clampCameraZoom(c.zoom)
+}
+
 func (c *followCamera) ResetRotation() {
 	c.yawOffset = 0
 }
@@ -1515,7 +1531,7 @@ func (c *followCamera) Projection(ctx Context, width, height int, now time.Time)
 		c.Update(ctx, now)
 	}
 	c.store(ctx)
-	return newSceneProjectionForTargetYaw(width, height, c.x, c.y, c.z, cameraYawForMap(ctx)+c.yawOffset)
+	return newSceneProjectionForTargetYawZoom(width, height, c.x, c.y, c.z, cameraYawForMap(ctx)+c.yawOffset, c.currentZoom())
 }
 
 func (c *followCamera) store(ctx Context) {
@@ -1547,6 +1563,19 @@ func (m *WorldMode) updateCameraRotation(ctx Context) {
 	}
 	if ctx.Input.JustPressed(ebiten.KeyR) {
 		m.camera.ResetRotation()
+	}
+}
+
+func (m *WorldMode) updateCameraZoom(ctx Context) {
+	factor := 1.0
+	if ctx.Input.WheelY != 0 {
+		factor *= cameraWheelZoomFactor(ctx.Input.WheelY)
+	}
+	if ctx.Input.PinchDelta != 0 {
+		factor *= cameraPinchZoomFactor(ctx.Input.PinchDelta)
+	}
+	if factor != 1 {
+		m.camera.ZoomBy(factor)
 	}
 }
 
@@ -1585,6 +1614,54 @@ func cameraDragYawDelta(mouseDX, screenWidth int) float64 {
 		return 0
 	}
 	return -(float64(mouseDX) / float64(screenWidth)) * 720
+}
+
+func cameraWheelZoomFactor(wheelY float64) float64 {
+	if wheelY == 0 || !isFinite(wheelY) {
+		return 1
+	}
+	return math.Pow(cameraZoomWheelStep(), -wheelY)
+}
+
+func cameraPinchZoomFactor(delta float64) float64 {
+	if delta == 0 || !isFinite(delta) {
+		return 1
+	}
+	return math.Exp(-delta / cameraPinchZoomScale())
+}
+
+func cameraZoomWheelStep() float64 {
+	step := sceneFloatEnv("GORO_CAMERA_WHEEL_ZOOM_STEP", 1.12)
+	if step <= 1 || !isFinite(step) {
+		return 1.12
+	}
+	return step
+}
+
+func cameraPinchZoomScale() float64 {
+	scale := sceneFloatEnv("GORO_CAMERA_PINCH_ZOOM_SCALE", 240)
+	if scale <= 0 || !isFinite(scale) {
+		return 240
+	}
+	return scale
+}
+
+func clampCameraZoom(zoom float64) float64 {
+	if !isFinite(zoom) || zoom <= 0 {
+		zoom = 150
+	}
+	minZoom := sceneFloatEnv("GORO_CAMERA_MIN_ZOOM", 80)
+	maxZoom := sceneFloatEnv("GORO_CAMERA_MAX_ZOOM", 260)
+	if minZoom <= 0 || !isFinite(minZoom) {
+		minZoom = 80
+	}
+	if maxZoom <= 0 || !isFinite(maxZoom) {
+		maxZoom = 260
+	}
+	if minZoom > maxZoom {
+		minZoom, maxZoom = maxZoom, minZoom
+	}
+	return math.Max(minZoom, math.Min(maxZoom, zoom))
 }
 
 func normalizeCameraYaw(yaw float64) float64 {
@@ -3290,7 +3367,7 @@ func cameraGroundFootprint(projection sceneProjection, screenWidth, screenHeight
 		aspect = float64(screenWidth) / float64(screenHeight)
 	}
 
-	distance := sceneCameraZoom() * 0.5
+	distance := normalizeSceneCameraZoom(projection.cameraZoom) * 0.5
 	pitch := sceneCameraPitch()
 	if pitch > 180 {
 		pitch -= 180
