@@ -721,6 +721,40 @@ func TestAppendActorDrawEntryUsesPathRenderDirection(t *testing.T) {
 	}
 }
 
+func TestActorBillboardSortDepthUsesTopInCameraProjection(t *testing.T) {
+	t.Setenv("GORO_SCENE_PROJECTION", "")
+	t.Setenv("GORO_CAMERA_ZOOM", "150")
+	t.Setenv("GORO_CAMERA_PITCH", "230")
+	t.Setenv("GORO_CAMERA_FOV", "15")
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 0)
+	footDepth := projection.Depth(10.5, 20.5, 0)
+	topDepth := projection.Depth(10.5, 20.5, actorBillboardWorldHeightUnit)
+	got := actorBillboardSortDepth(projection, 10.5, 20.5, 0)
+	want := math.Min(footDepth, topDepth)
+	if got != want {
+		t.Fatalf("billboard depth = %.4f, want closer of foot %.4f and top %.4f", got, footDepth, topDepth)
+	}
+	if got >= footDepth {
+		t.Fatalf("billboard depth = %.4f, want closer than foot depth %.4f", got, footDepth)
+	}
+}
+
+func TestActorBillboardSortDepthUsesFootInFlatProjection(t *testing.T) {
+	projection := sceneProjection{
+		playerX:     10.5,
+		playerY:     20.5,
+		centerX:     400,
+		centerY:     300,
+		tileW:       sceneTileW,
+		tileH:       sceneTileH,
+		heightScale: 2,
+	}
+	footDepth := projection.Depth(10.5, 20.5, 0)
+	if got := actorBillboardSortDepth(projection, 10.5, 20.5, 0); got != footDepth {
+		t.Fatalf("flat billboard depth = %.4f, want foot depth %.4f", got, footDepth)
+	}
+}
+
 func TestCameraFollowFactorIsClamped(t *testing.T) {
 	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "2")
 	if got := cameraFollowFactor(); got != 1 {

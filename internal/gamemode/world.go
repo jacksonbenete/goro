@@ -2181,19 +2181,33 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	if point.x < -96 || point.y < -160 || point.x > float32(screenWidth+96) || point.y > float32(screenHeight+96) {
 		return entries
 	}
-	depth := projection.Depth(cellCenter(actorX), cellCenter(actorY), terrainZ)
+	worldX := cellCenter(actorX)
+	worldY := cellCenter(actorY)
+	depth := actorBillboardSortDepth(projection, worldX, worldY, terrainZ)
 	return append(entries, sceneActorDrawEntry{
 		actor:    actor,
 		label:    label,
 		screenX:  float64(point.x),
 		screenY:  float64(point.y),
-		worldX:   cellCenter(actorX),
-		worldY:   cellCenter(actorY),
+		worldX:   worldX,
+		worldY:   worldY,
 		worldZ:   terrainZ,
-		scale:    actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ),
+		scale:    actorBillboardScreenScale(projection, worldX, worldY, terrainZ),
 		depth:    depth,
 		isPlayer: isPlayer,
 	})
+}
+
+func actorBillboardSortDepth(projection sceneProjection, x, y, z float64) float64 {
+	footDepth := projection.Depth(x, y, z)
+	if !projection.camera {
+		return footDepth
+	}
+	topDepth := projection.Depth(x, y, z+actorBillboardWorldHeightUnit)
+	if topDepth <= 0 || !isFinite(topDepth) {
+		return footDepth
+	}
+	return math.Min(footDepth, topDepth)
 }
 
 func actorDisplayName(ctx Context, actor worldstate.Actor, isPlayer bool) string {
