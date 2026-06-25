@@ -243,6 +243,15 @@ func loadShieldOverlaySpriteView(manager *res.Manager, job int, sex byte, shield
 	return loadSpriteView(manager, res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "act"), res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "spr"), nil, label)
 }
 
+func loadActorShadowSpriteView(manager *res.Manager) (*playerSpriteView, string) {
+	return loadSpriteView(manager,
+		[]string{"data\\sprite\\shadow.act", "data/sprite/shadow.act"},
+		[]string{"data\\sprite\\shadow.spr", "data/sprite/shadow.spr"},
+		nil,
+		"actor shadow",
+	)
+}
+
 func loadPlayerIMF(manager *res.Manager, job int, sex byte) (*res.IMF, string, string) {
 	data, source, err := readFirstResource(manager, res.PlayerIMFResourceCandidates(job, sex))
 	if err != nil {
@@ -454,6 +463,15 @@ func drawSingleSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView
 	return true
 }
 
+func drawFixedSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
+	billboard, ok := fixedSpriteBillboard(view)
+	if !ok {
+		return false
+	}
+	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, alpha, shadow)
+	return true
+}
+
 func drawSpriteBillboard(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64, shadow float64) {
 	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, 1, shadow)
 }
@@ -535,6 +553,22 @@ func singleSpriteBillboardForState(view *playerSpriteView, state spriteState, no
 		return nil, false
 	}
 	billboard, ok := composeSingleSpriteBillboard(view, action.Animations[motion])
+	if !ok {
+		return nil, false
+	}
+	view.billboards[key] = billboard
+	return billboard, true
+}
+
+func fixedSpriteBillboard(view *playerSpriteView) (*spriteBillboard, bool) {
+	if view == nil || view.act == nil || view.spr == nil || len(view.act.Actions) == 0 || len(view.act.Actions[0].Animations) == 0 {
+		return nil, false
+	}
+	key := singleSpriteBillboardKey{actionIndex: 0, motion: 0}
+	if billboard, ok := view.billboards[key]; ok {
+		return billboard, true
+	}
+	billboard, ok := composeSingleSpriteBillboard(view, view.act.Actions[0].Animations[0])
 	if !ok {
 		return nil, false
 	}

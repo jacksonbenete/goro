@@ -35,6 +35,8 @@ type WorldMode struct {
 	rswMarkers       bool
 	rsmRender        bool
 	playerView       *humanoidSpriteView
+	shadowView       *playerSpriteView
+	shadowViewMiss   bool
 	actorViews       map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss    map[actorSpriteKey]struct{}
 	nonPCViews       map[int]*playerSpriteView
@@ -134,6 +136,8 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.rswMarkers = os.Getenv("GORO_DEBUG_RSW_MARKERS") == "1"
 	m.rsmRender = os.Getenv("GORO_RENDER_RSM") != "0"
 	m.playerView = nil
+	m.shadowView = nil
+	m.shadowViewMiss = false
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*playerSpriteView)
@@ -157,6 +161,15 @@ func (m *WorldMode) Enter(ctx Context) {
 		playerStatus = status
 	} else {
 		playerStatus = status
+	}
+	if view, status := loadActorShadowSpriteView(ctx.Resources); view != nil {
+		m.shadowView = view
+		if status != "" {
+			playerStatus += " " + status
+		}
+	} else {
+		m.shadowViewMiss = true
+		log.Printf("actor shadow resources unavailable: %s", status)
 	}
 	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
 	if ctx.World.MapName == "" {
@@ -2055,33 +2068,152 @@ func absInt(value int) int {
 }
 
 type sceneActorDrawEntry struct {
-	actor    worldstate.Actor
-	label    string
-	screenX  float64
-	screenY  float64
-	worldX   float64
-	worldY   float64
-	worldZ   float64
-	scale    float64
-	shadow   float64
-	depth    float64
-	isPlayer bool
+	actor       worldstate.Actor
+	label       string
+	screenX     float64
+	screenY     float64
+	worldX      float64
+	worldY      float64
+	worldZ      float64
+	scale       float64
+	shadow      float64
+	castShadow  bool
+	shadowX     float64
+	shadowY     float64
+	shadowScale float64
+	shadowDepth float64
+	depth       float64
+	isPlayer    bool
 }
 
 const (
 	actorBillboardCellWorldUnits  = 5.0
 	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
 	actorJobWarpPortal            = 45
+	actorJobClearNPC              = 844
 	actorObjectTypeMob            = 5
 	actorObjectTypeNPCABR         = 13
 	actorObjectTypeNPCBionic      = 14
 )
+
+var monsterShadowSize = map[int]float64{
+	111:  0.0,
+	139:  0.0,
+	1004: 0.5,
+	1005: 0.5,
+	1007: 0.5,
+	1008: 0.3,
+	1009: 0.7,
+	1011: 0.5,
+	1013: 1.2,
+	1018: 0.7,
+	1019: 1.2,
+	1020: 0.0,
+	1025: 0.0,
+	1030: 0.0,
+	1035: 0.5,
+	1037: 0.0,
+	1039: 1.2,
+	1040: 2.0,
+	1042: 0.5,
+	1046: 0.0,
+	1047: 0.2,
+	1048: 0.2,
+	1049: 0.3,
+	1050: 0.3,
+	1051: 0.3,
+	1056: 0.7,
+	1057: 0.7,
+	1061: 1.5,
+	1063: 0.5,
+	1069: 1.2,
+	1070: 0.3,
+	1072: 0.5,
+	1074: 0.5,
+	1078: 0.0,
+	1079: 0.0,
+	1080: 0.0,
+	1081: 0.0,
+	1082: 0.0,
+	1083: 0.0,
+	1084: 0.0,
+	1085: 0.0,
+	1087: 1.2,
+	1089: 1.5,
+	1090: 1.0,
+	1091: 0.5,
+	1092: 1.2,
+	1094: 0.7,
+	1095: 0.5,
+	1097: 0.2,
+	1098: 2.0,
+	1101: 0.5,
+	1102: 1.2,
+	1103: 0.3,
+	1104: 0.7,
+	1105: 0.7,
+	1106: 1.2,
+	1107: 0.7,
+	1108: 0.7,
+	1109: 0.7,
+	1110: 0.7,
+	1111: 0.5,
+	1114: 0.5,
+	1115: 1.2,
+	1121: 0.7,
+	1127: 0.0,
+	1129: 0.5,
+	1131: 0.0,
+	1138: 0.0,
+	1139: 0.5,
+	1140: 1.2,
+	1141: 0.5,
+	1142: 0.5,
+	1143: 0.5,
+	1145: 0.5,
+	1147: 1.5,
+	1149: 1.5,
+	1155: 0.5,
+	1156: 0.5,
+	1158: 0.7,
+	1159: 1.2,
+	1160: 0.7,
+	1161: 0.5,
+	1162: 0.5,
+	1167: 0.5,
+	1170: 0.7,
+	1174: 0.5,
+	1175: 0.5,
+	1176: 0.7,
+	1182: 0.0,
+	1183: 0.5,
+	1184: 0.5,
+	1186: 2.0,
+	1190: 1.2,
+	1192: 1.5,
+	1193: 2.0,
+	1194: 0.5,
+	1195: 0.5,
+	1199: 0.5,
+	1201: 1.2,
+	1202: 1.5,
+	1203: 0.5,
+	1204: 0.5,
+	1208: 1.2,
+	1209: 0.7,
+	1211: 0.5,
+	1214: 0.7,
+	1219: 5.0,
+}
 
 func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
 	entries := m.collectSceneActorEntries(screen, ctx, projection)
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
 	})
+	for _, entry := range entries {
+		m.drawActorShadowEntry(screen, entry)
+	}
 	for _, entry := range entries {
 		m.drawSceneActorEntry(screen, ctx, projection, entry)
 	}
@@ -2094,9 +2226,10 @@ func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projectio
 }
 
 type sceneDrawEntry struct {
-	depth      float64
-	modelIndex int
-	actorIndex int
+	depth       float64
+	modelIndex  int
+	actorIndex  int
+	shadowIndex int
 }
 
 func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
@@ -2104,10 +2237,13 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, 
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	entries := make([]sceneDrawEntry, 0, len(models)+len(actors))
 	for i, tri := range models {
-		entries = append(entries, sceneDrawEntry{depth: tri.depth, modelIndex: i, actorIndex: -1})
+		entries = append(entries, sceneDrawEntry{depth: tri.depth, modelIndex: i, actorIndex: -1, shadowIndex: -1})
 	}
 	for i, actor := range actors {
-		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i})
+		if actor.castShadow {
+			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, modelIndex: -1, actorIndex: -1, shadowIndex: i})
+		}
+		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i, shadowIndex: -1})
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -2115,6 +2251,10 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, 
 	for _, entry := range entries {
 		if entry.modelIndex >= 0 {
 			m.drawModelTriangle(screen, ctx.Resources, models[entry.modelIndex])
+			continue
+		}
+		if entry.shadowIndex >= 0 {
+			m.drawActorShadowEntry(screen, actors[entry.shadowIndex])
 			continue
 		}
 		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
@@ -2174,6 +2314,21 @@ func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, proje
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
 }
 
+func (m *WorldMode) drawActorShadowEntry(screen *ebiten.Image, entry sceneActorDrawEntry) {
+	if !entry.castShadow || m.shadowView == nil || m.shadowViewMiss {
+		return
+	}
+	now := time.Now()
+	if m.actorShadowSuppressed(entry.actor, now) {
+		return
+	}
+	scale := entry.scale * entry.shadowScale
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		return
+	}
+	drawFixedSpriteBillboardAlpha(screen, m.shadowView, entry.shadowX, entry.shadowY, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
+}
+
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, label string, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
 	actorX, actorY := actor.RenderPosition(now)
 	actor.Dir = actor.RenderDirection(now)
@@ -2185,19 +2340,50 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	worldX := cellCenter(actorX)
 	worldY := cellCenter(actorY)
 	depth := actorBillboardSortDepth(projection, worldX, worldY, terrainZ)
+	shadowDepth := projection.Depth(worldX, worldY, terrainZ+0.05)
+	shadowPoint := projection.Project(worldX, worldY, terrainZ+0.05)
 	return append(entries, sceneActorDrawEntry{
-		actor:    actor,
-		label:    label,
-		screenX:  float64(point.x),
-		screenY:  float64(point.y),
-		worldX:   worldX,
-		worldY:   worldY,
-		worldZ:   terrainZ,
-		scale:    actorBillboardScreenScale(projection, worldX, worldY, terrainZ),
-		shadow:   actorShadowFactor(world, actorX, actorY),
-		depth:    depth,
-		isPlayer: isPlayer,
+		actor:       actor,
+		label:       label,
+		screenX:     float64(point.x),
+		screenY:     float64(point.y),
+		worldX:      worldX,
+		worldY:      worldY,
+		worldZ:      terrainZ,
+		scale:       actorBillboardScreenScale(projection, worldX, worldY, terrainZ),
+		shadow:      actorShadowFactor(world, actorX, actorY),
+		castShadow:  actorCastsShadow(actor),
+		shadowX:     float64(shadowPoint.x),
+		shadowY:     float64(shadowPoint.y),
+		shadowScale: actorShadowSize(actor),
+		shadowDepth: shadowDepth,
+		depth:       depth,
+		isPlayer:    isPlayer,
 	})
+}
+
+func actorCastsShadow(actor worldstate.Actor) bool {
+	if isWarpActor(actor) || int(actor.Job) == actorJobClearNPC {
+		return false
+	}
+	return actorShadowSize(actor) > 0
+}
+
+func (m *WorldMode) actorShadowSuppressed(actor worldstate.Actor, now time.Time) bool {
+	if anim, ok := m.actorAnimation(actor.ID, now); ok {
+		switch anim.actionFamily {
+		case spriteActionSit, spriteActionPCDeath, spriteActionNonPCDeath:
+			return true
+		}
+	}
+	return false
+}
+
+func actorShadowSize(actor worldstate.Actor) float64 {
+	if size, ok := monsterShadowSize[int(actor.Job)]; ok {
+		return size
+	}
+	return 1
 }
 
 func actorShadowFactor(world *worldstate.World, x, y float64) float64 {
