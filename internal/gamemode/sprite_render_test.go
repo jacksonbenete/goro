@@ -25,6 +25,12 @@ func TestNormalizeDirectionIndex(t *testing.T) {
 	}
 }
 
+func TestSpriteDrawFilterUsesLinearSampling(t *testing.T) {
+	if got := spriteDrawFilter(); got != ebiten.FilterLinear {
+		t.Fatalf("sprite draw filter = %v, want linear", got)
+	}
+}
+
 func TestSpriteDirectionFromWorldDirShowsBackForNorth(t *testing.T) {
 	cases := map[int]int{
 		0:  4,

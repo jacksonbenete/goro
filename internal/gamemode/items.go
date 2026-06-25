@@ -456,7 +456,7 @@ func (m *WorldMode) drawFallbackGroundItemMarker(screen *ebiten.Image, entry sce
 	opts.GeoM.Translate(float64(-width)/2, float64(-height)+4)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(entry.screenX, entry.screenY)
-	opts.Filter = ebiten.FilterNearest
+	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(img, &opts)
 }
 

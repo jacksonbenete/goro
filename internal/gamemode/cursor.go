@@ -64,7 +64,7 @@ func (m *WorldMode) drawROCursor(screen *ebiten.Image, ctx Context, projection s
 	}
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(float64(ctx.Input.MouseX)-info.startX, float64(ctx.Input.MouseY)-info.startY)
-	opts.Filter = ebiten.FilterNearest
+	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(frame, &opts)
 }
 
@@ -206,6 +206,6 @@ func drawFallbackROCursor(screen, img *ebiten.Image, mouseX, mouseY int, info cu
 	}
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(float64(mouseX)-info.startX, float64(mouseY)-info.startY)
-	opts.Filter = ebiten.FilterNearest
+	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(img, &opts)
 }

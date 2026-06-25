@@ -506,10 +506,14 @@ func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, 
 	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(centerX, centerY)
-	opts.Filter = ebiten.FilterNearest
+	opts.Filter = spriteDrawFilter()
 	opts.ColorScale.Scale(float32(shadow), float32(shadow), float32(shadow), 1)
 	opts.ColorScale.ScaleAlpha(float32(alpha))
 	screen.DrawImage(billboard.image, &opts)
+}
+
+func spriteDrawFilter() ebiten.Filter {
+	return ebiten.FilterLinear
 }
 
 func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
@@ -1213,7 +1217,7 @@ func drawSpriteLayer(target *ebiten.Image, img *ebiten.Image, layer res.ACTLayer
 	}
 	layerCenterX, layerCenterY := spriteLayerCenter(centerX, centerY, layer)
 	opts.GeoM.Translate(layerCenterX, layerCenterY)
-	opts.Filter = ebiten.FilterNearest
+	opts.Filter = spriteDrawFilter()
 	opts.ColorScale.Scale(layer.Color[0], layer.Color[1], layer.Color[2], layer.Color[3])
 	target.DrawImage(img, &opts)
 }
