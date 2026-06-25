@@ -410,6 +410,76 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 }
 
+func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertItem(worldstate.FloorItem{ID: 9001, ItemID: 909, X: 11, Y: 20, Amount: 1})
+	mode := &WorldMode{
+		pickupReqItemID: 9001,
+		actorAnims:      make(map[uint32]actorAnimation),
+	}
+	ctx := Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+		},
+		World: world,
+	}
+
+	mode.applyItemPickupAck(ctx, network.ItemPickupAck{ItemID: 909, Amount: 1})
+
+	if _, ok := world.Items[9001]; ok {
+		t.Fatal("picked item should be removed locally after pickup ack")
+	}
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("local pickup animation missing")
+	}
+	if anim.actionFamily != spriteActionPickup {
+		t.Fatalf("pickup action = %d, want %d", anim.actionFamily, spriteActionPickup)
+	}
+	if mode.pickupReqItemID != 0 {
+		t.Fatalf("pickup request item id = %d, want cleared", mode.pickupReqItemID)
+	}
+	if world.Dir != worldstate.DirectionFromDelta(10, 20, 11, 20, 4) {
+		t.Fatalf("player dir = %d", world.Dir)
+	}
+}
+
+func TestApplyActorPickupActionNotifyStartsPickupInsteadOfAttack(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertItem(worldstate.FloorItem{ID: 9001, ItemID: 909, X: 11, Y: 20, Amount: 1})
+	mode := &WorldMode{actorAnims: make(map[uint32]actorAnimation)}
+	ctx := Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+		},
+		World: world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID: 2000000,
+		TargetID: 9001,
+		Action:   network.ActorActionPickupItem,
+	})
+
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("local pickup animation missing")
+	}
+	if anim.actionFamily != spriteActionPickup {
+		t.Fatalf("pickup action = %d, want %d", anim.actionFamily, spriteActionPickup)
+	}
+	if len(mode.damageFloaters) != 0 {
+		t.Fatalf("pickup notify should not create damage floaters: %+v", mode.damageFloaters)
+	}
+	if world.Dir != worldstate.DirectionFromDelta(10, 20, 11, 20, 4) {
+		t.Fatalf("player dir = %d", world.Dir)
+	}
+}
+
 func TestApplyActorHPUpdateStoresExactLife(t *testing.T) {
 	mode := &WorldMode{}
 	mode.applyActorHPUpdate(network.ActorHPUpdate{ID: 300, HP: 12, MaxHP: 48})

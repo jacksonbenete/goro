@@ -10,16 +10,40 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/kivutar/goro/internal/network"
+	"github.com/kivutar/goro/internal/res"
 	worldstate "github.com/kivutar/goro/internal/world"
 )
 
 type sceneItemDrawEntry struct {
-	item    worldstate.FloorItem
-	screenX float64
-	screenY float64
-	scale   float64
-	depth   float64
+	item      worldstate.FloorItem
+	billboard *spriteBillboard
+	screenX   float64
+	screenY   float64
+	scale     float64
+	depth     float64
 }
+
+type itemSpriteKey struct {
+	itemID     uint16
+	identified bool
+}
+
+const (
+	itemBillboardWidth       = 96
+	itemBillboardHeight      = 96
+	itemBillboardAnchorX     = 48
+	itemBillboardAnchorY     = 72
+	groundItemScreenScale    = 0.8
+	itemDropStartOffset      = 2.2
+	itemDropStartSpeed       = -0.28
+	itemDropGravityPerFrame  = 0.18
+	itemDropBounceFactor     = 0.35
+	itemDropSpeedDampening   = 0.45
+	itemDropStopSpeed        = 0.45
+	itemDropSimulationFPS    = 60
+	itemDropSimulationFrames = 120
+	pickupAnimationDuration  = 450 * time.Millisecond
+)
 
 func (m *WorldMode) applyFloorItemEntry(ctx Context, entry network.FloorItemEntry) {
 	if ctx.World == nil {
@@ -56,6 +80,7 @@ func (m *WorldMode) applyItemPickupAck(ctx Context, ack network.ItemPickupAck) {
 	if ack.Result == 0 {
 		m.status = fmt.Sprintf("picked item %d x%d", ack.ItemID, ack.Amount)
 		m.pendingPickup = pickupIntent{}
+		m.applyLocalPickupSuccess(ctx)
 		log.Printf("item pickup ack success index=%d item_id=%d amount=%d identified=%t", ack.Index, ack.ItemID, ack.Amount, ack.Identified)
 		return
 	}
@@ -158,11 +183,51 @@ func pendingPickupReadyAt(player worldstate.Actor, now time.Time) time.Time {
 func (m *WorldMode) sendPickupRequest(ctx Context, item worldstate.FloorItem, source string) {
 	if err := ctx.Network.SendItemPickup(item.ID); err == nil {
 		m.status = fmt.Sprintf("%s pickup request: %d", source, item.ID)
+		m.pickupReqItemID = item.ID
 		m.walkCooldown = 12
 	} else {
 		m.status = source + " pickup request failed: " + err.Error()
 		log.Printf("%s pickup request failed item=%d: %v", source, item.ID, err)
 		m.walkCooldown = 30
+	}
+}
+
+func (m *WorldMode) applyLocalPickupSuccess(ctx Context) {
+	if ctx.World == nil {
+		return
+	}
+	itemID := m.pickupReqItemID
+	m.pickupReqItemID = 0
+	if itemID != 0 {
+		if item, ok := ctx.World.Items[itemID]; ok {
+			m.facePlayerTowardItem(ctx, item)
+			ctx.World.RemoveItem(itemID)
+		}
+	}
+	m.startLocalPickupAnimation(ctx, time.Now())
+}
+
+func (m *WorldMode) startLocalPickupAnimation(ctx Context, started time.Time) {
+	if ctx.Session == nil {
+		return
+	}
+	if ctx.Session.AccountID != 0 {
+		m.startActorAnimation(ctx.Session.AccountID, spriteActionPickup, started, pickupAnimationDuration)
+	}
+	if ctx.Session.CharID != 0 {
+		m.startActorAnimation(ctx.Session.CharID, spriteActionPickup, started, pickupAnimationDuration)
+	}
+}
+
+func (m *WorldMode) facePlayerTowardItem(ctx Context, item worldstate.FloorItem) {
+	if ctx.World == nil {
+		return
+	}
+	dir := directionFromDelta(ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y, ctx.World.Dir)
+	ctx.World.Player.Dir = dir
+	ctx.World.Dir = dir
+	if ctx.Session != nil {
+		ctx.Session.PlayerDir = dir
 	}
 }
 
@@ -214,33 +279,25 @@ func (m *WorldMode) collectSceneItemEntries(screen *ebiten.Image, ctx Context, p
 		if point.x < -48 || point.y < -80 || point.x > float32(width+48) || point.y > float32(height+48) {
 			continue
 		}
-		scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), z) * 0.42
+		scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), z) * groundItemScreenScale
 		entries = append(entries, sceneItemDrawEntry{
-			item:    item,
-			screenX: float64(point.x),
-			screenY: float64(point.y),
-			scale:   scale,
-			depth:   projection.Depth(cellCenter(x), cellCenter(y), z),
+			item:      item,
+			billboard: m.itemSpriteBillboard(ctx.Resources, item, now),
+			screenX:   float64(point.x),
+			screenY:   float64(point.y),
+			scale:     scale,
+			depth:     projection.Depth(cellCenter(x), cellCenter(y), z),
 		})
 	}
 	return entries
 }
 
 func (m *WorldMode) drawGroundItemEntry(screen *ebiten.Image, entry sceneItemDrawEntry) {
-	img := m.itemMarkerTexture()
-	if img == nil {
+	if entry.billboard != nil {
+		drawSpriteBillboard(screen, entry.billboard, entry.screenX, entry.screenY, entry.scale, 1)
 		return
 	}
-	scale := entry.scale
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
-	}
-	var opts ebiten.DrawImageOptions
-	opts.GeoM.Translate(-16, -24)
-	opts.GeoM.Scale(scale, scale)
-	opts.GeoM.Translate(entry.screenX, entry.screenY)
-	opts.Filter = ebiten.FilterNearest
-	screen.DrawImage(img, &opts)
+	m.drawFallbackGroundItemMarker(screen, entry)
 }
 
 func (m *WorldMode) drawHoveredGroundItemLabel(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
@@ -251,7 +308,7 @@ func (m *WorldMode) drawHoveredGroundItemLabel(screen *ebiten.Image, ctx Context
 	if !ok {
 		return
 	}
-	label := fmt.Sprintf("Item %d x%d", item.ItemID, item.Amount)
+	label := m.groundItemLabel(ctx, item)
 	debugText(screen, ctx.Input.MouseX+14, ctx.Input.MouseY+18, "%s", label)
 }
 
@@ -301,12 +358,135 @@ func floorItemRenderHeight(world *worldstate.World, item worldstate.FloorItem, n
 	if !item.Falling || item.DroppedAt.IsZero() {
 		return ground
 	}
-	start := ground + 5.0
-	fall := now.Sub(item.DroppedAt).Seconds() * 2.5
-	if fall < 0 {
-		fall = 0
+	return ground + itemDropBounceOffset(item.DroppedAt, now)
+}
+
+func (m *WorldMode) groundItemLabel(ctx Context, item worldstate.FloorItem) string {
+	name := ""
+	if ctx.Resources != nil {
+		if resolved, ok := ctx.Resources.ItemDisplayName(int(item.ItemID), item.Identified); ok {
+			name = resolved
+		}
 	}
-	return math.Max(ground, start-fall)
+	return res.FormatGroundItemLabel(name, int(item.Amount))
+}
+
+func (m *WorldMode) itemSpriteBillboard(manager *res.Manager, item worldstate.FloorItem, now time.Time) *spriteBillboard {
+	view := m.itemSpriteView(manager, item.ItemID, item.Identified)
+	if view == nil || view.act == nil || len(view.act.Actions) == 0 || len(view.act.Actions[0].Animations) == 0 {
+		return nil
+	}
+	action := view.act.Actions[0]
+	motion := spriteMotionIndex(action, item.DroppedAt, now, true)
+	key := singleSpriteBillboardKey{actionIndex: 0, motion: motion}
+	if billboard, ok := view.billboards[key]; ok {
+		return billboard
+	}
+	billboard, ok := composeGroundItemBillboard(view, action.Animations[motion])
+	if !ok {
+		return nil
+	}
+	view.billboards[key] = billboard
+	return billboard
+}
+
+func (m *WorldMode) itemSpriteView(manager *res.Manager, itemID uint16, identified bool) *playerSpriteView {
+	if manager == nil || itemID == 0 {
+		return nil
+	}
+	if m.itemViews == nil {
+		m.itemViews = make(map[itemSpriteKey]*playerSpriteView)
+	}
+	if m.itemViewMiss == nil {
+		m.itemViewMiss = make(map[itemSpriteKey]struct{})
+	}
+	key := itemSpriteKey{itemID: itemID, identified: identified}
+	if view := m.itemViews[key]; view != nil {
+		return view
+	}
+	if _, ok := m.itemViewMiss[key]; ok {
+		return nil
+	}
+	resourceName, ok := manager.ItemResourceName(int(itemID), identified)
+	if !ok {
+		m.itemViewMiss[key] = struct{}{}
+		log.Printf("item sprite resource missing item_id=%d identified=%t", itemID, identified)
+		return nil
+	}
+	view, status := loadSpriteView(
+		manager,
+		res.ItemSpriteResourceCandidates(resourceName, "act"),
+		res.ItemSpriteResourceCandidates(resourceName, "spr"),
+		nil,
+		fmt.Sprintf("item %d", itemID),
+	)
+	if view == nil {
+		m.itemViewMiss[key] = struct{}{}
+		log.Printf("item sprite unavailable item_id=%d identified=%t resource=%q: %s", itemID, identified, resourceName, status)
+		return nil
+	}
+	m.itemViews[key] = view
+	log.Printf("item sprite resources item_id=%d identified=%t resource=%q %s", itemID, identified, resourceName, status)
+	return view
+}
+
+func composeGroundItemBillboard(view *playerSpriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
+	target := ebiten.NewImage(itemBillboardWidth, itemBillboardHeight)
+	if !drawSpriteAnimation(target, view, anim, itemBillboardAnchorX, itemBillboardAnchorY, 0, 0) {
+		return nil, false
+	}
+	return &spriteBillboard{
+		image:   target,
+		anchorX: itemBillboardAnchorX,
+		anchorY: itemBillboardAnchorY,
+	}, true
+}
+
+func (m *WorldMode) drawFallbackGroundItemMarker(screen *ebiten.Image, entry sceneItemDrawEntry) {
+	img := m.itemMarkerTexture()
+	if img == nil {
+		return
+	}
+	scale := entry.scale / groundItemScreenScale * 0.42
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	width, height := img.Bounds().Dx(), img.Bounds().Dy()
+	var opts ebiten.DrawImageOptions
+	opts.GeoM.Translate(float64(-width)/2, float64(-height)+4)
+	opts.GeoM.Scale(scale, scale)
+	opts.GeoM.Translate(entry.screenX, entry.screenY)
+	opts.Filter = ebiten.FilterNearest
+	screen.DrawImage(img, &opts)
+}
+
+func itemDropBounceOffset(started, now time.Time) float64 {
+	elapsed := now.Sub(started)
+	if elapsed <= 0 {
+		return itemDropStartOffset
+	}
+	frames := int(elapsed.Seconds() * itemDropSimulationFPS)
+	if frames > itemDropSimulationFrames {
+		frames = itemDropSimulationFrames
+	}
+	pos := itemDropStartOffset
+	speed := itemDropStartSpeed
+	for i := 0; i < frames; i++ {
+		speed += itemDropGravityPerFrame
+		pos -= speed
+		if pos <= 0 {
+			if speed > itemDropStopSpeed {
+				pos = -pos * itemDropBounceFactor
+				speed = -speed * itemDropSpeedDampening
+			} else {
+				return 0
+			}
+		}
+	}
+	if pos < 0 {
+		return 0
+	}
+	return pos
 }
 
 func (m *WorldMode) itemMarkerTexture() *ebiten.Image {

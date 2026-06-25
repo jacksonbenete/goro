@@ -17,6 +17,8 @@ type Manager struct {
 
 	accessoryNames         map[int]string
 	accessoryNamesLoaded   bool
+	itemMetadata           map[int]ItemMetadata
+	itemMetadataLoaded     bool
 	jobResourceNames       map[int]string
 	jobResourceNamesLoaded bool
 	indoorRswNames         map[string]struct{}

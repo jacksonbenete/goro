@@ -8,6 +8,35 @@ import (
 
 const PacketCZItemPickup uint16 = 0x009F
 
+type itemPickupPacketLayout struct {
+	date   int
+	opcode uint16
+	length int
+	offset int
+}
+
+var itemPickupPacketLayouts = []itemPickupPacketLayout{
+	// Keep this table aligned with rAthena's clif_packetdb.hpp and roBrowser's
+	// PacketVersions.js. For 20080910 the last active main-client remap is the
+	// 20070212 shuffled 0x00F5 packet.
+	{date: 20101124, opcode: 0x0362, length: 6, offset: 2},
+	{date: 20070212, opcode: 0x00F5, length: 8, offset: 4},
+	{date: 20070108, opcode: 0x00F5, length: 11, offset: 7},
+	{date: 20050719, opcode: 0x00F5, length: 13, offset: 9},
+	{date: 20050718, opcode: 0x00F5, length: 7, offset: 3},
+	{date: 20050628, opcode: 0x00F5, length: 13, offset: 9},
+	{date: 20050509, opcode: 0x00F5, length: 8, offset: 4},
+	{date: 20050110, opcode: 0x00F5, length: 9, offset: 5},
+	{date: 20041129, opcode: 0x00A2, length: 7, offset: 3},
+	{date: 20041025, opcode: 0x0113, length: 9, offset: 5},
+	{date: 20041005, opcode: 0x0113, length: 10, offset: 6},
+	{date: 20040920, opcode: 0x0113, length: 14, offset: 10},
+	{date: 20040906, opcode: 0x0113, length: 11, offset: 7},
+	{date: 20040809, opcode: 0x0094, length: 13, offset: 9},
+	{date: 20040726, opcode: 0x0094, length: 10, offset: 6},
+	{date: 20040713, opcode: 0x009F, length: 10, offset: 6},
+}
+
 type FloorItemEntry struct {
 	ID         uint32
 	ItemID     uint16
@@ -102,7 +131,14 @@ func BuildItemPickupPacket(gid uint32) []byte {
 }
 
 func BuildItemPickupPacketForClientDate(gid uint32, clientDate int) []byte {
-	_ = clientDate
+	for _, layout := range itemPickupPacketLayouts {
+		if clientDate >= layout.date {
+			packet := make([]byte, layout.length)
+			binary.LittleEndian.PutUint16(packet[0:2], layout.opcode)
+			binary.LittleEndian.PutUint32(packet[layout.offset:layout.offset+4], gid)
+			return packet
+		}
+	}
 	return BuildItemPickupPacket(gid)
 }
 

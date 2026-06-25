@@ -14,6 +14,7 @@ const (
 	spriteActionIdle = iota
 	spriteActionWalk
 	spriteActionSit
+	spriteActionPickup
 )
 
 const (
@@ -1125,7 +1126,7 @@ func selectHeadMotion(actionFamily int, bodyMotion int, headAction res.ACTAction
 
 func isTransientPCAction(actionFamily int) bool {
 	switch actionFamily {
-	case spriteActionPCAttack1, spriteActionPCHurt, spriteActionPCDeath, spriteActionPCAttack2, spriteActionPCAttack3:
+	case spriteActionPickup, spriteActionPCAttack1, spriteActionPCHurt, spriteActionPCDeath, spriteActionPCAttack2, spriteActionPCAttack3:
 		return true
 	default:
 		return false

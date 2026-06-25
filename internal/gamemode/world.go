@@ -43,6 +43,8 @@ type WorldMode struct {
 	cursorAction     int
 	cursorStarted    time.Time
 	itemMarker       *ebiten.Image
+	itemViews        map[itemSpriteKey]*playerSpriteView
+	itemViewMiss     map[itemSpriteKey]struct{}
 	actorViews       map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss    map[actorSpriteKey]struct{}
 	nonPCViews       map[int]*playerSpriteView
@@ -51,6 +53,7 @@ type WorldMode struct {
 	pendingWarp      bool
 	pendingAttack    attackIntent
 	pendingPickup    pickupIntent
+	pickupReqItemID  uint32
 	lockedAttackID   uint32
 	lastAttackAt     time.Time
 	lastChaseAt      time.Time
@@ -157,6 +160,8 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.cursorAction = cursorActionDefault
 	m.cursorStarted = time.Now()
 	m.itemMarker = nil
+	m.itemViews = make(map[itemSpriteKey]*playerSpriteView)
+	m.itemViewMiss = make(map[itemSpriteKey]struct{})
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*playerSpriteView)
@@ -165,6 +170,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}
 	m.pendingPickup = pickupIntent{}
+	m.pickupReqItemID = 0
 	m.lockedAttackID = 0
 	m.lastAttackAt = time.Time{}
 	m.lastChaseAt = time.Time{}
@@ -691,6 +697,10 @@ func (m *WorldMode) sendAttackAction(ctx Context, actor worldstate.Actor, source
 func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {
 	log.Printf("actor action src=%d dst=%d damage=%d left_damage=%d hits=%d action=%d src_speed=%d dst_speed=%d tick=%d", action.SourceID, action.TargetID, action.Damage, action.LeftDamage, action.HitCount, action.Action, action.SourceSpeed, action.TargetSpeed, action.ServerTick)
 	now := time.Now()
+	if action.Action == network.ActorActionPickupItem {
+		m.applyActorPickupActionNotify(ctx, action, now)
+		return
+	}
 	source, sourceOK, sourceLocal := actorForCombatID(ctx, action.SourceID)
 	target, targetOK, targetLocal := actorForCombatID(ctx, action.TargetID)
 	if sourceOK && targetOK {
@@ -742,6 +752,29 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		starts:  hitAt,
 		expires: hitAt.Add(900 * time.Millisecond),
 	})
+}
+
+func (m *WorldMode) applyActorPickupActionNotify(ctx Context, action network.ActorActionNotify, now time.Time) {
+	source, sourceOK, sourceLocal := actorForCombatID(ctx, action.SourceID)
+	if !sourceOK {
+		return
+	}
+	if ctx.World != nil {
+		if item, ok := ctx.World.Items[action.TargetID]; ok {
+			dir := directionFromDelta(source.X, source.Y, item.X, item.Y, source.Dir)
+			if sourceLocal {
+				ctx.World.Player.Dir = dir
+				ctx.World.Dir = dir
+				if ctx.Session != nil {
+					ctx.Session.PlayerDir = dir
+				}
+			} else {
+				source.Dir = dir
+				ctx.World.UpsertActor(source)
+			}
+		}
+	}
+	m.startCombatAnimation(ctx, action.SourceID, spriteActionPickup, now, pickupAnimationDuration)
 }
 
 func (m *WorldMode) applyActorHPUpdate(update network.ActorHPUpdate) {

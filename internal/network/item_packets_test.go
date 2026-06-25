@@ -79,3 +79,49 @@ func TestBuildItemPickupPacket(t *testing.T) {
 		t.Fatalf("gid = 0x%08X", got)
 	}
 }
+
+func TestBuildItemPickupPacketForClientDate20080910(t *testing.T) {
+	packet := BuildItemPickupPacketForClientDate(0x11223344, 20080910)
+	if len(packet) != 8 {
+		t.Fatalf("len = %d, want 8", len(packet))
+	}
+	if got := ID(packet); got != 0x00F5 {
+		t.Fatalf("opcode = 0x%04X, want 0x00F5", got)
+	}
+	if got := binary.LittleEndian.Uint32(packet[4:8]); got != 0x11223344 {
+		t.Fatalf("gid = 0x%08X", got)
+	}
+	if padding := binary.LittleEndian.Uint16(packet[2:4]); padding != 0 {
+		t.Fatalf("padding = 0x%04X, want 0", padding)
+	}
+}
+
+func TestBuildItemPickupPacketForClientDateShuffledBoundaries(t *testing.T) {
+	tests := []struct {
+		name       string
+		clientDate int
+		opcode     uint16
+		length     int
+		offset     int
+	}{
+		{name: "legacy", clientDate: 20040712, opcode: 0x009F, length: 6, offset: 2},
+		{name: "20040713", clientDate: 20040713, opcode: 0x009F, length: 10, offset: 6},
+		{name: "20040726", clientDate: 20040726, opcode: 0x0094, length: 10, offset: 6},
+		{name: "20070212", clientDate: 20070212, opcode: 0x00F5, length: 8, offset: 4},
+		{name: "20101124", clientDate: 20101124, opcode: 0x0362, length: 6, offset: 2},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			packet := BuildItemPickupPacketForClientDate(0x11223344, tc.clientDate)
+			if len(packet) != tc.length {
+				t.Fatalf("len = %d, want %d", len(packet), tc.length)
+			}
+			if got := ID(packet); got != tc.opcode {
+				t.Fatalf("opcode = 0x%04X, want 0x%04X", got, tc.opcode)
+			}
+			if got := binary.LittleEndian.Uint32(packet[tc.offset : tc.offset+4]); got != 0x11223344 {
+				t.Fatalf("gid = 0x%08X", got)
+			}
+		})
+	}
+}

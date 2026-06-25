@@ -66,6 +66,8 @@ type ActorActionNotify struct {
 	LeftDamage  int32
 }
 
+const ActorActionPickupItem uint8 = 1
+
 type ActorHPUpdate struct {
 	ID    uint32
 	HP    int
