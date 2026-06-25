@@ -2154,11 +2154,7 @@ func drawTileCursorSurface(screen, texture *ebiten.Image, points [4]screenPoint)
 		texturedSurfaceVertex(points[2], texturePoint{u: 0, v: 1}, tint, w, h),
 		texturedSurfaceVertex(points[3], texturePoint{u: 1, v: 1}, tint, w, h),
 	}
-	op := &ebiten.DrawTrianglesOptions{
-		Filter:  ebiten.FilterLinear,
-		Address: ebiten.AddressClampToZero,
-	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, texture, op)
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressClampToZero))
 }
 
 func projectedGATCell(projection sceneProjection, gat *res.GAT, x, y int) ([4]screenPoint, float64, bool) {
@@ -3053,11 +3049,9 @@ func drawProjectedCylinderBand(screen, white, texture *ebiten.Image, projection 
 		base := uint16(i * 2)
 		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
 	}
-	screen.DrawTriangles(vertices, indices, source, &ebiten.DrawTrianglesOptions{
-		Blend:   ebiten.BlendLighter,
-		Filter:  ebiten.FilterLinear,
-		Address: ebiten.AddressRepeat,
-	})
+	options := triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat)
+	options.Blend = ebiten.BlendLighter
+	screen.DrawTriangles(vertices, indices, source, options)
 }
 
 func drawProjectedRingBand(screen, white *ebiten.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
@@ -3084,9 +3078,9 @@ func drawProjectedRingBand(screen, white *ebiten.Image, projection sceneProjecti
 		base := uint16(i * 2)
 		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
 	}
-	screen.DrawTriangles(vertices, indices, white, &ebiten.DrawTrianglesOptions{
-		Blend: ebiten.BlendLighter,
-	})
+	options := triangleDrawOptions(ebiten.FilterNearest, ebiten.AddressUnsafe)
+	options.Blend = ebiten.BlendLighter
+	screen.DrawTriangles(vertices, indices, white, options)
 }
 
 func warpEffectTexturedVertex(point screenPoint, srcX, srcY float32, c color.RGBA) ebiten.Vertex {
@@ -4134,7 +4128,7 @@ func drawColoredSurfaceTints(screen, white *ebiten.Image, points [4]screenPoint,
 		{DstX: points[2].x, DstY: points[2].y, SrcX: 1, SrcY: 1, ColorR: float32(colors[2].R) / 255, ColorG: float32(colors[2].G) / 255, ColorB: float32(colors[2].B) / 255, ColorA: float32(colors[2].A) / 255},
 		{DstX: points[3].x, DstY: points[3].y, SrcX: 0, SrcY: 1, ColorR: float32(colors[3].R) / 255, ColorG: float32(colors[3].G) / 255, ColorB: float32(colors[3].B) / 255, ColorA: float32(colors[3].A) / 255},
 	}
-	screen.DrawTriangles(vertices, indices, white, nil)
+	screen.DrawTriangles(vertices, indices, white, triangleDrawOptions(ebiten.FilterNearest, ebiten.AddressUnsafe))
 }
 
 func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
@@ -4147,11 +4141,7 @@ func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, u
 		texturedSurfaceVertex(points[2], uvs[2], tints[2], w, h),
 		texturedSurfaceVertex(points[3], uvs[3], tints[3], w, h),
 	}
-	op := &ebiten.DrawTrianglesOptions{
-		Filter:  ebiten.FilterLinear,
-		Address: ebiten.AddressRepeat,
-	}
-	screen.DrawTriangles(vertices, indices, texture, op)
+	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat))
 }
 
 func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3) {
@@ -4200,11 +4190,7 @@ func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]scr
 		}
 	}
 
-	op := &ebiten.DrawTrianglesOptions{
-		Filter:  ebiten.FilterLinear,
-		Address: ebiten.AddressRepeat,
-	}
-	screen.DrawTriangles(vertices, indices, texture, op)
+	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat))
 }
 
 func bilerpScreenPoint(points [4]screenPoint, s, t float64) screenPoint {

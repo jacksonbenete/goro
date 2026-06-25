@@ -31,6 +31,12 @@ func TestSpriteDrawFilterUsesLinearSampling(t *testing.T) {
 	}
 }
 
+func TestSpriteCompositionFilterKeepsSourcePixelsCrisp(t *testing.T) {
+	if got := spriteCompositionFilter(); got != ebiten.FilterNearest {
+		t.Fatalf("sprite composition filter = %v, want nearest", got)
+	}
+}
+
 func TestSpriteDirectionFromWorldDirShowsBackForNorth(t *testing.T) {
 	cases := map[int]int{
 		0:  4,

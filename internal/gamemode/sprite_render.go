@@ -516,6 +516,10 @@ func spriteDrawFilter() ebiten.Filter {
 	return ebiten.FilterLinear
 }
 
+func spriteCompositionFilter() ebiten.Filter {
+	return ebiten.FilterNearest
+}
+
 func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
 	if view == nil || view.body == nil || view.body.act == nil || view.body.spr == nil {
 		return nil, false
@@ -1217,7 +1221,7 @@ func drawSpriteLayer(target *ebiten.Image, img *ebiten.Image, layer res.ACTLayer
 	}
 	layerCenterX, layerCenterY := spriteLayerCenter(centerX, centerY, layer)
 	opts.GeoM.Translate(layerCenterX, layerCenterY)
-	opts.Filter = spriteDrawFilter()
+	opts.Filter = spriteCompositionFilter()
 	opts.ColorScale.Scale(layer.Color[0], layer.Color[1], layer.Color[2], layer.Color[3])
 	target.DrawImage(img, &opts)
 }

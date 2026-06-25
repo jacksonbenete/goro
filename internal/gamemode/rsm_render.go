@@ -700,11 +700,7 @@ func drawTexturedTriangle(screen, texture *ebiten.Image, points [3]screenPoint, 
 		{DstX: points[1].x, DstY: points[1].y, SrcX: uvs[1].u * w, SrcY: uvs[1].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		{DstX: points[2].x, DstY: points[2].y, SrcX: uvs[2].u * w, SrcY: uvs[2].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 	}
-	op := &ebiten.DrawTrianglesOptions{
-		Filter:  ebiten.FilterLinear,
-		Address: ebiten.AddressRepeat,
-	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, texture, op)
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat))
 }
 
 func drawColoredTriangle(screen, white *ebiten.Image, points [3]screenPoint, c color.RGBA) {
@@ -717,7 +713,7 @@ func drawColoredTriangle(screen, white *ebiten.Image, points [3]screenPoint, c c
 		{DstX: points[1].x, DstY: points[1].y, SrcX: 1, SrcY: 0, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		{DstX: points[2].x, DstY: points[2].y, SrcX: 1, SrcY: 1, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, white, nil)
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, white, triangleDrawOptions(ebiten.FilterNearest, ebiten.AddressUnsafe))
 }
 
 func triangleOutside(points [3]screenPoint, width, height float64) bool {
