@@ -40,14 +40,14 @@ type rsmBounds struct {
 
 type mat4 [16]float64
 
-func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection) {
-	triangles := m.collectRSMModelTriangles(screen, manager, rsw, models, gnd, projection)
+func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) {
+	triangles := m.collectRSMModelTriangles(screen, manager, rsw, models, gnd, projection, fog)
 	for _, tri := range triangles {
 		m.drawModelTriangle(screen, manager, tri)
 	}
 }
 
-func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection) []modelTriangle {
+func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) []modelTriangle {
 	if rsw == nil || gnd == nil || models == nil {
 		return nil
 	}
@@ -139,7 +139,7 @@ func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.
 		m.logRSMTransformDebug(placement, instance)
 		for _, nodeIndex := range nodeIndices {
 			node := &rsm.Nodes[nodeIndex]
-			for _, tri := range buildRSMNodeTriangles(rsm, node, nodeMatrices[node.Name], instance, projection, lighting, float64(width), float64(height)) {
+			for _, tri := range buildRSMNodeTriangles(rsm, node, nodeMatrices[node.Name], instance, projection, lighting, fog, float64(width), float64(height)) {
 				triangles = append(triangles, tri)
 				if maxFaces > 0 && len(triangles) >= maxFaces {
 					break
@@ -280,7 +280,7 @@ type modelInstance struct {
 	matrix    mat4
 }
 
-func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, projection sceneProjection, lighting sceneLighting, screenWidth, screenHeight float64) []modelTriangle {
+func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, projection sceneProjection, lighting sceneLighting, fog sceneFog, screenWidth, screenHeight float64) []modelTriangle {
 	if len(node.Vertices) == 0 || len(node.Faces) == 0 {
 		return nil
 	}
@@ -331,11 +331,13 @@ func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, ins
 		}
 		depth := (projection.Depth(a.x, a.z, a.y) + projection.Depth(b.x, b.z, b.y) + projection.Depth(c.x, c.z, c.y)) / 3
 		textureName, uvs := rsmFaceTexture(rsm, node, face)
+		faceColor := rsmFaceColor(textureName, a, b, c, lighting)
+		faceColor = fog.mixColor(faceColor, (projection.FogDepth(a.x, a.z, a.y)+projection.FogDepth(b.x, b.z, b.y)+projection.FogDepth(c.x, c.z, c.y))/3)
 		triangles = append(triangles, modelTriangle{
 			points:      points,
 			uvs:         uvs,
 			depth:       depth,
-			color:       rsmFaceColor(textureName, a, b, c, lighting),
+			color:       faceColor,
 			textureName: textureName,
 		})
 	}

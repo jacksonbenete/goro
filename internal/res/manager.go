@@ -3,9 +3,11 @@ package res
 import (
 	"errors"
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -23,6 +25,15 @@ type Manager struct {
 	jobResourceNamesLoaded bool
 	indoorRswNames         map[string]struct{}
 	indoorRswNamesLoaded   bool
+	fogParameters          map[string]FogParameter
+	fogParametersLoaded    bool
+}
+
+type FogParameter struct {
+	Near   float64
+	Far    float64
+	Color  color.RGBA
+	Factor float64
 }
 
 func NewManager(root string) (*Manager, error) {
@@ -123,6 +134,12 @@ func (m *Manager) IsIndoorMap(mapName string) bool {
 	return ok
 }
 
+func (m *Manager) FogParameter(mapName string) (FogParameter, bool) {
+	m.loadFogParameters()
+	parameter, ok := m.fogParameters[normalizeRswNameForCameraTable(mapName)]
+	return parameter, ok
+}
+
 func (m *Manager) loadIndoorRswNames() {
 	if m.indoorRswNamesLoaded {
 		return
@@ -167,6 +184,67 @@ func normalizeRswNameForCameraTable(name string) string {
 		name += ".rsw"
 	}
 	return name
+}
+
+func (m *Manager) loadFogParameters() {
+	if m.fogParametersLoaded {
+		return
+	}
+	m.fogParametersLoaded = true
+	m.fogParameters = make(map[string]FogParameter)
+	data, err := m.ReadFile("data\\fogparametertable.txt")
+	if err != nil {
+		data, err = m.ReadFile("data/fogparametertable.txt")
+	}
+	if err != nil {
+		return
+	}
+
+	tokens := strings.Split(string(data), "#")
+	for index := 0; index+4 < len(tokens); index += 5 {
+		key := normalizeRswNameForCameraTable(tokens[index])
+		if key == "" {
+			continue
+		}
+		near, nearOK := parseFogFloat(tokens[index+1])
+		far, farOK := parseFogFloat(tokens[index+2])
+		fogColor, colorOK := parseFogColor(tokens[index+3])
+		factor, factorOK := parseFogFloat(tokens[index+4])
+		if !nearOK || !farOK || !colorOK || !factorOK {
+			continue
+		}
+		m.fogParameters[key] = FogParameter{
+			Near:   near,
+			Far:    far,
+			Color:  fogColor,
+			Factor: factor,
+		}
+	}
+}
+
+func parseFogFloat(raw string) (float64, bool) {
+	value, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	return value, err == nil
+}
+
+func parseFogColor(raw string) (color.RGBA, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return color.RGBA{}, false
+	}
+	value, err := strconv.ParseUint(raw, 0, 32)
+	if err != nil {
+		value, err = strconv.ParseUint(strings.TrimPrefix(strings.ToLower(raw), "0x"), 16, 32)
+	}
+	if err != nil {
+		return color.RGBA{}, false
+	}
+	return color.RGBA{
+		R: uint8((value >> 16) & 0xff),
+		G: uint8((value >> 8) & 0xff),
+		B: uint8(value & 0xff),
+		A: 255,
+	}, true
 }
 
 func (m *Manager) scanKnownFiles() {

@@ -92,6 +92,18 @@ func (p sceneProjection) Depth(x, y, z float64) float64 {
 	return -(x + y)
 }
 
+func (p sceneProjection) FogDepth(x, y, z float64) float64 {
+	if p.camera {
+		_, _, clipZ, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
+		if clipW <= 0 || !finite4(clipZ, clipW, 0, 1) {
+			return math.Inf(-1)
+		}
+		windowZ := (clipZ/clipW + 1) * 0.5
+		return windowZ * clipW
+	}
+	return p.Depth(x, y, z)
+}
+
 func (p sceneProjection) VisibleForTriangle(x, y, z float64) bool {
 	if !p.camera {
 		return true

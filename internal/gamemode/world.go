@@ -1419,12 +1419,13 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 	now := time.Now()
 	playerX, playerY := ctx.World.Player.RenderPosition(now)
 	projection := m.sceneProjection(ctx, width, height, now)
+	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
 
 	if ctx.World.GND != nil {
-		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now)
+		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, fog)
 		m.drawTileCursor(screen, ctx, projection, now)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
-			m.drawSceneModelsAndActors(screen, ctx, projection)
+			m.drawSceneModelsAndActors(screen, ctx, projection, fog)
 		} else {
 			m.drawGroundItems(screen, ctx, projection, now)
 			m.drawSceneActors(screen, ctx, projection)
@@ -2455,8 +2456,8 @@ type sceneDrawEntry struct {
 	itemIndex   int
 }
 
-func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
-	models := m.collectRSMModelTriangles(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection)
+func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, projection sceneProjection, fog sceneFog) {
+	models := m.collectRSMModelTriangles(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
 	entries := make([]sceneDrawEntry, 0, len(models)+len(actors)+len(items))
@@ -3239,7 +3240,7 @@ func loadRSMModel(manager *res.Manager, filename string) (*res.RSM, error) {
 	return res.ParseRSM(data)
 }
 
-func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time, fog sceneFog) {
 	if m.whitePixel == nil {
 		m.whitePixel = ebiten.NewImage(1, 1)
 		m.whitePixel.Fill(color.White)
@@ -3316,7 +3317,7 @@ func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res
 	}
 	sortGNDSurfaces(surfaces)
 	for _, surface := range surfaces {
-		m.drawGNDSurface(screen, manager, gnd, surface, float64(width), float64(height))
+		m.drawGNDSurface(screen, manager, gnd, surface, float64(width), float64(height), projection, fog)
 	}
 }
 
@@ -3419,6 +3420,7 @@ func cameraGroundFootprint(projection sceneProjection, screenWidth, screenHeight
 
 type gndSurfaceDraw struct {
 	points      [4]screenPoint
+	verts       [4]modelPoint3
 	uvs         [4]texturePoint
 	vertexOrder [4]int
 	indices     []uint16
@@ -3597,6 +3599,7 @@ func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoin
 	}
 	return gndSurfaceDraw{
 		points:      projectGNDQuad(projection, verts),
+		verts:       verts,
 		uvs:         uvs,
 		vertexOrder: vertexOrder,
 		indices:     indices,
@@ -3608,7 +3611,7 @@ func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoin
 	}
 }
 
-func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw, screenWidth, screenHeight float64) {
+func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw, screenWidth, screenHeight float64, projection sceneProjection, fog sceneFog) {
 	if quadHasInvalidPoint(draw.points) {
 		return
 	}
@@ -3616,29 +3619,31 @@ func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, g
 		return
 	}
 	if draw.water {
-		m.drawWaterSurface(screen, manager, draw)
+		m.drawWaterSurface(screen, manager, draw, projection, fog)
 		return
 	}
 
 	textureName := gndTextureName(gnd, draw.surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
 		if lightmap, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
-			drawTexturedLightmappedSurface(screen, texture, draw.points, draw.uvs, draw.surface.Color, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms))
+			drawTexturedLightmappedSurface(screen, texture, draw.points, draw.verts, draw.uvs, draw.surface.Color, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
 			return
 		}
-		drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, surfaceVertexTints(gnd, draw.surface, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting))
+		tints := surfaceVertexTints(gnd, draw.surface, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting)
+		drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
 		return
 	}
-	drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, groundSurfaceVertexColors(textureName, draw.surface.Color, draw.heights, draw.vertexNorms, draw.lighting))
+	tints := groundSurfaceVertexColors(textureName, draw.surface.Color, draw.heights, draw.vertexNorms, draw.lighting)
+	drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
 }
 
-func (m *WorldMode) drawWaterSurface(screen *ebiten.Image, manager *res.Manager, draw gndSurfaceDraw) {
+func (m *WorldMode) drawWaterSurface(screen *ebiten.Image, manager *res.Manager, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
 	texture := m.waterTexture(manager, draw.waterType, draw.waterFrame)
+	tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
 	if texture == nil {
-		drawColoredSurface(screen, m.whitePixel, draw.points, draw.indices, draw.tint)
+		drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, tints)
 		return
 	}
-	tints := [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint}
 	drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, tints)
 }
 
@@ -4144,7 +4149,7 @@ func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, u
 	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat))
 }
 
-func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3) {
+func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]screenPoint, verts [4]modelPoint3, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
 	const steps = 6
 	bounds := texture.Bounds()
 	textureWidth := float32(bounds.Dx())
@@ -4168,6 +4173,8 @@ func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]scr
 				B: clampColor(float64(base.B) * (lightScale.z*alpha + float64(lm.B)/255)),
 				A: 255,
 			}
+			world := bilerpModelPoint(verts, s, t)
+			tint = fog.mixColor(tint, projection.FogDepth(world.x, world.z, world.y))
 			vertices = append(vertices, texturedSurfaceVertex(
 				bilerpScreenPoint(points, s, t),
 				bilerpTexturePoint(uvs, s, t),
