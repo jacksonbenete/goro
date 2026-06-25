@@ -42,6 +42,7 @@ type WorldMode struct {
 	cursorFallback   *ebiten.Image
 	cursorAction     int
 	cursorStarted    time.Time
+	itemMarker       *ebiten.Image
 	actorViews       map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss    map[actorSpriteKey]struct{}
 	nonPCViews       map[int]*playerSpriteView
@@ -49,6 +50,7 @@ type WorldMode struct {
 	rsmDebugLog      map[string]struct{}
 	pendingWarp      bool
 	pendingAttack    attackIntent
+	pendingPickup    pickupIntent
 	lockedAttackID   uint32
 	lastAttackAt     time.Time
 	lastChaseAt      time.Time
@@ -75,6 +77,12 @@ type attackIntent struct {
 	targetID uint32
 	expires  time.Time
 	readyAt  time.Time
+}
+
+type pickupIntent struct {
+	itemID  uint32
+	expires time.Time
+	readyAt time.Time
 }
 
 type damageFloater struct {
@@ -148,6 +156,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.cursorFallback = nil
 	m.cursorAction = cursorActionDefault
 	m.cursorStarted = time.Now()
+	m.itemMarker = nil
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*playerSpriteView)
@@ -155,6 +164,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.rsmDebugLog = make(map[string]struct{})
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}
+	m.pendingPickup = pickupIntent{}
 	m.lockedAttackID = 0
 	m.lastAttackAt = time.Time{}
 	m.lastChaseAt = time.Time{}
@@ -164,6 +174,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
+	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
@@ -277,6 +288,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.status = fmt.Sprintf("walk ack: %d,%d -> %d,%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY)
 			log.Printf("walk ack from=%d,%d to=%d,%d tick=%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY, ack.ServerTick)
 			m.continuePendingAttack(ctx, "walk ack")
+			m.continuePendingPickup(ctx, "walk ack")
 			continue
 		}
 		if position, ok, err := network.ParseActorSetPosition(pkt); err != nil {
@@ -289,7 +301,26 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			applyActorSetPosition(ctx, position)
 			if isLocalActor(ctx, position.ID) {
 				m.continuePendingAttack(ctx, "position fix")
+				m.continuePendingPickup(ctx, "position fix")
 			}
+			continue
+		}
+		if item, ok, err := network.ParseFloorItemEntry(pkt); err != nil {
+			log.Printf("parse floor item entry 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyFloorItemEntry(ctx, item)
+			continue
+		}
+		if disappear, ok, err := network.ParseFloorItemDisappear(pkt); err != nil {
+			log.Printf("parse floor item disappear 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyFloorItemDisappear(ctx, disappear)
+			continue
+		}
+		if pickup, ok, err := network.ParseItemPickupAck(pkt); err != nil {
+			log.Printf("parse item pickup ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyItemPickupAck(ctx, pickup)
 			continue
 		}
 		if vanish, ok, err := network.ParseActorVanish(pkt); err != nil {
@@ -354,6 +385,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	}
 
 	m.processPendingAttack(ctx)
+	m.processPendingPickup(ctx)
 	m.processLockedAttack(ctx)
 	now := time.Now()
 	m.cleanupDeadActors(ctx, now)
@@ -392,6 +424,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if ctx.Input.MouseJustPressed(ebiten.MouseButtonLeft) && m.walkCooldown == 0 {
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
+		if item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
+			log.Printf("click pickup target mouse=%d,%d id=%d item_id=%d amount=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, item.ID, item.ItemID, item.Amount, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y)
+			m.clearLockedAttack()
+			m.requestPickup(ctx, item, "click")
+			return nil, nil
+		}
 		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
 			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
 			m.requestAttack(ctx, actor, "click")
@@ -1351,6 +1389,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
 			m.drawSceneModelsAndActors(screen, ctx, projection)
 		} else {
+			m.drawGroundItems(screen, ctx, projection, now)
 			m.drawSceneActors(screen, ctx, projection)
 		}
 		if ctx.World.RSW != nil && m.rswMarkers {
@@ -1358,6 +1397,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 		}
 	} else if ctx.World.GAT != nil {
 		drawGAT(screen, ctx.World.GAT, ctx.World.Player.X, ctx.World.Player.Y)
+		m.drawGroundItems(screen, ctx, projection, now)
 		m.drawSceneActors(screen, ctx, projection)
 	} else {
 		const tile = 32
@@ -1391,8 +1431,9 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 			y = 164
 		}
 		debugText(screen, 24, y, "gat: %dx%d", ctx.World.GAT.Width, ctx.World.GAT.Height)
-		debugText(screen, 24, y+20, "actors: %d", len(ctx.World.Actors))
+		debugText(screen, 24, y+20, "actors: %d items: %d", len(ctx.World.Actors), len(ctx.World.Items))
 	}
+	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.drawROCursor(screen, ctx, projection, now)
 }
 
@@ -2251,20 +2292,25 @@ type sceneDrawEntry struct {
 	modelIndex  int
 	actorIndex  int
 	shadowIndex int
+	itemIndex   int
 }
 
 func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
 	models := m.collectRSMModelTriangles(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
-	entries := make([]sceneDrawEntry, 0, len(models)+len(actors))
+	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
+	entries := make([]sceneDrawEntry, 0, len(models)+len(actors)+len(items))
 	for i, tri := range models {
-		entries = append(entries, sceneDrawEntry{depth: tri.depth, modelIndex: i, actorIndex: -1, shadowIndex: -1})
+		entries = append(entries, sceneDrawEntry{depth: tri.depth, modelIndex: i, actorIndex: -1, shadowIndex: -1, itemIndex: -1})
+	}
+	for i, item := range items {
+		entries = append(entries, sceneDrawEntry{depth: item.depth, modelIndex: -1, actorIndex: -1, shadowIndex: -1, itemIndex: i})
 	}
 	for i, actor := range actors {
 		if actor.castShadow {
-			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, modelIndex: -1, actorIndex: -1, shadowIndex: i})
+			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, modelIndex: -1, actorIndex: -1, shadowIndex: i, itemIndex: -1})
 		}
-		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i, shadowIndex: -1})
+		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i, shadowIndex: -1, itemIndex: -1})
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -2276,6 +2322,10 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, 
 		}
 		if entry.shadowIndex >= 0 {
 			m.drawActorShadowEntry(screen, actors[entry.shadowIndex])
+			continue
+		}
+		if entry.itemIndex >= 0 {
+			m.drawGroundItemEntry(screen, items[entry.itemIndex])
 			continue
 		}
 		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])

@@ -12,6 +12,7 @@ type World struct {
 	MapName string
 	Player  Actor
 	Actors  map[uint32]Actor
+	Items   map[uint32]FloorItem
 	Camera  Camera
 	Dir     int
 	GAT     *res.GAT
@@ -19,6 +20,19 @@ type World struct {
 	RSW     *res.RSW
 	RSM     map[string]*res.RSM
 	RSMFail int
+}
+
+type FloorItem struct {
+	ID         uint32
+	ItemID     uint16
+	Identified bool
+	X          int
+	Y          int
+	SubX       uint8
+	SubY       uint8
+	Amount     uint16
+	Falling    bool
+	DroppedAt  time.Time
 }
 
 type Actor struct {
@@ -65,6 +79,7 @@ func New() *World {
 		MapName: "prontera",
 		Player:  Actor{Name: "Player", X: 50, Y: 50},
 		Actors:  make(map[uint32]Actor),
+		Items:   make(map[uint32]FloorItem),
 	}
 }
 
@@ -170,6 +185,23 @@ func (w *World) UpsertActor(actor Actor) {
 
 func (w *World) RemoveActor(id uint32) {
 	delete(w.Actors, id)
+}
+
+func (w *World) UpsertItem(item FloorItem) {
+	if item.ID == 0 {
+		return
+	}
+	if item.DroppedAt.IsZero() {
+		item.DroppedAt = time.Now()
+	}
+	if w.Items == nil {
+		w.Items = make(map[uint32]FloorItem)
+	}
+	w.Items[item.ID] = item
+}
+
+func (w *World) RemoveItem(id uint32) {
+	delete(w.Items, id)
 }
 
 func (a Actor) IsMovingAt(now time.Time) bool {
