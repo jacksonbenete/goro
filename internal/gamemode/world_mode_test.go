@@ -943,6 +943,82 @@ func TestSceneLightingFromRSWMatchesReferenceDirection(t *testing.T) {
 	}
 }
 
+func TestSmoothGNDTopNormalsKeepsFlatTilesUniform(t *testing.T) {
+	gnd := testGNDWithTopHeights(2, 2, func(_, _ int) [4]float32 {
+		return [4]float32{0, 0, 0, 0}
+	})
+	normals := buildSmoothGNDTopNormals(gnd)
+	if len(normals) != 4 {
+		t.Fatalf("normal count = %d, want 4", len(normals))
+	}
+	center := normals[0]
+	for i := 1; i < 4; i++ {
+		if !modelPointNear(center[0], center[i], 0.0001) {
+			t.Fatalf("flat tile normals differ: %v vs %v", center[0], center[i])
+		}
+	}
+}
+
+func TestSmoothGNDTopNormalsVariesSlopedTileCorners(t *testing.T) {
+	gnd := testGNDWithTopHeights(3, 3, func(x, y int) [4]float32 {
+		return [4]float32{
+			float32(x*y + y),
+			float32(x*3 + y*y + 2),
+			float32(x*x + y*4 + 1),
+			float32(x*x + y*y + x*y + 7),
+		}
+	})
+	normals := buildSmoothGNDTopNormals(gnd)
+	tile := normals[1+1*gnd.Width]
+	same := true
+	for i := 1; i < 4; i++ {
+		if !modelPointNear(tile[0], tile[i], 0.0001) {
+			same = false
+		}
+	}
+	if same {
+		t.Fatalf("sloped tile normals are all equal: %+v", tile)
+	}
+}
+
+func TestSurfaceVertexTintsUsePerVertexNormals(t *testing.T) {
+	lighting := sceneLightingFromRSW(&res.RSW{Light: res.RSWLight{
+		Longitude: 45,
+		Latitude:  45,
+		Diffuse:   [3]float32{1, 1, 1},
+		Ambient:   [3]float32{0, 0, 0},
+		Opacity:   1,
+	}})
+	tints := surfaceVertexTints(nil, res.GNDSurface{}, [4]int{0, 1, 2, 3}, [4]float32{}, [4]modelPoint3{
+		{x: -0.5, y: -math.Sqrt2 / 2, z: -0.5},
+		{x: 0.5, y: -math.Sqrt2 / 2, z: -0.5},
+		{x: 0.5, y: -math.Sqrt2 / 2, z: 0.5},
+		{x: -0.5, y: -math.Sqrt2 / 2, z: 0.5},
+	}, lighting)
+	if tints[0] == tints[1] && tints[0] == tints[2] && tints[0] == tints[3] {
+		t.Fatalf("vertex tints are uniform: %+v", tints)
+	}
+}
+
+func testGNDWithTopHeights(width, height int, fn func(x, y int) [4]float32) *res.GND {
+	gnd := &res.GND{
+		Width:    width,
+		Height:   height,
+		Cells:    make([]res.GNDCell, width*height),
+		Surfaces: []res.GNDSurface{{TextureID: 0, LightmapID: -1}},
+	}
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			gnd.Cells[x+y*width] = res.GNDCell{Top: 0, Front: -1, Right: -1, Heights: fn(x, y)}
+		}
+	}
+	return gnd
+}
+
+func modelPointNear(a, b modelPoint3, epsilon float64) bool {
+	return math.Abs(a.x-b.x) <= epsilon && math.Abs(a.y-b.y) <= epsilon && math.Abs(a.z-b.z) <= epsilon
+}
+
 func TestSortGNDSurfacesDrawsFarBeforeNear(t *testing.T) {
 	surfaces := []gndSurfaceDraw{
 		{depth: 2},
