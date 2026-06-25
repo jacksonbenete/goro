@@ -401,7 +401,7 @@ func selectedCharacter(s *session.Session) session.Character {
 	return session.Character{ID: s.CharID, Name: "Player", Job: 0}
 }
 
-func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64, direction int, cameraYaw float64) bool {
+func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64, direction int, cameraYaw float64, shadow float64) bool {
 	now := time.Now()
 	moving := ctx.World.Player.IsMovingAt(now)
 	state := spriteState{
@@ -429,36 +429,36 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX,
 			state.moving = false
 		}
 	}
-	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY, scale)
+	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY, scale, shadow)
 }
 
-func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state spriteState, centerX, centerY, scale float64) bool {
+func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state spriteState, centerX, centerY, scale float64, shadow float64) bool {
 	billboard, ok := humanoidBillboardForState(view, state, time.Now())
 	if !ok {
 		return false
 	}
-	drawSpriteBillboard(screen, billboard, centerX, centerY, scale)
+	drawSpriteBillboard(screen, billboard, centerX, centerY, scale, shadow)
 	return true
 }
 
 func drawSingleSpriteBillboard(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64) bool {
-	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, 1)
+	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, 1, 1)
 }
 
-func drawSingleSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64, alpha float64) bool {
+func drawSingleSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
 	billboard, ok := singleSpriteBillboardForState(view, state, time.Now())
 	if !ok {
 		return false
 	}
-	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, alpha)
+	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, alpha, shadow)
 	return true
 }
 
-func drawSpriteBillboard(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64) {
-	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, 1)
+func drawSpriteBillboard(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64, shadow float64) {
+	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, 1, shadow)
 }
 
-func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64, alpha float64) {
+func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64, alpha float64, shadow float64) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
@@ -468,11 +468,18 @@ func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, 
 	if alpha > 1 || math.IsInf(alpha, 0) {
 		alpha = 1
 	}
+	if shadow < 0 || math.IsNaN(shadow) {
+		shadow = 0
+	}
+	if shadow > 1 || math.IsInf(shadow, 0) {
+		shadow = 1
+	}
 	var opts ebiten.DrawImageOptions
 	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(centerX, centerY)
 	opts.Filter = ebiten.FilterNearest
+	opts.ColorScale.Scale(float32(shadow), float32(shadow), float32(shadow), 1)
 	opts.ColorScale.ScaleAlpha(float32(alpha))
 	screen.DrawImage(billboard.image, &opts)
 }

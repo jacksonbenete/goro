@@ -2063,6 +2063,7 @@ type sceneActorDrawEntry struct {
 	worldY   float64
 	worldZ   float64
 	scale    float64
+	shadow   float64
 	depth    float64
 	isPlayer bool
 }
@@ -2153,7 +2154,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, 
 func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	cameraYaw := cameraYawForMap(ctx)
 	if entry.isPlayer {
-		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir, cameraYaw) {
+		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir, cameraYaw, entry.shadow) {
 			return
 		}
 		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
@@ -2167,7 +2168,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, proje
 		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), projection, entry.worldX, entry.worldY, entry.worldZ, time.Now())
 		return
 	}
-	if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale, cameraYaw) {
+	if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale, cameraYaw, entry.shadow) {
 		return
 	}
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
@@ -2193,9 +2194,67 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 		worldY:   worldY,
 		worldZ:   terrainZ,
 		scale:    actorBillboardScreenScale(projection, worldX, worldY, terrainZ),
+		shadow:   actorShadowFactor(world, actorX, actorY),
 		depth:    depth,
 		isPlayer: isPlayer,
 	})
+}
+
+func actorShadowFactor(world *worldstate.World, x, y float64) float64 {
+	if world == nil || world.GND == nil {
+		return 1
+	}
+	shadowX, shadowY := gndShadowMapPoint(x, y)
+	total := 0
+	for dy := -3; dy < 3; dy++ {
+		for dx := -3; dx < 3; dx++ {
+			total += int(gndShadowMapAlpha(world.GND, shadowX+dx, shadowY+dy))
+		}
+	}
+	return clampUnit(float64(total) / (6 * 6 * 255))
+}
+
+func gndShadowMapPoint(x, y float64) (int, int) {
+	x += 0.5
+	y += 0.5
+	shadowX := int(math.Floor(x/2)) * 8
+	shadowY := int(math.Floor(y/2)) * 8
+	localX := 0
+	if int(x)&1 != 0 {
+		localX = 4
+	}
+	localY := 0
+	if int(y)&1 != 0 {
+		localY = 4
+	}
+	localX += int(math.Floor((x - math.Floor(x)) * 4))
+	localY += int(math.Floor((y - math.Floor(y)) * 4))
+	shadowX += minInt(localX, 6)
+	shadowY += minInt(localY, 6)
+	return shadowX, shadowY
+}
+
+func gndShadowMapAlpha(gnd *res.GND, shadowX, shadowY int) uint8 {
+	if gnd == nil || shadowX < 0 || shadowY < 0 || shadowX >= gnd.Width*8 || shadowY >= gnd.Height*8 {
+		return 255
+	}
+	cellX := shadowX / 8
+	cellY := shadowY / 8
+	localX := shadowX % 8
+	localY := shadowY % 8
+	cell, ok := gnd.Cell(cellX, cellY)
+	if !ok || cell.Top < 0 {
+		return 255
+	}
+	surface, ok := gnd.Surface(cell.Top)
+	if !ok {
+		return 255
+	}
+	lightmap, ok := gnd.Lightmap(surface.LightmapID)
+	if !ok {
+		return 255
+	}
+	return lightmap.Alpha[localY][localX]
 }
 
 func actorBillboardSortDepth(projection sceneProjection, x, y, z float64) float64 {
@@ -2331,9 +2390,9 @@ func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (ac
 	return life, true
 }
 
-func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64) bool {
+func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
-		return m.drawNonPCSprite(screen, ctx, actor, centerX, centerY, scale, cameraYaw)
+		return m.drawNonPCSprite(screen, ctx, actor, centerX, centerY, scale, cameraYaw, shadow)
 	}
 	key := actorSpriteKey{
 		job:     int(actor.Job),
@@ -2388,10 +2447,10 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 		state.loop = false
 		state.moving = false
 	}
-	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale)
+	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale, shadow)
 }
 
-func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64) bool {
+func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return false
@@ -2399,7 +2458,7 @@ func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor wor
 	now := time.Now()
 	state := m.nonPCSpriteState(actor, now)
 	state.cameraYaw = cameraYaw
-	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, m.actorDeathAlpha(actor.ID, now))
+	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, m.actorDeathAlpha(actor.ID, now), shadow)
 }
 
 func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spriteState {

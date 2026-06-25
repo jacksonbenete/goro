@@ -847,6 +847,57 @@ func TestGNDDrawBoundsUseCameraFootprint(t *testing.T) {
 	}
 }
 
+func TestGNDShadowMapPointMatchesROBrowserCellCenterMapping(t *testing.T) {
+	x, y := gndShadowMapPoint(10, 20)
+	if x != 42 || y != 82 {
+		t.Fatalf("shadow map point for even cell = %d,%d, want 42,82", x, y)
+	}
+	x, y = gndShadowMapPoint(11, 21)
+	if x != 46 || y != 86 {
+		t.Fatalf("shadow map point for odd cell = %d,%d, want 46,86", x, y)
+	}
+}
+
+func TestActorShadowFactorAveragesGNDLightmapAlpha(t *testing.T) {
+	var lightmap res.GNDLightmap
+	for y := range lightmap.Alpha {
+		for x := range lightmap.Alpha[y] {
+			lightmap.Alpha[y][x] = 128
+		}
+	}
+	gnd := &res.GND{
+		Width:     4,
+		Height:    4,
+		Lightmaps: []res.GNDLightmap{lightmap},
+		Surfaces:  []res.GNDSurface{{LightmapID: 0}},
+		Cells:     make([]res.GNDCell, 16),
+	}
+	for i := range gnd.Cells {
+		gnd.Cells[i].Top = 0
+	}
+
+	got := actorShadowFactor(&worldstate.World{GND: gnd}, 3, 3)
+	want := float64(128) / 255
+	if math.Abs(got-want) > 0.0001 {
+		t.Fatalf("shadow factor = %.4f, want %.4f", got, want)
+	}
+}
+
+func TestActorShadowFactorDefaultsToLitWithoutGroundLightmap(t *testing.T) {
+	if got := actorShadowFactor(nil, 3, 3); got != 1 {
+		t.Fatalf("nil world shadow = %.2f, want 1", got)
+	}
+	gnd := &res.GND{
+		Width:    1,
+		Height:   1,
+		Surfaces: []res.GNDSurface{{LightmapID: 0}},
+		Cells:    []res.GNDCell{{Top: -1}},
+	}
+	if got := actorShadowFactor(&worldstate.World{GND: gnd}, 0, 0); got != 1 {
+		t.Fatalf("missing top surface shadow = %.2f, want 1", got)
+	}
+}
+
 func TestQuadHasInvalidPointDetectsCameraSentinel(t *testing.T) {
 	points := [4]screenPoint{{x: -1 << 20, y: -1 << 20}, {x: 1, y: 1}, {x: 2, y: 1}, {x: 1, y: 2}}
 	if !quadHasInvalidPoint(points) {
