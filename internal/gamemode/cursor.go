@@ -14,6 +14,7 @@ const (
 	cursorActionDefault = 0
 	cursorActionTalk    = 1
 	cursorActionClick   = 2
+	cursorActionRotate  = 4
 	cursorActionAttack  = 5
 	cursorActionWarp    = 7
 	cursorActionPick    = 9
@@ -31,6 +32,7 @@ type cursorActionInfo struct {
 var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionDefault: {drawX: 1, drawY: 19, delayMult: 2.0},
 	cursorActionTalk:    {drawX: 20, drawY: 40, startX: 20, startY: 20, delayMult: 1.0},
+	cursorActionRotate:  {drawX: 18, drawY: 26, startX: 10, startY: 0, delayMult: 1.0},
 	cursorActionWarp:    {drawX: 10, drawY: 32, delayMult: 1.0},
 	cursorActionPick:    {drawX: 20, drawY: 40, startX: 15, startY: 15, delayMult: 1.0},
 	cursorActionNoWalk:  {drawX: 13, drawY: 25, startX: 14, startY: 6, delayMult: 1.0},
@@ -82,6 +84,9 @@ func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time
 
 func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection, now time.Time) int {
 	mouseX, mouseY := ctx.Input.MouseX, ctx.Input.MouseY
+	if ctx.Input.MousePressed(ebiten.MouseButtonRight) {
+		return cursorActionRotate
+	}
 	if _, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionPick
 	}

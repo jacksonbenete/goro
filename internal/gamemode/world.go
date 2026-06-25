@@ -1530,6 +1530,10 @@ func (m *WorldMode) sceneProjection(ctx Context, width, height int, now time.Tim
 
 func (m *WorldMode) updateCameraRotation(ctx Context) {
 	delta := 0.0
+	if ctx.Input.MousePressed(ebiten.MouseButtonRight) {
+		screenW, _ := ctx.ScreenSize()
+		delta += cameraDragYawDelta(ctx.Input.MouseDX, screenW)
+	}
 	if ctx.Input.Pressed(ebiten.KeyQ) {
 		delta -= cameraRotateStep()
 	}
@@ -1572,6 +1576,13 @@ func cameraYawForMap(ctx Context) float64 {
 
 func cameraRotateStep() float64 {
 	return sceneFloatEnv("GORO_CAMERA_ROTATE_SPEED", 90) / 60
+}
+
+func cameraDragYawDelta(mouseDX, screenWidth int) float64 {
+	if mouseDX == 0 || screenWidth <= 0 {
+		return 0
+	}
+	return -(float64(mouseDX) / float64(screenWidth)) * 720
 }
 
 func normalizeCameraYaw(yaw float64) float64 {

@@ -909,6 +909,25 @@ func TestFollowCameraProjectionKeepsIndoorBaseYaw(t *testing.T) {
 	}
 }
 
+func TestCameraDragYawDeltaMatchesRobrowserScale(t *testing.T) {
+	if got := cameraDragYawDelta(100, 1000); got != -72 {
+		t.Fatalf("drag yaw delta = %.1f, want -72.0", got)
+	}
+	if got := cameraDragYawDelta(-100, 1000); got != 72 {
+		t.Fatalf("reverse drag yaw delta = %.1f, want 72.0", got)
+	}
+	if got := cameraDragYawDelta(100, 0); got != 0 {
+		t.Fatalf("zero width drag yaw delta = %.1f, want 0", got)
+	}
+}
+
+func TestCursorRotateInfoMatchesRobrowser(t *testing.T) {
+	info := cursorInfo(cursorActionRotate)
+	if info.drawX != 18 || info.drawY != 26 || info.startX != 10 || info.startY != 0 || info.delayMult != 1 {
+		t.Fatalf("rotate cursor info = %+v", info)
+	}
+}
+
 func TestSceneLightingFromRSWMatchesReferenceDirection(t *testing.T) {
 	lighting := sceneLightingFromRSW(&res.RSW{Light: res.RSWLight{
 		Longitude: 45,

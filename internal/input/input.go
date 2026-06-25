@@ -8,8 +8,11 @@ type State struct {
 	buttons   map[ebiten.MouseButton]bool
 	prevMouse map[ebiten.MouseButton]bool
 
-	MouseX int
-	MouseY int
+	MouseX   int
+	MouseY   int
+	MouseDX  int
+	MouseDY  int
+	hasMouse bool
 }
 
 func NewState() *State {
@@ -36,7 +39,16 @@ func (s *State) Update() {
 		s.buttons[button] = ebiten.IsMouseButtonPressed(button)
 	}
 
-	s.MouseX, s.MouseY = ebiten.CursorPosition()
+	mouseX, mouseY := ebiten.CursorPosition()
+	if s.hasMouse {
+		s.MouseDX = mouseX - s.MouseX
+		s.MouseDY = mouseY - s.MouseY
+	} else {
+		s.MouseDX = 0
+		s.MouseDY = 0
+		s.hasMouse = true
+	}
+	s.MouseX, s.MouseY = mouseX, mouseY
 }
 
 func (s *State) Pressed(key ebiten.Key) bool {
