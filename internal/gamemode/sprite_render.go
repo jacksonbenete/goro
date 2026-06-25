@@ -252,6 +252,15 @@ func loadActorShadowSpriteView(manager *res.Manager) (*playerSpriteView, string)
 	)
 }
 
+func loadCursorSpriteView(manager *res.Manager) (*playerSpriteView, string) {
+	return loadSpriteView(manager,
+		[]string{"data\\sprite\\cursors.act", "data/sprite/cursors.act", "data\\sprite\\interface\\cursors.act", "data/sprite/interface/cursors.act"},
+		[]string{"data\\sprite\\cursors.spr", "data/sprite/cursors.spr", "data\\sprite\\interface\\cursors.spr", "data/sprite/interface/cursors.spr"},
+		nil,
+		"cursor",
+	)
+}
+
 func loadPlayerIMF(manager *res.Manager, job int, sex byte) (*res.IMF, string, string) {
 	data, source, err := readFirstResource(manager, res.PlayerIMFResourceCandidates(job, sex))
 	if err != nil {
@@ -574,6 +583,33 @@ func fixedSpriteBillboard(view *playerSpriteView) (*spriteBillboard, bool) {
 	}
 	view.billboards[key] = billboard
 	return billboard, true
+}
+
+func cursorFrameImage(view *playerSpriteView, actionIndex, motion int, drawX, drawY float64) (*ebiten.Image, bool) {
+	if view == nil || view.act == nil || view.spr == nil || len(view.act.Actions) == 0 {
+		return nil, false
+	}
+	if actionIndex < 0 || actionIndex >= len(view.act.Actions) || len(view.act.Actions[actionIndex].Animations) == 0 {
+		actionIndex = 0
+	}
+	action := view.act.Actions[actionIndex]
+	if len(action.Animations) == 0 {
+		return nil, false
+	}
+	if motion < 0 {
+		motion = 0
+	}
+	motion %= len(action.Animations)
+	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion}
+	if billboard, ok := view.billboards[key]; ok {
+		return billboard.image, true
+	}
+	target := ebiten.NewImage(50, 50)
+	if !drawSpriteAnimation(target, view, action.Animations[motion], drawX, drawY, 0, 0) {
+		return nil, false
+	}
+	view.billboards[key] = &spriteBillboard{image: target}
+	return target, true
 }
 
 func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) (*spriteBillboard, bool) {

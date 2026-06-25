@@ -37,6 +37,11 @@ type WorldMode struct {
 	playerView       *humanoidSpriteView
 	shadowView       *playerSpriteView
 	shadowViewMiss   bool
+	cursorView       *playerSpriteView
+	cursorViewMiss   bool
+	cursorFallback   *ebiten.Image
+	cursorAction     int
+	cursorStarted    time.Time
 	actorViews       map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss    map[actorSpriteKey]struct{}
 	nonPCViews       map[int]*playerSpriteView
@@ -138,6 +143,11 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.playerView = nil
 	m.shadowView = nil
 	m.shadowViewMiss = false
+	m.cursorView = nil
+	m.cursorViewMiss = false
+	m.cursorFallback = nil
+	m.cursorAction = cursorActionDefault
+	m.cursorStarted = time.Now()
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*playerSpriteView)
@@ -171,6 +181,16 @@ func (m *WorldMode) Enter(ctx Context) {
 		m.shadowViewMiss = true
 		log.Printf("actor shadow resources unavailable: %s", status)
 	}
+	if view, status := loadCursorSpriteView(ctx.Resources); view != nil {
+		m.cursorView = view
+		if status != "" {
+			playerStatus += " " + status
+		}
+	} else {
+		m.cursorViewMiss = true
+		log.Printf("cursor resources unavailable: %s", status)
+	}
+	ebiten.SetCursorMode(ebiten.CursorModeHidden)
 	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
 	if ctx.World.MapName == "" {
 		m.status = "no map selected"
@@ -1373,6 +1393,7 @@ func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
 		debugText(screen, 24, y, "gat: %dx%d", ctx.World.GAT.Width, ctx.World.GAT.Height)
 		debugText(screen, 24, y+20, "actors: %d", len(ctx.World.Actors))
 	}
+	m.drawROCursor(screen, ctx, projection, now)
 }
 
 type followCamera struct {
