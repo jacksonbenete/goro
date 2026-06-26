@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kivutar/goro/internal/network"
 	"github.com/kivutar/goro/internal/render"
@@ -69,6 +70,11 @@ type npcDialogState struct {
 	menuDragging   bool
 	menuDragDX     int
 	menuDragDY     int
+}
+
+type npcDialogTextRun struct {
+	text  string
+	color color.RGBA
 }
 
 func (d *npcDialogState) apply(packet network.NPCDialog) {
@@ -274,7 +280,7 @@ func (d *npcDialogState) draw(screen *render.Image, ctx Context, width, height i
 		if lineY > y+h-38 {
 			break
 		}
-		render.DebugPrintAtColor(screen, line, x+npcDialogPad, lineY, npcDialogTextColor)
+		drawNPCDialogTextRuns(screen, line, x+npcDialogPad, lineY)
 		lineY += npcDialogLineH
 	}
 
@@ -307,8 +313,10 @@ func (d *npcDialogState) drawMenu(screen *render.Image, x, y, w, h int) {
 		ox, oy, ow, oh := npcDialogOptionBounds(x, y, w, i)
 		render.DrawRect(screen, float64(ox), float64(oy), float64(ow), float64(oh), color.RGBA{R: 42, G: 48, B: 58, A: 190})
 		render.DrawRect(screen, float64(ox), float64(oy+oh-1), float64(ow), 1, color.RGBA{R: 86, G: 98, B: 114, A: 160})
-		text := fmt.Sprintf("%d. %s", i+1, d.options[i])
-		render.DebugPrintAtColor(screen, trimRunes(text, maxInt(8, (ow-12)/7)), ox+6, oy+5, npcDialogOptionColor)
+		runs := npcDialogTextRuns(d.options[i], npcDialogOptionColor)
+		runs = append([]npcDialogTextRun{{text: fmt.Sprintf("%d. ", i+1), color: npcDialogOptionColor}}, runs...)
+		runs = trimNPCDialogTextRuns(runs, maxInt(8, (ow-12)/7))
+		drawNPCDialogTextRuns(screen, runs, ox+6, oy+5)
 	}
 	if len(d.options) > visible {
 		render.DebugPrintAtColor(screen, fmt.Sprintf("+%d more", len(d.options)-visible), x+w-80, y+h-34, npcDialogMutedColor)
@@ -400,42 +408,172 @@ func (d *npcDialogState) title(ctx Context) string {
 	return name
 }
 
-func wrapNPCDialogLines(lines []string, maxRunes int) []string {
+func wrapNPCDialogLines(lines []string, maxRunes int) [][]npcDialogTextRun {
 	if maxRunes < 8 {
 		maxRunes = 8
 	}
-	var out []string
+	var out [][]npcDialogTextRun
 	for _, line := range lines {
 		for _, split := range strings.Split(line, "\n") {
-			out = append(out, wrapNPCDialogLine(split, maxRunes)...)
+			out = append(out, wrapNPCDialogTextRuns(npcDialogTextRuns(split, npcDialogTextColor), maxRunes)...)
 		}
 	}
 	return out
 }
 
-func wrapNPCDialogLine(line string, maxRunes int) []string {
-	words := strings.Fields(line)
-	if len(words) == 0 {
+type npcDialogColoredRune struct {
+	r     rune
+	color color.RGBA
+}
+
+func npcDialogTextRuns(text string, base color.RGBA) []npcDialogTextRun {
+	current := base
+	var runs []npcDialogTextRun
+	var b strings.Builder
+	flush := func() {
+		if b.Len() == 0 {
+			return
+		}
+		runs = append(runs, npcDialogTextRun{text: b.String(), color: current})
+		b.Reset()
+	}
+	for i := 0; i < len(text); {
+		if c, ok := parseNPCDialogColorCode(text, i, base); ok {
+			flush()
+			current = c
+			i += 7
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(text[i:])
+		b.WriteRune(r)
+		i += size
+	}
+	flush()
+	return runs
+}
+
+func parseNPCDialogColorCode(text string, at int, base color.RGBA) (color.RGBA, bool) {
+	if at+7 > len(text) || text[at] != '^' {
+		return color.RGBA{}, false
+	}
+	var value [6]byte
+	for i := 0; i < 6; i++ {
+		c := text[at+1+i]
+		if !isNPCDialogHex(c) {
+			return color.RGBA{}, false
+		}
+		value[i] = c
+	}
+	if strings.EqualFold(string(value[:]), "000000") {
+		return base, true
+	}
+	return color.RGBA{
+		R: npcDialogHexByte(value[0], value[1]),
+		G: npcDialogHexByte(value[2], value[3]),
+		B: npcDialogHexByte(value[4], value[5]),
+		A: 255,
+	}, true
+}
+
+func isNPCDialogHex(c byte) bool {
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
+}
+
+func npcDialogHexByte(hi, lo byte) uint8 {
+	return npcDialogHexNibble(hi)<<4 | npcDialogHexNibble(lo)
+}
+
+func npcDialogHexNibble(c byte) uint8 {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0'
+	case c >= 'A' && c <= 'F':
+		return c - 'A' + 10
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10
+	default:
+		return 0
+	}
+}
+
+func wrapNPCDialogTextRuns(runs []npcDialogTextRun, maxRunes int) [][]npcDialogTextRun {
+	chars := npcDialogRunsToRunes(runs)
+	if len(chars) == 0 {
 		return nil
 	}
-	var out []string
-	current := ""
-	for _, word := range words {
-		if current == "" {
-			current = word
-			continue
+	var out [][]npcDialogTextRun
+	for len(chars) > maxRunes {
+		breakAt := maxRunes
+		for i := maxRunes - 1; i > 0; i-- {
+			if chars[i].r == ' ' || chars[i].r == '\t' {
+				breakAt = i
+				break
+			}
 		}
-		if len([]rune(current))+1+len([]rune(word)) <= maxRunes {
-			current += " " + word
-			continue
+		out = append(out, npcDialogRunesToRuns(chars[:breakAt]))
+		chars = chars[breakAt:]
+		for len(chars) > 0 && (chars[0].r == ' ' || chars[0].r == '\t') {
+			chars = chars[1:]
 		}
-		out = append(out, trimRunes(current, maxRunes))
-		current = word
 	}
-	if current != "" {
-		out = append(out, trimRunes(current, maxRunes))
+	if len(chars) > 0 {
+		out = append(out, npcDialogRunesToRuns(chars))
 	}
 	return out
+}
+
+func trimNPCDialogTextRuns(runs []npcDialogTextRun, maxRunes int) []npcDialogTextRun {
+	chars := npcDialogRunsToRunes(runs)
+	if len(chars) <= maxRunes {
+		return runs
+	}
+	if maxRunes <= 3 {
+		return npcDialogRunesToRuns(chars[:maxRunes])
+	}
+	trimmed := npcDialogRunesToRuns(chars[:maxRunes-3])
+	trimmed = append(trimmed, npcDialogTextRun{text: "...", color: runs[len(runs)-1].color})
+	return trimmed
+}
+
+func npcDialogRunsToRunes(runs []npcDialogTextRun) []npcDialogColoredRune {
+	var chars []npcDialogColoredRune
+	for _, run := range runs {
+		for _, r := range run.text {
+			chars = append(chars, npcDialogColoredRune{r: r, color: run.color})
+		}
+	}
+	return chars
+}
+
+func npcDialogRunesToRuns(chars []npcDialogColoredRune) []npcDialogTextRun {
+	if len(chars) == 0 {
+		return nil
+	}
+	runs := []npcDialogTextRun{{color: chars[0].color}}
+	var b strings.Builder
+	current := chars[0].color
+	for _, char := range chars {
+		if char.color != current {
+			runs[len(runs)-1].text = b.String()
+			b.Reset()
+			current = char.color
+			runs = append(runs, npcDialogTextRun{color: current})
+		}
+		b.WriteRune(char.r)
+	}
+	runs[len(runs)-1].text = b.String()
+	return runs
+}
+
+func drawNPCDialogTextRuns(screen *render.Image, runs []npcDialogTextRun, x, y int) {
+	offset := 0
+	for _, run := range runs {
+		if run.text == "" {
+			continue
+		}
+		render.DebugPrintAtColor(screen, run.text, x+offset, y, run.color)
+		offset += len([]rune(run.text)) * 7
+	}
 }
 
 func pointInRect(px, py, x, y, w, h int) bool {

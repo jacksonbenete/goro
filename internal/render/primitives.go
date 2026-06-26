@@ -111,7 +111,7 @@ func cachedDebugTextColor(text string, c color.RGBA) *Image {
 	if w < 1 {
 		w = 1
 	}
-	img := NewImage(w, 13)
+	img := NewImage(w, 14)
 	DebugPrintAtColor(img, text, 0, -1, c)
 	debugTextCache[key] = img
 	if len(debugTextCache) > 512 {
