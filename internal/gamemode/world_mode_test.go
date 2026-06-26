@@ -221,8 +221,8 @@ func TestContinuePendingAttackSchedulesDelayedAction(t *testing.T) {
 	if mode.pendingAttack.readyAt.IsZero() {
 		t.Fatal("pending attack was not scheduled")
 	}
-	if mode.pendingAttack.readyAt.Sub(time.Now()) > 100*time.Millisecond {
-		t.Fatalf("readyAt too far in future: %s", mode.pendingAttack.readyAt.Sub(time.Now()))
+	if time.Until(mode.pendingAttack.readyAt) > 100*time.Millisecond {
+		t.Fatalf("readyAt too far in future: %s", time.Until(mode.pendingAttack.readyAt))
 	}
 }
 

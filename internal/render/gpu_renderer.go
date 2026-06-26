@@ -816,27 +816,6 @@ func (r *gpuRenderer) bindGroup(layout *wgpu.BindGroupLayout, uniform *wgpu.Buff
 	return bg, nil
 }
 
-func (r *gpuRenderer) buffer(label string, size int, usage wgpu.BufferUsage, data []byte) (*wgpu.Buffer, error) {
-	if size <= 0 {
-		size = 4
-	}
-	buf, err := r.dev.CreateBuffer(&wgpu.BufferDescriptor{
-		Label: label,
-		Size:  uint64(size),
-		Usage: usage,
-	})
-	if err != nil {
-		return nil, err
-	}
-	r.frameBuffers = append(r.frameBuffers, buf)
-	if len(data) > 0 {
-		if err := r.queue.WriteBuffer(buf, 0, data); err != nil {
-			return nil, err
-		}
-	}
-	return buf, nil
-}
-
 func (r *gpuRenderer) dynamicBuffer(slot *dynamicGPUBuffer, label string, size int, usage wgpu.BufferUsage, data []byte) (*wgpu.Buffer, error) {
 	if size <= 0 {
 		size = 4

@@ -771,18 +771,6 @@ func drawTexturedModelTriangles3D(screen, texture *render.Image, triangles []mod
 	flush()
 }
 
-func drawTexturedTriangle3D(screen, texture *render.Image, verts [3]modelPoint3, uvs [3]texturePoint, tint color.RGBA) {
-	bounds := texture.Bounds()
-	w := float32(bounds.Dx())
-	h := float32(bounds.Dy())
-	vertices := []render.Vertex3D{
-		texturedSurfaceVertex3D(verts[0], uvs[0], tint, w, h),
-		texturedSurfaceVertex3D(verts[1], uvs[1], tint, w, h),
-		texturedSurfaceVertex3D(verts[2], uvs[2], tint, w, h),
-	}
-	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
-}
-
 func drawColoredModelTriangles(screen, white *render.Image, triangles []modelTriangle, projection sceneProjection) {
 	if len(triangles) == 0 {
 		return
@@ -817,15 +805,6 @@ func drawColoredModelTriangles3D(screen, white *render.Image, triangles []modelT
 	flush()
 }
 
-func drawColoredTriangle3D(screen, white *render.Image, verts [3]modelPoint3, c color.RGBA) {
-	vertices := []render.Vertex3D{
-		coloredSurfaceVertex3D(verts[0], 0, 0, c),
-		coloredSurfaceVertex3D(verts[1], 1, 0, c),
-		coloredSurfaceVertex3D(verts[2], 1, 1, c),
-	}
-	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, white, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
-}
-
 func triangleOutside(points [3]screenPoint, width, height float64) bool {
 	minX, minY := float64(points[0].x), float64(points[0].y)
 	maxX, maxY := minX, minY
@@ -836,48 +815,6 @@ func triangleOutside(points [3]screenPoint, width, height float64) bool {
 		maxY = math.Max(maxY, float64(point.y))
 	}
 	return maxX < -32 || maxY < -32 || minX > width+32 || minY > height+32
-}
-
-func signedScreenArea(points [3]screenPoint) float32 {
-	return (points[1].x-points[0].x)*(points[2].y-points[0].y) - (points[2].x-points[0].x)*(points[1].y-points[0].y)
-}
-
-func applyMatrix3(point modelPoint3, matrix [9]float32) modelPoint3 {
-	return modelPoint3{
-		x: float64(matrix[0])*point.x + float64(matrix[3])*point.y + float64(matrix[6])*point.z,
-		y: float64(matrix[1])*point.x + float64(matrix[4])*point.y + float64(matrix[7])*point.z,
-		z: float64(matrix[2])*point.x + float64(matrix[5])*point.y + float64(matrix[8])*point.z,
-	}
-}
-
-func rotateX(point modelPoint3, angle float64) modelPoint3 {
-	s, c := math.Sin(angle), math.Cos(angle)
-	return modelPoint3{x: point.x, y: point.y*c - point.z*s, z: point.y*s + point.z*c}
-}
-
-func rotateY(point modelPoint3, angle float64) modelPoint3 {
-	s, c := math.Sin(angle), math.Cos(angle)
-	return modelPoint3{x: point.x*c + point.z*s, y: point.y, z: -point.x*s + point.z*c}
-}
-
-func rotateZ(point modelPoint3, angle float64) modelPoint3 {
-	s, c := math.Sin(angle), math.Cos(angle)
-	return modelPoint3{x: point.x*c - point.y*s, y: point.x*s + point.y*c, z: point.z}
-}
-
-func rotateAxisAngle(point, axis modelPoint3, angle float64) modelPoint3 {
-	axis = normalize3(axis)
-	if axis == (modelPoint3{}) || angle == 0 {
-		return point
-	}
-	s, c := math.Sin(angle), math.Cos(angle)
-	dot := point.x*axis.x + point.y*axis.y + point.z*axis.z
-	cross := cross3(axis, point)
-	return modelPoint3{
-		x: point.x*c + cross.x*s + axis.x*dot*(1-c),
-		y: point.y*c + cross.y*s + axis.y*dot*(1-c),
-		z: point.z*c + cross.z*s + axis.z*dot*(1-c),
-	}
 }
 
 func sub3(a, b modelPoint3) modelPoint3 {
@@ -932,18 +869,6 @@ func rsmMaxFaces() int {
 	value, err := strconv.Atoi(raw)
 	if err != nil {
 		return 5000
-	}
-	return value
-}
-
-func rsmHeightScale() float64 {
-	raw := os.Getenv("GORO_RSM_HEIGHT_SCALE")
-	if raw == "" {
-		return 2.8
-	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil || value <= 0 {
-		return 2.8
 	}
 	return value
 }

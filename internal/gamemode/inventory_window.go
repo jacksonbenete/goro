@@ -44,18 +44,6 @@ type inventoryWindowState struct {
 	dragFrom   time.Time
 }
 
-func (w *inventoryWindowState) toggle(ctx Context) {
-	if w.open {
-		w.open = false
-		w.dragging = false
-		w.dragActive = false
-		return
-	}
-	w.open = true
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
-}
-
 func (w *inventoryWindowState) update(ctx Context, shop *shopWindowState) bool {
 	if !w.open || ctx.Input == nil {
 		return false

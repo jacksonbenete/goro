@@ -4365,53 +4365,6 @@ func drawRSWModelMarkers(screen *render.Image, rsw *res.RSW, gnd *res.GND, proje
 	}
 }
 
-func nearestRSWModelDebug(rsw *res.RSW, gnd *res.GND, models map[string]*res.RSM, playerX, playerY float64) string {
-	if rsw == nil || gnd == nil || len(rsw.Models) == 0 {
-		return "rsw nearest: none"
-	}
-	bestIndex := -1
-	bestDistance := math.Inf(1)
-	bestX, bestY, bestZ := 0.0, 0.0, 0.0
-	bestName := ""
-	for i, model := range rsw.Models {
-		x := float64(model.Position.X) + float64(gnd.Width)
-		y := float64(model.Position.Z) + float64(gnd.Height)
-		dx := x - cellCenter(playerX)
-		dy := y - cellCenter(playerY)
-		distance := math.Sqrt(dx*dx + dy*dy)
-		if distance < bestDistance {
-			bestIndex = i
-			bestDistance = distance
-			bestX = x
-			bestY = y
-			bestZ = float64(model.Position.Y)
-			bestName = model.Filename
-		}
-	}
-	if len(bestName) > 34 {
-		bestName = bestName[:34]
-	}
-	modelState := "missing"
-	if models != nil {
-		if model, ok := models[rsw.Models[bestIndex].Filename]; ok {
-			if model != nil {
-				modelState = fmt.Sprintf("loaded faces=%d", rsmFaceCount(model))
-			} else {
-				modelState = "failed"
-			}
-		}
-	}
-	return fmt.Sprintf("rsw nearest: #%d d=%.1f pos=(%.1f,%.1f,%.1f) %s %s", bestIndex, bestDistance, bestX, bestY, bestZ, modelState, bestName)
-}
-
-func rsmFaceCount(model *res.RSM) int {
-	faces := 0
-	for _, node := range model.Nodes {
-		faces += len(node.Faces)
-	}
-	return faces
-}
-
 func (m *WorldMode) groundTexture(manager *res.Manager, name string) *render.Image {
 	if name == "" {
 		return nil
@@ -4890,19 +4843,6 @@ func lerpTexturePoint(a, b texturePoint, t float64) texturePoint {
 	return texturePoint{
 		u: float32(float64(a.u) + (float64(b.u)-float64(a.u))*t),
 		v: float32(float64(a.v) + (float64(b.v)-float64(a.v))*t),
-	}
-}
-
-func texturedSurfaceVertex(point screenPoint, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) render.Vertex {
-	return render.Vertex{
-		DstX:   point.x,
-		DstY:   point.y,
-		SrcX:   uv.u * textureWidth,
-		SrcY:   uv.v * textureHeight,
-		ColorR: float32(tint.R) / 255,
-		ColorG: float32(tint.G) / 255,
-		ColorB: float32(tint.B) / 255,
-		ColorA: float32(tint.A) / 255,
 	}
 }
 

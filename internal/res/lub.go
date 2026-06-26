@@ -276,7 +276,7 @@ func executeLuaFunction(fn luaFunction, globals map[string]luaValue) error {
 			if block == 0 {
 				pc++
 				if pc >= len(fn.code) {
-					return errors.New("Lua SETLIST missing extension word")
+					return errors.New("lua SETLIST missing extension word")
 				}
 				block = int(fn.code[pc])
 			}

@@ -111,16 +111,6 @@ type spriteState struct {
 	walkDistance float64
 }
 
-func loadPlayerSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
-	view, status := loadBodySpriteView(manager, int(character.Job), sex, int(character.BodyPal), "player body")
-	return view, fmt.Sprintf("sprite-sex=%s(%d) %s", res.PlayerSexLabel(sex), sex, status)
-}
-
-func loadPlayerHeadSpriteView(manager *res.Manager, character session.Character, sex byte) (*playerSpriteView, string) {
-	view, status := loadHeadSpriteView(manager, int(character.Job), int(character.Hair), sex, characterHeadPalette(character), "player head")
-	return view, status
-}
-
 func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte) (*humanoidSpriteView, string) {
 	return loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
 		job:         int(character.Job),

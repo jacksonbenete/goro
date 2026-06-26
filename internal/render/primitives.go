@@ -98,10 +98,6 @@ func DebugPrintAtColor(dst *Image, text string, x, y int, c color.RGBA) {
 	d.DrawString(text)
 }
 
-func cachedDebugText(text string) *Image {
-	return cachedDebugTextColor(text, color.RGBA{R: 255, G: 255, B: 255, A: 255})
-}
-
 func cachedDebugTextColor(text string, c color.RGBA) *Image {
 	key := fmt.Sprintf("%02x%02x%02x%02x:%s", c.R, c.G, c.B, c.A, text)
 	if img := debugTextCache[key]; img != nil {

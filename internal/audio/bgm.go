@@ -463,9 +463,6 @@ func (b *BGM) stopCurrent() {
 	}
 	log.Printf("bgm stopping id=%d path=%s playing=%t", b.playerID, b.current, b.player.IsPlaying())
 	b.player.Pause()
-	if err := b.player.Close(); err != nil {
-		log.Printf("bgm close failed: %v", err)
-	}
 	b.player = nil
 }
 
@@ -482,9 +479,6 @@ func (b *BGM) trimSFXPlayers() {
 			active = append(active, player)
 			continue
 		}
-		if err := player.Close(); err != nil {
-			log.Printf("sfx close failed: %v", err)
-		}
 	}
 	const maxSFXPlayers = 32
 	for len(active) > maxSFXPlayers {
@@ -492,9 +486,6 @@ func (b *BGM) trimSFXPlayers() {
 		active = active[1:]
 		if player != nil {
 			player.Pause()
-			if err := player.Close(); err != nil {
-				log.Printf("sfx close failed: %v", err)
-			}
 		}
 	}
 	b.sfxPlayers = active
@@ -506,9 +497,6 @@ func (b *BGM) stopSFX() {
 			continue
 		}
 		player.Pause()
-		if err := player.Close(); err != nil {
-			log.Printf("sfx close failed: %v", err)
-		}
 	}
 	b.sfxPlayers = nil
 }

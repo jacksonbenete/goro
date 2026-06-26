@@ -282,10 +282,6 @@ func actorMovementDurationWithSpeed(path []WalkStep, fromX, fromY, toX, toY int,
 	return movementSegmentDurationWithSpeed(dx, dy, speedMS)
 }
 
-func movementSegmentDuration(dx, dy int) time.Duration {
-	return movementSegmentDurationWithSpeed(dx, dy, defaultMoveSpeedMS)
-}
-
 const defaultMoveSpeedMS = 150
 
 func actorMoveSpeed(actor Actor) int {
@@ -318,10 +314,6 @@ func movementSegmentDurationWithSpeed(dx, dy int, speedMS int) time.Duration {
 	return time.Duration(steps*speedMS) * time.Millisecond
 }
 
-func renderPathPosition(path []WalkStep, elapsed time.Duration) (float64, float64) {
-	return renderPathPositionWithSpeed(path, elapsed, defaultMoveSpeedMS)
-}
-
 func renderPathPositionWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int) (float64, float64) {
 	from, to := renderPathSegmentWithSpeed(path, elapsed, speedMS)
 	segmentElapsed := elapsed - pathElapsedBeforeSegmentWithSpeed(path, from, to, speedMS)
@@ -340,10 +332,6 @@ func renderPathPositionWithSpeed(path []WalkStep, elapsed time.Duration, speedMS
 	return x, y
 }
 
-func renderPathSegment(path []WalkStep, elapsed time.Duration) (WalkStep, WalkStep) {
-	return renderPathSegmentWithSpeed(path, elapsed, defaultMoveSpeedMS)
-}
-
 func renderPathSegmentWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int) (WalkStep, WalkStep) {
 	if len(path) == 0 {
 		return WalkStep{}, WalkStep{}
@@ -360,10 +348,6 @@ func renderPathSegmentWithSpeed(path []WalkStep, elapsed time.Duration, speedMS 
 		remaining -= duration
 	}
 	return path[len(path)-1], path[len(path)-1]
-}
-
-func pathElapsedBeforeSegment(path []WalkStep, from, to WalkStep) time.Duration {
-	return pathElapsedBeforeSegmentWithSpeed(path, from, to, defaultMoveSpeedMS)
 }
 
 func pathElapsedBeforeSegmentWithSpeed(path []WalkStep, from, to WalkStep, speedMS int) time.Duration {

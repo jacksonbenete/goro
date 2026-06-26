@@ -20,10 +20,6 @@ type sceneProjection struct {
 	viewProjection mat4
 }
 
-func newSceneProjection(screen *render.Image, playerX, playerY int, playerZ float64) sceneProjection {
-	return newSceneProjectionForSize(screen.Bounds().Dx(), screen.Bounds().Dy(), playerX, playerY, playerZ)
-}
-
 func newSceneProjectionForSize(width, height, playerX, playerY int, playerZ float64) sceneProjection {
 	return newSceneProjectionForTarget(width, height, cellCenter(float64(playerX)), cellCenter(float64(playerY)), playerZ)
 }
@@ -146,14 +142,6 @@ func (p sceneProjection) projectCamera(x, y, z float64) screenPoint {
 		x: float32((ndcX + 1) * p.screenW * 0.5),
 		y: float32((1 - ndcY) * p.screenH * 0.5),
 	}
-}
-
-func sceneCameraMatrix(width, height, targetX, targetY, targetZ float64) mat4 {
-	return sceneCameraMatrixWithYaw(width, height, targetX, targetY, targetZ, sceneCameraYaw())
-}
-
-func sceneCameraMatrixWithYaw(width, height, targetX, targetY, targetZ, yawDegrees float64) mat4 {
-	return sceneCameraMatrixWithYawZoom(width, height, targetX, targetY, targetZ, yawDegrees, sceneCameraZoom())
 }
 
 func sceneCameraMatrixWithYawZoom(width, height, targetX, targetY, targetZ, yawDegrees, zoom float64) mat4 {
