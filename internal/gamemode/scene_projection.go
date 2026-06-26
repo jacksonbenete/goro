@@ -62,10 +62,8 @@ func newSceneProjectionForTargetYawZoom(width, height int, targetX, targetY, tar
 		cameraYaw:   yaw,
 		cameraZoom:  normalizeSceneCameraZoom(zoom),
 	}
-	if os.Getenv("GORO_SCENE_PROJECTION") != "flat" {
-		projection.camera = true
-		projection.viewProjection = sceneCameraMatrixWithYawZoom(float64(width), float64(height), targetX, targetY, targetZ, yaw, projection.cameraZoom)
-	}
+	projection.camera = true
+	projection.viewProjection = sceneCameraMatrixWithYawZoom(float64(width), float64(height), targetX, targetY, targetZ, yaw, projection.cameraZoom)
 	return projection
 }
 
@@ -111,14 +109,14 @@ func (p sceneProjection) BillboardBasis(x, y, z float64) (modelPoint3, modelPoin
 		z: target.z - math.Cos(yaw)*horizontal,
 	}
 	center := modelPoint3{x: x, y: z, z: y}
-	forward := normalize3(sub3(center, eye))
+	forward := normalize3(sub3(target, eye))
 	right := normalize3(cross3(modelPoint3{y: 1}, forward))
 	if right == (modelPoint3{}) {
 		right = modelPoint3{x: 1}
 	}
 	up := normalize3(cross3(forward, right))
-	dist := math.Sqrt(dot3(sub3(center, eye), sub3(center, eye)))
-	unitsPerPixel := 2 * dist * math.Tan(degreesToRadians(sceneCameraFOV())*0.5) / p.screenH
+	cameraDepth := dot3(sub3(center, eye), forward)
+	unitsPerPixel := 2 * cameraDepth * math.Tan(degreesToRadians(sceneCameraFOV())*0.5) / p.screenH
 	if unitsPerPixel <= 0 || !isFinite(unitsPerPixel) {
 		return modelPoint3{}, modelPoint3{}, 0, false
 	}

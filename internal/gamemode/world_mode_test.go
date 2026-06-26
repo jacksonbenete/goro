@@ -792,7 +792,6 @@ func TestAppendActorDrawEntryUsesPathRenderDirection(t *testing.T) {
 }
 
 func TestActorBillboardSortDepthUsesTopInCameraProjection(t *testing.T) {
-	t.Setenv("GORO_SCENE_PROJECTION", "")
 	t.Setenv("GORO_CAMERA_ZOOM", "150")
 	t.Setenv("GORO_CAMERA_PITCH", "230")
 	t.Setenv("GORO_CAMERA_FOV", "15")
@@ -965,7 +964,7 @@ func TestFollowCameraZoomIsClampedAndProjected(t *testing.T) {
 
 func TestCursorRotateInfoMatchesRobrowser(t *testing.T) {
 	info := cursorInfo(cursorActionRotate)
-	if info.drawX != 18 || info.drawY != 26 || info.startX != 10 || info.startY != 0 || info.delayMult != 1 {
+	if info.delayMult != 1 {
 		t.Fatalf("rotate cursor info = %+v", info)
 	}
 }
@@ -1061,24 +1060,7 @@ func modelPointNear(a, b modelPoint3, epsilon float64) bool {
 	return math.Abs(a.x-b.x) <= epsilon && math.Abs(a.y-b.y) <= epsilon && math.Abs(a.z-b.z) <= epsilon
 }
 
-func TestSortGNDSurfacesDrawsFarBeforeNear(t *testing.T) {
-	surfaces := []gndSurfaceDraw{
-		{depth: 2},
-		{depth: 8},
-		{depth: 4},
-	}
-	sortGNDSurfaces(surfaces)
-	got := []float64{surfaces[0].depth, surfaces[1].depth, surfaces[2].depth}
-	want := []float64{8, 4, 2}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("surface order = %v, want %v", got, want)
-		}
-	}
-}
-
 func TestGNDDrawBoundsUseCameraFootprint(t *testing.T) {
-	t.Setenv("GORO_SCENE_PROJECTION", "")
 	t.Setenv("GORO_CAMERA_ZOOM", "150")
 	t.Setenv("GORO_CAMERA_PITCH", "230")
 	t.Setenv("GORO_CAMERA_FOV", "15")

@@ -73,6 +73,8 @@ struct VertexInput {
 	@location(0) pos: vec3<f32>,
 	@location(1) uv: vec2<f32>,
 	@location(2) color: vec4<f32>,
+	@location(3) depth_pos: vec3<f32>,
+	@location(4) depth_bias: f32,
 }
 
 struct VertexOutput {
@@ -85,8 +87,13 @@ struct VertexOutput {
 fn vs_main(input: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
 	let p = vec4<f32>(input.pos, 1.0);
+	let dp = vec4<f32>(input.depth_pos, 1.0);
 	var clip = uniforms.c0 * p.x + uniforms.c1 * p.y + uniforms.c2 * p.z + uniforms.c3 * p.w;
+	var depth_clip = uniforms.c0 * dp.x + uniforms.c1 * dp.y + uniforms.c2 * dp.z + uniforms.c3 * dp.w;
 	clip.z = clip.z * 0.5 + clip.w * 0.5;
+	depth_clip.z = depth_clip.z * 0.5 + depth_clip.w * 0.5;
+	clip.z = min(clip.z, depth_clip.z * clip.w / max(depth_clip.w, 0.000001));
+	clip.z = max(0.0, clip.z - input.depth_bias * clip.w);
 	out.clip = clip;
 	out.uv = input.uv;
 	out.color = input.color;
@@ -356,12 +363,14 @@ func (r *gpuRenderer) createWorldPipeline(shader *wgpu.ShaderModule, blend gputy
 			Module:     shader,
 			EntryPoint: "vs_main",
 			Buffers: []wgpu.VertexBufferLayout{{
-				ArrayStride: 36,
+				ArrayStride: 52,
 				StepMode:    gputypes.VertexStepModeVertex,
 				Attributes: []gputypes.VertexAttribute{
 					{Format: gputypes.VertexFormatFloat32x3, Offset: 0, ShaderLocation: 0},
 					{Format: gputypes.VertexFormatFloat32x2, Offset: 12, ShaderLocation: 1},
 					{Format: gputypes.VertexFormatFloat32x4, Offset: 20, ShaderLocation: 2},
+					{Format: gputypes.VertexFormatFloat32x3, Offset: 36, ShaderLocation: 3},
+					{Format: gputypes.VertexFormatFloat32, Offset: 48, ShaderLocation: 4},
 				},
 			}},
 		},
@@ -418,7 +427,7 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 	world := r.buildWorldFrame(screen)
 	frame := r.buildFrame(screen)
 	if r.statsEnabled && time.Since(r.statsLast) >= time.Second {
-		log.Printf("render stats world_commands=%d world_batches=%d world_vertices=%d world_indices=%d commands=%d batches=%d vertices=%d indices=%d textures=%d bindgroups=%d", len(screen.worldCommands), len(world.batches), len(world.floats)/9, len(world.indices), len(screen.commands), len(frame.batches), len(frame.floats)/8, len(frame.indices), len(r.textures), len(r.bindGroups))
+		log.Printf("render stats world_commands=%d world_batches=%d world_vertices=%d world_indices=%d commands=%d batches=%d vertices=%d indices=%d textures=%d bindgroups=%d", len(screen.worldCommands), len(world.batches), len(world.floats)/13, len(world.indices), len(screen.commands), len(frame.batches), len(frame.floats)/8, len(frame.indices), len(r.textures), len(r.bindGroups))
 		r.statsLast = time.Now()
 	}
 	if r.worldDebug && time.Since(r.worldDebugLast) >= time.Second {
@@ -559,12 +568,14 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			continue
 		}
 		batch := &pending[batchIndex]
-		base := uint32(len(batch.floats) / 9)
+		base := uint32(len(batch.floats) / 13)
 		for _, v := range cmd.Vertices {
 			batch.floats = append(batch.floats,
 				v.X, v.Y, v.Z,
 				v.SrcX/float32(w), v.SrcY/float32(h),
 				saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
+				v.DepthX, v.DepthY, v.DepthZ,
+				saneDepthBias(cmd.Options.DepthBias),
 			)
 		}
 		for _, idx := range cmd.Indices {
@@ -576,7 +587,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		if len(batch.indices) == 0 || len(batch.floats) == 0 {
 			continue
 		}
-		vertexBase := uint32(len(frame.floats) / 9)
+		vertexBase := uint32(len(frame.floats) / 13)
 		firstIndex := uint32(len(frame.indices))
 		frame.floats = append(frame.floats, batch.floats...)
 		for _, index := range batch.indices {
@@ -599,12 +610,14 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		if w <= 0 || h <= 0 {
 			continue
 		}
-		base := uint32(len(frame.floats) / 9)
+		base := uint32(len(frame.floats) / 13)
 		for _, v := range cmd.Vertices {
 			frame.floats = append(frame.floats,
 				v.X, v.Y, v.Z,
 				v.SrcX/float32(w), v.SrcY/float32(h),
 				saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
+				v.DepthX, v.DepthY, v.DepthZ,
+				saneDepthBias(cmd.Options.DepthBias),
 			)
 		}
 		for _, idx := range cmd.Indices {
@@ -1006,6 +1019,16 @@ func saneColor(v float32) float32 {
 	}
 	if v > 1 {
 		return 1
+	}
+	return v
+}
+
+func saneDepthBias(v float32) float32 {
+	if math.IsNaN(float64(v)) || math.IsInf(float64(v), 0) || v < 0 {
+		return 0
+	}
+	if v > 0.02 {
+		return 0.02
 	}
 	return v
 }

@@ -2,6 +2,8 @@ module github.com/kivutar/goro
 
 go 1.26.3
 
+replace github.com/go-webgpu/goffi => ./third_party/goffi
+
 require (
 	github.com/ebitengine/oto/v3 v3.4.0
 	github.com/gogpu/gogpu v0.42.7

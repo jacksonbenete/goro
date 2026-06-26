@@ -24,18 +24,16 @@ const (
 type cursorActionInfo struct {
 	drawX     float64
 	drawY     float64
-	startX    float64
-	startY    float64
 	delayMult float64
 }
 
 var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionDefault: {drawX: 1, drawY: 19, delayMult: 2.0},
-	cursorActionTalk:    {drawX: 20, drawY: 40, startX: 20, startY: 20, delayMult: 1.0},
-	cursorActionRotate:  {drawX: 18, drawY: 26, startX: 10, startY: 0, delayMult: 1.0},
+	cursorActionTalk:    {drawX: 20, drawY: 40, delayMult: 1.0},
+	cursorActionRotate:  {drawX: 18, drawY: 26, delayMult: 1.0},
 	cursorActionWarp:    {drawX: 10, drawY: 32, delayMult: 1.0},
-	cursorActionPick:    {drawX: 20, drawY: 40, startX: 15, startY: 15, delayMult: 1.0},
-	cursorActionNoWalk:  {drawX: 13, drawY: 25, startX: 14, startY: 6, delayMult: 1.0},
+	cursorActionPick:    {drawX: 20, drawY: 40, delayMult: 1.0},
+	cursorActionNoWalk:  {drawX: 13, drawY: 25, delayMult: 1.0},
 }
 
 func (m *WorldMode) drawROCursor(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
@@ -54,21 +52,21 @@ func (m *WorldMode) drawROCursor(screen *render.Image, ctx Context, projection s
 
 	info := cursorInfo(action)
 	if m.cursorView == nil || m.cursorViewMiss {
-		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY, info)
+		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY)
 		return
 	}
 	frame, ok := m.cursorFrame(action, info, now)
 	if !ok {
-		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY, info)
+		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY)
 		return
 	}
 	var opts render.DrawImageOptions
-	opts.GeoM.Translate(float64(ctx.Input.MouseX)-info.startX, float64(ctx.Input.MouseY)-info.startY)
+	opts.GeoM.Translate(float64(ctx.Input.MouseX)-frame.anchorX, float64(ctx.Input.MouseY)-frame.anchorY)
 	opts.Filter = spriteDrawFilter()
-	screen.DrawImage(frame, &opts)
+	screen.DrawImage(frame.image, &opts)
 }
 
-func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time) (*render.Image, bool) {
+func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time) (*spriteBillboard, bool) {
 	if m.cursorView == nil || m.cursorView.act == nil {
 		return nil, false
 	}
@@ -79,7 +77,7 @@ func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time
 	actionDef := m.cursorView.act.Actions[action]
 	delay := float64(actionDef.DelayMS) * info.delayMult
 	motion := spriteMotionIndexWithDelay(actionDef, m.cursorStarted, now, true, delay)
-	return cursorFrameImage(m.cursorView, action, motion, info.drawX, info.drawY)
+	return cursorFrameBillboard(m.cursorView, action, motion, info.drawX, info.drawY)
 }
 
 func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection, now time.Time) int {
@@ -200,12 +198,12 @@ func (m *WorldMode) cursorFallbackTexture() *render.Image {
 	return m.cursorFallback
 }
 
-func drawFallbackROCursor(screen, img *render.Image, mouseX, mouseY int, info cursorActionInfo) {
+func drawFallbackROCursor(screen, img *render.Image, mouseX, mouseY int) {
 	if img == nil {
 		return
 	}
 	var opts render.DrawImageOptions
-	opts.GeoM.Translate(float64(mouseX)-info.startX, float64(mouseY)-info.startY)
+	opts.GeoM.Translate(float64(mouseX), float64(mouseY))
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(img, &opts)
 }

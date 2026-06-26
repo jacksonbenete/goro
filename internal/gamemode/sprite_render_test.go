@@ -469,6 +469,47 @@ func TestComposeSingleSpriteBillboardUsesAnimationBounds(t *testing.T) {
 	}
 }
 
+func TestCursorFrameBillboardUsesCompositionAnchorAsHotspot(t *testing.T) {
+	view := &playerSpriteView{
+		spr: &res.SPR{
+			RGBAIndex: 0,
+			Frames: []res.SPRFrame{{
+				Type:   res.SPRFrameRGBA,
+				Width:  18,
+				Height: 24,
+				Data:   solidRGBAFrame(18, 24),
+			}},
+		},
+		act: &res.ACT{Actions: []res.ACTAction{{
+			Animations: []res.ACTAnimation{{Layers: []res.ACTLayer{{
+				Index:   0,
+				SPRType: res.SPRFrameRGBA,
+				X:       9,
+				Y:       12,
+				ScaleX:  1,
+				ScaleY:  1,
+				Color:   [4]float32{1, 1, 1, 1},
+			}}}},
+		}}},
+		images:     make(map[spriteFrameKey]*render.Image),
+		billboards: make(map[singleSpriteBillboardKey]*spriteBillboard),
+	}
+
+	billboard, ok := cursorFrameBillboard(view, 0, 0, 20, 24)
+	if !ok {
+		t.Fatal("expected cursor billboard")
+	}
+	if got, want := billboard.image.Bounds().Dx(), 50; got != want {
+		t.Fatalf("cursor width = %d, want %d", got, want)
+	}
+	if got, want := billboard.image.Bounds().Dy(), 50; got != want {
+		t.Fatalf("cursor height = %d, want %d", got, want)
+	}
+	if billboard.anchorX != 20 || billboard.anchorY != 24 {
+		t.Fatalf("cursor anchor = %.1f, %.1f, want 20, 24", billboard.anchorX, billboard.anchorY)
+	}
+}
+
 func solidRGBAFrame(width, height int) []byte {
 	data := make([]byte, width*height*4)
 	for i := 0; i < len(data); i += 4 {

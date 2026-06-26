@@ -1413,23 +1413,14 @@ func formatProgressValue(current, next int64) string {
 	return fmt.Sprintf("%d", current)
 }
 
-func world3DEnabled() bool {
-	return strings.TrimSpace(os.Getenv("GORO_WORLD_3D")) == "1"
-}
-
 func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	clear(screen)
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	playerX, playerY := ctx.World.Player.RenderPosition(now)
 	projection := m.sceneProjection(ctx, width, height, now)
-	if world3DEnabled() {
-		screen.SetCamera3D(projection.RenderCamera())
-	}
-	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
-	if world3DEnabled() {
-		fog = sceneFog{}
-	}
+	screen.SetCamera3D(projection.RenderCamera())
+	fog := sceneFog{}
 
 	if ctx.World.GND != nil {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, fog)
@@ -2460,76 +2451,24 @@ func (m *WorldMode) drawSceneActors(screen *render.Image, ctx Context, projectio
 
 type sceneDrawEntry struct {
 	depth       float64
-	modelIndex  int
 	actorIndex  int
 	shadowIndex int
 	itemIndex   int
 }
 
 func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) {
-	if projection.camera && world3DEnabled() {
-		m.drawSceneModelsAndActors3D(screen, ctx, projection, fog)
-		return
-	}
-	models := m.collectRSMModelTriangles(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
-	actors := m.collectSceneActorEntries(screen, ctx, projection)
-	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
-	entries := make([]sceneDrawEntry, 0, len(models)+len(actors)+len(items))
-	for i, tri := range models {
-		entries = append(entries, sceneDrawEntry{depth: tri.depth, modelIndex: i, actorIndex: -1, shadowIndex: -1, itemIndex: -1})
-	}
-	for i, item := range items {
-		entries = append(entries, sceneDrawEntry{depth: item.depth, modelIndex: -1, actorIndex: -1, shadowIndex: -1, itemIndex: i})
-	}
-	for i, actor := range actors {
-		if actor.castShadow {
-			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, modelIndex: -1, actorIndex: -1, shadowIndex: i, itemIndex: -1})
-		}
-		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i, shadowIndex: -1, itemIndex: -1})
-	}
-	sort.SliceStable(entries, func(i, j int) bool {
-		return entries[i].depth > entries[j].depth
-	})
-	for _, entry := range entries {
-		if entry.modelIndex >= 0 {
-			m.drawModelTriangle(screen, ctx.Resources, models[entry.modelIndex], projection)
-			continue
-		}
-		if entry.shadowIndex >= 0 {
-			m.drawActorShadowEntry(screen, projection, actors[entry.shadowIndex])
-			continue
-		}
-		if entry.itemIndex >= 0 {
-			if projection.camera && world3DEnabled() {
-				m.drawGroundItemEntry3D(screen, projection, items[entry.itemIndex])
-				continue
-			}
-			m.drawGroundItemEntry(screen, items[entry.itemIndex])
-			continue
-		}
-		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
-	}
-	for _, actor := range actors {
-		m.drawActorLifeBar(screen, ctx, actor)
-	}
-	for _, actor := range actors {
-		drawActorNameLabel(screen, actor.label, actor.screenX, actor.screenY, actor.scale)
-	}
-}
-
-func (m *WorldMode) drawSceneModelsAndActors3D(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) {
 	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
 	entries := make([]sceneDrawEntry, 0, len(actors)+len(items))
 	for i, item := range items {
-		entries = append(entries, sceneDrawEntry{depth: item.depth, modelIndex: -1, actorIndex: -1, shadowIndex: -1, itemIndex: i})
+		entries = append(entries, sceneDrawEntry{depth: item.depth, actorIndex: -1, shadowIndex: -1, itemIndex: i})
 	}
 	for i, actor := range actors {
 		if actor.castShadow {
-			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, modelIndex: -1, actorIndex: -1, shadowIndex: i, itemIndex: -1})
+			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, actorIndex: -1, shadowIndex: i, itemIndex: -1})
 		}
-		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i, shadowIndex: -1, itemIndex: -1})
+		entries = append(entries, sceneDrawEntry{depth: actor.depth, actorIndex: i, shadowIndex: -1, itemIndex: -1})
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -2580,10 +2519,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx Context, 
 func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	cameraYaw := projection.cameraYaw
 	if entry.isPlayer {
-		if projection.camera && world3DEnabled() && m.drawPlayerSprite3D(ctx, screen, projection, entry, entry.actor.Dir, cameraYaw, entry.shadow) {
-			return
-		}
-		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir, cameraYaw, entry.shadow) {
+		if m.drawPlayerSprite3D(ctx, screen, projection, entry, entry.actor.Dir, cameraYaw, entry.shadow) {
 			return
 		}
 		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
@@ -2597,10 +2533,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx Context, proje
 		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), projection, entry.worldX, entry.worldY, entry.worldZ, time.Now())
 		return
 	}
-	if projection.camera && world3DEnabled() && m.drawActorSprite3D(screen, ctx, projection, entry, cameraYaw, entry.shadow) {
-		return
-	}
-	if m.drawActorSprite(screen, ctx, entry.actor, entry.screenX, entry.screenY, entry.scale, cameraYaw, entry.shadow) {
+	if m.drawActorSprite3D(screen, ctx, projection, entry, cameraYaw, entry.shadow) {
 		return
 	}
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
@@ -2618,11 +2551,7 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Image, projection sceneP
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		return
 	}
-	if projection.camera && world3DEnabled() {
-		drawFixedSpriteBillboardAlphaFlat3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+0.03, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
-		return
-	}
-	drawFixedSpriteBillboardAlpha(screen, m.shadowView, entry.shadowX, entry.shadowY, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
+	drawFixedSpriteBillboardAlphaFlat3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+0.03, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
 }
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, label string, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
@@ -2872,66 +2801,6 @@ func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (ac
 	return life, true
 }
 
-func (m *WorldMode) drawActorSprite(screen *render.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
-	if !res.HasPlayerJobToken(int(actor.Job)) {
-		return m.drawNonPCSprite(screen, ctx, actor, centerX, centerY, scale, cameraYaw, shadow)
-	}
-	key := actorSpriteKey{
-		job:     int(actor.Job),
-		head:    int(actor.Head),
-		sex:     actor.Sex,
-		weapon:  int(actor.Weapon),
-		shield:  int(actor.Shield),
-		headTop: int(actor.HeadTop),
-		headMid: int(actor.HeadMid),
-		headLow: int(actor.HeadLow),
-	}
-	if _, ok := m.actorViewMiss[key]; ok {
-		return false
-	}
-	view, ok := m.actorViews[key]
-	if !ok {
-		loaded, status := loadHumanoidSpriteViewWithAppearance(ctx.Resources, humanoidAppearance{
-			job:     key.job,
-			head:    key.head,
-			sex:     key.sex,
-			weapon:  key.weapon,
-			shield:  key.shield,
-			headTop: key.headTop,
-			headMid: key.headMid,
-			headLow: key.headLow,
-		}, "actor")
-		if loaded == nil {
-			m.actorViewMiss[key] = struct{}{}
-			log.Printf("actor sprite unavailable id=%d job=%d head=%d sex=%d: %s", actor.ID, key.job, key.head, key.sex, status)
-			return false
-		}
-		m.actorViews[key] = loaded
-		view = loaded
-		log.Printf("actor sprite resources id=%d job=%d head=%d sex=%d %s", actor.ID, key.job, key.head, key.sex, status)
-	}
-	now := time.Now()
-	state := spriteState{
-		actionFamily: spriteActionIdle,
-		direction:    actor.Dir,
-		cameraYaw:    cameraYaw,
-		moving:       actor.IsMovingAt(now),
-		moveSpeedMS:  actor.Speed,
-	}
-	if state.moving {
-		state.actionFamily = spriteActionWalk
-		state.loop = true
-		state.walkDistance = actor.RenderWalkDistance(now)
-	}
-	if anim, ok := m.actorAnimation(actor.ID, now); ok {
-		state.actionFamily = anim.actionFamily
-		state.started = anim.started
-		state.loop = false
-		state.moving = false
-	}
-	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale, shadow)
-}
-
 func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
 	actor := entry.actor
 	if !res.HasPlayerJobToken(int(actor.Job)) {
@@ -2996,17 +2865,6 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, project
 	}
 	drawSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
 	return true
-}
-
-func (m *WorldMode) drawNonPCSprite(screen *render.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
-	view := m.nonPCSpriteView(ctx, actor)
-	if view == nil {
-		return false
-	}
-	now := time.Now()
-	state := m.nonPCSpriteState(actor, now)
-	state.cameraYaw = cameraYaw
-	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, m.actorDeathAlpha(actor.ID, now), shadow)
 }
 
 func (m *WorldMode) drawNonPCSprite3D(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
@@ -3462,11 +3320,6 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 			}
 		}
 	}
-	sortGNDSurfaces(surfaces)
-	if !(projection.camera && world3DEnabled()) {
-		m.drawGNDSurfaces2D(screen, manager, gnd, surfaces, float64(width), float64(height), projection, fog)
-		return
-	}
 	for _, surface := range surfaces {
 		m.drawGNDSurface(screen, manager, gnd, surface, float64(width), float64(height), projection, fog)
 	}
@@ -3583,7 +3436,6 @@ type gndSurfaceDraw struct {
 	waterType   int
 	waterFrame  int
 	tint        color.RGBA
-	depth       float64
 }
 
 func (m *WorldMode) smoothGNDTopNormals(gnd *res.GND) [][4]modelPoint3 {
@@ -3676,12 +3528,6 @@ func uniformGNDNormals(normal modelPoint3) [4]modelPoint3 {
 	return [4]modelPoint3{normal, normal, normal, normal}
 }
 
-func sortGNDSurfaces(surfaces []gndSurfaceDraw) {
-	sort.SliceStable(surfaces, func(i, j int) bool {
-		return surfaces[i].depth > surfaces[j].depth
-	})
-}
-
 func newGNDWaterDraw(projection sceneProjection, x, y int, cell res.GNDCell, gnd *res.GND, rsw *res.RSW, now time.Time) (gndSurfaceDraw, bool) {
 	water, ok := mapWater(gnd, rsw)
 	if !ok {
@@ -3736,10 +3582,6 @@ func newGNDSurfaceDraw(projection sceneProjection, verts [4]modelPoint3, uvs [4]
 }
 
 func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoint3, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, vertexNormals [4]modelPoint3, lighting sceneLighting) gndSurfaceDraw {
-	depth := 0.0
-	for _, vert := range verts {
-		depth += projection.Depth(vert.x, vert.z, vert.y)
-	}
 	normal := quadNormal(verts)
 	for i := range vertexNormals {
 		if vertexNormals[i] == (modelPoint3{}) {
@@ -3758,7 +3600,6 @@ func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoin
 		heights:     heights,
 		vertexNorms: vertexNormals,
 		lighting:    lighting,
-		depth:       depth / float64(len(verts)),
 	}
 }
 
@@ -3774,230 +3615,29 @@ func (m *WorldMode) drawGNDSurface(screen *render.Image, manager *res.Manager, g
 	textureName := gndTextureName(gnd, draw.surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
 		if lightmap, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
-			if projection.camera && world3DEnabled() {
-				drawTexturedLightmappedSurface3D(screen, texture, draw.verts, draw.uvs, draw.surface.Color, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
-				return
-			}
-			drawTexturedLightmappedSurface(screen, texture, draw.points, draw.verts, draw.uvs, draw.surface.Color, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
+			drawTexturedLightmappedSurface3D(screen, texture, draw.verts, draw.uvs, draw.surface.Color, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
 			return
 		}
 		tints := surfaceVertexTints(gnd, draw.surface, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting)
-		if projection.camera && world3DEnabled() {
-			drawTexturedSurface3D(screen, texture, draw.verts, draw.uvs, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
-			return
-		}
-		drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
+		drawTexturedSurface3D(screen, texture, draw.verts, draw.uvs, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
 		return
 	}
 	tints := groundSurfaceVertexColors(textureName, draw.surface.Color, draw.heights, draw.vertexNorms, draw.lighting)
-	if projection.camera && world3DEnabled() {
-		drawColoredSurfaceTints3D(screen, m.whitePixel, draw.verts, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
-		return
-	}
-	drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
+	drawColoredSurfaceTints3D(screen, m.whitePixel, draw.verts, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
 }
 
 func gndSurfaceVisible(draw gndSurfaceDraw, screenWidth, screenHeight float64) bool {
 	return !quadHasInvalidPoint(draw.points) && !quadOutside(draw.points, screenWidth, screenHeight)
 }
 
-func (m *WorldMode) drawGNDSurfaces2D(screen *render.Image, manager *res.Manager, gnd *res.GND, surfaces []gndSurfaceDraw, screenWidth, screenHeight float64, projection sceneProjection, fog sceneFog) {
-	for i := 0; i < len(surfaces); {
-		if !gndSurfaceVisible(surfaces[i], screenWidth, screenHeight) {
-			i++
-			continue
-		}
-		texture := m.gndSurfaceTexture(manager, gnd, surfaces[i])
-		j := i + 1
-		if texture != nil {
-			for j < len(surfaces) {
-				if !gndSurfaceVisible(surfaces[j], screenWidth, screenHeight) {
-					break
-				}
-				if m.gndSurfaceTexture(manager, gnd, surfaces[j]) != texture {
-					break
-				}
-				j++
-			}
-			drawTexturedGNDSurfaces2D(screen, texture, gnd, surfaces[i:j], projection, fog)
-		} else {
-			for j < len(surfaces) {
-				if !gndSurfaceVisible(surfaces[j], screenWidth, screenHeight) {
-					break
-				}
-				if m.gndSurfaceTexture(manager, gnd, surfaces[j]) != nil {
-					break
-				}
-				j++
-			}
-			drawColoredGNDSurfaces2D(screen, m.whitePixel, gnd, surfaces[i:j], projection, fog)
-		}
-		i = j
-	}
-}
-
-func (m *WorldMode) gndSurfaceTexture(manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw) *render.Image {
-	if draw.water {
-		return m.waterTexture(manager, draw.waterType, draw.waterFrame)
-	}
-	return m.groundTexture(manager, gndTextureName(gnd, draw.surface.TextureID))
-}
-
-func drawTexturedGNDSurfaces2D(screen, texture *render.Image, gnd *res.GND, surfaces []gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
-	bounds := texture.Bounds()
-	textureWidth := float32(bounds.Dx())
-	textureHeight := float32(bounds.Dy())
-	if textureWidth <= 0 || textureHeight <= 0 {
-		return
-	}
-	const maxVertices = 60000
-	vertices := make([]render.Vertex, 0, minInt(len(surfaces)*4, maxVertices))
-	indices := make([]uint16, 0, minInt(len(surfaces)*6, maxVertices))
-	flush := func() {
-		if len(indices) == 0 {
-			return
-		}
-		screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
-		vertices = vertices[:0]
-		indices = indices[:0]
-	}
-	for _, draw := range surfaces {
-		needed := 4
-		if !draw.water {
-			if _, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
-				needed = 49
-			}
-		}
-		if len(vertices)+needed > maxVertices {
-			flush()
-		}
-		if draw.water {
-			tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
-			appendTexturedGNDSurface2D(&vertices, &indices, draw.points, draw.uvs, draw.indices, tints, textureWidth, textureHeight)
-			continue
-		}
-		if lightmap, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
-			appendTexturedLightmappedGNDSurface2D(&vertices, &indices, textureWidth, textureHeight, draw, lightmap, projection, fog)
-			continue
-		}
-		tints := surfaceVertexTints(gnd, draw.surface, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting)
-		appendTexturedGNDSurface2D(&vertices, &indices, draw.points, draw.uvs, draw.indices, fog.mixVertexTints(projection, draw.verts, tints), textureWidth, textureHeight)
-	}
-	flush()
-}
-
-func appendTexturedGNDSurface2D(vertices *[]render.Vertex, indices *[]uint16, points [4]screenPoint, uvs [4]texturePoint, sourceIndices []uint16, tints [4]color.RGBA, textureWidth, textureHeight float32) {
-	base := uint16(len(*vertices))
-	*vertices = append(*vertices,
-		texturedSurfaceVertex(points[0], uvs[0], tints[0], textureWidth, textureHeight),
-		texturedSurfaceVertex(points[1], uvs[1], tints[1], textureWidth, textureHeight),
-		texturedSurfaceVertex(points[2], uvs[2], tints[2], textureWidth, textureHeight),
-		texturedSurfaceVertex(points[3], uvs[3], tints[3], textureWidth, textureHeight),
-	)
-	for _, index := range sourceIndices {
-		*indices = append(*indices, base+index)
-	}
-}
-
-func appendTexturedLightmappedGNDSurface2D(vertices *[]render.Vertex, indices *[]uint16, textureWidth, textureHeight float32, draw gndSurfaceDraw, lightmap res.GNDLightmap, projection sceneProjection, fog sceneFog) {
-	const steps = 6
-	base := uint16(len(*vertices))
-	surfaceBase := color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	if draw.surface.Color.A != 0 {
-		surfaceBase = draw.surface.Color
-	}
-	lightScales := vertexLightScales(draw.lighting, draw.vertexNorms)
-	for y := 0; y <= steps; y++ {
-		t := float64(y) / steps
-		for x := 0; x <= steps; x++ {
-			s := float64(x) / steps
-			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255
-			lm := res.GNDLightmapSampleColor(lightmap, s, t)
-			lightScale := bilerpModelPoint(lightScales, s, t)
-			tint := color.RGBA{
-				R: clampColor(float64(surfaceBase.R) * (lightScale.x*alpha + float64(lm.R)/255)),
-				G: clampColor(float64(surfaceBase.G) * (lightScale.y*alpha + float64(lm.G)/255)),
-				B: clampColor(float64(surfaceBase.B) * (lightScale.z*alpha + float64(lm.B)/255)),
-				A: 255,
-			}
-			world := bilerpModelPoint(draw.verts, s, t)
-			tint = fog.mixColor(tint, projection.FogDepth(world.x, world.z, world.y))
-			*vertices = append(*vertices, texturedSurfaceVertex(
-				bilerpScreenPoint(draw.points, s, t),
-				bilerpTexturePoint(draw.uvs, s, t),
-				tint,
-				textureWidth,
-				textureHeight,
-			))
-		}
-	}
-
-	row := steps + 1
-	for y := 0; y < steps; y++ {
-		for x := 0; x < steps; x++ {
-			topLeft := base + uint16(y*row+x)
-			topRight := base + uint16(y*row+x+1)
-			bottomLeft := base + uint16((y+1)*row+x)
-			bottomRight := base + uint16((y+1)*row+x+1)
-			*indices = append(*indices, topLeft, topRight, bottomRight, topLeft, bottomRight, bottomLeft)
-		}
-	}
-}
-
-func drawColoredGNDSurfaces2D(screen, white *render.Image, gnd *res.GND, surfaces []gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
-	const maxVertices = 60000
-	vertices := make([]render.Vertex, 0, minInt(len(surfaces)*4, maxVertices))
-	indices := make([]uint16, 0, minInt(len(surfaces)*6, maxVertices))
-	flush := func() {
-		if len(indices) == 0 {
-			return
-		}
-		screen.DrawTriangles(vertices, indices, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
-		vertices = vertices[:0]
-		indices = indices[:0]
-	}
-	for _, draw := range surfaces {
-		if len(vertices)+4 > maxVertices {
-			flush()
-		}
-		var tints [4]color.RGBA
-		if draw.water {
-			tints = [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint}
-		} else {
-			textureName := gndTextureName(gnd, draw.surface.TextureID)
-			tints = groundSurfaceVertexColors(textureName, draw.surface.Color, draw.heights, draw.vertexNorms, draw.lighting)
-		}
-		base := uint16(len(vertices))
-		tints = fog.mixVertexTints(projection, draw.verts, tints)
-		vertices = append(vertices,
-			texturedSurfaceVertex(draw.points[0], texturePoint{u: 0, v: 0}, tints[0], 1, 1),
-			texturedSurfaceVertex(draw.points[1], texturePoint{u: 1, v: 0}, tints[1], 1, 1),
-			texturedSurfaceVertex(draw.points[2], texturePoint{u: 1, v: 1}, tints[2], 1, 1),
-			texturedSurfaceVertex(draw.points[3], texturePoint{u: 0, v: 1}, tints[3], 1, 1),
-		)
-		for _, index := range draw.indices {
-			indices = append(indices, base+index)
-		}
-	}
-	flush()
-}
-
 func (m *WorldMode) drawWaterSurface(screen *render.Image, manager *res.Manager, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
 	texture := m.waterTexture(manager, draw.waterType, draw.waterFrame)
 	tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
 	if texture == nil {
-		if projection.camera && world3DEnabled() {
-			drawColoredSurfaceTints3DAlpha(screen, m.whitePixel, draw.verts, draw.indices, tints)
-			return
-		}
-		drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, tints)
+		drawColoredSurfaceTints3DAlpha(screen, m.whitePixel, draw.verts, draw.indices, tints)
 		return
 	}
-	if projection.camera && world3DEnabled() {
-		drawTexturedSurface3DAlpha(screen, texture, draw.verts, draw.uvs, draw.indices, tints)
-		return
-	}
-	drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, tints)
+	drawTexturedSurface3DAlpha(screen, texture, draw.verts, draw.uvs, draw.indices, tints)
 }
 
 func (m *WorldMode) waterTexture(manager *res.Manager, waterType, frame int) *render.Image {
@@ -4475,20 +4115,6 @@ func maxUint8(a, b uint8) uint8 {
 	return b
 }
 
-func drawColoredSurface(screen, white *render.Image, points [4]screenPoint, indices []uint16, c color.RGBA) {
-	drawColoredSurfaceTints(screen, white, points, indices, [4]color.RGBA{c, c, c, c})
-}
-
-func drawColoredSurfaceTints(screen, white *render.Image, points [4]screenPoint, indices []uint16, colors [4]color.RGBA) {
-	vertices := []render.Vertex{
-		{DstX: points[0].x, DstY: points[0].y, SrcX: 0, SrcY: 0, ColorR: float32(colors[0].R) / 255, ColorG: float32(colors[0].G) / 255, ColorB: float32(colors[0].B) / 255, ColorA: float32(colors[0].A) / 255},
-		{DstX: points[1].x, DstY: points[1].y, SrcX: 1, SrcY: 0, ColorR: float32(colors[1].R) / 255, ColorG: float32(colors[1].G) / 255, ColorB: float32(colors[1].B) / 255, ColorA: float32(colors[1].A) / 255},
-		{DstX: points[2].x, DstY: points[2].y, SrcX: 1, SrcY: 1, ColorR: float32(colors[2].R) / 255, ColorG: float32(colors[2].G) / 255, ColorB: float32(colors[2].B) / 255, ColorA: float32(colors[2].A) / 255},
-		{DstX: points[3].x, DstY: points[3].y, SrcX: 0, SrcY: 1, ColorR: float32(colors[3].R) / 255, ColorG: float32(colors[3].G) / 255, ColorB: float32(colors[3].B) / 255, ColorA: float32(colors[3].A) / 255},
-	}
-	screen.DrawTriangles(vertices, indices, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
-}
-
 func drawColoredSurfaceTints3D(screen, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA) {
 	drawColoredSurfaceTints3DWithOptions(screen, white, verts, indices, colors, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
 }
@@ -4505,19 +4131,6 @@ func drawColoredSurfaceTints3DWithOptions(screen, white *render.Image, verts [4]
 		coloredSurfaceVertex3D(verts[3], 0, 1, colors[3]),
 	}
 	screen.DrawTriangles3D(vertices, indices, white, options)
-}
-
-func drawTexturedSurface(screen, texture *render.Image, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
-	bounds := texture.Bounds()
-	w := float32(bounds.Dx())
-	h := float32(bounds.Dy())
-	vertices := []render.Vertex{
-		texturedSurfaceVertex(points[0], uvs[0], tints[0], w, h),
-		texturedSurfaceVertex(points[1], uvs[1], tints[1], w, h),
-		texturedSurfaceVertex(points[2], uvs[2], tints[2], w, h),
-		texturedSurfaceVertex(points[3], uvs[3], tints[3], w, h),
-	}
-	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
 func drawTexturedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
@@ -4539,57 +4152,6 @@ func drawTexturedSurface3DWithOptions(screen, texture *render.Image, verts [4]mo
 		texturedSurfaceVertex3D(verts[3], uvs[3], tints[3], w, h),
 	}
 	screen.DrawTriangles3D(vertices, indices, texture, options)
-}
-
-func drawTexturedLightmappedSurface(screen, texture *render.Image, points [4]screenPoint, verts [4]modelPoint3, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
-	const steps = 6
-	bounds := texture.Bounds()
-	textureWidth := float32(bounds.Dx())
-	textureHeight := float32(bounds.Dy())
-	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	if surfaceColor.A != 0 {
-		base = surfaceColor
-	}
-
-	vertices := make([]render.Vertex, 0, (steps+1)*(steps+1))
-	for y := 0; y <= steps; y++ {
-		t := float64(y) / steps
-		for x := 0; x <= steps; x++ {
-			s := float64(x) / steps
-			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255
-			lm := res.GNDLightmapSampleColor(lightmap, s, t)
-			lightScale := bilerpModelPoint(lightScales, s, t)
-			tint := color.RGBA{
-				R: clampColor(float64(base.R) * (lightScale.x*alpha + float64(lm.R)/255)),
-				G: clampColor(float64(base.G) * (lightScale.y*alpha + float64(lm.G)/255)),
-				B: clampColor(float64(base.B) * (lightScale.z*alpha + float64(lm.B)/255)),
-				A: 255,
-			}
-			world := bilerpModelPoint(verts, s, t)
-			tint = fog.mixColor(tint, projection.FogDepth(world.x, world.z, world.y))
-			vertices = append(vertices, texturedSurfaceVertex(
-				bilerpScreenPoint(points, s, t),
-				bilerpTexturePoint(uvs, s, t),
-				tint,
-				textureWidth,
-				textureHeight,
-			))
-		}
-	}
-
-	indices := make([]uint16, 0, steps*steps*6)
-	row := steps + 1
-	for y := 0; y < steps; y++ {
-		for x := 0; x < steps; x++ {
-			topLeft := uint16(y*row + x)
-			topRight := uint16(y*row + x + 1)
-			bottomLeft := uint16((y+1)*row + x)
-			bottomRight := uint16((y+1)*row + x + 1)
-			indices = append(indices, topLeft, topRight, bottomRight, topLeft, bottomRight, bottomLeft)
-		}
-	}
-
-	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
 func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
@@ -4643,19 +4205,6 @@ func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]mo
 	screen.DrawTriangles3D(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func bilerpScreenPoint(points [4]screenPoint, s, t float64) screenPoint {
-	top := lerpScreenPoint(points[0], points[1], s)
-	bottom := lerpScreenPoint(points[3], points[2], s)
-	return lerpScreenPoint(top, bottom, t)
-}
-
-func lerpScreenPoint(a, b screenPoint, t float64) screenPoint {
-	return screenPoint{
-		x: float32(float64(a.x) + (float64(b.x)-float64(a.x))*t),
-		y: float32(float64(a.y) + (float64(b.y)-float64(a.y))*t),
-	}
-}
-
 func bilerpTexturePoint(points [4]texturePoint, s, t float64) texturePoint {
 	top := lerpTexturePoint(points[0], points[1], s)
 	bottom := lerpTexturePoint(points[3], points[2], s)
@@ -4707,6 +4256,9 @@ func coloredSurfaceVertex3D(point modelPoint3, u, v float32, tint color.RGBA) re
 		ColorG: float32(tint.G) / 255,
 		ColorB: float32(tint.B) / 255,
 		ColorA: float32(tint.A) / 255,
+		DepthX: float32(point.x),
+		DepthY: float32(point.y),
+		DepthZ: float32(point.z),
 	}
 }
 
@@ -4721,6 +4273,9 @@ func texturedSurfaceVertex3D(point modelPoint3, uv texturePoint, tint color.RGBA
 		ColorG: float32(tint.G) / 255,
 		ColorB: float32(tint.B) / 255,
 		ColorA: float32(tint.A) / 255,
+		DepthX: float32(point.x),
+		DepthY: float32(point.y),
+		DepthZ: float32(point.z),
 	}
 }
 

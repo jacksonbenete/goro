@@ -112,6 +112,41 @@ func TestCameraProjectionMovesHigherWorldPointUpScreen(t *testing.T) {
 	}
 }
 
+func TestBillboardBasisStaysScreenAlignedOffCenter(t *testing.T) {
+	t.Setenv("GORO_CAMERA_ZOOM", "150")
+	t.Setenv("GORO_CAMERA_PITCH", "230")
+	t.Setenv("GORO_CAMERA_FOV", "15")
+	projection := newSceneProjectionForTargetYawZoom(800, 600, 10.5, 20.5, 5, 0, 150)
+	worldX, worldY, worldZ := 18.5, 20.5, 5.0
+	right, up, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
+	if !ok {
+		t.Fatal("missing billboard basis")
+	}
+
+	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
+	project := func(p modelPoint3) screenPoint {
+		return projection.Project(p.x, p.z, p.y)
+	}
+	left := project(add3(center, mul3(right, -32*unitsPerPixel)))
+	rightPoint := project(add3(center, mul3(right, 32*unitsPerPixel)))
+	top := project(add3(center, mul3(up, 64*unitsPerPixel)))
+	bottom := project(add3(center, mul3(up, -64*unitsPerPixel)))
+	centerPoint := project(center)
+
+	if math.Abs(float64(left.y-rightPoint.y)) > 0.25 {
+		t.Fatalf("billboard horizontal edge y mismatch: left %.3f right %.3f", left.y, rightPoint.y)
+	}
+	if math.Abs(float64(top.x-centerPoint.x)) > 0.25 || math.Abs(float64(bottom.x-centerPoint.x)) > 0.25 {
+		t.Fatalf("billboard vertical edge x mismatch: top %.3f center %.3f bottom %.3f", top.x, centerPoint.x, bottom.x)
+	}
+	if got := math.Abs(float64(rightPoint.x - left.x)); math.Abs(got-64) > 0.5 {
+		t.Fatalf("billboard projected width = %.3f, want 64", got)
+	}
+	if got := math.Abs(float64(bottom.y - top.y)); math.Abs(got-128) > 0.5 {
+		t.Fatalf("billboard projected height = %.3f, want 128", got)
+	}
+}
+
 func TestCameraDepthOrdersFarBeforeNear(t *testing.T) {
 	projection := sceneProjection{
 		screenW:        800,

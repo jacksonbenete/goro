@@ -192,22 +192,6 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 	return triangles
 }
 
-func (m *WorldMode) drawModelTriangle(screen *render.Image, manager *res.Manager, tri modelTriangle, projection sceneProjection) {
-	if texture := m.groundTexture(manager, tri.textureName); texture != nil {
-		if projection.camera && world3DEnabled() {
-			drawTexturedTriangle3D(screen, texture, tri.verts, tri.uvs, tri.color)
-			return
-		}
-		drawTexturedTriangle(screen, texture, tri.points, tri.uvs, tri.color)
-		return
-	}
-	if projection.camera && world3DEnabled() {
-		drawColoredTriangle3D(screen, m.whitePixel, tri.verts, tri.color)
-		return
-	}
-	drawColoredTriangle(screen, m.whitePixel, tri.points, tri.color)
-}
-
 func (m *WorldMode) logRSMTransformDebug(placement res.RSWModel, instance modelInstance) {
 	if os.Getenv("GORO_DEBUG_RSM_TRANSFORMS") != "1" || !isRSMDebugBridgeName(placement.Filename) {
 		return
@@ -750,57 +734,11 @@ func rsmFaceColor(textureName string, a, b, c modelPoint3, lighting sceneLightin
 	}
 }
 
-func drawTexturedTriangle(screen, texture *render.Image, points [3]screenPoint, uvs [3]texturePoint, tint color.RGBA) {
-	bounds := texture.Bounds()
-	w := float32(bounds.Dx())
-	h := float32(bounds.Dy())
-	r := float32(tint.R) / 255
-	g := float32(tint.G) / 255
-	b := float32(tint.B) / 255
-	a := float32(tint.A) / 255
-	vertices := []render.Vertex{
-		{DstX: points[0].x, DstY: points[0].y, SrcX: uvs[0].u * w, SrcY: uvs[0].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		{DstX: points[1].x, DstY: points[1].y, SrcX: uvs[1].u * w, SrcY: uvs[1].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		{DstX: points[2].x, DstY: points[2].y, SrcX: uvs[2].u * w, SrcY: uvs[2].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
-}
-
 func drawTexturedModelTriangles(screen, texture *render.Image, triangles []modelTriangle, projection sceneProjection) {
 	if len(triangles) == 0 {
 		return
 	}
-	if projection.camera && world3DEnabled() {
-		drawTexturedModelTriangles3D(screen, texture, triangles)
-		return
-	}
-	bounds := texture.Bounds()
-	w := float32(bounds.Dx())
-	h := float32(bounds.Dy())
-	const maxVertices = 65535
-	vertices := make([]render.Vertex, 0, len(triangles)*3)
-	indices := make([]uint16, 0, len(triangles)*3)
-	flush := func() {
-		if len(indices) == 0 {
-			return
-		}
-		screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
-		vertices = vertices[:0]
-		indices = indices[:0]
-	}
-	for _, tri := range triangles {
-		if len(vertices)+3 > maxVertices {
-			flush()
-		}
-		base := uint16(len(vertices))
-		vertices = append(vertices,
-			texturedSurfaceVertex(tri.points[0], tri.uvs[0], tri.color, w, h),
-			texturedSurfaceVertex(tri.points[1], tri.uvs[1], tri.color, w, h),
-			texturedSurfaceVertex(tri.points[2], tri.uvs[2], tri.color, w, h),
-		)
-		indices = append(indices, base, base+1, base+2)
-	}
-	flush()
+	drawTexturedModelTriangles3D(screen, texture, triangles)
 }
 
 func drawTexturedModelTriangles3D(screen, texture *render.Image, triangles []modelTriangle) {
@@ -845,55 +783,11 @@ func drawTexturedTriangle3D(screen, texture *render.Image, verts [3]modelPoint3,
 	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func drawColoredTriangle(screen, white *render.Image, points [3]screenPoint, c color.RGBA) {
-	r := float32(c.R) / 255
-	g := float32(c.G) / 255
-	b := float32(c.B) / 255
-	a := float32(c.A) / 255
-	vertices := []render.Vertex{
-		{DstX: points[0].x, DstY: points[0].y, SrcX: 0, SrcY: 0, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		{DstX: points[1].x, DstY: points[1].y, SrcX: 1, SrcY: 0, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		{DstX: points[2].x, DstY: points[2].y, SrcX: 1, SrcY: 1, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
-}
-
 func drawColoredModelTriangles(screen, white *render.Image, triangles []modelTriangle, projection sceneProjection) {
 	if len(triangles) == 0 {
 		return
 	}
-	if projection.camera && world3DEnabled() {
-		drawColoredModelTriangles3D(screen, white, triangles)
-		return
-	}
-	const maxVertices = 65535
-	vertices := make([]render.Vertex, 0, len(triangles)*3)
-	indices := make([]uint16, 0, len(triangles)*3)
-	flush := func() {
-		if len(indices) == 0 {
-			return
-		}
-		screen.DrawTriangles(vertices, indices, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
-		vertices = vertices[:0]
-		indices = indices[:0]
-	}
-	for _, tri := range triangles {
-		if len(vertices)+3 > maxVertices {
-			flush()
-		}
-		r := float32(tri.color.R) / 255
-		g := float32(tri.color.G) / 255
-		b := float32(tri.color.B) / 255
-		a := float32(tri.color.A) / 255
-		base := uint16(len(vertices))
-		vertices = append(vertices,
-			render.Vertex{DstX: tri.points[0].x, DstY: tri.points[0].y, SrcX: 0, SrcY: 0, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-			render.Vertex{DstX: tri.points[1].x, DstY: tri.points[1].y, SrcX: 1, SrcY: 0, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-			render.Vertex{DstX: tri.points[2].x, DstY: tri.points[2].y, SrcX: 1, SrcY: 1, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
-		)
-		indices = append(indices, base, base+1, base+2)
-	}
-	flush()
+	drawColoredModelTriangles3D(screen, white, triangles)
 }
 
 func drawColoredModelTriangles3D(screen, white *render.Image, triangles []modelTriangle) {

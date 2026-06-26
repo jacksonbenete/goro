@@ -265,11 +265,7 @@ func pickupApproachCell(ctx Context, item worldstate.FloorItem) (int, int, bool)
 
 func (m *WorldMode) drawGroundItems(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
 	for _, entry := range m.collectSceneItemEntries(screen, ctx, projection, now) {
-		if projection.camera && world3DEnabled() {
-			m.drawGroundItemEntry3D(screen, projection, entry)
-			continue
-		}
-		m.drawGroundItemEntry(screen, entry)
+		m.drawGroundItemEntry3D(screen, projection, entry)
 	}
 }
 
@@ -300,14 +296,6 @@ func (m *WorldMode) collectSceneItemEntries(screen *render.Image, ctx Context, p
 		})
 	}
 	return entries
-}
-
-func (m *WorldMode) drawGroundItemEntry(screen *render.Image, entry sceneItemDrawEntry) {
-	if entry.billboard != nil {
-		drawSpriteBillboard(screen, entry.billboard, entry.screenX, entry.screenY, entry.scale, 1)
-		return
-	}
-	m.drawFallbackGroundItemMarker(screen, entry)
 }
 
 func (m *WorldMode) drawGroundItemEntry3D(screen *render.Image, projection sceneProjection, entry sceneItemDrawEntry) {

@@ -48,6 +48,8 @@ func Run(game Game, cfg core.WindowConfig) error {
 		WithResizable(true).
 		WithContinuousRender(true).
 		WithVSync(os.Getenv("GORO_VSYNC") != "0" && os.Getenv("GORO_BENCH_SECONDS") == ""))
+	setCursorApp(gg)
+	defer setCursorApp(nil)
 
 	r := &runner{
 		app:      gg,

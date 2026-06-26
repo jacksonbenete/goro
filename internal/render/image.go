@@ -37,10 +37,11 @@ type Vertex struct {
 }
 
 type Vertex3D struct {
-	X, Y, Z        float32
-	SrcX, SrcY     float32
-	ColorR, ColorG float32
-	ColorB, ColorA float32
+	X, Y, Z                float32
+	SrcX, SrcY             float32
+	ColorR, ColorG         float32
+	ColorB, ColorA         float32
+	DepthX, DepthY, DepthZ float32
 }
 
 type Camera3D struct {
@@ -55,6 +56,7 @@ type DrawTrianglesOptions struct {
 	AntiAlias  bool
 	DepthTest  bool
 	DepthWrite bool
+	DepthBias  float32
 }
 
 type DrawImageOptions struct {

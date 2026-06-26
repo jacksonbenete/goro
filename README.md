@@ -5,13 +5,13 @@
 The current runtime uses GoGPU/wgpu for the window and presentation path. The
 first migration pass renders into a compatibility canvas and uploads the frame to
 GoGPU each frame; hot paths can move to native GPU pipelines incrementally.
-Use `CGO_ENABLED=0` for now; the cgo-enabled build keeps the Oto audio backend
-but currently hits a GoGPU/goffi linker issue on this toolchain.
+The default launcher uses `CGO_ENABLED=1` so the Oto audio backend is enabled.
+`CGO_ENABLED=0` still builds a silent client through the no-op audio stub.
 
 ## Run
 
 ```sh
-CGO_ENABLED=0 GOGPU_GRAPHICS_API=vulkan go run ./cmd/goro
+CGO_ENABLED=1 GOGPU_GRAPHICS_API=vulkan go run ./cmd/goro
 ```
 
 For the local OldRO + rAthena test setup:
@@ -29,7 +29,6 @@ GORO_RENDER_RSM=0 ./scripts/run-oldro.sh
 GORO_RSM_MAX_FACES=1500 ./scripts/run-oldro.sh
 GORO_RSM_RENDER_RADIUS=60 ./scripts/run-oldro.sh
 GORO_DEBUG_RSM_TRANSFORMS=1 ./scripts/run-oldro.sh
-GORO_SCENE_PROJECTION=flat ./scripts/run-oldro.sh
 GORO_SCENE_HEIGHT_SCALE=2.8 ./scripts/run-oldro.sh
 GORO_CAMERA_PITCH=230 GORO_CAMERA_YAW=0 GORO_CAMERA_ZOOM=150 GORO_CAMERA_FOV=15 ./scripts/run-oldro.sh
 GORO_CAMERA_TARGET_Z=8 ./scripts/run-oldro.sh

@@ -1,0 +1,413 @@
+# goffi — Zero-CGO FFI for Go
+
+[![CI](https://github.com/go-webgpu/goffi/actions/workflows/ci.yml/badge.svg)](https://github.com/go-webgpu/goffi/actions)
+[![codecov](https://codecov.io/gh/go-webgpu/goffi/graph/badge.svg)](https://codecov.io/gh/go-webgpu/goffi)
+[![Go Report Card](https://goreportcard.com/badge/github.com/go-webgpu/goffi)](https://goreportcard.com/report/github.com/go-webgpu/goffi)
+[![GitHub release](https://img.shields.io/github/v/release/go-webgpu/goffi)](https://github.com/go-webgpu/goffi/releases)
+[![Go version](https://img.shields.io/github/go-mod-go-version/go-webgpu/goffi)](https://github.com/go-webgpu/goffi/blob/main/go.mod)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/go-webgpu/goffi.svg)](https://pkg.go.dev/github.com/go-webgpu/goffi)
+[![Dev.to](https://img.shields.io/badge/dev.to-deep%20dive-0A0A0A?logo=devdotto)](https://dev.to/kolkov/goffi-zero-cgo-foreign-function-interface-for-go-how-we-call-c-libraries-without-a-c-compiler-ca5)
+
+**Pure Go Foreign Function Interface** for calling C libraries without CGO.
+Designed for WebGPU and GPU computing — zero C dependencies, zero per-call allocations, 88–114 ns overhead.
+
+> **Deep dive:** [How We Call C Libraries Without a C Compiler](https://dev.to/kolkov/goffi-zero-cgo-foreign-function-interface-for-go-how-we-call-c-libraries-without-a-c-compiler-ca5) — architecture, assembly, callbacks, and ecosystem.
+
+```go
+// Load library, prepare once, call many times — no CGO required
+handle, _ := ffi.LoadLibrary("wgpu_native.dll")
+sym, _ := ffi.GetSymbol(handle, "wgpuCreateInstance")
+
+cif := &types.CallInterface{}
+ffi.PrepareCallInterface(cif, types.DefaultCall, returnType, argTypes)
+ffi.CallFunction(cif, sym, unsafe.Pointer(&result), args)
+```
+
+---
+
+## Features
+
+| | Feature | Details |
+|---|---------|---------|
+| **Zero CGO** | Pure Go | No C compiler needed. `go get` and build. |
+| **Fast** | 88–114 ns/op | Pre-computed CIF, zero per-call allocations |
+| **Cross-platform** | 8 targets | Windows, Linux, macOS, FreeBSD × AMD64 + ARM64 |
+| **Callbacks** | C→Go safe | `crosscall2` integration, struct args, works from any C thread |
+| **Type-safe** | Runtime validation | 5 typed error types with `errors.As()` support |
+| **Struct pass/return** | Full ABI | Args: INTEGER/SSE classification. Returns: ≤8B (RAX/XMM0), 9–16B (4 modes: RAX/XMM × RAX/XMM), >16B (sret) |
+| **Variadic** | `printf`/`sprintf` | `PrepareVariadicCallInterface` — Apple ARM64 stack-force included |
+| **Context** | Timeouts | `CallFunctionContext(ctx, ...)` cancellation |
+| **Race detector** | `-race` compatible | `CGO_ENABLED=1 go test -race` works cleanly |
+| **Tested** | 89% coverage | CI on Linux, Windows, macOS (CGO=0 and CGO=1) |
+
+---
+
+## Quick Start
+
+### Installation
+
+```bash
+go get github.com/go-webgpu/goffi
+```
+
+### Requirements
+
+goffi works under **both** `CGO_ENABLED=0` and `CGO_ENABLED=1`. The default — `CGO_ENABLED=0`, no C compiler required — is still the recommended path for the gogpu ecosystem and most users; nothing about that mode has changed.
+
+```bash
+# CGO_ENABLED=0 (default, no C compiler needed)
+CGO_ENABLED=0 go build ./...
+
+# CGO_ENABLED=1 (for binaries that already link other CGO libraries,
+# e.g. gocv, libavcodec wrappers, native database drivers)
+CGO_ENABLED=1 go build ./...
+```
+
+> **How?** goffi uses Go's `cgo_import_dynamic` for dynamic library loading. Under `CGO_ENABLED=0` the cgo runtime is supplied by `internal/fakecgo`; under `CGO_ENABLED=1` the standard `runtime/cgo` is linked in. Both modes share the same FFI fast path and ABIs.
+
+### Example: Calling strlen
+
+```go
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"unsafe"
+
+	"github.com/go-webgpu/goffi/ffi"
+	"github.com/go-webgpu/goffi/types"
+)
+
+func main() {
+	// Load platform-specific C library
+	libName := "libc.so.6"
+	if runtime.GOOS == "windows" {
+		libName = "msvcrt.dll"
+	}
+
+	handle, err := ffi.LoadLibrary(libName)
+	if err != nil {
+		panic(err)
+	}
+	defer ffi.FreeLibrary(handle)
+
+	strlen, err := ffi.GetSymbol(handle, "strlen")
+	if err != nil {
+		panic(err)
+	}
+
+	// Prepare call interface once — reuse for all subsequent calls
+	cif := &types.CallInterface{}
+	err = ffi.PrepareCallInterface(
+		cif,
+		types.DefaultCall,                                     // auto-detects platform ABI
+		types.UInt64TypeDescriptor,                            // return: size_t
+		[]*types.TypeDescriptor{types.PointerTypeDescriptor},  // arg: const char*
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	// Call strlen — avalue elements are pointers TO argument values
+	testStr := "Hello, goffi!\x00"
+	strPtr := uintptr(unsafe.Pointer(unsafe.StringData(testStr)))
+	var length uint64
+
+	err = ffi.CallFunction(cif, strlen, unsafe.Pointer(&length), []unsafe.Pointer{unsafe.Pointer(&strPtr)})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("strlen(%q) = %d\n", testStr[:len(testStr)-1], length)
+	// Output: strlen("Hello, goffi!") = 13
+}
+```
+
+### Example: Calling a Variadic C Function
+
+Use `PrepareVariadicCallInterface` instead of `PrepareCallInterface` for C variadic functions
+(`printf`, `sprintf`, custom variadic APIs). Specify `nfixedargs` — the count of fixed parameters
+before `...` in the C prototype. goffi automatically applies Apple's ARM64 stack-force rule on
+`darwin/arm64` so the same Go code works correctly on all platforms.
+
+```go
+// C prototype: int64_t sum_variadic(int64_t count, ...)
+// Call as: sum_variadic(3, 10, 20, 30) → 60
+
+var cif types.CallInterface
+err := ffi.PrepareVariadicCallInterface(
+    &cif,
+    types.DefaultCall,
+    1, // nfixedargs: only 'count' is fixed; 10/20/30 are variadic
+    types.SInt64TypeDescriptor,
+    []*types.TypeDescriptor{
+        types.SInt64TypeDescriptor, // count (fixed)
+        types.SInt64TypeDescriptor, // arg1 (variadic)
+        types.SInt64TypeDescriptor, // arg2 (variadic)
+        types.SInt64TypeDescriptor, // arg3 (variadic)
+    },
+)
+
+count := int64(3)
+a1, a2, a3 := int64(10), int64(20), int64(30)
+var result int64
+ffi.CallFunction(&cif, sym, unsafe.Pointer(&result), []unsafe.Pointer{
+    unsafe.Pointer(&count),
+    unsafe.Pointer(&a1),
+    unsafe.Pointer(&a2),
+    unsafe.Pointer(&a3),
+})
+// result == 60
+```
+
+A new CIF must be prepared for each unique combination of variadic argument types. The fixed-arg
+portion of the CIF can be reused by re-calling `PrepareVariadicCallInterface` with different
+variadic arg type slices.
+
+---
+
+## Performance
+
+**FFI overhead: 88–114 ns/op** (Windows AMD64, Intel i7-1255U)
+
+| Benchmark | Time | Allocations |
+|-----------|------|-------------|
+| Empty function (`getpid`) | 88 ns | 0 allocs (Unix) / 2 allocs (Windows) |
+| Integer argument (`abs`) | 114 ns | 0 allocs (Unix) / 3 allocs (Windows) |
+| String processing (`strlen`) | 98 ns | 0 allocs (Unix) / 3 allocs (Windows) |
+
+Since v0.5.4, `//go:noescape` on `runtime_cgocall` keeps `syscallArgs` on the goroutine stack — true zero-allocation FFI on Unix platforms. Windows uses `syscall.SyscallN` (runtime-managed).
+
+At 60 FPS with ~50 FFI calls per frame, overhead is **5 µs per frame** — 0.03% of the 16.6 ms budget. Unmeasurable in profiling.
+
+See [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for detailed analysis, optimization strategies, and when NOT to use goffi.
+
+---
+
+## Architecture
+
+goffi transitions from Go's managed runtime to C code through three layers:
+
+```
+Go Code
+  │  ffi.CallFunction()
+  ▼
+runtime.cgocall               ← Go runtime: system stack switch, GC coordination
+  │
+  ▼
+Assembly Wrapper              ← Hand-written: load GP/SSE registers per ABI
+  │  CALL target_function
+  ▼
+C Function                    ← External library
+```
+
+**Three ABIs, hand-written assembly for each:**
+
+| ABI | GP Registers | FP Registers | Notes |
+|-----|-------------|-------------|-------|
+| System V AMD64 | RDI, RSI, RDX, RCX, R8, R9 | XMM0–XMM7 | Linux, macOS, FreeBSD |
+| Win64 | RCX, RDX, R8, R9 | XMM0–XMM3 | 32-byte shadow space mandatory |
+| AAPCS64 | X0–X7 | D0–D7 | HFA support for ARM64 |
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full technical deep dive.
+
+---
+
+## Callbacks (C → Go)
+
+WebGPU fires async callbacks from internal Metal/Vulkan threads. These threads have no goroutine — calling Go directly would crash.
+
+goffi uses `crosscall2` for safe C→Go transitions from any thread:
+
+```go
+cb := ffi.NewCallback(func(status uint32, adapter uintptr, msg uintptr, ud uintptr) {
+    // Safe even when called from a C thread
+    result.handle = adapter
+    close(done)
+})
+
+ffi.CallFunction(cif, wgpuRequestAdapter, nil, args)
+<-done // Wait for GPU driver callback
+```
+
+2000 pre-compiled trampoline entries per process. AMD64: 5 bytes/entry. ARM64: 8 bytes/entry.
+
+---
+
+## Error Handling
+
+Five typed error types for precise diagnostics:
+
+```go
+handle, err := ffi.LoadLibrary("nonexistent.dll")
+if err != nil {
+	var libErr *ffi.LibraryError
+	if errors.As(err, &libErr) {
+		fmt.Printf("Failed to %s %q: %v\n", libErr.Operation, libErr.Name, libErr.Err)
+	}
+}
+```
+
+| Error Type | When |
+|------------|------|
+| `InvalidCallInterfaceError` | CIF preparation failures |
+| `LibraryError` | Library loading / symbol lookup |
+| `CallingConventionError` | Unsupported calling convention |
+| `TypeValidationError` | Invalid type descriptor |
+| `UnsupportedPlatformError` | Platform not supported |
+
+---
+
+## Comparison: goffi vs purego vs CGO
+
+| Feature | **goffi** | purego | CGO |
+|---------|-----------|--------|-----|
+| C compiler required | No | No | Yes |
+| API style | libffi-like (prepare once, call many) | reflect-based (RegisterFunc) | Native |
+| Per-call allocations | Zero (CIF reusable) | reflect + sync.Pool per call | Zero |
+| Struct pass/return | Full (RAX+RDX, sret) | Partial (no Windows structs) | Full |
+| Callback struct args | ≤8B, 9-16B, >16B (AMD64) | Not supported (panic) | Full |
+| Callback float returns | XMM0 in asm | Not supported (panic) | Full |
+| ARM64 HFA detection | Recursive (nested structs) | Partial (bug in nested path) | Full |
+| Typed errors | 5 types + errors.As() | Generic | N/A |
+| Context support | Timeouts/cancellation | No | No |
+| C-thread callbacks | crosscall2 | crosscall2 | Full |
+| String/bool/slice args | Raw pointers only | Auto-marshaling | Full |
+| Platform breadth | 8 targets | 8 GOARCH / 20+ OS×ARCH | All |
+| AMD64 overhead | 88–114 ns | Not published | ~140 ns (Go 1.26 claims ~30% reduction) |
+
+**Choose goffi** for GPU/real-time workloads: struct passing, zero per-call overhead, callback float returns, typed errors.
+
+**Choose purego** for general-purpose bindings: string auto-marshaling, broad architecture support, less boilerplate.
+
+**See also:** 
+- [JupiterRider/ffi](https://github.com/JupiterRider/ffi) — pure Go binding for libffi via purego. Supports struct pass/return and variadic functions; requires libffi at runtime.
+- [unxed/pureffi](https://github.com/unxed/pureffi) — A 1:1 API-compatible drop-in replacement for `purego` implemented entirely on top of `goffi`. It resolves `fakecgo` linker conflicts without build tags, correctly handles macOS ARM64 variadic stack-packing ABI requirements under the hood, and provides a zero-code-change migration path.
+
+---
+
+## Known Limitations
+
+**Windows: C++ exceptions may crash the program** ([#12516](https://github.com/golang/go/issues/12516))
+- Go runtime limitation, not goffi-specific. Go 1.22+ added partial SEH support ([#58542](https://github.com/golang/go/issues/58542)), but edge cases remain.
+- Workaround: build native libraries with `panic=abort`.
+
+**Windows: float return values not captured from XMM0**
+- `syscall.SyscallN` returns RAX only. Go `syscall` package limitation.
+
+**Apple ARM64: variadic args always go on stack**
+- Per Apple's AAPCS64 extension, variadic arguments must be passed on the stack even when GP/FP registers are available. Use `PrepareVariadicCallInterface` (not `PrepareCallInterface`) for variadic C functions on all platforms — goffi handles the Darwin-specific register flush automatically.
+
+**Struct packing follows System V ABI only**
+- Windows `#pragma pack` not honored. Manually specify `Size`/`Alignment` in `TypeDescriptor`.
+
+**No bitfields** in struct types.
+
+**Unix: duplicate symbol conflict with purego** ([#22](https://github.com/go-webgpu/goffi/issues/22))
+- When using goffi and purego in the same binary with `CGO_ENABLED=0`, the linker reports `duplicated definition of symbol _cgo_init`. Both libraries include `internal/fakecgo` which defines identical runtime symbols.
+- **Workaround A:** Build with `-tags nofakecgo` to disable goffi's fakecgo, relying on purego's copy:
+  ```bash
+  CGO_ENABLED=0 go build -tags nofakecgo ./...
+  ```
+- **Workaround B:** Build with `CGO_ENABLED=1`. In cgo mode the real `runtime/cgo` supplies the symbols and both libraries' `fakecgo` packages are gated out by `//go:build !cgo`.
+- **Workaround C (Recommended for complete integration):** Use [pureffi](https://github.com/unxed/pureffi).
+  `pureffi` is a 1:1, drop-in API-compatible wrapper over `goffi` that acts as a transparent replacement for `purego` via Go's `replace` directive. It completely eliminates the need for compilation tags, resolves the duplicate symbol conflict, and natively fixes Apple Silicon variadic ABI stack-packing.
+
+---
+
+## Platform Support
+
+| Platform | Arch | ABI | Since | CI |
+|----------|------|-----|-------|----|
+| Windows | amd64 | Win64 | v0.1.0 | Tested |
+| Windows | arm64 | AAPCS64 | v0.5.0 | Tested (Snapdragon X) |
+| Linux | amd64 | System V | v0.1.0 | Tested |
+| Linux | arm64 | AAPCS64 | v0.3.0 | Cross-compile verified |
+| macOS | amd64 | System V | v0.1.1 | Tested |
+| macOS | arm64 | AAPCS64 | v0.3.7 | Tested (M3 Pro) |
+| FreeBSD | amd64 | System V | v0.5.0 | Cross-compile verified |
+| FreeBSD | arm64 | AAPCS64 | v0.5.3 | Cross-compile verified |
+
+---
+
+## Roadmap
+
+| Version | Status | Highlights |
+|---------|--------|------------|
+| v0.2.0 | Released | Callback API, 2000-entry trampoline table |
+| v0.3.x | Released | ARM64 (AAPCS64), HFA, Apple Silicon |
+| v0.4.0 | Released | crosscall2 for C-thread callbacks |
+| v0.4.1 | Released | ABI compliance audit — 10/11 gaps fixed |
+| v0.4.2 | Released | purego compatibility (`-tags nofakecgo`) |
+| v0.5.1 | Released | Struct ABI, CGO_ENABLED=1, 9-16B XMM return |
+| **v0.6.0** | **In progress** | Variadic functions (`PrepareVariadicCallInterface`), builder API |
+| v1.0.0 | Planned | API stability (SemVer 2.0), security audit |
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and [ROADMAP.md](ROADMAP.md) for the full plan.
+
+---
+
+## Testing
+
+```bash
+go test ./...                          # all tests
+go test -cover ./...                   # with coverage (89%)
+go test -bench=. -benchmem ./ffi       # benchmarks
+go test -v ./ffi                       # verbose, auto-detects platform
+```
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture: assembly, ABIs, callbacks |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Benchmarks, optimization strategies, Go 1.26 |
+| [CHANGELOG.md](CHANGELOG.md) | Version history, migration guides |
+| [ROADMAP.md](ROADMAP.md) | Development roadmap to v1.0 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
+| [SECURITY.md](SECURITY.md) | Security policy |
+| [examples/](examples/) | Working code examples |
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+1. Fork → feature branch → tests (80%+ coverage) → lint → PR
+2. Conventional commits: `feat:`, `fix:`, `docs:`, `test:`
+
+---
+
+## Acknowledgments
+
+- **[purego](https://github.com/ebitengine/purego)** — proved that pure Go FFI is possible. The `crosscall2` callback mechanism, `fakecgo` approach, and assembly trampoline patterns were pioneered by purego. goffi exists because purego cleared the path.
+- **[libffi](https://sourceware.org/libffi/)** — reference for FFI architecture patterns and CIF design.
+- **Go runtime** — `runtime.cgocall` for GC-safe stack switching, `crosscall2` for C→Go transitions.
+
+---
+
+## Ecosystem
+
+goffi powers an ecosystem of pure Go GPU libraries:
+
+| Project | Description |
+|---------|-------------|
+| [go-webgpu/webgpu](https://github.com/go-webgpu/webgpu) | Zero-CGO WebGPU bindings (wgpu-native) |
+| [born-ml/born](https://github.com/born-ml/born) | ML framework for Go, GPU-accelerated |
+| [gogpu](https://github.com/gogpu) | GPU computing platform — dual Rust + Pure Go backends |
+| [wgpu-native](https://github.com/gfx-rs/wgpu-native) | Native WebGPU implementation (upstream) |
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+*goffi v0.4.1 | [GitHub](https://github.com/go-webgpu/goffi) | [pkg.go.dev](https://pkg.go.dev/github.com/go-webgpu/goffi) | [Dev.to](https://dev.to/kolkov/goffi-zero-cgo-foreign-function-interface-for-go-how-we-call-c-libraries-without-a-c-compiler-ca5)*

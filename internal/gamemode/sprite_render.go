@@ -421,37 +421,6 @@ func selectedCharacter(s *session.Session) session.Character {
 	return session.Character{ID: s.CharID, Name: "Player", Job: 0}
 }
 
-func (m *WorldMode) drawPlayerSprite(ctx Context, screen *render.Image, centerX, centerY, scale float64, direction int, cameraYaw float64, shadow float64) bool {
-	now := time.Now()
-	moving := ctx.World.Player.IsMovingAt(now)
-	state := spriteState{
-		actionFamily: spriteActionIdle,
-		direction:    direction,
-		cameraYaw:    cameraYaw,
-		moving:       moving,
-		moveSpeedMS:  ctx.World.Player.Speed,
-	}
-	if moving {
-		state.actionFamily = spriteActionWalk
-		state.loop = true
-		state.walkDistance = ctx.World.Player.RenderWalkDistance(now)
-	}
-	if ctx.Session != nil {
-		if anim, ok := m.actorAnimation(ctx.Session.CharID, now); ok {
-			state.actionFamily = anim.actionFamily
-			state.started = anim.started
-			state.loop = false
-			state.moving = false
-		} else if anim, ok := m.actorAnimation(ctx.Session.AccountID, now); ok {
-			state.actionFamily = anim.actionFamily
-			state.started = anim.started
-			state.loop = false
-			state.moving = false
-		}
-	}
-	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY, scale, shadow)
-}
-
 func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64) bool {
 	now := time.Now()
 	moving := ctx.World.Player.IsMovingAt(now)
@@ -488,37 +457,6 @@ func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projec
 	return true
 }
 
-func drawHumanoidBillboard(screen *render.Image, view *humanoidSpriteView, state spriteState, centerX, centerY, scale float64, shadow float64) bool {
-	billboard, ok := humanoidBillboardForState(view, state, time.Now())
-	if !ok {
-		return false
-	}
-	drawSpriteBillboard(screen, billboard, centerX, centerY, scale, shadow)
-	return true
-}
-
-func drawSingleSpriteBillboard(screen *render.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64) bool {
-	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, 1, 1)
-}
-
-func drawSingleSpriteBillboardAlpha(screen *render.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
-	billboard, ok := singleSpriteBillboardForState(view, state, time.Now())
-	if !ok {
-		return false
-	}
-	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, alpha, shadow)
-	return true
-}
-
-func drawFixedSpriteBillboardAlpha(screen *render.Image, view *playerSpriteView, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
-	billboard, ok := fixedSpriteBillboard(view)
-	if !ok {
-		return false
-	}
-	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, alpha, shadow)
-	return true
-}
-
 func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, view *playerSpriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
 	billboard, ok := fixedSpriteBillboard(view)
 	if !ok {
@@ -526,36 +464,6 @@ func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneP
 	}
 	drawSpriteBillboardAlphaFlat3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow)
 	return true
-}
-
-func drawSpriteBillboard(screen *render.Image, billboard *spriteBillboard, centerX, centerY, scale float64, shadow float64) {
-	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, 1, shadow)
-}
-
-func drawSpriteBillboardAlpha(screen *render.Image, billboard *spriteBillboard, centerX, centerY, scale float64, alpha float64, shadow float64) {
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
-	}
-	if alpha < 0 || math.IsNaN(alpha) {
-		alpha = 0
-	}
-	if alpha > 1 || math.IsInf(alpha, 0) {
-		alpha = 1
-	}
-	if shadow < 0 || math.IsNaN(shadow) {
-		shadow = 0
-	}
-	if shadow > 1 || math.IsInf(shadow, 0) {
-		shadow = 1
-	}
-	var opts render.DrawImageOptions
-	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
-	opts.GeoM.Scale(scale, scale)
-	opts.GeoM.Translate(centerX, centerY)
-	opts.Filter = spriteDrawFilter()
-	opts.ColorScale.Scale(float32(shadow), float32(shadow), float32(shadow), 1)
-	opts.ColorScale.ScaleAlpha(float32(alpha))
-	screen.DrawImage(billboard.image, &opts)
 }
 
 func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
@@ -576,7 +484,6 @@ func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection
 	}
 	right, up, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
 	if !ok {
-		drawSpriteBillboardAlpha(screen, billboard, float64(projection.Project(worldX, worldY, worldZ).x), float64(projection.Project(worldX, worldY, worldZ).y), scale, alpha, shadow)
 		return
 	}
 	bounds := billboard.image.Bounds()
@@ -588,14 +495,19 @@ func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection
 		dy := (py - billboard.anchorY) * scale * unitsPerPixel
 		return add3(add3(center, mul3(right, dx)), mul3(up, -dy))
 	}
+	depthCorner := func(px, py float64) modelPoint3 {
+		dx := (px - billboard.anchorX) * scale * unitsPerPixel
+		dy := (py - billboard.anchorY) * scale * unitsPerPixel
+		return add3(add3(center, mul3(right, dx)), mul3(modelPoint3{y: 1}, -dy))
+	}
 	tint := colorRGBAFromFloats(shadow, shadow, shadow, alpha)
 	vertices := []render.Vertex3D{
-		texturedSurfaceVertex3D(corner(0, 0), texturePoint{u: 0, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		texturedSurfaceVertex3D(corner(w, 0), texturePoint{u: 1, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		texturedSurfaceVertex3D(corner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		texturedSurfaceVertex3D(corner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		spriteBillboardVertex3D(corner(0, 0), depthCorner(0, 0), texturePoint{u: 0, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		spriteBillboardVertex3D(corner(w, 0), depthCorner(w, 0), texturePoint{u: 1, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		spriteBillboardVertex3D(corner(w, h), depthCorner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		spriteBillboardVertex3D(corner(0, h), depthCorner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 	}
-	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2, 0, 2, 3}, billboard.image, triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero))
+	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2, 0, 2, 3}, billboard.image, spriteBillboardTriangleDrawOptions())
 }
 
 func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
@@ -616,7 +528,6 @@ func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjec
 	}
 	_, _, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
 	if !ok {
-		drawSpriteBillboardAlpha(screen, billboard, float64(projection.Project(worldX, worldY, worldZ).x), float64(projection.Project(worldX, worldY, worldZ).y), scale, alpha, shadow)
 		return
 	}
 	yaw := degreesToRadians(projection.cameraYaw)
@@ -645,6 +556,31 @@ func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjec
 		texturedSurfaceVertex3D(corner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 	}
 	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2, 0, 2, 3}, billboard.image, triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero))
+}
+
+func spriteBillboardTriangleDrawOptions() *render.DrawTrianglesOptions {
+	options := triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero)
+	options.DepthBias = float32(spriteBillboardDepthBias())
+	return options
+}
+
+func spriteBillboardVertex3D(point, depthPoint modelPoint3, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) render.Vertex3D {
+	vertex := texturedSurfaceVertex3D(point, uv, tint, textureWidth, textureHeight)
+	vertex.DepthX = float32(depthPoint.x)
+	vertex.DepthY = float32(depthPoint.y)
+	vertex.DepthZ = float32(depthPoint.z)
+	return vertex
+}
+
+func spriteBillboardDepthBias() float64 {
+	value := sceneFloatEnv("GORO_SPRITE_DEPTH_BIAS", 0)
+	if value < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0
+	}
+	if value > 0.02 {
+		return 0.02
+	}
+	return value
 }
 
 func colorRGBAFromFloats(r, g, b, a float64) color.RGBA {
@@ -738,7 +674,7 @@ func fixedSpriteBillboard(view *playerSpriteView) (*spriteBillboard, bool) {
 	return billboard, true
 }
 
-func cursorFrameImage(view *playerSpriteView, actionIndex, motion int, drawX, drawY float64) (*render.Image, bool) {
+func cursorFrameBillboard(view *playerSpriteView, actionIndex, motion int, anchorX, anchorY float64) (*spriteBillboard, bool) {
 	if view == nil || view.act == nil || view.spr == nil || len(view.act.Actions) == 0 {
 		return nil, false
 	}
@@ -755,14 +691,19 @@ func cursorFrameImage(view *playerSpriteView, actionIndex, motion int, drawX, dr
 	motion %= len(action.Animations)
 	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion}
 	if billboard, ok := view.billboards[key]; ok {
-		return billboard.image, true
+		return billboard, true
 	}
 	target := render.NewImage(50, 50)
-	if !drawSpriteAnimation(target, view, action.Animations[motion], drawX, drawY, 0, 0) {
+	if !drawSpriteAnimation(target, view, action.Animations[motion], anchorX, anchorY, 0, 0) {
 		return nil, false
 	}
-	view.billboards[key] = &spriteBillboard{image: target}
-	return target, true
+	billboard := &spriteBillboard{
+		image:   target,
+		anchorX: anchorX,
+		anchorY: anchorY,
+	}
+	view.billboards[key] = billboard
+	return billboard, true
 }
 
 func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) (*spriteBillboard, bool) {
