@@ -49,7 +49,8 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 	if name == "" {
 		name = "Player"
 	}
-	render.DebugPrintAtColor(screen, trimRunes(name, 30), x+12, y+10, characterWindowTitleColor)
+	render.DebugPrintAtColor(screen, trimRunes(name, 20), x+12, y+10, characterWindowTitleColor)
+	render.DebugPrintAtColor(screen, trimRunes(characterJobName(character), 20), x+166, y+10, characterWindowMutedColor)
 
 	vitals := ctx.Session.Vitals
 	if vitals.HP == 0 && vitals.MaxHP == 0 && vitals.SP == 0 && vitals.MaxSP == 0 {
@@ -68,7 +69,7 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 	}
 
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Base Lv. %d", progress.BaseLevel), x+12, y+38, characterWindowTextColor)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Job Lv. %d", progress.JobLevel), x+172, y+38, characterWindowTextColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Job Lv. %d", progress.JobLevel), x+166, y+38, characterWindowTextColor)
 	drawCharacterWindowBar(screen, x+12, y+58, 146, "HP", vitals.HP, vitals.MaxHP, characterWindowHPColor)
 	drawCharacterWindowBar(screen, x+166, y+58, 146, "SP", vitals.SP, vitals.MaxSP, characterWindowSPColor)
 	drawCharacterProgressBar(screen, x+12, y+88, w-24, "Base EXP", progress.BaseExp, progress.NextBaseExp, characterWindowEXPColor)

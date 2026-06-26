@@ -19,7 +19,7 @@ const (
 	skillWindowTitleH = 28
 	skillWindowPad    = 12
 	skillRowH         = 28
-	skillListTop      = 68
+	skillListTop      = 80
 	skillListBottom   = 42
 	skillButtonSize   = 17
 )
