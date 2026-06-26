@@ -71,6 +71,7 @@ type WorldMode struct {
 	basicMenu        basicMenuState
 	inventoryWindow  inventoryWindowState
 	inventoryBag     inventoryBagWindowState
+	equipmentWindow  equipmentWindowState
 	shopWindow       shopWindowState
 	statsWindow      statsWindowState
 	skillWindow      skillWindowState
@@ -597,6 +598,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.inventoryBag.update(ctx) {
 		return nil, nil
 	}
+	if m.equipmentWindow.update(ctx) {
+		return nil, nil
+	}
 	if m.shopWindow.update(ctx) {
 		return nil, nil
 	}
@@ -615,6 +619,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		}
 		if m.basicMenu.lastAction == "items" {
 			m.inventoryBag.toggle(ctx)
+		}
+		if m.basicMenu.lastAction == "equip" {
+			m.equipmentWindow.toggle(ctx)
 		}
 		return nil, nil
 	}
@@ -1865,6 +1872,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.basicMenu.draw(screen, ctx)
 	m.inventoryWindow.draw(screen, ctx, m)
 	m.inventoryBag.draw(screen, ctx, m)
+	m.equipmentWindow.draw(screen, ctx, m)
 	m.shopWindow.draw(screen, ctx, m)
 	m.statsWindow.draw(screen, ctx)
 	m.skillWindow.draw(screen, ctx)
