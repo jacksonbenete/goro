@@ -15,9 +15,10 @@ type Config struct {
 }
 
 type WindowConfig struct {
-	Title  string
-	Width  int
-	Height int
+	Title      string
+	Width      int
+	Height     int
+	Fullscreen bool
 }
 
 type PacketConfig struct {
@@ -40,9 +41,10 @@ func LoadConfig() Config {
 	return Config{
 		DataDir: resolveDataDir(),
 		Window: WindowConfig{
-			Title:  "goro",
-			Width:  1280,
-			Height: 720,
+			Title:      "goro",
+			Width:      1280,
+			Height:     720,
+			Fullscreen: os.Getenv("GORO_FULLSCREEN") == "1",
 		},
 		Packet: PacketConfig{
 			ClientDate: intEnv("GORO_PACKET_CLIENT_DATE", 20080910),

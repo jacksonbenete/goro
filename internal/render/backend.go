@@ -42,12 +42,16 @@ type runner struct {
 }
 
 func Run(game Game, cfg core.WindowConfig) error {
-	gg := gogpu.NewApp(gogpu.DefaultConfig().
+	appConfig := gogpu.DefaultConfig().
 		WithTitle(cfg.Title).
 		WithSize(cfg.Width, cfg.Height).
 		WithResizable(true).
 		WithContinuousRender(true).
-		WithVSync(os.Getenv("GORO_VSYNC") != "0" && os.Getenv("GORO_BENCH_SECONDS") == ""))
+		WithVSync(os.Getenv("GORO_VSYNC") != "0" && os.Getenv("GORO_BENCH_SECONDS") == "")
+	if cfg.Fullscreen {
+		appConfig = appConfig.WithFullscreen()
+	}
+	gg := gogpu.NewApp(appConfig)
 	setCursorApp(gg)
 	defer setCursorApp(nil)
 
