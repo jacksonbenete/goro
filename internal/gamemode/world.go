@@ -4695,8 +4695,8 @@ func texturedSurfaceVertex(point screenPoint, uv texturePoint, tint color.RGBA, 
 func coloredSurfaceVertex3D(point modelPoint3, u, v float32, tint color.RGBA) render.Vertex3D {
 	return render.Vertex3D{
 		X:      float32(point.x),
-		Y:      float32(point.z),
-		Z:      float32(point.y),
+		Y:      float32(point.y),
+		Z:      float32(point.z),
 		SrcX:   u,
 		SrcY:   v,
 		ColorR: float32(tint.R) / 255,
@@ -4709,8 +4709,8 @@ func coloredSurfaceVertex3D(point modelPoint3, u, v float32, tint color.RGBA) re
 func texturedSurfaceVertex3D(point modelPoint3, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) render.Vertex3D {
 	return render.Vertex3D{
 		X:      float32(point.x),
-		Y:      float32(point.z),
-		Z:      float32(point.y),
+		Y:      float32(point.y),
+		Z:      float32(point.z),
 		SrcX:   uv.u * textureWidth,
 		SrcY:   uv.v * textureHeight,
 		ColorR: float32(tint.R) / 255,

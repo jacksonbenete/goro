@@ -134,6 +134,8 @@ type gpuRenderer struct {
 	frameBindGroups []*wgpu.BindGroup
 	statsEnabled    bool
 	statsLast       time.Time
+	worldDebug      bool
+	worldDebugLast  time.Time
 }
 
 type gpuTexture struct {
@@ -201,6 +203,7 @@ func newGPURenderer(ctx *gogpu.Context, app *gogpu.App) (*gpuRenderer, error) {
 		textures:     make(map[*Image]*gpuTexture),
 		bindGroups:   make(map[bindGroupKey]*wgpu.BindGroup),
 		statsEnabled: os.Getenv("GORO_RENDER_STATS") == "1",
+		worldDebug:   os.Getenv("GORO_WORLD_DEBUG_STATS") == "1",
 	}
 	if r.queue == nil {
 		r.queue = r.dev.Queue()
@@ -418,6 +421,10 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 		log.Printf("render stats world_commands=%d world_batches=%d world_vertices=%d world_indices=%d commands=%d batches=%d vertices=%d indices=%d textures=%d bindgroups=%d", len(screen.worldCommands), len(world.batches), len(world.floats)/9, len(world.indices), len(screen.commands), len(frame.batches), len(frame.floats)/8, len(frame.indices), len(r.textures), len(r.bindGroups))
 		r.statsLast = time.Now()
 	}
+	if r.worldDebug && time.Since(r.worldDebugLast) >= time.Second {
+		r.logWorldDebug(screen)
+		r.worldDebugLast = time.Now()
+	}
 	var worldVertexBuf, worldIndexBuf, vertexBuf, indexBuf *wgpu.Buffer
 	var err error
 	if len(world.floats) > 0 && len(world.indices) > 0 {
@@ -606,6 +613,69 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		}
 	}
 	return frame
+}
+
+func (r *gpuRenderer) logWorldDebug(screen *Image) {
+	if screen == nil {
+		log.Printf("world debug empty camera=false commands=0")
+		return
+	}
+	if !screen.camera.Enabled || len(screen.worldCommands) == 0 {
+		log.Printf("world debug empty camera=%t commands=%d", screen.camera.Enabled, len(screen.worldCommands))
+		return
+	}
+	m := screen.camera.ViewProjection
+	count := 0
+	inside := 0
+	front := 0
+	minX, minY, minZ := float32(math.Inf(1)), float32(math.Inf(1)), float32(math.Inf(1))
+	maxX, maxY, maxZ := float32(math.Inf(-1)), float32(math.Inf(-1)), float32(math.Inf(-1))
+	sumR, sumG, sumB, sumA := 0.0, 0.0, 0.0, 0.0
+	for _, cmd := range screen.worldCommands {
+		for _, v := range cmd.Vertices {
+			clipX := m[0]*v.X + m[4]*v.Y + m[8]*v.Z + m[12]
+			clipY := m[1]*v.X + m[5]*v.Y + m[9]*v.Z + m[13]
+			clipZ := m[2]*v.X + m[6]*v.Y + m[10]*v.Z + m[14]
+			clipW := m[3]*v.X + m[7]*v.Y + m[11]*v.Z + m[15]
+			if clipW > 0 {
+				front++
+				ndcX := clipX / clipW
+				ndcY := clipY / clipW
+				ndcZ := (clipZ/clipW)*0.5 + 0.5
+				minX, minY, minZ = minFloat32(minX, ndcX), minFloat32(minY, ndcY), minFloat32(minZ, ndcZ)
+				maxX, maxY, maxZ = maxFloat32(maxX, ndcX), maxFloat32(maxY, ndcY), maxFloat32(maxZ, ndcZ)
+				if ndcX >= -1 && ndcX <= 1 && ndcY >= -1 && ndcY <= 1 && ndcZ >= 0 && ndcZ <= 1 {
+					inside++
+				}
+			}
+			sumR += float64(v.ColorR)
+			sumG += float64(v.ColorG)
+			sumB += float64(v.ColorB)
+			sumA += float64(v.ColorA)
+			count++
+		}
+	}
+	if count == 0 {
+		log.Printf("world debug no vertices commands=%d", len(screen.worldCommands))
+		return
+	}
+	inv := 1 / float64(count)
+	log.Printf("world debug vertices=%d front=%d inside=%d ndc=(%.2f..%.2f, %.2f..%.2f, %.2f..%.2f) avg_rgba=(%.3f,%.3f,%.3f,%.3f)",
+		count, front, inside, minX, maxX, minY, maxY, minZ, maxZ, sumR*inv, sumG*inv, sumB*inv, sumA*inv)
+}
+
+func minFloat32(a, b float32) float32 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxFloat32(a, b float32) float32 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (r *gpuRenderer) buildFrame(screen *Image) drawFrame {
