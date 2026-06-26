@@ -446,8 +446,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if buyList, ok, err := network.ParseShopBuyList(pkt); err != nil {
 			log.Printf("parse shop buy list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			log.Printf("shop buy list received items=%d; buy UI not implemented yet", len(buyList))
-			m.console.addSystemMessage("Buy shop opened, but buying is not implemented yet.")
+			m.shopWindow.openBuy(buyList, ctx)
 			continue
 		}
 		if result, ok, err := network.ParseShopResult(pkt); err != nil {
@@ -1851,7 +1850,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	drawCharacterWindow(screen, ctx)
 	m.basicMenu.draw(screen, ctx)
 	m.inventoryWindow.draw(screen, ctx, m)
-	m.shopWindow.draw(screen, ctx)
+	m.shopWindow.draw(screen, ctx, m)
 	m.statsWindow.draw(screen, ctx)
 	m.skillWindow.draw(screen, ctx)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)

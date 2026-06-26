@@ -9,8 +9,9 @@ import (
 const PacketCZItemPickup uint16 = 0x009F
 
 const (
-	PacketCZACKSelectDealType uint16 = 0x00C5
-	PacketCZPCSellItemList    uint16 = 0x00C9
+	PacketCZACKSelectDealType  uint16 = 0x00C5
+	PacketCZPCPurchaseItemList uint16 = 0x00C8
+	PacketCZPCSellItemList     uint16 = 0x00C9
 )
 
 type itemPickupPacketLayout struct {
@@ -111,6 +112,11 @@ type ShopResult struct {
 
 type SellRequestItem struct {
 	Index  uint16
+	Amount uint16
+}
+
+type BuyRequestItem struct {
+	ItemID uint16
 	Amount uint16
 }
 
@@ -380,6 +386,20 @@ func BuildSellItemListPacket(items []SellRequestItem) []byte {
 	return packet
 }
 
+func BuildBuyItemListPacket(items []BuyRequestItem) []byte {
+	size := 4 + len(items)*4
+	packet := make([]byte, size)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZPCPurchaseItemList)
+	binary.LittleEndian.PutUint16(packet[2:4], uint16(size))
+	offset := 4
+	for _, item := range items {
+		binary.LittleEndian.PutUint16(packet[offset:offset+2], item.Amount)
+		binary.LittleEndian.PutUint16(packet[offset+2:offset+4], item.ItemID)
+		offset += 4
+	}
+	return packet
+}
+
 func (c *Client) SendItemPickup(gid uint32) error {
 	packet := BuildItemPickupPacketForClientDate(gid, c.clientDate)
 	err := c.Send(packet)
@@ -409,6 +429,17 @@ func (c *Client) SendShopSellItems(items []SellRequestItem) error {
 		log.Printf("sent CZ_PC_SELL_ITEMLIST opcode=0x%04X count=%d client_date=%d", ID(packet), len(items), c.clientDate)
 	} else {
 		log.Printf("send CZ_PC_SELL_ITEMLIST failed opcode=0x%04X count=%d client_date=%d: %v", ID(packet), len(items), c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendShopBuyItems(items []BuyRequestItem) error {
+	packet := BuildBuyItemListPacket(items)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_PC_PURCHASE_ITEMLIST opcode=0x%04X count=%d client_date=%d", ID(packet), len(items), c.clientDate)
+	} else {
+		log.Printf("send CZ_PC_PURCHASE_ITEMLIST failed opcode=0x%04X count=%d client_date=%d: %v", ID(packet), len(items), c.clientDate, err)
 	}
 	return err
 }

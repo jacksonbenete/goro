@@ -1789,6 +1789,7 @@ func TestPickedInventoryItemAddsToExistingStack(t *testing.T) {
 func TestShopAcceptInventoryDropAddsSellableItem(t *testing.T) {
 	window := shopWindowState{
 		open: true,
+		mode: shopModeSell,
 		x:    100,
 		y:    100,
 		sellable: map[uint16]network.ShopSellItem{
@@ -1824,6 +1825,7 @@ func TestInventoryDragReleaseOverShopAddsCartItem(t *testing.T) {
 	}
 	shop := shopWindowState{
 		open: true,
+		mode: shopModeSell,
 		x:    100,
 		y:    100,
 		sellable: map[uint16]network.ShopSellItem{
@@ -1839,5 +1841,24 @@ func TestInventoryDragReleaseOverShopAddsCartItem(t *testing.T) {
 	}
 	if len(shop.cart) != 1 || shop.cart[0].item.Index != 7 {
 		t.Fatalf("shop cart = %+v, want dropped item", shop.cart)
+	}
+}
+
+func TestShopBuyCartTracksQuantityAndTotal(t *testing.T) {
+	window := shopWindowState{mode: shopModeBuy}
+	item := network.ShopBuyItem{ItemID: 501, Price: 100, DiscountPrice: 80}
+
+	window.addBuyItem(item)
+	window.addBuyItem(item)
+	if got := window.buyAmount(501); got != 2 {
+		t.Fatalf("buy amount = %d, want 2", got)
+	}
+	if got := window.total(); got != 160 {
+		t.Fatalf("total = %d, want 160", got)
+	}
+
+	window.decrementBuyItem(501)
+	if got := window.buyAmount(501); got != 1 {
+		t.Fatalf("buy amount after decrement = %d, want 1", got)
 	}
 }

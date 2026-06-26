@@ -312,6 +312,14 @@ func TestBuildShopPackets(t *testing.T) {
 		t.Fatalf("unexpected deal packet: % X", deal)
 	}
 
+	buy := BuildBuyItemListPacket([]BuyRequestItem{{ItemID: 501, Amount: 2}, {ItemID: 502, Amount: 3}})
+	if len(buy) != 12 || ID(buy) != 0x00C8 || binary.LittleEndian.Uint16(buy[2:4]) != 12 {
+		t.Fatalf("unexpected buy packet header: % X", buy)
+	}
+	if binary.LittleEndian.Uint16(buy[4:6]) != 2 || binary.LittleEndian.Uint16(buy[6:8]) != 501 || binary.LittleEndian.Uint16(buy[8:10]) != 3 || binary.LittleEndian.Uint16(buy[10:12]) != 502 {
+		t.Fatalf("unexpected buy packet items: % X", buy)
+	}
+
 	sell := BuildSellItemListPacket([]SellRequestItem{{Index: 2, Amount: 3}, {Index: 4, Amount: 5}})
 	if len(sell) != 12 || ID(sell) != 0x00C9 || binary.LittleEndian.Uint16(sell[2:4]) != 12 {
 		t.Fatalf("unexpected sell packet header: % X", sell)
