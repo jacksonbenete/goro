@@ -17,6 +17,7 @@ type Session struct {
 	Vitals      Vitals
 	Progress    Progress
 	Inventory   Inventory
+	Stats       Stats
 }
 
 func New() *Session {
@@ -79,6 +80,45 @@ type Inventory struct {
 	Zeny      int64
 	Weight    int
 	MaxWeight int
+}
+
+type Stats struct {
+	Points int
+	Str    int
+	Agi    int
+	Vit    int
+	Int    int
+	Dex    int
+	Luk    int
+
+	StrBonus int
+	AgiBonus int
+	VitBonus int
+	IntBonus int
+	DexBonus int
+	LukBonus int
+
+	StrCost int
+	AgiCost int
+	VitCost int
+	IntCost int
+	DexCost int
+	LukCost int
+
+	Attack        int
+	AttackBonus   int
+	MatkMin       int
+	MatkMax       int
+	Defense       int
+	DefenseBonus  int
+	MDefense      int
+	MDefenseBonus int
+	Hit           int
+	Flee          int
+	FleeBonus     int
+	Critical      int
+	ASPD          int
+	ASPDBonus     int
 }
 
 type ZoneServer struct {

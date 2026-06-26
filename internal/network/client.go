@@ -219,6 +219,17 @@ func (c *Client) SendNPCMenuChoice(npcID uint32, choice uint8) error {
 	return err
 }
 
+func (c *Client) SendStatusIncrease(statusID uint16) error {
+	packet := BuildStatusIncreasePacket(statusID)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_STATUS_CHANGE opcode=0x%04X status=%d amount=1 client_date=%d", ID(packet), statusID, c.clientDate)
+	} else {
+		log.Printf("send CZ_STATUS_CHANGE failed opcode=0x%04X len=%d status=%d client_date=%d: %v", ID(packet), len(packet), statusID, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) Pump() {
 }
 

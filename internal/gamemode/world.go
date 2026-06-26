@@ -69,6 +69,7 @@ type WorldMode struct {
 	npcDialog        npcDialogState
 	escapeMenu       escapeMenuState
 	basicMenu        basicMenuState
+	statsWindow      statsWindowState
 	mapFade          mapFadeState
 }
 
@@ -444,6 +445,18 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.applyActorHPUpdate(life)
 			continue
 		}
+		if snapshot, ok, err := network.ParseStatusSnapshot(pkt); err != nil {
+			log.Printf("parse status snapshot 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyStatusSnapshot(ctx, snapshot)
+			continue
+		}
+		if ack, ok, err := network.ParseStatusChangeAck(pkt); err != nil {
+			log.Printf("parse status change ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.statsWindow.applyStatusChangeAck(ctx, ack)
+			continue
+		}
 		if failure, ok, err := network.ParseAttackFailureForDistance(pkt); err != nil {
 			log.Printf("parse attack distance failure 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -502,7 +515,13 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.escapeMenu.update(ctx) {
 		return nil, nil
 	}
+	if m.statsWindow.update(ctx) {
+		return nil, nil
+	}
 	if m.basicMenu.update(ctx) {
+		if m.basicMenu.lastAction == "status" {
+			m.statsWindow.toggle(ctx)
+		}
 		return nil, nil
 	}
 	m.updateCameraZoom(ctx)
@@ -1501,9 +1520,15 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 	case network.StatusMaxSP:
 		ctx.Session.Vitals.MaxSP = value
 		ctx.Session.Selected.MaxSP = clampInt16(value)
+	case network.StatusPoint:
+		ctx.Session.Stats.Points = value
 	case network.StatusBaseLevel:
 		ctx.Session.Progress.BaseLevel = value
 		ctx.Session.Selected.Level = clampInt16(value)
+	case network.StatusStr, network.StatusAgi, network.StatusVit, network.StatusInt, network.StatusDex, network.StatusLuk:
+		setSessionStat(ctx.Session, change.VarID, value)
+	case network.StatusUStr, network.StatusUAgi, network.StatusUVit, network.StatusUInt, network.StatusUDex, network.StatusULuk:
+		setSessionStatCost(ctx.Session, change.VarID, value)
 	case network.StatusZeny:
 		ctx.Session.Inventory.Zeny = change.Value
 	case network.StatusNextBaseExp:
@@ -1738,6 +1763,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 
 	drawCharacterWindow(screen, ctx)
 	m.basicMenu.draw(screen, ctx)
+	m.statsWindow.draw(screen, ctx)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)

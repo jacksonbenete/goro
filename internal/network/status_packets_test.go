@@ -58,3 +58,90 @@ func TestParseLongParameterChangeKeepsUnsignedValue(t *testing.T) {
 		t.Fatalf("change = %+v", change)
 	}
 }
+
+func TestParseCompactStatusChange(t *testing.T) {
+	data := make([]byte, 5)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00BE)
+	binary.LittleEndian.PutUint16(data[2:4], StatusStr)
+	data[4] = 31
+
+	change, ok, err := ParseParameterChange(Packet{ID: 0x00BE, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("compact status change not parsed")
+	}
+	if change.VarID != StatusStr || change.Value != 31 {
+		t.Fatalf("change = %+v", change)
+	}
+}
+
+func TestParseStatusSnapshot(t *testing.T) {
+	data := make([]byte, 44)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00BD)
+	binary.LittleEndian.PutUint16(data[2:4], 7)
+	data[4] = 11
+	data[5] = 13
+	data[6] = 12
+	data[7] = 12
+	data[8] = 13
+	data[9] = 14
+	data[10] = 14
+	data[11] = 16
+	data[12] = 15
+	data[13] = 15
+	data[14] = 16
+	data[15] = 17
+	binary.LittleEndian.PutUint16(data[16:18], 42)
+	binary.LittleEndian.PutUint16(data[18:20], 3)
+	binary.LittleEndian.PutUint16(data[20:22], 30)
+	binary.LittleEndian.PutUint16(data[22:24], 20)
+	binary.LittleEndian.PutUint16(data[40:42], 640)
+
+	snapshot, ok, err := ParseStatusSnapshot(Packet{ID: 0x00BD, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("status snapshot not parsed")
+	}
+	if snapshot.Points != 7 || snapshot.Str != 11 || snapshot.StrCost != 13 || snapshot.Attack != 42 || snapshot.ASPD != 640 {
+		t.Fatalf("snapshot = %+v", snapshot)
+	}
+}
+
+func TestParseStatusChangeAck(t *testing.T) {
+	data := make([]byte, 6)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00BC)
+	binary.LittleEndian.PutUint16(data[2:4], StatusDex)
+	data[4] = 1
+	data[5] = 22
+
+	ack, ok, err := ParseStatusChangeAck(Packet{ID: 0x00BC, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("status ack not parsed")
+	}
+	if ack.StatusID != StatusDex || !ack.Success || ack.Value != 22 {
+		t.Fatalf("ack = %+v", ack)
+	}
+}
+
+func TestBuildStatusIncreasePacket(t *testing.T) {
+	packet := BuildStatusIncreasePacket(StatusStr)
+	if got := ID(packet); got != 0x00BB {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if len(packet) != 5 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != StatusStr {
+		t.Fatalf("status id = %d", got)
+	}
+	if packet[4] != 1 {
+		t.Fatalf("amount = %d", packet[4])
+	}
+}
