@@ -139,7 +139,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
 	drawNPCWindowFrame(screen, x, y, skillWindowWidth, skillWindowHeight)
 	render.DebugPrintAtColor(screen, "Skill Tree", x+skillWindowPad, y+9, skillWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	render.DrawRect(screen, float64(cx), float64(cy), float64(cw), float64(ch), skillWindowButtonColor)
+	drawUIButtonSurface(screen, cx, cy, cw, ch, skillWindowButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+2, skillWindowTextColor)
 	render.DrawRect(screen, float64(x+8), float64(y+skillWindowTitleH), float64(skillWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
 
@@ -167,7 +167,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
 			if row%2 == 1 {
 				rowColor = color.RGBA{R: 38, G: 42, B: 50, A: 185}
 			}
-			render.DrawRect(screen, float64(x+skillWindowPad), float64(ry), float64(skillWindowWidth-2*skillWindowPad), float64(skillRowH-2), rowColor)
+			drawUIRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
 			typeColor := skillWindowPassive
 			typeLabel := "P"
 			if skill.Type != 0 {
@@ -196,7 +196,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
 					fill = skillWindowHoverColor
 				}
 			}
-			render.DrawRect(screen, float64(bx), float64(by), float64(bw), float64(bh), fill)
+			drawUIButtonSurface(screen, bx, by, bw, bh, fill)
 			render.DebugPrintAtColor(screen, "+", bx+5, by+1, textColor)
 		}
 		w.drawScrollBar(screen, ctx.Session)

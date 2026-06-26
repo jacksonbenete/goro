@@ -36,12 +36,8 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 		return
 	}
 	x, y, w, h := characterWindowX, characterWindowY, characterWindowWidth, characterWindowHeight
-	render.DrawRect(screen, float64(x+3), float64(y+4), float64(w), float64(h), color.RGBA{A: 92})
-	render.DrawRect(screen, float64(x), float64(y), float64(w), float64(h), characterWindowFrameColor)
-	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, color.RGBA{R: 232, G: 218, B: 172, A: 170})
-	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, color.RGBA{R: 64, G: 58, B: 48, A: 220})
-	render.DrawRect(screen, float64(x), float64(y), 1, float64(h), color.RGBA{R: 232, G: 218, B: 172, A: 130})
-	render.DrawRect(screen, float64(x+w-1), float64(y), 1, float64(h), color.RGBA{R: 64, G: 58, B: 48, A: 220})
+	drawUISurface(screen, x+3, y+4, w, h, color.RGBA{A: 92}, color.RGBA{})
+	drawUISurface(screen, x, y, w, h, characterWindowFrameColor, color.RGBA{R: 232, G: 218, B: 172, A: 130})
 	render.DrawRect(screen, float64(x+8), float64(y+29), float64(w-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
 
 	character := selectedCharacter(ctx.Session)

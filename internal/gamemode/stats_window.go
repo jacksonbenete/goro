@@ -132,7 +132,7 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 	drawNPCWindowFrame(screen, x, y, statsWindowWidth, statsWindowHeight)
 	render.DebugPrintAtColor(screen, "Status", x+statsWindowPad, y+9, statsWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	render.DrawRect(screen, float64(cx), float64(cy), float64(cw), float64(ch), statsWindowButtonColor)
+	drawUIButtonSurface(screen, cx, cy, cw, ch, statsWindowButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+2, statsWindowTextColor)
 	render.DrawRect(screen, float64(x+8), float64(y+statsWindowTitleH), float64(statsWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
 
@@ -166,7 +166,7 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 				fill = statsWindowHoverColor
 			}
 		}
-		render.DrawRect(screen, float64(bx), float64(by), float64(bw), float64(bh), fill)
+		drawUIButtonSurface(screen, bx, by, bw, bh, fill)
 		render.DebugPrintAtColor(screen, "+", bx+5, by+1, textColor)
 	}
 

@@ -311,8 +311,7 @@ func (d *npcDialogState) drawMenu(screen *render.Image, x, y, w, h int) {
 	visible := minInt(len(d.options), maxNPCMenuVisibleRows(h))
 	for i := 0; i < visible; i++ {
 		ox, oy, ow, oh := npcDialogOptionBounds(x, y, w, i)
-		render.DrawRect(screen, float64(ox), float64(oy), float64(ow), float64(oh), color.RGBA{R: 42, G: 48, B: 58, A: 190})
-		render.DrawRect(screen, float64(ox), float64(oy+oh-1), float64(ow), 1, color.RGBA{R: 86, G: 98, B: 114, A: 160})
+		drawUIButtonSurface(screen, ox, oy, ow, oh, color.RGBA{R: 42, G: 48, B: 58, A: 190})
 		runs := npcDialogTextRuns(d.options[i], npcDialogOptionColor)
 		runs = append([]npcDialogTextRun{{text: fmt.Sprintf("%d. ", i+1), color: npcDialogOptionColor}}, runs...)
 		runs = trimNPCDialogTextRuns(runs, maxInt(8, (ow-12)/7))
@@ -322,7 +321,7 @@ func (d *npcDialogState) drawMenu(screen *render.Image, x, y, w, h int) {
 		render.DebugPrintAtColor(screen, fmt.Sprintf("+%d more", len(d.options)-visible), x+w-80, y+h-34, npcDialogMutedColor)
 	}
 	cancelX, cancelY, cancelW, cancelH := npcDialogMenuCancelBounds(x, y, w, h)
-	render.DrawRect(screen, float64(cancelX), float64(cancelY), float64(cancelW), float64(cancelH), color.RGBA{R: 62, G: 66, B: 74, A: 220})
+	drawUIButtonSurface(screen, cancelX, cancelY, cancelW, cancelH, color.RGBA{R: 62, G: 66, B: 74, A: 220})
 	render.DebugPrintAtColor(screen, "Cancel", cancelX+8, cancelY+4, npcDialogMutedColor)
 }
 
@@ -378,19 +377,12 @@ func maxNPCMenuVisibleRows(height int) int {
 }
 
 func drawNPCWindowFrame(screen *render.Image, x, y, w, h int) {
-	render.DrawRect(screen, float64(x+3), float64(y+4), float64(w), float64(h), color.RGBA{A: 110})
-	render.DrawRect(screen, float64(x), float64(y), float64(w), float64(h), color.RGBA{R: 24, G: 26, B: 31, A: 232})
-	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, color.RGBA{R: 232, G: 218, B: 172, A: 180})
-	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, color.RGBA{R: 64, G: 58, B: 48, A: 220})
-	render.DrawRect(screen, float64(x), float64(y), 1, float64(h), color.RGBA{R: 232, G: 218, B: 172, A: 150})
-	render.DrawRect(screen, float64(x+w-1), float64(y), 1, float64(h), color.RGBA{R: 64, G: 58, B: 48, A: 220})
+	drawUIWindowFrame(screen, x, y, w, h)
 }
 
 func drawNPCDialogButton(screen *render.Image, x, y, w, h int, label string) {
 	bx, by, bw, bh := npcDialogButtonBounds(x, y, w, h)
-	render.DrawRect(screen, float64(bx), float64(by), float64(bw), float64(bh), color.RGBA{R: 70, G: 76, B: 86, A: 235})
-	render.DrawRect(screen, float64(bx), float64(by), float64(bw), 1, color.RGBA{R: 228, G: 218, B: 184, A: 150})
-	render.DrawRect(screen, float64(bx), float64(by+bh-1), float64(bw), 1, color.RGBA{A: 220})
+	drawUIButtonSurface(screen, bx, by, bw, bh, color.RGBA{R: 70, G: 76, B: 86, A: 235})
 	tx := bx + (bw-len(label)*7)/2
 	render.DebugPrintAtColor(screen, label, tx, by+6, npcDialogSelectedColor)
 }

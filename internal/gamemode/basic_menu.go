@@ -69,10 +69,7 @@ func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
 		return
 	}
 	x, y, w, h := basicMenuBounds()
-	render.DrawRect(screen, float64(x+2), float64(y+3), float64(w), float64(h), color.RGBA{A: 82})
-	render.DrawRect(screen, float64(x), float64(y), float64(w), float64(h), basicMenuPanelColor)
-	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, color.RGBA{R: 232, G: 218, B: 172, A: 125})
-	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, color.RGBA{A: 160})
+	drawUIPanelSurface(screen, x, y, w, h, basicMenuPanelColor)
 
 	mouseX, mouseY := -1, -1
 	mouseDown := false
@@ -91,9 +88,7 @@ func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
 				fill = basicMenuHoverColor
 			}
 		}
-		render.DrawRect(screen, float64(bx), float64(by), float64(bw), float64(bh), fill)
-		render.DrawRect(screen, float64(bx), float64(by), float64(bw), 1, color.RGBA{R: 228, G: 218, B: 184, A: 105})
-		render.DrawRect(screen, float64(bx), float64(by+bh-1), float64(bw), 1, color.RGBA{A: 160})
+		drawUIButtonSurface(screen, bx, by, bw, bh, fill)
 		textX := bx + (bw-len([]rune(button.label))*7)/2
 		render.DebugPrintAtColor(screen, button.label, textX, by+6, basicMenuTextColor)
 	}

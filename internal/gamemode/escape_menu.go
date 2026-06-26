@@ -101,7 +101,7 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 	if !m.open || screen == nil {
 		return
 	}
-	render.DrawRect(screen, 0, 0, float64(width), float64(height), color.RGBA{A: 96})
+	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 96}, color.RGBA{})
 	x, y, w, h := escapeMenuBounds(width, height)
 	drawNPCWindowFrame(screen, x, y, w, h)
 	render.DebugPrintAtColor(screen, "Menu", x+escapeMenuPad, y+10, escapeMenuTitleColor)
@@ -121,9 +121,7 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 		} else if pointInRect(mx, my, bx, by, bw, bh) {
 			fill = escapeMenuHoverColor
 		}
-		render.DrawRect(screen, float64(bx), float64(by), float64(bw), float64(bh), fill)
-		render.DrawRect(screen, float64(bx), float64(by), float64(bw), 1, color.RGBA{R: 228, G: 218, B: 184, A: 120})
-		render.DrawRect(screen, float64(bx), float64(by+bh-1), float64(bw), 1, color.RGBA{A: 180})
+		drawUIButtonSurface(screen, bx, by, bw, bh, fill)
 		tx := bx + (bw-len([]rune(button.label))*7)/2
 		render.DebugPrintAtColor(screen, button.label, tx, by+7, textColor)
 	}
