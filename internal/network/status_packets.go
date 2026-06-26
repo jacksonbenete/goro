@@ -13,8 +13,11 @@ const (
 	StatusSP          uint16 = 7
 	StatusMaxSP       uint16 = 8
 	StatusBaseLevel   uint16 = 11
+	StatusZeny        uint16 = 20
 	StatusNextBaseExp uint16 = 22
 	StatusNextJobExp  uint16 = 23
+	StatusWeight      uint16 = 24
+	StatusMaxWeight   uint16 = 25
 	StatusJobLevel    uint16 = 55
 )
 

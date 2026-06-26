@@ -16,6 +16,7 @@ type Session struct {
 	PlayerDir   int
 	Vitals      Vitals
 	Progress    Progress
+	Inventory   Inventory
 }
 
 func New() *Session {
@@ -72,6 +73,12 @@ type Progress struct {
 	NextBaseExp int64
 	JobExp      int64
 	NextJobExp  int64
+}
+
+type Inventory struct {
+	Zeny      int64
+	Weight    int
+	MaxWeight int
 }
 
 type ZoneServer struct {

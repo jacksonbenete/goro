@@ -1500,16 +1500,22 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 	case network.StatusBaseLevel:
 		ctx.Session.Progress.BaseLevel = value
 		ctx.Session.Selected.Level = clampInt16(value)
+	case network.StatusZeny:
+		ctx.Session.Inventory.Zeny = change.Value
 	case network.StatusNextBaseExp:
 		ctx.Session.Progress.NextBaseExp = change.Value
 	case network.StatusNextJobExp:
 		ctx.Session.Progress.NextJobExp = change.Value
+	case network.StatusWeight:
+		ctx.Session.Inventory.Weight = value
+	case network.StatusMaxWeight:
+		ctx.Session.Inventory.MaxWeight = value
 	case network.StatusJobLevel:
 		ctx.Session.Progress.JobLevel = value
 	default:
 		return
 	}
-	log.Printf("parameter change var=%d value=%d hp=%d/%d sp=%d/%d base_lv=%d job_lv=%d base_exp=%d/%d job_exp=%d/%d",
+	log.Printf("parameter change var=%d value=%d hp=%d/%d sp=%d/%d base_lv=%d job_lv=%d base_exp=%d/%d job_exp=%d/%d zeny=%d weight=%d/%d",
 		change.VarID,
 		change.Value,
 		ctx.Session.Vitals.HP,
@@ -1521,7 +1527,10 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 		ctx.Session.Progress.BaseExp,
 		ctx.Session.Progress.NextBaseExp,
 		ctx.Session.Progress.JobExp,
-		ctx.Session.Progress.NextJobExp)
+		ctx.Session.Progress.NextJobExp,
+		ctx.Session.Inventory.Zeny,
+		ctx.Session.Inventory.Weight,
+		ctx.Session.Inventory.MaxWeight)
 }
 
 func clampInt16(value int) int16 {
@@ -1610,53 +1619,6 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projec
 	m.damageFloaters = active
 }
 
-func drawVitalsHUD(screen *render.Image, ctx Context) {
-	if ctx.Session == nil {
-		return
-	}
-	vitals := ctx.Session.Vitals
-	if vitals.HP == 0 && vitals.MaxHP == 0 && vitals.SP == 0 && vitals.MaxSP == 0 {
-		vitals = sessionVitalsFromCharacter(ctx.Session.Selected)
-	}
-	progress := ctx.Session.Progress
-	if progress.BaseLevel == 0 {
-		progress = sessionProgressFromCharacter(ctx.Session.Selected)
-		progress.JobLevel = ctx.Session.Progress.JobLevel
-		progress.BaseExp = ctx.Session.Progress.BaseExp
-		progress.NextBaseExp = ctx.Session.Progress.NextBaseExp
-		progress.JobExp = ctx.Session.Progress.JobExp
-		progress.NextJobExp = ctx.Session.Progress.NextJobExp
-	}
-	width := screen.Bounds().Dx()
-	x := maxInt(24, width-300)
-	debugText(screen, x, 24, "HP %d / %d", vitals.HP, vitals.MaxHP)
-	debugText(screen, x, 44, "SP %d / %d", vitals.SP, vitals.MaxSP)
-	debugText(screen, x, 64, "Base Lv %d  EXP %s", progress.BaseLevel, formatProgressValue(progress.BaseExp, progress.NextBaseExp))
-	debugText(screen, x, 84, "Job  Lv %d  EXP %s", progress.JobLevel, formatProgressValue(progress.JobExp, progress.NextJobExp))
-}
-
-func sessionVitalsFromCharacter(character session.Character) session.Vitals {
-	return session.Vitals{
-		HP:    int(character.HP),
-		MaxHP: int(character.MaxHP),
-		SP:    int(character.SP),
-		MaxSP: int(character.MaxSP),
-	}
-}
-
-func sessionProgressFromCharacter(character session.Character) session.Progress {
-	return session.Progress{
-		BaseLevel: int(character.Level),
-	}
-}
-
-func formatProgressValue(current, next int64) string {
-	if next > 0 {
-		return fmt.Sprintf("%d / %d", current, next)
-	}
-	return fmt.Sprintf("%d", current)
-}
-
 func (m *WorldMode) drawSceneFogVeil(screen *render.Image, fog sceneFog, projection sceneProjection) {
 	alpha := sceneFogVeilAlpha(fog, projection)
 	if alpha == 0 {
@@ -1733,7 +1695,6 @@ func normalizeMapNameForSceneClear(name string) string {
 func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
-	playerX, playerY := ctx.World.Player.RenderPosition(now)
 	projection := m.sceneProjection(ctx, width, height, now)
 	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
 	clearWorldScene(screen, ctx.World.MapName)
@@ -1771,28 +1732,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
-	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d yaw=%.1f", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir, projection.cameraYaw)
-	debugText(screen, 24, 44, "%s", m.status)
-	drawVitalsHUD(screen, ctx)
-	if ctx.World.GND != nil {
-		debugText(screen, 24, 64, "gnd: %dx%d textures=%d surfaces=%d", ctx.World.GND.Width, ctx.World.GND.Height, len(ctx.World.GND.Textures), len(ctx.World.GND.Surfaces))
-		debugText(screen, 24, 84, "textures: loaded=%d missing=%d", len(m.textures), len(m.textureMiss))
-	}
-	if ctx.World.RSW != nil {
-		debugText(screen, 24, 104, "rsw: v%d.%d models=%d lights=%d sounds=%d effects=%d water=%.1f", ctx.World.RSW.VersionMajor, ctx.World.RSW.VersionMinor, len(ctx.World.RSW.Models), len(ctx.World.RSW.Lights), len(ctx.World.RSW.Sounds), len(ctx.World.RSW.Effects), ctx.World.RSW.Water.Level)
-		debugText(screen, 24, 124, "rsm: parsed=%d failed=%d limit=%d", len(ctx.World.RSM), ctx.World.RSMFail, rsmLoadLimit())
-		if ctx.World.GND != nil {
-			debugText(screen, 24, 144, "%s", nearestRSWModelDebug(ctx.World.RSW, ctx.World.GND, ctx.World.RSM, playerX, playerY))
-		}
-	}
-	if ctx.World.GAT != nil {
-		y := 104
-		if ctx.World.RSW != nil {
-			y = 164
-		}
-		debugText(screen, 24, y, "gat: %dx%d", ctx.World.GAT.Width, ctx.World.GAT.Height)
-		debugText(screen, 24, y+20, "actors: %d items: %d", len(ctx.World.Actors), len(ctx.World.Items))
-	}
+	drawCharacterWindow(screen, ctx)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)

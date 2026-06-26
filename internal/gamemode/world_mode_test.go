@@ -322,6 +322,25 @@ func TestApplyParameterChangeUpdatesProgress(t *testing.T) {
 	}
 }
 
+func TestApplyParameterChangeUpdatesInventory(t *testing.T) {
+	sessionState := &session.Session{}
+	ctx := Context{Session: sessionState}
+
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusZeny, Value: 1234567})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusWeight, Value: 240})
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusMaxWeight, Value: 2000})
+
+	if sessionState.Inventory.Zeny != 1234567 || sessionState.Inventory.Weight != 240 || sessionState.Inventory.MaxWeight != 2000 {
+		t.Fatalf("inventory = %+v", sessionState.Inventory)
+	}
+}
+
+func TestFormatHUDNumberGroupsThousands(t *testing.T) {
+	if got := formatHUDNumber(123456789); got != "123,456,789" {
+		t.Fatalf("formatted number = %q", got)
+	}
+}
+
 func TestSessionProgressFromCharacterUsesBaseLevel(t *testing.T) {
 	progress := sessionProgressFromCharacter(session.Character{Level: 12})
 	if progress.BaseLevel != 12 {
