@@ -86,10 +86,9 @@ func addPickedSessionInventoryItem(s *session.Session, item session.InventoryIte
 		}
 		if s.Inventory.Items[i].ItemID == item.ItemID && !s.Inventory.Items[i].Equip {
 			s.Inventory.Items[i].Amount += item.Amount
-			s.Inventory.Items[i].Identified = item.Identified
-			s.Inventory.Items[i].Type = item.Type
-			s.Inventory.Items[i].Damaged = item.Damaged
-			s.Inventory.Items[i].Refine = item.Refine
+			if item.Location != 0 {
+				s.Inventory.Items[i].Location = item.Location
+			}
 			return
 		}
 		s.Inventory.Items[i] = item

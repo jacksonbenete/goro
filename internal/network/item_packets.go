@@ -182,9 +182,15 @@ func ParseFloorItemDisappear(packet Packet) (FloorItemDisappear, bool, error) {
 func ParseItemPickupAck(packet Packet) (ItemPickupAck, bool, error) {
 	switch packet.ID {
 	case 0x00A0, 0x029A, 0x02D4:
+		return parseItemPickupAckLocation16(packet)
+	case 0x0990, 0x0A0C, 0x0A37:
+		return parseItemPickupAckLocation32(packet)
 	default:
 		return ItemPickupAck{}, false, nil
 	}
+}
+
+func parseItemPickupAckLocation16(packet Packet) (ItemPickupAck, bool, error) {
 	if len(packet.Data) < 23 {
 		return ItemPickupAck{}, false, fmt.Errorf("ZC_ITEM_PICKUP_ACK 0x%04X too short: %d", packet.ID, len(packet.Data))
 	}
@@ -201,6 +207,23 @@ func ParseItemPickupAck(packet Packet) (ItemPickupAck, bool, error) {
 	}, true, nil
 }
 
+func parseItemPickupAckLocation32(packet Packet) (ItemPickupAck, bool, error) {
+	if len(packet.Data) < 25 {
+		return ItemPickupAck{}, false, fmt.Errorf("ZC_ITEM_PICKUP_ACK 0x%04X too short: %d", packet.ID, len(packet.Data))
+	}
+	return ItemPickupAck{
+		Index:      binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Amount:     binary.LittleEndian.Uint16(packet.Data[4:6]),
+		ItemID:     binary.LittleEndian.Uint16(packet.Data[6:8]),
+		Identified: packet.Data[8] != 0,
+		Damaged:    packet.Data[9] != 0,
+		Refine:     packet.Data[10],
+		Location:   uint16(binary.LittleEndian.Uint32(packet.Data[19:23])),
+		Type:       packet.Data[23],
+		Result:     packet.Data[24],
+	}, true, nil
+}
+
 func ParseInventoryItemList(packet Packet) ([]InventoryItem, bool, error) {
 	switch packet.ID {
 	case 0x00A3:
@@ -209,12 +232,18 @@ func ParseInventoryItemList(packet Packet) ([]InventoryItem, bool, error) {
 		return parseNormalInventoryItems(packet, 18)
 	case 0x02E8:
 		return parseNormalInventoryItems(packet, 22)
+	case 0x0991:
+		return parseNormalInventoryItems4(packet)
 	case 0x00A4:
 		return parseEquipInventoryItems(packet, 20)
 	case 0x0295:
 		return parseEquipInventoryItems(packet, 24)
 	case 0x02D0:
-		return parseEquipInventoryItems(packet, 28)
+		return parseEquipInventoryItems(packet, 26)
+	case 0x0992:
+		return parseEquipInventoryItems4(packet, 31)
+	case 0x0A0D:
+		return parseEquipInventoryItems4(packet, 57)
 	default:
 		return nil, false, nil
 	}
@@ -241,6 +270,29 @@ func parseNormalInventoryItems(packet Packet, entrySize int) ([]InventoryItem, b
 	return items, true, nil
 }
 
+func parseNormalInventoryItems4(packet Packet) ([]InventoryItem, bool, error) {
+	const entrySize = 24
+	if len(packet.Data) < 4 {
+		return nil, false, fmt.Errorf("ZC_NORMAL_ITEMLIST4 too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, false, fmt.Errorf("ZC_NORMAL_ITEMLIST4 invalid length: %d", len(packet.Data))
+	}
+	items := make([]InventoryItem, 0, (len(packet.Data)-4)/entrySize)
+	for offset := 4; offset+entrySize <= len(packet.Data); offset += entrySize {
+		flag := packet.Data[offset+23]
+		items = append(items, InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[offset : offset+2]),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[offset+2 : offset+4]),
+			Type:       packet.Data[offset+4],
+			Identified: flag&1 != 0,
+			Amount:     binary.LittleEndian.Uint16(packet.Data[offset+5 : offset+7]),
+			Location:   uint16(binary.LittleEndian.Uint32(packet.Data[offset+7 : offset+11])),
+		})
+	}
+	return items, true, nil
+}
+
 func parseEquipInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bool, error) {
 	if len(packet.Data) < 4 {
 		return nil, false, fmt.Errorf("ZC_EQUIPMENT_ITEMLIST 0x%04X too short: %d", packet.ID, len(packet.Data))
@@ -262,6 +314,32 @@ func parseEquipInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bo
 			Equipped:   wearState != 0,
 			Damaged:    packet.Data[offset+10] != 0,
 			Refine:     packet.Data[offset+11],
+		})
+	}
+	return items, true, nil
+}
+
+func parseEquipInventoryItems4(packet Packet, entrySize int) ([]InventoryItem, bool, error) {
+	if len(packet.Data) < 4 {
+		return nil, false, fmt.Errorf("ZC_EQUIPMENT_ITEMLIST4 0x%04X too short: %d", packet.ID, len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, false, fmt.Errorf("ZC_EQUIPMENT_ITEMLIST4 0x%04X invalid length: %d", packet.ID, len(packet.Data))
+	}
+	items := make([]InventoryItem, 0, (len(packet.Data)-4)/entrySize)
+	for offset := 4; offset+entrySize <= len(packet.Data); offset += entrySize {
+		flag := packet.Data[offset+entrySize-1]
+		items = append(items, InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[offset : offset+2]),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[offset+2 : offset+4]),
+			Type:       packet.Data[offset+4],
+			Identified: flag&1 != 0,
+			Location:   uint16(binary.LittleEndian.Uint32(packet.Data[offset+5 : offset+9])),
+			Amount:     1,
+			Equip:      true,
+			Equipped:   binary.LittleEndian.Uint32(packet.Data[offset+9:offset+13]) != 0,
+			Damaged:    flag&2 != 0,
+			Refine:     packet.Data[offset+13],
 		})
 	}
 	return items, true, nil

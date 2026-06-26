@@ -93,11 +93,18 @@ func TestParseItemPickupAckLegacy(t *testing.T) {
 
 func TestParseItemPickupAckExtendedVariants(t *testing.T) {
 	for _, tc := range []struct {
-		id     uint16
-		length int
+		id             uint16
+		length         int
+		locationOffset int
+		locationSize   int
+		typeOffset     int
+		resultOffset   int
 	}{
-		{id: 0x029A, length: 27},
-		{id: 0x02D4, length: 29},
+		{id: 0x029A, length: 27, locationOffset: 19, locationSize: 2, typeOffset: 21, resultOffset: 22},
+		{id: 0x02D4, length: 29, locationOffset: 19, locationSize: 2, typeOffset: 21, resultOffset: 22},
+		{id: 0x0990, length: 31, locationOffset: 19, locationSize: 4, typeOffset: 23, resultOffset: 24},
+		{id: 0x0A0C, length: 56, locationOffset: 19, locationSize: 4, typeOffset: 23, resultOffset: 24},
+		{id: 0x0A37, length: 59, locationOffset: 19, locationSize: 4, typeOffset: 23, resultOffset: 24},
 	} {
 		t.Run(fmt.Sprintf("0x%04X", tc.id), func(t *testing.T) {
 			data := make([]byte, tc.length)
@@ -106,7 +113,13 @@ func TestParseItemPickupAckExtendedVariants(t *testing.T) {
 			binary.LittleEndian.PutUint16(data[4:6], 2)
 			binary.LittleEndian.PutUint16(data[6:8], 909)
 			data[8] = 1
-			data[22] = 0
+			if tc.locationSize == 4 {
+				binary.LittleEndian.PutUint32(data[tc.locationOffset:tc.locationOffset+4], 0x00000020)
+			} else {
+				binary.LittleEndian.PutUint16(data[tc.locationOffset:tc.locationOffset+2], 0x0020)
+			}
+			data[tc.typeOffset] = 5
+			data[tc.resultOffset] = 0
 
 			ack, ok, err := ParseItemPickupAck(Packet{ID: tc.id, Data: data})
 			if err != nil {
@@ -115,7 +128,7 @@ func TestParseItemPickupAckExtendedVariants(t *testing.T) {
 			if !ok {
 				t.Fatal("not parsed")
 			}
-			if ack.Index != 31 || ack.Amount != 2 || ack.ItemID != 909 || !ack.Identified || ack.Result != 0 {
+			if ack.Index != 31 || ack.Amount != 2 || ack.ItemID != 909 || ack.Location != 0x0020 || ack.Type != 5 || !ack.Identified || ack.Result != 0 {
 				t.Fatalf("unexpected ack: %+v", ack)
 			}
 		})
@@ -257,6 +270,30 @@ func TestParseInventoryItemListNormal2008(t *testing.T) {
 	}
 }
 
+func TestParseInventoryItemListNormal4(t *testing.T) {
+	data := make([]byte, 4+24)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0991)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint16(data[4:6], 7)
+	binary.LittleEndian.PutUint16(data[6:8], 938)
+	data[8] = 3
+	binary.LittleEndian.PutUint16(data[9:11], 4)
+	binary.LittleEndian.PutUint32(data[11:15], 0x00000001)
+	binary.LittleEndian.PutUint32(data[23:27], 123456)
+	data[27] = 1
+
+	items, ok, err := ParseInventoryItemList(Packet{ID: 0x0991, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 7 || got.ItemID != 938 || got.Type != 3 || got.Location != 0x0001 || !got.Identified || got.Amount != 4 || got.Equip {
+		t.Fatalf("unexpected item: %+v", got)
+	}
+}
+
 func TestParseInventoryItemListEquipmentLegacy(t *testing.T) {
 	data := make([]byte, 4+20)
 	binary.LittleEndian.PutUint16(data[0:2], 0x00A4)
@@ -282,8 +319,55 @@ func TestParseInventoryItemListEquipmentLegacy(t *testing.T) {
 	}
 }
 
+func TestParseInventoryItemListEquipment4(t *testing.T) {
+	data := make([]byte, 4+31)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0992)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint16(data[4:6], 11)
+	binary.LittleEndian.PutUint16(data[6:8], 1201)
+	data[8] = 4
+	binary.LittleEndian.PutUint32(data[9:13], 0x00000002)
+	binary.LittleEndian.PutUint32(data[13:17], 0x00000002)
+	data[17] = 5
+	data[34] = 3
+
+	items, ok, err := ParseInventoryItemList(Packet{ID: 0x0992, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 11 || got.ItemID != 1201 || got.Type != 4 || got.Location != 0x0002 || !got.Identified || got.Amount != 1 || !got.Equip || !got.Equipped || !got.Damaged || got.Refine != 5 {
+		t.Fatalf("unexpected item: %+v", got)
+	}
+}
+
+func TestParseInventoryItemListEquipment5(t *testing.T) {
+	data := make([]byte, 4+57)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0A0D)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint16(data[4:6], 12)
+	binary.LittleEndian.PutUint16(data[6:8], 1101)
+	data[8] = 5
+	binary.LittleEndian.PutUint32(data[9:13], 0x00000002)
+	data[17] = 7
+	data[60] = 1
+
+	items, ok, err := ParseInventoryItemList(Packet{ID: 0x0A0D, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 12 || got.ItemID != 1101 || got.Type != 5 || got.Location != 0x0002 || !got.Identified || got.Amount != 1 || !got.Equip || got.Equipped || got.Damaged || got.Refine != 7 {
+		t.Fatalf("unexpected item: %+v", got)
+	}
+}
+
 func TestParseInventoryItemListEquipment2008(t *testing.T) {
-	data := make([]byte, 4+28)
+	data := make([]byte, 4+26)
 	binary.LittleEndian.PutUint16(data[0:2], 0x02D0)
 	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
 	binary.LittleEndian.PutUint16(data[4:6], 11)
@@ -296,7 +380,6 @@ func TestParseInventoryItemListEquipment2008(t *testing.T) {
 	data[15] = 5
 	binary.LittleEndian.PutUint32(data[24:28], 123456)
 	binary.LittleEndian.PutUint16(data[28:30], 1)
-	binary.LittleEndian.PutUint16(data[30:32], 2)
 
 	items, ok, err := ParseInventoryItemList(Packet{ID: 0x02D0, Data: data})
 	if err != nil {

@@ -426,7 +426,7 @@ func inventoryItemIsEquipment(item session.InventoryItem) bool {
 
 func inventoryItemTypeIsEquipment(itemType uint8) bool {
 	switch itemType {
-	case 4, 5, 8, 10, 12:
+	case 4, 5, 7, 8, 12:
 		return true
 	default:
 		return false

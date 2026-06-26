@@ -1775,14 +1775,17 @@ func TestInventoryItemDeleteDecrementsAndRemoves(t *testing.T) {
 func TestPickedInventoryItemAddsToExistingStack(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{
-			Items: []session.InventoryItem{{Index: 7, ItemID: 938, Amount: 3}},
+			Items: []session.InventoryItem{{Index: 7, ItemID: 512, Type: 0, Amount: 3, Identified: true}},
 		},
 	}
 
-	addPickedSessionInventoryItem(sessionState, session.InventoryItem{Index: 7, ItemID: 938, Amount: 2})
+	addPickedSessionInventoryItem(sessionState, session.InventoryItem{Index: 7, ItemID: 512, Type: 3, Amount: 2})
 
 	if got := sessionState.Inventory.Items[0].Amount; got != 5 {
 		t.Fatalf("picked stack amount = %d, want 5", got)
+	}
+	if got := sessionState.Inventory.Items[0].Type; got != 0 {
+		t.Fatalf("picked stack type = %d, want preserved healing type", got)
 	}
 }
 
@@ -1873,8 +1876,10 @@ func TestInventoryBagClassifiesTabs(t *testing.T) {
 		{name: "usable item", item: session.InventoryItem{Type: 2}, tab: inventoryBagTabItem},
 		{name: "equipment flag", item: session.InventoryItem{Type: 4, Equip: true}, tab: inventoryBagTabEquip},
 		{name: "weapon type", item: session.InventoryItem{Type: 5}, tab: inventoryBagTabEquip},
+		{name: "pet egg type", item: session.InventoryItem{Type: 7}, tab: inventoryBagTabEquip},
 		{name: "etc", item: session.InventoryItem{Type: 3}, tab: inventoryBagTabEtc},
 		{name: "card", item: session.InventoryItem{Type: 6}, tab: inventoryBagTabEtc},
+		{name: "ammo", item: session.InventoryItem{Type: 10}, tab: inventoryBagTabEtc},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1896,6 +1901,34 @@ func TestSessionItemFromNetworkMarksEquipmentByType(t *testing.T) {
 	})
 	if !item.Equip || inventoryItemTab(item) != inventoryBagTabEquip {
 		t.Fatalf("item = %+v, want equipment tab item", item)
+	}
+}
+
+func TestInventoryItemListReplacesDifferentItemAtReusedIndex(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{
+				Index:    11,
+				ItemID:   1201,
+				Type:     5,
+				Location: 0x0002,
+				Amount:   1,
+				Equip:    true,
+			}},
+		},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyInventoryItemList(ctx, []network.InventoryItem{{
+		Index:  11,
+		ItemID: 938,
+		Type:   3,
+		Amount: 2,
+	}})
+
+	item := sessionState.Inventory.Items[0]
+	if item.Equip || item.Location != 0 || item.Type != 3 || item.ItemID != 938 || inventoryItemTab(item) != inventoryBagTabEtc {
+		t.Fatalf("item = %+v, want clean replacement", item)
 	}
 }
 
