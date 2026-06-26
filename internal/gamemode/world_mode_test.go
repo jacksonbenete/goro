@@ -773,7 +773,7 @@ func TestAppendActorDrawEntryUsesPathRenderDirection(t *testing.T) {
 	}
 	projection := newSceneProjectionForTarget(800, 600, 0.5, 1.5, 0)
 
-	entries := appendActorDrawEntry(nil, world, projection, actor, "actor", false, now, 800, 600)
+	entries := appendActorDrawEntry(nil, world, projection, actor, false, now, 800, 600)
 	if len(entries) != 1 {
 		t.Fatalf("entries = %d, want 1", len(entries))
 	}
@@ -1462,6 +1462,42 @@ func TestActorDisplayNameDoesNotLabelUnnamedPlayerJob(t *testing.T) {
 
 	if got := actorDisplayName(ctx, actor, false); got != "" {
 		t.Fatalf("display name = %q, want empty", got)
+	}
+}
+
+func TestHoveredActorDisplayNameUsesServerNameForNPC(t *testing.T) {
+	ctx := Context{Resources: &res.Manager{}}
+	mode := &WorldMode{}
+	actor := worldstate.Actor{
+		Job:           84,
+		ObjectType:    actorObjectTypeNPC,
+		HasObjectType: true,
+	}
+
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "4 M 02" {
+		t.Fatalf("hovered NPC name = %q, want resource fallback", got)
+	}
+	actor.Name = "Kafra Employee#izlude"
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Kafra Employee" {
+		t.Fatalf("hovered NPC server name = %q, want Kafra Employee", got)
+	}
+}
+
+func TestHoveredActorDisplayNameUsesServerNameForMonster(t *testing.T) {
+	ctx := Context{Resources: &res.Manager{}}
+	mode := &WorldMode{}
+	actor := worldstate.Actor{
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	}
+
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Poring" {
+		t.Fatalf("hovered monster name = %q, want resource fallback", got)
+	}
+	actor.Name = "Poring"
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Poring" {
+		t.Fatalf("hovered monster server name = %q, want Poring", got)
 	}
 }
 

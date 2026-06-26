@@ -1,6 +1,9 @@
 package network
 
-import "testing"
+import (
+	"encoding/binary"
+	"testing"
+)
 
 func TestBuildAccountLoginPacket(t *testing.T) {
 	packet := BuildAccountLoginPacket(AccountLogin{
@@ -135,6 +138,38 @@ func TestBuildNameRequestPacket(t *testing.T) {
 		if packet[i] != want[i] {
 			t.Fatalf("packet = % x, want % x", packet, want)
 		}
+	}
+}
+
+func TestBuildNameRequestPacketForClientDate20080910(t *testing.T) {
+	packet, ok := BuildNameRequestPacketForClientDate(0x11223344, 20080910)
+	if !ok {
+		t.Fatal("expected packet")
+	}
+	if len(packet) != 11 {
+		t.Fatalf("len = %d, want 11", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[:2]); got != 0x008C {
+		t.Fatalf("opcode = 0x%04X, want 0x008C", got)
+	}
+	if got := binary.LittleEndian.Uint32(packet[7:11]); got != 0x11223344 {
+		t.Fatalf("gid = 0x%08X, want 0x11223344", got)
+	}
+}
+
+func TestBuildNameRequestPacketForClientDate20101124(t *testing.T) {
+	packet, ok := BuildNameRequestPacketForClientDate(0x11223344, 20101124)
+	if !ok {
+		t.Fatal("expected packet")
+	}
+	if len(packet) != 6 {
+		t.Fatalf("len = %d, want 6", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[:2]); got != PacketCZReqNameRE {
+		t.Fatalf("opcode = 0x%04X, want 0x%04X", got, PacketCZReqNameRE)
+	}
+	if got := binary.LittleEndian.Uint32(packet[2:6]); got != 0x11223344 {
+		t.Fatalf("gid = 0x%08X, want 0x11223344", got)
 	}
 }
 

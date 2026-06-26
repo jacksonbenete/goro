@@ -122,7 +122,18 @@ func (c *Client) SendTick(clientTick uint32) error {
 }
 
 func (c *Client) SendNameRequest(gid uint32) error {
-	return c.Send(BuildNameRequestPacket(gid))
+	packet, ok := BuildNameRequestPacketForClientDate(gid, c.clientDate)
+	if !ok {
+		log.Printf("skip CZ_REQNAME target=%d client_date=%d: unsupported packet profile", gid, c.clientDate)
+		return nil
+	}
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQNAME opcode=0x%04X len=%d target=%d client_date=%d", ID(packet), len(packet), gid, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQNAME failed opcode=0x%04X len=%d target=%d client_date=%d: %v", ID(packet), len(packet), gid, c.clientDate, err)
+	}
+	return err
 }
 
 func (c *Client) SendMapServerEnter(accountID, charID, authCode, clientTick uint32, sex uint8) error {

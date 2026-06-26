@@ -62,6 +62,7 @@ type WorldMode struct {
 	actorDeaths      map[uint32]time.Time
 	actorSoundFrames map[uint32]actorSoundFrame
 	actorLife        map[uint32]actorLife
+	actorNameReqAt   map[uint32]time.Time
 	gndNormalSource  *res.GND
 	gndTopNormals    [][4]modelPoint3
 	console          chatConsole
@@ -150,6 +151,7 @@ const (
 	nonPCDeathFadeDuration         = 5 * time.Second
 	mapFadeOutDuration             = 220 * time.Millisecond
 	mapFadeInDuration              = 340 * time.Millisecond
+	actorNameRequestCooldown       = time.Second
 )
 
 func NewWorldMode() *WorldMode {
@@ -1727,7 +1729,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	}
 
 	m.drawSceneFogVeil(screen, fog, projection)
-	m.drawSceneActorOverlays(screen, ctx, actorOverlays)
+	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d yaw=%.1f", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir, projection.cameraYaw)
@@ -2629,7 +2631,6 @@ func absInt(value int) int {
 
 type sceneActorDrawEntry struct {
 	actor       worldstate.Actor
-	label       string
 	screenX     float64
 	screenY     float64
 	worldX      float64
@@ -2652,6 +2653,7 @@ const (
 	actorJobWarpPortal            = 45
 	actorJobClearNPC              = 844
 	actorObjectTypeMob            = 5
+	actorObjectTypeNPC            = 6
 	actorObjectTypeNPCABR         = 13
 	actorObjectTypeNPCBionic      = 14
 )
@@ -2818,13 +2820,11 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, 
 	return actors
 }
 
-func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx Context, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx Context, projection sceneProjection, now time.Time, entries []sceneActorDrawEntry) {
 	for _, entry := range entries {
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
-	for _, entry := range entries {
-		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
-	}
+	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
 func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
@@ -2841,12 +2841,12 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx Context, 
 		player.Name = character.Name
 	}
 	player.Dir = ctx.World.Dir
-	entries = appendActorDrawEntry(entries, ctx.World, projection, player, actorDisplayName(ctx, player, true), true, now, width, height)
+	entries = appendActorDrawEntry(entries, ctx.World, projection, player, true, now, width, height)
 	for _, actor := range ctx.World.Actors {
 		if actor.ID == ctx.Session.AccountID || actor.ID == ctx.Session.CharID {
 			continue
 		}
-		entries = appendActorDrawEntry(entries, ctx.World, projection, actor, actorDisplayName(ctx, actor, false), false, now, width, height)
+		entries = appendActorDrawEntry(entries, ctx.World, projection, actor, false, now, width, height)
 	}
 	return entries
 }
@@ -2889,7 +2889,7 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Image, projection sceneP
 	drawFixedSpriteBillboardAlphaFlat3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+0.03, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
 }
 
-func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, label string, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
+func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
 	actorX, actorY := actor.RenderPosition(now)
 	actor.Dir = actor.RenderDirection(now)
 	terrainZ := terrainHeightAt(world, actorX, actorY)
@@ -2904,7 +2904,6 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	shadowPoint := projection.Project(worldX, worldY, terrainZ+0.05)
 	return append(entries, sceneActorDrawEntry{
 		actor:       actor,
-		label:       label,
 		screenX:     float64(point.x),
 		screenY:     float64(point.y),
 		worldX:      worldX,
@@ -3032,6 +3031,99 @@ func actorDisplayName(ctx Context, actor worldstate.Actor, isPlayer bool) string
 		return displayNameFromResource(resourceName)
 	}
 	return ""
+}
+
+func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+	if ctx.Input == nil || ctx.World == nil {
+		return
+	}
+	if _, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
+		return
+	}
+	actor, ok := hoveredCursorActor(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
+	if !ok || isWarpActor(actor) {
+		return
+	}
+	label := m.hoveredActorDisplayName(ctx, actor, now)
+	if label == "" {
+		return
+	}
+	actorX, actorY := actor.RenderPosition(now)
+	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
+	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
+	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
+	drawActorNameLabel(screen, label, float64(point.x), float64(point.y), scale)
+}
+
+func (m *WorldMode) hoveredActorDisplayName(ctx Context, actor worldstate.Actor, now time.Time) string {
+	if isLocalActor(ctx, actor.ID) {
+		return actorDisplayName(ctx, actor, true)
+	}
+	if name := sanitizeActorName(actor.Name); name != "" {
+		return name
+	}
+	if shouldUseServerNameForHoverActor(actor) {
+		m.requestActorName(ctx, actor.ID, now)
+		if name := actorResourceDisplayName(ctx, actor); name != "" {
+			return name
+		}
+		if res.HasPlayerJobToken(int(actor.Job)) {
+			return "Player"
+		}
+		if isMonsterLikeHoverActor(actor) {
+			return "Monster"
+		}
+		return "NPC"
+	}
+	if name := actorResourceDisplayName(ctx, actor); name != "" {
+		return name
+	}
+	return "Entity"
+}
+
+func actorResourceDisplayName(ctx Context, actor worldstate.Actor) string {
+	if ctx.Resources == nil {
+		return ""
+	}
+	if resourceName, ok := ctx.Resources.JobResourceName(int(actor.Job)); ok {
+		return displayNameFromResource(resourceName)
+	}
+	return ""
+}
+
+func (m *WorldMode) requestActorName(ctx Context, id uint32, now time.Time) {
+	if id == 0 || ctx.Network == nil || isLocalActor(ctx, id) {
+		return
+	}
+	if m.actorNameReqAt == nil {
+		m.actorNameReqAt = make(map[uint32]time.Time)
+	}
+	if previous, ok := m.actorNameReqAt[id]; ok && now.Sub(previous) < actorNameRequestCooldown {
+		return
+	}
+	if err := ctx.Network.SendNameRequest(id); err != nil {
+		log.Printf("send name request failed id=%d: %v", id, err)
+		return
+	}
+	m.actorNameReqAt[id] = now
+}
+
+func shouldUseServerNameForHoverActor(actor worldstate.Actor) bool {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		return true
+	}
+	if isMonsterLikeHoverActor(actor) {
+		return true
+	}
+	return actor.HasObjectType && actor.ObjectType == actorObjectTypeNPC
+}
+
+func isMonsterLikeHoverActor(actor worldstate.Actor) bool {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		return false
+	}
+	job := int(actor.Job)
+	return job >= 1000 && (job < 6001 || job > 6047)
 }
 
 func selectedCharacterName(s *session.Session) string {
