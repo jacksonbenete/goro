@@ -1414,8 +1414,7 @@ func formatProgressValue(current, next int64) string {
 }
 
 func world3DEnabled() bool {
-	value := strings.ToLower(strings.TrimSpace(os.Getenv("GORO_WORLD_3D")))
-	return value != "0" && value != "false" && value != "off"
+	return strings.TrimSpace(os.Getenv("GORO_WORLD_3D")) == "1"
 }
 
 func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
