@@ -1476,6 +1476,17 @@ func formatProgressValue(current, next int64) string {
 	return fmt.Sprintf("%d", current)
 }
 
+func (m *WorldMode) drawSceneFogVeil(screen *render.Image, fog sceneFog, projection sceneProjection) {
+	alpha := sceneFogVeilAlpha(fog, projection)
+	if alpha == 0 {
+		return
+	}
+	bounds := screen.Bounds()
+	fogColor := fog.color
+	fogColor.A = alpha
+	render.DrawRect(screen, 0, 0, float64(bounds.Dx()), float64(bounds.Dy()), fogColor)
+}
+
 func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	clear(screen)
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
@@ -1515,6 +1526,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 		}
 	}
 
+	m.drawSceneFogVeil(screen, fog, projection)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d yaw=%.1f", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir, projection.cameraYaw)

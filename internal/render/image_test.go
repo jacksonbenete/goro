@@ -32,3 +32,31 @@ func TestApplyCameraFog3DMixesByCameraDepth(t *testing.T) {
 		t.Fatalf("fog changed alpha: %+v", vertices[0])
 	}
 }
+
+func TestApplyCameraFog3DIgnoresTableFactorLikeRObrowser(t *testing.T) {
+	vertices := []Vertex3D{{
+		X: 0, Y: 0, Z: 0,
+		ColorR: 0, ColorG: 0, ColorB: 0, ColorA: 1,
+	}}
+	camera := Camera3D{
+		Enabled: true,
+		ViewProjection: [16]float32{
+			0: 1, 5: 1, 10: 1, 15: 1,
+		},
+		Fog: Fog3D{
+			Enabled: true,
+			Near:    0,
+			Far:     2,
+			ColorR:  0,
+			ColorG:  1,
+			ColorB:  0,
+			Factor:  0,
+		},
+	}
+
+	applyCameraFog3D(vertices, camera)
+
+	if vertices[0].ColorG == 0 {
+		t.Fatalf("fog factor should not disable render fog: %+v", vertices[0])
+	}
+}

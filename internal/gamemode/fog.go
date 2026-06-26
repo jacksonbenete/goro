@@ -63,6 +63,23 @@ func (f sceneFog) mixVertexTints(projection sceneProjection, verts [4]modelPoint
 	return tints
 }
 
+func sceneFogVeilAlpha(f sceneFog, projection sceneProjection) uint8 {
+	if !f.enabled || !projection.camera || f.far <= f.near {
+		return 0
+	}
+	depth := projection.cameraZoom * sceneFogVeilDepthScale()
+	amount := smoothstep(f.near, f.far, depth)
+	if amount <= 0 {
+		return 0
+	}
+	strength := math.Max(0, math.Min(1, sceneFloatEnv("GORO_FOG_VEIL_STRENGTH", 0.35)))
+	return clampColor(255 * amount * strength)
+}
+
+func sceneFogVeilDepthScale() float64 {
+	return math.Max(0, sceneFloatEnv("GORO_FOG_VEIL_DEPTH_SCALE", 1.2))
+}
+
 func smoothstep(edge0, edge1, x float64) float64 {
 	if edge0 == edge1 {
 		if x < edge0 {

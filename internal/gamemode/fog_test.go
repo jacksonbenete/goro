@@ -51,3 +51,20 @@ func TestSceneFogMixColorSmoothstepsToFogColor(t *testing.T) {
 		t.Fatalf("mid color mismatch: %#v", got)
 	}
 }
+
+func TestSceneFogVeilAlphaUsesCameraDepth(t *testing.T) {
+	fog := sceneFog{
+		enabled: true,
+		near:    120,
+		far:     360,
+		color:   color.RGBA{R: 100, G: 160, B: 100, A: 255},
+	}
+	projection := sceneProjection{camera: true, cameraZoom: 150}
+	alpha := sceneFogVeilAlpha(fog, projection)
+	if alpha == 0 {
+		t.Fatal("expected visible fog veil alpha")
+	}
+	if sceneFogVeilAlpha(fog, sceneProjection{camera: false, cameraZoom: 150}) != 0 {
+		t.Fatal("expected no veil alpha without camera renderer")
+	}
+}
