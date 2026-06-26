@@ -78,7 +78,11 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 	if inventory.MaxWeight > 0 && inventory.Weight*100 >= inventory.MaxWeight*50 {
 		weightColor = characterWindowWeightWarn
 	}
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Weight : %d / %d", inventory.Weight, inventory.MaxWeight), x+166, y+136, weightColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Weight : %d / %d", displayWeight(inventory.Weight), displayWeight(inventory.MaxWeight)), x+166, y+136, weightColor)
+}
+
+func displayWeight(raw int) int {
+	return raw / 10
 }
 
 func drawCharacterWindowBar(screen *render.Image, x, y, w int, label string, current, maxValue int, fill color.RGBA) {
@@ -87,7 +91,7 @@ func drawCharacterWindowBar(screen *render.Image, x, y, w int, label string, cur
 }
 
 func drawCharacterProgressBar(screen *render.Image, x, y, w int, label string, current, next int64, fill color.RGBA) {
-	render.DebugPrintAtColor(screen, fmt.Sprintf("%s %s", label, formatProgressValue(current, next)), x, y, characterWindowMutedColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("%s %s", label, formatEXPPercent(current, next)), x, y, characterWindowMutedColor)
 	drawRatioBar(screen, x, y+13, w, 6, ratioInt64(current, next), fill)
 }
 
@@ -136,11 +140,18 @@ func sessionProgressFromCharacter(character session.Character) session.Progress 
 	}
 }
 
-func formatProgressValue(current, next int64) string {
-	if next > 0 {
-		return fmt.Sprintf("%d / %d", current, next)
+func formatEXPPercent(current, next int64) string {
+	if next <= 0 {
+		return "--"
 	}
-	return fmt.Sprintf("%d", current)
+	percent := 100 * float64(current) / float64(next)
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	return fmt.Sprintf("%.1f%%", math.Floor(percent*10)/10)
 }
 
 func formatHUDNumber(value int64) string {
