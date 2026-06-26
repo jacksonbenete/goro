@@ -47,6 +47,7 @@ type WorldMode struct {
 	actorViewMiss    map[actorSpriteKey]struct{}
 	nonPCViews       map[int]*playerSpriteView
 	nonPCViewMiss    map[int]struct{}
+	rsmWorldCache    map[int][]modelWorldTriangle
 	rsmDebugLog      map[string]struct{}
 	pendingWarp      bool
 	pendingAttack    attackIntent
@@ -166,6 +167,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*playerSpriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
+	m.rsmWorldCache = make(map[int][]modelWorldTriangle)
 	m.rsmDebugLog = make(map[string]struct{})
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}
@@ -3410,6 +3412,10 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 		}
 	}
 	sortGNDSurfaces(surfaces)
+	if !(projection.camera && world3DEnabled()) {
+		m.drawGNDSurfaces2D(screen, manager, gnd, surfaces, float64(width), float64(height), projection, fog)
+		return
+	}
 	for _, surface := range surfaces {
 		m.drawGNDSurface(screen, manager, gnd, surface, float64(width), float64(height), projection, fog)
 	}
@@ -3706,10 +3712,7 @@ func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoin
 }
 
 func (m *WorldMode) drawGNDSurface(screen *render.Image, manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw, screenWidth, screenHeight float64, projection sceneProjection, fog sceneFog) {
-	if quadHasInvalidPoint(draw.points) {
-		return
-	}
-	if quadOutside(draw.points, screenWidth, screenHeight) {
+	if !gndSurfaceVisible(draw, screenWidth, screenHeight) {
 		return
 	}
 	if draw.water {
@@ -3741,6 +3744,191 @@ func (m *WorldMode) drawGNDSurface(screen *render.Image, manager *res.Manager, g
 		return
 	}
 	drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
+}
+
+func gndSurfaceVisible(draw gndSurfaceDraw, screenWidth, screenHeight float64) bool {
+	return !quadHasInvalidPoint(draw.points) && !quadOutside(draw.points, screenWidth, screenHeight)
+}
+
+func (m *WorldMode) drawGNDSurfaces2D(screen *render.Image, manager *res.Manager, gnd *res.GND, surfaces []gndSurfaceDraw, screenWidth, screenHeight float64, projection sceneProjection, fog sceneFog) {
+	for i := 0; i < len(surfaces); {
+		if !gndSurfaceVisible(surfaces[i], screenWidth, screenHeight) {
+			i++
+			continue
+		}
+		texture := m.gndSurfaceTexture(manager, gnd, surfaces[i])
+		j := i + 1
+		if texture != nil {
+			for j < len(surfaces) {
+				if !gndSurfaceVisible(surfaces[j], screenWidth, screenHeight) {
+					break
+				}
+				if m.gndSurfaceTexture(manager, gnd, surfaces[j]) != texture {
+					break
+				}
+				j++
+			}
+			drawTexturedGNDSurfaces2D(screen, texture, gnd, surfaces[i:j], projection, fog)
+		} else {
+			for j < len(surfaces) {
+				if !gndSurfaceVisible(surfaces[j], screenWidth, screenHeight) {
+					break
+				}
+				if m.gndSurfaceTexture(manager, gnd, surfaces[j]) != nil {
+					break
+				}
+				j++
+			}
+			drawColoredGNDSurfaces2D(screen, m.whitePixel, gnd, surfaces[i:j], projection, fog)
+		}
+		i = j
+	}
+}
+
+func (m *WorldMode) gndSurfaceTexture(manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw) *render.Image {
+	if draw.water {
+		return m.waterTexture(manager, draw.waterType, draw.waterFrame)
+	}
+	return m.groundTexture(manager, gndTextureName(gnd, draw.surface.TextureID))
+}
+
+func drawTexturedGNDSurfaces2D(screen, texture *render.Image, gnd *res.GND, surfaces []gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
+	bounds := texture.Bounds()
+	textureWidth := float32(bounds.Dx())
+	textureHeight := float32(bounds.Dy())
+	if textureWidth <= 0 || textureHeight <= 0 {
+		return
+	}
+	const maxVertices = 60000
+	vertices := make([]render.Vertex, 0, minInt(len(surfaces)*4, maxVertices))
+	indices := make([]uint16, 0, minInt(len(surfaces)*6, maxVertices))
+	flush := func() {
+		if len(indices) == 0 {
+			return
+		}
+		screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+		vertices = vertices[:0]
+		indices = indices[:0]
+	}
+	for _, draw := range surfaces {
+		needed := 4
+		if !draw.water {
+			if _, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
+				needed = 49
+			}
+		}
+		if len(vertices)+needed > maxVertices {
+			flush()
+		}
+		if draw.water {
+			tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
+			appendTexturedGNDSurface2D(&vertices, &indices, draw.points, draw.uvs, draw.indices, tints, textureWidth, textureHeight)
+			continue
+		}
+		if lightmap, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
+			appendTexturedLightmappedGNDSurface2D(&vertices, &indices, textureWidth, textureHeight, draw, lightmap, projection, fog)
+			continue
+		}
+		tints := surfaceVertexTints(gnd, draw.surface, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting)
+		appendTexturedGNDSurface2D(&vertices, &indices, draw.points, draw.uvs, draw.indices, fog.mixVertexTints(projection, draw.verts, tints), textureWidth, textureHeight)
+	}
+	flush()
+}
+
+func appendTexturedGNDSurface2D(vertices *[]render.Vertex, indices *[]uint16, points [4]screenPoint, uvs [4]texturePoint, sourceIndices []uint16, tints [4]color.RGBA, textureWidth, textureHeight float32) {
+	base := uint16(len(*vertices))
+	*vertices = append(*vertices,
+		texturedSurfaceVertex(points[0], uvs[0], tints[0], textureWidth, textureHeight),
+		texturedSurfaceVertex(points[1], uvs[1], tints[1], textureWidth, textureHeight),
+		texturedSurfaceVertex(points[2], uvs[2], tints[2], textureWidth, textureHeight),
+		texturedSurfaceVertex(points[3], uvs[3], tints[3], textureWidth, textureHeight),
+	)
+	for _, index := range sourceIndices {
+		*indices = append(*indices, base+index)
+	}
+}
+
+func appendTexturedLightmappedGNDSurface2D(vertices *[]render.Vertex, indices *[]uint16, textureWidth, textureHeight float32, draw gndSurfaceDraw, lightmap res.GNDLightmap, projection sceneProjection, fog sceneFog) {
+	const steps = 6
+	base := uint16(len(*vertices))
+	surfaceBase := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	if draw.surface.Color.A != 0 {
+		surfaceBase = draw.surface.Color
+	}
+	lightScales := vertexLightScales(draw.lighting, draw.vertexNorms)
+	for y := 0; y <= steps; y++ {
+		t := float64(y) / steps
+		for x := 0; x <= steps; x++ {
+			s := float64(x) / steps
+			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255
+			lm := res.GNDLightmapSampleColor(lightmap, s, t)
+			lightScale := bilerpModelPoint(lightScales, s, t)
+			tint := color.RGBA{
+				R: clampColor(float64(surfaceBase.R) * (lightScale.x*alpha + float64(lm.R)/255)),
+				G: clampColor(float64(surfaceBase.G) * (lightScale.y*alpha + float64(lm.G)/255)),
+				B: clampColor(float64(surfaceBase.B) * (lightScale.z*alpha + float64(lm.B)/255)),
+				A: 255,
+			}
+			world := bilerpModelPoint(draw.verts, s, t)
+			tint = fog.mixColor(tint, projection.FogDepth(world.x, world.z, world.y))
+			*vertices = append(*vertices, texturedSurfaceVertex(
+				bilerpScreenPoint(draw.points, s, t),
+				bilerpTexturePoint(draw.uvs, s, t),
+				tint,
+				textureWidth,
+				textureHeight,
+			))
+		}
+	}
+
+	row := steps + 1
+	for y := 0; y < steps; y++ {
+		for x := 0; x < steps; x++ {
+			topLeft := base + uint16(y*row+x)
+			topRight := base + uint16(y*row+x+1)
+			bottomLeft := base + uint16((y+1)*row+x)
+			bottomRight := base + uint16((y+1)*row+x+1)
+			*indices = append(*indices, topLeft, topRight, bottomRight, topLeft, bottomRight, bottomLeft)
+		}
+	}
+}
+
+func drawColoredGNDSurfaces2D(screen, white *render.Image, gnd *res.GND, surfaces []gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
+	const maxVertices = 60000
+	vertices := make([]render.Vertex, 0, minInt(len(surfaces)*4, maxVertices))
+	indices := make([]uint16, 0, minInt(len(surfaces)*6, maxVertices))
+	flush := func() {
+		if len(indices) == 0 {
+			return
+		}
+		screen.DrawTriangles(vertices, indices, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+		vertices = vertices[:0]
+		indices = indices[:0]
+	}
+	for _, draw := range surfaces {
+		if len(vertices)+4 > maxVertices {
+			flush()
+		}
+		var tints [4]color.RGBA
+		if draw.water {
+			tints = [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint}
+		} else {
+			textureName := gndTextureName(gnd, draw.surface.TextureID)
+			tints = groundSurfaceVertexColors(textureName, draw.surface.Color, draw.heights, draw.vertexNorms, draw.lighting)
+		}
+		base := uint16(len(vertices))
+		tints = fog.mixVertexTints(projection, draw.verts, tints)
+		vertices = append(vertices,
+			texturedSurfaceVertex(draw.points[0], texturePoint{u: 0, v: 0}, tints[0], 1, 1),
+			texturedSurfaceVertex(draw.points[1], texturePoint{u: 1, v: 0}, tints[1], 1, 1),
+			texturedSurfaceVertex(draw.points[2], texturePoint{u: 1, v: 1}, tints[2], 1, 1),
+			texturedSurfaceVertex(draw.points[3], texturePoint{u: 0, v: 1}, tints[3], 1, 1),
+		)
+		for _, index := range draw.indices {
+			indices = append(indices, base+index)
+		}
+	}
+	flush()
 }
 
 func (m *WorldMode) drawWaterSurface(screen *render.Image, manager *res.Manager, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {

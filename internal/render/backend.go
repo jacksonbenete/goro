@@ -3,6 +3,7 @@ package render
 import (
 	"log"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"time"
 
@@ -37,6 +38,7 @@ type runner struct {
 	frames         int64
 	measuredFrames int64
 	quit           func()
+	cpuProfile     *os.File
 }
 
 func Run(game Game, cfg core.WindowConfig) error {
@@ -80,6 +82,11 @@ func Run(game Game, cfg core.WindowConfig) error {
 		}
 	})
 	gg.OnClose(func() {
+		if r.cpuProfile != nil {
+			pprof.StopCPUProfile()
+			_ = r.cpuProfile.Close()
+			r.cpuProfile = nil
+		}
 		if r.gpu != nil {
 			r.gpu.release()
 			r.gpu = nil
@@ -165,6 +172,18 @@ func (r *runner) update() error {
 	if r.duration > 0 && r.started.IsZero() {
 		r.started = time.Now()
 		r.lastLog = r.started
+		if path := os.Getenv("GORO_CPU_PROFILE"); path != "" {
+			file, err := os.Create(path)
+			if err != nil {
+				log.Printf("cpu profile start failed: %v", err)
+			} else if err := pprof.StartCPUProfile(file); err != nil {
+				log.Printf("cpu profile start failed: %v", err)
+				_ = file.Close()
+			} else {
+				r.cpuProfile = file
+				log.Printf("cpu profile writing %s", path)
+			}
+		}
 		log.Printf("benchmark start duration=%s warmup=%s vsync=%v", r.duration, r.warmup, os.Getenv("GORO_VSYNC") != "0")
 	}
 	if err := r.game.Update(); err != nil {
@@ -198,6 +217,11 @@ func (r *runner) update() error {
 			}
 		}
 		log.Printf("benchmark result fps=%.1f measured_fps=%.1f frames=%d measured_frames=%d elapsed=%.3fs measured_elapsed=%.3fs", float64(r.frames)/elapsed, measuredFPS, r.frames, r.measuredFrames, elapsed, measuredElapsed)
+		if r.cpuProfile != nil {
+			pprof.StopCPUProfile()
+			_ = r.cpuProfile.Close()
+			r.cpuProfile = nil
+		}
 		r.quit()
 	}
 	return nil
