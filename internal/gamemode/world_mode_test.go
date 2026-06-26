@@ -1,6 +1,7 @@
 package gamemode
 
 import (
+	"image/color"
 	"math"
 	"os"
 	"path/filepath"
@@ -1013,7 +1014,7 @@ func TestSurfaceVertexTintsUsePerVertexNormals(t *testing.T) {
 		Ambient:   [3]float32{0, 0, 0},
 		Opacity:   1,
 	}})
-	tints := surfaceVertexTints(nil, res.GNDSurface{}, [4]int{0, 1, 2, 3}, [4]float32{}, [4]modelPoint3{
+	tints := surfaceVertexTints(nil, res.GNDSurface{}, uniformGNDSurfaceBaseTints(color.RGBA{}), [4]int{0, 1, 2, 3}, [4]float32{}, [4]modelPoint3{
 		{x: -0.5, y: -math.Sqrt2 / 2, z: -0.5},
 		{x: 0.5, y: -math.Sqrt2 / 2, z: -0.5},
 		{x: 0.5, y: -math.Sqrt2 / 2, z: 0.5},
@@ -1021,6 +1022,35 @@ func TestSurfaceVertexTintsUsePerVertexNormals(t *testing.T) {
 	}, lighting)
 	if tints[0] == tints[1] && tints[0] == tints[2] && tints[0] == tints[3] {
 		t.Fatalf("vertex tints are uniform: %+v", tints)
+	}
+}
+
+func TestTopGNDSurfaceBaseTintsUseNeighborTileColors(t *testing.T) {
+	gnd := &res.GND{
+		Width:  2,
+		Height: 2,
+		Surfaces: []res.GNDSurface{
+			{Color: color.RGBA{R: 10, G: 20, B: 30, A: 255}},
+			{Color: color.RGBA{R: 40, G: 50, B: 60, A: 255}},
+			{Color: color.RGBA{R: 70, G: 80, B: 90, A: 255}},
+			{Color: color.RGBA{R: 100, G: 110, B: 120, A: 255}},
+		},
+		Cells: []res.GNDCell{
+			{Top: 0, Front: -1, Right: -1},
+			{Top: 1, Front: -1, Right: -1},
+			{Top: 2, Front: -1, Right: -1},
+			{Top: 3, Front: -1, Right: -1},
+		},
+	}
+	tints := topGNDSurfaceBaseTints(gnd, 0, 0, color.RGBA{})
+	want := [4]color.RGBA{
+		{R: 10, G: 20, B: 30, A: 255},
+		{R: 40, G: 50, B: 60, A: 255},
+		{R: 100, G: 110, B: 120, A: 255},
+		{R: 70, G: 80, B: 90, A: 255},
+	}
+	if tints != want {
+		t.Fatalf("top GND tints = %+v, want %+v", tints, want)
 	}
 }
 

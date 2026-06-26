@@ -3495,7 +3495,7 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
 						{x: float64(x) * 2, y: float64(cell.Heights[2]), z: float64(y+1) * 2},
 					}
-					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, cell.Heights, gndTopNormalsAt(topNormals, gnd, x, y), lighting))
+					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, topGNDSurfaceBaseTints(gnd, x, y, surface.Color), cell.Heights, gndTopNormalsAt(topNormals, gnd, x, y), lighting))
 					if waterDraw, ok := newGNDWaterDraw(projection, x, y, cell, gnd, rsw, now); ok {
 						surfaces = append(surfaces, waterDraw)
 					}
@@ -3515,7 +3515,7 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 					}
 					heights := [4]float32{cell.Heights[2], cell.Heights[3], neighbor.Heights[1], neighbor.Heights[0]}
 					normals := uniformGNDNormals(modelPoint3{z: 1})
-					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, heights, normals, lighting))
+					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, uniformGNDSurfaceBaseTints(surface.Color), heights, normals, lighting))
 				}
 			}
 
@@ -3532,7 +3532,7 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 					}
 					heights := [4]float32{cell.Heights[3], cell.Heights[1], neighbor.Heights[0], neighbor.Heights[2]}
 					normals := uniformGNDNormals(modelPoint3{x: 1})
-					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, heights, normals, lighting))
+					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, uniformGNDSurfaceBaseTints(surface.Color), heights, normals, lighting))
 				}
 			}
 		}
@@ -3642,6 +3642,7 @@ type gndSurfaceDraw struct {
 	vertexOrder [4]int
 	indices     []uint16
 	surface     res.GNDSurface
+	baseTints   [4]color.RGBA
 	heights     [4]float32
 	vertexNorms [4]modelPoint3
 	lighting    sceneLighting
@@ -3736,6 +3737,38 @@ func gndTopNormalsAt(normals [][4]modelPoint3, gnd *res.GND, x, y int) [4]modelP
 	return normals[index]
 }
 
+func topGNDSurfaceBaseTints(gnd *res.GND, x, y int, fallback color.RGBA) [4]color.RGBA {
+	return [4]color.RGBA{
+		gndTopTileBaseTintAt(gnd, x, y, fallback),
+		gndTopTileBaseTintAt(gnd, x+1, y, fallback),
+		gndTopTileBaseTintAt(gnd, x+1, y+1, fallback),
+		gndTopTileBaseTintAt(gnd, x, y+1, fallback),
+	}
+}
+
+func gndTopTileBaseTintAt(gnd *res.GND, x, y int, fallback color.RGBA) color.RGBA {
+	if gnd != nil {
+		if cell, ok := gnd.Cell(x, y); ok && cell.Top >= 0 {
+			if surface, ok := gnd.Surface(cell.Top); ok {
+				return gndSurfaceBaseTint(surface.Color)
+			}
+		}
+	}
+	return gndSurfaceBaseTint(fallback)
+}
+
+func uniformGNDSurfaceBaseTints(surfaceColor color.RGBA) [4]color.RGBA {
+	tint := gndSurfaceBaseTint(surfaceColor)
+	return [4]color.RGBA{tint, tint, tint, tint}
+}
+
+func gndSurfaceBaseTint(surfaceColor color.RGBA) color.RGBA {
+	if surfaceColor.A == 0 {
+		return color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	}
+	return color.RGBA{R: surfaceColor.R, G: surfaceColor.G, B: surfaceColor.B, A: 255}
+}
+
 func uniformGNDNormals(normal modelPoint3) [4]modelPoint3 {
 	normal = normalize3(normal)
 	return [4]modelPoint3{normal, normal, normal, normal}
@@ -3791,10 +3824,10 @@ func mapWater(gnd *res.GND, rsw *res.RSW) (res.RSWWater, bool) {
 }
 
 func newGNDSurfaceDraw(projection sceneProjection, verts [4]modelPoint3, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, lighting sceneLighting) gndSurfaceDraw {
-	return newGNDSurfaceDrawWithNormals(projection, verts, uvs, vertexOrder, indices, surface, heights, [4]modelPoint3{}, lighting)
+	return newGNDSurfaceDrawWithNormals(projection, verts, uvs, vertexOrder, indices, surface, uniformGNDSurfaceBaseTints(surface.Color), heights, [4]modelPoint3{}, lighting)
 }
 
-func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoint3, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, heights [4]float32, vertexNormals [4]modelPoint3, lighting sceneLighting) gndSurfaceDraw {
+func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoint3, uvs [4]texturePoint, vertexOrder [4]int, indices []uint16, surface res.GNDSurface, baseTints [4]color.RGBA, heights [4]float32, vertexNormals [4]modelPoint3, lighting sceneLighting) gndSurfaceDraw {
 	normal := quadNormal(verts)
 	for i := range vertexNormals {
 		if vertexNormals[i] == (modelPoint3{}) {
@@ -3810,6 +3843,7 @@ func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoin
 		vertexOrder: vertexOrder,
 		indices:     indices,
 		surface:     surface,
+		baseTints:   baseTints,
 		heights:     heights,
 		vertexNorms: vertexNormals,
 		lighting:    lighting,
@@ -3828,10 +3862,10 @@ func (m *WorldMode) drawGNDSurface(screen *render.Image, manager *res.Manager, g
 	textureName := gndTextureName(gnd, draw.surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
 		if lightmap, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
-			drawTexturedLightmappedSurface3D(screen, texture, draw.verts, draw.uvs, draw.surface.Color, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
+			drawTexturedLightmappedSurface3D(screen, texture, draw.verts, draw.uvs, draw.baseTints, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
 			return
 		}
-		tints := surfaceVertexTints(gnd, draw.surface, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting)
+		tints := surfaceVertexTints(gnd, draw.surface, draw.baseTints, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting)
 		drawTexturedSurface3D(screen, texture, draw.verts, draw.uvs, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
 		return
 	}
@@ -4199,11 +4233,7 @@ func clampUnit(value float64) float64 {
 	return math.Max(0, math.Min(1, value))
 }
 
-func surfaceTint(surfaceColor color.RGBA, height float32, normal modelPoint3, lighting sceneLighting) color.RGBA {
-	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	if surfaceColor.A != 0 {
-		base = surfaceColor
-	}
+func surfaceTint(base color.RGBA, height float32, normal modelPoint3, lighting sceneLighting) color.RGBA {
 	scale := lighting.groundScale(normal)
 	heightShade := groundHeightShadeAt(height)
 	return color.RGBA{
@@ -4214,31 +4244,28 @@ func surfaceTint(surfaceColor color.RGBA, height float32, normal modelPoint3, li
 	}
 }
 
-func surfaceVertexTints(gnd *res.GND, surface res.GNDSurface, vertexOrder [4]int, heights [4]float32, normals [4]modelPoint3, lighting sceneLighting) [4]color.RGBA {
+func surfaceVertexTints(gnd *res.GND, surface res.GNDSurface, baseTints [4]color.RGBA, vertexOrder [4]int, heights [4]float32, normals [4]modelPoint3, lighting sceneLighting) [4]color.RGBA {
 	if gnd != nil {
 		if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
-			return lightmapSurfaceVertexTints(surface.Color, lightmap, vertexOrder, vertexLightScales(lighting, normals))
+			return lightmapSurfaceVertexTints(baseTints, lightmap, vertexOrder, vertexLightScales(lighting, normals))
 		}
 	}
 	return [4]color.RGBA{
-		surfaceTint(surface.Color, heights[0], normals[0], lighting),
-		surfaceTint(surface.Color, heights[1], normals[1], lighting),
-		surfaceTint(surface.Color, heights[2], normals[2], lighting),
-		surfaceTint(surface.Color, heights[3], normals[3], lighting),
+		surfaceTint(baseTints[0], heights[0], normals[0], lighting),
+		surfaceTint(baseTints[1], heights[1], normals[1], lighting),
+		surfaceTint(baseTints[2], heights[2], normals[2], lighting),
+		surfaceTint(baseTints[3], heights[3], normals[3], lighting),
 	}
 }
 
-func lightmapSurfaceVertexTints(surfaceColor color.RGBA, lightmap res.GNDLightmap, vertexOrder [4]int, lightScales [4]modelPoint3) [4]color.RGBA {
-	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	if surfaceColor.A != 0 {
-		base = surfaceColor
-	}
+func lightmapSurfaceVertexTints(baseTints [4]color.RGBA, lightmap res.GNDLightmap, vertexOrder [4]int, lightScales [4]modelPoint3) [4]color.RGBA {
 	var tints [4]color.RGBA
 	for i, sourceVertex := range vertexOrder {
 		sample := gndLightmapRenderSample(sourceVertex)
 		alpha := float64(lightmap.Alpha[sample.y][sample.x]) / 255
 		lm := lightmap.Color[sample.y][sample.x]
 		lightScale := lightScales[i]
+		base := baseTints[i]
 		tints[i] = color.RGBA{
 			R: clampColor(float64(base.R) * (lightScale.x*alpha + float64(lm.R)/255)),
 			G: clampColor(float64(base.G) * (lightScale.y*alpha + float64(lm.G)/255)),
@@ -4363,15 +4390,11 @@ func drawTexturedSurface3DWithOptions(screen, texture *render.Image, verts [4]mo
 	screen.DrawTriangles3D(vertices, indices, texture, options)
 }
 
-func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
+func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, baseTints [4]color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
 	const steps = 6
 	bounds := texture.Bounds()
 	textureWidth := float32(bounds.Dx())
 	textureHeight := float32(bounds.Dy())
-	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
-	if surfaceColor.A != 0 {
-		base = surfaceColor
-	}
 
 	vertices := make([]render.Vertex3D, 0, (steps+1)*(steps+1))
 	for y := 0; y <= steps; y++ {
@@ -4381,6 +4404,7 @@ func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]mo
 			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255
 			lm := res.GNDLightmapSampleColor(lightmap, s, t)
 			lightScale := bilerpModelPoint(lightScales, s, t)
+			base := bilerpColor(baseTints, s, t)
 			tint := color.RGBA{
 				R: clampColor(float64(base.R) * (lightScale.x*alpha + float64(lm.R)/255)),
 				G: clampColor(float64(base.G) * (lightScale.y*alpha + float64(lm.G)/255)),
@@ -4418,6 +4442,21 @@ func bilerpTexturePoint(points [4]texturePoint, s, t float64) texturePoint {
 	top := lerpTexturePoint(points[0], points[1], s)
 	bottom := lerpTexturePoint(points[3], points[2], s)
 	return lerpTexturePoint(top, bottom, t)
+}
+
+func bilerpColor(colors [4]color.RGBA, s, t float64) color.RGBA {
+	top := lerpColor(colors[0], colors[1], s)
+	bottom := lerpColor(colors[3], colors[2], s)
+	return lerpColor(top, bottom, t)
+}
+
+func lerpColor(a, b color.RGBA, t float64) color.RGBA {
+	return color.RGBA{
+		R: clampColor(float64(a.R) + (float64(b.R)-float64(a.R))*t),
+		G: clampColor(float64(a.G) + (float64(b.G)-float64(a.G))*t),
+		B: clampColor(float64(a.B) + (float64(b.B)-float64(a.B))*t),
+		A: clampColor(float64(a.A) + (float64(b.A)-float64(a.A))*t),
+	}
 }
 
 func bilerpModelPoint(points [4]modelPoint3, s, t float64) modelPoint3 {
