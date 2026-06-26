@@ -512,6 +512,110 @@ func TestApplyActorHPUpdateStoresExactLife(t *testing.T) {
 	}
 }
 
+func TestCombatLifeFallbackDoesNotSubtractRawDamageFromTinyHPGauge(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		Job:           1008,
+		X:             11,
+		Y:             20,
+		HasObjectType: true,
+		ObjectType:    actorObjectTypeMob,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorHPUpdate(network.ActorHPUpdate{ID: 300, HP: 95, MaxHP: 100, Tiny: true})
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      42,
+		Action:      0,
+	})
+
+	life, ok := mode.actorLife[300]
+	if !ok {
+		t.Fatal("life missing")
+	}
+	if life.hp != 95 || life.maxHP != 100 || !life.fromTiny {
+		t.Fatalf("tiny life = %+v, want unchanged 95/100", life)
+	}
+}
+
+func TestCombatLifeFallbackSubtractsRawDamageFromExactHPGauge(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		Job:           1002,
+		X:             11,
+		Y:             20,
+		HasObjectType: true,
+		ObjectType:    actorObjectTypeMob,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorHPUpdate(network.ActorHPUpdate{ID: 300, HP: 50, MaxHP: 100})
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      12,
+		Action:      0,
+	})
+
+	life, ok := mode.actorLife[300]
+	if !ok {
+		t.Fatal("life missing")
+	}
+	if life.hp != 38 || life.maxHP != 100 || life.fromTiny {
+		t.Fatalf("exact life = %+v, want 38/100", life)
+	}
+}
+
+func TestActorLifeForDisplayUsesLocalPlayerHPAndSP(t *testing.T) {
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+			Vitals: session.Vitals{
+				HP:    75,
+				MaxHP: 100,
+				SP:    8,
+				MaxSP: 20,
+			},
+		},
+	}
+
+	life, ok := mode.actorLifeForDisplay(ctx, worldstate.Actor{ID: 150000})
+	if !ok {
+		t.Fatal("local player life missing")
+	}
+	if life.hp != 75 || life.maxHP != 100 || life.sp != 8 || life.maxSP != 20 || !life.hasSP || !life.player {
+		t.Fatalf("local player life = %+v", life)
+	}
+}
+
+func TestActorOverlayLifeBarIsBelowNameLabel(t *testing.T) {
+	nameY := actorNameLabelY(100, 1.2)
+	barY := actorLifeBarY(100, 1.2)
+	if barY <= nameY+10 {
+		t.Fatalf("bar y = %.1f, name y = %.1f; want bar below name", barY, nameY)
+	}
+}
+
 func TestCombatHitDelayUsesActionSoundMotion(t *testing.T) {
 	action := res.ACTAction{Animations: []res.ACTAnimation{
 		{Sound: -1},

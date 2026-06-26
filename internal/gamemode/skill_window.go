@@ -140,7 +140,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
 	render.DebugPrintAtColor(screen, "Skill Tree", x+skillWindowPad, y+9, skillWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, skillWindowButtonColor)
-	render.DebugPrintAtColor(screen, "x", cx+5, cy+2, skillWindowTextColor)
+	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, skillWindowTextColor)
 	render.DrawRect(screen, float64(x+8), float64(y+skillWindowTitleH), float64(skillWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
 
 	points := sessionSkillPoints(ctx.Session)

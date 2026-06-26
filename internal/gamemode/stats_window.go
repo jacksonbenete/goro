@@ -133,7 +133,7 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 	render.DebugPrintAtColor(screen, "Status", x+statsWindowPad, y+9, statsWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, statsWindowButtonColor)
-	render.DebugPrintAtColor(screen, "x", cx+5, cy+2, statsWindowTextColor)
+	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, statsWindowTextColor)
 	render.DrawRect(screen, float64(x+8), float64(y+statsWindowTitleH), float64(statsWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
 
 	stats := sessionStats(ctx.Session)

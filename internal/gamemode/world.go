@@ -126,6 +126,10 @@ type actorAnimation struct {
 type actorLife struct {
 	hp        int
 	maxHP     int
+	sp        int
+	maxSP     int
+	hasSP     bool
+	player    bool
 	fromTiny  bool
 	updatedAt time.Time
 }
@@ -1106,6 +1110,9 @@ func (m *WorldMode) applyCombatLifeFallback(ctx Context, target worldstate.Actor
 	life, ok := m.actorLife[target.ID]
 	if !ok || life.maxHP <= 0 {
 		life = actorLife{hp: 100, maxHP: 100}
+	}
+	if life.fromTiny {
+		return
 	}
 	life.hp -= damage
 	if life.hp < 0 {
@@ -2659,6 +2666,16 @@ func maxInt(a, b int) int {
 	return b
 }
 
+func clampGameInt(value, minValue, maxValue int) int {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
+	}
+	return value
+}
+
 func absInt(value int) int {
 	if value < 0 {
 		return -value
@@ -3241,8 +3258,19 @@ func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scal
 		return
 	}
 	x := int(math.Round(centerX)) - text.Bounds().Dx()/2
-	y := int(baseY + 13*scale)
+	y := int(actorNameLabelY(baseY, scale))
 	render.DrawOutlinedTextAt(screen, label, x, y, foreground, outline)
+}
+
+func actorNameLabelY(baseY, scale float64) float64 {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	return baseY + 13*scale
+}
+
+func actorLifeBarY(baseY, scale float64) float64 {
+	return actorNameLabelY(baseY, scale) + 14
 }
 
 func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sceneActorDrawEntry) {
@@ -3257,12 +3285,20 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sc
 		ratio = 1
 	}
 	const width = 60.0
-	const height = 5.0
+	height := 5.0
+	if life.hasSP {
+		height = 9.0
+	}
 	x := math.Round(entry.screenX - width/2)
-	y := math.Round(entry.screenY + 3*entry.scale)
+	y := math.Round(actorLifeBarY(entry.screenY, entry.scale))
 	fillWidth := math.Round((width - 2) * ratio)
 	fill := color.RGBA{R: 255, G: 0, B: 231, A: 255}
-	if ratio < 0.25 {
+	if life.player {
+		fill = color.RGBA{R: 16, G: 239, B: 33, A: 255}
+		if ratio < 0.25 {
+			fill = color.RGBA{R: 255, G: 0, B: 0, A: 255}
+		}
+	} else if ratio < 0.25 {
 		fill = color.RGBA{R: 255, G: 255, B: 0, A: 255}
 	}
 	render.DrawRect(screen, x, y, width, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
@@ -3270,10 +3306,28 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sc
 	if fillWidth > 0 {
 		render.DrawRect(screen, x+1, y+1, fillWidth, 3, fill)
 	}
+	if life.hasSP {
+		spRatio := float64(life.sp) / float64(life.maxSP)
+		if spRatio < 0 {
+			spRatio = 0
+		} else if spRatio > 1 {
+			spRatio = 1
+		}
+		render.DrawRect(screen, x, y+4, width, 1, color.RGBA{R: 16, G: 24, B: 156, A: 255})
+		if spWidth := math.Round((width - 2) * spRatio); spWidth > 0 {
+			render.DrawRect(screen, x+1, y+5, spWidth, 3, color.RGBA{R: 24, G: 99, B: 222, A: 255})
+		}
+	}
 }
 
 func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (actorLife, bool) {
-	if actor.ID == 0 || m.actorLife == nil {
+	if actor.ID == 0 {
+		return actorLife{}, false
+	}
+	if isLocalActor(ctx, actor.ID) {
+		return localPlayerLifeForDisplay(ctx)
+	}
+	if m.actorLife == nil {
 		return actorLife{}, false
 	}
 	if !actorCanBeAttackClicked(ctx, actor) {
@@ -3284,6 +3338,37 @@ func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (ac
 		return actorLife{}, false
 	}
 	return life, true
+}
+
+func localPlayerLifeForDisplay(ctx Context) (actorLife, bool) {
+	if ctx.Session == nil {
+		return actorLife{}, false
+	}
+	hp := ctx.Session.Vitals.HP
+	maxHP := ctx.Session.Vitals.MaxHP
+	sp := ctx.Session.Vitals.SP
+	maxSP := ctx.Session.Vitals.MaxSP
+	if maxHP <= 0 {
+		character := selectedCharacter(ctx.Session)
+		hp = int(character.HP)
+		maxHP = int(character.MaxHP)
+	}
+	if maxSP <= 0 {
+		character := selectedCharacter(ctx.Session)
+		sp = int(character.SP)
+		maxSP = int(character.MaxSP)
+	}
+	if maxHP <= 0 {
+		return actorLife{}, false
+	}
+	return actorLife{
+		hp:     clampGameInt(hp, 0, maxHP),
+		maxHP:  maxHP,
+		sp:     clampGameInt(sp, 0, maxSP),
+		maxSP:  maxSP,
+		hasSP:  maxSP > 0,
+		player: true,
+	}, true
 }
 
 func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
