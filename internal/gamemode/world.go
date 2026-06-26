@@ -2824,6 +2824,12 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx Context, pr
 	for _, entry := range entries {
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
+	for _, entry := range entries {
+		if !entry.isPlayer {
+			continue
+		}
+		drawActorNameLabel(screen, actorDisplayName(ctx, entry.actor, true), entry.screenX, entry.screenY, entry.scale, actorNameLabelColor(entry.actor, true))
+	}
 	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
@@ -3052,7 +3058,7 @@ func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx Context,
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
-	drawActorNameLabel(screen, label, float64(point.x), float64(point.y), scale)
+	drawActorNameLabel(screen, label, float64(point.x), float64(point.y), scale, actorNameLabelColor(actor, isLocalActor(ctx, actor.ID)))
 }
 
 func (m *WorldMode) hoveredActorDisplayName(ctx Context, actor worldstate.Actor, now time.Time) string {
@@ -3170,7 +3176,21 @@ func titleASCIIWord(word string) string {
 	return strings.ToUpper(word[:1]) + word[1:]
 }
 
-func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scale float64) {
+func actorNameLabelColor(actor worldstate.Actor, isPlayer bool) color.RGBA {
+	if isPlayer {
+		return color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	}
+	switch {
+	case actor.HasObjectType && actor.ObjectType == actorObjectTypeNPC:
+		return color.RGBA{R: 148, G: 189, B: 247, A: 255}
+	case isMonsterLikeHoverActor(actor):
+		return color.RGBA{R: 255, G: 198, B: 198, A: 255}
+	default:
+		return color.RGBA{R: 248, G: 248, B: 248, A: 255}
+	}
+}
+
+func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scale float64, foreground color.RGBA) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return
@@ -3178,10 +3198,14 @@ func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scal
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
-	x := int(centerX) - len(label)*3
+	outline := color.RGBA{A: 196}
+	text := render.OutlinedTextImage(label, foreground, outline)
+	if text == nil {
+		return
+	}
+	x := int(math.Round(centerX)) - text.Bounds().Dx()/2
 	y := int(baseY + 13*scale)
-	debugText(screen, x+1, y+1, "%s", label)
-	debugText(screen, x, y, "%s", label)
+	render.DrawOutlinedTextAt(screen, label, x, y, foreground, outline)
 }
 
 func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sceneActorDrawEntry) {

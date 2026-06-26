@@ -315,7 +315,7 @@ func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Image, ctx Context
 		return
 	}
 	label := m.groundItemLabel(ctx, item)
-	debugText(screen, ctx.Input.MouseX+14, ctx.Input.MouseY+18, "%s", label)
+	render.DrawOutlinedTextAt(screen, label, ctx.Input.MouseX+14, ctx.Input.MouseY+18, color.RGBA{R: 255, G: 239, B: 148, A: 255}, color.RGBA{A: 196})
 }
 
 func clickedGroundItem(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.FloorItem, bool) {
