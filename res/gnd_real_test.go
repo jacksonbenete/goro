@@ -1,20 +1,12 @@
 package res
 
 import (
-	"errors"
 	"os"
 	"testing"
 )
 
 func TestGNDRealFileWhenConfigured(t *testing.T) {
-	path := os.Getenv("GORO_TEST_GND")
-	if path == "" {
-		t.Skip("set GORO_TEST_GND to run against a real GND file")
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	data := readRealDataFile(t, "data\\geffen_in.gnd")
 	gnd, err := ParseGND(data)
 	if err != nil {
 		t.Fatal(err)
@@ -28,31 +20,7 @@ func TestGNDRealFileWhenConfigured(t *testing.T) {
 }
 
 func TestGNDRealArchiveWhenConfigured(t *testing.T) {
-	path := os.Getenv("GORO_TEST_GRF")
-	if path == "" {
-		t.Skip("set GORO_TEST_GRF to run against a real archive")
-	}
-	name := os.Getenv("GORO_TEST_GND_FILE")
-	if name == "" {
-		name = "geffen_in.gnd"
-	}
-
-	grf, err := OpenGRF(path)
-	if err != nil {
-		if errors.Is(err, ErrGRFUnsupportedVersion) {
-			t.Skip(err)
-		}
-		t.Fatal(err)
-	}
-	defer grf.Close()
-
-	if !grf.Has(name) {
-		matches := grf.NamesWithSuffix(name)
-		if len(matches) == 0 {
-			t.Skipf("%s not present in %s", name, path)
-		}
-		name = matches[0]
-	}
+	grf, name := realDataArchiveFile(t, "geffen_in.gnd")
 	data, err := grf.ReadFile(name)
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
@@ -67,32 +35,9 @@ func TestGNDRealArchiveWhenConfigured(t *testing.T) {
 }
 
 func TestGNDRealArchiveTexturesWhenConfigured(t *testing.T) {
-	path := os.Getenv("GORO_TEST_GRF")
-	if path == "" {
-		t.Skip("set GORO_TEST_GRF to run against a real archive")
-	}
-	name := os.Getenv("GORO_TEST_GND_FILE")
-	if name == "" {
-		name = "geffen_in.gnd"
-	}
-
-	grf, err := OpenGRF(path)
-	if err != nil {
-		if errors.Is(err, ErrGRFUnsupportedVersion) {
-			t.Skip(err)
-		}
-		t.Fatal(err)
-	}
-	defer grf.Close()
-
-	if !grf.Has(name) {
-		matches := grf.NamesWithSuffix(name)
-		if len(matches) == 0 {
-			t.Skipf("%s not present in %s", name, path)
-		}
-		name = matches[0]
-	}
-	data, err := grf.ReadFile(name)
+	manager := realDataManager(t)
+	name := "geffen_in.gnd"
+	data, err := manager.ReadFile(name)
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
 	}
@@ -101,7 +46,6 @@ func TestGNDRealArchiveTexturesWhenConfigured(t *testing.T) {
 		t.Fatalf("parse %s: %v", name, err)
 	}
 
-	manager := &Manager{Archives: []*GRF{grf}}
 	found := 0
 	for _, texture := range gnd.Textures {
 		if texture == "" {
@@ -129,32 +73,9 @@ func TestGNDRealArchiveTextureDebugWhenConfigured(t *testing.T) {
 	if os.Getenv("GORO_DEBUG_GND_TEXTURES") == "" {
 		t.Skip("set GORO_DEBUG_GND_TEXTURES=1 to inspect real GND texture usage")
 	}
-	path := os.Getenv("GORO_TEST_GRF")
-	if path == "" {
-		t.Skip("set GORO_TEST_GRF to run against a real archive")
-	}
-	name := os.Getenv("GORO_TEST_GND_FILE")
-	if name == "" {
-		name = "prontera.gnd"
-	}
-
-	grf, err := OpenGRF(path)
-	if err != nil {
-		if errors.Is(err, ErrGRFUnsupportedVersion) {
-			t.Skip(err)
-		}
-		t.Fatal(err)
-	}
-	defer grf.Close()
-
-	if !grf.Has(name) {
-		matches := grf.NamesWithSuffix(name)
-		if len(matches) == 0 {
-			t.Skipf("%s not present in %s", name, path)
-		}
-		name = matches[0]
-	}
-	data, err := grf.ReadFile(name)
+	manager := realDataManager(t)
+	name := "prontera.gnd"
+	data, err := manager.ReadFile(name)
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
 	}
@@ -164,7 +85,6 @@ func TestGNDRealArchiveTextureDebugWhenConfigured(t *testing.T) {
 	}
 
 	t.Logf("%s: size=%dx%d textures=%d lightmaps=%d surfaces=%d", name, gnd.Width, gnd.Height, len(gnd.Textures), len(gnd.Lightmaps), len(gnd.Surfaces))
-	manager := &Manager{Archives: []*GRF{grf}}
 	for i, texture := range gnd.Textures {
 		if i >= 24 {
 			break

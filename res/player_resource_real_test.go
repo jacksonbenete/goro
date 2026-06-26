@@ -1,37 +1,12 @@
 package res
 
-import (
-	"os"
-	"strconv"
-	"testing"
-)
+import "testing"
 
 func TestPlayerBodyResourceRealWhenConfigured(t *testing.T) {
-	root := os.Getenv("GORO_TEST_DATA_DIR")
-	if root == "" {
-		t.Skip("set GORO_TEST_DATA_DIR to run against a real client data directory")
-	}
 	job := 0
-	if raw := os.Getenv("GORO_TEST_JOB"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			t.Fatal(err)
-		}
-		job = parsed
-	}
 	sex := byte(1)
-	if raw := os.Getenv("GORO_TEST_SEX"); raw != "" {
-		parsed, err := strconv.Atoi(raw)
-		if err != nil {
-			t.Fatal(err)
-		}
-		sex = byte(parsed)
-	}
 
-	manager, err := NewManager(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	actSource, actData, ok := manager.ReadFirst(PlayerBodyResourceCandidates(job, sex, "act"))
 	if !ok {
 		t.Skipf("body act not found for job=%d sex=%d", job, sex)

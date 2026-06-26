@@ -1,37 +1,11 @@
 package res
 
 import (
-	"errors"
-	"os"
 	"testing"
 )
 
 func TestRSMRealArchiveWhenConfigured(t *testing.T) {
-	path := os.Getenv("GORO_TEST_GRF")
-	if path == "" {
-		t.Skip("set GORO_TEST_GRF to run against a real archive")
-	}
-	name := os.Getenv("GORO_TEST_RSM_FILE")
-	if name == "" {
-		name = "data\\model\\¿öÇÁ¿¡·ºº£ÀÌÅÍ.rsm"
-	}
-
-	grf, err := OpenGRF(path)
-	if err != nil {
-		if errors.Is(err, ErrGRFUnsupportedVersion) {
-			t.Skip(err)
-		}
-		t.Fatal(err)
-	}
-	defer grf.Close()
-
-	if !grf.Has(name) {
-		matches := grf.NamesWithSuffix(name)
-		if len(matches) == 0 {
-			t.Skipf("%s not present in %s", name, path)
-		}
-		name = matches[0]
-	}
+	grf, name := realDataArchiveFile(t, "data\\model\\¿öÇÁ¿¡·ºº£ÀÌÅÍ.rsm")
 	data, err := grf.ReadFile(name)
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
@@ -47,32 +21,9 @@ func TestRSMRealArchiveWhenConfigured(t *testing.T) {
 }
 
 func TestRSMRealArchiveFromRSWWhenConfigured(t *testing.T) {
-	path := os.Getenv("GORO_TEST_GRF")
-	if path == "" {
-		t.Skip("set GORO_TEST_GRF to run against a real archive")
-	}
-	rswName := os.Getenv("GORO_TEST_RSW_FILE")
-	if rswName == "" {
-		rswName = "geffen_in.rsw"
-	}
-
-	grf, err := OpenGRF(path)
-	if err != nil {
-		if errors.Is(err, ErrGRFUnsupportedVersion) {
-			t.Skip(err)
-		}
-		t.Fatal(err)
-	}
-	defer grf.Close()
-
-	if !grf.Has(rswName) {
-		matches := grf.NamesWithSuffix(rswName)
-		if len(matches) == 0 {
-			t.Skipf("%s not present in %s", rswName, path)
-		}
-		rswName = matches[0]
-	}
-	rswData, err := grf.ReadFile(rswName)
+	manager := realDataManager(t)
+	rswName := "geffen_in.rsw"
+	rswData, err := manager.ReadFile(rswName)
 	if err != nil {
 		t.Fatalf("read %s: %v", rswName, err)
 	}
@@ -95,7 +46,7 @@ func TestRSMRealArchiveFromRSWWhenConfigured(t *testing.T) {
 		var data []byte
 		var source string
 		for _, candidate := range RSMModelCandidates(model.Filename) {
-			data, err = grf.ReadFile(candidate)
+			data, err = manager.ReadFile(candidate)
 			if err == nil {
 				source = candidate
 				break

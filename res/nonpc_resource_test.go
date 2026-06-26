@@ -1,9 +1,6 @@
 package res
 
-import (
-	"os"
-	"testing"
-)
+import "testing"
 
 func TestNonPCSpriteResourceCandidatesNPC(t *testing.T) {
 	got := NonPCSpriteResourceCandidates(47, "1_M_01", "act")
@@ -51,14 +48,7 @@ func TestFallbackJobResourceName(t *testing.T) {
 }
 
 func TestNonPCSpriteResourceRealWhenConfigured(t *testing.T) {
-	root := os.Getenv("GORO_TEST_DATA_DIR")
-	if root == "" {
-		t.Skip("set GORO_TEST_DATA_DIR to run against a real client data directory")
-	}
-	manager, err := NewManager(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	cases := []int{47, 1002}
 	for _, job := range cases {
 		name, ok := manager.JobResourceName(job)

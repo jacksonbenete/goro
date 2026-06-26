@@ -2,19 +2,11 @@ package res
 
 import (
 	"image"
-	"os"
 	"testing"
 )
 
 func TestItemResourceRealWhenConfigured(t *testing.T) {
-	root := os.Getenv("GORO_TEST_DATA_DIR")
-	if root == "" {
-		t.Skip("set GORO_TEST_DATA_DIR to run against a real client data directory")
-	}
-	manager, err := NewManager(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	name, ok := manager.ItemDisplayName(909, true)
 	if !ok || name == "" {
 		t.Fatalf("item 909 display name missing: %q ok=%v", name, ok)
@@ -41,14 +33,7 @@ func TestItemResourceRealWhenConfigured(t *testing.T) {
 }
 
 func TestAppleItemSpriteRealWhenConfigured(t *testing.T) {
-	root := os.Getenv("GORO_TEST_DATA_DIR")
-	if root == "" {
-		t.Skip("set GORO_TEST_DATA_DIR to run against a real client data directory")
-	}
-	manager, err := NewManager(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	name, ok := manager.ItemDisplayName(512, true)
 	if !ok || name != "Apple" {
 		t.Fatalf("item 512 display name = %q ok=%v, want Apple", name, ok)

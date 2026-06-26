@@ -132,17 +132,7 @@ func TestPreferNonPCActUpgradeForLegacyMonsterAct(t *testing.T) {
 }
 
 func TestPoringDeathActionRealData(t *testing.T) {
-	root := os.Getenv("GORO_TEST_DATA_DIR")
-	if root == "" {
-		root = "/home/kivutar/Téléchargements/OldRO"
-	}
-	if _, err := os.Stat(root); err != nil {
-		t.Skip("OldRO data not available")
-	}
-	manager, err := res.NewManager(root)
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	view, status := loadNonPCSpriteView(manager, 1002, "poring")
 	if view == nil {
 		t.Fatalf("Poring sprite failed: %s", status)
@@ -357,10 +347,7 @@ func TestDebugPlayerSpriteBillboard(t *testing.T) {
 	if os.Getenv("GORO_DEBUG_PLAYER_SPRITE") != "1" {
 		t.Skip("set GORO_DEBUG_PLAYER_SPRITE=1")
 	}
-	manager, err := res.NewManager("/home/kivutar/Téléchargements/OldRO")
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	for _, sex := range []byte{0, 1} {
 		view, status := loadHumanoidSpriteView(manager, 0, 1, sex, 0, 0, "debug player")
 		if view == nil {
@@ -382,10 +369,7 @@ func TestDebugPlayerSpriteBillboard(t *testing.T) {
 }
 
 func TestPlayerSpriteCompositionIncludesHeadWithWeapon(t *testing.T) {
-	manager, err := res.NewManager("/home/kivutar/Téléchargements/OldRO")
-	if err != nil {
-		t.Skip("OldRO data not available")
-	}
+	manager := realDataManager(t)
 	view, status := loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
 		job:    0,
 		head:   1,

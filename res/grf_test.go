@@ -53,20 +53,8 @@ func TestNormalizeGRFNamePreservesNonUTF8Bytes(t *testing.T) {
 }
 
 func TestGRFRealArchiveWhenConfigured(t *testing.T) {
-	path := os.Getenv("GORO_TEST_GRF")
-	if path == "" {
-		t.Skip("set GORO_TEST_GRF to run against a real archive")
-	}
-	name := os.Getenv("GORO_TEST_GRF_FILE")
-	if name == "" {
-		name = "prontera.gat"
-	}
-
-	grf, err := OpenGRF(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer grf.Close()
+	grf := realDataArchive(t)
+	name := "prontera.gat"
 
 	if grf.Count() == 0 {
 		t.Fatal("archive has no entries")
@@ -74,7 +62,7 @@ func TestGRFRealArchiveWhenConfigured(t *testing.T) {
 	if !grf.Has(name) {
 		matches := grf.NamesWithSuffix(name)
 		if len(matches) == 0 {
-			t.Skipf("%s not present in %s", name, path)
+			t.Skipf("%s not present in %s", name, grf.Path())
 		}
 		name = matches[0]
 	}

@@ -14,10 +14,7 @@ func TestDebugGeffenCenterModels(t *testing.T) {
 	if os.Getenv("GORO_DEBUG_GEFFEN_RSM") != "1" {
 		t.Skip("set GORO_DEBUG_GEFFEN_RSM=1")
 	}
-	manager, err := res.NewManager("/home/kivutar/Téléchargements/OldRO")
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	gndData, err := manager.ReadFile("data\\geffen.gnd")
 	if err != nil {
 		t.Fatal(err)
@@ -94,10 +91,7 @@ func TestDebugIzludeModelSizes(t *testing.T) {
 	if os.Getenv("GORO_DEBUG_IZLUDE_RSM") != "1" {
 		t.Skip("set GORO_DEBUG_IZLUDE_RSM=1")
 	}
-	manager, err := res.NewManager("/home/kivutar/Téléchargements/OldRO")
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := realDataManager(t)
 	gndData, err := manager.ReadFile("data\\izlude.gnd")
 	if err != nil {
 		t.Fatal(err)
