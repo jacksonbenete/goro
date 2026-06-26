@@ -25,6 +25,7 @@ const (
 var (
 	consoleColorChat        = color.RGBA{R: 235, G: 242, B: 250, A: 255}
 	consoleColorSystem      = color.RGBA{R: 252, G: 221, B: 128, A: 255}
+	consoleColorBlue        = color.RGBA{R: 0, G: 255, B: 255, A: 255}
 	consoleColorError       = color.RGBA{R: 255, G: 132, B: 132, A: 255}
 	consoleColorPlaceholder = color.RGBA{R: 150, G: 165, B: 182, A: 255}
 	consoleColorInput       = color.RGBA{R: 235, G: 242, B: 250, A: 255}
@@ -105,6 +106,10 @@ func (c *chatConsole) addSystemMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorSystem, format, args...)
 }
 
+func (c *chatConsole) addBlueMessage(format string, args ...any) {
+	c.addMessageColor(consoleColorBlue, format, args...)
+}
+
 func (c *chatConsole) addErrorMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorError, format, args...)
 }
@@ -125,6 +130,7 @@ func (c *chatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 		copy(c.messages, c.messages[len(c.messages)-80:])
 		c.messages = c.messages[:80]
 	}
+	c.scroll = 0
 	c.clampScroll()
 	c.invalidate()
 }

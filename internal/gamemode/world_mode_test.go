@@ -4,6 +4,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -1431,6 +1432,36 @@ func TestFormatConsoleMessageUsesMsgStringTable(t *testing.T) {
 	got := formatConsoleMessage(manager, network.ChatMessage{MessageID: 1, Value: 3})
 	if got != "You got 3 items." {
 		t.Fatalf("message = %q", got)
+	}
+}
+
+func TestFormatPickupConsoleMessageUsesMsgStringAndItemName(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	msgTable := strings.Repeat("ignored#\n", 153) + "You got %s %d.#\n"
+	if err := os.WriteFile(filepath.Join(dataDir, "msgstringtable.txt"), []byte(msgTable), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "idnum2itemdisplaynametable.txt"), []byte("938#Apple#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := formatPickupConsoleMessage(manager, network.ItemPickupAck{ItemID: 938, Amount: 2, Identified: true})
+	if got != "You got Apple 2." {
+		t.Fatalf("pickup message = %q", got)
+	}
+}
+
+func TestFormatPickupConsoleMessageFallback(t *testing.T) {
+	got := formatPickupConsoleMessage(nil, network.ItemPickupAck{ItemID: 938, Amount: 0})
+	if got != "You got item 938 1." {
+		t.Fatalf("pickup message = %q", got)
 	}
 }
 

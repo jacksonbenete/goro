@@ -337,7 +337,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			m.applyItemPickupAck(ctx, pickup)
 			if pickup.Result == 0 {
-				m.console.addSystemMessage("Picked up item %d x%d", pickup.ItemID, pickup.Amount)
+				message := formatPickupConsoleMessage(ctx.Resources, pickup)
+				log.Printf("console pickup message item_id=%d amount=%d text=%q", pickup.ItemID, pickup.Amount, message)
+				m.console.addBlueMessage("%s", message)
 			} else {
 				m.console.addErrorMessage("Pickup failed item %d result=%d", pickup.ItemID, pickup.Result)
 			}
@@ -570,6 +572,37 @@ func addConsoleMessage(console *chatConsole, manager *res.Manager, chat network.
 		return
 	}
 	console.addMessage("%s", text)
+}
+
+func formatPickupConsoleMessage(manager *res.Manager, pickup network.ItemPickupAck) string {
+	itemName := fmt.Sprintf("item %d", pickup.ItemID)
+	if manager != nil {
+		if name, ok := manager.ItemDisplayName(int(pickup.ItemID), pickup.Identified); ok && name != "" {
+			itemName = name
+		}
+	}
+	amount := int(pickup.Amount)
+	if amount <= 0 {
+		amount = 1
+	}
+	template := ""
+	if manager != nil {
+		template, _ = manager.MsgString(153)
+	}
+	if template == "" {
+		template = "You got %s %d."
+	}
+	if strings.Contains(template, "%s") {
+		template = strings.Replace(template, "%s", itemName, 1)
+	} else {
+		template = strings.TrimSpace(template + " " + itemName)
+	}
+	if strings.Contains(template, "%d") {
+		template = strings.Replace(template, "%d", fmt.Sprintf("%d", amount), 1)
+	} else if amount != 1 {
+		template = strings.TrimSpace(fmt.Sprintf("%s %d", template, amount))
+	}
+	return template
 }
 
 func sameLoadedMap(ctx Context, mapName string) bool {

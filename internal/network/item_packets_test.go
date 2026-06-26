@@ -2,6 +2,7 @@ package network
 
 import (
 	"encoding/binary"
+	"fmt"
 	"testing"
 )
 
@@ -64,6 +65,58 @@ func TestParseFloorItemDisappear(t *testing.T) {
 	}
 	if !ok || disappear.ID != 3003 {
 		t.Fatalf("unexpected disappear: ok=%v value=%+v", ok, disappear)
+	}
+}
+
+func TestParseItemPickupAckLegacy(t *testing.T) {
+	data := make([]byte, 23)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00A0)
+	binary.LittleEndian.PutUint16(data[2:4], 12)
+	binary.LittleEndian.PutUint16(data[4:6], 3)
+	binary.LittleEndian.PutUint16(data[6:8], 938)
+	data[8] = 1
+	data[22] = 0
+
+	ack, ok, err := ParseItemPickupAck(Packet{ID: 0x00A0, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("not parsed")
+	}
+	if ack.Index != 12 || ack.Amount != 3 || ack.ItemID != 938 || !ack.Identified || ack.Result != 0 {
+		t.Fatalf("unexpected ack: %+v", ack)
+	}
+}
+
+func TestParseItemPickupAckExtendedVariants(t *testing.T) {
+	for _, tc := range []struct {
+		id     uint16
+		length int
+	}{
+		{id: 0x029A, length: 27},
+		{id: 0x02D4, length: 29},
+	} {
+		t.Run(fmt.Sprintf("0x%04X", tc.id), func(t *testing.T) {
+			data := make([]byte, tc.length)
+			binary.LittleEndian.PutUint16(data[0:2], tc.id)
+			binary.LittleEndian.PutUint16(data[2:4], 31)
+			binary.LittleEndian.PutUint16(data[4:6], 2)
+			binary.LittleEndian.PutUint16(data[6:8], 909)
+			data[8] = 1
+			data[22] = 0
+
+			ack, ok, err := ParseItemPickupAck(Packet{ID: tc.id, Data: data})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("not parsed")
+			}
+			if ack.Index != 31 || ack.Amount != 2 || ack.ItemID != 909 || !ack.Identified || ack.Result != 0 {
+				t.Fatalf("unexpected ack: %+v", ack)
+			}
+		})
 	}
 }
 

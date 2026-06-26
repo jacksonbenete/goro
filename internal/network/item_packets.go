@@ -108,11 +108,13 @@ func ParseFloorItemDisappear(packet Packet) (FloorItemDisappear, bool, error) {
 }
 
 func ParseItemPickupAck(packet Packet) (ItemPickupAck, bool, error) {
-	if packet.ID != 0x00A0 {
+	switch packet.ID {
+	case 0x00A0, 0x029A, 0x02D4:
+	default:
 		return ItemPickupAck{}, false, nil
 	}
 	if len(packet.Data) < 23 {
-		return ItemPickupAck{}, false, fmt.Errorf("ZC_ITEM_PICKUP_ACK too short: %d", len(packet.Data))
+		return ItemPickupAck{}, false, fmt.Errorf("ZC_ITEM_PICKUP_ACK 0x%04X too short: %d", packet.ID, len(packet.Data))
 	}
 	return ItemPickupAck{
 		Index:      binary.LittleEndian.Uint16(packet.Data[2:4]),
