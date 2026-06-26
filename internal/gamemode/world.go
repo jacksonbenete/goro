@@ -2204,36 +2204,58 @@ func (m *WorldMode) drawTileCursor(screen *render.Image, ctx Context, projection
 	if !ok {
 		return
 	}
-	points, ok := projectedTileCursorCell(projection, ctx.World.GAT, x, y, now)
-	if !ok || quadHasInvalidPoint(points) || quadOutside(points, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())) {
+	verts, ok := tileCursorCellVerts(ctx.World.GAT, x, y, now)
+	if !ok {
+		return
+	}
+	points := projectTileCursorVerts(projection, verts)
+	if quadHasInvalidPoint(points) || quadOutside(points, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())) {
+		return
+	}
+	if projection.camera {
+		drawTileCursorSurface3D(screen, m.tileCursorTexture(), verts)
 		return
 	}
 	drawTileCursorSurface(screen, m.tileCursorTexture(), points)
 }
 
 func projectedTileCursorCell(projection sceneProjection, gat *res.GAT, x, y int, now time.Time) ([4]screenPoint, bool) {
-	cell, ok := gat.Cell(x, y)
+	verts, ok := tileCursorCellVerts(gat, x, y, now)
 	if !ok {
 		return [4]screenPoint{}, false
 	}
+	return projectTileCursorVerts(projection, verts), true
+}
+
+func tileCursorCellVerts(gat *res.GAT, x, y int, now time.Time) ([4]modelPoint3, bool) {
+	if gat == nil {
+		return [4]modelPoint3{}, false
+	}
+	cell, ok := gat.Cell(x, y)
+	if !ok {
+		return [4]modelPoint3{}, false
+	}
 	lift := tileCursorLift(now)
-	verts := [4]modelPoint3{
+	return [4]modelPoint3{
 		{x: float64(x), y: float64(cell.Heights[0]) + lift, z: float64(y)},
 		{x: float64(x + 1), y: float64(cell.Heights[1]) + lift, z: float64(y)},
 		{x: float64(x), y: float64(cell.Heights[2]) + lift, z: float64(y + 1)},
 		{x: float64(x + 1), y: float64(cell.Heights[3]) + lift, z: float64(y + 1)},
-	}
+	}, true
+}
+
+func projectTileCursorVerts(projection sceneProjection, verts [4]modelPoint3) [4]screenPoint {
 	return [4]screenPoint{
 		projection.Project(verts[0].x, verts[0].z, verts[0].y),
 		projection.Project(verts[1].x, verts[1].z, verts[1].y),
 		projection.Project(verts[2].x, verts[2].z, verts[2].y),
 		projection.Project(verts[3].x, verts[3].z, verts[3].y),
-	}, true
+	}
 }
 
 func tileCursorLift(now time.Time) float64 {
 	seconds := float64(now.UnixNano()) / float64(time.Second)
-	return 0.06 + 0.025*math.Sin(seconds*math.Pi*2/1.2)
+	return 0.018 + 0.006*math.Sin(seconds*math.Pi*2/1.2)
 }
 
 func (m *WorldMode) tileCursorTexture() *render.Image {
@@ -2281,6 +2303,25 @@ func drawTileCursorSurface(screen, texture *render.Image, points [4]screenPoint)
 		texturedSurfaceVertex(points[3], texturePoint{u: 1, v: 1}, tint, w, h),
 	}
 	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, texture, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
+}
+
+func drawTileCursorSurface3D(screen, texture *render.Image, verts [4]modelPoint3) {
+	if texture == nil {
+		return
+	}
+	tints := [4]color.RGBA{
+		{R: 255, G: 255, B: 255, A: 210},
+		{R: 255, G: 255, B: 255, A: 210},
+		{R: 255, G: 255, B: 255, A: 210},
+		{R: 255, G: 255, B: 255, A: 210},
+	}
+	uvs := [4]texturePoint{
+		{u: 0, v: 0},
+		{u: 1, v: 0},
+		{u: 0, v: 1},
+		{u: 1, v: 1},
+	}
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, []uint16{0, 1, 2, 2, 1, 3}, tints, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
 }
 
 func projectedGATCell(projection sceneProjection, gat *res.GAT, x, y int) ([4]screenPoint, float64, bool) {
