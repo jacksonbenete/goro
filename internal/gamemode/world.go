@@ -581,10 +581,10 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.escapeMenu.update(ctx) {
 		return nil, nil
 	}
-	if m.shopWindow.update(ctx) {
+	if m.inventoryWindow.update(ctx, &m.shopWindow) {
 		return nil, nil
 	}
-	if m.inventoryWindow.update(ctx, &m.shopWindow) {
+	if m.shopWindow.update(ctx) {
 		return nil, nil
 	}
 	if m.skillWindow.update(ctx) {

@@ -419,7 +419,11 @@ func (m *WorldMode) drawInventoryItemIcon(screen *render.Image, manager *res.Man
 		m.drawFallbackInventoryItemIcon(screen, x, y)
 		return
 	}
-	bounds := billboard.image.Bounds()
+	bounds := visibleImageBounds(billboard.image)
+	if bounds.Empty() {
+		m.drawFallbackInventoryItemIcon(screen, x, y)
+		return
+	}
 	width, height := float64(bounds.Dx()), float64(bounds.Dy())
 	if width <= 0 || height <= 0 {
 		return
@@ -428,12 +432,16 @@ func (m *WorldMode) drawInventoryItemIcon(screen *render.Image, manager *res.Man
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
-	var opts render.DrawImageOptions
-	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
-	opts.GeoM.Scale(scale, scale)
-	opts.GeoM.Translate(float64(x)+float64(inventoryIconSize)/2, float64(y)+float64(inventoryIconSize)-3)
-	opts.Filter = spriteDrawFilter()
-	screen.DrawImage(billboard.image, &opts)
+	dstW, dstH := width*scale, height*scale
+	dstX := float64(x) + (float64(inventoryIconSize)-dstW)/2
+	dstY := float64(y) + (float64(inventoryIconSize)-dstH)/2
+	vertices := []render.Vertex{
+		{DstX: float32(dstX), DstY: float32(dstY), SrcX: float32(bounds.Min.X), SrcY: float32(bounds.Min.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(dstX + dstW), DstY: float32(dstY), SrcX: float32(bounds.Max.X), SrcY: float32(bounds.Min.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(dstX), DstY: float32(dstY + dstH), SrcX: float32(bounds.Min.X), SrcY: float32(bounds.Max.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(dstX + dstW), DstY: float32(dstY + dstH), SrcX: float32(bounds.Max.X), SrcY: float32(bounds.Max.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, billboard.image, &render.DrawTrianglesOptions{Filter: spriteDrawFilter(), Address: render.AddressClampToZero})
 }
 
 func (m *WorldMode) drawFallbackInventoryItemIcon(screen *render.Image, x, y int) {
@@ -448,6 +456,38 @@ func (m *WorldMode) drawFallbackInventoryItemIcon(screen *render.Image, x, y int
 	opts.GeoM.Translate(float64(x), float64(y))
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(img, &opts)
+}
+
+func visibleImageBounds(img *render.Image) image.Rectangle {
+	rgba := img.RGBA()
+	if rgba == nil {
+		return image.Rectangle{}
+	}
+	bounds := rgba.Bounds()
+	visible := image.Rectangle{Min: bounds.Max, Max: bounds.Min}
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			if rgba.RGBAAt(x, y).A == 0 {
+				continue
+			}
+			if x < visible.Min.X {
+				visible.Min.X = x
+			}
+			if y < visible.Min.Y {
+				visible.Min.Y = y
+			}
+			if x+1 > visible.Max.X {
+				visible.Max.X = x + 1
+			}
+			if y+1 > visible.Max.Y {
+				visible.Max.Y = y + 1
+			}
+		}
+	}
+	if visible.Min.X > visible.Max.X || visible.Min.Y > visible.Max.Y {
+		return image.Rectangle{}
+	}
+	return visible.Inset(-1).Intersect(bounds)
 }
 
 func (m *WorldMode) itemSpriteView(manager *res.Manager, itemID uint16, identified bool) *playerSpriteView {

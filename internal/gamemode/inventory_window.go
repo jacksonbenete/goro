@@ -17,8 +17,8 @@ const (
 	inventoryWindowHeight = 356
 	inventoryWindowTitleH = 28
 	inventoryWindowPad    = 10
-	inventoryRowH         = 34
-	inventoryIconSize     = 28
+	inventoryRowH         = 42
+	inventoryIconSize     = 38
 )
 
 var (
@@ -173,8 +173,12 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	if w.dragActive {
 		label := trimRunes(inventoryItemDisplayName(ctx.Resources, w.dragItem), 22)
 		dx, dy := ctx.Input.MouseX+12, ctx.Input.MouseY+10
-		drawUISurface(screen, dx, dy, len([]rune(label))*7+14, 22, color.RGBA{R: 36, G: 42, B: 54, A: 236}, color.RGBA{R: 230, G: 220, B: 170, A: 120})
-		render.DebugPrintAtColor(screen, label, dx+7, dy+5, inventoryTextColor)
+		width := len([]rune(label))*7 + inventoryIconSize + 18
+		drawUISurface(screen, dx, dy, width, inventoryIconSize+6, color.RGBA{R: 36, G: 42, B: 54, A: 236}, color.RGBA{R: 230, G: 220, B: 170, A: 120})
+		if mode != nil {
+			mode.drawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx+3, dy+3)
+		}
+		render.DebugPrintAtColor(screen, label, dx+inventoryIconSize+9, dy+(inventoryIconSize-13)/2+2, inventoryTextColor)
 	}
 }
 
