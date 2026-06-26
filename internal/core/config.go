@@ -87,13 +87,11 @@ func floatEnv(name string, fallback float64) float64 {
 }
 
 func resolveDataDir() string {
-	for _, key := range []string{"GORO_DATA_DIR", "OPEN_MIDGARD_DATA_DIR"} {
-		if value := os.Getenv(key); value != "" {
-			if abs, err := filepath.Abs(value); err == nil {
-				return abs
-			}
-			return value
+	if value := os.Getenv("GORO_DATA_DIR"); value != "" {
+		if abs, err := filepath.Abs(value); err == nil {
+			return abs
 		}
+		return value
 	}
 
 	wd, err := os.Getwd()

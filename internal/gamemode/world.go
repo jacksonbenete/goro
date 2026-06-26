@@ -8,7 +8,6 @@ import (
 	"image/color"
 	"log"
 	"math"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,8 +29,6 @@ type WorldMode struct {
 	tileCursor       *render.Image
 	textures         map[string]*render.Image
 	textureMiss      map[string]struct{}
-	rswMarkers       bool
-	rsmRender        bool
 	playerView       *humanoidSpriteView
 	shadowView       *playerSpriteView
 	shadowViewMiss   bool
@@ -48,7 +45,6 @@ type WorldMode struct {
 	nonPCViews       map[int]*playerSpriteView
 	nonPCViewMiss    map[int]struct{}
 	rsmWorldCache    map[int][]modelWorldTriangle
-	rsmDebugLog      map[string]struct{}
 	pendingWarp      bool
 	pendingAttack    attackIntent
 	pendingPickup    pickupIntent
@@ -165,6 +161,7 @@ const (
 	mapFadeOutDuration             = 220 * time.Millisecond
 	mapFadeInDuration              = 340 * time.Millisecond
 	actorNameRequestCooldown       = time.Second
+	defaultRSMLoadLimit            = 128
 )
 
 func NewWorldMode() *WorldMode {
@@ -191,8 +188,6 @@ func (m *WorldMode) Enter(ctx Context) {
 	ctx.World.RSMFail = 0
 	m.textures = make(map[string]*render.Image)
 	m.textureMiss = make(map[string]struct{})
-	m.rswMarkers = os.Getenv("GORO_DEBUG_RSW_MARKERS") == "1"
-	m.rsmRender = os.Getenv("GORO_RENDER_RSM") != "0"
 	m.playerView = nil
 	m.shadowView = nil
 	m.shadowViewMiss = false
@@ -209,7 +204,6 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.nonPCViews = make(map[int]*playerSpriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmWorldCache = make(map[int][]modelWorldTriangle)
-	m.rsmDebugLog = make(map[string]struct{})
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}
 	m.pendingPickup = pickupIntent{}
@@ -274,7 +268,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	}
 	if rsw, rswSource, err := loadRSW(ctx.Resources, ctx.World.MapName); err == nil {
 		ctx.World.RSW = rsw
-		ctx.World.RSM, ctx.World.RSMFail = loadRSMModels(ctx.Resources, rsw, rsmLoadLimit())
+		ctx.World.RSM, ctx.World.RSMFail = loadRSMModels(ctx.Resources, rsw, defaultRSMLoadLimit)
 		m.status += fmt.Sprintf(" rsw=%s", rswSource)
 		m.playMapBGM(ctx, rswSource)
 	} else {
@@ -1841,14 +1835,11 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	if ctx.World.GND != nil {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, vertexFog)
 		m.drawTileCursor(screen, ctx, projection, now)
-		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
+		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 {
 			actorOverlays = m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog)
 		} else {
 			m.drawGroundItems(screen, ctx, projection, now)
 			actorOverlays = m.drawSceneActors(screen, ctx, projection)
-		}
-		if ctx.World.RSW != nil && m.rswMarkers {
-			drawRSWModelMarkers(screen, ctx.World.RSW, ctx.World.GND, projection)
 		}
 	} else if ctx.World.GAT != nil {
 		drawGAT(screen, ctx.World.GAT, ctx.World.Player.X, ctx.World.Player.Y)
@@ -2425,15 +2416,6 @@ func directionFromDelta(fromX, fromY, toX, toY int, fallback int) int {
 }
 
 func cameraTargetHeightAt(world *worldstate.World, x, y float64) float64 {
-	if raw := os.Getenv("GORO_CAMERA_TARGET_Z"); raw != "" {
-		value, err := strconv.ParseFloat(raw, 64)
-		if err == nil {
-			return value
-		}
-	}
-	if os.Getenv("GORO_CAMERA_FOLLOW_TERRAIN_HEIGHT") == "0" {
-		return 0
-	}
 	return terrainHeightAt(world, x, y)
 }
 
@@ -2721,15 +2703,7 @@ func pointInActorPickBounds(mouseX, mouseY, centerX, centerY, scale float64) boo
 }
 
 func clickWalkSearchRadius() int {
-	raw := os.Getenv("GORO_CLICK_WALK_RADIUS")
-	if raw == "" {
-		return 70
-	}
-	value, err := strconv.Atoi(raw)
-	if err != nil || value < 1 {
-		return 70
-	}
-	return value
+	return 70
 }
 
 func minInt(a, b int) int {
@@ -3821,18 +3795,6 @@ func loadRSW(manager *res.Manager, mapName string) (*res.RSW, string, error) {
 	return nil, "", fmt.Errorf("rsw not found for map %s", mapName)
 }
 
-func rsmLoadLimit() int {
-	raw := os.Getenv("GORO_RSM_LOAD_LIMIT")
-	if raw == "" {
-		return 128
-	}
-	limit, err := strconv.Atoi(raw)
-	if err != nil {
-		return 128
-	}
-	return limit
-}
-
 func loadRSMModels(manager *res.Manager, rsw *res.RSW, limit int) (map[string]*res.RSM, int) {
 	if rsw == nil || limit == 0 {
 		return nil, 0
@@ -4347,22 +4309,6 @@ func (m *WorldMode) effectTexture(manager *res.Manager, name string) *render.Ima
 	texture := render.NewImageFromImage(res.ApplyEffectTransparency(img))
 	m.textures[key] = texture
 	return texture
-}
-
-func drawRSWModelMarkers(screen *render.Image, rsw *res.RSW, gnd *res.GND, projection sceneProjection) {
-	width := screen.Bounds().Dx()
-	height := screen.Bounds().Dy()
-
-	markerColor := color.RGBA{R: 238, G: 181, B: 73, A: 190}
-	for _, model := range rsw.Models {
-		x := float64(model.Position.X) + float64(gnd.Width)
-		y := float64(model.Position.Z) + float64(gnd.Height)
-		point := projection.Project(x, y, float64(model.Position.Y))
-		if point.x < -8 || point.y < -8 || point.x > float32(width+8) || point.y > float32(height+8) {
-			continue
-		}
-		render.DrawRect(screen, float64(point.x)-2, float64(point.y)-6, 4, 8, markerColor)
-	}
 }
 
 func (m *WorldMode) groundTexture(manager *res.Manager, name string) *render.Image {

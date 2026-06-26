@@ -24,26 +24,17 @@ Useful toggles:
 
 ```sh
 GORO_NET_TRACE=1 ./scripts/run-oldro.sh
-GORO_DEBUG_RSW_MARKERS=1 ./scripts/run-oldro.sh
-GORO_RENDER_RSM=0 ./scripts/run-oldro.sh
-GORO_RSM_MAX_FACES=1500 ./scripts/run-oldro.sh
-GORO_RSM_RENDER_RADIUS=60 ./scripts/run-oldro.sh
-GORO_DEBUG_RSM_TRANSFORMS=1 ./scripts/run-oldro.sh
-GORO_SCENE_HEIGHT_SCALE=2.8 ./scripts/run-oldro.sh
 GORO_CAMERA_PITCH=230 GORO_CAMERA_YAW=0 GORO_CAMERA_ZOOM=150 GORO_CAMERA_FOV=15 ./scripts/run-oldro.sh
-GORO_CAMERA_TARGET_Z=8 ./scripts/run-oldro.sh
-GORO_CAMERA_FOLLOW_TERRAIN_HEIGHT=1 ./scripts/run-oldro.sh
 GORO_PACKET_CLIENT_DATE=20211103 ./scripts/run-oldro.sh # only when rAthena is rebuilt for that packetver
+GORO_FULLSCREEN=1 ./scripts/run-oldro.sh
 GORO_BGM=0 ./scripts/run-oldro.sh
 GORO_BGM_VOLUME=0.35 ./scripts/run-oldro.sh
-GORO_BUILD=0 ./scripts/run-oldro.sh
 GOGPU_GRAPHICS_API=gles ./scripts/run-oldro.sh # fallback if Vulkan is unavailable
 ```
 
 Runtime data is discovered from, in order:
 
 - `GORO_DATA_DIR`
-- `OPEN_MIDGARD_DATA_DIR`
 - current working directory
 
 The resource manager currently looks for loose files such as:

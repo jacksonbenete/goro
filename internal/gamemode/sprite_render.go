@@ -550,7 +550,6 @@ func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjec
 
 func spriteBillboardTriangleDrawOptions() *render.DrawTrianglesOptions {
 	options := triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero)
-	options.DepthBias = float32(spriteBillboardDepthBias())
 	return options
 }
 
@@ -560,17 +559,6 @@ func spriteBillboardVertex3D(point, depthPoint modelPoint3, uv texturePoint, tin
 	vertex.DepthY = float32(depthPoint.y)
 	vertex.DepthZ = float32(depthPoint.z)
 	return vertex
-}
-
-func spriteBillboardDepthBias() float64 {
-	value := sceneFloatEnv("GORO_SPRITE_DEPTH_BIAS", 0)
-	if value < 0 || math.IsNaN(value) || math.IsInf(value, 0) {
-		return 0
-	}
-	if value > 0.02 {
-		return 0.02
-	}
-	return value
 }
 
 func colorRGBAFromFloats(r, g, b, a float64) color.RGBA {

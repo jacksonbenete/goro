@@ -1,16 +1,17 @@
 package gamemode
 
 import (
-	"bytes"
 	"image/color"
-	"log"
 	"math"
-	"os"
 	"sort"
-	"strconv"
 
 	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
+)
+
+const (
+	defaultRSMRenderRadius = 42
+	defaultRSMMaxFaces     = 5000
 )
 
 type modelPoint3 struct {
@@ -158,7 +159,6 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 			baseY:     baseY,
 			matrix:    buildRSMInstanceMatrix(rsm, placement, baseX, baseY, bounds.model),
 		}
-		m.logRSMTransformDebug(placement, instance)
 
 		worldTriangles, ok := m.rsmWorldCache[visiblePlacement.index]
 		if !ok {
@@ -190,59 +190,6 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 		return triangles[i].depth > triangles[j].depth
 	})
 	return triangles
-}
-
-func (m *WorldMode) logRSMTransformDebug(placement res.RSWModel, instance modelInstance) {
-	if os.Getenv("GORO_DEBUG_RSM_TRANSFORMS") != "1" || !isRSMDebugBridgeName(placement.Filename) {
-		return
-	}
-	if m.rsmDebugLog == nil {
-		m.rsmDebugLog = make(map[string]struct{})
-	}
-	key := placement.Filename + "|" + placement.NodeName
-	if _, ok := m.rsmDebugLog[key]; ok {
-		return
-	}
-	m.rsmDebugLog[key] = struct{}{}
-	refOffset := modelPoint3{
-		x: -(instance.bounds.min.x + instance.bounds.max.x) * 0.5,
-		y: -instance.bounds.max.y,
-		z: -(instance.bounds.min.z + instance.bounds.max.z) * 0.5,
-	}
-	log.Printf("RSMDBG actor rawModel=%q nameBytes=%x node=%q pos=(%.3f,%.3f,%.3f) rot=(%.3f,%.3f,%.3f) scale=(%.3f,%.3f,%.3f) boundsMin=(%.3f,%.3f,%.3f) boundsMax=(%.3f,%.3f,%.3f) openMidgardOffset=(%.3f,%.3f,%.3f) localAnchor=(%.3f,%.3f,%.3f) worldT=(%.3f,%.3f,%.3f)",
-		placement.Filename,
-		[]byte(placement.Filename),
-		placement.NodeName,
-		placement.Position.X,
-		placement.Position.Y,
-		placement.Position.Z,
-		placement.Rotation.X,
-		placement.Rotation.Y,
-		placement.Rotation.Z,
-		placement.Scale.X,
-		placement.Scale.Y,
-		placement.Scale.Z,
-		instance.bounds.min.x,
-		instance.bounds.min.y,
-		instance.bounds.min.z,
-		instance.bounds.max.x,
-		instance.bounds.max.y,
-		instance.bounds.max.z,
-		refOffset.x,
-		refOffset.y,
-		refOffset.z,
-		refOffset.x,
-		-refOffset.y,
-		refOffset.z,
-		instance.matrix[12],
-		instance.matrix[13],
-		instance.matrix[14])
-}
-
-func isRSMDebugBridgeName(name string) bool {
-	data := []byte(name)
-	return bytes.Contains(data, []byte{0xb9, 0xe8, 0xb4, 0xd9, 0xb8, 0xae}) ||
-		bytes.Contains(data, []byte{0xb9, 0xe8})
 }
 
 func selectedRSMRootName(rsm *res.RSM, rootName string) string {
@@ -850,25 +797,9 @@ func degreesToRadians(degrees float64) float64 {
 }
 
 func rsmRenderRadius() float64 {
-	raw := os.Getenv("GORO_RSM_RENDER_RADIUS")
-	if raw == "" {
-		return 42
-	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil || value <= 0 {
-		return 42
-	}
-	return value
+	return defaultRSMRenderRadius
 }
 
 func rsmMaxFaces() int {
-	raw := os.Getenv("GORO_RSM_MAX_FACES")
-	if raw == "" {
-		return 5000
-	}
-	value, err := strconv.Atoi(raw)
-	if err != nil {
-		return 5000
-	}
-	return value
+	return defaultRSMMaxFaces
 }
