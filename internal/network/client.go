@@ -175,6 +175,50 @@ func (c *Client) SendActionRequest(targetGID uint32, action uint8) error {
 	return err
 }
 
+func (c *Client) SendNPCContact(npcID uint32) error {
+	packet := BuildNPCContactPacket(npcID, 0)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_CONTACTNPC opcode=0x%04X npc=%d client_date=%d", ID(packet), npcID, c.clientDate)
+	} else {
+		log.Printf("send CZ_CONTACTNPC failed opcode=0x%04X npc=%d client_date=%d: %v", ID(packet), npcID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendNPCNext(npcID uint32) error {
+	packet := BuildNPCNextPacket(npcID)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_NEXT_SCRIPT opcode=0x%04X npc=%d client_date=%d", ID(packet), npcID, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_NEXT_SCRIPT failed opcode=0x%04X npc=%d client_date=%d: %v", ID(packet), npcID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendNPCClose(npcID uint32) error {
+	packet := BuildNPCClosePacket(npcID)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_CLOSE_DIALOG opcode=0x%04X npc=%d client_date=%d", ID(packet), npcID, c.clientDate)
+	} else {
+		log.Printf("send CZ_CLOSE_DIALOG failed opcode=0x%04X npc=%d client_date=%d: %v", ID(packet), npcID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendNPCMenuChoice(npcID uint32, choice uint8) error {
+	packet := BuildNPCMenuChoicePacket(npcID, choice)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_CHOOSE_MENU opcode=0x%04X npc=%d choice=%d client_date=%d", ID(packet), npcID, choice, c.clientDate)
+	} else {
+		log.Printf("send CZ_CHOOSE_MENU failed opcode=0x%04X npc=%d choice=%d client_date=%d: %v", ID(packet), npcID, choice, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) Pump() {
 }
 

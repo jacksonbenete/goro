@@ -66,6 +66,7 @@ type WorldMode struct {
 	gndNormalSource  *res.GND
 	gndTopNormals    [][4]modelPoint3
 	console          chatConsole
+	npcDialog        npcDialogState
 	mapFade          mapFadeState
 }
 
@@ -210,6 +211,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
+	m.npcDialog.reset()
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
@@ -347,6 +349,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			applyActorNameAck(ctx, ack)
 			continue
 		}
+		if dialog, ok, err := network.ParseNPCDialog(pkt); err != nil {
+			log.Printf("parse npc dialog 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.npcDialog.apply(dialog)
+			continue
+		}
 		if ack, ok, err := network.ParseSelfMoveAck(pkt); err != nil {
 			log.Printf("parse self move ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -481,6 +489,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		return nil, nil
 	}
 	m.updateCameraRotation(ctx)
+	if m.npcDialog.update(ctx) {
+		return nil, nil
+	}
 	if m.console.update(ctx) {
 		return nil, nil
 	}
@@ -514,6 +525,11 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
 			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
 			m.requestAttack(ctx, actor, "click")
+			return nil, nil
+		}
+		if actor, ok := clickedTalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
+			log.Printf("click npc talk target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+			m.requestNPCTalk(ctx, actor, "click")
 			return nil, nil
 		}
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
@@ -765,6 +781,23 @@ func (m *WorldMode) requestAttack(ctx Context, actor worldstate.Actor, source st
 	}
 	log.Printf("%s attack chase target=%d player=%d,%d target=%d,%d chase=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetX, targetY)
 	m.requestWalk(ctx, targetX, targetY, source+" attack chase")
+}
+
+func (m *WorldMode) requestNPCTalk(ctx Context, actor worldstate.Actor, source string) {
+	if ctx.Network == nil {
+		m.status = "npc talk failed: not connected"
+		m.walkCooldown = 30
+		return
+	}
+	m.clearLockedAttack()
+	if err := ctx.Network.SendNPCContact(actor.ID); err == nil {
+		m.status = fmt.Sprintf("%s npc talk request: %d", source, actor.ID)
+		m.walkCooldown = 12
+	} else {
+		m.status = source + " npc talk failed: " + err.Error()
+		log.Printf("%s npc talk failed target=%d player=%d,%d target=%d,%d: %v", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, err)
+		m.walkCooldown = 30
+	}
 }
 
 func (m *WorldMode) lockAttack(targetID uint32) {
@@ -1756,6 +1789,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	}
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
+	m.npcDialog.draw(screen, ctx, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
 	m.drawMapFade(screen, now)
 }
