@@ -72,7 +72,7 @@ func sceneFogVeilAlpha(f sceneFog, projection sceneProjection) uint8 {
 	if amount <= 0 {
 		return 0
 	}
-	strength := math.Max(0, math.Min(1, sceneFloatEnv("GORO_FOG_VEIL_STRENGTH", 0.35)))
+	strength := math.Max(0, math.Min(1, sceneFloatEnv("GORO_FOG_VEIL_STRENGTH", 0.22)))
 	return clampColor(255 * amount * strength)
 }
 

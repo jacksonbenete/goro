@@ -1494,6 +1494,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	playerX, playerY := ctx.World.Player.RenderPosition(now)
 	projection := m.sceneProjection(ctx, width, height, now)
 	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
+	var actorOverlays []sceneActorDrawEntry
 	screen.SetCamera3D(projection.RenderCameraWithFog(fog))
 	vertexFog := fog
 	if projection.camera {
@@ -1504,10 +1505,10 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, vertexFog)
 		m.drawTileCursor(screen, ctx, projection, now)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
-			m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog)
+			actorOverlays = m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog)
 		} else {
 			m.drawGroundItems(screen, ctx, projection, now)
-			m.drawSceneActors(screen, ctx, projection)
+			actorOverlays = m.drawSceneActors(screen, ctx, projection)
 		}
 		if ctx.World.RSW != nil && m.rswMarkers {
 			drawRSWModelMarkers(screen, ctx.World.RSW, ctx.World.GND, projection)
@@ -1515,7 +1516,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	} else if ctx.World.GAT != nil {
 		drawGAT(screen, ctx.World.GAT, ctx.World.Player.X, ctx.World.Player.Y)
 		m.drawGroundItems(screen, ctx, projection, now)
-		m.drawSceneActors(screen, ctx, projection)
+		actorOverlays = m.drawSceneActors(screen, ctx, projection)
 	} else {
 		const tile = 32
 		for x := 0; x < width; x += tile {
@@ -1527,6 +1528,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	}
 
 	m.drawSceneFogVeil(screen, fog, projection)
+	m.drawSceneActorOverlays(screen, ctx, actorOverlays)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	debugText(screen, 24, 24, "map: %s player=(%d,%d) dir=%d yaw=%.1f", ctx.World.MapName, ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Dir, projection.cameraYaw)
@@ -2519,7 +2521,7 @@ var monsterShadowSize = map[int]float64{
 	1219: 5.0,
 }
 
-func (m *WorldMode) drawSceneActors(screen *render.Image, ctx Context, projection sceneProjection) {
+func (m *WorldMode) drawSceneActors(screen *render.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
 	entries := m.collectSceneActorEntries(screen, ctx, projection)
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -2530,12 +2532,7 @@ func (m *WorldMode) drawSceneActors(screen *render.Image, ctx Context, projectio
 	for _, entry := range entries {
 		m.drawSceneActorEntry(screen, ctx, projection, entry)
 	}
-	for _, entry := range entries {
-		m.drawActorLifeBar(screen, ctx, entry)
-	}
-	for _, entry := range entries {
-		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
-	}
+	return entries
 }
 
 type sceneDrawEntry struct {
@@ -2545,7 +2542,7 @@ type sceneDrawEntry struct {
 	itemIndex   int
 }
 
-func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) {
+func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) []sceneActorDrawEntry {
 	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
@@ -2573,11 +2570,15 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, 
 		}
 		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
 	}
-	for _, actor := range actors {
-		m.drawActorLifeBar(screen, ctx, actor)
+	return actors
+}
+
+func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx Context, entries []sceneActorDrawEntry) {
+	for _, entry := range entries {
+		m.drawActorLifeBar(screen, ctx, entry)
 	}
-	for _, actor := range actors {
-		drawActorNameLabel(screen, actor.label, actor.screenX, actor.screenY, actor.scale)
+	for _, entry := range entries {
+		drawActorNameLabel(screen, entry.label, entry.screenX, entry.screenY, entry.scale)
 	}
 }
 
