@@ -16,6 +16,7 @@ type LoginMode struct {
 	selected      int
 	status        string
 	packets       []string
+	console       chatConsole
 	autoAttempted bool
 	enterWorld    bool
 }
@@ -62,6 +63,14 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 	for _, pkt := range ctx.Network.DrainPackets() {
 		log.Printf("recv packet 0x%04X len=%d", pkt.ID, len(pkt.Data))
 		m.packets = append(m.packets, pkt.String())
+		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
+			m.packets = append(m.packets, "parse chat message: "+err.Error())
+		} else if ok {
+			if text := formatConsoleMessage(ctx.Resources, chat); text != "" {
+				m.console.addMessage("%s", text)
+			}
+			continue
+		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			m.packets = append(m.packets, "parse ZC_NPCACK_MAPMOVE: "+err.Error())
 		} else if ok {
@@ -173,7 +182,9 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 	}
 
 	if m.enterWorld {
-		return NewWorldMode(), nil
+		next := NewWorldMode()
+		next.console = m.console
+		return next, nil
 	}
 	return nil, nil
 }
