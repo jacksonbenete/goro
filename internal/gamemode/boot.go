@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/kivutar/goro/internal/render"
 )
 
@@ -25,13 +24,13 @@ func (m *BootMode) Enter(Context) {
 }
 
 func (m *BootMode) Update(ctx Context) (Mode, error) {
-	if time.Since(m.entered) > 700*time.Millisecond || ctx.Input.JustPressed(ebiten.KeyEnter) {
+	if time.Since(m.entered) > 700*time.Millisecond || ctx.Input.JustPressed(render.KeyEnter) {
 		return NewLoginMode(), nil
 	}
 	return nil, nil
 }
 
-func (m *BootMode) Draw(ctx Context, screen *ebiten.Image) {
+func (m *BootMode) Draw(ctx Context, screen *render.Image) {
 	clear(screen)
 	drawPanel(screen, 32, 32, 520, 178)
 	debugText(screen, 52, 52, "goro")

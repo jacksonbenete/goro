@@ -6,7 +6,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kivutar/goro/internal/render"
 	worldstate "github.com/kivutar/goro/internal/world"
 )
 
@@ -38,11 +38,11 @@ var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionNoWalk:  {drawX: 13, drawY: 25, startX: 14, startY: 6, delayMult: 1.0},
 }
 
-func (m *WorldMode) drawROCursor(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawROCursor(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
-	ebiten.SetCursorMode(ebiten.CursorModeHidden)
+	render.SetCursorMode(render.CursorModeHidden)
 	action := m.cursorDesiredAction(ctx, projection, now)
 	if action != m.cursorAction {
 		m.cursorAction = action
@@ -62,13 +62,13 @@ func (m *WorldMode) drawROCursor(screen *ebiten.Image, ctx Context, projection s
 		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY, info)
 		return
 	}
-	var opts ebiten.DrawImageOptions
+	var opts render.DrawImageOptions
 	opts.GeoM.Translate(float64(ctx.Input.MouseX)-info.startX, float64(ctx.Input.MouseY)-info.startY)
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(frame, &opts)
 }
 
-func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time) (*ebiten.Image, bool) {
+func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time) (*render.Image, bool) {
 	if m.cursorView == nil || m.cursorView.act == nil {
 		return nil, false
 	}
@@ -84,7 +84,7 @@ func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time
 
 func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection, now time.Time) int {
 	mouseX, mouseY := ctx.Input.MouseX, ctx.Input.MouseY
-	if ctx.Input.MousePressed(ebiten.MouseButtonRight) {
+	if ctx.Input.MousePressed(render.MouseButtonRight) {
 		return cursorActionRotate
 	}
 	if _, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok {
@@ -100,7 +100,7 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 			return cursorActionTalk
 		}
 	}
-	if ctx.Input.MousePressed(ebiten.MouseButtonLeft) {
+	if ctx.Input.MousePressed(render.MouseButtonLeft) {
 		return cursorActionClick
 	}
 	if ctx.World != nil && ctx.World.GAT != nil {
@@ -159,7 +159,7 @@ func cursorInfo(action int) cursorActionInfo {
 	return cursorActionInfos[cursorActionDefault]
 }
 
-func (m *WorldMode) cursorFallbackTexture() *ebiten.Image {
+func (m *WorldMode) cursorFallbackTexture() *render.Image {
 	if m.cursorFallback != nil {
 		return m.cursorFallback
 	}
@@ -196,15 +196,15 @@ func (m *WorldMode) cursorFallbackTexture() *ebiten.Image {
 			}
 		}
 	}
-	m.cursorFallback = ebiten.NewImageFromImage(img)
+	m.cursorFallback = render.NewImageFromImage(img)
 	return m.cursorFallback
 }
 
-func drawFallbackROCursor(screen, img *ebiten.Image, mouseX, mouseY int, info cursorActionInfo) {
+func drawFallbackROCursor(screen, img *render.Image, mouseX, mouseY int, info cursorActionInfo) {
 	if img == nil {
 		return
 	}
-	var opts ebiten.DrawImageOptions
+	var opts render.DrawImageOptions
 	opts.GeoM.Translate(float64(mouseX)-info.startX, float64(mouseY)-info.startY)
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(img, &opts)

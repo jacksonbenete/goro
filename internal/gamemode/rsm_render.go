@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
 )
 
@@ -40,19 +40,19 @@ type rsmBounds struct {
 
 type mat4 [16]float64
 
-func (m *WorldMode) drawRSMModels(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) {
+func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) {
 	triangles := m.collectRSMModelTriangles(screen, manager, rsw, models, gnd, projection, fog)
 	for _, tri := range triangles {
 		m.drawModelTriangle(screen, manager, tri)
 	}
 }
 
-func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) []modelTriangle {
+func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) []modelTriangle {
 	if rsw == nil || gnd == nil || models == nil {
 		return nil
 	}
 	if m.whitePixel == nil {
-		m.whitePixel = ebiten.NewImage(1, 1)
+		m.whitePixel = render.NewImage(1, 1)
 		m.whitePixel.Fill(color.White)
 	}
 
@@ -160,7 +160,7 @@ func (m *WorldMode) collectRSMModelTriangles(screen *ebiten.Image, manager *res.
 	return triangles
 }
 
-func (m *WorldMode) drawModelTriangle(screen *ebiten.Image, manager *res.Manager, tri modelTriangle) {
+func (m *WorldMode) drawModelTriangle(screen *render.Image, manager *res.Manager, tri modelTriangle) {
 	if texture := m.groundTexture(manager, tri.textureName); texture != nil {
 		drawTexturedTriangle(screen, texture, tri.points, tri.uvs, tri.color)
 		return
@@ -689,7 +689,7 @@ func rsmFaceColor(textureName string, a, b, c modelPoint3, lighting sceneLightin
 	}
 }
 
-func drawTexturedTriangle(screen, texture *ebiten.Image, points [3]screenPoint, uvs [3]texturePoint, tint color.RGBA) {
+func drawTexturedTriangle(screen, texture *render.Image, points [3]screenPoint, uvs [3]texturePoint, tint color.RGBA) {
 	bounds := texture.Bounds()
 	w := float32(bounds.Dx())
 	h := float32(bounds.Dy())
@@ -697,25 +697,25 @@ func drawTexturedTriangle(screen, texture *ebiten.Image, points [3]screenPoint, 
 	g := float32(tint.G) / 255
 	b := float32(tint.B) / 255
 	a := float32(tint.A) / 255
-	vertices := []ebiten.Vertex{
+	vertices := []render.Vertex{
 		{DstX: points[0].x, DstY: points[0].y, SrcX: uvs[0].u * w, SrcY: uvs[0].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		{DstX: points[1].x, DstY: points[1].y, SrcX: uvs[1].u * w, SrcY: uvs[1].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		{DstX: points[2].x, DstY: points[2].y, SrcX: uvs[2].u * w, SrcY: uvs[2].v * h, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat))
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func drawColoredTriangle(screen, white *ebiten.Image, points [3]screenPoint, c color.RGBA) {
+func drawColoredTriangle(screen, white *render.Image, points [3]screenPoint, c color.RGBA) {
 	r := float32(c.R) / 255
 	g := float32(c.G) / 255
 	b := float32(c.B) / 255
 	a := float32(c.A) / 255
-	vertices := []ebiten.Vertex{
+	vertices := []render.Vertex{
 		{DstX: points[0].x, DstY: points[0].y, SrcX: 0, SrcY: 0, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		{DstX: points[1].x, DstY: points[1].y, SrcX: 1, SrcY: 0, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		{DstX: points[2].x, DstY: points[2].y, SrcX: 1, SrcY: 1, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, white, triangleDrawOptions(ebiten.FilterNearest, ebiten.AddressUnsafe))
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
 }
 
 func triangleOutside(points [3]screenPoint, width, height float64) bool {

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	gameaudio "github.com/kivutar/goro/internal/audio"
 	"github.com/kivutar/goro/internal/core"
 	"github.com/kivutar/goro/internal/gamemode"
 	"github.com/kivutar/goro/internal/input"
 	"github.com/kivutar/goro/internal/network"
+	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
 	"github.com/kivutar/goro/internal/session"
 	"github.com/kivutar/goro/internal/world"
@@ -54,25 +54,28 @@ func New(cfg core.Config) (*Game, error) {
 }
 
 func (g *Game) Update() error {
-	g.input.Update()
+	defer g.input.EndFrame()
 	g.network.Pump()
 	g.modes.UpdateContext(g.modeContext())
 	return g.modes.Update()
 }
 
-func (g *Game) Draw(screen *ebiten.Image) {
+func (g *Game) Draw(screen *render.Image) {
 	g.modes.Draw(screen)
 }
 
-func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
-	if outsideWidth <= 0 || outsideHeight <= 0 {
+func (g *Game) Resize(width, height int) {
+	if width <= 0 || height <= 0 {
 		g.screenW = g.cfg.Window.Width
 		g.screenH = g.cfg.Window.Height
-		return g.cfg.Window.Width, g.cfg.Window.Height
+		return
 	}
-	g.screenW = outsideWidth
-	g.screenH = outsideHeight
-	return outsideWidth, outsideHeight
+	g.screenW = width
+	g.screenH = height
+}
+
+func (g *Game) InputState() *input.State {
+	return g.input
 }
 
 func (g *Game) modeContext() gamemode.Context {

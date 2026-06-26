@@ -3,15 +3,39 @@ package input
 import (
 	"math"
 	"sort"
-
-	"github.com/hajimehoshi/ebiten/v2"
 )
 
+type Key int
+
+const (
+	KeyEnter Key = iota
+	KeyEscape
+	KeyTab
+	KeyArrowUp
+	KeyArrowDown
+	KeyArrowLeft
+	KeyArrowRight
+	KeyQ
+	KeyE
+	KeyR
+)
+
+type MouseButton int
+
+const (
+	MouseButtonLeft MouseButton = iota
+	MouseButtonRight
+)
+
+type TouchID int64
+
 type State struct {
-	keys      map[ebiten.Key]bool
-	prev      map[ebiten.Key]bool
-	buttons   map[ebiten.MouseButton]bool
-	prevMouse map[ebiten.MouseButton]bool
+	keys      map[Key]bool
+	prev      map[Key]bool
+	justKeys  map[Key]bool
+	buttons   map[MouseButton]bool
+	prevMouse map[MouseButton]bool
+	justMouse map[MouseButton]bool
 
 	MouseX   int
 	MouseY   int
@@ -23,99 +47,118 @@ type State struct {
 	WheelY        float64
 	TouchPoints   []TouchPoint
 	PinchDelta    float64
-	touchIDs      []ebiten.TouchID
+	touchIDs      []TouchID
+	touches       map[TouchID]TouchPoint
 	hasPinch      bool
 	pinchDistance float64
 }
 
 type TouchPoint struct {
-	ID ebiten.TouchID
+	ID TouchID
 	X  int
 	Y  int
 }
 
 func NewState() *State {
 	return &State{
-		keys:      make(map[ebiten.Key]bool),
-		prev:      make(map[ebiten.Key]bool),
-		buttons:   make(map[ebiten.MouseButton]bool),
-		prevMouse: make(map[ebiten.MouseButton]bool),
+		keys:      make(map[Key]bool),
+		prev:      make(map[Key]bool),
+		justKeys:  make(map[Key]bool),
+		buttons:   make(map[MouseButton]bool),
+		prevMouse: make(map[MouseButton]bool),
+		justMouse: make(map[MouseButton]bool),
+		touches:   make(map[TouchID]TouchPoint),
 	}
 }
 
 func (s *State) Update() {
+	s.EndFrame()
+}
+
+func (s *State) EndFrame() {
 	for key, down := range s.keys {
 		s.prev[key] = down
+	}
+	for key := range s.justKeys {
+		delete(s.justKeys, key)
 	}
 	for button, down := range s.buttons {
 		s.prevMouse[button] = down
 	}
-
-	for _, key := range trackedKeys {
-		s.keys[key] = ebiten.IsKeyPressed(key)
+	for button := range s.justMouse {
+		delete(s.justMouse, button)
 	}
-	for _, button := range trackedButtons {
-		s.buttons[button] = ebiten.IsMouseButtonPressed(button)
-	}
-
-	mouseX, mouseY := ebiten.CursorPosition()
-	if s.hasMouse {
-		s.MouseDX = mouseX - s.MouseX
-		s.MouseDY = mouseY - s.MouseY
-	} else {
-		s.MouseDX = 0
-		s.MouseDY = 0
-		s.hasMouse = true
-	}
-	s.MouseX, s.MouseY = mouseX, mouseY
-
-	s.WheelX, s.WheelY = ebiten.Wheel()
+	s.MouseDX = 0
+	s.MouseDY = 0
+	s.WheelX = 0
+	s.WheelY = 0
 	s.updateTouches()
 }
 
-func (s *State) Pressed(key ebiten.Key) bool {
+func (s *State) SetKey(key Key, pressed bool) {
+	if pressed && !s.keys[key] {
+		s.justKeys[key] = true
+	}
+	s.keys[key] = pressed
+}
+
+func (s *State) SetMouseButton(button MouseButton, pressed bool) {
+	if pressed && !s.buttons[button] {
+		s.justMouse[button] = true
+	}
+	s.buttons[button] = pressed
+}
+
+func (s *State) SetMousePosition(x, y int) {
+	if s.hasMouse {
+		s.MouseDX += x - s.MouseX
+		s.MouseDY += y - s.MouseY
+	} else {
+		s.hasMouse = true
+	}
+	s.MouseX, s.MouseY = x, y
+}
+
+func (s *State) AddWheel(x, y float64) {
+	s.WheelX += x
+	s.WheelY += y
+}
+
+func (s *State) SetTouch(id TouchID, x, y int, pressed bool) {
+	if pressed {
+		s.touches[id] = TouchPoint{ID: id, X: x, Y: y}
+		return
+	}
+	delete(s.touches, id)
+}
+
+func (s *State) Pressed(key Key) bool {
 	return s.keys[key]
 }
 
-func (s *State) JustPressed(key ebiten.Key) bool {
-	return s.keys[key] && !s.prev[key]
+func (s *State) JustPressed(key Key) bool {
+	return s.justKeys[key] || (s.keys[key] && !s.prev[key])
 }
 
-func (s *State) MousePressed(button ebiten.MouseButton) bool {
+func (s *State) MousePressed(button MouseButton) bool {
 	return s.buttons[button]
 }
 
-func (s *State) MouseJustPressed(button ebiten.MouseButton) bool {
-	return s.buttons[button] && !s.prevMouse[button]
-}
-
-var trackedKeys = []ebiten.Key{
-	ebiten.KeyEnter,
-	ebiten.KeyEscape,
-	ebiten.KeyTab,
-	ebiten.KeyArrowUp,
-	ebiten.KeyArrowDown,
-	ebiten.KeyArrowLeft,
-	ebiten.KeyArrowRight,
-	ebiten.KeyQ,
-	ebiten.KeyE,
-	ebiten.KeyR,
-}
-
-var trackedButtons = []ebiten.MouseButton{
-	ebiten.MouseButtonLeft,
-	ebiten.MouseButtonRight,
+func (s *State) MouseJustPressed(button MouseButton) bool {
+	return s.justMouse[button] || (s.buttons[button] && !s.prevMouse[button])
 }
 
 func (s *State) updateTouches() {
-	s.touchIDs = ebiten.AppendTouchIDs(s.touchIDs[:0])
+	s.touchIDs = s.touchIDs[:0]
+	for id := range s.touches {
+		s.touchIDs = append(s.touchIDs, id)
+	}
 	sort.Slice(s.touchIDs, func(i, j int) bool {
 		return s.touchIDs[i] < s.touchIDs[j]
 	})
 	s.TouchPoints = s.TouchPoints[:0]
 	for _, id := range s.touchIDs {
-		x, y := ebiten.TouchPosition(id)
-		s.TouchPoints = append(s.TouchPoints, TouchPoint{ID: id, X: x, Y: y})
+		s.TouchPoints = append(s.TouchPoints, s.touches[id])
 	}
 	s.PinchDelta = 0
 	if len(s.TouchPoints) < 2 {

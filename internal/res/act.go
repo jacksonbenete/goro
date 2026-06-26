@@ -39,8 +39,8 @@ type ACTLayer struct {
 }
 
 type ACTPosition struct {
-	X int32
-	Y int32
+	X    int32
+	Y    int32
 	Attr int32
 }
 

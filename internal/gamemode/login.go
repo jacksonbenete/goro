@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/kivutar/goro/internal/network"
+	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
 	"github.com/kivutar/goro/internal/session"
 )
@@ -45,16 +45,16 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 		m.connectAndMaybeLogin(ctx, conns[m.selected])
 	}
 
-	if ctx.Input.JustPressed(ebiten.KeyArrowDown) || ctx.Input.JustPressed(ebiten.KeyTab) {
+	if ctx.Input.JustPressed(render.KeyArrowDown) || ctx.Input.JustPressed(render.KeyTab) {
 		m.selected = (m.selected + 1) % len(conns)
 	}
-	if ctx.Input.JustPressed(ebiten.KeyArrowUp) {
+	if ctx.Input.JustPressed(render.KeyArrowUp) {
 		m.selected = (m.selected + len(conns) - 1) % len(conns)
 	}
-	if ctx.Input.JustPressed(ebiten.KeyEnter) {
+	if ctx.Input.JustPressed(render.KeyEnter) {
 		m.connectAndMaybeLogin(ctx, conns[m.selected])
 	}
-	if ctx.Input.JustPressed(ebiten.KeyEscape) {
+	if ctx.Input.JustPressed(render.KeyEscape) {
 		ctx.Network.Close()
 		m.status = "offline"
 	}
@@ -178,7 +178,7 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 	return nil, nil
 }
 
-func (m *LoginMode) Draw(ctx Context, screen *ebiten.Image) {
+func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
 	clear(screen)
 	drawPanel(screen, 32, 32, 560, 420)
 	debugText(screen, 52, 52, "Login")

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
 )
 
@@ -26,13 +26,13 @@ func TestNormalizeDirectionIndex(t *testing.T) {
 }
 
 func TestSpriteDrawFilterUsesLinearSampling(t *testing.T) {
-	if got := spriteDrawFilter(); got != ebiten.FilterLinear {
+	if got := spriteDrawFilter(); got != render.FilterLinear {
 		t.Fatalf("sprite draw filter = %v, want linear", got)
 	}
 }
 
 func TestSpriteCompositionFilterKeepsSourcePixelsCrisp(t *testing.T) {
-	if got := spriteCompositionFilter(); got != ebiten.FilterNearest {
+	if got := spriteCompositionFilter(); got != render.FilterNearest {
 		t.Fatalf("sprite composition filter = %v, want nearest", got)
 	}
 }
@@ -444,7 +444,7 @@ func TestComposeSingleSpriteBillboardUsesAnimationBounds(t *testing.T) {
 			}},
 		},
 		act:        &res.ACT{},
-		images:     make(map[spriteFrameKey]*ebiten.Image),
+		images:     make(map[spriteFrameKey]*render.Image),
 		billboards: make(map[singleSpriteBillboardKey]*spriteBillboard),
 	}
 	anim := res.ACTAnimation{Layers: []res.ACTLayer{{

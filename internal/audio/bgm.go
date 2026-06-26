@@ -1,7 +1,10 @@
+//go:build cgo
+
 package audio
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -9,8 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	ebitenaudio "github.com/hajimehoshi/ebiten/v2/audio"
-	"github.com/hajimehoshi/ebiten/v2/audio/wav"
+	"github.com/ebitengine/oto/v3"
 	"github.com/kivutar/goro/internal/res"
 	"github.com/kvark128/minimp3"
 )
@@ -19,14 +21,15 @@ const defaultSampleRate = 44100
 
 type BGM struct {
 	resources  *res.Manager
-	context    *ebitenaudio.Context
-	player     *ebitenaudio.Player
+	context    *oto.Context
+	sampleRate int
+	player     *oto.Player
 	table      map[string]string
 	current    string
 	playerID   int
 	enabled    bool
 	volume     float64
-	sfxPlayers []*ebitenaudio.Player
+	sfxPlayers []*oto.Player
 }
 
 func NewBGM(resources *res.Manager, enabled bool, volume float64) *BGM {
@@ -85,20 +88,20 @@ func (b *BGM) Play(path string) error {
 		return fmt.Errorf("decode %s: %w", source, err)
 	}
 	context := b.ensureContext(sourceRate)
-	if sourceRate != context.SampleRate() {
-		pcm, err = resamplePCM16Stereo(pcm, sourceRate, context.SampleRate())
+	if context == nil {
+		return fmt.Errorf("audio context unavailable")
+	}
+	if sourceRate != b.sampleRate {
+		pcm, err = resamplePCM16Stereo(pcm, sourceRate, b.sampleRate)
 		if err != nil {
 			return fmt.Errorf("resample %s: %w", source, err)
 		}
-		decoder = fmt.Sprintf("%s+sinc %d->%d", decoder, sourceRate, context.SampleRate())
+		decoder = fmt.Sprintf("%s+sinc %d->%d", decoder, sourceRate, b.sampleRate)
 	} else {
 		decoder = fmt.Sprintf("%s native %d", decoder, sourceRate)
 	}
-	loop := ebitenaudio.NewInfiniteLoop(bytes.NewReader(pcm), int64(len(pcm)))
-	player, err := context.NewPlayer(loop)
-	if err != nil {
-		return fmt.Errorf("player %s: %w", source, err)
-	}
+	loop := newInfinitePCM(pcm)
+	player := context.NewPlayer(loop)
 	player.SetVolume(b.volume)
 
 	b.stopCurrent()
@@ -106,7 +109,7 @@ func (b *BGM) Play(path string) error {
 	b.player = player
 	b.current = path
 	player.Play()
-	log.Printf("bgm playing id=%d path=%s source=%s decoder=%s bytes=%d pcm_len=%d sample_rate=%d volume=%.2f", b.playerID, path, source, decoder, len(data), len(pcm), context.SampleRate(), b.volume)
+	log.Printf("bgm playing id=%d path=%s source=%s decoder=%s bytes=%d pcm_len=%d sample_rate=%d volume=%.2f", b.playerID, path, source, decoder, len(data), len(pcm), b.sampleRate, b.volume)
 	return nil
 }
 
@@ -123,14 +126,20 @@ func (b *BGM) PlaySFX(path string) (string, error) {
 		return "", err
 	}
 	context := b.ensureContext(defaultSampleRate)
-	stream, err := wav.DecodeWithSampleRate(context.SampleRate(), bytes.NewReader(data))
+	if context == nil {
+		return source, fmt.Errorf("audio context unavailable")
+	}
+	pcm, sourceRate, err := decodeWAVPCM16Stereo(data)
 	if err != nil {
 		return source, fmt.Errorf("decode sfx %s: %w", source, err)
 	}
-	player, err := context.NewPlayer(stream)
-	if err != nil {
-		return source, fmt.Errorf("player sfx %s: %w", source, err)
+	if sourceRate != b.sampleRate {
+		pcm, err = resamplePCM16Stereo(pcm, sourceRate, b.sampleRate)
+		if err != nil {
+			return source, fmt.Errorf("resample sfx %s: %w", source, err)
+		}
 	}
+	player := context.NewPlayer(bytes.NewReader(pcm))
 	player.SetVolume(b.volume)
 	b.trimSFXPlayers()
 	b.sfxPlayers = append(b.sfxPlayers, player)
@@ -162,6 +171,90 @@ func decodeNativePCM(data []byte) ([]byte, int, string, error) {
 		sampleRate = defaultSampleRate
 	}
 	return pcm, sampleRate, "minimp3", nil
+}
+
+type infinitePCM struct {
+	data []byte
+	pos  int
+}
+
+func newInfinitePCM(data []byte) *infinitePCM {
+	return &infinitePCM{data: data}
+}
+
+func (r *infinitePCM) Read(p []byte) (int, error) {
+	if len(r.data) == 0 {
+		return 0, io.EOF
+	}
+	written := 0
+	for written < len(p) {
+		n := copy(p[written:], r.data[r.pos:])
+		written += n
+		r.pos += n
+		if r.pos >= len(r.data) {
+			r.pos = 0
+		}
+	}
+	return written, nil
+}
+
+func decodeWAVPCM16Stereo(data []byte) ([]byte, int, error) {
+	if len(data) < 44 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WAVE" {
+		return nil, 0, fmt.Errorf("not a RIFF/WAVE file")
+	}
+	pos := 12
+	var channels, bitsPerSample uint16
+	var sampleRate uint32
+	var pcm []byte
+	for pos+8 <= len(data) {
+		id := string(data[pos : pos+4])
+		size := int(binary.LittleEndian.Uint32(data[pos+4 : pos+8]))
+		pos += 8
+		if size < 0 || pos+size > len(data) {
+			return nil, 0, fmt.Errorf("invalid wav chunk %q size %d", id, size)
+		}
+		chunk := data[pos : pos+size]
+		switch id {
+		case "fmt ":
+			if len(chunk) < 16 {
+				return nil, 0, fmt.Errorf("short fmt chunk")
+			}
+			format := binary.LittleEndian.Uint16(chunk[0:2])
+			channels = binary.LittleEndian.Uint16(chunk[2:4])
+			sampleRate = binary.LittleEndian.Uint32(chunk[4:8])
+			bitsPerSample = binary.LittleEndian.Uint16(chunk[14:16])
+			if format != 1 {
+				return nil, 0, fmt.Errorf("unsupported wav format %d", format)
+			}
+		case "data":
+			pcm = append([]byte(nil), chunk...)
+		}
+		pos += size
+		if pos%2 != 0 {
+			pos++
+		}
+	}
+	if sampleRate == 0 || len(pcm) == 0 {
+		return nil, 0, fmt.Errorf("missing wav fmt or data")
+	}
+	if bitsPerSample != 16 {
+		return nil, 0, fmt.Errorf("unsupported wav bits per sample %d", bitsPerSample)
+	}
+	switch channels {
+	case 1:
+		stereo, err := monoPCM16ToStereo(pcm)
+		if err != nil {
+			return nil, 0, err
+		}
+		pcm = stereo
+	case 2:
+		if len(pcm)%4 != 0 {
+			return nil, 0, fmt.Errorf("invalid stereo pcm length %d", len(pcm))
+		}
+	default:
+		return nil, 0, fmt.Errorf("unsupported wav channels %d", channels)
+	}
+	return pcm, int(sampleRate), nil
 }
 
 func monoPCM16ToStereo(src []byte) ([]byte, error) {
@@ -332,20 +425,26 @@ func hann(x float64) float64 {
 	return 0.5 + 0.5*math.Cos(math.Pi*x)
 }
 
-func (b *BGM) ensureContext(preferredSampleRate int) *ebitenaudio.Context {
+func (b *BGM) ensureContext(preferredSampleRate int) *oto.Context {
 	if b.context != nil {
 		return b.context
-	}
-	if current := ebitenaudio.CurrentContext(); current != nil {
-		b.context = current
-		log.Printf("bgm using existing audio context sample_rate=%d", current.SampleRate())
-		return current
 	}
 	if preferredSampleRate <= 0 {
 		preferredSampleRate = defaultSampleRate
 	}
-	b.context = ebitenaudio.NewContext(preferredSampleRate)
-	log.Printf("bgm created audio context sample_rate=%d", b.context.SampleRate())
+	context, ready, err := oto.NewContext(&oto.NewContextOptions{
+		SampleRate:   preferredSampleRate,
+		ChannelCount: 2,
+		Format:       oto.FormatSignedInt16LE,
+	})
+	if err != nil {
+		log.Printf("bgm create audio context failed sample_rate=%d: %v", preferredSampleRate, err)
+		return nil
+	}
+	<-ready
+	b.context = context
+	b.sampleRate = preferredSampleRate
+	log.Printf("bgm created audio context sample_rate=%d", b.sampleRate)
 	return b.context
 }
 

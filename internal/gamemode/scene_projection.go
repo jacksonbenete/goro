@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kivutar/goro/internal/render"
 	worldstate "github.com/kivutar/goro/internal/world"
 )
 
@@ -31,7 +31,7 @@ type sceneProjection struct {
 	viewProjection mat4
 }
 
-func newSceneProjection(screen *ebiten.Image, playerX, playerY int, playerZ float64) sceneProjection {
+func newSceneProjection(screen *render.Image, playerX, playerY int, playerZ float64) sceneProjection {
 	return newSceneProjectionForSize(screen.Bounds().Dx(), screen.Bounds().Dy(), playerX, playerY, playerZ)
 }
 

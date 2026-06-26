@@ -3,7 +3,7 @@ package gamemode
 import (
 	"testing"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kivutar/goro/internal/render"
 )
 
 func TestFSAAEnabledByDefault(t *testing.T) {
@@ -26,8 +26,8 @@ func TestFSAACanBeDisabled(t *testing.T) {
 
 func TestTriangleDrawOptionsCarryFSAA(t *testing.T) {
 	t.Setenv("GORO_FSAA", "1")
-	options := triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat)
-	if options.Filter != ebiten.FilterLinear || options.Address != ebiten.AddressRepeat {
+	options := triangleDrawOptions(render.FilterLinear, render.AddressRepeat)
+	if options.Filter != render.FilterLinear || options.Address != render.AddressRepeat {
 		t.Fatalf("options filter/address = %v/%v", options.Filter, options.Address)
 	}
 	if !options.AntiAlias {

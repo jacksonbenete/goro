@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
 	"github.com/kivutar/goro/internal/session"
 )
@@ -42,7 +42,7 @@ type playerSpriteView struct {
 	source        string
 	palette       *res.Palette
 	paletteSource string
-	images        map[spriteFrameKey]*ebiten.Image
+	images        map[spriteFrameKey]*render.Image
 	billboards    map[singleSpriteBillboardKey]*spriteBillboard
 	started       time.Time
 }
@@ -93,7 +93,7 @@ type singleSpriteBillboardKey struct {
 }
 
 type spriteBillboard struct {
-	image   *ebiten.Image
+	image   *render.Image
 	anchorX float64
 	anchorY float64
 }
@@ -299,7 +299,7 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 		source:        sprSource,
 		palette:       palette,
 		paletteSource: paletteSource,
-		images:        make(map[spriteFrameKey]*ebiten.Image),
+		images:        make(map[spriteFrameKey]*render.Image),
 		billboards:    make(map[singleSpriteBillboardKey]*spriteBillboard),
 		started:       time.Now(),
 	}, fmt.Sprintf("%s: %s actions=%d frames=%d%s", label, sprSource, len(act.Actions), len(spr.Frames), paletteStatus)
@@ -420,7 +420,7 @@ func selectedCharacter(s *session.Session) session.Character {
 	return session.Character{ID: s.CharID, Name: "Player", Job: 0}
 }
 
-func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX, centerY, scale float64, direction int, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawPlayerSprite(ctx Context, screen *render.Image, centerX, centerY, scale float64, direction int, cameraYaw float64, shadow float64) bool {
 	now := time.Now()
 	moving := ctx.World.Player.IsMovingAt(now)
 	state := spriteState{
@@ -451,7 +451,7 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *ebiten.Image, centerX,
 	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY, scale, shadow)
 }
 
-func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state spriteState, centerX, centerY, scale float64, shadow float64) bool {
+func drawHumanoidBillboard(screen *render.Image, view *humanoidSpriteView, state spriteState, centerX, centerY, scale float64, shadow float64) bool {
 	billboard, ok := humanoidBillboardForState(view, state, time.Now())
 	if !ok {
 		return false
@@ -460,11 +460,11 @@ func drawHumanoidBillboard(screen *ebiten.Image, view *humanoidSpriteView, state
 	return true
 }
 
-func drawSingleSpriteBillboard(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64) bool {
+func drawSingleSpriteBillboard(screen *render.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64) bool {
 	return drawSingleSpriteBillboardAlpha(screen, view, state, centerX, centerY, scale, 1, 1)
 }
 
-func drawSingleSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
+func drawSingleSpriteBillboardAlpha(screen *render.Image, view *playerSpriteView, state spriteState, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
 	billboard, ok := singleSpriteBillboardForState(view, state, time.Now())
 	if !ok {
 		return false
@@ -473,7 +473,7 @@ func drawSingleSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView
 	return true
 }
 
-func drawFixedSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
+func drawFixedSpriteBillboardAlpha(screen *render.Image, view *playerSpriteView, centerX, centerY, scale float64, alpha float64, shadow float64) bool {
 	billboard, ok := fixedSpriteBillboard(view)
 	if !ok {
 		return false
@@ -482,11 +482,11 @@ func drawFixedSpriteBillboardAlpha(screen *ebiten.Image, view *playerSpriteView,
 	return true
 }
 
-func drawSpriteBillboard(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64, shadow float64) {
+func drawSpriteBillboard(screen *render.Image, billboard *spriteBillboard, centerX, centerY, scale float64, shadow float64) {
 	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, 1, shadow)
 }
 
-func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, centerX, centerY, scale float64, alpha float64, shadow float64) {
+func drawSpriteBillboardAlpha(screen *render.Image, billboard *spriteBillboard, centerX, centerY, scale float64, alpha float64, shadow float64) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
@@ -502,7 +502,7 @@ func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, 
 	if shadow > 1 || math.IsInf(shadow, 0) {
 		shadow = 1
 	}
-	var opts ebiten.DrawImageOptions
+	var opts render.DrawImageOptions
 	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(centerX, centerY)
@@ -512,12 +512,12 @@ func drawSpriteBillboardAlpha(screen *ebiten.Image, billboard *spriteBillboard, 
 	screen.DrawImage(billboard.image, &opts)
 }
 
-func spriteDrawFilter() ebiten.Filter {
-	return ebiten.FilterLinear
+func spriteDrawFilter() render.Filter {
+	return render.FilterLinear
 }
 
-func spriteCompositionFilter() ebiten.Filter {
-	return ebiten.FilterNearest
+func spriteCompositionFilter() render.Filter {
+	return render.FilterNearest
 }
 
 func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
@@ -594,7 +594,7 @@ func fixedSpriteBillboard(view *playerSpriteView) (*spriteBillboard, bool) {
 	return billboard, true
 }
 
-func cursorFrameImage(view *playerSpriteView, actionIndex, motion int, drawX, drawY float64) (*ebiten.Image, bool) {
+func cursorFrameImage(view *playerSpriteView, actionIndex, motion int, drawX, drawY float64) (*render.Image, bool) {
 	if view == nil || view.act == nil || view.spr == nil || len(view.act.Actions) == 0 {
 		return nil, false
 	}
@@ -613,7 +613,7 @@ func cursorFrameImage(view *playerSpriteView, actionIndex, motion int, drawX, dr
 	if billboard, ok := view.billboards[key]; ok {
 		return billboard.image, true
 	}
-	target := ebiten.NewImage(50, 50)
+	target := render.NewImage(50, 50)
 	if !drawSpriteAnimation(target, view, action.Animations[motion], drawX, drawY, 0, 0) {
 		return nil, false
 	}
@@ -625,7 +625,7 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 	if bodyMotion < 0 || bodyMotion >= len(bodyAction.Animations) {
 		return nil, false
 	}
-	target := ebiten.NewImage(humanoidBillboardWidth, humanoidBillboardHeight)
+	target := render.NewImage(humanoidBillboardWidth, humanoidBillboardHeight)
 	bodyActionIndex := actionFamily*8 + direction
 	drawn := false
 	if view.imf != nil {
@@ -658,7 +658,7 @@ func composeSingleSpriteBillboard(view *playerSpriteView, anim res.ACTAnimation)
 	if width <= 0 || height <= 0 {
 		return nil, false
 	}
-	target := ebiten.NewImage(width, height)
+	target := render.NewImage(width, height)
 	anchorX := -minX
 	anchorY := -minY
 	if !drawSpriteAnimation(target, view, anim, anchorX, anchorY, 0, 0) {
@@ -721,7 +721,7 @@ func spriteLayerFrameSize(view *playerSpriteView, index int32, sprType int32) (f
 	return float64(frame.Width), float64(frame.Height), true
 }
 
-func drawFallbackHumanoidLayers(target *ebiten.Image, view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) bool {
+func drawFallbackHumanoidLayers(target *render.Image, view *humanoidSpriteView, actionFamily, direction int, bodyAction res.ACTAction, bodyMotion, headMotion int) bool {
 	bodyAnim := bodyAction.Animations[bodyMotion]
 	drawn := drawSpriteAnimation(target, view.body, bodyAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, 0, 0)
 	if view.head != nil && view.head.act != nil && view.head.spr != nil {
@@ -737,7 +737,7 @@ func drawFallbackHumanoidLayers(target *ebiten.Image, view *humanoidSpriteView, 
 	return drawn
 }
 
-func drawPlayerIMFLayers(target *ebiten.Image, view *humanoidSpriteView, actionIndex, bodyMotion, headMotion int) bool {
+func drawPlayerIMFLayers(target *render.Image, view *humanoidSpriteView, actionIndex, bodyMotion, headMotion int) bool {
 	order := playerRenderLayerOrder(view.imf, actionIndex, bodyMotion)
 	bodyAnim, bodyAnimOK := actionAnimation(view.body.act, actionIndex, bodyMotion)
 	drawn := false
@@ -777,7 +777,7 @@ func drawPlayerIMFLayers(target *ebiten.Image, view *humanoidSpriteView, actionI
 	return drawn
 }
 
-func drawPlayerIMFLayer(target *ebiten.Image, sprite *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, motionIndex int, attachBase *res.ACTAnimation) bool {
+func drawPlayerIMFLayer(target *render.Image, sprite *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, motionIndex int, attachBase *res.ACTAnimation) bool {
 	if sprite == nil || sprite.act == nil || sprite.spr == nil {
 		return false
 	}
@@ -837,7 +837,7 @@ func actionAnimation(act *res.ACT, actionIndex, motionIndex int) (res.ACTAnimati
 	return action.Animations[motionIndex], true
 }
 
-func drawAttachedAccessoryMotion(target *ebiten.Image, accessory *playerSpriteView, head *playerSpriteView, bodyAnim res.ACTAnimation, actionIndex, headMotionIndex int) bool {
+func drawAttachedAccessoryMotion(target *render.Image, accessory *playerSpriteView, head *playerSpriteView, bodyAnim res.ACTAnimation, actionIndex, headMotionIndex int) bool {
 	if accessory == nil || accessory.act == nil || accessory.spr == nil || head == nil || head.act == nil || head.spr == nil {
 		return false
 	}
@@ -858,7 +858,7 @@ func drawAttachedAccessoryMotion(target *ebiten.Image, accessory *playerSpriteVi
 	return drawSpriteAnimation(target, accessory, accessoryAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headDX+accessoryDX, headDY+accessoryDY)
 }
 
-func drawPlayerOverlayMotion(target *ebiten.Image, overlay *playerSpriteView, body *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, bodyMotion int) bool {
+func drawPlayerOverlayMotion(target *render.Image, overlay *playerSpriteView, body *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, bodyMotion int) bool {
 	if overlay == nil || overlay.act == nil || overlay.spr == nil || body == nil || body.act == nil || imf == nil {
 		return false
 	}
@@ -1141,7 +1141,7 @@ func isTransientPCAction(actionFamily int) bool {
 	}
 }
 
-func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) bool {
+func drawSpriteAnimation(target *render.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) bool {
 	rendered := false
 	for _, layer := range anim.Layers {
 		if layer.Index < 0 {
@@ -1157,7 +1157,7 @@ func drawSpriteAnimation(target *ebiten.Image, view *playerSpriteView, anim res.
 	return rendered
 }
 
-func drawSpriteLayerByValue(target *ebiten.Image, view *playerSpriteView, layer res.ACTLayer, centerX, centerY float64) bool {
+func drawSpriteLayerByValue(target *render.Image, view *playerSpriteView, layer res.ACTLayer, centerX, centerY float64) bool {
 	if layer.Index < 0 {
 		return false
 	}
@@ -1183,7 +1183,7 @@ func attachmentDelta(baseAnim, attachedAnim res.ACTAnimation) (int32, int32) {
 	return base.X - attached.X, base.Y - attached.Y
 }
 
-func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*ebiten.Image, bool) {
+func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*render.Image, bool) {
 	key := spriteFrameKey{index: index, sprType: sprType}
 	if img, ok := view.images[key]; ok {
 		return img, true
@@ -1192,12 +1192,12 @@ func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*ebite
 	if !ok {
 		return nil, false
 	}
-	img := ebiten.NewImageFromImage(frame)
+	img := render.NewImageFromImage(frame)
 	view.images[key] = img
 	return img, true
 }
 
-func drawSpriteLayer(target *ebiten.Image, img *ebiten.Image, layer res.ACTLayer, centerX, centerY float64) {
+func drawSpriteLayer(target *render.Image, img *render.Image, layer res.ACTLayer, centerX, centerY float64) {
 	bounds := img.Bounds()
 	width := float64(bounds.Dx())
 	height := float64(bounds.Dy())
@@ -1213,7 +1213,7 @@ func drawSpriteLayer(target *ebiten.Image, img *ebiten.Image, layer res.ACTLayer
 		scaleX = -scaleX
 	}
 
-	var opts ebiten.DrawImageOptions
+	var opts render.DrawImageOptions
 	opts.GeoM.Translate(-width/2, -height/2)
 	opts.GeoM.Scale(scaleX, scaleY)
 	if layer.Angle != 0 {

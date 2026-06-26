@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/kivutar/goro/internal/render"
 )
 
 func fsaaEnabled() bool {
@@ -12,8 +12,8 @@ func fsaaEnabled() bool {
 	return value != "0" && value != "false" && value != "off"
 }
 
-func triangleDrawOptions(filter ebiten.Filter, address ebiten.Address) *ebiten.DrawTrianglesOptions {
-	return &ebiten.DrawTrianglesOptions{
+func triangleDrawOptions(filter render.Filter, address render.Address) *render.DrawTrianglesOptions {
+	return &render.DrawTrianglesOptions{
 		Filter:    filter,
 		Address:   address,
 		AntiAlias: fsaaEnabled(),

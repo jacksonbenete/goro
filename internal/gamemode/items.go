@@ -8,8 +8,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/kivutar/goro/internal/network"
+	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
 	worldstate "github.com/kivutar/goro/internal/world"
 )
@@ -260,13 +260,13 @@ func pickupApproachCell(ctx Context, item worldstate.FloorItem) (int, int, bool)
 	return bestX, bestY, found
 }
 
-func (m *WorldMode) drawGroundItems(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawGroundItems(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
 	for _, entry := range m.collectSceneItemEntries(screen, ctx, projection, now) {
 		m.drawGroundItemEntry(screen, entry)
 	}
 }
 
-func (m *WorldMode) collectSceneItemEntries(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) []sceneItemDrawEntry {
+func (m *WorldMode) collectSceneItemEntries(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) []sceneItemDrawEntry {
 	if ctx.World == nil || len(ctx.World.Items) == 0 {
 		return nil
 	}
@@ -292,7 +292,7 @@ func (m *WorldMode) collectSceneItemEntries(screen *ebiten.Image, ctx Context, p
 	return entries
 }
 
-func (m *WorldMode) drawGroundItemEntry(screen *ebiten.Image, entry sceneItemDrawEntry) {
+func (m *WorldMode) drawGroundItemEntry(screen *render.Image, entry sceneItemDrawEntry) {
 	if entry.billboard != nil {
 		drawSpriteBillboard(screen, entry.billboard, entry.screenX, entry.screenY, entry.scale, 1)
 		return
@@ -300,7 +300,7 @@ func (m *WorldMode) drawGroundItemEntry(screen *ebiten.Image, entry sceneItemDra
 	m.drawFallbackGroundItemMarker(screen, entry)
 }
 
-func (m *WorldMode) drawHoveredGroundItemLabel(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
@@ -431,7 +431,7 @@ func (m *WorldMode) itemSpriteView(manager *res.Manager, itemID uint16, identifi
 }
 
 func composeGroundItemBillboard(view *playerSpriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
-	target := ebiten.NewImage(itemBillboardWidth, itemBillboardHeight)
+	target := render.NewImage(itemBillboardWidth, itemBillboardHeight)
 	if !drawSpriteAnimation(target, view, anim, itemBillboardAnchorX, itemBillboardAnchorY, 0, 0) {
 		return nil, false
 	}
@@ -442,7 +442,7 @@ func composeGroundItemBillboard(view *playerSpriteView, anim res.ACTAnimation) (
 	}, true
 }
 
-func (m *WorldMode) drawFallbackGroundItemMarker(screen *ebiten.Image, entry sceneItemDrawEntry) {
+func (m *WorldMode) drawFallbackGroundItemMarker(screen *render.Image, entry sceneItemDrawEntry) {
 	img := m.itemMarkerTexture()
 	if img == nil {
 		return
@@ -452,7 +452,7 @@ func (m *WorldMode) drawFallbackGroundItemMarker(screen *ebiten.Image, entry sce
 		scale = 1
 	}
 	width, height := img.Bounds().Dx(), img.Bounds().Dy()
-	var opts ebiten.DrawImageOptions
+	var opts render.DrawImageOptions
 	opts.GeoM.Translate(float64(-width)/2, float64(-height)+4)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(entry.screenX, entry.screenY)
@@ -489,7 +489,7 @@ func itemDropBounceOffset(started, now time.Time) float64 {
 	return pos
 }
 
-func (m *WorldMode) itemMarkerTexture() *ebiten.Image {
+func (m *WorldMode) itemMarkerTexture() *render.Image {
 	if m.itemMarker != nil {
 		return m.itemMarker
 	}
@@ -517,6 +517,6 @@ func (m *WorldMode) itemMarkerTexture() *ebiten.Image {
 			}
 		}
 	}
-	m.itemMarker = ebiten.NewImageFromImage(img)
+	m.itemMarker = render.NewImageFromImage(img)
 	return m.itemMarker
 }

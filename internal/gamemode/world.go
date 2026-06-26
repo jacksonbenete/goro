@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/kivutar/goro/internal/network"
 	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
@@ -28,9 +26,9 @@ type WorldMode struct {
 	walkCooldown     int
 	tickCooldown     int
 	camera           followCamera
-	whitePixel       *ebiten.Image
-	tileCursor       *ebiten.Image
-	textures         map[string]*ebiten.Image
+	whitePixel       *render.Image
+	tileCursor       *render.Image
+	textures         map[string]*render.Image
 	textureMiss      map[string]struct{}
 	rswMarkers       bool
 	rsmRender        bool
@@ -39,10 +37,10 @@ type WorldMode struct {
 	shadowViewMiss   bool
 	cursorView       *playerSpriteView
 	cursorViewMiss   bool
-	cursorFallback   *ebiten.Image
+	cursorFallback   *render.Image
 	cursorAction     int
 	cursorStarted    time.Time
-	itemMarker       *ebiten.Image
+	itemMarker       *render.Image
 	itemViews        map[itemSpriteKey]*playerSpriteView
 	itemViewMiss     map[itemSpriteKey]struct{}
 	actorViews       map[actorSpriteKey]*humanoidSpriteView
@@ -149,7 +147,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	ctx.World.RSW = nil
 	ctx.World.RSM = nil
 	ctx.World.RSMFail = 0
-	m.textures = make(map[string]*ebiten.Image)
+	m.textures = make(map[string]*render.Image)
 	m.textureMiss = make(map[string]struct{})
 	m.rswMarkers = os.Getenv("GORO_DEBUG_RSW_MARKERS") == "1"
 	m.rsmRender = os.Getenv("GORO_RENDER_RSM") != "0"
@@ -209,7 +207,7 @@ func (m *WorldMode) Enter(ctx Context) {
 		m.cursorViewMiss = true
 		log.Printf("cursor resources unavailable: %s", status)
 	}
-	ebiten.SetCursorMode(ebiten.CursorModeHidden)
+	render.SetCursorMode(render.CursorModeHidden)
 	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
 	if ctx.World.MapName == "" {
 		m.status = "no map selected"
@@ -416,22 +414,22 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	m.updateCameraZoom(ctx)
 
 	dx, dy := 0, 0
-	if ctx.Input.Pressed(ebiten.KeyArrowLeft) {
+	if ctx.Input.Pressed(render.KeyArrowLeft) {
 		dx--
 	}
-	if ctx.Input.Pressed(ebiten.KeyArrowRight) {
+	if ctx.Input.Pressed(render.KeyArrowRight) {
 		dx++
 	}
-	if ctx.Input.Pressed(ebiten.KeyArrowUp) {
+	if ctx.Input.Pressed(render.KeyArrowUp) {
 		dy--
 	}
-	if ctx.Input.Pressed(ebiten.KeyArrowDown) {
+	if ctx.Input.Pressed(render.KeyArrowDown) {
 		dy++
 	}
 	if m.walkCooldown > 0 {
 		m.walkCooldown--
 	}
-	if ctx.Input.MouseJustPressed(ebiten.MouseButtonLeft) && m.walkCooldown == 0 {
+	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) && m.walkCooldown == 0 {
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
 		if item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
@@ -1338,7 +1336,7 @@ func attackApproachCell(ctx Context, actor worldstate.Actor) (int, int, bool) {
 	return bestX, bestY, bestDistance < math.Inf(1)
 }
 
-func (m *WorldMode) drawDamageFloaters(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
 	if len(m.damageFloaters) == 0 {
 		return
 	}
@@ -1366,7 +1364,7 @@ func (m *WorldMode) drawDamageFloaters(screen *ebiten.Image, ctx Context, projec
 	m.damageFloaters = active
 }
 
-func drawVitalsHUD(screen *ebiten.Image, ctx Context) {
+func drawVitalsHUD(screen *render.Image, ctx Context) {
 	if ctx.Session == nil {
 		return
 	}
@@ -1413,7 +1411,7 @@ func formatProgressValue(current, next int64) string {
 	return fmt.Sprintf("%d", current)
 }
 
-func (m *WorldMode) Draw(ctx Context, screen *ebiten.Image) {
+func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	clear(screen)
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
@@ -1549,20 +1547,20 @@ func (m *WorldMode) sceneProjection(ctx Context, width, height int, now time.Tim
 
 func (m *WorldMode) updateCameraRotation(ctx Context) {
 	delta := 0.0
-	if ctx.Input.MousePressed(ebiten.MouseButtonRight) {
+	if ctx.Input.MousePressed(render.MouseButtonRight) {
 		screenW, _ := ctx.ScreenSize()
 		delta += cameraDragYawDelta(ctx.Input.MouseDX, screenW)
 	}
-	if ctx.Input.Pressed(ebiten.KeyQ) {
+	if ctx.Input.Pressed(render.KeyQ) {
 		delta -= cameraRotateStep()
 	}
-	if ctx.Input.Pressed(ebiten.KeyE) {
+	if ctx.Input.Pressed(render.KeyE) {
 		delta += cameraRotateStep()
 	}
 	if delta != 0 {
 		m.camera.Rotate(delta)
 	}
-	if ctx.Input.JustPressed(ebiten.KeyR) {
+	if ctx.Input.JustPressed(render.KeyR) {
 		m.camera.ResetRotation()
 	}
 }
@@ -2071,7 +2069,7 @@ func clickedWalkCellByProjectedPolygon(ctx Context, projection sceneProjection, 
 	return bestX, bestY, found
 }
 
-func (m *WorldMode) drawTileCursor(screen *ebiten.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawTileCursor(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
 		return
 	}
@@ -2111,7 +2109,7 @@ func tileCursorLift(now time.Time) float64 {
 	return 0.06 + 0.025*math.Sin(seconds*math.Pi*2/1.2)
 }
 
-func (m *WorldMode) tileCursorTexture() *ebiten.Image {
+func (m *WorldMode) tileCursorTexture() *render.Image {
 	if m.tileCursor != nil {
 		return m.tileCursor
 	}
@@ -2137,11 +2135,11 @@ func (m *WorldMode) tileCursorTexture() *ebiten.Image {
 			}
 		}
 	}
-	m.tileCursor = ebiten.NewImageFromImage(img)
+	m.tileCursor = render.NewImageFromImage(img)
 	return m.tileCursor
 }
 
-func drawTileCursorSurface(screen, texture *ebiten.Image, points [4]screenPoint) {
+func drawTileCursorSurface(screen, texture *render.Image, points [4]screenPoint) {
 	if texture == nil {
 		return
 	}
@@ -2149,13 +2147,13 @@ func drawTileCursorSurface(screen, texture *ebiten.Image, points [4]screenPoint)
 	w := float32(bounds.Dx())
 	h := float32(bounds.Dy())
 	tint := color.RGBA{R: 255, G: 255, B: 255, A: 210}
-	vertices := []ebiten.Vertex{
+	vertices := []render.Vertex{
 		texturedSurfaceVertex(points[0], texturePoint{u: 0, v: 0}, tint, w, h),
 		texturedSurfaceVertex(points[1], texturePoint{u: 1, v: 0}, tint, w, h),
 		texturedSurfaceVertex(points[2], texturePoint{u: 0, v: 1}, tint, w, h),
 		texturedSurfaceVertex(points[3], texturePoint{u: 1, v: 1}, tint, w, h),
 	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressClampToZero))
+	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, texture, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
 }
 
 func projectedGATCell(projection sceneProjection, gat *res.GAT, x, y int) ([4]screenPoint, float64, bool) {
@@ -2429,7 +2427,7 @@ var monsterShadowSize = map[int]float64{
 	1219: 5.0,
 }
 
-func (m *WorldMode) drawSceneActors(screen *ebiten.Image, ctx Context, projection sceneProjection) {
+func (m *WorldMode) drawSceneActors(screen *render.Image, ctx Context, projection sceneProjection) {
 	entries := m.collectSceneActorEntries(screen, ctx, projection)
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -2456,7 +2454,7 @@ type sceneDrawEntry struct {
 	itemIndex   int
 }
 
-func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, projection sceneProjection, fog sceneFog) {
+func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) {
 	models := m.collectRSMModelTriangles(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
@@ -2499,7 +2497,7 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *ebiten.Image, ctx Context, 
 	}
 }
 
-func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
+func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	entries := make([]sceneActorDrawEntry, 0, len(ctx.World.Actors)+1)
@@ -2523,7 +2521,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *ebiten.Image, ctx Context, 
 	return entries
 }
 
-func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	cameraYaw := projection.cameraYaw
 	if entry.isPlayer {
 		if m.drawPlayerSprite(ctx, screen, entry.screenX, entry.screenY, entry.scale, entry.actor.Dir, cameraYaw, entry.shadow) {
@@ -2534,7 +2532,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, proje
 	}
 	if isWarpActor(entry.actor) {
 		if m.whitePixel == nil {
-			m.whitePixel = ebiten.NewImage(1, 1)
+			m.whitePixel = render.NewImage(1, 1)
 			m.whitePixel.Fill(color.White)
 		}
 		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), projection, entry.worldX, entry.worldY, entry.worldZ, time.Now())
@@ -2546,7 +2544,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *ebiten.Image, ctx Context, proje
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
 }
 
-func (m *WorldMode) drawActorShadowEntry(screen *ebiten.Image, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawActorShadowEntry(screen *render.Image, entry sceneActorDrawEntry) {
 	if !entry.castShadow || m.shadowView == nil || m.shadowViewMiss {
 		return
 	}
@@ -2753,7 +2751,7 @@ func titleASCIIWord(word string) string {
 	return strings.ToUpper(word[:1]) + word[1:]
 }
 
-func drawActorNameLabel(screen *ebiten.Image, label string, centerX, baseY, scale float64) {
+func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scale float64) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return
@@ -2767,7 +2765,7 @@ func drawActorNameLabel(screen *ebiten.Image, label string, centerX, baseY, scal
 	debugText(screen, x, y, "%s", label)
 }
 
-func (m *WorldMode) drawActorLifeBar(screen *ebiten.Image, ctx Context, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sceneActorDrawEntry) {
 	life, ok := m.actorLifeForDisplay(ctx, entry.actor)
 	if !ok {
 		return
@@ -2787,10 +2785,10 @@ func (m *WorldMode) drawActorLifeBar(screen *ebiten.Image, ctx Context, entry sc
 	if ratio < 0.25 {
 		fill = color.RGBA{R: 255, G: 255, B: 0, A: 255}
 	}
-	ebitenutil.DrawRect(screen, x, y, width, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
-	ebitenutil.DrawRect(screen, x+1, y+1, width-2, height-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
+	render.DrawRect(screen, x, y, width, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
+	render.DrawRect(screen, x+1, y+1, width-2, height-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
 	if fillWidth > 0 {
-		ebitenutil.DrawRect(screen, x+1, y+1, fillWidth, 3, fill)
+		render.DrawRect(screen, x+1, y+1, fillWidth, 3, fill)
 	}
 }
 
@@ -2808,7 +2806,7 @@ func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (ac
 	return life, true
 }
 
-func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawActorSprite(screen *render.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return m.drawNonPCSprite(screen, ctx, actor, centerX, centerY, scale, cameraYaw, shadow)
 	}
@@ -2868,7 +2866,7 @@ func (m *WorldMode) drawActorSprite(screen *ebiten.Image, ctx Context, actor wor
 	return drawHumanoidBillboard(screen, view, state, centerX, centerY, scale, shadow)
 }
 
-func (m *WorldMode) drawNonPCSprite(screen *ebiten.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawNonPCSprite(screen *render.Image, ctx Context, actor worldstate.Actor, centerX, centerY, scale float64, cameraYaw float64, shadow float64) bool {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return false
@@ -2944,7 +2942,7 @@ func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) floa
 	return projectedHeight / float64(humanoidBillboardAnchorY)
 }
 
-func drawWarpZoneEffect(screen, white, ringTexture *ebiten.Image, projection sceneProjection, x, y, z float64, now time.Time) {
+func drawWarpZoneEffect(screen, white, ringTexture *render.Image, projection sceneProjection, x, y, z float64, now time.Time) {
 	const (
 		segments       = 64
 		ringCount      = 4
@@ -3008,11 +3006,11 @@ func warpCycleFade(phase float64) float64 {
 	}
 }
 
-func drawProjectedRadialGradient(screen, white *ebiten.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
+func drawProjectedRadialGradient(screen, white *render.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
 	drawProjectedRingBand(screen, white, projection, x, y, z, innerRadius, outerRadius, c.A, 0, c, segments)
 }
 
-func drawProjectedSoftRing(screen, white *ebiten.Image, projection sceneProjection, x, y, z, radius, width float64, c color.RGBA, segments int) {
+func drawProjectedSoftRing(screen, white *render.Image, projection sceneProjection, x, y, z, radius, width float64, c color.RGBA, segments int) {
 	inner := math.Max(0, radius-width*0.5)
 	mid := math.Max(inner+0.01, radius)
 	outer := math.Max(mid+0.01, radius+width*0.5)
@@ -3020,11 +3018,11 @@ func drawProjectedSoftRing(screen, white *ebiten.Image, projection sceneProjecti
 	drawProjectedRingBand(screen, white, projection, x, y, z, mid, outer, c.A, 0, c, segments)
 }
 
-func drawProjectedCylinderBand(screen, white, texture *ebiten.Image, projection sceneProjection, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
+func drawProjectedCylinderBand(screen, white, texture *render.Image, projection sceneProjection, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
 	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
 		return
 	}
-	vertices := make([]ebiten.Vertex, 0, (segments+1)*2)
+	vertices := make([]render.Vertex, 0, (segments+1)*2)
 	indices := make([]uint16, 0, segments*6)
 	tint := c
 	srcW, srcH := float32(1), float32(1)
@@ -3050,16 +3048,16 @@ func drawProjectedCylinderBand(screen, white, texture *ebiten.Image, projection 
 		base := uint16(i * 2)
 		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
 	}
-	options := triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat)
-	options.Blend = ebiten.BlendLighter
+	options := triangleDrawOptions(render.FilterLinear, render.AddressRepeat)
+	options.Blend = render.BlendLighter
 	screen.DrawTriangles(vertices, indices, source, options)
 }
 
-func drawProjectedRingBand(screen, white *ebiten.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
+func drawProjectedRingBand(screen, white *render.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
 	if segments < 3 || outerRadius <= innerRadius {
 		return
 	}
-	vertices := make([]ebiten.Vertex, 0, (segments+1)*2)
+	vertices := make([]render.Vertex, 0, (segments+1)*2)
 	indices := make([]uint16, 0, segments*6)
 	innerColor := c
 	outerColor := c
@@ -3079,13 +3077,13 @@ func drawProjectedRingBand(screen, white *ebiten.Image, projection sceneProjecti
 		base := uint16(i * 2)
 		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
 	}
-	options := triangleDrawOptions(ebiten.FilterNearest, ebiten.AddressUnsafe)
-	options.Blend = ebiten.BlendLighter
+	options := triangleDrawOptions(render.FilterNearest, render.AddressUnsafe)
+	options.Blend = render.BlendLighter
 	screen.DrawTriangles(vertices, indices, white, options)
 }
 
-func warpEffectTexturedVertex(point screenPoint, srcX, srcY float32, c color.RGBA) ebiten.Vertex {
-	return ebiten.Vertex{
+func warpEffectTexturedVertex(point screenPoint, srcX, srcY float32, c color.RGBA) render.Vertex {
+	return render.Vertex{
 		DstX:   point.x,
 		DstY:   point.y,
 		SrcX:   srcX,
@@ -3097,8 +3095,8 @@ func warpEffectTexturedVertex(point screenPoint, srcX, srcY float32, c color.RGB
 	}
 }
 
-func warpEffectVertex(point screenPoint, c color.RGBA) ebiten.Vertex {
-	return ebiten.Vertex{
+func warpEffectVertex(point screenPoint, c color.RGBA) render.Vertex {
+	return render.Vertex{
 		DstX:   point.x,
 		DstY:   point.y,
 		SrcX:   0,
@@ -3110,7 +3108,7 @@ func warpEffectVertex(point screenPoint, c color.RGBA) ebiten.Vertex {
 	}
 }
 
-func drawActorMarker(screen *ebiten.Image, x, y float64, actor worldstate.Actor, now time.Time) {
+func drawActorMarker(screen *render.Image, x, y float64, actor worldstate.Actor, now time.Time) {
 	col := color.RGBA{R: 82, G: 166, B: 255, A: 230}
 	if actor.Job >= 1000 {
 		col = color.RGBA{R: 229, G: 102, B: 72, A: 230}
@@ -3118,8 +3116,8 @@ func drawActorMarker(screen *ebiten.Image, x, y float64, actor worldstate.Actor,
 	if actor.IsMovingAt(now) {
 		col = color.RGBA{R: 235, G: 190, B: 80, A: 230}
 	}
-	ebitenutil.DrawRect(screen, x, y, 12, 18, col)
-	ebitenutil.DrawRect(screen, x+3, y-4, 6, 6, col)
+	render.DrawRect(screen, x, y, 12, 18, col)
+	render.DrawRect(screen, x+3, y-4, 6, 6, col)
 	debugText(screen, int(x-12), int(y-16), "%d", actor.Job)
 }
 
@@ -3240,9 +3238,9 @@ func loadRSMModel(manager *res.Manager, filename string) (*res.RSM, error) {
 	return res.ParseRSM(data)
 }
 
-func (m *WorldMode) drawGND(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time, fog sceneFog) {
+func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time, fog sceneFog) {
 	if m.whitePixel == nil {
-		m.whitePixel = ebiten.NewImage(1, 1)
+		m.whitePixel = render.NewImage(1, 1)
 		m.whitePixel.Fill(color.White)
 	}
 
@@ -3611,7 +3609,7 @@ func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoin
 	}
 }
 
-func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw, screenWidth, screenHeight float64, projection sceneProjection, fog sceneFog) {
+func (m *WorldMode) drawGNDSurface(screen *render.Image, manager *res.Manager, gnd *res.GND, draw gndSurfaceDraw, screenWidth, screenHeight float64, projection sceneProjection, fog sceneFog) {
 	if quadHasInvalidPoint(draw.points) {
 		return
 	}
@@ -3637,7 +3635,7 @@ func (m *WorldMode) drawGNDSurface(screen *ebiten.Image, manager *res.Manager, g
 	drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, fog.mixVertexTints(projection, draw.verts, tints))
 }
 
-func (m *WorldMode) drawWaterSurface(screen *ebiten.Image, manager *res.Manager, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
+func (m *WorldMode) drawWaterSurface(screen *render.Image, manager *res.Manager, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
 	texture := m.waterTexture(manager, draw.waterType, draw.waterFrame)
 	tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
 	if texture == nil {
@@ -3647,7 +3645,7 @@ func (m *WorldMode) drawWaterSurface(screen *ebiten.Image, manager *res.Manager,
 	drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, tints)
 }
 
-func (m *WorldMode) waterTexture(manager *res.Manager, waterType, frame int) *ebiten.Image {
+func (m *WorldMode) waterTexture(manager *res.Manager, waterType, frame int) *render.Image {
 	frame = ((frame % 32) + 32) % 32
 	key := fmt.Sprintf("__water_%d_%02d", waterType, frame)
 	if texture, ok := m.textures[key]; ok {
@@ -3664,18 +3662,18 @@ func (m *WorldMode) waterTexture(manager *res.Manager, waterType, frame int) *eb
 		m.textureMiss[key] = struct{}{}
 		return nil
 	}
-	texture := ebiten.NewImageFromImage(img)
+	texture := render.NewImageFromImage(img)
 	m.textures[key] = texture
 	return texture
 }
 
-func (m *WorldMode) effectTexture(manager *res.Manager, name string) *ebiten.Image {
+func (m *WorldMode) effectTexture(manager *res.Manager, name string) *render.Image {
 	if manager == nil || strings.TrimSpace(name) == "" {
 		return nil
 	}
 	key := "__effect_" + strings.TrimSpace(name)
 	if m.textures == nil {
-		m.textures = make(map[string]*ebiten.Image)
+		m.textures = make(map[string]*render.Image)
 	}
 	if m.textureMiss == nil {
 		m.textureMiss = make(map[string]struct{})
@@ -3691,12 +3689,12 @@ func (m *WorldMode) effectTexture(manager *res.Manager, name string) *ebiten.Ima
 		m.textureMiss[key] = struct{}{}
 		return nil
 	}
-	texture := ebiten.NewImageFromImage(res.ApplyEffectTransparency(img))
+	texture := render.NewImageFromImage(res.ApplyEffectTransparency(img))
 	m.textures[key] = texture
 	return texture
 }
 
-func drawRSWModelMarkers(screen *ebiten.Image, rsw *res.RSW, gnd *res.GND, projection sceneProjection) {
+func drawRSWModelMarkers(screen *render.Image, rsw *res.RSW, gnd *res.GND, projection sceneProjection) {
 	width := screen.Bounds().Dx()
 	height := screen.Bounds().Dy()
 
@@ -3712,7 +3710,7 @@ func drawRSWModelMarkers(screen *ebiten.Image, rsw *res.RSW, gnd *res.GND, proje
 		if point.x < -8 || point.y < -8 || point.x > float32(width+8) || point.y > float32(height+8) {
 			continue
 		}
-		ebitenutil.DrawRect(screen, float64(point.x)-2, float64(point.y)-6, 4, 8, markerColor)
+		render.DrawRect(screen, float64(point.x)-2, float64(point.y)-6, 4, 8, markerColor)
 	}
 }
 
@@ -3763,7 +3761,7 @@ func rsmFaceCount(model *res.RSM) int {
 	return faces
 }
 
-func (m *WorldMode) groundTexture(manager *res.Manager, name string) *ebiten.Image {
+func (m *WorldMode) groundTexture(manager *res.Manager, name string) *render.Image {
 	if name == "" {
 		return nil
 	}
@@ -3779,7 +3777,7 @@ func (m *WorldMode) groundTexture(manager *res.Manager, name string) *ebiten.Ima
 		m.textureMiss[name] = struct{}{}
 		return nil
 	}
-	texture := ebiten.NewImageFromImage(img)
+	texture := render.NewImageFromImage(img)
 	m.textures[name] = texture
 	return texture
 }
@@ -4122,34 +4120,34 @@ func maxUint8(a, b uint8) uint8 {
 	return b
 }
 
-func drawColoredSurface(screen, white *ebiten.Image, points [4]screenPoint, indices []uint16, c color.RGBA) {
+func drawColoredSurface(screen, white *render.Image, points [4]screenPoint, indices []uint16, c color.RGBA) {
 	drawColoredSurfaceTints(screen, white, points, indices, [4]color.RGBA{c, c, c, c})
 }
 
-func drawColoredSurfaceTints(screen, white *ebiten.Image, points [4]screenPoint, indices []uint16, colors [4]color.RGBA) {
-	vertices := []ebiten.Vertex{
+func drawColoredSurfaceTints(screen, white *render.Image, points [4]screenPoint, indices []uint16, colors [4]color.RGBA) {
+	vertices := []render.Vertex{
 		{DstX: points[0].x, DstY: points[0].y, SrcX: 0, SrcY: 0, ColorR: float32(colors[0].R) / 255, ColorG: float32(colors[0].G) / 255, ColorB: float32(colors[0].B) / 255, ColorA: float32(colors[0].A) / 255},
 		{DstX: points[1].x, DstY: points[1].y, SrcX: 1, SrcY: 0, ColorR: float32(colors[1].R) / 255, ColorG: float32(colors[1].G) / 255, ColorB: float32(colors[1].B) / 255, ColorA: float32(colors[1].A) / 255},
 		{DstX: points[2].x, DstY: points[2].y, SrcX: 1, SrcY: 1, ColorR: float32(colors[2].R) / 255, ColorG: float32(colors[2].G) / 255, ColorB: float32(colors[2].B) / 255, ColorA: float32(colors[2].A) / 255},
 		{DstX: points[3].x, DstY: points[3].y, SrcX: 0, SrcY: 1, ColorR: float32(colors[3].R) / 255, ColorG: float32(colors[3].G) / 255, ColorB: float32(colors[3].B) / 255, ColorA: float32(colors[3].A) / 255},
 	}
-	screen.DrawTriangles(vertices, indices, white, triangleDrawOptions(ebiten.FilterNearest, ebiten.AddressUnsafe))
+	screen.DrawTriangles(vertices, indices, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
 }
 
-func drawTexturedSurface(screen, texture *ebiten.Image, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
+func drawTexturedSurface(screen, texture *render.Image, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
 	bounds := texture.Bounds()
 	w := float32(bounds.Dx())
 	h := float32(bounds.Dy())
-	vertices := []ebiten.Vertex{
+	vertices := []render.Vertex{
 		texturedSurfaceVertex(points[0], uvs[0], tints[0], w, h),
 		texturedSurfaceVertex(points[1], uvs[1], tints[1], w, h),
 		texturedSurfaceVertex(points[2], uvs[2], tints[2], w, h),
 		texturedSurfaceVertex(points[3], uvs[3], tints[3], w, h),
 	}
-	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat))
+	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]screenPoint, verts [4]modelPoint3, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
+func drawTexturedLightmappedSurface(screen, texture *render.Image, points [4]screenPoint, verts [4]modelPoint3, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
 	const steps = 6
 	bounds := texture.Bounds()
 	textureWidth := float32(bounds.Dx())
@@ -4159,7 +4157,7 @@ func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]scr
 		base = surfaceColor
 	}
 
-	vertices := make([]ebiten.Vertex, 0, (steps+1)*(steps+1))
+	vertices := make([]render.Vertex, 0, (steps+1)*(steps+1))
 	for y := 0; y <= steps; y++ {
 		t := float64(y) / steps
 		for x := 0; x <= steps; x++ {
@@ -4197,7 +4195,7 @@ func drawTexturedLightmappedSurface(screen, texture *ebiten.Image, points [4]scr
 		}
 	}
 
-	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(ebiten.FilterLinear, ebiten.AddressRepeat))
+	screen.DrawTriangles(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
 func bilerpScreenPoint(points [4]screenPoint, s, t float64) screenPoint {
@@ -4240,8 +4238,8 @@ func lerpTexturePoint(a, b texturePoint, t float64) texturePoint {
 	}
 }
 
-func texturedSurfaceVertex(point screenPoint, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) ebiten.Vertex {
-	return ebiten.Vertex{
+func texturedSurfaceVertex(point screenPoint, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) render.Vertex {
+	return render.Vertex{
 		DstX:   point.x,
 		DstY:   point.y,
 		SrcX:   uv.u * textureWidth,
@@ -4253,7 +4251,7 @@ func texturedSurfaceVertex(point screenPoint, uv texturePoint, tint color.RGBA, 
 	}
 }
 
-func drawGAT(screen *ebiten.Image, gat *res.GAT, playerX, playerY int) {
+func drawGAT(screen *render.Image, gat *res.GAT, playerX, playerY int) {
 	const tile = 10
 	width := screen.Bounds().Dx()
 	height := screen.Bounds().Dy()
@@ -4280,7 +4278,7 @@ func drawGAT(screen *ebiten.Image, gat *res.GAT, playerX, playerY int) {
 					c = color.RGBA{R: 54, G: 45, B: 48, A: 255}
 				}
 			}
-			ebitenutil.DrawRect(screen, float64(sx*tile), float64(sy*tile), tile-1, tile-1, c)
+			render.DrawRect(screen, float64(sx*tile), float64(sy*tile), tile-1, tile-1, c)
 		}
 	}
 }

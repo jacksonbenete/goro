@@ -1,12 +1,12 @@
 package gamemode
 
-import "github.com/hajimehoshi/ebiten/v2"
+import "github.com/kivutar/goro/internal/render"
 
 type Mode interface {
 	Name() string
 	Enter(Context)
 	Update(Context) (Mode, error)
-	Draw(Context, *ebiten.Image)
+	Draw(Context, *render.Image)
 }
 
 type Manager struct {
@@ -42,7 +42,7 @@ func (m *Manager) Update() error {
 	return nil
 }
 
-func (m *Manager) Draw(screen *ebiten.Image) {
+func (m *Manager) Draw(screen *render.Image) {
 	if m.mode != nil {
 		m.mode.Draw(m.ctx, screen)
 	}
