@@ -1862,3 +1862,50 @@ func TestShopBuyCartTracksQuantityAndTotal(t *testing.T) {
 		t.Fatalf("buy amount after decrement = %d, want 1", got)
 	}
 }
+
+func TestInventoryBagClassifiesTabs(t *testing.T) {
+	tests := []struct {
+		name string
+		item session.InventoryItem
+		tab  int
+	}{
+		{name: "healing item", item: session.InventoryItem{Type: 0}, tab: inventoryBagTabItem},
+		{name: "usable item", item: session.InventoryItem{Type: 2}, tab: inventoryBagTabItem},
+		{name: "equipment flag", item: session.InventoryItem{Type: 4, Equip: true}, tab: inventoryBagTabEquip},
+		{name: "weapon type", item: session.InventoryItem{Type: 5}, tab: inventoryBagTabEquip},
+		{name: "etc", item: session.InventoryItem{Type: 3}, tab: inventoryBagTabEtc},
+		{name: "card", item: session.InventoryItem{Type: 6}, tab: inventoryBagTabEtc},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := inventoryItemTab(tc.item); got != tc.tab {
+				t.Fatalf("tab = %d, want %d", got, tc.tab)
+			}
+		})
+	}
+}
+
+func TestApplyInventoryEquipAckUpdatesEquippedState(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 1, ItemID: 1201, Type: 4, Location: 0x0002, Equip: true},
+				{Index: 2, ItemID: 1202, Type: 4, Location: 0x0002, Equip: true, Equipped: true},
+			},
+		},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 1, Location: 0x0002, Success: true})
+	if !sessionState.Inventory.Items[0].Equipped {
+		t.Fatal("equipped item was not marked equipped")
+	}
+	if sessionState.Inventory.Items[1].Equipped {
+		t.Fatal("previous item in same location stayed equipped")
+	}
+
+	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 1, Location: 0x0002, Success: true, Unequip: true})
+	if sessionState.Inventory.Items[0].Equipped {
+		t.Fatal("unequipped item stayed equipped")
+	}
+}

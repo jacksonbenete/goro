@@ -70,6 +70,7 @@ type WorldMode struct {
 	escapeMenu       escapeMenuState
 	basicMenu        basicMenuState
 	inventoryWindow  inventoryWindowState
+	inventoryBag     inventoryBagWindowState
 	shopWindow       shopWindowState
 	statsWindow      statsWindowState
 	skillWindow      skillWindowState
@@ -419,6 +420,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			applyInventoryItemList(ctx, items)
 			m.inventoryWindow.clampScroll(ctx.Session)
+			m.inventoryBag.clampScroll(ctx.Session)
 			continue
 		}
 		if itemDelete, ok, err := network.ParseInventoryItemDelete(pkt); err != nil {
@@ -426,6 +428,15 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			applyInventoryItemDelete(ctx, itemDelete)
 			m.inventoryWindow.clampScroll(ctx.Session)
+			m.inventoryBag.clampScroll(ctx.Session)
+			continue
+		}
+		if equipAck, ok, err := network.ParseInventoryEquipAck(pkt); err != nil {
+			log.Printf("parse inventory equip ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyInventoryEquipAck(ctx, equipAck)
+			m.inventoryWindow.clampScroll(ctx.Session)
+			m.inventoryBag.clampScroll(ctx.Session)
 			continue
 		}
 		if deal, ok, err := network.ParseShopDealSelection(pkt); err != nil {
@@ -583,6 +594,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.inventoryWindow.update(ctx, &m.shopWindow) {
 		return nil, nil
 	}
+	if m.inventoryBag.update(ctx) {
+		return nil, nil
+	}
 	if m.shopWindow.update(ctx) {
 		return nil, nil
 	}
@@ -600,7 +614,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.skillWindow.toggle(ctx)
 		}
 		if m.basicMenu.lastAction == "items" {
-			m.inventoryWindow.toggle(ctx)
+			m.inventoryBag.toggle(ctx)
 		}
 		return nil, nil
 	}
@@ -1850,6 +1864,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	drawCharacterWindow(screen, ctx)
 	m.basicMenu.draw(screen, ctx)
 	m.inventoryWindow.draw(screen, ctx, m)
+	m.inventoryBag.draw(screen, ctx, m)
 	m.shopWindow.draw(screen, ctx, m)
 	m.statsWindow.draw(screen, ctx)
 	m.skillWindow.draw(screen, ctx)

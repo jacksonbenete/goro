@@ -115,3 +115,51 @@ func EffectTextureCandidates(name string) []string {
 		name + ".bmp",
 	}
 }
+
+func ItemIconTextureCandidates(resource string) []string {
+	resource = strings.TrimSpace(strings.TrimSuffix(resource, ".bmp"))
+	if resource == "" {
+		return nil
+	}
+	stem := strings.ReplaceAll(resource, "/", "\\")
+	filenameOnly := stem
+	if pos := strings.LastIndexAny(filenameOnly, `\/`); pos >= 0 && pos+1 < len(filenameOnly) {
+		filenameOnly = filenameOnly[pos+1:]
+	}
+
+	const uiKorPrefix = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\"
+	prefixes := []string{
+		uiKorPrefix,
+		strings.ReplaceAll(uiKorPrefix, "\\", "/"),
+		"texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\",
+		"data\\texture\\item\\",
+		"data/texture/item/",
+		"texture\\item\\",
+		"texture/item/",
+		"item\\",
+		"item/",
+	}
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(prefixes)*2+2)
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		if _, ok := seen[candidate]; ok {
+			return
+		}
+		seen[candidate] = struct{}{}
+		out = append(out, candidate)
+	}
+	for _, prefix := range prefixes {
+		add(prefix + stem + ".bmp")
+		if filenameOnly != stem {
+			add(prefix + filenameOnly + ".bmp")
+		}
+	}
+	add(stem + ".bmp")
+	if filenameOnly != stem {
+		add(filenameOnly + ".bmp")
+	}
+	return out
+}

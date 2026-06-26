@@ -410,6 +410,20 @@ func (m *WorldMode) drawInventoryItemIcon(screen *render.Image, manager *res.Man
 	if screen == nil {
 		return
 	}
+	if icon := m.itemIconTexture(manager, item.ItemID, item.Identified); icon != nil {
+		bounds := icon.Bounds()
+		width, height := float64(bounds.Dx()), float64(bounds.Dy())
+		if width > 0 && height > 0 {
+			scale := math.Min(float64(inventoryIconSize)/width, float64(inventoryIconSize)/height)
+			dstW, dstH := width*scale, height*scale
+			var opts render.DrawImageOptions
+			opts.GeoM.Scale(scale, scale)
+			opts.GeoM.Translate(float64(x)+(float64(inventoryIconSize)-dstW)/2, float64(y)+(float64(inventoryIconSize)-dstH)/2)
+			opts.Filter = spriteDrawFilter()
+			screen.DrawImage(icon, &opts)
+			return
+		}
+	}
 	billboard := m.itemSpriteBillboard(manager, worldstate.FloorItem{
 		ItemID:     item.ItemID,
 		Identified: item.Identified,
@@ -442,6 +456,37 @@ func (m *WorldMode) drawInventoryItemIcon(screen *render.Image, manager *res.Man
 		{DstX: float32(dstX + dstW), DstY: float32(dstY + dstH), SrcX: float32(bounds.Max.X), SrcY: float32(bounds.Max.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
 	}
 	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, billboard.image, &render.DrawTrianglesOptions{Filter: spriteDrawFilter(), Address: render.AddressClampToZero})
+}
+
+func (m *WorldMode) itemIconTexture(manager *res.Manager, itemID uint16, identified bool) *render.Image {
+	if manager == nil || itemID == 0 {
+		return nil
+	}
+	resourceName, ok := manager.ItemResourceName(int(itemID), identified)
+	if !ok {
+		return nil
+	}
+	key := fmt.Sprintf("__item_icon_%t_%s", identified, resourceName)
+	if m.textures == nil {
+		m.textures = make(map[string]*render.Image)
+	}
+	if m.textureMiss == nil {
+		m.textureMiss = make(map[string]struct{})
+	}
+	if texture, ok := m.textures[key]; ok {
+		return texture
+	}
+	if _, ok := m.textureMiss[key]; ok {
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, res.ItemIconTextureCandidates(resourceName))
+	if err != nil {
+		m.textureMiss[key] = struct{}{}
+		return nil
+	}
+	texture := render.NewImageFromImage(img)
+	m.textures[key] = texture
+	return texture
 }
 
 func (m *WorldMode) drawFallbackInventoryItemIcon(screen *render.Image, x, y int) {

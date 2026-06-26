@@ -27,6 +27,7 @@ func sessionItemFromNetwork(item network.InventoryItem) session.InventoryItem {
 		Index:      item.Index,
 		ItemID:     item.ItemID,
 		Type:       item.Type,
+		Location:   item.Location,
 		Identified: item.Identified,
 		Amount:     amount,
 		Equip:      item.Equip,
@@ -51,6 +52,25 @@ func addOrReplaceSessionInventoryItem(s *session.Session, item session.Inventory
 		return
 	}
 	s.Inventory.Items = append(s.Inventory.Items, item)
+}
+
+func applyInventoryEquipAck(ctx Context, ack network.InventoryEquipAck) {
+	if ctx.Session == nil || !ack.Success || ack.Index == 0 {
+		return
+	}
+	for i := range ctx.Session.Inventory.Items {
+		item := &ctx.Session.Inventory.Items[i]
+		if item.Index != ack.Index {
+			if !ack.Unequip && ack.Location != 0 && item.Equipped && item.Location&ack.Location != 0 {
+				item.Equipped = false
+			}
+			continue
+		}
+		item.Equipped = !ack.Unequip
+		if !ack.Unequip && ack.Location != 0 {
+			item.Location = ack.Location
+		}
+	}
 }
 
 func addPickedSessionInventoryItem(s *session.Session, item session.InventoryItem) {

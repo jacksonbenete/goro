@@ -60,6 +60,12 @@ func (w *inventoryWindowState) update(ctx Context, shop *shopWindowState) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
+	if shop == nil || !shop.open || shop.mode != shopModeSell {
+		w.open = false
+		w.dragging = false
+		w.dragActive = false
+		return false
+	}
 	w.ensurePosition(ctx)
 	width, height := ctx.ScreenSize()
 	if w.dragging {
@@ -126,7 +132,7 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	w.clampScroll(ctx.Session)
 	x, y := w.x, w.y
 	drawNPCWindowFrame(screen, x, y, inventoryWindowWidth, inventoryWindowHeight)
-	render.DebugPrintAtColor(screen, "Inventory", x+inventoryWindowPad, y+9, inventoryTitleColor)
+	render.DebugPrintAtColor(screen, "Sell Inventory", x+inventoryWindowPad, y+9, inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)

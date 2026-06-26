@@ -97,6 +97,9 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.inventoryWindow.cursorAction(ctx); ok {
 		return action
 	}
+	if action, ok := m.inventoryBag.cursorAction(ctx); ok {
+		return action
+	}
 	if action, ok := m.skillWindow.cursorAction(ctx); ok {
 		return action
 	}

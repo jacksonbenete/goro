@@ -10,6 +10,10 @@ const PacketCZItemPickup uint16 = 0x009F
 
 const (
 	PacketCZACKSelectDealType  uint16 = 0x00C5
+	PacketCZUseItem2           uint16 = 0x0439
+	PacketCZUseItemLegacy      uint16 = 0x009F
+	PacketCZReqWearEquip       uint16 = 0x00A9
+	PacketCZReqTakeoffEquip    uint16 = 0x00AB
 	PacketCZPCPurchaseItemList uint16 = 0x00C8
 	PacketCZPCSellItemList     uint16 = 0x00C9
 )
@@ -74,6 +78,7 @@ type InventoryItem struct {
 	Index      uint16
 	ItemID     uint16
 	Type       uint8
+	Location   uint16
 	Identified bool
 	Amount     uint16
 	Equip      bool
@@ -86,6 +91,13 @@ type InventoryItemDelete struct {
 	Index  uint16
 	Amount uint16
 	Reason uint16
+}
+
+type InventoryEquipAck struct {
+	Index    uint16
+	Location uint16
+	Success  bool
+	Unequip  bool
 }
 
 type ShopDealSelection struct {
@@ -221,6 +233,7 @@ func parseNormalInventoryItems(packet Packet, entrySize int) ([]InventoryItem, b
 			Type:       packet.Data[offset+4],
 			Identified: packet.Data[offset+5] != 0,
 			Amount:     binary.LittleEndian.Uint16(packet.Data[offset+6 : offset+8]),
+			Location:   binary.LittleEndian.Uint16(packet.Data[offset+8 : offset+10]),
 		})
 	}
 	return items, true, nil
@@ -241,6 +254,7 @@ func parseEquipInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bo
 			ItemID:     binary.LittleEndian.Uint16(packet.Data[offset+2 : offset+4]),
 			Type:       packet.Data[offset+4],
 			Identified: packet.Data[offset+5] != 0,
+			Location:   binary.LittleEndian.Uint16(packet.Data[offset+6 : offset+8]),
 			Amount:     1,
 			Equip:      true,
 			Equipped:   wearState != 0,
@@ -272,6 +286,32 @@ func ParseInventoryItemDelete(packet Packet) (InventoryItemDelete, bool, error) 
 		}, true, nil
 	default:
 		return InventoryItemDelete{}, false, nil
+	}
+}
+
+func ParseInventoryEquipAck(packet Packet) (InventoryEquipAck, bool, error) {
+	switch packet.ID {
+	case 0x00AA:
+		if len(packet.Data) < 7 {
+			return InventoryEquipAck{}, false, fmt.Errorf("ZC_REQ_WEAR_EQUIP_ACK too short: %d", len(packet.Data))
+		}
+		return InventoryEquipAck{
+			Index:    binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Location: binary.LittleEndian.Uint16(packet.Data[4:6]),
+			Success:  packet.Data[6] != 0,
+		}, true, nil
+	case 0x00AC:
+		if len(packet.Data) < 7 {
+			return InventoryEquipAck{}, false, fmt.Errorf("ZC_REQ_TAKEOFF_EQUIP_ACK too short: %d", len(packet.Data))
+		}
+		return InventoryEquipAck{
+			Index:    binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Location: binary.LittleEndian.Uint16(packet.Data[4:6]),
+			Success:  packet.Data[6] != 0,
+			Unequip:  true,
+		}, true, nil
+	default:
+		return InventoryEquipAck{}, false, nil
 	}
 }
 
@@ -364,6 +404,36 @@ func BuildItemPickupPacketForClientDate(gid uint32, clientDate int) []byte {
 	return BuildItemPickupPacket(gid)
 }
 
+func BuildUseInventoryItemPacketForClientDate(index uint16, targetAID uint32, clientDate int) []byte {
+	if clientDate >= 20180307 {
+		packet := make([]byte, 8)
+		binary.LittleEndian.PutUint16(packet[0:2], PacketCZUseItem2)
+		binary.LittleEndian.PutUint16(packet[2:4], index)
+		binary.LittleEndian.PutUint32(packet[4:8], targetAID)
+		return packet
+	}
+	packet := make([]byte, 14)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZUseItemLegacy)
+	binary.LittleEndian.PutUint16(packet[4:6], index)
+	binary.LittleEndian.PutUint32(packet[10:14], targetAID)
+	return packet
+}
+
+func BuildWearEquipPacket(index, location uint16) []byte {
+	packet := make([]byte, 6)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWearEquip)
+	binary.LittleEndian.PutUint16(packet[2:4], index)
+	binary.LittleEndian.PutUint16(packet[4:6], location)
+	return packet
+}
+
+func BuildTakeoffEquipPacket(index uint16) []byte {
+	packet := make([]byte, 4)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqTakeoffEquip)
+	binary.LittleEndian.PutUint16(packet[2:4], index)
+	return packet
+}
+
 func BuildShopDealSelectionPacket(npcID uint32, dealType uint8) []byte {
 	var w Writer
 	w.Uint16(PacketCZACKSelectDealType)
@@ -407,6 +477,39 @@ func (c *Client) SendItemPickup(gid uint32) error {
 		log.Printf("sent CZ_ITEM_PICKUP opcode=0x%04X target=%d client_date=%d", ID(packet), gid, c.clientDate)
 	} else {
 		log.Printf("send CZ_ITEM_PICKUP failed opcode=0x%04X len=%d target=%d client_date=%d: %v", ID(packet), len(packet), gid, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendUseInventoryItem(index uint16, targetAID uint32) error {
+	packet := BuildUseInventoryItemPacketForClientDate(index, targetAID, c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_USE_ITEM opcode=0x%04X index=%d target=%d client_date=%d", ID(packet), index, targetAID, c.clientDate)
+	} else {
+		log.Printf("send CZ_USE_ITEM failed opcode=0x%04X len=%d index=%d target=%d client_date=%d: %v", ID(packet), len(packet), index, targetAID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendWearEquip(index, location uint16) error {
+	packet := BuildWearEquipPacket(index, location)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_WEAR_EQUIP opcode=0x%04X index=%d location=0x%04X client_date=%d", ID(packet), index, location, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_WEAR_EQUIP failed opcode=0x%04X index=%d location=0x%04X client_date=%d: %v", ID(packet), index, location, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendTakeoffEquip(index uint16) error {
+	packet := BuildTakeoffEquipPacket(index)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_TAKEOFF_EQUIP opcode=0x%04X index=%d client_date=%d", ID(packet), index, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_TAKEOFF_EQUIP failed opcode=0x%04X index=%d client_date=%d: %v", ID(packet), index, c.clientDate, err)
 	}
 	return err
 }

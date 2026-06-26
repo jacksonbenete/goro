@@ -90,6 +90,7 @@ type InventoryItem struct {
 	Index      uint16
 	ItemID     uint16
 	Type       uint8
+	Location   uint16
 	Identified bool
 	Amount     int
 	Equip      bool
