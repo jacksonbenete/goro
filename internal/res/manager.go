@@ -25,10 +25,28 @@ type Manager struct {
 	jobResourceNamesLoaded bool
 	indoorRswNames         map[string]struct{}
 	indoorRswNamesLoaded   bool
+	cameraViewPoints       map[string]CameraViewPoint
+	cameraViewPointsLoaded bool
 	msgStrings             map[int]string
 	msgStringsLoaded       bool
 	fogParameters          map[string]FogParameter
 	fogParametersLoaded    bool
+}
+
+type CameraViewPoint struct {
+	MinDistance      int
+	DistanceScope    int
+	InitialDistance  int
+	MinLongitude     int
+	MaxLongitude     int
+	InitialLongitude int
+	MaxLatitude      int
+	MinLatitude      int
+	InitialLatitude  int
+}
+
+func (v CameraViewPoint) LocksLongitude() bool {
+	return v.MinLongitude == v.MaxLongitude
 }
 
 type FogParameter struct {
@@ -136,6 +154,12 @@ func (m *Manager) IsIndoorMap(mapName string) bool {
 	return ok
 }
 
+func (m *Manager) CameraViewPoint(mapName string) (CameraViewPoint, bool) {
+	m.loadCameraViewPoints()
+	parameter, ok := m.cameraViewPoints[normalizeRswNameForCameraTable(mapName)]
+	return parameter, ok
+}
+
 func (m *Manager) FogParameter(mapName string) (FogParameter, bool) {
 	m.loadFogParameters()
 	parameter, ok := m.fogParameters[normalizeRswNameForCameraTable(mapName)]
@@ -166,6 +190,59 @@ func (m *Manager) loadIndoorRswNames() {
 		key := normalizeRswNameForCameraTable(line)
 		if key != "" {
 			m.indoorRswNames[key] = struct{}{}
+		}
+	}
+}
+
+func (m *Manager) loadCameraViewPoints() {
+	if m.cameraViewPointsLoaded {
+		return
+	}
+	m.cameraViewPointsLoaded = true
+	m.cameraViewPoints = make(map[string]CameraViewPoint)
+	data, err := m.ReadFile("data\\viewpointtable.txt")
+	if err != nil {
+		data, err = m.ReadFile("data/viewpointtable.txt")
+	}
+	if err != nil {
+		return
+	}
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(strings.TrimRight(rawLine, "\r"))
+		if line == "" || strings.HasPrefix(line, "//") {
+			continue
+		}
+		fields := strings.Split(line, "#")
+		if len(fields) < 10 {
+			continue
+		}
+		key := normalizeRswNameForCameraTable(fields[0])
+		if key == "" {
+			continue
+		}
+		values := [9]int{}
+		ok := true
+		for i := range values {
+			value, err := strconv.Atoi(strings.TrimSpace(fields[i+1]))
+			if err != nil {
+				ok = false
+				break
+			}
+			values[i] = value
+		}
+		if !ok {
+			continue
+		}
+		m.cameraViewPoints[key] = CameraViewPoint{
+			MinDistance:      values[0],
+			DistanceScope:    values[1],
+			InitialDistance:  values[2],
+			MinLongitude:     values[3],
+			MaxLongitude:     values[4],
+			InitialLongitude: values[5],
+			MaxLatitude:      values[6],
+			MinLatitude:      values[7],
+			InitialLatitude:  values[8],
 		}
 	}
 }

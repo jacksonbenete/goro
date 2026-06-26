@@ -1627,13 +1627,75 @@ func (m *WorldMode) drawSceneFogVeil(screen *render.Image, fog sceneFog, project
 	render.DrawRect(screen, 0, 0, float64(bounds.Dx()), float64(bounds.Dy()), fogColor)
 }
 
+func clearWorldScene(screen *render.Image, mapName string) {
+	screen.Fill(worldSceneClearColor(mapName))
+}
+
+func worldSceneClearColor(mapName string) color.RGBA {
+	normalized := normalizeMapNameForSceneClear(mapName)
+	for _, name := range []string{
+		"yuno.rsw",
+		"valkyrie.rsw",
+		"rwc01.rsw",
+		"himinn.rsw",
+		"airplane.rsw",
+		"airplane01.rsw",
+		"schgld.rsw",
+		"bat_fild02.rsw",
+		"que_qsch01.rsw",
+		"que_qsch02.rsw",
+		"que_qsch03.rsw",
+		"que_qsch04.rsw",
+		"que_qsch05.rsw",
+		"que_qaru01.rsw",
+		"que_qaru02.rsw",
+		"que_qaru03.rsw",
+		"que_qaru04.rsw",
+		"que_qaru05.rsw",
+		"bat_b01.rsw",
+		"bat_b02.rsw",
+	} {
+		if normalized == name {
+			return color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}
+		}
+	}
+	for _, name := range []string{"gonryun.rsw", "gon_dun02.rsw", "ra_temsky.rsw", "que_temsky.rsw"} {
+		if normalized == name {
+			return color.RGBA{R: 0x66, G: 0x99, B: 0xcc, A: 255}
+		}
+	}
+	switch normalized {
+	case "thana_boss.rsw":
+		return color.RGBA{R: 0xe0, G: 0xd5, B: 0xc2, A: 255}
+	case "5@tower.rsw", "5tower.rsw":
+		return color.RGBA{R: 0x33, G: 0x00, B: 0x33, A: 255}
+	default:
+		return color.RGBA{A: 255}
+	}
+}
+
+func normalizeMapNameForSceneClear(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if index := strings.LastIndexAny(name, `\/`); index >= 0 {
+		name = name[index+1:]
+	}
+	switch {
+	case strings.HasSuffix(name, ".gat"):
+		return strings.TrimSuffix(name, ".gat") + ".rsw"
+	case name != "" && !strings.Contains(name, "."):
+		return name + ".rsw"
+	default:
+		return name
+	}
+}
+
 func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
-	clear(screen)
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	playerX, playerY := ctx.World.Player.RenderPosition(now)
 	projection := m.sceneProjection(ctx, width, height, now)
 	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
+	clearWorldScene(screen, ctx.World.MapName)
 	var actorOverlays []sceneActorDrawEntry
 	screen.SetCamera3D(projection.RenderCameraWithFog(fog))
 	vertexFog := sceneFog{}
@@ -1760,7 +1822,12 @@ func (c *followCamera) Projection(ctx Context, width, height int, now time.Time)
 		c.Update(ctx, now)
 	}
 	c.store(ctx)
-	return newSceneProjectionForTargetYawZoom(width, height, c.x, c.y, c.z, cameraYawForMap(ctx)+c.yawOffset, c.currentZoom())
+	yawOffset := c.yawOffset
+	if cameraRotationLockedForMap(ctx) {
+		c.ResetRotation()
+		yawOffset = 0
+	}
+	return newSceneProjectionForTargetYawZoom(width, height, c.x, c.y, c.z, cameraYawForMap(ctx)+yawOffset, c.currentZoom())
 }
 
 func (c *followCamera) store(ctx Context) {
@@ -1776,6 +1843,10 @@ func (m *WorldMode) sceneProjection(ctx Context, width, height int, now time.Tim
 }
 
 func (m *WorldMode) updateCameraRotation(ctx Context) {
+	if cameraRotationLockedForMap(ctx) {
+		m.camera.ResetRotation()
+		return
+	}
 	delta := 0.0
 	if ctx.Input.MousePressed(render.MouseButtonRight) {
 		screenW, _ := ctx.ScreenSize()
@@ -1819,10 +1890,34 @@ func cameraFollowFactor() float64 {
 }
 
 func cameraYawForMap(ctx Context) float64 {
-	if ctx.Resources != nil && ctx.World != nil && ctx.Resources.IsIndoorMap(ctx.World.MapName) {
+	if viewPoint, ok := lockedCameraViewPointForMap(ctx); ok {
+		return -float64(viewPoint.InitialLongitude)
+	}
+	if cameraRotationLockedForMap(ctx) {
 		return -45
 	}
 	return sceneCameraYaw()
+}
+
+func cameraRotationLockedForMap(ctx Context) bool {
+	if ctx.Resources == nil || ctx.World == nil {
+		return false
+	}
+	if _, ok := lockedCameraViewPointForMap(ctx); ok {
+		return true
+	}
+	return ctx.Resources.IsIndoorMap(ctx.World.MapName)
+}
+
+func lockedCameraViewPointForMap(ctx Context) (res.CameraViewPoint, bool) {
+	if ctx.Resources == nil || ctx.World == nil {
+		return res.CameraViewPoint{}, false
+	}
+	viewPoint, ok := ctx.Resources.CameraViewPoint(ctx.World.MapName)
+	if !ok || !viewPoint.LocksLongitude() {
+		return res.CameraViewPoint{}, false
+	}
+	return viewPoint, true
 }
 
 func cameraDragYawDelta(mouseDX, screenWidth int) float64 {

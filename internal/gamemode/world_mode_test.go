@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kivutar/goro/internal/input"
 	"github.com/kivutar/goro/internal/network"
 	"github.com/kivutar/goro/internal/res"
 	"github.com/kivutar/goro/internal/session"
@@ -836,6 +837,39 @@ func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
 	}
 }
 
+func TestCameraYawForFixedViewPointMapIsLocked(t *testing.T) {
+	t.Setenv("GORO_CAMERA_YAW", "123")
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.Mkdir(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "viewpointtable.txt"), []byte("fixed_view.rsw#150#50#170#30#30#30#60#30#45#\nfree_view.rsw#150#50#170#-360#360#0#60#30#45#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := Context{
+		Resources: manager,
+		World:     &worldstate.World{MapName: "fixed_view"},
+	}
+	if got := cameraYawForMap(ctx); got != -30 {
+		t.Fatalf("fixed viewpoint yaw = %.1f, want -30.0", got)
+	}
+	if !cameraRotationLockedForMap(ctx) {
+		t.Fatal("fixed viewpoint should lock camera rotation")
+	}
+	ctx.World.MapName = "free_view"
+	if got := cameraYawForMap(ctx); got != 123 {
+		t.Fatalf("free viewpoint yaw = %.1f, want env override 123.0", got)
+	}
+	if cameraRotationLockedForMap(ctx) {
+		t.Fatal("free viewpoint should not lock camera rotation")
+	}
+}
+
 func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
 	t.Setenv("GORO_CAMERA_YAW", "15")
 	world := worldstate.New()
@@ -877,8 +911,44 @@ func TestFollowCameraProjectionKeepsIndoorBaseYaw(t *testing.T) {
 
 	camera.Rotate(90)
 	projection := camera.Projection(ctx, 800, 600, time.Now())
-	if got := projection.cameraYaw; got != 45 {
-		t.Fatalf("indoor projection yaw = %.1f, want 45.0", got)
+	if got := projection.cameraYaw; got != -45 {
+		t.Fatalf("indoor projection yaw = %.1f, want -45.0", got)
+	}
+	if camera.yawOffset != 0 {
+		t.Fatalf("indoor projection left yaw offset = %.1f, want reset", camera.yawOffset)
+	}
+}
+
+func TestCameraRotationIsDisabledOnIndoorMap(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.Mkdir(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "indoorrswtable.txt"), []byte("geffen_in.rsw#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputState := input.NewState()
+	inputState.SetMousePosition(100, 100)
+	inputState.SetMouseButton(input.MouseButtonRight, true)
+	inputState.SetMousePosition(200, 100)
+	mode := &WorldMode{}
+	mode.camera.Rotate(90)
+	ctx := Context{
+		Resources: manager,
+		World:     &worldstate.World{MapName: "geffen_in"},
+		Input:     inputState,
+		ScreenW:   800,
+		ScreenH:   600,
+	}
+
+	mode.updateCameraRotation(ctx)
+	if mode.camera.yawOffset != 0 {
+		t.Fatalf("indoor camera yaw offset = %.1f, want reset", mode.camera.yawOffset)
 	}
 }
 
@@ -950,6 +1020,18 @@ func TestCursorRotateInfoMatchesRobrowser(t *testing.T) {
 	info := cursorInfo(cursorActionRotate)
 	if info.delayMult != 1 {
 		t.Fatalf("rotate cursor info = %+v", info)
+	}
+}
+
+func TestWorldSceneClearColorMatchesReferenceDefaults(t *testing.T) {
+	if got := worldSceneClearColor("geffen_in"); got != (color.RGBA{A: 255}) {
+		t.Fatalf("default map clear color = %#v, want black", got)
+	}
+	if got := worldSceneClearColor("data/yuno.gat"); got != (color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}) {
+		t.Fatalf("yuno clear color = %#v", got)
+	}
+	if got := worldSceneClearColor("5@tower.rsw"); got != (color.RGBA{R: 0x33, G: 0x00, B: 0x33, A: 255}) {
+		t.Fatalf("tower clear color = %#v", got)
 	}
 }
 
