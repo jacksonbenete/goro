@@ -27,6 +27,8 @@ type Game struct {
 	started  time.Time
 	screenW  int
 	screenH  int
+	quit     func()
+	quitting bool
 }
 
 func New(cfg core.Config) (*Game, error) {
@@ -78,17 +80,38 @@ func (g *Game) InputState() *input.State {
 	return g.input
 }
 
+func (g *Game) SetQuitFunc(quit func()) {
+	g.quit = quit
+}
+
+func (g *Game) RequestQuit() {
+	if g.quitting {
+		return
+	}
+	g.quitting = true
+	if g.network != nil {
+		g.network.Close()
+	}
+	if g.audio != nil {
+		g.audio.Stop()
+	}
+	if g.quit != nil {
+		g.quit()
+	}
+}
+
 func (g *Game) modeContext() gamemode.Context {
 	return gamemode.Context{
-		Config:    g.cfg,
-		Input:     g.input,
-		Resources: g.resource,
-		Session:   g.session,
-		World:     g.world,
-		Network:   g.network,
-		Audio:     g.audio,
-		Started:   g.started,
-		ScreenW:   g.screenW,
-		ScreenH:   g.screenH,
+		Config:      g.cfg,
+		Input:       g.input,
+		Resources:   g.resource,
+		Session:     g.session,
+		World:       g.world,
+		Network:     g.network,
+		Audio:       g.audio,
+		Started:     g.started,
+		ScreenW:     g.screenW,
+		ScreenH:     g.screenH,
+		RequestQuit: g.RequestQuit,
 	}
 }

@@ -13,16 +13,17 @@ import (
 )
 
 type Context struct {
-	Config    core.Config
-	Input     *input.State
-	Resources *res.Manager
-	Session   *session.Session
-	World     *world.World
-	Network   *network.Client
-	Audio     *gameaudio.BGM
-	Started   time.Time
-	ScreenW   int
-	ScreenH   int
+	Config      core.Config
+	Input       *input.State
+	Resources   *res.Manager
+	Session     *session.Session
+	World       *world.World
+	Network     *network.Client
+	Audio       *gameaudio.BGM
+	Started     time.Time
+	ScreenW     int
+	ScreenH     int
+	RequestQuit func()
 }
 
 func (c Context) ScreenSize() (int, int) {

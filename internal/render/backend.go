@@ -22,6 +22,10 @@ type Game interface {
 	InputState() *input.State
 }
 
+type quitReceiver interface {
+	SetQuitFunc(func())
+}
+
 type runner struct {
 	app            *gogpu.App
 	game           Game
@@ -63,6 +67,9 @@ func Run(game Game, cfg core.WindowConfig) error {
 		duration: time.Duration(intEnv("GORO_BENCH_SECONDS", 0)) * time.Second,
 		warmup:   time.Duration(intEnv("GORO_BENCH_WARMUP_SECONDS", 0)) * time.Second,
 		quit:     gg.Quit,
+	}
+	if receiver, ok := game.(quitReceiver); ok {
+		receiver.SetQuitFunc(gg.Quit)
 	}
 	game.Resize(cfg.Width, cfg.Height)
 	wireInput(gg, game.InputState())

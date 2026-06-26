@@ -67,6 +67,7 @@ type WorldMode struct {
 	gndTopNormals    [][4]modelPoint3
 	console          chatConsole
 	npcDialog        npcDialogState
+	escapeMenu       escapeMenuState
 	mapFade          mapFadeState
 }
 
@@ -488,11 +489,16 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.mapFade.phase == mapFadeHold {
 		return nil, nil
 	}
-	m.updateCameraRotation(ctx)
+	if !m.escapeMenu.open {
+		m.updateCameraRotation(ctx)
+	}
 	if m.npcDialog.update(ctx) {
 		return nil, nil
 	}
 	if m.console.update(ctx) {
+		return nil, nil
+	}
+	if m.escapeMenu.update(ctx) {
 		return nil, nil
 	}
 	m.updateCameraZoom(ctx)
@@ -1790,6 +1796,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)
+	m.escapeMenu.draw(screen, ctx, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
 	m.drawMapFade(screen, now)
 }
