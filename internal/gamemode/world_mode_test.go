@@ -930,6 +930,16 @@ func TestCameraWheelZoomFactorZoomsInOnWheelUp(t *testing.T) {
 	}
 }
 
+func TestCameraWheelZoomDeltaMatchesRobrowserStep(t *testing.T) {
+	t.Setenv("GORO_CAMERA_WHEEL_ZOOM_UNITS", "15")
+	if got := cameraWheelZoomDelta(1); got != -15 {
+		t.Fatalf("wheel up delta = %.1f, want -15", got)
+	}
+	if got := cameraWheelZoomDelta(-2); got != 30 {
+		t.Fatalf("wheel down delta = %.1f, want 30", got)
+	}
+}
+
 func TestCameraPinchZoomFactorZoomsInWhenFingersSpread(t *testing.T) {
 	t.Setenv("GORO_CAMERA_PINCH_ZOOM_SCALE", "200")
 	if got := cameraPinchZoomFactor(25); got >= 1 {

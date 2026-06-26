@@ -1482,14 +1482,18 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	now := time.Now()
 	playerX, playerY := ctx.World.Player.RenderPosition(now)
 	projection := m.sceneProjection(ctx, width, height, now)
-	screen.SetCamera3D(projection.RenderCamera())
-	fog := sceneFog{}
+	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
+	screen.SetCamera3D(projection.RenderCameraWithFog(fog))
+	vertexFog := fog
+	if projection.camera {
+		vertexFog = sceneFog{}
+	}
 
 	if ctx.World.GND != nil {
-		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, fog)
+		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, vertexFog)
 		m.drawTileCursor(screen, ctx, projection, now)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 && m.rsmRender {
-			m.drawSceneModelsAndActors(screen, ctx, projection, fog)
+			m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog)
 		} else {
 			m.drawGroundItems(screen, ctx, projection, now)
 			m.drawSceneActors(screen, ctx, projection)
@@ -1581,6 +1585,13 @@ func (c *followCamera) ZoomBy(factor float64) {
 	c.zoom = clampCameraZoom(c.currentZoom() * factor)
 }
 
+func (c *followCamera) ZoomByDelta(delta float64) {
+	if delta == 0 || !isFinite(delta) {
+		return
+	}
+	c.zoom = clampCameraZoom(c.currentZoom() + delta)
+}
+
 func (c *followCamera) currentZoom() float64 {
 	if c.zoom <= 0 || !isFinite(c.zoom) {
 		return sceneCameraZoom()
@@ -1626,7 +1637,7 @@ func (m *WorldMode) updateCameraRotation(ctx Context) {
 func (m *WorldMode) updateCameraZoom(ctx Context) {
 	factor := 1.0
 	if ctx.Input.WheelY != 0 {
-		factor *= cameraWheelZoomFactor(ctx.Input.WheelY)
+		m.camera.ZoomByDelta(cameraWheelZoomDelta(ctx.Input.WheelY))
 	}
 	if ctx.Input.PinchDelta != 0 {
 		factor *= cameraPinchZoomFactor(ctx.Input.PinchDelta)
@@ -1676,6 +1687,13 @@ func cameraWheelZoomFactor(wheelY float64) float64 {
 	return math.Pow(cameraZoomWheelStep(), -wheelY)
 }
 
+func cameraWheelZoomDelta(wheelY float64) float64 {
+	if wheelY == 0 || !isFinite(wheelY) {
+		return 0
+	}
+	return -wheelY * cameraZoomWheelUnits()
+}
+
 func cameraPinchZoomFactor(delta float64) float64 {
 	if delta == 0 || !isFinite(delta) {
 		return 1
@@ -1689,6 +1707,14 @@ func cameraZoomWheelStep() float64 {
 		return 1.12
 	}
 	return step
+}
+
+func cameraZoomWheelUnits() float64 {
+	units := sceneFloatEnv("GORO_CAMERA_WHEEL_ZOOM_UNITS", 15)
+	if units <= 0 || !isFinite(units) {
+		return 15
+	}
+	return units
 }
 
 func cameraPinchZoomScale() float64 {

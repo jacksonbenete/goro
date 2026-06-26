@@ -80,12 +80,27 @@ func (p sceneProjection) Project(x, y, z float64) screenPoint {
 }
 
 func (p sceneProjection) RenderCamera() render.Camera3D {
+	return p.RenderCameraWithFog(sceneFog{})
+}
+
+func (p sceneProjection) RenderCameraWithFog(fog sceneFog) render.Camera3D {
 	camera := render.Camera3D{Enabled: p.camera}
 	if !p.camera {
 		return camera
 	}
 	for i, value := range p.viewProjection {
 		camera.ViewProjection[i] = float32(value)
+	}
+	if fog.enabled && fog.far > fog.near {
+		camera.Fog = render.Fog3D{
+			Enabled: true,
+			Near:    float32(fog.near),
+			Far:     float32(fog.far),
+			ColorR:  float32(fog.color.R) / 255,
+			ColorG:  float32(fog.color.G) / 255,
+			ColorB:  float32(fog.color.B) / 255,
+			Factor:  float32(fog.factor),
+		}
 	}
 	return camera
 }

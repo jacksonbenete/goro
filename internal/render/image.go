@@ -47,6 +47,17 @@ type Vertex3D struct {
 type Camera3D struct {
 	Enabled        bool
 	ViewProjection [16]float32
+	Fog            Fog3D
+}
+
+type Fog3D struct {
+	Enabled bool
+	Near    float32
+	Far     float32
+	ColorR  float32
+	ColorG  float32
+	ColorB  float32
+	Factor  float32
 }
 
 type DrawTrianglesOptions struct {
@@ -359,6 +370,7 @@ func (i *Image) DrawTriangles3D(vertices []Vertex3D, indices []uint16, texture *
 	}
 	if i.screen {
 		baseVertices := append([]Vertex3D(nil), vertices...)
+		applyCameraFog3D(baseVertices, i.camera)
 		outIndices := make([]uint32, len(indices))
 		for n, index := range indices {
 			outIndices[n] = uint32(index)
@@ -385,6 +397,54 @@ func (i *Image) DrawTriangles3D(vertices []Vertex3D, indices []uint16, texture *
 		}
 	}
 	i.DrawTriangles(vertices2D, indices, texture, opts)
+}
+
+func applyCameraFog3D(vertices []Vertex3D, camera Camera3D) {
+	fog := camera.Fog
+	if len(vertices) == 0 || !camera.Enabled || !fog.Enabled || fog.Far <= fog.Near || fog.Factor <= 0 {
+		return
+	}
+	factor := clampFloat32(fog.Factor, 0, 1)
+	if factor <= 0 {
+		return
+	}
+	m := camera.ViewProjection
+	for i := range vertices {
+		v := &vertices[i]
+		depth := m[3]*v.X + m[7]*v.Y + m[11]*v.Z + m[15]
+		if math.IsNaN(float64(depth)) || math.IsInf(float64(depth), 0) {
+			continue
+		}
+		amount := smoothstep32(fog.Near, fog.Far, depth) * factor
+		if amount <= 0 {
+			continue
+		}
+		inverse := 1 - amount
+		v.ColorR = clampFloat32(v.ColorR*inverse+fog.ColorR*amount, 0, 1)
+		v.ColorG = clampFloat32(v.ColorG*inverse+fog.ColorG*amount, 0, 1)
+		v.ColorB = clampFloat32(v.ColorB*inverse+fog.ColorB*amount, 0, 1)
+	}
+}
+
+func smoothstep32(edge0, edge1, x float32) float32 {
+	if edge0 == edge1 {
+		if x < edge0 {
+			return 0
+		}
+		return 1
+	}
+	t := clampFloat32((x-edge0)/(edge1-edge0), 0, 1)
+	return t * t * (3 - 2*t)
+}
+
+func clampFloat32(value, minValue, maxValue float32) float32 {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
+	}
+	return value
 }
 
 func (i *Image) drawTriangle(v0, v1, v2 Vertex, texture *Image, opts DrawTrianglesOptions) {
