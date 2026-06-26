@@ -17,8 +17,8 @@ const (
 	inventoryWindowHeight = 356
 	inventoryWindowTitleH = 28
 	inventoryWindowPad    = 10
-	inventoryRowH         = 42
-	inventoryIconSize     = 38
+	inventoryRowH         = 32
+	inventoryIconSize     = 24
 )
 
 var (
