@@ -49,10 +49,12 @@ type Camera3D struct {
 }
 
 type DrawTrianglesOptions struct {
-	Filter    Filter
-	Address   Address
-	Blend     Blend
-	AntiAlias bool
+	Filter     Filter
+	Address    Address
+	Blend      Blend
+	AntiAlias  bool
+	DepthTest  bool
+	DepthWrite bool
 }
 
 type DrawImageOptions struct {

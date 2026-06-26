@@ -1414,7 +1414,8 @@ func formatProgressValue(current, next int64) string {
 }
 
 func world3DEnabled() bool {
-	return os.Getenv("GORO_WORLD_3D") == "1"
+	value := strings.ToLower(strings.TrimSpace(os.Getenv("GORO_WORLD_3D")))
+	return value != "0" && value != "false" && value != "off"
 }
 
 func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
@@ -2464,6 +2465,10 @@ type sceneDrawEntry struct {
 }
 
 func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) {
+	if projection.camera && world3DEnabled() {
+		m.drawSceneModelsAndActors3D(screen, ctx, projection, fog)
+		return
+	}
 	models := m.collectRSMModelTriangles(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
@@ -2493,7 +2498,47 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, 
 			continue
 		}
 		if entry.itemIndex >= 0 {
+			if projection.camera && world3DEnabled() {
+				m.drawGroundItemEntry3D(screen, projection, items[entry.itemIndex])
+				continue
+			}
 			m.drawGroundItemEntry(screen, items[entry.itemIndex])
+			continue
+		}
+		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
+	}
+	for _, actor := range actors {
+		m.drawActorLifeBar(screen, ctx, actor)
+	}
+	for _, actor := range actors {
+		drawActorNameLabel(screen, actor.label, actor.screenX, actor.screenY, actor.scale)
+	}
+}
+
+func (m *WorldMode) drawSceneModelsAndActors3D(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) {
+	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
+	actors := m.collectSceneActorEntries(screen, ctx, projection)
+	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
+	entries := make([]sceneDrawEntry, 0, len(actors)+len(items))
+	for i, item := range items {
+		entries = append(entries, sceneDrawEntry{depth: item.depth, modelIndex: -1, actorIndex: -1, shadowIndex: -1, itemIndex: i})
+	}
+	for i, actor := range actors {
+		if actor.castShadow {
+			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, modelIndex: -1, actorIndex: -1, shadowIndex: i, itemIndex: -1})
+		}
+		entries = append(entries, sceneDrawEntry{depth: actor.depth, modelIndex: -1, actorIndex: i, shadowIndex: -1, itemIndex: -1})
+	}
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].depth > entries[j].depth
+	})
+	for _, entry := range entries {
+		if entry.shadowIndex >= 0 {
+			m.drawActorShadowEntry(screen, actors[entry.shadowIndex])
+			continue
+		}
+		if entry.itemIndex >= 0 {
+			m.drawGroundItemEntry3D(screen, projection, items[entry.itemIndex])
 			continue
 		}
 		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
@@ -3936,14 +3981,14 @@ func (m *WorldMode) drawWaterSurface(screen *render.Image, manager *res.Manager,
 	tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
 	if texture == nil {
 		if projection.camera && world3DEnabled() {
-			drawColoredSurfaceTints3D(screen, m.whitePixel, draw.verts, draw.indices, tints)
+			drawColoredSurfaceTints3DAlpha(screen, m.whitePixel, draw.verts, draw.indices, tints)
 			return
 		}
 		drawColoredSurfaceTints(screen, m.whitePixel, draw.points, draw.indices, tints)
 		return
 	}
 	if projection.camera && world3DEnabled() {
-		drawTexturedSurface3D(screen, texture, draw.verts, draw.uvs, draw.indices, tints)
+		drawTexturedSurface3DAlpha(screen, texture, draw.verts, draw.uvs, draw.indices, tints)
 		return
 	}
 	drawTexturedSurface(screen, texture, draw.points, draw.uvs, draw.indices, tints)
@@ -4439,13 +4484,21 @@ func drawColoredSurfaceTints(screen, white *render.Image, points [4]screenPoint,
 }
 
 func drawColoredSurfaceTints3D(screen, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA) {
+	drawColoredSurfaceTints3DWithOptions(screen, white, verts, indices, colors, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+}
+
+func drawColoredSurfaceTints3DAlpha(screen, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA) {
+	drawColoredSurfaceTints3DWithOptions(screen, white, verts, indices, colors, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+}
+
+func drawColoredSurfaceTints3DWithOptions(screen, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA, options *render.DrawTrianglesOptions) {
 	vertices := []render.Vertex3D{
 		coloredSurfaceVertex3D(verts[0], 0, 0, colors[0]),
 		coloredSurfaceVertex3D(verts[1], 1, 0, colors[1]),
 		coloredSurfaceVertex3D(verts[2], 1, 1, colors[2]),
 		coloredSurfaceVertex3D(verts[3], 0, 1, colors[3]),
 	}
-	screen.DrawTriangles3D(vertices, indices, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+	screen.DrawTriangles3D(vertices, indices, white, options)
 }
 
 func drawTexturedSurface(screen, texture *render.Image, points [4]screenPoint, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
@@ -4462,6 +4515,14 @@ func drawTexturedSurface(screen, texture *render.Image, points [4]screenPoint, u
 }
 
 func drawTexturedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, indices, tints, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+}
+
+func drawTexturedSurface3DAlpha(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, indices, tints, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+}
+
+func drawTexturedSurface3DWithOptions(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA, options *render.DrawTrianglesOptions) {
 	bounds := texture.Bounds()
 	w := float32(bounds.Dx())
 	h := float32(bounds.Dy())
@@ -4471,7 +4532,7 @@ func drawTexturedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, 
 		texturedSurfaceVertex3D(verts[2], uvs[2], tints[2], w, h),
 		texturedSurfaceVertex3D(verts[3], uvs[3], tints[3], w, h),
 	}
-	screen.DrawTriangles3D(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+	screen.DrawTriangles3D(vertices, indices, texture, options)
 }
 
 func drawTexturedLightmappedSurface(screen, texture *render.Image, points [4]screenPoint, verts [4]modelPoint3, uvs [4]texturePoint, surfaceColor color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
@@ -4573,7 +4634,7 @@ func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]mo
 		}
 	}
 
-	screen.DrawTriangles3D(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+	screen.DrawTriangles3D(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
 func bilerpScreenPoint(points [4]screenPoint, s, t float64) screenPoint {

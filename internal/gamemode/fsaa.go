@@ -17,5 +17,12 @@ func triangleDrawOptions(filter render.Filter, address render.Address) *render.D
 		Filter:    filter,
 		Address:   address,
 		AntiAlias: fsaaEnabled(),
+		DepthTest: true,
 	}
+}
+
+func worldOpaqueTriangleDrawOptions(filter render.Filter, address render.Address) *render.DrawTrianglesOptions {
+	options := triangleDrawOptions(filter, address)
+	options.DepthWrite = true
+	return options
 }

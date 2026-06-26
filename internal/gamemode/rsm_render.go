@@ -814,7 +814,7 @@ func drawTexturedModelTriangles3D(screen, texture *render.Image, triangles []mod
 		if len(indices) == 0 {
 			return
 		}
-		screen.DrawTriangles3D(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+		screen.DrawTriangles3D(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 		vertices = vertices[:0]
 		indices = indices[:0]
 	}
@@ -842,7 +842,7 @@ func drawTexturedTriangle3D(screen, texture *render.Image, verts [3]modelPoint3,
 		texturedSurfaceVertex3D(verts[1], uvs[1], tint, w, h),
 		texturedSurfaceVertex3D(verts[2], uvs[2], tint, w, h),
 	}
-	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
 func drawColoredTriangle(screen, white *render.Image, points [3]screenPoint, c color.RGBA) {
@@ -904,7 +904,7 @@ func drawColoredModelTriangles3D(screen, white *render.Image, triangles []modelT
 		if len(indices) == 0 {
 			return
 		}
-		screen.DrawTriangles3D(vertices, indices, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+		screen.DrawTriangles3D(vertices, indices, white, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
 		vertices = vertices[:0]
 		indices = indices[:0]
 	}
@@ -929,7 +929,7 @@ func drawColoredTriangle3D(screen, white *render.Image, verts [3]modelPoint3, c 
 		coloredSurfaceVertex3D(verts[1], 1, 0, c),
 		coloredSurfaceVertex3D(verts[2], 1, 1, c),
 	}
-	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, white, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
 }
 
 func triangleOutside(points [3]screenPoint, width, height float64) bool {
