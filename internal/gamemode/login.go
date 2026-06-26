@@ -66,9 +66,7 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
 			m.packets = append(m.packets, "parse chat message: "+err.Error())
 		} else if ok {
-			if text := formatConsoleMessage(ctx.Resources, chat); text != "" {
-				m.console.addMessage("%s", text)
-			}
+			addConsoleMessage(&m.console, ctx.Resources, chat)
 			continue
 		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {

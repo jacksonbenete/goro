@@ -273,9 +273,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
 			log.Printf("parse chat message 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			if text := formatConsoleMessage(ctx.Resources, chat); text != "" {
-				m.console.addMessage("%s", text)
-			}
+			addConsoleMessage(&m.console, ctx.Resources, chat)
 			continue
 		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
@@ -339,9 +337,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			m.applyItemPickupAck(ctx, pickup)
 			if pickup.Result == 0 {
-				m.console.addMessage("Picked up item %d x%d", pickup.ItemID, pickup.Amount)
+				m.console.addSystemMessage("Picked up item %d x%d", pickup.ItemID, pickup.Amount)
 			} else {
-				m.console.addMessage("Pickup failed item %d result=%d", pickup.ItemID, pickup.Result)
+				m.console.addErrorMessage("Pickup failed item %d result=%d", pickup.ItemID, pickup.Result)
 			}
 			continue
 		}
@@ -427,11 +425,10 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 
 	m.camera.Update(ctx, now)
 	m.updateCameraRotation(ctx)
-	m.updateCameraZoom(ctx)
-
 	if m.console.update(ctx) {
 		return nil, nil
 	}
+	m.updateCameraZoom(ctx)
 
 	dx, dy := 0, 0
 	if ctx.Input.Pressed(render.KeyArrowLeft) {
@@ -558,6 +555,21 @@ func formatConsoleMessage(manager *res.Manager, chat network.ChatMessage) string
 		text = fmt.Sprintf("skill %d: %s", chat.SkillID, text)
 	}
 	return text
+}
+
+func addConsoleMessage(console *chatConsole, manager *res.Manager, chat network.ChatMessage) {
+	if console == nil {
+		return
+	}
+	text := formatConsoleMessage(manager, chat)
+	if text == "" {
+		return
+	}
+	if chat.Text == "" || !strings.Contains(text, " : ") {
+		console.addSystemMessage("%s", text)
+		return
+	}
+	console.addMessage("%s", text)
 }
 
 func sameLoadedMap(ctx Context, mapName string) bool {

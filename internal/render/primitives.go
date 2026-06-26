@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"math"
@@ -67,11 +68,15 @@ func DrawLine(dst *Image, x0, y0, x1, y1 float64, c color.Color) {
 }
 
 func DebugPrintAt(dst *Image, text string, x, y int) {
+	DebugPrintAtColor(dst, text, x, y, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+}
+
+func DebugPrintAtColor(dst *Image, text string, x, y int, c color.RGBA) {
 	if dst == nil || dst.pix == nil || text == "" {
 		return
 	}
 	if dst.screen {
-		img := cachedDebugText(text)
+		img := cachedDebugTextColor(text, c)
 		var opts DrawImageOptions
 		opts.GeoM.Translate(float64(x), float64(y))
 		opts.Filter = FilterNearest
@@ -80,7 +85,7 @@ func DebugPrintAt(dst *Image, text string, x, y int) {
 	}
 	d := &font.Drawer{
 		Dst:  dst.pix,
-		Src:  image.NewUniform(color.RGBA{R: 255, G: 255, B: 255, A: 255}),
+		Src:  image.NewUniform(c),
 		Face: basicfont.Face7x13,
 		Dot:  fixed.P(x, y+13),
 	}
@@ -88,7 +93,12 @@ func DebugPrintAt(dst *Image, text string, x, y int) {
 }
 
 func cachedDebugText(text string) *Image {
-	if img := debugTextCache[text]; img != nil {
+	return cachedDebugTextColor(text, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+}
+
+func cachedDebugTextColor(text string, c color.RGBA) *Image {
+	key := fmt.Sprintf("%02x%02x%02x%02x:%s", c.R, c.G, c.B, c.A, text)
+	if img := debugTextCache[key]; img != nil {
 		return img
 	}
 	w := len(text) * 7
@@ -96,8 +106,8 @@ func cachedDebugText(text string) *Image {
 		w = 1
 	}
 	img := NewImage(w, 13)
-	DebugPrintAt(img, text, 0, -1)
-	debugTextCache[text] = img
+	DebugPrintAtColor(img, text, 0, -1, c)
+	debugTextCache[key] = img
 	if len(debugTextCache) > 512 {
 		for key := range debugTextCache {
 			delete(debugTextCache, key)
