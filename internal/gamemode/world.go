@@ -3137,22 +3137,17 @@ func drawWarpZoneEffect(screen, white, ringTexture *render.Image, projection sce
 			heightFactor = (1 - phase) * 2
 		}
 		alpha := uint8(102 * warpCycleFade(phase))
-		drawProjectedCylinderBand(
-			screen,
-			white,
-			ringTexture,
-			projection,
-			x,
-			y,
-			z,
-			bottomBaseSize*sizeFactor,
-			topBaseSize*sizeFactor,
-			heightBase*heightFactor,
-			color.RGBA{R: 155, G: 205, B: 255, A: alpha},
-			segments,
-		)
+		if projection.camera {
+			drawWorldCylinderBand(screen, white, ringTexture, x, y, z, bottomBaseSize*sizeFactor, topBaseSize*sizeFactor, heightBase*heightFactor, color.RGBA{R: 155, G: 205, B: 255, A: alpha}, segments)
+		} else {
+			drawProjectedCylinderBand(screen, white, ringTexture, projection, x, y, z, bottomBaseSize*sizeFactor, topBaseSize*sizeFactor, heightBase*heightFactor, color.RGBA{R: 155, G: 205, B: 255, A: alpha}, segments)
+		}
 	}
-	drawProjectedRadialGradient(screen, white, projection, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
+	if projection.camera {
+		drawWorldRadialGradient(screen, white, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
+	} else {
+		drawProjectedRadialGradient(screen, white, projection, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
+	}
 	for i := 0; i < ringCount; i++ {
 		phase := math.Mod(seconds*0.55+float64(i)/ringCount, 1)
 		radius := baseRadius + phase*radiusRange
@@ -3160,10 +3155,18 @@ func drawWarpZoneEffect(screen, white, ringTexture *render.Image, projection sce
 		if alpha < 28 {
 			alpha = 28
 		}
-		drawProjectedSoftRing(screen, white, projection, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
+		if projection.camera {
+			drawWorldSoftRing(screen, white, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
+		} else {
+			drawProjectedSoftRing(screen, white, projection, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
+		}
 	}
 	pulse := 0.5 + 0.5*math.Sin(seconds*2.4)
-	drawProjectedSoftRing(screen, white, projection, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
+	if projection.camera {
+		drawWorldSoftRing(screen, white, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
+	} else {
+		drawProjectedSoftRing(screen, white, projection, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
+	}
 }
 
 func warpCycleFade(phase float64) float64 {
@@ -3187,6 +3190,82 @@ func drawProjectedSoftRing(screen, white *render.Image, projection sceneProjecti
 	outer := math.Max(mid+0.01, radius+width*0.5)
 	drawProjectedRingBand(screen, white, projection, x, y, z, inner, mid, 0, c.A, c, segments)
 	drawProjectedRingBand(screen, white, projection, x, y, z, mid, outer, c.A, 0, c, segments)
+}
+
+func drawWorldRadialGradient(screen, white *render.Image, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
+	drawWorldRingBand(screen, white, x, y, z, innerRadius, outerRadius, c.A, 0, c, segments)
+}
+
+func drawWorldSoftRing(screen, white *render.Image, x, y, z, radius, width float64, c color.RGBA, segments int) {
+	inner := math.Max(0, radius-width*0.5)
+	mid := math.Max(inner+0.01, radius)
+	outer := math.Max(mid+0.01, radius+width*0.5)
+	drawWorldRingBand(screen, white, x, y, z, inner, mid, 0, c.A, c, segments)
+	drawWorldRingBand(screen, white, x, y, z, mid, outer, c.A, 0, c, segments)
+}
+
+func drawWorldCylinderBand(screen, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
+	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
+		return
+	}
+	vertices := make([]render.Vertex3D, 0, (segments+1)*2)
+	indices := make([]uint16, 0, segments*6)
+	tint := c
+	srcW, srcH := float32(1), float32(1)
+	source := white
+	if texture != nil {
+		source = texture
+		bounds := texture.Bounds()
+		srcW = float32(bounds.Dx())
+		srcH = float32(bounds.Dy())
+	}
+	for i := 0; i <= segments; i++ {
+		u := float32(i) / float32(segments)
+		angle := float64(i) * 2 * math.Pi / float64(segments)
+		cosine := math.Cos(angle)
+		sine := math.Sin(angle)
+		vertices = append(vertices,
+			warpEffectTexturedVertex3D(x+cosine*bottomRadius, y+sine*bottomRadius, z, u*srcW, srcH, tint),
+			warpEffectTexturedVertex3D(x+cosine*topRadius, y+sine*topRadius, z+height, u*srcW, 0, tint),
+		)
+		if i == segments {
+			continue
+		}
+		base := uint16(i * 2)
+		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
+	}
+	options := triangleDrawOptions(render.FilterLinear, render.AddressRepeat)
+	options.Blend = render.BlendLighter
+	screen.DrawTriangles3D(vertices, indices, source, options)
+}
+
+func drawWorldRingBand(screen, white *render.Image, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
+	if segments < 3 || outerRadius <= innerRadius {
+		return
+	}
+	vertices := make([]render.Vertex3D, 0, (segments+1)*2)
+	indices := make([]uint16, 0, segments*6)
+	innerColor := c
+	outerColor := c
+	innerColor.A = innerAlpha
+	outerColor.A = outerAlpha
+	for i := 0; i <= segments; i++ {
+		angle := float64(i) * 2 * math.Pi / float64(segments)
+		cosine := math.Cos(angle)
+		sine := math.Sin(angle)
+		vertices = append(vertices,
+			warpEffectVertex3D(x+cosine*innerRadius, y+sine*innerRadius, z, innerColor),
+			warpEffectVertex3D(x+cosine*outerRadius, y+sine*outerRadius, z, outerColor),
+		)
+		if i == segments {
+			continue
+		}
+		base := uint16(i * 2)
+		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
+	}
+	options := triangleDrawOptions(render.FilterNearest, render.AddressUnsafe)
+	options.Blend = render.BlendLighter
+	screen.DrawTriangles3D(vertices, indices, white, options)
 }
 
 func drawProjectedCylinderBand(screen, white, texture *render.Image, projection sceneProjection, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
@@ -3266,6 +3345,24 @@ func warpEffectTexturedVertex(point screenPoint, srcX, srcY float32, c color.RGB
 	}
 }
 
+func warpEffectTexturedVertex3D(x, y, z float64, srcX, srcY float32, c color.RGBA) render.Vertex3D {
+	point := modelPoint3{x: x, y: z, z: y}
+	return render.Vertex3D{
+		X:      float32(point.x),
+		Y:      float32(point.y),
+		Z:      float32(point.z),
+		SrcX:   srcX,
+		SrcY:   srcY,
+		ColorR: float32(c.R) / 255,
+		ColorG: float32(c.G) / 255,
+		ColorB: float32(c.B) / 255,
+		ColorA: float32(c.A) / 255,
+		DepthX: float32(point.x),
+		DepthY: float32(point.y),
+		DepthZ: float32(point.z),
+	}
+}
+
 func warpEffectVertex(point screenPoint, c color.RGBA) render.Vertex {
 	return render.Vertex{
 		DstX:   point.x,
@@ -3277,6 +3374,10 @@ func warpEffectVertex(point screenPoint, c color.RGBA) render.Vertex {
 		ColorB: float32(c.B) / 255,
 		ColorA: float32(c.A) / 255,
 	}
+}
+
+func warpEffectVertex3D(x, y, z float64, c color.RGBA) render.Vertex3D {
+	return warpEffectTexturedVertex3D(x, y, z, 0, 0, c)
 }
 
 func drawActorMarker(screen *render.Image, x, y float64, actor worldstate.Actor, now time.Time) {
