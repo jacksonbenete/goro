@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"math"
 	"os"
+	"strconv"
 
 	"github.com/kivutar/goro/res"
 )
@@ -72,12 +73,24 @@ func sceneFogVeilAlpha(f sceneFog, projection sceneProjection) uint8 {
 	if amount <= 0 {
 		return 0
 	}
-	strength := math.Max(0, math.Min(1, sceneFloatEnv("GORO_FOG_VEIL_STRENGTH", 0.22)))
+	strength := math.Max(0, math.Min(1, fogFloatEnv("GORO_FOG_VEIL_STRENGTH", 0.22)))
 	return clampColor(255 * amount * strength)
 }
 
 func sceneFogVeilDepthScale() float64 {
-	return math.Max(0, sceneFloatEnv("GORO_FOG_VEIL_DEPTH_SCALE", 1.2))
+	return math.Max(0, fogFloatEnv("GORO_FOG_VEIL_DEPTH_SCALE", 1.2))
+}
+
+func fogFloatEnv(name string, fallback float64) float64 {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return fallback
+	}
+	return value
 }
 
 func smoothstep(edge0, edge1, x float64) float64 {

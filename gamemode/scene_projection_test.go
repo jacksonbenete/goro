@@ -2,7 +2,6 @@ package gamemode
 
 import (
 	"math"
-	"os"
 	"testing"
 
 	"github.com/kivutar/goro/res"
@@ -43,16 +42,6 @@ func TestCameraProjectionCentersPlayerCell(t *testing.T) {
 }
 
 func TestSceneCameraDefaultZoomUsesGameplayScale(t *testing.T) {
-	old, hadOld := os.LookupEnv("GORO_CAMERA_ZOOM")
-	t.Cleanup(func() {
-		if hadOld {
-			os.Setenv("GORO_CAMERA_ZOOM", old)
-		} else {
-			os.Unsetenv("GORO_CAMERA_ZOOM")
-		}
-	})
-	os.Unsetenv("GORO_CAMERA_ZOOM")
-
 	if got := sceneCameraZoom() * 0.5; got != 75 {
 		t.Fatalf("default camera distance = %.1f, want 75.0", got)
 	}
@@ -77,9 +66,6 @@ func TestCameraProjectionMovesHigherWorldPointUpScreen(t *testing.T) {
 }
 
 func TestBillboardBasisStaysScreenAlignedOffCenter(t *testing.T) {
-	t.Setenv("GORO_CAMERA_ZOOM", "150")
-	t.Setenv("GORO_CAMERA_PITCH", "230")
-	t.Setenv("GORO_CAMERA_FOV", "15")
 	projection := newSceneProjectionForTargetYawZoom(800, 600, 10.5, 20.5, 5, 0, 150)
 	worldX, worldY, worldZ := 18.5, 20.5, 5.0
 	right, up, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)

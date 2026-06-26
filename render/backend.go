@@ -46,7 +46,11 @@ type runner struct {
 }
 
 func Run(game Game, cfg core.WindowConfig) error {
-	appConfig := gogpu.DefaultConfig().
+	appConfig := gogpu.DefaultConfig()
+	if os.Getenv("GOGPU_GRAPHICS_API") == "" {
+		appConfig = appConfig.WithGraphicsAPI(gogpu.GraphicsAPIVulkan)
+	}
+	appConfig = appConfig.
 		WithTitle(cfg.Title).
 		WithSize(cfg.Width, cfg.Height).
 		WithResizable(true).

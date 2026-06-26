@@ -162,6 +162,12 @@ const (
 	mapFadeInDuration              = 340 * time.Millisecond
 	actorNameRequestCooldown       = time.Second
 	defaultRSMLoadLimit            = 128
+	defaultCameraFollowFactor      = 0.1
+	defaultCameraWheelZoomStep     = 1.12
+	defaultCameraWheelZoomUnits    = 15
+	defaultCameraPinchZoomScale    = 240
+	defaultCameraMinZoom           = 80.0
+	defaultCameraMaxZoom           = 260.0
 )
 
 func NewWorldMode() *WorldMode {
@@ -1996,14 +2002,7 @@ func playerCameraTarget(world *worldstate.World, now time.Time) (float64, float6
 }
 
 func cameraFollowFactor() float64 {
-	value := sceneFloatEnv("GORO_CAMERA_FOLLOW_FACTOR", 0.1)
-	if value < 0 {
-		return 0
-	}
-	if value > 1 {
-		return 1
-	}
-	return value
+	return defaultCameraFollowFactor
 }
 
 func cameraYawForMap(ctx Context) float64 {
@@ -2066,45 +2065,22 @@ func cameraPinchZoomFactor(delta float64) float64 {
 }
 
 func cameraZoomWheelStep() float64 {
-	step := sceneFloatEnv("GORO_CAMERA_WHEEL_ZOOM_STEP", 1.12)
-	if step <= 1 || !isFinite(step) {
-		return 1.12
-	}
-	return step
+	return defaultCameraWheelZoomStep
 }
 
 func cameraZoomWheelUnits() float64 {
-	units := sceneFloatEnv("GORO_CAMERA_WHEEL_ZOOM_UNITS", 15)
-	if units <= 0 || !isFinite(units) {
-		return 15
-	}
-	return units
+	return defaultCameraWheelZoomUnits
 }
 
 func cameraPinchZoomScale() float64 {
-	scale := sceneFloatEnv("GORO_CAMERA_PINCH_ZOOM_SCALE", 240)
-	if scale <= 0 || !isFinite(scale) {
-		return 240
-	}
-	return scale
+	return defaultCameraPinchZoomScale
 }
 
 func clampCameraZoom(zoom float64) float64 {
 	if !isFinite(zoom) || zoom <= 0 {
-		zoom = 150
+		zoom = defaultSceneCameraZoom
 	}
-	minZoom := sceneFloatEnv("GORO_CAMERA_MIN_ZOOM", 80)
-	maxZoom := sceneFloatEnv("GORO_CAMERA_MAX_ZOOM", 260)
-	if minZoom <= 0 || !isFinite(minZoom) {
-		minZoom = 80
-	}
-	if maxZoom <= 0 || !isFinite(maxZoom) {
-		maxZoom = 260
-	}
-	if minZoom > maxZoom {
-		minZoom, maxZoom = maxZoom, minZoom
-	}
-	return math.Max(minZoom, math.Min(maxZoom, zoom))
+	return math.Max(defaultCameraMinZoom, math.Min(defaultCameraMaxZoom, zoom))
 }
 
 func normalizeCameraYaw(yaw float64) float64 {

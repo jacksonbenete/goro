@@ -2,8 +2,6 @@ package gamemode
 
 import (
 	"math"
-	"os"
-	"strconv"
 
 	"github.com/kivutar/goro/render"
 	worldstate "github.com/kivutar/goro/world"
@@ -19,6 +17,13 @@ type sceneProjection struct {
 	cameraZoom     float64
 	viewProjection mat4
 }
+
+const (
+	defaultSceneCameraPitch float64 = 230
+	defaultSceneCameraYaw   float64 = 0
+	defaultSceneCameraZoom  float64 = 150
+	defaultSceneCameraFOV   float64 = 15
+)
 
 func newSceneProjectionForSize(width, height, playerX, playerY int, playerZ float64) sceneProjection {
 	return newSceneProjectionForTarget(width, height, cellCenter(float64(playerX)), cellCenter(float64(playerY)), playerZ)
@@ -215,35 +220,23 @@ func isFinite(value float64) bool {
 }
 
 func sceneCameraPitch() float64 {
-	return sceneFloatEnv("GORO_CAMERA_PITCH", 230)
+	return defaultSceneCameraPitch
 }
 
 func sceneCameraYaw() float64 {
-	return sceneFloatEnv("GORO_CAMERA_YAW", 0)
+	return defaultSceneCameraYaw
 }
 
 func sceneCameraZoom() float64 {
-	return normalizeSceneCameraZoom(sceneFloatEnv("GORO_CAMERA_ZOOM", 150))
+	return normalizeSceneCameraZoom(defaultSceneCameraZoom)
 }
 
 func sceneCameraFOV() float64 {
-	return sceneFloatEnv("GORO_CAMERA_FOV", 15)
+	return defaultSceneCameraFOV
 }
 
 func normalizeSceneCameraZoom(zoom float64) float64 {
 	return clampCameraZoom(zoom)
-}
-
-func sceneFloatEnv(name string, fallback float64) float64 {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil {
-		return fallback
-	}
-	return value
 }
 
 func terrainHeightAt(world *worldstate.World, x, y float64) float64 {

@@ -11,7 +11,7 @@ no-op audio stub on this path.
 ## Run
 
 ```sh
-CGO_ENABLED=0 GOGPU_GRAPHICS_API=vulkan go run .
+CGO_ENABLED=0 go run .
 ```
 
 For the local OldRO + rAthena test setup:
@@ -24,7 +24,6 @@ Useful toggles:
 
 ```sh
 GORO_NET_TRACE=1 ./scripts/run-oldro.sh
-GORO_CAMERA_PITCH=230 GORO_CAMERA_YAW=0 GORO_CAMERA_ZOOM=150 GORO_CAMERA_FOV=15 ./scripts/run-oldro.sh
 GORO_PACKET_CLIENT_DATE=20211103 ./scripts/run-oldro.sh # only when rAthena is rebuilt for that packetver
 GORO_FULLSCREEN=1 ./scripts/run-oldro.sh
 GORO_BGM=0 ./scripts/run-oldro.sh

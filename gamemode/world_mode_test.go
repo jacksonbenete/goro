@@ -876,7 +876,6 @@ func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 }
 
 func TestFollowCameraInterpolatesTowardPlayerLikeReferenceView(t *testing.T) {
-	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "0.25")
 	world := worldstate.New()
 	world.Player = worldstate.Actor{X: 10, Y: 20}
 	ctx := Context{World: world}
@@ -887,8 +886,8 @@ func TestFollowCameraInterpolatesTowardPlayerLikeReferenceView(t *testing.T) {
 	world.Player = worldstate.Actor{X: 14, Y: 20}
 	camera.Update(ctx, now.Add(time.Second/60))
 
-	if camera.x != 11.5 || camera.y != 20.5 {
-		t.Fatalf("camera target = %.2f, %.2f, want 11.5, 20.5", camera.x, camera.y)
+	if math.Abs(camera.x-10.9) > 0.001 || camera.y != 20.5 {
+		t.Fatalf("camera target = %.2f, %.2f, want 10.9, 20.5", camera.x, camera.y)
 	}
 }
 
@@ -925,9 +924,6 @@ func TestAppendActorDrawEntryUsesPathRenderDirection(t *testing.T) {
 }
 
 func TestActorBillboardSortDepthUsesTopInCameraProjection(t *testing.T) {
-	t.Setenv("GORO_CAMERA_ZOOM", "150")
-	t.Setenv("GORO_CAMERA_PITCH", "230")
-	t.Setenv("GORO_CAMERA_FOV", "15")
 	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 0)
 	footDepth := projection.Depth(10.5, 20.5, 0)
 	topDepth := projection.Depth(10.5, 20.5, actorBillboardWorldHeightUnit)
@@ -941,19 +937,13 @@ func TestActorBillboardSortDepthUsesTopInCameraProjection(t *testing.T) {
 	}
 }
 
-func TestCameraFollowFactorIsClamped(t *testing.T) {
-	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "2")
-	if got := cameraFollowFactor(); got != 1 {
-		t.Fatalf("camera follow factor = %.2f, want 1", got)
-	}
-	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "-1")
-	if got := cameraFollowFactor(); got != 0 {
-		t.Fatalf("camera follow factor = %.2f, want 0", got)
+func TestCameraFollowFactorUsesReferenceDefault(t *testing.T) {
+	if got := cameraFollowFactor(); got != defaultCameraFollowFactor {
+		t.Fatalf("camera follow factor = %.2f, want %.2f", got, defaultCameraFollowFactor)
 	}
 }
 
 func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
-	t.Setenv("GORO_CAMERA_YAW", "123")
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")
 	if err := os.Mkdir(dataDir, 0o755); err != nil {
@@ -974,13 +964,12 @@ func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
 		t.Fatalf("indoor camera yaw = %.1f, want -45.0", got)
 	}
 	ctx.World.MapName = "prontera"
-	if got := cameraYawForMap(ctx); got != 123 {
-		t.Fatalf("outdoor camera yaw = %.1f, want env override 123.0", got)
+	if got := cameraYawForMap(ctx); got != defaultSceneCameraYaw {
+		t.Fatalf("outdoor camera yaw = %.1f, want %.1f", got, defaultSceneCameraYaw)
 	}
 }
 
 func TestCameraYawForFixedViewPointMapIsLocked(t *testing.T) {
-	t.Setenv("GORO_CAMERA_YAW", "123")
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")
 	if err := os.Mkdir(dataDir, 0o755); err != nil {
@@ -1004,8 +993,8 @@ func TestCameraYawForFixedViewPointMapIsLocked(t *testing.T) {
 		t.Fatal("fixed viewpoint should lock camera rotation")
 	}
 	ctx.World.MapName = "free_view"
-	if got := cameraYawForMap(ctx); got != 123 {
-		t.Fatalf("free viewpoint yaw = %.1f, want env override 123.0", got)
+	if got := cameraYawForMap(ctx); got != defaultSceneCameraYaw {
+		t.Fatalf("free viewpoint yaw = %.1f, want %.1f", got, defaultSceneCameraYaw)
 	}
 	if cameraRotationLockedForMap(ctx) {
 		t.Fatal("free viewpoint should not lock camera rotation")
@@ -1013,7 +1002,6 @@ func TestCameraYawForFixedViewPointMapIsLocked(t *testing.T) {
 }
 
 func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
-	t.Setenv("GORO_CAMERA_YAW", "15")
 	world := worldstate.New()
 	world.MapName = "prontera"
 	ctx := Context{World: world}
@@ -1021,14 +1009,14 @@ func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
 
 	camera.Rotate(90)
 	projection := camera.Projection(ctx, 800, 600, time.Now())
-	if got := projection.cameraYaw; got != 105 {
-		t.Fatalf("projection yaw = %.1f, want 105.0", got)
+	if got := projection.cameraYaw; got != 90 {
+		t.Fatalf("projection yaw = %.1f, want 90.0", got)
 	}
 
 	camera.ResetRotation()
 	projection = camera.Projection(ctx, 800, 600, time.Now())
-	if got := projection.cameraYaw; got != 15 {
-		t.Fatalf("reset projection yaw = %.1f, want 15.0", got)
+	if got := projection.cameraYaw; got != defaultSceneCameraYaw {
+		t.Fatalf("reset projection yaw = %.1f, want %.1f", got, defaultSceneCameraYaw)
 	}
 }
 
@@ -1107,7 +1095,6 @@ func TestCameraDragYawDeltaMatchesRobrowserScale(t *testing.T) {
 }
 
 func TestCameraWheelZoomFactorZoomsInOnWheelUp(t *testing.T) {
-	t.Setenv("GORO_CAMERA_WHEEL_ZOOM_STEP", "1.2")
 	if got := cameraWheelZoomFactor(1); got >= 1 {
 		t.Fatalf("wheel up factor = %.3f, want zoom-in factor below 1", got)
 	}
@@ -1117,7 +1104,6 @@ func TestCameraWheelZoomFactorZoomsInOnWheelUp(t *testing.T) {
 }
 
 func TestCameraWheelZoomDeltaMatchesRobrowserStep(t *testing.T) {
-	t.Setenv("GORO_CAMERA_WHEEL_ZOOM_UNITS", "15")
 	if got := cameraWheelZoomDelta(1); got != -15 {
 		t.Fatalf("wheel up delta = %.1f, want -15", got)
 	}
@@ -1127,7 +1113,6 @@ func TestCameraWheelZoomDeltaMatchesRobrowserStep(t *testing.T) {
 }
 
 func TestCameraPinchZoomFactorZoomsInWhenFingersSpread(t *testing.T) {
-	t.Setenv("GORO_CAMERA_PINCH_ZOOM_SCALE", "200")
 	if got := cameraPinchZoomFactor(25); got >= 1 {
 		t.Fatalf("pinch spread factor = %.3f, want zoom-in factor below 1", got)
 	}
@@ -1137,24 +1122,21 @@ func TestCameraPinchZoomFactorZoomsInWhenFingersSpread(t *testing.T) {
 }
 
 func TestFollowCameraZoomIsClampedAndProjected(t *testing.T) {
-	t.Setenv("GORO_CAMERA_ZOOM", "150")
-	t.Setenv("GORO_CAMERA_MIN_ZOOM", "100")
-	t.Setenv("GORO_CAMERA_MAX_ZOOM", "180")
 	world := worldstate.New()
 	ctx := Context{World: world}
 	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0}
 
 	camera.ZoomBy(0.1)
-	if got := camera.currentZoom(); got != 100 {
-		t.Fatalf("zoom in clamp = %.1f, want 100.0", got)
+	if got := camera.currentZoom(); got != defaultCameraMinZoom {
+		t.Fatalf("zoom in clamp = %.1f, want %.1f", got, defaultCameraMinZoom)
 	}
 	camera.ZoomBy(10)
-	if got := camera.currentZoom(); got != 180 {
-		t.Fatalf("zoom out clamp = %.1f, want 180.0", got)
+	if got := camera.currentZoom(); got != defaultCameraMaxZoom {
+		t.Fatalf("zoom out clamp = %.1f, want %.1f", got, defaultCameraMaxZoom)
 	}
 	projection := camera.Projection(ctx, 800, 600, time.Now())
-	if got := projection.cameraZoom; got != 180 {
-		t.Fatalf("projection zoom = %.1f, want 180.0", got)
+	if got := projection.cameraZoom; got != defaultCameraMaxZoom {
+		t.Fatalf("projection zoom = %.1f, want %.1f", got, defaultCameraMaxZoom)
 	}
 }
 
@@ -1298,10 +1280,6 @@ func modelPointNear(a, b modelPoint3, epsilon float64) bool {
 }
 
 func TestGNDDrawBoundsUseCameraFootprint(t *testing.T) {
-	t.Setenv("GORO_CAMERA_ZOOM", "150")
-	t.Setenv("GORO_CAMERA_PITCH", "230")
-	t.Setenv("GORO_CAMERA_FOV", "15")
-
 	gnd := &res.GND{Width: 200, Height: 200}
 	projection := newSceneProjectionForTargetYaw(1024, 768, 200.5, 260.5, 8, 0)
 	startX, endX, startY, endY, ok := gndDrawBounds(gnd, projection, 1024, 768)
