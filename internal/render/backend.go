@@ -130,6 +130,9 @@ func wireInput(app *gogpu.App, state *input.State) {
 	events.OnScroll(func(x, y float64) {
 		state.AddWheel(x, y)
 	})
+	events.OnTextInput(func(text string) {
+		state.AddTextInput(text)
+	})
 }
 
 func mapKey(key gpucontext.Key) (input.Key, bool) {
@@ -148,12 +151,8 @@ func mapKey(key gpucontext.Key) (input.Key, bool) {
 		return input.KeyArrowLeft, true
 	case gpucontext.KeyRight:
 		return input.KeyArrowRight, true
-	case gpucontext.KeyQ:
-		return input.KeyQ, true
-	case gpucontext.KeyE:
-		return input.KeyE, true
-	case gpucontext.KeyR:
-		return input.KeyR, true
+	case gpucontext.KeyBackspace:
+		return input.KeyBackspace, true
 	default:
 		return 0, false
 	}

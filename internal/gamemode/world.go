@@ -64,6 +64,7 @@ type WorldMode struct {
 	actorLife        map[uint32]actorLife
 	gndNormalSource  *res.GND
 	gndTopNormals    [][4]modelPoint3
+	console          chatConsole
 }
 
 type actorSpriteKey struct {
@@ -269,6 +270,14 @@ func (m *WorldMode) playMapBGM(ctx Context, rswName string) {
 
 func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	for _, pkt := range ctx.Network.DrainPackets() {
+		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
+			log.Printf("parse chat message 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			if text := formatConsoleMessage(ctx.Resources, chat); text != "" {
+				m.console.addMessage("%s", text)
+			}
+			continue
+		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			log.Printf("parse map change 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -279,7 +288,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.status = fmt.Sprintf("entered map %s at %d,%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
 			if m.pendingWarp {
 				m.pendingWarp = false
-				return NewWorldMode(), nil
+				return m.nextWorldMode(), nil
 			}
 			continue
 		}
@@ -329,6 +338,11 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse item pickup ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.applyItemPickupAck(ctx, pickup)
+			if pickup.Result == 0 {
+				m.console.addMessage("Picked up item %d x%d", pickup.ItemID, pickup.Amount)
+			} else {
+				m.console.addMessage("Pickup failed item %d result=%d", pickup.ItemID, pickup.Result)
+			}
 			continue
 		}
 		if vanish, ok, err := network.ParseActorVanish(pkt); err != nil {
@@ -414,6 +428,10 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	m.camera.Update(ctx, now)
 	m.updateCameraRotation(ctx)
 	m.updateCameraZoom(ctx)
+
+	if m.console.update(ctx) {
+		return nil, nil
+	}
 
 	dx, dy := 0, 0
 	if ctx.Input.Pressed(render.KeyArrowLeft) {
@@ -506,7 +524,40 @@ func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode 
 		m.status = fmt.Sprintf("waiting for map enter: %s %s:%d", change.MapName, change.Address, change.Port)
 		return nil
 	}
-	return NewWorldMode()
+	return m.nextWorldMode()
+}
+
+func (m *WorldMode) nextWorldMode() *WorldMode {
+	next := NewWorldMode()
+	next.console = m.console
+	return next
+}
+
+func formatConsoleMessage(manager *res.Manager, chat network.ChatMessage) string {
+	if chat.Text != "" {
+		return chat.Text
+	}
+	if chat.MessageID < 0 {
+		return ""
+	}
+	text := ""
+	if manager != nil {
+		text, _ = manager.MsgString(chat.MessageID)
+	}
+	if text == "" {
+		text = fmt.Sprintf("message #%d", chat.MessageID)
+	}
+	if chat.Value != 0 {
+		if strings.Contains(text, "%") {
+			text = fmt.Sprintf(text, chat.Value)
+		} else {
+			text = fmt.Sprintf("%s %d", text, chat.Value)
+		}
+	}
+	if chat.SkillID != 0 {
+		text = fmt.Sprintf("skill %d: %s", chat.SkillID, text)
+	}
+	return text
 }
 
 func sameLoadedMap(ctx Context, mapName string) bool {
@@ -1473,6 +1524,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 		debugText(screen, 24, y+20, "actors: %d items: %d", len(ctx.World.Actors), len(ctx.World.Items))
 	}
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
+	m.console.draw(screen, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
 }
 
@@ -1554,17 +1606,8 @@ func (m *WorldMode) updateCameraRotation(ctx Context) {
 		screenW, _ := ctx.ScreenSize()
 		delta += cameraDragYawDelta(ctx.Input.MouseDX, screenW)
 	}
-	if ctx.Input.Pressed(render.KeyQ) {
-		delta -= cameraRotateStep()
-	}
-	if ctx.Input.Pressed(render.KeyE) {
-		delta += cameraRotateStep()
-	}
 	if delta != 0 {
 		m.camera.Rotate(delta)
-	}
-	if ctx.Input.JustPressed(render.KeyR) {
-		m.camera.ResetRotation()
 	}
 }
 
@@ -1605,10 +1648,6 @@ func cameraYawForMap(ctx Context) float64 {
 		return -45
 	}
 	return sceneCameraYaw()
-}
-
-func cameraRotateStep() float64 {
-	return sceneFloatEnv("GORO_CAMERA_ROTATE_SPEED", 90) / 60
 }
 
 func cameraDragYawDelta(mouseDX, screenWidth int) float64 {

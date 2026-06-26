@@ -25,6 +25,8 @@ type Manager struct {
 	jobResourceNamesLoaded bool
 	indoorRswNames         map[string]struct{}
 	indoorRswNamesLoaded   bool
+	msgStrings             map[int]string
+	msgStringsLoaded       bool
 	fogParameters          map[string]FogParameter
 	fogParametersLoaded    bool
 }

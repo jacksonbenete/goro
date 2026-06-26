@@ -1405,6 +1405,25 @@ func TestActorDisplayNameDoesNotLabelUnnamedPlayerJob(t *testing.T) {
 	}
 }
 
+func TestFormatConsoleMessageUsesMsgStringTable(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "msgstringtable.txt"), []byte("ignored#\nYou got %d items.#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := formatConsoleMessage(manager, network.ChatMessage{MessageID: 1, Value: 3})
+	if got != "You got 3 items." {
+		t.Fatalf("message = %q", got)
+	}
+}
+
 func TestActorDisplayNameDoesNotLabelWarpPortal(t *testing.T) {
 	ctx := Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Job: actorJobWarpPortal}

@@ -15,9 +15,7 @@ const (
 	KeyArrowDown
 	KeyArrowLeft
 	KeyArrowRight
-	KeyQ
-	KeyE
-	KeyR
+	KeyBackspace
 )
 
 type MouseButton int
@@ -45,6 +43,7 @@ type State struct {
 
 	WheelX        float64
 	WheelY        float64
+	textInput     []rune
 	TouchPoints   []TouchPoint
 	PinchDelta    float64
 	touchIDs      []TouchID
@@ -92,6 +91,7 @@ func (s *State) EndFrame() {
 	s.MouseDY = 0
 	s.WheelX = 0
 	s.WheelY = 0
+	s.textInput = s.textInput[:0]
 	s.updateTouches()
 }
 
@@ -122,6 +122,18 @@ func (s *State) SetMousePosition(x, y int) {
 func (s *State) AddWheel(x, y float64) {
 	s.WheelX += x
 	s.WheelY += y
+}
+
+func (s *State) AddTextInput(text string) {
+	for _, r := range text {
+		if r >= 0x20 && r != 0x7f {
+			s.textInput = append(s.textInput, r)
+		}
+	}
+}
+
+func (s *State) TextInput() string {
+	return string(s.textInput)
 }
 
 func (s *State) SetTouch(id TouchID, x, y int, pressed bool) {

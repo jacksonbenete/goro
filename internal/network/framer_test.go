@@ -69,6 +69,36 @@ func TestPacketLengths2008FramesNotifyEffectDirect(t *testing.T) {
 	}
 }
 
+func TestPacketLengths2008FramesServerMessagePackets(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := []byte{
+		0x91, 0x02, 0x2a, 0x00,
+		0xe2, 0x07, 0x2b, 0x00, 0x05, 0x00, 0x00, 0x00,
+		0xe6, 0x07, 0x1c, 0x00, 0x2c, 0x00, 0x00, 0x00,
+		0xcd, 0x09, 0x2d, 0x00, 0xff, 0xee, 0xdd, 0x00,
+	}
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 4 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	for i, want := range []struct {
+		id  uint16
+		len int
+	}{
+		{0x0291, 4},
+		{0x07E2, 8},
+		{0x07E6, 8},
+		{0x09CD, 8},
+	} {
+		if packets[i].ID != want.id || len(packets[i].Data) != want.len {
+			t.Fatalf("packet %d = %s, want 0x%04X len=%d", i, packets[i], want.id, want.len)
+		}
+	}
+}
+
 func TestPacketLengths2008FramesVariable01F1(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	packets, err := framer.Push([]byte{
