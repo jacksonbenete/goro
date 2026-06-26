@@ -11,6 +11,7 @@ import (
 	"github.com/kivutar/goro/internal/network"
 	"github.com/kivutar/goro/internal/render"
 	"github.com/kivutar/goro/internal/res"
+	"github.com/kivutar/goro/internal/session"
 	worldstate "github.com/kivutar/goro/internal/world"
 )
 
@@ -83,6 +84,15 @@ func (m *WorldMode) applyItemPickupAck(ctx Context, ack network.ItemPickupAck) {
 	if ack.Result == 0 {
 		m.status = fmt.Sprintf("picked item %d x%d", ack.ItemID, ack.Amount)
 		m.pendingPickup = pickupIntent{}
+		addPickedSessionInventoryItem(ctx.Session, session.InventoryItem{
+			Index:      ack.Index,
+			ItemID:     ack.ItemID,
+			Type:       ack.Type,
+			Identified: ack.Identified,
+			Amount:     maxInt(1, int(ack.Amount)),
+			Damaged:    ack.Damaged,
+			Refine:     ack.Refine,
+		})
 		m.applyLocalPickupSuccess(ctx)
 		log.Printf("item pickup ack success index=%d item_id=%d amount=%d identified=%t", ack.Index, ack.ItemID, ack.Amount, ack.Identified)
 		return
@@ -394,6 +404,50 @@ func (m *WorldMode) itemSpriteBillboard(manager *res.Manager, item worldstate.Fl
 	}
 	view.billboards[key] = billboard
 	return billboard
+}
+
+func (m *WorldMode) drawInventoryItemIcon(screen *render.Image, manager *res.Manager, item session.InventoryItem, x, y int) {
+	if screen == nil {
+		return
+	}
+	billboard := m.itemSpriteBillboard(manager, worldstate.FloorItem{
+		ItemID:     item.ItemID,
+		Identified: item.Identified,
+		DroppedAt:  time.Time{},
+	}, time.Now())
+	if billboard == nil || billboard.image == nil {
+		m.drawFallbackInventoryItemIcon(screen, x, y)
+		return
+	}
+	bounds := billboard.image.Bounds()
+	width, height := float64(bounds.Dx()), float64(bounds.Dy())
+	if width <= 0 || height <= 0 {
+		return
+	}
+	scale := math.Min(float64(inventoryIconSize-2)/width, float64(inventoryIconSize-2)/height)
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	var opts render.DrawImageOptions
+	opts.GeoM.Translate(-billboard.anchorX, -billboard.anchorY)
+	opts.GeoM.Scale(scale, scale)
+	opts.GeoM.Translate(float64(x)+float64(inventoryIconSize)/2, float64(y)+float64(inventoryIconSize)-3)
+	opts.Filter = spriteDrawFilter()
+	screen.DrawImage(billboard.image, &opts)
+}
+
+func (m *WorldMode) drawFallbackInventoryItemIcon(screen *render.Image, x, y int) {
+	img := m.itemMarkerTexture()
+	if img == nil {
+		return
+	}
+	bounds := img.Bounds()
+	scale := float64(inventoryIconSize) / float64(maxInt(bounds.Dx(), bounds.Dy()))
+	var opts render.DrawImageOptions
+	opts.GeoM.Scale(scale, scale)
+	opts.GeoM.Translate(float64(x), float64(y))
+	opts.Filter = spriteDrawFilter()
+	screen.DrawImage(img, &opts)
 }
 
 func (m *WorldMode) itemSpriteView(manager *res.Manager, itemID uint16, identified bool) *playerSpriteView {

@@ -1719,3 +1719,78 @@ func TestMapFadeAlphaTransitionsThroughBlack(t *testing.T) {
 		t.Fatalf("fade-in end alpha = %d, want 0", got)
 	}
 }
+
+func TestApplyInventoryItemListReplacesExistingAmount(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 7, ItemID: 938, Amount: 3}},
+		},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyInventoryItemList(ctx, []network.InventoryItem{{
+		Index:      7,
+		ItemID:     938,
+		Type:       3,
+		Identified: true,
+		Amount:     5,
+	}})
+
+	if len(sessionState.Inventory.Items) != 1 {
+		t.Fatalf("inventory item count = %d, want 1", len(sessionState.Inventory.Items))
+	}
+	if got := sessionState.Inventory.Items[0]; got.Amount != 5 || !got.Identified || got.Type != 3 {
+		t.Fatalf("inventory item = %+v, want replaced amount/type", got)
+	}
+}
+
+func TestInventoryItemDeleteDecrementsAndRemoves(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 7, ItemID: 938, Amount: 3}},
+		},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyInventoryItemDelete(ctx, network.InventoryItemDelete{Index: 7, Amount: 2})
+	if got := sessionState.Inventory.Items[0].Amount; got != 1 {
+		t.Fatalf("amount after partial delete = %d, want 1", got)
+	}
+	applyInventoryItemDelete(ctx, network.InventoryItemDelete{Index: 7, Amount: 1})
+	if len(sessionState.Inventory.Items) != 0 {
+		t.Fatalf("inventory item count = %d, want 0", len(sessionState.Inventory.Items))
+	}
+}
+
+func TestPickedInventoryItemAddsToExistingStack(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 7, ItemID: 938, Amount: 3}},
+		},
+	}
+
+	addPickedSessionInventoryItem(sessionState, session.InventoryItem{Index: 7, ItemID: 938, Amount: 2})
+
+	if got := sessionState.Inventory.Items[0].Amount; got != 5 {
+		t.Fatalf("picked stack amount = %d, want 5", got)
+	}
+}
+
+func TestShopAcceptInventoryDropAddsSellableItem(t *testing.T) {
+	window := shopWindowState{
+		open: true,
+		x:    100,
+		y:    100,
+		sellable: map[uint16]network.ShopSellItem{
+			7: {Index: 7, Price: 10, OverchargePrice: 12},
+		},
+	}
+
+	ok := window.acceptInventoryDrop(Context{}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, 120, 150)
+	if !ok {
+		t.Fatal("drop was not accepted")
+	}
+	if len(window.cart) != 1 || window.cart[0].amount != 1 || window.cart[0].max != 3 || window.cart[0].over != 12 {
+		t.Fatalf("cart = %+v", window.cart)
+	}
+}

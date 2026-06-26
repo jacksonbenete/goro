@@ -8,6 +8,11 @@ import (
 
 const PacketCZItemPickup uint16 = 0x009F
 
+const (
+	PacketCZACKSelectDealType uint16 = 0x00C5
+	PacketCZPCSellItemList    uint16 = 0x00C9
+)
+
 type itemPickupPacketLayout struct {
 	date   int
 	opcode uint16
@@ -58,7 +63,55 @@ type ItemPickupAck struct {
 	Amount     uint16
 	ItemID     uint16
 	Identified bool
+	Type       uint8
+	Damaged    bool
+	Refine     uint8
 	Result     uint8
+}
+
+type InventoryItem struct {
+	Index      uint16
+	ItemID     uint16
+	Type       uint8
+	Identified bool
+	Amount     uint16
+	Equip      bool
+	Equipped   bool
+	Damaged    bool
+	Refine     uint8
+}
+
+type InventoryItemDelete struct {
+	Index  uint16
+	Amount uint16
+	Reason uint16
+}
+
+type ShopDealSelection struct {
+	NPCID uint32
+}
+
+type ShopBuyItem struct {
+	ItemID        uint16
+	Type          uint8
+	Price         uint32
+	DiscountPrice uint32
+}
+
+type ShopSellItem struct {
+	Index           uint16
+	Price           uint32
+	OverchargePrice uint32
+}
+
+type ShopResult struct {
+	Sell   bool
+	Result uint8
+}
+
+type SellRequestItem struct {
+	Index  uint16
+	Amount uint16
 }
 
 func ParseFloorItemEntry(packet Packet) (FloorItemEntry, bool, error) {
@@ -121,8 +174,169 @@ func ParseItemPickupAck(packet Packet) (ItemPickupAck, bool, error) {
 		Amount:     binary.LittleEndian.Uint16(packet.Data[4:6]),
 		ItemID:     binary.LittleEndian.Uint16(packet.Data[6:8]),
 		Identified: packet.Data[8] != 0,
+		Damaged:    packet.Data[9] != 0,
+		Refine:     packet.Data[10],
+		Type:       packet.Data[21],
 		Result:     packet.Data[22],
 	}, true, nil
+}
+
+func ParseInventoryItemList(packet Packet) ([]InventoryItem, bool, error) {
+	switch packet.ID {
+	case 0x00A3:
+		return parseNormalInventoryItems(packet, 10)
+	case 0x01EE:
+		return parseNormalInventoryItems(packet, 18)
+	case 0x02E8:
+		return parseNormalInventoryItems(packet, 22)
+	case 0x00A4:
+		return parseEquipInventoryItems(packet, 20)
+	case 0x0295:
+		return parseEquipInventoryItems(packet, 24)
+	case 0x02D0:
+		return parseEquipInventoryItems(packet, 28)
+	default:
+		return nil, false, nil
+	}
+}
+
+func parseNormalInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bool, error) {
+	if len(packet.Data) < 4 {
+		return nil, false, fmt.Errorf("ZC_NORMAL_ITEMLIST 0x%04X too short: %d", packet.ID, len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, false, fmt.Errorf("ZC_NORMAL_ITEMLIST 0x%04X invalid length: %d", packet.ID, len(packet.Data))
+	}
+	items := make([]InventoryItem, 0, (len(packet.Data)-4)/entrySize)
+	for offset := 4; offset+entrySize <= len(packet.Data); offset += entrySize {
+		items = append(items, InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[offset : offset+2]),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[offset+2 : offset+4]),
+			Type:       packet.Data[offset+4],
+			Identified: packet.Data[offset+5] != 0,
+			Amount:     binary.LittleEndian.Uint16(packet.Data[offset+6 : offset+8]),
+		})
+	}
+	return items, true, nil
+}
+
+func parseEquipInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bool, error) {
+	if len(packet.Data) < 4 {
+		return nil, false, fmt.Errorf("ZC_EQUIPMENT_ITEMLIST 0x%04X too short: %d", packet.ID, len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, false, fmt.Errorf("ZC_EQUIPMENT_ITEMLIST 0x%04X invalid length: %d", packet.ID, len(packet.Data))
+	}
+	items := make([]InventoryItem, 0, (len(packet.Data)-4)/entrySize)
+	for offset := 4; offset+entrySize <= len(packet.Data); offset += entrySize {
+		wearState := binary.LittleEndian.Uint16(packet.Data[offset+8 : offset+10])
+		items = append(items, InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[offset : offset+2]),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[offset+2 : offset+4]),
+			Type:       packet.Data[offset+4],
+			Identified: packet.Data[offset+5] != 0,
+			Amount:     1,
+			Equip:      true,
+			Equipped:   wearState != 0,
+			Damaged:    packet.Data[offset+10] != 0,
+			Refine:     packet.Data[offset+11],
+		})
+	}
+	return items, true, nil
+}
+
+func ParseInventoryItemDelete(packet Packet) (InventoryItemDelete, bool, error) {
+	switch packet.ID {
+	case 0x00AF:
+		if len(packet.Data) < 6 {
+			return InventoryItemDelete{}, false, fmt.Errorf("ZC_ITEM_THROW_ACK too short: %d", len(packet.Data))
+		}
+		return InventoryItemDelete{
+			Index:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount: binary.LittleEndian.Uint16(packet.Data[4:6]),
+		}, true, nil
+	case 0x07FA:
+		if len(packet.Data) < 8 {
+			return InventoryItemDelete{}, false, fmt.Errorf("ZC_DELETE_ITEM_FROM_BODY too short: %d", len(packet.Data))
+		}
+		return InventoryItemDelete{
+			Reason: binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Index:  binary.LittleEndian.Uint16(packet.Data[4:6]),
+			Amount: binary.LittleEndian.Uint16(packet.Data[6:8]),
+		}, true, nil
+	default:
+		return InventoryItemDelete{}, false, nil
+	}
+}
+
+func ParseShopDealSelection(packet Packet) (ShopDealSelection, bool, error) {
+	if packet.ID != 0x00C4 {
+		return ShopDealSelection{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return ShopDealSelection{}, false, fmt.Errorf("ZC_SELECT_DEALTYPE too short: %d", len(packet.Data))
+	}
+	return ShopDealSelection{NPCID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
+}
+
+func ParseShopBuyList(packet Packet) ([]ShopBuyItem, bool, error) {
+	if packet.ID != 0x00C6 {
+		return nil, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return nil, false, fmt.Errorf("ZC_PC_PURCHASE_ITEMLIST too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%11 != 0 {
+		return nil, false, fmt.Errorf("ZC_PC_PURCHASE_ITEMLIST invalid length: %d", len(packet.Data))
+	}
+	items := make([]ShopBuyItem, 0, (len(packet.Data)-4)/11)
+	for offset := 4; offset+11 <= len(packet.Data); offset += 11 {
+		items = append(items, ShopBuyItem{
+			Price:         binary.LittleEndian.Uint32(packet.Data[offset : offset+4]),
+			DiscountPrice: binary.LittleEndian.Uint32(packet.Data[offset+4 : offset+8]),
+			Type:          packet.Data[offset+8],
+			ItemID:        binary.LittleEndian.Uint16(packet.Data[offset+9 : offset+11]),
+		})
+	}
+	return items, true, nil
+}
+
+func ParseShopSellList(packet Packet) ([]ShopSellItem, bool, error) {
+	if packet.ID != 0x00C7 {
+		return nil, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return nil, false, fmt.Errorf("ZC_PC_SELL_ITEMLIST too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%10 != 0 {
+		return nil, false, fmt.Errorf("ZC_PC_SELL_ITEMLIST invalid length: %d", len(packet.Data))
+	}
+	items := make([]ShopSellItem, 0, (len(packet.Data)-4)/10)
+	for offset := 4; offset+10 <= len(packet.Data); offset += 10 {
+		items = append(items, ShopSellItem{
+			Index:           binary.LittleEndian.Uint16(packet.Data[offset : offset+2]),
+			Price:           binary.LittleEndian.Uint32(packet.Data[offset+2 : offset+6]),
+			OverchargePrice: binary.LittleEndian.Uint32(packet.Data[offset+6 : offset+10]),
+		})
+	}
+	return items, true, nil
+}
+
+func ParseShopResult(packet Packet) (ShopResult, bool, error) {
+	switch packet.ID {
+	case 0x00CA:
+		if len(packet.Data) < 3 {
+			return ShopResult{}, false, fmt.Errorf("ZC_PC_PURCHASE_RESULT too short: %d", len(packet.Data))
+		}
+		return ShopResult{Result: packet.Data[2]}, true, nil
+	case 0x00CB:
+		if len(packet.Data) < 3 {
+			return ShopResult{}, false, fmt.Errorf("ZC_PC_SELL_RESULT too short: %d", len(packet.Data))
+		}
+		return ShopResult{Sell: true, Result: packet.Data[2]}, true, nil
+	default:
+		return ShopResult{}, false, nil
+	}
 }
 
 func BuildItemPickupPacket(gid uint32) []byte {
@@ -144,6 +358,28 @@ func BuildItemPickupPacketForClientDate(gid uint32, clientDate int) []byte {
 	return BuildItemPickupPacket(gid)
 }
 
+func BuildShopDealSelectionPacket(npcID uint32, dealType uint8) []byte {
+	var w Writer
+	w.Uint16(PacketCZACKSelectDealType)
+	w.Uint32(npcID)
+	w.Uint8(dealType)
+	return w.Bytes()
+}
+
+func BuildSellItemListPacket(items []SellRequestItem) []byte {
+	size := 4 + len(items)*4
+	packet := make([]byte, size)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZPCSellItemList)
+	binary.LittleEndian.PutUint16(packet[2:4], uint16(size))
+	offset := 4
+	for _, item := range items {
+		binary.LittleEndian.PutUint16(packet[offset:offset+2], item.Index)
+		binary.LittleEndian.PutUint16(packet[offset+2:offset+4], item.Amount)
+		offset += 4
+	}
+	return packet
+}
+
 func (c *Client) SendItemPickup(gid uint32) error {
 	packet := BuildItemPickupPacketForClientDate(gid, c.clientDate)
 	err := c.Send(packet)
@@ -151,6 +387,28 @@ func (c *Client) SendItemPickup(gid uint32) error {
 		log.Printf("sent CZ_ITEM_PICKUP opcode=0x%04X target=%d client_date=%d", ID(packet), gid, c.clientDate)
 	} else {
 		log.Printf("send CZ_ITEM_PICKUP failed opcode=0x%04X len=%d target=%d client_date=%d: %v", ID(packet), len(packet), gid, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendShopDealSelection(npcID uint32, dealType uint8) error {
+	packet := BuildShopDealSelectionPacket(npcID, dealType)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_ACK_SELECT_DEALTYPE opcode=0x%04X npc=%d type=%d client_date=%d", ID(packet), npcID, dealType, c.clientDate)
+	} else {
+		log.Printf("send CZ_ACK_SELECT_DEALTYPE failed opcode=0x%04X npc=%d type=%d client_date=%d: %v", ID(packet), npcID, dealType, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendShopSellItems(items []SellRequestItem) error {
+	packet := BuildSellItemListPacket(items)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_PC_SELL_ITEMLIST opcode=0x%04X count=%d client_date=%d", ID(packet), len(items), c.clientDate)
+	} else {
+		log.Printf("send CZ_PC_SELL_ITEMLIST failed opcode=0x%04X count=%d client_date=%d: %v", ID(packet), len(items), c.clientDate, err)
 	}
 	return err
 }

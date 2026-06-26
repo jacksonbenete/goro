@@ -8,3 +8,19 @@ func TestTouchDistance(t *testing.T) {
 		t.Fatalf("touch distance = %.1f, want 5.0", got)
 	}
 }
+
+func TestMouseJustReleased(t *testing.T) {
+	state := NewState()
+	state.SetMouseButton(MouseButtonLeft, true)
+	state.EndFrame()
+
+	state.SetMouseButton(MouseButtonLeft, false)
+	if !state.MouseJustReleased(MouseButtonLeft) {
+		t.Fatal("MouseJustReleased = false, want true")
+	}
+
+	state.EndFrame()
+	if state.MouseJustReleased(MouseButtonLeft) {
+		t.Fatal("MouseJustReleased persisted after EndFrame")
+	}
+}

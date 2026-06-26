@@ -82,6 +82,19 @@ type Inventory struct {
 	Zeny      int64
 	Weight    int
 	MaxWeight int
+	Items     []InventoryItem
+}
+
+type InventoryItem struct {
+	Index      uint16
+	ItemID     uint16
+	Type       uint8
+	Identified bool
+	Amount     int
+	Equip      bool
+	Equipped   bool
+	Damaged    bool
+	Refine     uint8
 }
 
 type Stats struct {

@@ -28,12 +28,13 @@ const (
 type TouchID int64
 
 type State struct {
-	keys      map[Key]bool
-	prev      map[Key]bool
-	justKeys  map[Key]bool
-	buttons   map[MouseButton]bool
-	prevMouse map[MouseButton]bool
-	justMouse map[MouseButton]bool
+	keys              map[Key]bool
+	prev              map[Key]bool
+	justKeys          map[Key]bool
+	buttons           map[MouseButton]bool
+	prevMouse         map[MouseButton]bool
+	justMouse         map[MouseButton]bool
+	justMouseReleased map[MouseButton]bool
 
 	MouseX   int
 	MouseY   int
@@ -60,13 +61,14 @@ type TouchPoint struct {
 
 func NewState() *State {
 	return &State{
-		keys:      make(map[Key]bool),
-		prev:      make(map[Key]bool),
-		justKeys:  make(map[Key]bool),
-		buttons:   make(map[MouseButton]bool),
-		prevMouse: make(map[MouseButton]bool),
-		justMouse: make(map[MouseButton]bool),
-		touches:   make(map[TouchID]TouchPoint),
+		keys:              make(map[Key]bool),
+		prev:              make(map[Key]bool),
+		justKeys:          make(map[Key]bool),
+		buttons:           make(map[MouseButton]bool),
+		prevMouse:         make(map[MouseButton]bool),
+		justMouse:         make(map[MouseButton]bool),
+		justMouseReleased: make(map[MouseButton]bool),
+		touches:           make(map[TouchID]TouchPoint),
 	}
 }
 
@@ -87,6 +89,9 @@ func (s *State) EndFrame() {
 	for button := range s.justMouse {
 		delete(s.justMouse, button)
 	}
+	for button := range s.justMouseReleased {
+		delete(s.justMouseReleased, button)
+	}
 	s.MouseDX = 0
 	s.MouseDY = 0
 	s.WheelX = 0
@@ -105,6 +110,9 @@ func (s *State) SetKey(key Key, pressed bool) {
 func (s *State) SetMouseButton(button MouseButton, pressed bool) {
 	if pressed && !s.buttons[button] {
 		s.justMouse[button] = true
+	}
+	if !pressed && s.buttons[button] {
+		s.justMouseReleased[button] = true
 	}
 	s.buttons[button] = pressed
 }
@@ -158,6 +166,10 @@ func (s *State) MousePressed(button MouseButton) bool {
 
 func (s *State) MouseJustPressed(button MouseButton) bool {
 	return s.justMouse[button] || (s.buttons[button] && !s.prevMouse[button])
+}
+
+func (s *State) MouseJustReleased(button MouseButton) bool {
+	return s.justMouseReleased[button] || (!s.buttons[button] && s.prevMouse[button])
 }
 
 func (s *State) updateTouches() {

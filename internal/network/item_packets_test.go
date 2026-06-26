@@ -178,3 +178,145 @@ func TestBuildItemPickupPacketForClientDateShuffledBoundaries(t *testing.T) {
 		})
 	}
 }
+
+func TestParseInventoryItemListNormalLegacy(t *testing.T) {
+	data := make([]byte, 4+10)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00A3)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint16(data[4:6], 7)
+	binary.LittleEndian.PutUint16(data[6:8], 938)
+	data[8] = 3
+	data[9] = 1
+	binary.LittleEndian.PutUint16(data[10:12], 4)
+
+	items, ok, err := ParseInventoryItemList(Packet{ID: 0x00A3, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 7 || got.ItemID != 938 || got.Type != 3 || !got.Identified || got.Amount != 4 || got.Equip {
+		t.Fatalf("unexpected item: %+v", got)
+	}
+}
+
+func TestParseInventoryItemListNormal2008(t *testing.T) {
+	data := make([]byte, 4+22)
+	binary.LittleEndian.PutUint16(data[0:2], 0x02E8)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint16(data[4:6], 7)
+	binary.LittleEndian.PutUint16(data[6:8], 938)
+	data[8] = 3
+	data[9] = 1
+	binary.LittleEndian.PutUint16(data[10:12], 4)
+	binary.LittleEndian.PutUint16(data[14:16], 4001)
+	binary.LittleEndian.PutUint32(data[22:26], 123456)
+
+	items, ok, err := ParseInventoryItemList(Packet{ID: 0x02E8, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 7 || got.ItemID != 938 || got.Type != 3 || !got.Identified || got.Amount != 4 || got.Equip {
+		t.Fatalf("unexpected item: %+v", got)
+	}
+}
+
+func TestParseInventoryItemListEquipmentLegacy(t *testing.T) {
+	data := make([]byte, 4+20)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00A4)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint16(data[4:6], 11)
+	binary.LittleEndian.PutUint16(data[6:8], 1201)
+	data[8] = 4
+	data[9] = 1
+	binary.LittleEndian.PutUint16(data[12:14], 0x0002)
+	data[14] = 1
+	data[15] = 5
+
+	items, ok, err := ParseInventoryItemList(Packet{ID: 0x00A4, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 11 || got.ItemID != 1201 || got.Type != 4 || !got.Identified || got.Amount != 1 || !got.Equip || !got.Equipped || !got.Damaged || got.Refine != 5 {
+		t.Fatalf("unexpected item: %+v", got)
+	}
+}
+
+func TestParseInventoryItemListEquipment2008(t *testing.T) {
+	data := make([]byte, 4+28)
+	binary.LittleEndian.PutUint16(data[0:2], 0x02D0)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint16(data[4:6], 11)
+	binary.LittleEndian.PutUint16(data[6:8], 1201)
+	data[8] = 4
+	data[9] = 1
+	binary.LittleEndian.PutUint16(data[12:14], 0x0002)
+	data[14] = 1
+	data[15] = 5
+	binary.LittleEndian.PutUint32(data[24:28], 123456)
+	binary.LittleEndian.PutUint16(data[28:30], 1)
+	binary.LittleEndian.PutUint16(data[30:32], 2)
+
+	items, ok, err := ParseInventoryItemList(Packet{ID: 0x02D0, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 11 || got.ItemID != 1201 || got.Type != 4 || !got.Identified || got.Amount != 1 || !got.Equip || !got.Equipped || !got.Damaged || got.Refine != 5 {
+		t.Fatalf("unexpected item: %+v", got)
+	}
+}
+
+func TestParseShopDealAndSellList(t *testing.T) {
+	dealData := make([]byte, 6)
+	binary.LittleEndian.PutUint16(dealData[0:2], 0x00C4)
+	binary.LittleEndian.PutUint32(dealData[2:6], 0x11223344)
+	deal, ok, err := ParseShopDealSelection(Packet{ID: 0x00C4, Data: dealData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || deal.NPCID != 0x11223344 {
+		t.Fatalf("unexpected deal: ok=%v value=%+v", ok, deal)
+	}
+
+	sellData := make([]byte, 4+10)
+	binary.LittleEndian.PutUint16(sellData[0:2], 0x00C7)
+	binary.LittleEndian.PutUint16(sellData[2:4], uint16(len(sellData)))
+	binary.LittleEndian.PutUint16(sellData[4:6], 12)
+	binary.LittleEndian.PutUint32(sellData[6:10], 10)
+	binary.LittleEndian.PutUint32(sellData[10:14], 12)
+	items, ok, err := ParseShopSellList(Packet{ID: 0x00C7, Data: sellData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 {
+		t.Fatalf("sell items ok=%v len=%d", ok, len(items))
+	}
+	if got := items[0]; got.Index != 12 || got.Price != 10 || got.OverchargePrice != 12 {
+		t.Fatalf("unexpected sell item: %+v", got)
+	}
+}
+
+func TestBuildShopPackets(t *testing.T) {
+	deal := BuildShopDealSelectionPacket(0x11223344, 1)
+	if len(deal) != 7 || ID(deal) != 0x00C5 || binary.LittleEndian.Uint32(deal[2:6]) != 0x11223344 || deal[6] != 1 {
+		t.Fatalf("unexpected deal packet: % X", deal)
+	}
+
+	sell := BuildSellItemListPacket([]SellRequestItem{{Index: 2, Amount: 3}, {Index: 4, Amount: 5}})
+	if len(sell) != 12 || ID(sell) != 0x00C9 || binary.LittleEndian.Uint16(sell[2:4]) != 12 {
+		t.Fatalf("unexpected sell packet header: % X", sell)
+	}
+	if binary.LittleEndian.Uint16(sell[4:6]) != 2 || binary.LittleEndian.Uint16(sell[6:8]) != 3 || binary.LittleEndian.Uint16(sell[8:10]) != 4 || binary.LittleEndian.Uint16(sell[10:12]) != 5 {
+		t.Fatalf("unexpected sell packet items: % X", sell)
+	}
+}

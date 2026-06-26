@@ -69,6 +69,8 @@ type WorldMode struct {
 	npcDialog        npcDialogState
 	escapeMenu       escapeMenuState
 	basicMenu        basicMenuState
+	inventoryWindow  inventoryWindowState
+	shopWindow       shopWindowState
 	statsWindow      statsWindowState
 	skillWindow      skillWindowState
 	mapFade          mapFadeState
@@ -412,6 +414,51 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			}
 			continue
 		}
+		if items, ok, err := network.ParseInventoryItemList(pkt); err != nil {
+			log.Printf("parse inventory item list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyInventoryItemList(ctx, items)
+			m.inventoryWindow.clampScroll(ctx.Session)
+			continue
+		}
+		if itemDelete, ok, err := network.ParseInventoryItemDelete(pkt); err != nil {
+			log.Printf("parse inventory item delete 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyInventoryItemDelete(ctx, itemDelete)
+			m.inventoryWindow.clampScroll(ctx.Session)
+			continue
+		}
+		if deal, ok, err := network.ParseShopDealSelection(pkt); err != nil {
+			log.Printf("parse shop deal selection 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.shopWindow.openDeal(deal, ctx)
+			continue
+		}
+		if sellList, ok, err := network.ParseShopSellList(pkt); err != nil {
+			log.Printf("parse shop sell list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.shopWindow.openSell(sellList, ctx)
+			m.inventoryWindow.open = true
+			m.inventoryWindow.ensurePosition(ctx)
+			m.inventoryWindow.clampScroll(ctx.Session)
+			continue
+		}
+		if buyList, ok, err := network.ParseShopBuyList(pkt); err != nil {
+			log.Printf("parse shop buy list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("shop buy list received items=%d; buy UI not implemented yet", len(buyList))
+			m.console.addSystemMessage("Buy shop opened, but buying is not implemented yet.")
+			continue
+		}
+		if result, ok, err := network.ParseShopResult(pkt); err != nil {
+			log.Printf("parse shop result 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.shopWindow.applyResult(ctx, result)
+			if result.Sell && result.Result == 0 {
+				m.console.addBlueMessage("The deal has successfully completed.")
+			}
+			continue
+		}
 		if vanish, ok, err := network.ParseActorVanish(pkt); err != nil {
 			log.Printf("parse actor vanish 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -534,6 +581,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.escapeMenu.update(ctx) {
 		return nil, nil
 	}
+	if m.shopWindow.update(ctx) {
+		return nil, nil
+	}
+	if m.inventoryWindow.update(ctx, &m.shopWindow) {
+		return nil, nil
+	}
 	if m.skillWindow.update(ctx) {
 		return nil, nil
 	}
@@ -546,6 +599,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		}
 		if m.basicMenu.lastAction == "skill" {
 			m.skillWindow.toggle(ctx)
+		}
+		if m.basicMenu.lastAction == "items" {
+			m.inventoryWindow.toggle(ctx)
 		}
 		return nil, nil
 	}
@@ -1794,6 +1850,8 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 
 	drawCharacterWindow(screen, ctx)
 	m.basicMenu.draw(screen, ctx)
+	m.inventoryWindow.draw(screen, ctx, m)
+	m.shopWindow.draw(screen, ctx)
 	m.statsWindow.draw(screen, ctx)
 	m.skillWindow.draw(screen, ctx)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
