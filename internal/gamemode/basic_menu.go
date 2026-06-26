@@ -97,7 +97,7 @@ func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
 		textX := bx + (bw-len([]rune(button.label))*7)/2
 		render.DebugPrintAtColor(screen, button.label, textX, by+6, basicMenuTextColor)
 	}
-	if m.lastAction != "" && m.lastAction != "status" && time.Since(m.lastClick) < 1500*time.Millisecond {
+	if m.lastAction != "" && m.lastAction != "status" && m.lastAction != "skill" && time.Since(m.lastClick) < 1500*time.Millisecond {
 		label := strings.ToUpper(m.lastAction[:1]) + m.lastAction[1:]
 		render.DebugPrintAtColor(screen, fmt.Sprintf("%s: not implemented", label), x+basicMenuPad, y+h+6, basicMenuMutedColor)
 	}

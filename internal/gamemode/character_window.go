@@ -58,11 +58,13 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 	progress := ctx.Session.Progress
 	if progress.BaseLevel == 0 {
 		progress = sessionProgressFromCharacter(character)
-		progress.JobLevel = ctx.Session.Progress.JobLevel
 		progress.BaseExp = ctx.Session.Progress.BaseExp
 		progress.NextBaseExp = ctx.Session.Progress.NextBaseExp
 		progress.JobExp = ctx.Session.Progress.JobExp
 		progress.NextJobExp = ctx.Session.Progress.NextJobExp
+	}
+	if progress.JobLevel == 0 && character.JobLevel > 0 {
+		progress.JobLevel = int(character.JobLevel)
 	}
 
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Base Lv. %d", progress.BaseLevel), x+12, y+38, characterWindowTextColor)
@@ -137,6 +139,7 @@ func sessionVitalsFromCharacter(character session.Character) session.Vitals {
 func sessionProgressFromCharacter(character session.Character) session.Progress {
 	return session.Progress{
 		BaseLevel: int(character.Level),
+		JobLevel:  int(character.JobLevel),
 	}
 }
 

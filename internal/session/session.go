@@ -18,6 +18,7 @@ type Session struct {
 	Progress    Progress
 	Inventory   Inventory
 	Stats       Stats
+	Skills      Skills
 }
 
 func New() *Session {
@@ -38,6 +39,7 @@ type Character struct {
 	Name      string
 	Slot      uint8
 	Level     int16
+	JobLevel  int16
 	Job       int16
 	HP        int16
 	MaxHP     int16
@@ -119,6 +121,21 @@ type Stats struct {
 	Critical      int
 	ASPD          int
 	ASPDBonus     int
+}
+
+type Skills struct {
+	Points int
+	List   []Skill
+}
+
+type Skill struct {
+	ID         uint16
+	Type       uint32
+	Level      int
+	SPCost     int
+	Range      int
+	Name       string
+	Upgradable bool
 }
 
 type ZoneServer struct {

@@ -230,6 +230,17 @@ func (c *Client) SendStatusIncrease(statusID uint16) error {
 	return err
 }
 
+func (c *Client) SendSkillLevelUp(skillID uint16) error {
+	packet := BuildSkillLevelUpPacket(skillID)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_UPGRADE_SKILLLEVEL opcode=0x%04X skill=%d client_date=%d", ID(packet), skillID, c.clientDate)
+	} else {
+		log.Printf("send CZ_UPGRADE_SKILLLEVEL failed opcode=0x%04X len=%d skill=%d client_date=%d: %v", ID(packet), len(packet), skillID, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) Pump() {
 }
 

@@ -310,6 +310,7 @@ func convertCharacter(character network.Character) session.Character {
 		Name:      character.Name,
 		Slot:      character.Slot,
 		Level:     character.Level,
+		JobLevel:  character.JobLevel,
 		Job:       character.Job,
 		HP:        character.HP,
 		MaxHP:     character.MaxHP,

@@ -342,9 +342,9 @@ func TestFormatHUDNumberGroupsThousands(t *testing.T) {
 }
 
 func TestSessionProgressFromCharacterUsesBaseLevel(t *testing.T) {
-	progress := sessionProgressFromCharacter(session.Character{Level: 12})
-	if progress.BaseLevel != 12 {
-		t.Fatalf("base level = %d, want 12", progress.BaseLevel)
+	progress := sessionProgressFromCharacter(session.Character{Level: 12, JobLevel: 7})
+	if progress.BaseLevel != 12 || progress.JobLevel != 7 {
+		t.Fatalf("progress = %+v", progress)
 	}
 }
 

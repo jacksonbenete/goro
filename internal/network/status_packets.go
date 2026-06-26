@@ -14,6 +14,7 @@ const (
 	StatusMaxSP       uint16 = 8
 	StatusPoint       uint16 = 9
 	StatusBaseLevel   uint16 = 11
+	StatusSkillPoint  uint16 = 12
 	StatusStr         uint16 = 13
 	StatusAgi         uint16 = 14
 	StatusVit         uint16 = 15

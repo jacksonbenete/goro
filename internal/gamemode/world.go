@@ -70,6 +70,7 @@ type WorldMode struct {
 	escapeMenu       escapeMenuState
 	basicMenu        basicMenuState
 	statsWindow      statsWindowState
+	skillWindow      skillWindowState
 	mapFade          mapFadeState
 }
 
@@ -457,6 +458,20 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.statsWindow.applyStatusChangeAck(ctx, ack)
 			continue
 		}
+		if list, ok, err := network.ParseSkillInfoList(pkt); err != nil {
+			log.Printf("parse skill list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applySkillInfoList(ctx, list)
+			m.skillWindow.clampScroll(ctx.Session)
+			continue
+		}
+		if update, ok, err := network.ParseSkillInfoUpdate(pkt); err != nil {
+			log.Printf("parse skill update 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applySkillInfoUpdate(ctx, update)
+			m.skillWindow.clampScroll(ctx.Session)
+			continue
+		}
 		if failure, ok, err := network.ParseAttackFailureForDistance(pkt); err != nil {
 			log.Printf("parse attack distance failure 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -515,12 +530,18 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.escapeMenu.update(ctx) {
 		return nil, nil
 	}
+	if m.skillWindow.update(ctx) {
+		return nil, nil
+	}
 	if m.statsWindow.update(ctx) {
 		return nil, nil
 	}
 	if m.basicMenu.update(ctx) {
 		if m.basicMenu.lastAction == "status" {
 			m.statsWindow.toggle(ctx)
+		}
+		if m.basicMenu.lastAction == "skill" {
+			m.skillWindow.toggle(ctx)
 		}
 		return nil, nil
 	}
@@ -1525,6 +1546,8 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 	case network.StatusBaseLevel:
 		ctx.Session.Progress.BaseLevel = value
 		ctx.Session.Selected.Level = clampInt16(value)
+	case network.StatusSkillPoint:
+		ctx.Session.Skills.Points = value
 	case network.StatusStr, network.StatusAgi, network.StatusVit, network.StatusInt, network.StatusDex, network.StatusLuk:
 		setSessionStat(ctx.Session, change.VarID, value)
 	case network.StatusUStr, network.StatusUAgi, network.StatusUVit, network.StatusUInt, network.StatusUDex, network.StatusULuk:
@@ -1541,6 +1564,7 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 		ctx.Session.Inventory.MaxWeight = value
 	case network.StatusJobLevel:
 		ctx.Session.Progress.JobLevel = value
+		ctx.Session.Selected.JobLevel = clampInt16(value)
 	default:
 		return
 	}
@@ -1764,6 +1788,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	drawCharacterWindow(screen, ctx)
 	m.basicMenu.draw(screen, ctx)
 	m.statsWindow.draw(screen, ctx)
+	m.skillWindow.draw(screen, ctx)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)
