@@ -21,6 +21,7 @@ type modelPoint3 struct {
 
 type modelTriangle struct {
 	points      [3]screenPoint
+	verts       [3]modelPoint3
 	uvs         [3]texturePoint
 	depth       float64
 	color       color.RGBA
@@ -43,7 +44,7 @@ type mat4 [16]float64
 func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) {
 	triangles := m.collectRSMModelTriangles(screen, manager, rsw, models, gnd, projection, fog)
 	for _, tri := range triangles {
-		m.drawModelTriangle(screen, manager, tri)
+		m.drawModelTriangle(screen, manager, tri, projection)
 	}
 }
 
@@ -160,9 +161,17 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 	return triangles
 }
 
-func (m *WorldMode) drawModelTriangle(screen *render.Image, manager *res.Manager, tri modelTriangle) {
+func (m *WorldMode) drawModelTriangle(screen *render.Image, manager *res.Manager, tri modelTriangle, projection sceneProjection) {
 	if texture := m.groundTexture(manager, tri.textureName); texture != nil {
+		if projection.camera && world3DEnabled() {
+			drawTexturedTriangle3D(screen, texture, tri.verts, tri.uvs, tri.color)
+			return
+		}
 		drawTexturedTriangle(screen, texture, tri.points, tri.uvs, tri.color)
+		return
+	}
+	if projection.camera && world3DEnabled() {
+		drawColoredTriangle3D(screen, m.whitePixel, tri.verts, tri.color)
 		return
 	}
 	drawColoredTriangle(screen, m.whitePixel, tri.points, tri.color)
@@ -335,6 +344,7 @@ func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, ins
 		faceColor = fog.mixColor(faceColor, (projection.FogDepth(a.x, a.z, a.y)+projection.FogDepth(b.x, b.z, b.y)+projection.FogDepth(c.x, c.z, c.y))/3)
 		triangles = append(triangles, modelTriangle{
 			points:      points,
+			verts:       [3]modelPoint3{a, b, c},
 			uvs:         uvs,
 			depth:       depth,
 			color:       faceColor,
@@ -705,6 +715,18 @@ func drawTexturedTriangle(screen, texture *render.Image, points [3]screenPoint, 
 	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
+func drawTexturedTriangle3D(screen, texture *render.Image, verts [3]modelPoint3, uvs [3]texturePoint, tint color.RGBA) {
+	bounds := texture.Bounds()
+	w := float32(bounds.Dx())
+	h := float32(bounds.Dy())
+	vertices := []render.Vertex3D{
+		texturedSurfaceVertex3D(verts[0], uvs[0], tint, w, h),
+		texturedSurfaceVertex3D(verts[1], uvs[1], tint, w, h),
+		texturedSurfaceVertex3D(verts[2], uvs[2], tint, w, h),
+	}
+	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+}
+
 func drawColoredTriangle(screen, white *render.Image, points [3]screenPoint, c color.RGBA) {
 	r := float32(c.R) / 255
 	g := float32(c.G) / 255
@@ -716,6 +738,15 @@ func drawColoredTriangle(screen, white *render.Image, points [3]screenPoint, c c
 		{DstX: points[2].x, DstY: points[2].y, SrcX: 1, SrcY: 1, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 	}
 	screen.DrawTriangles(vertices, []uint16{0, 1, 2}, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+}
+
+func drawColoredTriangle3D(screen, white *render.Image, verts [3]modelPoint3, c color.RGBA) {
+	vertices := []render.Vertex3D{
+		coloredSurfaceVertex3D(verts[0], 0, 0, c),
+		coloredSurfaceVertex3D(verts[1], 1, 0, c),
+		coloredSurfaceVertex3D(verts[2], 1, 1, c),
+	}
+	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2}, white, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
 }
 
 func triangleOutside(points [3]screenPoint, width, height float64) bool {

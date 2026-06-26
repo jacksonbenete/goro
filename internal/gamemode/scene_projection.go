@@ -81,6 +81,50 @@ func (p sceneProjection) Project(x, y, z float64) screenPoint {
 	}
 }
 
+func (p sceneProjection) RenderCamera() render.Camera3D {
+	camera := render.Camera3D{Enabled: p.camera}
+	if !p.camera {
+		return camera
+	}
+	for i, value := range p.viewProjection {
+		camera.ViewProjection[i] = float32(value)
+	}
+	return camera
+}
+
+func (p sceneProjection) BillboardBasis(x, y, z float64) (modelPoint3, modelPoint3, float64, bool) {
+	if !p.camera || p.screenH <= 0 {
+		return modelPoint3{}, modelPoint3{}, 0, false
+	}
+	distance := normalizeSceneCameraZoom(p.cameraZoom) * 0.5
+	pitch := sceneCameraPitch()
+	if pitch > 180 {
+		pitch -= 180
+	}
+	pitch = degreesToRadians(pitch)
+	yaw := degreesToRadians(p.cameraYaw)
+	horizontal := math.Cos(pitch) * distance
+	target := modelPoint3{x: p.playerX, y: p.playerZ, z: p.playerY}
+	eye := modelPoint3{
+		x: target.x + math.Sin(yaw)*horizontal,
+		y: target.y + math.Sin(pitch)*distance,
+		z: target.z - math.Cos(yaw)*horizontal,
+	}
+	center := modelPoint3{x: x, y: z, z: y}
+	forward := normalize3(sub3(center, eye))
+	right := normalize3(cross3(modelPoint3{y: 1}, forward))
+	if right == (modelPoint3{}) {
+		right = modelPoint3{x: 1}
+	}
+	up := normalize3(cross3(forward, right))
+	dist := math.Sqrt(dot3(sub3(center, eye), sub3(center, eye)))
+	unitsPerPixel := 2 * dist * math.Tan(degreesToRadians(sceneCameraFOV())*0.5) / p.screenH
+	if unitsPerPixel <= 0 || !isFinite(unitsPerPixel) {
+		return modelPoint3{}, modelPoint3{}, 0, false
+	}
+	return right, up, unitsPerPixel, true
+}
+
 func (p sceneProjection) Depth(x, y, z float64) float64 {
 	if p.camera {
 		_, _, _, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)

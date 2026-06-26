@@ -2,6 +2,7 @@ package gamemode
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"time"
 
@@ -451,6 +452,42 @@ func (m *WorldMode) drawPlayerSprite(ctx Context, screen *render.Image, centerX,
 	return drawHumanoidBillboard(screen, m.playerView, state, centerX, centerY, scale, shadow)
 }
 
+func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64) bool {
+	now := time.Now()
+	moving := ctx.World.Player.IsMovingAt(now)
+	state := spriteState{
+		actionFamily: spriteActionIdle,
+		direction:    direction,
+		cameraYaw:    cameraYaw,
+		moving:       moving,
+		moveSpeedMS:  ctx.World.Player.Speed,
+	}
+	if moving {
+		state.actionFamily = spriteActionWalk
+		state.loop = true
+		state.walkDistance = ctx.World.Player.RenderWalkDistance(now)
+	}
+	if ctx.Session != nil {
+		if anim, ok := m.actorAnimation(ctx.Session.CharID, now); ok {
+			state.actionFamily = anim.actionFamily
+			state.started = anim.started
+			state.loop = false
+			state.moving = false
+		} else if anim, ok := m.actorAnimation(ctx.Session.AccountID, now); ok {
+			state.actionFamily = anim.actionFamily
+			state.started = anim.started
+			state.loop = false
+			state.moving = false
+		}
+	}
+	billboard, ok := humanoidBillboardForState(m.playerView, state, now)
+	if !ok {
+		return false
+	}
+	drawSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
+	return true
+}
+
 func drawHumanoidBillboard(screen *render.Image, view *humanoidSpriteView, state spriteState, centerX, centerY, scale float64, shadow float64) bool {
 	billboard, ok := humanoidBillboardForState(view, state, time.Now())
 	if !ok {
@@ -510,6 +547,55 @@ func drawSpriteBillboardAlpha(screen *render.Image, billboard *spriteBillboard, 
 	opts.ColorScale.Scale(float32(shadow), float32(shadow), float32(shadow), 1)
 	opts.ColorScale.ScaleAlpha(float32(alpha))
 	screen.DrawImage(billboard.image, &opts)
+}
+
+func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	if alpha < 0 || math.IsNaN(alpha) {
+		alpha = 0
+	}
+	if alpha > 1 || math.IsInf(alpha, 0) {
+		alpha = 1
+	}
+	if shadow < 0 || math.IsNaN(shadow) {
+		shadow = 0
+	}
+	if shadow > 1 || math.IsInf(shadow, 0) {
+		shadow = 1
+	}
+	right, up, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
+	if !ok {
+		drawSpriteBillboardAlpha(screen, billboard, float64(projection.Project(worldX, worldY, worldZ).x), float64(projection.Project(worldX, worldY, worldZ).y), scale, alpha, shadow)
+		return
+	}
+	bounds := billboard.image.Bounds()
+	w := float64(bounds.Dx())
+	h := float64(bounds.Dy())
+	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
+	corner := func(px, py float64) modelPoint3 {
+		dx := (px - billboard.anchorX) * scale * unitsPerPixel
+		dy := (py - billboard.anchorY) * scale * unitsPerPixel
+		return add3(add3(center, mul3(right, dx)), mul3(up, -dy))
+	}
+	tint := colorRGBAFromFloats(shadow, shadow, shadow, alpha)
+	vertices := []render.Vertex3D{
+		texturedSurfaceVertex3D(corner(0, 0), texturePoint{u: 0, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		texturedSurfaceVertex3D(corner(w, 0), texturePoint{u: 1, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		texturedSurfaceVertex3D(corner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		texturedSurfaceVertex3D(corner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+	}
+	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2, 0, 2, 3}, billboard.image, triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero))
+}
+
+func colorRGBAFromFloats(r, g, b, a float64) color.RGBA {
+	return color.RGBA{
+		R: clampColor(r * 255),
+		G: clampColor(g * 255),
+		B: clampColor(b * 255),
+		A: clampColor(a * 255),
+	}
 }
 
 func spriteDrawFilter() render.Filter {

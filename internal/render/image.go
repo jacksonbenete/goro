@@ -36,6 +36,18 @@ type Vertex struct {
 	ColorB, ColorA float32
 }
 
+type Vertex3D struct {
+	X, Y, Z        float32
+	SrcX, SrcY     float32
+	ColorR, ColorG float32
+	ColorB, ColorA float32
+}
+
+type Camera3D struct {
+	Enabled        bool
+	ViewProjection [16]float32
+}
+
 type DrawTrianglesOptions struct {
 	Filter    Filter
 	Address   Address
@@ -152,11 +164,13 @@ func (c ColorScale) rgba() (float32, float32, float32, float32) {
 }
 
 type Image struct {
-	pix      *image.RGBA
-	screen   bool
-	version  uint64
-	commands []DrawCommand
-	clear    color.RGBA
+	pix           *image.RGBA
+	screen        bool
+	version       uint64
+	commands      []DrawCommand
+	worldCommands []WorldCommand
+	clear         color.RGBA
+	camera        Camera3D
 }
 
 var whiteImage *Image
@@ -176,6 +190,13 @@ type DrawCommand struct {
 	Options  DrawTrianglesOptions
 }
 
+type WorldCommand struct {
+	Vertices []Vertex3D
+	Indices  []uint32
+	Texture  *Image
+	Options  DrawTrianglesOptions
+}
+
 func NewScreenImage(width, height int) *Image {
 	img := NewImage(width, height)
 	img.screen = true
@@ -187,6 +208,15 @@ func (i *Image) BeginFrame() {
 		return
 	}
 	i.commands = i.commands[:0]
+	i.worldCommands = i.worldCommands[:0]
+	i.camera = Camera3D{}
+}
+
+func (i *Image) SetCamera3D(camera Camera3D) {
+	if i == nil {
+		return
+	}
+	i.camera = camera
 }
 
 func NewImage(width, height int) *Image {
@@ -313,6 +343,44 @@ func (i *Image) DrawTriangles(vertices []Vertex, indices []uint16, texture *Imag
 		i.drawTriangle(vertices[indices[n]], vertices[indices[n+1]], vertices[indices[n+2]], texture, o)
 	}
 	i.version++
+}
+
+func (i *Image) DrawTriangles3D(vertices []Vertex3D, indices []uint16, texture *Image, opts *DrawTrianglesOptions) {
+	if i == nil || i.pix == nil || texture == nil || texture.pix == nil {
+		return
+	}
+	var o DrawTrianglesOptions
+	if opts != nil {
+		o = *opts
+	}
+	if i.screen {
+		baseVertices := append([]Vertex3D(nil), vertices...)
+		outIndices := make([]uint32, len(indices))
+		for n, index := range indices {
+			outIndices[n] = uint32(index)
+		}
+		i.worldCommands = append(i.worldCommands, WorldCommand{
+			Vertices: baseVertices,
+			Indices:  outIndices,
+			Texture:  texture,
+			Options:  o,
+		})
+		return
+	}
+	vertices2D := make([]Vertex, len(vertices))
+	for n, vertex := range vertices {
+		vertices2D[n] = Vertex{
+			DstX:   vertex.X,
+			DstY:   vertex.Y,
+			SrcX:   vertex.SrcX,
+			SrcY:   vertex.SrcY,
+			ColorR: vertex.ColorR,
+			ColorG: vertex.ColorG,
+			ColorB: vertex.ColorB,
+			ColorA: vertex.ColorA,
+		}
+	}
+	i.DrawTriangles(vertices2D, indices, texture, opts)
 }
 
 func (i *Image) drawTriangle(v0, v1, v2 Vertex, texture *Image, opts DrawTrianglesOptions) {
