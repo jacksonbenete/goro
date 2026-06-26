@@ -307,6 +307,7 @@ func convertCharacters(characters []network.Character) []session.Character {
 func convertCharacter(character network.Character) session.Character {
 	return session.Character{
 		ID:        character.ID,
+		Money:     character.Money,
 		Name:      character.Name,
 		Slot:      character.Slot,
 		Level:     character.Level,
@@ -338,6 +339,7 @@ func setSelectedCharacter(sessionState *session.Session, character session.Chara
 	sessionState.Selected = character
 	sessionState.Vitals = sessionVitalsFromCharacter(character)
 	sessionState.Progress = sessionProgressFromCharacter(character)
+	sessionState.Inventory.Zeny = character.Money
 }
 
 func describeConnection(conn res.Connection) string {

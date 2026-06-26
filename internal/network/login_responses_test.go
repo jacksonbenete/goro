@@ -43,6 +43,7 @@ func TestParseCharListLegacy108(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
 	char := data[24:]
 	binary.LittleEndian.PutUint32(char[0:4], 1234)
+	binary.LittleEndian.PutUint32(char[8:12], 95000)
 	binary.LittleEndian.PutUint32(char[16:20], 9)
 	binary.LittleEndian.PutUint16(char[42:44], 70)
 	binary.LittleEndian.PutUint16(char[44:46], 100)
@@ -71,7 +72,7 @@ func TestParseCharListLegacy108(t *testing.T) {
 		t.Fatalf("characters = %d", len(parsed.Characters))
 	}
 	got := parsed.Characters[0]
-	if got.ID != 1234 || got.Name != "Alice" || got.HP != 70 || got.MaxHP != 100 || got.Job != 7 || got.Level != 42 || got.JobLevel != 9 || got.Str != 9 || got.Slot != 2 || got.HairColor != 5 || got.HeadPal != 5 || got.BodyPal != 6 || got.Weapon != 1201 || got.Shield != 2101 || got.HeadLow != 11 || got.HeadTop != 22 || got.HeadMid != 33 {
+	if got.ID != 1234 || got.Money != 95000 || got.Name != "Alice" || got.HP != 70 || got.MaxHP != 100 || got.Job != 7 || got.Level != 42 || got.JobLevel != 9 || got.Str != 9 || got.Slot != 2 || got.HairColor != 5 || got.HeadPal != 5 || got.BodyPal != 6 || got.Weapon != 1201 || got.Shield != 2101 || got.HeadLow != 11 || got.HeadTop != 22 || got.HeadMid != 33 {
 		t.Fatalf("unexpected character: %+v", got)
 	}
 }

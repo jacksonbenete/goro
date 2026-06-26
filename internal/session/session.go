@@ -36,6 +36,7 @@ type CharServer struct {
 
 type Character struct {
 	ID        uint32
+	Money     int64
 	Name      string
 	Slot      uint8
 	Level     int16

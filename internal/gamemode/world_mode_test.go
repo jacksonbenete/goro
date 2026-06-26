@@ -335,6 +335,16 @@ func TestApplyParameterChangeUpdatesInventory(t *testing.T) {
 	}
 }
 
+func TestSetSelectedCharacterSeedsInventoryZeny(t *testing.T) {
+	sessionState := &session.Session{}
+
+	setSelectedCharacter(sessionState, session.Character{ID: 1234, Money: 95000})
+
+	if sessionState.Inventory.Zeny != 95000 {
+		t.Fatalf("zeny = %d, want 95000", sessionState.Inventory.Zeny)
+	}
+}
+
 func TestFormatHUDNumberGroupsThousands(t *testing.T) {
 	if got := formatHUDNumber(123456789); got != "123,456,789" {
 		t.Fatalf("formatted number = %q", got)
