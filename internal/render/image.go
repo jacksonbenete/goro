@@ -64,7 +64,6 @@ type DrawTrianglesOptions struct {
 	Filter     Filter
 	Address    Address
 	Blend      Blend
-	AntiAlias  bool
 	DepthTest  bool
 	DepthWrite bool
 	DepthBias  float32

@@ -1413,3 +1413,29 @@ func TestActorDisplayNameDoesNotLabelWarpPortal(t *testing.T) {
 		t.Fatal("expected warp actor classification")
 	}
 }
+
+func TestMapFadeAlphaTransitionsThroughBlack(t *testing.T) {
+	start := time.Unix(100, 0)
+	mode := &WorldMode{}
+	mode.startMapFadeOut(network.MapChange{MapName: "geffen"}, start)
+
+	if got := mode.mapFadeAlpha(start); got != 0 {
+		t.Fatalf("fade-out start alpha = %d, want 0", got)
+	}
+	if got := mode.mapFadeAlpha(start.Add(mapFadeOutDuration)); got != 255 {
+		t.Fatalf("fade-out end alpha = %d, want 255", got)
+	}
+
+	mode.mapFade = mapFadeState{phase: mapFadeHold, started: start}
+	if got := mode.mapFadeAlpha(start.Add(time.Second)); got != 255 {
+		t.Fatalf("hold alpha = %d, want 255", got)
+	}
+
+	mode.startMapFadeIn(start)
+	if got := mode.mapFadeAlpha(start); got != 255 {
+		t.Fatalf("fade-in start alpha = %d, want 255", got)
+	}
+	if got := mode.mapFadeAlpha(start.Add(mapFadeInDuration)); got != 0 {
+		t.Fatalf("fade-in end alpha = %d, want 0", got)
+	}
+}

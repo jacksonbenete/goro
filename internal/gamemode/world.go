@@ -65,6 +65,7 @@ type WorldMode struct {
 	gndNormalSource  *res.GND
 	gndTopNormals    [][4]modelPoint3
 	console          chatConsole
+	mapFade          mapFadeState
 }
 
 type actorSpriteKey struct {
@@ -123,6 +124,22 @@ type actorLife struct {
 	updatedAt time.Time
 }
 
+type mapFadePhase int
+
+const (
+	mapFadeNone mapFadePhase = iota
+	mapFadeOut
+	mapFadeHold
+	mapFadeIn
+)
+
+type mapFadeState struct {
+	phase     mapFadePhase
+	started   time.Time
+	change    network.MapChange
+	hasChange bool
+}
+
 const attackRetryInterval = 1200 * time.Millisecond
 
 const (
@@ -131,6 +148,8 @@ const (
 	defaultDeathAnimationDuration  = 900 * time.Millisecond
 	maxCombatAnimationDuration     = 5 * time.Second
 	nonPCDeathFadeDuration         = 5 * time.Second
+	mapFadeOutDuration             = 220 * time.Millisecond
+	mapFadeInDuration              = 340 * time.Millisecond
 )
 
 func NewWorldMode() *WorldMode {
@@ -143,6 +162,12 @@ func (m *WorldMode) Name() string {
 
 func (m *WorldMode) Enter(ctx Context) {
 	m.status = "loading map"
+	now := time.Now()
+	if m.mapFade.phase == mapFadeNone {
+		m.startMapFadeIn(now)
+	} else if m.mapFade.started.IsZero() {
+		m.mapFade.started = now
+	}
 	m.camera.Reset()
 	ctx.World.GAT = nil
 	ctx.World.GND = nil
@@ -160,7 +185,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.cursorViewMiss = false
 	m.cursorFallback = nil
 	m.cursorAction = cursorActionDefault
-	m.cursorStarted = time.Now()
+	m.cursorStarted = now
 	m.itemMarker = nil
 	m.itemViews = make(map[itemSpriteKey]*playerSpriteView)
 	m.itemViewMiss = make(map[itemSpriteKey]struct{})
@@ -269,6 +294,29 @@ func (m *WorldMode) playMapBGM(ctx Context, rswName string) {
 }
 
 func (m *WorldMode) Update(ctx Context) (Mode, error) {
+	now := time.Now()
+	if m.mapFade.phase == mapFadeOut {
+		if !m.mapFadeElapsed(now) {
+			return nil, nil
+		}
+		if m.mapFade.hasChange {
+			change := m.mapFade.change
+			m.mapFade = mapFadeState{phase: mapFadeHold, started: now}
+			next := m.handleMapChange(ctx, change)
+			if next != nil {
+				return next, nil
+			}
+			if !m.pendingWarp {
+				m.startMapFadeIn(now)
+			}
+			return nil, nil
+		}
+		m.startMapFadeIn(now)
+	}
+	if m.mapFade.phase == mapFadeIn && m.mapFadeElapsed(now) {
+		m.mapFade = mapFadeState{}
+	}
+
 	for _, pkt := range ctx.Network.DrainPackets() {
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
 			log.Printf("parse chat message 0x%04X: %v", pkt.ID, err)
@@ -279,7 +327,8 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			log.Printf("parse map change 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			return m.handleMapChange(ctx, change), nil
+			m.startMapFadeOut(change, time.Now())
+			return nil, nil
 		}
 		if enter, err := network.ParseMapAcceptEnter(pkt); err == nil {
 			applyMapAcceptEnter(ctx, enter)
@@ -409,7 +458,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	m.processPendingAttack(ctx)
 	m.processPendingPickup(ctx)
 	m.processLockedAttack(ctx)
-	now := time.Now()
+	now = time.Now()
 	m.cleanupDeadActors(ctx, now)
 	m.processActorMotionSounds(ctx, now)
 	m.playDueScheduledSounds(ctx, now)
@@ -426,6 +475,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	}
 
 	m.camera.Update(ctx, now)
+	if m.mapFade.phase == mapFadeHold {
+		return nil, nil
+	}
 	m.updateCameraRotation(ctx)
 	if m.console.update(ctx) {
 		return nil, nil
@@ -529,7 +581,62 @@ func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode 
 func (m *WorldMode) nextWorldMode() *WorldMode {
 	next := NewWorldMode()
 	next.console = m.console
+	next.startMapFadeIn(time.Now())
 	return next
+}
+
+func (m *WorldMode) startMapFadeOut(change network.MapChange, now time.Time) {
+	m.mapFade = mapFadeState{
+		phase:     mapFadeOut,
+		started:   now,
+		change:    change,
+		hasChange: true,
+	}
+	if change.MapName != "" {
+		m.status = fmt.Sprintf("leaving for %s", change.MapName)
+	} else {
+		m.status = "leaving map"
+	}
+}
+
+func (m *WorldMode) startMapFadeIn(now time.Time) {
+	m.mapFade = mapFadeState{phase: mapFadeIn, started: now}
+}
+
+func (m *WorldMode) mapFadeElapsed(now time.Time) bool {
+	switch m.mapFade.phase {
+	case mapFadeOut:
+		return now.Sub(m.mapFade.started) >= mapFadeOutDuration
+	case mapFadeIn:
+		return now.Sub(m.mapFade.started) >= mapFadeInDuration
+	default:
+		return false
+	}
+}
+
+func (m *WorldMode) mapFadeAlpha(now time.Time) uint8 {
+	if m.mapFade.started.IsZero() {
+		return 0
+	}
+	switch m.mapFade.phase {
+	case mapFadeOut:
+		return clampColor(255 * clampUnit(float64(now.Sub(m.mapFade.started))/float64(mapFadeOutDuration)))
+	case mapFadeHold:
+		return 255
+	case mapFadeIn:
+		return clampColor(255 * (1 - clampUnit(float64(now.Sub(m.mapFade.started))/float64(mapFadeInDuration))))
+	default:
+		return 0
+	}
+}
+
+func (m *WorldMode) drawMapFade(screen *render.Image, now time.Time) {
+	alpha := m.mapFadeAlpha(now)
+	if alpha == 0 {
+		return
+	}
+	bounds := screen.Bounds()
+	render.DrawRect(screen, 0, 0, float64(bounds.Dx()), float64(bounds.Dy()), color.RGBA{A: alpha})
 }
 
 func formatConsoleMessage(manager *res.Manager, chat network.ChatMessage) string {
@@ -1586,6 +1693,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
+	m.drawMapFade(screen, now)
 }
 
 type followCamera struct {
