@@ -9,6 +9,10 @@ Build and run with `CGO_ENABLED=0` and `-tags nofakecgo`. The tag lets GoGPU's
 goffi use Oto/purego's fake cgo runtime symbols instead of defining a second
 copy, which keeps pure-Go audio enabled.
 
+BGM playback uses `libmpg123` at runtime when available. This is needed for old
+22 kHz Ragnarok MP3 tracks; without it, the client falls back to the pure-Go MP3
+decoder, which is less accurate for those files.
+
 ## Run
 
 ```sh

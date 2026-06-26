@@ -87,7 +87,7 @@ func (b *BGM) Play(path string) error {
 	if err != nil {
 		return fmt.Errorf("decode %s: %w", source, err)
 	}
-	context := b.ensureContext(sourceRate)
+	context := b.ensureContext(outputSampleRateForSource(sourceRate))
 	if context == nil {
 		return fmt.Errorf("audio context unavailable")
 	}
@@ -96,7 +96,7 @@ func (b *BGM) Play(path string) error {
 		if err != nil {
 			return fmt.Errorf("resample %s: %w", source, err)
 		}
-		decoder = fmt.Sprintf("%s+sinc %d->%d", decoder, sourceRate, b.sampleRate)
+		decoder = fmt.Sprintf("%s+resample %d->%d", decoder, sourceRate, b.sampleRate)
 	} else {
 		decoder = fmt.Sprintf("%s native %d", decoder, sourceRate)
 	}
@@ -148,6 +148,11 @@ func (b *BGM) PlaySFX(path string) (string, error) {
 }
 
 func decodeNativePCM(data []byte) ([]byte, int, string, error) {
+	if pcm, sampleRate, decoder, err := decodeMPG123PCM(data); err == nil {
+		return pcm, sampleRate, decoder, nil
+	} else {
+		log.Printf("mp3 mpg123 decoder unavailable, falling back to go-mp3: %v", err)
+	}
 	decoder, err := mp3.NewDecoder(bytes.NewReader(data))
 	if err != nil {
 		return nil, 0, "", err
@@ -164,6 +169,10 @@ func decodeNativePCM(data []byte) ([]byte, int, string, error) {
 		sampleRate = defaultSampleRate
 	}
 	return pcm, sampleRate, "go-mp3", nil
+}
+
+func outputSampleRateForSource(_ int) int {
+	return defaultSampleRate
 }
 
 type infinitePCM struct {
@@ -277,6 +286,9 @@ func resamplePCM16Stereo(src []byte, srcRate, dstRate int) ([]byte, error) {
 	if srcFrames == 0 {
 		return nil, fmt.Errorf("empty decoded PCM")
 	}
+	if dstRate > srcRate {
+		return resamplePCM16StereoLinear(src, srcRate, dstRate)
+	}
 	dstFrames := int(float64(srcFrames) * float64(dstRate) / float64(srcRate))
 	if dstFrames <= 0 {
 		return nil, fmt.Errorf("empty resampled PCM")
@@ -317,6 +329,39 @@ func resamplePCM16Stereo(src []byte, srcRate, dstRate int) ([]byte, error) {
 		}
 		writePCM16(dst, frame, 0, floatToPCM16(left))
 		writePCM16(dst, frame, 1, floatToPCM16(right))
+	}
+	return dst, nil
+}
+
+func resamplePCM16StereoLinear(src []byte, srcRate, dstRate int) ([]byte, error) {
+	if srcRate <= 0 || dstRate <= 0 {
+		return nil, fmt.Errorf("invalid sample rate %d -> %d", srcRate, dstRate)
+	}
+	if len(src)%4 != 0 {
+		return nil, fmt.Errorf("invalid stereo pcm length %d", len(src))
+	}
+	srcFrames := len(src) / 4
+	if srcFrames == 0 {
+		return nil, fmt.Errorf("empty decoded PCM")
+	}
+	dstFrames := int(float64(srcFrames) * float64(dstRate) / float64(srcRate))
+	if dstFrames <= 0 {
+		return nil, fmt.Errorf("empty resampled PCM")
+	}
+	dst := make([]byte, dstFrames*4)
+	for frame := 0; frame < dstFrames; frame++ {
+		srcPosition := float64(frame) * float64(srcRate) / float64(dstRate)
+		base := int(srcPosition)
+		fraction := srcPosition - float64(base)
+		next := base + 1
+		if next >= srcFrames {
+			next = srcFrames - 1
+		}
+		for channel := 0; channel < 2; channel++ {
+			a := float64(readPCM16(src, base, channel))
+			b := float64(readPCM16(src, next, channel))
+			writePCM16(dst, frame, channel, int16(math.Round(a+(b-a)*fraction)))
+		}
 	}
 	return dst, nil
 }
