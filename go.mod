@@ -2,8 +2,6 @@ module github.com/kivutar/goro
 
 go 1.26.3
 
-replace github.com/go-webgpu/goffi => ./third_party/goffi
-
 require (
 	github.com/ebitengine/oto/v3 v3.4.0
 	github.com/gogpu/gogpu v0.42.7
@@ -11,7 +9,7 @@ require (
 	github.com/gogpu/gputypes v0.5.0
 	github.com/gogpu/ui v0.1.36
 	github.com/gogpu/wgpu v0.30.4
-	github.com/kvark128/minimp3 v0.0.0-20220408223524-dd428325fce7
+	github.com/hajimehoshi/go-mp3 v0.3.4
 	golang.org/x/image v0.43.0
 	golang.org/x/text v0.38.0
 )

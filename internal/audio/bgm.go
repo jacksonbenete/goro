@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/ebitengine/oto/v3"
+	mp3 "github.com/hajimehoshi/go-mp3"
 	"github.com/kivutar/goro/internal/res"
-	"github.com/kvark128/minimp3"
 )
 
 const defaultSampleRate = 44100
@@ -148,29 +148,22 @@ func (b *BGM) PlaySFX(path string) (string, error) {
 }
 
 func decodeNativePCM(data []byte) ([]byte, int, string, error) {
-	decoder := minimp3.NewDecoder(bytes.NewReader(data))
+	decoder, err := mp3.NewDecoder(bytes.NewReader(data))
+	if err != nil {
+		return nil, 0, "", err
+	}
 	pcm, err := io.ReadAll(decoder)
 	if err != nil {
 		return nil, 0, "", err
 	}
-	switch decoder.Channels() {
-	case 1:
-		pcm, err = monoPCM16ToStereo(pcm)
-		if err != nil {
-			return nil, 0, "", err
-		}
-	case 2:
-		if len(pcm)%4 != 0 {
-			return nil, 0, "", fmt.Errorf("invalid stereo pcm length %d", len(pcm))
-		}
-	default:
-		return nil, 0, "", fmt.Errorf("unsupported mp3 channel count %d", decoder.Channels())
+	if len(pcm)%4 != 0 {
+		return nil, 0, "", fmt.Errorf("invalid stereo pcm length %d", len(pcm))
 	}
 	sampleRate := decoder.SampleRate()
 	if sampleRate <= 0 {
 		sampleRate = defaultSampleRate
 	}
-	return pcm, sampleRate, "minimp3", nil
+	return pcm, sampleRate, "go-mp3", nil
 }
 
 type infinitePCM struct {

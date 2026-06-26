@@ -5,13 +5,13 @@
 The current runtime uses GoGPU/wgpu for the window and presentation path. The
 first migration pass renders into a compatibility canvas and uploads the frame to
 GoGPU each frame; hot paths can move to native GPU pipelines incrementally.
-The default launcher uses `CGO_ENABLED=1` so the Oto audio backend is enabled.
-`CGO_ENABLED=0` still builds a silent client through the no-op audio stub.
+The default launcher uses `CGO_ENABLED=0`; audio is currently silent through the
+no-op audio stub on this path.
 
 ## Run
 
 ```sh
-CGO_ENABLED=1 GOGPU_GRAPHICS_API=vulkan go run ./cmd/goro
+CGO_ENABLED=0 GOGPU_GRAPHICS_API=vulkan go run ./cmd/goro
 ```
 
 For the local OldRO + rAthena test setup:
