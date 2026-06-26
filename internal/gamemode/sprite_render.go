@@ -519,6 +519,15 @@ func drawFixedSpriteBillboardAlpha(screen *render.Image, view *playerSpriteView,
 	return true
 }
 
+func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, view *playerSpriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
+	billboard, ok := fixedSpriteBillboard(view)
+	if !ok {
+		return false
+	}
+	drawSpriteBillboardAlphaFlat3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow)
+	return true
+}
+
 func drawSpriteBillboard(screen *render.Image, billboard *spriteBillboard, centerX, centerY, scale float64, shadow float64) {
 	drawSpriteBillboardAlpha(screen, billboard, centerX, centerY, scale, 1, shadow)
 }
@@ -578,6 +587,55 @@ func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection
 		dx := (px - billboard.anchorX) * scale * unitsPerPixel
 		dy := (py - billboard.anchorY) * scale * unitsPerPixel
 		return add3(add3(center, mul3(right, dx)), mul3(up, -dy))
+	}
+	tint := colorRGBAFromFloats(shadow, shadow, shadow, alpha)
+	vertices := []render.Vertex3D{
+		texturedSurfaceVertex3D(corner(0, 0), texturePoint{u: 0, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		texturedSurfaceVertex3D(corner(w, 0), texturePoint{u: 1, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		texturedSurfaceVertex3D(corner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+		texturedSurfaceVertex3D(corner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
+	}
+	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2, 0, 2, 3}, billboard.image, triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero))
+}
+
+func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	if alpha < 0 || math.IsNaN(alpha) {
+		alpha = 0
+	}
+	if alpha > 1 || math.IsInf(alpha, 0) {
+		alpha = 1
+	}
+	if shadow < 0 || math.IsNaN(shadow) {
+		shadow = 0
+	}
+	if shadow > 1 || math.IsInf(shadow, 0) {
+		shadow = 1
+	}
+	_, _, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
+	if !ok {
+		drawSpriteBillboardAlpha(screen, billboard, float64(projection.Project(worldX, worldY, worldZ).x), float64(projection.Project(worldX, worldY, worldZ).y), scale, alpha, shadow)
+		return
+	}
+	yaw := degreesToRadians(projection.cameraYaw)
+	right := normalize3(modelPoint3{x: math.Cos(yaw), z: math.Sin(yaw)})
+	down := normalize3(modelPoint3{x: math.Sin(yaw), z: -math.Cos(yaw)})
+	if right == (modelPoint3{}) {
+		right = modelPoint3{x: 1}
+	}
+	if down == (modelPoint3{}) {
+		down = modelPoint3{z: -1}
+	}
+	bounds := billboard.image.Bounds()
+	w := float64(bounds.Dx())
+	h := float64(bounds.Dy())
+	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
+	corner := func(px, py float64) modelPoint3 {
+		dx := (px - billboard.anchorX) * scale * unitsPerPixel
+		dy := (py - billboard.anchorY) * scale * unitsPerPixel
+		return add3(add3(center, mul3(right, dx)), mul3(down, dy))
 	}
 	tint := colorRGBAFromFloats(shadow, shadow, shadow, alpha)
 	vertices := []render.Vertex3D{

@@ -2445,7 +2445,7 @@ func (m *WorldMode) drawSceneActors(screen *render.Image, ctx Context, projectio
 		return entries[i].depth > entries[j].depth
 	})
 	for _, entry := range entries {
-		m.drawActorShadowEntry(screen, entry)
+		m.drawActorShadowEntry(screen, projection, entry)
 	}
 	for _, entry := range entries {
 		m.drawSceneActorEntry(screen, ctx, projection, entry)
@@ -2496,7 +2496,7 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, 
 			continue
 		}
 		if entry.shadowIndex >= 0 {
-			m.drawActorShadowEntry(screen, actors[entry.shadowIndex])
+			m.drawActorShadowEntry(screen, projection, actors[entry.shadowIndex])
 			continue
 		}
 		if entry.itemIndex >= 0 {
@@ -2536,7 +2536,7 @@ func (m *WorldMode) drawSceneModelsAndActors3D(screen *render.Image, ctx Context
 	})
 	for _, entry := range entries {
 		if entry.shadowIndex >= 0 {
-			m.drawActorShadowEntry(screen, actors[entry.shadowIndex])
+			m.drawActorShadowEntry(screen, projection, actors[entry.shadowIndex])
 			continue
 		}
 		if entry.itemIndex >= 0 {
@@ -2606,7 +2606,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx Context, proje
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
 }
 
-func (m *WorldMode) drawActorShadowEntry(screen *render.Image, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawActorShadowEntry(screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry) {
 	if !entry.castShadow || m.shadowView == nil || m.shadowViewMiss {
 		return
 	}
@@ -2616,6 +2616,10 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Image, entry sceneActorD
 	}
 	scale := entry.scale * entry.shadowScale
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		return
+	}
+	if projection.camera && world3DEnabled() {
+		drawFixedSpriteBillboardAlphaFlat3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+0.03, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
 		return
 	}
 	drawFixedSpriteBillboardAlpha(screen, m.shadowView, entry.shadowX, entry.shadowY, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
