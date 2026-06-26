@@ -5,13 +5,14 @@
 The current runtime uses GoGPU/wgpu for the window and presentation path. The
 first migration pass renders into a compatibility canvas and uploads the frame to
 GoGPU each frame; hot paths can move to native GPU pipelines incrementally.
-The default launcher uses `CGO_ENABLED=0`; audio is currently silent through the
-no-op audio stub on this path.
+Build and run with `CGO_ENABLED=0` and `-tags nofakecgo`. The tag lets GoGPU's
+goffi use Oto/purego's fake cgo runtime symbols instead of defining a second
+copy, which keeps pure-Go audio enabled.
 
 ## Run
 
 ```sh
-CGO_ENABLED=0 go run .
+CGO_ENABLED=0 go run -tags nofakecgo .
 ```
 
 For the local OldRO + rAthena test setup:

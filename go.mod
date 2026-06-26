@@ -3,7 +3,7 @@ module github.com/kivutar/goro
 go 1.26.3
 
 require (
-	github.com/ebitengine/oto/v3 v3.4.0
+	github.com/ebitengine/oto/v3 v3.5.0-alpha.8
 	github.com/gogpu/gogpu v0.42.7
 	github.com/gogpu/gpucontext v0.21.0
 	github.com/gogpu/gputypes v0.5.0
@@ -16,11 +16,12 @@ require (
 
 require (
 	github.com/coregx/signals v0.1.0 // indirect
-	github.com/ebitengine/purego v0.9.0 // indirect
+	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/go-text/typesetting v0.3.4 // indirect
 	github.com/go-webgpu/goffi v0.5.5 // indirect
 	github.com/go-webgpu/webgpu v0.5.2 // indirect
 	github.com/gogpu/gg v0.48.16 // indirect
 	github.com/gogpu/naga v0.17.15 // indirect
+	github.com/jfreymuth/pulse v0.1.1 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 )
