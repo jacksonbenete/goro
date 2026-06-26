@@ -52,12 +52,7 @@ func TestDebugGeffenCenterModels(t *testing.T) {
 		}
 		baseX := float64(placement.Position.X) + float64(gnd.Width)
 		baseY := float64(placement.Position.Z) + float64(gnd.Height)
-		projection := sceneProjection{
-			screenW:        1024,
-			screenH:        768,
-			camera:         true,
-			viewProjection: sceneCameraMatrix(1024, 768, 120.5, 120.5, cameraTargetHeightAt(world, 120, 120)),
-		}
+		projection := newSceneProjectionForTarget(1024, 768, 120.5, 120.5, cameraTargetHeightAt(world, 120, 120))
 		minX, minY := math.Inf(1), math.Inf(1)
 		maxX, maxY := math.Inf(-1), math.Inf(-1)
 		minWorldY, maxWorldY := math.Inf(1), math.Inf(-1)

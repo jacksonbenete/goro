@@ -64,7 +64,7 @@ func (f sceneFog) mixVertexTints(projection sceneProjection, verts [4]modelPoint
 }
 
 func sceneFogVeilAlpha(f sceneFog, projection sceneProjection) uint8 {
-	if !f.enabled || !projection.camera || f.far <= f.near {
+	if !f.enabled || f.far <= f.near {
 		return 0
 	}
 	depth := projection.cameraZoom * sceneFogVeilDepthScale()

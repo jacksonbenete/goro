@@ -59,12 +59,9 @@ func TestSceneFogVeilAlphaUsesCameraDepth(t *testing.T) {
 		far:     360,
 		color:   color.RGBA{R: 100, G: 160, B: 100, A: 255},
 	}
-	projection := sceneProjection{camera: true, cameraZoom: 150}
+	projection := sceneProjection{cameraZoom: 150}
 	alpha := sceneFogVeilAlpha(fog, projection)
 	if alpha == 0 {
 		t.Fatal("expected visible fog veil alpha")
-	}
-	if sceneFogVeilAlpha(fog, sceneProjection{camera: false, cameraZoom: 150}) != 0 {
-		t.Fatal("expected no veil alpha without camera renderer")
 	}
 }

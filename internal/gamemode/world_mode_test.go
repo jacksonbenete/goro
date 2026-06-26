@@ -101,23 +101,11 @@ func TestActorBillboardScreenScaleUsesProjectedReferenceHeight(t *testing.T) {
 		t.Fatalf("actor billboard world height = %.1f, want 5.0", actorBillboardWorldHeightUnit)
 	}
 
-	projection := sceneProjection{
-		screenW:        800,
-		screenH:        600,
-		camera:         true,
-		viewProjection: sceneCameraMatrix(800, 600, 10.5, 20.5, 5),
-	}
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 5)
 
 	scale := actorBillboardScreenScale(projection, 10.5, 20.5, 5)
 	if scale <= 0 || scale >= 1 {
 		t.Fatalf("camera billboard scale = %.3f, want between 0 and 1", scale)
-	}
-}
-
-func TestActorBillboardScreenScaleKeepsFlatProjectionNative(t *testing.T) {
-	projection := sceneProjection{}
-	if got := actorBillboardScreenScale(projection, 10.5, 20.5, 5); got != 1 {
-		t.Fatalf("flat billboard scale = %.3f, want 1", got)
 	}
 }
 
@@ -809,22 +797,6 @@ func TestActorBillboardSortDepthUsesTopInCameraProjection(t *testing.T) {
 	}
 }
 
-func TestActorBillboardSortDepthUsesFootInFlatProjection(t *testing.T) {
-	projection := sceneProjection{
-		playerX:     10.5,
-		playerY:     20.5,
-		centerX:     400,
-		centerY:     300,
-		tileW:       sceneTileW,
-		tileH:       sceneTileH,
-		heightScale: 2,
-	}
-	footDepth := projection.Depth(10.5, 20.5, 0)
-	if got := actorBillboardSortDepth(projection, 10.5, 20.5, 0); got != footDepth {
-		t.Fatalf("flat billboard depth = %.4f, want foot depth %.4f", got, footDepth)
-	}
-}
-
 func TestCameraFollowFactorIsClamped(t *testing.T) {
 	t.Setenv("GORO_CAMERA_FOLLOW_FACTOR", "2")
 	if got := cameraFollowFactor(); got != 1 {
@@ -1087,9 +1059,8 @@ func TestGNDDrawBoundsUseCameraFootprint(t *testing.T) {
 	if startX > centerX || endX < centerX || startY > centerY || endY < centerY {
 		t.Fatalf("bounds %d..%d,%d..%d do not include center %d,%d", startX, endX, startY, endY, centerX, centerY)
 	}
-	oldSymmetricStartY := centerY - (int(768/sceneTileH) + 12)
-	if startY <= oldSymmetricStartY {
-		t.Fatalf("camera bounds startY=%d, want tighter than old symmetric startY=%d", startY, oldSymmetricStartY)
+	if endX-startX >= gnd.Width-1 || endY-startY >= gnd.Height-1 {
+		t.Fatalf("camera bounds %d..%d,%d..%d should not cover the full map", startX, endX, startY, endY)
 	}
 }
 
@@ -1192,15 +1163,7 @@ func TestClickedWalkCellByProjectedPolygonUsesWalkableGATCell(t *testing.T) {
 	for i := range world.GAT.Cells {
 		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
 	}
-	projection := sceneProjection{
-		playerX:     5.5,
-		playerY:     5.5,
-		centerX:     400,
-		centerY:     300,
-		tileW:       sceneTileW,
-		tileH:       sceneTileH,
-		heightScale: 2,
-	}
+	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
 	x, y, ok := clickedWalkCellByProjectedPolygon(Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
@@ -1219,15 +1182,7 @@ func TestClickedWalkCellByProjectedPolygonSkipsBlockedGATCell(t *testing.T) {
 		Cells:  make([]res.GATCell, 12*12),
 	}
 	world.GAT.Cells[5*world.GAT.Width+6] = res.GATCell{Type: res.GATTypeNone}
-	projection := sceneProjection{
-		playerX:     5.5,
-		playerY:     5.5,
-		centerX:     400,
-		centerY:     300,
-		tileW:       sceneTileW,
-		tileH:       sceneTileH,
-		heightScale: 2,
-	}
+	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
 	_, _, ok := clickedWalkCellByProjectedPolygon(Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
@@ -1248,15 +1203,7 @@ func TestHoveredWalkCellRequiresProjectedWalkableCell(t *testing.T) {
 	for i := range world.GAT.Cells {
 		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
 	}
-	projection := sceneProjection{
-		playerX:     5.5,
-		playerY:     5.5,
-		centerX:     400,
-		centerY:     300,
-		tileW:       sceneTileW,
-		tileH:       sceneTileH,
-		heightScale: 2,
-	}
+	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
 	x, y, ok := hoveredWalkCell(Context{World: world}, projection, int(point.x), int(point.y))
@@ -1268,31 +1215,21 @@ func TestHoveredWalkCellRequiresProjectedWalkableCell(t *testing.T) {
 	}
 }
 
-func TestProjectedTileCursorCellUsesGATHeightsWithLift(t *testing.T) {
+func TestTileCursorCellVertsUseGATHeightsWithLift(t *testing.T) {
 	gat := &res.GAT{
 		Width:  4,
 		Height: 4,
 		Cells:  make([]res.GATCell, 16),
 	}
 	gat.Cells[2*gat.Width+1] = res.GATCell{Heights: [4]float32{2, 2, 2, 2}, Type: res.GATTypeWalkable}
-	projection := sceneProjection{
-		playerX:     1.5,
-		playerY:     2.5,
-		centerX:     400,
-		centerY:     300,
-		tileW:       sceneTileW,
-		tileH:       sceneTileH,
-		heightScale: 2,
-	}
 	now := time.Unix(0, 0)
-	points, ok := projectedTileCursorCell(projection, gat, 1, 2, now)
+	verts, ok := tileCursorCellVerts(gat, 1, 2, now)
 	if !ok {
 		t.Fatal("missing cursor cell")
 	}
-	ground := projection.Project(1, 2, 2)
-	wantY := float64(ground.y) - tileCursorLift(now)*projection.heightScale
-	if math.Abs(float64(points[0].y)-wantY) > 0.001 {
-		t.Fatalf("cursor point y = %.4f, want %.4f", points[0].y, wantY)
+	wantY := 2 + tileCursorLift(now)
+	if math.Abs(verts[0].y-wantY) > 0.001 {
+		t.Fatalf("cursor vertex y = %.4f, want %.4f", verts[0].y, wantY)
 	}
 }
 

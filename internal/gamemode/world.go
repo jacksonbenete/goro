@@ -1529,10 +1529,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
 	var actorOverlays []sceneActorDrawEntry
 	screen.SetCamera3D(projection.RenderCameraWithFog(fog))
-	vertexFog := fog
-	if projection.camera {
-		vertexFog = sceneFog{}
-	}
+	vertexFog := sceneFog{}
 
 	if ctx.World.GND != nil {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, vertexFog)
@@ -2212,19 +2209,7 @@ func (m *WorldMode) drawTileCursor(screen *render.Image, ctx Context, projection
 	if quadHasInvalidPoint(points) || quadOutside(points, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())) {
 		return
 	}
-	if projection.camera {
-		drawTileCursorSurface3D(screen, m.tileCursorTexture(), verts)
-		return
-	}
-	drawTileCursorSurface(screen, m.tileCursorTexture(), points)
-}
-
-func projectedTileCursorCell(projection sceneProjection, gat *res.GAT, x, y int, now time.Time) ([4]screenPoint, bool) {
-	verts, ok := tileCursorCellVerts(gat, x, y, now)
-	if !ok {
-		return [4]screenPoint{}, false
-	}
-	return projectTileCursorVerts(projection, verts), true
+	drawTileCursorSurface3D(screen, m.tileCursorTexture(), verts)
 }
 
 func tileCursorCellVerts(gat *res.GAT, x, y int, now time.Time) ([4]modelPoint3, bool) {
@@ -2286,23 +2271,6 @@ func (m *WorldMode) tileCursorTexture() *render.Image {
 	}
 	m.tileCursor = render.NewImageFromImage(img)
 	return m.tileCursor
-}
-
-func drawTileCursorSurface(screen, texture *render.Image, points [4]screenPoint) {
-	if texture == nil {
-		return
-	}
-	bounds := texture.Bounds()
-	w := float32(bounds.Dx())
-	h := float32(bounds.Dy())
-	tint := color.RGBA{R: 255, G: 255, B: 255, A: 210}
-	vertices := []render.Vertex{
-		texturedSurfaceVertex(points[0], texturePoint{u: 0, v: 0}, tint, w, h),
-		texturedSurfaceVertex(points[1], texturePoint{u: 1, v: 0}, tint, w, h),
-		texturedSurfaceVertex(points[2], texturePoint{u: 0, v: 1}, tint, w, h),
-		texturedSurfaceVertex(points[3], texturePoint{u: 1, v: 1}, tint, w, h),
-	}
-	screen.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, texture, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
 }
 
 func drawTileCursorSurface3D(screen, texture *render.Image, verts [4]modelPoint3) {
@@ -2694,7 +2662,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx Context, proje
 			m.whitePixel = render.NewImage(1, 1)
 			m.whitePixel.Fill(color.White)
 		}
-		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), projection, entry.worldX, entry.worldY, entry.worldZ, time.Now())
+		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), entry.worldX, entry.worldY, entry.worldZ, time.Now())
 		return
 	}
 	if m.drawActorSprite3D(screen, ctx, projection, entry, cameraYaw, entry.shadow) {
@@ -2834,9 +2802,6 @@ func gndShadowMapAlpha(gnd *res.GND, shadowX, shadowY int) uint8 {
 
 func actorBillboardSortDepth(projection sceneProjection, x, y, z float64) float64 {
 	footDepth := projection.Depth(x, y, z)
-	if !projection.camera {
-		return footDepth
-	}
 	topDepth := projection.Depth(x, y, z+actorBillboardWorldHeightUnit)
 	if topDepth <= 0 || !isFinite(topDepth) {
 		return footDepth
@@ -3101,9 +3066,6 @@ func (m *WorldMode) nonPCSpriteView(ctx Context, actor worldstate.Actor) *player
 }
 
 func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) float64 {
-	if !projection.camera {
-		return 1
-	}
 	base := projection.Project(x, y, z)
 	top := projection.Project(x, y, z+actorBillboardWorldHeightUnit)
 	projectedHeight := math.Hypot(float64(top.x-base.x), float64(top.y-base.y))
@@ -3113,7 +3075,7 @@ func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) floa
 	return projectedHeight / float64(humanoidBillboardAnchorY)
 }
 
-func drawWarpZoneEffect(screen, white, ringTexture *render.Image, projection sceneProjection, x, y, z float64, now time.Time) {
+func drawWarpZoneEffect(screen, white, ringTexture *render.Image, x, y, z float64, now time.Time) {
 	const (
 		segments       = 64
 		ringCount      = 4
@@ -3137,17 +3099,9 @@ func drawWarpZoneEffect(screen, white, ringTexture *render.Image, projection sce
 			heightFactor = (1 - phase) * 2
 		}
 		alpha := uint8(102 * warpCycleFade(phase))
-		if projection.camera {
-			drawWorldCylinderBand(screen, white, ringTexture, x, y, z, bottomBaseSize*sizeFactor, topBaseSize*sizeFactor, heightBase*heightFactor, color.RGBA{R: 155, G: 205, B: 255, A: alpha}, segments)
-		} else {
-			drawProjectedCylinderBand(screen, white, ringTexture, projection, x, y, z, bottomBaseSize*sizeFactor, topBaseSize*sizeFactor, heightBase*heightFactor, color.RGBA{R: 155, G: 205, B: 255, A: alpha}, segments)
-		}
+		drawWorldCylinderBand(screen, white, ringTexture, x, y, z, bottomBaseSize*sizeFactor, topBaseSize*sizeFactor, heightBase*heightFactor, color.RGBA{R: 155, G: 205, B: 255, A: alpha}, segments)
 	}
-	if projection.camera {
-		drawWorldRadialGradient(screen, white, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
-	} else {
-		drawProjectedRadialGradient(screen, white, projection, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
-	}
+	drawWorldRadialGradient(screen, white, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
 	for i := 0; i < ringCount; i++ {
 		phase := math.Mod(seconds*0.55+float64(i)/ringCount, 1)
 		radius := baseRadius + phase*radiusRange
@@ -3155,18 +3109,10 @@ func drawWarpZoneEffect(screen, white, ringTexture *render.Image, projection sce
 		if alpha < 28 {
 			alpha = 28
 		}
-		if projection.camera {
-			drawWorldSoftRing(screen, white, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
-		} else {
-			drawProjectedSoftRing(screen, white, projection, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
-		}
+		drawWorldSoftRing(screen, white, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
 	}
 	pulse := 0.5 + 0.5*math.Sin(seconds*2.4)
-	if projection.camera {
-		drawWorldSoftRing(screen, white, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
-	} else {
-		drawProjectedSoftRing(screen, white, projection, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
-	}
+	drawWorldSoftRing(screen, white, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
 }
 
 func warpCycleFade(phase float64) float64 {
@@ -3178,18 +3124,6 @@ func warpCycleFade(phase float64) float64 {
 	default:
 		return 1
 	}
-}
-
-func drawProjectedRadialGradient(screen, white *render.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
-	drawProjectedRingBand(screen, white, projection, x, y, z, innerRadius, outerRadius, c.A, 0, c, segments)
-}
-
-func drawProjectedSoftRing(screen, white *render.Image, projection sceneProjection, x, y, z, radius, width float64, c color.RGBA, segments int) {
-	inner := math.Max(0, radius-width*0.5)
-	mid := math.Max(inner+0.01, radius)
-	outer := math.Max(mid+0.01, radius+width*0.5)
-	drawProjectedRingBand(screen, white, projection, x, y, z, inner, mid, 0, c.A, c, segments)
-	drawProjectedRingBand(screen, white, projection, x, y, z, mid, outer, c.A, 0, c, segments)
 }
 
 func drawWorldRadialGradient(screen, white *render.Image, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
@@ -3268,83 +3202,6 @@ func drawWorldRingBand(screen, white *render.Image, x, y, z, innerRadius, outerR
 	screen.DrawTriangles3D(vertices, indices, white, options)
 }
 
-func drawProjectedCylinderBand(screen, white, texture *render.Image, projection sceneProjection, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
-	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
-		return
-	}
-	vertices := make([]render.Vertex, 0, (segments+1)*2)
-	indices := make([]uint16, 0, segments*6)
-	tint := c
-	srcW, srcH := float32(1), float32(1)
-	source := white
-	if texture != nil {
-		source = texture
-		bounds := texture.Bounds()
-		srcW = float32(bounds.Dx())
-		srcH = float32(bounds.Dy())
-	}
-	for i := 0; i <= segments; i++ {
-		u := float32(i) / float32(segments)
-		angle := float64(i) * 2 * math.Pi / float64(segments)
-		cosine := math.Cos(angle)
-		sine := math.Sin(angle)
-		vertices = append(vertices,
-			warpEffectTexturedVertex(projection.Project(x+cosine*bottomRadius, y+sine*bottomRadius, z), u*srcW, srcH, tint),
-			warpEffectTexturedVertex(projection.Project(x+cosine*topRadius, y+sine*topRadius, z+height), u*srcW, 0, tint),
-		)
-		if i == segments {
-			continue
-		}
-		base := uint16(i * 2)
-		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
-	}
-	options := triangleDrawOptions(render.FilterLinear, render.AddressRepeat)
-	options.Blend = render.BlendLighter
-	screen.DrawTriangles(vertices, indices, source, options)
-}
-
-func drawProjectedRingBand(screen, white *render.Image, projection sceneProjection, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
-	if segments < 3 || outerRadius <= innerRadius {
-		return
-	}
-	vertices := make([]render.Vertex, 0, (segments+1)*2)
-	indices := make([]uint16, 0, segments*6)
-	innerColor := c
-	outerColor := c
-	innerColor.A = innerAlpha
-	outerColor.A = outerAlpha
-	for i := 0; i <= segments; i++ {
-		angle := float64(i) * 2 * math.Pi / float64(segments)
-		cosine := math.Cos(angle)
-		sine := math.Sin(angle)
-		vertices = append(vertices,
-			warpEffectVertex(projection.Project(x+cosine*innerRadius, y+sine*innerRadius, z), innerColor),
-			warpEffectVertex(projection.Project(x+cosine*outerRadius, y+sine*outerRadius, z), outerColor),
-		)
-		if i == segments {
-			continue
-		}
-		base := uint16(i * 2)
-		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
-	}
-	options := triangleDrawOptions(render.FilterNearest, render.AddressUnsafe)
-	options.Blend = render.BlendLighter
-	screen.DrawTriangles(vertices, indices, white, options)
-}
-
-func warpEffectTexturedVertex(point screenPoint, srcX, srcY float32, c color.RGBA) render.Vertex {
-	return render.Vertex{
-		DstX:   point.x,
-		DstY:   point.y,
-		SrcX:   srcX,
-		SrcY:   srcY,
-		ColorR: float32(c.R) / 255,
-		ColorG: float32(c.G) / 255,
-		ColorB: float32(c.B) / 255,
-		ColorA: float32(c.A) / 255,
-	}
-}
-
 func warpEffectTexturedVertex3D(x, y, z float64, srcX, srcY float32, c color.RGBA) render.Vertex3D {
 	point := modelPoint3{x: x, y: z, z: y}
 	return render.Vertex3D{
@@ -3360,19 +3217,6 @@ func warpEffectTexturedVertex3D(x, y, z float64, srcX, srcY float32, c color.RGB
 		DepthX: float32(point.x),
 		DepthY: float32(point.y),
 		DepthZ: float32(point.z),
-	}
-}
-
-func warpEffectVertex(point screenPoint, c color.RGBA) render.Vertex {
-	return render.Vertex{
-		DstX:   point.x,
-		DstY:   point.y,
-		SrcX:   0,
-		SrcY:   0,
-		ColorR: float32(c.R) / 255,
-		ColorG: float32(c.G) / 255,
-		ColorB: float32(c.B) / 255,
-		ColorA: float32(c.A) / 255,
 	}
 }
 
@@ -3597,20 +3441,16 @@ func gndDrawBounds(gnd *res.GND, projection sceneProjection, screenWidth, screen
 
 	centerX := gndTileFromWorld(projection.playerX)
 	centerY := gndTileFromWorld(projection.playerY)
-	if projection.camera {
-		if minWorldX, maxWorldX, minWorldY, maxWorldY, ok := cameraGroundFootprint(projection, screenWidth, screenHeight); ok {
-			const margin = 24
-			startX := minInt(gndTileFromWorld(minWorldX), centerX) - margin
-			endX := maxInt(gndTileFromWorld(maxWorldX), centerX) + margin
-			startY := minInt(gndTileFromWorld(minWorldY), centerY) - margin
-			endY := maxInt(gndTileFromWorld(maxWorldY), centerY) + margin
-			return clampGNDRange(gnd, startX, endX, startY, endY)
-		}
+	if minWorldX, maxWorldX, minWorldY, maxWorldY, ok := cameraGroundFootprint(projection, screenWidth, screenHeight); ok {
+		const margin = 24
+		startX := minInt(gndTileFromWorld(minWorldX), centerX) - margin
+		endX := maxInt(gndTileFromWorld(maxWorldX), centerX) + margin
+		startY := minInt(gndTileFromWorld(minWorldY), centerY) - margin
+		endY := maxInt(gndTileFromWorld(maxWorldY), centerY) + margin
+		return clampGNDRange(gnd, startX, endX, startY, endY)
 	}
-
-	radiusX := int(float64(screenWidth)/projection.tileW) + 12
-	radiusY := int(float64(screenHeight)/projection.tileH) + 12
-	return clampGNDRange(gnd, centerX-radiusX, centerX+radiusX, centerY-radiusY, centerY+radiusY)
+	const fallbackRadius = 96
+	return clampGNDRange(gnd, centerX-fallbackRadius, centerX+fallbackRadius, centerY-fallbackRadius, centerY+fallbackRadius)
 }
 
 func gndTileFromWorld(coord float64) int {
@@ -3962,10 +3802,6 @@ func drawRSWModelMarkers(screen *render.Image, rsw *res.RSW, gnd *res.GND, proje
 	for _, model := range rsw.Models {
 		x := float64(model.Position.X) + float64(gnd.Width)
 		y := float64(model.Position.Z) + float64(gnd.Height)
-		if math.Abs(x-projection.playerX) > float64(width)/projection.tileW*2+16 || math.Abs(y-projection.playerY) > float64(height)/projection.tileH*2+16 {
-			continue
-		}
-
 		point := projection.Project(x, y, float64(model.Position.Y))
 		if point.x < -8 || point.y < -8 || point.x > float32(width+8) || point.y > float32(height+8) {
 			continue

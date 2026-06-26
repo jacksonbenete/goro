@@ -34,34 +34,8 @@ func TestTerrainHeightPrefersGAT(t *testing.T) {
 	}
 }
 
-func TestProjectionCentersPlayerCell(t *testing.T) {
-	projection := sceneProjection{
-		playerX:     10.5,
-		playerY:     20.5,
-		centerX:     400,
-		centerY:     300,
-		tileW:       sceneTileW,
-		tileH:       sceneTileH,
-		heightScale: 2,
-	}
-	point := projection.Project(10.5, 20.5, 5)
-	if point.x != 400 || point.y != 290 {
-		t.Fatalf("projected point = %.1f, %.1f, want 400, 290", point.x, point.y)
-	}
-}
-
 func TestCameraProjectionCentersPlayerCell(t *testing.T) {
-	projection := sceneProjection{
-		playerX:        10.5,
-		playerY:        20.5,
-		playerZ:        5,
-		centerX:        400,
-		centerY:        300,
-		screenW:        800,
-		screenH:        600,
-		camera:         true,
-		viewProjection: sceneCameraMatrix(800, 600, 10.5, 20.5, 5),
-	}
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 5)
 	point := projection.Project(10.5, 20.5, 5)
 	if math.Abs(float64(point.x)-400) > 0.01 || math.Abs(float64(point.y)-300) > 0.01 {
 		t.Fatalf("projected point = %.1f, %.1f, want 400, 300", point.x, point.y)
@@ -85,12 +59,7 @@ func TestSceneCameraDefaultZoomUsesGameplayScale(t *testing.T) {
 }
 
 func TestCameraProjectionMapsPositiveXToScreenRight(t *testing.T) {
-	projection := sceneProjection{
-		screenW:        800,
-		screenH:        600,
-		camera:         true,
-		viewProjection: sceneCameraMatrix(800, 600, 10.5, 20.5, 5),
-	}
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 5)
 	center := projection.Project(10.5, 20.5, 5)
 	right := projection.Project(11.5, 20.5, 5)
 	if right.x <= center.x {
@@ -99,12 +68,7 @@ func TestCameraProjectionMapsPositiveXToScreenRight(t *testing.T) {
 }
 
 func TestCameraProjectionMovesHigherWorldPointUpScreen(t *testing.T) {
-	projection := sceneProjection{
-		screenW:        800,
-		screenH:        600,
-		camera:         true,
-		viewProjection: sceneCameraMatrix(800, 600, 10.5, 20.5, 5),
-	}
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 5)
 	base := projection.Project(10.5, 20.5, 5)
 	higher := projection.Project(10.5, 20.5, 15)
 	if higher.y >= base.y {
@@ -148,12 +112,7 @@ func TestBillboardBasisStaysScreenAlignedOffCenter(t *testing.T) {
 }
 
 func TestCameraDepthOrdersFarBeforeNear(t *testing.T) {
-	projection := sceneProjection{
-		screenW:        800,
-		screenH:        600,
-		camera:         true,
-		viewProjection: sceneCameraMatrix(800, 600, 10.5, 20.5, 5),
-	}
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 5)
 	near := projection.Depth(10.5, 20.5, 5)
 	far := projection.Depth(10.5, 30.5, 5)
 	if far <= near {

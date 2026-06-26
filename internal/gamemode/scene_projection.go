@@ -9,23 +9,12 @@ import (
 	worldstate "github.com/kivutar/goro/internal/world"
 )
 
-const (
-	sceneTileW = 32.0
-	sceneTileH = 16.0
-)
-
 type sceneProjection struct {
 	playerX        float64
 	playerY        float64
 	playerZ        float64
-	centerX        float64
-	centerY        float64
 	screenW        float64
 	screenH        float64
-	tileW          float64
-	tileH          float64
-	heightScale    float64
-	camera         bool
 	cameraYaw      float64
 	cameraZoom     float64
 	viewProjection mat4
@@ -49,34 +38,20 @@ func newSceneProjectionForTargetYaw(width, height int, targetX, targetY, targetZ
 
 func newSceneProjectionForTargetYawZoom(width, height int, targetX, targetY, targetZ, yaw, zoom float64) sceneProjection {
 	projection := sceneProjection{
-		playerX:     targetX,
-		playerY:     targetY,
-		playerZ:     targetZ,
-		centerX:     float64(width) * 0.5,
-		centerY:     float64(height) * 0.5,
-		screenW:     float64(width),
-		screenH:     float64(height),
-		tileW:       sceneTileW,
-		tileH:       sceneTileH,
-		heightScale: sceneHeightScale(),
-		cameraYaw:   yaw,
-		cameraZoom:  normalizeSceneCameraZoom(zoom),
+		playerX:    targetX,
+		playerY:    targetY,
+		playerZ:    targetZ,
+		screenW:    float64(width),
+		screenH:    float64(height),
+		cameraYaw:  yaw,
+		cameraZoom: normalizeSceneCameraZoom(zoom),
 	}
-	projection.camera = true
 	projection.viewProjection = sceneCameraMatrixWithYawZoom(float64(width), float64(height), targetX, targetY, targetZ, yaw, projection.cameraZoom)
 	return projection
 }
 
 func (p sceneProjection) Project(x, y, z float64) screenPoint {
-	if p.camera {
-		return p.projectCamera(x, y, z)
-	}
-	rx := x - p.playerX
-	ry := y - p.playerY
-	return screenPoint{
-		x: float32(p.centerX + (rx-ry)*p.tileW*0.5),
-		y: float32(p.centerY + (rx+ry)*p.tileH*0.5 - z*p.heightScale),
-	}
+	return p.projectCamera(x, y, z)
 }
 
 func (p sceneProjection) RenderCamera() render.Camera3D {
@@ -84,10 +59,7 @@ func (p sceneProjection) RenderCamera() render.Camera3D {
 }
 
 func (p sceneProjection) RenderCameraWithFog(fog sceneFog) render.Camera3D {
-	camera := render.Camera3D{Enabled: p.camera}
-	if !p.camera {
-		return camera
-	}
+	camera := render.Camera3D{Enabled: true}
 	for i, value := range p.viewProjection {
 		camera.ViewProjection[i] = float32(value)
 	}
@@ -106,7 +78,7 @@ func (p sceneProjection) RenderCameraWithFog(fog sceneFog) render.Camera3D {
 }
 
 func (p sceneProjection) BillboardBasis(x, y, z float64) (modelPoint3, modelPoint3, float64, bool) {
-	if !p.camera || p.screenH <= 0 {
+	if p.screenH <= 0 {
 		return modelPoint3{}, modelPoint3{}, 0, false
 	}
 	distance := normalizeSceneCameraZoom(p.cameraZoom) * 0.5
@@ -139,32 +111,23 @@ func (p sceneProjection) BillboardBasis(x, y, z float64) (modelPoint3, modelPoin
 }
 
 func (p sceneProjection) Depth(x, y, z float64) float64 {
-	if p.camera {
-		_, _, _, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
-		if clipW <= 0 || !isFinite(clipW) {
-			return math.Inf(-1)
-		}
-		return clipW
+	_, _, _, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
+	if clipW <= 0 || !isFinite(clipW) {
+		return math.Inf(-1)
 	}
-	return -(x + y)
+	return clipW
 }
 
 func (p sceneProjection) FogDepth(x, y, z float64) float64 {
-	if p.camera {
-		_, _, clipZ, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
-		if clipW <= 0 || !finite4(clipZ, clipW, 0, 1) {
-			return math.Inf(-1)
-		}
-		windowZ := (clipZ/clipW + 1) * 0.5
-		return windowZ * clipW
+	_, _, clipZ, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
+	if clipW <= 0 || !finite4(clipZ, clipW, 0, 1) {
+		return math.Inf(-1)
 	}
-	return p.Depth(x, y, z)
+	windowZ := (clipZ/clipW + 1) * 0.5
+	return windowZ * clipW
 }
 
 func (p sceneProjection) VisibleForTriangle(x, y, z float64) bool {
-	if !p.camera {
-		return true
-	}
 	clipX, clipY, clipZ, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
 	if clipW <= 1 || !finite4(clipX, clipY, clipZ, clipW) {
 		return false
@@ -261,21 +224,6 @@ func finite4(a, b, c, d float64) bool {
 
 func isFinite(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
-}
-
-func sceneHeightScale() float64 {
-	raw := os.Getenv("GORO_SCENE_HEIGHT_SCALE")
-	if raw == "" {
-		raw = os.Getenv("GORO_RSM_HEIGHT_SCALE")
-	}
-	if raw == "" {
-		return 2.8
-	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil || value <= 0 {
-		return 2.8
-	}
-	return value
 }
 
 func sceneCameraPitch() float64 {
