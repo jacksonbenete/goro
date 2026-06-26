@@ -68,6 +68,7 @@ type WorldMode struct {
 	console          chatConsole
 	npcDialog        npcDialogState
 	escapeMenu       escapeMenuState
+	basicMenu        basicMenuState
 	mapFade          mapFadeState
 }
 
@@ -499,6 +500,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.escapeMenu.update(ctx) {
+		return nil, nil
+	}
+	if m.basicMenu.update(ctx) {
 		return nil, nil
 	}
 	m.updateCameraZoom(ctx)
@@ -1733,6 +1737,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	drawCharacterWindow(screen, ctx)
+	m.basicMenu.draw(screen, ctx)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)
