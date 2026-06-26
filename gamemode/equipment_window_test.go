@@ -1,0 +1,39 @@
+package gamemode
+
+import (
+	"testing"
+
+	"github.com/kivutar/goro/session"
+)
+
+func TestEquippedItemForSlotUsesEquippedWearLocation(t *testing.T) {
+	s := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 1, ItemID: 1201, Location: equipLocationWeapon, Equip: true},
+				{Index: 2, ItemID: 2101, Location: equipLocationShield, Equip: true, Equipped: true},
+			},
+		},
+	}
+
+	item, ok := equippedItemForSlot(s, equipLocationShield)
+	if !ok {
+		t.Fatal("expected shield slot item")
+	}
+	if item.Index != 2 || item.ItemID != 2101 {
+		t.Fatalf("slot item = %+v, want equipped shield", item)
+	}
+	if _, ok := equippedItemForSlot(s, equipLocationWeapon); ok {
+		t.Fatal("unequipped weapon should not be shown in equipment slot")
+	}
+}
+
+func TestEquipmentSlotByLocationFindsFirstMatchingSlot(t *testing.T) {
+	slot, ok := equipmentSlotByLocation(equipLocationWeapon | equipLocationShield)
+	if !ok {
+		t.Fatal("expected slot")
+	}
+	if slot.location != equipLocationWeapon {
+		t.Fatalf("slot location = 0x%04X, want weapon first", slot.location)
+	}
+}

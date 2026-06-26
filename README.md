@@ -11,7 +11,7 @@ no-op audio stub on this path.
 ## Run
 
 ```sh
-CGO_ENABLED=0 GOGPU_GRAPHICS_API=vulkan go run ./cmd/goro
+CGO_ENABLED=0 GOGPU_GRAPHICS_API=vulkan go run .
 ```
 
 For the local OldRO + rAthena test setup:

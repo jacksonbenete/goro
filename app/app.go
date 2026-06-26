@@ -1,0 +1,117 @@
+package app
+
+import (
+	"fmt"
+	"time"
+
+	gameaudio "github.com/kivutar/goro/audio"
+	"github.com/kivutar/goro/core"
+	"github.com/kivutar/goro/gamemode"
+	"github.com/kivutar/goro/input"
+	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/res"
+	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/world"
+)
+
+type Game struct {
+	cfg      core.Config
+	input    *input.State
+	resource *res.Manager
+	session  *session.Session
+	world    *world.World
+	network  *network.Client
+	audio    *gameaudio.BGM
+	modes    *gamemode.Manager
+	started  time.Time
+	screenW  int
+	screenH  int
+	quit     func()
+	quitting bool
+}
+
+func New(cfg core.Config) (*Game, error) {
+	resource, err := res.NewManager(cfg.DataDir)
+	if err != nil {
+		return nil, fmt.Errorf("resource manager: %w", err)
+	}
+
+	g := &Game{
+		cfg:      cfg,
+		input:    input.NewState(),
+		resource: resource,
+		session:  session.New(),
+		world:    world.New(),
+		network:  network.NewClient(cfg.Packet.ClientDate),
+		audio:    gameaudio.NewBGM(resource, cfg.Audio.BGM, cfg.Audio.BGMVolume),
+		started:  time.Now(),
+		screenW:  cfg.Window.Width,
+		screenH:  cfg.Window.Height,
+	}
+
+	ctx := g.modeContext()
+	g.modes = gamemode.NewManager(ctx, gamemode.NewBootMode())
+	return g, nil
+}
+
+func (g *Game) Update() error {
+	defer g.input.EndFrame()
+	g.network.Pump()
+	g.modes.UpdateContext(g.modeContext())
+	return g.modes.Update()
+}
+
+func (g *Game) Draw(screen *render.Image) {
+	g.modes.Draw(screen)
+}
+
+func (g *Game) Resize(width, height int) {
+	if width <= 0 || height <= 0 {
+		g.screenW = g.cfg.Window.Width
+		g.screenH = g.cfg.Window.Height
+		return
+	}
+	g.screenW = width
+	g.screenH = height
+}
+
+func (g *Game) InputState() *input.State {
+	return g.input
+}
+
+func (g *Game) SetQuitFunc(quit func()) {
+	g.quit = quit
+}
+
+func (g *Game) RequestQuit() {
+	if g.quitting {
+		return
+	}
+	g.quitting = true
+	if g.network != nil {
+		g.network.Close()
+	}
+	if g.audio != nil {
+		g.audio.Stop()
+	}
+	if g.quit != nil {
+		g.quit()
+	}
+}
+
+func (g *Game) modeContext() gamemode.Context {
+	return gamemode.Context{
+		Config:      g.cfg,
+		Input:       g.input,
+		Resources:   g.resource,
+		Session:     g.session,
+		World:       g.world,
+		Network:     g.network,
+		Audio:       g.audio,
+		Started:     g.started,
+		ScreenW:     g.screenW,
+		ScreenH:     g.screenH,
+		RequestQuit: g.RequestQuit,
+	}
+}
