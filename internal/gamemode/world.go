@@ -1427,6 +1427,9 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 		screen.SetCamera3D(projection.RenderCamera())
 	}
 	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
+	if world3DEnabled() {
+		fog = sceneFog{}
+	}
 
 	if ctx.World.GND != nil {
 		m.drawGND(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, fog)
