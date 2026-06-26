@@ -88,13 +88,15 @@ func (m *WorldMode) applyItemPickupAck(ctx Context, ack network.ItemPickupAck) {
 			Index:      ack.Index,
 			ItemID:     ack.ItemID,
 			Type:       ack.Type,
+			Location:   ack.Location,
 			Identified: ack.Identified,
 			Amount:     maxInt(1, int(ack.Amount)),
+			Equip:      inventoryItemTypeIsEquipment(ack.Type),
 			Damaged:    ack.Damaged,
 			Refine:     ack.Refine,
 		})
 		m.applyLocalPickupSuccess(ctx)
-		log.Printf("item pickup ack success index=%d item_id=%d amount=%d identified=%t", ack.Index, ack.ItemID, ack.Amount, ack.Identified)
+		log.Printf("item pickup ack success index=%d item_id=%d amount=%d type=%d location=0x%04X identified=%t", ack.Index, ack.ItemID, ack.Amount, ack.Type, ack.Location, ack.Identified)
 		return
 	}
 	m.status = fmt.Sprintf("pickup failed item %d result=%d", ack.ItemID, ack.Result)

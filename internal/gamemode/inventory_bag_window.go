@@ -279,7 +279,7 @@ func (w *inventoryBagWindowState) activateItem(ctx Context, item session.Invento
 		w.setStatus("Not connected", false)
 		return
 	}
-	if item.Equip {
+	if inventoryItemIsEquipment(item) {
 		if item.Equipped {
 			if err := ctx.Network.SendTakeoffEquip(item.Index); err != nil {
 				w.setStatus(err.Error(), false)
@@ -411,13 +411,26 @@ func (w *inventoryBagWindowState) drawScrollBar(screen *render.Image, total int)
 }
 
 func inventoryItemTab(item session.InventoryItem) int {
-	if item.Equip || item.Type == 4 || item.Type == 5 || item.Type == 8 || item.Type == 10 || item.Type == 12 {
+	if inventoryItemIsEquipment(item) {
 		return inventoryBagTabEquip
 	}
 	if inventoryItemIsUsable(item) {
 		return inventoryBagTabItem
 	}
 	return inventoryBagTabEtc
+}
+
+func inventoryItemIsEquipment(item session.InventoryItem) bool {
+	return item.Equip || inventoryItemTypeIsEquipment(item.Type)
+}
+
+func inventoryItemTypeIsEquipment(itemType uint8) bool {
+	switch itemType {
+	case 4, 5, 8, 10, 12:
+		return true
+	default:
+		return false
+	}
 }
 
 func inventoryItemIsUsable(item session.InventoryItem) bool {

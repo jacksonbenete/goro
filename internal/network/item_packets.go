@@ -67,6 +67,7 @@ type ItemPickupAck struct {
 	Index      uint16
 	Amount     uint16
 	ItemID     uint16
+	Location   uint16
 	Identified bool
 	Type       uint8
 	Damaged    bool
@@ -194,6 +195,7 @@ func ParseItemPickupAck(packet Packet) (ItemPickupAck, bool, error) {
 		Identified: packet.Data[8] != 0,
 		Damaged:    packet.Data[9] != 0,
 		Refine:     packet.Data[10],
+		Location:   binary.LittleEndian.Uint16(packet.Data[19:21]),
 		Type:       packet.Data[21],
 		Result:     packet.Data[22],
 	}, true, nil

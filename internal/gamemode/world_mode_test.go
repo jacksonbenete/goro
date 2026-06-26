@@ -1885,6 +1885,40 @@ func TestInventoryBagClassifiesTabs(t *testing.T) {
 	}
 }
 
+func TestSessionItemFromNetworkMarksEquipmentByType(t *testing.T) {
+	item := sessionItemFromNetwork(network.InventoryItem{
+		Index:      7,
+		ItemID:     1201,
+		Type:       5,
+		Location:   0x0002,
+		Identified: true,
+		Amount:     1,
+	})
+	if !item.Equip || inventoryItemTab(item) != inventoryBagTabEquip {
+		t.Fatalf("item = %+v, want equipment tab item", item)
+	}
+}
+
+func TestPickedEquipmentKeepsEquipMetadata(t *testing.T) {
+	sessionState := &session.Session{}
+	addPickedSessionInventoryItem(sessionState, session.InventoryItem{
+		Index:      11,
+		ItemID:     1201,
+		Type:       5,
+		Location:   0x0002,
+		Identified: true,
+		Amount:     1,
+		Equip:      inventoryItemTypeIsEquipment(5),
+	})
+	if len(sessionState.Inventory.Items) != 1 {
+		t.Fatalf("item count = %d, want 1", len(sessionState.Inventory.Items))
+	}
+	item := sessionState.Inventory.Items[0]
+	if !item.Equip || item.Location != 0x0002 || inventoryItemTab(item) != inventoryBagTabEquip {
+		t.Fatalf("picked item = %+v, want equipment metadata", item)
+	}
+}
+
 func TestApplyInventoryEquipAckUpdatesEquippedState(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{

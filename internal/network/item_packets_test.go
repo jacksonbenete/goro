@@ -75,6 +75,8 @@ func TestParseItemPickupAckLegacy(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[4:6], 3)
 	binary.LittleEndian.PutUint16(data[6:8], 938)
 	data[8] = 1
+	binary.LittleEndian.PutUint16(data[19:21], 0x0002)
+	data[21] = 5
 	data[22] = 0
 
 	ack, ok, err := ParseItemPickupAck(Packet{ID: 0x00A0, Data: data})
@@ -84,7 +86,7 @@ func TestParseItemPickupAckLegacy(t *testing.T) {
 	if !ok {
 		t.Fatal("not parsed")
 	}
-	if ack.Index != 12 || ack.Amount != 3 || ack.ItemID != 938 || !ack.Identified || ack.Result != 0 {
+	if ack.Index != 12 || ack.Amount != 3 || ack.ItemID != 938 || ack.Location != 0x0002 || ack.Type != 5 || !ack.Identified || ack.Result != 0 {
 		t.Fatalf("unexpected ack: %+v", ack)
 	}
 }

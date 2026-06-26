@@ -30,7 +30,7 @@ func sessionItemFromNetwork(item network.InventoryItem) session.InventoryItem {
 		Location:   item.Location,
 		Identified: item.Identified,
 		Amount:     amount,
-		Equip:      item.Equip,
+		Equip:      item.Equip || inventoryItemTypeIsEquipment(item.Type),
 		Equipped:   item.Equipped,
 		Damaged:    item.Damaged,
 		Refine:     item.Refine,
