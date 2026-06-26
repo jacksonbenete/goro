@@ -124,6 +124,10 @@ type gpuRenderer struct {
 	depthView       *wgpu.TextureView
 	depthWidth      int
 	depthHeight     int
+	worldVertexBuf  dynamicGPUBuffer
+	worldIndexBuf   dynamicGPUBuffer
+	screenVertexBuf dynamicGPUBuffer
+	screenIndexBuf  dynamicGPUBuffer
 	frameBuffers    []*wgpu.Buffer
 	frameBindGroups []*wgpu.BindGroup
 	statsEnabled    bool
@@ -135,6 +139,11 @@ type gpuTexture struct {
 	version uint64
 	width   int
 	height  int
+}
+
+type dynamicGPUBuffer struct {
+	buf      *wgpu.Buffer
+	capacity int
 }
 
 type samplerKey struct {
@@ -402,21 +411,21 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 	var worldVertexBuf, worldIndexBuf, vertexBuf, indexBuf *wgpu.Buffer
 	var err error
 	if len(world.floats) > 0 && len(world.indices) > 0 {
-		worldVertexBuf, err = r.buffer("goro-world-vertices", len(world.floats)*4, wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst, floatBytes(world.floats))
+		worldVertexBuf, err = r.dynamicBuffer(&r.worldVertexBuf, "goro-world-vertices", len(world.floats)*4, wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst, floatBytes(world.floats))
 		if err != nil {
 			return err
 		}
-		worldIndexBuf, err = r.buffer("goro-world-indices", len(world.indices)*4, wgpu.BufferUsageIndex|wgpu.BufferUsageCopyDst, u32Bytes(world.indices))
+		worldIndexBuf, err = r.dynamicBuffer(&r.worldIndexBuf, "goro-world-indices", len(world.indices)*4, wgpu.BufferUsageIndex|wgpu.BufferUsageCopyDst, u32Bytes(world.indices))
 		if err != nil {
 			return err
 		}
 	}
 	if len(frame.floats) > 0 && len(frame.indices) > 0 {
-		vertexBuf, err = r.buffer("goro-screen-vertices", len(frame.floats)*4, wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst, floatBytes(frame.floats))
+		vertexBuf, err = r.dynamicBuffer(&r.screenVertexBuf, "goro-screen-vertices", len(frame.floats)*4, wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst, floatBytes(frame.floats))
 		if err != nil {
 			return err
 		}
-		indexBuf, err = r.buffer("goro-screen-indices", len(frame.indices)*4, wgpu.BufferUsageIndex|wgpu.BufferUsageCopyDst, u32Bytes(frame.indices))
+		indexBuf, err = r.dynamicBuffer(&r.screenIndexBuf, "goro-screen-indices", len(frame.indices)*4, wgpu.BufferUsageIndex|wgpu.BufferUsageCopyDst, u32Bytes(frame.indices))
 		if err != nil {
 			return err
 		}
@@ -706,6 +715,43 @@ func (r *gpuRenderer) buffer(label string, size int, usage wgpu.BufferUsage, dat
 	return buf, nil
 }
 
+func (r *gpuRenderer) dynamicBuffer(slot *dynamicGPUBuffer, label string, size int, usage wgpu.BufferUsage, data []byte) (*wgpu.Buffer, error) {
+	if size <= 0 {
+		size = 4
+	}
+	if slot.buf == nil || slot.capacity < size {
+		if slot.buf != nil {
+			slot.buf.Release()
+			slot.buf = nil
+		}
+		capacity := nextBufferCapacity(size)
+		buf, err := r.dev.CreateBuffer(&wgpu.BufferDescriptor{
+			Label: label,
+			Size:  uint64(capacity),
+			Usage: usage,
+		})
+		if err != nil {
+			return nil, err
+		}
+		slot.buf = buf
+		slot.capacity = capacity
+	}
+	if len(data) > 0 {
+		if err := r.queue.WriteBuffer(slot.buf, 0, data); err != nil {
+			return nil, err
+		}
+	}
+	return slot.buf, nil
+}
+
+func nextBufferCapacity(size int) int {
+	capacity := 4096
+	for capacity < size {
+		capacity *= 2
+	}
+	return capacity
+}
+
 func (r *gpuRenderer) pipeline(blend Blend) *wgpu.RenderPipeline {
 	if blend == BlendLighter {
 		return r.pipelineAdd
@@ -790,6 +836,16 @@ func (r *gpuRenderer) release() {
 	for _, sampler := range r.samplers {
 		if sampler != nil {
 			sampler.Release()
+		}
+	}
+	for _, buf := range []*wgpu.Buffer{
+		r.worldVertexBuf.buf,
+		r.worldIndexBuf.buf,
+		r.screenVertexBuf.buf,
+		r.screenIndexBuf.buf,
+	} {
+		if buf != nil {
+			buf.Release()
 		}
 	}
 	for _, res := range []interface{ Release() }{
