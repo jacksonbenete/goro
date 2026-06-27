@@ -253,7 +253,11 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 		}, sfx, true
 	case "3D":
 		file := fieldString(fields, "file")
-		if file == "" {
+		spriteFile := fieldString(fields, "absoluteSpriteName")
+		if spriteFile == "" {
+			spriteFile = fieldString(fields, "spriteName")
+		}
+		if file == "" && spriteFile == "" {
 			return worldEffectComponent{}, sfx, false
 		}
 		sizeStart, sizeEnd := effectSizeFields(fields)
@@ -261,6 +265,9 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			kind:            effectPrimitive3D,
 			color:           effectColorFields(fields),
 			textureFile:     file,
+			spriteFile:      spriteFile,
+			spriteRepeat:    fieldBool(fields, "playSprite"),
+			spriteDelay:     fieldDuration(fields, "sprDelay"),
 			duration:        fieldDuration(fields, "duration"),
 			delay:           fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
 			duplicateDelay:  fieldDuration(fields, "timeBetweenDupli"),
@@ -270,7 +277,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			fadeOut:         fieldBool(fields, "fadeOut"),
 			posX:            fieldFloat(fields, "posx"),
 			posY:            fieldFloat(fields, "posy"),
-			posZ:            fieldFloat(fields, "posz") + fieldFloat(fields, "poszStart"),
+			posZ:            fieldFloat(fields, "posz") + fieldFloat(fields, "poszStart") + fieldFloat(fields, "zOffset") + fieldFloat(fields, "zOffsetStart"),
 			posXEnd:         fieldFloat(fields, "posxEnd"),
 			posYEnd:         fieldFloat(fields, "posyEnd"),
 			posZEnd:         fieldFloat(fields, "poszEnd"),

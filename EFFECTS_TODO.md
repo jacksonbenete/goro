@@ -22,15 +22,17 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_HIT2` `1`: Bash hit / simple hit burst.
 - [x] `EF_COIN` `10`: Mammonite STR effect.
 - [x] `EF_ENDURE` `11`: Endure billboard effect.
-- [x] `EF_SOULSTRIKE` `15`: Soul Strike file-backed 3D particle layer and SFX;
-  sprite projectile visual still pending.
+- [x] `EF_SOULSTRIKE` `15`: Soul Strike file-backed 3D particle layer,
+  sprite-backed 3D projectile layer, and SFX; projectile trajectory is still
+  approximate.
 - [x] `EF_BASH` `16`: Bash start cylinder effect.
 - [x] `EF_MAGNUMBREAK` `17`: Magnum Break cylinder effect and camera shake.
 - [x] `EF_STEAL` `18`: Steal file-backed 3D particles and SFX.
 - [x] `EF_PATTACK` `20`: Envenom file-backed 3D particles and SFX.
 - [x] `EF_DETOXICATION` `21`: Detoxify file-backed 3D particles and SFX.
 - [x] `EF_STONECURSE` `23`: Stone Curse STR effect.
-- [x] `EF_FIREBALL` `24`: Fire Ball declared SFX; projectile visual still pending.
+- [x] `EF_FIREBALL` `24`: Fire Ball sprite-backed 3D caster projectile and SFX;
+  projectile trajectory is still approximate.
 - [x] `EF_FIREWALL` `25`: Fire Wall STR effect.
 - [x] `EF_FROSTDIVER2` `28`: Frost Diver hit STR effect.
 - [x] `EF_LIGHTBOLT` `29`: Lightning Bolt STR effect.
@@ -40,8 +42,8 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_AQUA` `39`: Aqua Benedicta SPR attachment and SFX.
 - [x] `EF_SIGNUM` `40`: Signum Crucis STR effect.
 - [x] `EF_ANGELUS` `41`: Angelus STR effect.
-- [x] `EF_BLESSING` `42`: Blessing SPR attachment, file-backed 3D glow, and SFX;
-  sprite-backed 3D particles still pending.
+- [x] `EF_BLESSING` `42`: Blessing SPR attachment, sprite-backed 3D particles,
+  file-backed 3D glow, and SFX.
 - [x] `EF_FIREHIT` `49`: Fire elemental hit STR effect.
 - [x] `EF_FIRESPLASHHIT` `50`: Fire splash 2D textured billboard effect.
 - [x] `EF_COLDHIT` `51`: Cold elemental hit declared SFX; 2D visual still pending.
@@ -202,9 +204,12 @@ Goal: make the generic table useful before adding many effects.
   color tint, size interpolation/randomization, duplicate timing, delays, and
   randomized start/end offsets.
 - [x] Add basic SPR/ACT effect components for roBrowser `SPR` attachments.
-- [ ] Add sprite-backed 3D effect components, because many RO effects use
+- [x] Add basic sprite-backed 3D effect components, because many RO effects use
   `spriteName`/`absoluteSpriteName` inside `3D` entries rather than texture
   `file` entries.
+- [ ] Add sprite-backed 3D projectile trajectory fields: `toSrc`, `toTarget`,
+  `rotateToTarget`, `rotateWithCamera`, `arc`, `retreat`, and target/source
+  interpolation.
 - [ ] Implement roBrowser `wav` behavior exactly: play only declared `wav`
   entries, support delay/randomization, and do not infer sound names from STRs.
 - [ ] Add persistent/attached lifecycle handling: effect follows actor while
@@ -242,9 +247,9 @@ Goal: make early gameplay feel correct before broad class sweeps.
 - [x] Merchant first-job routing for supported client effects: Mammonite.
 - [ ] Missing first-job visuals blocked by renderer primitives: Sight state loop,
   Safety Wall and Pneuma ground units, Fire Wall ground unit, Hiding state loop,
-  Blessing/Increase/Decrease Agi remaining sprite-backed or mixed particles,
-  Mage projectile/before-hit effects, Archer projectile effects, and cold-hit
-  2D shard visuals.
+  Increase/Decrease Agi remaining sprite-backed or mixed particles, accurate
+  Mage projectile/before-hit trajectories, Archer projectile trajectories, and
+  cold-hit 2D shard visuals.
 
 ### 5. Ground Skill Units
 

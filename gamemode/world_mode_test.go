@@ -967,6 +967,7 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		effectPoisonAttack,
 		effectDetoxication,
 		effectStoneCurse,
+		effectFireBall,
 		effectFireWall,
 		effectFrostDiverHit,
 		effectLightningBolt,

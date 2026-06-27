@@ -742,8 +742,7 @@ func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection s
 }
 
 func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
-	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
-	if texture == nil {
+	if component.textureFile == "" && component.spriteFile == "" {
 		return
 	}
 	duplicates := maxInt(component.duplicate, 1)
@@ -767,8 +766,56 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 		if size <= 0 {
 			continue
 		}
-		drawTexturedEffectBillboard(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, effectComponentTint(component, alpha))
+		if component.textureFile != "" {
+			texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+			if texture == nil {
+				continue
+			}
+			drawTexturedEffectBillboard(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, effectComponentTint(component, alpha))
+			continue
+		}
+		m.draw3DSpriteEffect(screen, ctx, projection, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, starts, now)
 	}
+}
+
+func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
+	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
+	if view == nil || len(view.act.Actions) == 0 {
+		return
+	}
+	actionIndex := 0
+	action := view.act.Actions[actionIndex]
+	if len(action.Animations) == 0 {
+		return
+	}
+	delayMS := float64(action.DelayMS)
+	if component.spriteDelay > 0 {
+		delayMS = float64(component.spriteDelay / time.Millisecond)
+	}
+	motion := 0
+	if component.spriteRepeat {
+		motion = spriteMotionIndexWithDelay(action, starts, now, true, delayMS)
+	} else {
+		motion = spriteMotionIndexWithDelay(action, starts, now, false, delayMS)
+	}
+	if motion < 0 || motion >= len(action.Animations) {
+		return
+	}
+	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion}
+	billboard, ok := view.billboards[key]
+	if !ok {
+		var baseOK bool
+		billboard, baseOK = composeSingleSpriteBillboard(view, action.Animations[motion])
+		if !baseOK {
+			return
+		}
+		view.billboards[key] = billboard
+	}
+	scale := size / (100 * roBrowserEffectPixelRatio)
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, 1, effectComponentTint(component, 1))
 }
 
 func (m *WorldMode) drawSPREffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, now time.Time) {

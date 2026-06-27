@@ -228,6 +228,50 @@ export default {
 	}
 }
 
+func TestParseRobrowserEffectTableSubsetParsesSpriteBacked3D(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	15: [
+		{
+			type: '3D',
+			duration: 250,
+			duplicate: 5,
+			timeBetweenDupli: 20,
+			absoluteSpriteName: 'data/sprite/\xc0\xcc\xc6\xd1\xc6\xae/particle1',
+			playSprite: true,
+			sizeStart: 100,
+			sizeEnd: 500,
+			zOffsetStart: 3
+		}
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, ok := specs[15]
+	if !ok {
+		t.Fatal("effect 15 was not parsed")
+	}
+	if spec.duration != 330*time.Millisecond {
+		t.Fatalf("effect 15 duration = %s, want 330ms", spec.duration)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("effect 15 component count = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	wantSprite := fieldString(map[string]string{"sprite": `'data/sprite/\xc0\xcc\xc6\xd1\xc6\xae/particle1'`}, "sprite")
+	if component.kind != effectPrimitive3D || component.spriteFile != wantSprite {
+		t.Fatalf("effect 15 sprite component = %#v", component)
+	}
+	if !component.spriteRepeat || component.duration != 250*time.Millisecond || component.duplicate != 5 || component.duplicateDelay != 20*time.Millisecond {
+		t.Fatalf("effect 15 timing = %#v", component)
+	}
+	if component.posZ != 3 || component.sizeStart != 100*roBrowserEffectPixelRatio || component.sizeEnd != roBrowserEffectSize(500) {
+		t.Fatalf("effect 15 transform = %#v", component)
+	}
+}
+
 func TestParseRobrowserEffectTableSubsetParsesSPR(t *testing.T) {
 	specs, err := parseRobrowserEffectTableSubset(`
 export default {
