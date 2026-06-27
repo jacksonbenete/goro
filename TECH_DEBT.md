@@ -48,6 +48,8 @@ not become invisible project assumptions.
   - Improved: render commands now keep compact `uint16` indices until final GPU
     batching, and RSM node matrices are cached per loaded model instead of being
     rebuilt every frame.
+  - Improved: RSM model bounds are cached per loaded model/root combination
+    instead of recalculated each frame for visible placements.
   - Improved: hot geometry builders can now transfer owned vertex/index slices
     into render commands, avoiding a second copy for RSM batches, lightmapped GND
     patches, sprite billboards, and common quads.

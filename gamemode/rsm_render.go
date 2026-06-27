@@ -47,6 +47,11 @@ type rsmBounds struct {
 	nodes map[string]modelBounds
 }
 
+type rsmBoundsCacheKey struct {
+	rsm  *res.RSM
+	root string
+}
+
 type mat4 [16]float64
 
 func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) {
@@ -115,17 +120,15 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 	})
 
 	var triangles []modelTriangle
-	type boundsCacheKey struct {
-		rsm  *res.RSM
-		root string
-	}
-	boundsCache := make(map[boundsCacheKey]rsmBounds)
 	lighting := sceneLightingFromRSW(rsw)
 	if m.rsmWorldCache == nil {
 		m.rsmWorldCache = make(map[int][]modelWorldTriangle)
 	}
 	if m.rsmNodeMatrices == nil {
 		m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
+	}
+	if m.rsmBoundsCache == nil {
+		m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
 	}
 	for _, visiblePlacement := range visible {
 		placement := visiblePlacement.model
@@ -148,11 +151,11 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 
 		rootName := selectedRSMRootName(rsm, placement.NodeName)
 		nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
-		boundsKey := boundsCacheKey{rsm: rsm, root: rootName}
-		bounds, ok := boundsCache[boundsKey]
+		boundsKey := rsmBoundsCacheKey{rsm: rsm, root: rootName}
+		bounds, ok := m.rsmBoundsCache[boundsKey]
 		if !ok {
 			bounds = calculateRSMBoundsForNodes(rsm, nodeIndices)
-			boundsCache[boundsKey] = bounds
+			m.rsmBoundsCache[boundsKey] = bounds
 		}
 		instance := modelInstance{
 			placement: placement,
