@@ -51,6 +51,8 @@ not become invisible project assumptions.
   - Improved: hot geometry builders can now transfer owned vertex/index slices
     into render commands, avoiding a second copy for RSM batches, lightmapped GND
     patches, sprite billboards, and common quads.
+  - Improved: GPU frame assembly now pre-sizes its transient command maps,
+    vertex buffers, index buffers, and batch lists from queued draw commands.
   - Better fix: move more work into normal GPU pipelines with stable vertex/index
     buffers, shader-side fog/lighting, and fewer per-frame allocations.
 

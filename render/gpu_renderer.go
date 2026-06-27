@@ -551,9 +551,10 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 }
 
 func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
-	var pending []pendingWorldBatch
-	batchByKey := make(map[drawBatchKey]int)
-	var alpha []WorldCommand
+	commandCount, vertexCount, indexCount := worldFrameCounts(screen.worldCommands)
+	pending := make([]pendingWorldBatch, 0, commandCount)
+	batchByKey := make(map[drawBatchKey]int, commandCount)
+	alpha := make([]WorldCommand, 0, commandCount)
 	for _, cmd := range screen.worldCommands {
 		if cmd.Texture == nil || cmd.Texture.pix == nil {
 			continue
@@ -588,7 +589,11 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			batch.indices = append(batch.indices, base+uint32(idx))
 		}
 	}
-	var frame worldFrame
+	frame := worldFrame{
+		floats:  make([]float32, 0, vertexCount*13),
+		indices: make([]uint32, 0, indexCount),
+		batches: make([]drawBatch, 0, commandCount),
+	}
 	for _, batch := range pending {
 		if len(batch.indices) == 0 || len(batch.floats) == 0 {
 			continue
@@ -632,6 +637,22 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		}
 	}
 	return frame
+}
+
+func worldFrameCounts(commands []WorldCommand) (commandsOut, vertices, indices int) {
+	for _, cmd := range commands {
+		if cmd.Texture == nil || cmd.Texture.pix == nil {
+			continue
+		}
+		w, h := cmd.Texture.Bounds().Dx(), cmd.Texture.Bounds().Dy()
+		if w <= 0 || h <= 0 {
+			continue
+		}
+		commandsOut++
+		vertices += len(cmd.Vertices)
+		indices += len(cmd.Indices)
+	}
+	return commandsOut, vertices, indices
 }
 
 func (r *gpuRenderer) logWorldDebug(screen *Image) {
@@ -698,7 +719,12 @@ func maxFloat32(a, b float32) float32 {
 }
 
 func (r *gpuRenderer) buildFrame(screen *Image) drawFrame {
-	var frame drawFrame
+	commandCount, vertexCount, indexCount := frameCounts(screen.commands)
+	frame := drawFrame{
+		floats:  make([]float32, 0, vertexCount*8),
+		indices: make([]uint32, 0, indexCount),
+		batches: make([]drawBatch, 0, commandCount),
+	}
 	var current *drawBatch
 	for _, cmd := range screen.commands {
 		if cmd.Texture == nil || cmd.Texture.pix == nil {
@@ -727,6 +753,22 @@ func (r *gpuRenderer) buildFrame(screen *Image) drawFrame {
 		}
 	}
 	return frame
+}
+
+func frameCounts(commands []DrawCommand) (commandsOut, vertices, indices int) {
+	for _, cmd := range commands {
+		if cmd.Texture == nil || cmd.Texture.pix == nil {
+			continue
+		}
+		w, h := cmd.Texture.Bounds().Dx(), cmd.Texture.Bounds().Dy()
+		if w <= 0 || h <= 0 {
+			continue
+		}
+		commandsOut++
+		vertices += len(cmd.Vertices)
+		indices += len(cmd.Indices)
+	}
+	return commandsOut, vertices, indices
 }
 
 func (r *gpuRenderer) ensureTexture(ctx *gogpu.Context, img *Image, opts DrawTrianglesOptions) (*gpuTexture, error) {
