@@ -67,6 +67,7 @@ type WorldMode struct {
 	console          chatConsole
 	npcDialog        npcDialogState
 	escapeMenu       escapeMenuState
+	deathModal       deathModalState
 	basicMenu        basicMenuState
 	inventoryWindow  inventoryWindowState
 	inventoryBag     inventoryBagWindowState
@@ -371,6 +372,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			applyActorNameAck(ctx, ack)
 			continue
 		}
+		if ack, ok, err := network.ParseRestartAck(pkt); err != nil {
+			log.Printf("parse restart ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.deathModal.applyRestartAck(ack)
+			continue
+		}
 		if dialog, ok, err := network.ParseNPCDialog(pkt); err != nil {
 			log.Printf("parse npc dialog 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -554,6 +561,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse parameter change 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyParameterChange(ctx, change)
+			if change.VarID == network.StatusHP {
+				m.deathModal.clearIfAlive(ctx)
+			}
 			continue
 		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
@@ -590,8 +600,11 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.mapFade.phase == mapFadeHold {
 		return nil, nil
 	}
-	if !m.escapeMenu.open {
+	if !m.escapeMenu.open && !m.deathModal.open {
 		m.updateCameraRotation(ctx)
+	}
+	if m.deathModal.update(ctx) {
+		return nil, nil
 	}
 	if m.npcDialog.update(ctx) {
 		return nil, nil
@@ -690,6 +703,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
+	m.deathModal.reset()
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
 	log.Printf("map change current=%s target=%s x=%d y=%d server_move=%t addr=%s port=%d reuse_loaded=%t", currentMap, change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port, reuseLoadedMap)
@@ -1887,6 +1901,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)
 	m.escapeMenu.draw(screen, ctx, width, height)
+	m.deathModal.draw(screen, ctx, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
 	m.drawMapFade(screen, now)
 }
@@ -2168,6 +2183,7 @@ func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
 	actor.WalkDistance = 0
 	if local {
 		ctx.World.Player.Moving = false
+		m.deathModal.openDeath()
 	} else {
 		ctx.World.UpsertActor(actor)
 	}

@@ -111,6 +111,17 @@ func (c *Client) SendLoadEndAck() error {
 	return c.Send(BuildLoadEndAckPacket())
 }
 
+func (c *Client) SendRestart(restartType uint8) error {
+	packet := BuildRestartPacket(restartType)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_RESTART opcode=0x%04X type=%d client_date=%d", ID(packet), restartType, c.clientDate)
+	} else {
+		log.Printf("send CZ_RESTART failed opcode=0x%04X len=%d type=%d client_date=%d: %v", ID(packet), len(packet), restartType, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendTick(clientTick uint32) error {
 	packet := BuildTickSendPacketForClientDate(clientTick, c.clientDate)
 	err := c.Send(packet)

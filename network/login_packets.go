@@ -17,6 +17,7 @@ const (
 	PacketCZReqNameRE      uint16 = 0x0368
 	PacketCZWalkToXY       uint16 = 0x00A7
 	PacketCZWalkToXYRE     uint16 = 0x035F
+	PacketCZRestart        uint16 = 0x00B2
 	PacketCZRequestAct     uint16 = 0x0190
 	PacketCZRequestAct2    uint16 = 0x0437
 	PacketCZRequestAct2012 uint16 = 0x0369
@@ -40,6 +41,11 @@ var nameRequestPacketLayouts = []nameRequestPacketLayout{
 
 const (
 	ActionAttack uint8 = 7
+)
+
+const (
+	RestartTypeRespawn    uint8 = 0
+	RestartTypeCharSelect uint8 = 1
 )
 
 type AccountLogin struct {
@@ -87,6 +93,13 @@ func BuildSelectCharacterPacket(slot uint8) []byte {
 func BuildLoadEndAckPacket() []byte {
 	var w Writer
 	w.Uint16(PacketCZLoadEndAck)
+	return w.Bytes()
+}
+
+func BuildRestartPacket(restartType uint8) []byte {
+	var w Writer
+	w.Uint16(PacketCZRestart)
+	w.Uint8(restartType)
 	return w.Bytes()
 }
 

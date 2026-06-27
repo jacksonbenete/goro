@@ -59,6 +59,24 @@ func TestBuildLoadEndAckPacket(t *testing.T) {
 	}
 }
 
+func TestBuildRestartPacket(t *testing.T) {
+	packet := BuildRestartPacket(RestartTypeRespawn)
+	want := []byte{0xB2, 0x00, RestartTypeRespawn}
+	if len(packet) != len(want) {
+		t.Fatalf("len = %d", len(packet))
+	}
+	for i := range want {
+		if packet[i] != want[i] {
+			t.Fatalf("packet = % x, want % x", packet, want)
+		}
+	}
+
+	packet = BuildRestartPacket(RestartTypeCharSelect)
+	if len(packet) != 3 || packet[2] != RestartTypeCharSelect {
+		t.Fatalf("unexpected char-select packet: % x", packet)
+	}
+}
+
 func TestBuildMapServerEnterPacket(t *testing.T) {
 	packet := BuildMapServerEnterPacket(MapServerEnter{
 		AccountID:  0x11223344,

@@ -82,6 +82,9 @@ func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time
 
 func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection, now time.Time) int {
 	mouseX, mouseY := ctx.Input.MouseX, ctx.Input.MouseY
+	if action, ok := m.deathModal.cursorAction(ctx); ok {
+		return action
+	}
 	if ctx.Input.MousePressed(render.MouseButtonRight) {
 		return cursorActionRotate
 	}
