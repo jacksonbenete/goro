@@ -42,3 +42,14 @@ func TestFogParameterParsesTable(t *testing.T) {
 		t.Fatalf("unexpected izlude fog color: %#v", parameter.Color)
 	}
 }
+
+func TestPayonDungeonFogRealWhenConfigured(t *testing.T) {
+	manager := realDataManager(t)
+	for _, mapName := range []string{"pay_dun00.rsw", "pay_dun01.rsw", "pay_dun02.rsw", "pay_dun03.rsw"} {
+		parameter, ok := manager.FogParameter(mapName)
+		if !ok {
+			t.Fatalf("%s fog missing", mapName)
+		}
+		t.Logf("%s fog near=%.3f far=%.3f color=%02x%02x%02x factor=%.3f", mapName, parameter.Near, parameter.Far, parameter.Color.R, parameter.Color.G, parameter.Color.B, parameter.Factor)
+	}
+}

@@ -1,6 +1,9 @@
 package res
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNonPCSpriteResourceCandidatesNPC(t *testing.T) {
 	got := NonPCSpriteResourceCandidates(47, "1_M_01", "act")
@@ -49,7 +52,7 @@ func TestFallbackJobResourceName(t *testing.T) {
 
 func TestNonPCSpriteResourceRealWhenConfigured(t *testing.T) {
 	manager := realDataManager(t)
-	cases := []int{47, 1002}
+	cases := []int{47, 1002, 1015}
 	for _, job := range cases {
 		name, ok := manager.JobResourceName(job)
 		if !ok {
@@ -66,4 +69,23 @@ func TestNonPCSpriteResourceRealWhenConfigured(t *testing.T) {
 			t.Logf("job %d spr=%s", job, source)
 		}
 	}
+}
+
+func TestZombieSpriteResourceRealWhenConfigured(t *testing.T) {
+	manager := realDataManager(t)
+	name, ok := manager.JobResourceName(1015)
+	if !ok {
+		t.Fatal("zombie resource name missing")
+	}
+	if name != "Zombie" && name != "zombie" {
+		t.Fatalf("zombie resource name = %q", name)
+	}
+	source, _, ok := manager.ReadFirst(NonPCSpriteResourceCandidates(1015, name, "spr"))
+	if !ok {
+		t.Fatalf("zombie spr not found for %q", name)
+	}
+	if strings.Contains(strings.ToLower(source), "orc_zombie") {
+		t.Fatalf("zombie sprite resolved to orc zombie: %s", source)
+	}
+	t.Logf("zombie spr=%s", source)
 }

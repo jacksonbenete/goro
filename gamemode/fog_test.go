@@ -66,3 +66,19 @@ func TestSceneFogVeilAlphaUsesCameraDepth(t *testing.T) {
 		t.Fatal("expected visible fog veil alpha")
 	}
 }
+
+func TestSceneFogVeilAlphaUsesMapFactorWhenStronger(t *testing.T) {
+	fog := sceneFog{
+		enabled: true,
+		near:    24,
+		far:     216,
+		color:   color.RGBA{R: 4, B: 154, A: 255},
+		factor:  0.3,
+	}
+	projection := sceneProjection{cameraZoom: 150}
+	base := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.22, VeilDepthScale: 1.2})
+	strong := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.3, VeilDepthScale: 1.2})
+	if base != strong {
+		t.Fatalf("veil alpha = %d, want map factor strength alpha %d", base, strong)
+	}
+}

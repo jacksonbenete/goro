@@ -52,6 +52,33 @@ func TestNormalizeGRFNamePreservesNonUTF8Bytes(t *testing.T) {
 	}
 }
 
+func TestGRFNamesWithSuffixRequiresPathBoundary(t *testing.T) {
+	grf := &GRF{
+		entries: map[string]GRFEntry{
+			normalizeGRFName(`data\sprite\monster\orc_zombie.spr`): {Name: `data\sprite\monster\orc_zombie.spr`},
+			normalizeGRFName(`data\sprite\monster\zombie.spr`):     {Name: `data\sprite\monster\zombie.spr`},
+		},
+	}
+
+	matches := grf.NamesWithSuffix("zombie.spr")
+	if len(matches) != 1 || matches[0] != `data\sprite\monster\zombie.spr` {
+		t.Fatalf("matches = %#v, want only zombie.spr", matches)
+	}
+}
+
+func TestGRFNamesWithSuffixFindsFileUnderDifferentRoot(t *testing.T) {
+	grf := &GRF{
+		entries: map[string]GRFEntry{
+			normalizeGRFName(`data\prontera.gat`): {Name: `data\prontera.gat`},
+		},
+	}
+
+	matches := grf.NamesWithSuffix("prontera.gat")
+	if len(matches) != 1 || matches[0] != `data\prontera.gat` {
+		t.Fatalf("matches = %#v, want data prontera", matches)
+	}
+}
+
 func TestGRFRealArchiveWhenConfigured(t *testing.T) {
 	grf := realDataArchive(t)
 	name := "prontera.gat"

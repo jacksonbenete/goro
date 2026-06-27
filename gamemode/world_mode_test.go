@@ -1228,6 +1228,27 @@ func TestSceneLightingFromRSWMatchesReferenceDirection(t *testing.T) {
 	}
 }
 
+func TestSceneLightingModelScaleIgnoresOpacityLikeRobrowser(t *testing.T) {
+	opaque := sceneLightingFromRSW(&res.RSW{Light: res.RSWLight{
+		Longitude: 45,
+		Latitude:  45,
+		Diffuse:   [3]float32{0.3, 0.3, 0.3},
+		Ambient:   [3]float32{0.4, 0.4, 0.4},
+		Opacity:   1,
+	}})
+	half := sceneLightingFromRSW(&res.RSW{Light: res.RSWLight{
+		Longitude: 45,
+		Latitude:  45,
+		Diffuse:   [3]float32{0.3, 0.3, 0.3},
+		Ambient:   [3]float32{0.4, 0.4, 0.4},
+		Opacity:   0.5,
+	}})
+	normal := modelPoint3{x: 0, y: 1, z: 0}
+	if got, want := half.modelScale(normal), opaque.modelScale(normal); got != want {
+		t.Fatalf("model scale changed with opacity: got %+v want %+v", got, want)
+	}
+}
+
 func TestSmoothGNDTopNormalsKeepsFlatTilesUniform(t *testing.T) {
 	gnd := testGNDWithTopHeights(2, 2, func(_, _ int) [4]float32 {
 		return [4]float32{0, 0, 0, 0}

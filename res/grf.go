@@ -90,21 +90,24 @@ func (g *GRF) Names() []string {
 
 func (g *GRF) NamesWithSuffix(suffix string) []string {
 	suffix = normalizeGRFName(suffix)
-	suffixes := []string{suffix}
-	if slash := strings.LastIndex(suffix, "\\"); slash >= 0 && slash+1 < len(suffix) {
-		suffixes = append(suffixes, suffix[slash+1:])
-	}
 	var names []string
 	for key, entry := range g.entries {
-		for _, candidate := range suffixes {
-			if strings.HasSuffix(key, candidate) {
-				names = append(names, entry.Name)
-				break
-			}
+		if grfPathSuffixMatch(key, suffix) {
+			names = append(names, entry.Name)
 		}
 	}
 	sort.Strings(names)
 	return names
+}
+
+func grfPathSuffixMatch(name, suffix string) bool {
+	if suffix == "" {
+		return false
+	}
+	if name == suffix {
+		return true
+	}
+	return strings.HasSuffix(name, "\\"+suffix)
 }
 
 func (g *GRF) ReadFile(name string) ([]byte, error) {

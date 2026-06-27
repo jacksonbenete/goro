@@ -30,3 +30,26 @@ func TestRSWRealArchiveWhenConfigured(t *testing.T) {
 	}
 	t.Logf("parsed %s version=%d.%d models=%d lights=%d sounds=%d effects=%d water=%+v", name, rsw.VersionMajor, rsw.VersionMinor, len(rsw.Models), len(rsw.Lights), len(rsw.Sounds), len(rsw.Effects), rsw.Water)
 }
+
+func TestPayonDungeonRSWMoodRealWhenConfigured(t *testing.T) {
+	for _, name := range []string{"pay_dun00.rsw", "pay_dun01.rsw", "pay_dun02.rsw", "pay_dun03.rsw"} {
+		grf, path := realDataArchiveFile(t, name)
+		data, err := grf.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		rsw, err := ParseRSW(data)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		t.Logf("%s light longitude=%d latitude=%d diffuse=%v ambient=%v opacity=%.3f effects=%d", path, rsw.Light.Longitude, rsw.Light.Latitude, rsw.Light.Diffuse, rsw.Light.Ambient, rsw.Light.Opacity, len(rsw.Effects))
+		if len(rsw.Effects) == 0 {
+			t.Fatalf("%s has no RSW effects", path)
+		}
+		for _, effect := range rsw.Effects {
+			if effect.ID != 47 {
+				t.Fatalf("%s effect id = %d, want warp-zone id 47", path, effect.ID)
+			}
+		}
+	}
+}

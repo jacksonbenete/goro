@@ -73,6 +73,9 @@ func sceneFogVeilAlpha(f sceneFog, projection sceneProjection, cfg core.FogConfi
 		return 0
 	}
 	strength := math.Max(0, math.Min(1, cfg.VeilStrength))
+	if f.factor > strength {
+		strength = math.Max(0, math.Min(1, f.factor))
+	}
 	return clampColor(255 * amount * strength)
 }
 

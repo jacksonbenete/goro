@@ -64,6 +64,7 @@ type WorldMode struct {
 	actorNameReqAt   map[uint32]time.Time
 	gndNormalSource  *res.GND
 	gndTopNormals    [][4]modelPoint3
+	minimap          minimapState
 	console          chatConsole
 	npcDialog        npcDialogState
 	escapeMenu       escapeMenuState
@@ -1949,6 +1950,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 
 	drawCharacterWindow(screen, ctx)
 	m.basicMenu.draw(screen, ctx)
+	m.minimap.draw(screen, ctx)
 	m.inventoryWindow.draw(screen, ctx, m)
 	m.inventoryBag.draw(screen, ctx, m)
 	m.equipmentWindow.draw(screen, ctx, m)
@@ -4593,7 +4595,6 @@ func (l sceneLighting) groundScale(normal modelPoint3) modelPoint3 {
 
 func (l sceneLighting) modelScale(normal modelPoint3) modelPoint3 {
 	weight := math.Max(dot3(normalize3(normal), l.direction), 0)
-	weight = (1 - l.opacity) + weight*l.opacity
 	return modelPoint3{
 		x: clampUnit((l.ambient.x + l.diffuse.x*weight) * l.env.x),
 		y: clampUnit((l.ambient.y + l.diffuse.y*weight) * l.env.y),
