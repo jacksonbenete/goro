@@ -122,6 +122,49 @@ export default {
 	}
 }
 
+func TestParseRobrowserEffectTableSubsetParses2D(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	50: [
+		{
+			type: '2D',
+			duration: 500,
+			file: 'effect/firering.tga',
+			sizeStart: 10,
+			sizeEnd: 300,
+			angle: 0,
+			toAngle: -360,
+			fadeOut: true,
+			posz: 1
+		}
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, ok := specs[50]
+	if !ok {
+		t.Fatal("effect 50 was not parsed")
+	}
+	if spec.duration != 500*time.Millisecond {
+		t.Fatalf("effect 50 duration = %s, want 500ms", spec.duration)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("effect 50 component count = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitive2D || component.textureFile != "effect/firering.tga" {
+		t.Fatalf("effect 50 component = %#v", component)
+	}
+	if component.sizeStart != 10*roBrowserEffectPixelRatio || component.sizeEnd != 300*roBrowserEffectPixelRatio {
+		t.Fatalf("effect 50 size = %.3f..%.3f", component.sizeStart, component.sizeEnd)
+	}
+	if component.angleStart != 0 || component.angleEnd != -360 || !component.fadeOut || component.posZ != 1 {
+		t.Fatalf("effect 50 transform = %#v", component)
+	}
+}
+
 func TestParseRobrowserEffectTableEntryIDsIgnoresCommentedEntries(t *testing.T) {
 	ids, err := parseRobrowserEffectTableEntryIDs(`
 export default {

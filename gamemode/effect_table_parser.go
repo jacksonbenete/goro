@@ -12,6 +12,8 @@ import (
 var effectObjectFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?|true|false|null)`)
 var effectObjectArrayFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]`)
 
+const roBrowserEffectPixelRatio = 1.0 / 35.0
+
 func parseRobrowserEffectTableSubset(source string) (map[int]worldEffectSpec, error) {
 	source = stripJSComments(source)
 	out := make(map[int]worldEffectSpec)
@@ -206,6 +208,48 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			component.circleSides = component.totalCircleSides
 		}
 		return component, sfx, true
+	case "2D":
+		file := fieldString(fields, "file")
+		if file == "" {
+			return worldEffectComponent{}, sfx, false
+		}
+		sizeStart := fieldFloat(fields, "sizeStart")
+		sizeEnd := fieldFloat(fields, "sizeEnd")
+		if size := fieldFloat(fields, "size"); size > 0 {
+			if sizeStart <= 0 {
+				sizeStart = size
+			}
+			if sizeEnd <= 0 {
+				sizeEnd = size
+			}
+		}
+		if sizeStart <= 0 && sizeEnd > 0 {
+			sizeStart = sizeEnd
+		}
+		if sizeEnd <= 0 && sizeStart > 0 {
+			sizeEnd = sizeStart
+		}
+		angleStart := fieldFloat(fields, "angle")
+		angleEnd := angleStart
+		if fieldExists(fields, "toAngle") {
+			angleEnd = fieldFloat(fields, "toAngle")
+		} else if fieldExists(fields, "angleDelta") {
+			angleEnd = angleStart + fieldFloat(fields, "angleDelta")
+		}
+		return worldEffectComponent{
+			kind:        effectPrimitive2D,
+			textureFile: file,
+			duration:    fieldDuration(fields, "duration"),
+			alphaMax:    fieldFloat(fields, "alphaMax"),
+			fade:        fieldBool(fields, "fade"),
+			fadeIn:      fieldBool(fields, "fadeIn"),
+			fadeOut:     fieldBool(fields, "fadeOut"),
+			posZ:        fieldFloat(fields, "posz"),
+			sizeStart:   sizeStart * roBrowserEffectPixelRatio,
+			sizeEnd:     sizeEnd * roBrowserEffectPixelRatio,
+			angleStart:  angleStart,
+			angleEnd:    angleEnd,
+		}, sfx, true
 	default:
 		return worldEffectComponent{}, sfx, false
 	}
@@ -253,6 +297,11 @@ func fieldFloat(fields map[string]string, key string) float64 {
 	}
 	out, _ := strconv.ParseFloat(value, 64)
 	return out
+}
+
+func fieldExists(fields map[string]string, key string) bool {
+	_, ok := fields[key]
+	return ok
 }
 
 func fieldInt(fields map[string]string, key string) int {

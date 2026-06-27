@@ -605,14 +605,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 44 {
-		t.Fatalf("implemented effects = %d, want 44", coverage.Implemented)
+	if coverage.Implemented != 45 {
+		t.Fatalf("implemented effects = %d, want 45", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 7.2 || coverage.ActivePercent > 7.3 {
-		t.Fatalf("active coverage = %.3f, want about 7.2", coverage.ActivePercent)
+	if coverage.ActivePercent < 7.4 || coverage.ActivePercent > 7.5 {
+		t.Fatalf("active coverage = %.3f, want about 7.4", coverage.ActivePercent)
 	}
 }
 
@@ -938,6 +938,7 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		effectSignum,
 		effectAngelus,
 		effectFireHit,
+		effectFireSplashHit,
 		effectConcentration,
 		effectCure,
 		effectRefineOK,

@@ -37,6 +37,7 @@ const (
 	effectAngelus       = 41
 	effectBlessing      = 42
 	effectFireHit       = 49
+	effectFireSplashHit = 50
 	effectColdHit       = 51
 	effectWindHit       = 52
 	effectCure          = 66
@@ -67,6 +68,7 @@ const (
 	effectPrimitiveCylinder
 	effectPrimitiveBillboard
 	effectPrimitiveBashHit
+	effectPrimitive2D
 )
 
 type worldEffect struct {
@@ -108,6 +110,8 @@ type worldEffectComponent struct {
 	sizeStart        float64
 	sizeEnd          float64
 	sizeSmooth       bool
+	angleStart       float64
+	angleEnd         float64
 	totalCircleSides int
 	circleSides      int
 	duplicate        int
@@ -586,6 +590,8 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 		m.drawBillboardEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
 	case effectPrimitiveBashHit:
 		drawBashHitEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
+	case effectPrimitive2D:
+		m.draw2DEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
 	default:
 		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	}
@@ -661,6 +667,28 @@ func (m *WorldMode) drawBillboardEffect(screen *render.Image, ctx Context, proje
 		return
 	}
 	drawTexturedEffectBillboard(screen, projection, texture, worldX, worldY, worldZ+component.posZ, size, color.RGBA{
+		R: 255,
+		G: 255,
+		B: 255,
+		A: uint8(clampFloat(alpha, 0, 1) * 255),
+	})
+}
+
+func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, worldX, worldY, worldZ, progress float64) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	alpha := effectBillboardAlpha(progress, component)
+	if alpha <= 0 {
+		return
+	}
+	size := effectBillboardSize(progress, component)
+	if size <= 0 {
+		return
+	}
+	angle := (component.angleStart + (component.angleEnd-component.angleStart)*progress) * math.Pi / 180
+	drawTexturedEffectBillboardRotated(screen, projection, texture, worldX, worldY, worldZ+component.posZ, size, angle, color.RGBA{
 		R: 255,
 		G: 255,
 		B: 255,
@@ -783,6 +811,10 @@ func deterministicAngle(effect worldEffect, salt int) float64 {
 }
 
 func drawTexturedEffectBillboard(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, size float64, tint color.RGBA) {
+	drawTexturedEffectBillboardRotated(screen, projection, texture, worldX, worldY, worldZ, size, 0, tint)
+}
+
+func drawTexturedEffectBillboardRotated(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, size, angle float64, tint color.RGBA) {
 	if screen == nil || texture == nil || tint.A == 0 {
 		return
 	}
@@ -793,6 +825,10 @@ func drawTexturedEffectBillboard(screen *render.Image, projection sceneProjectio
 	half := size * 0.5
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
 	corner := func(dx, dy float64) modelPoint3 {
+		if angle != 0 {
+			sinA, cosA := math.Sin(angle), math.Cos(angle)
+			dx, dy = dx*cosA-dy*sinA, dx*sinA+dy*cosA
+		}
 		return add3(add3(center, mul3(right, dx)), mul3(up, dy))
 	}
 	bounds := texture.Bounds()

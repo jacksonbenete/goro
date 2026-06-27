@@ -9,8 +9,8 @@ Metric used: active numeric entries in roBrowser `EffectTable.js`.
 
 - roBrowser active numeric effect table entries: 607
 - roBrowser numeric effect constants: 1147
-- Goro implemented active roBrowser effect IDs: 44
-- Completion against active roBrowser table: 7.2%
+- Goro implemented active roBrowser effect IDs: 45
+- Completion against active roBrowser table: 7.4%
 - Completion against all roBrowser numeric constants: 3.8%
 
 This only counts world/effect IDs handled by `worldEffectSpecForID` and direct
@@ -41,6 +41,7 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_ANGELUS` `41`: Angelus STR effect.
 - [x] `EF_BLESSING` `42`: Blessing declared SFX; SPR/3D visual still pending.
 - [x] `EF_FIREHIT` `49`: Fire elemental hit STR effect.
+- [x] `EF_FIRESPLASHHIT` `50`: Fire splash 2D textured billboard effect.
 - [x] `EF_COLDHIT` `51`: Cold elemental hit declared SFX; 2D visual still pending.
 - [x] `EF_WINDHIT` `52`: Wind elemental hit STR effect.
 - [x] `EF_CURE` `66`: Cure STR effect.
@@ -193,6 +194,8 @@ Goal: make the generic table useful before adding many effects.
 - [ ] Improve CYLINDER parity: partial circles, repeat texture axes, fixed
   perspective versus world-space orientation, rotation deltas, duplicate
   instances, and randomization.
+- [x] Add basic 2D textured billboard effect components with alpha, fade,
+  size interpolation, rotation, and vertical offset.
 - [ ] Add SPR/ACT effect components, because many RO effects are not STR-only.
 - [ ] Implement roBrowser `wav` behavior exactly: play only declared `wav`
   entries, support delay/randomization, and do not infer sound names from STRs.
