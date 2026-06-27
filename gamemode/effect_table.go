@@ -234,11 +234,43 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectThunderStorm: strEffectSpec("thunderstorm", "effect\\magician_thunderstorm.wav"),
 	effectIncAgility:   soundOnlyEffectSpec("effect\\ef_incagility.wav"),
 	effectDecAgility:   soundOnlyEffectSpec("effect\\ef_decagility.wav"),
-	effectAqua:         soundOnlyEffectSpec("effect\\ef_aqua.wav"),
-	effectSignum:       strEffectSpec("cross", "effect\\ef_signum.wav"),
-	effectAngelus:      strEffectSpec("angelus", "effect\\ef_angelus.wav"),
-	effectBlessing:     soundOnlyEffectSpec("effect\\ef_blessing.wav"),
-	effectFireHit:      strEffectSpecRandom("firehit%d", "effect\\ef_firehit.wav", 1, 3),
+	effectAqua: {
+		sfx: []string{"effect\\ef_aqua.wav"},
+		components: []worldEffectComponent{{
+			kind:       effectPrimitiveSPR,
+			spriteFile: "\xBC\xBA\xBC\xF6\xB6\xDF\xB1\xE2",
+			spriteHead: true,
+		}},
+	},
+	effectSignum:  strEffectSpec("cross", "effect\\ef_signum.wav"),
+	effectAngelus: strEffectSpec("angelus", "effect\\ef_angelus.wav"),
+	effectBlessing: {
+		duration: 2500 * time.Millisecond,
+		sfx:      []string{"effect\\ef_blessing.wav"},
+		components: []worldEffectComponent{
+			{
+				kind:          effectPrimitiveSPR,
+				spriteFile:    "\xC3\xE0\xBA\xB9",
+				duration:      1500 * time.Millisecond,
+				spriteDelay:   30 * time.Millisecond,
+				spriteRepeat:  true,
+				spriteHead:    true,
+				spriteYOffset: -120,
+			},
+			{
+				kind:        effectPrimitive3D,
+				color:       color.RGBA{R: 25, G: 191, B: 255, A: 255},
+				textureFile: "effect/pok2.tga",
+				duration:    2500 * time.Millisecond,
+				alphaMax:    0.3,
+				fadeIn:      true,
+				fadeOut:     true,
+				sizeStart:   140 * roBrowserEffectPixelRatio,
+				sizeEnd:     140 * roBrowserEffectPixelRatio,
+			},
+		},
+	},
+	effectFireHit: strEffectSpecRandom("firehit%d", "effect\\ef_firehit.wav", 1, 3),
 	effectFireSplashHit: {
 		duration: 500 * time.Millisecond,
 		components: []worldEffectComponent{{

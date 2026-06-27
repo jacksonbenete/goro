@@ -290,6 +290,25 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			angleStart:      fieldFloat(fields, "angle"),
 			angleEnd:        fieldFloat(fields, "angle") + fieldFloat(fields, "angleDelta"),
 		}, sfx, true
+	case "SPR":
+		file := fieldString(fields, "file")
+		if file == "" {
+			return worldEffectComponent{}, sfx, false
+		}
+		return worldEffectComponent{
+			kind:            effectPrimitiveSPR,
+			spriteFile:      file,
+			duration:        fieldDuration(fields, "duration"),
+			delay:           fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
+			spriteHead:      fieldBool(fields, "head"),
+			spriteDirection: fieldBool(fields, "direction"),
+			spriteRepeat:    fieldBool(fields, "repeat"),
+			spriteStopAtEnd: fieldBool(fields, "stopAtEnd"),
+			spriteFrame:     fieldInt(fields, "frame"),
+			spriteDelay:     fieldDuration(fields, "delayFrame"),
+			spriteXOffset:   fieldFloat(fields, "xOffset"),
+			spriteYOffset:   fieldFloat(fields, "yOffset"),
+		}, sfx, true
 	default:
 		return worldEffectComponent{}, sfx, false
 	}

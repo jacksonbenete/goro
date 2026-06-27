@@ -50,6 +50,8 @@ type WorldMode struct {
 	itemMarker       *render.Image
 	itemViews        map[itemSpriteKey]*playerSpriteView
 	itemViewMiss     map[itemSpriteKey]struct{}
+	effectViews      map[string]*playerSpriteView
+	effectViewMiss   map[string]struct{}
 	actorViews       map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss    map[actorSpriteKey]struct{}
 	nonPCViews       map[int]*playerSpriteView
@@ -252,6 +254,8 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.itemMarker = nil
 	m.itemViews = make(map[itemSpriteKey]*playerSpriteView)
 	m.itemViewMiss = make(map[itemSpriteKey]struct{})
+	m.effectViews = make(map[string]*playerSpriteView)
+	m.effectViewMiss = make(map[string]struct{})
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*playerSpriteView)

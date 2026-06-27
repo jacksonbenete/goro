@@ -37,10 +37,11 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_THUNDERSTORM` `30`: Thunder Storm STR effect.
 - [x] `EF_INCAGILITY` `37`: Increase Agility declared SFX; 3D visual still pending.
 - [x] `EF_DECAGILITY` `38`: Decrease Agility declared SFX; 3D visual still pending.
-- [x] `EF_AQUA` `39`: Aqua Benedicta declared SFX; SPR visual still pending.
+- [x] `EF_AQUA` `39`: Aqua Benedicta SPR attachment and SFX.
 - [x] `EF_SIGNUM` `40`: Signum Crucis STR effect.
 - [x] `EF_ANGELUS` `41`: Angelus STR effect.
-- [x] `EF_BLESSING` `42`: Blessing declared SFX; SPR/3D visual still pending.
+- [x] `EF_BLESSING` `42`: Blessing SPR attachment, file-backed 3D glow, and SFX;
+  sprite-backed 3D particles still pending.
 - [x] `EF_FIREHIT` `49`: Fire elemental hit STR effect.
 - [x] `EF_FIRESPLASHHIT` `50`: Fire splash 2D textured billboard effect.
 - [x] `EF_COLDHIT` `51`: Cold elemental hit declared SFX; 2D visual still pending.
@@ -200,7 +201,10 @@ Goal: make the generic table useful before adding many effects.
 - [x] Add basic file-backed 3D particle billboard components with alpha, fade,
   color tint, size interpolation/randomization, duplicate timing, delays, and
   randomized start/end offsets.
-- [ ] Add SPR/ACT effect components, because many RO effects are not STR-only.
+- [x] Add basic SPR/ACT effect components for roBrowser `SPR` attachments.
+- [ ] Add sprite-backed 3D effect components, because many RO effects use
+  `spriteName`/`absoluteSpriteName` inside `3D` entries rather than texture
+  `file` entries.
 - [ ] Implement roBrowser `wav` behavior exactly: play only declared `wav`
   entries, support delay/randomization, and do not infer sound names from STRs.
 - [ ] Add persistent/attached lifecycle handling: effect follows actor while
@@ -238,9 +242,9 @@ Goal: make early gameplay feel correct before broad class sweeps.
 - [x] Merchant first-job routing for supported client effects: Mammonite.
 - [ ] Missing first-job visuals blocked by renderer primitives: Sight state loop,
   Safety Wall and Pneuma ground units, Fire Wall ground unit, Hiding state loop,
-  Blessing/Aqua SPR components, Blessing/Increase/Decrease Agi remaining
-  sprite-backed or mixed particles, Mage projectile/before-hit effects, Archer
-  projectile effects, and cold-hit 2D shard visuals.
+  Blessing/Increase/Decrease Agi remaining sprite-backed or mixed particles,
+  Mage projectile/before-hit effects, Archer projectile effects, and cold-hit
+  2D shard visuals.
 
 ### 5. Ground Skill Units
 

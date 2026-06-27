@@ -228,6 +228,52 @@ export default {
 	}
 }
 
+func TestParseRobrowserEffectTableSubsetParsesSPR(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	42: [
+		{
+			type: 'SPR',
+			file: '\xc3\xe0\xba\xb9',
+			duration: 1500,
+			delayFrame: 30,
+			frame: 0,
+			repeat: true,
+			head: true,
+			yOffset: -120
+		},
+		{ wav: 'effect/ef_blessing' }
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, ok := specs[42]
+	if !ok {
+		t.Fatal("effect 42 was not parsed")
+	}
+	if spec.duration != 1500*time.Millisecond {
+		t.Fatalf("effect 42 duration = %s, want 1500ms", spec.duration)
+	}
+	if !slices.Equal(spec.sfx, []string{`effect\ef_blessing.wav`}) {
+		t.Fatalf("effect 42 sfx = %v", spec.sfx)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("effect 42 component count = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitiveSPR || component.spriteFile != "\xC3\xE0\xBA\xB9" {
+		t.Fatalf("effect 42 component = %#v", component)
+	}
+	if component.duration != 1500*time.Millisecond || component.spriteDelay != 30*time.Millisecond {
+		t.Fatalf("effect 42 timing = %#v", component)
+	}
+	if !component.spriteRepeat || !component.spriteHead || component.spriteYOffset != -120 {
+		t.Fatalf("effect 42 sprite flags = %#v", component)
+	}
+}
+
 func TestParseRobrowserEffectTableEntryIDsIgnoresCommentedEntries(t *testing.T) {
 	ids, err := parseRobrowserEffectTableEntryIDs(`
 export default {

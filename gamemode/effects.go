@@ -70,6 +70,7 @@ const (
 	effectPrimitiveBashHit
 	effectPrimitive2D
 	effectPrimitive3D
+	effectPrimitiveSPR
 )
 
 type worldEffect struct {
@@ -99,6 +100,15 @@ type worldEffectComponent struct {
 	texturePath      string
 	textureName      string
 	textureFile      string
+	spriteFile       string
+	spriteHead       bool
+	spriteDirection  bool
+	spriteRepeat     bool
+	spriteStopAtEnd  bool
+	spriteFrame      int
+	spriteDelay      time.Duration
+	spriteXOffset    float64
+	spriteYOffset    float64
 	alphaMax         float64
 	fade             bool
 	fadeIn           bool
@@ -580,6 +590,15 @@ func (m *WorldMode) worldEffectResolvedComponentDuration(manager *res.Manager, s
 			duration = strEffectDuration(str, duration)
 		}
 	}
+	if component.kind == effectPrimitiveSPR && component.duration <= 0 && !component.spriteRepeat {
+		if view := m.effectSpriteView(manager, component.spriteFile); view != nil && len(view.act.Actions) > 0 {
+			actionIndex := component.spriteFrame
+			if actionIndex < 0 || actionIndex >= len(view.act.Actions) {
+				actionIndex = 0
+			}
+			duration = actionAnimationDuration(view.act.Actions[actionIndex], duration)
+		}
+	}
 	return duration
 }
 
@@ -616,6 +635,8 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 		m.draw2DEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
 	case effectPrimitive3D:
 		m.draw3DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, now)
+	case effectPrimitiveSPR:
+		m.drawSPREffect(screen, ctx, projection, effect, component, worldX, worldY, worldZ, now)
 	default:
 		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	}
@@ -748,6 +769,67 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 		}
 		drawTexturedEffectBillboard(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, effectComponentTint(component, alpha))
 	}
+}
+
+func (m *WorldMode) drawSPREffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, now time.Time) {
+	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
+	if view == nil || len(view.act.Actions) == 0 {
+		return
+	}
+	actionIndex := component.spriteFrame
+	if component.spriteDirection {
+		if actor, ok := ctx.World.Actors[effect.actorID]; ok {
+			actionIndex = actor.RenderDirection(now) % len(view.act.Actions)
+		} else if isLocalActor(ctx, effect.actorID) {
+			actionIndex = ctx.World.Player.RenderDirection(now) % len(view.act.Actions)
+		}
+	}
+	if actionIndex < 0 || actionIndex >= len(view.act.Actions) {
+		actionIndex = 0
+	}
+	action := view.act.Actions[actionIndex]
+	if len(action.Animations) == 0 {
+		return
+	}
+	delayMS := float64(action.DelayMS)
+	if component.spriteDelay > 0 {
+		delayMS = float64(component.spriteDelay / time.Millisecond)
+	}
+	motion := 0
+	if component.spriteRepeat {
+		motion = spriteMotionIndexWithDelay(action, effect.starts, now, true, delayMS)
+	} else {
+		motion = spriteMotionIndexWithDelay(action, effect.starts, now, false, delayMS)
+		if motion >= len(action.Animations)-1 && !component.spriteStopAtEnd && component.duration <= 0 {
+			return
+		}
+	}
+	if motion < 0 || motion >= len(action.Animations) {
+		return
+	}
+	key := singleSpriteBillboardKey{
+		actionIndex: actionIndex,
+		motion:      motion,
+		anchorX:     component.spriteXOffset,
+		anchorY:     component.spriteYOffset,
+	}
+	billboard, ok := view.billboards[key]
+	if !ok {
+		base, baseOK := composeSingleSpriteBillboard(view, action.Animations[motion])
+		if !baseOK {
+			return
+		}
+		copy := *base
+		copy.anchorX -= component.spriteXOffset
+		copy.anchorY -= component.spriteYOffset
+		billboard = &copy
+		view.billboards[key] = billboard
+	}
+	z := worldZ + component.posZ
+	if component.spriteHead {
+		z += 2.0
+	}
+	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, z, 1, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 }
 
 func drawBashHitEffect(screen, white *render.Image, x, y, z, progress float64, c color.RGBA) {
@@ -1087,6 +1169,54 @@ func (m *WorldMode) effectFileTexture(manager *res.Manager, path string) *render
 	texture := render.NewImageFromImage(res.ApplyEffectTransparency(img))
 	m.textures[key] = texture
 	return texture
+}
+
+const effectSpriteRoot = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\"
+
+func (m *WorldMode) effectSpriteView(manager *res.Manager, file string) *playerSpriteView {
+	file = strings.TrimSpace(file)
+	if manager == nil || file == "" {
+		return nil
+	}
+	if m.effectViews == nil {
+		m.effectViews = make(map[string]*playerSpriteView)
+	}
+	if m.effectViewMiss == nil {
+		m.effectViewMiss = make(map[string]struct{})
+	}
+	key := strings.ReplaceAll(file, "/", "\\")
+	if view, ok := m.effectViews[key]; ok {
+		return view
+	}
+	if _, ok := m.effectViewMiss[key]; ok {
+		return nil
+	}
+	actCandidates := effectSpriteResourceCandidates(file, "act")
+	sprCandidates := effectSpriteResourceCandidates(file, "spr")
+	view, status := loadSpriteView(manager, actCandidates, sprCandidates, nil, "effect sprite "+file)
+	if view == nil {
+		m.effectViewMiss[key] = struct{}{}
+		log.Printf("effect sprite unavailable file=%q: %s", file, status)
+		return nil
+	}
+	m.effectViews[key] = view
+	log.Printf("effect sprite resources file=%q %s", file, status)
+	return view
+}
+
+func effectSpriteResourceCandidates(file, ext string) []string {
+	normalized := strings.TrimSpace(strings.ReplaceAll(file, "/", "\\"))
+	normalized = strings.TrimSuffix(normalized, ".spr")
+	normalized = strings.TrimSuffix(normalized, ".act")
+	if normalized == "" {
+		return nil
+	}
+	base := normalized
+	if !strings.HasPrefix(strings.ToLower(base), "data\\sprite\\") {
+		base = effectSpriteRoot + base
+	}
+	path := base + "." + ext
+	return []string{path, strings.ReplaceAll(path, "\\", "/")}
 }
 
 func strEffectDuration(str *res.STR, fallback time.Duration) time.Duration {
