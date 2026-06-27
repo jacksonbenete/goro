@@ -125,7 +125,7 @@ func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.Special
 	if effectID <= 0 {
 		return
 	}
-	if m.addWorldEffect(ctx, effectID, notify.AID) {
+	if m.addWorldEffectIfMissing(ctx, effectID, notify.AID) {
 		log.Printf("special effect actor=%d special=%d effect=%d", notify.AID, notify.EffectID, effectID)
 	}
 }
@@ -320,223 +320,21 @@ func skillHitEffectID(skillID uint16) int {
 }
 
 func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
-	switch effectID {
-	case effectBashHit:
-		return worldEffectSpec{
-			duration: 280 * time.Millisecond,
-			sfx:      []string{"effect\\ef_hit2.wav"},
-			components: []worldEffectComponent{{
-				kind:  effectPrimitiveBashHit,
-				color: color.RGBA{R: 255, G: 248, B: 220, A: 255},
-			}},
-		}, true
-	case effectEndure:
-		return worldEffectSpec{
-			duration: 1000 * time.Millisecond,
-			sfx:      []string{"effect\\ef_endure.wav"},
-			components: []worldEffectComponent{{
-				kind:        effectPrimitiveBillboard,
-				textureFile: "effect\\endure.tga",
-				duration:    1000 * time.Millisecond,
-				alphaMax:    1,
-				fadeIn:      true,
-				fadeOut:     true,
-				posZ:        2,
-				sizeStart:   2.0,
-				sizeEnd:     0.7,
-				sizeSmooth:  true,
-			}},
-		}, true
-	case effectBashBegin:
-		return worldEffectSpec{
-			duration: 1000 * time.Millisecond,
-			sfx:      []string{"effect\\ef_bash.wav"},
-			components: []worldEffectComponent{
-				{
-					kind:             effectPrimitiveCylinder,
-					textureName:      "alpha_down",
-					duration:         1000 * time.Millisecond,
-					alphaMax:         0.6,
-					fade:             true,
-					rotate:           true,
-					fixedPerspective: true,
-					animation:        2,
-					bottomSize:       0.1,
-					topSize:          2.0,
-					posZ:             1.5,
-					totalCircleSides: 20,
-					circleSides:      20,
-				},
-				{
-					kind:             effectPrimitiveCylinder,
-					textureName:      "alpha_center",
-					duration:         1000 * time.Millisecond,
-					alphaMax:         0.6,
-					fade:             true,
-					rotate:           true,
-					fixedPerspective: true,
-					animation:        2,
-					bottomSize:       0.01,
-					topSize:          2.5,
-					posZ:             1.5,
-					totalCircleSides: 30,
-					circleSides:      1,
-					duplicate:        10,
-					angleZRandom:     360,
-				},
-				{
-					kind:             effectPrimitiveCylinder,
-					textureName:      "alpha_center",
-					duration:         1000 * time.Millisecond,
-					alphaMax:         0.6,
-					fade:             true,
-					rotate:           true,
-					fixedPerspective: true,
-					animation:        2,
-					bottomSize:       0.01,
-					topSize:          4.0,
-					posZ:             1.5,
-					totalCircleSides: 30,
-					circleSides:      1,
-					duplicate:        8,
-					angleZRandom:     360,
-				},
-			},
-		}, true
-	case effectProvoke:
-		return worldEffectSpec{
-			duration: 900 * time.Millisecond,
-			sfx:      []string{"effect\\swordman_provoke.wav"},
-			components: []worldEffectComponent{{
-				kind:    effectPrimitiveSTR,
-				color:   color.RGBA{R: 255, G: 70, B: 42, A: 255},
-				strFile: "provoke",
-			}},
-		}, true
-	case effectMagnumBreak:
-		return worldEffectSpec{
-			duration: 300 * time.Millisecond,
-			sfx:      []string{"effect\\ef_magnumbreak.wav"},
-			components: []worldEffectComponent{
-				{
-					kind:             effectPrimitiveCylinder,
-					textureName:      "ring_yellow",
-					duration:         300 * time.Millisecond,
-					alphaMax:         0.7,
-					fade:             true,
-					rotate:           true,
-					animation:        4,
-					bottomSize:       4,
-					topSize:          6,
-					height:           1,
-					totalCircleSides: 32,
-					circleSides:      32,
-				},
-				{
-					kind:             effectPrimitiveCylinder,
-					textureName:      "\xb4\xeb\xc6\xf8\xb9\xdf",
-					duration:         300 * time.Millisecond,
-					alphaMax:         0.6,
-					fade:             true,
-					rotate:           true,
-					animation:        4,
-					bottomSize:       4,
-					topSize:          1,
-					height:           4,
-					totalCircleSides: 32,
-					circleSides:      32,
-				},
-			},
-		}, true
-	case effectTeleportation:
-		return worldEffectSpec{
-			duration: 1500 * time.Millisecond,
-			sfx:      []string{"effect\\ef_teleportation.wav"},
-			components: []worldEffectComponent{
-				teleportCylinderComponent(0.3, 0.3, 35),
-				teleportCylinderComponent(0.6, 0.8, 25),
-				teleportCylinderComponent(0.8, 1.0, 13),
-				teleportCylinderComponent(1.0, 1.3, 5),
-			},
-		}, true
-	case effectPortal:
-		return worldEffectSpec{
-			duration: 25000 * time.Millisecond,
-			sfx:      []string{"effect\\ef_readyportal.wav"},
-			components: []worldEffectComponent{
-				{
-					kind:             effectPrimitiveCylinder,
-					textureName:      "ring_blue",
-					duration:         500 * time.Millisecond,
-					alphaMax:         0.4,
-					fadeOut:          true,
-					rotate:           true,
-					animation:        4,
-					bottomSize:       2.4,
-					topSize:          3.9,
-					height:           0.1,
-					posZ:             0.1,
-					totalCircleSides: 32,
-					circleSides:      32,
-				},
-				portalCylinderComponent(0.6, 0.6, 15, 0, "ring_blue", 0.3),
-				portalCylinderComponent(0.8, 0.8, 13, 0, "ring_blue", 0.3),
-				portalCylinderComponent(1.0, 1.0, 1, 2, "alpha1", 0.5),
-			},
-		}, true
-	case effectBaseLevelUp:
-		return worldEffectSpec{
-			duration: 1300 * time.Millisecond,
-			sfx:      []string{"levelup.wav"},
-			components: []worldEffectComponent{{
-				kind:    effectPrimitiveSTR,
-				strFile: "angel",
-			}},
-		}, true
-	case effectJobLevelUp:
-		return worldEffectSpec{
-			duration: 1300 * time.Millisecond,
-			sfx:      []string{"effect\\st_job_level_up.wav", "levelup.wav"},
-			components: []worldEffectComponent{{
-				kind:    effectPrimitiveSTR,
-				strFile: "joblvup",
-			}},
-		}, true
-	case effectPotionRed:
-		return potionEffectSpec("\xbb\xa1\xb0\xa3\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 82, B: 70, A: 255}), true
-	case effectPotionOrange:
-		return potionEffectSpec("\xc1\xd6\xc8\xab\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 145, B: 58, A: 255}), true
-	case effectPotionYellow:
-		return potionEffectSpec("\xb3\xeb\xb6\xf5\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 226, B: 76, A: 255}), true
-	case effectPotionWhite:
-		return potionEffectSpec("\xc7\xcf\xbe\xe1\xc6\xf7\xbc\xc7", color.RGBA{R: 245, G: 245, B: 255, A: 255}), true
-	case effectPotionBlue:
-		spec := potionEffectSpec("\xc6\xc4\xb6\xf5\xc6\xf7\xbc\xc7", color.RGBA{R: 92, G: 150, B: 255, A: 255})
-		spec.sfx = []string{"effect\\\xc8\xed\xb1\xe2.wav"}
-		return spec, true
-	case effectPotionGreen:
-		return potionEffectSpec("\xc3\xca\xb7\xcf\xc6\xf7\xbc\xc7", color.RGBA{R: 78, G: 225, B: 98, A: 255}), true
-	case effectFood:
-		return worldEffectSpec{
-			duration: 850 * time.Millisecond,
-			components: []worldEffectComponent{{
-				kind:    effectPrimitiveSTR,
-				color:   color.RGBA{R: 255, G: 182, B: 86, A: 255},
-				strFile: "fruit",
-			}},
-		}, true
-	case effectFoodBlue:
-		return worldEffectSpec{
-			duration: 850 * time.Millisecond,
-			components: []worldEffectComponent{{
-				kind:    effectPrimitiveSTR,
-				color:   color.RGBA{R: 132, G: 112, B: 255, A: 255},
-				strFile: "fruit",
-			}},
-		}, true
-	default:
+	spec, ok := worldEffectSpecs[effectID]
+	if !ok {
 		return worldEffectSpec{}, false
 	}
+	return cloneWorldEffectSpec(spec), true
+}
+
+func cloneWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
+	if len(spec.sfx) > 0 {
+		spec.sfx = append([]string(nil), spec.sfx...)
+	}
+	if len(spec.components) > 0 {
+		spec.components = append([]worldEffectComponent(nil), spec.components...)
+	}
+	return spec
 }
 
 func teleportCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {

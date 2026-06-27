@@ -602,6 +602,36 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 	}
 }
 
+func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
+	coverage := effectCoverageSnapshot()
+	if coverage.Implemented != 17 {
+		t.Fatalf("implemented effects = %d, want 17", coverage.Implemented)
+	}
+	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
+		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
+	}
+	if coverage.ActivePercent < 2.7 || coverage.ActivePercent > 2.9 {
+		t.Fatalf("active coverage = %.3f, want about 2.8", coverage.ActivePercent)
+	}
+}
+
+func TestWorldEffectSpecLookupReturnsCopy(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectBashBegin)
+	if !ok {
+		t.Fatal("bash begin effect spec missing")
+	}
+	spec.sfx[0] = "mutated.wav"
+	spec.components[0].textureName = "mutated"
+
+	again, ok := worldEffectSpecForID(effectBashBegin)
+	if !ok {
+		t.Fatal("bash begin effect spec missing after mutation")
+	}
+	if again.sfx[0] != "effect\\ef_bash.wav" || again.components[0].textureName != "alpha_down" {
+		t.Fatalf("catalog mutated: %+v", again)
+	}
+}
+
 func TestSwordmanSkillEffectMappings(t *testing.T) {
 	if got := skillBeginEffectID(5); got != effectBashBegin {
 		t.Fatalf("SM_BASH begin effect = %d, want %d", got, effectBashBegin)
@@ -764,7 +794,7 @@ func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
 	if len(job.components) != 1 || job.components[0].kind != effectPrimitiveSTR || job.components[0].strFile != "joblvup" {
 		t.Fatalf("job level-up spec = %+v", job)
 	}
-	if len(job.sfx) < 2 || job.sfx[0] != "effect\\st_job_level_up.wav" || job.sfx[1] != "levelup.wav" {
+	if len(job.sfx) != 0 {
 		t.Fatalf("job level-up sfx = %#v", job.sfx)
 	}
 }
@@ -784,14 +814,11 @@ func TestSpecialEffectNotifyAddsLevelUpEffects(t *testing.T) {
 	if mode.worldEffects[0].effectID != effectBaseLevelUp || mode.worldEffects[1].effectID != effectJobLevelUp {
 		t.Fatalf("world effects = %+v", mode.worldEffects)
 	}
-	if len(mode.scheduledSounds) != 2 {
+	if len(mode.scheduledSounds) != 1 {
 		t.Fatalf("scheduled sounds = %+v", mode.scheduledSounds)
 	}
 	if mode.scheduledSounds[0].paths[0] != "levelup.wav" {
 		t.Fatalf("base level-up sound = %+v", mode.scheduledSounds[0])
-	}
-	if got := mode.scheduledSounds[1].paths; len(got) < 2 || got[0] != "effect\\st_job_level_up.wav" || got[1] != "levelup.wav" {
-		t.Fatalf("job level-up sound = %+v", mode.scheduledSounds[1])
 	}
 }
 
@@ -814,6 +841,30 @@ func TestParameterChangeLevelUpFallbackIsDeduped(t *testing.T) {
 	}
 	if mode.worldEffects[0].effectID != effectBaseLevelUp || mode.worldEffects[1].effectID != effectJobLevelUp {
 		t.Fatalf("world effects = %+v", mode.worldEffects)
+	}
+}
+
+func TestSpecialEffectNotifyDedupesParameterLevelUpFallback(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		Progress:  session.Progress{JobLevel: 21},
+	}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusJobLevel, Value: 22})
+	mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: network.SpecialEffectJobLevelUp})
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.effectID != effectJobLevelUp || effect.actorID != 2000000 {
+		t.Fatalf("world effect = %+v", effect)
+	}
+	if len(mode.scheduledSounds) != 0 {
+		t.Fatalf("scheduled sounds = %+v, want none for job level-up", mode.scheduledSounds)
 	}
 }
 
@@ -1142,6 +1193,14 @@ func TestActionSoundNameResolvesACTSound(t *testing.T) {
 	action := res.ACTAction{Animations: []res.ACTAnimation{{Sound: -1}, {Sound: 0}}}
 	if got := actionSoundName(act, action, 1); got != "attack.wav" {
 		t.Fatalf("sound = %q, want attack.wav", got)
+	}
+}
+
+func TestActionSoundNameIgnoresAttackMarker(t *testing.T) {
+	act := &res.ACT{Sounds: []string{"atk"}}
+	action := res.ACTAction{Animations: []res.ACTAnimation{{Sound: 0}}}
+	if got := actionSoundName(act, action, 0); got != "" {
+		t.Fatalf("sound = %q, want empty marker", got)
 	}
 }
 

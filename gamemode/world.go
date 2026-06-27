@@ -1881,7 +1881,11 @@ func actionSoundName(act *res.ACT, action res.ACTAction, motion int) string {
 	if soundIndex < 0 || soundIndex >= len(act.Sounds) {
 		return ""
 	}
-	return strings.TrimSpace(act.Sounds[soundIndex])
+	sound := strings.TrimSpace(act.Sounds[soundIndex])
+	if strings.EqualFold(sound, "atk") {
+		return ""
+	}
+	return sound
 }
 
 func (m *WorldMode) nonPCResolvedAction(ctx Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
