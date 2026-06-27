@@ -597,6 +597,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		}
 	}
 
+	if m.npcDialog.updateMenuScroll(ctx) {
+		return nil, nil
+	}
 	m.camera.Update(ctx, now)
 	if m.mapFade.phase == mapFadeHold {
 		return nil, nil

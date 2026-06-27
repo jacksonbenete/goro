@@ -48,6 +48,7 @@ type AudioConfig struct {
 type RenderConfig struct {
 	GraphicsAPI        string
 	VSync              bool
+	FPS                bool
 	BenchSeconds       int
 	BenchWarmupSeconds int
 	CPUProfile         string
@@ -164,6 +165,7 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.Float64Var(&cfg.Audio.BGMVolume, "bgm-volume", cfg.Audio.BGMVolume, "BGM and SFX volume from 0 to 1")
 	fs.StringVar(&cfg.Render.GraphicsAPI, "graphics-api", cfg.Render.GraphicsAPI, "graphics API: auto, vulkan, dx12, metal, gles, software")
 	fs.BoolVar(&cfg.Render.VSync, "vsync", cfg.Render.VSync, "enable vsync")
+	fs.BoolVar(&cfg.Render.FPS, "fps", cfg.Render.FPS, "show measured FPS counter")
 	fs.IntVar(&cfg.Render.BenchSeconds, "bench-seconds", cfg.Render.BenchSeconds, "quit after benchmarking for this many seconds")
 	fs.IntVar(&cfg.Render.BenchWarmupSeconds, "bench-warmup-seconds", cfg.Render.BenchWarmupSeconds, "benchmark warmup seconds")
 	fs.StringVar(&cfg.Render.CPUProfile, "cpu-profile", cfg.Render.CPUProfile, "write CPU profile to this path during benchmark")
@@ -241,6 +243,8 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		cfg.Render.GraphicsAPI = value
 	case "render.vsync":
 		return setBool(value, &cfg.Render.VSync)
+	case "render.fps":
+		return setBool(value, &cfg.Render.FPS)
 	case "render.benchseconds":
 		return setInt(value, &cfg.Render.BenchSeconds)
 	case "render.benchwarmupseconds":

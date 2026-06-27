@@ -3,6 +3,7 @@ package gamemode
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -70,6 +71,7 @@ type npcDialogState struct {
 	menuDragging   bool
 	menuDragDX     int
 	menuDragDY     int
+	menuScroll     int
 }
 
 type npcDialogTextRun struct {
@@ -109,6 +111,7 @@ func (d *npcDialogState) apply(packet network.NPCDialog) {
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionMenu
 		d.options = append([]string(nil), packet.Options...)
+		d.menuScroll = 0
 	case network.NPCDialogClear:
 		if !d.open || d.npcID == 0 || packet.NPCID == 0 || d.npcID == packet.NPCID {
 			d.reset()
@@ -127,6 +130,9 @@ func (d *npcDialogState) update(ctx Context) bool {
 	width, height := ctx.ScreenSize()
 	x, y, w, h := d.resolvedDialogBounds(width, height)
 	menuX, menuY, menuW, menuH := d.menuBounds(width, height, x, y, w, h)
+	if d.updateMenuScrollAt(ctx, menuX, menuY, menuW, menuH) {
+		return true
+	}
 	if d.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
 			d.x = clampNPCDialogInt(ctx.Input.MouseX-d.dragDX, 8, maxInt(8, width-w-8))
@@ -171,11 +177,11 @@ func (d *npcDialogState) update(ctx Context) bool {
 				d.menuDragDY = my - menuY
 				return true
 			}
-			visible := minInt(len(d.options), maxNPCMenuVisibleRows(menuH))
-			for i := 0; i < visible; i++ {
+			start, end := d.visibleMenuRange(menuH)
+			for i, optionIndex := 0, start; optionIndex < end; i, optionIndex = i+1, optionIndex+1 {
 				ox, oy, ow, oh := npcDialogOptionBounds(menuX, menuY, menuW, i)
 				if pointInRect(mx, my, ox, oy, ow, oh) {
-					d.choose(ctx, i+1)
+					d.choose(ctx, optionIndex+1)
 					return true
 				}
 			}
@@ -308,17 +314,17 @@ func (d *npcDialogState) drawMenu(screen *render.Image, x, y, w, h int) {
 		render.DebugPrintAtColor(screen, "No options.", x+npcDialogPad, y+npcMenuTitleH+12, npcDialogMutedColor)
 		return
 	}
-	visible := minInt(len(d.options), maxNPCMenuVisibleRows(h))
-	for i := 0; i < visible; i++ {
+	start, end := d.visibleMenuRange(h)
+	for i, optionIndex := 0, start; optionIndex < end; i, optionIndex = i+1, optionIndex+1 {
 		ox, oy, ow, oh := npcDialogOptionBounds(x, y, w, i)
 		drawUIButtonSurface(screen, ox, oy, ow, oh, color.RGBA{R: 42, G: 48, B: 58, A: 190})
-		runs := npcDialogTextRuns(d.options[i], npcDialogOptionColor)
-		runs = append([]npcDialogTextRun{{text: fmt.Sprintf("%d. ", i+1), color: npcDialogOptionColor}}, runs...)
+		runs := npcDialogTextRuns(d.options[optionIndex], npcDialogOptionColor)
+		runs = append([]npcDialogTextRun{{text: fmt.Sprintf("%d. ", optionIndex+1), color: npcDialogOptionColor}}, runs...)
 		runs = trimNPCDialogTextRuns(runs, maxInt(8, (ow-12)/7))
 		drawNPCDialogTextRuns(screen, runs, ox+6, oy+5)
 	}
-	if len(d.options) > visible {
-		render.DebugPrintAtColor(screen, fmt.Sprintf("+%d more", len(d.options)-visible), x+w-80, y+h-34, npcDialogMutedColor)
+	if len(d.options) > maxNPCMenuVisibleRows(h) {
+		d.drawMenuScrollBar(screen, x, y, w, h)
 	}
 	cancelX, cancelY, cancelW, cancelH := npcDialogMenuCancelBounds(x, y, w, h)
 	drawUIButtonSurface(screen, cancelX, cancelY, cancelW, cancelH, color.RGBA{R: 62, G: 66, B: 74, A: 220})
@@ -374,6 +380,76 @@ func npcDialogMenuCancelBounds(x, y, w, h int) (int, int, int, int) {
 
 func maxNPCMenuVisibleRows(height int) int {
 	return maxInt(1, (height-npcMenuTitleH-npcMenuTopPad-npcMenuBottomH)/npcMenuRowH)
+}
+
+func (d *npcDialogState) updateMenuScroll(ctx Context) bool {
+	if !d.open || d.action != npcDialogActionMenu || ctx.Input == nil || ctx.Input.WheelY == 0 {
+		return false
+	}
+	width, height := ctx.ScreenSize()
+	dialogX, dialogY, dialogW, dialogH := d.resolvedDialogBounds(width, height)
+	x, y, w, h := d.menuBounds(width, height, dialogX, dialogY, dialogW, dialogH)
+	return d.updateMenuScrollAt(ctx, x, y, w, h)
+}
+
+func (d *npcDialogState) updateMenuScrollAt(ctx Context, x, y, w, h int) bool {
+	if d.action != npcDialogActionMenu || ctx.Input == nil || ctx.Input.WheelY == 0 {
+		return false
+	}
+	if !pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
+		return false
+	}
+	d.scrollMenuBy(ctx.Input.WheelY, h)
+	ctx.Input.WheelY = 0
+	return true
+}
+
+func (d *npcDialogState) scrollMenuBy(wheelY float64, height int) {
+	step := int(math.Ceil(math.Abs(wheelY)))
+	if step < 1 {
+		step = 1
+	}
+	if wheelY > 0 {
+		d.menuScroll -= step
+	} else {
+		d.menuScroll += step
+	}
+	d.clampMenuScroll(height)
+}
+
+func (d *npcDialogState) visibleMenuRange(height int) (int, int) {
+	d.clampMenuScroll(height)
+	visible := minInt(len(d.options), maxNPCMenuVisibleRows(height))
+	start := d.menuScroll
+	end := minInt(len(d.options), start+visible)
+	return start, end
+}
+
+func (d *npcDialogState) clampMenuScroll(height int) {
+	maxScroll := maxInt(0, len(d.options)-maxNPCMenuVisibleRows(height))
+	if d.menuScroll < 0 {
+		d.menuScroll = 0
+	}
+	if d.menuScroll > maxScroll {
+		d.menuScroll = maxScroll
+	}
+}
+
+func (d *npcDialogState) drawMenuScrollBar(screen *render.Image, x, y, w, h int) {
+	visible := maxNPCMenuVisibleRows(h)
+	if len(d.options) <= visible {
+		return
+	}
+	trackX := x + w - 9
+	trackY := y + npcMenuTitleH + npcMenuTopPad
+	trackH := maxInt(1, visible*npcMenuRowH-2)
+	total := len(d.options)
+	maxScroll := maxInt(1, total-visible)
+	thumbH := maxInt(18, trackH*visible/total)
+	thumbTravel := maxInt(1, trackH-thumbH)
+	thumbY := trackY + thumbTravel*d.menuScroll/maxScroll
+	render.DrawRect(screen, float64(trackX), float64(trackY), 3, float64(trackH), color.RGBA{R: 20, G: 24, B: 30, A: 210})
+	render.DrawRect(screen, float64(trackX), float64(thumbY), 3, float64(thumbH), npcDialogMutedColor)
 }
 
 func drawNPCWindowFrame(screen *render.Image, x, y, w, h int) {
@@ -595,8 +671,8 @@ func (d *npcDialogState) cursorAction(ctx Context) (int, bool) {
 			if pointInRect(mx, my, menuX, menuY, menuW, npcMenuTitleH) {
 				return cursorActionClick, true
 			}
-			visible := minInt(len(d.options), maxNPCMenuVisibleRows(menuH))
-			for i := 0; i < visible; i++ {
+			start, end := d.visibleMenuRange(menuH)
+			for i := 0; start+i < end; i++ {
 				ox, oy, ow, oh := npcDialogOptionBounds(menuX, menuY, menuW, i)
 				if pointInRect(mx, my, ox, oy, ow, oh) {
 					return cursorActionClick, true

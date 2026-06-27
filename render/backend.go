@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"image/color"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -44,6 +45,10 @@ type runner struct {
 	lastFrame      int64
 	frames         int64
 	measuredFrames int64
+	fpsStarted     time.Time
+	fpsFrames      int64
+	fpsDisplay     float64
+	frameMSDisplay float64
 	quit           func()
 	cpuProfile     *os.File
 }
@@ -291,6 +296,7 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	}
 	r.screen.BeginFrame()
 	r.game.Draw(r.screen)
+	r.drawFPSCounter()
 	if err := r.gpu.Draw(ctx, r.screen); err != nil {
 		return err
 	}
@@ -298,5 +304,39 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	if !r.measureStarted.IsZero() {
 		r.measuredFrames++
 	}
+	r.updateFPSCounter(time.Now())
 	return nil
+}
+
+func (r *runner) updateFPSCounter(now time.Time) {
+	if !r.renderCfg.FPS {
+		return
+	}
+	if r.fpsStarted.IsZero() {
+		r.fpsStarted = now
+		return
+	}
+	r.fpsFrames++
+	elapsed := now.Sub(r.fpsStarted)
+	if elapsed < time.Second {
+		return
+	}
+	seconds := elapsed.Seconds()
+	r.fpsDisplay = float64(r.fpsFrames) / seconds
+	r.frameMSDisplay = seconds * 1000 / float64(r.fpsFrames)
+	r.fpsFrames = 0
+	r.fpsStarted = now
+}
+
+func (r *runner) drawFPSCounter() {
+	if !r.renderCfg.FPS || r.screen == nil {
+		return
+	}
+	text := "FPS --"
+	if r.fpsDisplay > 0 {
+		text = fmt.Sprintf("FPS %.1f  %.2f ms", r.fpsDisplay, r.frameMSDisplay)
+	}
+	width := float64(len(text)*7 + 8)
+	DrawRect(r.screen, 6, 6, width, 18, color.RGBA{R: 0, G: 0, B: 0, A: 170})
+	DebugPrintAtColor(r.screen, text, 10, 9, color.RGBA{R: 224, G: 255, B: 190, A: 255})
 }

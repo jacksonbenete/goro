@@ -31,6 +31,7 @@ bgm_volume = 0.25
 [render]
 graphics_api = gles
 vsync = false
+fps = true
 
 [network]
 trace = true
@@ -65,7 +66,7 @@ enabled = false
 	if !cfg.Audio.BGM || cfg.Audio.BGMVolume != 0.75 {
 		t.Fatalf("unexpected audio config: %#v", cfg.Audio)
 	}
-	if cfg.Render.GraphicsAPI != "vulkan" || cfg.Render.VSync {
+	if cfg.Render.GraphicsAPI != "vulkan" || cfg.Render.VSync || !cfg.Render.FPS {
 		t.Fatalf("unexpected render config: %#v", cfg.Render)
 	}
 	if !cfg.Network.Trace {

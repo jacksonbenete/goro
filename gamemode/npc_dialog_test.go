@@ -3,6 +3,8 @@ package gamemode
 import (
 	"image/color"
 	"testing"
+
+	"github.com/kivutar/goro/input"
 )
 
 func TestNPCDialogTextRunsParseColorCodes(t *testing.T) {
@@ -38,6 +40,58 @@ func TestNPCDialogWrapIgnoresColorCodeWidth(t *testing.T) {
 	}
 	if lines[0][1].text != "two" || lines[0][1].color == base {
 		t.Fatalf("wrapped colored run not preserved: %#v", lines[0])
+	}
+}
+
+func TestNPCDialogMenuScrollChangesVisibleChoiceRange(t *testing.T) {
+	dialog := npcDialogState{
+		action:  npcDialogActionMenu,
+		options: []string{"one", "two", "three", "four", "five", "six"},
+	}
+	height := npcMenuTitleH + npcMenuTopPad + 4*npcMenuRowH + npcMenuBottomH
+
+	start, end := dialog.visibleMenuRange(height)
+	if start != 0 || end != 4 {
+		t.Fatalf("initial range = %d,%d, want 0,4", start, end)
+	}
+
+	dialog.scrollMenuBy(-2, height)
+	start, end = dialog.visibleMenuRange(height)
+	if start != 2 || end != 6 {
+		t.Fatalf("scrolled range = %d,%d, want 2,6", start, end)
+	}
+
+	dialog.scrollMenuBy(-10, height)
+	start, end = dialog.visibleMenuRange(height)
+	if start != 2 || end != 6 {
+		t.Fatalf("clamped range = %d,%d, want 2,6", start, end)
+	}
+
+	dialog.scrollMenuBy(1, height)
+	start, end = dialog.visibleMenuRange(height)
+	if start != 1 || end != 5 {
+		t.Fatalf("scroll up range = %d,%d, want 1,5", start, end)
+	}
+}
+
+func TestNPCDialogMenuScrollConsumesWheelInsideMenu(t *testing.T) {
+	state := input.NewState()
+	state.SetMousePosition(20, 20)
+	state.AddWheel(0, -1)
+	dialog := npcDialogState{
+		action:  npcDialogActionMenu,
+		options: []string{"one", "two", "three", "four", "five", "six"},
+	}
+	height := npcMenuTitleH + npcMenuTopPad + 4*npcMenuRowH + npcMenuBottomH
+
+	if !dialog.updateMenuScrollAt(Context{Input: state}, 10, 10, npcMenuWidth, height) {
+		t.Fatal("wheel inside menu was not consumed")
+	}
+	if dialog.menuScroll != 1 {
+		t.Fatalf("menu scroll = %d, want 1", dialog.menuScroll)
+	}
+	if state.WheelY != 0 {
+		t.Fatalf("wheel y = %.1f, want consumed", state.WheelY)
 	}
 }
 
