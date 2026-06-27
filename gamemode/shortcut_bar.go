@@ -1,9 +1,12 @@
 package gamemode
 
 import (
+	"encoding/json"
 	"fmt"
 	"image/color"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/kivutar/goro/render"
@@ -39,6 +42,21 @@ type shortcutBarState struct {
 	status     string
 	statusGood bool
 	statusAt   time.Time
+	loaded     bool
+}
+
+type shortcutPersistFile struct {
+	Version int                   `json:"version"`
+	Slots   []shortcutPersistSlot `json:"slots"`
+}
+
+type shortcutPersistSlot struct {
+	Kind       string `json:"kind,omitempty"`
+	ItemIndex  uint16 `json:"item_index,omitempty"`
+	ItemID     uint16 `json:"item_id,omitempty"`
+	Identified bool   `json:"identified,omitempty"`
+	SkillID    uint16 `json:"skill_id,omitempty"`
+	SkillLevel int    `json:"skill_level,omitempty"`
 }
 
 func (b *shortcutBarState) update(ctx Context, mode *WorldMode) bool {
@@ -58,6 +76,7 @@ func (b *shortcutBarState) update(ctx Context, mode *WorldMode) bool {
 	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
 		b.slots[slot] = shortcutSlotState{}
 		b.setStatus(fmt.Sprintf("F%d cleared", slot+1), true)
+		b.save()
 		return true
 	}
 	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
@@ -79,6 +98,7 @@ func (b *shortcutBarState) acceptItemDrop(ctx Context, item session.InventoryIte
 		identified: item.Identified,
 	}
 	b.setStatus(fmt.Sprintf("%s assigned to F%d", trimRunes(inventoryItemDisplayName(ctx.Resources, item), 24), slot+1), true)
+	b.save()
 	return true
 }
 
@@ -97,6 +117,7 @@ func (b *shortcutBarState) acceptSkillDrop(ctx Context, skill session.Skill, mx,
 		skillLevel: skill.Level,
 	}
 	b.setStatus(fmt.Sprintf("%s assigned to F%d", trimRunes(skillLabel(skill), 24), slot+1), true)
+	b.save()
 	return true
 }
 
@@ -107,7 +128,7 @@ func (b *shortcutBarState) activate(ctx Context, mode *WorldMode, slot int) {
 	entry := b.slots[slot]
 	switch entry.kind {
 	case shortcutItem:
-		item, ok := inventoryItemByIndex(ctx.Session, entry.itemIndex)
+		item, ok := inventoryItemForShortcut(ctx.Session, entry.itemIndex, entry.itemID)
 		if !ok {
 			b.setStatus(fmt.Sprintf("F%d item unavailable", slot+1), false)
 			return
@@ -166,7 +187,7 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 		case shortcutItem:
 			if mode != nil {
 				item := session.InventoryItem{ItemID: entry.itemID, Index: entry.itemIndex, Identified: entry.identified, Amount: 1}
-				if live, ok := inventoryItemByIndex(ctx.Session, entry.itemIndex); ok {
+				if live, ok := inventoryItemForShortcut(ctx.Session, entry.itemIndex, entry.itemID); ok {
 					item = live
 				}
 				mode.drawInventoryItemIcon(screen, ctx.Resources, item, sx+5, sy+5)
@@ -231,6 +252,110 @@ func (b *shortcutBarState) setStatus(text string, good bool) {
 	b.statusAt = time.Now()
 }
 
+func (b *shortcutBarState) load() {
+	if b.loaded {
+		return
+	}
+	b.loaded = true
+	path, err := shortcutStatePath()
+	if err != nil {
+		log.Printf("shortcut load skipped: %v", err)
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("shortcut load failed path=%s: %v", path, err)
+		}
+		return
+	}
+	var saved shortcutPersistFile
+	if err := json.Unmarshal(data, &saved); err != nil {
+		log.Printf("shortcut load parse failed path=%s: %v", path, err)
+		return
+	}
+	for i := 0; i < len(saved.Slots) && i < shortcutSlots; i++ {
+		b.slots[i] = shortcutSlotFromPersist(saved.Slots[i])
+	}
+	log.Printf("shortcut bar loaded path=%s slots=%d", path, len(saved.Slots))
+}
+
+func (b *shortcutBarState) save() {
+	b.loaded = true
+	path, err := shortcutStatePath()
+	if err != nil {
+		log.Printf("shortcut save skipped: %v", err)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		log.Printf("shortcut save mkdir failed path=%s: %v", path, err)
+		return
+	}
+	saved := shortcutPersistFile{
+		Version: 1,
+		Slots:   make([]shortcutPersistSlot, shortcutSlots),
+	}
+	for i := 0; i < shortcutSlots; i++ {
+		saved.Slots[i] = b.slots[i].persist()
+	}
+	data, err := json.MarshalIndent(saved, "", "  ")
+	if err != nil {
+		log.Printf("shortcut save marshal failed: %v", err)
+		return
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
+		log.Printf("shortcut save failed path=%s: %v", path, err)
+	}
+}
+
+func shortcutStatePath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "goro", "shortcuts.json"), nil
+}
+
+func shortcutSlotFromPersist(saved shortcutPersistSlot) shortcutSlotState {
+	switch saved.Kind {
+	case "item":
+		return shortcutSlotState{
+			kind:       shortcutItem,
+			itemIndex:  saved.ItemIndex,
+			itemID:     saved.ItemID,
+			identified: saved.Identified,
+		}
+	case "skill":
+		return shortcutSlotState{
+			kind:       shortcutSkill,
+			skillID:    saved.SkillID,
+			skillLevel: saved.SkillLevel,
+		}
+	default:
+		return shortcutSlotState{}
+	}
+}
+
+func (s shortcutSlotState) persist() shortcutPersistSlot {
+	switch s.kind {
+	case shortcutItem:
+		return shortcutPersistSlot{
+			Kind:       "item",
+			ItemIndex:  s.itemIndex,
+			ItemID:     s.itemID,
+			Identified: s.identified,
+		}
+	case shortcutSkill:
+		return shortcutPersistSlot{
+			Kind:       "skill",
+			SkillID:    s.skillID,
+			SkillLevel: s.skillLevel,
+		}
+	default:
+		return shortcutPersistSlot{}
+	}
+}
+
 func shortcutKey(slot int) render.Key {
 	switch slot {
 	case 0:
@@ -260,6 +385,22 @@ func inventoryItemByIndex(s *session.Session, index uint16) (session.InventoryIt
 	}
 	for _, item := range s.Inventory.Items {
 		if item.Index != index || item.Amount == 0 {
+			continue
+		}
+		return item, true
+	}
+	return session.InventoryItem{}, false
+}
+
+func inventoryItemForShortcut(s *session.Session, index, itemID uint16) (session.InventoryItem, bool) {
+	if item, ok := inventoryItemByIndex(s, index); ok {
+		return item, true
+	}
+	if s == nil || itemID == 0 {
+		return session.InventoryItem{}, false
+	}
+	for _, item := range s.Inventory.Items {
+		if item.ItemID != itemID || item.Amount == 0 {
 			continue
 		}
 		return item, true

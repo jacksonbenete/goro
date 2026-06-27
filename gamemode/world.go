@@ -278,6 +278,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
+	m.shortcutBar.load()
 	m.npcDialog.reset()
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
@@ -845,6 +846,7 @@ func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode 
 func (m *WorldMode) nextWorldMode() *WorldMode {
 	next := NewWorldMode()
 	next.console = m.console
+	next.shortcutBar = m.shortcutBar
 	next.startMapFadeIn(time.Now())
 	return next
 }

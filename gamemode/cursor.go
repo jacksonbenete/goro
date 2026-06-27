@@ -18,6 +18,8 @@ const (
 	cursorActionAttack  = 5
 	cursorActionWarp    = 7
 	cursorActionPick    = 9
+	cursorActionTarget  = 10
+	cursorActionTarget2 = 11
 	cursorActionNoWalk  = 13
 )
 
@@ -33,6 +35,8 @@ var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionRotate:  {drawX: 18, drawY: 26, delayMult: 1.0},
 	cursorActionWarp:    {drawX: 10, drawY: 32, delayMult: 1.0},
 	cursorActionPick:    {drawX: 20, drawY: 40, delayMult: 1.0},
+	cursorActionTarget:  {drawX: 20, drawY: 50, delayMult: 0.5},
+	cursorActionTarget2: {drawX: 20, drawY: 50, delayMult: 0.5},
 	cursorActionNoWalk:  {drawX: 13, drawY: 25, delayMult: 1.0},
 }
 
@@ -120,9 +124,9 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	}
 	if m.pendingSkill.skill.ID != 0 {
 		if actor, ok := hoveredCursorActor(ctx, projection, mouseX, mouseY, now, m.actorDeaths); ok && actorCanBeSkillTargeted(ctx, actor) {
-			return cursorActionAttack
+			return cursorActionTarget2
 		}
-		return cursorActionNoWalk
+		return cursorActionTarget
 	}
 	if _, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionPick
