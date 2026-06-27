@@ -65,6 +65,8 @@ not become invisible project assumptions.
 - **Fog and lighting model**
   - Current state: fog and lighting were tuned visually against RO clients.
   - Ugly part: some constants are empirical.
+  - Improved: renderer-level camera fog is now applied in the world shader
+    instead of mutating every submitted 3D vertex on the CPU.
   - Better fix: derive formulas and default parameters directly from RSW/GND data
     and reference-client code, then add screenshot-style regression fixtures.
 

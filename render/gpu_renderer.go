@@ -63,6 +63,8 @@ struct Uniforms {
 	c1: vec4<f32>,
 	c2: vec4<f32>,
 	c3: vec4<f32>,
+	fog: vec4<f32>,
+	fog_color: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -81,6 +83,7 @@ struct VertexOutput {
 	@builtin(position) clip: vec4<f32>,
 	@location(0) uv: vec2<f32>,
 	@location(1) color: vec4<f32>,
+	@location(2) fog_amount: f32,
 }
 
 @vertex
@@ -92,20 +95,23 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 	var depth_clip = uniforms.c0 * dp.x + uniforms.c1 * dp.y + uniforms.c2 * dp.z + uniforms.c3 * dp.w;
 	clip.z = clip.z * 0.5 + clip.w * 0.5;
 	depth_clip.z = depth_clip.z * 0.5 + depth_clip.w * 0.5;
+	let fog_depth = clip.z;
 	clip.z = min(clip.z, depth_clip.z * clip.w / max(depth_clip.w, 0.000001));
 	clip.z = max(0.0, clip.z - input.depth_bias * clip.w);
 	out.clip = clip;
 	out.uv = input.uv;
 	out.color = input.color;
+	out.fog_amount = smoothstep(uniforms.fog.x, uniforms.fog.y, fog_depth) * uniforms.fog.z;
 	return out;
 }
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-	let color = textureSample(tex, tex_sampler, input.uv) * input.color;
+	var color = textureSample(tex, tex_sampler, input.uv) * input.color;
 	if (color.a < 0.01) {
 		discard;
 	}
+	color.rgb = mix(color.rgb, uniforms.fog_color.rgb, clamp(input.fog_amount, 0.0, 1.0));
 	return color;
 }
 `
@@ -234,7 +240,7 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 	}
 	r.worldUniform, err = r.dev.CreateBuffer(&wgpu.BufferDescriptor{
 		Label: "goro-world-uniform",
-		Size:  64,
+		Size:  96,
 		Usage: wgpu.BufferUsageUniform | wgpu.BufferUsageCopyDst,
 	})
 	if err != nil {
@@ -271,7 +277,7 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 	r.worldBGL, err = r.dev.CreateBindGroupLayout(&wgpu.BindGroupLayoutDescriptor{
 		Label: "goro-world-bind-layout",
 		Entries: []wgpu.BindGroupLayoutEntry{
-			{Binding: 0, Visibility: wgpu.ShaderStageVertex, Buffer: &gputypes.BufferBindingLayout{Type: gputypes.BufferBindingTypeUniform, MinBindingSize: 64}},
+			{Binding: 0, Visibility: wgpu.ShaderStageVertex | wgpu.ShaderStageFragment, Buffer: &gputypes.BufferBindingLayout{Type: gputypes.BufferBindingTypeUniform, MinBindingSize: 96}},
 			{Binding: 1, Visibility: wgpu.ShaderStageFragment, Sampler: &gputypes.SamplerBindingLayout{Type: gputypes.SamplerBindingTypeFiltering}},
 			{Binding: 2, Visibility: wgpu.ShaderStageFragment, Texture: &gputypes.TextureBindingLayout{SampleType: gputypes.TextureSampleTypeFloat, ViewDimension: gputypes.TextureViewDimension2D}},
 		},
@@ -416,7 +422,7 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 		return fmt.Errorf("upload screen uniform: %w", err)
 	}
 	if screen.camera.Enabled {
-		if err := r.queue.WriteBuffer(r.worldUniform, 0, matrixBytes(screen.camera.ViewProjection)); err != nil {
+		if err := r.queue.WriteBuffer(r.worldUniform, 0, worldUniformBytes(screen.camera)); err != nil {
 			return fmt.Errorf("upload world uniform: %w", err)
 		}
 	}
@@ -496,7 +502,7 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 				_ = pass.End()
 				return err
 			}
-			bg, err := r.bindGroup(r.worldBGL, r.worldUniform, 64, tex.tex, sampler)
+			bg, err := r.bindGroup(r.worldBGL, r.worldUniform, 96, tex.tex, sampler)
 			if err != nil {
 				_ = pass.End()
 				return err
@@ -1019,10 +1025,28 @@ func uniformBytes(width, height float32) []byte {
 	return data
 }
 
-func matrixBytes(values [16]float32) []byte {
-	data := make([]byte, 64)
-	for i, v := range values {
+func worldUniformBytes(camera Camera3D) []byte {
+	data := make([]byte, 96)
+	for i, v := range camera.ViewProjection {
 		binary.LittleEndian.PutUint32(data[i*4:i*4+4], math.Float32bits(v))
+	}
+	fogEnabled := float32(0)
+	if camera.Enabled && camera.Fog.Enabled && camera.Fog.Far > camera.Fog.Near {
+		fogEnabled = 1
+	}
+	fogValues := [8]float32{
+		camera.Fog.Near,
+		camera.Fog.Far,
+		fogEnabled,
+		0,
+		camera.Fog.ColorR,
+		camera.Fog.ColorG,
+		camera.Fog.ColorB,
+		1,
+	}
+	for i, v := range fogValues {
+		offset := 64 + i*4
+		binary.LittleEndian.PutUint32(data[offset:offset+4], math.Float32bits(v))
 	}
 	return data
 }

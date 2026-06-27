@@ -8,6 +8,7 @@ require (
 	github.com/gogpu/gogpu v0.42.7
 	github.com/gogpu/gpucontext v0.21.0
 	github.com/gogpu/gputypes v0.5.0
+	github.com/gogpu/naga v0.17.15
 	github.com/gogpu/ui v0.1.36
 	github.com/gogpu/wgpu v0.30.4
 	github.com/hajimehoshi/go-mp3 v0.3.4
@@ -22,7 +23,6 @@ require (
 	github.com/go-webgpu/goffi v0.5.5 // indirect
 	github.com/go-webgpu/webgpu v0.5.2 // indirect
 	github.com/gogpu/gg v0.48.16 // indirect
-	github.com/gogpu/naga v0.17.15 // indirect
 	github.com/jfreymuth/pulse v0.1.1 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 )

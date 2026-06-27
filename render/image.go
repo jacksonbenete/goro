@@ -408,7 +408,6 @@ func (i *Image) DrawTriangles3DOwned(vertices []Vertex3D, indices []uint16, text
 		o = *opts
 	}
 	if i.screen {
-		applyCameraFog3D(vertices, i.camera)
 		i.worldCommands = append(i.worldCommands, WorldCommand{
 			Vertices: vertices,
 			Indices:  indices,
@@ -418,60 +417,6 @@ func (i *Image) DrawTriangles3DOwned(vertices []Vertex3D, indices []uint16, text
 		return
 	}
 	i.DrawTriangles3D(vertices, indices, texture, &o)
-}
-
-func applyCameraFog3D(vertices []Vertex3D, camera Camera3D) {
-	fog := camera.Fog
-	if len(vertices) == 0 || !camera.Enabled || !fog.Enabled || fog.Far <= fog.Near {
-		return
-	}
-	m := camera.ViewProjection
-	for i := range vertices {
-		v := &vertices[i]
-		depth := cameraFogDepth(m, *v)
-		if math.IsNaN(float64(depth)) || math.IsInf(float64(depth), 0) {
-			continue
-		}
-		amount := smoothstep32(fog.Near, fog.Far, depth)
-		if amount <= 0 {
-			continue
-		}
-		inverse := 1 - amount
-		v.ColorR = clampFloat32(v.ColorR*inverse+fog.ColorR*amount, 0, 1)
-		v.ColorG = clampFloat32(v.ColorG*inverse+fog.ColorG*amount, 0, 1)
-		v.ColorB = clampFloat32(v.ColorB*inverse+fog.ColorB*amount, 0, 1)
-	}
-}
-
-func cameraFogDepth(m [16]float32, v Vertex3D) float32 {
-	clipZ := m[2]*v.X + m[6]*v.Y + m[10]*v.Z + m[14]
-	clipW := m[3]*v.X + m[7]*v.Y + m[11]*v.Z + m[15]
-	if clipW == 0 {
-		return 0
-	}
-	windowZ := (clipZ/clipW + 1) * 0.5
-	return windowZ * clipW
-}
-
-func smoothstep32(edge0, edge1, x float32) float32 {
-	if edge0 == edge1 {
-		if x < edge0 {
-			return 0
-		}
-		return 1
-	}
-	t := clampFloat32((x-edge0)/(edge1-edge0), 0, 1)
-	return t * t * (3 - 2*t)
-}
-
-func clampFloat32(value, minValue, maxValue float32) float32 {
-	if value < minValue {
-		return minValue
-	}
-	if value > maxValue {
-		return maxValue
-	}
-	return value
 }
 
 func (i *Image) drawTriangle(v0, v1, v2 Vertex, texture *Image, opts DrawTrianglesOptions) {
