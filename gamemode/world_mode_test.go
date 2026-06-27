@@ -771,6 +771,9 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 	if anim.actionFamily != spriteActionNonPCDeath {
 		t.Fatalf("death action = %d, want %d", anim.actionFamily, spriteActionNonPCDeath)
 	}
+	if anim.holdFinal {
+		t.Fatal("non-player death animation should not hold forever")
+	}
 	if removeAt, ok := mode.actorDeaths[300]; !ok || !removeAt.After(anim.started) {
 		t.Fatalf("death removal time = %s ok=%t", removeAt, ok)
 	}
@@ -785,6 +788,57 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 	mode.cleanupDeadActors(ctx, mode.actorDeaths[300].Add(time.Millisecond))
 	if _, ok := world.Actors[300]; ok {
 		t.Fatal("dead actor was not removed after death hold")
+	}
+}
+
+func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+			Selected:  session.Character{ID: 150000, Job: 0, HP: 0},
+			Vitals:    session.Vitals{HP: 0},
+		},
+		World: world,
+	}
+
+	mode.startActorDeath(ctx, 150000)
+
+	if !mode.deathModal.open {
+		t.Fatal("death modal should open for local death")
+	}
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("character death animation missing")
+	}
+	if anim.actionFamily != spriteActionPCDeath {
+		t.Fatalf("death action = %d, want %d", anim.actionFamily, spriteActionPCDeath)
+	}
+	if !anim.holdFinal {
+		t.Fatal("local death animation should hold final frame")
+	}
+	accountAnim, ok := mode.actorAnims[2000000]
+	if !ok || !accountAnim.holdFinal || accountAnim.actionFamily != spriteActionPCDeath {
+		t.Fatalf("account death animation = %+v ok=%t", accountAnim, ok)
+	}
+	if held, ok := mode.actorAnimation(150000, anim.started.Add(anim.duration+time.Second)); !ok || held.actionFamily != spriteActionPCDeath {
+		t.Fatalf("expired local death animation = %+v ok=%t", held, ok)
+	}
+
+	ctx.Session.Vitals.HP = 1
+	mode.clearLocalDeathStateIfAlive(ctx)
+
+	if mode.deathModal.open {
+		t.Fatal("death modal should clear when player is alive")
+	}
+	if _, ok := mode.actorAnims[150000]; ok {
+		t.Fatal("character death animation should clear when player is alive")
+	}
+	if _, ok := mode.actorAnims[2000000]; ok {
+		t.Fatal("account death animation should clear when player is alive")
 	}
 }
 

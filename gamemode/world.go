@@ -125,6 +125,7 @@ type actorAnimation struct {
 	actionFamily int
 	started      time.Time
 	duration     time.Duration
+	holdFinal    bool
 }
 
 type actorLife struct {
@@ -562,7 +563,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			applyParameterChange(ctx, change)
 			if change.VarID == network.StatusHP {
-				m.deathModal.clearIfAlive(ctx)
+				m.clearLocalDeathStateIfAlive(ctx)
 			}
 			continue
 		}
@@ -703,7 +704,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
-	m.deathModal.reset()
+	m.clearLocalDeathState(ctx)
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
 	log.Printf("map change current=%s target=%s x=%d y=%d server_move=%t addr=%s port=%d reuse_loaded=%t", currentMap, change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port, reuseLoadedMap)
@@ -1257,6 +1258,14 @@ func (m *WorldMode) faceCombatSource(ctx Context, source worldstate.Actor, sourc
 }
 
 func (m *WorldMode) startActorAnimation(id uint32, actionFamily int, started time.Time, duration time.Duration) {
+	m.startActorAnimationWithOptions(id, actionFamily, started, duration, false)
+}
+
+func (m *WorldMode) startHeldActorAnimation(id uint32, actionFamily int, started time.Time, duration time.Duration) {
+	m.startActorAnimationWithOptions(id, actionFamily, started, duration, true)
+}
+
+func (m *WorldMode) startActorAnimationWithOptions(id uint32, actionFamily int, started time.Time, duration time.Duration, holdFinal bool) {
 	if id == 0 || actionFamily < 0 {
 		return
 	}
@@ -1267,6 +1276,7 @@ func (m *WorldMode) startActorAnimation(id uint32, actionFamily int, started tim
 		actionFamily: actionFamily,
 		started:      started,
 		duration:     duration,
+		holdFinal:    holdFinal,
 	}
 }
 
@@ -1277,6 +1287,48 @@ func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily in
 	}
 	m.startActorAnimation(ctx.Session.AccountID, actionFamily, started, duration)
 	m.startActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
+}
+
+func (m *WorldMode) startHeldCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
+	m.startHeldActorAnimation(id, actionFamily, started, duration)
+	if ctx.Session == nil || !isLocalActor(ctx, id) {
+		return
+	}
+	m.startHeldActorAnimation(ctx.Session.AccountID, actionFamily, started, duration)
+	m.startHeldActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
+}
+
+func (m *WorldMode) clearLocalDeathStateIfAlive(ctx Context) {
+	if ctx.Session == nil {
+		return
+	}
+	if ctx.Session.Vitals.HP <= 0 && ctx.Session.Selected.HP <= 0 {
+		return
+	}
+	m.clearLocalDeathState(ctx)
+}
+
+func (m *WorldMode) clearLocalDeathState(ctx Context) {
+	m.deathModal.reset()
+	if ctx.Session == nil || m.actorAnims == nil {
+		return
+	}
+	m.clearActorDeathAnimation(ctx.Session.AccountID)
+	m.clearActorDeathAnimation(ctx.Session.CharID)
+}
+
+func (m *WorldMode) clearActorDeathAnimation(id uint32) {
+	if id == 0 || m.actorAnims == nil {
+		return
+	}
+	anim, ok := m.actorAnims[id]
+	if !ok {
+		return
+	}
+	if anim.actionFamily != spriteActionPCDeath && anim.actionFamily != spriteActionNonPCDeath {
+		return
+	}
+	delete(m.actorAnims, id)
 }
 
 func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bool) {
@@ -1294,6 +1346,9 @@ func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bo
 		return actorAnimation{}, false
 	}
 	if !now.Before(anim.started.Add(anim.duration)) {
+		if anim.holdFinal {
+			return anim, true
+		}
 		delete(m.actorAnims, id)
 		return actorAnimation{}, false
 	}
@@ -2193,7 +2248,11 @@ func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
 	if !local {
 		visibleDuration = maxDuration(deathDuration, nonPCDeathFadeDuration)
 	}
-	m.startCombatAnimation(ctx, id, actionFamily, now, visibleDuration)
+	if local {
+		m.startHeldCombatAnimation(ctx, id, actionFamily, now, deathDuration)
+	} else {
+		m.startCombatAnimation(ctx, id, actionFamily, now, visibleDuration)
+	}
 	if !local {
 		if m.actorDeaths == nil {
 			m.actorDeaths = make(map[uint32]time.Time)

@@ -74,6 +74,17 @@ not become invisible project assumptions.
   - Better fix: derive formulas and default parameters directly from RSW/GND data
     and reference-client code, then add screenshot-style regression fixtures.
 
+## Gameplay State
+
+- **Local death as held animation**
+  - Current state: local player death uses the transient actor animation path,
+    with the final death frame held until positive HP or map change.
+  - Ugly part: roBrowser models death as persistent entity action/state, not as
+    an expiring combat-style animation.
+  - Better fix: split persistent actor state such as idle, walk, sit, and dead
+    from transient overlays such as attack, hurt, and pickup, then clear dead
+    state only on resurrection, respawn, or map transition.
+
 ## Data And Protocol
 
 - **Fallback resource tables**
