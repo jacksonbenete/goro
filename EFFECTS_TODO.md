@@ -140,7 +140,10 @@ Goal: stop writing one Go switch case per effect.
 
 - [ ] Build a normalized local effect table generated from roBrowser
   `EffectTable.js` for the subset Goro can render today.
-- [ ] Support core roBrowser component fields: `type`, `file`, `texturePath`,
+- [x] Add a parser for the roBrowser `EffectTable.js` subset Goro can render
+  today: `STR`, `CYLINDER`, declared `wav`, timing, alpha, size, height, and
+  rotation fields.
+- [ ] Support remaining core roBrowser component fields: `type`, `file`, `texturePath`,
   `textureName`, `wav`, `delayWav`, `duration`, `delay`, `fade`, `fadeIn`,
   `fadeOut`, `alphaMax`, color channels, `blendMode`, `attachedEntity`,
   `renderBeforeEntities`, repeat flags, and randomized fields.
@@ -149,8 +152,10 @@ Goal: stop writing one Go switch case per effect.
   roBrowser, such as camera quake or game-state-triggered fade.
 - [x] Add a test that tracks current implemented effect count and roBrowser
   coverage constants.
+- [x] Add a parser-backed test that compares the current local roBrowser
+  `EffectTable.js` active numeric entry count against Goro's coverage constant.
 - [ ] Add a generated-table test that compares implemented effect IDs against
-  parsed roBrowser table data instead of fixed constants.
+  normalized roBrowser table data instead of fixed constants.
 
 ### 2. Renderer Primitives Needed By Many Effects
 
