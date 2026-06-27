@@ -14,110 +14,12 @@ import (
 	"github.com/kivutar/goro/core"
 )
 
-const screenShaderWGSL = `
-struct Uniforms {
-	screen: vec2<f32>,
-	padding: vec2<f32>,
-}
-
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var tex_sampler: sampler;
-@group(0) @binding(2) var tex: texture_2d<f32>;
-
-struct VertexInput {
-	@location(0) pos: vec2<f32>,
-	@location(1) uv: vec2<f32>,
-	@location(2) color: vec4<f32>,
-}
-
-struct VertexOutput {
-	@builtin(position) clip: vec4<f32>,
-	@location(0) uv: vec2<f32>,
-	@location(1) color: vec4<f32>,
-}
-
-@vertex
-fn vs_main(input: VertexInput) -> VertexOutput {
-	var out: VertexOutput;
-	let x = (input.pos.x / uniforms.screen.x) * 2.0 - 1.0;
-	let y = 1.0 - (input.pos.y / uniforms.screen.y) * 2.0;
-	out.clip = vec4<f32>(x, y, 0.0, 1.0);
-	out.uv = input.uv;
-	out.color = input.color;
-	return out;
-}
-
-@fragment
-fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-	let color = textureSample(tex, tex_sampler, input.uv) * input.color;
-	if (color.a < 0.01) {
-		discard;
-	}
-	return color;
-}
-`
-
-const worldShaderWGSL = `
-struct Uniforms {
-	c0: vec4<f32>,
-	c1: vec4<f32>,
-	c2: vec4<f32>,
-	c3: vec4<f32>,
-	fog: vec4<f32>,
-	fog_color: vec4<f32>,
-}
-
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var tex_sampler: sampler;
-@group(0) @binding(2) var tex: texture_2d<f32>;
-
-struct VertexInput {
-	@location(0) pos: vec3<f32>,
-	@location(1) uv: vec2<f32>,
-	@location(2) color: vec4<f32>,
-	@location(3) depth_pos: vec3<f32>,
-	@location(4) depth_bias: f32,
-}
-
-struct VertexOutput {
-	@builtin(position) clip: vec4<f32>,
-	@location(0) uv: vec2<f32>,
-	@location(1) color: vec4<f32>,
-	@location(2) fog_amount: f32,
-}
-
-	@vertex
-	fn vs_main(input: VertexInput) -> VertexOutput {
-		var out: VertexOutput;
-		let clip = uniforms.c0 * input.pos[0] + uniforms.c1 * input.pos[1] + uniforms.c2 * input.pos[2] + uniforms.c3;
-		let depth_clip = uniforms.c0 * input.depth_pos[0] + uniforms.c1 * input.depth_pos[1] + uniforms.c2 * input.depth_pos[2] + uniforms.c3;
-		let clip_z = clip[2] * 0.5 + clip[3] * 0.5;
-		let depth_z = depth_clip[2] * 0.5 + depth_clip[3] * 0.5;
-		let fog_depth = clip_z;
-		let occlusion_z = min(clip_z, depth_z * clip[3] / max(depth_clip[3], 0.000001));
-		let final_z = max(0.0, occlusion_z - input.depth_bias * clip[3]);
-		out.clip = vec4<f32>(clip[0], clip[1], final_z, clip[3]);
-		out.uv = input.uv;
-		out.color = input.color;
-		out.fog_amount = smoothstep(uniforms.fog[0], uniforms.fog[1], fog_depth) * uniforms.fog[2];
-		return out;
-	}
-
-	@fragment
-	fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-		var color = textureSample(tex, tex_sampler, input.uv) * input.color;
-		if (color[3] < 0.01) {
-			discard;
-		}
-		let fog = clamp(input.fog_amount, 0.0, 1.0);
-		return vec4<f32>(
-			color[0] * (1.0 - fog) + uniforms.fog_color[0] * fog,
-			color[1] * (1.0 - fog) + uniforms.fog_color[1] * fog,
-			color[2] * (1.0 - fog) + uniforms.fog_color[2] * fog,
-			color[3],
-		);
-	}
-	`
+const (
+	screenVertexFloatCount = 8
+	worldVertexFloatCount  = 13
+	screenVertexStride     = screenVertexFloatCount * 4
+	worldVertexStride      = worldVertexFloatCount * 4
+)
 
 type gpuRenderer struct {
 	dev             *wgpu.Device
@@ -338,7 +240,7 @@ func (r *gpuRenderer) createPipeline(shader *wgpu.ShaderModule, blend gputypes.B
 			Module:     shader,
 			EntryPoint: "vs_main",
 			Buffers: []wgpu.VertexBufferLayout{{
-				ArrayStride: 32,
+				ArrayStride: screenVertexStride,
 				StepMode:    gputypes.VertexStepModeVertex,
 				Attributes: []gputypes.VertexAttribute{
 					{Format: gputypes.VertexFormatFloat32x2, Offset: 0, ShaderLocation: 0},
@@ -372,7 +274,7 @@ func (r *gpuRenderer) createWorldPipeline(shader *wgpu.ShaderModule, blend gputy
 			Module:     shader,
 			EntryPoint: "vs_main",
 			Buffers: []wgpu.VertexBufferLayout{{
-				ArrayStride: 52,
+				ArrayStride: worldVertexStride,
 				StepMode:    gputypes.VertexStepModeVertex,
 				Attributes: []gputypes.VertexAttribute{
 					{Format: gputypes.VertexFormatFloat32x3, Offset: 0, ShaderLocation: 0},
@@ -436,7 +338,7 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 	world := r.buildWorldFrame(screen)
 	frame := r.buildFrame(screen)
 	if r.statsEnabled && time.Since(r.statsLast) >= time.Second {
-		log.Printf("render stats world_commands=%d world_batches=%d world_vertices=%d world_indices=%d commands=%d batches=%d vertices=%d indices=%d textures=%d bindgroups=%d", len(screen.worldCommands), len(world.batches), len(world.floats)/13, len(world.indices), len(screen.commands), len(frame.batches), len(frame.floats)/8, len(frame.indices), len(r.textures), len(r.bindGroups))
+		log.Printf("render stats world_commands=%d world_batches=%d world_vertices=%d world_indices=%d commands=%d batches=%d vertices=%d indices=%d textures=%d bindgroups=%d", len(screen.worldCommands), len(world.batches), len(world.floats)/worldVertexFloatCount, len(world.indices), len(screen.commands), len(frame.batches), len(frame.floats)/screenVertexFloatCount, len(frame.indices), len(r.textures), len(r.bindGroups))
 		r.statsLast = time.Now()
 	}
 	if r.worldDebug && time.Since(r.worldDebugLast) >= time.Second {
@@ -578,22 +480,10 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			continue
 		}
 		batch := &pending[batchIndex]
-		base := uint32(len(batch.floats) / 13)
-		for _, v := range cmd.Vertices {
-			batch.floats = append(batch.floats,
-				v.X, v.Y, v.Z,
-				v.SrcX/float32(w), v.SrcY/float32(h),
-				saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
-				v.DepthX, v.DepthY, v.DepthZ,
-				saneDepthBias(cmd.Options.DepthBias),
-			)
-		}
-		for _, idx := range cmd.Indices {
-			batch.indices = append(batch.indices, base+uint32(idx))
-		}
+		batch.floats, batch.indices = appendWorldCommand(batch.floats, batch.indices, cmd, w, h)
 	}
 	frame := worldFrame{
-		floats:  make([]float32, 0, vertexCount*13),
+		floats:  make([]float32, 0, vertexCount*worldVertexFloatCount),
 		indices: make([]uint32, 0, indexCount),
 		batches: make([]drawBatch, 0, commandCount),
 	}
@@ -601,7 +491,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		if len(batch.indices) == 0 || len(batch.floats) == 0 {
 			continue
 		}
-		vertexBase := uint32(len(frame.floats) / 13)
+		vertexBase := uint32(len(frame.floats) / worldVertexFloatCount)
 		firstIndex := uint32(len(frame.indices))
 		frame.floats = append(frame.floats, batch.floats...)
 		for _, index := range batch.indices {
@@ -624,22 +514,30 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		if w <= 0 || h <= 0 {
 			continue
 		}
-		base := uint32(len(frame.floats) / 13)
-		for _, v := range cmd.Vertices {
-			frame.floats = append(frame.floats,
-				v.X, v.Y, v.Z,
-				v.SrcX/float32(w), v.SrcY/float32(h),
-				saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
-				v.DepthX, v.DepthY, v.DepthZ,
-				saneDepthBias(cmd.Options.DepthBias),
-			)
-		}
-		for _, idx := range cmd.Indices {
-			frame.indices = append(frame.indices, base+uint32(idx))
-			current.indexCount++
-		}
+		indexCountBefore := len(frame.indices)
+		frame.floats, frame.indices = appendWorldCommand(frame.floats, frame.indices, cmd, w, h)
+		current.indexCount += uint32(len(frame.indices) - indexCountBefore)
 	}
 	return frame
+}
+
+func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, width, height int) ([]float32, []uint32) {
+	base := uint32(len(floats) / worldVertexFloatCount)
+	invW, invH := 1/float32(width), 1/float32(height)
+	depthBias := saneDepthBias(cmd.Options.DepthBias)
+	for _, v := range cmd.Vertices {
+		floats = append(floats,
+			v.X, v.Y, v.Z,
+			v.SrcX*invW, v.SrcY*invH,
+			saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
+			v.DepthX, v.DepthY, v.DepthZ,
+			depthBias,
+		)
+	}
+	for _, idx := range cmd.Indices {
+		indices = append(indices, base+uint32(idx))
+	}
+	return floats, indices
 }
 
 func worldFrameCounts(commands []WorldCommand) (commandsOut, vertices, indices int) {
@@ -724,7 +622,7 @@ func maxFloat32(a, b float32) float32 {
 func (r *gpuRenderer) buildFrame(screen *Image) drawFrame {
 	commandCount, vertexCount, indexCount := frameCounts(screen.commands)
 	frame := drawFrame{
-		floats:  make([]float32, 0, vertexCount*8),
+		floats:  make([]float32, 0, vertexCount*screenVertexFloatCount),
 		indices: make([]uint32, 0, indexCount),
 		batches: make([]drawBatch, 0, commandCount),
 	}
@@ -742,20 +640,27 @@ func (r *gpuRenderer) buildFrame(screen *Image) drawFrame {
 		if w <= 0 || h <= 0 {
 			continue
 		}
-		base := uint32(len(frame.floats) / 8)
-		for _, v := range cmd.Vertices {
-			frame.floats = append(frame.floats,
-				v.DstX, v.DstY,
-				v.SrcX/float32(w), v.SrcY/float32(h),
-				saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
-			)
-		}
-		for _, idx := range cmd.Indices {
-			frame.indices = append(frame.indices, base+uint32(idx))
-			current.indexCount++
-		}
+		indexCountBefore := len(frame.indices)
+		frame.floats, frame.indices = appendDrawCommand(frame.floats, frame.indices, cmd, w, h)
+		current.indexCount += uint32(len(frame.indices) - indexCountBefore)
 	}
 	return frame
+}
+
+func appendDrawCommand(floats []float32, indices []uint32, cmd DrawCommand, width, height int) ([]float32, []uint32) {
+	base := uint32(len(floats) / screenVertexFloatCount)
+	invW, invH := 1/float32(width), 1/float32(height)
+	for _, v := range cmd.Vertices {
+		floats = append(floats,
+			v.DstX, v.DstY,
+			v.SrcX*invW, v.SrcY*invH,
+			saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
+		)
+	}
+	for _, idx := range cmd.Indices {
+		indices = append(indices, base+uint32(idx))
+	}
+	return floats, indices
 }
 
 func frameCounts(commands []DrawCommand) (commandsOut, vertices, indices int) {
