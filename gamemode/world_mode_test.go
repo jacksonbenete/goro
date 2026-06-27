@@ -497,8 +497,12 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
 		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
 	}
-	if _, ok := mode.actorLife[300]; ok {
-		t.Fatal("attack notify without hp packet should not invent target life")
+	life, ok := mode.actorLife[300]
+	if !ok {
+		t.Fatal("target estimated life fallback missing")
+	}
+	if life.hp != 8 || life.maxHP != 50 || !life.estimated {
+		t.Fatalf("target estimated life = %+v, want 8/50 estimated", life)
 	}
 }
 
@@ -676,7 +680,7 @@ func TestCombatLifeFallbackDoesNotSubtractRawDamageFromTinyHPGauge(t *testing.T)
 	}
 }
 
-func TestCombatLifeFallbackDoesNotInventVisibleGaugeWithoutHPPacket(t *testing.T) {
+func TestCombatLifeFallbackUsesEstimatedRedPlantMaxHPWithoutHPPacket(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.UpsertActor(worldstate.Actor{
@@ -698,12 +702,16 @@ func TestCombatLifeFallbackDoesNotInventVisibleGaugeWithoutHPPacket(t *testing.T
 		TargetID:    300,
 		SourceSpeed: 580,
 		TargetSpeed: 480,
-		Damage:      12,
+		Damage:      1,
 		Action:      0,
 	})
 
-	if _, ok := mode.actorLifeForDisplay(ctx, world.Actors[300]); ok {
-		t.Fatal("actor without hp packet should not display guessed life")
+	life, ok := mode.actorLifeForDisplay(ctx, world.Actors[300])
+	if !ok {
+		t.Fatal("red plant estimated life missing")
+	}
+	if life.hp != 9 || life.maxHP != 10 || !life.estimated {
+		t.Fatalf("red plant estimated life = %+v, want 9/10 estimated", life)
 	}
 }
 

@@ -154,6 +154,7 @@ type actorLife struct {
 	maxSP     int
 	hasSP     bool
 	player    bool
+	estimated bool
 	fromTiny  bool
 	updatedAt time.Time
 }
@@ -1362,6 +1363,7 @@ func (m *WorldMode) applyActorHPUpdate(update network.ActorHPUpdate) {
 	m.actorLife[update.ID] = actorLife{
 		hp:        hp,
 		maxHP:     update.MaxHP,
+		estimated: false,
 		fromTiny:  update.Tiny,
 		updatedAt: time.Now(),
 	}
@@ -1381,7 +1383,11 @@ func (m *WorldMode) applyCombatLifeFallback(ctx Context, target worldstate.Actor
 	}
 	life, ok := m.actorLife[target.ID]
 	if !ok || life.maxHP <= 0 {
-		return
+		maxHP := estimatedMonsterMaxHP(int(target.Job))
+		if maxHP <= 0 {
+			maxHP = estimatedUnknownMonsterMaxHP(damage)
+		}
+		life = actorLife{hp: maxHP, maxHP: maxHP, estimated: true}
 	}
 	if life.fromTiny {
 		return
@@ -1392,6 +1398,98 @@ func (m *WorldMode) applyCombatLifeFallback(ctx Context, target worldstate.Actor
 	}
 	life.updatedAt = hitAt
 	m.actorLife[target.ID] = life
+}
+
+func estimatedUnknownMonsterMaxHP(damage int) int {
+	if damage <= 0 {
+		return 100
+	}
+	return max(100, damage*3)
+}
+
+func estimatedMonsterMaxHP(job int) int {
+	if hp, ok := preRenewalMonsterMaxHP[job]; ok {
+		return hp
+	}
+	return 0
+}
+
+var preRenewalMonsterMaxHP = map[int]int{
+	1001: 1109,  // Scorpion
+	1002: 50,    // Poring
+	1004: 169,   // Hornet
+	1005: 155,   // Familiar
+	1007: 63,    // Fabre
+	1008: 427,   // Pupa
+	1009: 92,    // Condor
+	1010: 95,    // Willow
+	1011: 67,    // Chonchon
+	1012: 133,   // Roda Frog
+	1013: 919,   // Wolf
+	1014: 510,   // Spore
+	1015: 534,   // Zombie
+	1016: 3040,  // Archer Skeleton
+	1018: 595,   // Creamy
+	1019: 531,   // Peco Peco
+	1020: 405,   // Mandragora
+	1023: 1400,  // Orc Warrior
+	1024: 426,   // Wormtail
+	1025: 471,   // Boa
+	1026: 2872,  // Munak
+	1028: 2334,  // Soldier Skeleton
+	1031: 344,   // Poporing
+	1033: 693,   // Elder Willow
+	1034: 2152,  // Thara Frog
+	1036: 5418,  // Ghoul
+	1040: 3900,  // Golem
+	1041: 5176,  // Mummy
+	1044: 3952,  // Obeaune
+	1045: 6900,  // Marc
+	1047: 420,   // Peco Peco Egg
+	1048: 48,    // Thief Bug Egg
+	1049: 80,    // Picky
+	1050: 83,    // Picky
+	1051: 126,   // Thief Bug
+	1052: 198,   // Rocker
+	1053: 170,   // Thief Bug Female
+	1054: 583,   // Thief Bug Male
+	1055: 610,   // Muka
+	1056: 641,   // Smokie
+	1057: 879,   // Yoyo
+	1058: 926,   // Metaller
+	1060: 1619,  // Bigfoot
+	1062: 69,    // Santa Poring
+	1063: 60,    // Lunatic
+	1064: 1648,  // Megalodon
+	1065: 11990, // Strouf
+	1066: 1017,  // Vadon
+	1067: 1620,  // Cornutus
+	1068: 660,   // Hydra
+	1069: 4299,  // Swordfish
+	1070: 507,   // Kukre
+	1071: 1676,  // Pirate Skeleton
+	1073: 2451,  // Crab
+	1074: 920,   // Shellfish
+	1076: 234,   // Skeleton
+	1077: 665,   // Poison Spore
+	1078: 10,    // Red Plant
+	1079: 10,    // Blue Plant
+	1080: 10,    // Green Plant
+	1081: 10,    // Yellow Plant
+	1082: 10,    // White Plant
+	1083: 20,    // Shining Plant
+	1084: 15,    // Black Mushroom
+	1085: 15,    // Red Mushroom
+	1094: 495,   // Ambernite
+	1095: 688,   // Andre
+	1097: 420,   // Ant Egg
+	1104: 817,   // Coco
+	1105: 760,   // Deniro
+	1113: 55,    // Drops
+	1114: 140,   // Dustiness
+	1117: 500,   // Baby Desert Wolf
+	1166: 457,   // Savage Babe
+	1175: 284,   // Tarou
 }
 
 func actorForCombatID(ctx Context, id uint32) (worldstate.Actor, bool, bool) {
