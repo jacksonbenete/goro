@@ -497,7 +497,7 @@ func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection
 		spriteBillboardVertex3D(corner(w, h), depthCorner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 		spriteBillboardVertex3D(corner(0, h), depthCorner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 	}
-	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2, 0, 2, 3}, billboard.image, spriteBillboardTriangleDrawOptions())
+	screen.DrawTriangles3DOwned(vertices, quadIndices012023, billboard.image, spriteBillboardTriangleDrawOptions())
 }
 
 func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
@@ -545,7 +545,7 @@ func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjec
 		texturedSurfaceVertex3D(corner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 		texturedSurfaceVertex3D(corner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 	}
-	screen.DrawTriangles3D(vertices, []uint16{0, 1, 2, 0, 2, 3}, billboard.image, triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero))
+	screen.DrawTriangles3DOwned(vertices, quadIndices012023, billboard.image, triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero))
 }
 
 func spriteBillboardTriangleDrawOptions() *render.DrawTrianglesOptions {

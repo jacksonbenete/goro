@@ -172,6 +172,11 @@ const (
 	defaultCameraMaxZoom           = 260.0
 )
 
+var (
+	quadIndices012023 = []uint16{0, 1, 2, 0, 2, 3}
+	quadIndices012213 = []uint16{0, 1, 2, 2, 1, 3}
+)
+
 func NewWorldMode() *WorldMode {
 	return &WorldMode{}
 }
@@ -2579,7 +2584,7 @@ func drawTileCursorSurface3D(screen, texture *render.Image, verts [4]modelPoint3
 		{u: 0, v: 1},
 		{u: 1, v: 1},
 	}
-	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, []uint16{0, 1, 2, 2, 1, 3}, tints, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, quadIndices012213, tints, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
 }
 
 func projectedGATCell(projection sceneProjection, gat *res.GAT, x, y int) ([4]screenPoint, float64, bool) {
@@ -3849,7 +3854,7 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 						{x: float64(x+1) * 2, y: float64(cell.Heights[3]), z: float64(y+1) * 2},
 						{x: float64(x) * 2, y: float64(cell.Heights[2]), z: float64(y+1) * 2},
 					}
-					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, topGNDSurfaceBaseTints(gnd, x, y, surface.Color), cell.Heights, gndTopNormalsAt(topNormals, gnd, x, y), lighting))
+					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, quadIndices012023, surface, topGNDSurfaceBaseTints(gnd, x, y, surface.Color), cell.Heights, gndTopNormalsAt(topNormals, gnd, x, y), lighting))
 					if waterDraw, ok := newGNDWaterDraw(projection, x, y, cell, gnd, rsw, now); ok {
 						surfaces = append(surfaces, waterDraw)
 					}
@@ -3869,7 +3874,7 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 					}
 					heights := [4]float32{cell.Heights[2], cell.Heights[3], neighbor.Heights[1], neighbor.Heights[0]}
 					normals := uniformGNDNormals(modelPoint3{z: 1})
-					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, uniformGNDSurfaceBaseTints(surface.Color), heights, normals, lighting))
+					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, quadIndices012023, surface, uniformGNDSurfaceBaseTints(surface.Color), heights, normals, lighting))
 				}
 			}
 
@@ -3886,7 +3891,7 @@ func (m *WorldMode) drawGND(screen *render.Image, manager *res.Manager, gnd *res
 					}
 					heights := [4]float32{cell.Heights[3], cell.Heights[1], neighbor.Heights[0], neighbor.Heights[2]}
 					normals := uniformGNDNormals(modelPoint3{x: 1})
-					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, []uint16{0, 1, 2, 0, 2, 3}, surface, uniformGNDSurfaceBaseTints(surface.Color), heights, normals, lighting))
+					surfaces = append(surfaces, newGNDSurfaceDrawWithNormals(projection, verts, surfaceUVs(surface, vertexOrder), vertexOrder, quadIndices012023, surface, uniformGNDSurfaceBaseTints(surface.Color), heights, normals, lighting))
 				}
 			}
 		}
@@ -4148,7 +4153,7 @@ func newGNDWaterDraw(projection sceneProjection, x, y int, cell res.GNDCell, gnd
 		verts,
 		waterUVs(x, y),
 		[4]int{0, 1, 3, 2},
-		[]uint16{0, 1, 2, 0, 2, 3},
+		quadIndices012023,
 		res.GNDSurface{},
 		heights,
 		sceneLighting{},
@@ -4657,7 +4662,7 @@ func drawColoredSurfaceTints3DWithOptions(screen, white *render.Image, verts [4]
 		coloredSurfaceVertex3D(verts[2], 1, 1, colors[2]),
 		coloredSurfaceVertex3D(verts[3], 0, 1, colors[3]),
 	}
-	screen.DrawTriangles3D(vertices, indices, white, options)
+	screen.DrawTriangles3DOwned(vertices, indices, white, options)
 }
 
 func drawTexturedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
@@ -4678,7 +4683,7 @@ func drawTexturedSurface3DWithOptions(screen, texture *render.Image, verts [4]mo
 		texturedSurfaceVertex3D(verts[2], uvs[2], tints[2], w, h),
 		texturedSurfaceVertex3D(verts[3], uvs[3], tints[3], w, h),
 	}
-	screen.DrawTriangles3D(vertices, indices, texture, options)
+	screen.DrawTriangles3DOwned(vertices, indices, texture, options)
 }
 
 func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, baseTints [4]color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
@@ -4726,7 +4731,7 @@ func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]mo
 		}
 	}
 
-	screen.DrawTriangles3D(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+	screen.DrawTriangles3DOwned(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
 func bilerpTexturePoint(points [4]texturePoint, s, t float64) texturePoint {

@@ -189,6 +189,8 @@ type Image struct {
 
 var whiteImage *Image
 
+var quadIndices012213 = []uint16{0, 1, 2, 2, 1, 3}
+
 func WhiteImage() *Image {
 	if whiteImage == nil {
 		whiteImage = NewImage(1, 1)
@@ -297,7 +299,7 @@ func (i *Image) DrawImage(src *Image, opts *DrawImageOptions) {
 			{DstX: float32(p2x), DstY: float32(p2y), SrcX: 0, SrcY: float32(h), ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 			{DstX: float32(p3x), DstY: float32(p3y), SrcX: float32(w), SrcY: float32(h), ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		}
-		i.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, src, &DrawTrianglesOptions{Filter: o.Filter, Address: AddressClampToZero, Blend: o.Blend})
+		i.DrawTrianglesOwned(vertices, quadIndices012213, src, &DrawTrianglesOptions{Filter: o.Filter, Address: AddressClampToZero, Blend: o.Blend})
 		return
 	}
 	corners := [4][2]float64{{0, 0}, {float64(w), 0}, {0, float64(h)}, {float64(w), float64(h)}}
@@ -340,20 +342,33 @@ func (i *Image) DrawTriangles(vertices []Vertex, indices []uint16, texture *Imag
 		o = *opts
 	}
 	if i.screen {
-		baseVertices := append([]Vertex(nil), vertices...)
-		outIndices := append([]uint16(nil), indices...)
-		i.commands = append(i.commands, DrawCommand{
-			Vertices: baseVertices,
-			Indices:  outIndices,
-			Texture:  texture,
-			Options:  o,
-		})
+		i.DrawTrianglesOwned(append([]Vertex(nil), vertices...), append([]uint16(nil), indices...), texture, &o)
 		return
 	}
 	for n := 0; n+2 < len(indices); n += 3 {
 		i.drawTriangle(vertices[indices[n]], vertices[indices[n+1]], vertices[indices[n+2]], texture, o)
 	}
 	i.version++
+}
+
+func (i *Image) DrawTrianglesOwned(vertices []Vertex, indices []uint16, texture *Image, opts *DrawTrianglesOptions) {
+	if i == nil || i.pix == nil || texture == nil || texture.pix == nil {
+		return
+	}
+	var o DrawTrianglesOptions
+	if opts != nil {
+		o = *opts
+	}
+	if i.screen {
+		i.commands = append(i.commands, DrawCommand{
+			Vertices: vertices,
+			Indices:  indices,
+			Texture:  texture,
+			Options:  o,
+		})
+		return
+	}
+	i.DrawTriangles(vertices, indices, texture, &o)
 }
 
 func (i *Image) DrawTriangles3D(vertices []Vertex3D, indices []uint16, texture *Image, opts *DrawTrianglesOptions) {
@@ -365,15 +380,7 @@ func (i *Image) DrawTriangles3D(vertices []Vertex3D, indices []uint16, texture *
 		o = *opts
 	}
 	if i.screen {
-		baseVertices := append([]Vertex3D(nil), vertices...)
-		applyCameraFog3D(baseVertices, i.camera)
-		outIndices := append([]uint16(nil), indices...)
-		i.worldCommands = append(i.worldCommands, WorldCommand{
-			Vertices: baseVertices,
-			Indices:  outIndices,
-			Texture:  texture,
-			Options:  o,
-		})
+		i.DrawTriangles3DOwned(append([]Vertex3D(nil), vertices...), append([]uint16(nil), indices...), texture, &o)
 		return
 	}
 	vertices2D := make([]Vertex, len(vertices))
@@ -390,6 +397,27 @@ func (i *Image) DrawTriangles3D(vertices []Vertex3D, indices []uint16, texture *
 		}
 	}
 	i.DrawTriangles(vertices2D, indices, texture, opts)
+}
+
+func (i *Image) DrawTriangles3DOwned(vertices []Vertex3D, indices []uint16, texture *Image, opts *DrawTrianglesOptions) {
+	if i == nil || i.pix == nil || texture == nil || texture.pix == nil {
+		return
+	}
+	var o DrawTrianglesOptions
+	if opts != nil {
+		o = *opts
+	}
+	if i.screen {
+		applyCameraFog3D(vertices, i.camera)
+		i.worldCommands = append(i.worldCommands, WorldCommand{
+			Vertices: vertices,
+			Indices:  indices,
+			Texture:  texture,
+			Options:  o,
+		})
+		return
+	}
+	i.DrawTriangles3D(vertices, indices, texture, &o)
 }
 
 func applyCameraFog3D(vertices []Vertex3D, camera Camera3D) {

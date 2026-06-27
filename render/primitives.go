@@ -222,5 +222,5 @@ func drawSolidQuad(dst *Image, x, y, w, h float64, c color.RGBA) {
 		{DstX: float32(x), DstY: float32(y + h), SrcX: 0, SrcY: 1, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 		{DstX: float32(x + w), DstY: float32(y + h), SrcX: 1, SrcY: 1, ColorR: r, ColorG: g, ColorB: b, ColorA: a},
 	}
-	dst.DrawTriangles(vertices, []uint16{0, 1, 2, 2, 1, 3}, white, &DrawTrianglesOptions{Filter: FilterNearest, Address: AddressUnsafe})
+	dst.DrawTrianglesOwned(vertices, quadIndices012213, white, &DrawTrianglesOptions{Filter: FilterNearest, Address: AddressUnsafe})
 }

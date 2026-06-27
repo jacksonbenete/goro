@@ -701,9 +701,9 @@ func drawTexturedModelTriangles3D(screen, texture *render.Image, triangles []mod
 		if len(indices) == 0 {
 			return
 		}
-		screen.DrawTriangles3D(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
-		vertices = vertices[:0]
-		indices = indices[:0]
+		screen.DrawTriangles3DOwned(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+		vertices = nil
+		indices = nil
 	}
 	for _, tri := range triangles {
 		if len(vertices)+3 > maxVertices {
@@ -735,9 +735,9 @@ func drawColoredModelTriangles3D(screen, white *render.Image, triangles []modelT
 		if len(indices) == 0 {
 			return
 		}
-		screen.DrawTriangles3D(vertices, indices, white, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
-		vertices = vertices[:0]
-		indices = indices[:0]
+		screen.DrawTriangles3DOwned(vertices, indices, white, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+		vertices = nil
+		indices = nil
 	}
 	for _, tri := range triangles {
 		if len(vertices)+3 > maxVertices {
