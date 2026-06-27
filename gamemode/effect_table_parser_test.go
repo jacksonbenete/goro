@@ -165,6 +165,69 @@ export default {
 	}
 }
 
+func TestParseRobrowserEffectTableSubsetParses3D(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	18: [
+		{
+			type: '3D',
+			file: 'effect/pok1.tga',
+			duration: 500,
+			duplicate: 7,
+			timeBetweenDupli: 20,
+			delayOffset: 30,
+			delayLate: 40,
+			alphaMax: 1,
+			fadeOut: true,
+			red: 1,
+			green: 1,
+			blue: 0.85,
+			posxEndRand: 3.5,
+			posyEndRand: 3.5,
+			poszEndRand: 1,
+			poszEndRandMiddle: 3,
+			sizeEnd: 10,
+			sizeStart: 200,
+			sizeRand: 20
+		},
+		{ wav: 'effect/ef_steal' }
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, ok := specs[18]
+	if !ok {
+		t.Fatal("effect 18 was not parsed")
+	}
+	if spec.duration != 690*time.Millisecond {
+		t.Fatalf("effect 18 duration = %s, want 690ms", spec.duration)
+	}
+	if !slices.Equal(spec.sfx, []string{`effect\ef_steal.wav`}) {
+		t.Fatalf("effect 18 sfx = %v", spec.sfx)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("effect 18 component count = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitive3D || component.textureFile != "effect/pok1.tga" {
+		t.Fatalf("effect 18 component = %#v", component)
+	}
+	if component.delay != 70*time.Millisecond || component.duplicateDelay != 20*time.Millisecond || component.duplicate != 7 {
+		t.Fatalf("effect 18 timing = %#v", component)
+	}
+	if component.color.R != 255 || component.color.G != 255 || component.color.B != 216 || component.color.A != 255 {
+		t.Fatalf("effect 18 color = %#v", component.color)
+	}
+	if component.sizeStart != 200*roBrowserEffectPixelRatio || component.sizeEnd != 10*roBrowserEffectPixelRatio || component.sizeRand != 20*roBrowserEffectPixelRatio {
+		t.Fatalf("effect 18 size = %#v", component)
+	}
+	if component.posXEndRand != 3.5 || component.posYEndRand != 3.5 || component.posZEndRand != 1 || component.posZEndMiddle != 3 {
+		t.Fatalf("effect 18 position = %#v", component)
+	}
+}
+
 func TestParseRobrowserEffectTableEntryIDsIgnoresCommentedEntries(t *testing.T) {
 	ids, err := parseRobrowserEffectTableEntryIDs(`
 export default {

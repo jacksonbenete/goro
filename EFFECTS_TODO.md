@@ -22,12 +22,13 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_HIT2` `1`: Bash hit / simple hit burst.
 - [x] `EF_COIN` `10`: Mammonite STR effect.
 - [x] `EF_ENDURE` `11`: Endure billboard effect.
-- [x] `EF_SOULSTRIKE` `15`: Soul Strike declared SFX; 3D visual still pending.
+- [x] `EF_SOULSTRIKE` `15`: Soul Strike file-backed 3D particle layer and SFX;
+  sprite projectile visual still pending.
 - [x] `EF_BASH` `16`: Bash start cylinder effect.
 - [x] `EF_MAGNUMBREAK` `17`: Magnum Break cylinder effect and camera shake.
-- [x] `EF_STEAL` `18`: Steal declared SFX; 3D visual still pending.
-- [x] `EF_PATTACK` `20`: Envenom declared SFX; 3D visual still pending.
-- [x] `EF_DETOXICATION` `21`: Detoxify declared SFX; 3D visual still pending.
+- [x] `EF_STEAL` `18`: Steal file-backed 3D particles and SFX.
+- [x] `EF_PATTACK` `20`: Envenom file-backed 3D particles and SFX.
+- [x] `EF_DETOXICATION` `21`: Detoxify file-backed 3D particles and SFX.
 - [x] `EF_STONECURSE` `23`: Stone Curse STR effect.
 - [x] `EF_FIREBALL` `24`: Fire Ball declared SFX; projectile visual still pending.
 - [x] `EF_FIREWALL` `25`: Fire Wall STR effect.
@@ -61,7 +62,7 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_TELEPORTATION2` `304`: Teleport / Fly Wing style cylinder stack.
 - [x] `EF_PHARMACY_OK` `305`: Pharmacy Success STR effect.
 - [x] `EF_PHARMACY_FAIL` `306`: Pharmacy Fail STR effect.
-- [x] `EF_HEAL` `312`: Heal cylinder subset and SFX.
+- [x] `EF_HEAL` `312`: Heal cylinders, file-backed 3D particles, and SFX.
 - [x] `EF_PORTAL2` `317`: Warp Portal skill unit cylinder stack.
 - [x] `EF_ANGEL` `371`: Base level-up STR effect with `levelup.wav`.
 
@@ -196,6 +197,9 @@ Goal: make the generic table useful before adding many effects.
   instances, and randomization.
 - [x] Add basic 2D textured billboard effect components with alpha, fade,
   size interpolation, rotation, and vertical offset.
+- [x] Add basic file-backed 3D particle billboard components with alpha, fade,
+  color tint, size interpolation/randomization, duplicate timing, delays, and
+  randomized start/end offsets.
 - [ ] Add SPR/ACT effect components, because many RO effects are not STR-only.
 - [ ] Implement roBrowser `wav` behavior exactly: play only declared `wav`
   entries, support delay/randomization, and do not infer sound names from STRs.
@@ -234,8 +238,8 @@ Goal: make early gameplay feel correct before broad class sweeps.
 - [x] Merchant first-job routing for supported client effects: Mammonite.
 - [ ] Missing first-job visuals blocked by renderer primitives: Sight state loop,
   Safety Wall and Pneuma ground units, Fire Wall ground unit, Hiding state loop,
-  Blessing/Aqua SPR components, Increase/Decrease Agi 3D components, Steal and
-  poison/detox 3D particles, Mage projectile/before-hit effects, Archer
+  Blessing/Aqua SPR components, Blessing/Increase/Decrease Agi remaining
+  sprite-backed or mixed particles, Mage projectile/before-hit effects, Archer
   projectile effects, and cold-hit 2D shard visuals.
 
 ### 5. Ground Skill Units

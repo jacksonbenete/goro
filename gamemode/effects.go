@@ -69,6 +69,7 @@ const (
 	effectPrimitiveBillboard
 	effectPrimitiveBashHit
 	effectPrimitive2D
+	effectPrimitive3D
 )
 
 type worldEffect struct {
@@ -90,6 +91,8 @@ type worldEffectComponent struct {
 	kind             effectPrimitiveKind
 	color            color.RGBA
 	duration         time.Duration
+	delay            time.Duration
+	duplicateDelay   time.Duration
 	strFile          string
 	strRandMin       int
 	strRandMax       int
@@ -106,9 +109,23 @@ type worldEffectComponent struct {
 	bottomSize       float64
 	topSize          float64
 	height           float64
+	posX             float64
+	posY             float64
 	posZ             float64
+	posXEnd          float64
+	posYEnd          float64
+	posZEnd          float64
+	posXRand         float64
+	posYRand         float64
+	posZStartRand    float64
+	posZStartMiddle  float64
+	posXEndRand      float64
+	posYEndRand      float64
+	posZEndRand      float64
+	posZEndMiddle    float64
 	sizeStart        float64
 	sizeEnd          float64
+	sizeRand         float64
 	sizeSmooth       bool
 	angleStart       float64
 	angleEnd         float64
@@ -567,10 +584,15 @@ func (m *WorldMode) worldEffectResolvedComponentDuration(manager *res.Manager, s
 }
 
 func worldEffectComponentDuration(spec worldEffectSpec, component worldEffectComponent) time.Duration {
+	duration := spec.duration
 	if component.duration > 0 {
-		return component.duration
+		duration = component.duration
 	}
-	return spec.duration
+	if component.duplicate > 1 && component.duplicateDelay > 0 {
+		duration += time.Duration(component.duplicate-1) * component.duplicateDelay
+	}
+	duration += component.delay
+	return duration
 }
 
 func worldEffectComponentProgress(starts time.Time, duration time.Duration, now time.Time) float64 {
@@ -592,6 +614,8 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 		drawBashHitEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	case effectPrimitive2D:
 		m.draw2DEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
+	case effectPrimitive3D:
+		m.draw3DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, now)
 	default:
 		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	}
@@ -694,6 +718,36 @@ func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection s
 		B: 255,
 		A: uint8(clampFloat(alpha, 0, 1) * 255),
 	})
+}
+
+func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	duplicates := maxInt(component.duplicate, 1)
+	componentDuration := component.duration
+	if componentDuration <= 0 {
+		componentDuration = 500 * time.Millisecond
+	}
+	for i := 0; i < duplicates; i++ {
+		starts := effect.starts.Add(component.delay + time.Duration(i)*component.duplicateDelay)
+		progress := worldEffectComponentProgress(starts, componentDuration, now)
+		if now.Before(starts) || progress >= 1 {
+			continue
+		}
+		alpha := effectBillboardAlpha(progress, component)
+		if alpha <= 0 {
+			continue
+		}
+		salt := componentIndex*1009 + i*37
+		offsetX, offsetY, offsetZ := effect3DOffset(component, effect, salt, progress)
+		size := effect3DSize(component, effect, salt, progress)
+		if size <= 0 {
+			continue
+		}
+		drawTexturedEffectBillboard(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, effectComponentTint(component, alpha))
+	}
 }
 
 func drawBashHitEffect(screen, white *render.Image, x, y, z, progress float64, c color.RGBA) {
@@ -802,12 +856,56 @@ func effectBillboardSize(progress float64, component worldEffectComponent) float
 	return start + (end-start)*math.Log10(progress*9+1)
 }
 
+func effect3DOffset(component worldEffectComponent, effect worldEffect, salt int, progress float64) (float64, float64, float64) {
+	startX := component.posX + deterministicSigned(effect, salt+1)*component.posXRand
+	startY := component.posY + deterministicSigned(effect, salt+2)*component.posYRand
+	startZ := component.posZ + component.posZStartMiddle + deterministicSigned(effect, salt+3)*component.posZStartRand
+	endX := component.posXEnd + deterministicSigned(effect, salt+4)*component.posXEndRand
+	endY := component.posYEnd + deterministicSigned(effect, salt+5)*component.posYEndRand
+	endZ := component.posZEnd + component.posZEndMiddle + deterministicSigned(effect, salt+6)*component.posZEndRand
+	if component.posXEnd == 0 && component.posXEndRand == 0 {
+		endX = startX
+	}
+	if component.posYEnd == 0 && component.posYEndRand == 0 {
+		endY = startY
+	}
+	if component.posZEnd == 0 && component.posZEndRand == 0 && component.posZEndMiddle == 0 {
+		endZ = startZ
+	}
+	return startX + (endX-startX)*progress, startY + (endY-startY)*progress, startZ + (endZ-startZ)*progress
+}
+
+func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, progress float64) float64 {
+	size := effectBillboardSize(progress, component)
+	if component.sizeRand != 0 {
+		size += deterministicSigned(effect, salt+7) * component.sizeRand
+	}
+	return size
+}
+
+func effectComponentTint(component worldEffectComponent, alpha float64) color.RGBA {
+	tint := component.color
+	if tint.A == 0 {
+		tint = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	}
+	tint.A = uint8(clampFloat(alpha, 0, 1) * 255)
+	return tint
+}
+
 func deterministicAngle(effect worldEffect, salt int) float64 {
+	return deterministicUnit(effect, salt) * 2 * math.Pi
+}
+
+func deterministicSigned(effect worldEffect, salt int) float64 {
+	return deterministicUnit(effect, salt)*2 - 1
+}
+
+func deterministicUnit(effect worldEffect, salt int) float64 {
 	value := uint32(effect.effectID*1103515245) ^ effect.actorID ^ uint32(effect.starts.UnixNano()) ^ uint32(salt*2654435761)
 	value ^= value >> 16
 	value *= 2246822519
 	value ^= value >> 13
-	return float64(value%360) * math.Pi / 180
+	return float64(value&0xFFFFFF) / float64(0xFFFFFF)
 }
 
 func drawTexturedEffectBillboard(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, size float64, tint color.RGBA) {

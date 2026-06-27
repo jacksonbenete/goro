@@ -892,27 +892,59 @@ func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
 	}
 }
 
-func TestHealEffectSpecUsesRobrowserCylinderSubset(t *testing.T) {
+func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectHeal)
 	if !ok {
 		t.Fatal("heal effect spec missing")
 	}
-	if spec.duration != 1500*time.Millisecond {
-		t.Fatalf("duration = %s, want 1500ms", spec.duration)
+	if spec.duration != 1840*time.Millisecond {
+		t.Fatalf("duration = %s, want 1840ms", spec.duration)
 	}
 	if len(spec.sfx) != 1 || spec.sfx[0] != "_heal_effect.wav" {
 		t.Fatalf("sfx = %#v", spec.sfx)
 	}
-	if len(spec.components) != 2 {
-		t.Fatalf("components = %d, want 2", len(spec.components))
+	if len(spec.components) != 4 {
+		t.Fatalf("components = %d, want 4", len(spec.components))
 	}
-	for i, component := range spec.components {
+	for i, component := range spec.components[:2] {
 		if component.kind != effectPrimitiveCylinder || component.textureName != "ring_white" || component.animation != 1 {
 			t.Fatalf("component %d = %+v", i, component)
 		}
 		if component.duration != 1500*time.Millisecond || component.height != 8 || component.alphaMax != 0.2 {
 			t.Fatalf("component %d timing/shape = %+v", i, component)
 		}
+	}
+	firstParticle := spec.components[2]
+	if firstParticle.kind != effectPrimitive3D || firstParticle.textureFile != "effect/pok3.tga" {
+		t.Fatalf("first heal particle = %+v", firstParticle)
+	}
+	if firstParticle.duration != 1300*time.Millisecond || firstParticle.delay != 400*time.Millisecond || firstParticle.duplicateDelay != 10*time.Millisecond || firstParticle.duplicate != 15 {
+		t.Fatalf("first heal particle timing = %+v", firstParticle)
+	}
+	if firstParticle.alphaMax != 0.6 || !firstParticle.fadeIn || !firstParticle.fadeOut {
+		t.Fatalf("first heal particle fade = %+v", firstParticle)
+	}
+	if firstParticle.posXRand != 1.5 || firstParticle.posYRand != 1.5 || firstParticle.posZEndRand != 2 || firstParticle.posZEndMiddle != 6 {
+		t.Fatalf("first heal particle position = %+v", firstParticle)
+	}
+	if firstParticle.sizeStart != 9*roBrowserEffectPixelRatio || firstParticle.sizeEnd != 9*roBrowserEffectPixelRatio || firstParticle.sizeRand != 2*roBrowserEffectPixelRatio {
+		t.Fatalf("first heal particle size = %+v", firstParticle)
+	}
+	secondParticle := spec.components[3]
+	if secondParticle.kind != effectPrimitive3D || secondParticle.textureFile != "effect/pok3.tga" {
+		t.Fatalf("second heal particle = %+v", secondParticle)
+	}
+	if secondParticle.duration != 1100*time.Millisecond || secondParticle.delay != 200*time.Millisecond || secondParticle.duplicateDelay != 50*time.Millisecond || secondParticle.duplicate != 7 {
+		t.Fatalf("second heal particle timing = %+v", secondParticle)
+	}
+	if secondParticle.alphaMax != 0.6 || !secondParticle.fadeIn || !secondParticle.fadeOut {
+		t.Fatalf("second heal particle fade = %+v", secondParticle)
+	}
+	if secondParticle.posXRand != 1 || secondParticle.posYRand != 1 || secondParticle.posZEnd != 5 || secondParticle.posZStartRand != 1 {
+		t.Fatalf("second heal particle position = %+v", secondParticle)
+	}
+	if secondParticle.sizeStart != 9*roBrowserEffectPixelRatio || secondParticle.sizeEnd != 9*roBrowserEffectPixelRatio || secondParticle.sizeRand != 2*roBrowserEffectPixelRatio {
+		t.Fatalf("second heal particle size = %+v", secondParticle)
 	}
 }
 
@@ -930,6 +962,10 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 	}
 	for _, effectID := range []int{
 		effectMammonite,
+		effectSoulStrike,
+		effectSteal,
+		effectPoisonAttack,
+		effectDetoxication,
 		effectStoneCurse,
 		effectFireWall,
 		effectFrostDiverHit,

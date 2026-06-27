@@ -2,6 +2,7 @@ package gamemode
 
 import (
 	"fmt"
+	"image/color"
 	"regexp"
 	"strconv"
 	"strings"
@@ -250,6 +251,45 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			angleStart:  angleStart,
 			angleEnd:    angleEnd,
 		}, sfx, true
+	case "3D":
+		file := fieldString(fields, "file")
+		if file == "" {
+			return worldEffectComponent{}, sfx, false
+		}
+		sizeStart, sizeEnd := effectSizeFields(fields)
+		return worldEffectComponent{
+			kind:            effectPrimitive3D,
+			color:           effectColorFields(fields),
+			textureFile:     file,
+			duration:        fieldDuration(fields, "duration"),
+			delay:           fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
+			duplicateDelay:  fieldDuration(fields, "timeBetweenDupli"),
+			alphaMax:        fieldFloat(fields, "alphaMax"),
+			fade:            fieldBool(fields, "fade"),
+			fadeIn:          fieldBool(fields, "fadeIn"),
+			fadeOut:         fieldBool(fields, "fadeOut"),
+			posX:            fieldFloat(fields, "posx"),
+			posY:            fieldFloat(fields, "posy"),
+			posZ:            fieldFloat(fields, "posz") + fieldFloat(fields, "poszStart"),
+			posXEnd:         fieldFloat(fields, "posxEnd"),
+			posYEnd:         fieldFloat(fields, "posyEnd"),
+			posZEnd:         fieldFloat(fields, "poszEnd"),
+			posXRand:        fieldFloat(fields, "posxRand"),
+			posYRand:        fieldFloat(fields, "posyRand"),
+			posZStartRand:   fieldFloat(fields, "poszStartRand"),
+			posZStartMiddle: fieldFloat(fields, "poszStartRandMiddle"),
+			posXEndRand:     fieldFloat(fields, "posxEndRand"),
+			posYEndRand:     fieldFloat(fields, "posyEndRand"),
+			posZEndRand:     fieldFloat(fields, "poszEndRand"),
+			posZEndMiddle:   fieldFloat(fields, "poszEndRandMiddle"),
+			sizeStart:       sizeStart * roBrowserEffectPixelRatio,
+			sizeEnd:         sizeEnd * roBrowserEffectPixelRatio,
+			sizeRand:        fieldFloat(fields, "sizeRand") * roBrowserEffectPixelRatio,
+			sizeSmooth:      fieldBool(fields, "sizeSmooth"),
+			duplicate:       fieldInt(fields, "duplicate"),
+			angleStart:      fieldFloat(fields, "angle"),
+			angleEnd:        fieldFloat(fields, "angle") + fieldFloat(fields, "angleDelta"),
+		}, sfx, true
 	default:
 		return worldEffectComponent{}, sfx, false
 	}
@@ -302,6 +342,46 @@ func fieldFloat(fields map[string]string, key string) float64 {
 func fieldExists(fields map[string]string, key string) bool {
 	_, ok := fields[key]
 	return ok
+}
+
+func effectSizeFields(fields map[string]string) (float64, float64) {
+	sizeStart := fieldFloat(fields, "sizeStart")
+	sizeEnd := fieldFloat(fields, "sizeEnd")
+	if size := fieldFloat(fields, "size"); size > 0 {
+		if sizeStart <= 0 {
+			sizeStart = size
+		}
+		if sizeEnd <= 0 {
+			sizeEnd = size
+		}
+	}
+	if sizeStart <= 0 && sizeEnd > 0 {
+		sizeStart = sizeEnd
+	}
+	if sizeEnd <= 0 && sizeStart > 0 {
+		sizeEnd = sizeStart
+	}
+	return sizeStart, sizeEnd
+}
+
+func effectColorFields(fields map[string]string) color.RGBA {
+	hasColor := fieldExists(fields, "red") || fieldExists(fields, "green") || fieldExists(fields, "blue")
+	if !hasColor {
+		return color.RGBA{}
+	}
+	return color.RGBA{
+		R: uint8(clampFloat(fieldColorValue(fields, "red", 1), 0, 1) * 255),
+		G: uint8(clampFloat(fieldColorValue(fields, "green", 1), 0, 1) * 255),
+		B: uint8(clampFloat(fieldColorValue(fields, "blue", 1), 0, 1) * 255),
+		A: 255,
+	}
+}
+
+func fieldColorValue(fields map[string]string, key string, fallback float64) float64 {
+	if !fieldExists(fields, key) {
+		return fallback
+	}
+	return fieldFloat(fields, key)
 }
 
 func fieldInt(fields map[string]string, key string) int {
