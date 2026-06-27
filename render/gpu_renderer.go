@@ -86,35 +86,38 @@ struct VertexOutput {
 	@location(2) fog_amount: f32,
 }
 
-@vertex
-fn vs_main(input: VertexInput) -> VertexOutput {
-	var out: VertexOutput;
-	let p = vec4<f32>(input.pos, 1.0);
-	let dp = vec4<f32>(input.depth_pos, 1.0);
-	var clip = uniforms.c0 * p.x + uniforms.c1 * p.y + uniforms.c2 * p.z + uniforms.c3 * p.w;
-	var depth_clip = uniforms.c0 * dp.x + uniforms.c1 * dp.y + uniforms.c2 * dp.z + uniforms.c3 * dp.w;
-	clip.z = clip.z * 0.5 + clip.w * 0.5;
-	depth_clip.z = depth_clip.z * 0.5 + depth_clip.w * 0.5;
-	let fog_depth = clip.z;
-	clip.z = min(clip.z, depth_clip.z * clip.w / max(depth_clip.w, 0.000001));
-	clip.z = max(0.0, clip.z - input.depth_bias * clip.w);
-	out.clip = clip;
-	out.uv = input.uv;
-	out.color = input.color;
-	out.fog_amount = smoothstep(uniforms.fog.x, uniforms.fog.y, fog_depth) * uniforms.fog.z;
-	return out;
-}
-
-@fragment
-fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-	var color = textureSample(tex, tex_sampler, input.uv) * input.color;
-	if (color.a < 0.01) {
-		discard;
+	@vertex
+	fn vs_main(input: VertexInput) -> VertexOutput {
+		var out: VertexOutput;
+		let clip = uniforms.c0 * input.pos[0] + uniforms.c1 * input.pos[1] + uniforms.c2 * input.pos[2] + uniforms.c3;
+		let depth_clip = uniforms.c0 * input.depth_pos[0] + uniforms.c1 * input.depth_pos[1] + uniforms.c2 * input.depth_pos[2] + uniforms.c3;
+		let clip_z = clip[2] * 0.5 + clip[3] * 0.5;
+		let depth_z = depth_clip[2] * 0.5 + depth_clip[3] * 0.5;
+		let fog_depth = clip_z;
+		let occlusion_z = min(clip_z, depth_z * clip[3] / max(depth_clip[3], 0.000001));
+		let final_z = max(0.0, occlusion_z - input.depth_bias * clip[3]);
+		out.clip = vec4<f32>(clip[0], clip[1], final_z, clip[3]);
+		out.uv = input.uv;
+		out.color = input.color;
+		out.fog_amount = smoothstep(uniforms.fog[0], uniforms.fog[1], fog_depth) * uniforms.fog[2];
+		return out;
 	}
-	color.rgb = mix(color.rgb, uniforms.fog_color.rgb, clamp(input.fog_amount, 0.0, 1.0));
-	return color;
-}
-`
+
+	@fragment
+	fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
+		var color = textureSample(tex, tex_sampler, input.uv) * input.color;
+		if (color[3] < 0.01) {
+			discard;
+		}
+		let fog = clamp(input.fog_amount, 0.0, 1.0);
+		return vec4<f32>(
+			color[0] * (1.0 - fog) + uniforms.fog_color[0] * fog,
+			color[1] * (1.0 - fog) + uniforms.fog_color[1] * fog,
+			color[2] * (1.0 - fog) + uniforms.fog_color[2] * fog,
+			color[3],
+		);
+	}
+	`
 
 type gpuRenderer struct {
 	dev             *wgpu.Device
@@ -251,7 +254,7 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 		WGSL:  screenShaderWGSL,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("create screen shader: %w", err)
 	}
 	defer shader.Release()
 	worldShader, err := r.dev.CreateShaderModule(&wgpu.ShaderModuleDescriptor{
@@ -259,7 +262,7 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 		WGSL:  worldShaderWGSL,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("create world shader: %w", err)
 	}
 	defer worldShader.Release()
 
@@ -1003,14 +1006,47 @@ func (r *gpuRenderer) release() {
 			buf.Release()
 		}
 	}
-	for _, res := range []interface{ Release() }{
-		r.pipelineAlpha, r.pipelineAdd, r.worldAlphaWrite, r.worldAddWrite, r.worldAlphaRead, r.worldAddRead,
-		r.layout, r.worldLayout, r.bgl, r.worldBGL,
-		r.uniform, r.worldUniform, r.depthView, r.depthTex,
-	} {
-		if res != nil {
-			res.Release()
-		}
+	if r.pipelineAlpha != nil {
+		r.pipelineAlpha.Release()
+	}
+	if r.pipelineAdd != nil {
+		r.pipelineAdd.Release()
+	}
+	if r.worldAlphaWrite != nil {
+		r.worldAlphaWrite.Release()
+	}
+	if r.worldAddWrite != nil {
+		r.worldAddWrite.Release()
+	}
+	if r.worldAlphaRead != nil {
+		r.worldAlphaRead.Release()
+	}
+	if r.worldAddRead != nil {
+		r.worldAddRead.Release()
+	}
+	if r.layout != nil {
+		r.layout.Release()
+	}
+	if r.worldLayout != nil {
+		r.worldLayout.Release()
+	}
+	if r.bgl != nil {
+		r.bgl.Release()
+	}
+	if r.worldBGL != nil {
+		r.worldBGL.Release()
+	}
+	if r.uniform != nil {
+		r.uniform.Release()
+	}
+	if r.worldUniform != nil {
+		r.worldUniform.Release()
+	}
+	if r.depthView != nil {
+		r.depthView.Release()
+	}
+	if r.depthTex != nil {
+		r.depthTex.Release()
 	}
 }
 

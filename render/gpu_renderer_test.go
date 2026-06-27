@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gogpu/naga"
+	"github.com/gogpu/naga/spirv"
 )
 
 func TestRendererShadersParse(t *testing.T) {
@@ -19,6 +20,29 @@ func TestRendererShadersParse(t *testing.T) {
 		}
 		if _, err := naga.Lower(ast); err != nil {
 			t.Fatalf("%s shader lower: %v", name, err)
+		}
+	}
+}
+
+func TestRendererShadersGenerateSPIRV(t *testing.T) {
+	for name, source := range map[string]string{
+		"screen": screenShaderWGSL,
+		"world":  worldShaderWGSL,
+	} {
+		ast, err := naga.Parse(source)
+		if err != nil {
+			t.Fatalf("%s shader parse: %v", name, err)
+		}
+		module, err := naga.Lower(ast)
+		if err != nil {
+			t.Fatalf("%s shader lower: %v", name, err)
+		}
+		data, err := naga.GenerateSPIRV(module, spirv.Options{Version: spirv.Version1_3})
+		if err != nil {
+			t.Fatalf("%s shader SPIR-V: %v", name, err)
+		}
+		if len(data) == 0 {
+			t.Fatalf("%s shader SPIR-V is empty", name)
 		}
 	}
 }
