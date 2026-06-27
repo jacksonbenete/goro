@@ -14,8 +14,10 @@ import (
 
 const (
 	effectProvoke      = 67
+	effectEndure       = 11
 	effectBashBegin    = 16
 	effectBashHit      = 1
+	effectMagnumBreak  = 17
 	effectPotionRed    = 204
 	effectPotionOrange = 205
 	effectPotionYellow = 206
@@ -31,6 +33,7 @@ type effectPrimitiveKind int
 const (
 	effectPrimitiveSTR effectPrimitiveKind = iota + 1
 	effectPrimitiveCylinder
+	effectPrimitiveBillboard
 	effectPrimitiveBashHit
 )
 
@@ -56,13 +59,21 @@ type worldEffectComponent struct {
 	strFile          string
 	texturePath      string
 	textureName      string
+	textureFile      string
 	alphaMax         float64
 	fade             bool
+	fadeIn           bool
+	fadeOut          bool
 	rotate           bool
+	fixedPerspective bool
 	animation        int
 	bottomSize       float64
 	topSize          float64
+	height           float64
 	posZ             float64
+	sizeStart        float64
+	sizeEnd          float64
+	sizeSmooth       bool
 	totalCircleSides int
 	circleSides      int
 	duplicate        int
@@ -187,6 +198,9 @@ func (m *WorldMode) addWorldEffectAt(ctx Context, effectID int, actorID uint32, 
 	if len(spec.sfx) > 0 {
 		m.scheduleSound(starts, spec.sfx...)
 	}
+	if effectID == effectMagnumBreak {
+		m.startCameraShake(starts, 50*time.Millisecond)
+	}
 	return true
 }
 
@@ -230,6 +244,8 @@ func skillSuccessEffectID(skillID uint16) int {
 	switch skillID {
 	case 6:
 		return effectProvoke
+	case 8:
+		return effectEndure
 	default:
 		return 0
 	}
@@ -239,6 +255,8 @@ func skillBeginEffectID(skillID uint16) int {
 	switch skillID {
 	case 5:
 		return effectBashBegin
+	case 7:
+		return effectMagnumBreak
 	default:
 		return 0
 	}
@@ -264,6 +282,23 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 				color: color.RGBA{R: 255, G: 248, B: 220, A: 255},
 			}},
 		}, true
+	case effectEndure:
+		return worldEffectSpec{
+			duration: 1000 * time.Millisecond,
+			sfx:      []string{"effect\\ef_endure.wav"},
+			components: []worldEffectComponent{{
+				kind:        effectPrimitiveBillboard,
+				textureFile: "effect\\endure.tga",
+				duration:    1000 * time.Millisecond,
+				alphaMax:    1,
+				fadeIn:      true,
+				fadeOut:     true,
+				posZ:        2,
+				sizeStart:   2.0,
+				sizeEnd:     0.7,
+				sizeSmooth:  true,
+			}},
+		}, true
 	case effectBashBegin:
 		return worldEffectSpec{
 			duration: 1000 * time.Millisecond,
@@ -276,6 +311,7 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 					alphaMax:         0.6,
 					fade:             true,
 					rotate:           true,
+					fixedPerspective: true,
 					animation:        2,
 					bottomSize:       0.1,
 					topSize:          2.0,
@@ -290,6 +326,7 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 					alphaMax:         0.6,
 					fade:             true,
 					rotate:           true,
+					fixedPerspective: true,
 					animation:        2,
 					bottomSize:       0.01,
 					topSize:          2.5,
@@ -306,6 +343,7 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 					alphaMax:         0.6,
 					fade:             true,
 					rotate:           true,
+					fixedPerspective: true,
 					animation:        2,
 					bottomSize:       0.01,
 					topSize:          4.0,
@@ -326,6 +364,41 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 				color:   color.RGBA{R: 255, G: 70, B: 42, A: 255},
 				strFile: "provoke",
 			}},
+		}, true
+	case effectMagnumBreak:
+		return worldEffectSpec{
+			duration: 300 * time.Millisecond,
+			sfx:      []string{"effect\\ef_magnumbreak.wav"},
+			components: []worldEffectComponent{
+				{
+					kind:             effectPrimitiveCylinder,
+					textureName:      "ring_yellow",
+					duration:         300 * time.Millisecond,
+					alphaMax:         0.7,
+					fade:             true,
+					rotate:           true,
+					animation:        4,
+					bottomSize:       4,
+					topSize:          6,
+					height:           1,
+					totalCircleSides: 32,
+					circleSides:      32,
+				},
+				{
+					kind:             effectPrimitiveCylinder,
+					textureName:      "\xb4\xeb\xc6\xf8\xb9\xdf",
+					duration:         300 * time.Millisecond,
+					alphaMax:         0.6,
+					fade:             true,
+					rotate:           true,
+					animation:        4,
+					bottomSize:       4,
+					topSize:          1,
+					height:           4,
+					totalCircleSides: 32,
+					circleSides:      32,
+				},
+			},
 		}, true
 	case effectPotionRed:
 		return potionEffectSpec("\xbb\xa1\xb0\xa3\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 82, B: 70, A: 255}), true
@@ -447,6 +520,8 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 		m.drawSTREffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
 	case effectPrimitiveCylinder:
 		m.drawCylinderEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress)
+	case effectPrimitiveBillboard:
+		m.drawBillboardEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
 	case effectPrimitiveBashHit:
 		drawBashHitEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	default:
@@ -474,6 +549,21 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projec
 	if component.animation == 2 {
 		topSize *= progress
 	}
+	bottomSize := component.bottomSize
+	height := component.height
+	if component.animation == 4 {
+		bottomSize *= progress
+		topSize *= progress
+	}
+	if !component.fixedPerspective {
+		drawWorldCylinderBand(screen, m.whitePixel, texture, x, y, z+component.posZ, bottomSize, topSize, height, color.RGBA{
+			R: 255,
+			G: 255,
+			B: 255,
+			A: uint8(clampFloat(alpha, 0, 1) * 255),
+		}, maxInt(component.circleSides, component.totalCircleSides))
+		return
+	}
 	duplicates := maxInt(component.duplicate, 1)
 	for i := 0; i < duplicates; i++ {
 		angle := 0.0
@@ -485,7 +575,7 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projec
 			angle += deterministicAngle(effect, componentIndex*101+i) * component.angleZRandom / 360
 		}
 		drawTexturedEffectCylinder(screen, projection, texture, x, y, z+component.posZ, effectCylinderDraw{
-			bottomSize:       component.bottomSize,
+			bottomSize:       bottomSize,
 			topSize:          topSize,
 			totalCircleSides: component.totalCircleSides,
 			circleSides:      component.circleSides,
@@ -493,6 +583,27 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projec
 			angle:            angle,
 		})
 	}
+}
+
+func (m *WorldMode) drawBillboardEffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, worldX, worldY, worldZ, progress float64) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	alpha := effectBillboardAlpha(progress, component)
+	if alpha <= 0 {
+		return
+	}
+	size := effectBillboardSize(progress, component)
+	if size <= 0 {
+		return
+	}
+	drawTexturedEffectBillboard(screen, projection, texture, worldX, worldY, worldZ+component.posZ, size, color.RGBA{
+		R: 255,
+		G: 255,
+		B: 255,
+		A: uint8(clampFloat(alpha, 0, 1) * 255),
+	})
 }
 
 func drawBashHitEffect(screen, white *render.Image, x, y, z, progress float64, c color.RGBA) {
@@ -563,12 +674,68 @@ func effectComponentAlpha(progress, alphaMax float64, fade bool) float64 {
 	}
 }
 
+func effectBillboardAlpha(progress float64, component worldEffectComponent) float64 {
+	alphaMax := component.alphaMax
+	if alphaMax <= 0 {
+		alphaMax = 1
+	}
+	switch {
+	case component.fadeIn && progress < 0.25:
+		return progress / 0.25 * alphaMax
+	case component.fadeOut && progress > 0.75:
+		return (1 - progress) / 0.25 * alphaMax
+	default:
+		return alphaMax
+	}
+}
+
+func effectBillboardSize(progress float64, component worldEffectComponent) float64 {
+	start := component.sizeStart
+	end := component.sizeEnd
+	if start <= 0 {
+		start = 1
+	}
+	if end <= 0 {
+		end = start
+	}
+	if !component.sizeSmooth {
+		return start + (end-start)*progress
+	}
+	return start + (end-start)*math.Log10(progress*9+1)
+}
+
 func deterministicAngle(effect worldEffect, salt int) float64 {
 	value := uint32(effect.effectID*1103515245) ^ effect.actorID ^ uint32(effect.starts.UnixNano()) ^ uint32(salt*2654435761)
 	value ^= value >> 16
 	value *= 2246822519
 	value ^= value >> 13
 	return float64(value%360) * math.Pi / 180
+}
+
+func drawTexturedEffectBillboard(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, size float64, tint color.RGBA) {
+	if screen == nil || texture == nil || tint.A == 0 {
+		return
+	}
+	right, up, _, ok := projection.BillboardBasis(worldX, worldY, worldZ)
+	if !ok {
+		return
+	}
+	half := size * 0.5
+	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
+	corner := func(dx, dy float64) modelPoint3 {
+		return add3(add3(center, mul3(right, dx)), mul3(up, dy))
+	}
+	bounds := texture.Bounds()
+	w, h := float32(bounds.Dx()), float32(bounds.Dy())
+	vertices := []render.Vertex3D{
+		texturedSurfaceVertex3D(corner(-half, half), texturePoint{u: 0, v: 0}, tint, w, h),
+		texturedSurfaceVertex3D(corner(half, half), texturePoint{u: 1, v: 0}, tint, w, h),
+		texturedSurfaceVertex3D(corner(-half, -half), texturePoint{u: 0, v: 1}, tint, w, h),
+		texturedSurfaceVertex3D(corner(half, -half), texturePoint{u: 1, v: 1}, tint, w, h),
+	}
+	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
+	options.Blend = render.BlendLighter
+	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, options)
 }
 
 func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
@@ -661,6 +828,42 @@ func (m *WorldMode) strEffectTexture(manager *res.Manager, path string) *render.
 	if err != nil {
 		m.textureMiss[key] = struct{}{}
 		log.Printf("str effect texture missing path=%s: %v", path, err)
+		return nil
+	}
+	texture := render.NewImageFromImage(res.ApplyEffectTransparency(img))
+	m.textures[key] = texture
+	return texture
+}
+
+func (m *WorldMode) effectFileTexture(manager *res.Manager, path string) *render.Image {
+	path = strings.TrimSpace(path)
+	if manager == nil || path == "" {
+		return nil
+	}
+	key := "__effectfile_" + path
+	if m.textures == nil {
+		m.textures = make(map[string]*render.Image)
+	}
+	if m.textureMiss == nil {
+		m.textureMiss = make(map[string]struct{})
+	}
+	if texture, ok := m.textures[key]; ok {
+		return texture
+	}
+	if _, ok := m.textureMiss[key]; ok {
+		return nil
+	}
+	normalized := strings.ReplaceAll(path, "/", "\\")
+	candidates := []string{
+		"data\\texture\\" + normalized,
+		strings.ReplaceAll("data\\texture\\"+normalized, "\\", "/"),
+		normalized,
+		strings.ReplaceAll(normalized, "\\", "/"),
+	}
+	img, _, err := res.LoadImageExact(manager, candidates)
+	if err != nil {
+		m.textureMiss[key] = struct{}{}
+		log.Printf("effect texture missing path=%s: %v", path, err)
 		return nil
 	}
 	texture := render.NewImageFromImage(res.ApplyEffectTransparency(img))

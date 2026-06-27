@@ -26,6 +26,8 @@ type WorldMode struct {
 	walkCooldown     int
 	tickCooldown     int
 	camera           followCamera
+	cameraShakeStart time.Time
+	cameraShakeEnd   time.Time
 	whitePixel       *render.Image
 	tileCursor       *render.Image
 	textures         map[string]*render.Image
@@ -2570,6 +2572,10 @@ func (c *followCamera) ResetRotation() {
 }
 
 func (c *followCamera) Projection(ctx Context, width, height int, now time.Time) sceneProjection {
+	return c.ProjectionWithOffset(ctx, width, height, now, 0, 0)
+}
+
+func (c *followCamera) ProjectionWithOffset(ctx Context, width, height int, now time.Time, offsetX, offsetY float64) sceneProjection {
 	if !c.initialized {
 		c.Update(ctx, now)
 	}
@@ -2579,7 +2585,7 @@ func (c *followCamera) Projection(ctx Context, width, height int, now time.Time)
 		c.ResetRotation()
 		yawOffset = 0
 	}
-	return newSceneProjectionForTargetYawZoom(width, height, c.x, c.y, c.z, cameraYawForMap(ctx)+yawOffset, c.currentZoom())
+	return newSceneProjectionForTargetYawZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, c.currentZoom())
 }
 
 func (c *followCamera) store(ctx Context) {
@@ -2591,7 +2597,31 @@ func (c *followCamera) store(ctx Context) {
 }
 
 func (m *WorldMode) sceneProjection(ctx Context, width, height int, now time.Time) sceneProjection {
-	return m.camera.Projection(ctx, width, height, now)
+	offsetX, offsetY := m.cameraShakeOffset(now)
+	return m.camera.ProjectionWithOffset(ctx, width, height, now, offsetX, offsetY)
+}
+
+func (m *WorldMode) startCameraShake(starts time.Time, duration time.Duration) {
+	if duration <= 0 {
+		return
+	}
+	m.cameraShakeStart = starts
+	m.cameraShakeEnd = starts.Add(duration)
+}
+
+func (m *WorldMode) cameraShakeOffset(now time.Time) (float64, float64) {
+	if m.cameraShakeStart.IsZero() || !now.Before(m.cameraShakeEnd) {
+		return 0, 0
+	}
+	duration := m.cameraShakeEnd.Sub(m.cameraShakeStart)
+	if duration <= 0 {
+		return 0, 0
+	}
+	elapsed := now.Sub(m.cameraShakeStart)
+	progress := clampFloat(float64(elapsed)/float64(duration), 0, 1)
+	amplitude := 0.18 * (1 - progress)
+	seconds := float64(elapsed) / float64(time.Second)
+	return math.Sin(seconds*120*2*math.Pi) * amplitude, math.Cos(seconds*150*2*math.Pi) * amplitude
 }
 
 func (m *WorldMode) updateCameraRotation(ctx Context) {

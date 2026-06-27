@@ -602,6 +602,83 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 	}
 }
 
+func TestSwordmanSkillEffectMappings(t *testing.T) {
+	if got := skillBeginEffectID(5); got != effectBashBegin {
+		t.Fatalf("SM_BASH begin effect = %d, want %d", got, effectBashBegin)
+	}
+	if got := skillHitEffectID(5); got != effectBashHit {
+		t.Fatalf("SM_BASH hit effect = %d, want %d", got, effectBashHit)
+	}
+	if got := skillSuccessEffectID(6); got != effectProvoke {
+		t.Fatalf("SM_PROVOKE success effect = %d, want %d", got, effectProvoke)
+	}
+	if got := skillBeginEffectID(7); got != effectMagnumBreak {
+		t.Fatalf("SM_MAGNUM begin effect = %d, want %d", got, effectMagnumBreak)
+	}
+	if got := skillSuccessEffectID(8); got != effectEndure {
+		t.Fatalf("SM_ENDURE success effect = %d, want %d", got, effectEndure)
+	}
+}
+
+func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectMagnumBreak)
+	if !ok {
+		t.Fatal("magnum break effect spec missing")
+	}
+	if len(spec.components) != 2 {
+		t.Fatalf("components = %d, want 2", len(spec.components))
+	}
+	for i, component := range spec.components {
+		if component.kind != effectPrimitiveCylinder {
+			t.Fatalf("component %d kind = %d, want cylinder", i, component.kind)
+		}
+		if component.fixedPerspective {
+			t.Fatalf("component %d is fixed perspective, want world-space cylinder", i)
+		}
+		if component.animation != 4 || component.height <= 0 {
+			t.Fatalf("component %d = %+v, want animation 4 with height", i, component)
+		}
+	}
+}
+
+func TestMagnumBreakEffectStartsCameraShake(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	starts := time.Unix(100, 0)
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	if !mode.addWorldEffectAt(ctx, effectMagnumBreak, 2000000, starts) {
+		t.Fatal("add magnum break effect failed")
+	}
+	if !mode.cameraShakeStart.Equal(starts) || !mode.cameraShakeEnd.Equal(starts.Add(50*time.Millisecond)) {
+		t.Fatalf("camera shake = %s..%s", mode.cameraShakeStart, mode.cameraShakeEnd)
+	}
+	if x, y := mode.cameraShakeOffset(starts.Add(10 * time.Millisecond)); x == 0 && y == 0 {
+		t.Fatalf("camera shake offset = %.3f, %.3f, want non-zero", x, y)
+	}
+	if x, y := mode.cameraShakeOffset(starts.Add(60 * time.Millisecond)); x != 0 || y != 0 {
+		t.Fatalf("expired camera shake offset = %.3f, %.3f, want zero", x, y)
+	}
+}
+
+func TestEndureEffectSpecUsesBillboardTexture(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectEndure)
+	if !ok {
+		t.Fatal("endure effect spec missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitiveBillboard || component.textureFile != "effect\\endure.tga" {
+		t.Fatalf("component = %+v", component)
+	}
+	if !component.fadeIn || !component.fadeOut || !component.sizeSmooth {
+		t.Fatalf("component fade/size flags = %+v", component)
+	}
+}
+
 func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Moving: true}

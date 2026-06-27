@@ -99,12 +99,15 @@ func TestRealPotionAndProvokeSTRExactResources(t *testing.T) {
 
 func TestRealBashEffectTextures(t *testing.T) {
 	manager := realDataManager(t)
-	for _, name := range []string{"alpha_down", "alpha_center"} {
+	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "\xb4\xeb\xc6\xf8\xb9\xdf"} {
 		if _, source, err := LoadImageExact(manager, EffectTextureCandidates(name)); err != nil {
-			t.Fatalf("load exact bash texture %s: %v", name, err)
+			t.Fatalf("load exact effect texture %s: %v", name, err)
 		} else if source == "" {
-			t.Fatalf("load exact bash texture %s returned empty source", name)
+			t.Fatalf("load exact effect texture %s returned empty source", name)
 		}
+	}
+	if _, _, err := LoadImageExact(manager, []string{`data\texture\effect\endure.tga`, `data/texture/effect/endure.tga`}); err != nil {
+		t.Fatalf("load exact endure texture: %v", err)
 	}
 }
 
