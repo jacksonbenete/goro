@@ -1386,6 +1386,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		if hitAt.Before(now) {
 			hitAt = now
 		}
+		m.addSkillBeforeHitEffect(ctx, action, now)
 		m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
 		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
 		m.addSkillHitEffect(ctx, action, hitAt)
@@ -1414,6 +1415,19 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		starts:  hitAt,
 		expires: hitAt.Add(damageFloaterDuration(kind)),
 	})
+}
+
+func (m *WorldMode) addSkillBeforeHitEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {
+	if action.SkillID == 0 {
+		return
+	}
+	effectID := skillBeforeHitEffectID(action.SkillID)
+	if effectID <= 0 {
+		return
+	}
+	if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, starts) {
+		log.Printf("skill before-hit effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+	}
 }
 
 func (m *WorldMode) addSkillHitEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {

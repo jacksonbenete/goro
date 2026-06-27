@@ -76,6 +76,7 @@ const (
 type worldEffect struct {
 	effectID int
 	actorID  uint32
+	targetID uint32
 	x        int
 	y        int
 	starts   time.Time
@@ -109,6 +110,10 @@ type worldEffectComponent struct {
 	spriteDelay      time.Duration
 	spriteXOffset    float64
 	spriteYOffset    float64
+	fromSrc          bool
+	toSrc            bool
+	arc              float64
+	retreat          float64
 	alphaMax         float64
 	fade             bool
 	fadeIn           bool
@@ -176,7 +181,7 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	if effectID <= 0 {
 		return
 	}
-	if m.addWorldEffect(ctx, effectID, notify.TargetID) {
+	if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, time.Now()) {
 		log.Printf("skill success effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
 	}
 }
@@ -271,6 +276,10 @@ func (m *WorldMode) hasActiveWorldEffect(effectID int, actorID uint32, now time.
 }
 
 func (m *WorldMode) addWorldEffectAt(ctx Context, effectID int, actorID uint32, starts time.Time) bool {
+	return m.addWorldEffectBetweenAt(ctx, effectID, actorID, 0, starts)
+}
+
+func (m *WorldMode) addWorldEffectBetweenAt(ctx Context, effectID int, actorID, targetID uint32, starts time.Time) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -295,6 +304,7 @@ func (m *WorldMode) addWorldEffectAt(ctx Context, effectID int, actorID uint32, 
 	m.worldEffects = append(m.worldEffects, worldEffect{
 		effectID: effectID,
 		actorID:  actorID,
+		targetID: targetID,
 		x:        x,
 		y:        y,
 		starts:   starts,
@@ -388,10 +398,6 @@ func skillBeginEffectID(skillID uint16) int {
 		return effectBashBegin
 	case 7:
 		return effectMagnumBreak
-	case 13:
-		return effectSoulStrike
-	case 17:
-		return effectFireBall
 	case 20:
 		return effectLightningBolt
 	case 21:
@@ -402,6 +408,17 @@ func skillBeginEffectID(skillID uint16) int {
 		return effectMammonite
 	case 46:
 		return effectBashBegin
+	default:
+		return 0
+	}
+}
+
+func skillBeforeHitEffectID(skillID uint16) int {
+	switch skillID {
+	case 13:
+		return effectSoulStrike
+	case 17:
+		return effectFireBall
 	default:
 		return 0
 	}
@@ -761,7 +778,7 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 			continue
 		}
 		salt := componentIndex*1009 + i*37
-		offsetX, offsetY, offsetZ := effect3DOffset(component, effect, salt, progress)
+		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, progress, worldX, worldY, worldZ)
 		size := effect3DSize(component, effect, salt, progress)
 		if size <= 0 {
 			continue
@@ -985,7 +1002,7 @@ func effectBillboardSize(progress float64, component worldEffectComponent) float
 	return start + (end-start)*math.Log10(progress*9+1)
 }
 
-func effect3DOffset(component worldEffectComponent, effect worldEffect, salt int, progress float64) (float64, float64, float64) {
+func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, effect worldEffect, salt int, progress float64, worldX, worldY, worldZ float64) (float64, float64, float64) {
 	startX := component.posX + deterministicSigned(effect, salt+1)*component.posXRand
 	startY := component.posY + deterministicSigned(effect, salt+2)*component.posYRand
 	startZ := component.posZ + component.posZStartMiddle + deterministicSigned(effect, salt+3)*component.posZStartRand
@@ -1001,7 +1018,56 @@ func effect3DOffset(component worldEffectComponent, effect worldEffect, salt int
 	if component.posZEnd == 0 && component.posZEndRand == 0 && component.posZEndMiddle == 0 {
 		endZ = startZ
 	}
-	return startX + (endX-startX)*progress, startY + (endY-startY)*progress, startZ + (endZ-startZ)*progress
+	if component.fromSrc || component.toSrc {
+		otherX, otherY, otherZ, ok := effectOtherEndpoint(ctx, effect, worldX, worldY, worldZ)
+		if ok {
+			dx := otherX - worldX
+			dy := otherY - worldY
+			dz := otherZ - worldZ
+			if component.fromSrc {
+				endX += dx
+				endY += dy
+				endZ += dz
+			}
+			if component.toSrc {
+				startX += dx
+				startY += dy
+				startZ += dz
+			}
+		}
+	}
+	x := startX + (endX-startX)*progress
+	y := startY + (endY-startY)*progress
+	z := startZ + (endZ-startZ)*progress
+	if component.retreat != 0 {
+		dx := endX - startX
+		dy := endY - startY
+		dist := math.Hypot(dx, dy)
+		if dist > 0.001 {
+			factor := math.Sin(progress*math.Pi) * component.retreat
+			x -= dx / dist * factor
+			y -= dy / dist * factor
+		}
+	}
+	if component.arc != 0 {
+		z += math.Sin(progress*math.Pi) * component.arc
+	}
+	return x, y, z
+}
+
+func effectOtherEndpoint(ctx Context, effect worldEffect, fallbackX, fallbackY, fallbackZ float64) (float64, float64, float64, bool) {
+	if effect.targetID == 0 || ctx.World == nil {
+		return fallbackX, fallbackY, fallbackZ, false
+	}
+	if actor, ok := ctx.World.Actors[effect.targetID]; ok {
+		x, y := actor.RenderPosition(time.Now())
+		return cellCenter(x), cellCenter(y), terrainHeightAt(ctx.World, x, y) + 0.07, true
+	}
+	if isLocalActor(ctx, effect.targetID) {
+		x, y := ctx.World.Player.RenderPosition(time.Now())
+		return cellCenter(x), cellCenter(y), terrainHeightAt(ctx.World, x, y) + 0.07, true
+	}
+	return fallbackX, fallbackY, fallbackZ, false
 }
 
 func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, progress float64) float64 {

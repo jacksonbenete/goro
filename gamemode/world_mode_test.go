@@ -496,6 +496,7 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
 		SourceID:    2000000,
 		TargetID:    300,
+		SkillID:     13,
 		SourceSpeed: 580,
 		TargetSpeed: 480,
 		Damage:      42,
@@ -524,6 +525,15 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
 		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
+	}
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %+v, want before-hit and hit effects", mode.worldEffects)
+	}
+	if effect := mode.worldEffects[0]; effect.effectID != effectSoulStrike || effect.actorID != 300 || effect.targetID != 2000000 {
+		t.Fatalf("before-hit effect = %+v", effect)
+	}
+	if effect := mode.worldEffects[1]; effect.effectID != effectBashHit || effect.actorID != 300 || effect.targetID != 0 {
+		t.Fatalf("hit effect = %+v", effect)
 	}
 	life, ok := mode.actorLife[300]
 	if !ok {
@@ -671,8 +681,8 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	if got := skillHitEffectID(11); got != effectBashHit {
 		t.Fatalf("MG_NAPALMBEAT hit effect = %d, want %d", got, effectBashHit)
 	}
-	if got := skillBeginEffectID(13); got != effectSoulStrike {
-		t.Fatalf("MG_SOULSTRIKE begin effect = %d, want %d", got, effectSoulStrike)
+	if got := skillBeforeHitEffectID(13); got != effectSoulStrike {
+		t.Fatalf("MG_SOULSTRIKE before-hit effect = %d, want %d", got, effectSoulStrike)
 	}
 	if got := skillHitEffectID(13); got != effectBashHit {
 		t.Fatalf("MG_SOULSTRIKE hit effect = %d, want %d", got, effectBashHit)
@@ -686,8 +696,8 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	if got := skillSuccessEffectID(16); got != effectStoneCurse {
 		t.Fatalf("MG_STONECURSE success effect = %d, want %d", got, effectStoneCurse)
 	}
-	if got := skillBeginEffectID(17); got != effectFireBall {
-		t.Fatalf("MG_FIREBALL begin effect = %d, want %d", got, effectFireBall)
+	if got := skillBeforeHitEffectID(17); got != effectFireBall {
+		t.Fatalf("MG_FIREBALL before-hit effect = %d, want %d", got, effectFireBall)
 	}
 	for _, skillID := range []uint16{17, 18, 19} {
 		if got := skillHitEffectID(skillID); got != effectFireHit {
