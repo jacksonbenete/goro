@@ -113,6 +113,22 @@ func TestRealCylinderEffectTextures(t *testing.T) {
 	}
 }
 
+func TestRealLevelUpSFXResources(t *testing.T) {
+	manager := realDataManager(t)
+	for _, path := range []string{
+		`data\wav\levelup.wav`,
+		`data\wav\effect\st_job_level_up.wav`,
+	} {
+		data, err := manager.ReadFileExact(path)
+		if err != nil {
+			t.Fatalf("load exact level-up sfx %s: %v", path, err)
+		}
+		if len(data) == 0 {
+			t.Fatalf("level-up sfx %s is empty", path)
+		}
+	}
+}
+
 func writeSTRI32(out *bytes.Buffer, value int32) {
 	writeSTRU32(out, uint32(value))
 }

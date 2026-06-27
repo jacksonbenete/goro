@@ -496,6 +496,7 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 	case effectJobLevelUp:
 		return worldEffectSpec{
 			duration: 1300 * time.Millisecond,
+			sfx:      []string{"effect\\st_job_level_up.wav", "levelup.wav"},
 			components: []worldEffectComponent{{
 				kind:    effectPrimitiveSTR,
 				strFile: "joblvup",

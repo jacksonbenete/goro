@@ -764,6 +764,9 @@ func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
 	if len(job.components) != 1 || job.components[0].kind != effectPrimitiveSTR || job.components[0].strFile != "joblvup" {
 		t.Fatalf("job level-up spec = %+v", job)
 	}
+	if len(job.sfx) < 2 || job.sfx[0] != "effect\\st_job_level_up.wav" || job.sfx[1] != "levelup.wav" {
+		t.Fatalf("job level-up sfx = %#v", job.sfx)
+	}
 }
 
 func TestSpecialEffectNotifyAddsLevelUpEffects(t *testing.T) {
@@ -781,8 +784,14 @@ func TestSpecialEffectNotifyAddsLevelUpEffects(t *testing.T) {
 	if mode.worldEffects[0].effectID != effectBaseLevelUp || mode.worldEffects[1].effectID != effectJobLevelUp {
 		t.Fatalf("world effects = %+v", mode.worldEffects)
 	}
-	if len(mode.scheduledSounds) != 1 || mode.scheduledSounds[0].paths[0] != "levelup.wav" {
+	if len(mode.scheduledSounds) != 2 {
 		t.Fatalf("scheduled sounds = %+v", mode.scheduledSounds)
+	}
+	if mode.scheduledSounds[0].paths[0] != "levelup.wav" {
+		t.Fatalf("base level-up sound = %+v", mode.scheduledSounds[0])
+	}
+	if got := mode.scheduledSounds[1].paths; len(got) < 2 || got[0] != "effect\\st_job_level_up.wav" || got[1] != "levelup.wav" {
+		t.Fatalf("job level-up sound = %+v", mode.scheduledSounds[1])
 	}
 }
 
