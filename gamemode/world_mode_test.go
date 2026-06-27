@@ -1371,6 +1371,20 @@ func TestSceneLightingModelScaleIgnoresOpacityLikeRobrowser(t *testing.T) {
 	}
 }
 
+func TestSceneLightingScaleClampsLightBeforeEnvLikeRobrowser(t *testing.T) {
+	lighting := sceneLighting{
+		direction: modelPoint3{y: -1},
+		diffuse:   modelPoint3{x: 0.8, y: 0.8, z: 0.8},
+		ambient:   modelPoint3{x: 0.8, y: 0.8, z: 0.8},
+		env:       modelPoint3{x: 0.5, y: 0.5, z: 0.5},
+	}
+	got := lighting.groundScale(modelPoint3{y: -1})
+	want := modelPoint3{x: 0.5, y: 0.5, z: 0.5}
+	if got != want {
+		t.Fatalf("ground scale = %+v, want %+v", got, want)
+	}
+}
+
 func TestSmoothGNDTopNormalsKeepsFlatTilesUniform(t *testing.T) {
 	gnd := testGNDWithTopHeights(2, 2, func(_, _ int) [4]float32 {
 		return [4]float32{0, 0, 0, 0}

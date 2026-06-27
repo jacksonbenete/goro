@@ -4917,18 +4917,18 @@ func sceneLightingFromRSW(rsw *res.RSW) sceneLighting {
 func (l sceneLighting) groundScale(normal modelPoint3) modelPoint3 {
 	weight := math.Max(dot3(normalize3(normal), l.direction), 0)
 	return modelPoint3{
-		x: clampUnit((l.ambient.x + l.diffuse.x*weight) * l.env.x),
-		y: clampUnit((l.ambient.y + l.diffuse.y*weight) * l.env.y),
-		z: clampUnit((l.ambient.z + l.diffuse.z*weight) * l.env.z),
+		x: clampUnit(l.ambient.x+l.diffuse.x*weight) * clampUnit(l.env.x),
+		y: clampUnit(l.ambient.y+l.diffuse.y*weight) * clampUnit(l.env.y),
+		z: clampUnit(l.ambient.z+l.diffuse.z*weight) * clampUnit(l.env.z),
 	}
 }
 
 func (l sceneLighting) modelScale(normal modelPoint3) modelPoint3 {
 	weight := math.Max(dot3(normalize3(normal), l.direction), 0)
 	return modelPoint3{
-		x: clampUnit((l.ambient.x + l.diffuse.x*weight) * l.env.x),
-		y: clampUnit((l.ambient.y + l.diffuse.y*weight) * l.env.y),
-		z: clampUnit((l.ambient.z + l.diffuse.z*weight) * l.env.z),
+		x: clampUnit(l.ambient.x+l.diffuse.x*weight) * clampUnit(l.env.x),
+		y: clampUnit(l.ambient.y+l.diffuse.y*weight) * clampUnit(l.env.y),
+		z: clampUnit(l.ambient.z+l.diffuse.z*weight) * clampUnit(l.env.z),
 	}
 }
 
