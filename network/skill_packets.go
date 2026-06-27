@@ -36,10 +36,18 @@ type AutoRunSkill struct {
 
 type SkillNoDamageNotify struct {
 	SkillID  uint16
-	Amount   uint16
+	Amount   uint32
 	TargetID uint32
 	SourceID uint32
 	Result   byte
+}
+
+type SkillFailAck struct {
+	SkillID uint16
+	Number  uint32
+	ItemID  uint32
+	Result  byte
+	Cause   byte
 }
 
 func ParseSkillInfoList(packet Packet) (SkillInfoList, bool, error) {
@@ -98,18 +106,47 @@ func ParseAutoRunSkill(packet Packet) (AutoRunSkill, bool, error) {
 }
 
 func ParseSkillNoDamageNotify(packet Packet) (SkillNoDamageNotify, bool, error) {
-	if packet.ID != 0x011A {
+	switch packet.ID {
+	case 0x011A:
+		if len(packet.Data) < 15 {
+			return SkillNoDamageNotify{}, false, fmt.Errorf("ZC_USE_SKILL too short: %d", len(packet.Data))
+		}
+		return SkillNoDamageNotify{
+			SkillID:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:   uint32(binary.LittleEndian.Uint16(packet.Data[4:6])),
+			TargetID: binary.LittleEndian.Uint32(packet.Data[6:10]),
+			SourceID: binary.LittleEndian.Uint32(packet.Data[10:14]),
+			Result:   packet.Data[14],
+		}, true, nil
+	case 0x09CB:
+		if len(packet.Data) < 17 {
+			return SkillNoDamageNotify{}, false, fmt.Errorf("ZC_USE_SKILL2 too short: %d", len(packet.Data))
+		}
+		return SkillNoDamageNotify{
+			SkillID:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:   binary.LittleEndian.Uint32(packet.Data[4:8]),
+			TargetID: binary.LittleEndian.Uint32(packet.Data[8:12]),
+			SourceID: binary.LittleEndian.Uint32(packet.Data[12:16]),
+			Result:   packet.Data[16],
+		}, true, nil
+	default:
 		return SkillNoDamageNotify{}, false, nil
 	}
-	if len(packet.Data) < 15 {
-		return SkillNoDamageNotify{}, false, fmt.Errorf("ZC_USE_SKILL too short: %d", len(packet.Data))
+}
+
+func ParseSkillFailAck(packet Packet) (SkillFailAck, bool, error) {
+	if packet.ID != 0x0110 {
+		return SkillFailAck{}, false, nil
 	}
-	return SkillNoDamageNotify{
-		SkillID:  binary.LittleEndian.Uint16(packet.Data[2:4]),
-		Amount:   binary.LittleEndian.Uint16(packet.Data[4:6]),
-		TargetID: binary.LittleEndian.Uint32(packet.Data[6:10]),
-		SourceID: binary.LittleEndian.Uint32(packet.Data[10:14]),
-		Result:   packet.Data[14],
+	if len(packet.Data) < 10 {
+		return SkillFailAck{}, false, fmt.Errorf("ZC_ACK_TOUSESKILL too short: %d", len(packet.Data))
+	}
+	return SkillFailAck{
+		SkillID: binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Number:  uint32(binary.LittleEndian.Uint16(packet.Data[4:6])),
+		ItemID:  uint32(binary.LittleEndian.Uint16(packet.Data[6:8])),
+		Result:  packet.Data[8],
+		Cause:   packet.Data[9],
 	}, true, nil
 }
 

@@ -30,6 +30,24 @@ func LoadImage(manager *Manager, candidates []string) (image.Image, string, erro
 	return nil, "", fmt.Errorf("image not found: %s", strings.Join(candidates, ", "))
 }
 
+func LoadImageExact(manager *Manager, candidates []string) (image.Image, string, error) {
+	for _, candidate := range candidates {
+		data, err := manager.ReadFileExact(candidate)
+		if err != nil {
+			continue
+		}
+		img, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			img, err = decodeTGA(data)
+			if err != nil {
+				return nil, candidate, fmt.Errorf("decode image: %w", err)
+			}
+		}
+		return applyROTransparency(img), candidate, nil
+	}
+	return nil, "", fmt.Errorf("image not found: %s", strings.Join(candidates, ", "))
+}
+
 func applyROTransparency(img image.Image) *image.NRGBA {
 	bounds := img.Bounds()
 	out := image.NewNRGBA(bounds)

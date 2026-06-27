@@ -374,6 +374,58 @@ func TestParseActorActionNotify2(t *testing.T) {
 	}
 }
 
+func TestParseActorSkillNotifyLegacy(t *testing.T) {
+	data := make([]byte, 31)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0114)
+	binary.LittleEndian.PutUint16(data[2:4], 5)
+	binary.LittleEndian.PutUint32(data[4:8], 2000000)
+	binary.LittleEndian.PutUint32(data[8:12], 110014894)
+	binary.LittleEndian.PutUint32(data[12:16], 123456)
+	binary.LittleEndian.PutUint32(data[16:20], 580)
+	binary.LittleEndian.PutUint32(data[20:24], 480)
+	binary.LittleEndian.PutUint16(data[24:26], 84)
+	binary.LittleEndian.PutUint16(data[26:28], 3)
+	binary.LittleEndian.PutUint16(data[28:30], 1)
+	data[30] = 6
+
+	action, ok, err := ParseActorActionNotify(Packet{ID: 0x0114, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("skill notify not parsed")
+	}
+	if action.SkillID != 5 || action.SkillLevel != 3 || action.SourceID != 2000000 || action.TargetID != 110014894 || action.Damage != 84 || action.HitCount != 1 || action.Action != 6 {
+		t.Fatalf("unexpected skill action: %+v", action)
+	}
+}
+
+func TestParseActorSkillNotify2(t *testing.T) {
+	data := make([]byte, 33)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01DE)
+	binary.LittleEndian.PutUint16(data[2:4], 5)
+	binary.LittleEndian.PutUint32(data[4:8], 2000000)
+	binary.LittleEndian.PutUint32(data[8:12], 110014894)
+	binary.LittleEndian.PutUint32(data[12:16], 123456)
+	binary.LittleEndian.PutUint32(data[16:20], 580)
+	binary.LittleEndian.PutUint32(data[20:24], 480)
+	binary.LittleEndian.PutUint32(data[24:28], 84000)
+	binary.LittleEndian.PutUint16(data[28:30], 3)
+	binary.LittleEndian.PutUint16(data[30:32], 2)
+	data[32] = 8
+
+	action, ok, err := ParseActorActionNotify(Packet{ID: 0x01DE, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("skill notify2 not parsed")
+	}
+	if action.SkillID != 5 || action.SkillLevel != 3 || action.SourceID != 2000000 || action.TargetID != 110014894 || action.Damage != 84000 || action.HitCount != 2 || action.Action != 8 {
+		t.Fatalf("unexpected skill action2: %+v", action)
+	}
+}
+
 func TestParseActorDirectionChange(t *testing.T) {
 	data := make([]byte, 9)
 	binary.LittleEndian.PutUint16(data[0:2], 0x009C)

@@ -71,6 +71,8 @@ type ActorActionNotify struct {
 	HitCount    uint16
 	Action      uint8
 	LeftDamage  int32
+	SkillID     uint16
+	SkillLevel  uint16
 }
 
 const ActorActionPickupItem uint8 = 1
@@ -430,6 +432,38 @@ func ParseActorActionNotify(packet Packet) (ActorActionNotify, bool, error) {
 			HitCount:    binary.LittleEndian.Uint16(packet.Data[27:29]),
 			Action:      packet.Data[29],
 			LeftDamage:  int32(binary.LittleEndian.Uint32(packet.Data[30:34])),
+		}, true, nil
+	case 0x0114:
+		if len(packet.Data) < 31 {
+			return ActorActionNotify{}, false, fmt.Errorf("ZC_NOTIFY_SKILL too short: %d", len(packet.Data))
+		}
+		return ActorActionNotify{
+			SkillID:     binary.LittleEndian.Uint16(packet.Data[2:4]),
+			SourceID:    binary.LittleEndian.Uint32(packet.Data[4:8]),
+			TargetID:    binary.LittleEndian.Uint32(packet.Data[8:12]),
+			ServerTick:  binary.LittleEndian.Uint32(packet.Data[12:16]),
+			SourceSpeed: int32(binary.LittleEndian.Uint32(packet.Data[16:20])),
+			TargetSpeed: int32(binary.LittleEndian.Uint32(packet.Data[20:24])),
+			Damage:      int32(int16(binary.LittleEndian.Uint16(packet.Data[24:26]))),
+			SkillLevel:  binary.LittleEndian.Uint16(packet.Data[26:28]),
+			HitCount:    binary.LittleEndian.Uint16(packet.Data[28:30]),
+			Action:      packet.Data[30],
+		}, true, nil
+	case 0x01DE:
+		if len(packet.Data) < 33 {
+			return ActorActionNotify{}, false, fmt.Errorf("ZC_NOTIFY_SKILL2 too short: %d", len(packet.Data))
+		}
+		return ActorActionNotify{
+			SkillID:     binary.LittleEndian.Uint16(packet.Data[2:4]),
+			SourceID:    binary.LittleEndian.Uint32(packet.Data[4:8]),
+			TargetID:    binary.LittleEndian.Uint32(packet.Data[8:12]),
+			ServerTick:  binary.LittleEndian.Uint32(packet.Data[12:16]),
+			SourceSpeed: int32(binary.LittleEndian.Uint32(packet.Data[16:20])),
+			TargetSpeed: int32(binary.LittleEndian.Uint32(packet.Data[20:24])),
+			Damage:      int32(binary.LittleEndian.Uint32(packet.Data[24:28])),
+			SkillLevel:  binary.LittleEndian.Uint16(packet.Data[28:30]),
+			HitCount:    binary.LittleEndian.Uint16(packet.Data[30:32]),
+			Action:      packet.Data[32],
 		}, true, nil
 	default:
 		return ActorActionNotify{}, false, nil

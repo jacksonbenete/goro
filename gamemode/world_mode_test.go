@@ -533,6 +533,47 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 }
 
+func TestApplyActorActionNotifyAddsBashHitEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 1, Hair: 1}},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     5,
+		SkillLevel:  1,
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      84,
+		HitCount:    1,
+		Action:      6,
+	})
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	effect := mode.worldEffects[0]
+	if effect.effectID != effectBashHit || effect.actorID != 300 || effect.x != 11 || effect.y != 20 {
+		t.Fatalf("effect = %+v", effect)
+	}
+	if delay := effect.starts.Sub(mode.actorAnims[150000].started); delay != 580*time.Millisecond {
+		t.Fatalf("effect delay = %s, want 580ms", delay)
+	}
+}
+
 func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Moving: true}
@@ -2180,6 +2221,23 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectProvoke || effect.x != 12 || effect.y != 22 {
 		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestSkillFailAckAddsConsoleErrorWithoutEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applySkillFailAck(ctx, network.SkillFailAck{SkillID: 6, Result: 0, Cause: 0})
+
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects = %d, want 0", len(mode.worldEffects))
+	}
+	if len(mode.console.messages) != 1 || mode.console.messages[0].text != "Action failed." {
+		t.Fatalf("console messages = %+v", mode.console.messages)
 	}
 }
 

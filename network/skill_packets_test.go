@@ -83,23 +83,74 @@ func TestParseAutoRunSkill(t *testing.T) {
 }
 
 func TestParseSkillNoDamageNotify(t *testing.T) {
-	data := make([]byte, 15)
-	binary.LittleEndian.PutUint16(data[0:2], 0x011A)
+	tests := []struct {
+		name string
+		id   uint16
+		data []byte
+	}{
+		{
+			name: "011A",
+			id:   0x011A,
+			data: func() []byte {
+				data := make([]byte, 15)
+				binary.LittleEndian.PutUint16(data[0:2], 0x011A)
+				binary.LittleEndian.PutUint16(data[2:4], 6)
+				binary.LittleEndian.PutUint16(data[4:6], 2)
+				binary.LittleEndian.PutUint32(data[6:10], 0x11223344)
+				binary.LittleEndian.PutUint32(data[10:14], 0x55667788)
+				data[14] = 1
+				return data
+			}(),
+		},
+		{
+			name: "09CB",
+			id:   0x09CB,
+			data: func() []byte {
+				data := make([]byte, 17)
+				binary.LittleEndian.PutUint16(data[0:2], 0x09CB)
+				binary.LittleEndian.PutUint16(data[2:4], 6)
+				binary.LittleEndian.PutUint32(data[4:8], 2)
+				binary.LittleEndian.PutUint32(data[8:12], 0x11223344)
+				binary.LittleEndian.PutUint32(data[12:16], 0x55667788)
+				data[16] = 1
+				return data
+			}(),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			notify, ok, err := ParseSkillNoDamageNotify(Packet{ID: tt.id, Data: tt.data})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !ok {
+				t.Fatal("skill notification not parsed")
+			}
+			if notify.SkillID != 6 || notify.Amount != 2 || notify.TargetID != 0x11223344 || notify.SourceID != 0x55667788 || notify.Result != 1 {
+				t.Fatalf("notify = %+v", notify)
+			}
+		})
+	}
+}
+
+func TestParseSkillFailAck(t *testing.T) {
+	data := make([]byte, 10)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0110)
 	binary.LittleEndian.PutUint16(data[2:4], 6)
 	binary.LittleEndian.PutUint16(data[4:6], 2)
-	binary.LittleEndian.PutUint32(data[6:10], 0x11223344)
-	binary.LittleEndian.PutUint32(data[10:14], 0x55667788)
-	data[14] = 1
+	binary.LittleEndian.PutUint16(data[6:8], 501)
+	data[8] = 0
+	data[9] = 10
 
-	notify, ok, err := ParseSkillNoDamageNotify(Packet{ID: 0x011A, Data: data})
+	ack, ok, err := ParseSkillFailAck(Packet{ID: 0x0110, Data: data})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ok {
-		t.Fatal("skill notification not parsed")
+		t.Fatal("skill fail ack not parsed")
 	}
-	if notify.SkillID != 6 || notify.Amount != 2 || notify.TargetID != 0x11223344 || notify.SourceID != 0x55667788 || notify.Result != 1 {
-		t.Fatalf("notify = %+v", notify)
+	if ack.SkillID != 6 || ack.Number != 2 || ack.ItemID != 501 || ack.Result != 0 || ack.Cause != 10 {
+		t.Fatalf("ack = %+v", ack)
 	}
 }
 

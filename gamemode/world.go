@@ -30,6 +30,8 @@ type WorldMode struct {
 	tileCursor       *render.Image
 	textures         map[string]*render.Image
 	textureMiss      map[string]struct{}
+	strEffects       map[string]*res.STR
+	strEffectMiss    map[string]struct{}
 	playerView       *humanoidSpriteView
 	shadowView       *playerSpriteView
 	shadowViewMiss   bool
@@ -610,6 +612,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse auto-run skill 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.applyAutoRunSkill(ctx, auto)
+			continue
+		}
+		if fail, ok, err := network.ParseSkillFailAck(pkt); err != nil {
+			log.Printf("parse skill fail ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applySkillFailAck(ctx, fail)
 			continue
 		}
 		if skill, ok, err := network.ParseSkillNoDamageNotify(pkt); err != nil {
@@ -1329,7 +1337,7 @@ func (m *WorldMode) applyAutoRunSkill(ctx Context, auto network.AutoRunSkill) {
 }
 
 func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {
-	log.Printf("actor action src=%d dst=%d damage=%d left_damage=%d hits=%d action=%d src_speed=%d dst_speed=%d tick=%d", action.SourceID, action.TargetID, action.Damage, action.LeftDamage, action.HitCount, action.Action, action.SourceSpeed, action.TargetSpeed, action.ServerTick)
+	log.Printf("actor action src=%d dst=%d skill=%d level=%d damage=%d left_damage=%d hits=%d action=%d src_speed=%d dst_speed=%d tick=%d", action.SourceID, action.TargetID, action.SkillID, action.SkillLevel, action.Damage, action.LeftDamage, action.HitCount, action.Action, action.SourceSpeed, action.TargetSpeed, action.ServerTick)
 	now := time.Now()
 	if action.Action == network.ActorActionPickupItem {
 		m.applyActorPickupActionNotify(ctx, action, now)
@@ -1367,6 +1375,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		}
 		m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
 		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
+		m.addSkillHitEffect(ctx, action, hitAt)
 		m.applyCombatLifeFallback(ctx, target, targetLocal, action, hitAt)
 		if targetLocal {
 			ctx.World.Player.Moving = false
@@ -1392,6 +1401,19 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		starts:  hitAt,
 		expires: hitAt.Add(damageFloaterDuration(kind)),
 	})
+}
+
+func (m *WorldMode) addSkillHitEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {
+	if action.SkillID == 0 || action.Damage == 0 {
+		return
+	}
+	effectID := skillHitEffectID(action.SkillID)
+	if effectID <= 0 {
+		return
+	}
+	if m.addWorldEffectAt(ctx, effectID, action.TargetID, starts) {
+		log.Printf("skill hit effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+	}
 }
 
 func (m *WorldMode) applyActorPickupActionNotify(ctx Context, action network.ActorActionNotify, now time.Time) {

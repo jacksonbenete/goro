@@ -510,5 +510,11 @@ func (m *WorldMode) sendShortcutSkillToID(ctx Context, skill session.Skill, targ
 	}
 	level := uint16(maxInt(1, skill.Level))
 	log.Printf("shortcut skill use skill=%d level=%d target=%d", skill.ID, level, target)
-	return ctx.Network.SendUseSkillToID(skill.ID, level, target)
+	if err := ctx.Network.SendUseSkillToID(skill.ID, level, target); err != nil {
+		return err
+	}
+	if effectID := skillBeginEffectID(skill.ID); effectID > 0 {
+		m.addWorldEffect(ctx, effectID, localSkillTarget(ctx))
+	}
+	return nil
 }
