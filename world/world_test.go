@@ -104,6 +104,32 @@ func TestUpsertActorMoveUsesActorSpeed(t *testing.T) {
 	}
 }
 
+func TestUpsertActorPreservesSittingUntilMove(t *testing.T) {
+	w := New()
+	w.UpsertActor(Actor{ID: 2000001, X: 10, Y: 20, Sitting: true})
+
+	w.UpsertActor(Actor{ID: 2000001, X: 10, Y: 20})
+	if actor := w.Actors[2000001]; !actor.Sitting {
+		t.Fatalf("sitting state was not preserved: %+v", actor)
+	}
+
+	w.UpsertActor(Actor{ID: 2000001, X: 11, Y: 20, Moving: true, FromX: 10, FromY: 20, ToX: 11, ToY: 20})
+	if actor := w.Actors[2000001]; actor.Sitting {
+		t.Fatalf("moving actor stayed sitting: %+v", actor)
+	}
+}
+
+func TestSetPlayerMovementClearsSitting(t *testing.T) {
+	w := New()
+	w.Player.Sitting = true
+
+	w.SetPlayerMovement(10, 20, 11, 20, 6)
+
+	if w.Player.Sitting {
+		t.Fatal("player stayed sitting after movement")
+	}
+}
+
 func TestActorRenderPositionInterpolates(t *testing.T) {
 	now := time.Now()
 	actor := Actor{

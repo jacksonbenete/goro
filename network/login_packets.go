@@ -40,7 +40,9 @@ var nameRequestPacketLayouts = []nameRequestPacketLayout{
 }
 
 const (
-	ActionAttack uint8 = 7
+	ActionSitDown uint8 = 2
+	ActionStandUp uint8 = 3
+	ActionAttack  uint8 = 7
 )
 
 const (

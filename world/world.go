@@ -62,6 +62,7 @@ type Actor struct {
 	ObjectType    uint8
 	HasObjectType bool
 	Speed         int
+	Sitting       bool
 }
 
 type WalkStep struct {
@@ -123,6 +124,7 @@ func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
 	w.Player.ToX = toX
 	w.Player.ToY = toY
 	w.Player.Moving = true
+	w.Player.Sitting = false
 	w.Player.MoveStarted = time.Now()
 	w.Player.MovePath = walkPath(w.GAT, fromX, fromY, toX, toY)
 	w.Player.MoveDuration = actorMovementDuration(w.Player.MovePath, fromX, fromY, toX, toY)
@@ -163,6 +165,12 @@ func (w *World) UpsertActor(actor Actor) {
 		if actor.Moving && existing.IsMovingAt(now) {
 			actor.WalkDistance = existing.RenderWalkDistance(now)
 		}
+		if existing.Sitting && !actor.Moving {
+			actor.Sitting = true
+		}
+	}
+	if actor.Moving {
+		actor.Sitting = false
 	}
 	if actor.Moving {
 		if actor.ToX == 0 && actor.ToY == 0 {

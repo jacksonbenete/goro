@@ -439,6 +439,61 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 }
 
+func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Moving: true}
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID: 2000000,
+		Action:   network.ActionSitDown,
+	})
+	if !world.Player.Sitting {
+		t.Fatal("local player did not sit")
+	}
+	if world.Player.Moving {
+		t.Fatal("local player kept moving while sitting")
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID: 2000000,
+		Action:   network.ActionStandUp,
+	})
+	if world.Player.Sitting {
+		t.Fatal("local player did not stand")
+	}
+}
+
+func TestApplyActorActionNotifyUpdatesRemoteSitState(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{ID: 300, X: 10, Y: 20, Moving: true})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID: 300,
+		Action:   network.ActionSitDown,
+	})
+	if actor := world.Actors[300]; !actor.Sitting || actor.Moving {
+		t.Fatalf("remote actor sit state = sitting %t moving %t", actor.Sitting, actor.Moving)
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID: 300,
+		Action:   network.ActionStandUp,
+	})
+	if actor := world.Actors[300]; actor.Sitting {
+		t.Fatalf("remote actor stayed sitting: %+v", actor)
+	}
+}
+
 func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}

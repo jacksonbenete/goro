@@ -10,6 +10,7 @@ import (
 	"github.com/gogpu/ui/offscreen"
 	"github.com/gogpu/ui/primitives"
 	uiwidget "github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 )
 
@@ -142,6 +143,9 @@ func (c *chatConsole) submit(ctx Context) {
 		c.invalidate()
 		return
 	}
+	if c.submitCommand(ctx, text) {
+		return
+	}
 	name := "Player"
 	if ctx.Session != nil {
 		name = selectedCharacter(ctx.Session).Name
@@ -157,6 +161,71 @@ func (c *chatConsole) submit(ctx Context) {
 	c.input = ""
 	c.active = false
 	c.invalidate()
+}
+
+func (c *chatConsole) submitCommand(ctx Context, text string) bool {
+	if !strings.HasPrefix(text, "/") {
+		return false
+	}
+	command := strings.ToLower(strings.Fields(text)[0])
+	switch command {
+	case "/sit":
+		c.submitSitStand(ctx, !consolePlayerSitting(ctx))
+		return true
+	case "/stand":
+		c.submitSitStand(ctx, false)
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *chatConsole) submitSitStand(ctx Context, sit bool) {
+	if ctx.Network == nil {
+		c.addErrorMessage("send failed: not connected")
+		return
+	}
+	targetID := consoleLocalActorID(ctx)
+	if targetID == 0 {
+		c.addErrorMessage("send failed: missing local actor")
+		return
+	}
+	action := network.ActionStandUp
+	if sit {
+		action = network.ActionSitDown
+	}
+	if err := ctx.Network.SendActionRequest(targetID, action); err != nil {
+		c.addErrorMessage("send failed: %s", err)
+		return
+	}
+	if ctx.World != nil {
+		ctx.World.Player.Sitting = sit
+		if sit {
+			ctx.World.Player.Moving = false
+		}
+	}
+	c.input = ""
+	c.active = false
+	c.invalidate()
+}
+
+func consolePlayerSitting(ctx Context) bool {
+	return ctx.World != nil && ctx.World.Player.Sitting
+}
+
+func consoleLocalActorID(ctx Context) uint32 {
+	if ctx.Session != nil {
+		if ctx.Session.AccountID != 0 {
+			return ctx.Session.AccountID
+		}
+		if ctx.Session.CharID != 0 {
+			return ctx.Session.CharID
+		}
+	}
+	if ctx.World != nil {
+		return ctx.World.Player.ID
+	}
+	return 0
 }
 
 func (c *chatConsole) appendInput(text string) {

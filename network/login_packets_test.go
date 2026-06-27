@@ -243,7 +243,7 @@ func TestBuildWalkToXYPacketFor2021ClientDate(t *testing.T) {
 }
 
 func TestBuildActionRequestPacketFor2008ClientDate(t *testing.T) {
-	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionAttack, 20080910)
+	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionSitDown, 20080910)
 	if len(packet) != 19 {
 		t.Fatalf("len = %d", len(packet))
 	}
@@ -253,7 +253,7 @@ func TestBuildActionRequestPacketFor2008ClientDate(t *testing.T) {
 	if got := packet[5:9]; got[0] != 0x44 || got[1] != 0x33 || got[2] != 0x22 || got[3] != 0x11 {
 		t.Fatalf("unexpected target: % x", got)
 	}
-	if packet[18] != ActionAttack {
+	if packet[18] != ActionSitDown {
 		t.Fatalf("action = %d", packet[18])
 	}
 }
@@ -272,8 +272,8 @@ func TestBuildActionRequestPacketFor2012ClientDate(t *testing.T) {
 }
 
 func TestBuildActionRequestPacketFor2021ClientDate(t *testing.T) {
-	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionAttack, 20211103)
-	want := []byte{0x37, 0x04, 0x44, 0x33, 0x22, 0x11, 0x07}
+	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionStandUp, 20211103)
+	want := []byte{0x37, 0x04, 0x44, 0x33, 0x22, 0x11, 0x03}
 	if len(packet) != len(want) {
 		t.Fatalf("len = %d", len(packet))
 	}

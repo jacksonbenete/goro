@@ -1102,6 +1102,10 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		m.applyActorPickupActionNotify(ctx, action, now)
 		return
 	}
+	if action.Action == network.ActionSitDown || action.Action == network.ActionStandUp {
+		m.applyActorSitStandActionNotify(ctx, action)
+		return
+	}
 	source, sourceOK, sourceLocal := actorForCombatID(ctx, action.SourceID)
 	target, targetOK, targetLocal := actorForCombatID(ctx, action.TargetID)
 	if sourceOK && targetOK {
@@ -1176,6 +1180,38 @@ func (m *WorldMode) applyActorPickupActionNotify(ctx Context, action network.Act
 		}
 	}
 	m.startCombatAnimation(ctx, action.SourceID, spriteActionPickup, now, pickupAnimationDuration)
+}
+
+func (m *WorldMode) applyActorSitStandActionNotify(ctx Context, action network.ActorActionNotify) {
+	id := action.SourceID
+	if id == 0 {
+		id = action.TargetID
+	}
+	if id == 0 || ctx.World == nil {
+		return
+	}
+	sitting := action.Action == network.ActionSitDown
+	if isLocalActor(ctx, id) {
+		ctx.World.Player.Sitting = sitting
+		if sitting {
+			ctx.World.Player.Moving = false
+		}
+		return
+	}
+	actor, ok := ctx.World.Actors[id]
+	if !ok {
+		return
+	}
+	actor.Sitting = sitting
+	if sitting {
+		actor.Moving = false
+	}
+	ctx.World.UpsertActor(actor)
+	if !sitting {
+		actor = ctx.World.Actors[id]
+		actor.Sitting = false
+		ctx.World.Actors[id] = actor
+	}
 }
 
 func (m *WorldMode) applyActorHPUpdate(update network.ActorHPUpdate) {
@@ -3109,6 +3145,9 @@ func actorCastsShadow(actor worldstate.Actor) bool {
 }
 
 func (m *WorldMode) actorShadowSuppressed(actor worldstate.Actor, now time.Time) bool {
+	if actor.Sitting {
+		return true
+	}
 	if anim, ok := m.actorAnimation(actor.ID, now); ok {
 		switch anim.actionFamily {
 		case spriteActionSit, spriteActionPCDeath, spriteActionNonPCDeath:
@@ -3542,6 +3581,8 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, project
 		state.actionFamily = spriteActionWalk
 		state.loop = true
 		state.walkDistance = actor.RenderWalkDistance(now)
+	} else if actor.Sitting {
+		state.actionFamily = spriteActionSit
 	}
 	if anim, ok := m.actorAnimation(actor.ID, now); ok {
 		state.actionFamily = anim.actionFamily
