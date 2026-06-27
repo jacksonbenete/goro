@@ -65,6 +65,23 @@ func TestParseAddSkill(t *testing.T) {
 	}
 }
 
+func TestParseAutoRunSkill(t *testing.T) {
+	data := make([]byte, 39)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0147)
+	writeSkillInfoEntry(data[2:], 1, 26, 1, 10, 9, "Teleportation", false)
+
+	auto, ok, err := ParseAutoRunSkill(Packet{ID: 0x0147, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("auto-run skill not parsed")
+	}
+	if auto.Skill.ID != 26 || auto.Skill.Type != 1 || auto.Skill.Level != 1 || auto.Skill.SPCost != 10 || auto.Skill.Range != 9 || auto.Skill.Name != "Teleportation" {
+		t.Fatalf("auto-run skill = %+v", auto.Skill)
+	}
+}
+
 func TestBuildSkillLevelUpPacket(t *testing.T) {
 	packet := BuildSkillLevelUpPacket(1001)
 	if got := ID(packet); got != 0x0112 {
@@ -75,6 +92,25 @@ func TestBuildSkillLevelUpPacket(t *testing.T) {
 	}
 	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 1001 {
 		t.Fatalf("skill id = %d", got)
+	}
+}
+
+func TestBuildUseSkillToIDPacketForClientDate20080910(t *testing.T) {
+	packet := BuildUseSkillToIDPacketForClientDate(5, 3, 0x11223344, 20080910)
+	if got := ID(packet); got != 0x0438 {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if len(packet) != 10 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 3 {
+		t.Fatalf("level = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[4:6]); got != 5 {
+		t.Fatalf("skill = %d", got)
+	}
+	if got := binary.LittleEndian.Uint32(packet[6:10]); got != 0x11223344 {
+		t.Fatalf("target = 0x%08X", got)
 	}
 }
 

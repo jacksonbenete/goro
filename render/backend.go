@@ -200,6 +200,24 @@ func mapKey(key gpucontext.Key) (input.Key, bool) {
 		return input.KeyBackspace, true
 	case gpucontext.KeyLeftShift, gpucontext.KeyRightShift:
 		return input.KeyShift, true
+	case gpucontext.KeyF1:
+		return input.KeyF1, true
+	case gpucontext.KeyF2:
+		return input.KeyF2, true
+	case gpucontext.KeyF3:
+		return input.KeyF3, true
+	case gpucontext.KeyF4:
+		return input.KeyF4, true
+	case gpucontext.KeyF5:
+		return input.KeyF5, true
+	case gpucontext.KeyF6:
+		return input.KeyF6, true
+	case gpucontext.KeyF7:
+		return input.KeyF7, true
+	case gpucontext.KeyF8:
+		return input.KeyF8, true
+	case gpucontext.KeyF9:
+		return input.KeyF9, true
 	default:
 		return 0, false
 	}

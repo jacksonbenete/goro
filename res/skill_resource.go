@@ -1,0 +1,132 @@
+package res
+
+import (
+	"fmt"
+	"strings"
+)
+
+var skillIDLuaCandidates = []string{
+	"data\\luafiles514\\lua files\\skillinfoz\\skillid.lub",
+	"data\\lua files\\skillinfoz\\skillid.lub",
+	"lua files\\skillinfoz\\skillid.lub",
+	"data\\luafiles514\\lua files\\skillinfo\\skillid.lub",
+	"data\\lua files\\skillinfo\\skillid.lub",
+	"lua files\\skillinfo\\skillid.lub",
+}
+
+var fallbackSkillResourceNames = map[int]string{
+	1:  "NV_BASIC",
+	2:  "SM_SWORD",
+	3:  "SM_TWOHAND",
+	4:  "SM_RECOVERY",
+	5:  "SM_BASH",
+	6:  "SM_PROVOKE",
+	7:  "SM_MAGNUM",
+	8:  "SM_ENDURE",
+	9:  "MG_SRECOVERY",
+	10: "MG_SIGHT",
+	11: "MG_NAPALMBEAT",
+	12: "MG_SAFETYWALL",
+	13: "MG_SOULSTRIKE",
+	14: "MG_COLDBOLT",
+	15: "MG_FROSTDIVER",
+	16: "MG_STONECURSE",
+	17: "MG_FIREBALL",
+	18: "MG_FIREWALL",
+	19: "MG_FIREBOLT",
+	20: "MG_LIGHTNINGBOLT",
+	21: "MG_THUNDERSTORM",
+	22: "AL_DP",
+	23: "AL_DEMONBANE",
+	24: "AL_RUWACH",
+	25: "AL_PNEUMA",
+	26: "AL_TELEPORT",
+	27: "AL_WARP",
+	28: "AL_HEAL",
+	29: "AL_INCAGI",
+	30: "AL_DECAGI",
+	31: "AL_HOLYWATER",
+	32: "AL_CRUCIS",
+	33: "AL_ANGELUS",
+	34: "AL_BLESSING",
+	35: "AL_CURE",
+}
+
+func (m *Manager) SkillResourceName(skillID int) (string, bool) {
+	if skillID <= 0 {
+		return "", false
+	}
+	m.loadSkillResourceNames()
+	name, ok := m.skillResourceNames[skillID]
+	return name, ok && name != ""
+}
+
+func (m *Manager) loadSkillResourceNames() {
+	if m.skillResourceNamesLoaded {
+		return
+	}
+	m.skillResourceNamesLoaded = true
+	m.skillResourceNames = make(map[int]string, len(fallbackSkillResourceNames))
+	for id, name := range fallbackSkillResourceNames {
+		m.skillResourceNames[id] = name
+	}
+	globals := make(map[string]luaValue)
+	_, data, ok := m.ReadFirst(skillIDLuaCandidates)
+	if !ok {
+		return
+	}
+	if err := executeLua51Bytecode(data, globals); err != nil {
+		return
+	}
+	table := globals["SKID"]
+	if table.kind != luaTable {
+		return
+	}
+	for key, value := range table.table {
+		name, ok := key.(string)
+		if !ok || value.kind != luaNumber || name == "" {
+			continue
+		}
+		id := int(value.num)
+		if id > 0 {
+			m.skillResourceNames[id] = name
+		}
+	}
+}
+
+func SkillIconTextureCandidates(resource string, skillID int) []string {
+	resource = strings.TrimSpace(strings.TrimSuffix(resource, ".bmp"))
+	seen := make(map[string]struct{})
+	out := make([]string, 0, 16)
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		if _, ok := seen[candidate]; ok {
+			return
+		}
+		seen[candidate] = struct{}{}
+		out = append(out, candidate)
+	}
+	addStem := func(stem string) {
+		if stem == "" {
+			return
+		}
+		stem = strings.ReplaceAll(stem, "/", "\\")
+		lower := strings.ToLower(stem)
+		for _, candidateStem := range []string{lower, stem} {
+			const uiKorPrefix = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\"
+			add(uiKorPrefix + candidateStem + ".bmp")
+			add(strings.ReplaceAll(uiKorPrefix, "\\", "/") + candidateStem + ".bmp")
+			add("texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\" + candidateStem + ".bmp")
+			add("texture/item/" + candidateStem + ".bmp")
+			add("data/texture/item/" + candidateStem + ".bmp")
+			add(candidateStem + ".bmp")
+		}
+	}
+	addStem(resource)
+	if skillID > 0 {
+		addStem(fmt.Sprintf("%d", skillID))
+	}
+	return out
+}

@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"log"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/kivutar/goro/network"
@@ -482,6 +483,60 @@ func (m *WorldMode) itemIconTexture(manager *res.Manager, itemID uint16, identif
 		return nil
 	}
 	img, _, err := res.LoadImage(manager, res.ItemIconTextureCandidates(resourceName))
+	if err != nil {
+		m.textureMiss[key] = struct{}{}
+		return nil
+	}
+	texture := render.NewImageFromImage(img)
+	m.textures[key] = texture
+	return texture
+}
+
+func (m *WorldMode) drawSkillIcon(screen *render.Image, manager *res.Manager, skill session.Skill, x, y, size int) {
+	if screen == nil || size <= 0 {
+		return
+	}
+	if icon := m.skillIconTexture(manager, skill); icon != nil {
+		bounds := icon.Bounds()
+		width, height := float64(bounds.Dx()), float64(bounds.Dy())
+		if width > 0 && height > 0 {
+			scale := math.Min(float64(size)/width, float64(size)/height)
+			dstW, dstH := width*scale, height*scale
+			var opts render.DrawImageOptions
+			opts.GeoM.Scale(scale, scale)
+			opts.GeoM.Translate(float64(x)+(float64(size)-dstW)/2, float64(y)+(float64(size)-dstH)/2)
+			opts.Filter = spriteDrawFilter()
+			screen.DrawImage(icon, &opts)
+			return
+		}
+	}
+	render.DrawRect(screen, float64(x), float64(y), float64(size), float64(size), color.RGBA{R: 54, G: 62, B: 80, A: 235})
+	render.DrawRect(screen, float64(x+2), float64(y+2), float64(size-4), float64(size-4), color.RGBA{R: 92, G: 110, B: 150, A: 220})
+	render.DebugPrintAtColor(screen, "S", x+size/2-3, y+size/2-7, color.RGBA{R: 238, G: 238, B: 245, A: 255})
+}
+
+func (m *WorldMode) skillIconTexture(manager *res.Manager, skill session.Skill) *render.Image {
+	if manager == nil || skill.ID == 0 {
+		return nil
+	}
+	resourceName, ok := manager.SkillResourceName(int(skill.ID))
+	if !ok {
+		resourceName = strings.ToUpper(strings.ReplaceAll(skillLabel(skill), " ", "_"))
+	}
+	key := fmt.Sprintf("__skill_icon_%d_%s", skill.ID, resourceName)
+	if m.textures == nil {
+		m.textures = make(map[string]*render.Image)
+	}
+	if m.textureMiss == nil {
+		m.textureMiss = make(map[string]struct{})
+	}
+	if texture, ok := m.textures[key]; ok {
+		return texture
+	}
+	if _, ok := m.textureMiss[key]; ok {
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, res.SkillIconTextureCandidates(resourceName, int(skill.ID)))
 	if err != nil {
 		m.textureMiss[key] = struct{}{}
 		return nil

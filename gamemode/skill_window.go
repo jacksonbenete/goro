@@ -50,6 +50,9 @@ type skillWindowState struct {
 	status     string
 	statusGood bool
 	statusAt   time.Time
+	dragSkill  session.Skill
+	dragActive bool
+	dragFrom   time.Time
 }
 
 func (w *skillWindowState) toggle(ctx Context) {
@@ -63,13 +66,24 @@ func (w *skillWindowState) toggle(ctx Context) {
 	w.clampScroll(ctx.Session)
 }
 
-func (w *skillWindowState) update(ctx Context) bool {
+func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
 	w.ensurePosition(ctx)
 	w.clampScroll(ctx.Session)
 	width, height := ctx.ScreenSize()
+	if w.dragActive {
+		if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
+			skill := w.dragSkill
+			w.dragActive = false
+			w.dragSkill = session.Skill{}
+			if shortcuts != nil && shortcuts.acceptSkillDrop(ctx, skill, ctx.Input.MouseX, ctx.Input.MouseY) {
+				return true
+			}
+			return pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, skillWindowWidth, skillWindowHeight)
+		}
+	}
 	if w.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
 			w.x = clampSkillWindowInt(ctx.Input.MouseX-w.dragDX, 8, maxInt(8, width-skillWindowWidth-8))
@@ -108,28 +122,38 @@ func (w *skillWindowState) update(ctx Context) bool {
 	}
 	for row, skill := range visibleSkills(ctx.Session, w.scroll, visibleSkillRows()) {
 		bx, by, bw, bh := w.levelButtonBounds(row)
-		if !pointInRect(mx, my, bx, by, bw, bh) {
-			continue
-		}
-		if !canIncreaseSkill(ctx.Session, skill) {
-			w.setStatus("No skill points or skill is maxed", false)
+		if pointInRect(mx, my, bx, by, bw, bh) {
+			if !canIncreaseSkill(ctx.Session, skill) {
+				w.setStatus("No skill points or skill is maxed", false)
+				return true
+			}
+			if ctx.Network == nil {
+				w.setStatus("Not connected", false)
+				return true
+			}
+			if err := ctx.Network.SendSkillLevelUp(skill.ID); err != nil {
+				w.setStatus(err.Error(), false)
+				return true
+			}
+			w.setStatus(fmt.Sprintf("%s level-up requested", skillLabel(skill)), true)
 			return true
 		}
-		if ctx.Network == nil {
-			w.setStatus("Not connected", false)
+		rx, ry, rw, rh := w.skillRowBounds(row)
+		if pointInRect(mx, my, rx, ry, rw, rh) {
+			if skill.Level <= 0 {
+				w.setStatus("Skill is not learned", false)
+				return true
+			}
+			w.dragSkill = skill
+			w.dragActive = true
+			w.dragFrom = time.Now()
 			return true
 		}
-		if err := ctx.Network.SendSkillLevelUp(skill.ID); err != nil {
-			w.setStatus(err.Error(), false)
-			return true
-		}
-		w.setStatus(fmt.Sprintf("%s level-up requested", skillLabel(skill)), true)
-		return true
 	}
 	return true
 }
 
-func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
+func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
 	if !w.open || screen == nil {
 		return
 	}
@@ -146,7 +170,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
 	points := sessionSkillPoints(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Skill Points : %d", points), x+skillWindowPad, y+skillWindowTitleH+10, skillWindowTextColor)
 	headerY := y + skillWindowTitleH + 32
-	render.DebugPrintAtColor(screen, "Name", x+skillWindowPad, headerY, skillWindowMutedColor)
+	render.DebugPrintAtColor(screen, "Name", x+skillWindowPad+34, headerY, skillWindowMutedColor)
 	render.DebugPrintAtColor(screen, "Lv", x+204, headerY, skillWindowMutedColor)
 	render.DebugPrintAtColor(screen, "SP", x+244, headerY, skillWindowMutedColor)
 	render.DebugPrintAtColor(screen, "Range", x+282, headerY, skillWindowMutedColor)
@@ -168,18 +192,21 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
 				rowColor = color.RGBA{R: 38, G: 42, B: 50, A: 185}
 			}
 			drawUIRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
+			if mode != nil {
+				mode.drawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+3, ry+2, 22)
+			}
 			typeColor := skillWindowPassive
 			typeLabel := "P"
 			if skill.Type != 0 {
 				typeColor = skillWindowActive
 				typeLabel = "A"
 			}
-			render.DebugPrintAtColor(screen, typeLabel, x+skillWindowPad+5, ry+7, typeColor)
 			nameColor := skillWindowTextColor
 			if skill.Level <= 0 {
 				nameColor = skillWindowMutedColor
 			}
-			render.DebugPrintAtColor(screen, trimRunes(skillLabel(skill), 22), x+skillWindowPad+22, ry+7, nameColor)
+			render.DebugPrintAtColor(screen, typeLabel, x+skillWindowPad+28, ry+7, typeColor)
+			render.DebugPrintAtColor(screen, trimRunes(skillLabel(skill), 18), x+skillWindowPad+44, ry+7, nameColor)
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Level), x+204, ry+7, nameColor)
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.SPCost), x+244, ry+7, skillWindowMutedColor)
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Range), x+292, ry+7, skillWindowMutedColor)
@@ -207,6 +234,9 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context) {
 			statusColor = skillWindowGoodColor
 		}
 		render.DebugPrintAtColor(screen, trimRunes(w.status, 44), x+skillWindowPad, y+skillWindowHeight-20, statusColor)
+	}
+	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && mode != nil {
+		mode.drawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-12, ctx.Input.MouseY-12, 24)
 	}
 }
 
@@ -259,6 +289,10 @@ func (w *skillWindowState) closeBounds() (int, int, int, int) {
 
 func (w *skillWindowState) skillRowY(row int) int {
 	return w.y + skillListTop + row*skillRowH
+}
+
+func (w *skillWindowState) skillRowBounds(row int) (int, int, int, int) {
+	return w.x + skillWindowPad, w.skillRowY(row), skillWindowWidth - 2*skillWindowPad, skillRowH - 2
 }
 
 func (w *skillWindowState) levelButtonBounds(row int) (int, int, int, int) {

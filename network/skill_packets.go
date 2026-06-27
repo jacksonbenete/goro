@@ -30,6 +30,10 @@ type SkillInfoUpdate struct {
 	Skill SkillInfo
 }
 
+type AutoRunSkill struct {
+	Skill SkillInfo
+}
+
 func ParseSkillInfoList(packet Packet) (SkillInfoList, bool, error) {
 	if packet.ID != 0x010F {
 		return SkillInfoList{}, false, nil
@@ -75,10 +79,33 @@ func ParseSkillInfoUpdate(packet Packet) (SkillInfoUpdate, bool, error) {
 	}
 }
 
+func ParseAutoRunSkill(packet Packet) (AutoRunSkill, bool, error) {
+	if packet.ID != 0x0147 {
+		return AutoRunSkill{}, false, nil
+	}
+	if len(packet.Data) < 39 {
+		return AutoRunSkill{}, false, fmt.Errorf("ZC_AUTORUN_SKILL too short: %d", len(packet.Data))
+	}
+	return AutoRunSkill{Skill: parseSkillInfoEntry(packet.Data[2:39], 0)}, true, nil
+}
+
 func BuildSkillLevelUpPacket(skillID uint16) []byte {
 	packet := make([]byte, 4)
 	binary.LittleEndian.PutUint16(packet[0:2], 0x0112)
 	binary.LittleEndian.PutUint16(packet[2:4], skillID)
+	return packet
+}
+
+func BuildUseSkillToIDPacketForClientDate(skillID, level uint16, targetID uint32, clientDate int) []byte {
+	opcode := uint16(0x0113)
+	if clientDate >= 20080910 {
+		opcode = 0x0438
+	}
+	packet := make([]byte, 10)
+	binary.LittleEndian.PutUint16(packet[0:2], opcode)
+	binary.LittleEndian.PutUint16(packet[2:4], level)
+	binary.LittleEndian.PutUint16(packet[4:6], skillID)
+	binary.LittleEndian.PutUint32(packet[6:10], targetID)
 	return packet
 }
 

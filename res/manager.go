@@ -17,20 +17,22 @@ type Manager struct {
 	FoundFiles []string
 	Archives   []*GRF
 
-	accessoryNames         map[int]string
-	accessoryNamesLoaded   bool
-	itemMetadata           map[int]ItemMetadata
-	itemMetadataLoaded     bool
-	jobResourceNames       map[int]string
-	jobResourceNamesLoaded bool
-	indoorRswNames         map[string]struct{}
-	indoorRswNamesLoaded   bool
-	cameraViewPoints       map[string]CameraViewPoint
-	cameraViewPointsLoaded bool
-	msgStrings             map[int]string
-	msgStringsLoaded       bool
-	fogParameters          map[string]FogParameter
-	fogParametersLoaded    bool
+	accessoryNames           map[int]string
+	accessoryNamesLoaded     bool
+	itemMetadata             map[int]ItemMetadata
+	itemMetadataLoaded       bool
+	jobResourceNames         map[int]string
+	jobResourceNamesLoaded   bool
+	indoorRswNames           map[string]struct{}
+	indoorRswNamesLoaded     bool
+	cameraViewPoints         map[string]CameraViewPoint
+	cameraViewPointsLoaded   bool
+	msgStrings               map[int]string
+	msgStringsLoaded         bool
+	fogParameters            map[string]FogParameter
+	fogParametersLoaded      bool
+	skillResourceNames       map[int]string
+	skillResourceNamesLoaded bool
 }
 
 type CameraViewPoint struct {

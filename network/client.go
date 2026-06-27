@@ -264,6 +264,17 @@ func (c *Client) SendSkillLevelUp(skillID uint16) error {
 	return err
 }
 
+func (c *Client) SendUseSkillToID(skillID, level uint16, targetID uint32) error {
+	packet := BuildUseSkillToIDPacketForClientDate(skillID, level, targetID, c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_USE_SKILL opcode=0x%04X skill=%d level=%d target=%d client_date=%d", ID(packet), skillID, level, targetID, c.clientDate)
+	} else {
+		log.Printf("send CZ_USE_SKILL failed opcode=0x%04X len=%d skill=%d level=%d target=%d client_date=%d: %v", ID(packet), len(packet), skillID, level, targetID, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) Pump() {
 }
 

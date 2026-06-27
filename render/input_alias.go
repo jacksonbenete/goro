@@ -20,6 +20,15 @@ const (
 	KeyArrowRight = input.KeyArrowRight
 	KeyBackspace  = input.KeyBackspace
 	KeyShift      = input.KeyShift
+	KeyF1         = input.KeyF1
+	KeyF2         = input.KeyF2
+	KeyF3         = input.KeyF3
+	KeyF4         = input.KeyF4
+	KeyF5         = input.KeyF5
+	KeyF6         = input.KeyF6
+	KeyF7         = input.KeyF7
+	KeyF8         = input.KeyF8
+	KeyF9         = input.KeyF9
 )
 
 type MouseButton = input.MouseButton

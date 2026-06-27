@@ -112,8 +112,17 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.statsWindow.cursorAction(ctx); ok {
 		return action
 	}
+	if action, ok := m.shortcutBar.cursorAction(ctx); ok {
+		return action
+	}
 	if action, ok := m.basicMenu.cursorAction(ctx); ok {
 		return action
+	}
+	if m.pendingSkill.skill.ID != 0 {
+		if actor, ok := hoveredCursorActor(ctx, projection, mouseX, mouseY, now, m.actorDeaths); ok && actorCanBeSkillTargeted(ctx, actor) {
+			return cursorActionAttack
+		}
+		return cursorActionNoWalk
 	}
 	if _, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionPick

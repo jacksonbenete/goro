@@ -54,6 +54,9 @@ type inventoryBagWindowState struct {
 	statusAt      time.Time
 	lastClickItem uint16
 	lastClickAt   time.Time
+	dragItem      session.InventoryItem
+	dragActive    bool
+	dragFrom      time.Time
 }
 
 func (w *inventoryBagWindowState) toggle(ctx Context) {
@@ -68,12 +71,23 @@ func (w *inventoryBagWindowState) toggle(ctx Context) {
 	w.clampScroll(ctx.Session)
 }
 
-func (w *inventoryBagWindowState) update(ctx Context) bool {
+func (w *inventoryBagWindowState) update(ctx Context, shortcuts *shortcutBarState) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
 	w.ensurePosition(ctx)
 	width, height := ctx.ScreenSize()
+	if w.dragActive {
+		if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
+			item := w.dragItem
+			w.dragActive = false
+			w.dragItem = session.InventoryItem{}
+			if shortcuts != nil && shortcuts.acceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+				return true
+			}
+			return pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, inventoryBagWidth, inventoryBagHeight)
+		}
+	}
 	if w.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
 			w.x = clampInventoryWindowInt(ctx.Input.MouseX-w.dragDX, 8, maxInt(8, width-inventoryBagWidth-8))
@@ -124,10 +138,15 @@ func (w *inventoryBagWindowState) update(ctx Context) bool {
 	if item, ok := w.itemAt(ctx.Session, mx, my); ok {
 		now := time.Now()
 		if w.lastClickItem == item.Index && now.Sub(w.lastClickAt) <= 360*time.Millisecond {
+			w.dragActive = false
+			w.dragItem = session.InventoryItem{}
 			w.activateItem(ctx, item)
 			w.lastClickItem = 0
 			return true
 		}
+		w.dragItem = item
+		w.dragActive = true
+		w.dragFrom = now
 		w.lastClickItem = item.Index
 		w.lastClickAt = now
 		w.status = inventoryItemDisplayName(ctx.Resources, item)
@@ -214,6 +233,11 @@ func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *
 		}
 		render.DebugPrintAtColor(screen, trimRunes(w.status, 34), x+inventoryBagPad, y+inventoryBagHeight-41, statusColor)
 	}
+	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && mode != nil {
+		dx := ctx.Input.MouseX - inventoryIconSize/2
+		dy := ctx.Input.MouseY - inventoryIconSize/2
+		mode.drawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx, dy)
+	}
 }
 
 func (w *inventoryBagWindowState) cursorAction(ctx Context) (int, bool) {
@@ -275,11 +299,11 @@ func (w *inventoryBagWindowState) itemAt(s *session.Session, mx, my int) (sessio
 }
 
 func (w *inventoryBagWindowState) activateItem(ctx Context, item session.InventoryItem) {
-	if ctx.Network == nil {
-		w.setStatus("Not connected", false)
-		return
-	}
 	if inventoryItemIsEquipment(item) {
+		if ctx.Network == nil {
+			w.setStatus("Not connected", false)
+			return
+		}
 		if item.Equipped {
 			if err := ctx.Network.SendTakeoffEquip(item.Index); err != nil {
 				w.setStatus(err.Error(), false)
@@ -303,18 +327,7 @@ func (w *inventoryBagWindowState) activateItem(ctx Context, item session.Invento
 		w.setStatus("Item cannot be used", false)
 		return
 	}
-	target := uint32(0)
-	if ctx.Session != nil {
-		target = ctx.Session.AccountID
-		if target == 0 {
-			target = ctx.Session.CharID
-		}
-	}
-	if target == 0 {
-		w.setStatus("Missing player id", false)
-		return
-	}
-	if err := ctx.Network.SendUseInventoryItem(item.Index, target); err != nil {
+	if err := useInventoryItem(ctx, item); err != nil {
 		w.setStatus(err.Error(), false)
 		return
 	}

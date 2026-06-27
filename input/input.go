@@ -17,6 +17,15 @@ const (
 	KeyArrowRight
 	KeyBackspace
 	KeyShift
+	KeyF1
+	KeyF2
+	KeyF3
+	KeyF4
+	KeyF5
+	KeyF6
+	KeyF7
+	KeyF8
+	KeyF9
 )
 
 type MouseButton int

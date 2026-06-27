@@ -56,6 +56,7 @@ type WorldMode struct {
 	pendingWarp      bool
 	pendingAttack    attackIntent
 	pendingPickup    pickupIntent
+	pendingSkill     pendingSkillTarget
 	pickupReqItemID  uint32
 	lockedAttackID   uint32
 	lastAttackAt     time.Time
@@ -82,6 +83,7 @@ type WorldMode struct {
 	shopWindow       shopWindowState
 	statsWindow      statsWindowState
 	skillWindow      skillWindowState
+	shortcutBar      shortcutBarState
 	mapFade          mapFadeState
 }
 
@@ -106,6 +108,11 @@ type pickupIntent struct {
 	itemID  uint32
 	expires time.Time
 	readyAt time.Time
+}
+
+type pendingSkillTarget struct {
+	skill   session.Skill
+	started time.Time
 }
 
 type damageFloater struct {
@@ -260,6 +267,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}
 	m.pendingPickup = pickupIntent{}
+	m.pendingSkill = pendingSkillTarget{}
 	m.pickupReqItemID = 0
 	m.lockedAttackID = 0
 	m.lastAttackAt = time.Time{}
@@ -603,6 +611,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.skillWindow.clampScroll(ctx.Session)
 			continue
 		}
+		if auto, ok, err := network.ParseAutoRunSkill(pkt); err != nil {
+			log.Printf("parse auto-run skill 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyAutoRunSkill(ctx, auto)
+			continue
+		}
 		if failure, ok, err := network.ParseAttackFailureForDistance(pkt); err != nil {
 			log.Printf("parse attack distance failure 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -676,10 +690,13 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.escapeMenu.update(ctx) {
 		return nil, nil
 	}
+	if m.shortcutBar.update(ctx, m) {
+		return nil, nil
+	}
 	if m.inventoryWindow.update(ctx, &m.shopWindow) {
 		return nil, nil
 	}
-	if m.inventoryBag.update(ctx) {
+	if m.inventoryBag.update(ctx, &m.shortcutBar) {
 		return nil, nil
 	}
 	if m.equipmentWindow.update(ctx) {
@@ -688,7 +705,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.shopWindow.update(ctx) {
 		return nil, nil
 	}
-	if m.skillWindow.update(ctx) {
+	if m.skillWindow.update(ctx, &m.shortcutBar) {
 		return nil, nil
 	}
 	if m.statsWindow.update(ctx) {
@@ -727,9 +744,19 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.walkCooldown > 0 {
 		m.walkCooldown--
 	}
+	if m.pendingSkill.skill.ID != 0 && ctx.Input.JustPressed(render.KeyEscape) {
+		log.Printf("shortcut skill target canceled skill=%d", m.pendingSkill.skill.ID)
+		m.pendingSkill = pendingSkillTarget{}
+		m.status = "skill canceled"
+		return nil, nil
+	}
 	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) && m.walkCooldown == 0 {
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
+		if m.pendingSkill.skill.ID != 0 {
+			m.handlePendingSkillClick(ctx, projection, now)
+			return nil, nil
+		}
 		if item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
 			log.Printf("click pickup target mouse=%d,%d id=%d item_id=%d amount=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, item.ID, item.ItemID, item.Amount, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y)
 			m.clearLockedAttack()
@@ -1243,6 +1270,43 @@ func (m *WorldMode) sendAttackAction(ctx Context, actor worldstate.Actor, source
 		log.Printf("%s attack request failed target=%d action=%d: %v", source, actor.ID, network.ActionAttack, err)
 		m.walkCooldown = 30
 	}
+}
+
+func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProjection, now time.Time) {
+	skill := m.pendingSkill.skill
+	if skill.ID == 0 {
+		return
+	}
+	actor, ok := clickedSkillTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
+	if !ok {
+		m.status = fmt.Sprintf("select target: %s", skillLabel(skill))
+		log.Printf("shortcut skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
+		return
+	}
+	if err := m.sendShortcutSkillToID(ctx, skill, actor.ID); err != nil {
+		m.status = "skill failed: " + err.Error()
+		log.Printf("shortcut skill target failed skill=%d target=%d: %v", skill.ID, actor.ID, err)
+		return
+	}
+	m.pendingSkill = pendingSkillTarget{}
+	m.status = fmt.Sprintf("%s: %d", skillLabel(skill), actor.ID)
+	log.Printf("shortcut skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
+}
+
+func (m *WorldMode) applyAutoRunSkill(ctx Context, auto network.AutoRunSkill) {
+	skill := sessionSkillFromNetwork(auto.Skill)
+	target := localSkillTarget(ctx)
+	log.Printf("auto-run skill received skill=%d level=%d range=%d name=%q target=%d", skill.ID, skill.Level, skill.Range, skill.Name, target)
+	if target == 0 {
+		m.status = "auto skill failed: missing player id"
+		return
+	}
+	if err := m.sendShortcutSkillToID(ctx, skill, target); err != nil {
+		m.status = "auto skill failed: " + err.Error()
+		log.Printf("auto-run skill use failed skill=%d target=%d: %v", skill.ID, target, err)
+		return
+	}
+	m.status = skillLabel(skill)
 }
 
 func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {
@@ -2475,13 +2539,14 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 
 	drawCharacterWindow(screen, ctx)
 	m.basicMenu.draw(screen, ctx)
+	m.shortcutBar.draw(screen, ctx, m)
 	m.minimap.draw(screen, ctx)
 	m.inventoryWindow.draw(screen, ctx, m)
 	m.inventoryBag.draw(screen, ctx, m)
 	m.equipmentWindow.draw(screen, ctx, m)
 	m.shopWindow.draw(screen, ctx, m)
 	m.statsWindow.draw(screen, ctx)
-	m.skillWindow.draw(screen, ctx)
+	m.skillWindow.draw(screen, ctx, m)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)
@@ -3290,6 +3355,44 @@ func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY
 		}
 	}
 	return best, bestDistance < math.Inf(1)
+}
+
+func clickedSkillTarget(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
+	if ctx.World == nil {
+		return worldstate.Actor{}, false
+	}
+	bestDistance := math.Inf(1)
+	var best worldstate.Actor
+	for _, actor := range ctx.World.Actors {
+		if _, dead := deadActors[actor.ID]; dead {
+			continue
+		}
+		if !actorCanBeSkillTargeted(ctx, actor) {
+			continue
+		}
+		actorX, actorY := actor.RenderPosition(now)
+		terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
+		point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
+		scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
+		if !pointInActorPickBounds(float64(mouseX), float64(mouseY), float64(point.x), float64(point.y), scale) {
+			continue
+		}
+		dx := float64(point.x) - float64(mouseX)
+		dy := float64(point.y) - float64(mouseY)
+		distance := dx*dx + dy*dy
+		if distance < bestDistance {
+			bestDistance = distance
+			best = actor
+		}
+	}
+	return best, bestDistance < math.Inf(1)
+}
+
+func actorCanBeSkillTargeted(ctx Context, actor worldstate.Actor) bool {
+	if isLocalActor(ctx, actor.ID) || actor.ID == 0 || isWarpActor(actor) {
+		return false
+	}
+	return true
 }
 
 func actorCanBeAttackClicked(ctx Context, actor worldstate.Actor) bool {
