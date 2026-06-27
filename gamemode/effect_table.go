@@ -133,6 +133,11 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			},
 		},
 	},
+	effectSignum:     strEffectSpec("cross", "effect\\ef_signum.wav"),
+	effectAngelus:    strEffectSpec("angelus", "effect\\ef_angelus.wav"),
+	effectCure:       strEffectSpec("cure", "effect\\acolyte_cure.wav"),
+	effectRefineOK:   strEffectSpec("bs_refinesuccess", "effect\\bs_refinesuccess.wav"),
+	effectRefineFail: strEffectSpec("bs_refinefailed", "effect\\bs_refinefailed.wav"),
 	effectTeleportation: {
 		duration: 1500 * time.Millisecond,
 		sfx:      []string{"effect\\ef_teleportation.wav"},
@@ -145,7 +150,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	},
 	effectPortal: {
 		duration: 25000 * time.Millisecond,
-		sfx:      []string{"effect\\ef_readyportal.wav"},
+		sfx:      []string{"effect\\ef_readyportal.wav", "effect\\ef_portal.wav"},
 		components: []worldEffectComponent{
 			{
 				kind:             effectPrimitiveCylinder,
@@ -164,7 +169,31 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			},
 			portalCylinderComponent(0.6, 0.6, 15, 0, "ring_blue", 0.3),
 			portalCylinderComponent(0.8, 0.8, 13, 0, "ring_blue", 0.3),
-			portalCylinderComponent(1.0, 1.0, 1, 2, "alpha1", 0.5),
+			{
+				kind:             effectPrimitiveCylinder,
+				textureName:      "alpha1",
+				duration:         25000 * time.Millisecond,
+				alphaMax:         0.5,
+				fade:             true,
+				rotate:           true,
+				animation:        0,
+				bottomSize:       1,
+				topSize:          1,
+				height:           1,
+				posZ:             2,
+				totalCircleSides: 20,
+				circleSides:      10,
+			},
+		},
+	},
+	effectPharmacyOK:   strEffectSpec("p_success", "effect\\p_success.wav"),
+	effectPharmacyFail: strEffectSpec("p_failed", "effect\\p_failed.wav"),
+	effectHeal: {
+		duration: 1500 * time.Millisecond,
+		sfx:      []string{"_heal_effect.wav"},
+		components: []worldEffectComponent{
+			healCylinderComponent(0.95, 0.95, 8),
+			healCylinderComponent(1.0, 1.0, 8),
 		},
 	},
 	effectBaseLevelUp: {
@@ -176,7 +205,6 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		}},
 	},
 	effectJobLevelUp: {
-		duration: 1300 * time.Millisecond,
 		components: []worldEffectComponent{{
 			kind:    effectPrimitiveSTR,
 			strFile: "joblvup",

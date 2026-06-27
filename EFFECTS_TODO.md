@@ -9,9 +9,9 @@ Metric used: active numeric entries in roBrowser `EffectTable.js`.
 
 - roBrowser active numeric effect table entries: 607
 - roBrowser numeric effect constants: 1147
-- Goro implemented active roBrowser effect IDs: 17
-- Completion against active roBrowser table: 2.8%
-- Completion against all roBrowser numeric constants: 1.5%
+- Goro implemented active roBrowser effect IDs: 25
+- Completion against active roBrowser table: 4.1%
+- Completion against all roBrowser numeric constants: 2.2%
 
 This only counts world/effect IDs handled by `worldEffectSpecForID` and direct
 effect trigger mappings. It does not count unrelated UI rendering, damage number
@@ -23,6 +23,11 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_ENDURE` `11`: Endure billboard effect.
 - [x] `EF_BASH` `16`: Bash start cylinder effect.
 - [x] `EF_MAGNUMBREAK` `17`: Magnum Break cylinder effect and camera shake.
+- [x] `EF_SIGNUM` `40`: Signum Crucis STR effect.
+- [x] `EF_ANGELUS` `41`: Angelus STR effect.
+- [x] `EF_CURE` `66`: Cure STR effect.
+- [x] `EF_REFINEOK` `154`: Refine Success STR effect.
+- [x] `EF_REFINEFAIL` `155`: Refine Fail STR effect.
 - [x] `EF_PROVOKE` `67`: Provoke STR effect.
 - [x] `EF_JOBLVUP` `158`: Job level-up STR effect, no explicit SFX in roBrowser.
 - [x] `EF_POTION1` `204`: Red potion STR effect.
@@ -34,6 +39,9 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_POTION7` `210`: Food/consumable STR effect.
 - [x] `EF_POTION8` `211`: Blue food/consumable STR effect.
 - [x] `EF_TELEPORTATION2` `304`: Teleport / Fly Wing style cylinder stack.
+- [x] `EF_PHARMACY_OK` `305`: Pharmacy Success STR effect.
+- [x] `EF_PHARMACY_FAIL` `306`: Pharmacy Fail STR effect.
+- [x] `EF_HEAL` `312`: Heal cylinder subset and SFX.
 - [x] `EF_PORTAL2` `317`: Warp Portal skill unit cylinder stack.
 - [x] `EF_ANGEL` `371`: Base level-up STR effect with `levelup.wav`.
 

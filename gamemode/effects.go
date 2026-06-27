@@ -18,7 +18,15 @@ const (
 	effectBashBegin     = 16
 	effectBashHit       = 1
 	effectMagnumBreak   = 17
+	effectSignum        = 40
+	effectAngelus       = 41
+	effectCure          = 66
+	effectRefineOK      = 154
+	effectRefineFail    = 155
 	effectTeleportation = 304
+	effectPharmacyOK    = 305
+	effectPharmacyFail  = 306
+	effectHeal          = 312
 	effectPortal        = 317
 	effectBaseLevelUp   = 371
 	effectJobLevelUp    = 158
@@ -292,6 +300,14 @@ func skillSuccessEffectID(skillID uint16) int {
 		return effectProvoke
 	case 8:
 		return effectEndure
+	case 28:
+		return effectHeal
+	case 32:
+		return effectSignum
+	case 33:
+		return effectAngelus
+	case 35:
+		return effectCure
 	default:
 		return 0
 	}
@@ -370,6 +386,36 @@ func portalCylinderComponent(bottomSize, topSize, height, posZ float64, textureN
 		totalCircleSides: 32,
 		circleSides:      32,
 	}
+}
+
+func healCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {
+	return worldEffectComponent{
+		kind:             effectPrimitiveCylinder,
+		textureName:      "ring_white",
+		duration:         1500 * time.Millisecond,
+		alphaMax:         0.2,
+		fade:             true,
+		rotate:           true,
+		animation:        1,
+		bottomSize:       bottomSize,
+		topSize:          topSize,
+		height:           height,
+		totalCircleSides: 32,
+		circleSides:      32,
+	}
+}
+
+func strEffectSpec(file, wav string) worldEffectSpec {
+	spec := worldEffectSpec{
+		components: []worldEffectComponent{{
+			kind:    effectPrimitiveSTR,
+			strFile: file,
+		}},
+	}
+	if wav != "" {
+		spec.sfx = []string{wav}
+	}
+	return spec
 }
 
 func potionEffectSpec(file string, c color.RGBA) worldEffectSpec {

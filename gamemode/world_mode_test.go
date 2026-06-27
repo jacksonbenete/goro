@@ -5,6 +5,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -604,14 +605,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 17 {
-		t.Fatalf("implemented effects = %d, want 17", coverage.Implemented)
+	if coverage.Implemented != 25 {
+		t.Fatalf("implemented effects = %d, want 25", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 2.7 || coverage.ActivePercent > 2.9 {
-		t.Fatalf("active coverage = %.3f, want about 2.8", coverage.ActivePercent)
+	if coverage.ActivePercent < 4.0 || coverage.ActivePercent > 4.2 {
+		t.Fatalf("active coverage = %.3f, want about 4.1", coverage.ActivePercent)
 	}
 }
 
@@ -647,6 +648,21 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 	}
 	if got := skillSuccessEffectID(8); got != effectEndure {
 		t.Fatalf("SM_ENDURE success effect = %d, want %d", got, effectEndure)
+	}
+}
+
+func TestAcolyteSkillEffectMappings(t *testing.T) {
+	if got := skillSuccessEffectID(28); got != effectHeal {
+		t.Fatalf("AL_HEAL success effect = %d, want %d", got, effectHeal)
+	}
+	if got := skillSuccessEffectID(32); got != effectSignum {
+		t.Fatalf("AL_CRUCIS success effect = %d, want %d", got, effectSignum)
+	}
+	if got := skillSuccessEffectID(33); got != effectAngelus {
+		t.Fatalf("AL_ANGELUS success effect = %d, want %d", got, effectAngelus)
+	}
+	if got := skillSuccessEffectID(35); got != effectCure {
+		t.Fatalf("AL_CURE success effect = %d, want %d", got, effectCure)
 	}
 }
 
@@ -764,6 +780,9 @@ func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
 	if !ok {
 		t.Fatal("portal effect spec missing")
 	}
+	if len(spec.sfx) != 2 || spec.sfx[0] != "effect\\ef_readyportal.wav" || spec.sfx[1] != "effect\\ef_portal.wav" {
+		t.Fatalf("portal sfx = %#v", spec.sfx)
+	}
 	if len(spec.components) != 4 {
 		t.Fatalf("components = %d, want 4", len(spec.components))
 	}
@@ -773,6 +792,69 @@ func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
 	}
 	if spec.components[3].textureName != "alpha1" || spec.components[3].posZ != 2 || spec.components[3].height != 1 {
 		t.Fatalf("portal cap component = %+v", spec.components[3])
+	}
+}
+
+func TestHealEffectSpecUsesRobrowserCylinderSubset(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectHeal)
+	if !ok {
+		t.Fatal("heal effect spec missing")
+	}
+	if spec.duration != 1500*time.Millisecond {
+		t.Fatalf("duration = %s, want 1500ms", spec.duration)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "_heal_effect.wav" {
+		t.Fatalf("sfx = %#v", spec.sfx)
+	}
+	if len(spec.components) != 2 {
+		t.Fatalf("components = %d, want 2", len(spec.components))
+	}
+	for i, component := range spec.components {
+		if component.kind != effectPrimitiveCylinder || component.textureName != "ring_white" || component.animation != 1 {
+			t.Fatalf("component %d = %+v", i, component)
+		}
+		if component.duration != 1500*time.Millisecond || component.height != 8 || component.alphaMax != 0.2 {
+			t.Fatalf("component %d timing/shape = %+v", i, component)
+		}
+	}
+}
+
+func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
+	source, err := os.ReadFile("/home/kivutar/src/robr/src/DB/Effects/EffectTable.js")
+	if os.IsNotExist(err) {
+		t.Skip("roBrowser checkout not available")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := parseRobrowserEffectTableSubset(string(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, effectID := range []int{
+		effectSignum,
+		effectAngelus,
+		effectCure,
+		effectRefineOK,
+		effectRefineFail,
+		effectJobLevelUp,
+		effectTeleportation,
+		effectPharmacyOK,
+		effectPharmacyFail,
+		effectHeal,
+		effectPortal,
+	} {
+		got, ok := worldEffectSpecForID(effectID)
+		if !ok {
+			t.Fatalf("world effect %d missing", effectID)
+		}
+		want, ok := parsed[effectID]
+		if !ok {
+			t.Fatalf("roBrowser effect %d missing", effectID)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("effect %d\n got: %#v\nwant: %#v", effectID, got, want)
+		}
 	}
 }
 
