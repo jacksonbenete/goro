@@ -82,6 +82,27 @@ func TestParseAutoRunSkill(t *testing.T) {
 	}
 }
 
+func TestParseSkillNoDamageNotify(t *testing.T) {
+	data := make([]byte, 15)
+	binary.LittleEndian.PutUint16(data[0:2], 0x011A)
+	binary.LittleEndian.PutUint16(data[2:4], 6)
+	binary.LittleEndian.PutUint16(data[4:6], 2)
+	binary.LittleEndian.PutUint32(data[6:10], 0x11223344)
+	binary.LittleEndian.PutUint32(data[10:14], 0x55667788)
+	data[14] = 1
+
+	notify, ok, err := ParseSkillNoDamageNotify(Packet{ID: 0x011A, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("skill notification not parsed")
+	}
+	if notify.SkillID != 6 || notify.Amount != 2 || notify.TargetID != 0x11223344 || notify.SourceID != 0x55667788 || notify.Result != 1 {
+		t.Fatalf("notify = %+v", notify)
+	}
+}
+
 func TestBuildSkillLevelUpPacket(t *testing.T) {
 	packet := BuildSkillLevelUpPacket(1001)
 	if got := ID(packet); got != 0x0112 {

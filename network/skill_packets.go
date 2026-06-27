@@ -34,6 +34,14 @@ type AutoRunSkill struct {
 	Skill SkillInfo
 }
 
+type SkillNoDamageNotify struct {
+	SkillID  uint16
+	Amount   uint16
+	TargetID uint32
+	SourceID uint32
+	Result   byte
+}
+
 func ParseSkillInfoList(packet Packet) (SkillInfoList, bool, error) {
 	if packet.ID != 0x010F {
 		return SkillInfoList{}, false, nil
@@ -87,6 +95,22 @@ func ParseAutoRunSkill(packet Packet) (AutoRunSkill, bool, error) {
 		return AutoRunSkill{}, false, fmt.Errorf("ZC_AUTORUN_SKILL too short: %d", len(packet.Data))
 	}
 	return AutoRunSkill{Skill: parseSkillInfoEntry(packet.Data[2:39], 0)}, true, nil
+}
+
+func ParseSkillNoDamageNotify(packet Packet) (SkillNoDamageNotify, bool, error) {
+	if packet.ID != 0x011A {
+		return SkillNoDamageNotify{}, false, nil
+	}
+	if len(packet.Data) < 15 {
+		return SkillNoDamageNotify{}, false, fmt.Errorf("ZC_USE_SKILL too short: %d", len(packet.Data))
+	}
+	return SkillNoDamageNotify{
+		SkillID:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Amount:   binary.LittleEndian.Uint16(packet.Data[4:6]),
+		TargetID: binary.LittleEndian.Uint32(packet.Data[6:10]),
+		SourceID: binary.LittleEndian.Uint32(packet.Data[10:14]),
+		Result:   packet.Data[14],
+	}, true, nil
 }
 
 func BuildSkillLevelUpPacket(skillID uint16) []byte {

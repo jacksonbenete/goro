@@ -63,7 +63,7 @@ type WorldMode struct {
 	lastChaseAt      time.Time
 	actorAnims       map[uint32]actorAnimation
 	damageFloaters   []damageFloater
-	itemUseEffects   []itemUseEffect
+	worldEffects     []worldEffect
 	scheduledSounds  []scheduledSound
 	actorDeaths      map[uint32]time.Time
 	actorSoundFrames map[uint32]actorSoundFrame
@@ -122,15 +122,6 @@ type damageFloater struct {
 	text    string
 	color   color.RGBA
 	kind    damageFloaterKind
-	starts  time.Time
-	expires time.Time
-}
-
-type itemUseEffect struct {
-	actorID uint32
-	itemID  uint16
-	x       int
-	y       int
 	starts  time.Time
 	expires time.Time
 }
@@ -484,6 +475,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("use item ack index=%d item=%d aid=%d amount=%d result=%d", useAck.Index, useAck.ItemID, useAck.AID, useAck.Amount, useAck.Result)
 			m.addItemUseEffect(ctx, useAck)
 			applyUseItemAck(ctx, useAck)
+			if useAck.Result != 0 && useAck.Amount == 0 && m.shortcutBar.clearDepletedItem(useAck.Index, useAck.ItemID) {
+				log.Printf("shortcut item depleted index=%d item=%d", useAck.Index, useAck.ItemID)
+			}
 			m.inventoryWindow.clampScroll(ctx.Session)
 			m.inventoryBag.clampScroll(ctx.Session)
 			continue
@@ -616,6 +610,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse auto-run skill 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.applyAutoRunSkill(ctx, auto)
+			continue
+		}
+		if skill, ok, err := network.ParseSkillNoDamageNotify(pkt); err != nil {
+			log.Printf("parse skill nodamage 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applySkillNoDamageNotify(ctx, skill)
 			continue
 		}
 		if failure, ok, err := network.ParseAttackFailureForDistance(pkt); err != nil {
@@ -2146,34 +2146,6 @@ func (m *WorldMode) applyParameterChange(ctx Context, change network.ParameterCh
 	}
 }
 
-func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
-	if ctx.World == nil || ack.Result == 0 {
-		return
-	}
-	now := time.Now()
-	actorID := ack.AID
-	if actorID == 0 && ctx.Session != nil {
-		actorID = ctx.Session.AccountID
-		if actorID == 0 {
-			actorID = ctx.Session.CharID
-		}
-	}
-	x, y := ctx.World.Player.X, ctx.World.Player.Y
-	if actor, ok := ctx.World.Actors[actorID]; ok {
-		x, y = actor.X, actor.Y
-	} else if actorID != 0 && !isLocalActor(ctx, actorID) {
-		return
-	}
-	m.itemUseEffects = append(m.itemUseEffects, itemUseEffect{
-		actorID: actorID,
-		itemID:  ack.ItemID,
-		x:       x,
-		y:       y,
-		starts:  now,
-		expires: now.Add(850 * time.Millisecond),
-	})
-}
-
 var (
 	recoveryHPColor = color.RGBA{R: 0, G: 255, B: 0, A: 255}
 	recoverySPColor = color.RGBA{R: 0, G: 0, B: 255, A: 255}
@@ -2391,60 +2363,6 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projec
 	m.damageFloaters = active
 }
 
-func (m *WorldMode) drawItemUseEffects(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
-	if len(m.itemUseEffects) == 0 || screen == nil || ctx.World == nil {
-		return
-	}
-	if m.whitePixel == nil {
-		m.whitePixel = render.NewImage(1, 1)
-		m.whitePixel.Fill(color.White)
-	}
-	active := m.itemUseEffects[:0]
-	for _, effect := range m.itemUseEffects {
-		if now.After(effect.expires) {
-			continue
-		}
-		active = append(active, effect)
-		x, y := float64(effect.x), float64(effect.y)
-		if actor, ok := ctx.World.Actors[effect.actorID]; ok {
-			x, y = actor.RenderPosition(now)
-		} else if isLocalActor(ctx, effect.actorID) {
-			x, y = ctx.World.Player.RenderPosition(now)
-		}
-		duration := effect.expires.Sub(effect.starts)
-		if duration <= 0 {
-			continue
-		}
-		progress := float64(now.Sub(effect.starts)) / float64(duration)
-		if progress < 0 {
-			progress = 0
-		}
-		if progress > 1 {
-			progress = 1
-		}
-		worldX := cellCenter(x)
-		worldY := cellCenter(y)
-		worldZ := terrainHeightAt(ctx.World, x, y) + 0.07
-		effectColor := itemUseEffectColor(effect.itemID)
-		alpha := uint8(170 * (1 - progress))
-		pulse := 0.24 + progress*0.56
-		drawWorldSoftRing(screen, m.whitePixel, worldX, worldY, worldZ, pulse, 0.24, withAlpha(effectColor, float64(alpha)/255), 48)
-		drawWorldRadialGradient(screen, m.whitePixel, worldX, worldY, worldZ, 0.02, 0.34+progress*0.2, withAlpha(effectColor, float64(alpha)/520), 48)
-	}
-	m.itemUseEffects = active
-}
-
-func itemUseEffectColor(itemID uint16) color.RGBA {
-	switch itemID {
-	case 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511:
-		return color.RGBA{R: 255, G: 92, B: 82, A: 255}
-	case 512, 513, 514, 515, 516, 517, 518, 531, 532, 533, 534, 535:
-		return color.RGBA{R: 120, G: 210, B: 94, A: 255}
-	default:
-		return color.RGBA{R: 150, G: 210, B: 255, A: 255}
-	}
-}
-
 func (m *WorldMode) drawSceneFogVeil(screen *render.Image, fog sceneFog, projection sceneProjection, cfg core.FogConfig) {
 	alpha := sceneFogVeilAlpha(fog, projection, cfg)
 	if alpha == 0 {
@@ -2553,7 +2471,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 
 	m.drawSceneFogVeil(screen, fog, projection, ctx.Config.Fog)
 	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
-	m.drawItemUseEffects(screen, ctx, projection, now)
+	m.drawWorldEffects(screen, ctx, projection, now)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	drawCharacterWindow(screen, ctx)

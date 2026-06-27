@@ -121,6 +121,32 @@ func (b *shortcutBarState) acceptSkillDrop(ctx Context, skill session.Skill, mx,
 	return true
 }
 
+func (b *shortcutBarState) clearDepletedItem(index, itemID uint16) bool {
+	changed := b.clearDepletedItemSlots(index, itemID)
+	if changed {
+		b.save()
+	}
+	return changed
+}
+
+func (b *shortcutBarState) clearDepletedItemSlots(index, itemID uint16) bool {
+	if index == 0 {
+		return false
+	}
+	changed := false
+	for slot, entry := range b.slots {
+		if entry.kind != shortcutItem || entry.itemIndex != index {
+			continue
+		}
+		if itemID != 0 && entry.itemID != itemID {
+			continue
+		}
+		b.slots[slot] = shortcutSlotState{}
+		changed = true
+	}
+	return changed
+}
+
 func (b *shortcutBarState) activate(ctx Context, mode *WorldMode, slot int) {
 	if slot < 0 || slot >= len(b.slots) {
 		return
@@ -394,7 +420,9 @@ func inventoryItemByIndex(s *session.Session, index uint16) (session.InventoryIt
 
 func inventoryItemForShortcut(s *session.Session, index, itemID uint16) (session.InventoryItem, bool) {
 	if item, ok := inventoryItemByIndex(s, index); ok {
-		return item, true
+		if itemID == 0 || item.ItemID == itemID {
+			return item, true
+		}
 	}
 	if s == nil || itemID == 0 {
 		return session.InventoryItem{}, false

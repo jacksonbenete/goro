@@ -128,6 +128,25 @@ func (m *Manager) ReadFile(name string) ([]byte, error) {
 	return nil, fmt.Errorf("resource not found: %s", name)
 }
 
+func (m *Manager) ReadFileExact(name string) ([]byte, error) {
+	path, ok := m.Find(name)
+	if ok {
+		return os.ReadFile(path)
+	}
+
+	for _, archive := range m.Archives {
+		data, err := archive.ReadFile(name)
+		if err == nil {
+			return data, nil
+		}
+		if errors.Is(err, ErrGRFNotFound) {
+			continue
+		}
+		return nil, err
+	}
+	return nil, fmt.Errorf("resource not found: %s", name)
+}
+
 func (m *Manager) FindFirst(names []string) (string, bool) {
 	for _, name := range names {
 		if path, ok := m.Find(name); ok {

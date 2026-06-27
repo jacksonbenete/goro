@@ -2158,10 +2158,27 @@ func TestUseItemAckAddsItemUseEffect(t *testing.T) {
 	ctx := Context{Session: sessionState, World: world}
 
 	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: 501, AID: 2000000, Amount: 2, Result: 1})
-	if len(mode.itemUseEffects) != 1 {
-		t.Fatalf("item effects = %d, want 1", len(mode.itemUseEffects))
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
 	}
-	if effect := mode.itemUseEffects[0]; effect.actorID != 2000000 || effect.itemID != 501 || effect.x != 10 || effect.y != 20 {
+	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectPotionRed || effect.x != 10 || effect.y != 20 {
+		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 6, Amount: 2, TargetID: 1100, SourceID: 2000000, Result: 1})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectProvoke || effect.x != 12 || effect.y != 22 {
 		t.Fatalf("effect = %+v", effect)
 	}
 }

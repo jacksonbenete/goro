@@ -644,7 +644,7 @@ func readSFXFile(manager *res.Manager, path string) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("resource manager is nil")
 	}
 	for _, candidate := range sfxPathCandidates(path) {
-		data, err := manager.ReadFile(candidate)
+		data, err := manager.ReadFileExact(candidate)
 		if err == nil {
 			return data, candidate, nil
 		}
