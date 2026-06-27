@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
+	"unsafe"
+
+	glua "github.com/yuin/gopher-lua"
 )
 
 type luaValue struct {
@@ -28,6 +32,13 @@ type luaFunction struct {
 	code         []uint32
 	constants    []luaValue
 	prototypes   []luaFunction
+	sourceName   string
+	lineDefined  int
+	lastLine     int
+	upvalues     []string
+	numUpvalues  int
+	numParams    int
+	isVararg     int
 	maxStackSize int
 }
 
@@ -50,6 +61,9 @@ func executeLua51Bytecode(data []byte, globals map[string]luaValue) error {
 	fn, err := parseLua51Bytecode(data)
 	if err != nil {
 		return err
+	}
+	if err := executeLuaFunctionWithGopherLua(fn, globals); err == nil {
+		return nil
 	}
 	return executeLuaFunction(fn, globals)
 }
@@ -77,12 +91,12 @@ func (r *luaReader) header() error {
 }
 
 func (r *luaReader) function() (luaFunction, error) {
-	r.string()
-	r.i32()
-	r.i32()
-	r.u8()
-	r.u8()
-	r.u8()
+	sourceName := r.string()
+	lineDefined := int(r.i32())
+	lastLine := int(r.i32())
+	numUpvalues := int(r.u8())
+	numParams := int(r.u8())
+	isVararg := int(r.u8())
 	maxStack := int(r.u8())
 
 	codeCount := int(r.i32())
@@ -131,13 +145,264 @@ func (r *luaReader) function() (luaFunction, error) {
 		r.i32()
 	}
 	upvalueCount := int(r.i32())
+	upvalues := make([]string, upvalueCount)
 	for i := 0; i < upvalueCount; i++ {
-		r.string()
+		upvalues[i] = r.string()
 	}
 	if r.err != nil {
 		return luaFunction{}, r.err
 	}
-	return luaFunction{code: code, constants: constants, prototypes: protos, maxStackSize: maxStack}, nil
+	return luaFunction{
+		code:         code,
+		constants:    constants,
+		prototypes:   protos,
+		sourceName:   sourceName,
+		lineDefined:  lineDefined,
+		lastLine:     lastLine,
+		upvalues:     upvalues,
+		numUpvalues:  numUpvalues,
+		numParams:    numParams,
+		isVararg:     isVararg,
+		maxStackSize: maxStack,
+	}, nil
+}
+
+func executeLuaFunctionWithGopherLua(fn luaFunction, globals map[string]luaValue) error {
+	if globals == nil {
+		return errors.New("nil Lua globals")
+	}
+	proto, err := gopherLuaProto(fn)
+	if err != nil {
+		return err
+	}
+	state := glua.NewState(glua.Options{SkipOpenLibs: true})
+	defer state.Close()
+	openLuaResourceLibs(state)
+	for key, value := range globals {
+		if value.kind != luaNil {
+			state.SetGlobal(key, luaValueToGopherLua(state, value))
+		}
+	}
+	lfn := state.NewFunctionFromProto(proto)
+	if err := state.CallByParam(glua.P{Fn: lfn, NRet: 0, Protect: true}); err != nil {
+		return err
+	}
+	state.G.Global.ForEach(func(key glua.LValue, value glua.LValue) {
+		name, ok := key.(glua.LString)
+		if !ok || luaBuiltinGlobal(string(name)) {
+			return
+		}
+		if converted, ok := gopherLuaToLuaValue(value); ok {
+			globals[string(name)] = converted
+		}
+	})
+	return nil
+}
+
+func openLuaResourceLibs(state *glua.LState) {
+	for _, lib := range []struct {
+		name string
+		open glua.LGFunction
+	}{
+		{glua.BaseLibName, glua.OpenBase},
+		{glua.TabLibName, glua.OpenTable},
+		{glua.StringLibName, glua.OpenString},
+		{glua.MathLibName, glua.OpenMath},
+	} {
+		state.Push(state.NewFunction(lib.open))
+		state.Push(glua.LString(lib.name))
+		state.Call(1, 0)
+	}
+	for _, unsafeName := range []string{"dofile", "loadfile"} {
+		state.SetGlobal(unsafeName, glua.LNil)
+	}
+}
+
+func gopherLuaProto(fn luaFunction) (*glua.FunctionProto, error) {
+	constants := make([]glua.LValue, len(fn.constants))
+	stringConstants := make([]string, len(fn.constants))
+	for i, value := range fn.constants {
+		constants[i] = luaValueToGopherLua(nil, value)
+		if value.kind == luaString {
+			stringConstants[i] = value.str
+		}
+	}
+	code := make([]uint32, len(fn.code))
+	for i, instruction := range fn.code {
+		translated, err := translateLua51Instruction(instruction)
+		if err != nil {
+			return nil, err
+		}
+		code[i] = translated
+	}
+	protos := make([]*glua.FunctionProto, len(fn.prototypes))
+	for i, child := range fn.prototypes {
+		proto, err := gopherLuaProto(child)
+		if err != nil {
+			return nil, err
+		}
+		protos[i] = proto
+	}
+	dbgLines := make([]int, len(code))
+	upvalues := make([]string, len(fn.upvalues))
+	copy(upvalues, fn.upvalues)
+	proto := &glua.FunctionProto{
+		SourceName:         fn.sourceName,
+		LineDefined:        fn.lineDefined,
+		LastLineDefined:    fn.lastLine,
+		NumUpvalues:        uint8(fn.numUpvalues),
+		NumParameters:      uint8(fn.numParams),
+		IsVarArg:           uint8(fn.isVararg),
+		NumUsedRegisters:   uint8(fn.maxStackSize),
+		Code:               code,
+		Constants:          constants,
+		FunctionPrototypes: protos,
+		DbgSourcePositions: dbgLines,
+		DbgLocals:          nil,
+		DbgCalls:           nil,
+		DbgUpvalues:        upvalues,
+	}
+	setGopherLuaStringConstants(proto, stringConstants)
+	return proto, nil
+}
+
+func setGopherLuaStringConstants(proto *glua.FunctionProto, constants []string) {
+	field := reflect.ValueOf(proto).Elem().FieldByName("stringConstants")
+	reflect.NewAt(field.Type(), unsafe.Pointer(field.UnsafeAddr())).Elem().Set(reflect.ValueOf(constants))
+}
+
+func luaBuiltinGlobal(name string) bool {
+	switch name {
+	case "_G", "_VERSION",
+		"assert", "collectgarbage", "dofile", "error", "getfenv", "getmetatable",
+		"ipairs", "load", "loadfile", "loadstring", "module", "next", "pairs",
+		"pcall", "print", "rawequal", "rawget", "rawset", "require", "select",
+		"setfenv", "setmetatable", "tonumber", "tostring", "type", "unpack", "xpcall",
+		"math", "string", "table":
+		return true
+	default:
+		return false
+	}
+}
+
+func translateLua51Instruction(instruction uint32) (uint32, error) {
+	op := luaInstructionOp(instruction)
+	if op >= len(lua51ToGopherLuaOpcode) {
+		return 0, fmt.Errorf("unsupported Lua opcode %d", op)
+	}
+	mapped := lua51ToGopherLuaOpcode[op]
+	a := luaInstructionA(instruction)
+	switch lua51OpcodeMode[op] {
+	case luaOpcodeABx, luaOpcodeAsBx:
+		return gopherLuaInstructionABx(mapped, a, luaInstructionBx(instruction)), nil
+	default:
+		return gopherLuaInstructionABC(mapped, a, luaInstructionB(instruction), luaInstructionC(instruction)), nil
+	}
+}
+
+func luaInstructionOp(instruction uint32) int {
+	return int(instruction & 0x3f)
+}
+
+func luaInstructionA(instruction uint32) int {
+	return int((instruction >> 6) & 0xff)
+}
+
+func luaInstructionC(instruction uint32) int {
+	return int((instruction >> 14) & 0x1ff)
+}
+
+func luaInstructionB(instruction uint32) int {
+	return int((instruction >> 23) & 0x1ff)
+}
+
+func luaInstructionBx(instruction uint32) int {
+	return int((instruction >> 14) & 0x3ffff)
+}
+
+func gopherLuaInstructionABC(op, a, b, c int) uint32 {
+	return uint32(op)<<26 | uint32(a&0xff)<<18 | uint32(c&0x1ff)<<9 | uint32(b&0x1ff)
+}
+
+func gopherLuaInstructionABx(op, a, bx int) uint32 {
+	return uint32(op)<<26 | uint32(a&0xff)<<18 | uint32(bx&0x3ffff)
+}
+
+func luaValueToGopherLua(state *glua.LState, value luaValue) glua.LValue {
+	switch value.kind {
+	case luaBool:
+		return glua.LBool(value.num != 0)
+	case luaNumber:
+		return glua.LNumber(value.num)
+	case luaString:
+		return glua.LString(value.str)
+	case luaTable:
+		if state == nil {
+			return glua.LNil
+		}
+		var table *glua.LTable
+		table = state.NewTable()
+		for key, child := range value.table {
+			table.RawSet(luaKeyToGopherLua(key), luaValueToGopherLua(state, child))
+		}
+		return table
+	default:
+		return glua.LNil
+	}
+}
+
+func luaKeyToGopherLua(key interface{}) glua.LValue {
+	switch key := key.(type) {
+	case int:
+		return glua.LNumber(key)
+	case float64:
+		return glua.LNumber(key)
+	case string:
+		return glua.LString(key)
+	default:
+		return glua.LNil
+	}
+}
+
+func gopherLuaToLuaValue(value glua.LValue) (luaValue, bool) {
+	switch value := value.(type) {
+	case glua.LBool:
+		if bool(value) {
+			return luaValue{kind: luaBool, num: 1}, true
+		}
+		return luaValue{kind: luaBool}, true
+	case glua.LNumber:
+		return luaValue{kind: luaNumber, num: float64(value)}, true
+	case glua.LString:
+		return luaValue{kind: luaString, str: string(value)}, true
+	case *glua.LTable:
+		out := luaValue{kind: luaTable, table: make(map[interface{}]luaValue)}
+		value.ForEach(func(key glua.LValue, child glua.LValue) {
+			if converted, ok := gopherLuaToLuaValue(child); ok {
+				out.table[gopherLuaKey(key)] = converted
+			}
+		})
+		return out, true
+	default:
+		return luaValue{}, false
+	}
+}
+
+func gopherLuaKey(key glua.LValue) interface{} {
+	switch key := key.(type) {
+	case glua.LNumber:
+		num := float64(key)
+		if math.Trunc(num) == num {
+			return int(num)
+		}
+		return num
+	case glua.LString:
+		return string(key)
+	case glua.LBool:
+		return bool(key)
+	default:
+		return nil
+	}
 }
 
 func (r *luaReader) string() string {
@@ -369,4 +634,97 @@ const (
 	luaOpForPrep
 	luaOpTForLoop
 	luaOpSetList
+	luaOpClose
+	luaOpClosure
+	luaOpVararg
 )
+
+type luaOpcodeMode int
+
+const (
+	luaOpcodeABC luaOpcodeMode = iota
+	luaOpcodeABx
+	luaOpcodeAsBx
+)
+
+var lua51ToGopherLuaOpcode = [...]int{
+	luaOpMove:      glua.OP_MOVE,
+	luaOpLoadK:     glua.OP_LOADK,
+	luaOpLoadBool:  glua.OP_LOADBOOL,
+	luaOpLoadNil:   glua.OP_LOADNIL,
+	luaOpGetUpval:  glua.OP_GETUPVAL,
+	luaOpGetGlobal: glua.OP_GETGLOBAL,
+	luaOpGetTable:  glua.OP_GETTABLE,
+	luaOpSetGlobal: glua.OP_SETGLOBAL,
+	luaOpSetupval:  glua.OP_SETUPVAL,
+	luaOpSetTable:  glua.OP_SETTABLE,
+	luaOpNewTable:  glua.OP_NEWTABLE,
+	luaOpSelf:      glua.OP_SELF,
+	luaOpAdd:       glua.OP_ADD,
+	luaOpSub:       glua.OP_SUB,
+	luaOpMul:       glua.OP_MUL,
+	luaOpDiv:       glua.OP_DIV,
+	luaOpMod:       glua.OP_MOD,
+	luaOpPow:       glua.OP_POW,
+	luaOpUnm:       glua.OP_UNM,
+	luaOpNot:       glua.OP_NOT,
+	luaOpLen:       glua.OP_LEN,
+	luaOpConcat:    glua.OP_CONCAT,
+	luaOpJmp:       glua.OP_JMP,
+	luaOpEq:        glua.OP_EQ,
+	luaOpLt:        glua.OP_LT,
+	luaOpLe:        glua.OP_LE,
+	luaOpTest:      glua.OP_TEST,
+	luaOpTestSet:   glua.OP_TESTSET,
+	luaOpCall:      glua.OP_CALL,
+	luaOpTailCall:  glua.OP_TAILCALL,
+	luaOpReturn:    glua.OP_RETURN,
+	luaOpForLoop:   glua.OP_FORLOOP,
+	luaOpForPrep:   glua.OP_FORPREP,
+	luaOpTForLoop:  glua.OP_TFORLOOP,
+	luaOpSetList:   glua.OP_SETLIST,
+	luaOpClose:     glua.OP_CLOSE,
+	luaOpClosure:   glua.OP_CLOSURE,
+	luaOpVararg:    glua.OP_VARARG,
+}
+
+var lua51OpcodeMode = [...]luaOpcodeMode{
+	luaOpMove:      luaOpcodeABC,
+	luaOpLoadK:     luaOpcodeABx,
+	luaOpLoadBool:  luaOpcodeABC,
+	luaOpLoadNil:   luaOpcodeABC,
+	luaOpGetUpval:  luaOpcodeABC,
+	luaOpGetGlobal: luaOpcodeABx,
+	luaOpGetTable:  luaOpcodeABC,
+	luaOpSetGlobal: luaOpcodeABx,
+	luaOpSetupval:  luaOpcodeABC,
+	luaOpSetTable:  luaOpcodeABC,
+	luaOpNewTable:  luaOpcodeABC,
+	luaOpSelf:      luaOpcodeABC,
+	luaOpAdd:       luaOpcodeABC,
+	luaOpSub:       luaOpcodeABC,
+	luaOpMul:       luaOpcodeABC,
+	luaOpDiv:       luaOpcodeABC,
+	luaOpMod:       luaOpcodeABC,
+	luaOpPow:       luaOpcodeABC,
+	luaOpUnm:       luaOpcodeABC,
+	luaOpNot:       luaOpcodeABC,
+	luaOpLen:       luaOpcodeABC,
+	luaOpConcat:    luaOpcodeABC,
+	luaOpJmp:       luaOpcodeAsBx,
+	luaOpEq:        luaOpcodeABC,
+	luaOpLt:        luaOpcodeABC,
+	luaOpLe:        luaOpcodeABC,
+	luaOpTest:      luaOpcodeABC,
+	luaOpTestSet:   luaOpcodeABC,
+	luaOpCall:      luaOpcodeABC,
+	luaOpTailCall:  luaOpcodeABC,
+	luaOpReturn:    luaOpcodeABC,
+	luaOpForLoop:   luaOpcodeAsBx,
+	luaOpForPrep:   luaOpcodeAsBx,
+	luaOpTForLoop:  luaOpcodeABC,
+	luaOpSetList:   luaOpcodeABC,
+	luaOpClose:     luaOpcodeABC,
+	luaOpClosure:   luaOpcodeABx,
+	luaOpVararg:    luaOpcodeABC,
+}

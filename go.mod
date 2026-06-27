@@ -11,6 +11,7 @@ require (
 	github.com/gogpu/ui v0.1.36
 	github.com/gogpu/wgpu v0.30.4
 	github.com/hajimehoshi/go-mp3 v0.3.4
+	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/image v0.43.0
 	golang.org/x/text v0.38.0
 )
