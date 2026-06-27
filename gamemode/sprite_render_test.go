@@ -486,14 +486,52 @@ func TestCursorFrameBillboardUsesCompositionAnchorAsHotspot(t *testing.T) {
 	if !ok {
 		t.Fatal("expected cursor billboard")
 	}
-	if got, want := billboard.image.Bounds().Dx(), 50; got != want {
+	if got, want := billboard.image.Bounds().Dx(), 26; got != want {
 		t.Fatalf("cursor width = %d, want %d", got, want)
 	}
-	if got, want := billboard.image.Bounds().Dy(), 50; got != want {
+	if got, want := billboard.image.Bounds().Dy(), 32; got != want {
 		t.Fatalf("cursor height = %d, want %d", got, want)
 	}
-	if billboard.anchorX != 20 || billboard.anchorY != 24 {
-		t.Fatalf("cursor anchor = %.1f, %.1f, want 20, 24", billboard.anchorX, billboard.anchorY)
+	if billboard.anchorX != 4 || billboard.anchorY != 4 {
+		t.Fatalf("cursor anchor = %.1f, %.1f, want 4, 4", billboard.anchorX, billboard.anchorY)
+	}
+}
+
+func TestCursorFrameBillboardDoesNotClipTallTargetCursor(t *testing.T) {
+	view := &playerSpriteView{
+		spr: &res.SPR{
+			RGBAIndex: 0,
+			Frames: []res.SPRFrame{{
+				Type:   res.SPRFrameRGBA,
+				Width:  32,
+				Height: 64,
+				Data:   solidRGBAFrame(32, 64),
+			}},
+		},
+		act: &res.ACT{Actions: []res.ACTAction{{
+			Animations: []res.ACTAnimation{{Layers: []res.ACTLayer{{
+				Index:   0,
+				SPRType: res.SPRFrameRGBA,
+				X:       16,
+				Y:       32,
+				ScaleX:  1,
+				ScaleY:  1,
+				Color:   [4]float32{1, 1, 1, 1},
+			}}}},
+		}}},
+		images:     make(map[spriteFrameKey]*render.Image),
+		billboards: make(map[singleSpriteBillboardKey]*spriteBillboard),
+	}
+
+	billboard, ok := cursorFrameBillboard(view, 0, 0, 20, 50)
+	if !ok {
+		t.Fatal("expected cursor billboard")
+	}
+	if got, want := billboard.image.Bounds().Dy(), 72; got != want {
+		t.Fatalf("cursor height = %d, want %d", got, want)
+	}
+	if got, want := billboard.anchorY, 4.0; got != want {
+		t.Fatalf("cursor anchorY = %.1f, want %.1f", got, want)
 	}
 }
 

@@ -975,6 +975,39 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 	}
 }
 
+func TestMobLookChangeToPlayerJobDoesNotChangeDeathSpriteFamily(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1161,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+		Appearance:    true,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	applyActorLookChange(ctx, network.ActorLookChange{ID: 300, Type: 0, Value: 0})
+	if got := world.Actors[300].Job; got != 1161 {
+		t.Fatalf("mob job after look change = %d, want 1161", got)
+	}
+
+	mode.applyActorVanish(ctx, network.ActorVanish{ID: 300, Reason: 1})
+	anim, ok := mode.actorAnims[300]
+	if !ok {
+		t.Fatal("death animation missing")
+	}
+	if anim.actionFamily != spriteActionNonPCDeath {
+		t.Fatalf("death action = %d, want %d", anim.actionFamily, spriteActionNonPCDeath)
+	}
+}
+
 func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}

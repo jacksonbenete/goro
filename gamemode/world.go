@@ -2980,6 +2980,10 @@ func applyWorldActorLookChange(actor *worldstate.Actor, look network.ActorLookCh
 	actor.Appearance = true
 	switch look.Type {
 	case 0:
+		if actorHasMobObjectType(*actor) && res.HasPlayerJobToken(int(look.Value)) {
+			log.Printf("ignored mob look-base player job id=%d old_job=%d value=%d", actor.ID, actor.Job, look.Value)
+			return
+		}
 		actor.Job = int16(look.Value)
 	case 1:
 		actor.Head = int16(look.Value)
@@ -2994,6 +2998,18 @@ func applyWorldActorLookChange(actor *worldstate.Actor, look network.ActorLookCh
 		actor.HeadMid = int16(look.Value)
 	case 8:
 		actor.Shield = int16(look.Value)
+	}
+}
+
+func actorHasMobObjectType(actor worldstate.Actor) bool {
+	if !actor.HasObjectType {
+		return false
+	}
+	switch actor.ObjectType {
+	case actorObjectTypeMob, actorObjectTypeNPCABR, actorObjectTypeNPCBionic:
+		return true
+	default:
+		return false
 	}
 }
 

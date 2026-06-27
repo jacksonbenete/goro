@@ -91,6 +91,8 @@ type humanoidBillboardKey struct {
 type singleSpriteBillboardKey struct {
 	actionIndex int
 	motion      int
+	anchorX     float64
+	anchorY     float64
 }
 
 type spriteBillboard struct {
@@ -692,18 +694,35 @@ func cursorFrameBillboard(view *playerSpriteView, actionIndex, motion int, ancho
 		motion = 0
 	}
 	motion %= len(action.Animations)
-	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion}
+	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion, anchorX: anchorX, anchorY: anchorY}
 	if billboard, ok := view.billboards[key]; ok {
 		return billboard, true
 	}
-	target := render.NewImage(50, 50)
-	if !drawSpriteAnimation(target, view, action.Animations[motion], anchorX, anchorY, 0, 0) {
+	anim := action.Animations[motion]
+	minX, minY, maxX, maxY, ok := spriteAnimationLayerBounds(view, anim)
+	if !ok {
+		return nil, false
+	}
+	const padding = 4.0
+	minX = minX + anchorX - padding
+	minY = minY + anchorY - padding
+	maxX = maxX + anchorX + padding
+	maxY = maxY + anchorY + padding
+	width := int(math.Ceil(maxX - minX))
+	height := int(math.Ceil(maxY - minY))
+	if width <= 0 || height <= 0 {
+		return nil, false
+	}
+	target := render.NewImage(width, height)
+	compositionAnchorX := anchorX - minX
+	compositionAnchorY := anchorY - minY
+	if !drawSpriteAnimation(target, view, anim, compositionAnchorX, compositionAnchorY, 0, 0) {
 		return nil, false
 	}
 	billboard := &spriteBillboard{
 		image:   target,
-		anchorX: anchorX,
-		anchorY: anchorY,
+		anchorX: compositionAnchorX,
+		anchorY: compositionAnchorY,
 	}
 	view.billboards[key] = billboard
 	return billboard, true
