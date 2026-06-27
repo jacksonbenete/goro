@@ -463,6 +463,21 @@ func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneP
 }
 
 func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
+	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+}
+
+func drawSpriteBillboardTintAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
+	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
+}
+
+func drawSpriteBillboardTintAlphaOverlay3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
+	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, &render.DrawTrianglesOptions{
+		Filter:  spriteDrawFilter(),
+		Address: render.AddressClampToZero,
+	})
+}
+
+func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
@@ -478,6 +493,10 @@ func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection
 	if shadow > 1 || math.IsInf(shadow, 0) {
 		shadow = 1
 	}
+	tintR := float64(tintColor.R) / 255 * shadow
+	tintG := float64(tintColor.G) / 255 * shadow
+	tintB := float64(tintColor.B) / 255 * shadow
+	tintA := float64(tintColor.A) / 255 * alpha
 	right, up, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
 	if !ok {
 		return
@@ -496,14 +515,14 @@ func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection
 		dy := (py - billboard.anchorY) * scale * unitsPerPixel
 		return add3(add3(center, mul3(right, dx)), mul3(modelPoint3{y: 1}, -dy))
 	}
-	tint := colorRGBAFromFloats(shadow, shadow, shadow, alpha)
+	tint := colorRGBAFromFloats(tintR, tintG, tintB, tintA)
 	vertices := []render.Vertex3D{
 		spriteBillboardVertex3D(corner(0, 0), depthCorner(0, 0), texturePoint{u: 0, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 		spriteBillboardVertex3D(corner(w, 0), depthCorner(w, 0), texturePoint{u: 1, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 		spriteBillboardVertex3D(corner(w, h), depthCorner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 		spriteBillboardVertex3D(corner(0, h), depthCorner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
 	}
-	screen.DrawTriangles3DOwned(vertices, quadIndices012023, billboard.image, spriteBillboardTriangleDrawOptions())
+	screen.DrawTriangles3DOwned(vertices, quadIndices012023, billboard.image, options)
 }
 
 func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {

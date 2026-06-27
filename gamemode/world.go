@@ -38,6 +38,11 @@ type WorldMode struct {
 	cursorFallback   *render.Image
 	cursorAction     int
 	cursorStarted    time.Time
+	damageNumberView *playerSpriteView
+	damageNumberMiss bool
+	damageNumbers    map[string]*spriteBillboard
+	damageMsgView    *playerSpriteView
+	damageMsgMiss    bool
 	itemMarker       *render.Image
 	itemViews        map[itemSpriteKey]*playerSpriteView
 	itemViewMiss     map[itemSpriteKey]struct{}
@@ -108,9 +113,21 @@ type damageFloater struct {
 	y       int
 	text    string
 	color   color.RGBA
+	kind    damageFloaterKind
 	starts  time.Time
 	expires time.Time
 }
+
+type damageFloaterKind int
+
+const (
+	damageFloaterNormal damageFloaterKind = iota
+	damageFloaterCritical
+	damageFloaterIncoming
+	damageFloaterRecoveryHP
+	damageFloaterRecoverySP
+	damageFloaterMiss
+)
 
 type scheduledSound struct {
 	at    time.Time
@@ -214,6 +231,11 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.cursorFallback = nil
 	m.cursorAction = cursorActionDefault
 	m.cursorStarted = now
+	m.damageNumberView = nil
+	m.damageNumberMiss = false
+	m.damageNumbers = make(map[string]*spriteBillboard)
+	m.damageMsgView = nil
+	m.damageMsgMiss = false
 	m.itemMarker = nil
 	m.itemViews = make(map[itemSpriteKey]*playerSpriteView)
 	m.itemViewMiss = make(map[itemSpriteKey]struct{})
@@ -1252,7 +1274,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 	} else if isLocalActor(ctx, action.TargetID) {
 		x, y = ctx.World.Player.X, ctx.World.Player.Y
 	}
-	text := actionDamageText(action)
+	text, kind, floaterColor := actionDamageFloater(action, targetLocal, sourceLocal)
 	if text == "" {
 		return
 	}
@@ -1261,8 +1283,10 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		x:       x,
 		y:       y,
 		text:    text,
+		color:   floaterColor,
+		kind:    kind,
 		starts:  hitAt,
-		expires: hitAt.Add(900 * time.Millisecond),
+		expires: hitAt.Add(damageFloaterDuration(kind)),
 	})
 }
 
@@ -1896,11 +1920,16 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 }
 
 var (
-	recoveryHPColor = color.RGBA{R: 96, G: 176, B: 255, A: 255}
-	recoverySPColor = color.RGBA{R: 120, G: 210, B: 255, A: 255}
+	recoveryHPColor = color.RGBA{R: 0, G: 255, B: 0, A: 255}
+	recoverySPColor = color.RGBA{R: 0, G: 0, B: 255, A: 255}
 )
 
-const recoverySFX = "effect\\priest_recovery.wav"
+const (
+	recoveryHPSFX = "_heal_effect.wav"
+	recoverySPSFX = "effect\\\xC8\xED\xB1\xE2.wav"
+)
+
+var recoverySFXFallbacks = []string{"effect\\priest_recovery.wav"}
 
 func (m *WorldMode) applyRecovery(ctx Context, recovery network.Recovery) {
 	if ctx.Session == nil || recovery.Amount <= 0 {
@@ -1919,7 +1948,7 @@ func (m *WorldMode) applyRecovery(ctx Context, recovery network.Recovery) {
 		}
 		ctx.Session.Vitals.HP = next
 		ctx.Session.Selected.HP = clampInt16(next)
-		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoveryHPColor)
+		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoveryHPColor, damageFloaterRecoveryHP)
 		m.clearLocalDeathStateIfAlive(ctx)
 		recovered = true
 	case network.StatusSP:
@@ -1933,18 +1962,29 @@ func (m *WorldMode) applyRecovery(ctx Context, recovery network.Recovery) {
 		}
 		ctx.Session.Vitals.SP = next
 		ctx.Session.Selected.SP = clampInt16(next)
-		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoverySPColor)
+		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoverySPColor, damageFloaterRecoverySP)
 		recovered = true
 	default:
 		return
 	}
 	if recovered {
-		m.scheduleSound(time.Now(), recoverySFX)
+		m.scheduleSound(time.Now(), recoverySFXCandidates(recovery.StatusID)...)
 	}
 	log.Printf("recovery status=%d amount=%d hp=%d/%d sp=%d/%d", recovery.StatusID, recovery.Amount, ctx.Session.Vitals.HP, ctx.Session.Vitals.MaxHP, ctx.Session.Vitals.SP, ctx.Session.Vitals.MaxSP)
 }
 
-func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColor color.RGBA) {
+func recoverySFXCandidates(statusID uint16) []string {
+	switch statusID {
+	case network.StatusHP:
+		return append([]string{recoveryHPSFX}, recoverySFXFallbacks...)
+	case network.StatusSP:
+		return append([]string{recoverySPSFX}, recoverySFXFallbacks...)
+	default:
+		return recoverySFXFallbacks
+	}
+}
+
+func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColor color.RGBA, kind damageFloaterKind) {
 	if ctx.World == nil || amount <= 0 {
 		return
 	}
@@ -1962,8 +2002,9 @@ func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColo
 		y:       ctx.World.Player.Y,
 		text:    fmt.Sprintf("%d", amount),
 		color:   floaterColor,
+		kind:    kind,
 		starts:  now,
-		expires: now.Add(900 * time.Millisecond),
+		expires: now.Add(damageFloaterDuration(kind)),
 	})
 }
 
@@ -1977,21 +2018,44 @@ func clampInt16(value int) int16 {
 	return int16(value)
 }
 
+var (
+	damageFloaterWhite  = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	damageFloaterYellow = color.RGBA{R: 230, G: 230, B: 38, A: 255}
+	damageFloaterRed    = color.RGBA{R: 255, G: 64, B: 64, A: 255}
+)
+
 func actionDamageText(action network.ActorActionNotify) string {
+	text, _, _ := actionDamageFloater(action, false, false)
+	return text
+}
+
+func actionDamageFloater(action network.ActorActionNotify, targetLocal, sourceLocal bool) (string, damageFloaterKind, color.RGBA) {
 	total := action.Damage + action.LeftDamage
 	if total > 0 {
-		return strconv.Itoa(int(total))
-	}
-	if action.Action == 10 {
-		return "crit"
+		if action.Action == 10 || action.Action == 13 {
+			return strconv.Itoa(int(total)), damageFloaterCritical, damageFloaterYellow
+		}
+		if targetLocal && !sourceLocal {
+			return strconv.Itoa(int(total)), damageFloaterIncoming, damageFloaterRed
+		}
+		return strconv.Itoa(int(total)), damageFloaterNormal, damageFloaterWhite
 	}
 	if action.Action == 11 {
-		return "miss"
+		return "miss", damageFloaterMiss, damageFloaterWhite
 	}
 	if action.Action == 0 || action.Action == 7 {
-		return "miss"
+		return "miss", damageFloaterMiss, damageFloaterWhite
 	}
-	return ""
+	return "", damageFloaterNormal, color.RGBA{}
+}
+
+func damageFloaterDuration(kind damageFloaterKind) time.Duration {
+	switch kind {
+	case damageFloaterMiss:
+		return 800 * time.Millisecond
+	default:
+		return 1500 * time.Millisecond
+	}
 }
 
 func attackTargetWithinRange(playerX, playerY, targetX, targetY int) bool {
@@ -2044,15 +2108,30 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projec
 		} else if isLocalActor(ctx, floater.actorID) {
 			x, y = ctx.World.Player.RenderPosition(now)
 		}
+		progress := damageFloaterProgress(floater, now)
+		dx, dy, zLift, scale, alpha := damageFloaterPlacement(floater.kind, progress)
+		floaterColor := damageFloaterColor(floater.kind, floater.color)
 		terrainZ := terrainHeightAt(ctx.World, x, y)
-		point := projection.Project(cellCenter(x), cellCenter(y), terrainZ)
-		remaining := floater.expires.Sub(now)
-		rise := float64(900*time.Millisecond-remaining) / float64(900*time.Millisecond) * 28
-		floaterColor := floater.color
-		if floaterColor.A == 0 {
-			floaterColor = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+		worldX := cellCenter(x) + dx
+		worldY := cellCenter(y) + dy
+		screenScale := actorBillboardScreenScale(projection, worldX, worldY, terrainZ)
+		if floater.kind == damageFloaterMiss {
+			if billboard, ok := m.damageMessageBillboard(ctx, 0, 0); ok {
+				drawSpriteBillboardTintAlphaOverlay3D(screen, projection, billboard, worldX, worldY, terrainZ+zLift, screenScale*scale, alpha, 1, floaterColor)
+				continue
+			}
 		}
-		debugTextColor(screen, floaterColor, int(point.x)-8, int(point.y)-90-int(rise), "%s", floater.text)
+		if floater.kind == damageFloaterCritical {
+			if billboard, ok := m.damageMessageBillboard(ctx, 2, 0); ok {
+				drawSpriteBillboardTintAlphaOverlay3D(screen, projection, billboard, worldX, worldY, terrainZ+zLift+0.05, screenScale*scale*0.6, alpha, 1, color.RGBA{R: 168, G: 168, B: 168, A: 255})
+			}
+		}
+		if billboard, ok := m.damageNumberBillboard(ctx, floater.text); ok {
+			drawSpriteBillboardTintAlphaOverlay3D(screen, projection, billboard, worldX, worldY, terrainZ+zLift, screenScale*scale, alpha, 1, floaterColor)
+			continue
+		}
+		point := projection.Project(worldX, worldY, terrainZ+zLift)
+		debugTextColor(screen, withAlpha(floaterColor, alpha), int(point.x)-8, int(point.y)-40, "%s", floater.text)
 	}
 	m.damageFloaters = active
 }
