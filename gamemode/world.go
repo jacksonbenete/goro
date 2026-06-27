@@ -622,6 +622,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.applySkillFailAck(ctx, fail)
 			continue
 		}
+		if effect, ok, err := network.ParseSpecialEffectNotify(pkt); err != nil {
+			log.Printf("parse special effect 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applySpecialEffectNotify(ctx, effect)
+			continue
+		}
 		if skill, ok, err := network.ParseSkillNoDamageNotify(pkt); err != nil {
 			log.Printf("parse skill nodamage 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -654,6 +660,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			m.clearActorDeath(entry.ID)
 			upsertNetworkActor(ctx, entry)
+			m.applyWarpPortalEntry(ctx, entry)
 		}
 	}
 	for _, err := range ctx.Network.DrainErrors() {
@@ -2150,6 +2157,8 @@ func (m *WorldMode) applyParameterChange(ctx Context, change network.ParameterCh
 	}
 	previousHP := ctx.Session.Vitals.HP
 	previousSP := ctx.Session.Vitals.SP
+	previousBaseLevel := ctx.Session.Progress.BaseLevel
+	previousJobLevel := ctx.Session.Progress.JobLevel
 	applyParameterChange(ctx, change)
 	if change.Value <= 0 {
 		return
@@ -2166,6 +2175,14 @@ func (m *WorldMode) applyParameterChange(ctx Context, change network.ParameterCh
 		if delta > 0 {
 			m.addLocalRecoveryFloater(ctx, delta, recoverySPColor, damageFloaterRecoverySP)
 			m.scheduleSound(time.Now(), recoverySFXCandidates(network.StatusSP)...)
+		}
+	case network.StatusBaseLevel:
+		if ctx.Session.Progress.BaseLevel > previousBaseLevel {
+			m.addWorldEffectIfMissing(ctx, effectBaseLevelUp, localSkillTarget(ctx))
+		}
+	case network.StatusJobLevel:
+		if ctx.Session.Progress.JobLevel > previousJobLevel {
+			m.addWorldEffectIfMissing(ctx, effectJobLevelUp, localSkillTarget(ctx))
 		}
 	}
 }
@@ -2785,6 +2802,17 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 		HasObjectType: entry.HasObjectType,
 		Speed:         entry.Speed,
 	})
+}
+
+func (m *WorldMode) applyWarpPortalEntry(ctx Context, entry network.ActorEntry) {
+	if !isWarpPortalJob(entry.Job) {
+		return
+	}
+	m.addWorldEffectIfMissing(ctx, effectPortal, entry.ID)
+}
+
+func isWarpPortalJob(job int16) bool {
+	return job == 128 || job == 129
 }
 
 func (m *WorldMode) applyActorVanish(ctx Context, vanish network.ActorVanish) {

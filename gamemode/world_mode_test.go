@@ -620,6 +620,18 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 	}
 }
 
+func TestWarpEffectMappings(t *testing.T) {
+	if got := skillBeginEffectID(26); got != effectTeleportation {
+		t.Fatalf("AL_TELEPORT begin effect = %d, want %d", got, effectTeleportation)
+	}
+	if got := itemUseEffectID(602); got != effectTeleportation {
+		t.Fatalf("Butterfly Wing item effect = %d, want %d", got, effectTeleportation)
+	}
+	if got := itemUseEffectID(601); got != 0 {
+		t.Fatalf("Fly Wing item effect = %d, want 0 because server triggers AL_TELEPORT", got)
+	}
+}
+
 func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectMagnumBreak)
 	if !ok {
@@ -676,6 +688,142 @@ func TestEndureEffectSpecUsesBillboardTexture(t *testing.T) {
 	}
 	if !component.fadeIn || !component.fadeOut || !component.sizeSmooth {
 		t.Fatalf("component fade/size flags = %+v", component)
+	}
+}
+
+func TestTeleportationEffectSpecUsesRobrowserCylinderStack(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectTeleportation)
+	if !ok {
+		t.Fatal("teleportation effect spec missing")
+	}
+	if spec.duration != 1500*time.Millisecond {
+		t.Fatalf("duration = %s, want 1500ms", spec.duration)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_teleportation.wav" {
+		t.Fatalf("sfx = %#v", spec.sfx)
+	}
+	if len(spec.components) != 4 {
+		t.Fatalf("components = %d, want 4", len(spec.components))
+	}
+	expected := []struct {
+		bottom float64
+		top    float64
+		height float64
+	}{
+		{0.3, 0.3, 35},
+		{0.6, 0.8, 25},
+		{0.8, 1.0, 13},
+		{1.0, 1.3, 5},
+	}
+	for i, want := range expected {
+		component := spec.components[i]
+		if component.kind != effectPrimitiveCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond {
+			t.Fatalf("component %d = %+v", i, component)
+		}
+		if component.bottomSize != want.bottom || component.topSize != want.top || component.height != want.height {
+			t.Fatalf("component %d size = %.1f %.1f %.1f, want %.1f %.1f %.1f", i, component.bottomSize, component.topSize, component.height, want.bottom, want.top, want.height)
+		}
+		if component.fixedPerspective {
+			t.Fatalf("component %d uses fixed perspective, want world-space cylinder", i)
+		}
+	}
+}
+
+func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectPortal)
+	if !ok {
+		t.Fatal("portal effect spec missing")
+	}
+	if len(spec.components) != 4 {
+		t.Fatalf("components = %d, want 4", len(spec.components))
+	}
+	first := spec.components[0]
+	if first.kind != effectPrimitiveCylinder || first.textureName != "ring_blue" || first.duration != 500*time.Millisecond || first.animation != 4 {
+		t.Fatalf("first portal component = %+v", first)
+	}
+	if spec.components[3].textureName != "alpha1" || spec.components[3].posZ != 2 || spec.components[3].height != 1 {
+		t.Fatalf("portal cap component = %+v", spec.components[3])
+	}
+}
+
+func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
+	base, ok := worldEffectSpecForID(effectBaseLevelUp)
+	if !ok {
+		t.Fatal("base level-up effect spec missing")
+	}
+	if len(base.components) != 1 || base.components[0].kind != effectPrimitiveSTR || base.components[0].strFile != "angel" {
+		t.Fatalf("base level-up spec = %+v", base)
+	}
+	if len(base.sfx) != 1 || base.sfx[0] != "levelup.wav" {
+		t.Fatalf("base level-up sfx = %#v", base.sfx)
+	}
+	job, ok := worldEffectSpecForID(effectJobLevelUp)
+	if !ok {
+		t.Fatal("job level-up effect spec missing")
+	}
+	if len(job.components) != 1 || job.components[0].kind != effectPrimitiveSTR || job.components[0].strFile != "joblvup" {
+		t.Fatalf("job level-up spec = %+v", job)
+	}
+}
+
+func TestSpecialEffectNotifyAddsLevelUpEffects(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: network.SpecialEffectBaseLevelUp})
+	mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: network.SpecialEffectJobLevelUp})
+
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
+	}
+	if mode.worldEffects[0].effectID != effectBaseLevelUp || mode.worldEffects[1].effectID != effectJobLevelUp {
+		t.Fatalf("world effects = %+v", mode.worldEffects)
+	}
+	if len(mode.scheduledSounds) != 1 || mode.scheduledSounds[0].paths[0] != "levelup.wav" {
+		t.Fatalf("scheduled sounds = %+v", mode.scheduledSounds)
+	}
+}
+
+func TestParameterChangeLevelUpFallbackIsDeduped(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		Progress:  session.Progress{BaseLevel: 10, JobLevel: 4},
+	}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusBaseLevel, Value: 11})
+	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusBaseLevel, Value: 11})
+	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusJobLevel, Value: 5})
+
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
+	}
+	if mode.worldEffects[0].effectID != effectBaseLevelUp || mode.worldEffects[1].effectID != effectJobLevelUp {
+		t.Fatalf("world effects = %+v", mode.worldEffects)
+	}
+}
+
+func TestWarpPortalActorEntryAddsPortalEffect(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+	entry := network.ActorEntry{ID: 900, Job: 128, X: 30, Y: 40}
+
+	upsertNetworkActor(ctx, entry)
+	mode.applyWarpPortalEntry(ctx, entry)
+	mode.applyWarpPortalEntry(ctx, entry)
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 900 || effect.effectID != effectPortal || effect.x != 30 || effect.y != 40 {
+		t.Fatalf("effect = %+v", effect)
 	}
 }
 
@@ -2308,6 +2456,25 @@ func TestUseItemAckAddsItemUseEffect(t *testing.T) {
 		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectPotionRed || effect.x != 10 || effect.y != 20 {
+		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestButterflyWingEffectIsPinnedAtUsePosition(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: 602, AID: 2000000, Amount: 1, Result: 1})
+	world.Player.X = 30
+	world.Player.Y = 40
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 0 || effect.effectID != effectTeleportation || effect.x != 10 || effect.y != 20 {
 		t.Fatalf("effect = %+v", effect)
 	}
 }

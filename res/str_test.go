@@ -65,6 +65,8 @@ func TestRealPotionAndProvokeSTRExactResources(t *testing.T) {
 	manager := realDataManager(t)
 	for _, path := range []string{
 		`data\texture\effect\provoke.str`,
+		`data\texture\effect\angel.str`,
+		`data\texture\effect\joblvup.str`,
 		"data\\texture\\effect\\\xbb\xa1\xb0\xa3\xc6\xf7\xbc\xc7.str",
 	} {
 		data, err := manager.ReadFileExact(path)
@@ -97,9 +99,9 @@ func TestRealPotionAndProvokeSTRExactResources(t *testing.T) {
 	}
 }
 
-func TestRealBashEffectTextures(t *testing.T) {
+func TestRealCylinderEffectTextures(t *testing.T) {
 	manager := realDataManager(t)
-	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "\xb4\xeb\xc6\xf8\xb9\xdf"} {
+	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "ring_blue", "alpha1", "\xb4\xeb\xc6\xf8\xb9\xdf"} {
 		if _, source, err := LoadImageExact(manager, EffectTextureCandidates(name)); err != nil {
 			t.Fatalf("load exact effect texture %s: %v", name, err)
 		} else if source == "" {

@@ -514,7 +514,11 @@ func (m *WorldMode) sendShortcutSkillToID(ctx Context, skill session.Skill, targ
 		return err
 	}
 	if effectID := skillBeginEffectID(skill.ID); effectID > 0 {
-		m.addWorldEffect(ctx, effectID, localSkillTarget(ctx))
+		actorID := localSkillTarget(ctx)
+		if effectID == effectTeleportation && isLocalActor(ctx, actorID) {
+			actorID = 0
+		}
+		m.addWorldEffect(ctx, effectID, actorID)
 	}
 	return nil
 }

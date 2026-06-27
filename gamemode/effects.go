@@ -13,19 +13,23 @@ import (
 )
 
 const (
-	effectProvoke      = 67
-	effectEndure       = 11
-	effectBashBegin    = 16
-	effectBashHit      = 1
-	effectMagnumBreak  = 17
-	effectPotionRed    = 204
-	effectPotionOrange = 205
-	effectPotionYellow = 206
-	effectPotionWhite  = 207
-	effectPotionBlue   = 208
-	effectPotionGreen  = 209
-	effectFood         = 210
-	effectFoodBlue     = 211
+	effectProvoke       = 67
+	effectEndure        = 11
+	effectBashBegin     = 16
+	effectBashHit       = 1
+	effectMagnumBreak   = 17
+	effectTeleportation = 304
+	effectPortal        = 317
+	effectBaseLevelUp   = 371
+	effectJobLevelUp    = 158
+	effectPotionRed     = 204
+	effectPotionOrange  = 205
+	effectPotionYellow  = 206
+	effectPotionWhite   = 207
+	effectPotionBlue    = 208
+	effectPotionGreen   = 209
+	effectFood          = 210
+	effectFoodBlue      = 211
 )
 
 type effectPrimitiveKind int
@@ -95,6 +99,9 @@ func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
 			actorID = ctx.Session.CharID
 		}
 	}
+	if effectID == effectTeleportation && isLocalActor(ctx, actorID) {
+		actorID = 0
+	}
 	if m.addWorldEffect(ctx, effectID, actorID) {
 		log.Printf("item effect item=%d actor=%d effect=%d", ack.ItemID, actorID, effectID)
 	}
@@ -113,6 +120,16 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	}
 }
 
+func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.SpecialEffectNotify) {
+	effectID := specialEffectID(notify.EffectID)
+	if effectID <= 0 {
+		return
+	}
+	if m.addWorldEffect(ctx, effectID, notify.AID) {
+		log.Printf("special effect actor=%d special=%d effect=%d", notify.AID, notify.EffectID, effectID)
+	}
+}
+
 func (m *WorldMode) applySkillFailAck(ctx Context, ack network.SkillFailAck) {
 	if ack.Result != 0 {
 		return
@@ -120,6 +137,17 @@ func (m *WorldMode) applySkillFailAck(ctx Context, ack network.SkillFailAck) {
 	message := skillFailMessage(ack)
 	log.Printf("skill fail ack skill=%d num=%d item=%d result=%d cause=%d msg=%q", ack.SkillID, ack.Number, ack.ItemID, ack.Result, ack.Cause, message)
 	m.console.addErrorMessage("%s", message)
+}
+
+func specialEffectID(effectID uint32) int {
+	switch effectID {
+	case network.SpecialEffectBaseLevelUp:
+		return effectBaseLevelUp
+	case network.SpecialEffectJobLevelUp:
+		return effectJobLevelUp
+	default:
+		return 0
+	}
 }
 
 func skillFailMessage(ack network.SkillFailAck) string {
@@ -163,6 +191,22 @@ func skillFailMessage(ack network.SkillFailAck) string {
 
 func (m *WorldMode) addWorldEffect(ctx Context, effectID int, actorID uint32) bool {
 	return m.addWorldEffectAt(ctx, effectID, actorID, time.Now())
+}
+
+func (m *WorldMode) addWorldEffectIfMissing(ctx Context, effectID int, actorID uint32) bool {
+	if m.hasActiveWorldEffect(effectID, actorID, time.Now()) {
+		return false
+	}
+	return m.addWorldEffect(ctx, effectID, actorID)
+}
+
+func (m *WorldMode) hasActiveWorldEffect(effectID int, actorID uint32, now time.Time) bool {
+	for _, effect := range m.worldEffects {
+		if effect.effectID == effectID && effect.actorID == actorID && now.Before(effect.expires) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *WorldMode) addWorldEffectAt(ctx Context, effectID int, actorID uint32, starts time.Time) bool {
@@ -235,6 +279,8 @@ func itemUseEffectID(itemID uint16) int {
 		return effectFood
 	case 533:
 		return effectFoodBlue
+	case 602:
+		return effectTeleportation
 	default:
 		return 0
 	}
@@ -257,6 +303,8 @@ func skillBeginEffectID(skillID uint16) int {
 		return effectBashBegin
 	case 7:
 		return effectMagnumBreak
+	case 26:
+		return effectTeleportation
 	default:
 		return 0
 	}
@@ -400,6 +448,59 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 				},
 			},
 		}, true
+	case effectTeleportation:
+		return worldEffectSpec{
+			duration: 1500 * time.Millisecond,
+			sfx:      []string{"effect\\ef_teleportation.wav"},
+			components: []worldEffectComponent{
+				teleportCylinderComponent(0.3, 0.3, 35),
+				teleportCylinderComponent(0.6, 0.8, 25),
+				teleportCylinderComponent(0.8, 1.0, 13),
+				teleportCylinderComponent(1.0, 1.3, 5),
+			},
+		}, true
+	case effectPortal:
+		return worldEffectSpec{
+			duration: 25000 * time.Millisecond,
+			sfx:      []string{"effect\\ef_readyportal.wav"},
+			components: []worldEffectComponent{
+				{
+					kind:             effectPrimitiveCylinder,
+					textureName:      "ring_blue",
+					duration:         500 * time.Millisecond,
+					alphaMax:         0.4,
+					fadeOut:          true,
+					rotate:           true,
+					animation:        4,
+					bottomSize:       2.4,
+					topSize:          3.9,
+					height:           0.1,
+					posZ:             0.1,
+					totalCircleSides: 32,
+					circleSides:      32,
+				},
+				portalCylinderComponent(0.6, 0.6, 15, 0, "ring_blue", 0.3),
+				portalCylinderComponent(0.8, 0.8, 13, 0, "ring_blue", 0.3),
+				portalCylinderComponent(1.0, 1.0, 1, 2, "alpha1", 0.5),
+			},
+		}, true
+	case effectBaseLevelUp:
+		return worldEffectSpec{
+			duration: 1300 * time.Millisecond,
+			sfx:      []string{"levelup.wav"},
+			components: []worldEffectComponent{{
+				kind:    effectPrimitiveSTR,
+				strFile: "angel",
+			}},
+		}, true
+	case effectJobLevelUp:
+		return worldEffectSpec{
+			duration: 1300 * time.Millisecond,
+			components: []worldEffectComponent{{
+				kind:    effectPrimitiveSTR,
+				strFile: "joblvup",
+			}},
+		}, true
 	case effectPotionRed:
 		return potionEffectSpec("\xbb\xa1\xb0\xa3\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 82, B: 70, A: 255}), true
 	case effectPotionOrange:
@@ -434,6 +535,41 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 		}, true
 	default:
 		return worldEffectSpec{}, false
+	}
+}
+
+func teleportCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {
+	return worldEffectComponent{
+		kind:             effectPrimitiveCylinder,
+		textureName:      "ring_blue",
+		duration:         1500 * time.Millisecond,
+		alphaMax:         0.5,
+		fade:             true,
+		rotate:           true,
+		animation:        5,
+		bottomSize:       bottomSize,
+		topSize:          topSize,
+		height:           height,
+		totalCircleSides: 32,
+		circleSides:      32,
+	}
+}
+
+func portalCylinderComponent(bottomSize, topSize, height, posZ float64, textureName string, alphaMax float64) worldEffectComponent {
+	return worldEffectComponent{
+		kind:             effectPrimitiveCylinder,
+		textureName:      textureName,
+		duration:         25000 * time.Millisecond,
+		alphaMax:         alphaMax,
+		fade:             true,
+		rotate:           true,
+		animation:        0,
+		bottomSize:       bottomSize,
+		topSize:          topSize,
+		height:           height,
+		posZ:             posZ,
+		totalCircleSides: 32,
+		circleSides:      32,
 	}
 }
 
@@ -541,7 +677,7 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projec
 	if texture == nil {
 		return
 	}
-	alpha := effectComponentAlpha(progress, component.alphaMax, component.fade)
+	alpha := effectComponentAlpha(progress, component)
 	if alpha <= 0 {
 		return
 	}
@@ -657,17 +793,25 @@ func drawTexturedEffectCylinder(screen *render.Image, projection sceneProjection
 	screen.DrawTriangles3DOwned(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func effectComponentAlpha(progress, alphaMax float64, fade bool) float64 {
+func effectComponentAlpha(progress float64, component worldEffectComponent) float64 {
+	alphaMax := component.alphaMax
 	if alphaMax <= 0 {
 		alphaMax = 1
 	}
-	if !fade {
-		return alphaMax
+	if component.fade {
+		switch {
+		case progress < 0.25:
+			return progress / 0.25 * alphaMax
+		case progress > 0.75:
+			return (1 - progress) / 0.25 * alphaMax
+		default:
+			return alphaMax
+		}
 	}
 	switch {
-	case progress < 0.25:
+	case component.fadeIn && progress < 0.25:
 		return progress / 0.25 * alphaMax
-	case progress > 0.75:
+	case component.fadeOut && progress > 0.75:
 		return (1 - progress) / 0.25 * alphaMax
 	default:
 		return alphaMax
