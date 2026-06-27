@@ -85,6 +85,11 @@ type StatusChangeAck struct {
 	Value    int
 }
 
+type Recovery struct {
+	StatusID uint16
+	Amount   int
+}
+
 func ParseParameterChange(packet Packet) (ParameterChange, bool, error) {
 	if packet.ID == 0x00BE {
 		if len(packet.Data) < 5 {
@@ -157,6 +162,29 @@ func ParseStatusChangeAck(packet Packet) (StatusChangeAck, bool, error) {
 		Success:  packet.Data[4] != 0,
 		Value:    int(packet.Data[5]),
 	}, true, nil
+}
+
+func ParseRecovery(packet Packet) (Recovery, bool, error) {
+	switch packet.ID {
+	case 0x013D:
+		if len(packet.Data) < 6 {
+			return Recovery{}, false, fmt.Errorf("ZC_RECOVERY too short: %d", len(packet.Data))
+		}
+		return Recovery{
+			StatusID: binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:   int(binary.LittleEndian.Uint16(packet.Data[4:6])),
+		}, true, nil
+	case 0x0A27:
+		if len(packet.Data) < 8 {
+			return Recovery{}, false, fmt.Errorf("ZC_RECOVERY2 too short: %d", len(packet.Data))
+		}
+		return Recovery{
+			StatusID: binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:   int(binary.LittleEndian.Uint32(packet.Data[4:8])),
+		}, true, nil
+	default:
+		return Recovery{}, false, nil
+	}
 }
 
 func BuildStatusIncreasePacket(statusID uint16) []byte {

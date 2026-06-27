@@ -107,6 +107,7 @@ type damageFloater struct {
 	x       int
 	y       int
 	text    string
+	color   color.RGBA
 	starts  time.Time
 	expires time.Time
 }
@@ -563,6 +564,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse attack distance failure 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.applyAttackFailureForDistance(ctx, failure)
+			continue
+		}
+		if recovery, ok, err := network.ParseRecovery(pkt); err != nil {
+			log.Printf("parse recovery 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyRecovery(ctx, recovery)
 			continue
 		}
 		if change, ok, err := network.ParseParameterChange(pkt); err != nil {
@@ -1888,6 +1895,78 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 		ctx.Session.Inventory.MaxWeight)
 }
 
+var (
+	recoveryHPColor = color.RGBA{R: 96, G: 176, B: 255, A: 255}
+	recoverySPColor = color.RGBA{R: 120, G: 210, B: 255, A: 255}
+)
+
+const recoverySFX = "effect\\priest_recovery.wav"
+
+func (m *WorldMode) applyRecovery(ctx Context, recovery network.Recovery) {
+	if ctx.Session == nil || recovery.Amount <= 0 {
+		return
+	}
+	recovered := false
+	switch recovery.StatusID {
+	case network.StatusHP:
+		maxHP := ctx.Session.Vitals.MaxHP
+		if maxHP <= 0 {
+			maxHP = int(ctx.Session.Selected.MaxHP)
+		}
+		next := ctx.Session.Vitals.HP + recovery.Amount
+		if maxHP > 0 && next > maxHP {
+			next = maxHP
+		}
+		ctx.Session.Vitals.HP = next
+		ctx.Session.Selected.HP = clampInt16(next)
+		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoveryHPColor)
+		m.clearLocalDeathStateIfAlive(ctx)
+		recovered = true
+	case network.StatusSP:
+		maxSP := ctx.Session.Vitals.MaxSP
+		if maxSP <= 0 {
+			maxSP = int(ctx.Session.Selected.MaxSP)
+		}
+		next := ctx.Session.Vitals.SP + recovery.Amount
+		if maxSP > 0 && next > maxSP {
+			next = maxSP
+		}
+		ctx.Session.Vitals.SP = next
+		ctx.Session.Selected.SP = clampInt16(next)
+		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoverySPColor)
+		recovered = true
+	default:
+		return
+	}
+	if recovered {
+		m.scheduleSound(time.Now(), recoverySFX)
+	}
+	log.Printf("recovery status=%d amount=%d hp=%d/%d sp=%d/%d", recovery.StatusID, recovery.Amount, ctx.Session.Vitals.HP, ctx.Session.Vitals.MaxHP, ctx.Session.Vitals.SP, ctx.Session.Vitals.MaxSP)
+}
+
+func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColor color.RGBA) {
+	if ctx.World == nil || amount <= 0 {
+		return
+	}
+	now := time.Now()
+	actorID := uint32(0)
+	if ctx.Session != nil {
+		actorID = ctx.Session.AccountID
+		if actorID == 0 {
+			actorID = ctx.Session.CharID
+		}
+	}
+	m.damageFloaters = append(m.damageFloaters, damageFloater{
+		actorID: actorID,
+		x:       ctx.World.Player.X,
+		y:       ctx.World.Player.Y,
+		text:    fmt.Sprintf("%d", amount),
+		color:   floaterColor,
+		starts:  now,
+		expires: now.Add(900 * time.Millisecond),
+	})
+}
+
 func clampInt16(value int) int16 {
 	if value < -32768 {
 		return -32768
@@ -1969,7 +2048,11 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projec
 		point := projection.Project(cellCenter(x), cellCenter(y), terrainZ)
 		remaining := floater.expires.Sub(now)
 		rise := float64(900*time.Millisecond-remaining) / float64(900*time.Millisecond) * 28
-		debugText(screen, int(point.x)-8, int(point.y)-90-int(rise), "%s", floater.text)
+		floaterColor := floater.color
+		if floaterColor.A == 0 {
+			floaterColor = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+		}
+		debugTextColor(screen, floaterColor, int(point.x)-8, int(point.y)-90-int(rise), "%s", floater.text)
 	}
 	m.damageFloaters = active
 }

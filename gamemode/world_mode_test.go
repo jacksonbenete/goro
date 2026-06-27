@@ -331,6 +331,37 @@ func TestApplyParameterChangeUpdatesVitals(t *testing.T) {
 	}
 }
 
+func TestApplyRecoveryUpdatesHPAndAddsBlueFloater(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		Selected:  session.Character{HP: 70, MaxHP: 100},
+		Vitals:    session.Vitals{HP: 70, MaxHP: 100},
+	}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applyRecovery(ctx, network.Recovery{StatusID: network.StatusHP, Amount: 12})
+
+	if sessionState.Vitals.HP != 82 || sessionState.Selected.HP != 82 {
+		t.Fatalf("hp = vitals %d selected %d, want 82", sessionState.Vitals.HP, sessionState.Selected.HP)
+	}
+	if len(mode.damageFloaters) != 1 {
+		t.Fatalf("floaters = %d, want 1", len(mode.damageFloaters))
+	}
+	floater := mode.damageFloaters[0]
+	if floater.actorID != 2000000 || floater.text != "12" || floater.color != recoveryHPColor {
+		t.Fatalf("floater = %+v", floater)
+	}
+	if len(mode.scheduledSounds) != 1 {
+		t.Fatalf("scheduled sounds = %d, want 1", len(mode.scheduledSounds))
+	}
+	if got := mode.scheduledSounds[0].paths; len(got) != 1 || got[0] != recoverySFX {
+		t.Fatalf("scheduled sound paths = %v, want %q", got, recoverySFX)
+	}
+}
+
 func TestApplyParameterChangeUpdatesProgress(t *testing.T) {
 	sessionState := &session.Session{
 		Selected: session.Character{Level: 4},

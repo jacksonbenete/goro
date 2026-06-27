@@ -77,6 +77,24 @@ func TestParseCompactStatusChange(t *testing.T) {
 	}
 }
 
+func TestParseRecovery(t *testing.T) {
+	data := make([]byte, 6)
+	binary.LittleEndian.PutUint16(data[0:2], 0x013D)
+	binary.LittleEndian.PutUint16(data[2:4], StatusHP)
+	binary.LittleEndian.PutUint16(data[4:6], 42)
+
+	recovery, ok, err := ParseRecovery(Packet{ID: 0x013D, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("recovery not parsed")
+	}
+	if recovery.StatusID != StatusHP || recovery.Amount != 42 {
+		t.Fatalf("recovery = %+v", recovery)
+	}
+}
+
 func TestParseStatusSnapshot(t *testing.T) {
 	data := make([]byte, 44)
 	binary.LittleEndian.PutUint16(data[0:2], 0x00BD)
