@@ -4633,7 +4633,7 @@ func (m *WorldMode) drawGNDSurface(screen *render.Image, manager *res.Manager, g
 	textureName := gndTextureName(gnd, draw.surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
 		if lightmap, ok := gnd.Lightmap(draw.surface.LightmapID); ok {
-			drawTexturedLightmappedSurface3D(screen, texture, draw.verts, draw.uvs, draw.baseTints, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
+			drawTexturedLightmappedSurface3D(screen, texture, m.whitePixel, draw.verts, draw.uvs, draw.baseTints, lightmap, vertexLightScales(draw.lighting, draw.vertexNorms), projection, fog)
 			return
 		}
 		tints := surfaceVertexTints(gnd, draw.surface, draw.baseTints, draw.vertexOrder, draw.heights, draw.vertexNorms, draw.lighting)
@@ -4970,13 +4970,13 @@ func lightmapSurfaceVertexTints(baseTints [4]color.RGBA, lightmap res.GNDLightma
 	for i, sourceVertex := range vertexOrder {
 		sample := gndLightmapRenderSample(sourceVertex)
 		alpha := float64(lightmap.Alpha[sample.y][sample.x]) / 255
-		lm := lightmap.Color[sample.y][sample.x]
+		lm := posterizeGNDLightmapColor(lightmap.Color[sample.y][sample.x])
 		lightScale := lightScales[i]
 		base := baseTints[i]
 		tints[i] = color.RGBA{
-			R: clampColor(float64(base.R) * (lightScale.x*alpha + float64(lm.R)/255)),
-			G: clampColor(float64(base.G) * (lightScale.y*alpha + float64(lm.G)/255)),
-			B: clampColor(float64(base.B) * (lightScale.z*alpha + float64(lm.B)/255)),
+			R: clampColor(float64(base.R)*lightScale.x*alpha + float64(lm.R)),
+			G: clampColor(float64(base.G)*lightScale.y*alpha + float64(lm.G)),
+			B: clampColor(float64(base.B)*lightScale.z*alpha + float64(lm.B)),
 			A: 255,
 		}
 	}
@@ -5097,25 +5097,26 @@ func drawTexturedSurface3DWithOptions(screen, texture *render.Image, verts [4]mo
 	screen.DrawTriangles3DOwned(vertices, indices, texture, options)
 }
 
-func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, baseTints [4]color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
+func drawTexturedLightmappedSurface3D(screen, texture, white *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, baseTints [4]color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3, projection sceneProjection, fog sceneFog) {
 	const steps = 6
 	bounds := texture.Bounds()
 	textureWidth := float32(bounds.Dx())
 	textureHeight := float32(bounds.Dy())
 
 	vertices := make([]render.Vertex3D, 0, (steps+1)*(steps+1))
+	lightVertices := make([]render.Vertex3D, 0, (steps+1)*(steps+1))
 	for y := 0; y <= steps; y++ {
 		t := float64(y) / steps
 		for x := 0; x <= steps; x++ {
 			s := float64(x) / steps
 			alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255
-			lm := res.GNDLightmapSampleColor(lightmap, s, t)
+			lm := posterizeGNDLightmapColor(res.GNDLightmapSampleColor(lightmap, s, t))
 			lightScale := bilerpModelPoint(lightScales, s, t)
 			base := bilerpColor(baseTints, s, t)
 			tint := color.RGBA{
-				R: clampColor(float64(base.R) * (lightScale.x*alpha + float64(lm.R)/255)),
-				G: clampColor(float64(base.G) * (lightScale.y*alpha + float64(lm.G)/255)),
-				B: clampColor(float64(base.B) * (lightScale.z*alpha + float64(lm.B)/255)),
+				R: clampColor(float64(base.R) * lightScale.x * alpha),
+				G: clampColor(float64(base.G) * lightScale.y * alpha),
+				B: clampColor(float64(base.B) * lightScale.z * alpha),
 				A: 255,
 			}
 			world := bilerpModelPoint(verts, s, t)
@@ -5127,6 +5128,8 @@ func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]mo
 				textureWidth,
 				textureHeight,
 			))
+			lm = fog.attenuateColor(lm, projection.FogDepth(world.x, world.z, world.y))
+			lightVertices = append(lightVertices, coloredSurfaceVertex3D(world, 0, 0, lm))
 		}
 	}
 
@@ -5143,6 +5146,24 @@ func drawTexturedLightmappedSurface3D(screen, texture *render.Image, verts [4]mo
 	}
 
 	screen.DrawTriangles3DOwned(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+	if white != nil {
+		options := triangleDrawOptions(render.FilterNearest, render.AddressUnsafe)
+		options.Blend = render.BlendLighter
+		screen.DrawTriangles3DOwned(lightVertices, indices, white, options)
+	}
+}
+
+func posterizeGNDLightmapColor(c color.RGBA) color.RGBA {
+	return color.RGBA{
+		R: posterizeGNDLightmapChannel(c.R),
+		G: posterizeGNDLightmapChannel(c.G),
+		B: posterizeGNDLightmapChannel(c.B),
+		A: c.A,
+	}
+}
+
+func posterizeGNDLightmapChannel(v uint8) uint8 {
+	return (v / 16) * 16
 }
 
 func bilerpTexturePoint(points [4]texturePoint, s, t float64) texturePoint {

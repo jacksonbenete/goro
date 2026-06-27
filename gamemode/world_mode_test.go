@@ -1428,6 +1428,34 @@ func TestSurfaceVertexTintsUsePerVertexNormals(t *testing.T) {
 	}
 }
 
+func TestLightmapSurfaceVertexTintsPosterizeAndAddLightmapRGBAfterBaseLight(t *testing.T) {
+	var lightmap res.GNDLightmap
+	for y := range lightmap.Alpha {
+		for x := range lightmap.Alpha[y] {
+			lightmap.Alpha[y][x] = 128
+			lightmap.Color[y][x] = color.RGBA{R: 20, G: 40, B: 80, A: 255}
+		}
+	}
+	tints := lightmapSurfaceVertexTints(
+		[4]color.RGBA{{R: 100, G: 100, B: 100, A: 255}, {R: 100, G: 100, B: 100, A: 255}, {R: 100, G: 100, B: 100, A: 255}, {R: 100, G: 100, B: 100, A: 255}},
+		lightmap,
+		[4]int{0, 1, 2, 3},
+		[4]modelPoint3{{x: 0.5, y: 0.5, z: 0.5}, {x: 0.5, y: 0.5, z: 0.5}, {x: 0.5, y: 0.5, z: 0.5}, {x: 0.5, y: 0.5, z: 0.5}},
+	)
+	want := color.RGBA{R: 41, G: 57, B: 105, A: 255}
+	if tints[0] != want {
+		t.Fatalf("lightmap tint = %+v, want %+v", tints[0], want)
+	}
+}
+
+func TestPosterizeGNDLightmapColorUsesRObrowserBuckets(t *testing.T) {
+	got := posterizeGNDLightmapColor(color.RGBA{R: 15, G: 31, B: 255, A: 77})
+	want := color.RGBA{R: 0, G: 16, B: 240, A: 77}
+	if got != want {
+		t.Fatalf("posterized lightmap color = %+v, want %+v", got, want)
+	}
+}
+
 func TestTopGNDSurfaceBaseTintsUseNeighborTileColors(t *testing.T) {
 	gnd := &res.GND{
 		Width:  2,

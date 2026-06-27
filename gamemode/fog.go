@@ -53,6 +53,26 @@ func (f sceneFog) mixColor(c color.RGBA, depth float64) color.RGBA {
 	}
 }
 
+func (f sceneFog) attenuateColor(c color.RGBA, depth float64) color.RGBA {
+	if !f.enabled || !isFinite(depth) {
+		return c
+	}
+	amount := smoothstep(f.near, f.far, depth)
+	if amount <= 0 {
+		return c
+	}
+	if amount >= 1 {
+		return color.RGBA{A: c.A}
+	}
+	inverse := 1 - amount
+	return color.RGBA{
+		R: clampColor(float64(c.R) * inverse),
+		G: clampColor(float64(c.G) * inverse),
+		B: clampColor(float64(c.B) * inverse),
+		A: c.A,
+	}
+}
+
 func (f sceneFog) mixVertexTints(projection sceneProjection, verts [4]modelPoint3, tints [4]color.RGBA) [4]color.RGBA {
 	if !f.enabled {
 		return tints
@@ -73,9 +93,6 @@ func sceneFogVeilAlpha(f sceneFog, projection sceneProjection, cfg core.FogConfi
 		return 0
 	}
 	strength := math.Max(0, math.Min(1, cfg.VeilStrength))
-	if f.factor > strength {
-		strength = math.Max(0, math.Min(1, f.factor))
-	}
 	return clampColor(255 * amount * strength)
 }
 

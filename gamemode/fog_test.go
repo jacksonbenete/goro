@@ -53,6 +53,25 @@ func TestSceneFogMixColorSmoothstepsToFogColor(t *testing.T) {
 	}
 }
 
+func TestSceneFogAttenuateColorSmoothstepsToBlack(t *testing.T) {
+	fog := sceneFog{
+		enabled: true,
+		near:    10,
+		far:     20,
+		color:   color.RGBA{R: 200, G: 100, B: 50, A: 255},
+	}
+	base := color.RGBA{R: 100, G: 80, B: 60, A: 180}
+	if got := fog.attenuateColor(base, 5); got != base {
+		t.Fatalf("near color changed: %#v", got)
+	}
+	if got := fog.attenuateColor(base, 20); got != (color.RGBA{A: 180}) {
+		t.Fatalf("far color mismatch: %#v", got)
+	}
+	if got := fog.attenuateColor(base, 15); got != (color.RGBA{R: 50, G: 40, B: 30, A: 180}) {
+		t.Fatalf("mid color mismatch: %#v", got)
+	}
+}
+
 func TestSceneFogVeilAlphaUsesCameraDepth(t *testing.T) {
 	fog := sceneFog{
 		enabled: true,
@@ -61,13 +80,13 @@ func TestSceneFogVeilAlphaUsesCameraDepth(t *testing.T) {
 		color:   color.RGBA{R: 100, G: 160, B: 100, A: 255},
 	}
 	projection := sceneProjection{cameraZoom: 150}
-	alpha := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.22, VeilDepthScale: 1.2})
+	alpha := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.10, VeilDepthScale: 1.2})
 	if alpha == 0 {
 		t.Fatal("expected visible fog veil alpha")
 	}
 }
 
-func TestSceneFogVeilAlphaUsesMapFactorWhenStronger(t *testing.T) {
+func TestSceneFogVeilAlphaIgnoresMapFactor(t *testing.T) {
 	fog := sceneFog{
 		enabled: true,
 		near:    24,
@@ -76,9 +95,11 @@ func TestSceneFogVeilAlphaUsesMapFactorWhenStronger(t *testing.T) {
 		factor:  0.3,
 	}
 	projection := sceneProjection{cameraZoom: 150}
-	base := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.22, VeilDepthScale: 1.2})
-	strong := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.3, VeilDepthScale: 1.2})
-	if base != strong {
-		t.Fatalf("veil alpha = %d, want map factor strength alpha %d", base, strong)
+	got := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.10, VeilDepthScale: 1.2})
+	withoutFactor := fog
+	withoutFactor.factor = 0
+	want := sceneFogVeilAlpha(withoutFactor, projection, core.FogConfig{Enabled: true, VeilStrength: 0.10, VeilDepthScale: 1.2})
+	if got != want {
+		t.Fatalf("veil alpha = %d, want factor-independent alpha %d", got, want)
 	}
 }

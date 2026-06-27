@@ -105,7 +105,7 @@ func defaultConfig() Config {
 		},
 		Fog: FogConfig{
 			Enabled:        true,
-			VeilStrength:   0.22,
+			VeilStrength:   0.10,
 			VeilDepthScale: 1.2,
 		},
 	}
