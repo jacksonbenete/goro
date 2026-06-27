@@ -90,6 +90,38 @@ export default {
 	}
 }
 
+func TestParseRobrowserEffectTableSubsetParsesSTRRand(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	49: [
+		{
+			type: 'STR',
+			file: 'firehit%d',
+			wav: 'effect/ef_firehit',
+			rand: [1, 3]
+		}
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, ok := specs[49]
+	if !ok {
+		t.Fatal("effect 49 was not parsed")
+	}
+	if !slices.Equal(spec.sfx, []string{`effect\ef_firehit.wav`}) {
+		t.Fatalf("effect 49 sfx = %v", spec.sfx)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("effect 49 component count = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitiveSTR || component.strFile != "firehit%d" || component.strRandMin != 1 || component.strRandMax != 3 {
+		t.Fatalf("effect 49 component = %#v", component)
+	}
+}
+
 func TestParseRobrowserEffectTableEntryIDsIgnoresCommentedEntries(t *testing.T) {
 	ids, err := parseRobrowserEffectTableEntryIDs(`
 export default {

@@ -605,14 +605,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 25 {
-		t.Fatalf("implemented effects = %d, want 25", coverage.Implemented)
+	if coverage.Implemented != 44 {
+		t.Fatalf("implemented effects = %d, want 44", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 4.0 || coverage.ActivePercent > 4.2 {
-		t.Fatalf("active coverage = %.3f, want about 4.1", coverage.ActivePercent)
+	if coverage.ActivePercent < 7.2 || coverage.ActivePercent > 7.3 {
+		t.Fatalf("active coverage = %.3f, want about 7.2", coverage.ActivePercent)
 	}
 }
 
@@ -630,6 +630,22 @@ func TestWorldEffectSpecLookupReturnsCopy(t *testing.T) {
 	}
 	if again.sfx[0] != "effect\\ef_bash.wav" || again.components[0].textureName != "alpha_down" {
 		t.Fatalf("catalog mutated: %+v", again)
+	}
+}
+
+func TestResolveEffectSTRFileUsesDeterministicRandRange(t *testing.T) {
+	component := worldEffectComponent{
+		strFile:    "firehit%d",
+		strRandMin: 1,
+		strRandMax: 3,
+	}
+	effect := worldEffect{effectID: effectFireHit, actorID: 100, starts: time.Unix(10, 20)}
+	got := resolveEffectSTRFile(component, effect)
+	if got != "firehit1" && got != "firehit2" && got != "firehit3" {
+		t.Fatalf("resolved STR file = %q, want firehit1..3", got)
+	}
+	if again := resolveEffectSTRFile(component, effect); again != got {
+		t.Fatalf("resolved STR file changed from %q to %q", got, again)
 	}
 }
 
@@ -651,9 +667,61 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 	}
 }
 
+func TestMageSkillEffectMappings(t *testing.T) {
+	if got := skillHitEffectID(11); got != effectBashHit {
+		t.Fatalf("MG_NAPALMBEAT hit effect = %d, want %d", got, effectBashHit)
+	}
+	if got := skillBeginEffectID(13); got != effectSoulStrike {
+		t.Fatalf("MG_SOULSTRIKE begin effect = %d, want %d", got, effectSoulStrike)
+	}
+	if got := skillHitEffectID(13); got != effectBashHit {
+		t.Fatalf("MG_SOULSTRIKE hit effect = %d, want %d", got, effectBashHit)
+	}
+	if got := skillHitEffectID(14); got != effectColdHit {
+		t.Fatalf("MG_COLDBOLT hit effect = %d, want %d", got, effectColdHit)
+	}
+	if got := skillHitEffectID(15); got != effectFrostDiverHit {
+		t.Fatalf("MG_FROSTDIVER hit effect = %d, want %d", got, effectFrostDiverHit)
+	}
+	if got := skillSuccessEffectID(16); got != effectStoneCurse {
+		t.Fatalf("MG_STONECURSE success effect = %d, want %d", got, effectStoneCurse)
+	}
+	if got := skillBeginEffectID(17); got != effectFireBall {
+		t.Fatalf("MG_FIREBALL begin effect = %d, want %d", got, effectFireBall)
+	}
+	for _, skillID := range []uint16{17, 18, 19} {
+		if got := skillHitEffectID(skillID); got != effectFireHit {
+			t.Fatalf("fire skill %d hit effect = %d, want %d", skillID, got, effectFireHit)
+		}
+	}
+	for _, skillID := range []uint16{20, 21} {
+		if got := skillHitEffectID(skillID); got != effectWindHit {
+			t.Fatalf("wind skill %d hit effect = %d, want %d", skillID, got, effectWindHit)
+		}
+	}
+	if got := skillBeginEffectID(20); got != effectLightningBolt {
+		t.Fatalf("MG_LIGHTNINGBOLT begin effect = %d, want %d", got, effectLightningBolt)
+	}
+	if got := skillBeginEffectID(21); got != effectThunderStorm {
+		t.Fatalf("MG_THUNDERSTORM begin effect = %d, want %d", got, effectThunderStorm)
+	}
+}
+
 func TestAcolyteSkillEffectMappings(t *testing.T) {
+	if got := skillHitEffectID(24); got != effectBashHit {
+		t.Fatalf("AL_RUWACH hit effect = %d, want %d", got, effectBashHit)
+	}
 	if got := skillSuccessEffectID(28); got != effectHeal {
 		t.Fatalf("AL_HEAL success effect = %d, want %d", got, effectHeal)
+	}
+	if got := skillSuccessEffectID(29); got != effectIncAgility {
+		t.Fatalf("AL_INCAGI success effect = %d, want %d", got, effectIncAgility)
+	}
+	if got := skillSuccessEffectID(30); got != effectDecAgility {
+		t.Fatalf("AL_DECAGI success effect = %d, want %d", got, effectDecAgility)
+	}
+	if got := skillSuccessEffectID(31); got != effectAqua {
+		t.Fatalf("AL_HOLYWATER success effect = %d, want %d", got, effectAqua)
 	}
 	if got := skillSuccessEffectID(32); got != effectSignum {
 		t.Fatalf("AL_CRUCIS success effect = %d, want %d", got, effectSignum)
@@ -661,8 +729,37 @@ func TestAcolyteSkillEffectMappings(t *testing.T) {
 	if got := skillSuccessEffectID(33); got != effectAngelus {
 		t.Fatalf("AL_ANGELUS success effect = %d, want %d", got, effectAngelus)
 	}
+	if got := skillSuccessEffectID(34); got != effectBlessing {
+		t.Fatalf("AL_BLESSING success effect = %d, want %d", got, effectBlessing)
+	}
 	if got := skillSuccessEffectID(35); got != effectCure {
 		t.Fatalf("AL_CURE success effect = %d, want %d", got, effectCure)
+	}
+}
+
+func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
+	if got := skillSuccessEffectID(45); got != effectConcentration {
+		t.Fatalf("AC_CONCENTRATION success effect = %d, want %d", got, effectConcentration)
+	}
+	if got := skillBeginEffectID(46); got != effectBashBegin {
+		t.Fatalf("AC_DOUBLE begin effect = %d, want %d", got, effectBashBegin)
+	}
+	for _, skillID := range []uint16{46, 47} {
+		if got := skillHitEffectID(skillID); got != effectBashHit {
+			t.Fatalf("archer skill %d hit effect = %d, want %d", skillID, got, effectBashHit)
+		}
+	}
+	if got := skillSuccessEffectID(50); got != effectSteal {
+		t.Fatalf("TF_STEAL success effect = %d, want %d", got, effectSteal)
+	}
+	if got := skillHitEffectID(52); got != effectPoisonAttack {
+		t.Fatalf("TF_POISON hit effect = %d, want %d", got, effectPoisonAttack)
+	}
+	if got := skillSuccessEffectID(53); got != effectDetoxication {
+		t.Fatalf("TF_DETOXIFY success effect = %d, want %d", got, effectDetoxication)
+	}
+	if got := skillBeginEffectID(42); got != effectMammonite {
+		t.Fatalf("MC_MAMMONITE begin effect = %d, want %d", got, effectMammonite)
 	}
 }
 
@@ -832,8 +929,16 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, effectID := range []int{
+		effectMammonite,
+		effectStoneCurse,
+		effectFireWall,
+		effectFrostDiverHit,
+		effectLightningBolt,
+		effectThunderStorm,
 		effectSignum,
 		effectAngelus,
+		effectFireHit,
+		effectConcentration,
 		effectCure,
 		effectRefineOK,
 		effectRefineFail,

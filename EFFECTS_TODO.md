@@ -9,9 +9,9 @@ Metric used: active numeric entries in roBrowser `EffectTable.js`.
 
 - roBrowser active numeric effect table entries: 607
 - roBrowser numeric effect constants: 1147
-- Goro implemented active roBrowser effect IDs: 25
-- Completion against active roBrowser table: 4.1%
-- Completion against all roBrowser numeric constants: 2.2%
+- Goro implemented active roBrowser effect IDs: 44
+- Completion against active roBrowser table: 7.2%
+- Completion against all roBrowser numeric constants: 3.8%
 
 This only counts world/effect IDs handled by `worldEffectSpecForID` and direct
 effect trigger mappings. It does not count unrelated UI rendering, damage number
@@ -20,12 +20,31 @@ rendering, cursor drawing, or actor sprite animation.
 ## Done
 
 - [x] `EF_HIT2` `1`: Bash hit / simple hit burst.
+- [x] `EF_COIN` `10`: Mammonite STR effect.
 - [x] `EF_ENDURE` `11`: Endure billboard effect.
+- [x] `EF_SOULSTRIKE` `15`: Soul Strike declared SFX; 3D visual still pending.
 - [x] `EF_BASH` `16`: Bash start cylinder effect.
 - [x] `EF_MAGNUMBREAK` `17`: Magnum Break cylinder effect and camera shake.
+- [x] `EF_STEAL` `18`: Steal declared SFX; 3D visual still pending.
+- [x] `EF_PATTACK` `20`: Envenom declared SFX; 3D visual still pending.
+- [x] `EF_DETOXICATION` `21`: Detoxify declared SFX; 3D visual still pending.
+- [x] `EF_STONECURSE` `23`: Stone Curse STR effect.
+- [x] `EF_FIREBALL` `24`: Fire Ball declared SFX; projectile visual still pending.
+- [x] `EF_FIREWALL` `25`: Fire Wall STR effect.
+- [x] `EF_FROSTDIVER2` `28`: Frost Diver hit STR effect.
+- [x] `EF_LIGHTBOLT` `29`: Lightning Bolt STR effect.
+- [x] `EF_THUNDERSTORM` `30`: Thunder Storm STR effect.
+- [x] `EF_INCAGILITY` `37`: Increase Agility declared SFX; 3D visual still pending.
+- [x] `EF_DECAGILITY` `38`: Decrease Agility declared SFX; 3D visual still pending.
+- [x] `EF_AQUA` `39`: Aqua Benedicta declared SFX; SPR visual still pending.
 - [x] `EF_SIGNUM` `40`: Signum Crucis STR effect.
 - [x] `EF_ANGELUS` `41`: Angelus STR effect.
+- [x] `EF_BLESSING` `42`: Blessing declared SFX; SPR/3D visual still pending.
+- [x] `EF_FIREHIT` `49`: Fire elemental hit STR effect.
+- [x] `EF_COLDHIT` `51`: Cold elemental hit declared SFX; 2D visual still pending.
+- [x] `EF_WINDHIT` `52`: Wind elemental hit STR effect.
 - [x] `EF_CURE` `66`: Cure STR effect.
+- [x] `EF_CONCENTRATION` `153`: Improve Concentration STR effect.
 - [x] `EF_REFINEOK` `154`: Refine Success STR effect.
 - [x] `EF_REFINEFAIL` `155`: Refine Fail STR effect.
 - [x] `EF_PROVOKE` `67`: Provoke STR effect.
@@ -198,16 +217,23 @@ Goal: cover things every player sees regardless of class.
 
 Goal: make early gameplay feel correct before broad class sweeps.
 
-- [ ] Swordman: finish remaining Swordman and early Knight effects that the
-  current test character can exercise quickly.
-- [ ] Acolyte: Heal, Blessing, Increase/Decrease Agi, Angelus, Cure, Aqua,
-  Signum, Pneuma, Warp Portal, Teleport result UI/effects.
-- [ ] Mage: Fire Bolt, Cold Bolt, Lightning Bolt, Fire Ball, Fire Wall, Frost
-  Diver, Thunderstorm, Soul Strike, Napalm Beat, Safety Wall.
-- [ ] Thief: Steal, Hiding, Envenom, Detoxify, Double Attack feedback.
-- [ ] Archer: arrow hit/trail feedback, Double Strafe, Arrow Shower.
-- [ ] Merchant: Mammonite, Cart Revolution, Overcharge/Discount style feedback,
-  vending/shop related sounds where applicable.
+- [x] Swordman first-job routing: Bash, Provoke, Magnum Break, Endure.
+- [x] Mage first-job routing for supported client effects: Napalm Beat, Soul
+  Strike SFX, Cold Bolt hit SFX, Frost Diver hit, Stone Curse, Fire Ball SFX,
+  Fire Wall hit, Fire Bolt hit, Lightning Bolt, Thunder Storm.
+- [x] Acolyte first-job routing for supported client effects: Ruwach hit, Heal
+  rings/SFX, Increase/Decrease Agi SFX, Aqua SFX, Signum, Angelus, Blessing
+  SFX, Cure.
+- [x] Thief first-job routing for supported client effects: Steal SFX, Envenom
+  SFX/hit routing, Detoxify SFX.
+- [x] Archer first-job routing for supported client effects: Improve
+  Concentration, Double Strafe start/hit, Arrow Shower hit.
+- [x] Merchant first-job routing for supported client effects: Mammonite.
+- [ ] Missing first-job visuals blocked by renderer primitives: Sight state loop,
+  Safety Wall and Pneuma ground units, Fire Wall ground unit, Hiding state loop,
+  Blessing/Aqua SPR components, Increase/Decrease Agi 3D components, Steal and
+  poison/detox 3D particles, Mage projectile/before-hit effects, Archer
+  projectile effects, and cold-hit 2D shard visuals.
 
 ### 5. Ground Skill Units
 

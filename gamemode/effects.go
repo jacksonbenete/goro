@@ -1,6 +1,7 @@
 package gamemode
 
 import (
+	"fmt"
 	"image/color"
 	"log"
 	"math"
@@ -17,10 +18,29 @@ const (
 	effectEndure        = 11
 	effectBashBegin     = 16
 	effectBashHit       = 1
+	effectMammonite     = 10
+	effectSoulStrike    = 15
 	effectMagnumBreak   = 17
+	effectSteal         = 18
+	effectPoisonAttack  = 20
+	effectDetoxication  = 21
+	effectStoneCurse    = 23
+	effectFireBall      = 24
+	effectFireWall      = 25
+	effectFrostDiverHit = 28
+	effectLightningBolt = 29
+	effectThunderStorm  = 30
+	effectIncAgility    = 37
+	effectDecAgility    = 38
+	effectAqua          = 39
 	effectSignum        = 40
 	effectAngelus       = 41
+	effectBlessing      = 42
+	effectFireHit       = 49
+	effectColdHit       = 51
+	effectWindHit       = 52
 	effectCure          = 66
+	effectConcentration = 153
 	effectRefineOK      = 154
 	effectRefineFail    = 155
 	effectTeleportation = 304
@@ -69,6 +89,8 @@ type worldEffectComponent struct {
 	color            color.RGBA
 	duration         time.Duration
 	strFile          string
+	strRandMin       int
+	strRandMax       int
 	texturePath      string
 	textureName      string
 	textureFile      string
@@ -300,14 +322,30 @@ func skillSuccessEffectID(skillID uint16) int {
 		return effectProvoke
 	case 8:
 		return effectEndure
+	case 16:
+		return effectStoneCurse
 	case 28:
 		return effectHeal
+	case 29:
+		return effectIncAgility
+	case 30:
+		return effectDecAgility
+	case 31:
+		return effectAqua
 	case 32:
 		return effectSignum
 	case 33:
 		return effectAngelus
+	case 34:
+		return effectBlessing
 	case 35:
 		return effectCure
+	case 45:
+		return effectConcentration
+	case 50:
+		return effectSteal
+	case 53:
+		return effectDetoxication
 	default:
 		return 0
 	}
@@ -319,8 +357,20 @@ func skillBeginEffectID(skillID uint16) int {
 		return effectBashBegin
 	case 7:
 		return effectMagnumBreak
+	case 13:
+		return effectSoulStrike
+	case 17:
+		return effectFireBall
+	case 20:
+		return effectLightningBolt
+	case 21:
+		return effectThunderStorm
 	case 26:
 		return effectTeleportation
+	case 42:
+		return effectMammonite
+	case 46:
+		return effectBashBegin
 	default:
 		return 0
 	}
@@ -330,6 +380,24 @@ func skillHitEffectID(skillID uint16) int {
 	switch skillID {
 	case 5:
 		return effectBashHit
+	case 11:
+		return effectBashHit
+	case 13:
+		return effectBashHit
+	case 14:
+		return effectColdHit
+	case 15:
+		return effectFrostDiverHit
+	case 17, 18, 19:
+		return effectFireHit
+	case 20, 21:
+		return effectWindHit
+	case 24:
+		return effectBashHit
+	case 46, 47:
+		return effectBashHit
+	case 52:
+		return effectPoisonAttack
 	default:
 		return 0
 	}
@@ -406,16 +474,29 @@ func healCylinderComponent(bottomSize, topSize, height float64) worldEffectCompo
 }
 
 func strEffectSpec(file, wav string) worldEffectSpec {
+	return strEffectSpecRandom(file, wav, 0, 0)
+}
+
+func strEffectSpecRandom(file, wav string, randMin, randMax int) worldEffectSpec {
 	spec := worldEffectSpec{
 		components: []worldEffectComponent{{
-			kind:    effectPrimitiveSTR,
-			strFile: file,
+			kind:       effectPrimitiveSTR,
+			strFile:    file,
+			strRandMin: randMin,
+			strRandMax: randMax,
 		}},
 	}
 	if wav != "" {
 		spec.sfx = []string{wav}
 	}
 	return spec
+}
+
+func soundOnlyEffectSpec(paths ...string) worldEffectSpec {
+	return worldEffectSpec{
+		duration: 500 * time.Millisecond,
+		sfx:      paths,
+	}
 }
 
 func potionEffectSpec(file string, c color.RGBA) worldEffectSpec {
@@ -474,7 +555,7 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx Context, projecti
 func (m *WorldMode) worldEffectResolvedComponentDuration(manager *res.Manager, spec worldEffectSpec, component worldEffectComponent) time.Duration {
 	duration := worldEffectComponentDuration(spec, component)
 	if component.kind == effectPrimitiveSTR {
-		if str := m.loadWorldEffectSTR(manager, component.strFile, component.texturePath); str != nil {
+		if str := m.loadWorldEffectSTR(manager, resolveEffectSTRFile(component, worldEffect{}), component.texturePath); str != nil {
 			duration = strEffectDuration(str, duration)
 		}
 	}
@@ -728,7 +809,7 @@ func drawTexturedEffectBillboard(screen *render.Image, projection sceneProjectio
 }
 
 func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
-	str := m.loadWorldEffectSTR(ctx.Resources, component.strFile, component.texturePath)
+	str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, effect), component.texturePath)
 	if str == nil {
 		return false
 	}
@@ -758,6 +839,20 @@ func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection 
 		drawn = true
 	}
 	return drawn
+}
+
+func resolveEffectSTRFile(component worldEffectComponent, effect worldEffect) string {
+	if component.strFile == "" || !strings.Contains(component.strFile, "%d") || component.strRandMax < component.strRandMin || component.strRandMin <= 0 {
+		return component.strFile
+	}
+	span := component.strRandMax - component.strRandMin + 1
+	index := component.strRandMin
+	if span > 1 {
+		value := uint32(effect.effectID*1103515245) ^ effect.actorID ^ uint32(effect.starts.UnixNano())
+		value ^= value >> 16
+		index += int(value % uint32(span))
+	}
+	return fmt.Sprintf(component.strFile, index)
 }
 
 func (m *WorldMode) loadWorldEffectSTR(manager *res.Manager, strFile, texturePath string) *res.STR {

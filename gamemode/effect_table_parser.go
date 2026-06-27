@@ -10,6 +10,7 @@ import (
 )
 
 var effectObjectFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?|true|false|null)`)
+var effectObjectArrayFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]`)
 
 func parseRobrowserEffectTableSubset(source string) (map[int]worldEffectSpec, error) {
 	source = stripJSComments(source)
@@ -168,9 +169,12 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 		if file == "" {
 			return worldEffectComponent{}, sfx, false
 		}
+		randMin, randMax := fieldIntPair(fields, "rand")
 		return worldEffectComponent{
 			kind:        effectPrimitiveSTR,
 			strFile:     file,
+			strRandMin:  randMin,
+			strRandMax:  randMax,
 			texturePath: fieldString(fields, "texturePath"),
 			duration:    fieldDuration(fields, "duration"),
 		}, sfx, true
@@ -215,6 +219,12 @@ func parseJSObjectFields(object string) map[string]string {
 		}
 		out[match[1]] = match[2]
 	}
+	for _, match := range effectObjectArrayFieldPattern.FindAllStringSubmatch(object, -1) {
+		if len(match) != 4 {
+			continue
+		}
+		out[match[1]] = match[2] + "," + match[3]
+	}
 	return out
 }
 
@@ -247,6 +257,23 @@ func fieldFloat(fields map[string]string, key string) float64 {
 
 func fieldInt(fields map[string]string, key string) int {
 	return int(fieldFloat(fields, key))
+}
+
+func fieldIntPair(fields map[string]string, key string) (int, int) {
+	value, ok := fields[key]
+	if !ok {
+		return 0, 0
+	}
+	parts := strings.Split(value, ",")
+	if len(parts) != 2 {
+		return 0, 0
+	}
+	first, errFirst := strconv.Atoi(strings.TrimSpace(parts[0]))
+	second, errSecond := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if errFirst != nil || errSecond != nil {
+		return 0, 0
+	}
+	return first, second
 }
 
 func fieldBool(fields map[string]string, key string) bool {
