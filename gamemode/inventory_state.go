@@ -18,6 +18,13 @@ func applyInventoryItemDelete(ctx Context, item network.InventoryItemDelete) {
 	removeSessionInventoryItem(ctx.Session, item.Index, int(item.Amount))
 }
 
+func applyUseItemAck(ctx Context, ack network.UseItemAck) {
+	if ack.Result == 0 {
+		return
+	}
+	setSessionInventoryItemAmount(ctx.Session, ack.Index, int(ack.Amount))
+}
+
 func sessionItemFromNetwork(item network.InventoryItem) session.InventoryItem {
 	amount := int(item.Amount)
 	if amount <= 0 {
@@ -110,6 +117,23 @@ func removeSessionInventoryItem(s *session.Session, index uint16, amount int) {
 		}
 		s.Inventory.Items[i].Amount -= amount
 		if s.Inventory.Items[i].Amount > 0 {
+			return
+		}
+		s.Inventory.Items = append(s.Inventory.Items[:i], s.Inventory.Items[i+1:]...)
+		return
+	}
+}
+
+func setSessionInventoryItemAmount(s *session.Session, index uint16, amount int) {
+	if s == nil || index == 0 {
+		return
+	}
+	for i := range s.Inventory.Items {
+		if s.Inventory.Items[i].Index != index {
+			continue
+		}
+		if amount > 0 {
+			s.Inventory.Items[i].Amount = amount
 			return
 		}
 		s.Inventory.Items = append(s.Inventory.Items[:i], s.Inventory.Items[i+1:]...)

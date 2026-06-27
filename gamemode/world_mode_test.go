@@ -331,6 +331,33 @@ func TestApplyParameterChangeUpdatesVitals(t *testing.T) {
 	}
 }
 
+func TestWorldModeParameterChangeRecoveryFeedback(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		Selected:  session.Character{HP: 70, MaxHP: 100, SP: 20, MaxSP: 30},
+		Vitals:    session.Vitals{HP: 70, MaxHP: 100, SP: 20, MaxSP: 30},
+	}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusHP, Value: 85})
+
+	if sessionState.Vitals.HP != 85 {
+		t.Fatalf("hp = %d, want 85", sessionState.Vitals.HP)
+	}
+	if len(mode.damageFloaters) != 1 {
+		t.Fatalf("floaters = %d, want 1", len(mode.damageFloaters))
+	}
+	if mode.damageFloaters[0].text != "15" || mode.damageFloaters[0].kind != damageFloaterRecoveryHP {
+		t.Fatalf("floater = %+v", mode.damageFloaters[0])
+	}
+	if len(mode.scheduledSounds) != 1 || mode.scheduledSounds[0].paths[0] != recoveryHPSFX {
+		t.Fatalf("scheduled sounds = %+v", mode.scheduledSounds)
+	}
+}
+
 func TestApplyRecoveryUpdatesHPAndAddsBlueFloater(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
@@ -2021,6 +2048,55 @@ func TestInventoryItemDeleteDecrementsAndRemoves(t *testing.T) {
 	applyInventoryItemDelete(ctx, network.InventoryItemDelete{Index: 7, Amount: 1})
 	if len(sessionState.Inventory.Items) != 0 {
 		t.Fatalf("inventory item count = %d, want 0", len(sessionState.Inventory.Items))
+	}
+}
+
+func TestUseItemAckSetsRemainingAmount(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 12, ItemID: 512, Amount: 4}},
+		},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyUseItemAck(ctx, network.UseItemAck{Index: 12, ItemID: 512, Amount: 3, Result: 1})
+	if got := sessionState.Inventory.Items[0].Amount; got != 3 {
+		t.Fatalf("item amount = %d, want 3", got)
+	}
+
+	applyUseItemAck(ctx, network.UseItemAck{Index: 12, ItemID: 512, Amount: 0, Result: 1})
+	if len(sessionState.Inventory.Items) != 0 {
+		t.Fatalf("inventory item count = %d, want 0", len(sessionState.Inventory.Items))
+	}
+}
+
+func TestUseItemAckFailureDoesNotChangeInventory(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 12, ItemID: 512, Amount: 4}},
+		},
+	}
+	ctx := Context{Session: sessionState}
+
+	applyUseItemAck(ctx, network.UseItemAck{Index: 12, ItemID: 512, Amount: 0, Result: 0})
+	if got := sessionState.Inventory.Items[0].Amount; got != 4 {
+		t.Fatalf("item amount = %d, want 4", got)
+	}
+}
+
+func TestUseItemAckAddsItemUseEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: 501, AID: 2000000, Amount: 2, Result: 1})
+	if len(mode.itemUseEffects) != 1 {
+		t.Fatalf("item effects = %d, want 1", len(mode.itemUseEffects))
+	}
+	if effect := mode.itemUseEffects[0]; effect.actorID != 2000000 || effect.itemID != 501 || effect.x != 10 || effect.y != 20 {
+		t.Fatalf("effect = %+v", effect)
 	}
 }
 

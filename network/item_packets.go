@@ -11,7 +11,7 @@ const PacketCZItemPickup uint16 = 0x009F
 const (
 	PacketCZACKSelectDealType  uint16 = 0x00C5
 	PacketCZUseItem2           uint16 = 0x0439
-	PacketCZUseItemLegacy      uint16 = 0x009F
+	PacketCZUseItemLegacy      uint16 = 0x00A7
 	PacketCZReqWearEquip       uint16 = 0x00A9
 	PacketCZReqTakeoffEquip    uint16 = 0x00AB
 	PacketCZPCPurchaseItemList uint16 = 0x00C8
@@ -47,6 +47,27 @@ var itemPickupPacketLayouts = []itemPickupPacketLayout{
 	{date: 20040713, opcode: 0x009F, length: 10, offset: 6},
 }
 
+type useItemPacketLayout struct {
+	date         int
+	opcode       uint16
+	length       int
+	indexOffset  int
+	targetOffset int
+}
+
+var useItemPacketLayouts = []useItemPacketLayout{
+	// 2008-09-10 introduced the compact CZ_USE_ITEM2 packet. roBrowser maps
+	// USE_ITEM to 0x0439 for this profile, and rAthena accepts it as the
+	// canonical 8-byte item-use packet for the server version we run.
+	{date: 20080910, opcode: PacketCZUseItem2, length: 8, indexOffset: 2, targetOffset: 4},
+	{date: 20070212, opcode: 0x009F, length: 14, indexOffset: 4, targetOffset: 10},
+	{date: 20050719, opcode: 0x009F, length: 19, indexOffset: 9, targetOffset: 15},
+	{date: 20050718, opcode: 0x009F, length: 12, indexOffset: 3, targetOffset: 8},
+	{date: 20050509, opcode: 0x009F, length: 14, indexOffset: 4, targetOffset: 10},
+	{date: 20050110, opcode: 0x009F, length: 17, indexOffset: 5, targetOffset: 13},
+	{date: 20041129, opcode: 0x0190, length: 15, indexOffset: 3, targetOffset: 11},
+}
+
 type FloorItemEntry struct {
 	ID         uint32
 	ItemID     uint16
@@ -73,6 +94,14 @@ type ItemPickupAck struct {
 	Damaged    bool
 	Refine     uint8
 	Result     uint8
+}
+
+type UseItemAck struct {
+	Index  uint16
+	Amount uint16
+	ItemID uint16
+	AID    uint32
+	Result uint8
 }
 
 type InventoryItem struct {
@@ -187,6 +216,43 @@ func ParseItemPickupAck(packet Packet) (ItemPickupAck, bool, error) {
 		return parseItemPickupAckLocation32(packet)
 	default:
 		return ItemPickupAck{}, false, nil
+	}
+}
+
+func ParseUseItemAck(packet Packet) (UseItemAck, bool, error) {
+	switch packet.ID {
+	case 0x00A8:
+		if len(packet.Data) < 7 {
+			return UseItemAck{}, false, fmt.Errorf("ZC_USE_ITEM_ACK too short: %d", len(packet.Data))
+		}
+		return UseItemAck{
+			Index:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount: binary.LittleEndian.Uint16(packet.Data[4:6]),
+			Result: packet.Data[6],
+		}, true, nil
+	case 0x01C8:
+		switch {
+		case len(packet.Data) >= 15:
+			return UseItemAck{
+				Index:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+				ItemID: uint16(binary.LittleEndian.Uint32(packet.Data[4:8])),
+				AID:    binary.LittleEndian.Uint32(packet.Data[8:12]),
+				Amount: binary.LittleEndian.Uint16(packet.Data[12:14]),
+				Result: packet.Data[14],
+			}, true, nil
+		case len(packet.Data) >= 13:
+			return UseItemAck{
+				Index:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+				ItemID: binary.LittleEndian.Uint16(packet.Data[4:6]),
+				AID:    binary.LittleEndian.Uint32(packet.Data[6:10]),
+				Amount: binary.LittleEndian.Uint16(packet.Data[10:12]),
+				Result: packet.Data[12],
+			}, true, nil
+		default:
+			return UseItemAck{}, false, fmt.Errorf("ZC_USE_ITEM_ACK2 too short: %d", len(packet.Data))
+		}
+	default:
+		return UseItemAck{}, false, nil
 	}
 }
 
@@ -485,17 +551,25 @@ func BuildItemPickupPacketForClientDate(gid uint32, clientDate int) []byte {
 }
 
 func BuildUseInventoryItemPacketForClientDate(index uint16, targetAID uint32, clientDate int) []byte {
-	if clientDate >= 20180307 {
-		packet := make([]byte, 8)
-		binary.LittleEndian.PutUint16(packet[0:2], PacketCZUseItem2)
-		binary.LittleEndian.PutUint16(packet[2:4], index)
-		binary.LittleEndian.PutUint32(packet[4:8], targetAID)
-		return packet
+	for _, layout := range useItemPacketLayouts {
+		if clientDate >= layout.date {
+			packet := make([]byte, layout.length)
+			binary.LittleEndian.PutUint16(packet[0:2], layout.opcode)
+			if layout.indexOffset > 2 {
+				fillLegacyPacketPadding(packet[2:layout.indexOffset])
+			}
+			binary.LittleEndian.PutUint16(packet[layout.indexOffset:layout.indexOffset+2], index)
+			if layout.targetOffset > layout.indexOffset+2 {
+				fillLegacyPacketPadding(packet[layout.indexOffset+2 : layout.targetOffset])
+			}
+			binary.LittleEndian.PutUint32(packet[layout.targetOffset:layout.targetOffset+4], targetAID)
+			return packet
+		}
 	}
-	packet := make([]byte, 14)
+	packet := make([]byte, 8)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZUseItemLegacy)
-	binary.LittleEndian.PutUint16(packet[4:6], index)
-	binary.LittleEndian.PutUint32(packet[10:14], targetAID)
+	binary.LittleEndian.PutUint16(packet[2:4], index)
+	binary.LittleEndian.PutUint32(packet[4:8], targetAID)
 	return packet
 }
 

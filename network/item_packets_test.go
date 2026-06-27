@@ -135,6 +135,46 @@ func TestParseItemPickupAckExtendedVariants(t *testing.T) {
 	}
 }
 
+func TestParseUseItemAckLegacy(t *testing.T) {
+	data := make([]byte, 7)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00A8)
+	binary.LittleEndian.PutUint16(data[2:4], 12)
+	binary.LittleEndian.PutUint16(data[4:6], 3)
+	data[6] = 1
+
+	ack, ok, err := ParseUseItemAck(Packet{ID: 0x00A8, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("not parsed")
+	}
+	if ack.Index != 12 || ack.Amount != 3 || ack.Result != 1 {
+		t.Fatalf("unexpected use ack: %+v", ack)
+	}
+}
+
+func TestParseUseItemAck2(t *testing.T) {
+	data := make([]byte, 13)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01C8)
+	binary.LittleEndian.PutUint16(data[2:4], 12)
+	binary.LittleEndian.PutUint16(data[4:6], 512)
+	binary.LittleEndian.PutUint32(data[6:10], 0x11223344)
+	binary.LittleEndian.PutUint16(data[10:12], 3)
+	data[12] = 1
+
+	ack, ok, err := ParseUseItemAck(Packet{ID: 0x01C8, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("not parsed")
+	}
+	if ack.Index != 12 || ack.ItemID != 512 || ack.AID != 0x11223344 || ack.Amount != 3 || ack.Result != 1 {
+		t.Fatalf("unexpected use ack: %+v", ack)
+	}
+}
+
 func TestBuildItemPickupPacket(t *testing.T) {
 	packet := BuildItemPickupPacket(0x11223344)
 	if len(packet) != 6 {
@@ -196,14 +236,25 @@ func TestBuildItemPickupPacketForClientDateShuffledBoundaries(t *testing.T) {
 
 func TestBuildUseAndEquipItemPackets(t *testing.T) {
 	use := BuildUseInventoryItemPacketForClientDate(7, 0x11223344, 20080910)
-	if len(use) != 14 || ID(use) != 0x009F {
+	if len(use) != 8 || ID(use) != 0x0439 {
 		t.Fatalf("unexpected use packet header: % X", use)
 	}
-	if got := binary.LittleEndian.Uint16(use[4:6]); got != 7 {
+	if got := binary.LittleEndian.Uint16(use[2:4]); got != 7 {
 		t.Fatalf("use item index = %d, want 7", got)
 	}
-	if got := binary.LittleEndian.Uint32(use[10:14]); got != 0x11223344 {
+	if got := binary.LittleEndian.Uint32(use[4:8]); got != 0x11223344 {
 		t.Fatalf("use target = 0x%08X", got)
+	}
+
+	useLegacy := BuildUseInventoryItemPacketForClientDate(7, 0x11223344, 20070212)
+	if len(useLegacy) != 14 || ID(useLegacy) != 0x009F {
+		t.Fatalf("unexpected legacy use packet header: % X", useLegacy)
+	}
+	if got := binary.LittleEndian.Uint16(useLegacy[4:6]); got != 7 {
+		t.Fatalf("legacy use item index = %d, want 7", got)
+	}
+	if got := binary.LittleEndian.Uint32(useLegacy[10:14]); got != 0x11223344 {
+		t.Fatalf("legacy use target = 0x%08X", got)
 	}
 
 	use2 := BuildUseInventoryItemPacketForClientDate(7, 0x11223344, 20180307)
