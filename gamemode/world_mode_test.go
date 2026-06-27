@@ -497,12 +497,8 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
 		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
 	}
-	life, ok := mode.actorLife[300]
-	if !ok {
-		t.Fatal("target life fallback missing")
-	}
-	if life.hp != 58 || life.maxHP != 100 {
-		t.Fatalf("target life = %+v, want 58/100", life)
+	if _, ok := mode.actorLife[300]; ok {
+		t.Fatal("attack notify without hp packet should not invent target life")
 	}
 }
 
@@ -677,6 +673,37 @@ func TestCombatLifeFallbackDoesNotSubtractRawDamageFromTinyHPGauge(t *testing.T)
 	}
 	if life.hp != 95 || life.maxHP != 100 || !life.fromTiny {
 		t.Fatalf("tiny life = %+v, want unchanged 95/100", life)
+	}
+}
+
+func TestCombatLifeFallbackDoesNotInventVisibleGaugeWithoutHPPacket(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		Job:           1078,
+		X:             11,
+		Y:             20,
+		HasObjectType: true,
+		ObjectType:    actorObjectTypeMob,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      12,
+		Action:      0,
+	})
+
+	if _, ok := mode.actorLifeForDisplay(ctx, world.Actors[300]); ok {
+		t.Fatal("actor without hp packet should not display guessed life")
 	}
 }
 

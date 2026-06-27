@@ -1381,7 +1381,7 @@ func (m *WorldMode) applyCombatLifeFallback(ctx Context, target worldstate.Actor
 	}
 	life, ok := m.actorLife[target.ID]
 	if !ok || life.maxHP <= 0 {
-		life = actorLife{hp: 100, maxHP: 100}
+		return
 	}
 	if life.fromTiny {
 		return
