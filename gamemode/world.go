@@ -2273,11 +2273,6 @@ var (
 	damageFloaterRed    = color.RGBA{R: 255, G: 64, B: 64, A: 255}
 )
 
-func actionDamageText(action network.ActorActionNotify) string {
-	text, _, _ := actionDamageFloater(action, false, false)
-	return text
-}
-
 func actionDamageFloater(action network.ActorActionNotify, targetLocal, sourceLocal bool) (string, damageFloaterKind, color.RGBA) {
 	total := action.Damage + action.LeftDamage
 	if total > 0 {

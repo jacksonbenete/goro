@@ -24,10 +24,14 @@ const (
 	effectPotionGreen  = 209
 	effectFood         = 210
 	effectFoodBlue     = 211
-	effectStylePotion  = 1
-	effectStyleProvoke = 2
-	effectStyleBash    = 3
-	effectStyleHit     = 4
+)
+
+type effectPrimitiveKind int
+
+const (
+	effectPrimitiveSTR effectPrimitiveKind = iota + 1
+	effectPrimitiveCylinder
+	effectPrimitiveBashHit
 )
 
 type worldEffect struct {
@@ -40,12 +44,29 @@ type worldEffect struct {
 }
 
 type worldEffectSpec struct {
-	style       int
-	color       color.RGBA
-	duration    time.Duration
-	sfx         []string
-	strFile     string
-	texturePath string
+	duration   time.Duration
+	sfx        []string
+	components []worldEffectComponent
+}
+
+type worldEffectComponent struct {
+	kind             effectPrimitiveKind
+	color            color.RGBA
+	duration         time.Duration
+	strFile          string
+	texturePath      string
+	textureName      string
+	alphaMax         float64
+	fade             bool
+	rotate           bool
+	animation        int
+	bottomSize       float64
+	topSize          float64
+	posZ             float64
+	totalCircleSides int
+	circleSides      int
+	duplicate        int
+	angleZRandom     float64
 }
 
 func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
@@ -146,10 +167,14 @@ func (m *WorldMode) addWorldEffectAt(ctx Context, effectID int, actorID uint32, 
 		return false
 	}
 	duration := spec.duration
-	if spec.strFile != "" {
-		if str := m.loadWorldEffectSTR(ctx.Resources, spec); str != nil {
-			duration = strEffectDuration(str, duration)
+	for _, component := range spec.components {
+		componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		if componentDuration > duration {
+			duration = componentDuration
 		}
+	}
+	if duration <= 0 {
+		duration = 500 * time.Millisecond
 	}
 	m.worldEffects = append(m.worldEffects, worldEffect{
 		effectID: effectID,
@@ -232,25 +257,75 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 	switch effectID {
 	case effectBashHit:
 		return worldEffectSpec{
-			style:    effectStyleHit,
-			color:    color.RGBA{R: 255, G: 248, B: 220, A: 255},
 			duration: 280 * time.Millisecond,
 			sfx:      []string{"effect\\ef_hit2.wav"},
+			components: []worldEffectComponent{{
+				kind:  effectPrimitiveBashHit,
+				color: color.RGBA{R: 255, G: 248, B: 220, A: 255},
+			}},
 		}, true
 	case effectBashBegin:
 		return worldEffectSpec{
-			style:    effectStyleBash,
-			color:    color.RGBA{R: 245, G: 250, B: 255, A: 255},
-			duration: 650 * time.Millisecond,
+			duration: 1000 * time.Millisecond,
 			sfx:      []string{"effect\\ef_bash.wav"},
+			components: []worldEffectComponent{
+				{
+					kind:             effectPrimitiveCylinder,
+					textureName:      "alpha_down",
+					duration:         1000 * time.Millisecond,
+					alphaMax:         0.6,
+					fade:             true,
+					rotate:           true,
+					animation:        2,
+					bottomSize:       0.1,
+					topSize:          2.0,
+					posZ:             1.5,
+					totalCircleSides: 20,
+					circleSides:      20,
+				},
+				{
+					kind:             effectPrimitiveCylinder,
+					textureName:      "alpha_center",
+					duration:         1000 * time.Millisecond,
+					alphaMax:         0.6,
+					fade:             true,
+					rotate:           true,
+					animation:        2,
+					bottomSize:       0.01,
+					topSize:          2.5,
+					posZ:             1.5,
+					totalCircleSides: 30,
+					circleSides:      1,
+					duplicate:        10,
+					angleZRandom:     360,
+				},
+				{
+					kind:             effectPrimitiveCylinder,
+					textureName:      "alpha_center",
+					duration:         1000 * time.Millisecond,
+					alphaMax:         0.6,
+					fade:             true,
+					rotate:           true,
+					animation:        2,
+					bottomSize:       0.01,
+					topSize:          4.0,
+					posZ:             1.5,
+					totalCircleSides: 30,
+					circleSides:      1,
+					duplicate:        8,
+					angleZRandom:     360,
+				},
+			},
 		}, true
 	case effectProvoke:
 		return worldEffectSpec{
-			style:    effectStyleProvoke,
-			color:    color.RGBA{R: 255, G: 70, B: 42, A: 255},
 			duration: 900 * time.Millisecond,
 			sfx:      []string{"effect\\swordman_provoke.wav"},
-			strFile:  "provoke",
+			components: []worldEffectComponent{{
+				kind:    effectPrimitiveSTR,
+				color:   color.RGBA{R: 255, G: 70, B: 42, A: 255},
+				strFile: "provoke",
+			}},
 		}, true
 	case effectPotionRed:
 		return potionEffectSpec("\xbb\xa1\xb0\xa3\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 82, B: 70, A: 255}), true
@@ -268,17 +343,21 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 		return potionEffectSpec("\xc3\xca\xb7\xcf\xc6\xf7\xbc\xc7", color.RGBA{R: 78, G: 225, B: 98, A: 255}), true
 	case effectFood:
 		return worldEffectSpec{
-			style:    effectStylePotion,
-			color:    color.RGBA{R: 255, G: 182, B: 86, A: 255},
 			duration: 850 * time.Millisecond,
-			strFile:  "fruit",
+			components: []worldEffectComponent{{
+				kind:    effectPrimitiveSTR,
+				color:   color.RGBA{R: 255, G: 182, B: 86, A: 255},
+				strFile: "fruit",
+			}},
 		}, true
 	case effectFoodBlue:
 		return worldEffectSpec{
-			style:    effectStylePotion,
-			color:    color.RGBA{R: 132, G: 112, B: 255, A: 255},
 			duration: 850 * time.Millisecond,
-			strFile:  "fruit",
+			components: []worldEffectComponent{{
+				kind:    effectPrimitiveSTR,
+				color:   color.RGBA{R: 132, G: 112, B: 255, A: 255},
+				strFile: "fruit",
+			}},
 		}, true
 	default:
 		return worldEffectSpec{}, false
@@ -287,10 +366,12 @@ func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 
 func potionEffectSpec(file string, c color.RGBA) worldEffectSpec {
 	return worldEffectSpec{
-		style:    effectStylePotion,
-		color:    c,
 		duration: 850 * time.Millisecond,
-		strFile:  file,
+		components: []worldEffectComponent{{
+			kind:    effectPrimitiveSTR,
+			color:   c,
+			strFile: file,
+		}},
 	}
 }
 
@@ -321,34 +402,56 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx Context, projecti
 		} else if isLocalActor(ctx, effect.actorID) {
 			x, y = ctx.World.Player.RenderPosition(now)
 		}
-		progress := worldEffectProgress(effect, now)
 		worldX := cellCenter(x)
 		worldY := cellCenter(y)
 		worldZ := terrainHeightAt(ctx.World, x, y) + 0.07
-		if spec.strFile != "" {
-			m.drawSTREffect(screen, ctx, projection, spec, effect, worldX, worldY, worldZ, now)
-			continue
-		}
-		switch spec.style {
-		case effectStyleBash:
-			m.drawBashBeginEffect(screen, ctx, projection, worldX, worldY, worldZ, progress, effect)
-		case effectStyleHit:
-			drawBashHitEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, spec.color)
-		case effectStyleProvoke:
-			drawProvokeEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, spec.color)
-		default:
-			drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, spec.color)
+		for index, component := range spec.components {
+			componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+			progress := worldEffectComponentProgress(effect.starts, componentDuration, now)
+			if progress >= 1 {
+				continue
+			}
+			m.drawWorldEffectComponent(screen, ctx, projection, effect, component, index, worldX, worldY, worldZ, progress, now)
 		}
 	}
 	m.worldEffects = active
 }
 
-func worldEffectProgress(effect worldEffect, now time.Time) float64 {
-	duration := effect.expires.Sub(effect.starts)
+func (m *WorldMode) worldEffectResolvedComponentDuration(manager *res.Manager, spec worldEffectSpec, component worldEffectComponent) time.Duration {
+	duration := worldEffectComponentDuration(spec, component)
+	if component.kind == effectPrimitiveSTR {
+		if str := m.loadWorldEffectSTR(manager, component.strFile, component.texturePath); str != nil {
+			duration = strEffectDuration(str, duration)
+		}
+	}
+	return duration
+}
+
+func worldEffectComponentDuration(spec worldEffectSpec, component worldEffectComponent) time.Duration {
+	if component.duration > 0 {
+		return component.duration
+	}
+	return spec.duration
+}
+
+func worldEffectComponentProgress(starts time.Time, duration time.Duration, now time.Time) float64 {
 	if duration <= 0 {
 		return 1
 	}
-	return clampFloat(float64(now.Sub(effect.starts))/float64(duration), 0, 1)
+	return clampFloat(float64(now.Sub(starts))/float64(duration), 0, 1)
+}
+
+func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+	switch component.kind {
+	case effectPrimitiveSTR:
+		m.drawSTREffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
+	case effectPrimitiveCylinder:
+		m.drawCylinderEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress)
+	case effectPrimitiveBashHit:
+		drawBashHitEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
+	default:
+		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
+	}
 }
 
 func drawPotionEffect(screen, white *render.Image, x, y, z, progress float64, c color.RGBA) {
@@ -358,56 +461,36 @@ func drawPotionEffect(screen, white *render.Image, x, y, z, progress float64, c 
 	drawWorldCylinderBand(screen, white, nil, x, y, z+0.05+progress*0.55, 0.18+progress*0.08, 0.06, 0.22, withAlpha(c, alpha*0.40), 32)
 }
 
-func drawProvokeEffect(screen, white *render.Image, x, y, z, progress float64, c color.RGBA) {
-	alpha := 1 - progress
-	radius := 0.22 + 0.18*math.Sin(progress*math.Pi)
-	drawWorldSoftRing(screen, white, x, y, z+0.08, radius, 0.12, withAlpha(c, alpha*0.80), 32)
-	drawWorldCylinderBand(screen, white, nil, x, y, z+0.10, radius*0.9, radius*1.18, 0.92, withAlpha(c, alpha*0.28), 24)
-	for i := 0; i < 3; i++ {
-		step := math.Mod(progress+float64(i)*0.24, 1)
-		drawWorldSoftRing(screen, white, x, y, z+0.18+step*0.72, 0.12+step*0.28, 0.08, withAlpha(c, (1-step)*alpha*0.72), 32)
-	}
-}
-
-func (m *WorldMode) drawBashBeginEffect(screen *render.Image, ctx Context, projection sceneProjection, x, y, z, progress float64, effect worldEffect) {
-	alphaDown := m.effectTexture(ctx.Resources, "alpha_down")
-	alphaCenter := m.effectTexture(ctx.Resources, "alpha_center")
-	if alphaDown == nil && alphaCenter == nil {
+func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64) {
+	texture := m.effectTexture(ctx.Resources, component.textureName)
+	if texture == nil {
 		return
 	}
-	alpha := bashCylinderAlpha(progress, 0.6)
-	centerZ := z + 1.5
-	if alphaDown != nil {
-		drawTexturedEffectCylinder(screen, projection, alphaDown, x, y, centerZ, effectCylinderDraw{
-			bottomSize:       0.1,
-			topSize:          2.0 * progress,
-			totalCircleSides: 20,
-			circleSides:      20,
-			alpha:            alpha,
-			angle:            bashCylinderSpin(effect, progress, 0),
-		})
-	}
-	if alphaCenter == nil {
+	alpha := effectComponentAlpha(progress, component.alphaMax, component.fade)
+	if alpha <= 0 {
 		return
 	}
-	for i := 0; i < 10; i++ {
-		drawTexturedEffectCylinder(screen, projection, alphaCenter, x, y, centerZ, effectCylinderDraw{
-			bottomSize:       0.01,
-			topSize:          2.5 * progress,
-			totalCircleSides: 30,
-			circleSides:      1,
-			alpha:            alpha,
-			angle:            bashCylinderSpin(effect, progress, i+1) + deterministicAngle(effect, i),
-		})
+	topSize := component.topSize
+	if component.animation == 2 {
+		topSize *= progress
 	}
-	for i := 0; i < 8; i++ {
-		drawTexturedEffectCylinder(screen, projection, alphaCenter, x, y, centerZ, effectCylinderDraw{
-			bottomSize:       0.01,
-			topSize:          4.0 * progress,
-			totalCircleSides: 30,
-			circleSides:      1,
+	duplicates := maxInt(component.duplicate, 1)
+	for i := 0; i < duplicates; i++ {
+		angle := 0.0
+		if component.rotate {
+			angle += progress * 2 * math.Pi
+			angle += deterministicAngle(effect, componentIndex*101+i+31) * 0.08
+		}
+		if component.angleZRandom != 0 {
+			angle += deterministicAngle(effect, componentIndex*101+i) * component.angleZRandom / 360
+		}
+		drawTexturedEffectCylinder(screen, projection, texture, x, y, z+component.posZ, effectCylinderDraw{
+			bottomSize:       component.bottomSize,
+			topSize:          topSize,
+			totalCircleSides: component.totalCircleSides,
+			circleSides:      component.circleSides,
 			alpha:            alpha,
-			angle:            bashCylinderSpin(effect, progress, i+11) + deterministicAngle(effect, i+10),
+			angle:            angle,
 		})
 	}
 }
@@ -463,7 +546,13 @@ func drawTexturedEffectCylinder(screen *render.Image, projection sceneProjection
 	screen.DrawTriangles3DOwned(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func bashCylinderAlpha(progress, alphaMax float64) float64 {
+func effectComponentAlpha(progress, alphaMax float64, fade bool) float64 {
+	if alphaMax <= 0 {
+		alphaMax = 1
+	}
+	if !fade {
+		return alphaMax
+	}
 	switch {
 	case progress < 0.25:
 		return progress / 0.25 * alphaMax
@@ -474,10 +563,6 @@ func bashCylinderAlpha(progress, alphaMax float64) float64 {
 	}
 }
 
-func bashCylinderSpin(effect worldEffect, progress float64, salt int) float64 {
-	return progress*2*math.Pi + deterministicAngle(effect, salt+31)*0.08
-}
-
 func deterministicAngle(effect worldEffect, salt int) float64 {
 	value := uint32(effect.effectID*1103515245) ^ effect.actorID ^ uint32(effect.starts.UnixNano()) ^ uint32(salt*2654435761)
 	value ^= value >> 16
@@ -486,8 +571,8 @@ func deterministicAngle(effect worldEffect, salt int) float64 {
 	return float64(value%360) * math.Pi / 180
 }
 
-func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection sceneProjection, spec worldEffectSpec, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
-	str := m.loadWorldEffectSTR(ctx.Resources, spec)
+func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
+	str := m.loadWorldEffectSTR(ctx.Resources, component.strFile, component.texturePath)
 	if str == nil {
 		return false
 	}
@@ -519,12 +604,12 @@ func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection 
 	return drawn
 }
 
-func (m *WorldMode) loadWorldEffectSTR(manager *res.Manager, spec worldEffectSpec) *res.STR {
-	if manager == nil || spec.strFile == "" {
+func (m *WorldMode) loadWorldEffectSTR(manager *res.Manager, strFile, texturePath string) *res.STR {
+	if manager == nil || strFile == "" {
 		return nil
 	}
-	path := "data\\texture\\effect\\" + spec.strFile + ".str"
-	key := "__str_" + path + "|" + spec.texturePath
+	path := "data\\texture\\effect\\" + strFile + ".str"
+	key := "__str_" + path + "|" + texturePath
 	if m.strEffects == nil {
 		m.strEffects = make(map[string]*res.STR)
 	}
@@ -543,7 +628,7 @@ func (m *WorldMode) loadWorldEffectSTR(manager *res.Manager, spec worldEffectSpe
 		log.Printf("str effect missing path=%s: %v", path, err)
 		return nil
 	}
-	str, err := res.ParseSTR(data, spec.texturePath)
+	str, err := res.ParseSTR(data, texturePath)
 	if err != nil {
 		m.strEffectMiss[key] = struct{}{}
 		log.Printf("str effect parse failed path=%s: %v", path, err)
