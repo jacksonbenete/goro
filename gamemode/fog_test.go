@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kivutar/goro/core"
 	"github.com/kivutar/goro/res"
 )
 
@@ -23,7 +24,7 @@ func TestSceneFogFromMapUsesRObrowserScale(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fog := sceneFogFromMap(manager, "prontera")
+	fog := sceneFogFromMap(manager, "prontera", core.FogConfig{Enabled: true})
 	if !fog.enabled {
 		t.Fatal("expected fog")
 	}
@@ -60,7 +61,7 @@ func TestSceneFogVeilAlphaUsesCameraDepth(t *testing.T) {
 		color:   color.RGBA{R: 100, G: 160, B: 100, A: 255},
 	}
 	projection := sceneProjection{cameraZoom: 150}
-	alpha := sceneFogVeilAlpha(fog, projection)
+	alpha := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.22, VeilDepthScale: 1.2})
 	if alpha == 0 {
 		t.Fatal("expected visible fog veil alpha")
 	}

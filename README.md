@@ -19,26 +19,55 @@ decoder, which is less accurate for those files.
 CGO_ENABLED=0 go run -tags nofakecgo .
 ```
 
-For the local OldRO + rAthena test setup:
+Configuration is loaded from `goro.ini` in the current directory when the file
+exists. Pass another file with `--config`:
 
-```sh
-./scripts/run-oldro.sh
+```ini
+data_dir = /home/kivutar/Téléchargements/OldRO
+
+[window]
+width = 1280
+height = 720
+fullscreen = false
+
+[packet]
+client_date = 20080910
+profile = 23
+
+[audio]
+bgm = true
+bgm_volume = 0.55
+
+[render]
+graphics_api = vulkan
+vsync = true
+
+[network]
+trace = false
 ```
 
-Useful toggles:
+Command-line options override the ini file:
 
 ```sh
-GORO_NET_TRACE=1 ./scripts/run-oldro.sh
-GORO_PACKET_CLIENT_DATE=20211103 ./scripts/run-oldro.sh # only when rAthena is rebuilt for that packetver
-GORO_FULLSCREEN=1 ./scripts/run-oldro.sh
-GORO_BGM=0 ./scripts/run-oldro.sh
-GORO_BGM_VOLUME=0.35 ./scripts/run-oldro.sh
-GOGPU_GRAPHICS_API=gles ./scripts/run-oldro.sh # fallback if Vulkan is unavailable
+CGO_ENABLED=0 go run -tags nofakecgo . --data-dir /home/kivutar/Téléchargements/OldRO --fullscreen
+CGO_ENABLED=0 go run -tags nofakecgo . --config ./oldro.ini --bgm=false --graphics-api gles
+```
+
+Useful options:
+
+```sh
+CGO_ENABLED=0 go run -tags nofakecgo . --net-trace
+CGO_ENABLED=0 go run -tags nofakecgo . --packet-client-date 20211103 # only when rAthena is rebuilt for that packetver
+CGO_ENABLED=0 go run -tags nofakecgo . --fullscreen
+CGO_ENABLED=0 go run -tags nofakecgo . --bgm=false
+CGO_ENABLED=0 go run -tags nofakecgo . --bgm-volume 0.35
+CGO_ENABLED=0 go run -tags nofakecgo . --graphics-api gles # fallback if Vulkan is unavailable
 ```
 
 Runtime data is discovered from, in order:
 
-- `GORO_DATA_DIR`
+- `--data-dir`
+- `data_dir` in `goro.ini`
 - current working directory
 
 The resource manager currently looks for loose files such as:

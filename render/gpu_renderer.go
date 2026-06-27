@@ -6,12 +6,12 @@ import (
 	"image/color"
 	"log"
 	"math"
-	"os"
 	"time"
 
 	"github.com/gogpu/gogpu"
 	"github.com/gogpu/gputypes"
 	"github.com/gogpu/wgpu"
+	"github.com/kivutar/goro/core"
 )
 
 const screenShaderWGSL = `
@@ -197,7 +197,7 @@ type pendingWorldBatch struct {
 	indices []uint32
 }
 
-func newGPURenderer(ctx *gogpu.Context, app *gogpu.App) (*gpuRenderer, error) {
+func newGPURenderer(ctx *gogpu.Context, app *gogpu.App, cfg core.RenderConfig) (*gpuRenderer, error) {
 	provider := app.DeviceProvider()
 	if provider == nil || provider.Device() == nil {
 		return nil, fmt.Errorf("gogpu device provider is not ready")
@@ -209,8 +209,8 @@ func newGPURenderer(ctx *gogpu.Context, app *gogpu.App) (*gpuRenderer, error) {
 		samplers:     make(map[samplerKey]*wgpu.Sampler),
 		textures:     make(map[*Image]*gpuTexture),
 		bindGroups:   make(map[bindGroupKey]*wgpu.BindGroup),
-		statsEnabled: os.Getenv("GORO_RENDER_STATS") == "1",
-		worldDebug:   os.Getenv("GORO_WORLD_DEBUG_STATS") == "1",
+		statsEnabled: cfg.Stats,
+		worldDebug:   cfg.WorldDebugStats,
 	}
 	if r.queue == nil {
 		r.queue = r.dev.Queue()

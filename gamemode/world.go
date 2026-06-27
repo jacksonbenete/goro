@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kivutar/goro/core"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -1755,8 +1756,8 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projec
 	m.damageFloaters = active
 }
 
-func (m *WorldMode) drawSceneFogVeil(screen *render.Image, fog sceneFog, projection sceneProjection) {
-	alpha := sceneFogVeilAlpha(fog, projection)
+func (m *WorldMode) drawSceneFogVeil(screen *render.Image, fog sceneFog, projection sceneProjection, cfg core.FogConfig) {
+	alpha := sceneFogVeilAlpha(fog, projection, cfg)
 	if alpha == 0 {
 		return
 	}
@@ -1832,7 +1833,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	projection := m.sceneProjection(ctx, width, height, now)
-	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName)
+	fog := sceneFogFromMap(ctx.Resources, ctx.World.MapName, ctx.Config.Fog)
 	clearWorldScene(screen, ctx.World.MapName)
 	var actorOverlays []sceneActorDrawEntry
 	screen.SetCamera3D(projection.RenderCameraWithFog(fog))
@@ -1861,7 +1862,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 		}
 	}
 
-	m.drawSceneFogVeil(screen, fog, projection)
+	m.drawSceneFogVeil(screen, fog, projection, ctx.Config.Fog)
 	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"flag"
 	"log"
+	"os"
 
 	"github.com/kivutar/goro/app"
 	"github.com/kivutar/goro/core"
@@ -10,16 +10,17 @@ import (
 )
 
 func main() {
-	cfg := core.LoadConfig()
-	flag.BoolVar(&cfg.Window.Fullscreen, "fullscreen", cfg.Window.Fullscreen, "start in fullscreen mode")
-	flag.Parse()
+	cfg, err := core.LoadConfig(os.Args[1:])
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	game, err := app.New(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := render.Run(game, cfg.Window); err != nil {
+	if err := render.Run(game, cfg.Window, cfg.Render); err != nil {
 		log.Fatal(err)
 	}
 }

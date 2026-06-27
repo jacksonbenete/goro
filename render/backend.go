@@ -1,13 +1,15 @@
 package render
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"runtime/pprof"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gogpu/gogpu"
+	gogputypes "github.com/gogpu/gogpu/gpu/types"
 	"github.com/gogpu/gpucontext"
 	"github.com/kivutar/goro/core"
 	"github.com/kivutar/goro/input"
@@ -35,6 +37,7 @@ type runner struct {
 	height         int
 	duration       time.Duration
 	warmup         time.Duration
+	renderCfg      core.RenderConfig
 	started        time.Time
 	measureStarted time.Time
 	lastLog        time.Time
@@ -45,17 +48,19 @@ type runner struct {
 	cpuProfile     *os.File
 }
 
-func Run(game Game, cfg core.WindowConfig) error {
+func Run(game Game, cfg core.WindowConfig, renderCfg core.RenderConfig) error {
 	appConfig := gogpu.DefaultConfig()
-	if os.Getenv("GOGPU_GRAPHICS_API") == "" {
-		appConfig = appConfig.WithGraphicsAPI(gogpu.GraphicsAPIVulkan)
+	api, err := graphicsAPI(renderCfg.GraphicsAPI)
+	if err != nil {
+		return err
 	}
 	appConfig = appConfig.
+		WithGraphicsAPI(api).
 		WithTitle(cfg.Title).
 		WithSize(cfg.Width, cfg.Height).
 		WithResizable(true).
 		WithContinuousRender(true).
-		WithVSync(os.Getenv("GORO_VSYNC") != "0" && os.Getenv("GORO_BENCH_SECONDS") == "")
+		WithVSync(renderCfg.VSync && renderCfg.BenchSeconds == 0)
 	if cfg.Fullscreen {
 		appConfig = appConfig.WithFullscreen()
 	}
@@ -64,13 +69,14 @@ func Run(game Game, cfg core.WindowConfig) error {
 	defer setCursorApp(nil)
 
 	r := &runner{
-		app:      gg,
-		game:     game,
-		width:    cfg.Width,
-		height:   cfg.Height,
-		duration: time.Duration(intEnv("GORO_BENCH_SECONDS", 0)) * time.Second,
-		warmup:   time.Duration(intEnv("GORO_BENCH_WARMUP_SECONDS", 0)) * time.Second,
-		quit:     gg.Quit,
+		app:       gg,
+		game:      game,
+		width:     cfg.Width,
+		height:    cfg.Height,
+		duration:  time.Duration(renderCfg.BenchSeconds) * time.Second,
+		warmup:    time.Duration(renderCfg.BenchWarmupSeconds) * time.Second,
+		renderCfg: renderCfg,
+		quit:      gg.Quit,
 	}
 	if receiver, ok := game.(quitReceiver); ok {
 		receiver.SetQuitFunc(gg.Quit)
@@ -110,6 +116,25 @@ func Run(game Game, cfg core.WindowConfig) error {
 		}
 	})
 	return gg.Run()
+}
+
+func graphicsAPI(name string) (gogputypes.GraphicsAPI, error) {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "", "vulkan":
+		return gogpu.GraphicsAPIVulkan, nil
+	case "auto":
+		return gogpu.GraphicsAPIAuto, nil
+	case "dx12", "directx12", "d3d12":
+		return gogpu.GraphicsAPIDX12, nil
+	case "metal":
+		return gogpu.GraphicsAPIMetal, nil
+	case "gles", "opengl", "opengles":
+		return gogpu.GraphicsAPIGLES, nil
+	case "software", "soft":
+		return gogpu.GraphicsAPISoftware, nil
+	default:
+		return gogpu.GraphicsAPIAuto, fmt.Errorf("unknown graphics api %q", name)
+	}
 }
 
 func wireInput(app *gogpu.App, state *input.State) {
@@ -188,7 +213,7 @@ func (r *runner) update() error {
 	if r.duration > 0 && r.started.IsZero() {
 		r.started = time.Now()
 		r.lastLog = r.started
-		if path := os.Getenv("GORO_CPU_PROFILE"); path != "" {
+		if path := r.renderCfg.CPUProfile; path != "" {
 			file, err := os.Create(path)
 			if err != nil {
 				log.Printf("cpu profile start failed: %v", err)
@@ -200,7 +225,7 @@ func (r *runner) update() error {
 				log.Printf("cpu profile writing %s", path)
 			}
 		}
-		log.Printf("benchmark start duration=%s warmup=%s vsync=%v", r.duration, r.warmup, os.Getenv("GORO_VSYNC") != "0")
+		log.Printf("benchmark start duration=%s warmup=%s vsync=%v", r.duration, r.warmup, r.renderCfg.VSync)
 	}
 	if err := r.game.Update(); err != nil {
 		return err
@@ -257,7 +282,7 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 		r.game.Resize(width, height)
 	}
 	if r.gpu == nil {
-		gpu, err := newGPURenderer(ctx, r.app)
+		gpu, err := newGPURenderer(ctx, r.app, r.renderCfg)
 		if err != nil {
 			return err
 		}
@@ -274,16 +299,4 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 		r.measuredFrames++
 	}
 	return nil
-}
-
-func intEnv(name string, fallback int) int {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	value, err := strconv.Atoi(raw)
-	if err != nil {
-		return fallback
-	}
-	return value
 }

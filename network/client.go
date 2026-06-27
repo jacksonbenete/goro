@@ -7,13 +7,13 @@ import (
 	"io"
 	"log"
 	"net"
-	"os"
 	"sync"
 	"time"
 )
 
 type Client struct {
 	clientDate int
+	trace      bool
 	framer     *Framer
 
 	mu      sync.Mutex
@@ -23,9 +23,10 @@ type Client struct {
 	errs    []error
 }
 
-func NewClient(clientDate int) *Client {
+func NewClient(clientDate int, trace bool) *Client {
 	return &Client{
 		clientDate: clientDate,
+		trace:      trace,
 		framer:     NewFramer(PacketLengths2008()),
 		status:     "offline",
 	}
@@ -70,7 +71,7 @@ func (c *Client) Send(data []byte) error {
 		return fmt.Errorf("not connected")
 	}
 
-	if os.Getenv("GORO_NET_TRACE") == "1" {
+	if c.trace {
 		headLen := min(len(data), 32)
 		log.Printf("network write n=%d head=%s", len(data), hex.EncodeToString(data[:headLen]))
 	}
@@ -113,7 +114,7 @@ func (c *Client) SendLoadEndAck() error {
 func (c *Client) SendTick(clientTick uint32) error {
 	packet := BuildTickSendPacketForClientDate(clientTick, c.clientDate)
 	err := c.Send(packet)
-	if err == nil && os.Getenv("GORO_NET_TRACE") == "1" {
+	if err == nil && c.trace {
 		log.Printf("sent CZ_REQUEST_TIME opcode=0x%04X tick=%d client_date=%d", ID(packet), clientTick, c.clientDate)
 	} else if err != nil {
 		log.Printf("send CZ_REQUEST_TIME failed opcode=0x%04X len=%d client_date=%d: %v", ID(packet), len(packet), c.clientDate, err)
@@ -144,7 +145,7 @@ func (c *Client) SendMapServerEnter(accountID, charID, authCode, clientTick uint
 		ClientTick: clientTick,
 		Sex:        sex,
 	}, c.clientDate)
-	if os.Getenv("GORO_NET_TRACE") == "1" {
+	if c.trace {
 		log.Printf("sent CZ_ENTER2 opcode=0x%04X len=%d client_date=%d sex_offset=%d", ID(packet), len(packet), c.clientDate, len(packet)-1)
 	}
 	return c.Send(packet)
@@ -275,7 +276,7 @@ func (c *Client) readLoop(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf)
 		if n > 0 {
-			if os.Getenv("GORO_NET_TRACE") == "1" {
+			if c.trace {
 				headLen := min(n, 32)
 				log.Printf("network read n=%d head=%s", n, hex.EncodeToString(buf[:headLen]))
 			}

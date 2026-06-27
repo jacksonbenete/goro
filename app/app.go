@@ -43,7 +43,7 @@ func New(cfg core.Config) (*Game, error) {
 		resource: resource,
 		session:  session.New(),
 		world:    world.New(),
-		network:  network.NewClient(cfg.Packet.ClientDate),
+		network:  network.NewClient(cfg.Packet.ClientDate, cfg.Network.Trace),
 		audio:    gameaudio.NewBGM(resource, cfg.Audio.BGM, cfg.Audio.BGMVolume),
 		started:  time.Now(),
 		screenW:  cfg.Window.Width,

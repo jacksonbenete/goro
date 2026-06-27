@@ -3,9 +3,8 @@ package gamemode
 import (
 	"image/color"
 	"math"
-	"os"
-	"strconv"
 
+	"github.com/kivutar/goro/core"
 	"github.com/kivutar/goro/res"
 )
 
@@ -17,8 +16,8 @@ type sceneFog struct {
 	factor  float64
 }
 
-func sceneFogFromMap(manager *res.Manager, mapName string) sceneFog {
-	if manager == nil || os.Getenv("GORO_FOG") == "0" {
+func sceneFogFromMap(manager *res.Manager, mapName string, cfg core.FogConfig) sceneFog {
+	if manager == nil || !cfg.Enabled {
 		return sceneFog{}
 	}
 	parameter, ok := manager.FogParameter(mapName)
@@ -64,33 +63,17 @@ func (f sceneFog) mixVertexTints(projection sceneProjection, verts [4]modelPoint
 	return tints
 }
 
-func sceneFogVeilAlpha(f sceneFog, projection sceneProjection) uint8 {
+func sceneFogVeilAlpha(f sceneFog, projection sceneProjection, cfg core.FogConfig) uint8 {
 	if !f.enabled || f.far <= f.near {
 		return 0
 	}
-	depth := projection.cameraZoom * sceneFogVeilDepthScale()
+	depth := projection.cameraZoom * math.Max(0, cfg.VeilDepthScale)
 	amount := smoothstep(f.near, f.far, depth)
 	if amount <= 0 {
 		return 0
 	}
-	strength := math.Max(0, math.Min(1, fogFloatEnv("GORO_FOG_VEIL_STRENGTH", 0.22)))
+	strength := math.Max(0, math.Min(1, cfg.VeilStrength))
 	return clampColor(255 * amount * strength)
-}
-
-func sceneFogVeilDepthScale() float64 {
-	return math.Max(0, fogFloatEnv("GORO_FOG_VEIL_DEPTH_SCALE", 1.2))
-}
-
-func fogFloatEnv(name string, fallback float64) float64 {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	value, err := strconv.ParseFloat(raw, 64)
-	if err != nil {
-		return fallback
-	}
-	return value
 }
 
 func smoothstep(edge0, edge1, x float64) float64 {
