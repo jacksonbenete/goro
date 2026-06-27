@@ -120,10 +120,12 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 		root string
 	}
 	boundsCache := make(map[boundsCacheKey]rsmBounds)
-	nodeMatrixCache := make(map[*res.RSM]map[string]mat4)
 	lighting := sceneLightingFromRSW(rsw)
 	if m.rsmWorldCache == nil {
 		m.rsmWorldCache = make(map[int][]modelWorldTriangle)
+	}
+	if m.rsmNodeMatrices == nil {
+		m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
 	}
 	for _, visiblePlacement := range visible {
 		placement := visiblePlacement.model
@@ -162,10 +164,10 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 
 		worldTriangles, ok := m.rsmWorldCache[visiblePlacement.index]
 		if !ok {
-			nodeMatrices, ok := nodeMatrixCache[rsm]
+			nodeMatrices, ok := m.rsmNodeMatrices[rsm]
 			if !ok {
 				nodeMatrices = buildRSMNodeMatrices(rsm)
-				nodeMatrixCache[rsm] = nodeMatrices
+				m.rsmNodeMatrices[rsm] = nodeMatrices
 			}
 			for _, nodeIndex := range nodeIndices {
 				node := &rsm.Nodes[nodeIndex]

@@ -46,6 +46,7 @@ type WorldMode struct {
 	nonPCViews       map[int]*playerSpriteView
 	nonPCViewMiss    map[int]struct{}
 	rsmWorldCache    map[int][]modelWorldTriangle
+	rsmNodeMatrices  map[*res.RSM]map[string]mat4
 	pendingWarp      bool
 	pendingAttack    attackIntent
 	pendingPickup    pickupIntent
@@ -211,6 +212,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.nonPCViews = make(map[int]*playerSpriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmWorldCache = make(map[int][]modelWorldTriangle)
+	m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}
 	m.pendingPickup = pickupIntent{}

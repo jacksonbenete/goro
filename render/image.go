@@ -199,14 +199,14 @@ func WhiteImage() *Image {
 
 type DrawCommand struct {
 	Vertices []Vertex
-	Indices  []uint32
+	Indices  []uint16
 	Texture  *Image
 	Options  DrawTrianglesOptions
 }
 
 type WorldCommand struct {
 	Vertices []Vertex3D
-	Indices  []uint32
+	Indices  []uint16
 	Texture  *Image
 	Options  DrawTrianglesOptions
 }
@@ -341,10 +341,7 @@ func (i *Image) DrawTriangles(vertices []Vertex, indices []uint16, texture *Imag
 	}
 	if i.screen {
 		baseVertices := append([]Vertex(nil), vertices...)
-		outIndices := make([]uint32, len(indices))
-		for n, index := range indices {
-			outIndices[n] = uint32(index)
-		}
+		outIndices := append([]uint16(nil), indices...)
 		i.commands = append(i.commands, DrawCommand{
 			Vertices: baseVertices,
 			Indices:  outIndices,
@@ -370,10 +367,7 @@ func (i *Image) DrawTriangles3D(vertices []Vertex3D, indices []uint16, texture *
 	if i.screen {
 		baseVertices := append([]Vertex3D(nil), vertices...)
 		applyCameraFog3D(baseVertices, i.camera)
-		outIndices := make([]uint32, len(indices))
-		for n, index := range indices {
-			outIndices[n] = uint32(index)
-		}
+		outIndices := append([]uint16(nil), indices...)
 		i.worldCommands = append(i.worldCommands, WorldCommand{
 			Vertices: baseVertices,
 			Indices:  outIndices,

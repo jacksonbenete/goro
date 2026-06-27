@@ -579,7 +579,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			)
 		}
 		for _, idx := range cmd.Indices {
-			batch.indices = append(batch.indices, base+idx)
+			batch.indices = append(batch.indices, base+uint32(idx))
 		}
 	}
 	var frame worldFrame
@@ -621,7 +621,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			)
 		}
 		for _, idx := range cmd.Indices {
-			frame.indices = append(frame.indices, base+idx)
+			frame.indices = append(frame.indices, base+uint32(idx))
 			current.indexCount++
 		}
 	}
@@ -716,7 +716,7 @@ func (r *gpuRenderer) buildFrame(screen *Image) drawFrame {
 			)
 		}
 		for _, idx := range cmd.Indices {
-			frame.indices = append(frame.indices, base+idx)
+			frame.indices = append(frame.indices, base+uint32(idx))
 			current.indexCount++
 		}
 	}

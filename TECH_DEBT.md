@@ -45,6 +45,9 @@ not become invisible project assumptions.
   - Current state: GND, RSM, sprites, billboards, water, fog, and lighting are
     assembled mostly on the CPU before being submitted through GoGPU.
   - Ugly part: much of this still reflects the old 2D-engine workaround history.
+  - Improved: render commands now keep compact `uint16` indices until final GPU
+    batching, and RSM node matrices are cached per loaded model instead of being
+    rebuilt every frame.
   - Better fix: move more work into normal GPU pipelines with stable vertex/index
     buffers, shader-side fog/lighting, and fewer per-frame allocations.
 
