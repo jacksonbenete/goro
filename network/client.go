@@ -176,6 +176,17 @@ func (c *Client) SendWalkToXY(x, y int) error {
 	return err
 }
 
+func (c *Client) SendChangeDirection(headDir, dir uint8) error {
+	packet := BuildChangeDirectionPacketForClientDate(headDir, dir, c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_CHANGE_DIRECTION opcode=0x%04X head_dir=%d dir=%d client_date=%d", ID(packet), headDir, dir&7, c.clientDate)
+	} else {
+		log.Printf("send CZ_CHANGE_DIRECTION failed opcode=0x%04X len=%d head_dir=%d dir=%d client_date=%d: %v", ID(packet), len(packet), headDir, dir&7, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendActionRequest(targetGID uint32, action uint8) error {
 	packet := BuildActionRequestPacketForClientDate(targetGID, action, c.clientDate)
 	err := c.Send(packet)

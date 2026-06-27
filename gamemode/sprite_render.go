@@ -102,6 +102,8 @@ type spriteBillboard struct {
 type spriteState struct {
 	actionFamily int
 	direction    int
+	headDir      uint8
+	headTurn     bool
 	cameraYaw    float64
 	moving       bool
 	started      time.Time
@@ -417,6 +419,8 @@ func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projec
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    direction,
+		headDir:      ctx.World.Player.HeadDir,
+		headTurn:     true,
 		cameraYaw:    cameraYaw,
 		moving:       moving,
 		moveSpeedMS:  ctx.World.Player.Speed,
@@ -593,7 +597,7 @@ func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now 
 	headMotion := 0
 	if view.head != nil {
 		if _, headAction, headOK := resolveSpriteAction(view.head.act, state.actionFamily, state.direction); headOK && len(headAction.Animations) > 0 {
-			headMotion = selectHeadMotion(state.actionFamily, bodyMotion, headAction)
+			headMotion = selectHeadMotion(state, bodyMotion, headAction)
 		}
 	}
 	key := humanoidBillboardKey{
@@ -1152,6 +1156,9 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 	if state.actionFamily == spriteActionWalk && state.walkDistance > 0 {
 		return walkMotionIndex(action, state.walkDistance)
 	}
+	if state.headTurn && (state.actionFamily == spriteActionIdle || state.actionFamily == spriteActionSit) && int(state.headDir) < len(action.Animations) {
+		return int(state.headDir)
+	}
 	if state.actionFamily == spriteActionWalk || state.loop {
 		return spriteMotionIndexWithDelay(action, started, now, true, delayMS)
 	}
@@ -1184,14 +1191,17 @@ func walkMotionIndex(action res.ACTAction, distance float64) int {
 	return motion % len(action.Animations)
 }
 
-func selectHeadMotion(actionFamily int, bodyMotion int, headAction res.ACTAction) int {
+func selectHeadMotion(state spriteState, bodyMotion int, headAction res.ACTAction) int {
 	if len(headAction.Animations) == 0 {
 		return 0
 	}
-	if actionFamily == spriteActionWalk && bodyMotion >= 0 && bodyMotion < len(headAction.Animations) {
+	if state.headTurn && (state.actionFamily == spriteActionIdle || state.actionFamily == spriteActionSit) && int(state.headDir) < len(headAction.Animations) {
+		return int(state.headDir)
+	}
+	if state.actionFamily == spriteActionWalk && bodyMotion >= 0 && bodyMotion < len(headAction.Animations) {
 		return bodyMotion
 	}
-	if isTransientPCAction(actionFamily) && bodyMotion >= 0 && bodyMotion < len(headAction.Animations) {
+	if isTransientPCAction(state.actionFamily) && bodyMotion >= 0 && bodyMotion < len(headAction.Animations) {
 		return bodyMotion
 	}
 	return 0

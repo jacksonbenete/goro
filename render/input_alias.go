@@ -19,6 +19,7 @@ const (
 	KeyArrowLeft  = input.KeyArrowLeft
 	KeyArrowRight = input.KeyArrowRight
 	KeyBackspace  = input.KeyBackspace
+	KeyShift      = input.KeyShift
 )
 
 type MouseButton = input.MouseButton

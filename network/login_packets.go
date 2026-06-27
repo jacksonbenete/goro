@@ -17,6 +17,8 @@ const (
 	PacketCZReqNameRE      uint16 = 0x0368
 	PacketCZWalkToXY       uint16 = 0x00A7
 	PacketCZWalkToXYRE     uint16 = 0x035F
+	PacketCZChangeDir      uint16 = 0x009B
+	PacketCZChangeDirRE    uint16 = 0x0361
 	PacketCZRestart        uint16 = 0x00B2
 	PacketCZRequestAct     uint16 = 0x0190
 	PacketCZRequestAct2    uint16 = 0x0437
@@ -31,12 +33,31 @@ type nameRequestPacketLayout struct {
 	offset int
 }
 
+type changeDirectionPacketLayout struct {
+	date          int
+	opcode        uint16
+	length        int
+	headDirOffset int
+	dirOffset     int
+}
+
 var nameRequestPacketLayouts = []nameRequestPacketLayout{
 	// Keep this table aligned with rAthena's active packetdb branch. Our
 	// default 20080910 pre-renewal server uses PACKETVER_MAIN_NUM, not the
 	// 20080827 RagexeRE block from roBrowser's cumulative table.
 	{date: 20101124, opcode: PacketCZReqNameRE, length: 6, offset: 2},
 	{date: 20070212, opcode: 0x008C, length: 11, offset: 7},
+}
+
+var changeDirectionPacketLayouts = []changeDirectionPacketLayout{
+	// For the default 20080910 pre-renewal profile, the last active main-client
+	// remap is the 20070212 shuffled 0x0085 packet. Sending the unshuffled
+	// 0x009B packet disconnects because that opcode has been remapped.
+	{date: 20101124, opcode: PacketCZChangeDirRE, length: 5, headDirOffset: 2, dirOffset: 4},
+	{date: 20070212, opcode: 0x0085, length: 11, headDirOffset: 7, dirOffset: 10},
+	{date: 20070108, opcode: 0x0085, length: 14, headDirOffset: 10, dirOffset: 13},
+	{date: 20050110, opcode: 0x0085, length: 23, headDirOffset: 12, dirOffset: 22},
+	{date: 20041129, opcode: 0x00F3, length: 8, headDirOffset: 3, dirOffset: 7},
 }
 
 const (
@@ -189,6 +210,33 @@ func BuildWalkToXYPacketForClientDate(x, y, clientDate int) ([]byte, bool) {
 	}
 	_, _ = w.Write(dest[:])
 	return w.Bytes(), true
+}
+
+func BuildChangeDirectionPacket(headDir, dir uint8) []byte {
+	return BuildChangeDirectionPacketForClientDate(headDir, dir, 20080910)
+}
+
+func BuildChangeDirectionPacketForClientDate(headDir, dir uint8, clientDate int) []byte {
+	for _, layout := range changeDirectionPacketLayouts {
+		if clientDate >= layout.date {
+			packet := make([]byte, layout.length)
+			binary.LittleEndian.PutUint16(packet[0:2], layout.opcode)
+			if layout.headDirOffset > 2 {
+				fillLegacyPacketPadding(packet[2:layout.headDirOffset])
+			}
+			binary.LittleEndian.PutUint16(packet[layout.headDirOffset:layout.headDirOffset+2], uint16(headDir))
+			if layout.dirOffset > layout.headDirOffset+2 {
+				fillLegacyPacketPadding(packet[layout.headDirOffset+2 : layout.dirOffset])
+			}
+			packet[layout.dirOffset] = dir & 7
+			return packet
+		}
+	}
+	var w Writer
+	w.Uint16(PacketCZChangeDir)
+	w.Uint16(uint16(headDir))
+	w.Uint8(dir & 7)
+	return w.Bytes()
 }
 
 func BuildActionRequestPacket(targetGID uint32, action uint8) []byte {

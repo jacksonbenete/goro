@@ -98,6 +98,42 @@ func TestDirectionFromDeltaUsesRathenaDirectionOrder(t *testing.T) {
 	}
 }
 
+func TestResolveTurnOnlyDirectionUsesHeadBeforeBody(t *testing.T) {
+	head, body, ok := resolveTurnOnlyDirection(4, 0, 3)
+	if !ok {
+		t.Fatal("direction not resolved")
+	}
+	if head != 1 || body != 4 {
+		t.Fatalf("one-octant left turn = head %d body %d, want head 1 body 4", head, body)
+	}
+
+	head, body, ok = resolveTurnOnlyDirection(4, 1, 3)
+	if !ok {
+		t.Fatal("direction not resolved")
+	}
+	if head != 0 || body != 3 {
+		t.Fatalf("repeated left turn = head %d body %d, want head 0 body 3", head, body)
+	}
+}
+
+func TestResolveTurnOnlyDirectionRotatesBodyForWideTurn(t *testing.T) {
+	head, body, ok := resolveTurnOnlyDirection(4, 0, 1)
+	if !ok {
+		t.Fatal("direction not resolved")
+	}
+	if head != 1 || body != 2 {
+		t.Fatalf("wide left turn = head %d body %d, want head 1 body 2", head, body)
+	}
+
+	head, body, ok = resolveTurnOnlyDirection(4, 0, 7)
+	if !ok {
+		t.Fatal("direction not resolved")
+	}
+	if head != 2 || body != 6 {
+		t.Fatalf("wide right turn = head %d body %d, want head 2 body 6", head, body)
+	}
+}
+
 func TestActorBillboardScreenScaleUsesProjectedReferenceHeight(t *testing.T) {
 	if actorBillboardWorldHeightUnit != 5 {
 		t.Fatalf("actor billboard world height = %.1f, want 5.0", actorBillboardWorldHeightUnit)

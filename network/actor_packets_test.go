@@ -357,6 +357,25 @@ func TestParseActorActionNotify2(t *testing.T) {
 	}
 }
 
+func TestParseActorDirectionChange(t *testing.T) {
+	data := make([]byte, 9)
+	binary.LittleEndian.PutUint16(data[0:2], 0x009C)
+	binary.LittleEndian.PutUint32(data[2:6], 2000000)
+	binary.LittleEndian.PutUint16(data[6:8], 2)
+	data[8] = 6
+
+	direction, ok, err := ParseActorDirectionChange(Packet{ID: 0x009C, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("direction change not parsed")
+	}
+	if direction.ID != 2000000 || direction.HeadDir != 2 || direction.Dir != 6 {
+		t.Fatalf("unexpected direction change: %+v", direction)
+	}
+}
+
 func TestParseActorHPUpdate(t *testing.T) {
 	data := make([]byte, 14)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0977)

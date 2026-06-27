@@ -16,6 +16,7 @@ const (
 	KeyArrowLeft
 	KeyArrowRight
 	KeyBackspace
+	KeyShift
 )
 
 type MouseButton int

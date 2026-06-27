@@ -258,6 +258,22 @@ func TestBuildActionRequestPacketFor2008ClientDate(t *testing.T) {
 	}
 }
 
+func TestBuildChangeDirectionPacketFor2008ClientDate(t *testing.T) {
+	packet := BuildChangeDirectionPacketForClientDate(2, 6, 20080910)
+	if len(packet) != 11 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if packet[0] != 0x85 || packet[1] != 0x00 {
+		t.Fatalf("unexpected opcode: % x", packet[:2])
+	}
+	if got := binary.LittleEndian.Uint16(packet[7:9]); got != 2 {
+		t.Fatalf("head dir = %d", got)
+	}
+	if packet[10] != 6 {
+		t.Fatalf("dir = %d", packet[10])
+	}
+}
+
 func TestBuildActionRequestPacketFor2012ClientDate(t *testing.T) {
 	packet := BuildActionRequestPacketForClientDate(0x11223344, ActionAttack, 20120410)
 	want := []byte{0x69, 0x03, 0x44, 0x33, 0x22, 0x11, 0x07}

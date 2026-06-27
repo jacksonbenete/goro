@@ -198,6 +198,8 @@ func mapKey(key gpucontext.Key) (input.Key, bool) {
 		return input.KeyArrowRight, true
 	case gpucontext.KeyBackspace:
 		return input.KeyBackspace, true
+	case gpucontext.KeyLeftShift, gpucontext.KeyRightShift:
+		return input.KeyShift, true
 	default:
 		return 0, false
 	}

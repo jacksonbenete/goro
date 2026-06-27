@@ -49,6 +49,7 @@ type Actor struct {
 	HeadMid       int16
 	HeadLow       int16
 	Sex           byte
+	HeadDir       uint8
 	Appearance    bool
 	Moving        bool
 	FromX         int
@@ -106,6 +107,7 @@ func (w *World) SetPlayerPosition(x, y, dir int) {
 	w.Player.X = x
 	w.Player.Y = y
 	w.Player.Dir = dir
+	w.Player.HeadDir = 0
 	w.Dir = dir
 	w.Player.Moving = false
 	w.Player.FromX = x
@@ -119,6 +121,7 @@ func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
 	w.Player.X = toX
 	w.Player.Y = toY
 	w.Player.Dir = dir
+	w.Player.HeadDir = 0
 	w.Player.FromX = fromX
 	w.Player.FromY = fromY
 	w.Player.ToX = toX
@@ -149,6 +152,7 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.HeadMid = existing.HeadMid
 			actor.HeadLow = existing.HeadLow
 			actor.Sex = existing.Sex
+			actor.HeadDir = existing.HeadDir
 			actor.Appearance = existing.Appearance
 		}
 		if !actor.HasObjectType {
@@ -168,9 +172,13 @@ func (w *World) UpsertActor(actor Actor) {
 		if existing.Sitting && !actor.Moving {
 			actor.Sitting = true
 		}
+		if existing.HeadDir != 0 && actor.HeadDir == 0 && !actor.Moving {
+			actor.HeadDir = existing.HeadDir
+		}
 	}
 	if actor.Moving {
 		actor.Sitting = false
+		actor.HeadDir = 0
 	}
 	if actor.Moving {
 		if actor.ToX == 0 && actor.ToY == 0 {

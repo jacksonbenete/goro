@@ -515,6 +515,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			}
 			continue
 		}
+		if direction, ok, err := network.ParseActorDirectionChange(pkt); err != nil {
+			log.Printf("parse actor direction change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyActorDirectionChange(ctx, direction)
+			continue
+		}
 		if action, ok, err := network.ParseActorActionNotify(pkt); err != nil {
 			log.Printf("parse actor action 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -693,6 +699,10 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			log.Printf("click walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
 			m.clearLockedAttack()
+			if shouldUseTurnOnlyGroundClick(ctx) {
+				m.requestChangeDirection(ctx, targetX, targetY, "click")
+				return nil, nil
+			}
 			m.requestWalk(ctx, targetX, targetY, "click")
 		}
 	}
@@ -913,6 +923,96 @@ func (m *WorldMode) requestWalk(ctx Context, targetX, targetY int, source string
 		m.status = source + " walk request failed: " + err.Error()
 		log.Printf("%s walk request failed from=%d,%d to=%d,%d: %v", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, err)
 		m.walkCooldown = 30
+	}
+}
+
+func shouldUseTurnOnlyGroundClick(ctx Context) bool {
+	if ctx.World == nil || ctx.Input == nil {
+		return false
+	}
+	return ctx.World.Player.Sitting || ctx.Input.Pressed(render.KeyShift)
+}
+
+func (m *WorldMode) requestChangeDirection(ctx Context, targetX, targetY int, source string) {
+	if ctx.Network == nil {
+		m.status = "change direction failed: not connected"
+		m.walkCooldown = 30
+		return
+	}
+	if ctx.World == nil {
+		return
+	}
+	targetDir := directionFromDelta(ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, ctx.World.Player.Dir)
+	headDir, bodyDir, ok := resolveTurnOnlyDirection(ctx.World.Player.Dir, int(ctx.World.Player.HeadDir), targetDir)
+	if !ok {
+		return
+	}
+	log.Printf("%s change direction request player=%d,%d target=%d,%d head_dir=%d dir=%d", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, headDir, bodyDir)
+	if err := ctx.Network.SendChangeDirection(headDir, bodyDir); err != nil {
+		m.status = source + " change direction failed: " + err.Error()
+		log.Printf("%s change direction failed target=%d,%d head_dir=%d dir=%d: %v", source, targetX, targetY, headDir, bodyDir, err)
+		m.walkCooldown = 30
+		return
+	}
+	m.status = fmt.Sprintf("%s change direction: head=%d dir=%d", source, headDir, bodyDir)
+	m.applyLocalDirection(ctx, headDir, bodyDir)
+	m.walkCooldown = 6
+}
+
+func resolveTurnOnlyDirection(currentBodyDir int, currentHeadDir int, targetDir int) (uint8, uint8, bool) {
+	bodyDir := normalizeDirectionIndex(currentBodyDir)
+	headDir := normalizeHeadDir(currentHeadDir)
+	targetDir = normalizeDirectionIndex(targetDir)
+	delta := normalizeDirectionIndex(bodyDir - targetDir)
+
+	resolvedBodyDir := bodyDir
+	resolvedHeadDir := 0
+	switch delta {
+	case 0, 4:
+		resolvedBodyDir = targetDir
+	case 1:
+		if headDir != 1 {
+			resolvedHeadDir = 1
+		} else {
+			resolvedBodyDir = targetDir
+		}
+	case 2, 3:
+		resolvedBodyDir = normalizeDirectionIndex(targetDir + 1)
+		resolvedHeadDir = 1
+	case 7:
+		if headDir != 2 {
+			resolvedHeadDir = 2
+		} else {
+			resolvedBodyDir = targetDir
+		}
+	case 5, 6:
+		resolvedBodyDir = normalizeDirectionIndex(targetDir - 1)
+		resolvedHeadDir = 2
+	default:
+		return 0, 0, false
+	}
+	return uint8(normalizeHeadDir(resolvedHeadDir)), uint8(resolvedBodyDir), true
+}
+
+func normalizeHeadDir(headDir int) int {
+	if headDir < 0 {
+		return 0
+	}
+	if headDir > 2 {
+		return 2
+	}
+	return headDir
+}
+
+func (m *WorldMode) applyLocalDirection(ctx Context, headDir, dir uint8) {
+	if ctx.World == nil {
+		return
+	}
+	ctx.World.Player.Dir = int(dir & 7)
+	ctx.World.Player.HeadDir = uint8(normalizeHeadDir(int(headDir)))
+	ctx.World.Dir = ctx.World.Player.Dir
+	if ctx.Session != nil {
+		ctx.Session.PlayerDir = ctx.World.Player.Dir
 	}
 }
 
@@ -2236,6 +2336,7 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 		HeadMid:       entry.HeadMid,
 		HeadLow:       entry.HeadLow,
 		Sex:           entry.Sex,
+		HeadDir:       entry.HeadDir,
 		Appearance:    entry.Appearance,
 		Moving:        entry.Moving,
 		FromX:         entry.FromX,
@@ -2438,6 +2539,30 @@ func applyWorldActorLookChange(actor *worldstate.Actor, look network.ActorLookCh
 	case 8:
 		actor.Shield = int16(look.Value)
 	}
+}
+
+func applyActorDirectionChange(ctx Context, direction network.ActorDirectionChange) {
+	if ctx.World == nil || direction.ID == 0 {
+		return
+	}
+	dir := int(direction.Dir & 7)
+	headDir := uint8(normalizeHeadDir(int(direction.HeadDir)))
+	if isLocalActor(ctx, direction.ID) {
+		ctx.World.Player.Dir = dir
+		ctx.World.Player.HeadDir = headDir
+		ctx.World.Dir = dir
+		if ctx.Session != nil {
+			ctx.Session.PlayerDir = dir
+		}
+		return
+	}
+	actor, ok := ctx.World.Actors[direction.ID]
+	if !ok {
+		return
+	}
+	actor.Dir = dir
+	actor.HeadDir = headDir
+	ctx.World.Actors[direction.ID] = actor
 }
 
 func isLocalActor(ctx Context, id uint32) bool {
@@ -3573,6 +3698,8 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, project
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
+		headDir:      actor.HeadDir,
+		headTurn:     true,
 		cameraYaw:    cameraYaw,
 		moving:       actor.IsMovingAt(now),
 		moveSpeedMS:  actor.Speed,

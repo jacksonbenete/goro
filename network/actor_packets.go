@@ -15,6 +15,7 @@ type ActorEntry struct {
 	HeadMid       int16
 	HeadLow       int16
 	Sex           uint8
+	HeadDir       uint8
 	Appearance    bool
 	X             int
 	Y             int
@@ -52,6 +53,12 @@ type ActorLookChange struct {
 	ID    uint32
 	Type  uint8
 	Value uint32
+}
+
+type ActorDirectionChange struct {
+	ID      uint32
+	HeadDir uint8
+	Dir     uint8
 }
 
 type ActorActionNotify struct {
@@ -452,6 +459,20 @@ func ParseActorLookChange(packet Packet) (ActorLookChange, bool, error) {
 	default:
 		return ActorLookChange{}, false, nil
 	}
+}
+
+func ParseActorDirectionChange(packet Packet) (ActorDirectionChange, bool, error) {
+	if packet.ID != 0x009C {
+		return ActorDirectionChange{}, false, nil
+	}
+	if len(packet.Data) < 9 {
+		return ActorDirectionChange{}, false, fmt.Errorf("ZC_CHANGE_DIRECTION too short: %d", len(packet.Data))
+	}
+	return ActorDirectionChange{
+		ID:      binary.LittleEndian.Uint32(packet.Data[2:6]),
+		HeadDir: uint8(binary.LittleEndian.Uint16(packet.Data[6:8])),
+		Dir:     packet.Data[8] & 7,
+	}, true, nil
 }
 
 func ParseActorVanish(packet Packet) (ActorVanish, bool, error) {

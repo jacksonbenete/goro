@@ -274,8 +274,11 @@ func TestHumanoidIdleHeadMotionDoesNotCycle(t *testing.T) {
 		Animations: []res.ACTAnimation{{}, {}, {}},
 		DelayMS:    100,
 	}
-	if got := selectHeadMotion(spriteActionIdle, 2, action); got != 0 {
+	if got := selectHeadMotion(spriteState{actionFamily: spriteActionIdle}, 2, action); got != 0 {
 		t.Fatalf("idle head motion = %d, want 0", got)
+	}
+	if got := selectHeadMotion(spriteState{actionFamily: spriteActionIdle, headDir: 2, headTurn: true}, 0, action); got != 2 {
+		t.Fatalf("idle turned head motion = %d, want 2", got)
 	}
 }
 
@@ -284,7 +287,7 @@ func TestHumanoidWalkHeadMotionFollowsBodyMotion(t *testing.T) {
 		Animations: []res.ACTAnimation{{}, {}, {}},
 		DelayMS:    100,
 	}
-	if got := selectHeadMotion(spriteActionWalk, 2, action); got != 2 {
+	if got := selectHeadMotion(spriteState{actionFamily: spriteActionWalk}, 2, action); got != 2 {
 		t.Fatalf("walk head motion = %d, want 2", got)
 	}
 }
@@ -294,7 +297,7 @@ func TestHumanoidTransientHeadMotionFollowsBodyMotion(t *testing.T) {
 		Animations: []res.ACTAnimation{{}, {}, {}},
 		DelayMS:    100,
 	}
-	if got := selectHeadMotion(spriteActionPCAttack2, 2, action); got != 2 {
+	if got := selectHeadMotion(spriteState{actionFamily: spriteActionPCAttack2}, 2, action); got != 2 {
 		t.Fatalf("attack head motion = %d, want 2", got)
 	}
 }
