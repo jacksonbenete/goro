@@ -231,6 +231,23 @@ func TestParseActorLookChangeModern(t *testing.T) {
 	}
 }
 
+func TestParseActorLookChangeIgnoresStateChange3(t *testing.T) {
+	data := make([]byte, 15)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0229)
+	binary.LittleEndian.PutUint32(data[2:6], 2000006)
+	binary.LittleEndian.PutUint16(data[6:8], 0)
+	binary.LittleEndian.PutUint16(data[8:10], 0)
+	binary.LittleEndian.PutUint32(data[10:14], 0)
+
+	look, ok, err := ParseActorLookChange(Packet{ID: 0x0229, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatalf("state change parsed as look change: %+v", look)
+	}
+}
+
 func TestParseActorLookChangeLegacy(t *testing.T) {
 	data := make([]byte, 8)
 	binary.LittleEndian.PutUint16(data[0:2], 0x00C3)

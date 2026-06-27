@@ -676,6 +676,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.mapFade.phase == mapFadeHold {
 		return nil, nil
 	}
+	if m.cancelPendingSkillTargetFromInput(ctx) {
+		return nil, nil
+	}
 	if !m.escapeMenu.open && !m.deathModal.open {
 		m.updateCameraRotation(ctx)
 	}
@@ -745,12 +748,6 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.walkCooldown > 0 {
 		m.walkCooldown--
 	}
-	if m.pendingSkill.skill.ID != 0 && ctx.Input.JustPressed(render.KeyEscape) {
-		log.Printf("shortcut skill target canceled skill=%d", m.pendingSkill.skill.ID)
-		m.pendingSkill = pendingSkillTarget{}
-		m.status = "skill canceled"
-		return nil, nil
-	}
 	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) && m.walkCooldown == 0 {
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
@@ -791,6 +788,26 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		m.requestWalk(ctx, targetX, targetY, "key")
 	}
 	return nil, nil
+}
+
+func (m *WorldMode) cancelPendingSkillTargetFromInput(ctx Context) bool {
+	if m.pendingSkill.skill.ID == 0 || ctx.Input == nil {
+		return false
+	}
+	if !ctx.Input.JustPressed(render.KeyEscape) && !ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+		return false
+	}
+	m.cancelPendingSkillTarget("input")
+	return true
+}
+
+func (m *WorldMode) cancelPendingSkillTarget(source string) {
+	if m.pendingSkill.skill.ID == 0 {
+		return
+	}
+	log.Printf("shortcut skill target canceled skill=%d source=%s", m.pendingSkill.skill.ID, source)
+	m.pendingSkill = pendingSkillTarget{}
+	m.status = "skill canceled"
 }
 
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {

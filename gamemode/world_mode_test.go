@@ -1008,6 +1008,39 @@ func TestMobLookChangeToPlayerJobDoesNotChangeDeathSpriteFamily(t *testing.T) {
 	}
 }
 
+func TestPendingSkillTargetCancelWithEscape(t *testing.T) {
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{skill: session.Skill{ID: 6, Level: 2, Range: 9}},
+	}
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyEscape, true)
+
+	if !mode.cancelPendingSkillTargetFromInput(Context{Input: inputState}) {
+		t.Fatal("pending skill target was not canceled")
+	}
+	if mode.pendingSkill.skill.ID != 0 {
+		t.Fatalf("pending skill id = %d, want 0", mode.pendingSkill.skill.ID)
+	}
+	if mode.status != "skill canceled" {
+		t.Fatalf("status = %q, want skill canceled", mode.status)
+	}
+}
+
+func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{skill: session.Skill{ID: 6, Level: 2, Range: 9}},
+	}
+	inputState := input.NewState()
+	inputState.SetMouseButton(input.MouseButtonRight, true)
+
+	if !mode.cancelPendingSkillTargetFromInput(Context{Input: inputState}) {
+		t.Fatal("pending skill target was not canceled")
+	}
+	if mode.pendingSkill.skill.ID != 0 {
+		t.Fatalf("pending skill id = %d, want 0", mode.pendingSkill.skill.ID)
+	}
+}
+
 func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}

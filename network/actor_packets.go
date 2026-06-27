@@ -447,7 +447,7 @@ func ParseActorLookChange(packet Packet) (ActorLookChange, bool, error) {
 			Type:  packet.Data[6],
 			Value: uint32(packet.Data[7]),
 		}, true, nil
-	case 0x01D7, 0x0229:
+	case 0x01D7:
 		if len(packet.Data) < 11 {
 			return ActorLookChange{}, false, fmt.Errorf("ZC_CHANGE_LOOK2 too short: %d", len(packet.Data))
 		}
