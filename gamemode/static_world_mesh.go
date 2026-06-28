@@ -180,7 +180,7 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 		textureBounds := texture.Bounds()
 		textureWidth := float32(textureBounds.Dx())
 		textureHeight := float32(textureBounds.Dy())
-		baseBuilder := builderFor(texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+		baseBuilder := builderFor(texture, groundTextureDrawOptions())
 		lightOptions := triangleDrawOptions(render.FilterNearest, render.AddressUnsafe)
 		lightOptions.Blend = render.BlendLighter
 		lightBuilder := builderFor(m.whitePixel, lightOptions)
@@ -245,7 +245,7 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 						if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
 							addLightmapped(texture, verts, uvs, baseTints, lightmap, vertexLightScales(lighting, normals))
 						} else {
-							addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(gnd, surface, baseTints, vertexOrder, cell.Heights, normals, lighting), worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+							addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(gnd, surface, baseTints, vertexOrder, cell.Heights, normals, lighting), groundTextureDrawOptions())
 						}
 					} else {
 						addColored(verts, quadIndices012023, groundSurfaceVertexColors(gndTextureName(gnd, surface.TextureID), surface.Color, cell.Heights, normals, lighting), worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
@@ -299,7 +299,7 @@ func addGNDRetainedSurface(m *WorldMode, manager *res.Manager, gnd *res.GND, sur
 	uvs := surfaceUVs(surface, vertexOrder)
 	textureName := gndTextureName(gnd, surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
-		addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(gnd, surface, baseTints, vertexOrder, heights, normals, lighting), worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+		addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(gnd, surface, baseTints, vertexOrder, heights, normals, lighting), groundTextureDrawOptions())
 		return
 	}
 	addColored(verts, quadIndices012023, groundSurfaceVertexColors(textureName, surface.Color, heights, normals, lighting), worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))

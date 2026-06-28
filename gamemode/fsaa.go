@@ -15,3 +15,7 @@ func worldOpaqueTriangleDrawOptions(filter render.Filter, address render.Address
 	options.DepthWrite = true
 	return options
 }
+
+func groundTextureDrawOptions() *render.DrawTrianglesOptions {
+	return worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
+}

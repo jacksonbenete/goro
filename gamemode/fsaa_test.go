@@ -15,3 +15,16 @@ func TestTriangleDrawOptionsEnableDepthTest(t *testing.T) {
 		t.Fatal("triangle options should enable depth testing")
 	}
 }
+
+func TestGroundTextureDrawOptionsClampTileEdges(t *testing.T) {
+	options := groundTextureDrawOptions()
+	if options.Filter != render.FilterLinear {
+		t.Fatalf("ground filter = %v, want linear", options.Filter)
+	}
+	if options.Address != render.AddressClampToZero {
+		t.Fatalf("ground address = %v, want clamp", options.Address)
+	}
+	if !options.DepthTest || !options.DepthWrite {
+		t.Fatalf("ground depth flags test=%t write=%t, want both true", options.DepthTest, options.DepthWrite)
+	}
+}
