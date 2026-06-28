@@ -20,7 +20,7 @@ const (
 	effectProvoke       = 67
 	effectEndure        = 11
 	effectBeginSpell    = 12
-	effectSafetyWall    = 13
+	effectSafetyWall    = 315
 	effectColdBolt      = 10014
 	effectBashBegin     = 16
 	effectBashHit       = 1
@@ -223,6 +223,38 @@ func (m *WorldMode) applyGroundSkillNotify(ctx Context, notify network.GroundSki
 	}
 }
 
+func (m *WorldMode) applySkillUnitEntry(ctx Context, entry network.SkillUnitEntry) {
+	if !entry.Visible {
+		return
+	}
+	effectID := skillUnitEffectID(entry.UnitID)
+	if effectID <= 0 {
+		return
+	}
+	if m.addWorldEffectAtCellWithActor(ctx, effectID, entry.ID, int(entry.X), int(entry.Y), time.Now()) {
+		log.Printf("skill unit effect unit=%d id=%d creator=%d cell=%d,%d effect=%d", entry.UnitID, entry.ID, entry.CreatorID, entry.X, entry.Y, effectID)
+	}
+}
+
+func (m *WorldMode) applySkillUnitDisappear(disappear network.SkillUnitDisappear) {
+	if disappear.ID == 0 {
+		return
+	}
+	active := m.worldEffects[:0]
+	removed := false
+	for _, effect := range m.worldEffects {
+		if effect.actorID == disappear.ID {
+			removed = true
+			continue
+		}
+		active = append(active, effect)
+	}
+	m.worldEffects = active
+	if removed {
+		log.Printf("skill unit effect removed id=%d", disappear.ID)
+	}
+}
+
 func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.SpecialEffectNotify) {
 	effectID := specialEffectID(notify.EffectID)
 	if effectID <= 0 {
@@ -365,6 +397,10 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, a
 }
 
 func (m *WorldMode) addWorldEffectAtCell(ctx Context, effectID int, x, y int, starts time.Time) bool {
+	return m.addWorldEffectAtCellWithActor(ctx, effectID, 0, x, y, starts)
+}
+
+func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -384,6 +420,7 @@ func (m *WorldMode) addWorldEffectAtCell(ctx Context, effectID int, x, y int, st
 	}
 	m.worldEffects = append(m.worldEffects, worldEffect{
 		effectID: effectID,
+		actorID:  actorID,
 		x:        x,
 		y:        y,
 		starts:   starts,
@@ -558,6 +595,17 @@ func skillGroundEffectID(skillID uint16) int {
 		return effectFireWall
 	case 21:
 		return effectThunderStorm
+	default:
+		return 0
+	}
+}
+
+func skillUnitEffectID(unitID uint16) int {
+	switch unitID {
+	case 126:
+		return effectSafetyWall
+	case 127:
+		return effectFireWall
 	default:
 		return 0
 	}

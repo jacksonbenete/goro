@@ -3045,6 +3045,27 @@ func TestGroundSkillNotifyAddsCellEffect(t *testing.T) {
 	}
 }
 
+func TestSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9001, CreatorID: 2000000, UnitID: 126, X: 123, Y: 456, Visible: true})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 9001 || effect.effectID != effectSafetyWall || effect.x != 123 || effect.y != 456 {
+		t.Fatalf("effect = %+v", effect)
+	}
+
+	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9001})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
+	}
+}
+
 func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}

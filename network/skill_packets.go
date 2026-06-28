@@ -60,6 +60,19 @@ type GroundSkillNotify struct {
 	Y        uint16
 }
 
+type SkillUnitEntry struct {
+	ID        uint32
+	CreatorID uint32
+	X         uint16
+	Y         uint16
+	UnitID    uint16
+	Visible   bool
+}
+
+type SkillUnitDisappear struct {
+	ID uint32
+}
+
 type SkillFailAck struct {
 	SkillID uint16
 	Number  uint32
@@ -184,6 +197,33 @@ func ParseGroundSkillNotify(packet Packet) (GroundSkillNotify, bool, error) {
 		X:        binary.LittleEndian.Uint16(packet.Data[10:12]),
 		Y:        binary.LittleEndian.Uint16(packet.Data[12:14]),
 	}, true, nil
+}
+
+func ParseSkillUnitEntry(packet Packet) (SkillUnitEntry, bool, error) {
+	if packet.ID != 0x011F {
+		return SkillUnitEntry{}, false, nil
+	}
+	if len(packet.Data) < 16 {
+		return SkillUnitEntry{}, false, fmt.Errorf("ZC_SKILL_ENTRY too short: %d", len(packet.Data))
+	}
+	return SkillUnitEntry{
+		ID:        binary.LittleEndian.Uint32(packet.Data[2:6]),
+		CreatorID: binary.LittleEndian.Uint32(packet.Data[6:10]),
+		X:         binary.LittleEndian.Uint16(packet.Data[10:12]),
+		Y:         binary.LittleEndian.Uint16(packet.Data[12:14]),
+		UnitID:    uint16(packet.Data[14]),
+		Visible:   packet.Data[15] != 0,
+	}, true, nil
+}
+
+func ParseSkillUnitDisappear(packet Packet) (SkillUnitDisappear, bool, error) {
+	if packet.ID != 0x0120 {
+		return SkillUnitDisappear{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return SkillUnitDisappear{}, false, fmt.Errorf("ZC_SKILL_DISAPPEAR too short: %d", len(packet.Data))
+	}
+	return SkillUnitDisappear{ID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
 }
 
 func ParseSkillFailAck(packet Packet) (SkillFailAck, bool, error) {

@@ -177,6 +177,45 @@ func TestParseGroundSkillNotify(t *testing.T) {
 	}
 }
 
+func TestParseSkillUnitEntry(t *testing.T) {
+	data := make([]byte, 16)
+	binary.LittleEndian.PutUint16(data[0:2], 0x011F)
+	binary.LittleEndian.PutUint32(data[2:6], 0x11223344)
+	binary.LittleEndian.PutUint32(data[6:10], 0x55667788)
+	binary.LittleEndian.PutUint16(data[10:12], 123)
+	binary.LittleEndian.PutUint16(data[12:14], 456)
+	data[14] = 126
+	data[15] = 1
+
+	entry, ok, err := ParseSkillUnitEntry(Packet{ID: 0x011F, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("skill unit entry not parsed")
+	}
+	if entry.ID != 0x11223344 || entry.CreatorID != 0x55667788 || entry.X != 123 || entry.Y != 456 || entry.UnitID != 126 || !entry.Visible {
+		t.Fatalf("entry = %+v", entry)
+	}
+}
+
+func TestParseSkillUnitDisappear(t *testing.T) {
+	data := make([]byte, 6)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0120)
+	binary.LittleEndian.PutUint32(data[2:6], 0x11223344)
+
+	disappear, ok, err := ParseSkillUnitDisappear(Packet{ID: 0x0120, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("skill unit disappear not parsed")
+	}
+	if disappear.ID != 0x11223344 {
+		t.Fatalf("disappear = %+v", disappear)
+	}
+}
+
 func TestParseSkillFailAck(t *testing.T) {
 	data := make([]byte, 10)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0110)

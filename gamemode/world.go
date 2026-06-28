@@ -638,6 +638,18 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.applyGroundSkillNotify(ctx, groundSkill)
 			continue
 		}
+		if skillUnit, ok, err := network.ParseSkillUnitEntry(pkt); err != nil {
+			log.Printf("parse skill unit 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applySkillUnitEntry(ctx, skillUnit)
+			continue
+		}
+		if skillUnit, ok, err := network.ParseSkillUnitDisappear(pkt); err != nil {
+			log.Printf("parse skill unit disappear 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applySkillUnitDisappear(skillUnit)
+			continue
+		}
 		if effect, ok, err := network.ParseSpecialEffectNotify(pkt); err != nil {
 			log.Printf("parse special effect 0x%04X: %v", pkt.ID, err)
 		} else if ok {
