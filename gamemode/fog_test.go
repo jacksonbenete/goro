@@ -39,7 +39,6 @@ func TestSceneFogMixColorSmoothstepsToFogColor(t *testing.T) {
 		near:    10,
 		far:     20,
 		color:   color.RGBA{R: 200, G: 100, B: 50, A: 255},
-		factor:  1,
 	}
 	base := color.RGBA{R: 100, G: 100, B: 100, A: 180}
 	if got := fog.mixColor(base, 5); got != base {
@@ -69,37 +68,5 @@ func TestSceneFogAttenuateColorSmoothstepsToBlack(t *testing.T) {
 	}
 	if got := fog.attenuateColor(base, 15); got != (color.RGBA{R: 50, G: 40, B: 30, A: 180}) {
 		t.Fatalf("mid color mismatch: %#v", got)
-	}
-}
-
-func TestSceneFogVeilAlphaUsesCameraDepth(t *testing.T) {
-	fog := sceneFog{
-		enabled: true,
-		near:    120,
-		far:     360,
-		color:   color.RGBA{R: 100, G: 160, B: 100, A: 255},
-	}
-	projection := sceneProjection{cameraZoom: 150}
-	alpha := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.10, VeilDepthScale: 1.2})
-	if alpha == 0 {
-		t.Fatal("expected visible fog veil alpha")
-	}
-}
-
-func TestSceneFogVeilAlphaIgnoresMapFactor(t *testing.T) {
-	fog := sceneFog{
-		enabled: true,
-		near:    24,
-		far:     216,
-		color:   color.RGBA{R: 4, B: 154, A: 255},
-		factor:  0.3,
-	}
-	projection := sceneProjection{cameraZoom: 150}
-	got := sceneFogVeilAlpha(fog, projection, core.FogConfig{Enabled: true, VeilStrength: 0.10, VeilDepthScale: 1.2})
-	withoutFactor := fog
-	withoutFactor.factor = 0
-	want := sceneFogVeilAlpha(withoutFactor, projection, core.FogConfig{Enabled: true, VeilStrength: 0.10, VeilDepthScale: 1.2})
-	if got != want {
-		t.Fatalf("veil alpha = %d, want factor-independent alpha %d", got, want)
 	}
 }

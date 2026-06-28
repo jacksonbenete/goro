@@ -61,9 +61,7 @@ type NetworkConfig struct {
 }
 
 type FogConfig struct {
-	Enabled        bool
-	VeilStrength   float64
-	VeilDepthScale float64
+	Enabled bool
 }
 
 func LoadConfig(args []string) (Config, error) {
@@ -104,9 +102,7 @@ func defaultConfig() Config {
 			BenchWarmupSeconds: 0,
 		},
 		Fog: FogConfig{
-			Enabled:        true,
-			VeilStrength:   0.10,
-			VeilDepthScale: 1.2,
+			Enabled: true,
 		},
 	}
 }
@@ -173,8 +169,6 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.BoolVar(&cfg.Render.WorldDebugStats, "world-debug-stats", cfg.Render.WorldDebugStats, "show world renderer debug stats")
 	fs.BoolVar(&cfg.Network.Trace, "net-trace", cfg.Network.Trace, "log network reads and writes")
 	fs.BoolVar(&cfg.Fog.Enabled, "fog", cfg.Fog.Enabled, "enable map fog")
-	fs.Float64Var(&cfg.Fog.VeilStrength, "fog-veil-strength", cfg.Fog.VeilStrength, "fog veil strength")
-	fs.Float64Var(&cfg.Fog.VeilDepthScale, "fog-veil-depth-scale", cfg.Fog.VeilDepthScale, "fog veil depth scale")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -259,10 +253,6 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		return setBool(value, &cfg.Network.Trace)
 	case "fog.enabled":
 		return setBool(value, &cfg.Fog.Enabled)
-	case "fog.veilstrength":
-		return setFloat(value, &cfg.Fog.VeilStrength)
-	case "fog.veildepthscale":
-		return setFloat(value, &cfg.Fog.VeilDepthScale)
 	default:
 		return fmt.Errorf("unknown key %q in section %q", key, section)
 	}
@@ -284,9 +274,6 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Render.BenchSeconds < 0 || cfg.Render.BenchWarmupSeconds < 0 {
 		return fmt.Errorf("benchmark durations must be non-negative")
-	}
-	if cfg.Fog.VeilStrength < 0 || cfg.Fog.VeilDepthScale < 0 {
-		return fmt.Errorf("fog values must be non-negative")
 	}
 	return nil
 }

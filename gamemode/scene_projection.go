@@ -72,7 +72,6 @@ func (p sceneProjection) RenderCameraWithFog(fog sceneFog) render.Camera3D {
 			ColorR:  float32(fog.color.R) / 255,
 			ColorG:  float32(fog.color.G) / 255,
 			ColorB:  float32(fog.color.B) / 255,
-			Factor:  float32(fog.factor),
 		}
 	}
 	return camera

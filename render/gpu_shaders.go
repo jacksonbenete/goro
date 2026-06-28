@@ -69,7 +69,6 @@ struct VertexOutput {
 	@builtin(position) clip: vec4<f32>,
 	@location(0) uv: vec2<f32>,
 	@location(1) color: vec4<f32>,
-	@location(2) fog_amount: f32,
 }
 
 @vertex
@@ -79,13 +78,11 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 	let depth_clip = uniforms.c0 * input.depth_pos[0] + uniforms.c1 * input.depth_pos[1] + uniforms.c2 * input.depth_pos[2] + uniforms.c3;
 	let clip_z = clip[2] * 0.5 + clip[3] * 0.5;
 	let depth_z = depth_clip[2] * 0.5 + depth_clip[3] * 0.5;
-	let fog_depth = clip_z;
 	let occlusion_z = min(clip_z, depth_z * clip[3] / max(depth_clip[3], 0.000001));
 	let final_z = max(0.0, occlusion_z - input.depth_bias * clip[3]);
 	out.clip = vec4<f32>(clip[0], clip[1], final_z, clip[3]);
 	out.uv = input.uv;
 	out.color = input.color;
-	out.fog_amount = smoothstep(uniforms.fog[0], uniforms.fog[1], fog_depth) * uniforms.fog[2];
 	return out;
 }
 
@@ -95,7 +92,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 	if (color[3] < 0.01) {
 		discard;
 	}
-	let fog = clamp(input.fog_amount, 0.0, 1.0);
+	let depth = input.clip[2] / max(input.clip[3], 0.000001);
+	let fog = clamp(smoothstep(uniforms.fog[0], uniforms.fog[1], depth) * uniforms.fog[2], 0.0, 1.0);
 	return vec4<f32>(
 		color[0] * (1.0 - fog) + uniforms.fog_color[0] * fog,
 		color[1] * (1.0 - fog) + uniforms.fog_color[1] * fog,
@@ -135,7 +133,6 @@ struct VertexOutput {
 	@builtin(position) clip: vec4<f32>,
 	@location(0) uv: vec2<f32>,
 	@location(1) color: vec4<f32>,
-	@location(2) fog_amount: f32,
 }
 
 @vertex
@@ -156,7 +153,6 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 	out.clip = vec4<f32>(clip[0], clip[1], final_z, clip[3]);
 	out.uv = input.uv;
 	out.color = input.color;
-	out.fog_amount = smoothstep(uniforms.fog[0], uniforms.fog[1], clip_z) * uniforms.fog[2];
 	return out;
 }
 
@@ -166,7 +162,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 	if (color[3] < 0.01) {
 		discard;
 	}
-	let fog = clamp(input.fog_amount, 0.0, 1.0);
+	let depth = input.clip[2] / max(input.clip[3], 0.000001);
+	let fog = clamp(smoothstep(uniforms.fog[0], uniforms.fog[1], depth) * uniforms.fog[2], 0.0, 1.0);
 	return vec4<f32>(
 		color[0] * (1.0 - fog) + uniforms.fog_color[0] * fog,
 		color[1] * (1.0 - fog) + uniforms.fog_color[1] * fog,

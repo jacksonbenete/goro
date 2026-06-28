@@ -57,7 +57,6 @@ type Fog3D struct {
 	ColorR  float32
 	ColorG  float32
 	ColorB  float32
-	Factor  float32
 }
 
 type DrawTrianglesOptions struct {

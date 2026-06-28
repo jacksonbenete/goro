@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kivutar/goro/core"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -2525,17 +2524,6 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projec
 	m.damageFloaters = active
 }
 
-func (m *WorldMode) drawSceneFogVeil(screen *render.Image, fog sceneFog, projection sceneProjection, cfg core.FogConfig) {
-	alpha := sceneFogVeilAlpha(fog, projection, cfg)
-	if alpha == 0 {
-		return
-	}
-	bounds := screen.Bounds()
-	fogColor := fog.color
-	fogColor.A = alpha
-	render.DrawRect(screen, 0, 0, float64(bounds.Dx()), float64(bounds.Dy()), fogColor)
-}
-
 func clearWorldScene(screen *render.Image, mapName string) {
 	screen.Fill(worldSceneClearColor(mapName))
 }
@@ -2632,7 +2620,6 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 		}
 	}
 
-	m.drawSceneFogVeil(screen, fog, projection, ctx.Config.Fog)
 	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
 	m.drawWorldEffects(screen, ctx, projection, now)
 	m.drawDamageFloaters(screen, ctx, projection, now)

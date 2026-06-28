@@ -133,7 +133,6 @@ func TestWorldUniformBytesPacksMatrixAndFog(t *testing.T) {
 			ColorR:  0.25,
 			ColorG:  0.5,
 			ColorB:  0.75,
-			Factor:  0,
 		},
 	}
 	data := worldUniformBytes(camera)

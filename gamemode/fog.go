@@ -13,7 +13,6 @@ type sceneFog struct {
 	near    float64
 	far     float64
 	color   color.RGBA
-	factor  float64
 }
 
 func sceneFogFromMap(manager *res.Manager, mapName string, cfg core.FogConfig) sceneFog {
@@ -29,7 +28,6 @@ func sceneFogFromMap(manager *res.Manager, mapName string, cfg core.FogConfig) s
 		near:    parameter.Near * 240,
 		far:     parameter.Far * 240,
 		color:   parameter.Color,
-		factor:  parameter.Factor,
 	}
 }
 
@@ -81,19 +79,6 @@ func (f sceneFog) mixVertexTints(projection sceneProjection, verts [4]modelPoint
 		tints[i] = f.mixColor(tints[i], projection.FogDepth(vert.x, vert.z, vert.y))
 	}
 	return tints
-}
-
-func sceneFogVeilAlpha(f sceneFog, projection sceneProjection, cfg core.FogConfig) uint8 {
-	if !f.enabled || f.far <= f.near {
-		return 0
-	}
-	depth := projection.cameraZoom * math.Max(0, cfg.VeilDepthScale)
-	amount := smoothstep(f.near, f.far, depth)
-	if amount <= 0 {
-		return 0
-	}
-	strength := math.Max(0, math.Min(1, cfg.VeilStrength))
-	return clampColor(255 * amount * strength)
 }
 
 func smoothstep(edge0, edge1, x float64) float64 {
