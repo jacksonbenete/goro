@@ -114,6 +114,18 @@ func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, wi
 	return floats, indices
 }
 
+func worldMeshGPUData(mesh *WorldMesh, width, height int) ([]float32, []uint32) {
+	floats := make([]float32, 0, len(mesh.vertices)*worldVertexFloatCount)
+	indices := make([]uint32, 0, len(mesh.indices))
+	cmd := WorldCommand{
+		Vertices: mesh.vertices,
+		Indices:  mesh.indices,
+		Texture:  mesh.texture,
+		Options:  mesh.options,
+	}
+	return appendWorldCommand(floats, indices, cmd, width, height)
+}
+
 func worldFrameCounts(commands []WorldCommand) (commandsOut, vertices, indices int) {
 	for _, cmd := range commands {
 		if cmd.Texture == nil || cmd.Texture.pix == nil {

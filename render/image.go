@@ -178,13 +178,15 @@ func (c ColorScale) rgba() (float32, float32, float32, float32) {
 }
 
 type Image struct {
-	pix           *image.RGBA
-	screen        bool
-	version       uint64
-	commands      []DrawCommand
-	worldCommands []WorldCommand
-	clear         color.RGBA
-	camera        Camera3D
+	pix             *image.RGBA
+	screen          bool
+	version         uint64
+	commands        []DrawCommand
+	worldCommands   []WorldCommand
+	worldMeshes     []WorldMeshCommand
+	worldBillboards []WorldBillboardCommand
+	clear           color.RGBA
+	camera          Camera3D
 }
 
 var whiteImage *Image
@@ -213,6 +215,36 @@ type WorldCommand struct {
 	Options  DrawTrianglesOptions
 }
 
+type WorldMesh struct {
+	vertices []Vertex3D
+	indices  []uint16
+	texture  *Image
+	options  DrawTrianglesOptions
+	version  uint64
+}
+
+type WorldMeshCommand struct {
+	Mesh *WorldMesh
+}
+
+type WorldBillboardCommand struct {
+	Texture     *Image
+	Options     DrawTrianglesOptions
+	Center      [3]float32
+	RightAxis   [3]float32
+	UpAxis      [3]float32
+	DepthUpAxis [3]float32
+	Width       float32
+	Height      float32
+	AnchorX     float32
+	AnchorY     float32
+	ColorR      float32
+	ColorG      float32
+	ColorB      float32
+	ColorA      float32
+	DepthBias   float32
+}
+
 func NewScreenImage(width, height int) *Image {
 	img := NewImage(width, height)
 	img.screen = true
@@ -225,6 +257,8 @@ func (i *Image) BeginFrame() {
 	}
 	i.commands = i.commands[:0]
 	i.worldCommands = i.worldCommands[:0]
+	i.worldMeshes = i.worldMeshes[:0]
+	i.worldBillboards = i.worldBillboards[:0]
 	i.camera = Camera3D{}
 }
 
@@ -250,6 +284,34 @@ func NewImageFromImage(src image.Image) *Image {
 	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
 	draw.Draw(dst, dst.Bounds(), src, b.Min, draw.Src)
 	return &Image{pix: dst}
+}
+
+func NewWorldMesh(vertices []Vertex3D, indices []uint16, texture *Image, opts *DrawTrianglesOptions) *WorldMesh {
+	var o DrawTrianglesOptions
+	if opts != nil {
+		o = *opts
+	}
+	return &WorldMesh{
+		vertices: append([]Vertex3D(nil), vertices...),
+		indices:  append([]uint16(nil), indices...),
+		texture:  texture,
+		options:  o,
+		version:  1,
+	}
+}
+
+func (m *WorldMesh) VertexCount() int {
+	if m == nil {
+		return 0
+	}
+	return len(m.vertices)
+}
+
+func (m *WorldMesh) IndexCount() int {
+	if m == nil {
+		return 0
+	}
+	return len(m.indices)
 }
 
 func (i *Image) Bounds() image.Rectangle {
@@ -417,6 +479,26 @@ func (i *Image) DrawTriangles3DOwned(vertices []Vertex3D, indices []uint16, text
 		return
 	}
 	i.DrawTriangles3D(vertices, indices, texture, &o)
+}
+
+func (i *Image) DrawWorldMesh(mesh *WorldMesh) {
+	if i == nil || i.pix == nil || mesh == nil || mesh.texture == nil || mesh.texture.pix == nil || len(mesh.vertices) == 0 || len(mesh.indices) == 0 {
+		return
+	}
+	if i.screen {
+		i.worldMeshes = append(i.worldMeshes, WorldMeshCommand{Mesh: mesh})
+		return
+	}
+	i.DrawTriangles3D(mesh.vertices, mesh.indices, mesh.texture, &mesh.options)
+}
+
+func (i *Image) DrawWorldBillboard(cmd WorldBillboardCommand) {
+	if i == nil || i.pix == nil || cmd.Texture == nil || cmd.Texture.pix == nil || cmd.Width <= 0 || cmd.Height <= 0 {
+		return
+	}
+	if i.screen {
+		i.worldBillboards = append(i.worldBillboards, cmd)
+	}
 }
 
 func (i *Image) drawTriangle(v0, v1, v2 Vertex, texture *Image, opts DrawTrianglesOptions) {

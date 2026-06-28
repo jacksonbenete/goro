@@ -1463,26 +1463,36 @@ func drawTexturedEffectBillboardRotated(screen *render.Image, projection scenePr
 	if !ok {
 		return
 	}
-	half := size * 0.5
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	corner := func(dx, dy float64) modelPoint3 {
-		if angle != 0 {
-			sinA, cosA := math.Sin(angle), math.Cos(angle)
-			dx, dy = dx*cosA-dy*sinA, dx*sinA+dy*cosA
-		}
-		return add3(add3(center, mul3(right, dx)), mul3(up, dy))
-	}
 	bounds := texture.Bounds()
 	w, h := float32(bounds.Dx()), float32(bounds.Dy())
-	vertices := []render.Vertex3D{
-		texturedSurfaceVertex3D(corner(-half, half), texturePoint{u: 0, v: 0}, tint, w, h),
-		texturedSurfaceVertex3D(corner(half, half), texturePoint{u: 1, v: 0}, tint, w, h),
-		texturedSurfaceVertex3D(corner(-half, -half), texturePoint{u: 0, v: 1}, tint, w, h),
-		texturedSurfaceVertex3D(corner(half, -half), texturePoint{u: 1, v: 1}, tint, w, h),
+	axisScaleX := size / float64(w)
+	axisScaleY := size / float64(h)
+	rightAxis := mul3(right, axisScaleX)
+	upAxis := mul3(up, -axisScaleY)
+	if angle != 0 {
+		sinA, cosA := math.Sin(angle), math.Cos(angle)
+		rightAxis = add3(mul3(right, cosA*axisScaleX), mul3(up, sinA*axisScaleX))
+		upAxis = add3(mul3(right, sinA*axisScaleY), mul3(up, -cosA*axisScaleY))
 	}
 	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
 	options.Blend = render.BlendLighter
-	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, options)
+	screen.DrawWorldBillboard(render.WorldBillboardCommand{
+		Texture:     texture,
+		Options:     *options,
+		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
+		RightAxis:   [3]float32{float32(rightAxis.x), float32(rightAxis.y), float32(rightAxis.z)},
+		UpAxis:      [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
+		DepthUpAxis: [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
+		Width:       w,
+		Height:      h,
+		AnchorX:     w * 0.5,
+		AnchorY:     h * 0.5,
+		ColorR:      float32(tint.R) / 255,
+		ColorG:      float32(tint.G) / 255,
+		ColorB:      float32(tint.B) / 255,
+		ColorA:      float32(tint.A) / 255,
+	})
 }
 
 func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {

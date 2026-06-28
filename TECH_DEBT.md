@@ -41,22 +41,23 @@ not become invisible project assumptions.
 
 ## Rendering
 
-- **CPU-side geometry construction**
-  - Current state: GND, RSM, sprites, billboards, water, fog, and lighting are
-    assembled mostly on the CPU before being submitted through GoGPU.
-  - Ugly part: much of this still reflects the old 2D-engine workaround history.
-  - Improved: render commands now keep compact `uint16` indices until final GPU
-    batching, and RSM node matrices are cached per loaded model instead of being
-    rebuilt every frame.
-  - Improved: RSM model bounds are cached per loaded model/root combination
-    instead of recalculated each frame for visible placements.
-  - Improved: hot geometry builders can now transfer owned vertex/index slices
-    into render commands, avoiding a second copy for RSM batches, lightmapped GND
-    patches, sprite billboards, and common quads.
-  - Improved: GPU frame assembly now pre-sizes its transient command maps,
-    vertex buffers, index buffers, and batch lists from queued draw commands.
-  - Better fix: move more work into normal GPU pipelines with stable vertex/index
-    buffers, shader-side fog/lighting, and fewer per-frame allocations.
+- **Dynamic world geometry**
+  - Current state: static GND surfaces, lightmapped GND subdivisions, and RSM
+    placements are retained `render.WorldMesh` objects. They are built once for a
+    loaded map/model placement, uploaded into persistent GPU buffers, and reused.
+  - Current state: actor/NPC/mob/item/effect sprite billboards use the dedicated
+    shared-quad billboard pipeline with per-instance data instead of per-frame
+    quad vertex slices.
+  - Current state: shader-side camera projection and fog are used for retained
+    meshes and billboards; render stats expose `world_mesh_commands`,
+    `retained_world_meshes`, `world_billboards`, and remaining dynamic
+    `world_vertices`.
+  - Remaining dynamic geometry is intentional: animated water waves, warp/effect
+    cylinders/rings, STR effects with animated per-corner coordinates, tile
+    cursor geometry, and debug/fallback paths.
+  - Better fix: move water and common effect primitives to specialized
+    instanced/procedural GPU pipelines so `world_vertices` mostly measures only
+    rare debug/fallback geometry.
 
 - **Billboard depth and clipping**
   - Current state: sprites use 3D-ish billboard placement with custom depth

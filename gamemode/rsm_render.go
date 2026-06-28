@@ -55,22 +55,11 @@ type rsmBoundsCacheKey struct {
 type mat4 [16]float64
 
 func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) {
-	triangles := m.collectRSMModelTriangles(screen, manager, rsw, models, gnd, projection, fog)
-	for i := 0; i < len(triangles); {
-		texture := m.groundTexture(manager, triangles[i].textureName)
-		j := i + 1
-		if texture != nil {
-			for j < len(triangles) && triangles[j].textureName == triangles[i].textureName {
-				j++
-			}
-			drawTexturedModelTriangles(screen, texture, triangles[i:j], projection)
-		} else {
-			for j < len(triangles) && m.groundTexture(manager, triangles[j].textureName) == nil {
-				j++
-			}
-			drawColoredModelTriangles(screen, m.whitePixel, triangles[i:j], projection)
+	for _, placement := range m.visibleRSMPlacements(rsw, gnd, projection) {
+		meshes := m.rsmMeshesForPlacement(manager, models, rsw, gnd, placement)
+		for _, mesh := range meshes {
+			screen.DrawWorldMesh(mesh.mesh)
 		}
-		i = j
 	}
 }
 
@@ -195,6 +184,147 @@ func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.
 		return triangles[i].depth > triangles[j].depth
 	})
 	return triangles
+}
+
+type visibleRSMPlacement struct {
+	index int
+	model res.RSWModel
+	baseX float64
+	baseY float64
+	dist2 float64
+}
+
+func (m *WorldMode) visibleRSMPlacements(rsw *res.RSW, gnd *res.GND, projection sceneProjection) []visibleRSMPlacement {
+	if rsw == nil || gnd == nil {
+		return nil
+	}
+	radius := rsmRenderRadius()
+	visible := make([]visibleRSMPlacement, 0, len(rsw.Models))
+	for index, placement := range rsw.Models {
+		if placement.Filename == "" {
+			continue
+		}
+		baseX := float64(placement.Position.X) + float64(gnd.Width)
+		baseY := float64(placement.Position.Z) + float64(gnd.Height)
+		dx := baseX - projection.playerX
+		dy := baseY - projection.playerY
+		if math.Abs(dx) > radius*2 || math.Abs(dy) > radius*2 {
+			continue
+		}
+		visible = append(visible, visibleRSMPlacement{
+			index: index,
+			model: placement,
+			baseX: baseX,
+			baseY: baseY,
+			dist2: dx*dx + dy*dy,
+		})
+	}
+	sort.SliceStable(visible, func(i, j int) bool {
+		return visible[i].dist2 < visible[j].dist2
+	})
+	return visible
+}
+
+func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, models map[string]*res.RSM, rsw *res.RSW, gnd *res.GND, visible visibleRSMPlacement) []retainedWorldMesh {
+	if m.rsmMeshCache == nil {
+		m.rsmMeshCache = make(map[int][]retainedWorldMesh)
+	}
+	if meshes, ok := m.rsmMeshCache[visible.index]; ok {
+		return meshes
+	}
+	placement := visible.model
+	if placement.Filename == "" {
+		return nil
+	}
+	rsm, ok := models[placement.Filename]
+	if !ok {
+		loaded, err := loadRSMModel(manager, placement.Filename)
+		if err == nil {
+			rsm = loaded
+		}
+		models[placement.Filename] = rsm
+	}
+	if rsm == nil {
+		return nil
+	}
+	rootName := selectedRSMRootName(rsm, placement.NodeName)
+	nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
+	boundsKey := rsmBoundsCacheKey{rsm: rsm, root: rootName}
+	if m.rsmBoundsCache == nil {
+		m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
+	}
+	bounds, ok := m.rsmBoundsCache[boundsKey]
+	if !ok {
+		bounds = calculateRSMBoundsForNodes(rsm, nodeIndices)
+		m.rsmBoundsCache[boundsKey] = bounds
+	}
+	instance := modelInstance{
+		placement: placement,
+		bounds:    bounds.model,
+		baseX:     visible.baseX,
+		baseY:     visible.baseY,
+		matrix:    buildRSMInstanceMatrix(rsm, placement, visible.baseX, visible.baseY, bounds.model),
+	}
+	if m.rsmNodeMatrices == nil {
+		m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
+	}
+	nodeMatrices, ok := m.rsmNodeMatrices[rsm]
+	if !ok {
+		nodeMatrices = buildRSMNodeMatrices(rsm)
+		m.rsmNodeMatrices[rsm] = nodeMatrices
+	}
+	lighting := sceneLightingFromRSW(rsw)
+	builders := make(map[retainedMeshKey]*retainedMeshBuilder)
+	builderFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *retainedMeshBuilder {
+		if texture == nil || options == nil {
+			return nil
+		}
+		key := retainedMeshKey{texture: texture, options: *options}
+		builder := builders[key]
+		if builder == nil {
+			builder = &retainedMeshBuilder{texture: texture, options: *options}
+			builders[key] = builder
+		}
+		return builder
+	}
+	for _, nodeIndex := range nodeIndices {
+		node := &rsm.Nodes[nodeIndex]
+		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], instance, lighting) {
+			texture := m.groundTexture(manager, worldTri.textureName)
+			if texture != nil {
+				bounds := texture.Bounds()
+				w, h := float32(bounds.Dx()), float32(bounds.Dy())
+				builder := builderFor(texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+				if builder != nil {
+					builder.addTriangle(
+						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
+						texturedSurfaceVertex3D(worldTri.verts[1], worldTri.uvs[1], worldTri.color, w, h),
+						texturedSurfaceVertex3D(worldTri.verts[2], worldTri.uvs[2], worldTri.color, w, h),
+					)
+				}
+				continue
+			}
+			if m.whitePixel == nil {
+				m.whitePixel = render.NewImage(1, 1)
+				m.whitePixel.Fill(color.White)
+			}
+			builder := builderFor(m.whitePixel, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+			if builder != nil {
+				builder.addTriangle(
+					coloredSurfaceVertex3D(worldTri.verts[0], 0, 0, worldTri.color),
+					coloredSurfaceVertex3D(worldTri.verts[1], 1, 0, worldTri.color),
+					coloredSurfaceVertex3D(worldTri.verts[2], 1, 1, worldTri.color),
+				)
+			}
+		}
+	}
+	var meshes []retainedWorldMesh
+	for _, builder := range builders {
+		builder.flush()
+		meshes = append(meshes, builder.meshes...)
+	}
+	m.rsmMeshCache[visible.index] = meshes
+	return meshes
 }
 
 func selectedRSMRootName(rsm *res.RSM, rootName string) string {
@@ -684,77 +814,6 @@ func rsmFaceColor(textureName string, a, b, c modelPoint3, lighting sceneLightin
 		B: clampColor(float64(base.B) * scale.z),
 		A: 255,
 	}
-}
-
-func drawTexturedModelTriangles(screen, texture *render.Image, triangles []modelTriangle, projection sceneProjection) {
-	if len(triangles) == 0 {
-		return
-	}
-	drawTexturedModelTriangles3D(screen, texture, triangles)
-}
-
-func drawTexturedModelTriangles3D(screen, texture *render.Image, triangles []modelTriangle) {
-	bounds := texture.Bounds()
-	w := float32(bounds.Dx())
-	h := float32(bounds.Dy())
-	const maxVertices = 65535
-	vertices := make([]render.Vertex3D, 0, len(triangles)*3)
-	indices := make([]uint16, 0, len(triangles)*3)
-	flush := func() {
-		if len(indices) == 0 {
-			return
-		}
-		screen.DrawTriangles3DOwned(vertices, indices, texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
-		vertices = nil
-		indices = nil
-	}
-	for _, tri := range triangles {
-		if len(vertices)+3 > maxVertices {
-			flush()
-		}
-		base := uint16(len(vertices))
-		vertices = append(vertices,
-			texturedSurfaceVertex3D(tri.verts[0], tri.uvs[0], tri.color, w, h),
-			texturedSurfaceVertex3D(tri.verts[1], tri.uvs[1], tri.color, w, h),
-			texturedSurfaceVertex3D(tri.verts[2], tri.uvs[2], tri.color, w, h),
-		)
-		indices = append(indices, base, base+1, base+2)
-	}
-	flush()
-}
-
-func drawColoredModelTriangles(screen, white *render.Image, triangles []modelTriangle, projection sceneProjection) {
-	if len(triangles) == 0 {
-		return
-	}
-	drawColoredModelTriangles3D(screen, white, triangles)
-}
-
-func drawColoredModelTriangles3D(screen, white *render.Image, triangles []modelTriangle) {
-	const maxVertices = 65535
-	vertices := make([]render.Vertex3D, 0, len(triangles)*3)
-	indices := make([]uint16, 0, len(triangles)*3)
-	flush := func() {
-		if len(indices) == 0 {
-			return
-		}
-		screen.DrawTriangles3DOwned(vertices, indices, white, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
-		vertices = nil
-		indices = nil
-	}
-	for _, tri := range triangles {
-		if len(vertices)+3 > maxVertices {
-			flush()
-		}
-		base := uint16(len(vertices))
-		vertices = append(vertices,
-			coloredSurfaceVertex3D(tri.verts[0], 0, 0, tri.color),
-			coloredSurfaceVertex3D(tri.verts[1], 1, 0, tri.color),
-			coloredSurfaceVertex3D(tri.verts[2], 1, 1, tri.color),
-		)
-		indices = append(indices, base, base+1, base+2)
-	}
-	flush()
 }
 
 func triangleOutside(points [3]screenPoint, width, height float64) bool {

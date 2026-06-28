@@ -507,24 +507,25 @@ func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Image, projection 
 	w := float64(bounds.Dx())
 	h := float64(bounds.Dy())
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	corner := func(px, py float64) modelPoint3 {
-		dx := (px - billboard.anchorX) * scale * unitsPerPixel
-		dy := (py - billboard.anchorY) * scale * unitsPerPixel
-		return add3(add3(center, mul3(right, dx)), mul3(up, -dy))
-	}
-	depthCorner := func(px, py float64) modelPoint3 {
-		dx := (px - billboard.anchorX) * scale * unitsPerPixel
-		dy := (py - billboard.anchorY) * scale * unitsPerPixel
-		return add3(add3(center, mul3(right, dx)), mul3(modelPoint3{y: 1}, -dy))
-	}
 	tint := colorRGBAFromFloats(tintR, tintG, tintB, tintA)
-	vertices := []render.Vertex3D{
-		spriteBillboardVertex3D(corner(0, 0), depthCorner(0, 0), texturePoint{u: 0, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		spriteBillboardVertex3D(corner(w, 0), depthCorner(w, 0), texturePoint{u: 1, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		spriteBillboardVertex3D(corner(w, h), depthCorner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		spriteBillboardVertex3D(corner(0, h), depthCorner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-	}
-	screen.DrawTriangles3DOwned(vertices, quadIndices012023, billboard.image, options)
+	axisScale := scale * unitsPerPixel
+	screen.DrawWorldBillboard(render.WorldBillboardCommand{
+		Texture:     billboard.image,
+		Options:     *options,
+		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
+		RightAxis:   [3]float32{float32(right.x * axisScale), float32(right.y * axisScale), float32(right.z * axisScale)},
+		UpAxis:      [3]float32{float32(-up.x * axisScale), float32(-up.y * axisScale), float32(-up.z * axisScale)},
+		DepthUpAxis: [3]float32{0, float32(-axisScale), 0},
+		Width:       float32(w),
+		Height:      float32(h),
+		AnchorX:     float32(billboard.anchorX),
+		AnchorY:     float32(billboard.anchorY),
+		ColorR:      float32(tint.R) / 255,
+		ColorG:      float32(tint.G) / 255,
+		ColorB:      float32(tint.B) / 255,
+		ColorA:      float32(tint.A) / 255,
+		DepthBias:   options.DepthBias,
+	})
 }
 
 func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
@@ -560,23 +561,30 @@ func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjec
 	w := float64(bounds.Dx())
 	h := float64(bounds.Dy())
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	corner := func(px, py float64) modelPoint3 {
-		dx := (px - billboard.anchorX) * scale * unitsPerPixel
-		dy := (py - billboard.anchorY) * scale * unitsPerPixel
-		return add3(add3(center, mul3(right, dx)), mul3(down, dy))
-	}
 	tint := colorRGBAFromFloats(shadow, shadow, shadow, alpha)
-	vertices := []render.Vertex3D{
-		texturedSurfaceVertex3D(corner(0, 0), texturePoint{u: 0, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		texturedSurfaceVertex3D(corner(w, 0), texturePoint{u: 1, v: 0}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		texturedSurfaceVertex3D(corner(w, h), texturePoint{u: 1, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-		texturedSurfaceVertex3D(corner(0, h), texturePoint{u: 0, v: 1}, tint, float32(bounds.Dx()), float32(bounds.Dy())),
-	}
-	screen.DrawTriangles3DOwned(vertices, quadIndices012023, billboard.image, triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero))
+	axisScale := scale * unitsPerPixel
+	options := triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero)
+	screen.DrawWorldBillboard(render.WorldBillboardCommand{
+		Texture:     billboard.image,
+		Options:     *options,
+		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
+		RightAxis:   [3]float32{float32(right.x * axisScale), float32(right.y * axisScale), float32(right.z * axisScale)},
+		UpAxis:      [3]float32{float32(down.x * axisScale), float32(down.y * axisScale), float32(down.z * axisScale)},
+		DepthUpAxis: [3]float32{float32(down.x * axisScale), float32(down.y * axisScale), float32(down.z * axisScale)},
+		Width:       float32(w),
+		Height:      float32(h),
+		AnchorX:     float32(billboard.anchorX),
+		AnchorY:     float32(billboard.anchorY),
+		ColorR:      float32(tint.R) / 255,
+		ColorG:      float32(tint.G) / 255,
+		ColorB:      float32(tint.B) / 255,
+		ColorA:      float32(tint.A) / 255,
+	})
 }
 
 func spriteBillboardTriangleDrawOptions() *render.DrawTrianglesOptions {
 	options := triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero)
+	options.Blend = render.BlendSourceOver
 	return options
 }
 
