@@ -1430,6 +1430,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		m.addSkillBeforeHitEffect(ctx, action, now)
 		m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
 		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
+		m.addSkillEffect(ctx, action, hitAt)
 		m.addSkillHitEffect(ctx, action, hitAt)
 		m.applyCombatLifeFallback(ctx, target, targetLocal, action, hitAt)
 		if targetLocal {
@@ -1443,6 +1444,19 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 		x, y = ctx.World.Player.X, ctx.World.Player.Y
 	}
 	m.addActionDamageFloaters(action, targetLocal, sourceLocal, x, y, hitAt)
+}
+
+func (m *WorldMode) addSkillEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {
+	if action.SkillID == 0 {
+		return
+	}
+	effectID := skillEffectID(action.SkillID)
+	if effectID <= 0 {
+		return
+	}
+	if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, starts) {
+		log.Printf("skill effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+	}
 }
 
 func (m *WorldMode) addSkillBeforeHitEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {

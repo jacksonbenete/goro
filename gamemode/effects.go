@@ -196,6 +196,11 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	if notify.Result == 0 {
 		return
 	}
+	if effectID := skillEffectID(notify.SkillID); effectID > 0 {
+		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, time.Now()) {
+			log.Printf("skill effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
+		}
+	}
 	effectID := skillSuccessEffectID(notify.SkillID)
 	if effectID <= 0 {
 		return
@@ -514,16 +519,6 @@ func skillSuccessEffectID(skillID uint16) int {
 		return effectEndure
 	case 10:
 		return effectSight
-	case 15:
-		return effectFrostDiver
-	case 16:
-		return effectStoneCurse
-	case 20:
-		return effectLightningBolt
-	case 21:
-		return effectThunderStorm
-	case 157:
-		return effectEnergyCoat
 	case 28:
 		return effectHeal
 	case 29:
@@ -546,6 +541,23 @@ func skillSuccessEffectID(skillID uint16) int {
 		return effectSteal
 	case 53:
 		return effectDetoxication
+	default:
+		return 0
+	}
+}
+
+func skillEffectID(skillID uint16) int {
+	switch skillID {
+	case 15:
+		return effectFrostDiver
+	case 16:
+		return effectStoneCurse
+	case 20:
+		return effectLightningBolt
+	case 21:
+		return effectThunderStorm
+	case 157:
+		return effectEnergyCoat
 	default:
 		return 0
 	}
@@ -574,14 +586,10 @@ func skillBeforeHitEffectID(skillID uint16) int {
 		return effectSoulStrike
 	case 14:
 		return effectColdBolt
-	case 15:
-		return effectFrostDiver
 	case 19:
 		return effectFireBolt
 	case 17:
 		return effectFireBall
-	case 20:
-		return effectLightningBolt
 	default:
 		return 0
 	}

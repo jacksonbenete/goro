@@ -699,17 +699,17 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	if got := skillHitEffectID(14); got != effectColdHit {
 		t.Fatalf("MG_COLDBOLT hit effect = %d, want %d", got, effectColdHit)
 	}
-	if got := skillBeforeHitEffectID(15); got != effectFrostDiver {
-		t.Fatalf("MG_FROSTDIVER before-hit effect = %d, want %d", got, effectFrostDiver)
+	if got := skillEffectID(15); got != effectFrostDiver {
+		t.Fatalf("MG_FROSTDIVER effect = %d, want %d", got, effectFrostDiver)
 	}
-	if got := skillSuccessEffectID(15); got != effectFrostDiver {
-		t.Fatalf("MG_FROSTDIVER success effect = %d, want %d", got, effectFrostDiver)
+	if got := skillBeforeHitEffectID(15); got != 0 {
+		t.Fatalf("MG_FROSTDIVER before-hit effect = %d, want 0", got)
 	}
 	if got := skillHitEffectID(15); got != effectFrostDiverHit {
 		t.Fatalf("MG_FROSTDIVER hit effect = %d, want %d", got, effectFrostDiverHit)
 	}
-	if got := skillSuccessEffectID(16); got != effectStoneCurse {
-		t.Fatalf("MG_STONECURSE success effect = %d, want %d", got, effectStoneCurse)
+	if got := skillEffectID(16); got != effectStoneCurse {
+		t.Fatalf("MG_STONECURSE effect = %d, want %d", got, effectStoneCurse)
 	}
 	if got := skillBeforeHitEffectID(19); got != effectFireBolt {
 		t.Fatalf("MG_FIREBOLT before-hit effect = %d, want %d", got, effectFireBolt)
@@ -730,20 +730,20 @@ func TestMageSkillEffectMappings(t *testing.T) {
 			t.Fatalf("wind skill %d hit effect = %d, want %d", skillID, got, effectWindHit)
 		}
 	}
-	if got := skillBeforeHitEffectID(20); got != effectLightningBolt {
-		t.Fatalf("MG_LIGHTNINGBOLT before-hit effect = %d, want %d", got, effectLightningBolt)
+	if got := skillBeforeHitEffectID(20); got != 0 {
+		t.Fatalf("MG_LIGHTNINGBOLT before-hit effect = %d, want 0", got)
 	}
-	if got := skillSuccessEffectID(20); got != effectLightningBolt {
-		t.Fatalf("MG_LIGHTNINGBOLT success effect = %d, want %d", got, effectLightningBolt)
+	if got := skillEffectID(20); got != effectLightningBolt {
+		t.Fatalf("MG_LIGHTNINGBOLT effect = %d, want %d", got, effectLightningBolt)
 	}
-	if got := skillSuccessEffectID(21); got != effectThunderStorm {
-		t.Fatalf("MG_THUNDERSTORM success effect = %d, want %d", got, effectThunderStorm)
+	if got := skillEffectID(21); got != effectThunderStorm {
+		t.Fatalf("MG_THUNDERSTORM effect = %d, want %d", got, effectThunderStorm)
 	}
 	if got := skillGroundEffectID(21); got != effectThunderStorm {
 		t.Fatalf("MG_THUNDERSTORM ground effect = %d, want %d", got, effectThunderStorm)
 	}
-	if got := skillSuccessEffectID(157); got != effectEnergyCoat {
-		t.Fatalf("MG_ENERGYCOAT success effect = %d, want %d", got, effectEnergyCoat)
+	if got := skillEffectID(157); got != effectEnergyCoat {
+		t.Fatalf("MG_ENERGYCOAT effect = %d, want %d", got, effectEnergyCoat)
 	}
 	if got := skillBeforeHitEffectID(21); got != 0 {
 		t.Fatalf("MG_THUNDERSTORM before-hit effect = %d, want 0", got)
