@@ -209,6 +209,72 @@ func TestBuildUseSkillToIDPacketForClientDate20080910(t *testing.T) {
 	}
 }
 
+func TestBuildUseSkillToGroundPacketForClientDate20080910(t *testing.T) {
+	packet := BuildUseSkillToGroundPacketForClientDate(21, 4, 123, 456, 20080910)
+	if got := ID(packet); got != 0x0113 {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if len(packet) != 22 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[5:7]); got != 4 {
+		t.Fatalf("level = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[9:11]); got != 21 {
+		t.Fatalf("skill = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[12:14]); got != 123 {
+		t.Fatalf("x = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[20:22]); got != 456 {
+		t.Fatalf("y = %d", got)
+	}
+}
+
+func TestBuildUseSkillToGroundPacketLegacy(t *testing.T) {
+	packet := BuildUseSkillToGroundPacketForClientDate(21, 4, 123, 456, 20070101)
+	if got := ID(packet); got != 0x0116 {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if len(packet) != 10 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 4 {
+		t.Fatalf("level = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[4:6]); got != 21 {
+		t.Fatalf("skill = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[6:8]); got != 123 {
+		t.Fatalf("x = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[8:10]); got != 456 {
+		t.Fatalf("y = %d", got)
+	}
+}
+
+func TestBuildUseSkillToGroundPacketForClientDate20120307(t *testing.T) {
+	packet := BuildUseSkillToGroundPacketForClientDate(21, 4, 123, 456, 20120307)
+	if got := ID(packet); got != 0x0438 {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if len(packet) != 10 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 4 {
+		t.Fatalf("level = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[4:6]); got != 21 {
+		t.Fatalf("skill = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[6:8]); got != 123 {
+		t.Fatalf("x = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[8:10]); got != 456 {
+		t.Fatalf("y = %d", got)
+	}
+}
+
 func writeSkillInfoEntry(data []byte, typ uint32, id uint16, level, sp, attackRange int, name string, upgradable bool) {
 	binary.LittleEndian.PutUint16(data[0:2], id)
 	binary.LittleEndian.PutUint32(data[2:6], typ)

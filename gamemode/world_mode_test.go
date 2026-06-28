@@ -765,7 +765,7 @@ func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
 		t.Fatalf("components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveCylinder || component.textureName != "ring_yellow" {
+	if component.kind != effectPrimitiveCastRing || component.textureName != "ring_yellow" {
 		t.Fatalf("component = %+v", component)
 	}
 	if component.bottomSize != 0.8 || component.topSize != 2.45 || component.height != 2.8 {

@@ -198,6 +198,34 @@ func BuildUseSkillToIDPacketForClientDate(skillID, level uint16, targetID uint32
 	return packet
 }
 
+func BuildUseSkillToGroundPacketForClientDate(skillID, level uint16, x, y int, clientDate int) []byte {
+	if clientDate >= 20120307 {
+		packet := make([]byte, 10)
+		binary.LittleEndian.PutUint16(packet[0:2], 0x0438)
+		binary.LittleEndian.PutUint16(packet[2:4], level)
+		binary.LittleEndian.PutUint16(packet[4:6], skillID)
+		binary.LittleEndian.PutUint16(packet[6:8], uint16(x))
+		binary.LittleEndian.PutUint16(packet[8:10], uint16(y))
+		return packet
+	}
+	if clientDate >= 20080910 {
+		packet := make([]byte, 22)
+		binary.LittleEndian.PutUint16(packet[0:2], 0x0113)
+		binary.LittleEndian.PutUint16(packet[5:7], level)
+		binary.LittleEndian.PutUint16(packet[9:11], skillID)
+		binary.LittleEndian.PutUint16(packet[12:14], uint16(x))
+		binary.LittleEndian.PutUint16(packet[20:22], uint16(y))
+		return packet
+	}
+	packet := make([]byte, 10)
+	binary.LittleEndian.PutUint16(packet[0:2], 0x0116)
+	binary.LittleEndian.PutUint16(packet[2:4], level)
+	binary.LittleEndian.PutUint16(packet[4:6], skillID)
+	binary.LittleEndian.PutUint16(packet[6:8], uint16(x))
+	binary.LittleEndian.PutUint16(packet[8:10], uint16(y))
+	return packet
+}
+
 func parseSkillInfoEntry(data []byte, offset int) SkillInfo {
 	return SkillInfo{
 		ID:         binary.LittleEndian.Uint16(data[offset : offset+2]),

@@ -1323,6 +1323,23 @@ func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProject
 	if skill.ID == 0 {
 		return
 	}
+	if isGroundTargetSkill(skill) {
+		targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
+		if !ok {
+			m.status = fmt.Sprintf("select target: %s", skillLabel(skill))
+			log.Printf("shortcut ground skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
+			return
+		}
+		if err := m.sendShortcutSkillToGround(ctx, skill, targetX, targetY); err != nil {
+			m.status = "skill failed: " + err.Error()
+			log.Printf("shortcut ground skill target failed skill=%d target=%d,%d: %v", skill.ID, targetX, targetY, err)
+			return
+		}
+		m.pendingSkill = pendingSkillTarget{}
+		m.status = fmt.Sprintf("%s: %d,%d", skillLabel(skill), targetX, targetY)
+		log.Printf("shortcut ground skill target sent skill=%d target=%d,%d", skill.ID, targetX, targetY)
+		return
+	}
 	actor, ok := clickedSkillTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
 	if !ok {
 		m.status = fmt.Sprintf("select target: %s", skillLabel(skill))

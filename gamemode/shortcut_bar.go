@@ -500,7 +500,14 @@ func (m *WorldMode) useShortcutSkill(ctx Context, skill session.Skill) error {
 	if skill.Type == 0 {
 		return fmt.Errorf("passive skill")
 	}
-	if skill.Range > 0 {
+	if isSelfTargetSkill(skill) {
+		target := localSkillTarget(ctx)
+		if target == 0 {
+			return fmt.Errorf("missing skill target")
+		}
+		return m.sendShortcutSkillToID(ctx, skill, target)
+	}
+	if skill.Range > 0 || isGroundTargetSkill(skill) {
 		m.pendingSkill = pendingSkillTarget{skill: skill, started: time.Now()}
 		m.status = fmt.Sprintf("select target: %s", skillLabel(skill))
 		log.Printf("shortcut skill target pending skill=%d level=%d range=%d", skill.ID, skill.Level, skill.Range)
@@ -521,6 +528,14 @@ func localSkillTarget(ctx Context) uint32 {
 		return ctx.Session.AccountID
 	}
 	return ctx.Session.CharID
+}
+
+func isGroundTargetSkill(skill session.Skill) bool {
+	return skill.Type&0x02 != 0 || skill.ID == 21
+}
+
+func isSelfTargetSkill(skill session.Skill) bool {
+	return skill.Type&0x04 != 0 && !isGroundTargetSkill(skill)
 }
 
 func (m *WorldMode) sendShortcutSkillToID(ctx Context, skill session.Skill, target uint32) error {
@@ -547,6 +562,27 @@ func (m *WorldMode) sendShortcutSkillToID(ctx Context, skill session.Skill, targ
 	}
 	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
 		m.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), target, duration, time.Now(), "local")
+	}
+	return nil
+}
+
+func (m *WorldMode) sendShortcutSkillToGround(ctx Context, skill session.Skill, x, y int) error {
+	if ctx.Network == nil {
+		return fmt.Errorf("not connected")
+	}
+	if skill.ID == 0 || skill.Level <= 0 {
+		return fmt.Errorf("skill is not learned")
+	}
+	if !walkTargetInBounds(ctx, x, y) {
+		return fmt.Errorf("invalid ground target %d,%d", x, y)
+	}
+	level := uint16(maxInt(1, skill.Level))
+	log.Printf("shortcut ground skill use skill=%d level=%d target=%d,%d", skill.ID, level, x, y)
+	if err := ctx.Network.SendUseSkillToGround(skill.ID, level, x, y); err != nil {
+		return err
+	}
+	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
+		m.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), 0, duration, time.Now(), "local-ground")
 	}
 	return nil
 }

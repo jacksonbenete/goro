@@ -82,6 +82,7 @@ const (
 	effectPrimitive3D
 	effectPrimitiveSPR
 	effectPrimitiveGroundPlane
+	effectPrimitiveCastRing
 )
 
 type worldEffect struct {
@@ -755,6 +756,8 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 		m.drawSPREffect(screen, ctx, projection, effect, component, worldX, worldY, worldZ, now)
 	case effectPrimitiveGroundPlane:
 		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
+	case effectPrimitiveCastRing:
+		m.drawCastRingEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, progress)
 	default:
 		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	}
@@ -765,6 +768,65 @@ func drawPotionEffect(screen, white *render.Image, x, y, z, progress float64, c 
 	drawWorldRadialGradient(screen, white, x, y, z, 0.02, 0.34+progress*0.18, withAlpha(c, alpha*0.30), 48)
 	drawWorldSoftRing(screen, white, x, y, z+0.01, 0.24+progress*0.52, 0.22, withAlpha(c, alpha*0.75), 48)
 	drawWorldCylinderBand(screen, white, nil, x, y, z+0.05+progress*0.55, 0.18+progress*0.08, 0.06, 0.22, withAlpha(c, alpha*0.40), 32)
+}
+
+func (m *WorldMode) drawCastRingEffect(screen *render.Image, ctx Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z, progress float64) {
+	alpha := effectComponentAlpha(progress, component)
+	if alpha <= 0 {
+		return
+	}
+	texture := m.effectTexture(ctx.Resources, component.textureName)
+	tint := effectComponentTint(component, alpha)
+	z += component.posZ
+	angleOffset := 0.0
+	if component.rotate {
+		angleOffset = progress * 2 * math.Pi
+		angleOffset += deterministicAngle(effect, componentIndex+17) * 0.08
+	}
+	drawWorldSoftRing(screen, m.whitePixel, x, y, z+0.015, component.bottomSize*1.15, 0.16, withAlpha(component.color, alpha*0.75), maxInt(component.circleSides, 20))
+	if texture != nil {
+		drawWorldCylinderBandRotated(screen, m.whitePixel, texture, x, y, z+0.035, component.bottomSize, component.topSize, component.height, tint, maxInt(component.circleSides, component.totalCircleSides), angleOffset)
+		return
+	}
+	drawWorldCylinderBandRotated(screen, m.whitePixel, nil, x, y, z+0.035, component.bottomSize, component.topSize, component.height, tint, maxInt(component.circleSides, component.totalCircleSides), angleOffset)
+}
+
+func drawWorldCylinderBandRotated(screen, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, angleOffset float64) {
+	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
+		return
+	}
+	vertices := make([]render.Vertex3D, 0, (segments+1)*2)
+	indices := make([]uint16, 0, segments*6)
+	tint := c
+	srcW, srcH := float32(1), float32(1)
+	source := white
+	if texture != nil {
+		source = texture
+		bounds := texture.Bounds()
+		srcW = float32(bounds.Dx())
+		srcH = float32(bounds.Dy())
+	}
+	for i := 0; i <= segments; i++ {
+		u := float32(i) / float32(segments)
+		angle := angleOffset + float64(i)*2*math.Pi/float64(segments)
+		cosine := math.Cos(angle)
+		sine := math.Sin(angle)
+		topAngle := angleOffset + (float64(i)+0.5)*2*math.Pi/float64(segments)
+		topCosine := math.Cos(topAngle)
+		topSine := math.Sin(topAngle)
+		vertices = append(vertices,
+			warpEffectTexturedVertex3D(x+cosine*bottomRadius, y+sine*bottomRadius, z, u*srcW, srcH, tint),
+			warpEffectTexturedVertex3D(x+topCosine*topRadius, y+topSine*topRadius, z+height, u*srcW, 0, tint),
+		)
+		if i == segments {
+			continue
+		}
+		base := uint16(i * 2)
+		indices = append(indices, base, base+1, base+3, base, base+3, base+2)
+	}
+	options := triangleDrawOptions(render.FilterLinear, render.AddressRepeat)
+	options.Blend = render.BlendLighter
+	screen.DrawTriangles3D(vertices, indices, source, options)
 }
 
 func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64) {
