@@ -1,12 +1,14 @@
 package gamemode
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"math"
 	"time"
 
 	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/session"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -57,17 +59,20 @@ func (m *WorldMode) drawROCursor(screen *render.Image, ctx Context, projection s
 	info := cursorInfo(action)
 	if m.cursorView == nil || m.cursorViewMiss {
 		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY)
+		drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
 		return
 	}
 	frame, ok := m.cursorFrame(action, info, now)
 	if !ok {
 		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY)
+		drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
 		return
 	}
 	var opts render.DrawImageOptions
 	opts.GeoM.Translate(float64(ctx.Input.MouseX)-frame.anchorX, float64(ctx.Input.MouseY)-frame.anchorY)
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(frame.image, &opts)
+	drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
 }
 
 func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time) (*spriteBillboard, bool) {
@@ -249,4 +254,19 @@ func drawFallbackROCursor(screen, img *render.Image, mouseX, mouseY int) {
 	opts.GeoM.Translate(float64(mouseX), float64(mouseY))
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(img, &opts)
+}
+
+func drawPendingSkillCursorLevel(screen *render.Image, ctx Context, skill session.Skill) {
+	if screen == nil || ctx.Input == nil {
+		return
+	}
+	if skill.ID == 0 || skill.Level <= 0 {
+		return
+	}
+	label := fmt.Sprintf("Lv%d", skill.Level)
+	x := ctx.Input.MouseX + 18
+	y := ctx.Input.MouseY + 16
+	width := len([]rune(label))*7 + 8
+	drawUISurface(screen, x, y, width, 15, color.RGBA{R: 18, G: 20, B: 24, A: 210}, color.RGBA{R: 248, G: 234, B: 160, A: 160})
+	render.DebugPrintAtColor(screen, label, x+4, y+1, color.RGBA{R: 255, G: 244, B: 152, A: 255})
 }

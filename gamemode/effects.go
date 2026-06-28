@@ -14,8 +14,11 @@ import (
 )
 
 const (
+	effectFireBolt      = 10019
+	effectMagicTarget   = 10020
 	effectProvoke       = 67
 	effectEndure        = 11
+	effectBeginSpell    = 12
 	effectBashBegin     = 16
 	effectBashHit       = 1
 	effectMammonite     = 10
@@ -40,6 +43,12 @@ const (
 	effectFireSplashHit = 50
 	effectColdHit       = 51
 	effectWindHit       = 52
+	effectBeginSpell2   = 54
+	effectBeginSpell3   = 55
+	effectBeginSpell4   = 56
+	effectBeginSpell5   = 57
+	effectBeginSpell6   = 58
+	effectBeginSpell7   = 59
 	effectCure          = 66
 	effectConcentration = 153
 	effectRefineOK      = 154
@@ -71,6 +80,7 @@ const (
 	effectPrimitive2D
 	effectPrimitive3D
 	effectPrimitiveSPR
+	effectPrimitiveGroundPlane
 )
 
 type worldEffect struct {
@@ -81,6 +91,7 @@ type worldEffect struct {
 	y        int
 	starts   time.Time
 	expires  time.Time
+	duration time.Duration
 }
 
 type worldEffectSpec struct {
@@ -101,6 +112,7 @@ type worldEffectComponent struct {
 	texturePath      string
 	textureName      string
 	textureFile      string
+	textureFiles     []string
 	spriteFile       string
 	spriteHead       bool
 	spriteDirection  bool
@@ -184,6 +196,14 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, time.Now()) {
 		log.Printf("skill success effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
 	}
+}
+
+func (m *WorldMode) applySkillCastNotify(ctx Context, notify network.SkillCastNotify) {
+	if notify.DelayTime == 0 {
+		return
+	}
+	duration := time.Duration(notify.DelayTime) * time.Millisecond
+	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, duration, time.Now(), "server")
 }
 
 func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.SpecialEffectNotify) {
@@ -280,6 +300,10 @@ func (m *WorldMode) addWorldEffectAt(ctx Context, effectID int, actorID uint32, 
 }
 
 func (m *WorldMode) addWorldEffectBetweenAt(ctx Context, effectID int, actorID, targetID uint32, starts time.Time) bool {
+	return m.addWorldEffectBetweenAtDuration(ctx, effectID, actorID, targetID, starts, 0)
+}
+
+func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -301,6 +325,9 @@ func (m *WorldMode) addWorldEffectBetweenAt(ctx Context, effectID int, actorID, 
 	if duration <= 0 {
 		duration = 500 * time.Millisecond
 	}
+	if durationOverride > duration {
+		duration = durationOverride
+	}
 	m.worldEffects = append(m.worldEffects, worldEffect{
 		effectID: effectID,
 		actorID:  actorID,
@@ -309,6 +336,7 @@ func (m *WorldMode) addWorldEffectBetweenAt(ctx Context, effectID int, actorID, 
 		y:        y,
 		starts:   starts,
 		expires:  starts.Add(duration),
+		duration: durationOverride,
 	})
 	if len(spec.sfx) > 0 {
 		m.scheduleSound(starts, spec.sfx...)
@@ -317,6 +345,32 @@ func (m *WorldMode) addWorldEffectBetweenAt(ctx Context, effectID int, actorID, 
 		m.startCameraShake(starts, 50*time.Millisecond)
 	}
 	return true
+}
+
+func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
+	now := time.Now()
+	for _, effect := range m.worldEffects {
+		if effect.effectID == effectID && effect.actorID == actorID && effect.targetID == targetID && now.Before(effect.expires) {
+			return false
+		}
+	}
+	return m.addWorldEffectBetweenAtDuration(ctx, effectID, actorID, targetID, starts, durationOverride)
+}
+
+func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property uint32, sourceID, targetID uint32, duration time.Duration, starts time.Time, source string) {
+	if duration <= 0 || sourceID == 0 {
+		return
+	}
+	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectMagicTarget, sourceID, targetID, starts, duration) {
+		log.Printf("skill cast circle source=%s skill=%d src=%d target=%d delay_ms=%d", source, skillID, sourceID, targetID, duration.Milliseconds())
+	}
+	effectID := skillCastAuraEffectID(property)
+	if effectID <= 0 {
+		return
+	}
+	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectID, sourceID, targetID, starts, duration) {
+		log.Printf("skill cast aura source=%s skill=%d src=%d target=%d property=%d effect=%d delay_ms=%d", source, skillID, sourceID, targetID, property, effectID, duration.Milliseconds())
+	}
 }
 
 func effectAnchor(ctx Context, actorID uint32) (int, int, bool) {
@@ -398,10 +452,6 @@ func skillBeginEffectID(skillID uint16) int {
 		return effectBashBegin
 	case 7:
 		return effectMagnumBreak
-	case 20:
-		return effectLightningBolt
-	case 21:
-		return effectThunderStorm
 	case 26:
 		return effectTeleportation
 	case 42:
@@ -417,10 +467,55 @@ func skillBeforeHitEffectID(skillID uint16) int {
 	switch skillID {
 	case 13:
 		return effectSoulStrike
+	case 19:
+		return effectFireBolt
 	case 17:
 		return effectFireBall
+	case 20:
+		return effectLightningBolt
+	case 21:
+		return effectThunderStorm
 	default:
 		return 0
+	}
+}
+
+func skillCastAuraEffectID(property uint32) int {
+	switch property {
+	case 1:
+		return effectBeginSpell2
+	case 2:
+		return effectBeginSpell5
+	case 3:
+		return effectBeginSpell3
+	case 4:
+		return effectBeginSpell4
+	case 5:
+		return effectBeginSpell7
+	case 6, 8:
+		return effectBeginSpell6
+	default:
+		return effectBeginSpell
+	}
+}
+
+func skillCastFallback(skillID uint16, level uint16) (uint32, time.Duration) {
+	lv := maxInt(1, int(level))
+	switch skillID {
+	case 13:
+		return 8, time.Duration(500*lv) * time.Millisecond
+	case 14:
+		return 1, time.Duration(700*lv) * time.Millisecond
+	case 17:
+		return 3, 1000 * time.Millisecond
+	case 19:
+		return 3, time.Duration(700*lv) * time.Millisecond
+	case 20:
+		return 4, time.Duration(700*lv) * time.Millisecond
+	case 21:
+		return 4, time.Duration(1000+200*lv) * time.Millisecond
+	default:
+		return 0, 0
 	}
 }
 
@@ -590,6 +685,9 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx Context, projecti
 		worldZ := terrainHeightAt(ctx.World, x, y) + 0.07
 		for index, component := range spec.components {
 			componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+			if effect.duration > componentDuration {
+				componentDuration = effect.duration
+			}
 			progress := worldEffectComponentProgress(effect.starts, componentDuration, now)
 			if progress >= 1 {
 				continue
@@ -654,6 +752,8 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 		m.draw3DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, now)
 	case effectPrimitiveSPR:
 		m.drawSPREffect(screen, ctx, projection, effect, component, worldX, worldY, worldZ, now)
+	case effectPrimitiveGroundPlane:
+		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
 	default:
 		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	}
@@ -686,12 +786,7 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projec
 		topSize *= progress
 	}
 	if !component.fixedPerspective {
-		drawWorldCylinderBand(screen, m.whitePixel, texture, x, y, z+component.posZ, bottomSize, topSize, height, color.RGBA{
-			R: 255,
-			G: 255,
-			B: 255,
-			A: uint8(clampFloat(alpha, 0, 1) * 255),
-		}, maxInt(component.circleSides, component.totalCircleSides))
+		drawWorldCylinderBand(screen, m.whitePixel, texture, x, y, z+component.posZ, bottomSize, topSize, height, effectComponentTint(component, alpha), maxInt(component.circleSides, component.totalCircleSides))
 		return
 	}
 	duplicates := maxInt(component.duplicate, 1)
@@ -759,7 +854,7 @@ func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection s
 }
 
 func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
-	if component.textureFile == "" && component.spriteFile == "" {
+	if component.textureFile == "" && len(component.textureFiles) == 0 && component.spriteFile == "" {
 		return
 	}
 	duplicates := maxInt(component.duplicate, 1)
@@ -783,16 +878,69 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 		if size <= 0 {
 			continue
 		}
-		if component.textureFile != "" {
-			texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+		if component.textureFile != "" || len(component.textureFiles) > 0 {
+			texture := m.effectTextureFrame(ctx.Resources, component, progress)
 			if texture == nil {
 				continue
 			}
-			drawTexturedEffectBillboard(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, effectComponentTint(component, alpha))
+			angle := (component.angleStart + (component.angleEnd-component.angleStart)*progress) * math.Pi / 180
+			drawTexturedEffectBillboardRotated(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, angle, effectComponentTint(component, alpha))
 			continue
 		}
 		m.draw3DSpriteEffect(screen, ctx, projection, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, starts, now)
 	}
+}
+
+func (m *WorldMode) effectTextureFrame(manager *res.Manager, component worldEffectComponent, progress float64) *render.Image {
+	if len(component.textureFiles) == 0 {
+		return m.effectFileTexture(manager, component.textureFile)
+	}
+	index := int(clampFloat(progress, 0, 0.999999) * float64(len(component.textureFiles)))
+	return m.effectFileTexture(manager, component.textureFiles[index])
+}
+
+func (m *WorldMode) drawGroundPlaneEffect(screen *render.Image, ctx Context, component worldEffectComponent, effect worldEffect, worldX, worldY, progress float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil || ctx.World == nil {
+		return
+	}
+	alpha := effectBillboardAlpha(progress, component)
+	if alpha <= 0 {
+		return
+	}
+	size := component.sizeStart
+	if size <= 0 {
+		size = 1
+	}
+	half := size * 0.5
+	angle := now.Sub(effect.starts).Seconds() * 40 * math.Pi / 180
+	uv := func(u, v float64) texturePoint {
+		sinA, cosA := math.Sin(angle), math.Cos(angle)
+		x, y := u-0.5, v-0.5
+		return texturePoint{
+			u: float32(x*cosA - y*sinA + 0.5),
+			v: float32(x*sinA + y*cosA + 0.5),
+		}
+	}
+	point := func(dx, dy float64) modelPoint3 {
+		x := worldX + dx
+		y := worldY + dy
+		return modelPoint3{x: x, y: terrainHeightAt(ctx.World, x-0.5, y-0.5) + component.posZ, z: y}
+	}
+	verts := [4]modelPoint3{
+		point(-half, -half),
+		point(half, -half),
+		point(half, half),
+		point(-half, half),
+	}
+	uvs := [4]texturePoint{
+		uv(0, 0),
+		uv(1, 0),
+		uv(1, 1),
+		uv(0, 1),
+	}
+	tint := effectComponentTint(component, alpha)
+	drawTexturedSurface3DAlpha(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint})
 }
 
 func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {

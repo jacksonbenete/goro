@@ -42,6 +42,16 @@ type SkillNoDamageNotify struct {
 	Result   byte
 }
 
+type SkillCastNotify struct {
+	SourceID  uint32
+	TargetID  uint32
+	X         uint16
+	Y         uint16
+	SkillID   uint16
+	Property  uint32
+	DelayTime uint32
+}
+
 type SkillFailAck struct {
 	SkillID uint16
 	Number  uint32
@@ -132,6 +142,24 @@ func ParseSkillNoDamageNotify(packet Packet) (SkillNoDamageNotify, bool, error) 
 	default:
 		return SkillNoDamageNotify{}, false, nil
 	}
+}
+
+func ParseSkillCastNotify(packet Packet) (SkillCastNotify, bool, error) {
+	if packet.ID != 0x013E {
+		return SkillCastNotify{}, false, nil
+	}
+	if len(packet.Data) < 24 {
+		return SkillCastNotify{}, false, fmt.Errorf("ZC_USESKILL_ACK too short: %d", len(packet.Data))
+	}
+	return SkillCastNotify{
+		SourceID:  binary.LittleEndian.Uint32(packet.Data[2:6]),
+		TargetID:  binary.LittleEndian.Uint32(packet.Data[6:10]),
+		X:         binary.LittleEndian.Uint16(packet.Data[10:12]),
+		Y:         binary.LittleEndian.Uint16(packet.Data[12:14]),
+		SkillID:   binary.LittleEndian.Uint16(packet.Data[14:16]),
+		Property:  binary.LittleEndian.Uint32(packet.Data[16:20]),
+		DelayTime: binary.LittleEndian.Uint32(packet.Data[20:24]),
+	}, true, nil
 }
 
 func ParseSkillFailAck(packet Packet) (SkillFailAck, bool, error) {

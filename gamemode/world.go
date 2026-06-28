@@ -626,6 +626,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.applySkillFailAck(ctx, fail)
 			continue
 		}
+		if cast, ok, err := network.ParseSkillCastNotify(pkt); err != nil {
+			log.Printf("parse skill cast 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applySkillCastNotify(ctx, cast)
+			continue
+		}
 		if effect, ok, err := network.ParseSpecialEffectNotify(pkt); err != nil {
 			log.Printf("parse special effect 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1401,20 +1407,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 	} else if isLocalActor(ctx, action.TargetID) {
 		x, y = ctx.World.Player.X, ctx.World.Player.Y
 	}
-	text, kind, floaterColor := actionDamageFloater(action, targetLocal, sourceLocal)
-	if text == "" {
-		return
-	}
-	m.damageFloaters = append(m.damageFloaters, damageFloater{
-		actorID: action.TargetID,
-		x:       x,
-		y:       y,
-		text:    text,
-		color:   floaterColor,
-		kind:    kind,
-		starts:  hitAt,
-		expires: hitAt.Add(damageFloaterDuration(kind)),
-	})
+	m.addActionDamageFloaters(action, targetLocal, sourceLocal, x, y, hitAt)
 }
 
 func (m *WorldMode) addSkillBeforeHitEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {
@@ -1425,8 +1418,12 @@ func (m *WorldMode) addSkillBeforeHitEffect(ctx Context, action network.ActorAct
 	if effectID <= 0 {
 		return
 	}
-	if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, starts) {
-		log.Printf("skill before-hit effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+	count := actionVisualHitCount(action)
+	for i := 0; i < count; i++ {
+		effectStarts := starts.Add(multiHitDelay * time.Duration(i))
+		if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, effectStarts) {
+			log.Printf("skill before-hit effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+		}
 	}
 }
 
@@ -1438,8 +1435,62 @@ func (m *WorldMode) addSkillHitEffect(ctx Context, action network.ActorActionNot
 	if effectID <= 0 {
 		return
 	}
-	if m.addWorldEffectAt(ctx, effectID, action.TargetID, starts) {
-		log.Printf("skill hit effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+	count := actionVisualHitCount(action)
+	for i := 0; i < count; i++ {
+		effectStarts := starts.Add(multiHitDelay * time.Duration(i))
+		if m.addWorldEffectAt(ctx, effectID, action.TargetID, effectStarts) {
+			log.Printf("skill hit effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+		}
+	}
+}
+
+const multiHitDelay = 200 * time.Millisecond
+
+func actionVisualHitCount(action network.ActorActionNotify) int {
+	if action.HitCount == 0 {
+		return 1
+	}
+	return maxInt(1, int(action.HitCount))
+}
+
+func (m *WorldMode) addActionDamageFloaters(action network.ActorActionNotify, targetLocal, sourceLocal bool, x, y int, hitAt time.Time) {
+	text, kind, floaterColor := actionDamageFloater(action, targetLocal, sourceLocal)
+	if text == "" {
+		return
+	}
+	count := actionVisualHitCount(action)
+	if count <= 1 || action.Damage+action.LeftDamage <= 0 || kind == damageFloaterCritical {
+		m.damageFloaters = append(m.damageFloaters, damageFloater{
+			actorID: action.TargetID,
+			x:       x,
+			y:       y,
+			text:    text,
+			color:   floaterColor,
+			kind:    kind,
+			starts:  hitAt,
+			expires: hitAt.Add(damageFloaterDuration(kind)),
+		})
+		return
+	}
+	total := int(action.Damage + action.LeftDamage)
+	base := total / count
+	rem := total % count
+	for i := 0; i < count; i++ {
+		value := base
+		if i < rem {
+			value++
+		}
+		starts := hitAt.Add(multiHitDelay * time.Duration(i))
+		m.damageFloaters = append(m.damageFloaters, damageFloater{
+			actorID: action.TargetID,
+			x:       x,
+			y:       y,
+			text:    strconv.Itoa(value),
+			color:   floaterColor,
+			kind:    kind,
+			starts:  starts,
+			expires: starts.Add(damageFloaterDuration(kind)),
+		})
 	}
 }
 

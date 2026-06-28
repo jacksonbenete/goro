@@ -133,6 +133,29 @@ func TestParseSkillNoDamageNotify(t *testing.T) {
 	}
 }
 
+func TestParseSkillCastNotify(t *testing.T) {
+	data := make([]byte, 24)
+	binary.LittleEndian.PutUint16(data[0:2], 0x013E)
+	binary.LittleEndian.PutUint32(data[2:6], 0x11223344)
+	binary.LittleEndian.PutUint32(data[6:10], 0x55667788)
+	binary.LittleEndian.PutUint16(data[10:12], 123)
+	binary.LittleEndian.PutUint16(data[12:14], 456)
+	binary.LittleEndian.PutUint16(data[14:16], 20)
+	binary.LittleEndian.PutUint32(data[16:20], 4)
+	binary.LittleEndian.PutUint32(data[20:24], 2500)
+
+	notify, ok, err := ParseSkillCastNotify(Packet{ID: 0x013E, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("skill cast notification not parsed")
+	}
+	if notify.SourceID != 0x11223344 || notify.TargetID != 0x55667788 || notify.X != 123 || notify.Y != 456 || notify.SkillID != 20 || notify.Property != 4 || notify.DelayTime != 2500 {
+		t.Fatalf("notify = %+v", notify)
+	}
+}
+
 func TestParseSkillFailAck(t *testing.T) {
 	data := make([]byte, 10)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0110)

@@ -77,3 +77,43 @@ func TestShortcutBarClearsDepletedItem(t *testing.T) {
 		t.Fatalf("unrelated shortcuts were cleared: slot4=%+v slot5=%+v", bar.slots[3], bar.slots[4])
 	}
 }
+
+func TestSkillForShortcutUsesSelectedLevel(t *testing.T) {
+	s := &session.Session{
+		Skills: session.Skills{
+			List: []session.Skill{{ID: 6, Level: 8, Range: 9}},
+		},
+	}
+
+	skill, ok := skillForShortcut(s, shortcutSlotState{kind: shortcutSkill, skillID: 6, skillLevel: 2})
+	if !ok {
+		t.Fatal("skill not found")
+	}
+	if skill.Level != 2 {
+		t.Fatalf("shortcut skill level = %d, want selected level 2", skill.Level)
+	}
+}
+
+func TestSkillForShortcutFallsBackAndClampsLevel(t *testing.T) {
+	s := &session.Session{
+		Skills: session.Skills{
+			List: []session.Skill{{ID: 6, Level: 4, Range: 9}},
+		},
+	}
+
+	skill, ok := skillForShortcut(s, shortcutSlotState{kind: shortcutSkill, skillID: 6})
+	if !ok {
+		t.Fatal("legacy skill shortcut not found")
+	}
+	if skill.Level != 4 {
+		t.Fatalf("legacy shortcut level = %d, want learned level 4", skill.Level)
+	}
+
+	skill, ok = skillForShortcut(s, shortcutSlotState{kind: shortcutSkill, skillID: 6, skillLevel: 9})
+	if !ok {
+		t.Fatal("clamped skill shortcut not found")
+	}
+	if skill.Level != 4 {
+		t.Fatalf("clamped shortcut level = %d, want learned level 4", skill.Level)
+	}
+}

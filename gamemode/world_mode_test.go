@@ -615,14 +615,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 45 {
-		t.Fatalf("implemented effects = %d, want 45", coverage.Implemented)
+	if coverage.Implemented != 54 {
+		t.Fatalf("implemented effects = %d, want 54", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 7.4 || coverage.ActivePercent > 7.5 {
-		t.Fatalf("active coverage = %.3f, want about 7.4", coverage.ActivePercent)
+	if coverage.ActivePercent < 8.8 || coverage.ActivePercent > 9.0 {
+		t.Fatalf("active coverage = %.3f, want about 8.9", coverage.ActivePercent)
 	}
 }
 
@@ -696,6 +696,9 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	if got := skillSuccessEffectID(16); got != effectStoneCurse {
 		t.Fatalf("MG_STONECURSE success effect = %d, want %d", got, effectStoneCurse)
 	}
+	if got := skillBeforeHitEffectID(19); got != effectFireBolt {
+		t.Fatalf("MG_FIREBOLT before-hit effect = %d, want %d", got, effectFireBolt)
+	}
 	if got := skillBeforeHitEffectID(17); got != effectFireBall {
 		t.Fatalf("MG_FIREBALL before-hit effect = %d, want %d", got, effectFireBall)
 	}
@@ -709,11 +712,201 @@ func TestMageSkillEffectMappings(t *testing.T) {
 			t.Fatalf("wind skill %d hit effect = %d, want %d", skillID, got, effectWindHit)
 		}
 	}
-	if got := skillBeginEffectID(20); got != effectLightningBolt {
-		t.Fatalf("MG_LIGHTNINGBOLT begin effect = %d, want %d", got, effectLightningBolt)
+	if got := skillBeforeHitEffectID(20); got != effectLightningBolt {
+		t.Fatalf("MG_LIGHTNINGBOLT before-hit effect = %d, want %d", got, effectLightningBolt)
 	}
-	if got := skillBeginEffectID(21); got != effectThunderStorm {
-		t.Fatalf("MG_THUNDERSTORM begin effect = %d, want %d", got, effectThunderStorm)
+	if got := skillBeforeHitEffectID(21); got != effectThunderStorm {
+		t.Fatalf("MG_THUNDERSTORM before-hit effect = %d, want %d", got, effectThunderStorm)
+	}
+	for _, skillID := range []uint16{20, 21} {
+		if got := skillBeginEffectID(skillID); got != 0 {
+			t.Fatalf("wind skill %d local begin effect = %d, want 0", skillID, got)
+		}
+	}
+}
+
+func TestFireBoltEffectSpecUsesFallingFrameList(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectFireBolt)
+	if !ok {
+		t.Fatal("fire bolt effect missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitive3D || len(component.textureFiles) != 6 || component.duration != 500*time.Millisecond {
+		t.Fatalf("component = %+v", component)
+	}
+	if component.posZ != 20 || component.posX == 0 || component.posY == 0 || component.angleStart != 112.5 {
+		t.Fatalf("fire bolt trajectory = %+v", component)
+	}
+}
+
+func TestMagicTargetEffectSpecUsesGroundPlane(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectMagicTarget)
+	if !ok {
+		t.Fatal("magic target effect missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitiveGroundPlane || component.textureFile != "effect/magic_target.tga" || component.sizeStart != 1 {
+		t.Fatalf("component = %+v", component)
+	}
+}
+
+func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     19,
+		SkillLevel:  4,
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      1008,
+		HitCount:    4,
+		Action:      8,
+	})
+
+	if len(mode.worldEffects) != 8 {
+		t.Fatalf("world effects = %d, want 8", len(mode.worldEffects))
+	}
+	for i := 0; i < 4; i++ {
+		effect := mode.worldEffects[i]
+		if effect.effectID != effectFireBolt || effect.actorID != 300 || effect.targetID != 2000000 {
+			t.Fatalf("before-hit effect %d = %+v", i, effect)
+		}
+		if i > 0 {
+			if delay := effect.starts.Sub(mode.worldEffects[i-1].starts); delay != multiHitDelay {
+				t.Fatalf("before-hit delay %d = %s, want %s", i, delay, multiHitDelay)
+			}
+		}
+	}
+	for i := 4; i < 8; i++ {
+		effect := mode.worldEffects[i]
+		if effect.effectID != effectFireHit || effect.actorID != 300 {
+			t.Fatalf("hit effect %d = %+v", i, effect)
+		}
+		if i > 4 {
+			if delay := effect.starts.Sub(mode.worldEffects[i-1].starts); delay != multiHitDelay {
+				t.Fatalf("hit delay %d = %s, want %s", i, delay, multiHitDelay)
+			}
+		}
+	}
+	if len(mode.damageFloaters) != 4 {
+		t.Fatalf("damage floaters = %d, want 4", len(mode.damageFloaters))
+	}
+	for i, floater := range mode.damageFloaters {
+		if floater.text != "252" {
+			t.Fatalf("floater %d text = %q, want 252", i, floater.text)
+		}
+	}
+}
+
+func TestSkillCastAuraEffectMappings(t *testing.T) {
+	tests := []struct {
+		property uint32
+		want     int
+	}{
+		{property: 0, want: effectBeginSpell},
+		{property: 1, want: effectBeginSpell2},
+		{property: 2, want: effectBeginSpell5},
+		{property: 3, want: effectBeginSpell3},
+		{property: 4, want: effectBeginSpell4},
+		{property: 5, want: effectBeginSpell7},
+		{property: 6, want: effectBeginSpell6},
+		{property: 8, want: effectBeginSpell6},
+		{property: 9, want: effectBeginSpell},
+	}
+	for _, tt := range tests {
+		if got := skillCastAuraEffectID(tt.property); got != tt.want {
+			t.Fatalf("cast aura property %d = %d, want %d", tt.property, got, tt.want)
+		}
+	}
+}
+
+func TestSkillCastFallbackMappings(t *testing.T) {
+	tests := []struct {
+		name         string
+		skillID      uint16
+		level        uint16
+		wantProperty uint32
+		wantDuration time.Duration
+	}{
+		{name: "soul strike", skillID: 13, level: 5, wantProperty: 8, wantDuration: 2500 * time.Millisecond},
+		{name: "cold bolt", skillID: 14, level: 4, wantProperty: 1, wantDuration: 2800 * time.Millisecond},
+		{name: "fire ball", skillID: 17, level: 3, wantProperty: 3, wantDuration: time.Second},
+		{name: "fire bolt", skillID: 19, level: 4, wantProperty: 3, wantDuration: 2800 * time.Millisecond},
+		{name: "lightning bolt", skillID: 20, level: 4, wantProperty: 4, wantDuration: 2800 * time.Millisecond},
+		{name: "thunder storm", skillID: 21, level: 4, wantProperty: 4, wantDuration: 1800 * time.Millisecond},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			property, duration := skillCastFallback(tt.skillID, tt.level)
+			if property != tt.wantProperty || duration != tt.wantDuration {
+				t.Fatalf("skillCastFallback = property %d duration %s, want property %d duration %s", property, duration, tt.wantProperty, tt.wantDuration)
+			}
+		})
+	}
+
+	if property, duration := skillCastFallback(5, 10); property != 0 || duration != 0 {
+		t.Fatalf("non-cast skill fallback = property %d duration %s, want zero", property, duration)
+	}
+}
+
+func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: 20, Property: 4, DelayTime: 2500})
+
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
+	}
+	circle := mode.worldEffects[0]
+	if circle.effectID != effectMagicTarget || circle.actorID != 2000000 || circle.targetID != 1100 || circle.duration != 2500*time.Millisecond {
+		t.Fatalf("circle = %+v", circle)
+	}
+	aura := mode.worldEffects[1]
+	if aura.effectID != effectBeginSpell4 || aura.actorID != 2000000 || aura.targetID != 1100 || aura.duration != 2500*time.Millisecond {
+		t.Fatalf("aura = %+v", aura)
+	}
+}
+
+func TestSkillCastEffectsDedupeServerAndLocalFallback(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	start := time.Now()
+	mode.addSkillCastEffects(ctx, 19, 3, 2000000, 1100, 2800*time.Millisecond, start, "local")
+	mode.addSkillCastEffects(ctx, 19, 3, 2000000, 1100, 2800*time.Millisecond, start.Add(20*time.Millisecond), "server")
+
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
+	}
+	if mode.worldEffects[0].effectID != effectMagicTarget || mode.worldEffects[1].effectID != effectBeginSpell3 {
+		t.Fatalf("effects = %+v", mode.worldEffects)
 	}
 }
 

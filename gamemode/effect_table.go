@@ -15,6 +15,25 @@ func roBrowserEffectSize(value float64) float64 {
 }
 
 var worldEffectSpecs = map[int]worldEffectSpec{
+	effectBeginSpell:  castAuraEffectSpec("ring_yellow", color.RGBA{R: 255, G: 245, B: 120, A: 255}, 0.8, 4, 5),
+	effectBeginSpell2: elementalCastAuraEffectSpec("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 0.6),
+	effectBeginSpell3: elementalCastAuraEffectSpec("ring_red", color.RGBA{R: 255, G: 100, B: 100, A: 255}, 0.7),
+	effectBeginSpell4: elementalCastAuraEffectSpec("ring_white", color.RGBA{R: 150, G: 255, B: 150, A: 255}, 0.6),
+	effectBeginSpell5: elementalCastAuraEffectSpec("ring_yellow", color.RGBA{R: 255, G: 245, B: 120, A: 255}, 0.8),
+	effectBeginSpell6: castAuraEffectSpec("ring_white", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.8, 4, 5),
+	effectBeginSpell7: elementalCastAuraEffectSpec("ring_purple", color.RGBA{R: 200, G: 160, B: 255, A: 255}, 0.7),
+	effectMagicTarget: {
+		duration: 900 * time.Millisecond,
+		components: []worldEffectComponent{{
+			kind:        effectPrimitiveGroundPlane,
+			textureFile: "effect/magic_target.tga",
+			duration:    900 * time.Millisecond,
+			alphaMax:    0.9,
+			posZ:        0.08,
+			sizeStart:   1,
+			sizeEnd:     1,
+		}},
+	},
 	effectBashHit: {
 		duration: 280 * time.Millisecond,
 		sfx:      []string{"effect\\ef_hit2.wav"},
@@ -235,6 +254,33 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		}},
 	},
 	effectStoneCurse: strEffectSpec("stonecurse", ""),
+	effectFireBolt: {
+		duration: 500 * time.Millisecond,
+		sfx:      []string{"effect\\ef_firearrow1.wav", "effect\\ef_firearrow2.wav", "effect\\ef_firearrow3.wav"},
+		components: []worldEffectComponent{{
+			kind: effectPrimitive3D,
+			textureFiles: []string{
+				"effect/\xba\xd2\xc8\xad\xbb\xec1.tga",
+				"effect/\xba\xd2\xc8\xad\xbb\xec2.tga",
+				"effect/\xba\xd2\xc8\xad\xbb\xec3.tga",
+				"effect/\xba\xd2\xc8\xad\xbb\xec4.tga",
+				"effect/\xba\xd2\xc8\xad\xbb\xec5.tga",
+				"effect/\xba\xd2\xc8\xad\xbb\xec6.tga",
+			},
+			duration:   500 * time.Millisecond,
+			alphaMax:   1,
+			posX:       5,
+			posY:       2,
+			posZ:       20,
+			posXEnd:    0.0001,
+			posYEnd:    0.0001,
+			posZEnd:    0,
+			sizeStart:  100 * roBrowserEffectPixelRatio,
+			sizeEnd:    100 * roBrowserEffectPixelRatio,
+			angleStart: 112.5,
+			angleEnd:   112.5,
+		}},
+	},
 	effectFireBall: {
 		duration: 410 * time.Millisecond,
 		sfx:      []string{"effect\\ef_fireball.wav"},
@@ -516,6 +562,82 @@ func effectCoverageSnapshot() effectCoverage {
 		RobrowserAll:    robrowserNumericEffectConstants,
 		ActivePercent:   float64(implemented) / float64(robrowserActiveEffectTableEntries) * 100,
 		AllPercent:      float64(implemented) / float64(robrowserNumericEffectConstants) * 100,
+	}
+}
+
+func castAuraEffectSpec(texture string, tint color.RGBA, alphaMax, height, topSize float64) worldEffectSpec {
+	return worldEffectSpec{
+		duration: 900 * time.Millisecond,
+		sfx:      []string{"effect\\ef_beginspell.wav"},
+		components: []worldEffectComponent{{
+			kind:             effectPrimitiveCylinder,
+			textureName:      texture,
+			duration:         900 * time.Millisecond,
+			alphaMax:         alphaMax,
+			fade:             true,
+			rotate:           true,
+			animation:        2,
+			bottomSize:       1,
+			topSize:          topSize,
+			height:           height,
+			totalCircleSides: 32,
+			circleSides:      32,
+			color:            tint,
+		}},
+	}
+}
+
+func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float64) worldEffectSpec {
+	return worldEffectSpec{
+		duration: 900 * time.Millisecond,
+		sfx:      []string{"effect\\ef_beginspell.wav"},
+		components: []worldEffectComponent{
+			{
+				kind:             effectPrimitiveCylinder,
+				textureName:      texture,
+				duration:         900 * time.Millisecond,
+				alphaMax:         0.3,
+				fade:             true,
+				rotate:           true,
+				animation:        1,
+				bottomSize:       1,
+				topSize:          1,
+				height:           30,
+				totalCircleSides: 32,
+				circleSides:      32,
+				color:            tint,
+			},
+			{
+				kind:             effectPrimitiveCylinder,
+				textureName:      texture,
+				duration:         900 * time.Millisecond,
+				alphaMax:         alphaMax,
+				fade:             true,
+				rotate:           true,
+				animation:        1,
+				bottomSize:       1,
+				topSize:          1.3,
+				height:           2,
+				totalCircleSides: 32,
+				circleSides:      32,
+				color:            tint,
+			},
+			{
+				kind:             effectPrimitiveCylinder,
+				textureName:      texture,
+				duration:         900 * time.Millisecond,
+				alphaMax:         alphaMax,
+				fade:             true,
+				rotate:           true,
+				animation:        2,
+				bottomSize:       1,
+				topSize:          4,
+				height:           3,
+				totalCircleSides: 32,
+				circleSides:      32,
+				color:            tint,
+			},
+		},
 	}
 }
 

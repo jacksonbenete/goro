@@ -170,7 +170,7 @@ func (b *shortcutBarState) activate(ctx Context, mode *WorldMode, slot int) {
 		b.setStatus(fmt.Sprintf("F%d item used", slot+1), true)
 		log.Printf("shortcut item use slot=%d index=%d item=%d", slot+1, item.Index, item.ItemID)
 	case shortcutSkill:
-		skill, ok := skillByID(ctx.Session, entry.skillID)
+		skill, ok := skillForShortcut(ctx.Session, entry)
 		if !ok {
 			b.setStatus(fmt.Sprintf("F%d skill unavailable", slot+1), false)
 			return
@@ -223,11 +223,14 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 			}
 		case shortcutSkill:
 			if mode != nil {
-				skill := session.Skill{ID: entry.skillID, Level: entry.skillLevel}
-				if live, ok := skillByID(ctx.Session, entry.skillID); ok {
-					skill = live
+				skill, _ := skillForShortcut(ctx.Session, entry)
+				if skill.ID == 0 {
+					skill = session.Skill{ID: entry.skillID, Level: entry.skillLevel}
 				}
 				mode.drawSkillIcon(screen, ctx.Resources, skill, sx+5, sy+5, 24)
+				if skill.Level > 0 {
+					drawShortcutSkillLevel(screen, sx, sy, skill.Level)
+				}
 			}
 		}
 		render.DebugPrintAtColor(screen, fmt.Sprintf("F%d", i+1), sx+7, sy+shortcutSlot+1, color.RGBA{R: 222, G: 222, B: 214, A: 230})
@@ -448,6 +451,28 @@ func skillByID(s *session.Session, skillID uint16) (session.Skill, bool) {
 	return session.Skill{}, false
 }
 
+func skillForShortcut(s *session.Session, entry shortcutSlotState) (session.Skill, bool) {
+	if entry.kind != shortcutSkill {
+		return session.Skill{}, false
+	}
+	skill, ok := skillByID(s, entry.skillID)
+	if !ok || skill.Level <= 0 {
+		return session.Skill{}, false
+	}
+	level := entry.skillLevel
+	if level <= 0 || level > skill.Level {
+		level = skill.Level
+	}
+	skill.Level = level
+	return skill, true
+}
+
+func drawShortcutSkillLevel(screen *render.Image, x, y int, level int) {
+	label := fmt.Sprintf("Lv%d", maxInt(1, level))
+	render.DebugPrintAtColor(screen, label, x+2, y+1, color.RGBA{A: 210})
+	render.DebugPrintAtColor(screen, label, x+3, y+1, color.RGBA{R: 255, G: 244, B: 152, A: 255})
+}
+
 func useInventoryItem(ctx Context, item session.InventoryItem) error {
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
@@ -519,6 +544,9 @@ func (m *WorldMode) sendShortcutSkillToID(ctx Context, skill session.Skill, targ
 			actorID = 0
 		}
 		m.addWorldEffect(ctx, effectID, actorID)
+	}
+	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
+		m.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), target, duration, time.Now(), "local")
 	}
 	return nil
 }
