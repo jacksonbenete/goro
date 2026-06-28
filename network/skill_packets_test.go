@@ -156,6 +156,27 @@ func TestParseSkillCastNotify(t *testing.T) {
 	}
 }
 
+func TestParseGroundSkillNotify(t *testing.T) {
+	data := make([]byte, 18)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0117)
+	binary.LittleEndian.PutUint16(data[2:4], 21)
+	binary.LittleEndian.PutUint32(data[4:8], 0x11223344)
+	binary.LittleEndian.PutUint16(data[8:10], 4)
+	binary.LittleEndian.PutUint16(data[10:12], 123)
+	binary.LittleEndian.PutUint16(data[12:14], 456)
+
+	notify, ok, err := ParseGroundSkillNotify(Packet{ID: 0x0117, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("ground skill notification not parsed")
+	}
+	if notify.SkillID != 21 || notify.SourceID != 0x11223344 || notify.Level != 4 || notify.X != 123 || notify.Y != 456 {
+		t.Fatalf("notify = %+v", notify)
+	}
+}
+
 func TestParseSkillFailAck(t *testing.T) {
 	data := make([]byte, 10)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0110)

@@ -632,6 +632,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.applySkillCastNotify(ctx, cast)
 			continue
 		}
+		if groundSkill, ok, err := network.ParseGroundSkillNotify(pkt); err != nil {
+			log.Printf("parse ground skill 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyGroundSkillNotify(ctx, groundSkill)
+			continue
+		}
 		if effect, ok, err := network.ParseSpecialEffectNotify(pkt); err != nil {
 			log.Printf("parse special effect 0x%04X: %v", pkt.ID, err)
 		} else if ok {

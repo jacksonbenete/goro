@@ -615,14 +615,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 55 {
-		t.Fatalf("implemented effects = %d, want 55", coverage.Implemented)
+	if coverage.Implemented != 60 {
+		t.Fatalf("implemented effects = %d, want 60", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 9.0 || coverage.ActivePercent > 9.1 {
-		t.Fatalf("active coverage = %.3f, want about 9.1", coverage.ActivePercent)
+	if coverage.ActivePercent < 9.8 || coverage.ActivePercent > 9.9 {
+		t.Fatalf("active coverage = %.3f, want about 9.9", coverage.ActivePercent)
 	}
 }
 
@@ -678,8 +678,14 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 }
 
 func TestMageSkillEffectMappings(t *testing.T) {
+	if got := skillSuccessEffectID(10); got != effectSight {
+		t.Fatalf("MG_SIGHT success effect = %d, want %d", got, effectSight)
+	}
 	if got := skillHitEffectID(11); got != effectBashHit {
 		t.Fatalf("MG_NAPALMBEAT hit effect = %d, want %d", got, effectBashHit)
+	}
+	if got := skillGroundEffectID(12); got != effectSafetyWall {
+		t.Fatalf("MG_SAFETYWALL ground effect = %d, want %d", got, effectSafetyWall)
 	}
 	if got := skillBeforeHitEffectID(13); got != effectSoulStrike {
 		t.Fatalf("MG_SOULSTRIKE before-hit effect = %d, want %d", got, effectSoulStrike)
@@ -687,8 +693,17 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	if got := skillHitEffectID(13); got != effectBashHit {
 		t.Fatalf("MG_SOULSTRIKE hit effect = %d, want %d", got, effectBashHit)
 	}
+	if got := skillBeforeHitEffectID(14); got != effectColdBolt {
+		t.Fatalf("MG_COLDBOLT before-hit effect = %d, want %d", got, effectColdBolt)
+	}
 	if got := skillHitEffectID(14); got != effectColdHit {
 		t.Fatalf("MG_COLDBOLT hit effect = %d, want %d", got, effectColdHit)
+	}
+	if got := skillBeforeHitEffectID(15); got != effectFrostDiver {
+		t.Fatalf("MG_FROSTDIVER before-hit effect = %d, want %d", got, effectFrostDiver)
+	}
+	if got := skillSuccessEffectID(15); got != effectFrostDiver {
+		t.Fatalf("MG_FROSTDIVER success effect = %d, want %d", got, effectFrostDiver)
 	}
 	if got := skillHitEffectID(15); got != effectFrostDiverHit {
 		t.Fatalf("MG_FROSTDIVER hit effect = %d, want %d", got, effectFrostDiverHit)
@@ -701,6 +716,9 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	}
 	if got := skillBeforeHitEffectID(17); got != effectFireBall {
 		t.Fatalf("MG_FIREBALL before-hit effect = %d, want %d", got, effectFireBall)
+	}
+	if got := skillGroundEffectID(18); got != effectFireWall {
+		t.Fatalf("MG_FIREWALL ground effect = %d, want %d", got, effectFireWall)
 	}
 	for _, skillID := range []uint16{17, 18, 19} {
 		if got := skillHitEffectID(skillID); got != effectFireHit {
@@ -715,8 +733,20 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	if got := skillBeforeHitEffectID(20); got != effectLightningBolt {
 		t.Fatalf("MG_LIGHTNINGBOLT before-hit effect = %d, want %d", got, effectLightningBolt)
 	}
-	if got := skillBeforeHitEffectID(21); got != effectThunderStorm {
-		t.Fatalf("MG_THUNDERSTORM before-hit effect = %d, want %d", got, effectThunderStorm)
+	if got := skillSuccessEffectID(20); got != effectLightningBolt {
+		t.Fatalf("MG_LIGHTNINGBOLT success effect = %d, want %d", got, effectLightningBolt)
+	}
+	if got := skillSuccessEffectID(21); got != effectThunderStorm {
+		t.Fatalf("MG_THUNDERSTORM success effect = %d, want %d", got, effectThunderStorm)
+	}
+	if got := skillGroundEffectID(21); got != effectThunderStorm {
+		t.Fatalf("MG_THUNDERSTORM ground effect = %d, want %d", got, effectThunderStorm)
+	}
+	if got := skillSuccessEffectID(157); got != effectEnergyCoat {
+		t.Fatalf("MG_ENERGYCOAT success effect = %d, want %d", got, effectEnergyCoat)
+	}
+	if got := skillBeforeHitEffectID(21); got != 0 {
+		t.Fatalf("MG_THUNDERSTORM before-hit effect = %d, want 0", got)
 	}
 	for _, skillID := range []uint16{20, 21} {
 		if got := skillBeginEffectID(skillID); got != 0 {
@@ -2991,6 +3021,27 @@ func TestButterflyWingEffectIsPinnedAtUsePosition(t *testing.T) {
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 0 || effect.effectID != effectTeleportation || effect.x != 10 || effect.y != 20 {
 		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestGroundSkillNotifyAddsCellEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applyGroundSkillNotify(ctx, network.GroundSkillNotify{SkillID: 21, SourceID: 2000000, Level: 4, X: 123, Y: 456})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 0 || effect.effectID != effectThunderStorm || effect.x != 123 || effect.y != 456 {
+		t.Fatalf("effect = %+v", effect)
+	}
+
+	mode.applyGroundSkillNotify(ctx, network.GroundSkillNotify{SkillID: 21, SourceID: 2000000, Level: 4, X: 123, Y: 456})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("deduped world effects = %d, want 1", len(mode.worldEffects))
 	}
 }
 

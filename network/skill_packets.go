@@ -52,6 +52,14 @@ type SkillCastNotify struct {
 	DelayTime uint32
 }
 
+type GroundSkillNotify struct {
+	SkillID  uint16
+	SourceID uint32
+	Level    uint16
+	X        uint16
+	Y        uint16
+}
+
 type SkillFailAck struct {
 	SkillID uint16
 	Number  uint32
@@ -159,6 +167,22 @@ func ParseSkillCastNotify(packet Packet) (SkillCastNotify, bool, error) {
 		SkillID:   binary.LittleEndian.Uint16(packet.Data[14:16]),
 		Property:  binary.LittleEndian.Uint32(packet.Data[16:20]),
 		DelayTime: binary.LittleEndian.Uint32(packet.Data[20:24]),
+	}, true, nil
+}
+
+func ParseGroundSkillNotify(packet Packet) (GroundSkillNotify, bool, error) {
+	if packet.ID != 0x0117 {
+		return GroundSkillNotify{}, false, nil
+	}
+	if len(packet.Data) < 18 {
+		return GroundSkillNotify{}, false, fmt.Errorf("ZC_SKILL_ENTRY too short: %d", len(packet.Data))
+	}
+	return GroundSkillNotify{
+		SkillID:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+		SourceID: binary.LittleEndian.Uint32(packet.Data[4:8]),
+		Level:    binary.LittleEndian.Uint16(packet.Data[8:10]),
+		X:        binary.LittleEndian.Uint16(packet.Data[10:12]),
+		Y:        binary.LittleEndian.Uint16(packet.Data[12:14]),
 	}, true, nil
 }
 

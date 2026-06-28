@@ -20,9 +20,12 @@ const (
 	effectProvoke       = 67
 	effectEndure        = 11
 	effectBeginSpell    = 12
+	effectSafetyWall    = 13
+	effectColdBolt      = 10014
 	effectBashBegin     = 16
 	effectBashHit       = 1
 	effectMammonite     = 10
+	effectSight         = 22
 	effectSoulStrike    = 15
 	effectMagnumBreak   = 17
 	effectSteal         = 18
@@ -31,6 +34,7 @@ const (
 	effectStoneCurse    = 23
 	effectFireBall      = 24
 	effectFireWall      = 25
+	effectFrostDiver    = 27
 	effectFrostDiverHit = 28
 	effectLightningBolt = 29
 	effectThunderStorm  = 30
@@ -69,6 +73,7 @@ const (
 	effectPotionGreen   = 209
 	effectFood          = 210
 	effectFoodBlue      = 211
+	effectEnergyCoat    = 169
 )
 
 type effectPrimitiveKind int
@@ -206,6 +211,16 @@ func (m *WorldMode) applySkillCastNotify(ctx Context, notify network.SkillCastNo
 	}
 	duration := time.Duration(notify.DelayTime) * time.Millisecond
 	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, duration, time.Now(), "server")
+}
+
+func (m *WorldMode) applyGroundSkillNotify(ctx Context, notify network.GroundSkillNotify) {
+	effectID := skillGroundEffectID(notify.SkillID)
+	if effectID <= 0 {
+		return
+	}
+	if m.addWorldEffectAtCellIfMissing(ctx, effectID, int(notify.X), int(notify.Y), time.Now()) {
+		log.Printf("ground skill effect skill=%d src=%d level=%d cell=%d,%d effect=%d", notify.SkillID, notify.SourceID, notify.Level, notify.X, notify.Y, effectID)
+	}
 }
 
 func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.SpecialEffectNotify) {
@@ -349,6 +364,47 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, a
 	return true
 }
 
+func (m *WorldMode) addWorldEffectAtCell(ctx Context, effectID int, x, y int, starts time.Time) bool {
+	if ctx.World == nil {
+		return false
+	}
+	spec, ok := worldEffectSpecForID(effectID)
+	if !ok {
+		return false
+	}
+	duration := spec.duration
+	for _, component := range spec.components {
+		componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		if componentDuration > duration {
+			duration = componentDuration
+		}
+	}
+	if duration <= 0 {
+		duration = 500 * time.Millisecond
+	}
+	m.worldEffects = append(m.worldEffects, worldEffect{
+		effectID: effectID,
+		x:        x,
+		y:        y,
+		starts:   starts,
+		expires:  starts.Add(duration),
+	})
+	if len(spec.sfx) > 0 {
+		m.scheduleSound(starts, spec.sfx...)
+	}
+	return true
+}
+
+func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx Context, effectID int, x, y int, starts time.Time) bool {
+	now := time.Now()
+	for _, effect := range m.worldEffects {
+		if effect.effectID == effectID && effect.actorID == 0 && effect.x == x && effect.y == y && now.Before(effect.expires) {
+			return false
+		}
+	}
+	return m.addWorldEffectAtCell(ctx, effectID, x, y, starts)
+}
+
 func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
 	now := time.Now()
 	for _, effect := range m.worldEffects {
@@ -419,8 +475,18 @@ func skillSuccessEffectID(skillID uint16) int {
 		return effectProvoke
 	case 8:
 		return effectEndure
+	case 10:
+		return effectSight
+	case 15:
+		return effectFrostDiver
 	case 16:
 		return effectStoneCurse
+	case 20:
+		return effectLightningBolt
+	case 21:
+		return effectThunderStorm
+	case 157:
+		return effectEnergyCoat
 	case 28:
 		return effectHeal
 	case 29:
@@ -469,12 +535,27 @@ func skillBeforeHitEffectID(skillID uint16) int {
 	switch skillID {
 	case 13:
 		return effectSoulStrike
+	case 14:
+		return effectColdBolt
+	case 15:
+		return effectFrostDiver
 	case 19:
 		return effectFireBolt
 	case 17:
 		return effectFireBall
 	case 20:
 		return effectLightningBolt
+	default:
+		return 0
+	}
+}
+
+func skillGroundEffectID(skillID uint16) int {
+	switch skillID {
+	case 12:
+		return effectSafetyWall
+	case 18:
+		return effectFireWall
 	case 21:
 		return effectThunderStorm
 	default:
@@ -1399,34 +1480,45 @@ func (m *WorldMode) loadWorldEffectSTR(manager *res.Manager, strFile, texturePat
 	if manager == nil || strFile == "" {
 		return nil
 	}
-	path := "data\\texture\\effect\\" + strFile + ".str"
-	key := "__str_" + path + "|" + texturePath
 	if m.strEffects == nil {
 		m.strEffects = make(map[string]*res.STR)
 	}
 	if m.strEffectMiss == nil {
 		m.strEffectMiss = make(map[string]struct{})
 	}
-	if str, ok := m.strEffects[key]; ok {
+	normalized := strings.ReplaceAll(strFile, "/", "\\")
+	paths := []string{"data\\texture\\effect\\" + normalized + ".str"}
+	if strings.ContainsAny(strFile, `/\`) {
+		paths = append([]string{"data\\texture\\" + normalized + ".str"}, paths...)
+	}
+	attempted := false
+	for _, path := range paths {
+		key := "__str_" + path + "|" + texturePath
+		if str, ok := m.strEffects[key]; ok {
+			return str
+		}
+		if _, ok := m.strEffectMiss[key]; ok {
+			continue
+		}
+		attempted = true
+		data, err := manager.ReadFileExact(path)
+		if err != nil {
+			m.strEffectMiss[key] = struct{}{}
+			continue
+		}
+		str, err := res.ParseSTR(data, texturePath)
+		if err != nil {
+			m.strEffectMiss[key] = struct{}{}
+			log.Printf("str effect parse failed path=%s: %v", path, err)
+			return nil
+		}
+		m.strEffects[key] = str
 		return str
 	}
-	if _, ok := m.strEffectMiss[key]; ok {
-		return nil
+	if attempted {
+		log.Printf("str effect missing file=%s", strFile)
 	}
-	data, err := manager.ReadFileExact(path)
-	if err != nil {
-		m.strEffectMiss[key] = struct{}{}
-		log.Printf("str effect missing path=%s: %v", path, err)
-		return nil
-	}
-	str, err := res.ParseSTR(data, texturePath)
-	if err != nil {
-		m.strEffectMiss[key] = struct{}{}
-		log.Printf("str effect parse failed path=%s: %v", path, err)
-		return nil
-	}
-	m.strEffects[key] = str
-	return str
+	return nil
 }
 
 func (m *WorldMode) strEffectTexture(manager *res.Manager, path string) *render.Image {
