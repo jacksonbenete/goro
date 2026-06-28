@@ -57,6 +57,7 @@ func applyROTransparency(img image.Image) *image.NRGBA {
 			out.Pix[i+3] = 0
 		}
 	}
+	clearTransparentRGB(out)
 	return out
 }
 
@@ -67,7 +68,22 @@ func ApplyEffectTransparency(img image.Image) *image.NRGBA {
 			out.Pix[i+3] = 0
 		}
 	}
+	clearTransparentRGB(out)
 	return out
+}
+
+func clearTransparentRGB(img *image.NRGBA) {
+	if img == nil {
+		return
+	}
+	for i := 0; i < len(img.Pix); i += 4 {
+		if img.Pix[i+3] != 0 {
+			continue
+		}
+		img.Pix[i+0] = 0
+		img.Pix[i+1] = 0
+		img.Pix[i+2] = 0
+	}
 }
 
 func isROMagenta(r, g, b uint8) bool {

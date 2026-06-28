@@ -65,6 +65,56 @@ func TestSPRFrameImageWithPaletteOverride(t *testing.T) {
 	}
 }
 
+func TestSPRFrameImageClearsTransparentRGB(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString("SP")
+	buf.WriteByte(2)
+	buf.WriteByte(1)
+	writeTestU16(&buf, 0)
+	writeTestU16(&buf, 1)
+	writeTestU16(&buf, 1)
+	writeTestU16(&buf, 1)
+	buf.Write([]byte{0, 128, 255, 0})
+	buf.Write(make([]byte, 1024))
+
+	spr, err := ParseSPR(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, ok := spr.FrameImage(0, SPRFrameRGBA)
+	if !ok {
+		t.Fatal("frame image missing")
+	}
+	if got := img.Pix[:4]; got[0] != 0 || got[1] != 0 || got[2] != 0 || got[3] != 0 {
+		t.Fatalf("transparent rgba pixel = %v, want fully zero", got)
+	}
+}
+
+func TestSPRRGBAFrameImageUsesABGRByteOrder(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString("SP")
+	buf.WriteByte(2)
+	buf.WriteByte(1)
+	writeTestU16(&buf, 0)
+	writeTestU16(&buf, 1)
+	writeTestU16(&buf, 1)
+	writeTestU16(&buf, 1)
+	buf.Write([]byte{128, 30, 20, 10})
+	buf.Write(make([]byte, 1024))
+
+	spr, err := ParseSPR(buf.Bytes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, ok := spr.FrameImage(0, SPRFrameRGBA)
+	if !ok {
+		t.Fatal("frame image missing")
+	}
+	if got := img.Pix[:4]; got[0] != 10 || got[1] != 20 || got[2] != 30 || got[3] != 128 {
+		t.Fatalf("rgba pixel = %v, want [10 20 30 128]", got)
+	}
+}
+
 func TestParseSPRRLEFrame(t *testing.T) {
 	var rle bytes.Buffer
 	rle.WriteByte(5)

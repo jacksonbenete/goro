@@ -124,6 +124,7 @@ func (s *SPR) FrameImageWithPalette(index int, sprType int, palette *Palette) (*
 				}
 			}
 		}
+		clearTransparentRGB(out)
 	case SPRFrameRGBA:
 		for y := 0; y < frame.Height; y++ {
 			srcRow := y * frame.Width * 4
@@ -131,15 +132,16 @@ func (s *SPR) FrameImageWithPalette(index int, sprType int, palette *Palette) (*
 			for x := 0; x < frame.Width; x++ {
 				src := srcRow + x*4
 				dst := dstRow + x*4
-				out.Pix[dst+0] = frame.Data[src+2]
-				out.Pix[dst+1] = frame.Data[src+1]
-				out.Pix[dst+2] = frame.Data[src+0]
-				out.Pix[dst+3] = frame.Data[src+3]
+				out.Pix[dst+0] = frame.Data[src+3]
+				out.Pix[dst+1] = frame.Data[src+2]
+				out.Pix[dst+2] = frame.Data[src+1]
+				out.Pix[dst+3] = frame.Data[src+0]
 				if isROMagenta(out.Pix[dst+0], out.Pix[dst+1], out.Pix[dst+2]) {
 					out.Pix[dst+3] = 0
 				}
 			}
 		}
+		clearTransparentRGB(out)
 	default:
 		return nil, false
 	}
