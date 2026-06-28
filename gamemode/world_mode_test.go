@@ -143,8 +143,8 @@ func TestActorBillboardScreenScaleUsesProjectedReferenceHeight(t *testing.T) {
 	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 5)
 
 	scale := actorBillboardScreenScale(projection, 10.5, 20.5, 5)
-	if scale <= 0 || scale >= 1 {
-		t.Fatalf("camera billboard scale = %.3f, want between 0 and 1", scale)
+	if math.Abs(scale-1.04) > 0.01 {
+		t.Fatalf("camera billboard scale = %.3f, want about 1.04 at roBrowser default zoom", scale)
 	}
 }
 
@@ -2252,6 +2252,24 @@ func TestCameraWheelZoomDeltaMatchesRobrowserStep(t *testing.T) {
 	}
 	if got := cameraWheelZoomDelta(-2); got != 30 {
 		t.Fatalf("wheel down delta = %.1f, want 30", got)
+	}
+}
+
+func TestCameraZoomRangeMatchesRobrowserOutdoorDefaults(t *testing.T) {
+	if got := sceneCameraZoom(); got != 125 {
+		t.Fatalf("default zoom = %.1f, want roBrowser default 125", got)
+	}
+	if defaultCameraMinZoom != 65 || defaultCameraMaxZoom != 325 {
+		t.Fatalf("zoom range = %.1f..%.1f, want roBrowser outdoor 65..325", defaultCameraMinZoom, defaultCameraMaxZoom)
+	}
+}
+
+func TestSceneFogDepthAtTargetMatchesRobrowserDefaultZoom(t *testing.T) {
+	projection := newSceneProjectionForTargetYawZoom(1280, 720, 10.5, 20.5, 0, 0, defaultSceneCameraZoom)
+	got := projection.FogDepth(10.5, 20.5, 0)
+	const want = 1000 * ((defaultSceneCameraZoom * 0.5) - 1) / 999
+	if math.Abs(got-want) > 0.001 {
+		t.Fatalf("target fog depth = %.3f, want %.3f", got, want)
 	}
 }
 

@@ -99,6 +99,10 @@ func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, wi
 	base := uint32(len(floats) / worldVertexFloatCount)
 	invW, invH := 1/float32(width), 1/float32(height)
 	depthBias := saneDepthBias(cmd.Options.DepthBias)
+	fogEnabled := float32(1)
+	if cmd.Options.DisableFog {
+		fogEnabled = 0
+	}
 	for _, v := range cmd.Vertices {
 		floats = append(floats,
 			v.X, v.Y, v.Z,
@@ -106,6 +110,7 @@ func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, wi
 			saneColor(v.ColorR), saneColor(v.ColorG), saneColor(v.ColorB), saneColor(v.ColorA),
 			v.DepthX, v.DepthY, v.DepthZ,
 			depthBias,
+			fogEnabled,
 		)
 	}
 	for _, idx := range cmd.Indices {

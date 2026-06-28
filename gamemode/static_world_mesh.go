@@ -183,6 +183,7 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 		baseBuilder := builderFor(texture, groundTextureDrawOptions())
 		lightOptions := triangleDrawOptions(render.FilterNearest, render.AddressUnsafe)
 		lightOptions.Blend = render.BlendLighter
+		lightOptions.DisableFog = true
 		lightBuilder := builderFor(m.whitePixel, lightOptions)
 		if baseBuilder == nil || lightBuilder == nil {
 			return

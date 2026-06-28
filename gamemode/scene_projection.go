@@ -21,7 +21,7 @@ type sceneProjection struct {
 const (
 	defaultSceneCameraPitch float64 = 230
 	defaultSceneCameraYaw   float64 = 0
-	defaultSceneCameraZoom  float64 = 150
+	defaultSceneCameraZoom  float64 = 125
 	defaultSceneCameraFOV   float64 = 15
 )
 

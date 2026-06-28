@@ -16,7 +16,7 @@ import (
 
 const (
 	screenVertexFloatCount      = 8
-	worldVertexFloatCount       = 13
+	worldVertexFloatCount       = 14
 	billboardVertexFloatCount   = 4
 	billboardInstanceFloatCount = 24
 	screenVertexStride          = screenVertexFloatCount * 4
@@ -289,6 +289,7 @@ func (r *gpuRenderer) createWorldPipeline(shader *wgpu.ShaderModule, blend gputy
 					{Format: gputypes.VertexFormatFloat32x4, Offset: 20, ShaderLocation: 2},
 					{Format: gputypes.VertexFormatFloat32x3, Offset: 36, ShaderLocation: 3},
 					{Format: gputypes.VertexFormatFloat32, Offset: 48, ShaderLocation: 4},
+					{Format: gputypes.VertexFormatFloat32, Offset: 52, ShaderLocation: 5},
 				},
 			}},
 		},

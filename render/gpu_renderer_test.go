@@ -156,6 +156,26 @@ func TestWorldUniformBytesPacksMatrixAndFog(t *testing.T) {
 	}
 }
 
+func TestWorldVertexPackingCarriesFogToggle(t *testing.T) {
+	texture := WhiteImage()
+	vertices := []Vertex3D{
+		{X: 0, Y: 0, Z: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
+	indices := []uint16{0}
+	fogged := NewWorldMesh(vertices, indices, texture, &DrawTrianglesOptions{})
+	unfogged := NewWorldMesh(vertices, indices, texture, &DrawTrianglesOptions{DisableFog: true})
+
+	foggedData, _ := worldMeshGPUData(fogged, 1, 1)
+	unfoggedData, _ := worldMeshGPUData(unfogged, 1, 1)
+
+	if got := foggedData[13]; got != 1 {
+		t.Fatalf("fogged vertex flag = %.1f, want 1", got)
+	}
+	if got := unfoggedData[13]; got != 0 {
+		t.Fatalf("unfogged vertex flag = %.1f, want 0", got)
+	}
+}
+
 func f32At(data []byte, offset int) float32 {
 	return math.Float32frombits(binary.LittleEndian.Uint32(data[offset : offset+4]))
 }

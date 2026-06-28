@@ -66,6 +66,7 @@ type DrawTrianglesOptions struct {
 	DepthTest  bool
 	DepthWrite bool
 	DepthBias  float32
+	DisableFog bool
 }
 
 type DrawImageOptions struct {
