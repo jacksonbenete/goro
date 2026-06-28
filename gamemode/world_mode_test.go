@@ -615,14 +615,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 54 {
-		t.Fatalf("implemented effects = %d, want 54", coverage.Implemented)
+	if coverage.Implemented != 55 {
+		t.Fatalf("implemented effects = %d, want 55", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 8.8 || coverage.ActivePercent > 9.0 {
-		t.Fatalf("active coverage = %.3f, want about 8.9", coverage.ActivePercent)
+	if coverage.ActivePercent < 9.0 || coverage.ActivePercent > 9.1 {
+		t.Fatalf("active coverage = %.3f, want about 9.1", coverage.ActivePercent)
 	}
 }
 
@@ -756,6 +756,23 @@ func TestMagicTargetEffectSpecUsesGroundPlane(t *testing.T) {
 	}
 }
 
+func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectCastRing)
+	if !ok {
+		t.Fatal("cast ring effect missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitiveCylinder || component.textureName != "ring_yellow" {
+		t.Fatalf("component = %+v", component)
+	}
+	if component.bottomSize != 0.8 || component.topSize != 2.45 || component.height != 2.8 {
+		t.Fatalf("magic ring dimensions = bottom %.2f top %.2f height %.2f", component.bottomSize, component.topSize, component.height)
+	}
+}
+
 func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
@@ -883,7 +900,7 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
 	}
 	circle := mode.worldEffects[0]
-	if circle.effectID != effectMagicTarget || circle.actorID != 2000000 || circle.targetID != 1100 || circle.duration != 2500*time.Millisecond {
+	if circle.effectID != effectCastRing || circle.actorID != 2000000 || circle.targetID != 0 || circle.duration != 2500*time.Millisecond {
 		t.Fatalf("circle = %+v", circle)
 	}
 	aura := mode.worldEffects[1]
@@ -905,7 +922,7 @@ func TestSkillCastEffectsDedupeServerAndLocalFallback(t *testing.T) {
 	if len(mode.worldEffects) != 2 {
 		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
 	}
-	if mode.worldEffects[0].effectID != effectMagicTarget || mode.worldEffects[1].effectID != effectBeginSpell3 {
+	if mode.worldEffects[0].effectID != effectCastRing || mode.worldEffects[1].effectID != effectBeginSpell3 {
 		t.Fatalf("effects = %+v", mode.worldEffects)
 	}
 }

@@ -16,6 +16,7 @@ import (
 const (
 	effectFireBolt      = 10019
 	effectMagicTarget   = 10020
+	effectCastRing      = 10021
 	effectProvoke       = 67
 	effectEndure        = 11
 	effectBeginSpell    = 12
@@ -361,7 +362,7 @@ func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property ui
 	if duration <= 0 || sourceID == 0 {
 		return
 	}
-	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectMagicTarget, sourceID, targetID, starts, duration) {
+	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectCastRing, sourceID, 0, starts, duration) {
 		log.Printf("skill cast circle source=%s skill=%d src=%d target=%d delay_ms=%d", source, skillID, sourceID, targetID, duration.Milliseconds())
 	}
 	effectID := skillCastAuraEffectID(property)

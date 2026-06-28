@@ -22,6 +22,24 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectBeginSpell5: elementalCastAuraEffectSpec("ring_yellow", color.RGBA{R: 255, G: 245, B: 120, A: 255}, 0.8),
 	effectBeginSpell6: castAuraEffectSpec("ring_white", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.8, 4, 5),
 	effectBeginSpell7: elementalCastAuraEffectSpec("ring_purple", color.RGBA{R: 200, G: 160, B: 255, A: 255}, 0.7),
+	effectCastRing: {
+		duration: 900 * time.Millisecond,
+		components: []worldEffectComponent{{
+			kind:             effectPrimitiveCylinder,
+			textureName:      "ring_yellow",
+			duration:         900 * time.Millisecond,
+			alphaMax:         0.65,
+			fade:             true,
+			rotate:           true,
+			animation:        1,
+			bottomSize:       0.8,
+			topSize:          2.45,
+			height:           2.8,
+			totalCircleSides: 20,
+			circleSides:      20,
+			color:            color.RGBA{R: 255, G: 245, B: 150, A: 255},
+		}},
+	},
 	effectMagicTarget: {
 		duration: 900 * time.Millisecond,
 		components: []worldEffectComponent{{
