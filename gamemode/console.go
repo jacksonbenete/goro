@@ -300,7 +300,8 @@ func (c *chatConsole) widgetTree(width, height int) uiwidget.Widget {
 		PaddingXY(8, 6).
 		Gap(4).
 		Background(uiwidget.RGBA8(14, 18, 24, 188)).
-		BorderStyle(1, uiwidget.RGBA8(180, 198, 218, 95))
+		BorderStyle(1, uiwidget.RGBA8(180, 198, 218, 95)).
+		Rounded(uiWindowRadius)
 }
 
 func (c *chatConsole) drawCrispText(img *render.Image, width, height int) {
