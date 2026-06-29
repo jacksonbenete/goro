@@ -346,13 +346,19 @@ func (c *Client) readLoop(conn net.Conn) {
 			c.mu.Unlock()
 		}
 		if err != nil {
-			if err != io.EOF {
+			if err != io.EOF && c.isCurrentConn(conn) {
 				c.addError(err)
 			}
 			c.clearConn(conn)
 			return
 		}
 	}
+}
+
+func (c *Client) isCurrentConn(conn net.Conn) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn == conn
 }
 
 func (c *Client) clearConn(conn net.Conn) {
