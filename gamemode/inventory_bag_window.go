@@ -169,12 +169,12 @@ func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+inventoryBagTitleH), float64(inventoryBagWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+inventoryBagTitleH), float64(inventoryBagWidth-16), 1, uiSeparatorColor)
 
 	gx, gy, gw, gh := w.gridBounds()
 	px, py, pw, ph := w.panelBounds()
-	drawUISurface(screen, px, py, pw, ph, color.RGBA{R: 226, G: 222, B: 208, A: 230}, color.RGBA{R: 95, G: 85, B: 72, A: 120})
-	drawUISurface(screen, gx, gy, gw, gh, color.RGBA{R: 244, G: 244, B: 236, A: 232}, color.RGBA{R: 95, G: 85, B: 72, A: 90})
+	drawUISurface(screen, px, py, pw, ph, uiPanelBodyColor, uiWindowBorderColor)
+	drawUISurface(screen, gx, gy, gw, gh, uiWindowBodyColor, uiWindowBorderColor)
 	for _, tab := range inventoryBagTabs {
 		tx, ty, tw, th := w.tabBounds(tab.tab)
 		fill := inventoryButtonColor
@@ -414,7 +414,7 @@ func (w *inventoryBagWindowState) drawScrollBar(screen *render.Image, total int)
 	}
 	gx, gy, gw, gh := w.gridBounds()
 	trackX := gx + gw + 7
-	render.DrawRect(screen, float64(trackX), float64(gy), 4, float64(gh), color.RGBA{R: 24, G: 28, B: 34, A: 220})
+	render.DrawRect(screen, float64(trackX), float64(gy), 4, float64(gh), uiPanelAltColor)
 	totalRows := (total + inventoryBagCols - 1) / inventoryBagCols
 	maxScroll := maxInt(1, totalRows-inventoryBagRows)
 	thumbH := maxInt(18, gh*inventoryBagRows/totalRows)

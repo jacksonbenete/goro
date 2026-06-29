@@ -2,7 +2,6 @@ package gamemode
 
 import (
 	"fmt"
-	"image/color"
 	"log"
 	"time"
 
@@ -21,15 +20,15 @@ const (
 )
 
 var (
-	statsWindowTitleColor  = color.RGBA{R: 255, G: 230, B: 150, A: 255}
-	statsWindowTextColor   = color.RGBA{R: 236, G: 232, B: 220, A: 255}
-	statsWindowMutedColor  = color.RGBA{R: 166, G: 174, B: 184, A: 255}
-	statsWindowGoodColor   = color.RGBA{R: 144, G: 210, B: 142, A: 255}
-	statsWindowErrorColor  = color.RGBA{R: 255, G: 116, B: 116, A: 255}
-	statsWindowButtonColor = color.RGBA{R: 56, G: 62, B: 72, A: 235}
-	statsWindowHoverColor  = color.RGBA{R: 82, G: 92, B: 108, A: 245}
-	statsWindowDownColor   = color.RGBA{R: 98, G: 106, B: 122, A: 245}
-	statsWindowDisabled    = color.RGBA{R: 42, G: 46, B: 54, A: 205}
+	statsWindowTitleColor  = uiTitleTextColor
+	statsWindowTextColor   = uiTextColor
+	statsWindowMutedColor  = uiMutedTextColor
+	statsWindowGoodColor   = uiGoodTextColor
+	statsWindowErrorColor  = uiErrorTextColor
+	statsWindowButtonColor = uiButtonColor
+	statsWindowHoverColor  = uiButtonHoverColor
+	statsWindowDownColor   = uiButtonDownColor
+	statsWindowDisabled    = uiDisabledColor
 )
 
 type statsWindowState struct {
@@ -134,7 +133,7 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, statsWindowButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, statsWindowTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+statsWindowTitleH), float64(statsWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+statsWindowTitleH), float64(statsWindowWidth-16), 1, uiSeparatorColor)
 
 	stats := sessionStats(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Status Point : %d", stats.Points), x+statsWindowPad, y+statsWindowTitleH+10, statsWindowTextColor)

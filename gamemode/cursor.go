@@ -267,6 +267,6 @@ func drawPendingSkillCursorLevel(screen *render.Image, ctx Context, skill sessio
 	x := ctx.Input.MouseX + 18
 	y := ctx.Input.MouseY + 16
 	width := len([]rune(label))*7 + 8
-	drawUISurface(screen, x, y, width, 15, color.RGBA{R: 18, G: 20, B: 24, A: 210}, color.RGBA{R: 248, G: 234, B: 160, A: 160})
-	render.DebugPrintAtColor(screen, label, x+4, y+1, color.RGBA{R: 255, G: 244, B: 152, A: 255})
+	drawUISurface(screen, x, y, width, 15, uiPanelBodyColor, uiWindowBorderColor)
+	render.DebugPrintAtColor(screen, label, x+4, y+1, uiTitleTextColor)
 }

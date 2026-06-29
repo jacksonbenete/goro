@@ -2,7 +2,6 @@ package gamemode
 
 import (
 	"fmt"
-	"image/color"
 	"log"
 	"time"
 
@@ -30,14 +29,14 @@ const (
 )
 
 var (
-	shopTitleColor  = color.RGBA{R: 255, G: 230, B: 150, A: 255}
-	shopTextColor   = color.RGBA{R: 236, G: 232, B: 220, A: 255}
-	shopMutedColor  = color.RGBA{R: 166, G: 174, B: 184, A: 255}
-	shopGoodColor   = color.RGBA{R: 144, G: 210, B: 142, A: 255}
-	shopErrorColor  = color.RGBA{R: 255, G: 116, B: 116, A: 255}
-	shopButtonColor = color.RGBA{R: 56, G: 62, B: 72, A: 235}
-	shopHoverColor  = color.RGBA{R: 72, G: 84, B: 104, A: 238}
-	shopDropColor   = color.RGBA{R: 36, G: 48, B: 64, A: 225}
+	shopTitleColor  = uiTitleTextColor
+	shopTextColor   = uiTextColor
+	shopMutedColor  = uiMutedTextColor
+	shopGoodColor   = uiGoodTextColor
+	shopErrorColor  = uiErrorTextColor
+	shopButtonColor = uiButtonColor
+	shopHoverColor  = uiButtonHoverColor
+	shopDropColor   = uiPanelHoverColor
 )
 
 type shopWindowState struct {
@@ -271,17 +270,17 @@ func (w *shopWindowState) draw(screen *render.Image, ctx Context, mode *WorldMod
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, shopButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, shopTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+shopWindowTitleH), float64(shopWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+shopWindowTitleH), float64(shopWindowWidth-16), 1, uiSeparatorColor)
 
 	if w.mode == shopModeBuy {
 		w.drawBuyRows(screen, ctx, mode)
 	} else {
 		dx, dy, dw, dh := w.dropBounds()
-		fill := color.RGBA{R: 28, G: 32, B: 40, A: 205}
+		fill := uiPanelBodyColor
 		if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, dx, dy, dw, dh) {
 			fill = shopDropColor
 		}
-		drawUISurface(screen, dx, dy, dw, dh, fill, color.RGBA{R: 210, G: 200, B: 170, A: 70})
+		drawUISurface(screen, dx, dy, dw, dh, fill, uiWindowBorderColor)
 		if len(w.cart) == 0 {
 			render.DebugPrintAtColor(screen, "Drop inventory items here", dx+46, dy+72, shopMutedColor)
 		} else {
@@ -618,7 +617,7 @@ func (w *shopWindowState) visibleCartItems() []shopSellCartItem {
 
 func (w *shopWindowState) drawCartRow(screen *render.Image, ctx Context, row int, item shopSellCartItem) {
 	x, y, width, height := w.cartRowBounds(row)
-	drawUISurface(screen, x, y, width, height, color.RGBA{R: 34, G: 38, B: 46, A: 210}, color.RGBA{R: 210, G: 200, B: 170, A: 45})
+	drawUISurface(screen, x, y, width, height, uiPanelAltColor, uiWindowBorderColor)
 	name := inventoryItemDisplayName(ctx.Resources, item.item)
 	render.DebugPrintAtColor(screen, trimRunes(name, 22), x+7, y+5, shopTextColor)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("x%d", item.amount), x+170, y+5, shopMutedColor)
@@ -630,7 +629,7 @@ func (w *shopWindowState) drawCartRow(screen *render.Image, ctx Context, row int
 
 func (w *shopWindowState) drawBuyRows(screen *render.Image, ctx Context, mode *WorldMode) {
 	dx, dy, dw, dh := w.dropBounds()
-	drawUISurface(screen, dx, dy, dw, dh, color.RGBA{R: 28, G: 32, B: 40, A: 205}, color.RGBA{R: 210, G: 200, B: 170, A: 70})
+	drawUISurface(screen, dx, dy, dw, dh, uiPanelBodyColor, uiWindowBorderColor)
 	if len(w.buyItems) == 0 {
 		render.DebugPrintAtColor(screen, "No items", dx+112, dy+72, shopMutedColor)
 		return
@@ -641,11 +640,11 @@ func (w *shopWindowState) drawBuyRows(screen *render.Image, ctx Context, mode *W
 	}
 	for row, item := range w.visibleBuyItems() {
 		x, y, width, height := w.buyRowBounds(row)
-		fill := color.RGBA{R: 34, G: 38, B: 46, A: 210}
+		fill := uiPanelAltColor
 		if pointInRect(mx, my, x, y, width, height) {
 			fill = shopHoverColor
 		}
-		drawUISurface(screen, x, y, width, height, fill, color.RGBA{R: 210, G: 200, B: 170, A: 45})
+		drawUISurface(screen, x, y, width, height, fill, uiWindowBorderColor)
 		if mode != nil {
 			mode.drawInventoryItemIcon(screen, ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true, Amount: 1}, x+3, y+2)
 		}
@@ -676,7 +675,7 @@ func (w *shopWindowState) drawBuyScrollBar(screen *render.Image) {
 	trackX := dx + dw - 8
 	trackY := dy + 5
 	trackH := visible*shopBuyRowH - 3
-	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), color.RGBA{R: 24, G: 28, B: 34, A: 220})
+	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), uiPanelAltColor)
 	maxScroll := maxInt(1, total-visible)
 	thumbH := maxInt(18, trackH*visible/total)
 	thumbTravel := trackH - thumbH
@@ -726,7 +725,7 @@ func (w *shopWindowState) drawButton(screen *render.Image, x, y, width, height i
 	fill := shopButtonColor
 	text := shopTextColor
 	if !enabled {
-		fill = color.RGBA{R: 42, G: 46, B: 54, A: 205}
+		fill = uiDisabledColor
 		text = shopMutedColor
 	}
 	drawUIButtonSurface(screen, x, y, width, height, fill)

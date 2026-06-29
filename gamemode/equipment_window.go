@@ -156,7 +156,7 @@ func (w *equipmentWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+equipmentWindowTitleH), float64(equipmentWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+equipmentWindowTitleH), float64(equipmentWindowWidth-16), 1, uiSeparatorColor)
 
 	contentX, contentY := w.contentOrigin()
 	drawEquipmentContentSurface(screen, contentX, contentY)
@@ -296,7 +296,7 @@ func (w *equipmentWindowState) drawSlotItem(screen *render.Image, ctx Context, m
 	}
 	if slot.side == equipmentSlotLeft {
 		mode.drawInventoryItemIcon(screen, ctx.Resources, item, x+4, y)
-		render.DebugPrintAtColor(screen, trimRunes(name, 10), x+32, y+6, color.RGBA{R: 66, G: 60, B: 54, A: 255})
+		render.DebugPrintAtColor(screen, trimRunes(name, 10), x+32, y+6, uiTextColor)
 		if item.Refine > 0 {
 			render.DebugPrintAtColor(screen, "+"+formatHUDNumber(int64(item.Refine)), x+2, y+1, shopGoodColor)
 		}
@@ -304,7 +304,7 @@ func (w *equipmentWindowState) drawSlotItem(screen *render.Image, ctx Context, m
 	}
 	iconX := x + width - inventoryIconSize - 4
 	mode.drawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
-	render.DebugPrintAtColor(screen, trimRunes(name, 10), x+4, y+6, color.RGBA{R: 66, G: 60, B: 54, A: 255})
+	render.DebugPrintAtColor(screen, trimRunes(name, 10), x+4, y+6, uiTextColor)
 	if item.Refine > 0 {
 		render.DebugPrintAtColor(screen, "+"+formatHUDNumber(int64(item.Refine)), iconX-2, y+1, shopGoodColor)
 	}
@@ -312,15 +312,15 @@ func (w *equipmentWindowState) drawSlotItem(screen *render.Image, ctx Context, m
 
 func (w *equipmentWindowState) drawEmptySlotLabel(screen *render.Image, slot equipmentSlotDef, x, y int) {
 	if slot.side == equipmentSlotCenter {
-		render.DebugPrintAtColor(screen, "Ammo", x+14, y+6, color.RGBA{R: 98, G: 94, B: 86, A: 180})
+		render.DebugPrintAtColor(screen, "Ammo", x+14, y+6, uiMutedTextColor)
 		return
 	}
 	label := slot.label
 	if slot.side == equipmentSlotLeft {
-		render.DebugPrintAtColor(screen, label, x+8, y+6, color.RGBA{R: 98, G: 94, B: 86, A: 180})
+		render.DebugPrintAtColor(screen, label, x+8, y+6, uiMutedTextColor)
 		return
 	}
-	render.DebugPrintAtColor(screen, label, x+widthForRightSlotLabel(label), y+6, color.RGBA{R: 98, G: 94, B: 86, A: 180})
+	render.DebugPrintAtColor(screen, label, x+widthForRightSlotLabel(label), y+6, uiMutedTextColor)
 }
 
 func equippedItemForSlot(s *session.Session, location uint16) (session.InventoryItem, bool) {
@@ -411,8 +411,8 @@ func cachedEquipmentContentSurface() *render.Image {
 	root := primitives.VBox(rows...).
 		Width(equipmentContentW).
 		Height(equipmentContentH).
-		Background(uiColor(color.RGBA{R: 226, G: 222, B: 208, A: 224})).
-		BorderStyle(1, uiColor(color.RGBA{R: 95, G: 85, B: 72, A: 120}))
+		Background(uiColor(uiPanelBodyColor)).
+		BorderStyle(1, uiColor(uiWindowBorderColor))
 	r := offscreen.NewRenderer(equipmentContentW, equipmentContentH, offscreen.WithBackground(uiwidget.ColorTransparent))
 	r.Render(root)
 	src := r.Image()
@@ -427,17 +427,17 @@ func equipmentCellBox(width, height int, border bool) *primitives.BoxWidget {
 	box := primitives.Box().
 		Width(float32(width)).
 		Height(float32(height)).
-		Background(uiColor(color.RGBA{R: 244, G: 244, B: 236, A: 176}))
+		Background(uiColor(uiWindowBodyColor))
 	if border {
-		box.BorderStyle(1, uiColor(color.RGBA{R: 95, G: 85, B: 72, A: 70}))
+		box.BorderStyle(1, uiColor(uiWindowBorderColor))
 	}
 	return box
 }
 
 func equipmentCenterCellBox(row int) *primitives.BoxWidget {
-	bg := color.RGBA{R: 232, G: 229, B: 216, A: 120}
+	bg := uiPanelBodyColor
 	if row == 1 {
-		bg = color.RGBA{R: 244, G: 244, B: 236, A: 132}
+		bg = uiWindowBodyColor
 	}
 	return primitives.Box().
 		Width(equipmentCenterColW).

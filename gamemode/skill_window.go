@@ -25,17 +25,17 @@ const (
 )
 
 var (
-	skillWindowTitleColor  = color.RGBA{R: 255, G: 230, B: 150, A: 255}
-	skillWindowTextColor   = color.RGBA{R: 236, G: 232, B: 220, A: 255}
-	skillWindowMutedColor  = color.RGBA{R: 166, G: 174, B: 184, A: 255}
-	skillWindowGoodColor   = color.RGBA{R: 144, G: 210, B: 142, A: 255}
-	skillWindowErrorColor  = color.RGBA{R: 255, G: 116, B: 116, A: 255}
-	skillWindowButtonColor = color.RGBA{R: 56, G: 62, B: 72, A: 235}
-	skillWindowHoverColor  = color.RGBA{R: 82, G: 92, B: 108, A: 245}
-	skillWindowDownColor   = color.RGBA{R: 98, G: 106, B: 122, A: 245}
-	skillWindowDisabled    = color.RGBA{R: 42, G: 46, B: 54, A: 205}
-	skillWindowPassive     = color.RGBA{R: 126, G: 206, B: 226, A: 255}
-	skillWindowActive      = color.RGBA{R: 148, G: 170, B: 240, A: 255}
+	skillWindowTitleColor  = uiTitleTextColor
+	skillWindowTextColor   = uiTextColor
+	skillWindowMutedColor  = uiMutedTextColor
+	skillWindowGoodColor   = uiGoodTextColor
+	skillWindowErrorColor  = uiErrorTextColor
+	skillWindowButtonColor = uiButtonColor
+	skillWindowHoverColor  = uiButtonHoverColor
+	skillWindowDownColor   = uiButtonDownColor
+	skillWindowDisabled    = uiDisabledColor
+	skillWindowPassive     = color.RGBA{R: 34, G: 142, B: 158, A: 255}
+	skillWindowActive      = color.RGBA{R: 44, G: 92, B: 184, A: 255}
 )
 
 type skillWindowState struct {
@@ -165,7 +165,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, skillWindowButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, skillWindowTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+skillWindowTitleH), float64(skillWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+skillWindowTitleH), float64(skillWindowWidth-16), 1, uiSeparatorColor)
 
 	points := sessionSkillPoints(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Skill Points : %d", points), x+skillWindowPad, y+skillWindowTitleH+10, skillWindowTextColor)
@@ -187,9 +187,9 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 	} else {
 		for row, skill := range visibleSkills(ctx.Session, w.scroll, visibleSkillRows()) {
 			ry := w.skillRowY(row)
-			rowColor := color.RGBA{R: 32, G: 36, B: 44, A: 185}
+			rowColor := uiPanelBodyColor
 			if row%2 == 1 {
-				rowColor = color.RGBA{R: 38, G: 42, B: 50, A: 185}
+				rowColor = uiPanelAltColor
 			}
 			drawUIRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
 			if mode != nil {

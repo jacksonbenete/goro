@@ -2,7 +2,6 @@ package gamemode
 
 import (
 	"fmt"
-	"image/color"
 	"sort"
 	"strings"
 	"time"
@@ -22,12 +21,12 @@ const (
 )
 
 var (
-	inventoryTitleColor  = color.RGBA{R: 255, G: 230, B: 150, A: 255}
-	inventoryTextColor   = color.RGBA{R: 236, G: 232, B: 220, A: 255}
-	inventoryMutedColor  = color.RGBA{R: 166, G: 174, B: 184, A: 255}
-	inventoryButtonColor = color.RGBA{R: 56, G: 62, B: 72, A: 235}
-	inventoryHoverColor  = color.RGBA{R: 72, G: 84, B: 104, A: 238}
-	inventoryDragColor   = color.RGBA{R: 100, G: 118, B: 146, A: 245}
+	inventoryTitleColor  = uiTitleTextColor
+	inventoryTextColor   = uiTextColor
+	inventoryMutedColor  = uiMutedTextColor
+	inventoryButtonColor = uiButtonColor
+	inventoryHoverColor  = uiButtonHoverColor
+	inventoryDragColor   = uiButtonDownColor
 )
 
 type inventoryWindowState struct {
@@ -124,7 +123,7 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+inventoryWindowTitleH), float64(inventoryWindowWidth-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+inventoryWindowTitleH), float64(inventoryWindowWidth-16), 1, uiSeparatorColor)
 
 	items := sortedInventoryItems(ctx.Session)
 	if len(items) == 0 {
@@ -136,14 +135,14 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 		}
 		for row, item := range visibleInventoryItems(items, w.scroll) {
 			rx, ry, rw, rh := w.rowBounds(row)
-			fill := color.RGBA{R: 34, G: 38, B: 46, A: 198}
+			fill := uiPanelAltColor
 			if pointInRect(mx, my, rx, ry, rw, rh) {
 				fill = inventoryHoverColor
 			}
 			if w.dragActive && w.dragItem.Index == item.Index {
 				fill = inventoryDragColor
 			}
-			drawUISurface(screen, rx, ry, rw, rh, fill, color.RGBA{R: 210, G: 200, B: 170, A: 50})
+			drawUISurface(screen, rx, ry, rw, rh, fill, uiWindowBorderColor)
 			if mode != nil {
 				mode.drawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
 			}
@@ -168,7 +167,7 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 		label := trimRunes(inventoryItemDisplayName(ctx.Resources, w.dragItem), 22)
 		dx, dy := ctx.Input.MouseX+12, ctx.Input.MouseY+10
 		width := len([]rune(label))*7 + inventoryIconSize + 18
-		drawUISurface(screen, dx, dy, width, inventoryIconSize+6, color.RGBA{R: 36, G: 42, B: 54, A: 236}, color.RGBA{R: 230, G: 220, B: 170, A: 120})
+		drawUISurface(screen, dx, dy, width, inventoryIconSize+6, uiPanelBodyColor, uiWindowBorderColor)
 		if mode != nil {
 			mode.drawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx+3, dy+3)
 		}
@@ -247,7 +246,7 @@ func (w *inventoryWindowState) drawScrollBar(screen *render.Image, total int) {
 	trackX := w.x + inventoryWindowWidth - 14
 	trackY := w.y + inventoryWindowTitleH + 10
 	trackH := visible*inventoryRowH - 4
-	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), color.RGBA{R: 24, G: 28, B: 34, A: 220})
+	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), uiPanelAltColor)
 	maxScroll := maxInt(1, total-visible)
 	thumbH := maxInt(18, trackH*visible/total)
 	thumbTravel := trackH - thumbH

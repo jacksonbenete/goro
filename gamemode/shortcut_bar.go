@@ -196,16 +196,16 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 	x, y := b.bounds(ctx)
 	width := shortcutSlots*shortcutSlot + (shortcutSlots-1)*shortcutGap + shortcutPad*2
 	height := shortcutSlot + shortcutPad*2 + 12
-	drawUISurface(screen, x, y, width, height, color.RGBA{R: 22, G: 24, B: 28, A: 175}, color.RGBA{R: 230, G: 224, B: 190, A: 90})
+	drawUISurface(screen, x, y, width, height, uiWindowBodyColor, uiWindowBorderColor)
 	mx, my := -1, -1
 	if ctx.Input != nil {
 		mx, my = ctx.Input.MouseX, ctx.Input.MouseY
 	}
 	for i := 0; i < shortcutSlots; i++ {
 		sx, sy := b.slotBounds(ctx, i)
-		fill := color.RGBA{R: 42, G: 47, B: 57, A: 232}
+		fill := uiButtonColor
 		if pointInRect(mx, my, sx, sy, shortcutSlot, shortcutSlot) {
-			fill = color.RGBA{R: 70, G: 82, B: 104, A: 238}
+			fill = uiButtonHoverColor
 		}
 		drawUIButtonSurface(screen, sx, sy, shortcutSlot, shortcutSlot, fill)
 		entry := b.slots[i]
@@ -218,7 +218,7 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 				}
 				mode.drawInventoryItemIcon(screen, ctx.Resources, item, sx+5, sy+5)
 				if item.Amount > 1 {
-					render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), sx+shortcutSlot-17, sy+shortcutSlot-14, color.RGBA{R: 250, G: 248, B: 224, A: 255})
+					render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), sx+shortcutSlot-17, sy+shortcutSlot-14, uiTextColor)
 				}
 			}
 		case shortcutSkill:
@@ -233,7 +233,7 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 				}
 			}
 		}
-		render.DebugPrintAtColor(screen, fmt.Sprintf("F%d", i+1), sx+7, sy+shortcutSlot+1, color.RGBA{R: 222, G: 222, B: 214, A: 230})
+		render.DebugPrintAtColor(screen, fmt.Sprintf("F%d", i+1), sx+7, sy+shortcutSlot+1, uiMutedTextColor)
 	}
 	if b.status != "" && time.Since(b.statusAt) < 1400*time.Millisecond {
 		statusColor := skillWindowErrorColor
@@ -469,8 +469,8 @@ func skillForShortcut(s *session.Session, entry shortcutSlotState) (session.Skil
 
 func drawShortcutSkillLevel(screen *render.Image, x, y int, level int) {
 	label := fmt.Sprintf("Lv%d", maxInt(1, level))
-	render.DebugPrintAtColor(screen, label, x+2, y+1, color.RGBA{A: 210})
-	render.DebugPrintAtColor(screen, label, x+3, y+1, color.RGBA{R: 255, G: 244, B: 152, A: 255})
+	render.DebugPrintAtColor(screen, label, x+2, y+1, color.RGBA{A: 150})
+	render.DebugPrintAtColor(screen, label, x+3, y+1, uiTitleTextColor)
 }
 
 func useInventoryItem(ctx Context, item session.InventoryItem) error {

@@ -18,16 +18,39 @@ type uiSurfaceKey struct {
 
 var uiSurfaceCache = map[uiSurfaceKey]*render.Image{}
 
+var (
+	uiWindowBodyColor   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	uiWindowTitleColor  = color.RGBA{R: 184, G: 214, B: 242, A: 255}
+	uiWindowBorderColor = color.RGBA{R: 118, G: 160, B: 206, A: 255}
+	uiPanelBodyColor    = color.RGBA{R: 250, G: 252, B: 255, A: 255}
+	uiPanelAltColor     = color.RGBA{R: 236, G: 244, B: 252, A: 255}
+	uiPanelHoverColor   = color.RGBA{R: 222, G: 236, B: 250, A: 255}
+	uiPanelDownColor    = color.RGBA{R: 204, G: 224, B: 246, A: 255}
+	uiDisabledColor     = color.RGBA{R: 226, G: 230, B: 235, A: 255}
+	uiTextColor         = color.RGBA{R: 38, G: 48, B: 58, A: 255}
+	uiMutedTextColor    = color.RGBA{R: 98, G: 112, B: 126, A: 255}
+	uiTitleTextColor    = color.RGBA{R: 22, G: 54, B: 88, A: 255}
+	uiGoodTextColor     = color.RGBA{R: 34, G: 142, B: 72, A: 255}
+	uiErrorTextColor    = color.RGBA{R: 204, G: 48, B: 48, A: 255}
+	uiButtonColor       = color.RGBA{R: 236, G: 244, B: 252, A: 255}
+	uiButtonHoverColor  = color.RGBA{R: 218, G: 235, B: 250, A: 255}
+	uiButtonDownColor   = color.RGBA{R: 198, G: 222, B: 245, A: 255}
+	uiButtonBorderColor = color.RGBA{R: 138, G: 174, B: 214, A: 255}
+	uiSeparatorColor    = color.RGBA{R: 160, G: 190, B: 222, A: 190}
+	uiSelectionColor    = color.RGBA{R: 206, G: 226, B: 248, A: 255}
+	uiSelectionBorder   = color.RGBA{R: 82, G: 138, B: 200, A: 255}
+)
+
 func drawUIWindowFrame(screen *render.Image, x, y, w, h int) {
-	drawUISurface(screen, x, y, w, h, color.RGBA{R: 24, G: 26, B: 31, A: 232}, color.RGBA{R: 232, G: 218, B: 172, A: 150})
+	drawUISurface(screen, x, y, w, h, uiWindowBodyColor, uiWindowBorderColor)
 }
 
 func drawUIPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
-	drawUISurface(screen, x, y, w, h, bg, color.RGBA{R: 232, G: 218, B: 172, A: 125})
+	drawUISurface(screen, x, y, w, h, bg, uiWindowBorderColor)
 }
 
 func drawUIButtonSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
-	drawUISurface(screen, x, y, w, h, bg, color.RGBA{R: 228, G: 218, B: 184, A: 105})
+	drawUISurface(screen, x, y, w, h, bg, uiButtonBorderColor)
 }
 
 func drawUIRowSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {

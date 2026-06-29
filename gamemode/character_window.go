@@ -19,16 +19,15 @@ const (
 )
 
 var (
-	characterWindowTextColor   = color.RGBA{R: 238, G: 232, B: 218, A: 255}
-	characterWindowMutedColor  = color.RGBA{R: 174, G: 184, B: 194, A: 255}
-	characterWindowTitleColor  = color.RGBA{R: 255, G: 230, B: 150, A: 255}
-	characterWindowFrameColor  = color.RGBA{R: 24, G: 26, B: 31, A: 222}
-	characterWindowBarBack     = color.RGBA{R: 32, G: 36, B: 44, A: 230}
+	characterWindowTextColor   = uiTextColor
+	characterWindowMutedColor  = uiMutedTextColor
+	characterWindowTitleColor  = uiTitleTextColor
+	characterWindowBarBack     = color.RGBA{R: 224, G: 232, B: 242, A: 255}
 	characterWindowHPColor     = color.RGBA{R: 210, G: 72, B: 72, A: 255}
 	characterWindowSPColor     = color.RGBA{R: 70, G: 112, B: 214, A: 255}
 	characterWindowEXPColor    = color.RGBA{R: 74, G: 174, B: 98, A: 255}
 	characterWindowJobEXPColor = color.RGBA{R: 190, G: 148, B: 58, A: 255}
-	characterWindowWeightWarn  = color.RGBA{R: 255, G: 96, B: 96, A: 255}
+	characterWindowWeightWarn  = uiErrorTextColor
 )
 
 func drawCharacterWindow(screen *render.Image, ctx Context) {
@@ -36,8 +35,9 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 		return
 	}
 	x, y, w, h := characterWindowX, characterWindowY, characterWindowWidth, characterWindowHeight
-	drawUISurface(screen, x, y, w, h, characterWindowFrameColor, color.RGBA{R: 232, G: 218, B: 172, A: 130})
-	render.DrawRect(screen, float64(x+8), float64(y+29), float64(w-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	drawUIWindowFrame(screen, x, y, w, h)
+	drawUIRowSurface(screen, x+1, y+1, w-2, 28, uiWindowTitleColor)
+	render.DrawRect(screen, float64(x+8), float64(y+29), float64(w-16), 1, uiSeparatorColor)
 
 	character := selectedCharacter(ctx.Session)
 	name := strings.TrimSpace(character.Name)
@@ -105,8 +105,8 @@ func drawRatioBar(screen *render.Image, x, y, w, h int, ratio float64, fill colo
 		}
 		render.DrawRect(screen, float64(x), float64(y), float64(fillW), float64(h), fill)
 	}
-	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, color.RGBA{R: 238, G: 232, B: 218, A: 90})
-	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, color.RGBA{A: 160})
+	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, uiWindowBorderColor)
+	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, uiWindowBorderColor)
 }
 
 func ratioInt(current, maxValue int) float64 {

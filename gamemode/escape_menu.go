@@ -16,12 +16,12 @@ const (
 )
 
 var (
-	escapeMenuTextColor     = color.RGBA{R: 238, G: 232, B: 218, A: 255}
-	escapeMenuMutedColor    = color.RGBA{R: 128, G: 134, B: 142, A: 255}
-	escapeMenuTitleColor    = color.RGBA{R: 255, G: 230, B: 150, A: 255}
-	escapeMenuButtonColor   = color.RGBA{R: 58, G: 64, B: 74, A: 235}
-	escapeMenuDisabledColor = color.RGBA{R: 42, G: 46, B: 54, A: 210}
-	escapeMenuHoverColor    = color.RGBA{R: 82, G: 92, B: 108, A: 245}
+	escapeMenuTextColor     = uiTextColor
+	escapeMenuMutedColor    = uiMutedTextColor
+	escapeMenuTitleColor    = uiTitleTextColor
+	escapeMenuButtonColor   = uiButtonColor
+	escapeMenuDisabledColor = uiDisabledColor
+	escapeMenuHoverColor    = uiButtonHoverColor
 )
 
 type escapeMenuState struct {
@@ -105,7 +105,7 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 	x, y, w, h := escapeMenuBounds(width, height)
 	drawNPCWindowFrame(screen, x, y, w, h)
 	render.DebugPrintAtColor(screen, "Menu", x+escapeMenuPad, y+10, escapeMenuTitleColor)
-	render.DrawRect(screen, float64(x+8), float64(y+escapeMenuTitleH), float64(w-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+escapeMenuTitleH), float64(w-16), 1, uiSeparatorColor)
 
 	mx, my := -1, -1
 	if ctx.Input != nil {

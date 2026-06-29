@@ -21,9 +21,9 @@ const (
 )
 
 var (
-	minimapTextColor   = color.RGBA{R: 238, G: 232, B: 218, A: 255}
-	minimapMutedColor  = color.RGBA{R: 174, G: 184, B: 194, A: 255}
-	minimapTitleColor  = color.RGBA{R: 255, G: 230, B: 150, A: 255}
+	minimapTextColor   = uiTextColor
+	minimapMutedColor  = uiMutedTextColor
+	minimapTitleColor  = uiTitleTextColor
 	minimapPlayerColor = color.RGBA{R: 255, G: 232, B: 96, A: 255}
 	minimapMobColor    = color.RGBA{R: 255, G: 96, B: 96, A: 230}
 	minimapNPCColor    = color.RGBA{R: 120, G: 190, B: 255, A: 220}
@@ -47,7 +47,7 @@ func (m *minimapState) draw(screen *render.Image, ctx Context) {
 	}
 	width, height := ctx.ScreenSize()
 	x, y, w, h := minimapBounds(width, height)
-	drawUIPanelSurface(screen, x, y, w, h, color.RGBA{R: 18, G: 22, B: 28, A: 218})
+	drawUIPanelSurface(screen, x, y, w, h, uiWindowBodyColor)
 	render.DebugPrintAtColor(screen, "Mini Map", x+minimapPad, y+7, minimapTitleColor)
 
 	mapRect := minimapMapRect(x, y, w, h)
@@ -57,10 +57,10 @@ func (m *minimapState) draw(screen *render.Image, ctx Context) {
 	} else {
 		drawMinimapFallback(screen, mapRect)
 	}
-	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), float64(mapRect.w), 1, color.RGBA{R: 232, G: 218, B: 172, A: 105})
-	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y+mapRect.h-1), float64(mapRect.w), 1, color.RGBA{A: 170})
-	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), 1, float64(mapRect.h), color.RGBA{R: 232, G: 218, B: 172, A: 105})
-	render.DrawRect(screen, float64(mapRect.x+mapRect.w-1), float64(mapRect.y), 1, float64(mapRect.h), color.RGBA{A: 170})
+	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), float64(mapRect.w), 1, uiWindowBorderColor)
+	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y+mapRect.h-1), float64(mapRect.w), 1, uiWindowBorderColor)
+	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), 1, float64(mapRect.h), uiWindowBorderColor)
+	render.DrawRect(screen, float64(mapRect.x+mapRect.w-1), float64(mapRect.y), 1, float64(mapRect.h), uiWindowBorderColor)
 
 	mapW, mapH := minimapWorldSize(ctx.World)
 	if mapW > 0 && mapH > 0 {
@@ -132,12 +132,12 @@ func drawMinimapImage(screen, img *render.Image, dst minimapRect) {
 }
 
 func drawMinimapFallback(screen *render.Image, rect minimapRect) {
-	render.DrawRect(screen, float64(rect.x), float64(rect.y), float64(rect.w), float64(rect.h), color.RGBA{R: 42, G: 68, B: 46, A: 210})
+	render.DrawRect(screen, float64(rect.x), float64(rect.y), float64(rect.w), float64(rect.h), color.RGBA{R: 212, G: 228, B: 202, A: 255})
 	for i := 1; i < 8; i++ {
 		x := rect.x + rect.w*i/8
 		y := rect.y + rect.h*i/8
-		render.DrawRect(screen, float64(x), float64(rect.y), 1, float64(rect.h), color.RGBA{R: 104, G: 132, B: 88, A: 105})
-		render.DrawRect(screen, float64(rect.x), float64(y), float64(rect.w), 1, color.RGBA{R: 104, G: 132, B: 88, A: 105})
+		render.DrawRect(screen, float64(x), float64(rect.y), 1, float64(rect.h), color.RGBA{R: 132, G: 164, B: 118, A: 105})
+		render.DrawRect(screen, float64(rect.x), float64(y), float64(rect.w), 1, color.RGBA{R: 132, G: 164, B: 118, A: 105})
 	}
 }
 

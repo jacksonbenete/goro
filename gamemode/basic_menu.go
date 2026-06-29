@@ -2,7 +2,6 @@ package gamemode
 
 import (
 	"fmt"
-	"image/color"
 	"strings"
 	"time"
 
@@ -22,12 +21,12 @@ const (
 )
 
 var (
-	basicMenuTextColor   = color.RGBA{R: 232, G: 228, B: 218, A: 255}
-	basicMenuMutedColor  = color.RGBA{R: 166, G: 174, B: 186, A: 255}
-	basicMenuButtonColor = color.RGBA{R: 48, G: 54, B: 64, A: 228}
-	basicMenuHoverColor  = color.RGBA{R: 72, G: 84, B: 104, A: 238}
-	basicMenuDownColor   = color.RGBA{R: 88, G: 98, B: 118, A: 245}
-	basicMenuPanelColor  = color.RGBA{R: 20, G: 23, B: 29, A: 210}
+	basicMenuTextColor   = uiTextColor
+	basicMenuMutedColor  = uiMutedTextColor
+	basicMenuButtonColor = uiButtonColor
+	basicMenuHoverColor  = uiButtonHoverColor
+	basicMenuDownColor   = uiButtonDownColor
+	basicMenuPanelColor  = uiWindowBodyColor
 )
 
 type basicMenuState struct {

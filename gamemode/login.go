@@ -533,11 +533,11 @@ func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
 func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
 	drawUIWindowFrame(screen, x, y, w, h)
-	drawUIRowSurface(screen, x+1, y+1, w-2, 20, color.RGBA{R: 44, G: 49, B: 60, A: 240})
-	render.DebugPrintAtColor(screen, "Ragnarok Online", x+10, y+4, color.RGBA{R: 235, G: 226, B: 194, A: 255})
+	drawUIRowSurface(screen, x+1, y+1, w-2, 20, uiWindowTitleColor)
+	render.DebugPrintAtColor(screen, "Ragnarok Online", x+10, y+4, uiTitleTextColor)
 
-	labelColor := color.RGBA{R: 225, G: 219, B: 204, A: 255}
-	mutedColor := color.RGBA{R: 182, G: 187, B: 197, A: 255}
+	labelColor := uiTextColor
+	mutedColor := uiMutedTextColor
 	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
 	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
 	render.DebugPrintAtColor(screen, "Account", x+24, userY-17, labelColor)
@@ -549,9 +549,9 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	render.DebugPrintAtColor(screen, "Server", x+24, serverY-17, labelColor)
 	for i, conn := range ctx.Resources.ClientInfo.Connections {
 		rowY := serverY + i*17
-		bg := color.RGBA{R: 20, G: 23, B: 31, A: 130}
+		bg := uiPanelAltColor
 		if i == m.selected {
-			bg = color.RGBA{R: 74, G: 88, B: 118, A: 205}
+			bg = uiSelectionColor
 		}
 		drawUIRowSurface(screen, x+22, rowY, w-44, 16, bg)
 		render.DebugPrintAtColor(screen, trimRunes(conn.Display, 22), x+28, rowY+1, labelColor)
@@ -559,9 +559,9 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	}
 
 	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
-	buttonBG := color.RGBA{R: 72, G: 78, B: 92, A: 235}
+	buttonBG := uiButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, buttonX, buttonY, buttonW, buttonH) {
-		buttonBG = color.RGBA{R: 92, G: 101, B: 121, A: 245}
+		buttonBG = uiButtonHoverColor
 	}
 	drawUIButtonSurface(screen, buttonX, buttonY, buttonW, buttonH, buttonBG)
 	render.DebugPrintAtColor(screen, "Login", buttonX+34, buttonY+4, labelColor)
@@ -570,16 +570,9 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 
 func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 	x, y, w, h := charSelectWindowRect(ctx)
-	if m.charWindow != nil {
-		var opts render.DrawImageOptions
-		opts.GeoM.Translate(float64(x), float64(y))
-		opts.Filter = render.FilterNearest
-		screen.DrawImage(m.charWindow, &opts)
-	} else {
-		drawUIWindowFrame(screen, x, y, w, h)
-		drawUIRowSurface(screen, x+1, y+1, w-2, 22, color.RGBA{R: 44, G: 49, B: 60, A: 240})
-	}
-	render.DebugPrintAtColor(screen, "Select Character", x+12, y+5, color.RGBA{R: 235, G: 226, B: 194, A: 255})
+	drawUIWindowFrame(screen, x, y, w, h)
+	drawUIRowSurface(screen, x+1, y+1, w-2, 22, uiWindowTitleColor)
+	render.DebugPrintAtColor(screen, "Select Character", x+12, y+5, uiTitleTextColor)
 
 	page := charSelectPage(m.selectedSlot)
 	pageStart := page * 3
@@ -587,24 +580,18 @@ func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 		slot := pageStart + localSlot
 		slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
 		selected := slot == m.selectedSlot
-		bg := color.RGBA{R: 28, G: 31, B: 39, A: 120}
-		border := color.RGBA{R: 168, G: 176, B: 196, A: 120}
+		bg := uiPanelBodyColor
+		border := uiWindowBorderColor
 		if selected {
-			bg = color.RGBA{R: 60, G: 70, B: 96, A: 185}
-			border = color.RGBA{R: 238, G: 220, B: 142, A: 235}
+			bg = uiSelectionColor
+			border = uiSelectionBorder
 		}
 		drawUISurface(screen, slotX, slotY, slotW, slotH, bg, border)
-		if selected && m.charBox != nil {
-			var opts render.DrawImageOptions
-			opts.GeoM.Translate(float64(slotX), float64(slotY))
-			opts.Filter = render.FilterNearest
-			screen.DrawImage(m.charBox, &opts)
-		}
 		if character, ok := characterBySlot(ctx.Session.Characters, slot); ok {
 			m.drawCharacterPreview(screen, ctx, character, slotX+slotW/2, slotY+slotH-15-charSelectPreviewFeetLift)
-			render.DrawOutlinedTextAt(screen, trimRunes(character.Name, 16), slotX+8, slotY+slotH-18, color.RGBA{R: 245, G: 239, B: 218, A: 255}, color.RGBA{A: 180})
+			render.DrawOutlinedTextAt(screen, trimRunes(character.Name, 16), slotX+8, slotY+slotH-18, uiTextColor, color.RGBA{A: 160})
 		} else {
-			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, color.RGBA{R: 196, G: 202, B: 214, A: 210})
+			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, uiMutedTextColor)
 		}
 	}
 
@@ -669,8 +656,8 @@ func (m *LoginMode) characterPreviewView(ctx Context, character session.Characte
 func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context, x, y int) {
 	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
 	panelX, panelY, panelW, panelH := x+16, y+204, 318, 108
-	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, color.RGBA{R: 238, G: 235, B: 225, A: 232})
-	text := color.RGBA{R: 58, G: 58, B: 63, A: 255}
+	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, uiPanelBodyColor)
+	text := uiTextColor
 	if !ok {
 		render.DebugPrintAtColor(screen, "Empty Slot", panelX+18, panelY+14, text)
 		render.DebugPrintAtColor(screen, "Use Make to create a character later.", panelX+18, panelY+34, text)
@@ -692,8 +679,8 @@ func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context,
 func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context, x, y, w, h int) {
 	page := charSelectPage(m.selectedSlot)
 	pageCount := maxInt(1, (m.maxSlots+2)/3)
-	statusColor := color.RGBA{R: 205, G: 211, B: 223, A: 255}
-	labelColor := color.RGBA{R: 235, G: 226, B: 194, A: 255}
+	statusColor := uiMutedTextColor
+	labelColor := uiTextColor
 	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", len(ctx.Session.Characters), m.maxSlots), x+w-112, y+198, statusColor)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", page+1, pageCount), x+w/2-18, y+190, statusColor)
 	render.DebugPrintAtColor(screen, trimRunes(m.status, 42), x+12, y+h-22, statusColor)
@@ -709,27 +696,27 @@ func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context,
 }
 
 func drawCharSelectButton(screen *render.Image, ctx Context, x, y, w, h int, label string, textColor color.RGBA) {
-	bg := color.RGBA{R: 72, G: 78, B: 92, A: 235}
+	bg := uiButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
-		bg = color.RGBA{R: 92, G: 101, B: 121, A: 245}
+		bg = uiButtonHoverColor
 	}
 	drawUIButtonSurface(screen, x, y, w, h, bg)
 	render.DebugPrintAtColor(screen, label, x+(w-len(label)*7)/2, y+4, textColor)
 }
 
 func drawCharSelectArrow(screen *render.Image, x, y, w, h int, label string) {
-	drawUIButtonSurface(screen, x, y, w, h, color.RGBA{R: 52, G: 58, B: 72, A: 215})
-	render.DebugPrintAtColor(screen, label, x+5, y+1, color.RGBA{R: 235, G: 226, B: 194, A: 255})
+	drawUIButtonSurface(screen, x, y, w, h, uiButtonColor)
+	render.DebugPrintAtColor(screen, label, x+5, y+1, uiTextColor)
 }
 
 func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused bool) {
-	bg := color.RGBA{R: 236, G: 232, B: 220, A: 238}
-	border := color.RGBA{R: 90, G: 94, B: 108, A: 220}
+	bg := uiPanelBodyColor
+	border := uiButtonBorderColor
 	if focused {
-		border = color.RGBA{R: 240, G: 216, B: 126, A: 255}
+		border = uiSelectionBorder
 	}
 	drawUISurface(screen, x, y, w, h, bg, border)
-	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, color.RGBA{R: 36, G: 36, B: 39, A: 255})
+	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, uiTextColor)
 }
 
 func (m *LoginMode) loadBackground(ctx Context) {

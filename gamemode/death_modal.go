@@ -18,12 +18,12 @@ const (
 )
 
 var (
-	deathModalTitleColor  = color.RGBA{R: 255, G: 214, B: 142, A: 255}
-	deathModalTextColor   = color.RGBA{R: 238, G: 232, B: 218, A: 255}
-	deathModalMutedColor  = color.RGBA{R: 148, G: 154, B: 164, A: 255}
-	deathModalErrorColor  = color.RGBA{R: 255, G: 132, B: 132, A: 255}
-	deathModalButtonColor = color.RGBA{R: 58, G: 64, B: 74, A: 235}
-	deathModalHoverColor  = color.RGBA{R: 82, G: 92, B: 108, A: 245}
+	deathModalTitleColor  = uiTitleTextColor
+	deathModalTextColor   = uiTextColor
+	deathModalMutedColor  = uiMutedTextColor
+	deathModalErrorColor  = uiErrorTextColor
+	deathModalButtonColor = uiButtonColor
+	deathModalHoverColor  = uiButtonHoverColor
 )
 
 type deathModalState struct {
@@ -149,7 +149,7 @@ func (m *deathModalState) draw(screen *render.Image, ctx Context, width, height 
 	x, y, w, h := deathModalBounds(width, height)
 	drawNPCWindowFrame(screen, x, y, w, h)
 	render.DebugPrintAtColor(screen, "You have died", x+deathModalPad, y+10, deathModalTitleColor)
-	render.DrawRect(screen, float64(x+8), float64(y+deathModalTitleH), float64(w-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
+	render.DrawRect(screen, float64(x+8), float64(y+deathModalTitleH), float64(w-16), 1, uiSeparatorColor)
 	render.DebugPrintAtColor(screen, "Choose what to do next.", x+deathModalPad, y+deathModalTitleH+14, deathModalTextColor)
 
 	mx, my := -1, -1
