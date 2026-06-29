@@ -532,8 +532,7 @@ func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
 
 func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
-	drawUIWindowFrame(screen, x, y, w, h)
-	drawUIRowSurface(screen, x+1, y+1, w-2, 20, uiWindowTitleColor)
+	drawUITitledWindowFrame(screen, x, y, w, h, 21)
 	render.DebugPrintAtColor(screen, "Ragnarok Online", x+10, y+4, uiTitleTextColor)
 
 	labelColor := uiTextColor
@@ -570,8 +569,7 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 
 func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 	x, y, w, h := charSelectWindowRect(ctx)
-	drawUIWindowFrame(screen, x, y, w, h)
-	drawUIRowSurface(screen, x+1, y+1, w-2, 22, uiWindowTitleColor)
+	drawUITitledWindowFrame(screen, x, y, w, h, 23)
 	render.DebugPrintAtColor(screen, "Select Character", x+12, y+5, uiTitleTextColor)
 
 	page := charSelectPage(m.selectedSlot)

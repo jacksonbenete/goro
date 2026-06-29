@@ -20,6 +20,7 @@ var uiSurfaceCache = map[uiSurfaceKey]*render.Image{}
 
 var (
 	uiWindowBodyColor   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	uiWindowTitleTop    = color.RGBA{R: 214, G: 232, B: 250, A: 255}
 	uiWindowTitleColor  = color.RGBA{R: 184, G: 214, B: 242, A: 255}
 	uiWindowBorderColor = color.RGBA{R: 118, G: 160, B: 206, A: 255}
 	uiPanelBodyColor    = color.RGBA{R: 250, G: 252, B: 255, A: 255}
@@ -54,8 +55,30 @@ func drawUITitleBar(screen *render.Image, x, y, w, titleH int) {
 	if titleH <= 1 {
 		return
 	}
-	drawUIRowSurface(screen, x+1, y+1, w-2, titleH-1, uiWindowTitleColor)
+	barH := titleH - 1
+	for row := 0; row < barH; row++ {
+		t := 0.0
+		if barH > 1 {
+			t = float64(row) / float64(barH-1)
+		}
+		render.DrawRect(screen, float64(x+1), float64(y+1+row), float64(w-2), 1, lerpUIColor(uiWindowTitleTop, uiWindowTitleColor, t))
+	}
 	render.DrawRect(screen, float64(x+1), float64(y+titleH), float64(w-2), 1, uiSeparatorColor)
+}
+
+func lerpUIColor(a, b color.RGBA, t float64) color.RGBA {
+	if t <= 0 {
+		return a
+	}
+	if t >= 1 {
+		return b
+	}
+	return color.RGBA{
+		R: uint8(float64(a.R) + (float64(b.R)-float64(a.R))*t + 0.5),
+		G: uint8(float64(a.G) + (float64(b.G)-float64(a.G))*t + 0.5),
+		B: uint8(float64(a.B) + (float64(b.B)-float64(a.B))*t + 0.5),
+		A: uint8(float64(a.A) + (float64(b.A)-float64(a.A))*t + 0.5),
+	}
 }
 
 func drawUIPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
