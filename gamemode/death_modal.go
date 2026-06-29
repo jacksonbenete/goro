@@ -148,7 +148,7 @@ func (m *deathModalState) draw(screen *render.Image, ctx Context, width, height 
 	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 112}, color.RGBA{})
 	x, y, w, h := deathModalBounds(width, height)
 	drawUITitledWindowFrame(screen, x, y, w, h, deathModalTitleH)
-	render.DebugPrintAtColor(screen, "You have died", x+deathModalPad, y+10, deathModalTitleColor)
+	drawUIWindowTitle(screen, x, y, deathModalTitleH, deathModalPad, "You have died", deathModalTitleColor)
 	render.DebugPrintAtColor(screen, "Choose what to do next.", x+deathModalPad, y+deathModalTitleH+14, deathModalTextColor)
 
 	mx, my := -1, -1
@@ -166,9 +166,7 @@ func (m *deathModalState) draw(screen *render.Image, ctx Context, width, height 
 		} else if pointInRect(mx, my, bx, by, bw, bh) {
 			fill = deathModalHoverColor
 		}
-		drawUIButtonSurface(screen, bx, by, bw, bh, fill)
-		tx := bx + (bw-len([]rune(button.label))*7)/2
-		render.DebugPrintAtColor(screen, button.label, tx, by+7, textColor)
+		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
 	}
 
 	if m.status != "" {

@@ -119,10 +119,9 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	w.clampScroll(ctx.Session)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, inventoryWindowWidth, inventoryWindowHeight, inventoryWindowTitleH)
-	render.DebugPrintAtColor(screen, "Sell Inventory", x+inventoryWindowPad, y+9, inventoryTitleColor)
+	drawUIWindowTitle(screen, x, y, inventoryWindowTitleH, inventoryWindowPad, "Sell Inventory", inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
-	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)
+	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	items := sortedInventoryItems(ctx.Session)
 	if len(items) == 0 {

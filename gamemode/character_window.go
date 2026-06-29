@@ -42,8 +42,8 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 	if name == "" {
 		name = "Player"
 	}
-	render.DebugPrintAtColor(screen, trimRunes(name, 20), x+12, y+10, characterWindowTitleColor)
-	render.DebugPrintAtColor(screen, trimRunes(characterJobName(character), 20), x+166, y+10, characterWindowMutedColor)
+	drawUITitleTextAt(screen, x+12, y, 29, trimRunes(name, 20), characterWindowTitleColor)
+	drawUITitleTextAt(screen, x+166, y, 29, trimRunes(characterJobName(character), 20), characterWindowMutedColor)
 
 	vitals := ctx.Session.Vitals
 	if vitals.HP == 0 && vitals.MaxHP == 0 && vitals.SP == 0 && vitals.MaxSP == 0 {

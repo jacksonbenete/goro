@@ -55,6 +55,16 @@ func drawUITitledWindowFrame(screen *render.Image, x, y, w, h, titleH int) {
 	drawUITitleBar(screen, x, y, w, titleH)
 }
 
+func drawUIWindowTitle(screen *render.Image, x, y, titleH, pad int, title string, text color.RGBA) {
+	drawUITitleTextAt(screen, x+pad, y, titleH, title, text)
+}
+
+func drawUITitleTextAt(screen *render.Image, x, y, titleH int, title string, text color.RGBA) {
+	_, textH := render.DebugTextSize(title)
+	ty := y + (titleH-textH)/2
+	render.DebugPrintAtColor(screen, title, x, ty, text)
+}
+
 func drawUITitleBar(screen *render.Image, x, y, w, titleH int) {
 	if titleH <= 1 {
 		return
@@ -106,6 +116,35 @@ func drawUIPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 func drawUIButtonSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 	drawUIRoundedSurface(screen, x, y, w, h, bg, uiButtonBorderColor, uiButtonRadius)
 	drawUIGradientInterior(screen, x, y, w, h, uiLighten(bg, 0.42), bg, int(math.Ceil(float64(uiButtonRadius)))-1)
+}
+
+func drawUIButtonLabel(screen *render.Image, x, y, w, h int, label string, bg, text color.RGBA) {
+	drawUIButtonSurface(screen, x, y, w, h, bg)
+	drawUICenteredText(screen, x, y, w, h, label, text)
+}
+
+func drawUICloseButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA) {
+	drawUIButtonSurface(screen, x, y, w, h, bg)
+	icon := minInt(w, h) / 2
+	if icon < 6 {
+		icon = minInt(w, h) - 6
+	}
+	if icon < 2 {
+		return
+	}
+	left := x + (w-icon)/2
+	top := y + (h-icon)/2
+	right := left + icon - 1
+	bottom := top + icon - 1
+	render.DrawLine(screen, float64(left), float64(top), float64(right), float64(bottom), line)
+	render.DrawLine(screen, float64(right), float64(top), float64(left), float64(bottom), line)
+}
+
+func drawUICenteredText(screen *render.Image, x, y, w, h int, label string, text color.RGBA) {
+	textW, textH := render.DebugTextSize(label)
+	tx := x + (w-textW)/2
+	ty := y + (h-textH)/2
+	render.DebugPrintAtColor(screen, label, tx, ty, text)
 }
 
 func drawUIRowSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {

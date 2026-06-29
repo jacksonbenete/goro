@@ -87,9 +87,7 @@ func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
 				fill = basicMenuHoverColor
 			}
 		}
-		drawUIButtonSurface(screen, bx, by, bw, bh, fill)
-		textX := bx + (bw-len([]rune(button.label))*7)/2
-		render.DebugPrintAtColor(screen, button.label, textX, by+6, basicMenuTextColor)
+		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, basicMenuTextColor)
 	}
 	if m.lastAction != "" && m.lastAction != "status" && m.lastAction != "skill" && m.lastAction != "items" && m.lastAction != "equip" && time.Since(m.lastClick) < 1500*time.Millisecond {
 		label := strings.ToUpper(m.lastAction[:1]) + m.lastAction[1:]

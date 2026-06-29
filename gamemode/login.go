@@ -490,7 +490,7 @@ func (m *LoginMode) drawQuitConfirm(ctx Context, screen *render.Image) {
 	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 80}, color.RGBA{})
 	x, y, w, h := loginQuitConfirmRect(ctx)
 	drawUITitledWindowFrame(screen, x, y, w, h, 24)
-	render.DebugPrintAtColor(screen, "Exit", x+12, y+6, uiTitleTextColor)
+	drawUIWindowTitle(screen, x, y, 24, 12, "Exit", uiTitleTextColor)
 	render.DebugPrintAtColor(screen, "Do you really want to quit?", x+28, y+52, uiTextColor)
 
 	okX, okY, okW, okH := loginQuitOKRect(ctx)
@@ -504,8 +504,7 @@ func drawLoginQuitButton(screen *render.Image, ctx Context, x, y, w, h int, labe
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
 		fill = uiButtonHoverColor
 	}
-	drawUIButtonSurface(screen, x, y, w, h, fill)
-	render.DebugPrintAtColor(screen, label, x+(w-len([]rune(label))*7)/2, y+(h-9)/2, uiTextColor)
+	drawUIButtonLabel(screen, x, y, w, h, label, fill, uiTextColor)
 }
 
 func (q loginQuitConfirmState) cursorAction(ctx Context) (int, bool) {
@@ -917,7 +916,7 @@ func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
 func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
 	drawUITitledWindowFrame(screen, x, y, w, h, 21)
-	render.DebugPrintAtColor(screen, "Ragnarok Online", x+10, y+4, uiTitleTextColor)
+	drawUIWindowTitle(screen, x, y, 21, 10, "Ragnarok Online", uiTitleTextColor)
 
 	labelColor := uiTextColor
 	mutedColor := uiMutedTextColor
@@ -946,15 +945,14 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, buttonX, buttonY, buttonW, buttonH) {
 		buttonBG = uiButtonHoverColor
 	}
-	drawUIButtonSurface(screen, buttonX, buttonY, buttonW, buttonH, buttonBG)
-	render.DebugPrintAtColor(screen, "Login", buttonX+34, buttonY+4, labelColor)
+	drawUIButtonLabel(screen, buttonX, buttonY, buttonW, buttonH, "Login", buttonBG, labelColor)
 	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+14, y+h-20, mutedColor)
 }
 
 func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 	x, y, w, h := charSelectWindowRect(ctx)
 	drawUITitledWindowFrame(screen, x, y, w, h, 23)
-	render.DebugPrintAtColor(screen, "Select Character", x+12, y+5, uiTitleTextColor)
+	drawUIWindowTitle(screen, x, y, 23, 12, "Select Character", uiTitleTextColor)
 
 	page := charSelectPage(m.selectedSlot)
 	pageStart := page * 3
@@ -989,7 +987,7 @@ func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 func (m *LoginMode) drawCharacterCreate(ctx Context, screen *render.Image) {
 	x, y, w, h := charCreateWindowRect(ctx)
 	drawUITitledWindowFrame(screen, x, y, w, h, 23)
-	render.DebugPrintAtColor(screen, "Make Character", x+12, y+5, uiTitleTextColor)
+	drawUIWindowTitle(screen, x, y, 23, 12, "Make Character", uiTitleTextColor)
 
 	m.drawCharacterCreatePreview(screen, ctx, x, y)
 	drawCharacterCreateStats(screen, ctx, x, y, m.create.stats)
@@ -1078,11 +1076,11 @@ func drawCharacterCreateStats(screen *render.Image, ctx Context, x, y int, stats
 		if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, sx, sy, sw, sh) {
 			bg = uiButtonHoverColor
 		}
-		drawUIButtonSurface(screen, sx, sy, sw, sh, bg)
 		label := charCreateStatLabels()[i]
-		render.DebugPrintAtColor(screen, label, sx+(sw-len(label)*7)/2, sy+4, uiTextColor)
+		drawUIButtonSurface(screen, sx, sy, sw, sh, bg)
+		drawUICenteredText(screen, sx, sy+2, sw, 15, label, uiTextColor)
 		value := fmt.Sprintf("%d", stats[i])
-		render.DebugPrintAtColor(screen, value, sx+(sw-len(value)*7)/2, sy+20, uiTextColor)
+		drawUICenteredText(screen, sx, sy+18, sw, 15, value, uiTextColor)
 	}
 
 	listX, listY := x+402, y+58
@@ -1139,8 +1137,7 @@ func drawCharCreateButton(screen *render.Image, ctx Context, x, y, w, h int, lab
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
 		bg = uiButtonHoverColor
 	}
-	drawUIButtonSurface(screen, x, y, w, h, bg)
-	render.DebugPrintAtColor(screen, label, x+(w-len(label)*7)/2, y+(h-9)/2, uiTextColor)
+	drawUIButtonLabel(screen, x, y, w, h, label, bg, uiTextColor)
 }
 
 func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, character session.Character, centerX, feetY int) {
@@ -1239,13 +1236,11 @@ func drawCharSelectButton(screen *render.Image, ctx Context, x, y, w, h int, lab
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
 		bg = uiButtonHoverColor
 	}
-	drawUIButtonSurface(screen, x, y, w, h, bg)
-	render.DebugPrintAtColor(screen, label, x+(w-len(label)*7)/2, y+4, textColor)
+	drawUIButtonLabel(screen, x, y, w, h, label, bg, textColor)
 }
 
 func drawCharSelectArrow(screen *render.Image, x, y, w, h int, label string) {
-	drawUIButtonSurface(screen, x, y, w, h, uiButtonColor)
-	render.DebugPrintAtColor(screen, label, x+5, y+1, uiTextColor)
+	drawUIButtonLabel(screen, x, y, w, h, label, uiButtonColor, uiTextColor)
 }
 
 func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused bool) {

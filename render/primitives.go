@@ -174,6 +174,10 @@ func debugTextSize(text string) (int, int) {
 	return width, lineHeight
 }
 
+func DebugTextSize(text string) (int, int) {
+	return debugTextSize(text)
+}
+
 func debugTextFont() (font.Face, int, int, int) {
 	textFontMu.Lock()
 	defer textFontMu.Unlock()

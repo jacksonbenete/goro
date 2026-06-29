@@ -275,7 +275,7 @@ func (d *npcDialogState) draw(screen *render.Image, ctx Context, width, height i
 	drawUITitledWindowFrame(screen, x, y, w, h, npcDialogTitleH)
 
 	title := d.title(ctx)
-	render.DebugPrintAtColor(screen, title, x+npcDialogPad, y+10, npcDialogTitleColor)
+	drawUIWindowTitle(screen, x, y, npcDialogTitleH, npcDialogPad, title, npcDialogTitleColor)
 	if d.status != "" {
 		render.DebugPrintAtColor(screen, trimRunes(d.status, 48), x+w-260, y+10, uiErrorTextColor)
 	}
@@ -308,7 +308,7 @@ func (d *npcDialogState) draw(screen *render.Image, ctx Context, width, height i
 
 func (d *npcDialogState) drawMenu(screen *render.Image, x, y, w, h int) {
 	drawUITitledWindowFrame(screen, x, y, w, h, npcMenuTitleH)
-	render.DebugPrintAtColor(screen, "Choose", x+npcDialogPad, y+8, npcDialogTitleColor)
+	drawUIWindowTitle(screen, x, y, npcMenuTitleH, npcDialogPad, "Choose", npcDialogTitleColor)
 	if len(d.options) == 0 {
 		render.DebugPrintAtColor(screen, "No options.", x+npcDialogPad, y+npcMenuTitleH+12, npcDialogMutedColor)
 		return
@@ -320,14 +320,14 @@ func (d *npcDialogState) drawMenu(screen *render.Image, x, y, w, h int) {
 		runs := npcDialogTextRuns(d.options[optionIndex], npcDialogOptionColor)
 		runs = append([]npcDialogTextRun{{text: fmt.Sprintf("%d. ", optionIndex+1), color: npcDialogOptionColor}}, runs...)
 		runs = trimNPCDialogTextRuns(runs, maxInt(8, (ow-12)/7))
-		drawNPCDialogTextRuns(screen, runs, ox+6, oy+5)
+		_, textH := render.DebugTextSize("Ag")
+		drawNPCDialogTextRuns(screen, runs, ox+6, oy+(oh-textH)/2)
 	}
 	if len(d.options) > maxNPCMenuVisibleRows(h) {
 		d.drawMenuScrollBar(screen, x, y, w, h)
 	}
 	cancelX, cancelY, cancelW, cancelH := npcDialogMenuCancelBounds(x, y, w, h)
-	drawUIButtonSurface(screen, cancelX, cancelY, cancelW, cancelH, uiButtonColor)
-	render.DebugPrintAtColor(screen, "Cancel", cancelX+8, cancelY+4, uiTextColor)
+	drawUIButtonLabel(screen, cancelX, cancelY, cancelW, cancelH, "Cancel", uiButtonColor, uiTextColor)
 }
 
 func npcDialogBounds(width, height int) (int, int, int, int) {
@@ -457,9 +457,7 @@ func drawNPCWindowFrame(screen *render.Image, x, y, w, h int) {
 
 func drawNPCDialogButton(screen *render.Image, x, y, w, h int, label string) {
 	bx, by, bw, bh := npcDialogButtonBounds(x, y, w, h)
-	drawUIButtonSurface(screen, bx, by, bw, bh, uiButtonColor)
-	tx := bx + (bw-len(label)*7)/2
-	render.DebugPrintAtColor(screen, label, tx, by+6, uiTextColor)
+	drawUIButtonLabel(screen, bx, by, bw, bh, label, uiButtonColor, uiTextColor)
 }
 
 func (d *npcDialogState) title(ctx Context) string {

@@ -129,10 +129,9 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 	w.ensurePosition(ctx)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, statsWindowWidth, statsWindowHeight, statsWindowTitleH)
-	render.DebugPrintAtColor(screen, "Status", x+statsWindowPad, y+9, statsWindowTitleColor)
+	drawUIWindowTitle(screen, x, y, statsWindowTitleH, statsWindowPad, "Status", statsWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUIButtonSurface(screen, cx, cy, cw, ch, statsWindowButtonColor)
-	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, statsWindowTextColor)
+	drawUICloseButton(screen, cx, cy, cw, ch, statsWindowButtonColor, statsWindowTextColor)
 
 	stats := sessionStats(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Status Point : %d", stats.Points), x+statsWindowPad, y+statsWindowTitleH+10, statsWindowTextColor)
@@ -164,8 +163,7 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 				fill = statsWindowHoverColor
 			}
 		}
-		drawUIButtonSurface(screen, bx, by, bw, bh, fill)
-		render.DebugPrintAtColor(screen, "+", bx+5, by+1, textColor)
+		drawUIButtonLabel(screen, bx, by, bw, bh, "+", fill, textColor)
 	}
 
 	leftX := x + statsWindowPad

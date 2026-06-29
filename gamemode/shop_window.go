@@ -266,10 +266,9 @@ func (w *shopWindowState) draw(screen *render.Image, ctx Context, mode *WorldMod
 	if w.mode == shopModeBuy {
 		title = "Buy Items"
 	}
-	render.DebugPrintAtColor(screen, title, x+shopWindowPad, y+9, shopTitleColor)
+	drawUIWindowTitle(screen, x, y, shopWindowTitleH, shopWindowPad, title, shopTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUIButtonSurface(screen, cx, cy, cw, ch, shopButtonColor)
-	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, shopTextColor)
+	drawUICloseButton(screen, cx, cy, cw, ch, shopButtonColor, shopTextColor)
 
 	if w.mode == shopModeBuy {
 		w.drawBuyRows(screen, ctx, mode)
@@ -727,8 +726,7 @@ func (w *shopWindowState) drawButton(screen *render.Image, x, y, width, height i
 		fill = uiDisabledColor
 		text = shopMutedColor
 	}
-	drawUIButtonSurface(screen, x, y, width, height, fill)
-	render.DebugPrintAtColor(screen, label, x+(width-len([]rune(label))*7)/2, y+6, text)
+	drawUIButtonLabel(screen, x, y, width, height, label, fill, text)
 }
 
 func (w *shopWindowState) drawTinyButton(screen *render.Image, x, y int, label string, enabled bool) {

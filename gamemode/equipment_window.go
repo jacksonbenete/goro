@@ -152,10 +152,9 @@ func (w *equipmentWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	w.ensurePosition(ctx)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, equipmentWindowWidth, equipmentWindowHeight, equipmentWindowTitleH)
-	render.DebugPrintAtColor(screen, "Equipment", x+equipmentWindowPad, y+9, inventoryTitleColor)
+	drawUIWindowTitle(screen, x, y, equipmentWindowTitleH, equipmentWindowPad, "Equipment", inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
-	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)
+	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	contentX, contentY := w.contentOrigin()
 	drawEquipmentContentSurface(screen, contentX, contentY)

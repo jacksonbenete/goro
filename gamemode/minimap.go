@@ -48,7 +48,7 @@ func (m *minimapState) draw(screen *render.Image, ctx Context) {
 	width, height := ctx.ScreenSize()
 	x, y, w, h := minimapBounds(width, height)
 	drawUIPanelSurface(screen, x, y, w, h, uiWindowBodyColor)
-	render.DebugPrintAtColor(screen, "Mini Map", x+minimapPad, y+7, minimapTitleColor)
+	drawUITitleTextAt(screen, x+minimapPad, y, minimapTitleH, "Mini Map", minimapTitleColor)
 
 	mapRect := minimapMapRect(x, y, w, h)
 	m.ensureImage(ctx.Resources, ctx.World.MapName)

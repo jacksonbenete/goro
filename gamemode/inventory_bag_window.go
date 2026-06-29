@@ -165,10 +165,9 @@ func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *
 	w.clampScroll(ctx.Session)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, inventoryBagWidth, inventoryBagHeight, inventoryBagTitleH)
-	render.DebugPrintAtColor(screen, "Inventory", x+inventoryWindowPad, y+9, inventoryTitleColor)
+	drawUIWindowTitle(screen, x, y, inventoryBagTitleH, inventoryWindowPad, "Inventory", inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
-	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)
+	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	gx, gy, gw, gh := w.gridBounds()
 	px, py, pw, ph := w.panelBounds()
@@ -180,9 +179,7 @@ func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *
 		if tab.tab == w.tab {
 			fill = inventoryHoverColor
 		}
-		drawUIButtonSurface(screen, tx, ty, tw, th, fill)
-		textX := tx + (tw-len([]rune(tab.label))*7)/2
-		render.DebugPrintAtColor(screen, tab.label, textX, ty+6, inventoryTextColor)
+		drawUIButtonLabel(screen, tx, ty, tw, th, tab.label, fill, inventoryTextColor)
 	}
 	for row := 0; row < inventoryBagRows; row++ {
 		for col := 0; col < inventoryBagCols; col++ {

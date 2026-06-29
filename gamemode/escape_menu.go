@@ -104,7 +104,7 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 96}, color.RGBA{})
 	x, y, w, h := escapeMenuBounds(width, height)
 	drawUITitledWindowFrame(screen, x, y, w, h, escapeMenuTitleH)
-	render.DebugPrintAtColor(screen, "Menu", x+escapeMenuPad, y+10, escapeMenuTitleColor)
+	drawUIWindowTitle(screen, x, y, escapeMenuTitleH, escapeMenuPad, "Menu", escapeMenuTitleColor)
 
 	mx, my := -1, -1
 	if ctx.Input != nil {
@@ -120,9 +120,7 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 		} else if pointInRect(mx, my, bx, by, bw, bh) {
 			fill = escapeMenuHoverColor
 		}
-		drawUIButtonSurface(screen, bx, by, bw, bh, fill)
-		tx := bx + (bw-len([]rune(button.label))*7)/2
-		render.DebugPrintAtColor(screen, button.label, tx, by+7, textColor)
+		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
 	}
 }
 
