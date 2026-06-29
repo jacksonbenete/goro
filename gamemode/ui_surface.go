@@ -22,6 +22,7 @@ var uiSurfaceCache = map[uiSurfaceKey]*render.Image{}
 
 var (
 	uiWindowRadius      = float32(4)
+	uiButtonRadius      = float32(4)
 	uiWindowBodyColor   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	uiWindowTitleTop    = color.RGBA{R: 214, G: 232, B: 250, A: 255}
 	uiWindowTitleColor  = color.RGBA{R: 184, G: 214, B: 242, A: 255}
@@ -103,7 +104,8 @@ func drawUIPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 }
 
 func drawUIButtonSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
-	drawUISurface(screen, x, y, w, h, bg, uiButtonBorderColor)
+	drawUIRoundedSurface(screen, x, y, w, h, bg, uiButtonBorderColor, uiButtonRadius)
+	drawUIGradientInterior(screen, x, y, w, h, uiLighten(bg, 0.42), bg, int(math.Ceil(float64(uiButtonRadius)))-1)
 }
 
 func drawUIRowSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
@@ -126,6 +128,48 @@ func drawUIRoundedSurface(screen *render.Image, x, y, w, h int, bg, border color
 	opts.GeoM.Translate(float64(x), float64(y))
 	opts.Filter = render.FilterNearest
 	screen.DrawImage(img, &opts)
+}
+
+func drawUIGradientInterior(screen *render.Image, x, y, w, h int, top, bottom color.RGBA, radius int) {
+	innerW := w - 2
+	innerH := h - 2
+	if screen == nil || innerW <= 0 || innerH <= 0 {
+		return
+	}
+	for row := 0; row < innerH; row++ {
+		t := 0.0
+		if innerH > 1 {
+			t = float64(row) / float64(innerH-1)
+		}
+		inset := uiRoundedRowInset(row, innerH, radius)
+		if innerW-2*inset <= 0 {
+			continue
+		}
+		render.DrawRect(screen, float64(x+1+inset), float64(y+1+row), float64(innerW-2*inset), 1, lerpUIColor(top, bottom, t))
+	}
+}
+
+func uiRoundedRowInset(row, height, radius int) int {
+	if radius <= 0 || height <= 0 {
+		return 0
+	}
+	edge := row
+	if bottom := height - 1 - row; bottom < edge {
+		edge = bottom
+	}
+	if edge >= radius {
+		return 0
+	}
+	dy := float64(radius-edge) - 0.5
+	r := float64(radius)
+	if dy <= 0 || dy >= r {
+		return radius
+	}
+	return int(math.Ceil(r - math.Sqrt(r*r-dy*dy)))
+}
+
+func uiLighten(c color.RGBA, amount float64) color.RGBA {
+	return lerpUIColor(c, color.RGBA{R: 255, G: 255, B: 255, A: c.A}, clampUnit(amount))
 }
 
 func cachedUISurface(w, h int, bg, border color.RGBA, radius float32) *render.Image {
