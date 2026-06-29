@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	gameaudio "github.com/kivutar/goro/audio"
@@ -36,6 +37,7 @@ func New(cfg core.Config) (*Game, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resource manager: %w", err)
 	}
+	loadClientUIFont(resource)
 
 	g := &Game{
 		cfg:      cfg,
@@ -97,6 +99,26 @@ func (g *Game) RequestQuit() {
 	}
 	if g.quit != nil {
 		g.quit()
+	}
+}
+
+func loadClientUIFont(resource *res.Manager) {
+	regular, err := resource.ReadFileExact("System/Font/SCDream4.otf")
+	if err != nil {
+		return
+	}
+	bold, err := resource.ReadFileExact("System/Font/SCDream6.otf")
+	if err != nil {
+		log.Printf("ui font regular loaded but bold missing: %v", err)
+	}
+	if err := render.SetUIFont(regular, bold); err != nil {
+		log.Printf("ui font load failed: %v", err)
+		return
+	}
+	if len(bold) > 0 {
+		log.Printf("ui font loaded path=System/Font/SCDream4.otf bold=System/Font/SCDream6.otf")
+	} else {
+		log.Printf("ui font loaded path=System/Font/SCDream4.otf")
 	}
 }
 

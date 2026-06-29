@@ -16,8 +16,43 @@ import (
 
 var debugTextCache = make(map[string]*Image)
 var outlinedTextCache = make(map[string]*Image)
-var outlinedTextFaceOnce sync.Once
+var textFontMu sync.Mutex
+var debugTextFace font.Face = basicfont.Face7x13
+var debugTextLineHeight = 14
+var debugTextBaseline = 13
+var debugTextFixedWidth = 7
 var outlinedTextFace font.Face
+
+// SetUIFont installs the client UI font used for ordinary window text and,
+// when provided, the bold face used by outlined actor names. It is intended
+// for RO clients that ship System/Font/SCDream4.otf and SCDream6.otf.
+func SetUIFont(regular, bold []byte) error {
+	regularFace, err := parseOpenTypeFace(regular, 11)
+	if err != nil {
+		return err
+	}
+	var boldFace font.Face
+	if len(bold) > 0 {
+		boldFace, err = parseOpenTypeFace(bold, 12)
+		if err != nil {
+			return err
+		}
+	}
+	textFontMu.Lock()
+	defer textFontMu.Unlock()
+	debugTextFace = regularFace
+	debugTextFixedWidth = 0
+	debugTextLineHeight, debugTextBaseline = textFaceLineMetrics(regularFace)
+	if debugTextLineHeight < 14 {
+		debugTextLineHeight = 14
+	}
+	if boldFace != nil {
+		outlinedTextFace = boldFace
+	}
+	debugTextCache = make(map[string]*Image)
+	outlinedTextCache = make(map[string]*Image)
+	return nil
+}
 
 func DrawRect(dst *Image, x, y, w, h float64, c color.Color) {
 	if dst == nil || dst.pix == nil || w <= 0 || h <= 0 {
@@ -89,11 +124,12 @@ func DebugPrintAtColor(dst *Image, text string, x, y int, c color.RGBA) {
 		dst.DrawImage(img, &opts)
 		return
 	}
+	face, _, baseline, _ := debugTextFont()
 	d := &font.Drawer{
 		Dst:  dst.pix,
 		Src:  image.NewUniform(c),
-		Face: basicfont.Face7x13,
-		Dot:  fixed.P(x, y+13),
+		Face: face,
+		Dot:  fixed.P(x, y+baseline),
 	}
 	d.DrawString(text)
 }
@@ -103,12 +139,17 @@ func cachedDebugTextColor(text string, c color.RGBA) *Image {
 	if img := debugTextCache[key]; img != nil {
 		return img
 	}
-	w := len(text) * 7
+	w, h := debugTextSize(text)
 	if w < 1 {
 		w = 1
 	}
-	img := NewImage(w, 14)
-	DebugPrintAtColor(img, text, 0, -1, c)
+	img := NewImage(w, h)
+	_, _, _, fixedWidth := debugTextFont()
+	y := 0
+	if fixedWidth > 0 {
+		y = -1
+	}
+	DebugPrintAtColor(img, text, 0, y, c)
 	debugTextCache[key] = img
 	if len(debugTextCache) > 512 {
 		for key := range debugTextCache {
@@ -119,6 +160,24 @@ func cachedDebugTextColor(text string, c color.RGBA) *Image {
 		}
 	}
 	return img
+}
+
+func debugTextSize(text string) (int, int) {
+	face, lineHeight, _, fixedWidth := debugTextFont()
+	if fixedWidth > 0 {
+		return len([]rune(text)) * fixedWidth, lineHeight
+	}
+	width := font.MeasureString(face, text).Ceil() + 2
+	if width < 1 {
+		width = 1
+	}
+	return width, lineHeight
+}
+
+func debugTextFont() (font.Face, int, int, int) {
+	textFontMu.Lock()
+	defer textFontMu.Unlock()
+	return debugTextFace, debugTextLineHeight, debugTextBaseline, debugTextFixedWidth
 }
 
 func OutlinedTextImage(text string, foreground, outline color.RGBA) *Image {
@@ -155,30 +214,49 @@ func OutlinedTextImage(text string, foreground, outline color.RGBA) *Image {
 }
 
 func roNameTextFace() font.Face {
-	outlinedTextFaceOnce.Do(func() {
-		if face := parseRONameTextFace(gobold.TTF); face != nil {
-			outlinedTextFace = face
-			return
-		}
-		outlinedTextFace = basicfont.Face7x13
-	})
+	textFontMu.Lock()
+	defer textFontMu.Unlock()
+	if outlinedTextFace != nil {
+		return outlinedTextFace
+	}
+	if face, err := parseOpenTypeFace(gobold.TTF, 12); err == nil {
+		outlinedTextFace = face
+		return outlinedTextFace
+	}
+	outlinedTextFace = basicfont.Face7x13
 	return outlinedTextFace
 }
 
-func parseRONameTextFace(data []byte) font.Face {
+func parseOpenTypeFace(data []byte, size float64) (font.Face, error) {
 	parsed, err := opentype.Parse(data)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	face, err := opentype.NewFace(parsed, &opentype.FaceOptions{
-		Size:    12,
+		Size:    size,
 		DPI:     72,
 		Hinting: font.HintingFull,
 	})
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	return face
+	return face, nil
+}
+
+func textFaceLineMetrics(face font.Face) (int, int) {
+	metrics := face.Metrics()
+	lineHeight := metrics.Height.Ceil()
+	if lineHeight <= 0 {
+		lineHeight = (metrics.Ascent + metrics.Descent).Ceil()
+	}
+	if lineHeight <= 0 {
+		lineHeight = 14
+	}
+	baseline := metrics.Ascent.Ceil()
+	if baseline <= 0 {
+		baseline = lineHeight - 1
+	}
+	return lineHeight, baseline
 }
 
 func DrawOutlinedTextAt(dst *Image, text string, x, y int, foreground, outline color.RGBA) {
