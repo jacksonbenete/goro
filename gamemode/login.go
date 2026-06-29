@@ -38,6 +38,7 @@ type LoginMode struct {
 	charBox        *render.Image
 	create         charCreateState
 	cursor         roCursorState
+	quitConfirm    loginQuitConfirmState
 }
 
 type loginPhase int
@@ -70,6 +71,10 @@ const (
 	loginFieldUser loginInputField = iota
 	loginFieldPassword
 )
+
+type loginQuitConfirmState struct {
+	open bool
+}
 
 const (
 	loginTransitionDuration    = 500 * time.Millisecond
@@ -154,7 +159,11 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 
 	fading := m.fade.phase != loginFadeNone
 	if !fading {
-		if m.phase == loginPhaseCreate {
+		if m.updateQuitConfirm(ctx) {
+			// The confirmation modal is modal: no keyboard or mouse input should
+			// leak into the login form, character list, or creation controls.
+		} else if m.updatePhaseEscape(ctx, now) {
+		} else if m.phase == loginPhaseCreate {
 			m.updateCharacterCreateInput(ctx)
 		} else if m.phase == loginPhaseCharacter {
 			m.updateCharacterSelectInput(ctx)
@@ -170,18 +179,6 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 		}
 		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyEnter) {
 			m.connectAndMaybeLogin(ctx, conns[m.selected])
-		}
-		if ctx.Input.JustPressed(render.KeyEscape) {
-			if m.phase == loginPhaseCreate {
-				m.cancelCharacterCreate(now)
-			} else if m.phase == loginPhaseCharacter {
-				m.startPhaseFade(loginPhaseAccount, now)
-				ctx.Network.Close()
-				m.status = "char select cancelled"
-			} else {
-				ctx.Network.Close()
-				m.status = "offline"
-			}
 		}
 	}
 
@@ -350,6 +347,7 @@ func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
 	}
 	now := time.Now()
 	m.drawFade(ctx, screen, now)
+	m.drawQuitConfirm(ctx, screen)
 	m.drawROCursor(screen, ctx, now)
 }
 
@@ -364,6 +362,9 @@ func (m *LoginMode) drawROCursor(screen *render.Image, ctx Context, now time.Tim
 func (m *LoginMode) cursorAction(ctx Context) int {
 	if ctx.Input == nil {
 		return cursorActionDefault
+	}
+	if action, ok := m.quitConfirm.cursorAction(ctx); ok {
+		return action
 	}
 	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
 	if m.phase == loginPhaseCharacter {
@@ -424,6 +425,100 @@ func (m *LoginMode) cursorAction(ctx Context) int {
 		}
 	}
 	return cursorActionDefault
+}
+
+func (m *LoginMode) updatePhaseEscape(ctx Context, now time.Time) bool {
+	if ctx.Input == nil || !ctx.Input.JustPressed(render.KeyEscape) {
+		return false
+	}
+	switch m.phase {
+	case loginPhaseCreate:
+		m.cancelCharacterCreate(now)
+	case loginPhaseCharacter:
+		m.startPhaseFade(loginPhaseAccount, now)
+		if ctx.Network != nil {
+			ctx.Network.Close()
+		}
+		m.status = "char select cancelled"
+	case loginPhaseAccount:
+		m.quitConfirm.open = true
+	}
+	return true
+}
+
+func (m *LoginMode) updateQuitConfirm(ctx Context) bool {
+	if ctx.Input == nil {
+		return false
+	}
+	if !m.quitConfirm.open {
+		return false
+	}
+	if ctx.Input.JustPressed(render.KeyEscape) {
+		m.quitConfirm.open = false
+		return true
+	}
+	if ctx.Input.JustPressed(render.KeyEnter) {
+		m.quitConfirm.open = false
+		if ctx.RequestQuit != nil {
+			ctx.RequestQuit()
+		}
+		return true
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return true
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	okX, okY, okW, okH := loginQuitOKRect(ctx)
+	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
+	switch {
+	case pointInRect(mx, my, okX, okY, okW, okH):
+		m.quitConfirm.open = false
+		if ctx.RequestQuit != nil {
+			ctx.RequestQuit()
+		}
+	case pointInRect(mx, my, cancelX, cancelY, cancelW, cancelH):
+		m.quitConfirm.open = false
+	}
+	return true
+}
+
+func (m *LoginMode) drawQuitConfirm(ctx Context, screen *render.Image) {
+	if !m.quitConfirm.open || screen == nil {
+		return
+	}
+	width, height := ctx.ScreenSize()
+	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 80}, color.RGBA{})
+	x, y, w, h := loginQuitConfirmRect(ctx)
+	drawUITitledWindowFrame(screen, x, y, w, h, 24)
+	render.DebugPrintAtColor(screen, "Exit", x+12, y+6, uiTitleTextColor)
+	render.DebugPrintAtColor(screen, "Do you really want to quit?", x+28, y+52, uiTextColor)
+
+	okX, okY, okW, okH := loginQuitOKRect(ctx)
+	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
+	drawLoginQuitButton(screen, ctx, okX, okY, okW, okH, "OK")
+	drawLoginQuitButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
+}
+
+func drawLoginQuitButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
+	fill := uiButtonColor
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
+		fill = uiButtonHoverColor
+	}
+	drawUIButtonSurface(screen, x, y, w, h, fill)
+	render.DebugPrintAtColor(screen, label, x+(w-len([]rune(label))*7)/2, y+(h-9)/2, uiTextColor)
+}
+
+func (q loginQuitConfirmState) cursorAction(ctx Context) (int, bool) {
+	if !q.open || ctx.Input == nil {
+		return 0, false
+	}
+	okX, okY, okW, okH := loginQuitOKRect(ctx)
+	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
+	if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, okX, okY, okW, okH) ||
+		pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, cancelX, cancelY, cancelW, cancelH) {
+		return cursorActionClick, true
+	}
+	return cursorActionDefault, true
 }
 
 func rectArray(x, y, w, h int) [4]int {
@@ -1261,6 +1356,30 @@ func loginPasswordFieldRect(x, y, w int) (int, int, int, int) {
 
 func loginButtonRect(x, y, w int) (int, int, int, int) {
 	return x + w - 126, y + 162, 96, 24
+}
+
+func loginQuitConfirmRect(ctx Context) (int, int, int, int) {
+	width, height := ctx.ScreenSize()
+	w, h := 286, 128
+	x := (width - w) / 2
+	y := (height - h) / 2
+	if x < 8 {
+		x = 8
+	}
+	if y < 8 {
+		y = 8
+	}
+	return x, y, w, h
+}
+
+func loginQuitOKRect(ctx Context) (int, int, int, int) {
+	x, y, w, h := loginQuitConfirmRect(ctx)
+	return x + w - 150, y + h - 36, 56, 23
+}
+
+func loginQuitCancelRect(ctx Context) (int, int, int, int) {
+	x, y, w, h := loginQuitConfirmRect(ctx)
+	return x + w - 84, y + h - 36, 66, 23
 }
 
 func charSelectWindowRect(ctx Context) (int, int, int, int) {

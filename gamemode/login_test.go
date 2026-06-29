@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
 )
 
@@ -190,6 +191,102 @@ func TestLoginFadeTransitionsThroughBlack(t *testing.T) {
 	}
 	if mode.fade.phase != loginFadeNone {
 		t.Fatalf("fade phase after fade-in = %d, want none", mode.fade.phase)
+	}
+}
+
+func TestLoginEscapeOpensQuitConfirmation(t *testing.T) {
+	mode := NewLoginMode()
+	inputState := input.NewState()
+	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+
+	inputState.SetKey(input.KeyEscape, true)
+	if !mode.updatePhaseEscape(ctx, time.Unix(20, 0)) {
+		t.Fatal("escape was not consumed by account phase")
+	}
+	if !mode.quitConfirm.open {
+		t.Fatal("quit confirmation did not open")
+	}
+}
+
+func TestCharacterSelectEscapeReturnsToLogin(t *testing.T) {
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCharacter
+	inputState := input.NewState()
+	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	now := time.Unix(20, 0)
+
+	inputState.SetKey(input.KeyEscape, true)
+	if !mode.updatePhaseEscape(ctx, now) {
+		t.Fatal("escape was not consumed by character phase")
+	}
+	if mode.quitConfirm.open {
+		t.Fatal("character select escape opened quit confirmation")
+	}
+	if mode.fade.phase != loginFadeOut || !mode.fade.hasTarget || mode.fade.target != loginPhaseAccount {
+		t.Fatalf("fade = %+v, want fade to account login", mode.fade)
+	}
+}
+
+func TestCharacterCreateEscapeCancelsToSelect(t *testing.T) {
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCreate
+	mode.create = defaultCharCreateState(2)
+	inputState := input.NewState()
+	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	now := time.Unix(20, 0)
+
+	inputState.SetKey(input.KeyEscape, true)
+	if !mode.updatePhaseEscape(ctx, now) {
+		t.Fatal("escape was not consumed by create phase")
+	}
+	if mode.quitConfirm.open {
+		t.Fatal("character create escape opened quit confirmation")
+	}
+	if mode.fade.phase != loginFadeOut || !mode.fade.hasTarget || mode.fade.target != loginPhaseCharacter {
+		t.Fatalf("fade = %+v, want fade to character select", mode.fade)
+	}
+}
+
+func TestLoginQuitConfirmationCancelAndOK(t *testing.T) {
+	mode := NewLoginMode()
+	mode.quitConfirm.open = true
+	inputState := input.NewState()
+	quit := false
+	ctx := Context{
+		Input:       inputState,
+		ScreenW:     800,
+		ScreenH:     600,
+		RequestQuit: func() { quit = true },
+	}
+
+	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
+	inputState.SetMousePosition(cancelX+cancelW/2, cancelY+cancelH/2)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	if !mode.updateQuitConfirm(ctx) {
+		t.Fatal("cancel click was not consumed")
+	}
+	if mode.quitConfirm.open {
+		t.Fatal("cancel did not close quit confirmation")
+	}
+	if quit {
+		t.Fatal("cancel requested quit")
+	}
+
+	inputState.EndFrame()
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
+	inputState.EndFrame()
+	mode.quitConfirm.open = true
+	okX, okY, okW, okH := loginQuitOKRect(ctx)
+	inputState.SetMousePosition(okX+okW/2, okY+okH/2)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	if !mode.updateQuitConfirm(ctx) {
+		t.Fatal("ok click was not consumed")
+	}
+	if mode.quitConfirm.open {
+		t.Fatal("ok did not close quit confirmation")
+	}
+	if !quit {
+		t.Fatal("ok did not request quit")
 	}
 }
 

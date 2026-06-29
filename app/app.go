@@ -53,7 +53,7 @@ func New(cfg core.Config) (*Game, error) {
 	}
 
 	ctx := g.modeContext()
-	g.modes = gamemode.NewManager(ctx, gamemode.NewBootMode())
+	g.modes = gamemode.NewManager(ctx, gamemode.NewLoginMode())
 	return g, nil
 }
 

@@ -89,7 +89,7 @@ OpenMidgard:
 - `network` TCP connection and RO packet framing
 - `session` account/character/session state
 - `world` map and actor state
-- `gamemode` boot, login/server selection, and world modes
+- `gamemode` login/server selection and world modes
 - `render` GoGPU backend
 - `input` per-frame input snapshot
 
