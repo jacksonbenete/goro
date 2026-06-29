@@ -102,6 +102,20 @@ func TestCharacterCreateBumpKeepsClassicPairsValid(t *testing.T) {
 	assertCreateStatsValid(t, stats)
 }
 
+func TestCharacterCreateHairStyleStaysInServerRange(t *testing.T) {
+	mode := NewLoginMode()
+	mode.create = defaultCharCreateState(0)
+	mode.create.hairStyle = charCreateMaxHairStyle
+	mode.changeCreateHairStyle(1)
+	if mode.create.hairStyle != charCreateMinHairStyle {
+		t.Fatalf("hair wrap high = %d, want %d", mode.create.hairStyle, charCreateMinHairStyle)
+	}
+	mode.changeCreateHairStyle(-1)
+	if mode.create.hairStyle != charCreateMaxHairStyle {
+		t.Fatalf("hair wrap low = %d, want %d", mode.create.hairStyle, charCreateMaxHairStyle)
+	}
+}
+
 func TestAppendCharacterNameInputLimitsBytesAndSkipsControls(t *testing.T) {
 	got := appendCharacterNameInput("Kiv", "\nuta漢字", 8)
 	if got != "Kivuta" {

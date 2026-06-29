@@ -76,7 +76,10 @@ const (
 	charSelectPreviewDirection = 4
 	charSelectPreviewScale     = 0.92
 	charSelectPreviewFeetLift  = 10
+	charCreateNameMinBytes     = 4
 	charCreateNameMaxBytes     = 23
+	charCreateMinHairStyle     = 2
+	charCreateMaxHairStyle     = 23
 )
 
 type charCreateState struct {
@@ -639,6 +642,11 @@ func (m *LoginMode) submitCharacterCreate(ctx Context) {
 		m.create.focusName = true
 		return
 	}
+	if len([]byte(name)) < charCreateNameMinBytes {
+		m.status = "name must be at least 4 characters"
+		m.create.focusName = true
+		return
+	}
 	packet := network.MakeCharacter{
 		Name:      name,
 		Str:       m.create.stats[createStatStr],
@@ -660,11 +668,11 @@ func (m *LoginMode) submitCharacterCreate(ctx Context) {
 
 func (m *LoginMode) changeCreateHairStyle(delta int) {
 	m.create.hairStyle += delta
-	if m.create.hairStyle < 2 {
-		m.create.hairStyle = 26
+	if m.create.hairStyle < charCreateMinHairStyle {
+		m.create.hairStyle = charCreateMaxHairStyle
 	}
-	if m.create.hairStyle > 26 {
-		m.create.hairStyle = 2
+	if m.create.hairStyle > charCreateMaxHairStyle {
+		m.create.hairStyle = charCreateMinHairStyle
 	}
 	m.create.preview = nil
 	m.create.previewFailed = false
