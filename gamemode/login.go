@@ -15,21 +15,35 @@ import (
 )
 
 type LoginMode struct {
-	selected      int
-	status        string
-	packets       []string
-	console       chatConsole
-	autoAttempted bool
-	enterWorld    bool
-	username      string
-	password      string
-	focus         loginInputField
-	background    *render.Image
-	bgTiles       []*render.Image
-	bgSource      string
-	bgLoaded      bool
-	bgmStarted    bool
+	selected       int
+	phase          loginPhase
+	status         string
+	packets        []string
+	console        chatConsole
+	autoAttempted  bool
+	enterWorld     bool
+	username       string
+	password       string
+	focus          loginInputField
+	background     *render.Image
+	bgTiles        []*render.Image
+	bgSource       string
+	bgLoaded       bool
+	bgmStarted     bool
+	selectedSlot   int
+	maxSlots       int
+	charViews      map[uint32]*humanoidSpriteView
+	charViewFailed map[uint32]struct{}
+	charWindow     *render.Image
+	charBox        *render.Image
 }
+
+type loginPhase int
+
+const (
+	loginPhaseAccount loginPhase = iota
+	loginPhaseCharacter
+)
 
 type loginInputField int
 
@@ -38,8 +52,10 @@ const (
 	loginFieldPassword
 )
 
+const charSelectPreviewDirection = 4
+
 func NewLoginMode() *LoginMode {
-	return &LoginMode{status: "select a server", focus: loginFieldUser}
+	return &LoginMode{status: "select a server", focus: loginFieldUser, maxSlots: 9}
 }
 
 func (m *LoginMode) Name() string {
@@ -54,6 +70,7 @@ func (m *LoginMode) Enter(ctx Context) {
 		m.password = ctx.Config.Login.Password
 	}
 	m.loadBackground(ctx)
+	m.loadCharacterSelectSkin(ctx)
 	m.playLoginBGM(ctx)
 	if len(ctx.Resources.ClientInfo.Connections) == 0 {
 		m.status = "no login servers discovered"
@@ -71,20 +88,30 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 		m.connectAndMaybeLogin(ctx, conns[m.selected])
 	}
 
-	m.updateFormInput(ctx)
+	if m.phase == loginPhaseCharacter {
+		m.updateCharacterSelectInput(ctx)
+	} else {
+		m.updateFormInput(ctx)
+	}
 
-	if ctx.Input.JustPressed(render.KeyArrowDown) {
+	if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowDown) {
 		m.selected = (m.selected + 1) % len(conns)
 	}
-	if ctx.Input.JustPressed(render.KeyArrowUp) {
+	if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowUp) {
 		m.selected = (m.selected + len(conns) - 1) % len(conns)
 	}
-	if ctx.Input.JustPressed(render.KeyEnter) {
+	if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyEnter) {
 		m.connectAndMaybeLogin(ctx, conns[m.selected])
 	}
 	if ctx.Input.JustPressed(render.KeyEscape) {
-		ctx.Network.Close()
-		m.status = "offline"
+		if m.phase == loginPhaseCharacter {
+			m.phase = loginPhaseAccount
+			ctx.Network.Close()
+			m.status = "char select cancelled"
+		} else {
+			ctx.Network.Close()
+			m.status = "offline"
+		}
 	}
 
 	for _, pkt := range ctx.Network.DrainPackets() {
@@ -151,13 +178,15 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 					m.packets = append(m.packets, fmt.Sprintf("char slot=%d gid=%d name=%s lv=%d job=%d", character.Slot, character.ID, character.Name, character.Level, character.Job))
 				}
 				if len(list.Characters) > 0 {
-					if err := ctx.Network.SendSelectCharacter(list.Characters[0].Slot); err != nil {
-						m.status = "select character failed: " + err.Error()
-					} else {
-						ctx.Session.CharID = list.Characters[0].ID
-						setSelectedCharacter(ctx.Session, convertCharacter(list.Characters[0]))
-						m.status = fmt.Sprintf("selected character %s", list.Characters[0].Name)
-					}
+					m.phase = loginPhaseCharacter
+					m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+					m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
+					m.status = "select a character"
+				} else {
+					m.phase = loginPhaseCharacter
+					m.maxSlots = 9
+					m.selectedSlot = 0
+					m.status = "no characters"
 				}
 			}
 		}
@@ -216,6 +245,10 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 
 func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
 	m.drawBackground(ctx, screen)
+	if m.phase == loginPhaseCharacter {
+		m.drawCharacterSelect(ctx, screen)
+		return
+	}
 	m.drawLoginWindow(ctx, screen)
 }
 
@@ -271,6 +304,87 @@ func (m *LoginMode) updateFormInput(ctx Context) {
 			return
 		}
 	}
+}
+
+func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
+	if ctx.Input == nil {
+		return
+	}
+	if ctx.Input.JustPressed(render.KeyArrowLeft) {
+		m.moveSelectedSlot(-1)
+	}
+	if ctx.Input.JustPressed(render.KeyArrowRight) {
+		m.moveSelectedSlot(1)
+	}
+	if ctx.Input.JustPressed(render.KeyEnter) {
+		m.submitSelectedCharacter(ctx)
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	x, y, _, _ := charSelectWindowRect(ctx)
+	for localSlot := 0; localSlot < 3; localSlot++ {
+		slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
+		if pointInRect(mx, my, slotX, slotY, slotW, slotH) {
+			clickedSlot := charSelectPage(m.selectedSlot)*3 + localSlot
+			if clickedSlot == m.selectedSlot {
+				if _, ok := characterBySlot(ctx.Session.Characters, clickedSlot); ok {
+					m.submitSelectedCharacter(ctx)
+				} else {
+					m.status = "character creation is not implemented yet"
+				}
+				return
+			}
+			m.selectedSlot = clampCharacterSlot(clickedSlot, m.maxSlots)
+			return
+		}
+	}
+	leftX, leftY, leftW, leftH := charSelectLeftArrowRect(x, y)
+	rightX, rightY, rightW, rightH := charSelectRightArrowRect(x, y)
+	if pointInRect(mx, my, leftX, leftY, leftW, leftH) {
+		m.moveSelectedSlot(-1)
+		return
+	}
+	if pointInRect(mx, my, rightX, rightY, rightW, rightH) {
+		m.moveSelectedSlot(1)
+		return
+	}
+	okX, okY, okW, okH := charSelectOKButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charSelectCancelButtonRect(x, y)
+	makeX, makeY, makeW, makeH := charSelectMakeButtonRect(x, y)
+	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y)
+	switch {
+	case pointInRect(mx, my, okX, okY, okW, okH):
+		m.submitSelectedCharacter(ctx)
+	case pointInRect(mx, my, cancelX, cancelY, cancelW, cancelH):
+		m.phase = loginPhaseAccount
+		ctx.Network.Close()
+		m.status = "char select cancelled"
+	case pointInRect(mx, my, makeX, makeY, makeW, makeH):
+		m.status = "character creation is not implemented yet"
+	case pointInRect(mx, my, deleteX, deleteY, deleteW, deleteH):
+		m.status = "character deletion is not implemented yet"
+	}
+}
+
+func (m *LoginMode) moveSelectedSlot(delta int) {
+	m.selectedSlot = clampCharacterSlot(m.selectedSlot+delta, m.maxSlots)
+}
+
+func (m *LoginMode) submitSelectedCharacter(ctx Context) {
+	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
+	if !ok {
+		m.status = "empty character slot"
+		return
+	}
+	if err := ctx.Network.SendSelectCharacter(character.Slot); err != nil {
+		m.status = "select character failed: " + err.Error()
+		return
+	}
+	ctx.Session.CharID = character.ID
+	setSelectedCharacter(ctx.Session, character)
+	m.status = fmt.Sprintf("selected character %s", character.Name)
 }
 
 func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
@@ -350,6 +464,160 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+14, y+h-20, mutedColor)
 }
 
+func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
+	x, y, w, h := charSelectWindowRect(ctx)
+	if m.charWindow != nil {
+		var opts render.DrawImageOptions
+		opts.GeoM.Translate(float64(x), float64(y))
+		opts.Filter = render.FilterNearest
+		screen.DrawImage(m.charWindow, &opts)
+	} else {
+		drawUIWindowFrame(screen, x, y, w, h)
+		drawUIRowSurface(screen, x+1, y+1, w-2, 22, color.RGBA{R: 44, G: 49, B: 60, A: 240})
+	}
+	render.DebugPrintAtColor(screen, "Select Character", x+12, y+5, color.RGBA{R: 235, G: 226, B: 194, A: 255})
+
+	page := charSelectPage(m.selectedSlot)
+	pageStart := page * 3
+	for localSlot := 0; localSlot < 3; localSlot++ {
+		slot := pageStart + localSlot
+		slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
+		selected := slot == m.selectedSlot
+		bg := color.RGBA{R: 28, G: 31, B: 39, A: 120}
+		border := color.RGBA{R: 168, G: 176, B: 196, A: 120}
+		if selected {
+			bg = color.RGBA{R: 60, G: 70, B: 96, A: 185}
+			border = color.RGBA{R: 238, G: 220, B: 142, A: 235}
+		}
+		drawUISurface(screen, slotX, slotY, slotW, slotH, bg, border)
+		if selected && m.charBox != nil {
+			var opts render.DrawImageOptions
+			opts.GeoM.Translate(float64(slotX), float64(slotY))
+			opts.Filter = render.FilterNearest
+			screen.DrawImage(m.charBox, &opts)
+		}
+		if character, ok := characterBySlot(ctx.Session.Characters, slot); ok {
+			m.drawCharacterPreview(screen, ctx, character, slotX+slotW/2, slotY+slotH-15)
+			render.DrawOutlinedTextAt(screen, trimRunes(character.Name, 16), slotX+8, slotY+slotH-18, color.RGBA{R: 245, G: 239, B: 218, A: 255}, color.RGBA{A: 180})
+		} else {
+			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, color.RGBA{R: 196, G: 202, B: 214, A: 210})
+		}
+	}
+
+	leftX, leftY, leftW, leftH := charSelectLeftArrowRect(x, y)
+	rightX, rightY, rightW, rightH := charSelectRightArrowRect(x, y)
+	drawCharSelectArrow(screen, leftX, leftY, leftW, leftH, "<")
+	drawCharSelectArrow(screen, rightX, rightY, rightW, rightH, ">")
+
+	m.drawSelectedCharacterInfo(screen, ctx, x, y)
+	m.drawCharacterSelectFooter(screen, ctx, x, y, w, h)
+}
+
+func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, character session.Character, centerX, feetY int) {
+	view := m.characterPreviewView(ctx, character)
+	if view == nil {
+		render.DebugPrintAtColor(screen, "?", centerX-3, feetY-72, color.RGBA{R: 220, G: 220, B: 220, A: 255})
+		return
+	}
+	billboard, ok := humanoidBillboardForState(view, spriteState{
+		actionFamily: spriteActionIdle,
+		direction:    charSelectPreviewDirection,
+		started:      time.Now(),
+		loopIdle:     true,
+	}, time.Now())
+	if !ok || billboard == nil || billboard.image == nil {
+		return
+	}
+	var opts render.DrawImageOptions
+	scale := 0.82
+	opts.GeoM.Scale(scale, scale)
+	opts.GeoM.Translate(float64(centerX)-billboard.anchorX*scale, float64(feetY)-billboard.anchorY*scale)
+	opts.Filter = spriteDrawFilter()
+	screen.DrawImage(billboard.image, &opts)
+}
+
+func (m *LoginMode) characterPreviewView(ctx Context, character session.Character) *humanoidSpriteView {
+	if character.ID == 0 {
+		return nil
+	}
+	if _, failed := m.charViewFailed[character.ID]; failed {
+		return nil
+	}
+	if m.charViews == nil {
+		m.charViews = make(map[uint32]*humanoidSpriteView)
+	}
+	if view := m.charViews[character.ID]; view != nil {
+		return view
+	}
+	view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex)
+	if view == nil {
+		if m.charViewFailed == nil {
+			m.charViewFailed = make(map[uint32]struct{})
+		}
+		m.charViewFailed[character.ID] = struct{}{}
+		log.Printf("char select sprite resources char_id=%d name=%s job=%d %s", character.ID, character.Name, character.Job, status)
+		return nil
+	}
+	m.charViews[character.ID] = view
+	return view
+}
+
+func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context, x, y int) {
+	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
+	panelX, panelY, panelW, panelH := x+16, y+204, 318, 108
+	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, color.RGBA{R: 238, G: 235, B: 225, A: 232})
+	text := color.RGBA{R: 58, G: 58, B: 63, A: 255}
+	if !ok {
+		render.DebugPrintAtColor(screen, "Empty Slot", panelX+18, panelY+14, text)
+		render.DebugPrintAtColor(screen, "Use Make to create a character later.", panelX+18, panelY+34, text)
+		return
+	}
+	render.DebugPrintAtColor(screen, trimRunes(character.Name, 24), panelX+14, panelY+10, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Job: %s", trimRunes(characterJobName(character), 18)), panelX+14, panelY+28, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Lv: %d / Job %d", character.Level, character.JobLevel), panelX+14, panelY+46, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("HP: %d / %d", character.HP, character.MaxHP), panelX+14, panelY+64, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("SP: %d / %d", character.SP, character.MaxSP), panelX+14, panelY+82, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("STR %d", character.Str), panelX+180, panelY+10, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("AGI %d", character.Agi), panelX+180, panelY+28, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("VIT %d", character.Vit), panelX+180, panelY+46, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("INT %d", character.Int), panelX+246, panelY+10, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("DEX %d", character.Dex), panelX+246, panelY+28, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("LUK %d", character.Luk), panelX+246, panelY+46, text)
+}
+
+func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context, x, y, w, h int) {
+	page := charSelectPage(m.selectedSlot)
+	pageCount := maxInt(1, (m.maxSlots+2)/3)
+	statusColor := color.RGBA{R: 205, G: 211, B: 223, A: 255}
+	labelColor := color.RGBA{R: 235, G: 226, B: 194, A: 255}
+	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", len(ctx.Session.Characters), m.maxSlots), x+w-112, y+198, statusColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", page+1, pageCount), x+w/2-18, y+190, statusColor)
+	render.DebugPrintAtColor(screen, trimRunes(m.status, 42), x+12, y+h-22, statusColor)
+
+	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y)
+	makeX, makeY, makeW, makeH := charSelectMakeButtonRect(x, y)
+	okX, okY, okW, okH := charSelectOKButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charSelectCancelButtonRect(x, y)
+	drawCharSelectButton(screen, ctx, deleteX, deleteY, deleteW, deleteH, "Delete", labelColor)
+	drawCharSelectButton(screen, ctx, makeX, makeY, makeW, makeH, "Make", labelColor)
+	drawCharSelectButton(screen, ctx, okX, okY, okW, okH, "OK", labelColor)
+	drawCharSelectButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel", labelColor)
+}
+
+func drawCharSelectButton(screen *render.Image, ctx Context, x, y, w, h int, label string, textColor color.RGBA) {
+	bg := color.RGBA{R: 72, G: 78, B: 92, A: 235}
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
+		bg = color.RGBA{R: 92, G: 101, B: 121, A: 245}
+	}
+	drawUIButtonSurface(screen, x, y, w, h, bg)
+	render.DebugPrintAtColor(screen, label, x+(w-len(label)*7)/2, y+4, textColor)
+}
+
+func drawCharSelectArrow(screen *render.Image, x, y, w, h int, label string) {
+	drawUIButtonSurface(screen, x, y, w, h, color.RGBA{R: 52, G: 58, B: 72, A: 215})
+	render.DebugPrintAtColor(screen, label, x+5, y+1, color.RGBA{R: 235, G: 226, B: 194, A: 255})
+}
+
 func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused bool) {
 	bg := color.RGBA{R: 236, G: 232, B: 220, A: 238}
 	border := color.RGBA{R: 90, G: 94, B: 108, A: 220}
@@ -394,6 +662,19 @@ func (m *LoginMode) loadBackground(ctx Context) {
 		}
 	}
 	m.bgSource = "fallback"
+}
+
+func (m *LoginMode) loadCharacterSelectSkin(ctx Context) {
+	if m.charWindow == nil {
+		if img, _, ok := loadLoginBackgroundImage(ctx.Resources, "login_interface/win_select.bmp"); ok {
+			m.charWindow = img
+		}
+	}
+	if m.charBox == nil {
+		if img, _, ok := loadLoginBackgroundImage(ctx.Resources, "login_interface/box_select.bmp"); ok {
+			m.charBox = img
+		}
+	}
 }
 
 func (m *LoginMode) playLoginBGM(ctx Context) {
@@ -445,6 +726,107 @@ func loginPasswordFieldRect(x, y, w int) (int, int, int, int) {
 
 func loginButtonRect(x, y, w int) (int, int, int, int) {
 	return x + w - 126, y + 162, 96, 24
+}
+
+func charSelectWindowRect(ctx Context) (int, int, int, int) {
+	width, height := ctx.ScreenSize()
+	w, h := 576, 342
+	x := (width - w) / 2
+	y := (height - h) / 2
+	if x < 8 {
+		x = 8
+	}
+	if y < 8 {
+		y = 8
+	}
+	return x, y, w, h
+}
+
+func charSelectSlotRect(x, y, localSlot int) (int, int, int, int) {
+	lefts := [3]int{60, 224, 386}
+	if localSlot < 0 || localSlot >= len(lefts) {
+		localSlot = 0
+	}
+	return x + lefts[localSlot] - 5, y + 40, 139, 144
+}
+
+func charSelectLeftArrowRect(x, y int) (int, int, int, int) {
+	return x + 40, y + 105, 18, 18
+}
+
+func charSelectRightArrowRect(x, y int) (int, int, int, int) {
+	return x + 518, y + 105, 18, 18
+}
+
+func charSelectDeleteButtonRect(x, y int) (int, int, int, int) {
+	return x + 4, y + 318, 58, 20
+}
+
+func charSelectMakeButtonRect(x, y int) (int, int, int, int) {
+	return x + 434, y + 318, 42, 20
+}
+
+func charSelectOKButtonRect(x, y int) (int, int, int, int) {
+	return x + 484, y + 318, 42, 20
+}
+
+func charSelectCancelButtonRect(x, y int) (int, int, int, int) {
+	return x + 530, y + 318, 42, 20
+}
+
+func charSelectPage(slot int) int {
+	if slot < 0 {
+		return 0
+	}
+	return slot / 3
+}
+
+func charSelectMaxSlots(characters []session.Character) int {
+	maxSlots := 9
+	for _, character := range characters {
+		if int(character.Slot)+1 > maxSlots {
+			maxSlots = int(character.Slot) + 1
+		}
+	}
+	if maxSlots%3 != 0 {
+		maxSlots += 3 - maxSlots%3
+	}
+	return maxSlots
+}
+
+func firstOccupiedCharacterSlot(characters []session.Character) int {
+	if len(characters) == 0 {
+		return 0
+	}
+	slot := int(characters[0].Slot)
+	for _, character := range characters[1:] {
+		if int(character.Slot) < slot {
+			slot = int(character.Slot)
+		}
+	}
+	return slot
+}
+
+func clampCharacterSlot(slot, maxSlots int) int {
+	if maxSlots <= 0 {
+		maxSlots = 1
+	}
+	if slot < 0 {
+		return 0
+	}
+	if slot >= maxSlots {
+		return maxSlots - 1
+	}
+	return slot
+}
+
+func characterBySlot(characters []session.Character, slot int) (session.Character, bool) {
+	for _, character := range characters {
+		if int(character.Slot) == slot {
+			return character, true
+		}
+	}
+	return session.Character{}, false
 }
 
 func loginBackgroundSets(clientDate int) [][]string {

@@ -3,6 +3,8 @@ package gamemode
 import (
 	"strings"
 	"testing"
+
+	"github.com/kivutar/goro/session"
 )
 
 func TestLoginBackgroundSetsPrefer2008SingleImage(t *testing.T) {
@@ -46,5 +48,47 @@ func TestLoginBackgroundRealDataWhenConfigured(t *testing.T) {
 	}
 	if img == nil || img.Bounds().Dx() <= 0 || img.Bounds().Dy() <= 0 {
 		t.Fatalf("invalid login background from %s: %#v", source, img)
+	}
+}
+
+func TestCharacterSelectSlotHelpers(t *testing.T) {
+	characters := []session.Character{
+		{ID: 10, Slot: 5},
+		{ID: 11, Slot: 2},
+	}
+	if got := firstOccupiedCharacterSlot(characters); got != 2 {
+		t.Fatalf("first occupied slot = %d, want 2", got)
+	}
+	if got := charSelectMaxSlots(characters); got != 9 {
+		t.Fatalf("max slots = %d, want 9", got)
+	}
+	if got := charSelectPage(5); got != 1 {
+		t.Fatalf("page = %d, want 1", got)
+	}
+	character, ok := characterBySlot(characters, 5)
+	if !ok || character.ID != 10 {
+		t.Fatalf("characterBySlot = %+v, %t", character, ok)
+	}
+	if got := clampCharacterSlot(99, 9); got != 8 {
+		t.Fatalf("clamp high = %d, want 8", got)
+	}
+}
+
+func TestCharacterSelectPreviewFacesViewer(t *testing.T) {
+	if got := spriteDirectionFromWorldDir(charSelectPreviewDirection); got != 0 {
+		t.Fatalf("char select preview sprite direction = %d, want front-facing direction 0", got)
+	}
+}
+
+func TestCharacterSelectSkinRealDataWhenConfigured(t *testing.T) {
+	manager := realDataManager(t)
+	for _, name := range []string{"login_interface/win_select.bmp", "login_interface/box_select.bmp"} {
+		img, source, ok := loadLoginBackgroundImage(manager, name)
+		if !ok {
+			t.Skipf("%s not present in configured client data", name)
+		}
+		if img == nil || img.Bounds().Dx() <= 0 || img.Bounds().Dy() <= 0 {
+			t.Fatalf("invalid char select skin from %s: %#v", source, img)
+		}
 	}
 }
