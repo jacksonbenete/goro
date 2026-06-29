@@ -3,7 +3,9 @@ package gamemode
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/kivutar/goro/network"
@@ -19,10 +21,25 @@ type LoginMode struct {
 	console       chatConsole
 	autoAttempted bool
 	enterWorld    bool
+	username      string
+	password      string
+	focus         loginInputField
+	background    *render.Image
+	bgTiles       []*render.Image
+	bgSource      string
+	bgLoaded      bool
+	bgmStarted    bool
 }
 
+type loginInputField int
+
+const (
+	loginFieldUser loginInputField = iota
+	loginFieldPassword
+)
+
 func NewLoginMode() *LoginMode {
-	return &LoginMode{status: "select a server"}
+	return &LoginMode{status: "select a server", focus: loginFieldUser}
 }
 
 func (m *LoginMode) Name() string {
@@ -30,6 +47,14 @@ func (m *LoginMode) Name() string {
 }
 
 func (m *LoginMode) Enter(ctx Context) {
+	if m.username == "" {
+		m.username = ctx.Config.Login.Username
+	}
+	if m.password == "" {
+		m.password = ctx.Config.Login.Password
+	}
+	m.loadBackground(ctx)
+	m.playLoginBGM(ctx)
 	if len(ctx.Resources.ClientInfo.Connections) == 0 {
 		m.status = "no login servers discovered"
 	}
@@ -46,7 +71,9 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 		m.connectAndMaybeLogin(ctx, conns[m.selected])
 	}
 
-	if ctx.Input.JustPressed(render.KeyArrowDown) || ctx.Input.JustPressed(render.KeyTab) {
+	m.updateFormInput(ctx)
+
+	if ctx.Input.JustPressed(render.KeyArrowDown) {
 		m.selected = (m.selected + 1) % len(conns)
 	}
 	if ctx.Input.JustPressed(render.KeyArrowUp) {
@@ -188,32 +215,295 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 }
 
 func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
-	clear(screen)
-	drawPanel(screen, 32, 32, 560, 420)
-	debugText(screen, 52, 52, "Login")
-	debugText(screen, 52, 76, "status: %s", m.status)
-	debugText(screen, 52, 96, "network: %s", ctx.Network.Status())
-	if ctx.Config.Login.Username != "" {
-		debugText(screen, 52, 116, "env login: %s", ctx.Config.Login.Username)
-	}
+	m.drawBackground(ctx, screen)
+	m.drawLoginWindow(ctx, screen)
+}
 
-	y := 150
-	for i, conn := range ctx.Resources.ClientInfo.Connections {
-		prefix := " "
-		if i == m.selected {
-			prefix = ">"
+func (m *LoginMode) updateFormInput(ctx Context) {
+	if ctx.Input == nil {
+		return
+	}
+	if ctx.Input.JustPressed(render.KeyTab) {
+		if m.focus == loginFieldUser {
+			m.focus = loginFieldPassword
+		} else {
+			m.focus = loginFieldUser
 		}
-		debugText(screen, 52, y, "%s %s", prefix, describeConnection(conn))
-		y += 18
+	}
+	if ctx.Input.JustPressed(render.KeyBackspace) {
+		if m.focus == loginFieldPassword {
+			m.password = trimLastRune(m.password)
+		} else {
+			m.username = trimLastRune(m.username)
+		}
+	}
+	if text := ctx.Input.TextInput(); text != "" {
+		if m.focus == loginFieldPassword {
+			m.password += text
+		} else {
+			m.username += text
+		}
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return
+	}
+	winX, winY, winW, _ := loginWindowRect(ctx)
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	userX, userY, userW, userH := loginUserFieldRect(winX, winY, winW)
+	passX, passY, passW, passH := loginPasswordFieldRect(winX, winY, winW)
+	buttonX, buttonY, buttonW, buttonH := loginButtonRect(winX, winY, winW)
+	if pointInRect(mx, my, userX, userY, userW, userH) {
+		m.focus = loginFieldUser
+		return
+	}
+	if pointInRect(mx, my, passX, passY, passW, passH) {
+		m.focus = loginFieldPassword
+		return
+	}
+	if pointInRect(mx, my, buttonX, buttonY, buttonW, buttonH) && len(ctx.Resources.ClientInfo.Connections) > 0 {
+		m.connectAndMaybeLogin(ctx, ctx.Resources.ClientInfo.Connections[m.selected])
+		return
+	}
+	serverY := winY + 103
+	for i := range ctx.Resources.ClientInfo.Connections {
+		if pointInRect(mx, my, winX+22, serverY+i*17, winW-44, 16) {
+			m.selected = i
+			return
+		}
+	}
+}
+
+func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
+	clear(screen)
+	width, height := ctx.ScreenSize()
+	if width <= 0 || height <= 0 {
+		return
+	}
+	if len(m.bgTiles) == 12 {
+		cellW := float64(width) / 4
+		cellH := float64(height) / 3
+		for i, tile := range m.bgTiles {
+			if tile == nil {
+				continue
+			}
+			b := tile.Bounds()
+			if b.Dx() <= 0 || b.Dy() <= 0 {
+				continue
+			}
+			var opts render.DrawImageOptions
+			opts.GeoM.Scale(cellW/float64(b.Dx()), cellH/float64(b.Dy()))
+			opts.GeoM.Translate(float64(i%4)*cellW, float64(i/4)*cellH)
+			opts.Filter = render.FilterLinear
+			screen.DrawImage(tile, &opts)
+		}
+		return
+	}
+	if m.background == nil {
+		render.DrawRect(screen, 0, 0, float64(width), float64(height), color.RGBA{R: 10, G: 13, B: 22, A: 255})
+		return
+	}
+	b := m.background.Bounds()
+	if b.Dx() <= 0 || b.Dy() <= 0 {
+		return
+	}
+	var opts render.DrawImageOptions
+	opts.GeoM.Scale(float64(width)/float64(b.Dx()), float64(height)/float64(b.Dy()))
+	opts.Filter = render.FilterLinear
+	screen.DrawImage(m.background, &opts)
+}
+
+func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
+	x, y, w, h := loginWindowRect(ctx)
+	drawUIWindowFrame(screen, x, y, w, h)
+	drawUIRowSurface(screen, x+1, y+1, w-2, 20, color.RGBA{R: 44, G: 49, B: 60, A: 240})
+	render.DebugPrintAtColor(screen, "Ragnarok Online", x+10, y+4, color.RGBA{R: 235, G: 226, B: 194, A: 255})
+
+	labelColor := color.RGBA{R: 225, G: 219, B: 204, A: 255}
+	mutedColor := color.RGBA{R: 182, G: 187, B: 197, A: 255}
+	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
+	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
+	render.DebugPrintAtColor(screen, "Account", x+24, userY-17, labelColor)
+	render.DebugPrintAtColor(screen, "Password", x+24, passY-17, labelColor)
+	drawLoginInput(screen, userX, userY, userW, userH, m.username, m.focus == loginFieldUser)
+	drawLoginInput(screen, passX, passY, passW, passH, strings.Repeat("*", len([]rune(m.password))), m.focus == loginFieldPassword)
+
+	serverY := y + 103
+	render.DebugPrintAtColor(screen, "Server", x+24, serverY-17, labelColor)
+	for i, conn := range ctx.Resources.ClientInfo.Connections {
+		rowY := serverY + i*17
+		bg := color.RGBA{R: 20, G: 23, B: 31, A: 130}
+		if i == m.selected {
+			bg = color.RGBA{R: 74, G: 88, B: 118, A: 205}
+		}
+		drawUIRowSurface(screen, x+22, rowY, w-44, 16, bg)
+		render.DebugPrintAtColor(screen, trimRunes(conn.Display, 22), x+28, rowY+1, labelColor)
+		render.DebugPrintAtColor(screen, fmt.Sprintf("%s:%d", conn.Address, conn.Port), x+180, rowY+1, mutedColor)
 	}
 
-	y += 16
-	debugText(screen, 52, y, "recent packets")
-	y += 20
-	for _, line := range m.packets {
-		debugText(screen, 52, y, "%s", line)
-		y += 18
+	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
+	buttonBG := color.RGBA{R: 72, G: 78, B: 92, A: 235}
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, buttonX, buttonY, buttonW, buttonH) {
+		buttonBG = color.RGBA{R: 92, G: 101, B: 121, A: 245}
 	}
+	drawUIButtonSurface(screen, buttonX, buttonY, buttonW, buttonH, buttonBG)
+	render.DebugPrintAtColor(screen, "Login", buttonX+34, buttonY+4, labelColor)
+	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+14, y+h-20, mutedColor)
+}
+
+func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused bool) {
+	bg := color.RGBA{R: 236, G: 232, B: 220, A: 238}
+	border := color.RGBA{R: 90, G: 94, B: 108, A: 220}
+	if focused {
+		border = color.RGBA{R: 240, G: 216, B: 126, A: 255}
+	}
+	drawUISurface(screen, x, y, w, h, bg, border)
+	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, color.RGBA{R: 36, G: 36, B: 39, A: 255})
+}
+
+func (m *LoginMode) loadBackground(ctx Context) {
+	if m.bgLoaded {
+		return
+	}
+	m.bgLoaded = true
+	for _, set := range loginBackgroundSets(ctx.Config.Packet.ClientDate) {
+		if len(set) == 1 {
+			img, source, ok := loadLoginBackgroundImage(ctx.Resources, set[0])
+			if ok {
+				m.background = img
+				m.bgSource = source
+				return
+			}
+			continue
+		}
+		tiles := make([]*render.Image, 0, len(set))
+		sources := make([]string, 0, len(set))
+		ok := true
+		for _, name := range set {
+			img, source, loaded := loadLoginBackgroundImage(ctx.Resources, name)
+			if !loaded {
+				ok = false
+				break
+			}
+			tiles = append(tiles, img)
+			sources = append(sources, source)
+		}
+		if ok {
+			m.bgTiles = tiles
+			m.bgSource = fmt.Sprintf("%d login tiles", len(sources))
+			return
+		}
+	}
+	m.bgSource = "fallback"
+}
+
+func (m *LoginMode) playLoginBGM(ctx Context) {
+	if m.bgmStarted || ctx.Audio == nil {
+		return
+	}
+	m.bgmStarted = true
+	for _, path := range []string{"01.mp3", "BGM\\01.mp3", "bgm\\01.mp3"} {
+		if err := ctx.Audio.Play(path); err == nil {
+			return
+		}
+	}
+}
+
+func loadLoginBackgroundImage(manager *res.Manager, name string) (*render.Image, string, bool) {
+	for _, candidate := range loginInterfaceCandidates(name) {
+		img, source, err := res.LoadImageExact(manager, []string{candidate})
+		if err == nil {
+			return render.NewImageFromImage(img), source, true
+		}
+	}
+	return nil, "", false
+}
+
+func loginWindowRect(ctx Context) (int, int, int, int) {
+	width, height := ctx.ScreenSize()
+	w, h := 380, 202
+	x := (width - w) / 2
+	y := height - h - 82
+	if y < 48 {
+		y = (height - h) / 2
+	}
+	if x < 8 {
+		x = 8
+	}
+	if y < 8 {
+		y = 8
+	}
+	return x, y, w, h
+}
+
+func loginUserFieldRect(x, y, w int) (int, int, int, int) {
+	return x + 110, y + 39, w - 135, 22
+}
+
+func loginPasswordFieldRect(x, y, w int) (int, int, int, int) {
+	return x + 110, y + 72, w - 135, 22
+}
+
+func loginButtonRect(x, y, w int) (int, int, int, int) {
+	return x + w - 126, y + 162, 96, 24
+}
+
+func loginBackgroundSets(clientDate int) [][]string {
+	tiles2018 := []string{
+		"t_\xB9\xE8\xB0\xE61-1.bmp", "t_\xB9\xE8\xB0\xE61-2.bmp", "t_\xB9\xE8\xB0\xE61-3.bmp", "t_\xB9\xE8\xB0\xE61-4.bmp",
+		"t_\xB9\xE8\xB0\xE62-1.bmp", "t_\xB9\xE8\xB0\xE62-2.bmp", "t_\xB9\xE8\xB0\xE62-3.bmp", "t_\xB9\xE8\xB0\xE62-4.bmp",
+		"t_\xB9\xE8\xB0\xE63-1.bmp", "t_\xB9\xE8\xB0\xE63-2.bmp", "t_\xB9\xE8\xB0\xE63-3.bmp", "t_\xB9\xE8\xB0\xE63-4.bmp",
+	}
+	sets := make([][]string, 0, 3)
+	if clientDate >= 20221207 {
+		sets = append(sets, []string{"t_login.jpg"})
+	}
+	if clientDate >= 20181114 {
+		sets = append(sets, tiles2018)
+	}
+	sets = append(sets, []string{"bgi_temp.bmp"}, []string{"t_login.jpg"}, tiles2018)
+	return sets
+}
+
+func loginInterfaceCandidates(name string) []string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	const ui = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\"
+	candidates := []string{
+		ui + name,
+		strings.ReplaceAll(ui, "\\", "/") + name,
+		"texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\" + name,
+		"data\\texture\\interface\\" + name,
+		"data/texture/interface/" + name,
+		name,
+	}
+	return uniqueLoginStrings(candidates)
+}
+
+func uniqueLoginStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func trimLastRune(text string) string {
+	if text == "" {
+		return ""
+	}
+	runes := []rune(text)
+	return string(runes[:len(runes)-1])
 }
 
 func (m *LoginMode) connectAndMaybeLogin(ctx Context, conn res.Connection) {
@@ -227,13 +517,13 @@ func (m *LoginMode) connectAndMaybeLogin(ctx Context, conn res.Connection) {
 
 	m.status = ctx.Network.Status()
 	log.Printf("connected login server %s:%d", conn.Address, conn.Port)
-	if ctx.Config.Login.Username == "" && ctx.Config.Login.Password == "" {
+	if strings.TrimSpace(m.username) == "" && m.password == "" {
 		return
 	}
 
 	err = ctx.Network.SendAccountLogin(
-		ctx.Config.Login.Username,
-		ctx.Config.Login.Password,
+		m.username,
+		m.password,
 		uint32(conn.Version),
 		0,
 	)
@@ -242,7 +532,7 @@ func (m *LoginMode) connectAndMaybeLogin(ctx Context, conn res.Connection) {
 		return
 	}
 	m.status = "CA_LOGIN sent"
-	log.Printf("sent CA_LOGIN user=%s version=%d", ctx.Config.Login.Username, conn.Version)
+	log.Printf("sent CA_LOGIN user=%s version=%d", m.username, conn.Version)
 }
 
 func (m *LoginMode) connectCharServer(ctx Context, server network.CharServer) {
