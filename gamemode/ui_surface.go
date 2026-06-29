@@ -21,8 +21,8 @@ type uiSurfaceKey struct {
 var uiSurfaceCache = map[uiSurfaceKey]*render.Image{}
 
 var (
-	uiWindowRadius      = float32(4)
-	uiButtonRadius      = float32(4)
+	uiWindowRadius      = float32(0)
+	uiButtonRadius      = float32(0)
 	uiWindowBodyColor   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	uiWindowTitleTop    = color.RGBA{R: 214, G: 232, B: 250, A: 255}
 	uiWindowTitleColor  = color.RGBA{R: 184, G: 214, B: 242, A: 255}
