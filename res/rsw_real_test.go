@@ -53,3 +53,28 @@ func TestPayonDungeonRSWMoodRealWhenConfigured(t *testing.T) {
 		}
 	}
 }
+
+func TestByalanDungeonRSWEffectsRealWhenConfigured(t *testing.T) {
+	for _, name := range []string{"iz_dun00.rsw", "iz_dun01.rsw", "iz_dun02.rsw", "iz_dun03.rsw", "iz_dun04.rsw"} {
+		grf, path := realDataArchiveFile(t, name)
+		data, err := grf.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		rsw, err := ParseRSW(data)
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		ids := make(map[int32]int)
+		for _, effect := range rsw.Effects {
+			ids[effect.ID]++
+		}
+		t.Logf("%s effects=%d ids=%v", path, len(rsw.Effects), ids)
+		if len(rsw.Effects) == 0 {
+			t.Fatalf("%s has no RSW effects", path)
+		}
+		if ids[45]+ids[47]+ids[109] == 0 {
+			t.Fatalf("%s has no known Byalan RSW effects", path)
+		}
+	}
+}

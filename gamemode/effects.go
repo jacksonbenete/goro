@@ -54,6 +54,9 @@ const (
 	effectBeginSpell5   = 57
 	effectBeginSpell6   = 58
 	effectBeginSpell7   = 59
+	effectFirefly       = 45
+	effectTorch         = 47
+	effectBubble        = 109
 	effectCure          = 66
 	effectConcentration = 153
 	effectRefineOK      = 154
@@ -139,6 +142,8 @@ type worldEffectComponent struct {
 	fadeOut          bool
 	rotate           bool
 	fixedPerspective bool
+	rotateToTarget   bool
+	worldSizedSprite bool
 	animation        int
 	bottomSize       float64
 	topSize          float64
@@ -286,6 +291,9 @@ func specialEffectID(effectID uint32) int {
 	case network.SpecialEffectJobLevelUp:
 		return effectJobLevelUp
 	default:
+		if _, ok := worldEffectSpecForID(int(effectID)); ok {
+			return int(effectID)
+		}
 		return 0
 	}
 }
@@ -1176,11 +1184,34 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projec
 		}
 		view.billboards[key] = billboard
 	}
+	tint := effectComponentTint(component, 1)
+	if component.worldSizedSprite {
+		scale := size / 100
+		angle := -worldEffectSpriteAngle(component) * math.Pi / 180
+		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint)
+		return
+	}
 	scale := size / (100 * roBrowserEffectPixelRatio)
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
-	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, 1, effectComponentTint(component, 1))
+	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, 1, tint)
+}
+
+func worldEffectSpriteAngle(component worldEffectComponent) float64 {
+	angle := component.angleStart
+	if !component.rotateToTarget {
+		return angle
+	}
+	startX, startY := component.posX, component.posY
+	endX, endY := component.posXEnd, component.posYEnd
+	if component.posXEnd == 0 && component.posXEndRand == 0 {
+		endX = startX
+	}
+	if component.posYEnd == 0 && component.posYEndRand == 0 {
+		endY = startY
+	}
+	return angle + 90 - math.Atan2(endY-startY, endX-startX)*180/math.Pi
 }
 
 func (m *WorldMode) drawSPREffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, now time.Time) {

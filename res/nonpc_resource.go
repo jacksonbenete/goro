@@ -56,6 +56,9 @@ var fallbackJobResourceNames = map[int]string{
 	1025: "snake",
 	1026: "munak",
 	1028: "soldier_skeleton",
+	1911: "OBJ_NEUTRAL",
+	1912: "OBJ_FLAG_A",
+	1913: "OBJ_FLAG_B",
 }
 
 func (m *Manager) JobResourceName(job int) (string, bool) {

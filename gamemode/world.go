@@ -2621,6 +2621,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	}
 
 	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
+	m.drawRSWEffects(screen, ctx, projection, now)
 	m.drawWorldEffects(screen, ctx, projection, now)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
@@ -3835,6 +3836,11 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx Context, proje
 		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
 		return
 	}
+	if visual := specialNPCVisualForActor(ctx, entry.actor); visual != specialNPCVisualNone {
+		if m.drawSpecialNPCVisual(screen, ctx, projection, entry, visual, time.Now()) {
+			return
+		}
+	}
 	if isWarpActor(entry.actor) {
 		if m.whitePixel == nil {
 			m.whitePixel = render.NewImage(1, 1)
@@ -3897,7 +3903,7 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 }
 
 func actorCastsShadow(actor worldstate.Actor) bool {
-	if isWarpActor(actor) || int(actor.Job) == actorJobClearNPC {
+	if isWarpActor(actor) || actorJobHasSpecialNoShadow(int(actor.Job)) {
 		return false
 	}
 	return actorShadowSize(actor) > 0
@@ -4240,6 +4246,9 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sc
 
 func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (actorLife, bool) {
 	if actor.ID == 0 {
+		return actorLife{}, false
+	}
+	if specialNPCVisualForActor(ctx, actor) != specialNPCVisualNone {
 		return actorLife{}, false
 	}
 	if isLocalActor(ctx, actor.ID) {

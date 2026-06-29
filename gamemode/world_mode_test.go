@@ -615,14 +615,71 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 60 {
-		t.Fatalf("implemented effects = %d, want 60", coverage.Implemented)
+	if coverage.Implemented != 63 {
+		t.Fatalf("implemented effects = %d, want 63", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 9.8 || coverage.ActivePercent > 9.9 {
-		t.Fatalf("active coverage = %.3f, want about 9.9", coverage.ActivePercent)
+	if coverage.ActivePercent < 10.3 || coverage.ActivePercent > 10.4 {
+		t.Fatalf("active coverage = %.3f, want about 10.4", coverage.ActivePercent)
+	}
+}
+
+func TestTorchEffectSpecMatchesRoBrowserShape(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectTorch)
+	if !ok {
+		t.Fatal("torch effect spec missing")
+	}
+	if spec.duration != 24*time.Hour {
+		t.Fatalf("torch duration = %s", spec.duration)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("torch components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitive3D || component.spriteFile != "torch_01" || !component.spriteRepeat {
+		t.Fatalf("torch component = %+v", component)
+	}
+	if component.duration != 600*time.Millisecond || component.spriteDelay != 100*time.Millisecond {
+		t.Fatalf("torch timing = duration %s delay %s", component.duration, component.spriteDelay)
+	}
+	if component.posX != 0.1 || component.posZ != 0.8 || component.sizeStart != roBrowserEffectSize(100) || component.angleStart != 270 || !component.rotateToTarget {
+		t.Fatalf("torch placement = %+v", component)
+	}
+	if got := worldEffectSpriteAngle(component); got != 360 {
+		t.Fatalf("torch effective angle = %.1f, want 360.0", got)
+	}
+}
+
+func TestFireflyEffectSpecUsesFaintSpriteParticles(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectFirefly)
+	if !ok {
+		t.Fatal("firefly effect spec missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("firefly components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitive3D || component.textureFile != "" || component.spriteFile == "" || !component.spriteRepeat {
+		t.Fatalf("firefly component = %+v", component)
+	}
+	if component.alphaMax > 0.25 || component.sizeEnd > roBrowserEffectSize(120) {
+		t.Fatalf("firefly should stay faint and moderately sized: %+v", component)
+	}
+}
+
+func TestBubbleEffectSpecMatchesRoBrowserShape(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectBubble)
+	if !ok {
+		t.Fatal("bubble effect spec missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("bubble components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitiveSTR || component.strFile != "bubble%d" || component.strRandMin != 1 || component.strRandMax != 4 {
+		t.Fatalf("bubble component = %+v", component)
 	}
 }
 

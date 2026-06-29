@@ -67,13 +67,16 @@ not become invisible project assumptions.
   - Better fix: document and implement the exact roBrowser/OpenMidgard approach
     for sprite depth bias, top/head clipping, and object interaction.
 
-- **Fog and lighting model**
-  - Current state: fog and lighting were tuned visually against RO clients.
-  - Ugly part: some constants are empirical.
-  - Improved: renderer-level camera fog is now applied in the world shader
-    instead of mutating every submitted 3D vertex on the CPU.
-  - Better fix: derive formulas and default parameters directly from RSW/GND data
-    and reference-client code, then add screenshot-style regression fixtures.
+- **Lighting model**
+  - Current state: fog uses roBrowser's camera defaults, fog-table scaling,
+    shader-side depth formula, and non-additive color mix. Additive GND lightmap
+    layers are explicitly exempt from fog so fog is applied once to the composed
+    world color.
+  - Ugly part: parts of the RSW/GND lighting pipeline are still approximations,
+    especially the split base/lightmap rendering and per-map visual parity.
+  - Better fix: collapse GND base, lightmap alpha, posterized light color, and
+    fog into one shader path like roBrowser, then add screenshot-style regression
+    fixtures for representative outdoor, indoor, and dungeon maps.
 
 ## Gameplay State
 

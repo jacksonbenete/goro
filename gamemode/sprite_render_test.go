@@ -131,6 +131,27 @@ func TestPreferNonPCActUpgradeForLegacyMonsterAct(t *testing.T) {
 	}
 }
 
+func TestRoBrowserGR2SpriteFallbackJob(t *testing.T) {
+	tests := []struct {
+		resource string
+		want     int
+		wantOK   bool
+	}{
+		{resource: "Guildflag90_1.gr2", want: 1911, wantOK: true},
+		{resource: `data\sprite\npc\empelium90_0.gr2`, want: 2080, wantOK: true},
+		{resource: "unknown.gr2", want: 1002, wantOK: true},
+		{resource: "OBJ_FLAG_A", wantOK: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.resource, func(t *testing.T) {
+			got, ok := roBrowserGR2SpriteFallbackJob(tt.resource)
+			if ok != tt.wantOK || got != tt.want {
+				t.Fatalf("roBrowserGR2SpriteFallbackJob(%q) = %d, %v; want %d, %v", tt.resource, got, ok, tt.want, tt.wantOK)
+			}
+		})
+	}
+}
+
 func TestPoringDeathActionRealData(t *testing.T) {
 	manager := realDataManager(t)
 	view, status := loadNonPCSpriteView(manager, 1002, "poring")

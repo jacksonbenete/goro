@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/kivutar/goro/render"
@@ -135,6 +136,18 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSp
 	if !ok {
 		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
 	}
+	if fallbackJob, ok := roBrowserGR2SpriteFallbackJob(resourceName); ok {
+		fallbackResourceName, fallbackOK := manager.JobResourceName(fallbackJob)
+		if !fallbackOK {
+			return nil, fmt.Sprintf("%s job=%d resource=%s gr2-fallback-job=%d resource-name=missing", label, job, resourceName, fallbackJob)
+		}
+		statusPrefix := fmt.Sprintf("%s gr2-fallback job=%d resource=%s -> job=%d resource=%s", label, job, resourceName, fallbackJob, fallbackResourceName)
+		view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(fallbackJob, fallbackResourceName, "act"), res.NonPCSpriteResourceCandidates(fallbackJob, fallbackResourceName, "spr"), nil, statusPrefix)
+		if view == nil {
+			return nil, status
+		}
+		return view, status
+	}
 	view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(job, resourceName, "act"), res.NonPCSpriteResourceCandidates(job, resourceName, "spr"), nil, label+" "+resourceName)
 	if view == nil {
 		return nil, status
@@ -147,6 +160,32 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSp
 		status += fmt.Sprintf(" sprite-upgraded act=%s spr=%s actions=%d frames=%d", upgrade.actSource, upgrade.sprSource, len(upgrade.act.Actions), len(upgrade.spr.Frames))
 	}
 	return view, status
+}
+
+func roBrowserGR2SpriteFallbackJob(resourceName string) (int, bool) {
+	name := strings.ToLower(strings.ReplaceAll(resourceName, "/", "\\"))
+	if i := strings.LastIndex(name, "\\"); i >= 0 {
+		name = name[i+1:]
+	}
+	switch name {
+	case "aguardian90_8.gr2":
+		return 1276, true
+	case "empelium90_0.gr2":
+		return 2080, true
+	case "guildflag90_1.gr2":
+		return 1911, true
+	case "kguardian90_7.gr2":
+		return 2691, true
+	case "sguardian90_9.gr2":
+		return 1163, true
+	case "treasurebox_2.gr2":
+		return 1191, true
+	default:
+		if strings.HasSuffix(name, ".gr2") {
+			return 1002, true
+		}
+		return 0, false
+	}
 }
 
 func characterHeadPalette(character session.Character) int {
@@ -516,6 +555,66 @@ func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Image, projection 
 		RightAxis:   [3]float32{float32(right.x * axisScale), float32(right.y * axisScale), float32(right.z * axisScale)},
 		UpAxis:      [3]float32{float32(-up.x * axisScale), float32(-up.y * axisScale), float32(-up.z * axisScale)},
 		DepthUpAxis: [3]float32{0, float32(-axisScale), 0},
+		Width:       float32(w),
+		Height:      float32(h),
+		AnchorX:     float32(billboard.anchorX),
+		AnchorY:     float32(billboard.anchorY),
+		ColorR:      float32(tint.R) / 255,
+		ColorG:      float32(tint.G) / 255,
+		ColorB:      float32(tint.B) / 255,
+		ColorA:      float32(tint.A) / 255,
+		DepthBias:   options.DepthBias,
+	})
+}
+
+func drawSpriteBillboardTintAlphaWorld3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA) {
+	if screen == nil || billboard == nil || billboard.image == nil {
+		return
+	}
+	if pixelScale <= 0 || math.IsNaN(pixelScale) || math.IsInf(pixelScale, 0) {
+		pixelScale = roBrowserEffectPixelRatio
+	}
+	if alpha < 0 || math.IsNaN(alpha) {
+		alpha = 0
+	}
+	if alpha > 1 || math.IsInf(alpha, 0) {
+		alpha = 1
+	}
+	if shadow < 0 || math.IsNaN(shadow) {
+		shadow = 0
+	}
+	if shadow > 1 || math.IsInf(shadow, 0) {
+		shadow = 1
+	}
+	right, up, _, ok := projection.BillboardBasis(worldX, worldY, worldZ)
+	if !ok {
+		return
+	}
+	rightAxis := mul3(right, pixelScale)
+	upAxis := mul3(up, -pixelScale)
+	if angle != 0 {
+		sinA, cosA := math.Sin(angle), math.Cos(angle)
+		rightAxis = add3(mul3(right, cosA*pixelScale), mul3(up, sinA*pixelScale))
+		upAxis = add3(mul3(right, sinA*pixelScale), mul3(up, -cosA*pixelScale))
+	}
+	tint := colorRGBAFromFloats(
+		float64(tintColor.R)/255*shadow,
+		float64(tintColor.G)/255*shadow,
+		float64(tintColor.B)/255*shadow,
+		float64(tintColor.A)/255*alpha,
+	)
+	bounds := billboard.image.Bounds()
+	w := float64(bounds.Dx())
+	h := float64(bounds.Dy())
+	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
+	options := spriteBillboardTriangleDrawOptions()
+	screen.DrawWorldBillboard(render.WorldBillboardCommand{
+		Texture:     billboard.image,
+		Options:     *options,
+		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
+		RightAxis:   [3]float32{float32(rightAxis.x), float32(rightAxis.y), float32(rightAxis.z)},
+		UpAxis:      [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
+		DepthUpAxis: [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
 		Width:       float32(w),
 		Height:      float32(h),
 		AnchorX:     float32(billboard.anchorX),

@@ -240,6 +240,7 @@ export default {
 			absoluteSpriteName: 'data/sprite/\xc0\xcc\xc6\xd1\xc6\xae/particle1',
 			playSprite: true,
 			toSrc: true,
+			rotateToTarget: true,
 			sizeStart: 100,
 			sizeEnd: 500,
 			zOffsetStart: 3,
@@ -270,7 +271,7 @@ export default {
 	if !component.spriteRepeat || component.duration != 250*time.Millisecond || component.duplicate != 5 || component.duplicateDelay != 20*time.Millisecond {
 		t.Fatalf("effect 15 timing = %#v", component)
 	}
-	if !component.toSrc || component.arc != 4 || component.retreat != 3 {
+	if !component.toSrc || !component.rotateToTarget || component.arc != 4 || component.retreat != 3 {
 		t.Fatalf("effect 15 trajectory = %#v", component)
 	}
 	if component.posZ != 3 || component.sizeStart != 100*roBrowserEffectPixelRatio || component.sizeEnd != roBrowserEffectSize(500) {
