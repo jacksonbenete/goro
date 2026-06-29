@@ -21,7 +21,7 @@ type LoginMode struct {
 	packets        []string
 	console        chatConsole
 	autoAttempted  bool
-	enterWorld     bool
+	fade           loginFadeState
 	username       string
 	password       string
 	focus          loginInputField
@@ -45,6 +45,22 @@ const (
 	loginPhaseCharacter
 )
 
+type loginFadePhase int
+
+const (
+	loginFadeNone loginFadePhase = iota
+	loginFadeOut
+	loginFadeIn
+)
+
+type loginFadeState struct {
+	phase      loginFadePhase
+	started    time.Time
+	target     loginPhase
+	hasTarget  bool
+	enterWorld bool
+}
+
 type loginInputField int
 
 const (
@@ -53,6 +69,7 @@ const (
 )
 
 const (
+	loginTransitionDuration    = 500 * time.Millisecond
 	charSelectPreviewDirection = 4
 	charSelectPreviewScale     = 0.92
 	charSelectPreviewFeetLift  = 10
@@ -82,6 +99,11 @@ func (m *LoginMode) Enter(ctx Context) {
 }
 
 func (m *LoginMode) Update(ctx Context) (Mode, error) {
+	now := time.Now()
+	if m.updateFade(now) {
+		return m.nextWorldMode(now), nil
+	}
+
 	conns := ctx.Resources.ClientInfo.Connections
 	if len(conns) == 0 {
 		return nil, nil
@@ -92,29 +114,32 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 		m.connectAndMaybeLogin(ctx, conns[m.selected])
 	}
 
-	if m.phase == loginPhaseCharacter {
-		m.updateCharacterSelectInput(ctx)
-	} else {
-		m.updateFormInput(ctx)
-	}
-
-	if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowDown) {
-		m.selected = (m.selected + 1) % len(conns)
-	}
-	if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowUp) {
-		m.selected = (m.selected + len(conns) - 1) % len(conns)
-	}
-	if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyEnter) {
-		m.connectAndMaybeLogin(ctx, conns[m.selected])
-	}
-	if ctx.Input.JustPressed(render.KeyEscape) {
+	fading := m.fade.phase != loginFadeNone
+	if !fading {
 		if m.phase == loginPhaseCharacter {
-			m.phase = loginPhaseAccount
-			ctx.Network.Close()
-			m.status = "char select cancelled"
+			m.updateCharacterSelectInput(ctx)
 		} else {
-			ctx.Network.Close()
-			m.status = "offline"
+			m.updateFormInput(ctx)
+		}
+
+		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowDown) {
+			m.selected = (m.selected + 1) % len(conns)
+		}
+		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowUp) {
+			m.selected = (m.selected + len(conns) - 1) % len(conns)
+		}
+		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyEnter) {
+			m.connectAndMaybeLogin(ctx, conns[m.selected])
+		}
+		if ctx.Input.JustPressed(render.KeyEscape) {
+			if m.phase == loginPhaseCharacter {
+				m.startPhaseFade(loginPhaseAccount, now)
+				ctx.Network.Close()
+				m.status = "char select cancelled"
+			} else {
+				ctx.Network.Close()
+				m.status = "offline"
+			}
 		}
 	}
 
@@ -146,7 +171,7 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 					Port:    change.Port,
 				})
 			} else {
-				m.enterWorld = true
+				m.startWorldFade(time.Now())
 			}
 			continue
 		}
@@ -181,17 +206,16 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 				for _, character := range list.Characters {
 					m.packets = append(m.packets, fmt.Sprintf("char slot=%d gid=%d name=%s lv=%d job=%d", character.Slot, character.ID, character.Name, character.Level, character.Job))
 				}
+				m.maxSlots = 9
+				m.selectedSlot = 0
 				if len(list.Characters) > 0 {
-					m.phase = loginPhaseCharacter
 					m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
 					m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
 					m.status = "select a character"
 				} else {
-					m.phase = loginPhaseCharacter
-					m.maxSlots = 9
-					m.selectedSlot = 0
 					m.status = "no characters"
 				}
+				m.startPhaseFade(loginPhaseCharacter, time.Now())
 			}
 		}
 		if pkt.ID == 0x0071 {
@@ -219,7 +243,7 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 				applyMapAcceptEnter(ctx, enter)
 				m.status = fmt.Sprintf("entered map %s at %d,%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
 				log.Printf("entered map=%s x=%d y=%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
-				m.enterWorld = true
+				m.startWorldFade(time.Now())
 			}
 		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
@@ -239,10 +263,8 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 		}
 	}
 
-	if m.enterWorld {
-		next := NewWorldMode()
-		next.console = m.console
-		return next, nil
+	if m.updateFade(time.Now()) {
+		return m.nextWorldMode(time.Now()), nil
 	}
 	return nil, nil
 }
@@ -251,9 +273,10 @@ func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
 	m.drawBackground(ctx, screen)
 	if m.phase == loginPhaseCharacter {
 		m.drawCharacterSelect(ctx, screen)
-		return
+	} else {
+		m.drawLoginWindow(ctx, screen)
 	}
-	m.drawLoginWindow(ctx, screen)
+	m.drawFade(ctx, screen, time.Now())
 }
 
 func (m *LoginMode) updateFormInput(ctx Context) {
@@ -362,7 +385,7 @@ func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
 	case pointInRect(mx, my, okX, okY, okW, okH):
 		m.submitSelectedCharacter(ctx)
 	case pointInRect(mx, my, cancelX, cancelY, cancelW, cancelH):
-		m.phase = loginPhaseAccount
+		m.startPhaseFade(loginPhaseAccount, time.Now())
 		ctx.Network.Close()
 		m.status = "char select cancelled"
 	case pointInRect(mx, my, makeX, makeY, makeW, makeH):
@@ -370,6 +393,83 @@ func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
 	case pointInRect(mx, my, deleteX, deleteY, deleteW, deleteH):
 		m.status = "character deletion is not implemented yet"
 	}
+}
+
+func (m *LoginMode) startPhaseFade(target loginPhase, now time.Time) {
+	if m.fade.phase != loginFadeNone && m.fade.hasTarget && m.fade.target == target && !m.fade.enterWorld {
+		return
+	}
+	if m.phase == target && m.fade.phase == loginFadeNone {
+		return
+	}
+	m.fade = loginFadeState{
+		phase:     loginFadeOut,
+		started:   now,
+		target:    target,
+		hasTarget: true,
+	}
+}
+
+func (m *LoginMode) startWorldFade(now time.Time) {
+	if m.fade.phase != loginFadeNone && m.fade.enterWorld {
+		return
+	}
+	m.fade = loginFadeState{
+		phase:      loginFadeOut,
+		started:    now,
+		enterWorld: true,
+	}
+}
+
+func (m *LoginMode) updateFade(now time.Time) bool {
+	switch m.fade.phase {
+	case loginFadeOut:
+		if now.Sub(m.fade.started) < loginTransitionDuration {
+			return false
+		}
+		if m.fade.enterWorld {
+			return true
+		}
+		if m.fade.hasTarget {
+			m.phase = m.fade.target
+		}
+		m.fade = loginFadeState{phase: loginFadeIn, started: now}
+	case loginFadeIn:
+		if now.Sub(m.fade.started) >= loginTransitionDuration {
+			m.fade = loginFadeState{}
+		}
+	}
+	return false
+}
+
+func (m *LoginMode) fadeAlpha(now time.Time) uint8 {
+	if m.fade.started.IsZero() {
+		return 0
+	}
+	switch m.fade.phase {
+	case loginFadeOut:
+		return clampColor(255 * clampUnit(float64(now.Sub(m.fade.started))/float64(loginTransitionDuration)))
+	case loginFadeIn:
+		return clampColor(255 * (1 - clampUnit(float64(now.Sub(m.fade.started))/float64(loginTransitionDuration))))
+	default:
+		return 0
+	}
+}
+
+func (m *LoginMode) drawFade(ctx Context, screen *render.Image, now time.Time) {
+	alpha := m.fadeAlpha(now)
+	if alpha == 0 {
+		return
+	}
+	width, height := ctx.ScreenSize()
+	render.DrawRect(screen, 0, 0, float64(width), float64(height), color.RGBA{A: alpha})
+}
+
+func (m *LoginMode) nextWorldMode(now time.Time) *WorldMode {
+	next := NewWorldMode()
+	next.console = m.console
+	next.startMapFadeIn(now)
+	return next
 }
 
 func (m *LoginMode) moveSelectedSlot(delta int) {

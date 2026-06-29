@@ -3,6 +3,7 @@ package gamemode
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kivutar/goro/session"
 )
@@ -83,6 +84,56 @@ func TestCharacterSelectPreviewFacesViewer(t *testing.T) {
 	}
 	if charSelectPreviewFeetLift <= 0 {
 		t.Fatalf("char select preview feet lift = %d, want positive", charSelectPreviewFeetLift)
+	}
+}
+
+func TestLoginFadeTransitionsThroughBlack(t *testing.T) {
+	start := time.Unix(10, 0)
+	mode := NewLoginMode()
+	mode.startPhaseFade(loginPhaseCharacter, start)
+	if got := mode.fadeAlpha(start); got != 0 {
+		t.Fatalf("fade alpha at start = %d, want 0", got)
+	}
+	if mode.updateFade(start.Add(loginTransitionDuration - time.Millisecond)) {
+		t.Fatal("fade unexpectedly entered world")
+	}
+	if mode.phase != loginPhaseAccount {
+		t.Fatalf("phase before black = %d, want account", mode.phase)
+	}
+	if got := mode.fadeAlpha(start.Add(loginTransitionDuration)); got != 255 {
+		t.Fatalf("fade alpha at black = %d, want 255", got)
+	}
+	if mode.updateFade(start.Add(loginTransitionDuration)) {
+		t.Fatal("phase fade unexpectedly entered world")
+	}
+	if mode.phase != loginPhaseCharacter {
+		t.Fatalf("phase after black = %d, want character", mode.phase)
+	}
+	fadeInStart := start.Add(loginTransitionDuration)
+	if got := mode.fadeAlpha(fadeInStart); got != 255 {
+		t.Fatalf("fade-in alpha at start = %d, want 255", got)
+	}
+	mode.updateFade(fadeInStart.Add(loginTransitionDuration))
+	if got := mode.fadeAlpha(fadeInStart.Add(loginTransitionDuration)); got != 0 {
+		t.Fatalf("fade alpha after fade-in = %d, want 0", got)
+	}
+	if mode.fade.phase != loginFadeNone {
+		t.Fatalf("fade phase after fade-in = %d, want none", mode.fade.phase)
+	}
+}
+
+func TestLoginWorldFadeWaitsForBlack(t *testing.T) {
+	start := time.Unix(20, 0)
+	mode := NewLoginMode()
+	mode.startWorldFade(start)
+	if mode.updateFade(start.Add(loginTransitionDuration - time.Millisecond)) {
+		t.Fatal("world handoff completed before black")
+	}
+	if got := mode.fadeAlpha(start.Add(loginTransitionDuration)); got != 255 {
+		t.Fatalf("world fade alpha at handoff = %d, want 255", got)
+	}
+	if !mode.updateFade(start.Add(loginTransitionDuration)) {
+		t.Fatal("world handoff did not complete at black")
 	}
 }
 
