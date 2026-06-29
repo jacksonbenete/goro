@@ -2,6 +2,7 @@ package gamemode
 
 import (
 	"image/color"
+	"math"
 
 	"github.com/gogpu/ui/offscreen"
 	"github.com/gogpu/ui/primitives"
@@ -14,11 +15,13 @@ type uiSurfaceKey struct {
 	h      int
 	bg     color.RGBA
 	border color.RGBA
+	radius float32
 }
 
 var uiSurfaceCache = map[uiSurfaceKey]*render.Image{}
 
 var (
+	uiWindowRadius      = float32(5)
 	uiWindowBodyColor   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	uiWindowTitleTop    = color.RGBA{R: 214, G: 232, B: 250, A: 255}
 	uiWindowTitleColor  = color.RGBA{R: 184, G: 214, B: 242, A: 255}
@@ -43,7 +46,7 @@ var (
 )
 
 func drawUIWindowFrame(screen *render.Image, x, y, w, h int) {
-	drawUISurface(screen, x, y, w, h, uiWindowBodyColor, uiWindowBorderColor)
+	drawUIRoundedSurface(screen, x, y, w, h, uiWindowBodyColor, uiWindowBorderColor, uiWindowRadius)
 }
 
 func drawUITitledWindowFrame(screen *render.Image, x, y, w, h, titleH int) {
@@ -61,9 +64,23 @@ func drawUITitleBar(screen *render.Image, x, y, w, titleH int) {
 		if barH > 1 {
 			t = float64(row) / float64(barH-1)
 		}
-		render.DrawRect(screen, float64(x+1), float64(y+1+row), float64(w-2), 1, lerpUIColor(uiWindowTitleTop, uiWindowTitleColor, t))
+		inset := uiTitleBarRowInset(row)
+		render.DrawRect(screen, float64(x+1+inset), float64(y+1+row), float64(w-2-2*inset), 1, lerpUIColor(uiWindowTitleTop, uiWindowTitleColor, t))
 	}
 	render.DrawRect(screen, float64(x+1), float64(y+titleH), float64(w-2), 1, uiSeparatorColor)
+}
+
+func uiTitleBarRowInset(row int) int {
+	radius := int(math.Ceil(float64(uiWindowRadius)))
+	if radius <= 0 || row >= radius {
+		return 0
+	}
+	dy := float64(radius-row) - 0.5
+	r := float64(radius)
+	if dy <= 0 || dy >= r {
+		return radius
+	}
+	return int(math.Ceil(r - math.Sqrt(r*r-dy*dy)))
 }
 
 func lerpUIColor(a, b color.RGBA, t float64) color.RGBA {
@@ -94,10 +111,14 @@ func drawUIRowSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 }
 
 func drawUISurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) {
+	drawUIRoundedSurface(screen, x, y, w, h, bg, border, 0)
+}
+
+func drawUIRoundedSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA, radius float32) {
 	if screen == nil || w <= 0 || h <= 0 {
 		return
 	}
-	img := cachedUISurface(w, h, bg, border)
+	img := cachedUISurface(w, h, bg, border, radius)
 	if img == nil {
 		return
 	}
@@ -107,8 +128,8 @@ func drawUISurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) 
 	screen.DrawImage(img, &opts)
 }
 
-func cachedUISurface(w, h int, bg, border color.RGBA) *render.Image {
-	key := uiSurfaceKey{w: w, h: h, bg: bg, border: border}
+func cachedUISurface(w, h int, bg, border color.RGBA, radius float32) *render.Image {
+	key := uiSurfaceKey{w: w, h: h, bg: bg, border: border, radius: radius}
 	if img, ok := uiSurfaceCache[key]; ok {
 		return img
 	}
@@ -116,6 +137,9 @@ func cachedUISurface(w, h int, bg, border color.RGBA) *render.Image {
 		Width(float32(w)).
 		Height(float32(h)).
 		Background(uiColor(bg))
+	if radius > 0 {
+		root.Rounded(radius)
+	}
 	if border.A != 0 {
 		root.BorderStyle(1, uiColor(border))
 	}
