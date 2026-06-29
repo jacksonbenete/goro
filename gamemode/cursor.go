@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"log"
 	"math"
 	"time"
 
@@ -31,6 +32,15 @@ type cursorActionInfo struct {
 	delayMult float64
 }
 
+type roCursorState struct {
+	view      *playerSpriteView
+	viewMiss  bool
+	fallback  *render.Image
+	action    int
+	started   time.Time
+	loadTried bool
+}
+
 var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionDefault: {drawX: 1, drawY: 19, delayMult: 2.0},
 	cursorActionTalk:    {drawX: 20, drawY: 40, delayMult: 1.0},
@@ -48,45 +58,81 @@ func (m *WorldMode) drawROCursor(screen *render.Image, ctx Context, projection s
 	}
 	render.SetCursorMode(render.CursorModeHidden)
 	action := m.cursorDesiredAction(ctx, projection, now)
-	if action != m.cursorAction {
-		m.cursorAction = action
-		m.cursorStarted = now
-	}
-	if m.cursorStarted.IsZero() {
-		m.cursorStarted = now
-	}
+	state := m.cursorState()
+	state.draw(screen, ctx, action, now)
+	m.storeCursorState(state)
+	drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
+}
 
-	info := cursorInfo(action)
-	if m.cursorView == nil || m.cursorViewMiss {
-		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY)
-		drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
+func (m *WorldMode) cursorState() *roCursorState {
+	return &roCursorState{
+		view:     m.cursorView,
+		viewMiss: m.cursorViewMiss,
+		fallback: m.cursorFallback,
+		action:   m.cursorAction,
+		started:  m.cursorStarted,
+	}
+}
+
+func (m *WorldMode) storeCursorState(state *roCursorState) {
+	if state == nil {
 		return
 	}
-	frame, ok := m.cursorFrame(action, info, now)
+	m.cursorView = state.view
+	m.cursorViewMiss = state.viewMiss
+	m.cursorFallback = state.fallback
+	m.cursorAction = state.action
+	m.cursorStarted = state.started
+}
+
+func (s *roCursorState) ensureLoaded(ctx Context) {
+	if s == nil || s.loadTried || s.view != nil || s.viewMiss {
+		return
+	}
+	s.loadTried = true
+	if view, status := loadCursorSpriteView(ctx.Resources); view != nil {
+		s.view = view
+	} else {
+		s.viewMiss = true
+		log.Printf("cursor resources unavailable: %s", status)
+	}
+}
+
+func (s *roCursorState) draw(screen *render.Image, ctx Context, action int, now time.Time) {
+	if s == nil || screen == nil || ctx.Input == nil {
+		return
+	}
+	s.ensureLoaded(ctx)
+	if action != s.action {
+		s.action = action
+		s.started = now
+	}
+	if s.started.IsZero() {
+		s.started = now
+	}
+	frame, ok := s.frame(action, cursorInfo(action), now)
 	if !ok {
-		drawFallbackROCursor(screen, m.cursorFallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY)
-		drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
+		drawFallbackROCursor(screen, s.fallbackTexture(), ctx.Input.MouseX, ctx.Input.MouseY)
 		return
 	}
 	var opts render.DrawImageOptions
 	opts.GeoM.Translate(float64(ctx.Input.MouseX)-frame.anchorX, float64(ctx.Input.MouseY)-frame.anchorY)
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(frame.image, &opts)
-	drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
 }
 
-func (m *WorldMode) cursorFrame(action int, info cursorActionInfo, now time.Time) (*spriteBillboard, bool) {
-	if m.cursorView == nil || m.cursorView.act == nil {
+func (s *roCursorState) frame(action int, info cursorActionInfo, now time.Time) (*spriteBillboard, bool) {
+	if s == nil || s.view == nil || s.viewMiss || s.view.act == nil {
 		return nil, false
 	}
-	if action < 0 || action >= len(m.cursorView.act.Actions) || len(m.cursorView.act.Actions[action].Animations) == 0 {
+	if action < 0 || action >= len(s.view.act.Actions) || len(s.view.act.Actions[action].Animations) == 0 {
 		action = cursorActionDefault
 		info = cursorInfo(action)
 	}
-	actionDef := m.cursorView.act.Actions[action]
+	actionDef := s.view.act.Actions[action]
 	delay := float64(actionDef.DelayMS) * info.delayMult
-	motion := spriteMotionIndexWithDelay(actionDef, m.cursorStarted, now, true, delay)
-	return cursorFrameBillboard(m.cursorView, action, motion, info.drawX, info.drawY)
+	motion := spriteMotionIndexWithDelay(actionDef, s.started, now, true, delay)
+	return cursorFrameBillboard(s.view, action, motion, info.drawX, info.drawY)
 }
 
 func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection, now time.Time) int {
@@ -205,9 +251,9 @@ func cursorInfo(action int) cursorActionInfo {
 	return cursorActionInfos[cursorActionDefault]
 }
 
-func (m *WorldMode) cursorFallbackTexture() *render.Image {
-	if m.cursorFallback != nil {
-		return m.cursorFallback
+func (s *roCursorState) fallbackTexture() *render.Image {
+	if s.fallback != nil {
+		return s.fallback
 	}
 	const width = 18
 	const height = 24
@@ -242,8 +288,8 @@ func (m *WorldMode) cursorFallbackTexture() *render.Image {
 			}
 		}
 	}
-	m.cursorFallback = render.NewImageFromImage(img)
-	return m.cursorFallback
+	s.fallback = render.NewImageFromImage(img)
+	return s.fallback
 }
 
 func drawFallbackROCursor(screen, img *render.Image, mouseX, mouseY int) {

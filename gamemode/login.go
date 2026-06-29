@@ -36,6 +36,7 @@ type LoginMode struct {
 	charViewFailed map[uint32]struct{}
 	charWindow     *render.Image
 	charBox        *render.Image
+	cursor         roCursorState
 }
 
 type loginPhase int
@@ -92,6 +93,8 @@ func (m *LoginMode) Enter(ctx Context) {
 	}
 	m.loadBackground(ctx)
 	m.loadCharacterSelectSkin(ctx)
+	m.cursor.ensureLoaded(ctx)
+	render.SetCursorMode(render.CursorModeHidden)
 	m.playLoginBGM(ctx)
 	if len(ctx.Resources.ClientInfo.Connections) == 0 {
 		m.status = "no login servers discovered"
@@ -276,7 +279,66 @@ func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
 	} else {
 		m.drawLoginWindow(ctx, screen)
 	}
-	m.drawFade(ctx, screen, time.Now())
+	now := time.Now()
+	m.drawFade(ctx, screen, now)
+	m.drawROCursor(screen, ctx, now)
+}
+
+func (m *LoginMode) drawROCursor(screen *render.Image, ctx Context, now time.Time) {
+	if ctx.Input == nil {
+		return
+	}
+	render.SetCursorMode(render.CursorModeHidden)
+	m.cursor.draw(screen, ctx, m.cursorAction(ctx), now)
+}
+
+func (m *LoginMode) cursorAction(ctx Context) int {
+	if ctx.Input == nil {
+		return cursorActionDefault
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	if m.phase == loginPhaseCharacter {
+		x, y, _, _ := charSelectWindowRect(ctx)
+		for localSlot := 0; localSlot < 3; localSlot++ {
+			slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
+			if pointInRect(mx, my, slotX, slotY, slotW, slotH) {
+				return cursorActionClick
+			}
+		}
+		for _, rect := range [][4]int{
+			rectArray(charSelectLeftArrowRect(x, y)),
+			rectArray(charSelectRightArrowRect(x, y)),
+			rectArray(charSelectDeleteButtonRect(x, y)),
+			rectArray(charSelectMakeButtonRect(x, y)),
+			rectArray(charSelectOKButtonRect(x, y)),
+			rectArray(charSelectCancelButtonRect(x, y)),
+		} {
+			if pointInRect(mx, my, rect[0], rect[1], rect[2], rect[3]) {
+				return cursorActionClick
+			}
+		}
+		return cursorActionDefault
+	}
+	winX, winY, winW, _ := loginWindowRect(ctx)
+	userX, userY, userW, userH := loginUserFieldRect(winX, winY, winW)
+	passX, passY, passW, passH := loginPasswordFieldRect(winX, winY, winW)
+	buttonX, buttonY, buttonW, buttonH := loginButtonRect(winX, winY, winW)
+	if pointInRect(mx, my, userX, userY, userW, userH) ||
+		pointInRect(mx, my, passX, passY, passW, passH) ||
+		pointInRect(mx, my, buttonX, buttonY, buttonW, buttonH) {
+		return cursorActionClick
+	}
+	serverY := winY + 103
+	for i := range ctx.Resources.ClientInfo.Connections {
+		if pointInRect(mx, my, winX+22, serverY+i*17, winW-44, 16) {
+			return cursorActionClick
+		}
+	}
+	return cursorActionDefault
+}
+
+func rectArray(x, y, w, h int) [4]int {
+	return [4]int{x, y, w, h}
 }
 
 func (m *LoginMode) updateFormInput(ctx Context) {
