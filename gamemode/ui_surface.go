@@ -19,12 +19,10 @@ type uiSurfaceKey struct {
 var uiSurfaceCache = map[uiSurfaceKey]*render.Image{}
 
 func drawUIWindowFrame(screen *render.Image, x, y, w, h int) {
-	drawUISurface(screen, x+3, y+4, w, h, color.RGBA{A: 110}, color.RGBA{})
 	drawUISurface(screen, x, y, w, h, color.RGBA{R: 24, G: 26, B: 31, A: 232}, color.RGBA{R: 232, G: 218, B: 172, A: 150})
 }
 
 func drawUIPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
-	drawUISurface(screen, x+2, y+3, w, h, color.RGBA{A: 82}, color.RGBA{})
 	drawUISurface(screen, x, y, w, h, bg, color.RGBA{R: 232, G: 218, B: 172, A: 125})
 }
 

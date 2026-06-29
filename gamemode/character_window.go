@@ -36,7 +36,6 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 		return
 	}
 	x, y, w, h := characterWindowX, characterWindowY, characterWindowWidth, characterWindowHeight
-	drawUISurface(screen, x+3, y+4, w, h, color.RGBA{A: 92}, color.RGBA{})
 	drawUISurface(screen, x, y, w, h, characterWindowFrameColor, color.RGBA{R: 232, G: 218, B: 172, A: 130})
 	render.DrawRect(screen, float64(x+8), float64(y+29), float64(w-16), 1, color.RGBA{R: 210, G: 200, B: 170, A: 80})
 
