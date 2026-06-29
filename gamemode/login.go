@@ -36,6 +36,7 @@ type LoginMode struct {
 	charViewFailed map[uint32]struct{}
 	charWindow     *render.Image
 	charBox        *render.Image
+	create         charCreateState
 	cursor         roCursorState
 }
 
@@ -44,6 +45,7 @@ type loginPhase int
 const (
 	loginPhaseAccount loginPhase = iota
 	loginPhaseCharacter
+	loginPhaseCreate
 )
 
 type loginFadePhase int
@@ -74,6 +76,36 @@ const (
 	charSelectPreviewDirection = 4
 	charSelectPreviewScale     = 0.92
 	charSelectPreviewFeetLift  = 10
+	charCreateNameMaxBytes     = 23
+)
+
+type charCreateState struct {
+	slot          int
+	name          string
+	focusName     bool
+	stats         [6]uint8
+	hairStyle     int
+	hairColor     int
+	direction     int
+	preview       *humanoidSpriteView
+	previewKey    charCreatePreviewKey
+	previewFailed bool
+}
+
+type charCreatePreviewKey struct {
+	sex       byte
+	hairStyle int
+	hairColor int
+}
+
+const (
+	createStatStr = iota
+	createStatAgi
+	createStatVit
+	createStatInt
+	createStatDex
+	createStatLuk
+	createStatCount
 )
 
 func NewLoginMode() *LoginMode {
@@ -119,7 +151,9 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 
 	fading := m.fade.phase != loginFadeNone
 	if !fading {
-		if m.phase == loginPhaseCharacter {
+		if m.phase == loginPhaseCreate {
+			m.updateCharacterCreateInput(ctx)
+		} else if m.phase == loginPhaseCharacter {
 			m.updateCharacterSelectInput(ctx)
 		} else {
 			m.updateFormInput(ctx)
@@ -135,7 +169,9 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 			m.connectAndMaybeLogin(ctx, conns[m.selected])
 		}
 		if ctx.Input.JustPressed(render.KeyEscape) {
-			if m.phase == loginPhaseCharacter {
+			if m.phase == loginPhaseCreate {
+				m.cancelCharacterCreate(now)
+			} else if m.phase == loginPhaseCharacter {
 				m.startPhaseFade(loginPhaseAccount, now)
 				ctx.Network.Close()
 				m.status = "char select cancelled"
@@ -221,6 +257,34 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 				m.startPhaseFade(loginPhaseCharacter, time.Now())
 			}
 		}
+		if pkt.ID == 0x006D {
+			character, err := network.ParseMakeCharacterAccept(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse HC_ACCEPT_MAKECHAR: "+err.Error())
+			} else {
+				created := convertCharacter(character)
+				ctx.Session.Characters = upsertCharacter(ctx.Session.Characters, created)
+				m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+				m.selectedSlot = int(created.Slot)
+				m.create = charCreateState{}
+				m.charViews = nil
+				m.charViewFailed = nil
+				m.status = fmt.Sprintf("created character %s", created.Name)
+				log.Printf("character created slot=%d id=%d name=%s", created.Slot, created.ID, created.Name)
+				m.startPhaseFade(loginPhaseCharacter, time.Now())
+			}
+			continue
+		}
+		if pkt.ID == 0x006E {
+			code, err := network.ParseMakeCharacterRefuse(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse HC_REFUSE_MAKECHAR: "+err.Error())
+			} else {
+				m.status = describeMakeCharacterRefuse(code)
+				log.Printf("character creation refused code=%d", code)
+			}
+			continue
+		}
 		if pkt.ID == 0x0071 {
 			zone, err := network.ParseZoneServerNotify(pkt)
 			if err != nil {
@@ -274,7 +338,9 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 
 func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
 	m.drawBackground(ctx, screen)
-	if m.phase == loginPhaseCharacter {
+	if m.phase == loginPhaseCreate {
+		m.drawCharacterCreate(ctx, screen)
+	} else if m.phase == loginPhaseCharacter {
 		m.drawCharacterSelect(ctx, screen)
 	} else {
 		m.drawLoginWindow(ctx, screen)
@@ -313,6 +379,26 @@ func (m *LoginMode) cursorAction(ctx Context) int {
 			rectArray(charSelectOKButtonRect(x, y)),
 			rectArray(charSelectCancelButtonRect(x, y)),
 		} {
+			if pointInRect(mx, my, rect[0], rect[1], rect[2], rect[3]) {
+				return cursorActionClick
+			}
+		}
+		return cursorActionDefault
+	}
+	if m.phase == loginPhaseCreate {
+		x, y, _, _ := charCreateWindowRect(ctx)
+		rects := [][4]int{
+			rectArray(charCreateNameRect(x, y)),
+			rectArray(charCreateMakeButtonRect(x, y)),
+			rectArray(charCreateCancelButtonRect(x, y)),
+			rectArray(charCreateHairPrevRect(x, y)),
+			rectArray(charCreateHairNextRect(x, y)),
+			rectArray(charCreateHairColorRect(x, y)),
+		}
+		for i := 0; i < createStatCount; i++ {
+			rects = append(rects, rectArray(charCreateStatButtonRect(x, y, i)))
+		}
+		for _, rect := range rects {
 			if pointInRect(mx, my, rect[0], rect[1], rect[2], rect[3]) {
 				return cursorActionClick
 			}
@@ -421,7 +507,7 @@ func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
 				if _, ok := characterBySlot(ctx.Session.Characters, clickedSlot); ok {
 					m.submitSelectedCharacter(ctx)
 				} else {
-					m.status = "character creation is not implemented yet"
+					m.openCharacterCreate(ctx, clickedSlot, time.Now())
 				}
 				return
 			}
@@ -451,10 +537,143 @@ func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
 		ctx.Network.Close()
 		m.status = "char select cancelled"
 	case pointInRect(mx, my, makeX, makeY, makeW, makeH):
-		m.status = "character creation is not implemented yet"
+		slot := m.selectedSlot
+		if _, ok := characterBySlot(ctx.Session.Characters, slot); ok {
+			if empty, hasEmpty := firstEmptyCharacterSlot(ctx.Session.Characters, m.maxSlots); hasEmpty {
+				slot = empty
+			}
+		}
+		m.openCharacterCreate(ctx, slot, time.Now())
 	case pointInRect(mx, my, deleteX, deleteY, deleteW, deleteH):
 		m.status = "character deletion is not implemented yet"
 	}
+}
+
+func (m *LoginMode) updateCharacterCreateInput(ctx Context) {
+	if ctx.Input == nil {
+		return
+	}
+	if ctx.Input.JustPressed(render.KeyBackspace) && m.create.focusName {
+		m.create.name = trimLastRune(m.create.name)
+	}
+	if ctx.Input.JustPressed(render.KeyEnter) {
+		m.submitCharacterCreate(ctx)
+	}
+	if text := ctx.Input.TextInput(); text != "" && m.create.focusName {
+		m.create.name = appendCharacterNameInput(m.create.name, text, charCreateNameMaxBytes)
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	x, y, _, _ := charCreateWindowRect(ctx)
+	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
+	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y)
+	prevX, prevY, prevW, prevH := charCreateHairPrevRect(x, y)
+	nextX, nextY, nextW, nextH := charCreateHairNextRect(x, y)
+	colorX, colorY, colorW, colorH := charCreateHairColorRect(x, y)
+	switch {
+	case pointInRect(mx, my, nameX, nameY, nameW, nameH):
+		m.create.focusName = true
+	case pointInRect(mx, my, makeX, makeY, makeW, makeH):
+		m.submitCharacterCreate(ctx)
+	case pointInRect(mx, my, cancelX, cancelY, cancelW, cancelH):
+		m.cancelCharacterCreate(time.Now())
+	case pointInRect(mx, my, prevX, prevY, prevW, prevH):
+		m.changeCreateHairStyle(-1)
+	case pointInRect(mx, my, nextX, nextY, nextW, nextH):
+		m.changeCreateHairStyle(1)
+	case pointInRect(mx, my, colorX, colorY, colorW, colorH):
+		m.changeCreateHairColor()
+	default:
+		for i := 0; i < createStatCount; i++ {
+			sx, sy, sw, sh := charCreateStatButtonRect(x, y, i)
+			if pointInRect(mx, my, sx, sy, sw, sh) {
+				if !bumpCreateStat(&m.create.stats, i) {
+					m.status = "stat limit reached"
+				}
+				return
+			}
+		}
+		m.create.focusName = false
+	}
+}
+
+func (m *LoginMode) openCharacterCreate(ctx Context, slot int, now time.Time) {
+	slot = clampCharacterSlot(slot, m.maxSlots)
+	if _, occupied := characterBySlot(ctx.Session.Characters, slot); occupied {
+		empty, ok := firstEmptyCharacterSlot(ctx.Session.Characters, m.maxSlots)
+		if !ok {
+			m.status = "no empty character slots"
+			return
+		}
+		slot = empty
+	}
+	m.create = defaultCharCreateState(slot)
+	m.status = "create a character"
+	m.startPhaseFade(loginPhaseCreate, now)
+}
+
+func defaultCharCreateState(slot int) charCreateState {
+	return charCreateState{
+		slot:      slot,
+		focusName: true,
+		stats:     [6]uint8{5, 5, 5, 5, 5, 5},
+		hairStyle: 2,
+		hairColor: 0,
+		direction: charSelectPreviewDirection,
+	}
+}
+
+func (m *LoginMode) cancelCharacterCreate(now time.Time) {
+	m.create = charCreateState{}
+	m.status = "select a character"
+	m.startPhaseFade(loginPhaseCharacter, now)
+}
+
+func (m *LoginMode) submitCharacterCreate(ctx Context) {
+	name := strings.TrimSpace(m.create.name)
+	if name == "" {
+		m.status = "enter a character name"
+		m.create.focusName = true
+		return
+	}
+	packet := network.MakeCharacter{
+		Name:      name,
+		Str:       m.create.stats[createStatStr],
+		Agi:       m.create.stats[createStatAgi],
+		Vit:       m.create.stats[createStatVit],
+		Int:       m.create.stats[createStatInt],
+		Dex:       m.create.stats[createStatDex],
+		Luk:       m.create.stats[createStatLuk],
+		Slot:      uint8(m.create.slot),
+		HairColor: uint16(m.create.hairColor),
+		HairStyle: uint16(m.create.hairStyle),
+	}
+	if err := ctx.Network.SendMakeCharacter(packet); err != nil {
+		m.status = "create character failed: " + err.Error()
+		return
+	}
+	m.status = "creating character..."
+}
+
+func (m *LoginMode) changeCreateHairStyle(delta int) {
+	m.create.hairStyle += delta
+	if m.create.hairStyle < 2 {
+		m.create.hairStyle = 26
+	}
+	if m.create.hairStyle > 26 {
+		m.create.hairStyle = 2
+	}
+	m.create.preview = nil
+	m.create.previewFailed = false
+}
+
+func (m *LoginMode) changeCreateHairColor() {
+	m.create.hairColor = (m.create.hairColor + 1) % 10
+	m.create.preview = nil
+	m.create.previewFailed = false
 }
 
 func (m *LoginMode) startPhaseFade(target loginPhase, now time.Time) {
@@ -662,6 +881,163 @@ func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 
 	m.drawSelectedCharacterInfo(screen, ctx, x, y)
 	m.drawCharacterSelectFooter(screen, ctx, x, y, w, h)
+}
+
+func (m *LoginMode) drawCharacterCreate(ctx Context, screen *render.Image) {
+	x, y, w, h := charCreateWindowRect(ctx)
+	drawUITitledWindowFrame(screen, x, y, w, h, 23)
+	render.DebugPrintAtColor(screen, "Make Character", x+12, y+5, uiTitleTextColor)
+
+	m.drawCharacterCreatePreview(screen, ctx, x, y)
+	drawCharacterCreateStats(screen, ctx, x, y, m.create.stats)
+
+	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
+	render.DebugPrintAtColor(screen, "Name", nameX, nameY-15, uiTextColor)
+	drawLoginInput(screen, nameX, nameY, nameW, nameH, m.create.name, m.create.focusName)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Slot %d", m.create.slot+1), x+42, y+285, uiMutedTextColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Hair %d  Color %d", m.create.hairStyle, m.create.hairColor), x+42, y+302, uiMutedTextColor)
+
+	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y)
+	drawCharCreateButton(screen, ctx, makeX, makeY, makeW, makeH, "Make")
+	drawCharCreateButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
+	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+12, y+h-22, uiMutedTextColor)
+}
+
+func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx Context, x, y int) {
+	panelX, panelY, panelW, panelH := x+32, y+42, 142, 196
+	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, uiPanelBodyColor)
+
+	view := m.characterCreatePreviewView(ctx)
+	if view == nil {
+		render.DebugPrintAtColor(screen, "?", panelX+panelW/2-3, panelY+86, uiMutedTextColor)
+	} else {
+		billboard, ok := humanoidBillboardForState(view, spriteState{
+			actionFamily: spriteActionIdle,
+			direction:    m.create.direction,
+			started:      time.Now(),
+			loopIdle:     true,
+		}, time.Now())
+		if ok && billboard != nil && billboard.image != nil {
+			scale := 1.08
+			var opts render.DrawImageOptions
+			opts.GeoM.Scale(scale, scale)
+			opts.GeoM.Translate(float64(panelX+panelW/2)-billboard.anchorX*scale, float64(panelY+panelH-18)-billboard.anchorY*scale)
+			opts.Filter = spriteDrawFilter()
+			screen.DrawImage(billboard.image, &opts)
+		}
+	}
+
+	prevX, prevY, prevW, prevH := charCreateHairPrevRect(x, y)
+	nextX, nextY, nextW, nextH := charCreateHairNextRect(x, y)
+	colorX, colorY, colorW, colorH := charCreateHairColorRect(x, y)
+	drawCharCreateButton(screen, ctx, prevX, prevY, prevW, prevH, "<")
+	drawCharCreateButton(screen, ctx, nextX, nextY, nextW, nextH, ">")
+	drawCharCreateButton(screen, ctx, colorX, colorY, colorW, colorH, "^")
+}
+
+func (m *LoginMode) characterCreatePreviewView(ctx Context) *humanoidSpriteView {
+	key := charCreatePreviewKey{sex: ctx.Session.Sex, hairStyle: m.create.hairStyle, hairColor: m.create.hairColor}
+	if m.create.preview != nil && m.create.previewKey == key {
+		return m.create.preview
+	}
+	if m.create.previewFailed && m.create.previewKey == key {
+		return nil
+	}
+	character := session.Character{
+		ID:        1,
+		Name:      m.create.name,
+		Job:       0,
+		Hair:      int16(m.create.hairStyle),
+		HairColor: uint8(m.create.hairColor),
+	}
+	view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex)
+	m.create.previewKey = key
+	if view == nil {
+		m.create.previewFailed = true
+		log.Printf("char create sprite resources hair=%d color=%d sex=%d %s", m.create.hairStyle, m.create.hairColor, ctx.Session.Sex, status)
+		return nil
+	}
+	m.create.preview = view
+	m.create.previewFailed = false
+	return view
+}
+
+func drawCharacterCreateStats(screen *render.Image, ctx Context, x, y int, stats [6]uint8) {
+	graphX, graphY := x+204, y+58
+	graphW, graphH := 166, 166
+	drawUIPanelSurface(screen, graphX, graphY, graphW, graphH, uiPanelBodyColor)
+	drawCharacterCreateStatGraph(screen, graphX+graphW/2, graphY+graphH/2, stats)
+
+	for i := 0; i < createStatCount; i++ {
+		sx, sy, sw, sh := charCreateStatButtonRect(x, y, i)
+		bg := uiButtonColor
+		if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, sx, sy, sw, sh) {
+			bg = uiButtonHoverColor
+		}
+		drawUIButtonSurface(screen, sx, sy, sw, sh, bg)
+		label := charCreateStatLabels()[i]
+		render.DebugPrintAtColor(screen, label, sx+(sw-len(label)*7)/2, sy+4, uiTextColor)
+		value := fmt.Sprintf("%d", stats[i])
+		render.DebugPrintAtColor(screen, value, sx+(sw-len(value)*7)/2, sy+20, uiTextColor)
+	}
+
+	listX, listY := x+402, y+58
+	drawUIPanelSurface(screen, listX, listY, 136, 166, uiPanelBodyColor)
+	for i, label := range charCreateStatLabels() {
+		render.DebugPrintAtColor(screen, label, listX+18, listY+16+i*22, uiTextColor)
+		render.DebugPrintAtColor(screen, fmt.Sprintf("%d", stats[i]), listX+92, listY+16+i*22, uiTextColor)
+	}
+	render.DebugPrintAtColor(screen, "Paired stats must total 10.", listX-3, listY+182, uiMutedTextColor)
+}
+
+func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uint8) {
+	outer := 64.0
+	inner := 32.0
+	points := charCreateGraphPoints(cx, cy, outer)
+	mid := charCreateGraphPoints(cx, cy, inner)
+	for i := 0; i < createStatCount; i++ {
+		next := (i + 1) % createStatCount
+		render.DrawLine(screen, points[i][0], points[i][1], points[next][0], points[next][1], uiSeparatorColor)
+		render.DrawLine(screen, mid[i][0], mid[i][1], mid[next][0], mid[next][1], uiSeparatorColor)
+		render.DrawLine(screen, float64(cx), float64(cy), points[i][0], points[i][1], color.RGBA{R: 185, G: 204, B: 224, A: 150})
+	}
+	statPoints := [createStatCount][2]float64{}
+	for i := 0; i < createStatCount; i++ {
+		scale := 0.22 + float64(stats[i])/9.0*0.78
+		statPoints[i][0] = float64(cx) + (points[i][0]-float64(cx))*scale
+		statPoints[i][1] = float64(cy) + (points[i][1]-float64(cy))*scale
+	}
+	for i := 0; i < createStatCount; i++ {
+		next := (i + 1) % createStatCount
+		render.DrawLine(screen, statPoints[i][0], statPoints[i][1], statPoints[next][0], statPoints[next][1], color.RGBA{R: 80, G: 146, B: 214, A: 255})
+	}
+}
+
+func charCreateGraphPoints(cx, cy int, radius float64) [createStatCount][2]float64 {
+	dirs := [createStatCount][2]float64{
+		{0, -1},
+		{-0.866, -0.5},
+		{0.866, -0.5},
+		{0, 1},
+		{0.866, 0.5},
+		{-0.866, 0.5},
+	}
+	points := [createStatCount][2]float64{}
+	for i := range dirs {
+		points[i][0] = float64(cx) + dirs[i][0]*radius
+		points[i][1] = float64(cy) + dirs[i][1]*radius
+	}
+	return points
+}
+
+func drawCharCreateButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
+	bg := uiButtonColor
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
+		bg = uiButtonHoverColor
+	}
+	drawUIButtonSurface(screen, x, y, w, h, bg)
+	render.DebugPrintAtColor(screen, label, x+(w-len(label)*7)/2, y+(h-9)/2, uiTextColor)
 }
 
 func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, character session.Character, centerX, feetY int) {
@@ -893,6 +1269,50 @@ func charSelectWindowRect(ctx Context) (int, int, int, int) {
 	return x, y, w, h
 }
 
+func charCreateWindowRect(ctx Context) (int, int, int, int) {
+	return charSelectWindowRect(ctx)
+}
+
+func charCreateNameRect(x, y int) (int, int, int, int) {
+	return x + 42, y + 252, 132, 22
+}
+
+func charCreateHairPrevRect(x, y int) (int, int, int, int) {
+	return x + 44, y + 126, 24, 22
+}
+
+func charCreateHairNextRect(x, y int) (int, int, int, int) {
+	return x + 138, y + 126, 24, 22
+}
+
+func charCreateHairColorRect(x, y int) (int, int, int, int) {
+	return x + 91, y + 48, 24, 22
+}
+
+func charCreateStatButtonRect(x, y, stat int) (int, int, int, int) {
+	rects := [createStatCount][4]int{
+		{x + 269, y + 44, 38, 36},  // STR
+		{x + 181, y + 100, 38, 36}, // AGI
+		{x + 356, y + 100, 38, 36}, // VIT
+		{x + 269, y + 210, 38, 36}, // INT
+		{x + 356, y + 156, 38, 36}, // DEX
+		{x + 181, y + 156, 38, 36}, // LUK
+	}
+	if stat < 0 || stat >= len(rects) {
+		stat = 0
+	}
+	rect := rects[stat]
+	return rect[0], rect[1], rect[2], rect[3]
+}
+
+func charCreateMakeButtonRect(x, y int) (int, int, int, int) {
+	return x + 484, y + 318, 42, 20
+}
+
+func charCreateCancelButtonRect(x, y int) (int, int, int, int) {
+	return x + 530, y + 318, 42, 20
+}
+
 func charSelectSlotRect(x, y, localSlot int) (int, int, int, int) {
 	lefts := [3]int{60, 224, 386}
 	if localSlot < 0 || localSlot >= len(lefts) {
@@ -958,6 +1378,22 @@ func firstOccupiedCharacterSlot(characters []session.Character) int {
 	return slot
 }
 
+func firstEmptyCharacterSlot(characters []session.Character, maxSlots int) (int, bool) {
+	if maxSlots <= 0 {
+		maxSlots = 9
+	}
+	occupied := make(map[int]struct{}, len(characters))
+	for _, character := range characters {
+		occupied[int(character.Slot)] = struct{}{}
+	}
+	for slot := 0; slot < maxSlots; slot++ {
+		if _, ok := occupied[slot]; !ok {
+			return slot, true
+		}
+	}
+	return 0, false
+}
+
 func clampCharacterSlot(slot, maxSlots int) int {
 	if maxSlots <= 0 {
 		maxSlots = 1
@@ -978,6 +1414,83 @@ func characterBySlot(characters []session.Character, slot int) (session.Characte
 		}
 	}
 	return session.Character{}, false
+}
+
+func upsertCharacter(characters []session.Character, character session.Character) []session.Character {
+	for i := range characters {
+		if characters[i].ID == character.ID || characters[i].Slot == character.Slot {
+			characters[i] = character
+			return characters
+		}
+	}
+	return append(characters, character)
+}
+
+func charCreateStatLabels() [createStatCount]string {
+	return [createStatCount]string{"STR", "AGI", "VIT", "INT", "DEX", "LUK"}
+}
+
+func pairedCreateStat(stat int) int {
+	switch stat {
+	case createStatStr:
+		return createStatInt
+	case createStatInt:
+		return createStatStr
+	case createStatAgi:
+		return createStatLuk
+	case createStatLuk:
+		return createStatAgi
+	case createStatVit:
+		return createStatDex
+	case createStatDex:
+		return createStatVit
+	default:
+		return -1
+	}
+}
+
+func bumpCreateStat(stats *[createStatCount]uint8, stat int) bool {
+	if stats == nil || stat < 0 || stat >= createStatCount {
+		return false
+	}
+	pair := pairedCreateStat(stat)
+	if pair < 0 || (*stats)[stat] >= 9 || (*stats)[pair] <= 1 {
+		return false
+	}
+	(*stats)[stat]++
+	(*stats)[pair]--
+	return true
+}
+
+func appendCharacterNameInput(current, input string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return current
+	}
+	out := current
+	for _, r := range input {
+		if r < 32 || r == 127 {
+			continue
+		}
+		next := out + string(r)
+		if len([]byte(next)) > maxBytes {
+			break
+		}
+		out = next
+	}
+	return out
+}
+
+func describeMakeCharacterRefuse(code uint8) string {
+	switch code {
+	case 0:
+		return "character name already exists"
+	case 1:
+		return "account is underaged"
+	case 2:
+		return "invalid character name"
+	default:
+		return fmt.Sprintf("character creation refused (%d)", code)
+	}
 }
 
 func loginBackgroundSets(clientDate int) [][]string {

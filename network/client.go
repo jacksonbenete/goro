@@ -107,6 +107,19 @@ func (c *Client) SendSelectCharacter(slot uint8) error {
 	return c.Send(BuildSelectCharacterPacket(slot))
 }
 
+func (c *Client) SendMakeCharacter(character MakeCharacter) error {
+	packet := BuildMakeCharacterPacket(character)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CH_MAKE_CHAR opcode=0x%04X name=%q slot=%d stats=%d/%d/%d/%d/%d/%d hair_color=%d hair_style=%d client_date=%d",
+			ID(packet), character.Name, character.Slot, character.Str, character.Agi, character.Vit, character.Int, character.Dex, character.Luk, character.HairColor, character.HairStyle, c.clientDate)
+	} else {
+		log.Printf("send CH_MAKE_CHAR failed opcode=0x%04X len=%d name=%q slot=%d client_date=%d: %v",
+			ID(packet), len(packet), character.Name, character.Slot, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendLoadEndAck() error {
 	return c.Send(BuildLoadEndAckPacket())
 }

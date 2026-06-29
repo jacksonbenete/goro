@@ -10,6 +10,7 @@ const (
 	PacketCAPlainLogin     uint16 = 0x0064
 	PacketCAEnter          uint16 = 0x0065
 	PacketCZSelectChar     uint16 = 0x0066
+	PacketCHMakeChar       uint16 = 0x0067
 	PacketCZLoadEndAck     uint16 = 0x007D
 	PacketCZTickSend       uint16 = 0x0089
 	PacketCZTickSendRE     uint16 = 0x0360
@@ -110,6 +111,35 @@ func BuildSelectCharacterPacket(slot uint8) []byte {
 	var w Writer
 	w.Uint16(PacketCZSelectChar)
 	w.Uint8(slot)
+	return w.Bytes()
+}
+
+type MakeCharacter struct {
+	Name      string
+	Str       uint8
+	Agi       uint8
+	Vit       uint8
+	Int       uint8
+	Dex       uint8
+	Luk       uint8
+	Slot      uint8
+	HairColor uint16
+	HairStyle uint16
+}
+
+func BuildMakeCharacterPacket(character MakeCharacter) []byte {
+	var w Writer
+	w.Uint16(PacketCHMakeChar)
+	w.CString(character.Name, 24)
+	w.Uint8(character.Str)
+	w.Uint8(character.Agi)
+	w.Uint8(character.Vit)
+	w.Uint8(character.Int)
+	w.Uint8(character.Dex)
+	w.Uint8(character.Luk)
+	w.Uint8(character.Slot)
+	w.Uint16(character.HairColor)
+	w.Uint16(character.HairStyle)
 	return w.Bytes()
 }
 

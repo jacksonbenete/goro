@@ -151,6 +151,26 @@ func ParseCharList(packet Packet) (CharList, error) {
 	return out, nil
 }
 
+func ParseMakeCharacterAccept(packet Packet) (Character, error) {
+	if packet.ID != 0x006D {
+		return Character{}, fmt.Errorf("unexpected packet 0x%04X", packet.ID)
+	}
+	if len(packet.Data) < 110 {
+		return Character{}, fmt.Errorf("HC_ACCEPT_MAKECHAR too short: %d", len(packet.Data))
+	}
+	return parseCharacter108(packet.Data[2:110]), nil
+}
+
+func ParseMakeCharacterRefuse(packet Packet) (uint8, error) {
+	if packet.ID != 0x006E {
+		return 0, fmt.Errorf("unexpected packet 0x%04X", packet.ID)
+	}
+	if len(packet.Data) < 3 {
+		return 0, fmt.Errorf("HC_REFUSE_MAKECHAR too short: %d", len(packet.Data))
+	}
+	return packet.Data[2], nil
+}
+
 func ParseZoneServerNotify(packet Packet) (ZoneServerNotify, error) {
 	if packet.ID != 0x0071 {
 		return ZoneServerNotify{}, fmt.Errorf("unexpected packet 0x%04X", packet.ID)

@@ -49,6 +49,36 @@ func TestBuildSelectCharacterPacket(t *testing.T) {
 	}
 }
 
+func TestBuildMakeCharacterPacket(t *testing.T) {
+	packet := BuildMakeCharacterPacket(MakeCharacter{
+		Name:      "Alice",
+		Str:       5,
+		Agi:       6,
+		Vit:       7,
+		Int:       5,
+		Dex:       3,
+		Luk:       4,
+		Slot:      2,
+		HairColor: 8,
+		HairStyle: 9,
+	})
+	if len(packet) != 37 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if binary.LittleEndian.Uint16(packet[0:2]) != PacketCHMakeChar {
+		t.Fatalf("opcode = % x", packet[:2])
+	}
+	if string(packet[2:7]) != "Alice" {
+		t.Fatalf("name bytes = %q", packet[2:26])
+	}
+	if packet[26] != 5 || packet[27] != 6 || packet[28] != 7 || packet[29] != 5 || packet[30] != 3 || packet[31] != 4 || packet[32] != 2 {
+		t.Fatalf("stat/slot bytes = % x", packet[26:33])
+	}
+	if binary.LittleEndian.Uint16(packet[33:35]) != 8 || binary.LittleEndian.Uint16(packet[35:37]) != 9 {
+		t.Fatalf("hair bytes = % x", packet[33:37])
+	}
+}
+
 func TestBuildLoadEndAckPacket(t *testing.T) {
 	packet := BuildLoadEndAckPacket()
 	if len(packet) != 2 {

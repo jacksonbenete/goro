@@ -73,6 +73,63 @@ func TestCharacterSelectSlotHelpers(t *testing.T) {
 	if got := clampCharacterSlot(99, 9); got != 8 {
 		t.Fatalf("clamp high = %d, want 8", got)
 	}
+	if got, ok := firstEmptyCharacterSlot(characters, 9); !ok || got != 0 {
+		t.Fatalf("first empty slot = %d, %t, want 0, true", got, ok)
+	}
+}
+
+func TestCharacterCreateDefaultStatsAreServerValid(t *testing.T) {
+	state := defaultCharCreateState(3)
+	if state.slot != 3 {
+		t.Fatalf("slot = %d, want 3", state.slot)
+	}
+	assertCreateStatsValid(t, state.stats)
+}
+
+func TestCharacterCreateBumpKeepsClassicPairsValid(t *testing.T) {
+	stats := defaultCharCreateState(0).stats
+	for i := 0; i < 4; i++ {
+		if !bumpCreateStat(&stats, createStatStr) {
+			t.Fatalf("bump STR %d failed", i)
+		}
+	}
+	if stats[createStatStr] != 9 || stats[createStatInt] != 1 {
+		t.Fatalf("STR/INT = %d/%d, want 9/1", stats[createStatStr], stats[createStatInt])
+	}
+	if bumpCreateStat(&stats, createStatStr) {
+		t.Fatal("bump above STR limit succeeded")
+	}
+	assertCreateStatsValid(t, stats)
+}
+
+func TestAppendCharacterNameInputLimitsBytesAndSkipsControls(t *testing.T) {
+	got := appendCharacterNameInput("Kiv", "\nuta漢字", 8)
+	if got != "Kivuta" {
+		t.Fatalf("name input = %q, want Kivuta", got)
+	}
+}
+
+func assertCreateStatsValid(t *testing.T, stats [createStatCount]uint8) {
+	t.Helper()
+	sum := 0
+	for _, value := range stats {
+		if value < 1 || value > 9 {
+			t.Fatalf("stat value %d outside 1..9 in %#v", value, stats)
+		}
+		sum += int(value)
+	}
+	if sum != 30 {
+		t.Fatalf("stat sum = %d, want 30 in %#v", sum, stats)
+	}
+	if stats[createStatStr]+stats[createStatInt] != 10 {
+		t.Fatalf("STR+INT = %d, want 10", stats[createStatStr]+stats[createStatInt])
+	}
+	if stats[createStatAgi]+stats[createStatLuk] != 10 {
+		t.Fatalf("AGI+LUK = %d, want 10", stats[createStatAgi]+stats[createStatLuk])
+	}
+	if stats[createStatVit]+stats[createStatDex] != 10 {
+		t.Fatalf("VIT+DEX = %d, want 10", stats[createStatVit]+stats[createStatDex])
+	}
 }
 
 func TestCharacterSelectPreviewFacesViewer(t *testing.T) {

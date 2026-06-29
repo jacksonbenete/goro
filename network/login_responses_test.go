@@ -77,6 +77,43 @@ func TestParseCharListLegacy108(t *testing.T) {
 	}
 }
 
+func TestParseMakeCharacterAccept(t *testing.T) {
+	data := make([]byte, 110)
+	binary.LittleEndian.PutUint16(data[0:2], 0x006D)
+	char := data[2:]
+	binary.LittleEndian.PutUint32(char[0:4], 4321)
+	binary.LittleEndian.PutUint16(char[52:54], 0)
+	binary.LittleEndian.PutUint16(char[54:56], 9)
+	binary.LittleEndian.PutUint16(char[58:60], 1)
+	copy(char[74:98], []byte("Newbie"))
+	char[98] = 5
+	char[99] = 5
+	char[100] = 5
+	char[101] = 5
+	char[102] = 5
+	char[103] = 5
+	char[104] = 3
+	char[105] = 8
+
+	got, err := ParseMakeCharacterAccept(Packet{ID: 0x006D, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != 4321 || got.Name != "Newbie" || got.Slot != 3 || got.Hair != 9 || got.HairColor != 8 || got.Str != 5 {
+		t.Fatalf("created character = %+v", got)
+	}
+}
+
+func TestParseMakeCharacterRefuse(t *testing.T) {
+	code, err := ParseMakeCharacterRefuse(Packet{ID: 0x006E, Data: []byte{0x6e, 0x00, 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != 2 {
+		t.Fatalf("code = %d, want 2", code)
+	}
+}
+
 func TestParseZoneServerNotify(t *testing.T) {
 	data := make([]byte, 28)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0071)
