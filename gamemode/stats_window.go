@@ -128,12 +128,11 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 	}
 	w.ensurePosition(ctx)
 	x, y := w.x, w.y
-	drawNPCWindowFrame(screen, x, y, statsWindowWidth, statsWindowHeight)
+	drawUITitledWindowFrame(screen, x, y, statsWindowWidth, statsWindowHeight, statsWindowTitleH)
 	render.DebugPrintAtColor(screen, "Status", x+statsWindowPad, y+9, statsWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, statsWindowButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, statsWindowTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+statsWindowTitleH), float64(statsWindowWidth-16), 1, uiSeparatorColor)
 
 	stats := sessionStats(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Status Point : %d", stats.Points), x+statsWindowPad, y+statsWindowTitleH+10, statsWindowTextColor)

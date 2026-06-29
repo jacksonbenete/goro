@@ -103,9 +103,8 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 	}
 	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 96}, color.RGBA{})
 	x, y, w, h := escapeMenuBounds(width, height)
-	drawNPCWindowFrame(screen, x, y, w, h)
+	drawUITitledWindowFrame(screen, x, y, w, h, escapeMenuTitleH)
 	render.DebugPrintAtColor(screen, "Menu", x+escapeMenuPad, y+10, escapeMenuTitleColor)
-	render.DrawRect(screen, float64(x+8), float64(y+escapeMenuTitleH), float64(w-16), 1, uiSeparatorColor)
 
 	mx, my := -1, -1
 	if ctx.Input != nil {

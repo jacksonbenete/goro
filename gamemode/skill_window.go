@@ -160,12 +160,11 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 	w.ensurePosition(ctx)
 	w.clampScroll(ctx.Session)
 	x, y := w.x, w.y
-	drawNPCWindowFrame(screen, x, y, skillWindowWidth, skillWindowHeight)
+	drawUITitledWindowFrame(screen, x, y, skillWindowWidth, skillWindowHeight, skillWindowTitleH)
 	render.DebugPrintAtColor(screen, "Skill Tree", x+skillWindowPad, y+9, skillWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, skillWindowButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, skillWindowTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+skillWindowTitleH), float64(skillWindowWidth-16), 1, uiSeparatorColor)
 
 	points := sessionSkillPoints(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Skill Points : %d", points), x+skillWindowPad, y+skillWindowTitleH+10, skillWindowTextColor)

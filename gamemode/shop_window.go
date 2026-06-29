@@ -261,7 +261,7 @@ func (w *shopWindowState) draw(screen *render.Image, ctx Context, mode *WorldMod
 	}
 	w.ensureSellPosition(ctx)
 	x, y := w.x, w.y
-	drawNPCWindowFrame(screen, x, y, shopWindowWidth, shopWindowHeight)
+	drawUITitledWindowFrame(screen, x, y, shopWindowWidth, shopWindowHeight, shopWindowTitleH)
 	title := "Sell Items"
 	if w.mode == shopModeBuy {
 		title = "Buy Items"
@@ -270,7 +270,6 @@ func (w *shopWindowState) draw(screen *render.Image, ctx Context, mode *WorldMod
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, shopButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, shopTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+shopWindowTitleH), float64(shopWindowWidth-16), 1, uiSeparatorColor)
 
 	if w.mode == shopModeBuy {
 		w.drawBuyRows(screen, ctx, mode)

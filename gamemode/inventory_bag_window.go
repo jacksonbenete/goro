@@ -164,12 +164,11 @@ func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *
 	w.ensurePosition(ctx)
 	w.clampScroll(ctx.Session)
 	x, y := w.x, w.y
-	drawNPCWindowFrame(screen, x, y, inventoryBagWidth, inventoryBagHeight)
+	drawUITitledWindowFrame(screen, x, y, inventoryBagWidth, inventoryBagHeight, inventoryBagTitleH)
 	render.DebugPrintAtColor(screen, "Inventory", x+inventoryWindowPad, y+9, inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
 	drawUIButtonSurface(screen, cx, cy, cw, ch, inventoryButtonColor)
 	render.DebugPrintAtColor(screen, "x", cx+5, cy+(ch-13)/2-1, inventoryTextColor)
-	render.DrawRect(screen, float64(x+8), float64(y+inventoryBagTitleH), float64(inventoryBagWidth-16), 1, uiSeparatorColor)
 
 	gx, gy, gw, gh := w.gridBounds()
 	px, py, pw, ph := w.panelBounds()

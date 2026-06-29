@@ -45,6 +45,19 @@ func drawUIWindowFrame(screen *render.Image, x, y, w, h int) {
 	drawUISurface(screen, x, y, w, h, uiWindowBodyColor, uiWindowBorderColor)
 }
 
+func drawUITitledWindowFrame(screen *render.Image, x, y, w, h, titleH int) {
+	drawUIWindowFrame(screen, x, y, w, h)
+	drawUITitleBar(screen, x, y, w, titleH)
+}
+
+func drawUITitleBar(screen *render.Image, x, y, w, titleH int) {
+	if titleH <= 1 {
+		return
+	}
+	drawUIRowSurface(screen, x+1, y+1, w-2, titleH-1, uiWindowTitleColor)
+	render.DrawRect(screen, float64(x+1), float64(y+titleH), float64(w-2), 1, uiSeparatorColor)
+}
+
 func drawUIPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 	drawUISurface(screen, x, y, w, h, bg, uiWindowBorderColor)
 }

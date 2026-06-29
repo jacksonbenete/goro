@@ -35,9 +35,7 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 		return
 	}
 	x, y, w, h := characterWindowX, characterWindowY, characterWindowWidth, characterWindowHeight
-	drawUIWindowFrame(screen, x, y, w, h)
-	drawUIRowSurface(screen, x+1, y+1, w-2, 28, uiWindowTitleColor)
-	render.DrawRect(screen, float64(x+8), float64(y+29), float64(w-16), 1, uiSeparatorColor)
+	drawUITitledWindowFrame(screen, x, y, w, h, 29)
 
 	character := selectedCharacter(ctx.Session)
 	name := strings.TrimSpace(character.Name)

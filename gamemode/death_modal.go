@@ -147,9 +147,8 @@ func (m *deathModalState) draw(screen *render.Image, ctx Context, width, height 
 	}
 	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 112}, color.RGBA{})
 	x, y, w, h := deathModalBounds(width, height)
-	drawNPCWindowFrame(screen, x, y, w, h)
+	drawUITitledWindowFrame(screen, x, y, w, h, deathModalTitleH)
 	render.DebugPrintAtColor(screen, "You have died", x+deathModalPad, y+10, deathModalTitleColor)
-	render.DrawRect(screen, float64(x+8), float64(y+deathModalTitleH), float64(w-16), 1, uiSeparatorColor)
 	render.DebugPrintAtColor(screen, "Choose what to do next.", x+deathModalPad, y+deathModalTitleH+14, deathModalTextColor)
 
 	mx, my := -1, -1

@@ -272,7 +272,7 @@ func (d *npcDialogState) draw(screen *render.Image, ctx Context, width, height i
 		return
 	}
 	x, y, w, h := d.resolvedDialogBounds(width, height)
-	drawNPCWindowFrame(screen, x, y, w, h)
+	drawUITitledWindowFrame(screen, x, y, w, h, npcDialogTitleH)
 
 	title := d.title(ctx)
 	render.DebugPrintAtColor(screen, title, x+npcDialogPad, y+10, npcDialogTitleColor)
@@ -307,9 +307,8 @@ func (d *npcDialogState) draw(screen *render.Image, ctx Context, width, height i
 }
 
 func (d *npcDialogState) drawMenu(screen *render.Image, x, y, w, h int) {
-	drawNPCWindowFrame(screen, x, y, w, h)
+	drawUITitledWindowFrame(screen, x, y, w, h, npcMenuTitleH)
 	render.DebugPrintAtColor(screen, "Choose", x+npcDialogPad, y+8, npcDialogTitleColor)
-	render.DrawRect(screen, float64(x+8), float64(y+npcMenuTitleH), float64(w-16), 1, uiSeparatorColor)
 	if len(d.options) == 0 {
 		render.DebugPrintAtColor(screen, "No options.", x+npcDialogPad, y+npcMenuTitleH+12, npcDialogMutedColor)
 		return
@@ -453,8 +452,7 @@ func (d *npcDialogState) drawMenuScrollBar(screen *render.Image, x, y, w, h int)
 }
 
 func drawNPCWindowFrame(screen *render.Image, x, y, w, h int) {
-	drawUIWindowFrame(screen, x, y, w, h)
-	drawUIRowSurface(screen, x+1, y+1, w-2, 27, uiWindowTitleColor)
+	drawUITitledWindowFrame(screen, x, y, w, h, 28)
 }
 
 func drawNPCDialogButton(screen *render.Image, x, y, w, h int, label string) {
