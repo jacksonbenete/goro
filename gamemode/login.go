@@ -52,7 +52,11 @@ const (
 	loginFieldPassword
 )
 
-const charSelectPreviewDirection = 4
+const (
+	charSelectPreviewDirection = 4
+	charSelectPreviewScale     = 0.92
+	charSelectPreviewFeetLift  = 10
+)
 
 func NewLoginMode() *LoginMode {
 	return &LoginMode{status: "select a server", focus: loginFieldUser, maxSlots: 9}
@@ -497,7 +501,7 @@ func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 			screen.DrawImage(m.charBox, &opts)
 		}
 		if character, ok := characterBySlot(ctx.Session.Characters, slot); ok {
-			m.drawCharacterPreview(screen, ctx, character, slotX+slotW/2, slotY+slotH-15)
+			m.drawCharacterPreview(screen, ctx, character, slotX+slotW/2, slotY+slotH-15-charSelectPreviewFeetLift)
 			render.DrawOutlinedTextAt(screen, trimRunes(character.Name, 16), slotX+8, slotY+slotH-18, color.RGBA{R: 245, G: 239, B: 218, A: 255}, color.RGBA{A: 180})
 		} else {
 			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, color.RGBA{R: 196, G: 202, B: 214, A: 210})
@@ -529,7 +533,7 @@ func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, char
 		return
 	}
 	var opts render.DrawImageOptions
-	scale := 0.82
+	scale := charSelectPreviewScale
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(float64(centerX)-billboard.anchorX*scale, float64(feetY)-billboard.anchorY*scale)
 	opts.Filter = spriteDrawFilter()
@@ -703,7 +707,7 @@ func loginWindowRect(ctx Context) (int, int, int, int) {
 	width, height := ctx.ScreenSize()
 	w, h := 380, 202
 	x := (width - w) / 2
-	y := height - h - 82
+	y := (height*2)/3 - h/2
 	if y < 48 {
 		y = (height - h) / 2
 	}

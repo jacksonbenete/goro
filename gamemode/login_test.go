@@ -78,6 +78,22 @@ func TestCharacterSelectPreviewFacesViewer(t *testing.T) {
 	if got := spriteDirectionFromWorldDir(charSelectPreviewDirection); got != 0 {
 		t.Fatalf("char select preview sprite direction = %d, want front-facing direction 0", got)
 	}
+	if charSelectPreviewScale <= 0.82 {
+		t.Fatalf("char select preview scale = %.2f, want larger than old preview", charSelectPreviewScale)
+	}
+	if charSelectPreviewFeetLift <= 0 {
+		t.Fatalf("char select preview feet lift = %d, want positive", charSelectPreviewFeetLift)
+	}
+}
+
+func TestLoginWindowSitsNearTwoThirdsHeight(t *testing.T) {
+	ctx := Context{ScreenW: 1280, ScreenH: 720}
+	_, y, _, h := loginWindowRect(ctx)
+	centerY := y + h/2
+	want := (ctx.ScreenH * 2) / 3
+	if centerY != want {
+		t.Fatalf("login window centerY = %d, want %d", centerY, want)
+	}
 }
 
 func TestCharacterSelectSkinRealDataWhenConfigured(t *testing.T) {
