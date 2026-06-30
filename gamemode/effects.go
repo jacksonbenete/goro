@@ -79,6 +79,31 @@ const (
 	effectPotionGreen   = 209
 	effectFood          = 210
 	effectFoodBlue      = 211
+	effectItemFast      = 218
+	effectItemFast2     = 219
+	effectItemFast3     = 220
+	effectFoodChocolate = 363
+	effectResistPotion  = 491
+	effectItemAccel     = 507
+	effectFirecracker   = 508
+	effectItemSlow      = 519
+	effectBoxThunder    = 576
+	effectBoxResentment = 577
+	effectBoxDrowsiness = 579
+	effectBoxSunlight   = 580
+	effectStatFoodSTR   = 593
+	effectStatFoodINT   = 594
+	effectStatFoodVIT   = 595
+	effectStatFoodAGI   = 596
+	effectStatFoodDEX   = 597
+	effectStatFoodLUK   = 598
+	effectFirecracker1  = 612
+	effectFirecracker2  = 682
+	effectFirecracker3  = 683
+	effectFirecracker4  = 684
+	effectFirecracker5  = 685
+	effectFirecracker6  = 686
+	effectFirecracker7  = 709
 	effectEnergyCoat    = 169
 )
 
@@ -210,8 +235,9 @@ func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
 	if ack.Result == 0 {
 		return
 	}
-	effectID := itemUseEffectID(ack.ItemID)
-	if effectID <= 0 {
+	effectIDs := itemUseEffectIDs(ack.ItemID)
+	casterEffectIDs := itemUseEffectOnCasterIDs(ack.ItemID)
+	if len(effectIDs) == 0 && len(casterEffectIDs) == 0 {
 		return
 	}
 	actorID := ack.AID
@@ -221,11 +247,23 @@ func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
 			actorID = ctx.Session.CharID
 		}
 	}
-	if effectID == effectTeleportation && isLocalActor(ctx, actorID) {
-		actorID = 0
+	for _, effectID := range effectIDs {
+		targetID := actorID
+		if effectID == effectTeleportation && isLocalActor(ctx, targetID) {
+			targetID = 0
+		}
+		if m.addWorldEffect(ctx, effectID, targetID) {
+			log.Printf("item effect item=%d actor=%d effect=%d", ack.ItemID, targetID, effectID)
+		}
 	}
-	if m.addWorldEffect(ctx, effectID, actorID) {
-		log.Printf("item effect item=%d actor=%d effect=%d", ack.ItemID, actorID, effectID)
+	for _, effectID := range casterEffectIDs {
+		casterID := actorID
+		if effectID == effectTeleportation && isLocalActor(ctx, casterID) {
+			casterID = 0
+		}
+		if m.addWorldEffect(ctx, effectID, casterID) {
+			log.Printf("item caster effect item=%d actor=%d effect=%d", ack.ItemID, casterID, effectID)
+		}
 	}
 }
 
@@ -627,29 +665,90 @@ func effectAnchor(ctx Context, actorID uint32) (int, int, bool) {
 	return 0, 0, false
 }
 
-func itemUseEffectID(itemID uint16) int {
-	switch itemID {
-	case 501, 507, 512, 513, 515, 516, 545, 549, 557, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 574, 575, 576, 577, 578, 579, 580, 581, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 607, 608, 663, 669, 680, 685:
-		return effectPotionRed
-	case 502, 582, 599:
-		return effectPotionOrange
-	case 503, 508, 546, 11500:
-		return effectPotionYellow
-	case 504, 509, 547, 11501, 11503:
-		return effectPotionWhite
-	case 505, 510, 514, 11502, 11504:
-		return effectPotionBlue
-	case 506, 511:
-		return effectPotionGreen
-	case 517, 518, 519, 520, 521, 522, 523, 525, 526, 528, 529, 530, 531, 532, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 548, 550, 551, 552, 553, 554, 555, 556:
-		return effectFood
-	case 533:
-		return effectFoodBlue
-	case 602:
-		return effectTeleportation
-	default:
-		return 0
+type roBrowserItemEffect struct {
+	effectIDs         []int
+	effectIDsOnCaster []int
+}
+
+// This mirrors roBrowser's DB/Items/ItemEffect.js shape. Keep item effects as
+// data so future imports can preserve array-valued effectId/effectIdOnCaster.
+var roBrowserItemEffects = buildRoBrowserItemEffects()
+
+func buildRoBrowserItemEffects() map[uint16]roBrowserItemEffect {
+	effects := map[uint16]roBrowserItemEffect{}
+	add := func(effectID int, itemIDs ...uint16) {
+		for _, itemID := range itemIDs {
+			itemEffect := effects[itemID]
+			itemEffect.effectIDs = append(itemEffect.effectIDs, effectID)
+			effects[itemID] = itemEffect
+		}
 	}
+	add(effectPotionRed,
+		501, 507, 512, 513, 515, 516, 545, 549, 557, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572,
+		574, 575, 576, 577, 578, 579, 580, 581, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594,
+		595, 596, 597, 598, 607, 608, 663, 669, 680, 685, 11505, 11507, 11508, 11509, 11510, 11511, 11512,
+		11513, 11514, 11515, 11516, 11517, 11519, 11520, 11521, 11522, 11525, 11526, 11527, 11528, 11529,
+		11530, 11531, 11532, 11533, 11534, 11536, 11537, 11538, 11539, 11540, 11541, 11542, 11543, 11544,
+		11545, 11546, 11547, 11550, 11551, 11552, 11553, 11554, 11555, 11567, 11568, 11570, 11577, 11578,
+		11580, 11581, 11582, 11588, 11589, 11590, 11592, 11596, 11597, 11598, 11599, 11600, 11602, 11605,
+		11701, 11702, 11703, 11704, 11705, 11706, 11707, 11708, 11709, 11710, 11711, 11712, 11713, 12021,
+		12022, 12046, 12047, 12048, 12051, 12052, 12053, 12056, 12057, 12058, 12061, 12063, 12066, 12067,
+		12068, 12101, 12102, 12131, 12133, 12188, 12192, 12195, 12196, 12197, 12202, 12203, 12204, 12205,
+		12206, 12207, 12226, 12227, 12228, 12229, 12230, 12231, 12233, 12234, 12245, 12257, 12271, 12274,
+		12275, 12292, 12293, 12331, 12332, 12335, 12336, 12337, 12436, 12601, 12624, 12704, 12709, 12711,
+		12717, 12718, 12719, 12720, 12721, 12722, 12723, 12724, 12734, 12735, 12736, 12737, 12738, 14522,
+		14523, 14524, 14551, 14552, 14553, 14575, 14576, 14577, 14578, 14579, 14580, 14672, 14673, 22567,
+		22568, 22624, 22657, 22658, 22659, 22686, 22770, 22771, 22772, 22773, 22774, 22775, 22776, 22985)
+	add(effectPotionOrange, 502, 582, 599, 11506, 11569)
+	add(effectPotionYellow, 503, 508, 546, 11500, 11523, 11566, 11574, 11594)
+	add(effectPotionWhite, 504, 509, 547, 11501, 11503, 11524, 11548, 11557, 11558, 11565, 11573, 12428)
+	add(effectPotionBlue, 505, 510, 514, 11502, 11504, 11518, 11549, 11572, 11593)
+	add(effectPotionGreen, 506, 511, 11571, 11595)
+	add(effectFood,
+		517, 518, 519, 520, 521, 522, 523, 525, 526, 528, 529, 530, 531, 532, 534, 535, 536, 537, 538, 539,
+		540, 541, 542, 543, 544, 548, 550, 551, 552, 553, 554, 555, 556, 12017, 12184, 12185, 12298, 12404,
+		12422, 12423, 12424, 12425, 12426, 12427, 12459, 12460, 12461, 12462, 12463, 12464, 12465, 12515,
+		12516, 12517, 12518, 12519, 12520, 12521, 12529, 12531, 12648, 12676, 12679, 12680, 12683, 12684,
+		12774, 12831, 14534, 14535, 14537, 14541, 14542, 14543, 14544, 14600, 14614, 16254, 16481, 22546)
+	add(effectFoodBlue, 533)
+	add(effectFoodChocolate, 558, 559, 560, 561, 573, 11535, 11583, 11584, 11585, 11586, 11587, 12062, 12322, 22555, 22556, 22557)
+	add(effectItemFast, 645, 12241, 17263, 22542)
+	add(effectItemFast2, 656, 12242, 17264, 22544)
+	add(effectItemFast3, 657, 12243, 17265, 22543)
+	add(effectItemSlow, 12016, 22545)
+	add(effectBoxThunder, 12028)
+	add(effectBoxResentment, 12030)
+	add(effectBoxDrowsiness, 12031)
+	add(effectBoxSunlight, 12033)
+	add(effectResistPotion, 12118, 12119, 12120, 12121, 12299)
+	add(effectStatFoodSTR, 12041, 12042, 12043, 12044, 12045, 12071, 12072, 12073, 12074, 12075)
+	add(effectStatFoodINT, 12049, 12050, 12076, 12077, 12078, 12079, 12080, 14554, 14555, 14556)
+	add(effectStatFoodVIT, 12054, 12055, 12081, 12082, 12083, 12084, 12085, 14557, 14558, 14559)
+	add(effectStatFoodAGI, 12059, 12060, 12086, 12087, 12088, 12089, 12090, 14560, 14561, 14562)
+	add(effectStatFoodDEX, 12064, 12065, 12091, 12092, 12093, 12094, 12095, 14563, 14564, 14565)
+	add(effectStatFoodLUK, 12069, 12070, 12096, 12097, 12098, 12099, 12100, 14566, 14567, 14568)
+	add(effectFirecracker, 12018)
+	add(effectFirecracker7, 12326)
+	add(effectFirecracker1, 12788)
+	add(effectFirecracker2, 14546)
+	add(effectFirecracker3, 14547)
+	add(effectFirecracker4, 14548)
+	add(effectFirecracker5, 14549)
+	add(effectFirecracker6, 14550)
+	add(effectItemAccel, 662, 12262)
+
+	// roBrowser does not route Butterfly Wing through ItemEffect; keep Goro's
+	// local map-change anticipation here but use the same table shape.
+	add(effectTeleportation, 602)
+	return effects
+}
+
+func itemUseEffectIDs(itemID uint16) []int {
+	return roBrowserItemEffects[itemID].effectIDs
+}
+
+func itemUseEffectOnCasterIDs(itemID uint16) []int {
+	return roBrowserItemEffects[itemID].effectIDsOnCaster
 }
 
 type roBrowserSkillEffect struct {

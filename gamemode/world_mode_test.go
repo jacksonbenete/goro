@@ -1263,12 +1263,8 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 
 func TestWarpEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AL_TELEPORT begin", skillBeginEffectIDs(26))
-	if got := itemUseEffectID(602); got != effectTeleportation {
-		t.Fatalf("Butterfly Wing item effect = %d, want %d", got, effectTeleportation)
-	}
-	if got := itemUseEffectID(601); got != 0 {
-		t.Fatalf("Fly Wing item effect = %d, want 0 because server triggers AL_TELEPORT", got)
-	}
+	expectEffectIDs(t, "Butterfly Wing item", itemUseEffectIDs(602), effectTeleportation)
+	expectEffectIDs(t, "Fly Wing item", itemUseEffectIDs(601))
 }
 
 func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
@@ -3421,6 +3417,43 @@ func TestUseItemAckAddsItemUseEffect(t *testing.T) {
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectPotionRed || effect.x != 10 || effect.y != 20 {
 		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestUseItemAckDispatchesAllMappedItemEffectArrays(t *testing.T) {
+	const itemID uint16 = 65000
+	roBrowserItemEffects[itemID] = roBrowserItemEffect{
+		effectIDs:         []int{effectPotionRed, effectBlessing},
+		effectIDsOnCaster: []int{effectEndure},
+	}
+	defer delete(roBrowserItemEffects, itemID)
+
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: itemID, AID: 1100, Amount: 2, Result: 1})
+
+	want := []struct {
+		effectID int
+		actorID  uint32
+		x        int
+		y        int
+	}{
+		{effectPotionRed, 1100, 12, 22},
+		{effectBlessing, 1100, 12, 22},
+		{effectEndure, 1100, 12, 22},
+	}
+	if len(mode.worldEffects) != len(want) {
+		t.Fatalf("world effects = %d, want %d: %+v", len(mode.worldEffects), len(want), mode.worldEffects)
+	}
+	for i, wantEffect := range want {
+		got := mode.worldEffects[i]
+		if got.effectID != wantEffect.effectID || got.actorID != wantEffect.actorID || got.x != wantEffect.x || got.y != wantEffect.y {
+			t.Fatalf("effect %d = %+v, want %+v", i, got, wantEffect)
+		}
 	}
 }
 
