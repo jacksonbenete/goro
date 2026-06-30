@@ -346,6 +346,15 @@ func (m *WorldMode) applySkillCastNotify(ctx Context, notify network.SkillCastNo
 	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y), duration, now, "server")
 }
 
+func (m *WorldMode) addLocalSkillCastFallback(ctx Context, skillID uint16, property uint32, sourceID, targetID uint32, cellX, cellY int, duration time.Duration, starts time.Time, source string) {
+	if duration <= 0 || sourceID == 0 {
+		return
+	}
+	m.faceSkillSource(ctx, sourceID, targetID, cellX, cellY)
+	m.startSkillSourceCastAnimation(ctx, sourceID, skillID, duration, starts)
+	m.addSkillCastEffects(ctx, skillID, property, sourceID, targetID, cellX, cellY, duration, starts, source)
+}
+
 func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx Context, notify network.SkillNoDamageNotify, now time.Time) {
 	source, ok, _ := actorForCombatID(ctx, notify.SourceID)
 	if !ok {

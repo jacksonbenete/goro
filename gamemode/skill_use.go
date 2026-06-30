@@ -108,7 +108,7 @@ func (c skillController) SendToID(ctx Context, skill session.Skill, target uint3
 		c.mode.addWorldEffect(ctx, effectID, actorID)
 	}
 	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
-		c.mode.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), target, 0, 0, duration, time.Now(), source)
+		c.mode.addLocalSkillCastFallback(ctx, skill.ID, property, localSkillTarget(ctx), target, 0, 0, duration, time.Now(), source)
 	}
 	if isLevelOneTeleportSkill(skill) {
 		c.mode.addWorldEffect(ctx, effectTeleportation, localSkillTarget(ctx))
@@ -133,7 +133,7 @@ func (c skillController) SendToGround(ctx Context, skill session.Skill, x, y int
 	}
 	property, castDuration := skillCastFallback(skill.ID, level)
 	if castDuration > 0 {
-		c.mode.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), 0, x, y, castDuration, time.Now(), source+"-ground")
+		c.mode.addLocalSkillCastFallback(ctx, skill.ID, property, localSkillTarget(ctx), 0, x, y, castDuration, time.Now(), source+"-ground")
 	}
 	if castDuration <= 0 {
 		now := time.Now()

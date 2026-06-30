@@ -1409,6 +1409,42 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 	}
 }
 
+func TestLocalGroundSkillCastFallbackFacesCellAndStartsCastAnimation(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, X: 10, Y: 20, Dir: 4}
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
+		World:   world,
+	}
+
+	start := time.Now()
+	mode.addLocalSkillCastFallback(ctx, 21, 4, 2000000, 0, 12, 20, 1800*time.Millisecond, start, "local-ground")
+
+	if want := directionFromDelta(10, 20, 12, 20, 4); world.Dir != want || world.Player.Dir != want {
+		t.Fatalf("local cast dir = world:%d player:%d, want %d", world.Dir, world.Player.Dir, want)
+	}
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("local ground cast animation missing")
+	}
+	if anim.actionFamily != spriteActionPCSkill || anim.duration != 1800*time.Millisecond || !anim.hasFixedMotion || anim.fixedMotion != skillCastMotion {
+		t.Fatalf("local ground cast animation = %+v", anim)
+	}
+	if len(mode.worldEffects) != 3 {
+		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
+	}
+	if mode.worldEffects[0].effectID != effectGroundSample || mode.worldEffects[0].x != 12 || mode.worldEffects[0].y != 20 {
+		t.Fatalf("ground marker = %+v", mode.worldEffects[0])
+	}
+	if mode.worldEffects[1].effectID != effectCastRing || mode.worldEffects[1].actorID != 2000000 {
+		t.Fatalf("cast circle = %+v", mode.worldEffects[1])
+	}
+	if mode.worldEffects[2].effectID != effectBeginSpell4 || mode.worldEffects[2].actorID != 2000000 {
+		t.Fatalf("cast aura = %+v", mode.worldEffects[2])
+	}
+}
+
 func TestAcolyteSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AL_DP passive", skillEffectIDs(22))
 	expectEffectIDs(t, "AL_DEMONBANE passive", skillEffectIDs(23))
