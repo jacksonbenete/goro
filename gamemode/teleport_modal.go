@@ -75,9 +75,49 @@ func (m *WorldMode) applyWarpPointList(ctx Context, list network.WarpPointList) 
 			skill.Level = 2
 		}
 	}
+	if teleportWarpListBypassesModal(skill, list) {
+		m.autoSelectTeleportRandom(ctx, list)
+		return
+	}
 	m.teleportModal.openWarpPointList(list, skill)
 	m.status = "choose teleport destination"
 	log.Printf("teleport destination list skill=%d maps=%v", list.SkillID, list.MapNames)
+}
+
+func (m *WorldMode) autoSelectTeleportRandom(ctx Context, list network.WarpPointList) {
+	mapName := teleportRandomMap
+	for _, name := range list.MapNames {
+		if name == teleportRandomMap {
+			mapName = name
+			break
+		}
+	}
+	if ctx.Network == nil {
+		m.status = "Teleport failed: not connected"
+		return
+	}
+	if err := ctx.Network.SendSelectWarpPoint(list.SkillID, mapName); err != nil {
+		m.status = fmt.Sprintf("Teleport failed: %v", err)
+		return
+	}
+	m.teleportModal = teleportModalState{}
+	m.status = "teleporting"
+	log.Printf("teleport random selected automatically skill=%d maps=%v", list.SkillID, list.MapNames)
+}
+
+func teleportWarpListBypassesModal(skill session.Skill, list network.WarpPointList) bool {
+	if list.SkillID != teleportSkillID {
+		return false
+	}
+	if isLevelOneTeleportSkill(skill) {
+		return true
+	}
+	for _, name := range list.MapNames {
+		if name != "" && name != teleportRandomMap {
+			return false
+		}
+	}
+	return true
 }
 
 func (m *teleportModalState) update(ctx Context, mode *WorldMode) bool {
@@ -168,6 +208,10 @@ func (m teleportModalState) savePointMapName() string {
 		return teleportSavePointMap
 	}
 	return ""
+}
+
+func isLevelOneTeleportSkill(skill session.Skill) bool {
+	return skill.ID == teleportSkillID && skill.Level <= 1
 }
 
 func (m *teleportModalState) draw(screen *render.Image, ctx Context, width, height int) {

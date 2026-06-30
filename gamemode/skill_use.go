@@ -110,6 +110,9 @@ func (c skillController) SendToID(ctx Context, skill session.Skill, target uint3
 	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
 		c.mode.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), target, 0, 0, duration, time.Now(), source)
 	}
+	if isLevelOneTeleportSkill(skill) {
+		c.mode.addWorldEffect(ctx, effectTeleportation, localSkillTarget(ctx))
+	}
 	return nil
 }
 

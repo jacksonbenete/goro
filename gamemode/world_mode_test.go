@@ -1368,6 +1368,12 @@ func TestTeleportModalRules(t *testing.T) {
 	if got := modal.savePointMapName(); got != "prontera" {
 		t.Fatalf("save point map = %q", got)
 	}
+	if !teleportWarpListBypassesModal(lv1, network.WarpPointList{SkillID: 26, MapNames: []string{"Random"}}) {
+		t.Fatal("Teleport level 1 should bypass the modal")
+	}
+	if teleportWarpListBypassesModal(lv2, network.WarpPointList{SkillID: 26, MapNames: []string{"Random", "prontera"}}) {
+		t.Fatal("Teleport level 2 with a save point should show the modal")
+	}
 }
 
 func TestSkillUnitEffectMappings(t *testing.T) {
