@@ -1628,7 +1628,7 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 		if component.kind != effectComponent3D || component.textureFile != "effect/ac_center2.tga" {
 			t.Fatalf("particle %d resource = %+v", tc.index, component)
 		}
-		if component.duration != 1000*time.Millisecond || component.delay != tc.delay || component.duplicateDelay != 80*time.Millisecond || component.duplicate != tc.duplicate {
+		if component.duration != 1000*time.Millisecond || component.delay != tc.delay || component.duplicateDelay != 200*time.Millisecond || component.duplicate != tc.duplicate {
 			t.Fatalf("particle %d timing = %+v", tc.index, component)
 		}
 		if component.alphaMax != tc.alphaMax || component.fadeIn || !component.fadeOut {
@@ -1640,7 +1640,7 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 		if component.sizeStartX != 2.5*roBrowserEffectPixelRatio || component.sizeEndX != 2.5*roBrowserEffectPixelRatio {
 			t.Fatalf("particle %d x size = %+v", tc.index, component)
 		}
-		if component.sizeStartY != 45*roBrowserEffectPixelRatio || component.sizeEndY != 45*roBrowserEffectPixelRatio || component.sizeRandY != 15*roBrowserEffectPixelRatio {
+		if component.sizeStartY != 0 || component.sizeEndY != 0 || component.sizeRandY != 15*roBrowserEffectPixelRatio || component.sizeRandYMiddle != 45*roBrowserEffectPixelRatio {
 			t.Fatalf("particle %d size = %+v", tc.index, component)
 		}
 		if component.blendAdditive {
@@ -1657,8 +1657,11 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	if overlay.posZ != 0.4 || overlay.posZEnd != 3 {
 		t.Fatalf("overlay position = %+v", overlay)
 	}
-	if overlay.sizeStart != 100*roBrowserEffectPixelRatio || overlay.sizeEnd != 100*roBrowserEffectPixelRatio || !overlay.sizeSmooth {
+	if overlay.sizeStart != 100*roBrowserEffectPixelRatio || overlay.sizeEnd != 100*roBrowserEffectPixelRatio || overlay.sizeStartY != 45*roBrowserEffectPixelRatio || overlay.sizeEndY != 45*roBrowserEffectPixelRatio || !overlay.sizeSmooth {
 		t.Fatalf("overlay size = %+v", overlay)
+	}
+	if !overlay.overlay {
+		t.Fatal("overlay should use roBrowser overlay rendering")
 	}
 	if overlay.blendAdditive {
 		t.Fatal("overlay should use normal alpha blending")

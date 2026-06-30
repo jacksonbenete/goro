@@ -266,6 +266,10 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			return worldEffectComponent{}, sfx, false
 		}
 		sizeStart, sizeEnd := effectSizeFields(fields)
+		duplicateDelay := fieldDuration(fields, "timeBetweenDupli")
+		if fieldInt(fields, "duplicate") > 1 && !fieldExists(fields, "timeBetweenDupli") {
+			duplicateDelay = 200 * time.Millisecond
+		}
 		return worldEffectComponent{
 			kind:             effectComponent3D,
 			color:            effectColorFields(fields),
@@ -279,7 +283,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			retreat:          fieldFloat(fields, "retreat"),
 			duration:         fieldDuration(fields, "duration"),
 			delay:            fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
-			duplicateDelay:   fieldDuration(fields, "timeBetweenDupli"),
+			duplicateDelay:   duplicateDelay,
 			alphaMax:         fieldFloat(fields, "alphaMax"),
 			alphaMaxDelta:    fieldFloat(fields, "alphaMaxDelta"),
 			fade:             fieldBool(fields, "fade"),
@@ -320,6 +324,8 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			sizeEndY:         effectSizeAxisField(fields, "sizeY", "sizeEndY") * roBrowserEffectPixelRatio,
 			sizeRandX:        fieldFloat(fields, "sizeRandX") * roBrowserEffectPixelRatio,
 			sizeRandY:        fieldFloat(fields, "sizeRandY") * roBrowserEffectPixelRatio,
+			sizeRandXMiddle:  fieldFloat(fields, "sizeRandXMiddle") * roBrowserEffectPixelRatio,
+			sizeRandYMiddle:  fieldFloat(fields, "sizeRandYMiddle") * roBrowserEffectPixelRatio,
 			sizeDelta:        fieldFloat(fields, "sizeDelta"),
 			sizeSmooth:       fieldBool(fields, "sizeSmooth"),
 			duplicate:        fieldInt(fields, "duplicate"),

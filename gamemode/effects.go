@@ -232,6 +232,8 @@ type worldEffectComponent struct {
 	sizeEndYRandMax    float64
 	sizeRandX          float64
 	sizeRandY          float64
+	sizeRandXMiddle    float64
+	sizeRandYMiddle    float64
 	sizeDelta          float64
 	sizeSmooth         bool
 	angleStart         float64
@@ -1926,10 +1928,18 @@ func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, 
 		sizeY = sizeX
 	}
 	if component.sizeRandX != 0 {
-		sizeX += deterministicSigned(effect, salt+8) * component.sizeRandX
+		if component.sizeRandXMiddle != 0 {
+			sizeX = component.sizeRandXMiddle + deterministicSigned(effect, salt+8)*component.sizeRandX
+		} else {
+			sizeX += deterministicSigned(effect, salt+8) * component.sizeRandX
+		}
 	}
 	if component.sizeRandY != 0 {
-		sizeY += deterministicSigned(effect, salt+9) * component.sizeRandY
+		if component.sizeRandYMiddle != 0 {
+			sizeY = component.sizeRandYMiddle + deterministicSigned(effect, salt+9)*component.sizeRandY
+		} else {
+			sizeY += deterministicSigned(effect, salt+9) * component.sizeRandY
+		}
 	}
 	return sizeX, sizeY
 }
