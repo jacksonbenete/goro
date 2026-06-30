@@ -3,10 +3,30 @@ package core
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
+func isolateUserConfig(t *testing.T) {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp := t.TempDir()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(cwd); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
 func TestLoadConfigReadsINIAndCLIOverrides(t *testing.T) {
+	isolateUserConfig(t)
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "OldRO")
 	if err := os.Mkdir(dataDir, 0o755); err != nil {
@@ -27,6 +47,7 @@ client_date = 20211103
 [audio]
 bgm = false
 bgm_volume = 0.25
+sfx_volume = 0.35
 
 [render]
 graphics_api = gles
@@ -49,6 +70,7 @@ enabled = false
 		"--fullscreen=false",
 		"--bgm=true",
 		"--bgm-volume", "0.75",
+		"--sfx-volume", "0.85",
 		"--graphics-api", "vulkan",
 	})
 	if err != nil {
@@ -63,7 +85,7 @@ enabled = false
 	if cfg.Packet.ClientDate != 20211103 {
 		t.Fatalf("packet client date = %d", cfg.Packet.ClientDate)
 	}
-	if !cfg.Audio.BGM || cfg.Audio.BGMVolume != 0.75 {
+	if !cfg.Audio.BGM || cfg.Audio.BGMVolume != 0.75 || cfg.Audio.SFXVolume != 0.85 {
 		t.Fatalf("unexpected audio config: %#v", cfg.Audio)
 	}
 	if cfg.Render.GraphicsAPI != "vulkan" || cfg.Render.VSync || !cfg.Render.FPS {
@@ -78,6 +100,7 @@ enabled = false
 }
 
 func TestLoadConfigWindowedOverridesFullscreenINI(t *testing.T) {
+	isolateUserConfig(t)
 	root := t.TempDir()
 	configPath := filepath.Join(root, "goro.ini")
 	if err := os.WriteFile(configPath, []byte("[window]\nfullscreen = true\n"), 0o644); err != nil {
@@ -90,5 +113,92 @@ func TestLoadConfigWindowedOverridesFullscreenINI(t *testing.T) {
 	}
 	if cfg.Window.Fullscreen {
 		t.Fatal("fullscreen = true, want false")
+	}
+}
+
+func TestLoadConfigReadsUserConfig(t *testing.T) {
+	isolateUserConfig(t)
+	path, err := UserConfigPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`
+[window]
+fullscreen = true
+
+[audio]
+bgm_volume = 0.10
+sfx_volume = 0.20
+
+[render]
+vsync = false
+fps = true
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := LoadConfig(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Window.Fullscreen || cfg.Audio.BGMVolume != 0.10 || cfg.Audio.SFXVolume != 0.20 || cfg.Render.VSync || !cfg.Render.FPS {
+		t.Fatalf("user config not loaded: %#v", cfg)
+	}
+}
+
+func TestSaveUserSettingsPreservesUnrelatedINI(t *testing.T) {
+	isolateUserConfig(t)
+	path, err := UserConfigPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	initial := `data_dir = /tmp/OldRO
+
+[login]
+username = Kivutar
+
+[window]
+width = 1024
+fullscreen = false
+`
+	if err := os.WriteFile(path, []byte(initial), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writtenPath, err := SaveUserSettings(UserSettings{
+		Fullscreen: true,
+		VSync:      false,
+		FPS:        true,
+		BGMVolume:  0.33,
+		SFXVolume:  0.44,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if writtenPath != path {
+		t.Fatalf("written path = %q, want %q", writtenPath, path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, want := range []string{
+		"data_dir = /tmp/OldRO",
+		"username = Kivutar",
+		"width = 1024",
+		"fullscreen = true",
+		"vsync = false",
+		"fps = true",
+		"bgm_volume = 0.33",
+		"sfx_volume = 0.44",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("saved config missing %q:\n%s", want, text)
+		}
 	}
 }

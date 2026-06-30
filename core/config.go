@@ -43,6 +43,7 @@ type LoginConfig struct {
 type AudioConfig struct {
 	BGM       bool
 	BGMVolume float64
+	SFXVolume float64
 }
 
 type RenderConfig struct {
@@ -67,6 +68,11 @@ type FogConfig struct {
 func LoadConfig(args []string) (Config, error) {
 	cfg := defaultConfig()
 
+	if path, err := UserConfigPath(); err == nil {
+		if err := applyINIFile(&cfg, path, false); err != nil {
+			return Config{}, err
+		}
+	}
 	configPath, explicitConfig := configPathFromArgs(args)
 	if configPath != "" {
 		if err := applyINIFile(&cfg, configPath, explicitConfig); err != nil {
@@ -78,6 +84,60 @@ func LoadConfig(args []string) (Config, error) {
 	}
 	cfg.DataDir = resolveDataDir(cfg.DataDir)
 	return cfg, nil
+}
+
+type UserSettings struct {
+	Fullscreen bool
+	VSync      bool
+	FPS        bool
+	BGMVolume  float64
+	SFXVolume  float64
+}
+
+func UserConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "goro", "goro.ini"), nil
+}
+
+func SaveUserSettings(settings UserSettings) (string, error) {
+	if settings.BGMVolume < 0 || settings.BGMVolume > 1 {
+		return "", fmt.Errorf("bgm volume must be between 0 and 1")
+	}
+	if settings.SFXVolume < 0 || settings.SFXVolume > 1 {
+		return "", fmt.Errorf("sfx volume must be between 0 and 1")
+	}
+	path, err := UserConfigPath()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", err
+	}
+	values := map[string]map[string]string{
+		"window": {
+			"fullscreen": formatINIValueBool(settings.Fullscreen),
+		},
+		"render": {
+			"vsync": formatINIValueBool(settings.VSync),
+			"fps":   formatINIValueBool(settings.FPS),
+		},
+		"audio": {
+			"bgm_volume": formatINIValueFloat(settings.BGMVolume),
+			"sfx_volume": formatINIValueFloat(settings.SFXVolume),
+		},
+	}
+	existing, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+	data := upsertINIValues(string(existing), values)
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func defaultConfig() Config {
@@ -95,6 +155,7 @@ func defaultConfig() Config {
 		Audio: AudioConfig{
 			BGM:       true,
 			BGMVolume: 0.55,
+			SFXVolume: 0.55,
 		},
 		Render: RenderConfig{
 			GraphicsAPI:        "vulkan",
@@ -158,7 +219,8 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.StringVar(&cfg.Login.Password, "password", cfg.Login.Password, "login password")
 	fs.BoolVar(&cfg.Login.AutoLogin, "autologin", cfg.Login.AutoLogin, "attempt login automatically")
 	fs.BoolVar(&cfg.Audio.BGM, "bgm", cfg.Audio.BGM, "enable BGM")
-	fs.Float64Var(&cfg.Audio.BGMVolume, "bgm-volume", cfg.Audio.BGMVolume, "BGM and SFX volume from 0 to 1")
+	fs.Float64Var(&cfg.Audio.BGMVolume, "bgm-volume", cfg.Audio.BGMVolume, "BGM volume from 0 to 1")
+	fs.Float64Var(&cfg.Audio.SFXVolume, "sfx-volume", cfg.Audio.SFXVolume, "SFX volume from 0 to 1")
 	fs.StringVar(&cfg.Render.GraphicsAPI, "graphics-api", cfg.Render.GraphicsAPI, "graphics API: auto, vulkan, dx12, metal, gles, software")
 	fs.BoolVar(&cfg.Render.VSync, "vsync", cfg.Render.VSync, "enable vsync")
 	fs.BoolVar(&cfg.Render.FPS, "fps", cfg.Render.FPS, "show measured FPS counter")
@@ -233,6 +295,8 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		return setBool(value, &cfg.Audio.BGM)
 	case "audio.bgmvolume":
 		return setFloat(value, &cfg.Audio.BGMVolume)
+	case "audio.sfxvolume":
+		return setFloat(value, &cfg.Audio.SFXVolume)
 	case "render.graphicsapi":
 		cfg.Render.GraphicsAPI = value
 	case "render.vsync":
@@ -272,10 +336,110 @@ func validateConfig(cfg *Config) error {
 	if cfg.Audio.BGMVolume < 0 || cfg.Audio.BGMVolume > 1 {
 		return fmt.Errorf("bgm volume must be between 0 and 1")
 	}
+	if cfg.Audio.SFXVolume < 0 || cfg.Audio.SFXVolume > 1 {
+		return fmt.Errorf("sfx volume must be between 0 and 1")
+	}
 	if cfg.Render.BenchSeconds < 0 || cfg.Render.BenchWarmupSeconds < 0 {
 		return fmt.Errorf("benchmark durations must be non-negative")
 	}
 	return nil
+}
+
+func upsertINIValues(src string, values map[string]map[string]string) string {
+	sectionOrder := []string{"window", "render", "audio"}
+	seenSections := make(map[string]bool)
+	written := make(map[string]map[string]bool)
+	for section := range values {
+		written[section] = make(map[string]bool)
+	}
+	src = strings.ReplaceAll(src, "\r\n", "\n")
+	src = strings.ReplaceAll(src, "\r", "\n")
+	lines := strings.Split(src, "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	out := make([]string, 0, len(lines)+12)
+	currentSection := ""
+	flushMissing := func(section string) {
+		sectionValues, ok := values[section]
+		if !ok {
+			return
+		}
+		for _, key := range sortedINIKeys(sectionValues) {
+			if written[section][normalizeKey(key)] {
+				continue
+			}
+			out = append(out, fmt.Sprintf("%s = %s", key, sectionValues[key]))
+			written[section][normalizeKey(key)] = true
+		}
+	}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			flushMissing(currentSection)
+			currentSection = normalizeKey(strings.TrimSpace(trimmed[1 : len(trimmed)-1]))
+			seenSections[currentSection] = true
+			out = append(out, line)
+			continue
+		}
+		if sectionValues, ok := values[currentSection]; ok && trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, ";") {
+			if key, _, hasKey := strings.Cut(trimmed, "="); hasKey {
+				normalizedKey := normalizeKey(key)
+				replaced := false
+				for saveKey, saveValue := range sectionValues {
+					if normalizeKey(saveKey) != normalizedKey {
+						continue
+					}
+					out = append(out, fmt.Sprintf("%s = %s", strings.TrimSpace(key), saveValue))
+					written[currentSection][normalizedKey] = true
+					replaced = true
+					break
+				}
+				if replaced {
+					continue
+				}
+			}
+		}
+		out = append(out, line)
+	}
+	flushMissing(currentSection)
+	for _, section := range sectionOrder {
+		if seenSections[section] {
+			continue
+		}
+		if len(out) > 0 && strings.TrimSpace(out[len(out)-1]) != "" {
+			out = append(out, "")
+		}
+		out = append(out, "["+section+"]")
+		flushMissing(section)
+	}
+	return strings.Join(out, "\n") + "\n"
+}
+
+func sortedINIKeys(values map[string]string) []string {
+	preferred := []string{"fullscreen", "vsync", "fps", "bgm_volume", "sfx_volume"}
+	keys := make([]string, 0, len(values))
+	seen := make(map[string]bool, len(values))
+	for _, key := range preferred {
+		if _, ok := values[key]; ok {
+			keys = append(keys, key)
+			seen[key] = true
+		}
+	}
+	for key := range values {
+		if !seen[key] {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
+func formatINIValueBool(value bool) string {
+	return strconv.FormatBool(value)
+}
+
+func formatINIValueFloat(value float64) string {
+	return strconv.FormatFloat(value, 'f', 2, 64)
 }
 
 func cleanINIValue(value string) string {

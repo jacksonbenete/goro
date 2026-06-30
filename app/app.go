@@ -25,6 +25,7 @@ type Game struct {
 	network  *network.Client
 	audio    *gameaudio.BGM
 	modes    *gamemode.Manager
+	runtime  *runtimeSettings
 	started  time.Time
 	screenW  int
 	screenH  int
@@ -46,7 +47,8 @@ func New(cfg core.Config) (*Game, error) {
 		session:  session.New(),
 		world:    world.New(),
 		network:  network.NewClient(cfg.Packet.ClientDate, cfg.Network.Trace),
-		audio:    gameaudio.NewBGM(resource, cfg.Audio.BGM, cfg.Audio.BGMVolume),
+		audio:    gameaudio.NewBGM(resource, cfg.Audio.BGM, cfg.Audio.BGMVolume, cfg.Audio.SFXVolume),
+		runtime:  newRuntimeSettings(cfg.Window.Fullscreen, cfg.Render.VSync, cfg.Render.FPS),
 		started:  time.Now(),
 		screenW:  cfg.Window.Width,
 		screenH:  cfg.Window.Height,
@@ -102,6 +104,18 @@ func (g *Game) RequestQuit() {
 	}
 }
 
+func (g *Game) RuntimeFullscreen() bool {
+	return g.runtime.Fullscreen()
+}
+
+func (g *Game) RuntimeVSync() bool {
+	return g.runtime.VSync()
+}
+
+func (g *Game) RuntimeFPS() bool {
+	return g.runtime.FPS()
+}
+
 func loadClientUIFont(resource *res.Manager) {
 	regular, err := resource.ReadFileExact("System/Font/SCDream4.otf")
 	if err != nil {
@@ -134,6 +148,7 @@ func (g *Game) modeContext() gamemode.Context {
 		Started:     g.started,
 		ScreenW:     g.screenW,
 		ScreenH:     g.screenH,
+		Runtime:     g.runtime,
 		RequestQuit: g.RequestQuit,
 	}
 }

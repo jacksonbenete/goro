@@ -25,7 +25,8 @@ var (
 )
 
 type escapeMenuState struct {
-	open bool
+	open   bool
+	action escapeMenuAction
 }
 
 type escapeMenuAction int
@@ -46,7 +47,7 @@ type escapeMenuButton struct {
 
 var escapeMenuButtons = []escapeMenuButton{
 	{label: "Character Select", action: escapeMenuActionCharacterSelect},
-	{label: "Settings", action: escapeMenuActionSettings},
+	{label: "Settings", action: escapeMenuActionSettings, enabled: true},
 	{label: "Cancel", action: escapeMenuActionCancel, enabled: true},
 	{label: "Exit to Windows", action: escapeMenuActionExit, enabled: true},
 }
@@ -84,6 +85,9 @@ func (m *escapeMenuState) update(ctx Context) bool {
 			return true
 		}
 		switch button.action {
+		case escapeMenuActionSettings:
+			m.open = false
+			m.action = escapeMenuActionSettings
 		case escapeMenuActionCancel:
 			m.open = false
 		case escapeMenuActionExit:
@@ -95,6 +99,12 @@ func (m *escapeMenuState) update(ctx Context) bool {
 		return true
 	}
 	return true
+}
+
+func (m *escapeMenuState) consumeAction() escapeMenuAction {
+	action := m.action
+	m.action = escapeMenuActionNone
+	return action
 }
 
 func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height int) {

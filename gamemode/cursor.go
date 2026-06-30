@@ -146,6 +146,9 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.escapeMenu.cursorAction(ctx); ok {
 		return action
 	}
+	if action, ok := m.settingsWindow.cursorAction(ctx); ok {
+		return action
+	}
 	if action, ok := m.npcDialog.cursorAction(ctx); ok {
 		return action
 	}

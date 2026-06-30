@@ -23,7 +23,17 @@ type Context struct {
 	Started     time.Time
 	ScreenW     int
 	ScreenH     int
+	Runtime     RuntimeSettings
 	RequestQuit func()
+}
+
+type RuntimeSettings interface {
+	Fullscreen() bool
+	SetFullscreen(bool)
+	VSync() bool
+	SetVSync(bool)
+	FPS() bool
+	SetFPS(bool)
 }
 
 func (c Context) ScreenSize() (int, int) {

@@ -29,6 +29,12 @@ type quitReceiver interface {
 	SetQuitFunc(func())
 }
 
+type runtimeSettingsProvider interface {
+	RuntimeFullscreen() bool
+	RuntimeVSync() bool
+	RuntimeFPS() bool
+}
+
 type runner struct {
 	app            *gogpu.App
 	game           Game
@@ -51,6 +57,10 @@ type runner struct {
 	frameMSDisplay float64
 	quit           func()
 	cpuProfile     *os.File
+	fullscreen     bool
+	vsync          bool
+	fps            bool
+	vsyncWarned    bool
 }
 
 func Run(game Game, cfg core.WindowConfig, renderCfg core.RenderConfig) error {
@@ -74,14 +84,17 @@ func Run(game Game, cfg core.WindowConfig, renderCfg core.RenderConfig) error {
 	defer setCursorApp(nil)
 
 	r := &runner{
-		app:       gg,
-		game:      game,
-		width:     cfg.Width,
-		height:    cfg.Height,
-		duration:  time.Duration(renderCfg.BenchSeconds) * time.Second,
-		warmup:    time.Duration(renderCfg.BenchWarmupSeconds) * time.Second,
-		renderCfg: renderCfg,
-		quit:      gg.Quit,
+		app:        gg,
+		game:       game,
+		width:      cfg.Width,
+		height:     cfg.Height,
+		duration:   time.Duration(renderCfg.BenchSeconds) * time.Second,
+		warmup:     time.Duration(renderCfg.BenchWarmupSeconds) * time.Second,
+		renderCfg:  renderCfg,
+		quit:       gg.Quit,
+		fullscreen: cfg.Fullscreen,
+		vsync:      renderCfg.VSync,
+		fps:        renderCfg.FPS,
 	}
 	if receiver, ok := game.(quitReceiver); ok {
 		receiver.SetQuitFunc(gg.Quit)
@@ -235,6 +248,7 @@ func mapMouseButton(button gpucontext.MouseButton) (input.MouseButton, bool) {
 }
 
 func (r *runner) update() error {
+	r.applyRuntimeSettings()
 	if r.duration > 0 && r.started.IsZero() {
 		r.started = time.Now()
 		r.lastLog = r.started
@@ -291,6 +305,33 @@ func (r *runner) update() error {
 		r.quit()
 	}
 	return nil
+}
+
+func (r *runner) applyRuntimeSettings() {
+	provider, ok := r.game.(runtimeSettingsProvider)
+	if !ok || provider == nil {
+		return
+	}
+	if fullscreen := provider.RuntimeFullscreen(); fullscreen != r.fullscreen {
+		r.app.SetFullscreen(fullscreen)
+		r.fullscreen = fullscreen
+	}
+	if fps := provider.RuntimeFPS(); fps != r.fps {
+		r.fps = fps
+		r.renderCfg.FPS = fps
+		r.fpsStarted = time.Time{}
+		r.fpsFrames = 0
+		r.fpsDisplay = 0
+		r.frameMSDisplay = 0
+	}
+	if vsync := provider.RuntimeVSync(); vsync != r.vsync {
+		r.vsync = vsync
+		r.renderCfg.VSync = vsync
+		if !r.vsyncWarned {
+			log.Printf("runtime vsync changed to %v; current gogpu backend applies vsync at startup", vsync)
+			r.vsyncWarned = true
+		}
+	}
 }
 
 func (r *runner) draw(ctx *gogpu.Context) error {

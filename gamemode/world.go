@@ -90,6 +90,7 @@ type WorldMode struct {
 	shopWindow       shopWindowState
 	statsWindow      statsWindowState
 	skillWindow      skillWindowState
+	settingsWindow   settingsWindowState
 	shortcutBar      shortcutBarState
 	mapFade          mapFadeState
 }
@@ -727,7 +728,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.cancelPendingSkillTargetFromInput(ctx) {
 		return nil, nil
 	}
-	if !m.escapeMenu.open && !m.deathModal.open {
+	if !m.escapeMenu.open && !m.deathModal.open && !m.settingsWindow.open {
 		m.updateCameraRotation(ctx)
 	}
 	if m.deathModal.update(ctx) {
@@ -739,7 +740,13 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.console.update(ctx) {
 		return nil, nil
 	}
+	if m.settingsWindow.update(ctx) {
+		return nil, nil
+	}
 	if m.escapeMenu.update(ctx) {
+		if m.escapeMenu.consumeAction() == escapeMenuActionSettings {
+			m.settingsWindow.openWindow(ctx)
+		}
 		return nil, nil
 	}
 	if m.shortcutBar.update(ctx, m) {
@@ -2635,6 +2642,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.shopWindow.draw(screen, ctx, m)
 	m.statsWindow.draw(screen, ctx)
 	m.skillWindow.draw(screen, ctx, m)
+	m.settingsWindow.draw(screen, ctx)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)

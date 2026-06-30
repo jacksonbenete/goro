@@ -28,21 +28,91 @@ type BGM struct {
 	current    string
 	playerID   int
 	enabled    bool
-	volume     float64
+	bgmVolume  float64
+	sfxVolume  float64
 	sfxPlayers []*oto.Player
 }
 
-func NewBGM(resources *res.Manager, enabled bool, volume float64) *BGM {
-	if volume < 0 {
-		volume = 0
-	}
-	if volume > 1 {
-		volume = 1
-	}
+func NewBGM(resources *res.Manager, enabled bool, bgmVolume, sfxVolume float64) *BGM {
 	return &BGM{
 		resources: resources,
 		enabled:   enabled,
-		volume:    volume,
+		bgmVolume: clampVolume(bgmVolume),
+		sfxVolume: clampVolume(sfxVolume),
+	}
+}
+
+func clampVolume(volume float64) float64 {
+	if volume < 0 {
+		return 0
+	}
+	if volume > 1 {
+		return 1
+	}
+	return volume
+}
+
+func (b *BGM) Enabled() bool {
+	if b == nil {
+		return false
+	}
+	return b.enabled
+}
+
+func (b *BGM) SetEnabled(enabled bool) {
+	if b == nil || b.enabled == enabled {
+		return
+	}
+	b.enabled = enabled
+	if !enabled {
+		b.Stop()
+	}
+}
+
+func (b *BGM) Volume() float64 {
+	return b.BGMVolume()
+}
+
+func (b *BGM) BGMVolume() float64 {
+	if b == nil {
+		return 0
+	}
+	return b.bgmVolume
+}
+
+func (b *BGM) SFXVolume() float64 {
+	if b == nil {
+		return 0
+	}
+	return b.sfxVolume
+}
+
+func (b *BGM) SetVolume(volume float64) {
+	b.SetBGMVolume(volume)
+	b.SetSFXVolume(volume)
+}
+
+func (b *BGM) SetBGMVolume(volume float64) {
+	if b == nil {
+		return
+	}
+	volume = clampVolume(volume)
+	b.bgmVolume = volume
+	if b.player != nil {
+		b.player.SetVolume(volume)
+	}
+}
+
+func (b *BGM) SetSFXVolume(volume float64) {
+	if b == nil {
+		return
+	}
+	volume = clampVolume(volume)
+	b.sfxVolume = volume
+	for _, player := range b.sfxPlayers {
+		if player != nil {
+			player.SetVolume(volume)
+		}
 	}
 }
 
@@ -102,14 +172,14 @@ func (b *BGM) Play(path string) error {
 	}
 	loop := newInfinitePCM(pcm)
 	player := context.NewPlayer(loop)
-	player.SetVolume(b.volume)
+	player.SetVolume(b.bgmVolume)
 
 	b.stopCurrent()
 	b.playerID++
 	b.player = player
 	b.current = path
 	player.Play()
-	log.Printf("bgm playing id=%d path=%s source=%s decoder=%s bytes=%d pcm_len=%d sample_rate=%d volume=%.2f", b.playerID, path, source, decoder, len(data), len(pcm), b.sampleRate, b.volume)
+	log.Printf("bgm playing id=%d path=%s source=%s decoder=%s bytes=%d pcm_len=%d sample_rate=%d volume=%.2f", b.playerID, path, source, decoder, len(data), len(pcm), b.sampleRate, b.bgmVolume)
 	return nil
 }
 
@@ -140,7 +210,7 @@ func (b *BGM) PlaySFX(path string) (string, error) {
 		}
 	}
 	player := context.NewPlayer(bytes.NewReader(pcm))
-	player.SetVolume(b.volume)
+	player.SetVolume(b.sfxVolume)
 	b.trimSFXPlayers()
 	b.sfxPlayers = append(b.sfxPlayers, player)
 	player.Play()
