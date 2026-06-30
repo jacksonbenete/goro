@@ -1341,6 +1341,63 @@ func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
 	}
 }
 
+func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectIncAgility)
+	if !ok {
+		t.Fatal("increase agility effect spec missing")
+	}
+	if spec.duration != 1500*time.Millisecond {
+		t.Fatalf("duration = %s, want 1500ms", spec.duration)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_incagility.wav" {
+		t.Fatalf("sfx = %#v", spec.sfx)
+	}
+	if len(spec.components) != 4 {
+		t.Fatalf("components = %d, want 4", len(spec.components))
+	}
+	particleCases := []struct {
+		index     int
+		alphaMax  float64
+		delay     time.Duration
+		duplicate int
+	}{
+		{index: 0, alphaMax: 1, delay: 500 * time.Millisecond, duplicate: 7},
+		{index: 1, alphaMax: 0.75, delay: 400 * time.Millisecond, duplicate: 3},
+		{index: 2, alphaMax: 1, delay: 0, duplicate: 10},
+	}
+	for _, tc := range particleCases {
+		component := spec.components[tc.index]
+		if component.kind != effectPrimitive3D || component.textureFile != "effect/ac_center2.tga" {
+			t.Fatalf("particle %d resource = %+v", tc.index, component)
+		}
+		if component.duration != 1000*time.Millisecond || component.delay != tc.delay || component.duplicateDelay != 80*time.Millisecond || component.duplicate != tc.duplicate {
+			t.Fatalf("particle %d timing = %+v", tc.index, component)
+		}
+		if component.alphaMax != tc.alphaMax || component.fadeIn || !component.fadeOut {
+			t.Fatalf("particle %d fade = %+v", tc.index, component)
+		}
+		if component.posXRand != 1.5 || component.posYRand != 1 || component.posZStartRand != 1 || component.posZStartMiddle != 1 || component.posZEndRand != 1 || component.posZEndMiddle != 6 {
+			t.Fatalf("particle %d position = %+v", tc.index, component)
+		}
+		if component.sizeStart != 45*roBrowserEffectPixelRatio || component.sizeEnd != 45*roBrowserEffectPixelRatio || component.sizeRand != 15*roBrowserEffectPixelRatio {
+			t.Fatalf("particle %d size = %+v", tc.index, component)
+		}
+	}
+	overlay := spec.components[3]
+	if overlay.kind != effectPrimitive3D || overlay.textureFile != "effect/agi_up.bmp" {
+		t.Fatalf("overlay resource = %+v", overlay)
+	}
+	if overlay.duration != 1000*time.Millisecond || overlay.alphaMax != 1 || !overlay.fadeIn || !overlay.fadeOut {
+		t.Fatalf("overlay timing/fade = %+v", overlay)
+	}
+	if overlay.posZ != 0.4 || overlay.posZEnd != 3 {
+		t.Fatalf("overlay position = %+v", overlay)
+	}
+	if overlay.sizeStart != 100*roBrowserEffectPixelRatio || overlay.sizeEnd != 100*roBrowserEffectPixelRatio || !overlay.sizeSmooth {
+		t.Fatalf("overlay size = %+v", overlay)
+	}
+}
+
 func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 	source, err := os.ReadFile("/home/kivutar/src/robr/src/DB/Effects/EffectTable.js")
 	if os.IsNotExist(err) {

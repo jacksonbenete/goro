@@ -532,8 +532,30 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		},
 	},
 	effectThunderStorm: strEffectSpec("thunderstorm", "effect\\magician_thunderstorm.wav"),
-	effectIncAgility:   soundOnlyEffectSpec("effect\\ef_incagility.wav"),
-	effectDecAgility:   soundOnlyEffectSpec("effect\\ef_decagility.wav"),
+	effectIncAgility: {
+		duration: 1500 * time.Millisecond,
+		sfx:      []string{"effect\\ef_incagility.wav"},
+		components: []worldEffectComponent{
+			incAgilityParticleComponent(1, 500*time.Millisecond, 7),
+			incAgilityParticleComponent(0.75, 400*time.Millisecond, 3),
+			incAgilityParticleComponent(1, 0, 10),
+			{
+				kind:        effectPrimitive3D,
+				color:       color.RGBA{R: 255, G: 255, B: 255, A: 255},
+				textureFile: "effect/agi_up.bmp",
+				duration:    1000 * time.Millisecond,
+				alphaMax:    1,
+				fadeIn:      true,
+				fadeOut:     true,
+				posZ:        0.4,
+				posZEnd:     3,
+				sizeStart:   100 * roBrowserEffectPixelRatio,
+				sizeEnd:     100 * roBrowserEffectPixelRatio,
+				sizeSmooth:  true,
+			},
+		},
+	},
+	effectDecAgility: soundOnlyEffectSpec("effect\\ef_decagility.wav"),
 	effectAqua: {
 		sfx: []string{"effect\\ef_aqua.wav"},
 		components: []worldEffectComponent{{
@@ -863,4 +885,27 @@ func bluePotionEffectSpec() worldEffectSpec {
 	spec := potionEffectSpec("\xc6\xc4\xb6\xf5\xc6\xf7\xbc\xc7", color.RGBA{R: 92, G: 150, B: 255, A: 255})
 	spec.sfx = []string{"effect\\\xc8\xed\xb1\xe2.wav"}
 	return spec
+}
+
+func incAgilityParticleComponent(alpha float64, delay time.Duration, duplicate int) worldEffectComponent {
+	return worldEffectComponent{
+		kind:            effectPrimitive3D,
+		color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
+		textureFile:     "effect/ac_center2.tga",
+		duration:        1000 * time.Millisecond,
+		delay:           delay,
+		duplicateDelay:  80 * time.Millisecond,
+		alphaMax:        alpha,
+		fadeOut:         true,
+		posXRand:        1.5,
+		posYRand:        1,
+		posZStartRand:   1,
+		posZStartMiddle: 1,
+		posZEndRand:     1,
+		posZEndMiddle:   6,
+		sizeStart:       45 * roBrowserEffectPixelRatio,
+		sizeEnd:         45 * roBrowserEffectPixelRatio,
+		sizeRand:        15 * roBrowserEffectPixelRatio,
+		duplicate:       duplicate,
+	}
 }
