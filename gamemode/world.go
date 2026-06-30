@@ -678,6 +678,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.applyWarpPointList(ctx, warpList)
 			continue
 		}
+		if memo, ok, err := network.ParseRememberWarpPointAck(pkt); err != nil {
+			log.Printf("parse remember warp point ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyRememberWarpPointAck(ctx, memo)
+			continue
+		}
 		if fail, ok, err := network.ParseSkillFailAck(pkt); err != nil {
 			log.Printf("parse skill fail ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {

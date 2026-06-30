@@ -86,6 +86,10 @@ type WarpPointList struct {
 	MapNames []string
 }
 
+type RememberWarpPointAck struct {
+	Result byte
+}
+
 func ParseSkillInfoList(packet Packet) (SkillInfoList, bool, error) {
 	if packet.ID != 0x010F {
 		return SkillInfoList{}, false, nil
@@ -289,10 +293,26 @@ func ParseWarpPointList(packet Packet) (WarpPointList, bool, error) {
 	}, true, nil
 }
 
+func ParseRememberWarpPointAck(packet Packet) (RememberWarpPointAck, bool, error) {
+	if packet.ID != 0x011E {
+		return RememberWarpPointAck{}, false, nil
+	}
+	if len(packet.Data) < 3 {
+		return RememberWarpPointAck{}, false, fmt.Errorf("ZC_ACK_REMEMBER_WARPPOINT too short: %d", len(packet.Data))
+	}
+	return RememberWarpPointAck{Result: packet.Data[2]}, true, nil
+}
+
 func BuildSkillLevelUpPacket(skillID uint16) []byte {
 	packet := make([]byte, 4)
 	binary.LittleEndian.PutUint16(packet[0:2], 0x0112)
 	binary.LittleEndian.PutUint16(packet[2:4], skillID)
+	return packet
+}
+
+func BuildRememberWarpPointPacket() []byte {
+	packet := make([]byte, 2)
+	binary.LittleEndian.PutUint16(packet[0:2], 0x011D)
 	return packet
 }
 

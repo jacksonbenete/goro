@@ -28,3 +28,17 @@ func TestConsoleNoShiftCommandTogglesSessionPreference(t *testing.T) {
 		t.Fatal("noshift was not disabled")
 	}
 }
+
+func TestConsoleMemoCommandWithoutNetwork(t *testing.T) {
+	console := &chatConsole{input: "/memo", active: true}
+
+	if !console.submitCommand(Context{}, "/memo") {
+		t.Fatal("memo command was not handled")
+	}
+	if console.active || console.input != "" {
+		t.Fatalf("console active=%t input=%q, want closed empty input", console.active, console.input)
+	}
+	if len(console.messages) != 1 || console.messages[0].text != "send failed: not connected" {
+		t.Fatalf("console messages = %+v", console.messages)
+	}
+}

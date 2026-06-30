@@ -69,6 +69,7 @@ const (
 	effectPharmacyOK    = 305
 	effectPharmacyFail  = 306
 	effectHeal          = 312
+	effectReadyPortal   = 316
 	effectPortal        = 317
 	effectHealOffensive = 320
 	effectBaseLevelUp   = 371
@@ -855,6 +856,7 @@ var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
 	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, base: time.Second, perLevel: 200 * time.Millisecond}, forceGroundTarget: true, groundCastMarkerSize: 5}, // MG_THUNDERSTORM
 	24:  {effectIDs: []int{effectRuwach}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                                     // AL_RUWACH; roBrowser also keeps EF_HIT2 as the reveal hit effect.
 	25:  {groundEffectIDs: []int{effectPneuma}, forceGroundTarget: true},                                                                                                                                                          // AL_PNEUMA
+	27:  {forceGroundTarget: true},                                                                                                                                                                                                // AL_WARP; the server sends ZC_WARPLIST, then the selected map creates the portal skill unit.
 	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}, recoveryFloater: roBrowserSkillRecoveryFloater{enabled: true, color: recoveryHPColor, kind: damageFloaterRecoveryHP}},                           // AL_HEAL
 	29:  {effectIDs: []int{effectIncAgility}},                                                                                                                                                                                     // AL_INCAGI
 	30:  {effectIDs: []int{effectDecAgility}},                                                                                                                                                                                     // AL_DECAGI
@@ -914,13 +916,12 @@ type roBrowserSkillUnitEffect struct {
 }
 
 // This mirrors roBrowser's DB/Skills/SkillUnit.js: unit id -> effect id.
-// Keep only effect IDs that Goro can render today; roBrowser maps unit 129 to
-// EF_READYPORTAL2, but that effect spec is not implemented here yet.
 var roBrowserSkillUnitEffects = map[uint16]roBrowserSkillUnitEffect{
-	126: {effectIDs: []int{effectSafetyWall}}, // UNT_SAFETYWALL -> EF_GLASSWALL2
-	127: {effectIDs: []int{effectFireWall}},   // UNT_FIREWALL -> EF_FIREWALL
-	128: {effectIDs: []int{effectPortal}},     // UNT_WARPPORTAL -> EF_PORTAL2
-	133: {effectIDs: []int{effectPneuma}},     // UNT_PNEUMA -> EF_PNEUMA
+	126: {effectIDs: []int{effectSafetyWall}},  // UNT_SAFETYWALL -> EF_GLASSWALL2
+	127: {effectIDs: []int{effectFireWall}},    // UNT_FIREWALL -> EF_FIREWALL
+	128: {effectIDs: []int{effectPortal}},      // UNT_WARPPORTAL -> EF_PORTAL2
+	129: {effectIDs: []int{effectReadyPortal}}, // UNT_PRE_WARPPORTAL -> EF_READYPORTAL2
+	133: {effectIDs: []int{effectPneuma}},      // UNT_PNEUMA -> EF_PNEUMA
 }
 
 func skillUnitEffectIDs(unitID uint16) []int {
@@ -1003,6 +1004,26 @@ func teleportCylinderComponent(bottomSize, topSize, height float64) worldEffectC
 		bottomSize:       bottomSize,
 		topSize:          topSize,
 		height:           height,
+		totalCircleSides: 32,
+		circleSides:      32,
+		blendAdditive:    true,
+	}
+}
+
+func readyPortalCylinderComponent() worldEffectComponent {
+	return worldEffectComponent{
+		kind:             effectComponentCylinder,
+		color:            color.RGBA{R: 153, G: 153, B: 255, A: 255},
+		textureName:      "ring_blue",
+		duration:         500 * time.Millisecond,
+		alphaMax:         0.4,
+		fadeOut:          true,
+		rotate:           true,
+		animation:        4,
+		bottomSize:       2.4,
+		topSize:          3.9,
+		height:           0.1,
+		posZ:             0.1,
 		totalCircleSides: 32,
 		circleSides:      32,
 		blendAdditive:    true,

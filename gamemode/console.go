@@ -193,9 +193,29 @@ func (c *chatConsole) submitCommand(ctx Context, text string) bool {
 		c.active = false
 		c.invalidate()
 		return true
+	case "/memo":
+		c.submitMemo(ctx)
+		return true
 	default:
 		return false
 	}
+}
+
+func (c *chatConsole) submitMemo(ctx Context) {
+	if ctx.Network == nil {
+		c.addErrorMessage("send failed: not connected")
+		c.input = ""
+		c.active = false
+		c.invalidate()
+		return
+	}
+	if err := ctx.Network.SendRememberWarpPoint(); err != nil {
+		c.addErrorMessage("send failed: %s", err)
+		return
+	}
+	c.input = ""
+	c.active = false
+	c.invalidate()
 }
 
 func (c *chatConsole) submitSitStand(ctx Context, sit bool) {

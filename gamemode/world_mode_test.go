@@ -693,14 +693,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 68 {
-		t.Fatalf("implemented effects = %d, want 68", coverage.Implemented)
+	if coverage.Implemented != 69 {
+		t.Fatalf("implemented effects = %d, want 69", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 11.2 || coverage.ActivePercent > 11.3 {
-		t.Fatalf("active coverage = %.3f, want about 11.2", coverage.ActivePercent)
+	if coverage.ActivePercent < 11.3 || coverage.ActivePercent > 11.4 {
+		t.Fatalf("active coverage = %.3f, want about 11.4", coverage.ActivePercent)
 	}
 }
 
@@ -1348,6 +1348,9 @@ func TestTeleportSkillIsSelfTargetDespiteAttackRange(t *testing.T) {
 	if !isSelfTargetSkill(session.Skill{ID: 26, Level: 2, Type: skillTargetEnemy, Range: 1}) {
 		t.Fatal("AL_TELEPORT should self-cast even when the skill list reports attack range")
 	}
+	if !isGroundTargetSkill(session.Skill{ID: 27, Level: 4, Type: skillTargetEnemy, Range: 9}) {
+		t.Fatal("AL_WARP should ground-target even when the skill list reports attack range")
+	}
 }
 
 func TestTeleportModalRules(t *testing.T) {
@@ -1376,11 +1379,35 @@ func TestTeleportModalRules(t *testing.T) {
 	}
 }
 
+func TestWarpPortalListOpensDestinationModal(t *testing.T) {
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{Skills: session.Skills{List: []session.Skill{
+		{ID: 27, Level: 4, Type: skillTargetPlace, Range: 9},
+	}}}}
+	mode.applyWarpPointList(ctx, network.WarpPointList{SkillID: 27, MapNames: []string{"prontera", "geffen", "payon"}})
+	if !mode.teleportModal.open {
+		t.Fatal("warp portal list should open the destination modal")
+	}
+	if mode.teleportModal.title() != "Warp Portal" {
+		t.Fatalf("modal title = %q", mode.teleportModal.title())
+	}
+	buttons := mode.teleportModal.buttons()
+	if len(buttons) != 4 {
+		t.Fatalf("button count = %d, want 4", len(buttons))
+	}
+	if buttons[0].label != "Save Point: prontera" || buttons[0].mapName != "prontera" {
+		t.Fatalf("first button = %+v", buttons[0])
+	}
+	if buttons[3].action != teleportModalActionCancel {
+		t.Fatalf("last button = %+v, want cancel", buttons[3])
+	}
+}
+
 func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_SAFETYWALL", skillUnitEffectIDs(126), effectSafetyWall)
 	expectEffectIDs(t, "UNT_FIREWALL", skillUnitEffectIDs(127), effectFireWall)
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
-	expectEffectIDs(t, "UNT_PRE_WARPPORTAL", skillUnitEffectIDs(129))
+	expectEffectIDs(t, "UNT_PRE_WARPPORTAL", skillUnitEffectIDs(129), effectReadyPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
 }
 

@@ -277,6 +277,17 @@ func (c *Client) SendSkillLevelUp(skillID uint16) error {
 	return err
 }
 
+func (c *Client) SendRememberWarpPoint() error {
+	packet := BuildRememberWarpPointPacket()
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REMEMBER_WARPPOINT opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
+	} else {
+		log.Printf("send CZ_REMEMBER_WARPPOINT failed opcode=0x%04X len=%d client_date=%d: %v", ID(packet), len(packet), c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendUseSkillToID(skillID, level uint16, targetID uint32) error {
 	packet := BuildUseSkillToIDPacketForClientDate(skillID, level, targetID, c.clientDate)
 	err := c.Send(packet)

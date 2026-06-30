@@ -765,27 +765,18 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			teleportCylinderComponent(1.0, 1.3, 5),
 		},
 	},
+	effectReadyPortal: {
+		duration: 500 * time.Millisecond,
+		sfx:      []string{"effect\\ef_readyportal.wav"},
+		components: []worldEffectComponent{
+			readyPortalCylinderComponent(),
+		},
+	},
 	effectPortal: {
 		duration: 25000 * time.Millisecond,
 		sfx:      []string{"effect\\ef_readyportal.wav", "effect\\ef_portal.wav"},
 		components: []worldEffectComponent{
-			{
-				kind:             effectComponentCylinder,
-				color:            color.RGBA{R: 153, G: 153, B: 255, A: 255},
-				textureName:      "ring_blue",
-				duration:         500 * time.Millisecond,
-				alphaMax:         0.4,
-				fadeOut:          true,
-				rotate:           true,
-				animation:        4,
-				bottomSize:       2.4,
-				topSize:          3.9,
-				height:           0.1,
-				posZ:             0.1,
-				totalCircleSides: 32,
-				circleSides:      32,
-				blendAdditive:    true,
-			},
+			readyPortalCylinderComponent(),
 			portalCylinderComponent(0.6, 0.6, 15, 0, "ring_blue", 0.3),
 			portalCylinderComponent(0.8, 0.8, 13, 0, "ring_blue", 0.3),
 			{

@@ -103,6 +103,30 @@ func TestBuildSelectWarpPointPacket(t *testing.T) {
 	}
 }
 
+func TestBuildRememberWarpPointPacket(t *testing.T) {
+	packet := BuildRememberWarpPointPacket()
+	if len(packet) != 2 {
+		t.Fatalf("packet len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[0:2]); got != 0x011D {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+}
+
+func TestParseRememberWarpPointAck(t *testing.T) {
+	data := []byte{0x1E, 0x01, 0x02}
+	ack, ok, err := ParseRememberWarpPointAck(Packet{ID: 0x011E, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("remember warp point ack not parsed")
+	}
+	if ack.Result != 2 {
+		t.Fatalf("result = %d", ack.Result)
+	}
+}
+
 func TestParseWarpPointList(t *testing.T) {
 	data := make([]byte, 68)
 	binary.LittleEndian.PutUint16(data[0:2], 0x011C)
