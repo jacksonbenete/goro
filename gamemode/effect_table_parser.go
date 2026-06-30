@@ -191,6 +191,8 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			color:            effectColorFields(fields),
 			textureName:      fieldString(fields, "textureName"),
 			duration:         fieldDuration(fields, "duration"),
+			repeat:           fieldBool(fields, "repeat"),
+			repeatDelay:      fieldSignedDuration(fields, "repeatDelay"),
 			alphaMax:         fieldFloat(fields, "alphaMax"),
 			fade:             fieldBool(fields, "fade"),
 			fadeIn:           fieldBool(fields, "fadeIn"),
@@ -247,6 +249,8 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			kind:        effectComponent2D,
 			textureFile: file,
 			duration:    fieldDuration(fields, "duration"),
+			repeat:      fieldBool(fields, "repeat"),
+			repeatDelay: fieldSignedDuration(fields, "repeatDelay"),
 			alphaMax:    fieldFloat(fields, "alphaMax"),
 			fade:        fieldBool(fields, "fade"),
 			fadeIn:      fieldBool(fields, "fadeIn"),
@@ -290,6 +294,8 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			duration:         fieldDuration(fields, "duration"),
 			delay:            fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
 			duplicateDelay:   duplicateDelay,
+			repeat:           fieldBool(fields, "repeat"),
+			repeatDelay:      fieldSignedDuration(fields, "repeatDelay"),
 			alphaMax:         fieldFloat(fields, "alphaMax"),
 			alphaMaxDelta:    fieldFloat(fields, "alphaMaxDelta"),
 			sparkling:        fieldBool(fields, "sparkling"),
@@ -552,6 +558,14 @@ func fieldBool(fields map[string]string, key string) bool {
 func fieldDuration(fields map[string]string, key string) time.Duration {
 	value := fieldFloat(fields, key)
 	if value <= 0 {
+		return 0
+	}
+	return time.Duration(value * float64(time.Millisecond))
+}
+
+func fieldSignedDuration(fields map[string]string, key string) time.Duration {
+	value := fieldFloat(fields, key)
+	if value == 0 {
 		return 0
 	}
 	return time.Duration(value * float64(time.Millisecond))

@@ -611,6 +611,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if look, ok, err := network.ParseActorLookChange(pkt); err != nil {
 			log.Printf("parse actor look change 0x%04X: %v", pkt.ID, err)
 		} else if ok {
+			if m.applySkillUnitLookChange(ctx, look) {
+				continue
+			}
 			if applyActorLookChange(ctx, look) {
 				if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, selectedCharacter(ctx.Session), ctx.Session.Sex); view != nil {
 					m.playerView = view

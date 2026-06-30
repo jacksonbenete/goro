@@ -1407,7 +1407,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_SAFETYWALL", skillUnitEffectIDs(126), effectSafetyWall)
 	expectEffectIDs(t, "UNT_FIREWALL", skillUnitEffectIDs(127), effectFireWall)
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
-	expectEffectIDs(t, "UNT_PRE_WARPPORTAL", skillUnitEffectIDs(129), effectReadyPortal)
+	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
 }
 
@@ -1538,6 +1538,9 @@ func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
 	first := spec.components[0]
 	if first.kind != effectComponentCylinder || first.textureName != "ring_blue" || first.duration != 500*time.Millisecond || first.animation != 4 {
 		t.Fatalf("first portal component = %+v", first)
+	}
+	if !first.repeat || first.repeatDelay != -300*time.Millisecond {
+		t.Fatalf("first portal repeat = %t delay=%s, want roBrowser repeat -300ms", first.repeat, first.repeatDelay)
 	}
 	if spec.components[3].textureName != "alpha1" || spec.components[3].posZ != 2 || spec.components[3].height != 1 {
 		t.Fatalf("portal cap component = %+v", spec.components[3])
@@ -3980,6 +3983,56 @@ func TestWarpPortalSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9003})
 	if len(mode.worldEffects) != 0 {
 		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
+	}
+}
+
+func TestRathenaActiveWarpPortalSkillUnitEntryPersistsUntilDisappear(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9005, CreatorID: 2000000, UnitID: 129, X: 30, Y: 40, Visible: true})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	effect := mode.worldEffects[0]
+	if effect.actorID != 9005 || effect.effectID != effectPortal || effect.x != 30 || effect.y != 40 {
+		t.Fatalf("effect = %+v", effect)
+	}
+	if effect.expires.Sub(effect.starts) < skillUnitEffectFallbackDuration {
+		t.Fatalf("portal lifetime = %s, want skill unit fallback", effect.expires.Sub(effect.starts))
+	}
+	if effect.duration != 0 {
+		t.Fatalf("portal animation override = %s, want native component timing", effect.duration)
+	}
+
+	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9005})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
+	}
+}
+
+func TestWarpPortalSkillUnitLookChangeKeepsPortalAtSameCell(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9006, CreatorID: 2000000, UnitID: 129, X: 30, Y: 40, Visible: true})
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectPortal {
+		t.Fatalf("world effects before look change = %+v, want portal", mode.worldEffects)
+	}
+
+	if !mode.applySkillUnitLookChange(ctx, network.ActorLookChange{ID: 9006, Type: 0, Value: 128}) {
+		t.Fatal("skill unit look change was not handled")
+	}
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1: %+v", len(mode.worldEffects), mode.worldEffects)
+	}
+	effect := mode.worldEffects[0]
+	if effect.actorID != 9006 || effect.effectID != effectPortal || effect.x != 30 || effect.y != 40 {
+		t.Fatalf("effect after look change = %+v, want portal on same unit cell", effect)
 	}
 }
 

@@ -110,6 +110,8 @@ const (
 	effectEnergyCoat    = 169
 )
 
+const skillUnitEffectFallbackDuration = 5 * time.Minute
+
 type roBrowserEffectComponentKind int
 
 const (
@@ -159,6 +161,8 @@ type worldEffectComponent struct {
 	durationRandMax    time.Duration
 	delay              time.Duration
 	duplicateDelay     time.Duration
+	repeat             bool
+	repeatDelay        time.Duration
 	strFile            string
 	strMinFile         string
 	strRandMin         int
@@ -412,29 +416,64 @@ func (m *WorldMode) applySkillUnitEntry(ctx Context, entry network.SkillUnitEntr
 	}
 	now := time.Now()
 	for _, effectID := range effectIDs {
-		if m.addWorldEffectAtCellWithActor(ctx, effectID, entry.ID, int(entry.X), int(entry.Y), now) {
+		if m.addWorldEffectAtCellLifetime(ctx, effectID, entry.ID, int(entry.X), int(entry.Y), now, skillUnitEffectFallbackDuration) {
 			log.Printf("skill unit effect unit=%d id=%d creator=%d cell=%d,%d effect=%d", entry.UnitID, entry.ID, entry.CreatorID, entry.X, entry.Y, effectID)
 		}
 	}
+}
+
+func (m *WorldMode) applySkillUnitLookChange(ctx Context, look network.ActorLookChange) bool {
+	if look.Type != 0 || look.ID == 0 {
+		return false
+	}
+	effectIDs := skillUnitEffectIDs(uint16(look.Value))
+	if len(effectIDs) == 0 {
+		return false
+	}
+	x, y, ok := m.skillUnitEffectCell(look.ID)
+	if !ok {
+		return false
+	}
+	m.removeSkillUnitEffects(look.ID)
+	now := time.Now()
+	for _, effectID := range effectIDs {
+		if m.addWorldEffectAtCellLifetime(ctx, effectID, look.ID, x, y, now, skillUnitEffectFallbackDuration) {
+			log.Printf("skill unit effect changed id=%d unit=%d cell=%d,%d effect=%d", look.ID, look.Value, x, y, effectID)
+		}
+	}
+	return true
 }
 
 func (m *WorldMode) applySkillUnitDisappear(disappear network.SkillUnitDisappear) {
 	if disappear.ID == 0 {
 		return
 	}
+	if m.removeSkillUnitEffects(disappear.ID) {
+		log.Printf("skill unit effect removed id=%d", disappear.ID)
+	}
+}
+
+func (m *WorldMode) skillUnitEffectCell(id uint32) (int, int, bool) {
+	for _, effect := range m.worldEffects {
+		if effect.actorID == id {
+			return effect.x, effect.y, true
+		}
+	}
+	return 0, 0, false
+}
+
+func (m *WorldMode) removeSkillUnitEffects(id uint32) bool {
 	active := m.worldEffects[:0]
 	removed := false
 	for _, effect := range m.worldEffects {
-		if effect.actorID == disappear.ID {
+		if effect.actorID == id {
 			removed = true
 			continue
 		}
 		active = append(active, effect)
 	}
 	m.worldEffects = active
-	if removed {
-		log.Printf("skill unit effect removed id=%d", disappear.ID)
-	}
+	return removed
 }
 
 func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.SpecialEffectNotify) {
@@ -589,6 +628,41 @@ func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, act
 
 func (m *WorldMode) addWorldEffectAtCellDuration(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration) bool {
 	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, durationOverride, 0)
+}
+
+func (m *WorldMode) addWorldEffectAtCellLifetime(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, lifetimeOverride time.Duration) bool {
+	if ctx.World == nil {
+		return false
+	}
+	spec, ok := worldEffectSpecForID(effectID)
+	if !ok {
+		return false
+	}
+	duration := spec.duration
+	for _, component := range spec.components {
+		componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		if componentDuration > duration {
+			duration = componentDuration
+		}
+	}
+	if duration <= 0 {
+		duration = 500 * time.Millisecond
+	}
+	if lifetimeOverride > duration {
+		duration = lifetimeOverride
+	}
+	m.worldEffects = append(m.worldEffects, worldEffect{
+		effectID: effectID,
+		actorID:  actorID,
+		x:        x,
+		y:        y,
+		starts:   starts,
+		expires:  starts.Add(duration),
+	})
+	if len(spec.sfx) > 0 {
+		m.scheduleSound(starts, spec.sfx...)
+	}
+	return true
 }
 
 func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
@@ -915,13 +989,16 @@ type roBrowserSkillUnitEffect struct {
 	effectIDs []int
 }
 
-// This mirrors roBrowser's DB/Skills/SkillUnit.js: unit id -> effect id.
+// Mostly mirrors roBrowser's DB/Skills/SkillUnit.js: unit id -> effect id.
+// rAthena's 2008 path sends UNT_WARP_ACTIVE (129) after destination selection;
+// display the full portal there because a separate UNT_WARPPORTAL entry is not
+// guaranteed before the unit's LOOK_BASE morph.
 var roBrowserSkillUnitEffects = map[uint16]roBrowserSkillUnitEffect{
-	126: {effectIDs: []int{effectSafetyWall}},  // UNT_SAFETYWALL -> EF_GLASSWALL2
-	127: {effectIDs: []int{effectFireWall}},    // UNT_FIREWALL -> EF_FIREWALL
-	128: {effectIDs: []int{effectPortal}},      // UNT_WARPPORTAL -> EF_PORTAL2
-	129: {effectIDs: []int{effectReadyPortal}}, // UNT_PRE_WARPPORTAL -> EF_READYPORTAL2
-	133: {effectIDs: []int{effectPneuma}},      // UNT_PNEUMA -> EF_PNEUMA
+	126: {effectIDs: []int{effectSafetyWall}}, // UNT_SAFETYWALL -> EF_GLASSWALL2
+	127: {effectIDs: []int{effectFireWall}},   // UNT_FIREWALL -> EF_FIREWALL
+	128: {effectIDs: []int{effectPortal}},     // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
+	129: {effectIDs: []int{effectPortal}},     // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
+	133: {effectIDs: []int{effectPneuma}},     // UNT_PNEUMA -> EF_PNEUMA
 }
 
 func skillUnitEffectIDs(unitID uint16) []int {
@@ -1016,6 +1093,8 @@ func readyPortalCylinderComponent() worldEffectComponent {
 		color:            color.RGBA{R: 153, G: 153, B: 255, A: 255},
 		textureName:      "ring_blue",
 		duration:         500 * time.Millisecond,
+		repeat:           true,
+		repeatDelay:      -300 * time.Millisecond,
 		alphaMax:         0.4,
 		fadeOut:          true,
 		rotate:           true,
@@ -1193,10 +1272,10 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx Context, projecti
 		worldZ := terrainHeightAt(ctx.World, x, y) + 0.07
 		for index, component := range spec.components {
 			componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
-			if effect.duration > componentDuration {
+			if effect.duration > componentDuration && !component.repeat {
 				componentDuration = effect.duration
 			}
-			progress := worldEffectComponentProgress(effect.starts, componentDuration, now)
+			progress := worldEffectComponentProgressForDraw(effect.starts, component, componentDuration, now)
 			if progress >= 1 {
 				continue
 			}
@@ -1248,6 +1327,28 @@ func worldEffectComponentProgress(starts time.Time, duration time.Duration, now 
 		return 1
 	}
 	return clampFloat(float64(now.Sub(starts))/float64(duration), 0, 1)
+}
+
+func worldEffectComponentProgressForDraw(starts time.Time, component worldEffectComponent, duration time.Duration, now time.Time) float64 {
+	if !component.repeat {
+		return worldEffectComponentProgress(starts, duration, now)
+	}
+	if duration <= 0 {
+		return 1
+	}
+	componentStart := starts.Add(component.delay)
+	if now.Before(componentStart) {
+		return 1
+	}
+	cycle := duration + component.repeatDelay
+	if cycle <= 0 {
+		cycle = duration
+	}
+	cycleElapsed := now.Sub(componentStart) % cycle
+	if cycleElapsed >= duration {
+		return 1
+	}
+	return clampFloat(float64(cycleElapsed)/float64(duration), 0, 1)
 }
 
 func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {

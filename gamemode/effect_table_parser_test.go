@@ -556,4 +556,7 @@ func TestParseRobrowserEffectTableRealFileWhenAvailable(t *testing.T) {
 	if !slices.Equal(portal.sfx, []string{`effect\ef_readyportal.wav`, `effect\ef_portal.wav`}) {
 		t.Fatalf("EF_PORTAL2 sfx = %v", portal.sfx)
 	}
+	if !portal.components[0].repeat || portal.components[0].repeatDelay != -300*time.Millisecond {
+		t.Fatalf("EF_PORTAL2 first component repeat = %t delay=%s", portal.components[0].repeat, portal.components[0].repeatDelay)
+	}
 }
