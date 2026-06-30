@@ -15,7 +15,8 @@ export default {
 			//EF_JOBLVUP Job Level Up
 			type: 'STR',
 			file: 'joblvup',
-			attachedEntity: true
+			attachedEntity: true,
+			head: true
 		}
 	],
 }
@@ -36,6 +37,9 @@ export default {
 	component := spec.components[0]
 	if component.kind != effectPrimitiveSTR || component.strFile != "joblvup" {
 		t.Fatalf("effect 158 component = %#v, want STR joblvup", component)
+	}
+	if !component.attachedEntity || !component.spriteHead {
+		t.Fatalf("effect 158 STR attachment flags = %#v", component)
 	}
 }
 
@@ -182,13 +186,30 @@ export default {
 			red: 1,
 			green: 1,
 			blue: 0.85,
+			alphaMaxDelta: -0.25,
+			posxStartRand: 1.5,
+			posxStartRandMiddle: 5,
+			posyStartRand: 2.5,
+			posyStartRandMiddle: -1,
 			posxEndRand: 3.5,
+			posxEndRandMiddle: -2,
 			posyEndRand: 3.5,
+			posyEndRandMiddle: 4,
 			poszEndRand: 1,
 			poszEndRandMiddle: 3,
+			posxSmooth: true,
+			posySmooth: true,
+			poszSmooth: true,
 			sizeEnd: 10,
 			sizeStart: 200,
-			sizeRand: 20
+			sizeRand: 20,
+			sizeDelta: -60,
+			angle: 90,
+			toAngle: -270,
+			rotate: true,
+			rotateWithCamera: true,
+			blendMode: 2,
+			overlay: true
 		},
 		{ wav: 'effect/ef_steal' }
 	],
@@ -223,8 +244,20 @@ export default {
 	if component.sizeStart != 200*roBrowserEffectPixelRatio || component.sizeEnd != 10*roBrowserEffectPixelRatio || component.sizeRand != 20*roBrowserEffectPixelRatio {
 		t.Fatalf("effect 18 size = %#v", component)
 	}
-	if component.posXEndRand != 3.5 || component.posYEndRand != 3.5 || component.posZEndRand != 1 || component.posZEndMiddle != 3 {
+	if component.sizeDelta != -60 {
+		t.Fatalf("effect 18 size delta = %#v", component)
+	}
+	if component.posXStartRand != 1.5 || component.posXStartMiddle != 5 || component.posYStartRand != 2.5 || component.posYStartMiddle != -1 {
+		t.Fatalf("effect 18 start position = %#v", component)
+	}
+	if component.posXEndRand != 3.5 || component.posXEndMiddle != -2 || component.posYEndRand != 3.5 || component.posYEndMiddle != 4 || component.posZEndRand != 1 || component.posZEndMiddle != 3 {
 		t.Fatalf("effect 18 position = %#v", component)
+	}
+	if !component.posXSmooth || !component.posYSmooth || !component.posZSmooth {
+		t.Fatalf("effect 18 smooth flags = %#v", component)
+	}
+	if component.alphaMaxDelta != -0.25 || !component.rotate || !component.rotateWithCamera || component.angleStart != 90 || component.angleEnd != -270 || !component.blendAdditive || !component.overlay {
+		t.Fatalf("effect 18 flags = %#v", component)
 	}
 }
 

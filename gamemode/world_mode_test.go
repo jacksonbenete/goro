@@ -1407,6 +1407,48 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	}
 }
 
+func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
+	component := worldEffectComponent{
+		alphaMax:      0.2,
+		alphaMaxDelta: 0.2,
+		sizeStart:     100 * roBrowserEffectPixelRatio,
+		sizeEnd:       100 * roBrowserEffectPixelRatio,
+		sizeDelta:     -10,
+	}
+	if got := effectBillboardAlphaForDuplicate(0.5, component, 2); math.Abs(got-0.6) > 0.001 {
+		t.Fatalf("duplicate alpha = %.3f, want 0.6", got)
+	}
+	sizeX, sizeY := effect3DSize(component, worldEffect{}, 0, 0.5, 2)
+	want := 80 * roBrowserEffectPixelRatio
+	if math.Abs(sizeX-want) > 0.001 || math.Abs(sizeY-want) > 0.001 {
+		t.Fatalf("duplicate size = %.3f x %.3f, want %.3f", sizeX, sizeY, want)
+	}
+}
+
+func TestWorldEffectBillboardAngleCanRotateWithCamera(t *testing.T) {
+	projection := newSceneProjectionForTargetYaw(800, 600, 0, 0, 0, 45)
+	component := worldEffectComponent{angleStart: 90, angleEnd: 180, rotateWithCamera: true}
+	got := worldEffectBillboardAngle(component, projection, 0.5)
+	want := degreesToRadians(180)
+	if math.Abs(got-want) > 0.001 {
+		t.Fatalf("angle = %.3f, want %.3f", got, want)
+	}
+}
+
+func TestSTRAnimationAttachedEntityUsesActorAnchor(t *testing.T) {
+	anim := res.STRAnimation{Pos: [2]float32{320, 320}}
+
+	_, groundY := strAnimationOffset(anim, false)
+	_, attachedY := strAnimationOffset(anim, true)
+
+	if groundY != -0.5 {
+		t.Fatalf("ground STR y offset = %.3f, want -0.5", groundY)
+	}
+	if attachedY != 0 {
+		t.Fatalf("attached STR y offset = %.3f, want 0", attachedY)
+	}
+}
+
 func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 	source, err := os.ReadFile("/home/kivutar/src/robr/src/DB/Effects/EffectTable.js")
 	if os.IsNotExist(err) {

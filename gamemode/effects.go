@@ -119,6 +119,7 @@ type worldEffectComponent struct {
 	strFile          string
 	strRandMin       int
 	strRandMax       int
+	attachedEntity   bool
 	texturePath      string
 	textureName      string
 	textureFile      string
@@ -137,10 +138,12 @@ type worldEffectComponent struct {
 	arc              float64
 	retreat          float64
 	alphaMax         float64
+	alphaMaxDelta    float64
 	fade             bool
 	fadeIn           bool
 	fadeOut          bool
 	rotate           bool
+	rotateWithCamera bool
 	fixedPerspective bool
 	rotateToTarget   bool
 	worldSizedSprite bool
@@ -156,12 +159,21 @@ type worldEffectComponent struct {
 	posZEnd          float64
 	posXRand         float64
 	posYRand         float64
+	posXStartRand    float64
+	posYStartRand    float64
 	posZStartRand    float64
+	posXStartMiddle  float64
+	posYStartMiddle  float64
 	posZStartMiddle  float64
 	posXEndRand      float64
 	posYEndRand      float64
 	posZEndRand      float64
+	posXEndMiddle    float64
+	posYEndMiddle    float64
 	posZEndMiddle    float64
+	posXSmooth       bool
+	posYSmooth       bool
+	posZSmooth       bool
 	sizeStart        float64
 	sizeEnd          float64
 	sizeRand         float64
@@ -171,6 +183,7 @@ type worldEffectComponent struct {
 	sizeEndY         float64
 	sizeRandX        float64
 	sizeRandY        float64
+	sizeDelta        float64
 	sizeSmooth       bool
 	angleStart       float64
 	angleEnd         float64
@@ -179,6 +192,7 @@ type worldEffectComponent struct {
 	duplicate        int
 	angleZRandom     float64
 	blendAdditive    bool
+	overlay          bool
 }
 
 func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
@@ -779,12 +793,22 @@ func strEffectSpec(file, wav string) worldEffectSpec {
 }
 
 func strEffectSpecRandom(file, wav string, randMin, randMax int) worldEffectSpec {
+	return strEffectSpecRandomAttached(file, wav, randMin, randMax, false, false)
+}
+
+func strEffectSpecAttached(file, wav string, head bool) worldEffectSpec {
+	return strEffectSpecRandomAttached(file, wav, 0, 0, true, head)
+}
+
+func strEffectSpecRandomAttached(file, wav string, randMin, randMax int, attached, head bool) worldEffectSpec {
 	spec := worldEffectSpec{
 		components: []worldEffectComponent{{
-			kind:       effectPrimitiveSTR,
-			strFile:    file,
-			strRandMin: randMin,
-			strRandMax: randMax,
+			kind:           effectPrimitiveSTR,
+			strFile:        file,
+			strRandMin:     randMin,
+			strRandMax:     randMax,
+			attachedEntity: attached,
+			spriteHead:     head,
 		}},
 	}
 	if wav != "" {
@@ -1063,7 +1087,7 @@ func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection s
 	if size <= 0 {
 		return
 	}
-	angle := (component.angleStart + (component.angleEnd-component.angleStart)*progress) * math.Pi / 180
+	angle := worldEffectBillboardAngle(component, projection, progress)
 	drawTexturedEffectBillboardRotated(screen, projection, texture, worldX, worldY, worldZ+component.posZ, size, angle, color.RGBA{
 		R: 255,
 		G: 255,
@@ -1087,13 +1111,13 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 		if now.Before(starts) || progress >= 1 {
 			continue
 		}
-		alpha := effectBillboardAlpha(progress, component)
+		alpha := effectBillboardAlphaForDuplicate(progress, component, i)
 		if alpha <= 0 {
 			continue
 		}
 		salt := componentIndex*1009 + i*37
 		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, progress, worldX, worldY, worldZ)
-		sizeX, sizeY := effect3DSize(component, effect, salt, progress)
+		sizeX, sizeY := effect3DSize(component, effect, salt, progress, i)
 		if sizeX <= 0 || sizeY <= 0 {
 			continue
 		}
@@ -1102,7 +1126,7 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 			if texture == nil {
 				continue
 			}
-			angle := (component.angleStart + (component.angleEnd-component.angleStart)*progress) * math.Pi / 180
+			angle := worldEffectBillboardAngle(component, projection, progress)
 			drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), component.blendAdditive)
 			continue
 		}
@@ -1364,10 +1388,16 @@ func effectComponentAlpha(progress float64, component worldEffectComponent) floa
 }
 
 func effectBillboardAlpha(progress float64, component worldEffectComponent) float64 {
+	return effectBillboardAlphaForDuplicate(progress, component, 0)
+}
+
+func effectBillboardAlphaForDuplicate(progress float64, component worldEffectComponent, duplicateIndex int) float64 {
 	alphaMax := component.alphaMax
 	if alphaMax <= 0 {
 		alphaMax = 1
 	}
+	alphaMax += component.alphaMaxDelta * float64(duplicateIndex)
+	alphaMax = clampFloat(alphaMax, 0, 1)
 	switch {
 	case component.fadeIn && progress < 0.25:
 		return progress / 0.25 * alphaMax
@@ -1394,16 +1424,18 @@ func effectBillboardSize(progress float64, component worldEffectComponent) float
 }
 
 func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, effect worldEffect, salt int, progress float64, worldX, worldY, worldZ float64) (float64, float64, float64) {
-	startX := component.posX + deterministicSigned(effect, salt+1)*component.posXRand
-	startY := component.posY + deterministicSigned(effect, salt+2)*component.posYRand
+	staticX := deterministicSigned(effect, salt+1) * component.posXRand
+	staticY := deterministicSigned(effect, salt+2) * component.posYRand
+	startX := component.posX + staticX + component.posXStartMiddle + deterministicSigned(effect, salt+11)*component.posXStartRand
+	startY := component.posY + staticY + component.posYStartMiddle + deterministicSigned(effect, salt+12)*component.posYStartRand
 	startZ := component.posZ + component.posZStartMiddle + deterministicSigned(effect, salt+3)*component.posZStartRand
-	endX := component.posXEnd + deterministicSigned(effect, salt+4)*component.posXEndRand
-	endY := component.posYEnd + deterministicSigned(effect, salt+5)*component.posYEndRand
+	endX := component.posXEnd + staticX + component.posXEndMiddle + deterministicSigned(effect, salt+4)*component.posXEndRand
+	endY := component.posYEnd + staticY + component.posYEndMiddle + deterministicSigned(effect, salt+5)*component.posYEndRand
 	endZ := component.posZEnd + component.posZEndMiddle + deterministicSigned(effect, salt+6)*component.posZEndRand
-	if component.posXEnd == 0 && component.posXEndRand == 0 {
+	if component.posXEnd == 0 && component.posXEndRand == 0 && component.posXEndMiddle == 0 && component.posXStartRand == 0 && component.posXStartMiddle == 0 {
 		endX = startX
 	}
-	if component.posYEnd == 0 && component.posYEndRand == 0 {
+	if component.posYEnd == 0 && component.posYEndRand == 0 && component.posYEndMiddle == 0 && component.posYStartRand == 0 && component.posYStartMiddle == 0 {
 		endY = startY
 	}
 	if component.posZEnd == 0 && component.posZEndRand == 0 && component.posZEndMiddle == 0 {
@@ -1427,9 +1459,9 @@ func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, 
 			}
 		}
 	}
-	x := startX + (endX-startX)*progress
-	y := startY + (endY-startY)*progress
-	z := startZ + (endZ-startZ)*progress
+	x := effectPositionAxis(progress, startX, endX, component.posXSmooth)
+	y := effectPositionAxis(progress, startY, endY, component.posYSmooth)
+	z := effectPositionAxis(progress, startZ, endZ, component.posZSmooth)
 	if component.retreat != 0 {
 		dx := endX - startX
 		dy := endY - startY
@@ -1461,7 +1493,22 @@ func effectOtherEndpoint(ctx Context, effect worldEffect, fallbackX, fallbackY, 
 	return fallbackX, fallbackY, fallbackZ, false
 }
 
-func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, progress float64) (float64, float64) {
+func effectPositionAxis(progress, start, end float64, smooth bool) float64 {
+	if smooth {
+		return start + (end-start)*math.Log10(progress*9+1)
+	}
+	return start + (end-start)*progress
+}
+
+func worldEffectBillboardAngle(component worldEffectComponent, projection sceneProjection, progress float64) float64 {
+	angle := (component.angleStart + (component.angleEnd-component.angleStart)*progress) * math.Pi / 180
+	if component.rotateWithCamera {
+		angle += degreesToRadians(projection.cameraYaw)
+	}
+	return angle
+}
+
+func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, progress float64, duplicateIndex int) (float64, float64) {
 	size := effectBillboardSize(progress, component)
 	sizeX := size
 	sizeY := size
@@ -1470,6 +1517,11 @@ func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, 
 	}
 	if component.sizeStartY > 0 || component.sizeEndY > 0 {
 		sizeY = effectAxisSize(progress, component.sizeStartY, component.sizeEndY, component.sizeSmooth)
+	}
+	if component.sizeDelta != 0 {
+		delta := component.sizeDelta * float64(duplicateIndex) * roBrowserEffectPixelRatio
+		sizeX += delta
+		sizeY += delta
 	}
 	if component.sizeRand != 0 {
 		sizeX += deterministicSigned(effect, salt+7) * component.sizeRand
@@ -1600,7 +1652,7 @@ func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection 
 		if texture == nil {
 			continue
 		}
-		drawSTRAnimation(screen, projection, texture, worldX, worldY, worldZ, anim)
+		drawSTRAnimation(screen, projection, texture, worldX, worldY, worldZ, anim, component.attachedEntity)
 		drawn = true
 	}
 	return drawn
@@ -1870,14 +1922,13 @@ func strAnimFrame(from, to res.STRAnimation, delta float32, texCount int) float3
 	}
 }
 
-func drawSTRAnimation(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ float64, anim res.STRAnimation) {
+func drawSTRAnimation(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ float64, anim res.STRAnimation, attached bool) {
 	right, up, _, ok := projection.BillboardBasis(worldX, worldY, worldZ)
 	if !ok {
 		return
 	}
 	const pixelRatio = 1.0 / 35.0
-	offsetX := float64(anim.Pos[0]-320) * pixelRatio
-	offsetY := -float64(anim.Pos[1]-320)*pixelRatio - 0.5
+	offsetX, offsetY := strAnimationOffset(anim, attached)
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
 	angle := -float64(anim.Angle) * math.Pi / 180
 	sinA, cosA := math.Sin(angle), math.Cos(angle)
@@ -1904,6 +1955,15 @@ func drawSTRAnimation(screen *render.Image, projection sceneProjection, texture 
 		options.Blend = render.BlendLighter
 	}
 	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, options)
+}
+
+func strAnimationOffset(anim res.STRAnimation, attached bool) (float64, float64) {
+	const pixelRatio = 1.0 / 35.0
+	verticalBase := -0.5
+	if attached {
+		verticalBase = 0
+	}
+	return float64(anim.Pos[0]-320) * pixelRatio, -float64(anim.Pos[1]-320)*pixelRatio + verticalBase
 }
 
 func strAnimationTint(anim res.STRAnimation) color.RGBA {
