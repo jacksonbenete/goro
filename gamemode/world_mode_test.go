@@ -51,6 +51,63 @@ func TestApplyLocalActorLookChangeUpdatesSelectedCharacter(t *testing.T) {
 	}
 }
 
+func TestApplyStatusEffectChangeTracksLocalStatus(t *testing.T) {
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := Context{Session: sessionState}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID:    10,
+		ActorID:     2000000,
+		Active:      true,
+		HasDuration: true,
+		Duration:    30 * time.Second,
+	})
+	effect, ok := sessionState.Statuses.Active[10]
+	if !ok {
+		t.Fatal("status was not tracked")
+	}
+	if !effect.HasDuration || effect.ExpiresAt.IsZero() || effect.Source != 2000000 {
+		t.Fatalf("effect = %+v", effect)
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: 10,
+		ActorID:  2000000,
+		Active:   false,
+	})
+	if _, ok := sessionState.Statuses.Active[10]; ok {
+		t.Fatal("inactive status was not removed")
+	}
+}
+
+func TestApplyStatusEffectChangeIgnoresRemoteActor(t *testing.T) {
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := Context{Session: sessionState}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: 12,
+		ActorID:  110000000,
+		Active:   true,
+	})
+	if len(sessionState.Statuses.Active) != 0 {
+		t.Fatalf("remote status changed local list: %+v", sessionState.Statuses.Active)
+	}
+}
+
+func TestVisibleStatusIconIDsAreKnownAndSorted(t *testing.T) {
+	active := map[uint16]session.StatusEffect{
+		99: {ID: 99},
+		12: {ID: 12},
+		10: {ID: 10},
+	}
+	ids := visibleStatusIconIDs(active)
+	if !reflect.DeepEqual(ids, []uint16{10, 12}) {
+		t.Fatalf("ids = %+v", ids)
+	}
+}
+
 func TestApplyRemoteActorLookChangeUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 0, Head: 1, Appearance: true})

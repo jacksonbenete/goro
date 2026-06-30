@@ -655,6 +655,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.statsWindow.applyStatusChangeAck(ctx, ack)
 			continue
 		}
+		if statusEffect, ok, err := network.ParseStatusEffectChange(pkt); err != nil {
+			log.Printf("parse status effect change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyStatusEffectChange(ctx, statusEffect)
+			continue
+		}
 		if list, ok, err := network.ParseSkillInfoList(pkt); err != nil {
 			log.Printf("parse skill list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -2789,6 +2795,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.basicMenu.draw(screen, ctx)
 	m.shortcutBar.draw(screen, ctx, m)
 	m.minimap.draw(screen, ctx)
+	m.drawStatusIcons(screen, ctx, now)
 	m.inventoryWindow.draw(screen, ctx, m)
 	m.inventoryBag.draw(screen, ctx, m)
 	m.equipmentWindow.draw(screen, ctx, m)

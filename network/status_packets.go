@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/binary"
 	"fmt"
+	"time"
 )
 
 const (
@@ -88,6 +89,14 @@ type StatusChangeAck struct {
 type Recovery struct {
 	StatusID uint16
 	Amount   int
+}
+
+type StatusEffectChange struct {
+	StatusID    uint16
+	ActorID     uint32
+	Active      bool
+	HasDuration bool
+	Duration    time.Duration
 }
 
 func ParseParameterChange(packet Packet) (ParameterChange, bool, error) {
@@ -185,6 +194,57 @@ func ParseRecovery(packet Packet) (Recovery, bool, error) {
 	default:
 		return Recovery{}, false, nil
 	}
+}
+
+func ParseStatusEffectChange(packet Packet) (StatusEffectChange, bool, error) {
+	switch packet.ID {
+	case 0x0196:
+		if len(packet.Data) < 9 {
+			return StatusEffectChange{}, false, fmt.Errorf("ZC_MSG_STATE_CHANGE too short: %d", len(packet.Data))
+		}
+		return StatusEffectChange{
+			StatusID: binary.LittleEndian.Uint16(packet.Data[2:4]),
+			ActorID:  binary.LittleEndian.Uint32(packet.Data[4:8]),
+			Active:   packet.Data[8] != 0,
+		}, true, nil
+	case 0x043F:
+		if len(packet.Data) < 25 {
+			return StatusEffectChange{}, false, fmt.Errorf("ZC_MSG_STATE_CHANGE2 too short: %d", len(packet.Data))
+		}
+		duration := binary.LittleEndian.Uint32(packet.Data[9:13])
+		return statusEffectChangeWithDuration(
+			binary.LittleEndian.Uint16(packet.Data[2:4]),
+			binary.LittleEndian.Uint32(packet.Data[4:8]),
+			packet.Data[8] != 0,
+			duration,
+		), true, nil
+	case 0x0983:
+		if len(packet.Data) < 29 {
+			return StatusEffectChange{}, false, fmt.Errorf("ZC_MSG_STATE_CHANGE3 too short: %d", len(packet.Data))
+		}
+		remaining := binary.LittleEndian.Uint32(packet.Data[13:17])
+		return statusEffectChangeWithDuration(
+			binary.LittleEndian.Uint16(packet.Data[2:4]),
+			binary.LittleEndian.Uint32(packet.Data[4:8]),
+			packet.Data[8] != 0,
+			remaining,
+		), true, nil
+	default:
+		return StatusEffectChange{}, false, nil
+	}
+}
+
+func statusEffectChangeWithDuration(statusID uint16, actorID uint32, active bool, durationMS uint32) StatusEffectChange {
+	change := StatusEffectChange{
+		StatusID: statusID,
+		ActorID:  actorID,
+		Active:   active,
+	}
+	if active && durationMS > 0 {
+		change.HasDuration = true
+		change.Duration = time.Duration(durationMS) * time.Millisecond
+	}
+	return change
 }
 
 func BuildStatusIncreasePacket(statusID uint16) []byte {

@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/binary"
 	"testing"
+	"time"
 )
 
 func TestParseParameterChange(t *testing.T) {
@@ -145,6 +146,66 @@ func TestParseStatusChangeAck(t *testing.T) {
 	}
 	if ack.StatusID != StatusDex || !ack.Success || ack.Value != 22 {
 		t.Fatalf("ack = %+v", ack)
+	}
+}
+
+func TestParseStatusEffectChange(t *testing.T) {
+	data := make([]byte, 9)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0196)
+	binary.LittleEndian.PutUint16(data[2:4], 10)
+	binary.LittleEndian.PutUint32(data[4:8], 2000000)
+	data[8] = 1
+
+	change, ok, err := ParseStatusEffectChange(Packet{ID: 0x0196, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("status effect change not parsed")
+	}
+	if change.StatusID != 10 || change.ActorID != 2000000 || !change.Active || change.HasDuration {
+		t.Fatalf("change = %+v", change)
+	}
+}
+
+func TestParseTimedStatusEffectChange(t *testing.T) {
+	data := make([]byte, 25)
+	binary.LittleEndian.PutUint16(data[0:2], 0x043F)
+	binary.LittleEndian.PutUint16(data[2:4], 12)
+	binary.LittleEndian.PutUint32(data[4:8], 2000000)
+	data[8] = 1
+	binary.LittleEndian.PutUint32(data[9:13], 30000)
+
+	change, ok, err := ParseStatusEffectChange(Packet{ID: 0x043F, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("timed status effect change not parsed")
+	}
+	if change.StatusID != 12 || change.ActorID != 2000000 || !change.Active || !change.HasDuration || change.Duration != 30*time.Second {
+		t.Fatalf("change = %+v", change)
+	}
+}
+
+func TestParseStatusEffectChange3UsesRemainingDuration(t *testing.T) {
+	data := make([]byte, 29)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0983)
+	binary.LittleEndian.PutUint16(data[2:4], 37)
+	binary.LittleEndian.PutUint32(data[4:8], 2000000)
+	data[8] = 1
+	binary.LittleEndian.PutUint32(data[9:13], 60000)
+	binary.LittleEndian.PutUint32(data[13:17], 12000)
+
+	change, ok, err := ParseStatusEffectChange(Packet{ID: 0x0983, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("timed status effect change3 not parsed")
+	}
+	if change.StatusID != 37 || !change.HasDuration || change.Duration != 12*time.Second {
+		t.Fatalf("change = %+v", change)
 	}
 }
 

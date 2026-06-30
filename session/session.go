@@ -1,5 +1,7 @@
 package session
 
+import "time"
+
 type Session struct {
 	AccountID   uint32
 	CharID      uint32
@@ -21,6 +23,7 @@ type Session struct {
 	Storage     Storage
 	Stats       Stats
 	Skills      Skills
+	Statuses    Statuses
 }
 
 func New() *Session {
@@ -160,6 +163,18 @@ type Skill struct {
 	Range      int
 	Name       string
 	Upgradable bool
+}
+
+type Statuses struct {
+	Active map[uint16]StatusEffect
+}
+
+type StatusEffect struct {
+	ID          uint16
+	Source      uint32
+	StartedAt   time.Time
+	ExpiresAt   time.Time
+	HasDuration bool
 }
 
 type ZoneServer struct {
