@@ -639,6 +639,8 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				duplicate:       6,
 				duplicateDelay:  0,
 				alphaMax:        1,
+				sparkling:       true,
+				sparkNumber:     2,
 				fadeIn:          true,
 				fadeOut:         true,
 				posXRand:        1.2,
@@ -766,8 +768,8 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		components: []worldEffectComponent{
 			healCylinderComponent(0.95, 0.95, 8),
 			healCylinderComponent(1.0, 1.0, 8),
-			healParticleComponent(0.6, 1300*time.Millisecond, 400*time.Millisecond, 10*time.Millisecond, 15, 1.5, 1.5, 0, 0, 0, 2, 6),
-			healParticleComponent(0.6, 1100*time.Millisecond, 200*time.Millisecond, 50*time.Millisecond, 7, 1, 1, 1, 0, 5, 0, 0),
+			healParticleComponent(0.6, 1300*time.Millisecond, 400*time.Millisecond, 10*time.Millisecond, 15, 1.5, 1.5, 0, 0, 0, 2, 6, false),
+			healParticleComponent(0.6, 1100*time.Millisecond, 200*time.Millisecond, 50*time.Millisecond, 7, 1, 1, 1, 0, 5, 0, 0, false),
 		},
 	},
 	effectHealOffensive: {
@@ -776,8 +778,8 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		components: []worldEffectComponent{
 			healOffensiveCylinderComponent(0.95, 0.95, 10),
 			healOffensiveCylinderComponent(1.0, 1.0, 9),
-			healParticleComponent(0.8, 1000*time.Millisecond, 400*time.Millisecond, 10*time.Millisecond, 10, 1.5, 1.5, 0, 0, 0, 3, 6),
-			healParticleComponent(0.8, 900*time.Millisecond, 200*time.Millisecond, 50*time.Millisecond, 5, 1, 1, 1, 0, 6, 0, 0),
+			healParticleComponent(0.8, 1000*time.Millisecond, 400*time.Millisecond, 10*time.Millisecond, 10, 1.5, 1.5, 0, 0, 0, 3, 6, true),
+			healParticleComponent(0.8, 900*time.Millisecond, 200*time.Millisecond, 50*time.Millisecond, 5, 1, 1, 1, 0, 6, 0, 0, true),
 		},
 	},
 	effectBaseLevelUp: {

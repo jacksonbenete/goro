@@ -180,6 +180,8 @@ type worldEffectComponent struct {
 	retreat            float64
 	alphaMax           float64
 	alphaMaxDelta      float64
+	sparkling          bool
+	sparkNumber        int
 	fade               bool
 	fadeIn             bool
 	fadeOut            bool
@@ -1051,8 +1053,8 @@ func healOffensiveCylinderComponent(bottomSize, topSize, height float64) worldEf
 	return component
 }
 
-func healParticleComponent(alpha float64, duration, delay, duplicateDelay time.Duration, duplicate int, posXRand, posYRand, posZStartRand, posZStartMiddle, posZEnd, posZEndRand, posZEndMiddle float64) worldEffectComponent {
-	return worldEffectComponent{
+func healParticleComponent(alpha float64, duration, delay, duplicateDelay time.Duration, duplicate int, posXRand, posYRand, posZStartRand, posZStartMiddle, posZEnd, posZEndRand, posZEndMiddle float64, sparkling bool) worldEffectComponent {
+	component := worldEffectComponent{
 		kind:            effectComponent3D,
 		color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
 		textureFile:     "effect/pok3.tga",
@@ -1060,6 +1062,7 @@ func healParticleComponent(alpha float64, duration, delay, duplicateDelay time.D
 		delay:           delay,
 		duplicateDelay:  duplicateDelay,
 		alphaMax:        alpha,
+		sparkling:       sparkling,
 		fadeIn:          true,
 		fadeOut:         true,
 		posXRand:        posXRand,
@@ -1075,6 +1078,10 @@ func healParticleComponent(alpha float64, duration, delay, duplicateDelay time.D
 		duplicate:       duplicate,
 		blendAdditive:   true,
 	}
+	if sparkling {
+		component.sparkNumber = 2
+	}
+	return component
 }
 
 func strEffectSpec(file, wav string) worldEffectSpec {
@@ -1743,6 +1750,13 @@ func effectBillboardAlphaForDuplicate(progress float64, component worldEffectCom
 		return progress / 0.25 * alphaMax
 	case component.fadeOut && progress > 0.75:
 		return (1 - progress) / 0.25 * alphaMax
+	case component.sparkling:
+		sparkNumber := component.sparkNumber
+		if sparkNumber <= 0 {
+			sparkNumber = 1
+		}
+		steps := progress * 100
+		return alphaMax * ((math.Cos((steps*11*float64(sparkNumber)*math.Pi)/180) + 1) / 2)
 	default:
 		return alphaMax
 	}

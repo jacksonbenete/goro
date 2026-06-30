@@ -1516,7 +1516,7 @@ func TestHealEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T) {
 	if firstParticle.duration != 1300*time.Millisecond || firstParticle.delay != 400*time.Millisecond || firstParticle.duplicateDelay != 10*time.Millisecond || firstParticle.duplicate != 15 {
 		t.Fatalf("first heal particle timing = %+v", firstParticle)
 	}
-	if firstParticle.alphaMax != 0.6 || !firstParticle.fadeIn || !firstParticle.fadeOut {
+	if firstParticle.alphaMax != 0.6 || !firstParticle.fadeIn || !firstParticle.fadeOut || firstParticle.sparkling || firstParticle.sparkNumber != 0 {
 		t.Fatalf("first heal particle fade = %+v", firstParticle)
 	}
 	if firstParticle.posXRand != 1.5 || firstParticle.posYRand != 1.5 || firstParticle.posZEndRand != 2 || firstParticle.posZEndMiddle != 6 {
@@ -1532,7 +1532,7 @@ func TestHealEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T) {
 	if secondParticle.duration != 1100*time.Millisecond || secondParticle.delay != 200*time.Millisecond || secondParticle.duplicateDelay != 50*time.Millisecond || secondParticle.duplicate != 7 {
 		t.Fatalf("second heal particle timing = %+v", secondParticle)
 	}
-	if secondParticle.alphaMax != 0.6 || !secondParticle.fadeIn || !secondParticle.fadeOut {
+	if secondParticle.alphaMax != 0.6 || !secondParticle.fadeIn || !secondParticle.fadeOut || secondParticle.sparkling || secondParticle.sparkNumber != 0 {
 		t.Fatalf("second heal particle fade = %+v", secondParticle)
 	}
 	if secondParticle.posXRand != 1 || secondParticle.posYRand != 1 || secondParticle.posZEnd != 5 || secondParticle.posZStartRand != 1 {
@@ -1575,7 +1575,7 @@ func TestHealOffensiveEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T)
 	if firstParticle.duration != time.Second || firstParticle.delay != 400*time.Millisecond || firstParticle.duplicateDelay != 10*time.Millisecond || firstParticle.duplicate != 10 {
 		t.Fatalf("first offensive heal particle timing = %+v", firstParticle)
 	}
-	if firstParticle.alphaMax != 0.8 || !firstParticle.fadeIn || !firstParticle.fadeOut || !firstParticle.blendAdditive {
+	if firstParticle.alphaMax != 0.8 || !firstParticle.fadeIn || !firstParticle.fadeOut || !firstParticle.blendAdditive || !firstParticle.sparkling || firstParticle.sparkNumber != 2 {
 		t.Fatalf("first offensive heal particle fade/blend = %+v", firstParticle)
 	}
 	if firstParticle.posXRand != 1.5 || firstParticle.posYRand != 1.5 || firstParticle.posZEndRand != 3 || firstParticle.posZEndMiddle != 6 {
@@ -1588,7 +1588,7 @@ func TestHealOffensiveEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T)
 	if secondParticle.duration != 900*time.Millisecond || secondParticle.delay != 200*time.Millisecond || secondParticle.duplicateDelay != 50*time.Millisecond || secondParticle.duplicate != 5 {
 		t.Fatalf("second offensive heal particle timing = %+v", secondParticle)
 	}
-	if secondParticle.alphaMax != 0.8 || !secondParticle.fadeIn || !secondParticle.fadeOut || !secondParticle.blendAdditive {
+	if secondParticle.alphaMax != 0.8 || !secondParticle.fadeIn || !secondParticle.fadeOut || !secondParticle.blendAdditive || !secondParticle.sparkling || secondParticle.sparkNumber != 2 {
 		t.Fatalf("second offensive heal particle fade/blend = %+v", secondParticle)
 	}
 	if secondParticle.posXRand != 1 || secondParticle.posYRand != 1 || secondParticle.posZEnd != 6 || secondParticle.posZStartRand != 1 {
@@ -1725,6 +1725,73 @@ func TestDecreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	}
 }
 
+func TestBlessingEffectSpecUsesRobrowserSpritesAndParticles(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectBlessing)
+	if !ok {
+		t.Fatal("blessing effect spec missing")
+	}
+	if spec.duration != 2500*time.Millisecond {
+		t.Fatalf("duration = %s, want 2500ms", spec.duration)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_blessing.wav" {
+		t.Fatalf("sfx = %#v", spec.sfx)
+	}
+	if len(spec.components) != 4 {
+		t.Fatalf("components = %d, want 4", len(spec.components))
+	}
+	sprite := spec.components[0]
+	if sprite.kind != effectComponentSPR || sprite.spriteFile != "\xC3\xE0\xBA\xB9" {
+		t.Fatalf("sprite component = %+v", sprite)
+	}
+	if sprite.duration != 1500*time.Millisecond || sprite.spriteDelay != 30*time.Millisecond || !sprite.spriteRepeat || !sprite.spriteHead || sprite.spriteYOffset != -120 {
+		t.Fatalf("sprite timing/placement = %+v", sprite)
+	}
+
+	particleCases := []struct {
+		index       int
+		delay       time.Duration
+		posXRand    float64
+		posYRand    float64
+		sparkling   bool
+		sparkNumber int
+	}{
+		{index: 1, delay: 300 * time.Millisecond, posXRand: 1.2, posYRand: 1, sparkling: true, sparkNumber: 2},
+		{index: 2, delay: 400 * time.Millisecond, posXRand: 1.4, posYRand: 1.1},
+	}
+	for _, tc := range particleCases {
+		component := spec.components[tc.index]
+		if component.kind != effectComponent3D || component.spriteFile != "particle6" {
+			t.Fatalf("particle %d resource = %+v", tc.index, component)
+		}
+		if component.duration != 1200*time.Millisecond || component.delay != tc.delay || component.duplicateDelay != 0 || component.duplicate != 6 {
+			t.Fatalf("particle %d timing = %+v", tc.index, component)
+		}
+		if component.alphaMax != 1 || !component.fadeIn || !component.fadeOut || component.sparkling != tc.sparkling || component.sparkNumber != tc.sparkNumber {
+			t.Fatalf("particle %d fade/sparkle = %+v", tc.index, component)
+		}
+		if component.posXRand != tc.posXRand || component.posYRand != tc.posYRand || component.posZStartRand != 2 || component.posZStartMiddle != 5.5 || component.posZEndRand != 0.5 || component.posZEndMiddle != 1 {
+			t.Fatalf("particle %d position = %+v", tc.index, component)
+		}
+		if component.sizeStart != 50*roBrowserEffectPixelRatio || component.sizeEnd != 50*roBrowserEffectPixelRatio {
+			t.Fatalf("particle %d size = %+v", tc.index, component)
+		}
+	}
+
+	aura := spec.components[3]
+	if aura.kind != effectComponent3D || aura.textureFile != "effect/pok2.tga" {
+		t.Fatalf("aura resource = %+v", aura)
+	}
+	if aura.duration != 2500*time.Millisecond || aura.alphaMax != 0.3 || !aura.fadeIn || !aura.fadeOut {
+		t.Fatalf("aura timing/fade = %+v", aura)
+	}
+	if aura.color != (color.RGBA{R: 25, G: 191, B: 255, A: 255}) || !aura.blendAdditive {
+		t.Fatalf("aura tint/blend = %+v", aura)
+	}
+	if aura.sizeStart != 140*roBrowserEffectPixelRatio || aura.sizeEnd != 140*roBrowserEffectPixelRatio {
+		t.Fatalf("aura size = %+v", aura)
+	}
+}
+
 func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
 	component := worldEffectComponent{
 		alphaMax:      0.2,
@@ -1740,6 +1807,23 @@ func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
 	want := 80 * roBrowserEffectPixelRatio
 	if math.Abs(sizeX-want) > 0.001 || math.Abs(sizeY-want) > 0.001 {
 		t.Fatalf("duplicate size = %.3f x %.3f, want %.3f", sizeX, sizeY, want)
+	}
+}
+
+func TestWorldEffectBillboardSparklingAlphaMatchesRobrowser(t *testing.T) {
+	component := worldEffectComponent{
+		alphaMax:    1,
+		sparkling:   true,
+		sparkNumber: 2,
+	}
+	if got := effectBillboardAlphaForDuplicate(0, component, 0); math.Abs(got-1) > 0.001 {
+		t.Fatalf("spark alpha at start = %.3f, want 1", got)
+	}
+	if got := effectBillboardAlphaForDuplicate(0.25, component, 0); math.Abs(got-0.008) > 0.001 {
+		t.Fatalf("spark alpha at quarter = %.3f, want about 0.008", got)
+	}
+	if got := effectBillboardAlphaForDuplicate(0.75, component, 0); math.Abs(got-0.067) > 0.001 {
+		t.Fatalf("spark alpha at three quarters = %.3f, want about 0.067", got)
 	}
 }
 
