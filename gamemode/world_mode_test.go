@@ -1484,7 +1484,7 @@ func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
 	}
 }
 
-func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
+func TestHealEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectHeal)
 	if !ok {
 		t.Fatal("heal effect spec missing")
@@ -1504,6 +1504,9 @@ func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
 		}
 		if component.duration != 1500*time.Millisecond || component.height != 8 || component.alphaMax != 0.2 {
 			t.Fatalf("component %d timing/shape = %+v", i, component)
+		}
+		if component.color != (color.RGBA{R: 178, G: 255, B: 178, A: 255}) || !component.blendAdditive {
+			t.Fatalf("component %d tint/blend = %+v", i, component)
 		}
 	}
 	firstParticle := spec.components[2]
@@ -1537,6 +1540,62 @@ func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
 	}
 	if secondParticle.sizeStart != 9*roBrowserEffectPixelRatio || secondParticle.sizeEnd != 9*roBrowserEffectPixelRatio || secondParticle.sizeRand != 2*roBrowserEffectPixelRatio {
 		t.Fatalf("second heal particle size = %+v", secondParticle)
+	}
+}
+
+func TestHealOffensiveEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectHealOffensive)
+	if !ok {
+		t.Fatal("offensive heal effect spec missing")
+	}
+	if spec.duration != 1490*time.Millisecond {
+		t.Fatalf("duration = %s, want 1490ms", spec.duration)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "_heal_effect.wav" {
+		t.Fatalf("sfx = %#v", spec.sfx)
+	}
+	if len(spec.components) != 4 {
+		t.Fatalf("components = %d, want 4", len(spec.components))
+	}
+	for i, component := range spec.components[:2] {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_white" || component.animation != 1 {
+			t.Fatalf("component %d = %+v", i, component)
+		}
+		if component.duration != time.Second || !component.blendAdditive || component.color != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) {
+			t.Fatalf("component %d timing/tint = %+v", i, component)
+		}
+	}
+	if spec.components[0].height != 10 || spec.components[1].height != 9 {
+		t.Fatalf("cylinder heights = %.1f %.1f", spec.components[0].height, spec.components[1].height)
+	}
+	firstParticle := spec.components[2]
+	if firstParticle.kind != effectComponent3D || firstParticle.textureFile != "effect/pok3.tga" {
+		t.Fatalf("first offensive heal particle = %+v", firstParticle)
+	}
+	if firstParticle.duration != time.Second || firstParticle.delay != 400*time.Millisecond || firstParticle.duplicateDelay != 10*time.Millisecond || firstParticle.duplicate != 10 {
+		t.Fatalf("first offensive heal particle timing = %+v", firstParticle)
+	}
+	if firstParticle.alphaMax != 0.8 || !firstParticle.fadeIn || !firstParticle.fadeOut || !firstParticle.blendAdditive {
+		t.Fatalf("first offensive heal particle fade/blend = %+v", firstParticle)
+	}
+	if firstParticle.posXRand != 1.5 || firstParticle.posYRand != 1.5 || firstParticle.posZEndRand != 3 || firstParticle.posZEndMiddle != 6 {
+		t.Fatalf("first offensive heal particle position = %+v", firstParticle)
+	}
+	secondParticle := spec.components[3]
+	if secondParticle.kind != effectComponent3D || secondParticle.textureFile != "effect/pok3.tga" {
+		t.Fatalf("second offensive heal particle = %+v", secondParticle)
+	}
+	if secondParticle.duration != 900*time.Millisecond || secondParticle.delay != 200*time.Millisecond || secondParticle.duplicateDelay != 50*time.Millisecond || secondParticle.duplicate != 5 {
+		t.Fatalf("second offensive heal particle timing = %+v", secondParticle)
+	}
+	if secondParticle.alphaMax != 0.8 || !secondParticle.fadeIn || !secondParticle.fadeOut || !secondParticle.blendAdditive {
+		t.Fatalf("second offensive heal particle fade/blend = %+v", secondParticle)
+	}
+	if secondParticle.posXRand != 1 || secondParticle.posYRand != 1 || secondParticle.posZEnd != 6 || secondParticle.posZStartRand != 1 {
+		t.Fatalf("second offensive heal particle position = %+v", secondParticle)
+	}
+	if secondParticle.sizeStart != 9*roBrowserEffectPixelRatio || secondParticle.sizeEnd != 9*roBrowserEffectPixelRatio || secondParticle.sizeRand != 2*roBrowserEffectPixelRatio {
+		t.Fatalf("second offensive heal particle size = %+v", secondParticle)
 	}
 }
 
@@ -1699,6 +1758,7 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		effectPharmacyOK,
 		effectPharmacyFail,
 		effectHeal,
+		effectHealOffensive,
 		effectPortal,
 	} {
 		got, ok := worldEffectSpecForID(effectID)

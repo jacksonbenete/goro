@@ -187,6 +187,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 	case "CYLINDER":
 		component := worldEffectComponent{
 			kind:             effectComponentCylinder,
+			color:            effectColorFields(fields),
 			textureName:      fieldString(fields, "textureName"),
 			duration:         fieldDuration(fields, "duration"),
 			alphaMax:         fieldFloat(fields, "alphaMax"),
@@ -201,6 +202,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			posZ:             fieldFloat(fields, "posZ"),
 			totalCircleSides: fieldInt(fields, "totalCircleSides"),
 			circleSides:      fieldInt(fields, "circleSides"),
+			blendAdditive:    fieldInt(fields, "blendMode") == 2,
 		}
 		if component.textureName == "" {
 			return worldEffectComponent{}, sfx, false

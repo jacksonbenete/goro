@@ -986,6 +986,7 @@ func cloneWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
 func teleportCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {
 	return worldEffectComponent{
 		kind:             effectComponentCylinder,
+		color:            color.RGBA{R: 153, G: 153, B: 255, A: 255},
 		textureName:      "ring_blue",
 		duration:         1500 * time.Millisecond,
 		alphaMax:         0.5,
@@ -997,12 +998,14 @@ func teleportCylinderComponent(bottomSize, topSize, height float64) worldEffectC
 		height:           height,
 		totalCircleSides: 32,
 		circleSides:      32,
+		blendAdditive:    true,
 	}
 }
 
 func portalCylinderComponent(bottomSize, topSize, height, posZ float64, textureName string, alphaMax float64) worldEffectComponent {
 	return worldEffectComponent{
 		kind:             effectComponentCylinder,
+		color:            color.RGBA{R: 153, G: 153, B: 255, A: 255},
 		textureName:      textureName,
 		duration:         25000 * time.Millisecond,
 		alphaMax:         alphaMax,
@@ -1015,12 +1018,14 @@ func portalCylinderComponent(bottomSize, topSize, height, posZ float64, textureN
 		posZ:             posZ,
 		totalCircleSides: 32,
 		circleSides:      32,
+		blendAdditive:    true,
 	}
 }
 
 func healCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {
 	return worldEffectComponent{
 		kind:             effectComponentCylinder,
+		color:            color.RGBA{R: 178, G: 255, B: 178, A: 255},
 		textureName:      "ring_white",
 		duration:         1500 * time.Millisecond,
 		alphaMax:         0.2,
@@ -1032,6 +1037,7 @@ func healCylinderComponent(bottomSize, topSize, height float64) worldEffectCompo
 		height:           height,
 		totalCircleSides: 32,
 		circleSides:      32,
+		blendAdditive:    true,
 	}
 }
 
@@ -1041,6 +1047,32 @@ func healOffensiveCylinderComponent(bottomSize, topSize, height float64) worldEf
 	component.color = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	component.blendAdditive = true
 	return component
+}
+
+func healParticleComponent(alpha float64, duration, delay, duplicateDelay time.Duration, duplicate int, posXRand, posYRand, posZStartRand, posZStartMiddle, posZEnd, posZEndRand, posZEndMiddle float64) worldEffectComponent {
+	return worldEffectComponent{
+		kind:            effectComponent3D,
+		color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
+		textureFile:     "effect/pok3.tga",
+		duration:        duration,
+		delay:           delay,
+		duplicateDelay:  duplicateDelay,
+		alphaMax:        alpha,
+		fadeIn:          true,
+		fadeOut:         true,
+		posXRand:        posXRand,
+		posYRand:        posYRand,
+		posZStartRand:   posZStartRand,
+		posZStartMiddle: posZStartMiddle,
+		posZEnd:         posZEnd,
+		posZEndRand:     posZEndRand,
+		posZEndMiddle:   posZEndMiddle,
+		sizeStart:       9 * roBrowserEffectPixelRatio,
+		sizeEnd:         9 * roBrowserEffectPixelRatio,
+		sizeRand:        2 * roBrowserEffectPixelRatio,
+		duplicate:       duplicate,
+		blendAdditive:   true,
+	}
 }
 
 func strEffectSpec(file, wav string) worldEffectSpec {
