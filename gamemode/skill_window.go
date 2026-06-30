@@ -10,6 +10,7 @@ import (
 
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 )
 
@@ -135,7 +136,7 @@ func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState) bool
 				w.setStatus(err.Error(), false)
 				return true
 			}
-			w.setStatus(fmt.Sprintf("%s level-up requested", skillLabel(skill)), true)
+			w.setStatus(fmt.Sprintf("%s level-up requested", skillDisplayName(ctx.Resources, skill)), true)
 			return true
 		}
 		rx, ry, rw, rh := w.skillRowBounds(row)
@@ -204,7 +205,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 				nameColor = skillWindowMutedColor
 			}
 			render.DebugPrintAtColor(screen, typeLabel, x+skillWindowPad+28, ry+7, typeColor)
-			render.DebugPrintAtColor(screen, trimRunes(skillLabel(skill), 18), x+skillWindowPad+44, ry+7, nameColor)
+			render.DebugPrintAtColor(screen, trimRunes(skillDisplayName(ctx.Resources, skill), 18), x+skillWindowPad+44, ry+7, nameColor)
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Level), x+204, ry+7, nameColor)
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.SPCost), x+244, ry+7, skillWindowMutedColor)
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Range), x+292, ry+7, skillWindowMutedColor)
@@ -234,6 +235,11 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 	}
 	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && mode != nil {
 		mode.drawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-12, ctx.Input.MouseY-12, 24)
+	}
+	if !w.dragActive && ctx.Input != nil {
+		if skill, ok := w.hoveredSkill(ctx); ok {
+			drawSkillTooltip(screen, ctx, skill)
+		}
 	}
 }
 
@@ -294,6 +300,20 @@ func (w *skillWindowState) skillRowBounds(row int) (int, int, int, int) {
 
 func (w *skillWindowState) levelButtonBounds(row int) (int, int, int, int) {
 	return w.x + skillWindowWidth - skillWindowPad - skillButtonSize, w.skillRowY(row) + 5, skillButtonSize, skillButtonSize
+}
+
+func (w *skillWindowState) hoveredSkill(ctx Context) (session.Skill, bool) {
+	if !w.open || ctx.Input == nil {
+		return session.Skill{}, false
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	for row, skill := range visibleSkills(ctx.Session, w.scroll, visibleSkillRows()) {
+		x, y, width, height := w.skillRowBounds(row)
+		if pointInRect(mx, my, x, y, width, height) {
+			return skill, true
+		}
+	}
+	return session.Skill{}, false
 }
 
 func (w *skillWindowState) setStatus(status string, good bool) {
@@ -377,6 +397,67 @@ func skillLabel(skill session.Skill) string {
 		return skill.Name
 	}
 	return fmt.Sprintf("Skill %d", skill.ID)
+}
+
+func skillDisplayName(manager *res.Manager, skill session.Skill) string {
+	if manager != nil {
+		if name, ok := manager.SkillDisplayName(int(skill.ID)); ok {
+			return name
+		}
+	}
+	return skillLabel(skill)
+}
+
+func drawSkillTooltip(screen *render.Image, ctx Context, skill session.Skill) {
+	if screen == nil || ctx.Input == nil {
+		return
+	}
+	const tooltipW = 292
+	name := skillDisplayName(ctx.Resources, skill)
+	lines := []string{
+		fmt.Sprintf("Lv %d", skill.Level),
+	}
+	if skill.SPCost > 0 {
+		lines = append(lines, fmt.Sprintf("SP Cost: %d", skill.SPCost))
+	}
+	if skill.Range > 0 {
+		lines = append(lines, fmt.Sprintf("Range: %d", skill.Range))
+	}
+	hasDescription := false
+	if ctx.Resources != nil {
+		if desc, ok := ctx.Resources.SkillDescription(int(skill.ID)); ok {
+			hasDescription = true
+			lines = append(lines, "")
+			for _, line := range desc {
+				clean := strings.TrimSpace(stripItemInfoColorCodes(strings.ReplaceAll(line, "_", " ")))
+				if clean == "" {
+					lines = append(lines, "")
+					continue
+				}
+				lines = append(lines, clean)
+			}
+		}
+	}
+	if !hasDescription {
+		lines = append(lines, "", "No description available.")
+	}
+	wrapped := wrapItemInfoLines(lines, 38)
+	tooltipH := 12 + itemInfoLineH*(len(wrapped)+1)
+	x := ctx.Input.MouseX + 16
+	y := ctx.Input.MouseY + 18
+	screenW, screenH := ctx.ScreenSize()
+	x = clampInventoryWindowInt(x, 8, maxInt(8, screenW-tooltipW-8))
+	y = clampInventoryWindowInt(y, 8, maxInt(8, screenH-tooltipH-8))
+	drawUISurface(screen, x, y, tooltipW, tooltipH, uiPanelBodyColor, uiWindowBorderColor)
+	render.DebugPrintAtColor(screen, trimRunes(name, 38), x+7, y+6, skillWindowTextColor)
+	lineY := y + 6 + itemInfoLineH
+	for i, line := range wrapped {
+		color := skillWindowMutedColor
+		if i >= 4 {
+			color = skillWindowTextColor
+		}
+		render.DebugPrintAtColor(screen, trimRunes(line, 38), x+7, lineY+i*itemInfoLineH, color)
+	}
 }
 
 func canIncreaseSkill(s *session.Session, skill session.Skill) bool {

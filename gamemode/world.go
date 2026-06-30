@@ -1418,7 +1418,7 @@ func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProject
 	if isGroundTargetSkill(skill) {
 		targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
 		if !ok {
-			m.status = fmt.Sprintf("select target: %s", skillLabel(skill))
+			m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 			log.Printf("shortcut ground skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 			return
 		}
@@ -1428,13 +1428,13 @@ func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProject
 			return
 		}
 		m.pendingSkill = pendingSkillTarget{}
-		m.status = fmt.Sprintf("%s: %d,%d", skillLabel(skill), targetX, targetY)
+		m.status = fmt.Sprintf("%s: %d,%d", skillDisplayName(ctx.Resources, skill), targetX, targetY)
 		log.Printf("shortcut ground skill target sent skill=%d target=%d,%d", skill.ID, targetX, targetY)
 		return
 	}
 	actor, ok := clickedSkillTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
 	if !ok {
-		m.status = fmt.Sprintf("select target: %s", skillLabel(skill))
+		m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 		log.Printf("shortcut skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 		return
 	}
@@ -1444,7 +1444,7 @@ func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProject
 		return
 	}
 	m.pendingSkill = pendingSkillTarget{}
-	m.status = fmt.Sprintf("%s: %d", skillLabel(skill), actor.ID)
+	m.status = fmt.Sprintf("%s: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
 	log.Printf("shortcut skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
 }
 
@@ -1461,7 +1461,7 @@ func (m *WorldMode) applyAutoRunSkill(ctx Context, auto network.AutoRunSkill) {
 		log.Printf("auto-run skill use failed skill=%d target=%d: %v", skill.ID, target, err)
 		return
 	}
-	m.status = skillLabel(skill)
+	m.status = skillDisplayName(ctx.Resources, skill)
 }
 
 func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {

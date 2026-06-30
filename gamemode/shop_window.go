@@ -325,7 +325,10 @@ func (w *shopWindowState) drawDeal(screen *render.Image, ctx Context) {
 	x := (width - shopDealWidth) / 2
 	y := (height - shopDealHeight) * 2 / 3
 	drawNPCWindowFrame(screen, x, y, shopDealWidth, shopDealHeight)
-	render.DebugPrintAtColor(screen, "What do you want to do?", x+20, y+20, shopTextColor)
+	drawUIWindowTitle(screen, x, y, shopWindowTitleH, shopWindowPad, "Shop", shopTitleColor)
+	prompt := "What do you want to do?"
+	promptW, _ := render.DebugTextSize(prompt)
+	render.DebugPrintAtColor(screen, prompt, x+(shopDealWidth-promptW)/2, y+42, shopTextColor)
 	w.drawButton(screen, x+18, y+64, 60, 24, "Buy", true)
 	w.drawButton(screen, x+92, y+64, 60, 24, "Sell", true)
 	w.drawButton(screen, x+166, y+64, 60, 24, "Cancel", true)

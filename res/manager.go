@@ -33,6 +33,9 @@ type Manager struct {
 	fogParametersLoaded      bool
 	skillResourceNames       map[int]string
 	skillResourceNamesLoaded bool
+	skillDisplayNames        map[int]string
+	skillDescriptions        map[int][]string
+	skillMetadataLoaded      bool
 }
 
 type CameraViewPoint struct {

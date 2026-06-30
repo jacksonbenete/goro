@@ -61,6 +61,27 @@ func (m *Manager) SkillResourceName(skillID int) (string, bool) {
 	return name, ok && name != ""
 }
 
+func (m *Manager) SkillDisplayName(skillID int) (string, bool) {
+	if skillID <= 0 {
+		return "", false
+	}
+	m.loadSkillMetadata()
+	name, ok := m.skillDisplayNames[skillID]
+	return name, ok && name != ""
+}
+
+func (m *Manager) SkillDescription(skillID int) ([]string, bool) {
+	if skillID <= 0 {
+		return nil, false
+	}
+	m.loadSkillMetadata()
+	lines, ok := m.skillDescriptions[skillID]
+	if !ok || len(lines) == 0 {
+		return nil, false
+	}
+	return append([]string(nil), lines...), true
+}
+
 func (m *Manager) loadSkillResourceNames() {
 	if m.skillResourceNamesLoaded {
 		return
@@ -92,6 +113,129 @@ func (m *Manager) loadSkillResourceNames() {
 			m.skillResourceNames[id] = name
 		}
 	}
+}
+
+func (m *Manager) loadSkillMetadata() {
+	if m.skillMetadataLoaded {
+		return
+	}
+	m.skillMetadataLoaded = true
+	m.loadSkillResourceNames()
+	m.skillDisplayNames = make(map[int]string)
+	m.skillDescriptions = make(map[int][]string)
+	nameToID := m.skillNameToID()
+	if _, data, ok := m.ReadFirst(skillDataTableCandidates("skillnametable.txt")); ok {
+		for id, name := range parseSkillNameTable(data, nameToID) {
+			m.skillDisplayNames[id] = name
+		}
+	}
+	if _, data, ok := m.ReadFirst(skillDataTableCandidates("skilldesctable.txt")); ok {
+		names, descriptions := parseSkillDescriptionTable(data, nameToID)
+		for id, name := range names {
+			if m.skillDisplayNames[id] == "" {
+				m.skillDisplayNames[id] = name
+			}
+		}
+		for id, lines := range descriptions {
+			m.skillDescriptions[id] = lines
+		}
+	}
+}
+
+func (m *Manager) skillNameToID() map[string]int {
+	out := make(map[string]int, len(m.skillResourceNames))
+	for id, name := range m.skillResourceNames {
+		if name == "" {
+			continue
+		}
+		out[strings.ToLower(strings.TrimSpace(name))] = id
+	}
+	return out
+}
+
+func skillDataTableCandidates(fileName string) []string {
+	return []string{
+		fileName,
+		"data\\" + fileName,
+		"data/" + fileName,
+		"data\\luafiles514\\lua files\\skillinfoz\\" + fileName,
+		"data/luafiles514/lua files/skillinfoz/" + fileName,
+		"data\\lua files\\skillinfoz\\" + fileName,
+		"data/lua files/skillinfoz/" + fileName,
+		"lua files\\skillinfoz\\" + fileName,
+		"lua files/skillinfoz/" + fileName,
+		"data\\luafiles514\\lua files\\skillinfo\\" + fileName,
+		"data/luafiles514/lua files/skillinfo/" + fileName,
+		"data\\lua files\\skillinfo\\" + fileName,
+		"data/lua files/skillinfo/" + fileName,
+		"lua files\\skillinfo\\" + fileName,
+		"lua files/skillinfo/" + fileName,
+	}
+}
+
+func parseSkillNameTable(data []byte, nameToID map[string]int) map[int]string {
+	out := make(map[int]string)
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(strings.TrimRight(rawLine, "\r\n"))
+		if line == "" || strings.HasPrefix(line, "/") || strings.HasPrefix(line, "#") {
+			continue
+		}
+		tokens := strings.Split(line, "#")
+		if len(tokens) < 2 {
+			continue
+		}
+		id, ok := nameToID[strings.ToLower(strings.TrimSpace(tokens[0]))]
+		if !ok || id <= 0 {
+			continue
+		}
+		name := normalizeSkillDisplayToken(tokens[1])
+		if name != "" {
+			out[id] = name
+		}
+	}
+	return out
+}
+
+func parseSkillDescriptionTable(data []byte, nameToID map[string]int) (map[int]string, map[int][]string) {
+	names := make(map[int]string)
+	descriptions := make(map[int][]string)
+	currentID := 0
+	expectTitle := false
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimRight(rawLine, "\r\n")
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if trimmed == "#" {
+			currentID = 0
+			expectTitle = false
+			continue
+		}
+		if strings.HasSuffix(trimmed, "#") && len(trimmed) > 1 {
+			key := strings.TrimSpace(strings.TrimSuffix(trimmed, "#"))
+			currentID = nameToID[strings.ToLower(key)]
+			expectTitle = currentID > 0
+			continue
+		}
+		if currentID <= 0 {
+			continue
+		}
+		if expectTitle {
+			name := normalizeSkillDisplayToken(trimmed)
+			if name != "" {
+				names[currentID] = name
+			}
+			expectTitle = false
+			continue
+		}
+		descriptions[currentID] = append(descriptions[currentID], line)
+	}
+	return names, descriptions
+}
+
+func normalizeSkillDisplayToken(value string) string {
+	return strings.ReplaceAll(strings.TrimSpace(value), "_", " ")
 }
 
 func SkillIconTextureCandidates(resource string, skillID int) []string {

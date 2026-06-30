@@ -52,6 +52,21 @@ func TestItemSpriteResourceCandidates(t *testing.T) {
 	}
 }
 
+func TestItemCollectionTextureCandidates(t *testing.T) {
+	got := ItemCollectionTextureCandidates("apple")
+	want := "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\collection\\apple.bmp"
+	found := false
+	for _, candidate := range got {
+		if candidate == want {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("missing collection candidate %q in %#v", want, got)
+	}
+}
+
 func TestItemMetadataLookupFallbacks(t *testing.T) {
 	manager := &Manager{
 		itemMetadataLoaded: true,

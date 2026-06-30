@@ -116,7 +116,7 @@ func (b *shortcutBarState) acceptSkillDrop(ctx Context, skill session.Skill, mx,
 		skillID:    skill.ID,
 		skillLevel: skill.Level,
 	}
-	b.setStatus(fmt.Sprintf("%s assigned to F%d", trimRunes(skillLabel(skill), 24), slot+1), true)
+	b.setStatus(fmt.Sprintf("%s assigned to F%d", trimRunes(skillDisplayName(ctx.Resources, skill), 24), slot+1), true)
 	b.save()
 	return true
 }
@@ -509,7 +509,7 @@ func (m *WorldMode) useShortcutSkill(ctx Context, skill session.Skill) error {
 	}
 	if skill.Range > 0 || isGroundTargetSkill(skill) {
 		m.pendingSkill = pendingSkillTarget{skill: skill, started: time.Now()}
-		m.status = fmt.Sprintf("select target: %s", skillLabel(skill))
+		m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 		log.Printf("shortcut skill target pending skill=%d level=%d range=%d", skill.ID, skill.Level, skill.Range)
 		return nil
 	}

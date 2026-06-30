@@ -492,6 +492,37 @@ func (m *WorldMode) itemIconTexture(manager *res.Manager, itemID uint16, identif
 	return texture
 }
 
+func (m *WorldMode) itemCollectionTexture(manager *res.Manager, itemID uint16, identified bool) *render.Image {
+	if manager == nil || itemID == 0 {
+		return nil
+	}
+	resourceName, ok := manager.ItemResourceName(int(itemID), identified)
+	if !ok {
+		return nil
+	}
+	key := fmt.Sprintf("__item_collection_%t_%s", identified, resourceName)
+	if m.textures == nil {
+		m.textures = make(map[string]*render.Image)
+	}
+	if m.textureMiss == nil {
+		m.textureMiss = make(map[string]struct{})
+	}
+	if texture, ok := m.textures[key]; ok {
+		return texture
+	}
+	if _, ok := m.textureMiss[key]; ok {
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, res.ItemCollectionTextureCandidates(resourceName))
+	if err != nil {
+		m.textureMiss[key] = struct{}{}
+		return nil
+	}
+	texture := render.NewImageFromImage(img)
+	m.textures[key] = texture
+	return texture
+}
+
 func (m *WorldMode) drawSkillIcon(screen *render.Image, manager *res.Manager, skill session.Skill, x, y, size int) {
 	if screen == nil || size <= 0 {
 		return

@@ -3,20 +3,22 @@ package gamemode
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"strings"
 	"time"
 
 	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 )
 
 const (
-	itemInfoWindowWidth  = 336
-	itemInfoWindowHeight = 276
-	itemInfoWindowTitleH = 28
-	itemInfoWindowPad    = 10
-	itemInfoIconPanel    = 44
-	itemInfoLineH        = 14
+	itemInfoWindowWidth       = 468
+	itemInfoWindowHeight      = 304
+	itemInfoWindowTitleH      = 28
+	itemInfoWindowPad         = 10
+	itemInfoIllustrationWidth = 132
+	itemInfoLineH             = 14
 )
 
 type itemInfoWindowState struct {
@@ -106,30 +108,32 @@ func (w *itemInfoWindowState) draw(screen *render.Image, ctx Context, mode *Worl
 	cx, cy, cw, ch := w.closeBounds()
 	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
-	panelX := x + itemInfoWindowPad
-	panelY := y + itemInfoWindowTitleH + itemInfoWindowPad
-	drawUISurface(screen, panelX, panelY, itemInfoIconPanel, itemInfoIconPanel, uiPanelBodyColor, uiWindowBorderColor)
+	leftX := x + itemInfoWindowPad
+	contentY := y + itemInfoWindowTitleH + itemInfoWindowPad
+	contentH := itemInfoWindowHeight - itemInfoWindowTitleH - itemInfoWindowPad*2
+	drawUISurface(screen, leftX, contentY, itemInfoIllustrationWidth, contentH, uiPanelBodyColor, uiWindowBorderColor)
 	if mode != nil {
-		mode.drawInventoryItemIcon(screen, ctx.Resources, w.item, panelX+(itemInfoIconPanel-inventoryIconSize)/2, panelY+(itemInfoIconPanel-inventoryIconSize)/2)
+		mode.drawItemInfoIllustration(screen, ctx.Resources, w.item, leftX+7, contentY+7, itemInfoIllustrationWidth-14, contentH-14)
 	}
 
 	name := inventoryItemDisplayName(ctx.Resources, w.item)
 	if w.item.Refine > 0 {
 		name = fmt.Sprintf("+%d %s", w.item.Refine, name)
 	}
-	nameX := panelX + itemInfoIconPanel + 10
-	render.DebugPrintAtColor(screen, trimRunes(name, 34), nameX, panelY+2, inventoryTextColor)
+	rightX := leftX + itemInfoIllustrationWidth + 12
+	rightW := itemInfoWindowWidth - itemInfoWindowPad - rightX + x
+	render.DebugPrintAtColor(screen, trimRunes(name, maxInt(12, (rightW-8)/7)), rightX, contentY+2, inventoryTextColor)
 	for i, line := range w.details {
-		render.DebugPrintAtColor(screen, trimRunes(line, 34), nameX, panelY+18+i*itemInfoLineH, inventoryMutedColor)
+		render.DebugPrintAtColor(screen, trimRunes(line, maxInt(12, (rightW-8)/7)), rightX, contentY+18+i*itemInfoLineH, inventoryMutedColor)
 	}
 
-	descX := x + itemInfoWindowPad
-	descY := panelY + itemInfoIconPanel + 10
-	descW := itemInfoWindowWidth - itemInfoWindowPad*2
+	descX := rightX
+	descY := contentY + 82
+	descW := rightW
 	descH := itemInfoWindowHeight - (descY - y) - itemInfoWindowPad
 	drawUISurface(screen, descX, descY, descW, descH, uiPanelBodyColor, uiWindowBorderColor)
 	visible := w.visibleDescriptionLineCount(descH)
-	lines := w.wrappedLines()
+	lines := w.wrappedLines(maxInt(10, (descW-18)/7))
 	if len(lines) == 0 {
 		render.DebugPrintAtColor(screen, "No description available.", descX+7, descY+7, inventoryMutedColor)
 		return
@@ -168,7 +172,7 @@ func (w *itemInfoWindowState) scrollBy(wheelY float64) {
 }
 
 func (w *itemInfoWindowState) clampScroll() {
-	maxScroll := maxInt(0, len(w.wrappedLines())-w.visibleDescriptionLineCount(itemInfoDescriptionHeight()))
+	maxScroll := maxInt(0, len(w.wrappedLines(itemInfoDescriptionRunes()))-w.visibleDescriptionLineCount(itemInfoDescriptionHeight()))
 	if w.scroll < 0 {
 		w.scroll = 0
 	}
@@ -181,13 +185,18 @@ func (w *itemInfoWindowState) visibleDescriptionLineCount(height int) int {
 	return maxInt(1, (height-12)/itemInfoLineH)
 }
 
-func (w *itemInfoWindowState) wrappedLines() []string {
-	return wrapItemInfoLines(w.lines, 42)
+func (w *itemInfoWindowState) wrappedLines(maxRunes int) []string {
+	return wrapItemInfoLines(w.lines, maxRunes)
 }
 
 func itemInfoDescriptionHeight() int {
-	descY := itemInfoWindowTitleH + itemInfoWindowPad + itemInfoIconPanel + 10
+	descY := itemInfoWindowTitleH + itemInfoWindowPad + 82
 	return itemInfoWindowHeight - descY - itemInfoWindowPad
+}
+
+func itemInfoDescriptionRunes() int {
+	descW := itemInfoWindowWidth - itemInfoWindowPad*2 - itemInfoIllustrationWidth - 12
+	return maxInt(10, (descW-18)/7)
 }
 
 func itemInfoDetailLines(item session.InventoryItem) []string {
@@ -344,4 +353,25 @@ func drawItemInfoScrollBar(screen *render.Image, x, y, h, scroll, visible, total
 	thumbTravel := h - thumbH
 	thumbY := y + thumbTravel*scroll/maxScroll
 	render.DrawRect(screen, float64(x), float64(thumbY), 4, float64(thumbH), inventoryMutedColor)
+}
+
+func (m *WorldMode) drawItemInfoIllustration(screen *render.Image, manager *res.Manager, item session.InventoryItem, x, y, width, height int) {
+	if screen == nil || width <= 0 || height <= 0 {
+		return
+	}
+	if image := m.itemCollectionTexture(manager, item.ItemID, item.Identified); image != nil {
+		bounds := image.Bounds()
+		srcW, srcH := float64(bounds.Dx()), float64(bounds.Dy())
+		if srcW > 0 && srcH > 0 {
+			scale := math.Min(float64(width)/srcW, float64(height)/srcH)
+			dstW, dstH := srcW*scale, srcH*scale
+			var opts render.DrawImageOptions
+			opts.GeoM.Scale(scale, scale)
+			opts.GeoM.Translate(float64(x)+(float64(width)-dstW)/2, float64(y)+(float64(height)-dstH)/2)
+			opts.Filter = spriteDrawFilter()
+			screen.DrawImage(image, &opts)
+			return
+		}
+	}
+	render.DebugPrintAtColor(screen, "No image", x+width/2-24, y+height/2-7, inventoryMutedColor)
 }
