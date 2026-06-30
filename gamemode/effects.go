@@ -42,6 +42,7 @@ const (
 	effectThunderStorm  = 30
 	effectIncAgility    = 37
 	effectDecAgility    = 38
+	effectRuwach        = 33
 	effectAqua          = 39
 	effectSignum        = 40
 	effectAngelus       = 41
@@ -167,6 +168,7 @@ type worldEffectComponent struct {
 	textureFile        string
 	textureFiles       []string
 	spriteFile         string
+	shadowTexture      bool
 	spriteHead         bool
 	spriteDirection    bool
 	spriteRepeat       bool
@@ -851,7 +853,7 @@ var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
 	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}, cast: roBrowserSkillCast{property: 3, perLevel: 700 * time.Millisecond}},                                                                 // MG_FIREBOLT
 	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, perLevel: 700 * time.Millisecond}},                                                                     // MG_LIGHTNINGBOLT
 	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, base: time.Second, perLevel: 200 * time.Millisecond}, forceGroundTarget: true, groundCastMarkerSize: 5}, // MG_THUNDERSTORM
-	24:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // AL_RUWACH
+	24:  {effectIDs: []int{effectRuwach}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                                     // AL_RUWACH; roBrowser also keeps EF_HIT2 as the reveal hit effect.
 	25:  {groundEffectIDs: []int{effectPneuma}, forceGroundTarget: true},                                                                                                                                                          // AL_PNEUMA
 	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}, recoveryFloater: roBrowserSkillRecoveryFloater{enabled: true, color: recoveryHPColor, kind: damageFloaterRecoveryHP}},                           // AL_HEAL
 	29:  {effectIDs: []int{effectIncAgility}},                                                                                                                                                                                     // AL_INCAGI
@@ -1519,15 +1521,33 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projec
 		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint)
 		return
 	}
-	scale := size / 100
+	scale := effect3DSpriteScale(size)
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
+	options := effect3DSpriteDrawOptions(component)
 	if angle, ok := effectSpriteScreenRotation(ctx, projection, component, effect); ok {
-		drawSpriteBillboardTintAlphaRotated3D(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint)
+		drawSpriteBillboardTintAlphaRotated3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint, options)
 		return
 	}
-	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, 1, tint)
+	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, 1, tint, options)
+}
+
+func effect3DSpriteDrawOptions(component worldEffectComponent) *render.DrawTrianglesOptions {
+	options := spriteBillboardTriangleDrawOptions()
+	if component.blendAdditive {
+		options.Blend = render.BlendLighter
+	}
+	return options
+}
+
+func effect3DSpriteScale(size float64) float64 {
+	if size <= 0 || math.IsNaN(size) || math.IsInf(size, 0) {
+		return 1
+	}
+	// roBrowser's SpriteRenderer applies size as (size / 175) * xSize, with
+	// xSize defaulting to 5. roBrowserEffectSize already stores that scale.
+	return size
 }
 
 func effectSpriteScreenRotation(ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect) (float64, bool) {
@@ -1850,14 +1870,16 @@ func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, 
 		z += math.Sin(progress*math.Pi) * component.arc
 	}
 	if component.orbitRadiusX != 0 || component.orbitRadiusY != 0 || component.orbitRadiusZ != 0 {
-		angle := progress * component.orbitRotations * 2 * math.Pi
-		if component.orbitClockwise {
-			angle = -angle
+		angle := progress*component.orbitRotations*350*math.Pi/180 - (component.orbitPhase+component.orbitPhaseDelta*float64(duplicateIndex))*math.Pi/2
+		if component.orbitRadiusX != 0 {
+			x = math.Cos(angle) * component.orbitRadiusX
+			if component.orbitClockwise {
+				x = -x
+			}
 		}
-		angle -= (component.orbitPhase + component.orbitPhaseDelta*float64(duplicateIndex)) * math.Pi / 2
-		x += math.Cos(angle) * component.orbitRadiusX
-		y += math.Sin(angle) * component.orbitRadiusY
-		z += math.Sin(angle) * component.orbitRadiusZ
+		if component.orbitRadiusY != 0 {
+			y = math.Sin(angle) * component.orbitRadiusY
+		}
 	}
 	return x, y, z
 }

@@ -693,14 +693,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 67 {
-		t.Fatalf("implemented effects = %d, want 67", coverage.Implemented)
+	if coverage.Implemented != 68 {
+		t.Fatalf("implemented effects = %d, want 68", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 11.0 || coverage.ActivePercent > 11.1 {
-		t.Fatalf("active coverage = %.3f, want about 11.0", coverage.ActivePercent)
+	if coverage.ActivePercent < 11.2 || coverage.ActivePercent > 11.3 {
+		t.Fatalf("active coverage = %.3f, want about 11.2", coverage.ActivePercent)
 	}
 }
 
@@ -1313,6 +1313,7 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 }
 
 func TestAcolyteSkillEffectMappings(t *testing.T) {
+	expectEffectIDs(t, "AL_RUWACH", skillEffectIDs(24), effectRuwach)
 	expectEffectIDs(t, "AL_RUWACH hit", skillHitEffectIDs(24), effectBashHit)
 	expectEffectIDs(t, "AL_HEAL", skillEffectIDs(28), effectHeal)
 	expectEffectIDs(t, "AL_HEAL hit", skillHitEffectIDs(28), effectHealOffensive)
@@ -1830,6 +1831,44 @@ func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
 	}
 }
 
+func TestEffect3DSpriteScaleUsesRobrowserSpriteUnits(t *testing.T) {
+	size := roBrowserEffectSize(80)
+	if got := effect3DSpriteScale(size); math.Abs(got-size) > 0.001 {
+		t.Fatalf("sprite scale = %.3f, want %.3f", got, size)
+	}
+}
+
+func TestEffect3DSpriteDrawOptionsHonorAdditiveBlend(t *testing.T) {
+	if got := effect3DSpriteDrawOptions(worldEffectComponent{}).Blend; got != render.BlendSourceOver {
+		t.Fatalf("default sprite effect blend = %v, want source-over", got)
+	}
+	if got := effect3DSpriteDrawOptions(worldEffectComponent{blendAdditive: true}).Blend; got != render.BlendLighter {
+		t.Fatalf("additive sprite effect blend = %v, want lighter", got)
+	}
+}
+
+func TestWorldEffectOrbitReplacesBasePositionLikeRobrowser(t *testing.T) {
+	component := worldEffectComponent{
+		posX:           -2,
+		posY:           4,
+		orbitRadiusX:   3,
+		orbitRadiusY:   3,
+		orbitRotations: 8,
+		orbitPhase:     0.7,
+		orbitClockwise: true,
+	}
+	x, y, _ := (&WorldMode{}).effect3DOffset(Context{}, component, worldEffect{}, 0, 0, 0, 0, 0, 0)
+	angle := -0.7 * math.Pi / 2
+	wantX := -math.Cos(angle) * 3
+	wantY := math.Sin(angle) * 3
+	if math.Abs(x-wantX) > 0.001 || math.Abs(y-wantY) > 0.001 {
+		t.Fatalf("orbit offset = %.3f, %.3f; want %.3f, %.3f", x, y, wantX, wantY)
+	}
+	if math.Abs(x-(-2+wantX)) < 0.001 || math.Abs(y-(4+wantY)) < 0.001 {
+		t.Fatalf("orbit offset incorrectly included base position: %.3f, %.3f", x, y)
+	}
+}
+
 func TestWorldEffectBillboardSparklingAlphaMatchesRobrowser(t *testing.T) {
 	component := worldEffectComponent{
 		alphaMax:    1,
@@ -1907,6 +1946,7 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		effectFrostDiverHit,
 		effectLightningBolt,
 		effectThunderStorm,
+		effectRuwach,
 		effectDecAgility,
 		effectAqua,
 		effectSignum,
@@ -3946,6 +3986,22 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectProvoke || effect.x != 12 || effect.y != 22 {
+		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestSkillNoDamageNotifyAddsRuwachAuraOnCaster(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 24, Amount: 1, TargetID: 2000000, SourceID: 2000000, Result: 1})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectRuwach || effect.x != 10 || effect.y != 20 {
 		t.Fatalf("effect = %+v", effect)
 	}
 }

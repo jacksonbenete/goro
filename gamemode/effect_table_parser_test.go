@@ -126,6 +126,54 @@ export default {
 	}
 }
 
+func TestParseRobrowserEffectTableSubsetParsesShadowTexture3D(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	33: [
+		{
+			type: '3D',
+			shadowTexture: true,
+			alphaMax: 0.5,
+			duration: 12200,
+			duplicate: 8,
+			nbOfRotation: 8,
+			posx: -2,
+			rotateLate: 0.7,
+			rotateLateDelta: -0.1,
+			rotatePosX: 3,
+			rotatePosY: 3,
+			rotationClockwise: true,
+			size: 0.4,
+			sizeDelta: 0.15
+		}
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, ok := specs[33]
+	if !ok {
+		t.Fatal("effect 33 was not parsed")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("effect 33 component count = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectComponent3D || component.spriteFile != `data\sprite\shadow` || !component.shadowTexture {
+		t.Fatalf("effect 33 shadow component = %#v", component)
+	}
+	if component.duration != 12200*time.Millisecond || component.duplicate != 8 || component.alphaMax != 0.5 {
+		t.Fatalf("effect 33 timing/alpha = %#v", component)
+	}
+	if component.sizeStart != roBrowserEffectSize(0.4) || component.sizeEnd != roBrowserEffectSize(0.4) || component.sizeDelta != 0.15 {
+		t.Fatalf("effect 33 size = %#v", component)
+	}
+	if component.orbitRadiusX != 3 || component.orbitRadiusY != 3 || component.orbitRotations != 8 || component.orbitPhase != 0.7 || component.orbitPhaseDelta != -0.1 || !component.orbitClockwise {
+		t.Fatalf("effect 33 orbit = %#v", component)
+	}
+}
+
 func TestParseRobrowserEffectTableSubsetParsesSTRMinFile(t *testing.T) {
 	specs, err := parseRobrowserEffectTableSubset(`
 export default {

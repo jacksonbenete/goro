@@ -263,6 +263,10 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 		if spriteFile == "" {
 			spriteFile = fieldString(fields, "spriteName")
 		}
+		shadowTexture := fieldBool(fields, "shadowTexture")
+		if spriteFile == "" && shadowTexture {
+			spriteFile = "data\\sprite\\shadow"
+		}
 		if file == "" && spriteFile == "" {
 			return worldEffectComponent{}, sfx, false
 		}
@@ -276,6 +280,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			color:            effectColorFields(fields),
 			textureFile:      file,
 			spriteFile:       spriteFile,
+			shadowTexture:    shadowTexture,
 			spriteRepeat:     fieldBool(fields, "playSprite"),
 			spriteDelay:      fieldDuration(fields, "sprDelay"),
 			fromSrc:          fieldBool(fields, "fromSrc"),
