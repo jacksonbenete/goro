@@ -1,8 +1,10 @@
 package gamemode
 
 import (
+	"fmt"
 	"image/color"
 
+	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 )
 
@@ -25,8 +27,10 @@ var (
 )
 
 type escapeMenuState struct {
-	open   bool
-	action escapeMenuAction
+	open    bool
+	action  escapeMenuAction
+	pending bool
+	status  string
 }
 
 type escapeMenuAction int
@@ -46,7 +50,7 @@ type escapeMenuButton struct {
 }
 
 var escapeMenuButtons = []escapeMenuButton{
-	{label: "Character Select", action: escapeMenuActionCharacterSelect},
+	{label: "Character Select", action: escapeMenuActionCharacterSelect, enabled: true},
 	{label: "Settings", action: escapeMenuActionSettings, enabled: true},
 	{label: "Cancel", action: escapeMenuActionCancel, enabled: true},
 	{label: "Exit to Windows", action: escapeMenuActionExit, enabled: true},
@@ -59,11 +63,12 @@ func (m *escapeMenuState) update(ctx Context) bool {
 	if !m.open {
 		if ctx.Input.JustPressed(render.KeyEscape) {
 			m.open = true
+			m.status = ""
 			return true
 		}
 		return false
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input.JustPressed(render.KeyEscape) && !m.pending {
 		m.open = false
 		return true
 	}
@@ -81,10 +86,12 @@ func (m *escapeMenuState) update(ctx Context) bool {
 		if !pointInRect(mx, my, bx, by, bw, bh) {
 			continue
 		}
-		if !button.enabled {
+		if !button.enabled || (m.pending && button.action != escapeMenuActionExit) {
 			return true
 		}
 		switch button.action {
+		case escapeMenuActionCharacterSelect:
+			m.action = escapeMenuActionCharacterSelect
 		case escapeMenuActionSettings:
 			m.open = false
 			m.action = escapeMenuActionSettings
@@ -99,6 +106,33 @@ func (m *escapeMenuState) update(ctx Context) bool {
 		return true
 	}
 	return true
+}
+
+func (m *escapeMenuState) requestCharacterSelect(ctx Context) {
+	m.pending = true
+	m.status = "Requesting character select..."
+	if ctx.Network == nil {
+		m.pending = false
+		m.status = "Character select failed: not connected"
+		return
+	}
+	if err := ctx.Network.SendRestart(network.RestartTypeCharSelect); err != nil {
+		m.pending = false
+		m.status = fmt.Sprintf("Character select failed: %v", err)
+	}
+}
+
+func (m *escapeMenuState) applyRestartAck(ack network.RestartAck) bool {
+	if !m.open || !m.pending {
+		return false
+	}
+	if ack.Allowed {
+		m.status = "Returning to character select..."
+		return true
+	}
+	m.pending = false
+	m.status = "Please wait before changing characters."
+	return false
 }
 
 func (m *escapeMenuState) consumeAction() escapeMenuAction {
@@ -124,13 +158,21 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 		bx, by, bw, bh := escapeMenuButtonBounds(x, y, w, i)
 		fill := escapeMenuButtonColor
 		textColor := escapeMenuTextColor
-		if !button.enabled {
+		enabled := button.enabled && (!m.pending || button.action == escapeMenuActionExit)
+		if !enabled {
 			fill = escapeMenuDisabledColor
 			textColor = escapeMenuMutedColor
 		} else if pointInRect(mx, my, bx, by, bw, bh) {
 			fill = escapeMenuHoverColor
 		}
 		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
+	}
+	if m.status != "" {
+		statusColor := escapeMenuMutedColor
+		if !m.pending {
+			statusColor = uiErrorTextColor
+		}
+		render.DebugPrintAtColor(screen, trimRunes(m.status, 30), x+escapeMenuPad, y+h-18, statusColor)
 	}
 }
 
@@ -141,7 +183,7 @@ func (m *escapeMenuState) cursorAction(ctx Context) (int, bool) {
 	width, height := ctx.ScreenSize()
 	x, y, w, _ := escapeMenuBounds(width, height)
 	for i, button := range escapeMenuButtons {
-		if !button.enabled {
+		if !button.enabled || (m.pending && button.action != escapeMenuActionExit) {
 			continue
 		}
 		bx, by, bw, bh := escapeMenuButtonBounds(x, y, w, i)

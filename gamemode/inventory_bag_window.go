@@ -71,7 +71,7 @@ func (w *inventoryBagWindowState) toggle(ctx Context) {
 	w.clampScroll(ctx.Session)
 }
 
-func (w *inventoryBagWindowState) update(ctx Context, shortcuts *shortcutBarState) bool {
+func (w *inventoryBagWindowState) update(ctx Context, shortcuts *shortcutBarState, storage *storageWindowState, itemInfo *itemInfoWindowState) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -82,6 +82,9 @@ func (w *inventoryBagWindowState) update(ctx Context, shortcuts *shortcutBarStat
 			item := w.dragItem
 			w.dragActive = false
 			w.dragItem = session.InventoryItem{}
+			if storage != nil && storage.acceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+				return true
+			}
 			if shortcuts != nil && shortcuts.acceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 				return true
 			}
@@ -105,6 +108,21 @@ func (w *inventoryBagWindowState) update(ctx Context, shortcuts *shortcutBarStat
 	}
 	if ctx.Input.JustPressed(render.KeyEscape) {
 		w.open = false
+		return true
+	}
+	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+		mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+		if !inside {
+			return false
+		}
+		if item, ok := w.itemAt(ctx.Session, mx, my); ok {
+			w.dragActive = false
+			w.dragItem = session.InventoryItem{}
+			if itemInfo != nil {
+				itemInfo.openItem(ctx, item, mx, my)
+			}
+			return true
+		}
 		return true
 	}
 	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {

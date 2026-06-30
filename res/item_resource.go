@@ -11,6 +11,8 @@ type ItemMetadata struct {
 	IdentifiedDisplayName   string
 	UnidentifiedResource    string
 	IdentifiedResource      string
+	UnidentifiedDescription []string
+	IdentifiedDescription   []string
 }
 
 var itemDisplayTableFiles = []struct {
@@ -27,6 +29,14 @@ var itemResourceTableFiles = []struct {
 }{
 	{name: "num2itemresnametable.txt"},
 	{name: "idnum2itemresnametable.txt", identified: true},
+}
+
+var itemDescriptionTableFiles = []struct {
+	name       string
+	identified bool
+}{
+	{name: "num2itemdesctable.txt"},
+	{name: "idnum2itemdesctable.txt", identified: true},
 }
 
 func (m *Manager) ItemDisplayName(itemID int, identified bool) (string, bool) {
@@ -83,6 +93,33 @@ func (m *Manager) ItemResourceName(itemID int, identified bool) (string, bool) {
 	return "", false
 }
 
+func (m *Manager) ItemDescription(itemID int, identified bool) ([]string, bool) {
+	if itemID <= 0 {
+		return nil, false
+	}
+	m.loadItemMetadata()
+	metadata, ok := m.itemMetadata[itemID]
+	if !ok {
+		return nil, false
+	}
+	if identified {
+		if len(metadata.IdentifiedDescription) > 0 {
+			return append([]string(nil), metadata.IdentifiedDescription...), true
+		}
+		if len(metadata.UnidentifiedDescription) > 0 {
+			return append([]string(nil), metadata.UnidentifiedDescription...), true
+		}
+	} else {
+		if len(metadata.UnidentifiedDescription) > 0 {
+			return append([]string(nil), metadata.UnidentifiedDescription...), true
+		}
+		if len(metadata.IdentifiedDescription) > 0 {
+			return append([]string(nil), metadata.IdentifiedDescription...), true
+		}
+	}
+	return nil, false
+}
+
 func (m *Manager) loadItemMetadata() {
 	if m.itemMetadataLoaded {
 		return
@@ -112,6 +149,17 @@ func (m *Manager) loadItemMetadata() {
 			m.itemMetadata[id] = metadata
 		}
 	}
+	for _, table := range itemDescriptionTableFiles {
+		for id, value := range m.readItemDescriptionTable(table.name) {
+			metadata := m.itemMetadata[id]
+			if table.identified {
+				metadata.IdentifiedDescription = value
+			} else {
+				metadata.UnidentifiedDescription = value
+			}
+			m.itemMetadata[id] = metadata
+		}
+	}
 }
 
 func (m *Manager) readItemPairTable(fileName string) map[int]string {
@@ -125,12 +173,72 @@ func (m *Manager) readItemPairTable(fileName string) map[int]string {
 	return nil
 }
 
+func (m *Manager) readItemDescriptionTable(fileName string) map[int][]string {
+	for _, candidate := range itemTableCandidates(fileName) {
+		data, err := m.ReadFile(candidate)
+		if err != nil {
+			continue
+		}
+		return parseItemDescriptionTable(data)
+	}
+	return nil
+}
+
 func itemTableCandidates(fileName string) []string {
 	return []string{
 		fileName,
 		"data\\" + fileName,
 		"data/" + fileName,
 	}
+}
+
+func parseItemDescriptionTable(data []byte) map[int][]string {
+	out := make(map[int][]string)
+	currentID := 0
+	var lines []string
+	flush := func() {
+		if currentID > 0 {
+			out[currentID] = append([]string(nil), lines...)
+		}
+		currentID = 0
+		lines = nil
+	}
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimRight(rawLine, "\r\n")
+		if currentID == 0 {
+			id, ok := parseItemDescriptionHeader(line)
+			if ok {
+				currentID = id
+				lines = nil
+			}
+			continue
+		}
+		if strings.TrimSpace(line) == "#" {
+			flush()
+			continue
+		}
+		lines = append(lines, line)
+	}
+	flush()
+	return out
+}
+
+func parseItemDescriptionHeader(line string) (int, bool) {
+	if line == "" || strings.HasPrefix(line, "/") || strings.HasPrefix(line, "#") {
+		return 0, false
+	}
+	firstHash := strings.IndexByte(line, '#')
+	if firstHash <= 0 {
+		return 0, false
+	}
+	if strings.TrimSpace(line[firstHash+1:]) != "" {
+		return 0, false
+	}
+	id, err := strconv.ParseUint(line[:firstHash], 10, 32)
+	if err != nil || id == 0 {
+		return 0, false
+	}
+	return int(id), true
 }
 
 func parseItemPairTable(data []byte) map[int]string {

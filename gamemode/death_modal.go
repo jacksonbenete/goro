@@ -71,16 +71,17 @@ func (m *deathModalState) clearIfAlive(ctx Context) {
 	}
 }
 
-func (m *deathModalState) applyRestartAck(ack network.RestartAck) {
+func (m *deathModalState) applyRestartAck(ack network.RestartAck) bool {
 	if !m.open || m.pending != deathModalActionCharSelect {
-		return
+		return false
 	}
 	if ack.Allowed {
 		m.status = "Returning to character select..."
-		return
+		return true
 	}
 	m.pending = deathModalActionNone
 	m.status = "Please wait before changing characters."
+	return false
 }
 
 func (m *deathModalState) update(ctx Context) bool {

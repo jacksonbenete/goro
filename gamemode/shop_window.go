@@ -150,7 +150,7 @@ func (w *shopWindowState) applyResult(ctx Context, result network.ShopResult) {
 	w.statusAt = time.Now()
 }
 
-func (w *shopWindowState) update(ctx Context) bool {
+func (w *shopWindowState) update(ctx Context, itemInfo *itemInfoWindowState) bool {
 	if ctx.Input == nil {
 		return false
 	}
@@ -178,6 +178,19 @@ func (w *shopWindowState) update(ctx Context) bool {
 	inside := pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, shopWindowWidth, shopWindowHeight)
 	if inside && ctx.Input.WheelY != 0 && w.mode == shopModeBuy {
 		w.scrollBuyBy(ctx.Input.WheelY)
+		return true
+	}
+	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+		mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+		if !inside {
+			return false
+		}
+		if itemInfo != nil {
+			if item, ok := w.itemAt(mx, my); ok {
+				itemInfo.openItem(ctx, item, mx, my)
+				return true
+			}
+		}
 		return true
 	}
 	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
@@ -481,6 +494,31 @@ func (w *shopWindowState) handleBuyClick(mx, my int) bool {
 		}
 	}
 	return false
+}
+
+func (w *shopWindowState) itemAt(mx, my int) (session.InventoryItem, bool) {
+	if w.mode == shopModeBuy {
+		for row, item := range w.visibleBuyItems() {
+			x, y, width, _ := w.buyRowBounds(row)
+			if !pointInRect(mx, my, x, y, width-58, shopBuyRowH-3) {
+				continue
+			}
+			return session.InventoryItem{ItemID: item.ItemID, Type: item.Type, Identified: true, Amount: 1}, true
+		}
+		return session.InventoryItem{}, false
+	}
+	if w.mode != shopModeSell {
+		return session.InventoryItem{}, false
+	}
+	for row, cartItem := range w.visibleCartItems() {
+		x, y, width, height := w.cartRowBounds(row)
+		if pointInRect(mx, my, x, y, width, height) {
+			item := cartItem.item
+			item.Amount = int(cartItem.amount)
+			return item, true
+		}
+	}
+	return session.InventoryItem{}, false
 }
 
 func (w *shopWindowState) decrementBuyItem(itemID uint16) {

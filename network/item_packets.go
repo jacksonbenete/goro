@@ -16,6 +16,9 @@ const (
 	PacketCZReqTakeoffEquip    uint16 = 0x00AB
 	PacketCZPCPurchaseItemList uint16 = 0x00C8
 	PacketCZPCSellItemList     uint16 = 0x00C9
+	PacketCZMoveToStorage      uint16 = 0x0094
+	PacketCZMoveFromStorage    uint16 = 0x00F7
+	PacketCZCloseStorage       uint16 = 0x0193
 )
 
 type itemPickupPacketLayout struct {
@@ -66,6 +69,27 @@ var useItemPacketLayouts = []useItemPacketLayout{
 	{date: 20050509, opcode: 0x009F, length: 14, indexOffset: 4, targetOffset: 10},
 	{date: 20050110, opcode: 0x009F, length: 17, indexOffset: 5, targetOffset: 13},
 	{date: 20041129, opcode: 0x0190, length: 15, indexOffset: 3, targetOffset: 11},
+}
+
+type storageMovePacketLayout struct {
+	date         int
+	opcode       uint16
+	length       int
+	indexOffset  int
+	amountOffset int
+}
+
+var moveToStoragePacketLayouts = []storageMovePacketLayout{
+	// 2008-09-10 keeps the 2007-02-12 shuffled Kafra packet offsets in
+	// rAthena's packet DB. The unshuffled 0x00F3 packet is not accepted by
+	// that server profile.
+	{date: 20070212, opcode: PacketCZMoveToStorage, length: 14, indexOffset: 7, amountOffset: 10},
+	{date: 20050509, opcode: PacketCZMoveToStorage, length: 14, indexOffset: 7, amountOffset: 10},
+}
+
+var moveFromStoragePacketLayouts = []storageMovePacketLayout{
+	{date: 20070212, opcode: PacketCZMoveFromStorage, length: 22, indexOffset: 14, amountOffset: 18},
+	{date: 20050509, opcode: PacketCZMoveFromStorage, length: 22, indexOffset: 14, amountOffset: 18},
 }
 
 type FloorItemEntry struct {
@@ -128,6 +152,16 @@ type InventoryEquipAck struct {
 	Location uint16
 	Success  bool
 	Unequip  bool
+}
+
+type StorageAmount struct {
+	Amount    uint16
+	MaxAmount uint16
+}
+
+type StorageItemRemoved struct {
+	Index  uint16
+	Amount uint32
 }
 
 type ShopDealSelection struct {
@@ -315,6 +349,21 @@ func ParseInventoryItemList(packet Packet) ([]InventoryItem, bool, error) {
 	}
 }
 
+func ParseStorageItemList(packet Packet) ([]InventoryItem, bool, error) {
+	switch packet.ID {
+	case 0x00A5:
+		return parseNormalInventoryItems(packet, 10)
+	case 0x02EA:
+		return parseNormalInventoryItems(packet, 22)
+	case 0x00A6:
+		return parseEquipInventoryItems(packet, 20)
+	case 0x02D1:
+		return parseEquipInventoryItems(packet, 26)
+	default:
+		return nil, false, nil
+	}
+}
+
 func parseNormalInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bool, error) {
 	if len(packet.Data) < 4 {
 		return nil, false, fmt.Errorf("ZC_NORMAL_ITEMLIST 0x%04X too short: %d", packet.ID, len(packet.Data))
@@ -433,6 +482,75 @@ func ParseInventoryItemDelete(packet Packet) (InventoryItemDelete, bool, error) 
 	default:
 		return InventoryItemDelete{}, false, nil
 	}
+}
+
+func ParseStorageAmount(packet Packet) (StorageAmount, bool, error) {
+	if packet.ID != 0x00F2 {
+		return StorageAmount{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return StorageAmount{}, false, fmt.Errorf("ZC_NOTIFY_STOREITEM_COUNTINFO too short: %d", len(packet.Data))
+	}
+	return StorageAmount{
+		Amount:    binary.LittleEndian.Uint16(packet.Data[2:4]),
+		MaxAmount: binary.LittleEndian.Uint16(packet.Data[4:6]),
+	}, true, nil
+}
+
+func ParseStorageItemAdded(packet Packet) (InventoryItem, bool, error) {
+	switch packet.ID {
+	case 0x00F4:
+		if len(packet.Data) < 21 {
+			return InventoryItem{}, false, fmt.Errorf("ZC_ADD_ITEM_TO_STORE too short: %d", len(packet.Data))
+		}
+		return InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:     uint16(minIntNetwork(int(binary.LittleEndian.Uint32(packet.Data[4:8])), int(^uint16(0)))),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[8:10]),
+			Identified: packet.Data[10] != 0,
+			Damaged:    packet.Data[11] != 0,
+			Refine:     packet.Data[12],
+		}, true, nil
+	case 0x01C4:
+		if len(packet.Data) < 22 {
+			return InventoryItem{}, false, fmt.Errorf("ZC_ADD_ITEM_TO_STORE2 too short: %d", len(packet.Data))
+		}
+		return InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:     uint16(minIntNetwork(int(binary.LittleEndian.Uint32(packet.Data[4:8])), int(^uint16(0)))),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[8:10]),
+			Type:       packet.Data[10],
+			Identified: packet.Data[11] != 0,
+			Damaged:    packet.Data[12] != 0,
+			Refine:     packet.Data[13],
+		}, true, nil
+	default:
+		return InventoryItem{}, false, nil
+	}
+}
+
+func ParseStorageItemRemoved(packet Packet) (StorageItemRemoved, bool, error) {
+	if packet.ID != 0x00F6 {
+		return StorageItemRemoved{}, false, nil
+	}
+	if len(packet.Data) < 8 {
+		return StorageItemRemoved{}, false, fmt.Errorf("ZC_DELETE_ITEM_FROM_STORE too short: %d", len(packet.Data))
+	}
+	return StorageItemRemoved{
+		Index:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Amount: binary.LittleEndian.Uint32(packet.Data[4:8]),
+	}, true, nil
+}
+
+func ParseStorageClosed(packet Packet) bool {
+	return packet.ID == 0x00F8
+}
+
+func minIntNetwork(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func ParseInventoryEquipAck(packet Packet) (InventoryEquipAck, bool, error) {
@@ -588,6 +706,51 @@ func BuildTakeoffEquipPacket(index uint16) []byte {
 	return packet
 }
 
+func BuildMoveToStoragePacketForClientDate(index uint16, amount uint32, clientDate int) []byte {
+	return buildStorageMovePacket(index, amount, clientDate, moveToStoragePacketLayouts, 0x00F3)
+}
+
+func BuildMoveFromStoragePacketForClientDate(index uint16, amount uint32, clientDate int) []byte {
+	return buildStorageMovePacket(index, amount, clientDate, moveFromStoragePacketLayouts, 0x00F5)
+}
+
+func buildStorageMovePacket(index uint16, amount uint32, clientDate int, layouts []storageMovePacketLayout, fallbackOpcode uint16) []byte {
+	if amount == 0 {
+		amount = 1
+	}
+	for _, layout := range layouts {
+		if clientDate < layout.date {
+			continue
+		}
+		packet := make([]byte, layout.length)
+		binary.LittleEndian.PutUint16(packet[0:2], layout.opcode)
+		if layout.indexOffset > 2 {
+			fillLegacyPacketPadding(packet[2:layout.indexOffset])
+		}
+		binary.LittleEndian.PutUint16(packet[layout.indexOffset:layout.indexOffset+2], index)
+		if layout.amountOffset > layout.indexOffset+2 {
+			fillLegacyPacketPadding(packet[layout.indexOffset+2 : layout.amountOffset])
+		}
+		binary.LittleEndian.PutUint32(packet[layout.amountOffset:layout.amountOffset+4], amount)
+		return packet
+	}
+	packet := make([]byte, 8)
+	binary.LittleEndian.PutUint16(packet[0:2], fallbackOpcode)
+	binary.LittleEndian.PutUint16(packet[2:4], index)
+	binary.LittleEndian.PutUint32(packet[4:8], amount)
+	return packet
+}
+
+func BuildCloseStoragePacketForClientDate(clientDate int) []byte {
+	opcode := PacketCZCloseStorage
+	if clientDate < 20050523 {
+		opcode = 0x00F7
+	}
+	packet := make([]byte, 2)
+	binary.LittleEndian.PutUint16(packet[0:2], opcode)
+	return packet
+}
+
 func BuildShopDealSelectionPacket(npcID uint32, dealType uint8) []byte {
 	var w Writer
 	w.Uint16(PacketCZACKSelectDealType)
@@ -664,6 +827,39 @@ func (c *Client) SendTakeoffEquip(index uint16) error {
 		log.Printf("sent CZ_REQ_TAKEOFF_EQUIP opcode=0x%04X index=%d client_date=%d", ID(packet), index, c.clientDate)
 	} else {
 		log.Printf("send CZ_REQ_TAKEOFF_EQUIP failed opcode=0x%04X index=%d client_date=%d: %v", ID(packet), index, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMoveToStorage(index uint16, amount uint32) error {
+	packet := BuildMoveToStoragePacketForClientDate(index, amount, c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_MOVE_ITEM_TO_STORAGE opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
+	} else {
+		log.Printf("send CZ_MOVE_ITEM_TO_STORAGE failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMoveFromStorage(index uint16, amount uint32) error {
+	packet := BuildMoveFromStoragePacketForClientDate(index, amount, c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_MOVE_ITEM_FROM_STORAGE opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
+	} else {
+		log.Printf("send CZ_MOVE_ITEM_FROM_STORAGE failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendCloseStorage() error {
+	packet := BuildCloseStoragePacketForClientDate(c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_CLOSE_STORAGE opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
+	} else {
+		log.Printf("send CZ_CLOSE_STORAGE failed opcode=0x%04X len=%d client_date=%d: %v", ID(packet), len(packet), c.clientDate, err)
 	}
 	return err
 }

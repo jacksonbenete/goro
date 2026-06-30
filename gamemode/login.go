@@ -120,6 +120,16 @@ func NewLoginMode() *LoginMode {
 	return &LoginMode{status: "select a server", focus: loginFieldUser, maxSlots: 9}
 }
 
+func NewCharacterSelectMode(ctx Context, console chatConsole) *LoginMode {
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCharacter
+	mode.status = "select a character"
+	mode.autoAttempted = true
+	mode.console = console
+	mode.prepareCharacterSelectFromSession(ctx)
+	return mode
+}
+
 func (m *LoginMode) Name() string {
 	return "login"
 }
@@ -136,7 +146,11 @@ func (m *LoginMode) Enter(ctx Context) {
 	m.cursor.ensureLoaded(ctx)
 	render.SetCursorMode(render.CursorModeHidden)
 	m.playLoginBGM(ctx)
-	if len(ctx.Resources.ClientInfo.Connections) == 0 {
+	if m.phase == loginPhaseCharacter {
+		m.prepareCharacterSelectFromSession(ctx)
+		m.reconnectCharacterServer(ctx)
+	}
+	if m.phase == loginPhaseAccount && len(ctx.Resources.ClientInfo.Connections) == 0 {
 		m.status = "no login servers discovered"
 	}
 }
@@ -644,6 +658,33 @@ func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
 	case pointInRect(mx, my, deleteX, deleteY, deleteW, deleteH):
 		m.status = "character deletion is not implemented yet"
 	}
+}
+
+func (m *LoginMode) prepareCharacterSelectFromSession(ctx Context) {
+	m.maxSlots = 9
+	m.selectedSlot = 0
+	if ctx.Session == nil || len(ctx.Session.Characters) == 0 {
+		return
+	}
+	m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+	if _, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot); !ok {
+		m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
+	}
+}
+
+func (m *LoginMode) reconnectCharacterServer(ctx Context) {
+	if ctx.Network == nil || ctx.Session == nil || len(ctx.Session.CharServers) == 0 {
+		return
+	}
+	server := ctx.Session.CharServers[0]
+	m.connectCharServer(ctx, network.CharServer{
+		Address:   server.Address,
+		Port:      server.Port,
+		Name:      server.Name,
+		UserCount: server.UserCount,
+		State:     server.State,
+		Property:  server.Property,
+	})
 }
 
 func (m *LoginMode) updateCharacterCreateInput(ctx Context) {

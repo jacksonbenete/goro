@@ -496,3 +496,96 @@ func TestBuildShopPackets(t *testing.T) {
 		t.Fatalf("unexpected sell packet items: % X", sell)
 	}
 }
+
+func TestParseStoragePackets2008(t *testing.T) {
+	normal := make([]byte, 4+22)
+	binary.LittleEndian.PutUint16(normal[0:2], 0x02EA)
+	binary.LittleEndian.PutUint16(normal[2:4], uint16(len(normal)))
+	binary.LittleEndian.PutUint16(normal[4:6], 3)
+	binary.LittleEndian.PutUint16(normal[6:8], 512)
+	normal[8] = 0
+	normal[9] = 1
+	binary.LittleEndian.PutUint16(normal[10:12], 7)
+	items, ok, err := ParseStorageItemList(Packet{ID: 0x02EA, Data: normal})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 || items[0].Index != 3 || items[0].ItemID != 512 || items[0].Amount != 7 || !items[0].Identified {
+		t.Fatalf("normal storage items ok=%v items=%+v", ok, items)
+	}
+
+	equip := make([]byte, 4+26)
+	binary.LittleEndian.PutUint16(equip[0:2], 0x02D1)
+	binary.LittleEndian.PutUint16(equip[2:4], uint16(len(equip)))
+	binary.LittleEndian.PutUint16(equip[4:6], 4)
+	binary.LittleEndian.PutUint16(equip[6:8], 1201)
+	equip[8] = 5
+	equip[9] = 1
+	binary.LittleEndian.PutUint16(equip[10:12], 0x0002)
+	equip[15] = 4
+	items, ok, err = ParseStorageItemList(Packet{ID: 0x02D1, Data: equip})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(items) != 1 || items[0].Index != 4 || items[0].ItemID != 1201 || !items[0].Equip || items[0].Refine != 4 {
+		t.Fatalf("equip storage items ok=%v items=%+v", ok, items)
+	}
+
+	amountData := []byte{0xF2, 0x00, 0x02, 0x00, 0x58, 0x01}
+	amount, ok, err := ParseStorageAmount(Packet{ID: 0x00F2, Data: amountData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || amount.Amount != 2 || amount.MaxAmount != 344 {
+		t.Fatalf("storage amount ok=%v amount=%+v", ok, amount)
+	}
+}
+
+func TestParseStorageItemDeltaPackets(t *testing.T) {
+	add := make([]byte, 22)
+	binary.LittleEndian.PutUint16(add[0:2], 0x01C4)
+	binary.LittleEndian.PutUint16(add[2:4], 5)
+	binary.LittleEndian.PutUint32(add[4:8], 12)
+	binary.LittleEndian.PutUint16(add[8:10], 938)
+	add[10] = 3
+	add[11] = 1
+	item, ok, err := ParseStorageItemAdded(Packet{ID: 0x01C4, Data: add})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || item.Index != 5 || item.ItemID != 938 || item.Type != 3 || item.Amount != 12 || !item.Identified {
+		t.Fatalf("storage add ok=%v item=%+v", ok, item)
+	}
+
+	remove := make([]byte, 8)
+	binary.LittleEndian.PutUint16(remove[0:2], 0x00F6)
+	binary.LittleEndian.PutUint16(remove[2:4], 5)
+	binary.LittleEndian.PutUint32(remove[4:8], 7)
+	removed, ok, err := ParseStorageItemRemoved(Packet{ID: 0x00F6, Data: remove})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || removed.Index != 5 || removed.Amount != 7 {
+		t.Fatalf("storage remove ok=%v value=%+v", ok, removed)
+	}
+	if !ParseStorageClosed(Packet{ID: 0x00F8, Data: []byte{0xF8, 0x00}}) {
+		t.Fatal("storage close packet was not recognized")
+	}
+}
+
+func TestBuildStoragePacketsFor2008ClientDate(t *testing.T) {
+	toStorage := BuildMoveToStoragePacketForClientDate(7, 42, 20080910)
+	if len(toStorage) != 14 || ID(toStorage) != 0x0094 || binary.LittleEndian.Uint16(toStorage[7:9]) != 7 || binary.LittleEndian.Uint32(toStorage[10:14]) != 42 {
+		t.Fatalf("unexpected move-to-storage packet: % X", toStorage)
+	}
+
+	fromStorage := BuildMoveFromStoragePacketForClientDate(3, 9, 20080910)
+	if len(fromStorage) != 22 || ID(fromStorage) != 0x00F7 || binary.LittleEndian.Uint16(fromStorage[14:16]) != 3 || binary.LittleEndian.Uint32(fromStorage[18:22]) != 9 {
+		t.Fatalf("unexpected move-from-storage packet: % X", fromStorage)
+	}
+
+	closeStorage := BuildCloseStoragePacketForClientDate(20080910)
+	if len(closeStorage) != 2 || ID(closeStorage) != 0x0193 {
+		t.Fatalf("unexpected close-storage packet: % X", closeStorage)
+	}
+}

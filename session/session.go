@@ -17,6 +17,7 @@ type Session struct {
 	Vitals      Vitals
 	Progress    Progress
 	Inventory   Inventory
+	Storage     Storage
 	Stats       Stats
 	Skills      Skills
 }
@@ -83,6 +84,13 @@ type Inventory struct {
 	Zeny      int64
 	Weight    int
 	MaxWeight int
+	Items     []InventoryItem
+}
+
+type Storage struct {
+	Open      bool
+	Amount    int
+	MaxAmount int
 	Items     []InventoryItem
 }
 

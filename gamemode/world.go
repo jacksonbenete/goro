@@ -87,7 +87,9 @@ type WorldMode struct {
 	inventoryWindow  inventoryWindowState
 	inventoryBag     inventoryBagWindowState
 	equipmentWindow  equipmentWindowState
+	storageWindow    storageWindowState
 	shopWindow       shopWindowState
+	itemInfoWindow   itemInfoWindowState
 	statsWindow      statsWindowState
 	skillWindow      skillWindowState
 	settingsWindow   settingsWindowState
@@ -423,7 +425,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if ack, ok, err := network.ParseRestartAck(pkt); err != nil {
 			log.Printf("parse restart ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.deathModal.applyRestartAck(ack)
+			if m.deathModal.applyRestartAck(ack) {
+				return m.nextCharacterSelectMode(ctx), nil
+			}
+			if m.escapeMenu.applyRestartAck(ack) {
+				return m.nextCharacterSelectMode(ctx), nil
+			}
 			continue
 		}
 		if dialog, ok, err := network.ParseNPCDialog(pkt); err != nil {
@@ -516,6 +523,42 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			applyInventoryEquipAck(ctx, equipAck)
 			m.inventoryWindow.clampScroll(ctx.Session)
 			m.inventoryBag.clampScroll(ctx.Session)
+			continue
+		}
+		if storageItems, ok, err := network.ParseStorageItemList(pkt); err != nil {
+			log.Printf("parse storage item list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyStorageItemList(ctx, storageItems)
+			m.storageWindow.openWindow(ctx)
+			continue
+		}
+		if storageAmount, ok, err := network.ParseStorageAmount(pkt); err != nil {
+			log.Printf("parse storage amount 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyStorageAmount(ctx, storageAmount)
+			m.storageWindow.openWindow(ctx)
+			continue
+		}
+		if storageItem, ok, err := network.ParseStorageItemAdded(pkt); err != nil {
+			log.Printf("parse storage item added 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyStorageItemAdded(ctx, storageItem)
+			m.storageWindow.openWindow(ctx)
+			m.storageWindow.clampScroll(ctx.Session)
+			m.inventoryWindow.clampScroll(ctx.Session)
+			m.inventoryBag.clampScroll(ctx.Session)
+			continue
+		}
+		if storageItem, ok, err := network.ParseStorageItemRemoved(pkt); err != nil {
+			log.Printf("parse storage item removed 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyStorageItemRemoved(ctx, storageItem)
+			m.storageWindow.clampScroll(ctx.Session)
+			continue
+		}
+		if network.ParseStorageClosed(pkt) {
+			applyStorageClosed(ctx)
+			m.storageWindow.open = false
 			continue
 		}
 		if deal, ok, err := network.ParseShopDealSelection(pkt); err != nil {
@@ -744,24 +787,33 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.escapeMenu.update(ctx) {
-		if m.escapeMenu.consumeAction() == escapeMenuActionSettings {
+		switch m.escapeMenu.consumeAction() {
+		case escapeMenuActionCharacterSelect:
+			m.escapeMenu.requestCharacterSelect(ctx)
+		case escapeMenuActionSettings:
 			m.settingsWindow.openWindow(ctx)
 		}
+		return nil, nil
+	}
+	if m.itemInfoWindow.update(ctx) {
 		return nil, nil
 	}
 	if m.shortcutBar.update(ctx, m) {
 		return nil, nil
 	}
-	if m.inventoryWindow.update(ctx, &m.shopWindow) {
+	if m.inventoryWindow.update(ctx, &m.shopWindow, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.inventoryBag.update(ctx, &m.shortcutBar) {
+	if m.inventoryBag.update(ctx, &m.shortcutBar, &m.storageWindow, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.equipmentWindow.update(ctx) {
+	if m.equipmentWindow.update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.shopWindow.update(ctx) {
+	if m.storageWindow.update(ctx, &m.itemInfoWindow) {
+		return nil, nil
+	}
+	if m.shopWindow.update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
 	if m.skillWindow.update(ctx, &m.shortcutBar) {
@@ -920,6 +972,18 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.console = m.console
 	next.shortcutBar = m.shortcutBar
 	next.startMapFadeIn(time.Now())
+	return next
+}
+
+func (m *WorldMode) nextCharacterSelectMode(ctx Context) *LoginMode {
+	if ctx.Network != nil {
+		ctx.Network.Close()
+	}
+	if ctx.Session != nil {
+		ctx.Session.Playing = false
+		ctx.Session.Storage = session.Storage{}
+	}
+	next := NewCharacterSelectMode(ctx, m.console)
 	return next
 }
 
@@ -2639,10 +2703,12 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.inventoryWindow.draw(screen, ctx, m)
 	m.inventoryBag.draw(screen, ctx, m)
 	m.equipmentWindow.draw(screen, ctx, m)
+	m.storageWindow.draw(screen, ctx, m)
 	m.shopWindow.draw(screen, ctx, m)
 	m.statsWindow.draw(screen, ctx)
 	m.skillWindow.draw(screen, ctx, m)
 	m.settingsWindow.draw(screen, ctx)
+	m.itemInfoWindow.draw(screen, ctx, m)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)

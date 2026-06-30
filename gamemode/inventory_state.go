@@ -14,6 +14,47 @@ func applyInventoryItemList(ctx Context, items []network.InventoryItem) {
 	}
 }
 
+func applyStorageItemList(ctx Context, items []network.InventoryItem) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Storage.Open = true
+	for _, item := range items {
+		addOrReplaceSessionStorageItem(ctx.Session, sessionItemFromNetwork(item))
+	}
+}
+
+func applyStorageAmount(ctx Context, amount network.StorageAmount) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Storage.Open = true
+	ctx.Session.Storage.Amount = int(amount.Amount)
+	ctx.Session.Storage.MaxAmount = int(amount.MaxAmount)
+}
+
+func applyStorageItemAdded(ctx Context, item network.InventoryItem) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Storage.Open = true
+	addOrReplaceSessionStorageItem(ctx.Session, sessionItemFromNetwork(item))
+}
+
+func applyStorageItemRemoved(ctx Context, item network.StorageItemRemoved) {
+	removeSessionStorageItem(ctx.Session, item.Index, int(item.Amount))
+}
+
+func applyStorageClosed(ctx Context) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Storage.Open = false
+	ctx.Session.Storage.Items = nil
+	ctx.Session.Storage.Amount = 0
+	ctx.Session.Storage.MaxAmount = 0
+}
+
 func applyInventoryItemDelete(ctx Context, item network.InventoryItemDelete) {
 	removeSessionInventoryItem(ctx.Session, item.Index, int(item.Amount))
 }
@@ -59,6 +100,23 @@ func addOrReplaceSessionInventoryItem(s *session.Session, item session.Inventory
 		return
 	}
 	s.Inventory.Items = append(s.Inventory.Items, item)
+}
+
+func addOrReplaceSessionStorageItem(s *session.Session, item session.InventoryItem) {
+	if s == nil || item.Index == 0 {
+		return
+	}
+	if item.Amount <= 0 {
+		item.Amount = 1
+	}
+	for i := range s.Storage.Items {
+		if s.Storage.Items[i].Index != item.Index {
+			continue
+		}
+		s.Storage.Items[i] = item
+		return
+	}
+	s.Storage.Items = append(s.Storage.Items, item)
 }
 
 func applyInventoryEquipAck(ctx Context, ack network.InventoryEquipAck) {
@@ -120,6 +178,26 @@ func removeSessionInventoryItem(s *session.Session, index uint16, amount int) {
 			return
 		}
 		s.Inventory.Items = append(s.Inventory.Items[:i], s.Inventory.Items[i+1:]...)
+		return
+	}
+}
+
+func removeSessionStorageItem(s *session.Session, index uint16, amount int) {
+	if s == nil || index == 0 {
+		return
+	}
+	if amount <= 0 {
+		amount = 1
+	}
+	for i := range s.Storage.Items {
+		if s.Storage.Items[i].Index != index {
+			continue
+		}
+		s.Storage.Items[i].Amount -= amount
+		if s.Storage.Items[i].Amount > 0 {
+			return
+		}
+		s.Storage.Items = append(s.Storage.Items[:i], s.Storage.Items[i+1:]...)
 		return
 	}
 }

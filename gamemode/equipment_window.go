@@ -95,7 +95,7 @@ func (w *equipmentWindowState) toggle(ctx Context) {
 	w.ensurePosition(ctx)
 }
 
-func (w *equipmentWindowState) update(ctx Context) bool {
+func (w *equipmentWindowState) update(ctx Context, itemInfo *itemInfoWindowState) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -114,6 +114,19 @@ func (w *equipmentWindowState) update(ctx Context) bool {
 	inside := pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, equipmentWindowWidth, equipmentWindowHeight)
 	if ctx.Input.JustPressed(render.KeyEscape) {
 		w.open = false
+		return true
+	}
+	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+		mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+		if !inside {
+			return false
+		}
+		if item, ok := w.itemAt(ctx.Session, mx, my); ok {
+			if itemInfo != nil {
+				itemInfo.openItem(ctx, item, mx, my)
+			}
+			return true
+		}
 		return true
 	}
 	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {

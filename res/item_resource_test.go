@@ -15,6 +15,19 @@ func TestParseItemPairTable(t *testing.T) {
 	}
 }
 
+func TestParseItemDescriptionTable(t *testing.T) {
+	got := parseItemDescriptionTable([]byte("// comment\n909#\r\nSmall_Jellopy.\n^0000FFColor^000000 text.\n#\n# comment\n1002# trailing text ignored\n1003#\nSingle line.\n#\n"))
+	if lines := got[909]; len(lines) != 2 || lines[0] != "Small_Jellopy." || lines[1] != "^0000FFColor^000000 text." {
+		t.Fatalf("item 909 description = %#v", lines)
+	}
+	if _, ok := got[1002]; ok {
+		t.Fatal("header with trailing text should be ignored")
+	}
+	if lines := got[1003]; len(lines) != 1 || lines[0] != "Single line." {
+		t.Fatalf("item 1003 description = %#v", lines)
+	}
+}
+
 func TestNormalizeItemDisplayToken(t *testing.T) {
 	if got := normalizeItemDisplayToken("Poring_Card"); got != "Poring Card" {
 		t.Fatalf("display = %q", got)
@@ -47,6 +60,7 @@ func TestItemMetadataLookupFallbacks(t *testing.T) {
 				UnidentifiedDisplayName: "Unknown Item",
 				IdentifiedDisplayName:   "Jellopy",
 				IdentifiedResource:      "jellopy",
+				IdentifiedDescription:   []string{"A tiny crystalline item."},
 			},
 		},
 	}
@@ -58,6 +72,9 @@ func TestItemMetadataLookupFallbacks(t *testing.T) {
 	}
 	if got, ok := manager.ItemResourceName(909, false); !ok || got != "jellopy" {
 		t.Fatalf("resource fallback = %q ok=%v", got, ok)
+	}
+	if got, ok := manager.ItemDescription(909, false); !ok || len(got) != 1 || got[0] != "A tiny crystalline item." {
+		t.Fatalf("description fallback = %#v ok=%v", got, ok)
 	}
 }
 

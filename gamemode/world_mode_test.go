@@ -3239,7 +3239,7 @@ func TestInventoryDragReleaseOverShopAddsCartItem(t *testing.T) {
 		},
 	}
 
-	if !inventory.update(ctx, &shop) {
+	if !inventory.update(ctx, &shop, nil) {
 		t.Fatal("inventory update did not consume drag release")
 	}
 	if inventory.dragActive {
@@ -3290,6 +3290,36 @@ func TestInventoryBagClassifiesTabs(t *testing.T) {
 				t.Fatalf("tab = %d, want %d", got, tc.tab)
 			}
 		})
+	}
+}
+
+func TestInventoryBagRightClickOpensItemInfo(t *testing.T) {
+	inputState := input.NewState()
+	inputState.SetMousePosition(165, 145)
+	inputState.SetMouseButton(input.MouseButtonRight, true)
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 3, ItemID: 512, Type: 0, Amount: 2, Identified: true}},
+		},
+	}
+	ctx := Context{Input: inputState, Session: sessionState, ScreenW: 800, ScreenH: 600}
+	bag := inventoryBagWindowState{
+		open:       true,
+		x:          100,
+		y:          100,
+		positioned: true,
+		tab:        inventoryBagTabItem,
+	}
+	info := itemInfoWindowState{}
+
+	if !bag.update(ctx, nil, nil, &info) {
+		t.Fatal("right click did not consume inventory bag input")
+	}
+	if !info.open || info.item.ItemID != 512 {
+		t.Fatalf("item info = open:%v item:%+v, want item 512", info.open, info.item)
+	}
+	if bag.dragActive {
+		t.Fatal("right click should not start item drag")
 	}
 }
 
@@ -3377,5 +3407,52 @@ func TestApplyInventoryEquipAckUpdatesEquippedState(t *testing.T) {
 	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 1, Location: 0x0002, Success: true, Unequip: true})
 	if sessionState.Inventory.Items[0].Equipped {
 		t.Fatal("unequipped item stayed equipped")
+	}
+}
+
+func TestApplyStoragePacketsUpdateSessionStorage(t *testing.T) {
+	sessionState := &session.Session{}
+	ctx := Context{Session: sessionState}
+
+	applyStorageAmount(ctx, network.StorageAmount{Amount: 1, MaxAmount: 300})
+	applyStorageItemList(ctx, []network.InventoryItem{{Index: 3, ItemID: 512, Type: 0, Amount: 4, Identified: true}})
+	if !sessionState.Storage.Open {
+		t.Fatal("storage was not marked open")
+	}
+	if sessionState.Storage.Amount != 1 || sessionState.Storage.MaxAmount != 300 {
+		t.Fatalf("storage counts = %d/%d", sessionState.Storage.Amount, sessionState.Storage.MaxAmount)
+	}
+	if len(sessionState.Storage.Items) != 1 || sessionState.Storage.Items[0].ItemID != 512 || sessionState.Storage.Items[0].Amount != 4 {
+		t.Fatalf("storage items = %+v", sessionState.Storage.Items)
+	}
+
+	applyStorageItemAdded(ctx, network.InventoryItem{Index: 3, ItemID: 512, Type: 0, Amount: 7, Identified: true})
+	if got := sessionState.Storage.Items[0].Amount; got != 7 {
+		t.Fatalf("storage amount after replace = %d, want 7", got)
+	}
+	applyStorageItemRemoved(ctx, network.StorageItemRemoved{Index: 3, Amount: 2})
+	if got := sessionState.Storage.Items[0].Amount; got != 5 {
+		t.Fatalf("storage amount after remove = %d, want 5", got)
+	}
+	applyStorageClosed(ctx)
+	if sessionState.Storage.Open || len(sessionState.Storage.Items) != 0 {
+		t.Fatalf("storage after close = %+v", sessionState.Storage)
+	}
+}
+
+func TestStorageAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
+	window := storageWindowState{
+		open:       true,
+		positioned: true,
+		x:          100,
+		y:          100,
+	}
+	sessionState := &session.Session{Storage: session.Storage{Open: true}}
+	ok := window.acceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, 120, 150)
+	if !ok {
+		t.Fatal("drop over storage was not consumed")
+	}
+	if window.status == "" || window.statusGood {
+		t.Fatalf("status = %q good=%v, want not connected error", window.status, window.statusGood)
 	}
 }

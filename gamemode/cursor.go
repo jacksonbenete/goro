@@ -152,6 +152,9 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.npcDialog.cursorAction(ctx); ok {
 		return action
 	}
+	if action, ok := m.itemInfoWindow.cursorAction(ctx); ok {
+		return action
+	}
 	if action, ok := m.shopWindow.cursorAction(ctx); ok {
 		return action
 	}
@@ -162,6 +165,9 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 		return action
 	}
 	if action, ok := m.equipmentWindow.cursorAction(ctx); ok {
+		return action
+	}
+	if action, ok := m.storageWindow.cursorAction(ctx); ok {
 		return action
 	}
 	if action, ok := m.skillWindow.cursorAction(ctx); ok {
