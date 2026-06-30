@@ -1947,19 +1947,10 @@ func skillActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionNonPCAttack
 	}
-	if robrowserSkillUsesWeaponAttackAction(skillID) {
+	if skillAction(skillID) == roBrowserSkillActionAttack {
 		return attackActionFamilyForActor(actor)
 	}
 	return spriteActionPCSkill
-}
-
-func robrowserSkillUsesWeaponAttackAction(skillID uint16) bool {
-	switch skillID {
-	case 5, 7:
-		return true
-	default:
-		return false
-	}
 }
 
 func skillTargetUsesHitReaction(action network.ActorActionNotify, sourceLocal, targetLocal bool) bool {
@@ -2368,27 +2359,14 @@ func (m *WorldMode) applyParameterChange(ctx Context, change network.ParameterCh
 	if change.Value <= 0 {
 		return
 	}
-	switch change.VarID {
-	case network.StatusHP:
-		delta := ctx.Session.Vitals.HP - previousHP
-		if delta > 0 {
-			m.addLocalRecoveryFloater(ctx, delta, recoveryHPColor, damageFloaterRecoveryHP)
-			m.scheduleSound(time.Now(), recoverySFXCandidates(network.StatusHP)...)
-		}
-	case network.StatusSP:
-		delta := ctx.Session.Vitals.SP - previousSP
-		if delta > 0 {
-			m.addLocalRecoveryFloater(ctx, delta, recoverySPColor, damageFloaterRecoverySP)
-			m.scheduleSound(time.Now(), recoverySFXCandidates(network.StatusSP)...)
-		}
-	case network.StatusBaseLevel:
-		if ctx.Session.Progress.BaseLevel > previousBaseLevel {
-			m.addWorldEffectIfMissing(ctx, effectBaseLevelUp, localSkillTarget(ctx))
-		}
-	case network.StatusJobLevel:
-		if ctx.Session.Progress.JobLevel > previousJobLevel {
-			m.addWorldEffectIfMissing(ctx, effectJobLevelUp, localSkillTarget(ctx))
-		}
+	previousValues := map[uint16]int{
+		network.StatusHP:        previousHP,
+		network.StatusSP:        previousSP,
+		network.StatusBaseLevel: previousBaseLevel,
+		network.StatusJobLevel:  previousJobLevel,
+	}
+	if visual, ok := statusVisualEffects[change.VarID]; ok {
+		visual.applyParameterChange(ctx, m, previousValues[change.VarID])
 	}
 }
 
@@ -2404,57 +2382,115 @@ const (
 
 var recoverySFXFallbacks = []string{"effect\\priest_recovery.wav"}
 
+type statusVisualEffect struct {
+	current       func(*session.Session) int
+	recover       func(*session.Session, int) bool
+	recovery      bool
+	recoveryColor color.RGBA
+	recoveryKind  damageFloaterKind
+	recoverySFX   []string
+	clearsDeath   bool
+	levelEffectID int
+}
+
+var statusVisualEffects = map[uint16]statusVisualEffect{
+	network.StatusHP: {
+		current:       func(s *session.Session) int { return s.Vitals.HP },
+		recover:       recoverSessionHP,
+		recovery:      true,
+		recoveryColor: recoveryHPColor,
+		recoveryKind:  damageFloaterRecoveryHP,
+		recoverySFX:   []string{recoveryHPSFX},
+		clearsDeath:   true,
+	},
+	network.StatusSP: {
+		current:       func(s *session.Session) int { return s.Vitals.SP },
+		recover:       recoverSessionSP,
+		recovery:      true,
+		recoveryColor: recoverySPColor,
+		recoveryKind:  damageFloaterRecoverySP,
+		recoverySFX:   []string{recoverySPSFX},
+	},
+	network.StatusBaseLevel: {
+		current:       func(s *session.Session) int { return s.Progress.BaseLevel },
+		levelEffectID: effectBaseLevelUp,
+	},
+	network.StatusJobLevel: {
+		current:       func(s *session.Session) int { return s.Progress.JobLevel },
+		levelEffectID: effectJobLevelUp,
+	},
+}
+
+func (v statusVisualEffect) applyParameterChange(ctx Context, mode *WorldMode, previous int) {
+	if v.current == nil || mode == nil || ctx.Session == nil {
+		return
+	}
+	current := v.current(ctx.Session)
+	if v.recovery {
+		delta := current - previous
+		if delta > 0 {
+			mode.addLocalRecoveryFloater(ctx, delta, v.recoveryColor, v.recoveryKind)
+			mode.scheduleSound(time.Now(), v.sfxCandidates()...)
+		}
+		return
+	}
+	if v.levelEffectID > 0 && current > previous {
+		mode.addWorldEffectIfMissing(ctx, v.levelEffectID, localSkillTarget(ctx))
+	}
+}
+
+func (v statusVisualEffect) sfxCandidates() []string {
+	if len(v.recoverySFX) == 0 {
+		return append([]string(nil), recoverySFXFallbacks...)
+	}
+	paths := append([]string(nil), v.recoverySFX...)
+	return append(paths, recoverySFXFallbacks...)
+}
+
+func recoverSessionHP(s *session.Session, amount int) bool {
+	maxHP := s.Vitals.MaxHP
+	if maxHP <= 0 {
+		maxHP = int(s.Selected.MaxHP)
+	}
+	next := s.Vitals.HP + amount
+	if maxHP > 0 && next > maxHP {
+		next = maxHP
+	}
+	s.Vitals.HP = next
+	s.Selected.HP = clampInt16(next)
+	return true
+}
+
+func recoverSessionSP(s *session.Session, amount int) bool {
+	maxSP := s.Vitals.MaxSP
+	if maxSP <= 0 {
+		maxSP = int(s.Selected.MaxSP)
+	}
+	next := s.Vitals.SP + amount
+	if maxSP > 0 && next > maxSP {
+		next = maxSP
+	}
+	s.Vitals.SP = next
+	s.Selected.SP = clampInt16(next)
+	return true
+}
+
 func (m *WorldMode) applyRecovery(ctx Context, recovery network.Recovery) {
 	if ctx.Session == nil || recovery.Amount <= 0 {
 		return
 	}
-	recovered := false
-	switch recovery.StatusID {
-	case network.StatusHP:
-		maxHP := ctx.Session.Vitals.MaxHP
-		if maxHP <= 0 {
-			maxHP = int(ctx.Session.Selected.MaxHP)
-		}
-		next := ctx.Session.Vitals.HP + recovery.Amount
-		if maxHP > 0 && next > maxHP {
-			next = maxHP
-		}
-		ctx.Session.Vitals.HP = next
-		ctx.Session.Selected.HP = clampInt16(next)
-		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoveryHPColor, damageFloaterRecoveryHP)
-		m.clearLocalDeathStateIfAlive(ctx)
-		recovered = true
-	case network.StatusSP:
-		maxSP := ctx.Session.Vitals.MaxSP
-		if maxSP <= 0 {
-			maxSP = int(ctx.Session.Selected.MaxSP)
-		}
-		next := ctx.Session.Vitals.SP + recovery.Amount
-		if maxSP > 0 && next > maxSP {
-			next = maxSP
-		}
-		ctx.Session.Vitals.SP = next
-		ctx.Session.Selected.SP = clampInt16(next)
-		m.addLocalRecoveryFloater(ctx, recovery.Amount, recoverySPColor, damageFloaterRecoverySP)
-		recovered = true
-	default:
+	visual, ok := statusVisualEffects[recovery.StatusID]
+	if !ok || visual.recover == nil {
 		return
 	}
-	if recovered {
-		m.scheduleSound(time.Now(), recoverySFXCandidates(recovery.StatusID)...)
+	if visual.recover(ctx.Session, recovery.Amount) {
+		m.addLocalRecoveryFloater(ctx, recovery.Amount, visual.recoveryColor, visual.recoveryKind)
+		if visual.clearsDeath {
+			m.clearLocalDeathStateIfAlive(ctx)
+		}
+		m.scheduleSound(time.Now(), visual.sfxCandidates()...)
 	}
 	log.Printf("recovery status=%d amount=%d hp=%d/%d sp=%d/%d", recovery.StatusID, recovery.Amount, ctx.Session.Vitals.HP, ctx.Session.Vitals.MaxHP, ctx.Session.Vitals.SP, ctx.Session.Vitals.MaxSP)
-}
-
-func recoverySFXCandidates(statusID uint16) []string {
-	switch statusID {
-	case network.StatusHP:
-		return append([]string{recoveryHPSFX}, recoverySFXFallbacks...)
-	case network.StatusSP:
-		return append([]string{recoverySPSFX}, recoverySFXFallbacks...)
-	default:
-		return recoverySFXFallbacks
-	}
 }
 
 func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColor color.RGBA, kind damageFloaterKind) {

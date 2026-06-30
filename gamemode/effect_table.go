@@ -339,8 +339,9 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		}},
 	},
 	effectMagnumBreak: {
-		duration: 300 * time.Millisecond,
-		sfx:      []string{"effect\\ef_magnumbreak.wav"},
+		duration:    300 * time.Millisecond,
+		cameraShake: 50 * time.Millisecond,
+		sfx:         []string{"effect\\ef_magnumbreak.wav"},
 		components: []worldEffectComponent{
 			{
 				kind:             effectComponentCylinder,
@@ -683,8 +684,9 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectRefineFail:    strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),
 	effectEnergyCoat:    strEffectSpecAttached("energycoat", "", false),
 	effectTeleportation: {
-		duration: 1500 * time.Millisecond,
-		sfx:      []string{"effect\\ef_teleportation.wav"},
+		duration:         1500 * time.Millisecond,
+		detachLocalActor: true,
+		sfx:              []string{"effect\\ef_teleportation.wav"},
 		components: []worldEffectComponent{
 			teleportCylinderComponent(0.3, 0.3, 35),
 			teleportCylinderComponent(0.6, 0.8, 25),

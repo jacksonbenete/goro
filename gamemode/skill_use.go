@@ -41,7 +41,7 @@ func localSkillTarget(ctx Context) uint32 {
 }
 
 func isGroundTargetSkill(skill session.Skill) bool {
-	return skill.Type&skillTargetPlace != 0 || skill.ID == 21 || skill.ID == 25
+	return skill.Type&skillTargetPlace != 0 || skillForcesGroundTarget(skill.ID)
 }
 
 func isSelfTargetSkill(skill session.Skill) bool {
@@ -102,7 +102,7 @@ func (c skillController) SendToID(ctx Context, skill session.Skill, target uint3
 	}
 	for _, effectID := range skillBeginEffectIDs(skill.ID) {
 		actorID := localSkillTarget(ctx)
-		if effectID == effectTeleportation && isLocalActor(ctx, actorID) {
+		if effectDetachesLocalActor(effectID) && isLocalActor(ctx, actorID) {
 			actorID = 0
 		}
 		c.mode.addWorldEffect(ctx, effectID, actorID)

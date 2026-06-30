@@ -141,9 +141,11 @@ type worldEffect struct {
 }
 
 type worldEffectSpec struct {
-	duration   time.Duration
-	sfx        []string
-	components []worldEffectComponent
+	duration         time.Duration
+	cameraShake      time.Duration
+	detachLocalActor bool
+	sfx              []string
+	components       []worldEffectComponent
 }
 
 type worldEffectComponent struct {
@@ -258,7 +260,7 @@ func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
 	}
 	for _, effectID := range effectIDs {
 		targetID := actorID
-		if effectID == effectTeleportation && isLocalActor(ctx, targetID) {
+		if effectDetachesLocalActor(effectID) && isLocalActor(ctx, targetID) {
 			targetID = 0
 		}
 		if m.addWorldEffect(ctx, effectID, targetID) {
@@ -267,7 +269,7 @@ func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
 	}
 	for _, effectID := range casterEffectIDs {
 		casterID := actorID
-		if effectID == effectTeleportation && isLocalActor(ctx, casterID) {
+		if effectDetachesLocalActor(effectID) && isLocalActor(ctx, casterID) {
 			casterID = 0
 		}
 		if m.addWorldEffect(ctx, effectID, casterID) {
@@ -292,8 +294,8 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 			log.Printf("skill caster effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
 		}
 	}
-	if notify.SkillID == 28 && !isLocalActor(ctx, notify.TargetID) {
-		m.addTargetRecoveryFloater(ctx, notify.TargetID, int(notify.Amount), recoveryHPColor, damageFloaterRecoveryHP, now)
+	if recovery := skillRecoveryFloater(notify.SkillID); recovery.enabled && !isLocalActor(ctx, notify.TargetID) {
+		m.addTargetRecoveryFloater(ctx, notify.TargetID, int(notify.Amount), recovery.color, recovery.kind, now)
 	}
 	for _, effectID := range skillSuccessEffectIDs(notify.SkillID) {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
@@ -432,56 +434,54 @@ func (m *WorldMode) applySkillFailAck(ctx Context, ack network.SkillFailAck) {
 }
 
 func specialEffectID(effectID uint32) int {
-	switch effectID {
-	case network.SpecialEffectBaseLevelUp:
-		return effectBaseLevelUp
-	case network.SpecialEffectJobLevelUp:
-		return effectJobLevelUp
-	default:
-		if _, ok := worldEffectSpecForID(int(effectID)); ok {
-			return int(effectID)
-		}
-		return 0
+	if mapped, ok := networkSpecialEffectIDs[effectID]; ok {
+		return mapped
 	}
+	if _, ok := worldEffectSpecForID(int(effectID)); ok {
+		return int(effectID)
+	}
+	return 0
+}
+
+var networkSpecialEffectIDs = map[uint32]int{
+	network.SpecialEffectBaseLevelUp: effectBaseLevelUp,
+	network.SpecialEffectJobLevelUp:  effectJobLevelUp,
 }
 
 func skillFailMessage(ack network.SkillFailAck) string {
-	if ack.SkillID == 1 && ack.Cause == 0 {
-		switch ack.Number {
-		case 0:
-			return "Basic skill failed."
-		case 1:
-			return "Cannot use emotions."
-		case 2:
-			return "Cannot sit."
-		case 3:
-			return "Cannot chat."
-		case 4:
-			return "Cannot form a party."
-		case 5:
-			return "Cannot shout."
-		case 6:
-			return "Cannot PK."
-		case 7:
-			return "Cannot align."
+	if ack.Cause == 0 {
+		if messages, ok := skillFailMessagesBySkill[ack.SkillID]; ok {
+			if message, ok := messages[ack.Number]; ok {
+				return message
+			}
 		}
 	}
-	switch ack.Cause {
-	case 0:
-		return "Action failed."
-	case 1:
-		return "Not enough SP."
-	case 2:
-		return "Not enough HP."
-	case 4:
-		return "Action is still on cooldown."
-	case 5:
-		return "Not enough Zeny."
-	case 9:
-		return "Too much weight."
-	default:
-		return "Action failed."
+	if message, ok := skillFailMessagesByCause[ack.Cause]; ok {
+		return message
 	}
+	return "Action failed."
+}
+
+var skillFailMessagesBySkill = map[uint16]map[uint32]string{
+	1: {
+		0: "Basic skill failed.",
+		1: "Cannot use emotions.",
+		2: "Cannot sit.",
+		3: "Cannot chat.",
+		4: "Cannot form a party.",
+		5: "Cannot shout.",
+		6: "Cannot PK.",
+		7: "Cannot align.",
+	},
+}
+
+var skillFailMessagesByCause = map[uint8]string{
+	0: "Action failed.",
+	1: "Not enough SP.",
+	2: "Not enough HP.",
+	4: "Action is still on cooldown.",
+	5: "Not enough Zeny.",
+	9: "Too much weight.",
 }
 
 func (m *WorldMode) addWorldEffect(ctx Context, effectID int, actorID uint32) bool {
@@ -550,8 +550,8 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, a
 	if len(spec.sfx) > 0 {
 		m.scheduleSound(starts, spec.sfx...)
 	}
-	if effectID == effectMagnumBreak {
-		m.startCameraShake(starts, 50*time.Millisecond)
+	if spec.cameraShake > 0 {
+		m.startCameraShake(starts, spec.cameraShake)
 	}
 	return true
 }
@@ -656,12 +656,10 @@ func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property ui
 }
 
 func skillCastGroundSampleSize(skillID uint16) float64 {
-	switch skillID {
-	case 21:
-		return 5
-	default:
-		return 1
+	if size := roBrowserSkillEffects[skillID].groundCastMarkerSize; size > 0 {
+		return size
 	}
+	return 1
 }
 
 func effectAnchor(ctx Context, actorID uint32) (int, int, bool) {
@@ -774,45 +772,82 @@ type roBrowserSkillEffect struct {
 	successEffectIDsSelf   []int
 	beginCastEffectIDs     []int
 	groundEffectIDs        []int
+	action                 roBrowserSkillAction
+	cast                   roBrowserSkillCast
+	forceGroundTarget      bool
+	groundCastMarkerSize   float64
+	recoveryFloater        roBrowserSkillRecoveryFloater
 	hideCastAura           bool
+}
+
+type roBrowserSkillAction int
+
+const (
+	roBrowserSkillActionDefault roBrowserSkillAction = iota
+	roBrowserSkillActionAttack
+)
+
+type roBrowserSkillCast struct {
+	property uint32
+	base     time.Duration
+	perLevel time.Duration
+	fixed    time.Duration
+}
+
+func (c roBrowserSkillCast) duration(level uint16) time.Duration {
+	if c.fixed > 0 {
+		return c.fixed
+	}
+	if c.base <= 0 && c.perLevel <= 0 {
+		return 0
+	}
+	return c.base + c.perLevel*time.Duration(maxInt(1, int(level)))
+}
+
+type roBrowserSkillRecoveryFloater struct {
+	enabled bool
+	color   color.RGBA
+	kind    damageFloaterKind
 }
 
 // This table mirrors roBrowser's DB/Skills/SkillEffect.js shape. Keep field
 // names aligned so importing more effects later is mostly data conversion.
+// Goro-only visual bridge fields, such as cast timing and recovery floaters,
+// live beside the imported effect arrays so dispatch remains table-driven.
 var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
-	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}},  // SM_BASH
-	6:   {successEffectIDs: []int{effectProvoke}},                                          // SM_PROVOKE
-	7:   {effectIDsOnCaster: []int{effectMagnumBreak}},                                     // SM_MAGNUM; quake_magnum is not implemented yet.
-	8:   {effectIDs: []int{effectEndure}},                                                  // SM_ENDURE
-	11:  {hitEffectIDs: []int{effectBashHit}},                                              // MG_NAPALMBEAT
-	12:  {},                                                                                // MG_SAFETYWALL; persistent unit effect arrives separately.
-	13:  {beforeHitEffectIDs: []int{effectSoulStrike}, hitEffectIDs: []int{effectBashHit}}, // MG_SOULSTRIKE
-	14:  {beforeHitEffectIDs: []int{effectColdBolt}, hitEffectIDs: []int{effectColdHit}},   // MG_COLDBOLT
-	15:  {effectIDs: []int{effectFrostDiver}, hitEffectIDs: []int{effectFrostDiverHit}},    // MG_FROSTDIVER
-	16:  {effectIDs: []int{effectStoneCurse}},                                              // MG_STONECURSE
-	17:  {beforeHitEffectIDs: []int{effectFireBall}, hitEffectIDs: []int{effectFireHit}},   // MG_FIREBALL
-	18:  {hitEffectIDs: []int{effectFireHit}, groundEffectIDs: []int{effectFireWall}},      // MG_FIREWALL
-	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}},   // MG_FIREBOLT
-	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}},       // MG_LIGHTNINGBOLT
-	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}},        // MG_THUNDERSTORM
-	24:  {hitEffectIDs: []int{effectBashHit}},                                              // AL_RUWACH
-	25:  {groundEffectIDs: []int{effectPneuma}},                                            // AL_PNEUMA
-	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}},          // AL_HEAL
-	29:  {effectIDs: []int{effectIncAgility}},                                              // AL_INCAGI
-	30:  {effectIDs: []int{effectDecAgility}},                                              // AL_DECAGI
-	31:  {effectIDs: []int{effectAqua}},                                                    // AL_HOLYWATER
-	32:  {effectIDs: []int{effectSignum}},                                                  // AL_CRUCIS
-	33:  {effectIDs: []int{effectAngelus}},                                                 // AL_ANGELUS
-	34:  {effectIDs: []int{effectBlessing}},                                                // AL_BLESSING
-	35:  {effectIDs: []int{effectCure}},                                                    // AL_CURE
-	42:  {effectIDs: []int{effectMammonite}},                                               // MC_MAMMONITE
-	45:  {effectIDs: []int{effectConcentration}},                                           // AC_CONCENTRATION
-	46:  {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}},  // AC_DOUBLE; ef_arrow_projectile is not implemented yet.
-	47:  {hitEffectIDs: []int{effectBashHit}},                                              // AC_SHOWER; ef_arrow_shower_projectile is not implemented yet.
-	50:  {successEffectIDs: []int{effectSteal}},                                            // TF_STEAL
-	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                         // TF_POISON
-	53:  {effectIDs: []int{effectDetoxication}},                                            // TF_DETOXIFY
-	157: {effectIDs: []int{effectEnergyCoat}},                                              // MG_ENERGYCOAT
+	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: roBrowserSkillActionAttack},                                                                                                     // SM_BASH
+	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                                 // SM_PROVOKE
+	7:   {effectIDsOnCaster: []int{effectMagnumBreak}, action: roBrowserSkillActionAttack},                                                                                                                                        // SM_MAGNUM; quake_magnum is not implemented yet.
+	8:   {effectIDs: []int{effectEndure}},                                                                                                                                                                                         // SM_ENDURE
+	11:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // MG_NAPALMBEAT
+	12:  {},                                                                                                                                                                                                                       // MG_SAFETYWALL; persistent unit effect arrives separately.
+	13:  {beforeHitEffectIDs: []int{effectSoulStrike}, hitEffectIDs: []int{effectBashHit}, cast: roBrowserSkillCast{property: 8, perLevel: 500 * time.Millisecond}},                                                               // MG_SOULSTRIKE
+	14:  {beforeHitEffectIDs: []int{effectColdBolt}, hitEffectIDs: []int{effectColdHit}, cast: roBrowserSkillCast{property: 1, perLevel: 700 * time.Millisecond}},                                                                 // MG_COLDBOLT
+	15:  {effectIDs: []int{effectFrostDiver}, hitEffectIDs: []int{effectFrostDiverHit}},                                                                                                                                           // MG_FROSTDIVER
+	16:  {effectIDs: []int{effectStoneCurse}},                                                                                                                                                                                     // MG_STONECURSE
+	17:  {beforeHitEffectIDs: []int{effectFireBall}, hitEffectIDs: []int{effectFireHit}, cast: roBrowserSkillCast{property: 3, fixed: time.Second}},                                                                               // MG_FIREBALL
+	18:  {hitEffectIDs: []int{effectFireHit}, groundEffectIDs: []int{effectFireWall}},                                                                                                                                             // MG_FIREWALL
+	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}, cast: roBrowserSkillCast{property: 3, perLevel: 700 * time.Millisecond}},                                                                 // MG_FIREBOLT
+	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, perLevel: 700 * time.Millisecond}},                                                                     // MG_LIGHTNINGBOLT
+	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, base: time.Second, perLevel: 200 * time.Millisecond}, forceGroundTarget: true, groundCastMarkerSize: 5}, // MG_THUNDERSTORM
+	24:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // AL_RUWACH
+	25:  {groundEffectIDs: []int{effectPneuma}, forceGroundTarget: true},                                                                                                                                                          // AL_PNEUMA
+	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}, recoveryFloater: roBrowserSkillRecoveryFloater{enabled: true, color: recoveryHPColor, kind: damageFloaterRecoveryHP}},                           // AL_HEAL
+	29:  {effectIDs: []int{effectIncAgility}},                                                                                                                                                                                     // AL_INCAGI
+	30:  {effectIDs: []int{effectDecAgility}},                                                                                                                                                                                     // AL_DECAGI
+	31:  {effectIDs: []int{effectAqua}},                                                                                                                                                                                           // AL_HOLYWATER
+	32:  {effectIDs: []int{effectSignum}},                                                                                                                                                                                         // AL_CRUCIS
+	33:  {effectIDs: []int{effectAngelus}},                                                                                                                                                                                        // AL_ANGELUS
+	34:  {effectIDs: []int{effectBlessing}},                                                                                                                                                                                       // AL_BLESSING
+	35:  {effectIDs: []int{effectCure}},                                                                                                                                                                                           // AL_CURE
+	42:  {effectIDs: []int{effectMammonite}},                                                                                                                                                                                      // MC_MAMMONITE
+	45:  {effectIDs: []int{effectConcentration}},                                                                                                                                                                                  // AC_CONCENTRATION
+	46:  {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                         // AC_DOUBLE; ef_arrow_projectile is not implemented yet.
+	47:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // AC_SHOWER; ef_arrow_shower_projectile is not implemented yet.
+	50:  {successEffectIDs: []int{effectSteal}},                                                                                                                                                                                   // TF_STEAL
+	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                                                                                                                                                                // TF_POISON
+	53:  {effectIDs: []int{effectDetoxication}},                                                                                                                                                                                   // TF_DETOXIFY
+	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                     // MG_ENERGYCOAT
 }
 
 func skillSuccessEffectIDs(skillID uint16) []int {
@@ -845,6 +880,10 @@ func skillBeforeHitEffectSelfIDs(skillID uint16) []int {
 
 func skillGroundEffectIDs(skillID uint16) []int {
 	return roBrowserSkillEffects[skillID].groundEffectIDs
+}
+
+func skillForcesGroundTarget(skillID uint16) bool {
+	return roBrowserSkillEffects[skillID].forceGroundTarget
 }
 
 type roBrowserSkillUnitEffect struct {
@@ -885,23 +924,8 @@ func skillCastAuraEffectID(property uint32) int {
 }
 
 func skillCastFallback(skillID uint16, level uint16) (uint32, time.Duration) {
-	lv := maxInt(1, int(level))
-	switch skillID {
-	case 13:
-		return 8, time.Duration(500*lv) * time.Millisecond
-	case 14:
-		return 1, time.Duration(700*lv) * time.Millisecond
-	case 17:
-		return 3, 1000 * time.Millisecond
-	case 19:
-		return 3, time.Duration(700*lv) * time.Millisecond
-	case 20:
-		return 4, time.Duration(700*lv) * time.Millisecond
-	case 21:
-		return 4, time.Duration(1000+200*lv) * time.Millisecond
-	default:
-		return 0, 0
-	}
+	cast := roBrowserSkillEffects[skillID].cast
+	return cast.property, cast.duration(level)
 }
 
 func skillHitEffectIDs(skillID uint16) []int {
@@ -912,12 +936,25 @@ func skillHitEffectOnCasterIDs(skillID uint16) []int {
 	return roBrowserSkillEffects[skillID].hitEffectIDsOnCaster
 }
 
+func skillRecoveryFloater(skillID uint16) roBrowserSkillRecoveryFloater {
+	return roBrowserSkillEffects[skillID].recoveryFloater
+}
+
+func skillAction(skillID uint16) roBrowserSkillAction {
+	return roBrowserSkillEffects[skillID].action
+}
+
 func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
 	spec, ok := worldEffectSpecs[effectID]
 	if !ok {
 		return worldEffectSpec{}, false
 	}
 	return cloneWorldEffectSpec(spec), true
+}
+
+func effectDetachesLocalActor(effectID int) bool {
+	spec, ok := worldEffectSpecForID(effectID)
+	return ok && spec.detachLocalActor
 }
 
 func cloneWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {

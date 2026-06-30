@@ -1165,6 +1165,28 @@ func TestSkillCastFallbackMappings(t *testing.T) {
 	}
 }
 
+func TestSkillVisualMetadataMappings(t *testing.T) {
+	if skillAction(5) != roBrowserSkillActionAttack || skillAction(7) != roBrowserSkillActionAttack {
+		t.Fatalf("swordman weapon-action skills = bash:%d magnum:%d", skillAction(5), skillAction(7))
+	}
+	if skillAction(28) != roBrowserSkillActionDefault {
+		t.Fatalf("heal action = %d, want default skill action", skillAction(28))
+	}
+	if !skillForcesGroundTarget(21) || !skillForcesGroundTarget(25) {
+		t.Fatalf("ground target overrides = thunderstorm:%t pneuma:%t", skillForcesGroundTarget(21), skillForcesGroundTarget(25))
+	}
+	if size := skillCastGroundSampleSize(21); size != 5 {
+		t.Fatalf("thunderstorm marker size = %.1f, want 5", size)
+	}
+	if size := skillCastGroundSampleSize(19); size != 1 {
+		t.Fatalf("firebolt marker size = %.1f, want default 1", size)
+	}
+	recovery := skillRecoveryFloater(28)
+	if !recovery.enabled || recovery.kind != damageFloaterRecoveryHP || recovery.color != recoveryHPColor {
+		t.Fatalf("heal recovery floater = %+v", recovery)
+	}
+}
+
 func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
@@ -1280,6 +1302,9 @@ func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
 	if !ok {
 		t.Fatal("magnum break effect spec missing")
 	}
+	if spec.cameraShake != 50*time.Millisecond {
+		t.Fatalf("camera shake = %s, want 50ms", spec.cameraShake)
+	}
 	if len(spec.components) != 2 {
 		t.Fatalf("components = %d, want 2", len(spec.components))
 	}
@@ -1341,6 +1366,9 @@ func TestTeleportationEffectSpecUsesRobrowserCylinderStack(t *testing.T) {
 	}
 	if spec.duration != 1500*time.Millisecond {
 		t.Fatalf("duration = %s, want 1500ms", spec.duration)
+	}
+	if !spec.detachLocalActor {
+		t.Fatal("teleportation should detach from the local actor")
 	}
 	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_teleportation.wav" {
 		t.Fatalf("sfx = %#v", spec.sfx)
@@ -1617,10 +1645,16 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		if !ok {
 			t.Fatalf("roBrowser effect %d missing", effectID)
 		}
-		if !reflect.DeepEqual(got, want) {
+		if !reflect.DeepEqual(roBrowserRenderableWorldEffectSpec(got), want) {
 			t.Fatalf("effect %d\n got: %#v\nwant: %#v", effectID, got, want)
 		}
 	}
+}
+
+func roBrowserRenderableWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
+	spec.cameraShake = 0
+	spec.detachLocalActor = false
+	return spec
 }
 
 func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
