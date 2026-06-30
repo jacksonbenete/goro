@@ -1763,7 +1763,7 @@ func TestBlessingEffectSpecUsesRobrowserSpritesAndParticles(t *testing.T) {
 	if sprite.kind != effectComponentSPR || sprite.spriteFile != "\xC3\xE0\xBA\xB9" {
 		t.Fatalf("sprite component = %+v", sprite)
 	}
-	if sprite.duration != 1500*time.Millisecond || sprite.spriteDelay != 30*time.Millisecond || !sprite.spriteRepeat || !sprite.spriteHead || sprite.spriteYOffset != -120 {
+	if sprite.duration != 1500*time.Millisecond || sprite.spriteDelay != 30*time.Millisecond || !sprite.spriteRepeat || !sprite.spriteHead || sprite.spriteYOffset != -120 || !sprite.worldSizedSprite {
 		t.Fatalf("sprite timing/placement = %+v", sprite)
 	}
 

@@ -350,18 +350,19 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			return worldEffectComponent{}, sfx, false
 		}
 		return worldEffectComponent{
-			kind:            effectComponentSPR,
-			spriteFile:      file,
-			duration:        fieldDuration(fields, "duration"),
-			delay:           fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
-			spriteHead:      fieldBool(fields, "head"),
-			spriteDirection: fieldBool(fields, "direction"),
-			spriteRepeat:    fieldBool(fields, "repeat"),
-			spriteStopAtEnd: fieldBool(fields, "stopAtEnd"),
-			spriteFrame:     fieldInt(fields, "frame"),
-			spriteDelay:     fieldDuration(fields, "delayFrame"),
-			spriteXOffset:   fieldFloat(fields, "xOffset"),
-			spriteYOffset:   fieldFloat(fields, "yOffset"),
+			kind:             effectComponentSPR,
+			spriteFile:       file,
+			duration:         fieldDuration(fields, "duration"),
+			delay:            fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
+			spriteHead:       fieldBool(fields, "head"),
+			spriteDirection:  fieldBool(fields, "direction"),
+			spriteRepeat:     fieldBool(fields, "repeat"),
+			spriteStopAtEnd:  fieldBool(fields, "stopAtEnd"),
+			spriteFrame:      fieldInt(fields, "frame"),
+			spriteDelay:      fieldDuration(fields, "delayFrame"),
+			spriteXOffset:    fieldFloat(fields, "xOffset"),
+			spriteYOffset:    fieldFloat(fields, "yOffset"),
+			worldSizedSprite: true,
 		}, sfx, true
 	case "FUNC":
 		funcName, adapter := roBrowserFuncAdapter(object, fields)

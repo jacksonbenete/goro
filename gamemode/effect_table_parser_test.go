@@ -387,7 +387,7 @@ export default {
 	if component.duration != 1500*time.Millisecond || component.spriteDelay != 30*time.Millisecond {
 		t.Fatalf("effect 42 timing = %#v", component)
 	}
-	if !component.spriteRepeat || !component.spriteHead || component.spriteYOffset != -120 {
+	if !component.spriteRepeat || !component.spriteHead || component.spriteYOffset != -120 || !component.worldSizedSprite {
 		t.Fatalf("effect 42 sprite flags = %#v", component)
 	}
 }

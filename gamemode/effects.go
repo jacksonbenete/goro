@@ -1671,6 +1671,10 @@ func (m *WorldMode) drawSPREffect(screen *render.Image, ctx Context, projection 
 	if component.spriteHead {
 		z += 2.0
 	}
+	if component.worldSizedSprite {
+		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, z, roBrowserEffectPixelRatio, 0, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+		return
+	}
 	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, z, 1, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 }
 

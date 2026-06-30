@@ -611,9 +611,10 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectAqua: {
 		sfx: []string{"effect\\ef_aqua.wav"},
 		components: []worldEffectComponent{{
-			kind:       effectComponentSPR,
-			spriteFile: "\xBC\xBA\xBC\xF6\xB6\xDF\xB1\xE2",
-			spriteHead: true,
+			kind:             effectComponentSPR,
+			spriteFile:       "\xBC\xBA\xBC\xF6\xB6\xDF\xB1\xE2",
+			spriteHead:       true,
+			worldSizedSprite: true,
 		}},
 	},
 	effectSignum:  strEffectSpecAttached("cross", "effect\\ef_signum.wav", false),
@@ -623,13 +624,14 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_blessing.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:          effectComponentSPR,
-				spriteFile:    "\xC3\xE0\xBA\xB9",
-				duration:      1500 * time.Millisecond,
-				spriteDelay:   30 * time.Millisecond,
-				spriteRepeat:  true,
-				spriteHead:    true,
-				spriteYOffset: -120,
+				kind:             effectComponentSPR,
+				spriteFile:       "\xC3\xE0\xBA\xB9",
+				duration:         1500 * time.Millisecond,
+				spriteDelay:      30 * time.Millisecond,
+				spriteRepeat:     true,
+				spriteHead:       true,
+				spriteYOffset:    -120,
+				worldSizedSprite: true,
 			},
 			{
 				kind:            effectComponent3D,
