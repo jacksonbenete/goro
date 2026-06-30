@@ -561,8 +561,8 @@ func drawSpriteBillboardTintAlphaRotated3DWithOptions(screen *render.Image, proj
 	tint := colorRGBAFromFloats(tintR, tintG, tintB, tintA)
 	axisScale := scale * unitsPerPixel
 	sinA, cosA := math.Sin(angle), math.Cos(angle)
-	rightAxis := add3(mul3(right, cosA*axisScale), mul3(up, sinA*axisScale))
-	upAxis := add3(mul3(right, sinA*axisScale), mul3(up, -cosA*axisScale))
+	rightAxis := add3(mul3(right, cosA*axisScale), mul3(up, -sinA*axisScale))
+	upAxis := add3(mul3(right, -sinA*axisScale), mul3(up, -cosA*axisScale))
 	screen.DrawWorldBillboard(render.WorldBillboardCommand{
 		Texture:     billboard.image,
 		Options:     *options,

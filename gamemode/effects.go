@@ -16,7 +16,7 @@ import (
 const (
 	effectFireBolt      = 10019
 	effectNapalmBeat    = 32
-	effectMagicTarget   = 10020
+	effectGroundSample  = 513
 	effectCastRing      = 10021
 	effectProvoke       = 67
 	effectEndure        = 11
@@ -105,6 +105,7 @@ type worldEffect struct {
 	starts   time.Time
 	expires  time.Time
 	duration time.Duration
+	size     float64
 }
 
 type worldEffectSpec struct {
@@ -234,20 +235,28 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	}
 	now := time.Now()
 	m.startSkillNoDamageSourceAnimation(ctx, notify, now)
-	if effectID := skillEffectID(notify.SkillID); effectID > 0 {
+	for _, effectID := range skillEffectIDs(notify.SkillID) {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 			log.Printf("skill effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
 		}
 	}
-	effectID := skillSuccessEffectID(notify.SkillID)
-	if effectID <= 0 {
-		return
-	}
-	if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
-		log.Printf("skill success effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
+	for _, effectID := range skillEffectOnCasterIDs(notify.SkillID) {
+		if m.addWorldEffectAt(ctx, effectID, notify.SourceID, now) {
+			log.Printf("skill caster effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
+		}
 	}
 	if notify.SkillID == 28 && !isLocalActor(ctx, notify.TargetID) {
 		m.addTargetRecoveryFloater(ctx, notify.TargetID, int(notify.Amount), recoveryHPColor, damageFloaterRecoveryHP, now)
+	}
+	for _, effectID := range skillSuccessEffectIDs(notify.SkillID) {
+		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
+			log.Printf("skill success effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
+		}
+	}
+	for _, effectID := range skillSuccessEffectSelfIDs(notify.SkillID) {
+		if m.addWorldEffectAt(ctx, effectID, notify.SourceID, now) {
+			log.Printf("skill success self effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
+		}
 	}
 }
 
@@ -306,12 +315,18 @@ func (m *WorldMode) faceSkillSource(ctx Context, sourceID, targetID uint32, cell
 }
 
 func (m *WorldMode) applyGroundSkillNotify(ctx Context, notify network.GroundSkillNotify) {
-	effectID := skillGroundEffectID(notify.SkillID)
-	if effectID <= 0 {
+	effectIDs := skillEffectIDs(notify.SkillID)
+	if len(effectIDs) == 0 {
+		effectIDs = skillGroundEffectIDs(notify.SkillID)
+	}
+	if len(effectIDs) == 0 {
 		return
 	}
-	if m.addWorldEffectAtCellIfMissing(ctx, effectID, int(notify.X), int(notify.Y), time.Now()) {
-		log.Printf("ground skill effect skill=%d src=%d level=%d cell=%d,%d effect=%d", notify.SkillID, notify.SourceID, notify.Level, notify.X, notify.Y, effectID)
+	now := time.Now()
+	for _, effectID := range effectIDs {
+		if m.addWorldEffectAtCellIfMissing(ctx, effectID, int(notify.X), int(notify.Y), now) {
+			log.Printf("ground skill effect skill=%d src=%d level=%d cell=%d,%d effect=%d", notify.SkillID, notify.SourceID, notify.Level, notify.X, notify.Y, effectID)
+		}
 	}
 }
 
@@ -492,14 +507,18 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, a
 }
 
 func (m *WorldMode) addWorldEffectAtCell(ctx Context, effectID int, x, y int, starts time.Time) bool {
-	return m.addWorldEffectAtCellDuration(ctx, effectID, 0, x, y, starts, 0)
+	return m.addWorldEffectAtCellDurationSize(ctx, effectID, 0, x, y, starts, 0, 0)
 }
 
 func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time) bool {
-	return m.addWorldEffectAtCellDuration(ctx, effectID, actorID, x, y, starts, 0)
+	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, 0, 0)
 }
 
 func (m *WorldMode) addWorldEffectAtCellDuration(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration) bool {
+	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, durationOverride, 0)
+}
+
+func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -528,6 +547,7 @@ func (m *WorldMode) addWorldEffectAtCellDuration(ctx Context, effectID int, acto
 		starts:   starts,
 		expires:  starts.Add(duration),
 		duration: durationOverride,
+		size:     sizeOverride,
 	})
 	if len(spec.sfx) > 0 {
 		m.scheduleSound(starts, spec.sfx...)
@@ -536,17 +556,21 @@ func (m *WorldMode) addWorldEffectAtCellDuration(ctx Context, effectID int, acto
 }
 
 func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx Context, effectID int, x, y int, starts time.Time) bool {
-	return m.addWorldEffectAtCellDurationIfMissing(ctx, effectID, 0, x, y, starts, 0)
+	return m.addWorldEffectAtCellDurationSizeIfMissing(ctx, effectID, 0, x, y, starts, 0, 0)
 }
 
 func (m *WorldMode) addWorldEffectAtCellDurationIfMissing(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration) bool {
+	return m.addWorldEffectAtCellDurationSizeIfMissing(ctx, effectID, actorID, x, y, starts, durationOverride, 0)
+}
+
+func (m *WorldMode) addWorldEffectAtCellDurationSizeIfMissing(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
 	now := time.Now()
 	for _, effect := range m.worldEffects {
 		if effect.effectID == effectID && effect.actorID == actorID && effect.x == x && effect.y == y && now.Before(effect.expires) {
 			return false
 		}
 	}
-	return m.addWorldEffectAtCellDuration(ctx, effectID, actorID, x, y, starts, durationOverride)
+	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, durationOverride, sizeOverride)
 }
 
 func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
@@ -564,7 +588,8 @@ func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property ui
 		return
 	}
 	if targetID == 0 && (cellX != 0 || cellY != 0) {
-		if m.addWorldEffectAtCellDurationIfMissing(ctx, effectMagicTarget, 0, cellX, cellY, starts, duration) {
+		markerSize := skillCastGroundSampleSize(skillID)
+		if m.addWorldEffectAtCellDurationSizeIfMissing(ctx, effectGroundSample, 0, cellX, cellY, starts, duration, markerSize) {
 			log.Printf("skill cast ground marker source=%s skill=%d src=%d cell=%d,%d delay_ms=%d", source, skillID, sourceID, cellX, cellY, duration.Milliseconds())
 		}
 	}
@@ -577,6 +602,15 @@ func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property ui
 	}
 	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectID, sourceID, targetID, starts, duration) {
 		log.Printf("skill cast aura source=%s skill=%d src=%d target=%d property=%d effect=%d delay_ms=%d", source, skillID, sourceID, targetID, property, effectID, duration.Milliseconds())
+	}
+}
+
+func skillCastGroundSampleSize(skillID uint16) float64 {
+	switch skillID {
+	case 21:
+		return 5
+	default:
+		return 1
 	}
 }
 
@@ -618,103 +652,88 @@ func itemUseEffectID(itemID uint16) int {
 	}
 }
 
-func skillSuccessEffectID(skillID uint16) int {
-	switch skillID {
-	case 6:
-		return effectProvoke
-	case 8:
-		return effectEndure
-	case 10:
-		return effectSight
-	case 28:
-		return effectHeal
-	case 29:
-		return effectIncAgility
-	case 30:
-		return effectDecAgility
-	case 31:
-		return effectAqua
-	case 32:
-		return effectSignum
-	case 33:
-		return effectAngelus
-	case 34:
-		return effectBlessing
-	case 35:
-		return effectCure
-	case 45:
-		return effectConcentration
-	case 50:
-		return effectSteal
-	case 53:
-		return effectDetoxication
-	default:
-		return 0
-	}
+type roBrowserSkillEffect struct {
+	effectIDs              []int
+	effectIDsOnCaster      []int
+	beforeHitEffectIDs     []int
+	beforeHitEffectIDsSelf []int
+	hitEffectIDs           []int
+	hitEffectIDsOnCaster   []int
+	successEffectIDs       []int
+	successEffectIDsSelf   []int
+	beginCastEffectIDs     []int
+	groundEffectIDs        []int
+	hideCastAura           bool
 }
 
-func skillEffectID(skillID uint16) int {
-	switch skillID {
-	case 15:
-		return effectFrostDiver
-	case 16:
-		return effectStoneCurse
-	case 20:
-		return effectLightningBolt
-	case 21:
-		return effectThunderStorm
-	case 157:
-		return effectEnergyCoat
-	default:
-		return 0
-	}
+// This table mirrors roBrowser's DB/Skills/SkillEffect.js shape. Keep field
+// names aligned so importing more effects later is mostly data conversion.
+var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
+	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}},  // SM_BASH
+	6:   {successEffectIDs: []int{effectProvoke}},                                          // SM_PROVOKE
+	7:   {effectIDsOnCaster: []int{effectMagnumBreak}},                                     // SM_MAGNUM; quake_magnum is not implemented yet.
+	8:   {effectIDs: []int{effectEndure}},                                                  // SM_ENDURE
+	11:  {hitEffectIDs: []int{effectBashHit}},                                              // MG_NAPALMBEAT
+	12:  {},                                                                                // MG_SAFETYWALL; persistent unit effect arrives separately.
+	13:  {beforeHitEffectIDs: []int{effectSoulStrike}, hitEffectIDs: []int{effectBashHit}}, // MG_SOULSTRIKE
+	14:  {beforeHitEffectIDs: []int{effectColdBolt}, hitEffectIDs: []int{effectColdHit}},   // MG_COLDBOLT
+	15:  {effectIDs: []int{effectFrostDiver}, hitEffectIDs: []int{effectFrostDiverHit}},    // MG_FROSTDIVER
+	16:  {effectIDs: []int{effectStoneCurse}},                                              // MG_STONECURSE
+	17:  {beforeHitEffectIDs: []int{effectFireBall}, hitEffectIDs: []int{effectFireHit}},   // MG_FIREBALL
+	18:  {hitEffectIDs: []int{effectFireHit}, groundEffectIDs: []int{effectFireWall}},      // MG_FIREWALL
+	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}},   // MG_FIREBOLT
+	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}},       // MG_LIGHTNINGBOLT
+	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}},        // MG_THUNDERSTORM
+	24:  {hitEffectIDs: []int{effectBashHit}},                                              // AL_RUWACH
+	25:  {groundEffectIDs: []int{effectPneuma}},                                            // AL_PNEUMA
+	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}},          // AL_HEAL
+	29:  {effectIDs: []int{effectIncAgility}},                                              // AL_INCAGI
+	30:  {effectIDs: []int{effectDecAgility}},                                              // AL_DECAGI
+	31:  {effectIDs: []int{effectAqua}},                                                    // AL_HOLYWATER
+	32:  {effectIDs: []int{effectSignum}},                                                  // AL_CRUCIS
+	33:  {effectIDs: []int{effectAngelus}},                                                 // AL_ANGELUS
+	34:  {effectIDs: []int{effectBlessing}},                                                // AL_BLESSING
+	35:  {effectIDs: []int{effectCure}},                                                    // AL_CURE
+	42:  {effectIDs: []int{effectMammonite}},                                               // MC_MAMMONITE
+	45:  {effectIDs: []int{effectConcentration}},                                           // AC_CONCENTRATION
+	46:  {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}},  // AC_DOUBLE; ef_arrow_projectile is not implemented yet.
+	47:  {hitEffectIDs: []int{effectBashHit}},                                              // AC_SHOWER; ef_arrow_shower_projectile is not implemented yet.
+	50:  {successEffectIDs: []int{effectSteal}},                                            // TF_STEAL
+	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                         // TF_POISON
+	53:  {effectIDs: []int{effectDetoxication}},                                            // TF_DETOXIFY
+	157: {effectIDs: []int{effectEnergyCoat}},                                              // MG_ENERGYCOAT
 }
 
-func skillBeginEffectID(skillID uint16) int {
-	switch skillID {
-	case 5:
-		return effectBashBegin
-	case 7:
-		return effectMagnumBreak
-	case 26:
-		return effectTeleportation
-	case 42:
-		return effectMammonite
-	case 46:
-		return effectBashBegin
-	default:
-		return 0
-	}
+func skillSuccessEffectIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].successEffectIDs
 }
 
-func skillBeforeHitEffectID(skillID uint16) int {
-	switch skillID {
-	case 13:
-		return effectSoulStrike
-	case 14:
-		return effectColdBolt
-	case 19:
-		return effectFireBolt
-	case 17:
-		return effectFireBall
-	default:
-		return 0
-	}
+func skillSuccessEffectSelfIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].successEffectIDsSelf
 }
 
-func skillGroundEffectID(skillID uint16) int {
-	switch skillID {
-	case 12:
-		return effectSafetyWall
-	case 18:
-		return effectFireWall
-	case 21:
-		return effectThunderStorm
-	case 25:
-		return effectPneuma
-	default:
-		return 0
-	}
+func skillEffectIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].effectIDs
+}
+
+func skillEffectOnCasterIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].effectIDsOnCaster
+}
+
+func skillBeginEffectIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].beginCastEffectIDs
+}
+
+func skillBeforeHitEffectIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].beforeHitEffectIDs
+}
+
+func skillBeforeHitEffectSelfIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].beforeHitEffectIDsSelf
+}
+
+func skillGroundEffectIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].groundEffectIDs
 }
 
 func skillUnitEffectID(unitID uint16) int {
@@ -769,33 +788,12 @@ func skillCastFallback(skillID uint16, level uint16) (uint32, time.Duration) {
 	}
 }
 
-func skillHitEffectID(skillID uint16) int {
-	switch skillID {
-	case 5:
-		return effectBashHit
-	case 11:
-		return effectNapalmBeat
-	case 13:
-		return effectBashHit
-	case 14:
-		return effectColdHit
-	case 15:
-		return effectFrostDiverHit
-	case 17, 18, 19:
-		return effectFireHit
-	case 20, 21:
-		return effectWindHit
-	case 24:
-		return effectBashHit
-	case 28:
-		return effectHealOffensive
-	case 46, 47:
-		return effectBashHit
-	case 52:
-		return effectPoisonAttack
-	default:
-		return 0
-	}
+func skillHitEffectIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].hitEffectIDs
+}
+
+func skillHitEffectOnCasterIDs(skillID uint16) []int {
+	return roBrowserSkillEffects[skillID].hitEffectIDsOnCaster
 }
 
 func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
@@ -1015,7 +1013,7 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 	case effectPrimitiveBillboard:
 		m.drawBillboardEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
 	case effectPrimitiveBashHit:
-		drawBashHitEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
+		m.drawBashHitWorldEffect(screen, ctx, component, componentIndex, effect, worldX, worldY, worldZ, now, progress)
 	case effectPrimitive2D:
 		m.draw2DEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
 	case effectPrimitive3D:
@@ -1028,6 +1026,30 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 		m.drawCastRingEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, progress)
 	default:
 		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
+	}
+}
+
+func (m *WorldMode) drawBashHitWorldEffect(screen *render.Image, ctx Context, component worldEffectComponent, componentIndex int, effect worldEffect, worldX, worldY, worldZ float64, now time.Time, fallbackProgress float64) {
+	duplicates := maxInt(component.duplicate, 1)
+	duration := component.duration
+	if duration <= 0 {
+		duration = 280 * time.Millisecond
+	}
+	for i := 0; i < duplicates; i++ {
+		starts := effect.starts.Add(component.delay + time.Duration(i)*component.duplicateDelay)
+		if now.Before(starts) {
+			continue
+		}
+		progress := fallbackProgress
+		if duplicates > 1 || component.duplicateDelay > 0 || component.duration > 0 {
+			progress = worldEffectComponentProgress(starts, duration, now)
+		}
+		if progress >= 1 {
+			continue
+		}
+		salt := componentIndex*1009 + i*37
+		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, i, progress, worldX, worldY, worldZ)
+		drawBashHitEffect(screen, m.whitePixel, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, progress, component.color)
 	}
 }
 
@@ -1241,6 +1263,9 @@ func (m *WorldMode) drawGroundPlaneEffect(screen *render.Image, ctx Context, com
 		return
 	}
 	size := component.sizeStart
+	if effect.size > 0 {
+		size = effect.size
+	}
 	if size <= 0 {
 		size = 1
 	}
@@ -1316,7 +1341,7 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projec
 		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint)
 		return
 	}
-	scale := size / (100 * roBrowserEffectPixelRatio)
+	scale := size / 100
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
@@ -1770,8 +1795,8 @@ func drawTexturedEffectBillboardRotatedXY(screen *render.Image, projection scene
 	upAxis := mul3(up, -axisScaleY)
 	if angle != 0 {
 		sinA, cosA := math.Sin(angle), math.Cos(angle)
-		rightAxis = add3(mul3(right, cosA*axisScaleX), mul3(up, sinA*axisScaleX))
-		upAxis = add3(mul3(right, sinA*axisScaleY), mul3(up, -cosA*axisScaleY))
+		rightAxis = add3(mul3(right, cosA*axisScaleX), mul3(up, -sinA*axisScaleX))
+		upAxis = add3(mul3(right, -sinA*axisScaleY), mul3(up, -cosA*axisScaleY))
 	}
 	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
 	if additive {

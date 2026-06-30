@@ -700,7 +700,7 @@ func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
 	if coverage.ActivePercent < 10.8 || coverage.ActivePercent > 10.9 {
-		t.Fatalf("active coverage = %.3f, want about 10.9", coverage.ActivePercent)
+		t.Fatalf("active coverage = %.3f, want about 10.8", coverage.ActivePercent)
 	}
 }
 
@@ -808,99 +808,50 @@ func TestResolveEffectSTRFileUsesDeterministicRandRange(t *testing.T) {
 	}
 }
 
-func TestSwordmanSkillEffectMappings(t *testing.T) {
-	if got := skillBeginEffectID(5); got != effectBashBegin {
-		t.Fatalf("SM_BASH begin effect = %d, want %d", got, effectBashBegin)
-	}
-	if got := skillHitEffectID(5); got != effectBashHit {
-		t.Fatalf("SM_BASH hit effect = %d, want %d", got, effectBashHit)
-	}
-	if got := skillSuccessEffectID(6); got != effectProvoke {
-		t.Fatalf("SM_PROVOKE success effect = %d, want %d", got, effectProvoke)
-	}
-	if got := skillBeginEffectID(7); got != effectMagnumBreak {
-		t.Fatalf("SM_MAGNUM begin effect = %d, want %d", got, effectMagnumBreak)
-	}
-	if got := skillSuccessEffectID(8); got != effectEndure {
-		t.Fatalf("SM_ENDURE success effect = %d, want %d", got, effectEndure)
+func expectEffectIDs(t *testing.T, label string, got []int, want ...int) {
+	t.Helper()
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("%s effects = %v, want %v", label, got, want)
 	}
 }
 
+func TestSwordmanSkillEffectMappings(t *testing.T) {
+	expectEffectIDs(t, "SM_BASH begin", skillBeginEffectIDs(5), effectBashBegin)
+	expectEffectIDs(t, "SM_BASH hit", skillHitEffectIDs(5), effectBashHit)
+	expectEffectIDs(t, "SM_PROVOKE success", skillSuccessEffectIDs(6), effectProvoke)
+	expectEffectIDs(t, "SM_MAGNUM caster", skillEffectOnCasterIDs(7), effectMagnumBreak)
+	expectEffectIDs(t, "SM_ENDURE", skillEffectIDs(8), effectEndure)
+}
+
 func TestMageSkillEffectMappings(t *testing.T) {
-	if got := skillSuccessEffectID(10); got != effectSight {
-		t.Fatalf("MG_SIGHT success effect = %d, want %d", got, effectSight)
-	}
-	if got := skillHitEffectID(11); got != effectNapalmBeat {
-		t.Fatalf("MG_NAPALMBEAT hit effect = %d, want %d", got, effectNapalmBeat)
-	}
-	if got := skillGroundEffectID(12); got != effectSafetyWall {
-		t.Fatalf("MG_SAFETYWALL ground effect = %d, want %d", got, effectSafetyWall)
-	}
-	if got := skillBeforeHitEffectID(13); got != effectSoulStrike {
-		t.Fatalf("MG_SOULSTRIKE before-hit effect = %d, want %d", got, effectSoulStrike)
-	}
-	if got := skillHitEffectID(13); got != effectBashHit {
-		t.Fatalf("MG_SOULSTRIKE hit effect = %d, want %d", got, effectBashHit)
-	}
-	if got := skillBeforeHitEffectID(14); got != effectColdBolt {
-		t.Fatalf("MG_COLDBOLT before-hit effect = %d, want %d", got, effectColdBolt)
-	}
-	if got := skillHitEffectID(14); got != effectColdHit {
-		t.Fatalf("MG_COLDBOLT hit effect = %d, want %d", got, effectColdHit)
-	}
-	if got := skillEffectID(15); got != effectFrostDiver {
-		t.Fatalf("MG_FROSTDIVER effect = %d, want %d", got, effectFrostDiver)
-	}
-	if got := skillBeforeHitEffectID(15); got != 0 {
-		t.Fatalf("MG_FROSTDIVER before-hit effect = %d, want 0", got)
-	}
-	if got := skillHitEffectID(15); got != effectFrostDiverHit {
-		t.Fatalf("MG_FROSTDIVER hit effect = %d, want %d", got, effectFrostDiverHit)
-	}
-	if got := skillEffectID(16); got != effectStoneCurse {
-		t.Fatalf("MG_STONECURSE effect = %d, want %d", got, effectStoneCurse)
-	}
-	if got := skillBeforeHitEffectID(19); got != effectFireBolt {
-		t.Fatalf("MG_FIREBOLT before-hit effect = %d, want %d", got, effectFireBolt)
-	}
-	if got := skillBeforeHitEffectID(17); got != effectFireBall {
-		t.Fatalf("MG_FIREBALL before-hit effect = %d, want %d", got, effectFireBall)
-	}
-	if got := skillGroundEffectID(18); got != effectFireWall {
-		t.Fatalf("MG_FIREWALL ground effect = %d, want %d", got, effectFireWall)
-	}
+	expectEffectIDs(t, "MG_SIGHT success", skillSuccessEffectIDs(10))
+	expectEffectIDs(t, "MG_NAPALMBEAT hit", skillHitEffectIDs(11), effectBashHit)
+	expectEffectIDs(t, "MG_SAFETYWALL ground", skillGroundEffectIDs(12))
+	expectEffectIDs(t, "MG_SOULSTRIKE before-hit", skillBeforeHitEffectIDs(13), effectSoulStrike)
+	expectEffectIDs(t, "MG_SOULSTRIKE hit", skillHitEffectIDs(13), effectBashHit)
+	expectEffectIDs(t, "MG_COLDBOLT before-hit", skillBeforeHitEffectIDs(14), effectColdBolt)
+	expectEffectIDs(t, "MG_COLDBOLT hit", skillHitEffectIDs(14), effectColdHit)
+	expectEffectIDs(t, "MG_FROSTDIVER", skillEffectIDs(15), effectFrostDiver)
+	expectEffectIDs(t, "MG_FROSTDIVER before-hit", skillBeforeHitEffectIDs(15))
+	expectEffectIDs(t, "MG_FROSTDIVER hit", skillHitEffectIDs(15), effectFrostDiverHit)
+	expectEffectIDs(t, "MG_STONECURSE", skillEffectIDs(16), effectStoneCurse)
+	expectEffectIDs(t, "MG_FIREBOLT before-hit", skillBeforeHitEffectIDs(19), effectFireBolt)
+	expectEffectIDs(t, "MG_FIREBALL before-hit", skillBeforeHitEffectIDs(17), effectFireBall)
+	expectEffectIDs(t, "MG_FIREWALL ground", skillGroundEffectIDs(18), effectFireWall)
 	for _, skillID := range []uint16{17, 18, 19} {
-		if got := skillHitEffectID(skillID); got != effectFireHit {
-			t.Fatalf("fire skill %d hit effect = %d, want %d", skillID, got, effectFireHit)
-		}
+		expectEffectIDs(t, "fire skill hit", skillHitEffectIDs(skillID), effectFireHit)
 	}
 	for _, skillID := range []uint16{20, 21} {
-		if got := skillHitEffectID(skillID); got != effectWindHit {
-			t.Fatalf("wind skill %d hit effect = %d, want %d", skillID, got, effectWindHit)
-		}
+		expectEffectIDs(t, "wind skill hit", skillHitEffectIDs(skillID), effectWindHit)
 	}
-	if got := skillBeforeHitEffectID(20); got != 0 {
-		t.Fatalf("MG_LIGHTNINGBOLT before-hit effect = %d, want 0", got)
-	}
-	if got := skillEffectID(20); got != effectLightningBolt {
-		t.Fatalf("MG_LIGHTNINGBOLT effect = %d, want %d", got, effectLightningBolt)
-	}
-	if got := skillEffectID(21); got != effectThunderStorm {
-		t.Fatalf("MG_THUNDERSTORM effect = %d, want %d", got, effectThunderStorm)
-	}
-	if got := skillGroundEffectID(21); got != effectThunderStorm {
-		t.Fatalf("MG_THUNDERSTORM ground effect = %d, want %d", got, effectThunderStorm)
-	}
-	if got := skillEffectID(157); got != effectEnergyCoat {
-		t.Fatalf("MG_ENERGYCOAT effect = %d, want %d", got, effectEnergyCoat)
-	}
-	if got := skillBeforeHitEffectID(21); got != 0 {
-		t.Fatalf("MG_THUNDERSTORM before-hit effect = %d, want 0", got)
-	}
+	expectEffectIDs(t, "MG_LIGHTNINGBOLT before-hit", skillBeforeHitEffectIDs(20))
+	expectEffectIDs(t, "MG_LIGHTNINGBOLT", skillEffectIDs(20), effectLightningBolt)
+	expectEffectIDs(t, "MG_THUNDERSTORM", skillEffectIDs(21), effectThunderStorm)
+	expectEffectIDs(t, "MG_THUNDERSTORM ground", skillGroundEffectIDs(21))
+	expectEffectIDs(t, "MG_ENERGYCOAT", skillEffectIDs(157), effectEnergyCoat)
+	expectEffectIDs(t, "MG_THUNDERSTORM before-hit", skillBeforeHitEffectIDs(21))
 	for _, skillID := range []uint16{20, 21} {
-		if got := skillBeginEffectID(skillID); got != 0 {
-			t.Fatalf("wind skill %d local begin effect = %d, want 0", skillID, got)
-		}
+		expectEffectIDs(t, "wind skill begin", skillBeginEffectIDs(skillID))
 	}
 }
 
@@ -960,7 +911,7 @@ func TestSightEffectSpecOrbitsAroundActor(t *testing.T) {
 	if component.spriteFile != "sight" || component.duplicate != 10 || component.orbitRadiusX != 3 || component.orbitRadiusY != 3 || component.orbitRotations != 10 {
 		t.Fatalf("sight orbit component = %+v", component)
 	}
-	if component.sizeStart != 90*roBrowserEffectPixelRatio || component.sizeEnd != 120*roBrowserEffectPixelRatio {
+	if component.sizeStart != 60*roBrowserEffectPixelRatio || component.sizeEnd != 80*roBrowserEffectPixelRatio {
 		t.Fatalf("sight orbit size = %.3f -> %.3f", component.sizeStart, component.sizeEnd)
 	}
 	ctx := Context{}
@@ -1013,10 +964,10 @@ func TestFireBallSpriteRotationUsesProjectedTrajectory(t *testing.T) {
 	}
 }
 
-func TestMagicTargetEffectSpecUsesGroundPlane(t *testing.T) {
-	spec, ok := worldEffectSpecForID(effectMagicTarget)
+func TestGroundSampleEffectSpecUsesMagicTargetPlane(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectGroundSample)
 	if !ok {
-		t.Fatal("magic target effect missing")
+		t.Fatal("ground sample effect missing")
 	}
 	if len(spec.components) != 1 {
 		t.Fatalf("components = %d, want 1", len(spec.components))
@@ -1104,6 +1055,61 @@ func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 	for i, floater := range mode.damageFloaters {
 		if floater.text != "252" {
 			t.Fatalf("floater %d text = %q, want 252", i, floater.text)
+		}
+	}
+}
+
+func TestActorActionNotifyDispatchesAllMappedCombatEffectArrays(t *testing.T) {
+	const skillID uint16 = 65001
+	roBrowserSkillEffects[skillID] = roBrowserSkillEffect{
+		effectIDs:              []int{effectHeal, effectBlessing},
+		effectIDsOnCaster:      []int{effectEndure},
+		beforeHitEffectIDs:     []int{effectSoulStrike, effectFireBolt},
+		beforeHitEffectIDsSelf: []int{effectBashBegin},
+		hitEffectIDs:           []int{effectFireHit, effectWindHit},
+		hitEffectIDsOnCaster:   []int{effectIncAgility},
+	}
+	defer delete(roBrowserSkillEffects, skillID)
+
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{ID: 300, X: 11, Y: 20, Job: 1002, ObjectType: actorObjectTypeMob, HasObjectType: true})
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     skillID,
+		SkillLevel:  1,
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      100,
+		HitCount:    1,
+		Action:      network.ActorActionSkill,
+	})
+
+	want := []struct {
+		effectID int
+		actorID  uint32
+	}{
+		{effectSoulStrike, 300},
+		{effectFireBolt, 300},
+		{effectBashBegin, 2000000},
+		{effectHeal, 300},
+		{effectBlessing, 300},
+		{effectEndure, 2000000},
+		{effectFireHit, 300},
+		{effectWindHit, 300},
+		{effectIncAgility, 2000000},
+	}
+	if len(mode.worldEffects) != len(want) {
+		t.Fatalf("world effects = %d, want %d: %+v", len(mode.worldEffects), len(want), mode.worldEffects)
+	}
+	for i, wantEffect := range want {
+		got := mode.worldEffects[i]
+		if got.effectID != wantEffect.effectID || got.actorID != wantEffect.actorID {
+			t.Fatalf("effect %d = %+v, want %+v", i, got, wantEffect)
 		}
 	}
 }
@@ -1209,7 +1215,7 @@ func TestSkillCastEffectsDedupeServerAndLocalFallback(t *testing.T) {
 	}
 }
 
-func TestGroundSkillCastEffectsAddMagicTargetMarker(t *testing.T) {
+func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
@@ -1222,7 +1228,7 @@ func TestGroundSkillCastEffectsAddMagicTargetMarker(t *testing.T) {
 		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
 	}
 	marker := mode.worldEffects[0]
-	if marker.effectID != effectMagicTarget || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond {
+	if marker.effectID != effectGroundSample || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond || marker.size != 5 {
 		t.Fatalf("ground marker = %+v", marker)
 	}
 	if mode.worldEffects[1].effectID != effectCastRing || mode.worldEffects[2].effectID != effectBeginSpell4 {
@@ -1231,68 +1237,32 @@ func TestGroundSkillCastEffectsAddMagicTargetMarker(t *testing.T) {
 }
 
 func TestAcolyteSkillEffectMappings(t *testing.T) {
-	if got := skillHitEffectID(24); got != effectBashHit {
-		t.Fatalf("AL_RUWACH hit effect = %d, want %d", got, effectBashHit)
-	}
-	if got := skillSuccessEffectID(28); got != effectHeal {
-		t.Fatalf("AL_HEAL success effect = %d, want %d", got, effectHeal)
-	}
-	if got := skillHitEffectID(28); got != effectHealOffensive {
-		t.Fatalf("AL_HEAL hit effect = %d, want %d", got, effectHealOffensive)
-	}
-	if got := skillSuccessEffectID(29); got != effectIncAgility {
-		t.Fatalf("AL_INCAGI success effect = %d, want %d", got, effectIncAgility)
-	}
-	if got := skillSuccessEffectID(30); got != effectDecAgility {
-		t.Fatalf("AL_DECAGI success effect = %d, want %d", got, effectDecAgility)
-	}
-	if got := skillSuccessEffectID(31); got != effectAqua {
-		t.Fatalf("AL_HOLYWATER success effect = %d, want %d", got, effectAqua)
-	}
-	if got := skillSuccessEffectID(32); got != effectSignum {
-		t.Fatalf("AL_CRUCIS success effect = %d, want %d", got, effectSignum)
-	}
-	if got := skillSuccessEffectID(33); got != effectAngelus {
-		t.Fatalf("AL_ANGELUS success effect = %d, want %d", got, effectAngelus)
-	}
-	if got := skillSuccessEffectID(34); got != effectBlessing {
-		t.Fatalf("AL_BLESSING success effect = %d, want %d", got, effectBlessing)
-	}
-	if got := skillSuccessEffectID(35); got != effectCure {
-		t.Fatalf("AL_CURE success effect = %d, want %d", got, effectCure)
-	}
+	expectEffectIDs(t, "AL_RUWACH hit", skillHitEffectIDs(24), effectBashHit)
+	expectEffectIDs(t, "AL_HEAL", skillEffectIDs(28), effectHeal)
+	expectEffectIDs(t, "AL_HEAL hit", skillHitEffectIDs(28), effectHealOffensive)
+	expectEffectIDs(t, "AL_INCAGI", skillEffectIDs(29), effectIncAgility)
+	expectEffectIDs(t, "AL_DECAGI", skillEffectIDs(30), effectDecAgility)
+	expectEffectIDs(t, "AL_HOLYWATER", skillEffectIDs(31), effectAqua)
+	expectEffectIDs(t, "AL_CRUCIS", skillEffectIDs(32), effectSignum)
+	expectEffectIDs(t, "AL_ANGELUS", skillEffectIDs(33), effectAngelus)
+	expectEffectIDs(t, "AL_BLESSING", skillEffectIDs(34), effectBlessing)
+	expectEffectIDs(t, "AL_CURE", skillEffectIDs(35), effectCure)
 }
 
 func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
-	if got := skillSuccessEffectID(45); got != effectConcentration {
-		t.Fatalf("AC_CONCENTRATION success effect = %d, want %d", got, effectConcentration)
-	}
-	if got := skillBeginEffectID(46); got != effectBashBegin {
-		t.Fatalf("AC_DOUBLE begin effect = %d, want %d", got, effectBashBegin)
-	}
+	expectEffectIDs(t, "AC_CONCENTRATION", skillEffectIDs(45), effectConcentration)
+	expectEffectIDs(t, "AC_DOUBLE begin", skillBeginEffectIDs(46), effectBashBegin)
 	for _, skillID := range []uint16{46, 47} {
-		if got := skillHitEffectID(skillID); got != effectBashHit {
-			t.Fatalf("archer skill %d hit effect = %d, want %d", skillID, got, effectBashHit)
-		}
+		expectEffectIDs(t, "archer hit", skillHitEffectIDs(skillID), effectBashHit)
 	}
-	if got := skillSuccessEffectID(50); got != effectSteal {
-		t.Fatalf("TF_STEAL success effect = %d, want %d", got, effectSteal)
-	}
-	if got := skillHitEffectID(52); got != effectPoisonAttack {
-		t.Fatalf("TF_POISON hit effect = %d, want %d", got, effectPoisonAttack)
-	}
-	if got := skillSuccessEffectID(53); got != effectDetoxication {
-		t.Fatalf("TF_DETOXIFY success effect = %d, want %d", got, effectDetoxication)
-	}
-	if got := skillBeginEffectID(42); got != effectMammonite {
-		t.Fatalf("MC_MAMMONITE begin effect = %d, want %d", got, effectMammonite)
-	}
+	expectEffectIDs(t, "TF_STEAL success", skillSuccessEffectIDs(50), effectSteal)
+	expectEffectIDs(t, "TF_POISON hit", skillHitEffectIDs(52), effectPoisonAttack)
+	expectEffectIDs(t, "TF_DETOXIFY", skillEffectIDs(53), effectDetoxication)
+	expectEffectIDs(t, "MC_MAMMONITE", skillEffectIDs(42), effectMammonite)
 }
 
 func TestWarpEffectMappings(t *testing.T) {
-	if got := skillBeginEffectID(26); got != effectTeleportation {
-		t.Fatalf("AL_TELEPORT begin effect = %d, want %d", got, effectTeleportation)
-	}
+	expectEffectIDs(t, "AL_TELEPORT begin", skillBeginEffectIDs(26))
 	if got := itemUseEffectID(602); got != effectTeleportation {
 		t.Fatalf("Butterfly Wing item effect = %d, want %d", got, effectTeleportation)
 	}
@@ -3567,6 +3537,47 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 	}
 }
 
+func TestSkillNoDamageNotifyDispatchesAllMappedEffectArrays(t *testing.T) {
+	const skillID uint16 = 65000
+	roBrowserSkillEffects[skillID] = roBrowserSkillEffect{
+		effectIDs:            []int{effectHeal, effectBlessing},
+		effectIDsOnCaster:    []int{effectEndure},
+		successEffectIDs:     []int{effectProvoke},
+		successEffectIDsSelf: []int{effectIncAgility},
+	}
+	defer delete(roBrowserSkillEffects, skillID)
+
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: skillID, Amount: 2, TargetID: 1100, SourceID: 2000000, Result: 1})
+
+	if len(mode.worldEffects) != 5 {
+		t.Fatalf("world effects = %d, want 5: %+v", len(mode.worldEffects), mode.worldEffects)
+	}
+	want := []struct {
+		effectID int
+		actorID  uint32
+		x        int
+		y        int
+	}{
+		{effectHeal, 1100, 12, 22},
+		{effectBlessing, 1100, 12, 22},
+		{effectEndure, 2000000, 10, 20},
+		{effectProvoke, 1100, 12, 22},
+		{effectIncAgility, 2000000, 10, 20},
+	}
+	for i, wantEffect := range want {
+		got := mode.worldEffects[i]
+		if got.effectID != wantEffect.effectID || got.actorID != wantEffect.actorID || got.x != wantEffect.x || got.y != wantEffect.y {
+			t.Fatalf("effect %d = %+v, want %+v", i, got, wantEffect)
+		}
+	}
+}
+
 func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
@@ -3712,8 +3723,8 @@ func TestActorActionNotifyHealDoesNotOverwriteLocalCastWithHurt(t *testing.T) {
 	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
 		t.Fatalf("source animation = %+v, want roBrowser DEFAULT skill action", anim)
 	}
-	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectHealOffensive {
-		t.Fatalf("world effects = %+v, want offensive heal effect", mode.worldEffects)
+	if len(mode.worldEffects) != 2 || mode.worldEffects[0].effectID != effectHeal || mode.worldEffects[1].effectID != effectHealOffensive {
+		t.Fatalf("world effects = %+v, want roBrowser heal effect followed by hit effect", mode.worldEffects)
 	}
 }
 

@@ -85,7 +85,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			color:            color.RGBA{R: 255, G: 245, B: 150, A: 255},
 		}},
 	},
-	effectMagicTarget: {
+	effectGroundSample: {
 		duration: 900 * time.Millisecond,
 		components: []worldEffectComponent{{
 			kind:        effectPrimitiveGroundPlane,
@@ -191,8 +191,8 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				duplicateDelay:   0,
 				alphaMax:         123.0 / 255.0,
 				posZ:             4,
-				sizeStart:        90 * roBrowserEffectPixelRatio,
-				sizeEnd:          120 * roBrowserEffectPixelRatio,
+				sizeStart:        60 * roBrowserEffectPixelRatio,
+				sizeEnd:          80 * roBrowserEffectPixelRatio,
 				angleStart:       0,
 				angleEnd:         360,
 				orbitRadiusX:     3,
@@ -210,23 +210,6 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectNapalmBeat: {
 		duration: 700 * time.Millisecond,
 		sfx:      []string{"effect\\ef_napalmbeat.wav"},
-		components: []worldEffectComponent{{
-			kind:           effectPrimitive3D,
-			spriteFile:     "data/sprite/\xBE\xC6\xC0\xCC\xC5\xDB/mg_napalmbeat",
-			spriteRepeat:   false,
-			duration:       700 * time.Millisecond,
-			alphaMax:       1,
-			fadeOut:        true,
-			posZ:           1.4,
-			posXRand:       0.7,
-			posYRand:       0.7,
-			posZStartRand:  0.6,
-			sizeStart:      120 * roBrowserEffectPixelRatio,
-			sizeEnd:        120 * roBrowserEffectPixelRatio,
-			duplicate:      5,
-			duplicateDelay: 45 * time.Millisecond,
-			color:          color.RGBA{R: 255, G: 255, B: 255, A: 255},
-		}},
 	},
 	effectSoulStrike: {
 		duration: 450 * time.Millisecond,

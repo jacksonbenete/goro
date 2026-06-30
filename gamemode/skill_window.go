@@ -40,20 +40,22 @@ var (
 )
 
 type skillWindowState struct {
-	open       bool
-	x          int
-	y          int
-	positioned bool
-	dragging   bool
-	dragDX     int
-	dragDY     int
-	scroll     int
-	status     string
-	statusGood bool
-	statusAt   time.Time
-	dragSkill  session.Skill
-	dragActive bool
-	dragFrom   time.Time
+	open        bool
+	x           int
+	y           int
+	positioned  bool
+	dragging    bool
+	dragDX      int
+	dragDY      int
+	scroll      int
+	status      string
+	statusGood  bool
+	statusAt    time.Time
+	lastClick   uint16
+	lastClickAt time.Time
+	dragSkill   session.Skill
+	dragActive  bool
+	dragFrom    time.Time
 }
 
 func (w *skillWindowState) toggle(ctx Context) {
@@ -67,7 +69,7 @@ func (w *skillWindowState) toggle(ctx Context) {
 	w.clampScroll(ctx.Session)
 }
 
-func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState) bool {
+func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState, mode *WorldMode) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -145,9 +147,26 @@ func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState) bool
 				w.setStatus("Skill is not learned", false)
 				return true
 			}
+			now := time.Now()
+			if w.lastClick == skill.ID && now.Sub(w.lastClickAt) <= 360*time.Millisecond {
+				w.lastClick = 0
+				w.lastClickAt = time.Time{}
+				if mode == nil {
+					w.setStatus("No world mode", false)
+					return true
+				}
+				if err := mode.useSkill(ctx, skill, "skill-window"); err != nil {
+					w.setStatus(err.Error(), false)
+					return true
+				}
+				w.setStatus(fmt.Sprintf("%s used", skillDisplayName(ctx.Resources, skill)), true)
+				return true
+			}
+			w.lastClick = skill.ID
+			w.lastClickAt = now
 			w.dragSkill = skill
 			w.dragActive = true
-			w.dragFrom = time.Now()
+			w.dragFrom = now
 			return true
 		}
 	}

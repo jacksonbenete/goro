@@ -820,7 +820,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.shopWindow.update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.skillWindow.update(ctx, &m.shortcutBar) {
+	if m.skillWindow.update(ctx, &m.shortcutBar, m) {
 		return nil, nil
 	}
 	if m.statsWindow.update(ctx) {
@@ -920,7 +920,7 @@ func (m *WorldMode) cancelPendingSkillTarget(source string) {
 	if m.pendingSkill.skill.ID == 0 {
 		return
 	}
-	log.Printf("shortcut skill target canceled skill=%d source=%s", m.pendingSkill.skill.ID, source)
+	log.Printf("skill target canceled skill=%d source=%s", m.pendingSkill.skill.ID, source)
 	m.pendingSkill = pendingSkillTarget{}
 	m.status = "skill canceled"
 }
@@ -1427,33 +1427,33 @@ func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProject
 		targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
 		if !ok {
 			m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
-			log.Printf("shortcut ground skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
+			log.Printf("skill ground target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 			return
 		}
-		if err := m.sendShortcutSkillToGround(ctx, skill, targetX, targetY); err != nil {
+		if err := m.sendSkillToGround(ctx, skill, targetX, targetY, "target"); err != nil {
 			m.status = "skill failed: " + err.Error()
-			log.Printf("shortcut ground skill target failed skill=%d target=%d,%d: %v", skill.ID, targetX, targetY, err)
+			log.Printf("skill ground target failed skill=%d target=%d,%d: %v", skill.ID, targetX, targetY, err)
 			return
 		}
 		m.pendingSkill = pendingSkillTarget{}
 		m.status = fmt.Sprintf("%s: %d,%d", skillDisplayName(ctx.Resources, skill), targetX, targetY)
-		log.Printf("shortcut ground skill target sent skill=%d target=%d,%d", skill.ID, targetX, targetY)
+		log.Printf("skill ground target sent skill=%d target=%d,%d", skill.ID, targetX, targetY)
 		return
 	}
 	actor, ok := clickedSkillTarget(ctx, projection, skill, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
 	if !ok {
 		m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
-		log.Printf("shortcut skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
+		log.Printf("skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 		return
 	}
-	if err := m.sendShortcutSkillToID(ctx, skill, actor.ID); err != nil {
+	if err := m.sendSkillToID(ctx, skill, actor.ID, "target"); err != nil {
 		m.status = "skill failed: " + err.Error()
-		log.Printf("shortcut skill target failed skill=%d target=%d: %v", skill.ID, actor.ID, err)
+		log.Printf("skill target failed skill=%d target=%d: %v", skill.ID, actor.ID, err)
 		return
 	}
 	m.pendingSkill = pendingSkillTarget{}
 	m.status = fmt.Sprintf("%s: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
-	log.Printf("shortcut skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
+	log.Printf("skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
 }
 
 func (m *WorldMode) applyAutoRunSkill(ctx Context, auto network.AutoRunSkill) {
@@ -1464,7 +1464,7 @@ func (m *WorldMode) applyAutoRunSkill(ctx Context, auto network.AutoRunSkill) {
 		m.status = "auto skill failed: missing player id"
 		return
 	}
-	if err := m.sendShortcutSkillToID(ctx, skill, target); err != nil {
+	if err := m.sendSkillToID(ctx, skill, target, "auto"); err != nil {
 		m.status = "auto skill failed: " + err.Error()
 		log.Printf("auto-run skill use failed skill=%d target=%d: %v", skill.ID, target, err)
 		return
@@ -1534,12 +1534,15 @@ func (m *WorldMode) addSkillEffect(ctx Context, action network.ActorActionNotify
 	if action.SkillID == 0 {
 		return
 	}
-	effectID := skillEffectID(action.SkillID)
-	if effectID <= 0 {
-		return
+	for _, effectID := range skillEffectIDs(action.SkillID) {
+		if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, starts) {
+			log.Printf("skill effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+		}
 	}
-	if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, starts) {
-		log.Printf("skill effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+	for _, effectID := range skillEffectOnCasterIDs(action.SkillID) {
+		if m.addWorldEffectAt(ctx, effectID, action.SourceID, starts) {
+			log.Printf("skill caster effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+		}
 	}
 }
 
@@ -1547,15 +1550,23 @@ func (m *WorldMode) addSkillBeforeHitEffect(ctx Context, action network.ActorAct
 	if action.SkillID == 0 {
 		return
 	}
-	effectID := skillBeforeHitEffectID(action.SkillID)
-	if effectID <= 0 {
+	effectIDs := skillBeforeHitEffectIDs(action.SkillID)
+	selfEffectIDs := skillBeforeHitEffectSelfIDs(action.SkillID)
+	if len(effectIDs) == 0 && len(selfEffectIDs) == 0 {
 		return
 	}
 	count := actionVisualHitCount(action)
 	for i := 0; i < count; i++ {
 		effectStarts := starts.Add(multiHitDelay * time.Duration(i))
-		if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, effectStarts) {
-			log.Printf("skill before-hit effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+		for _, effectID := range effectIDs {
+			if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, effectStarts) {
+				log.Printf("skill before-hit effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+			}
+		}
+		for _, effectID := range selfEffectIDs {
+			if m.addWorldEffectAt(ctx, effectID, action.SourceID, effectStarts) {
+				log.Printf("skill before-hit self effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+			}
 		}
 	}
 }
@@ -1564,15 +1575,23 @@ func (m *WorldMode) addSkillHitEffect(ctx Context, action network.ActorActionNot
 	if action.SkillID == 0 || action.Damage == 0 {
 		return
 	}
-	effectID := skillHitEffectID(action.SkillID)
-	if effectID <= 0 {
+	effectIDs := skillHitEffectIDs(action.SkillID)
+	casterEffectIDs := skillHitEffectOnCasterIDs(action.SkillID)
+	if len(effectIDs) == 0 && len(casterEffectIDs) == 0 {
 		return
 	}
 	count := actionVisualHitCount(action)
 	for i := 0; i < count; i++ {
 		effectStarts := starts.Add(multiHitDelay * time.Duration(i))
-		if m.addWorldEffectAt(ctx, effectID, action.TargetID, effectStarts) {
-			log.Printf("skill hit effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+		for _, effectID := range effectIDs {
+			if m.addWorldEffectAt(ctx, effectID, action.TargetID, effectStarts) {
+				log.Printf("skill hit effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+			}
+		}
+		for _, effectID := range casterEffectIDs {
+			if m.addWorldEffectAt(ctx, effectID, action.SourceID, effectStarts) {
+				log.Printf("skill hit caster effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
+			}
 		}
 	}
 }
@@ -3755,10 +3774,6 @@ func skillTargetFlagsForActor(ctx Context, actor worldstate.Actor) (uint32, bool
 		return skillTargetFriend, true
 	}
 	return 0, false
-}
-
-func skillTargetOverrideActive(ctx Context) bool {
-	return (ctx.Input != nil && ctx.Input.Pressed(render.KeyShift)) || (ctx.Session != nil && ctx.Session.NoShift)
 }
 
 func skillTargetMapStateAllowsMismatch(ctx Context, actor worldstate.Actor) bool {
