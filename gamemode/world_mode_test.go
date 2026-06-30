@@ -898,15 +898,31 @@ func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
 		if component.textureFile != wantTexture || component.duration != 250*time.Millisecond || !component.fadeOut || !component.overlay {
 			t.Fatalf("component %d = %+v", i, component)
 		}
-		if component.sizeStartX != 32.5*roBrowserEffectPixelRatio || component.sizeStartY != 10*roBrowserEffectPixelRatio {
-			t.Fatalf("component %d start size = %.3f x %.3f", i, component.sizeStartX, component.sizeStartY)
+		if component.durationRandMin != 200*time.Millisecond || component.durationRandMax != 350*time.Millisecond {
+			t.Fatalf("component %d duration rand = %s..%s", i, component.durationRandMin, component.durationRandMax)
 		}
-		if component.sizeEndX != 1*roBrowserEffectPixelRatio || component.sizeEndY != 275*roBrowserEffectPixelRatio {
-			t.Fatalf("component %d end size = %.3f x %.3f", i, component.sizeEndX, component.sizeEndY)
+		if component.sizeStartXRandMin != 25*roBrowserEffectPixelRatio || component.sizeStartXRandMax != 40*roBrowserEffectPixelRatio {
+			t.Fatalf("component %d start x range = %.3f..%.3f", i, component.sizeStartXRandMin, component.sizeStartXRandMax)
 		}
-		if math.Hypot(component.posXEnd, component.posYEnd) <= math.Hypot(component.posX, component.posY) {
-			t.Fatalf("component %d does not move outward: start=(%.2f,%.2f) end=(%.2f,%.2f)", i, component.posX, component.posY, component.posXEnd, component.posYEnd)
+		if component.sizeStartY != 10*roBrowserEffectPixelRatio || component.sizeEndX != 1*roBrowserEffectPixelRatio {
+			t.Fatalf("component %d fixed axis sizes = %.3f %.3f", i, component.sizeStartY, component.sizeEndX)
 		}
+		if component.sizeEndYRandMin != 250*roBrowserEffectPixelRatio || component.sizeEndYRandMax != 300*roBrowserEffectPixelRatio {
+			t.Fatalf("component %d end y range = %.3f..%.3f", i, component.sizeEndYRandMin, component.sizeEndYRandMax)
+		}
+		if !component.circlePattern || component.circleInnerSize != 2.2 || component.circleOuterRandMin != 5 || component.circleOuterRandMax != 6 {
+			t.Fatalf("component %d circle pattern = %+v", i, component)
+		}
+		if component.angleRandMax <= component.angleRandMin {
+			t.Fatalf("component %d angle range = %.1f..%.1f", i, component.angleRandMin, component.angleRandMax)
+		}
+	}
+	mode := &WorldMode{}
+	effect := worldEffect{effectID: effectBashHit, actorID: 300, starts: time.Unix(10, 20)}
+	startX, startY, _ := mode.effect3DOffset(Context{}, spec.components[0], effect, 0, 0, 0, 0, 0, 0)
+	endX, endY, _ := mode.effect3DOffset(Context{}, spec.components[0], effect, 0, 0, 1, 0, 0, 0)
+	if math.Hypot(endX, endY) <= math.Hypot(startX, startY) {
+		t.Fatalf("circle pattern does not move outward: start=(%.2f,%.2f) end=(%.2f,%.2f)", startX, startY, endX, endY)
 	}
 }
 
@@ -1387,7 +1403,7 @@ func TestQuakeMagnumEffectStartsCameraShake(t *testing.T) {
 	}
 }
 
-func TestEndureEffectSpecUsesBillboardTexture(t *testing.T) {
+func TestEndureEffectSpecMatchesRobrowser3DTexture(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectEndure)
 	if !ok {
 		t.Fatal("endure effect spec missing")
@@ -1396,11 +1412,14 @@ func TestEndureEffectSpecUsesBillboardTexture(t *testing.T) {
 		t.Fatalf("components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectComponentFUNC || component.funcAdapter != effectFuncBillboard || component.funcName != "Billboard" || component.textureFile != "effect\\endure.tga" {
+	if component.kind != effectComponent3D || component.textureFile != "effect/endure.tga" || component.duration != time.Second {
 		t.Fatalf("component = %+v", component)
 	}
 	if !component.fadeIn || !component.fadeOut || !component.sizeSmooth {
 		t.Fatalf("component fade/size flags = %+v", component)
+	}
+	if component.posZ != 2 || component.sizeStart != 200*roBrowserEffectPixelRatio || component.sizeEnd != 70*roBrowserEffectPixelRatio {
+		t.Fatalf("component position/size = %+v", component)
 	}
 }
 

@@ -123,7 +123,6 @@ type roBrowserEffectFuncAdapter int
 
 const (
 	effectFuncUnknown roBrowserEffectFuncAdapter = iota
-	effectFuncBillboard
 	effectFuncGroundSample
 	effectFuncCastRing
 )
@@ -149,97 +148,113 @@ type worldEffectSpec struct {
 }
 
 type worldEffectComponent struct {
-	kind             roBrowserEffectComponentKind
-	funcAdapter      roBrowserEffectFuncAdapter
-	funcName         string
-	color            color.RGBA
-	duration         time.Duration
-	delay            time.Duration
-	duplicateDelay   time.Duration
-	strFile          string
-	strRandMin       int
-	strRandMax       int
-	attachedEntity   bool
-	texturePath      string
-	textureName      string
-	textureFile      string
-	textureFiles     []string
-	spriteFile       string
-	spriteHead       bool
-	spriteDirection  bool
-	spriteRepeat     bool
-	spriteStopAtEnd  bool
-	spriteFrame      int
-	spriteDelay      time.Duration
-	spriteXOffset    float64
-	spriteYOffset    float64
-	fromSrc          bool
-	toSrc            bool
-	arc              float64
-	retreat          float64
-	alphaMax         float64
-	alphaMaxDelta    float64
-	fade             bool
-	fadeIn           bool
-	fadeOut          bool
-	rotate           bool
-	rotateWithCamera bool
-	fixedPerspective bool
-	rotateToTarget   bool
-	worldSizedSprite bool
-	animation        int
-	bottomSize       float64
-	topSize          float64
-	height           float64
-	posX             float64
-	posY             float64
-	posZ             float64
-	posXEnd          float64
-	posYEnd          float64
-	posZEnd          float64
-	posXRand         float64
-	posYRand         float64
-	posXStartRand    float64
-	posYStartRand    float64
-	posZStartRand    float64
-	posXStartMiddle  float64
-	posYStartMiddle  float64
-	posZStartMiddle  float64
-	posXEndRand      float64
-	posYEndRand      float64
-	posZEndRand      float64
-	posXEndMiddle    float64
-	posYEndMiddle    float64
-	posZEndMiddle    float64
-	posXSmooth       bool
-	posYSmooth       bool
-	posZSmooth       bool
-	sizeStart        float64
-	sizeEnd          float64
-	sizeRand         float64
-	sizeStartX       float64
-	sizeStartY       float64
-	sizeEndX         float64
-	sizeEndY         float64
-	sizeRandX        float64
-	sizeRandY        float64
-	sizeDelta        float64
-	sizeSmooth       bool
-	angleStart       float64
-	angleEnd         float64
-	orbitRadiusX     float64
-	orbitRadiusY     float64
-	orbitRadiusZ     float64
-	orbitRotations   float64
-	orbitPhase       float64
-	orbitPhaseDelta  float64
-	orbitClockwise   bool
-	totalCircleSides int
-	circleSides      int
-	duplicate        int
-	angleZRandom     float64
-	blendAdditive    bool
-	overlay          bool
+	kind               roBrowserEffectComponentKind
+	funcAdapter        roBrowserEffectFuncAdapter
+	funcName           string
+	color              color.RGBA
+	duration           time.Duration
+	durationRandMin    time.Duration
+	durationRandMax    time.Duration
+	delay              time.Duration
+	duplicateDelay     time.Duration
+	strFile            string
+	strRandMin         int
+	strRandMax         int
+	attachedEntity     bool
+	texturePath        string
+	textureName        string
+	textureFile        string
+	textureFiles       []string
+	spriteFile         string
+	spriteHead         bool
+	spriteDirection    bool
+	spriteRepeat       bool
+	spriteStopAtEnd    bool
+	spriteFrame        int
+	spriteDelay        time.Duration
+	spriteXOffset      float64
+	spriteYOffset      float64
+	fromSrc            bool
+	toSrc              bool
+	arc                float64
+	retreat            float64
+	alphaMax           float64
+	alphaMaxDelta      float64
+	fade               bool
+	fadeIn             bool
+	fadeOut            bool
+	rotate             bool
+	rotateWithCamera   bool
+	fixedPerspective   bool
+	rotateToTarget     bool
+	worldSizedSprite   bool
+	animation          int
+	bottomSize         float64
+	topSize            float64
+	height             float64
+	posX               float64
+	posY               float64
+	posZ               float64
+	posXEnd            float64
+	posYEnd            float64
+	posZEnd            float64
+	posXRand           float64
+	posYRand           float64
+	posXStartRand      float64
+	posYStartRand      float64
+	posZStartRand      float64
+	posXStartMiddle    float64
+	posYStartMiddle    float64
+	posZStartMiddle    float64
+	posXEndRand        float64
+	posYEndRand        float64
+	posZEndRand        float64
+	posXEndMiddle      float64
+	posYEndMiddle      float64
+	posZEndMiddle      float64
+	posXSmooth         bool
+	posYSmooth         bool
+	posZSmooth         bool
+	sizeStart          float64
+	sizeEnd            float64
+	sizeRand           float64
+	sizeStartX         float64
+	sizeStartY         float64
+	sizeEndX           float64
+	sizeEndY           float64
+	sizeStartXRandMin  float64
+	sizeStartXRandMax  float64
+	sizeStartYRandMin  float64
+	sizeStartYRandMax  float64
+	sizeEndXRandMin    float64
+	sizeEndXRandMax    float64
+	sizeEndYRandMin    float64
+	sizeEndYRandMax    float64
+	sizeRandX          float64
+	sizeRandY          float64
+	sizeDelta          float64
+	sizeSmooth         bool
+	angleStart         float64
+	angleEnd           float64
+	angleRandMin       float64
+	angleRandMax       float64
+	circlePattern      bool
+	circleInnerSize    float64
+	circleOuterRandMin float64
+	circleOuterRandMax float64
+	orbitRadiusX       float64
+	orbitRadiusY       float64
+	orbitRadiusZ       float64
+	orbitRotations     float64
+	orbitPhase         float64
+	orbitPhaseDelta    float64
+	orbitClockwise     bool
+	totalCircleSides   int
+	circleSides        int
+	duplicate          int
+	angleZRandom       float64
+	blendAdditive      bool
+	overlay            bool
 }
 
 func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
@@ -1144,6 +1159,12 @@ func worldEffectComponentDuration(spec worldEffectSpec, component worldEffectCom
 	if component.duration > 0 {
 		duration = component.duration
 	}
+	if component.durationRandMax > 0 {
+		duration = component.durationRandMax
+		if duration < component.durationRandMin {
+			duration = component.durationRandMin
+		}
+	}
 	if component.duplicate > 1 && component.duplicateDelay > 0 {
 		duration += time.Duration(component.duplicate-1) * component.duplicateDelay
 	}
@@ -1165,7 +1186,7 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 	case effectComponentCylinder:
 		m.drawCylinderEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress)
 	case effectComponent2D:
-		m.draw2DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress)
+		m.draw2DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
 	case effectComponent3D:
 		m.draw3DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, now)
 	case effectComponentSPR:
@@ -1178,8 +1199,6 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 
 func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.funcAdapter {
-	case effectFuncBillboard:
-		m.drawBillboardEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
 	case effectFuncGroundSample:
 		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
 	case effectFuncCastRing:
@@ -1291,43 +1310,29 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projec
 	}
 }
 
-func (m *WorldMode) drawBillboardEffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, worldX, worldY, worldZ, progress float64) {
+func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
 	if texture == nil {
-		return
-	}
-	alpha := effectBillboardAlpha(progress, component)
-	if alpha <= 0 {
-		return
-	}
-	size := effectBillboardSize(progress, component)
-	if size <= 0 {
-		return
-	}
-	drawTexturedEffectBillboard(screen, projection, texture, worldX, worldY, worldZ+component.posZ, size, color.RGBA{
-		R: 255,
-		G: 255,
-		B: 255,
-		A: uint8(clampFloat(alpha, 0, 1) * 255),
-	})
-}
-
-func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64) {
-	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
-	if texture == nil {
-		return
-	}
-	alpha := effectBillboardAlpha(progress, component)
-	if alpha <= 0 {
 		return
 	}
 	salt := componentIndex * 1009
+	if component.durationRandMax > 0 {
+		duration := deterministicDurationRange(effect, salt+19, component.durationRandMin, component.durationRandMax)
+		progress = worldEffectComponentProgress(effect.starts.Add(component.delay), duration, now)
+		if progress >= 1 {
+			return
+		}
+	}
+	alpha := effectBillboardAlpha(progress, component)
+	if alpha <= 0 {
+		return
+	}
 	offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, 0, progress, worldX, worldY, worldZ)
 	sizeX, sizeY := effect3DSize(component, effect, salt, progress, 0)
 	if sizeX <= 0 || sizeY <= 0 {
 		return
 	}
-	angle := worldEffectBillboardAngle(component, projection, progress)
+	angle := worldEffectBillboardAngleForEffect(component, projection, effect, salt, progress)
 	drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), true)
 }
 
@@ -1733,10 +1738,19 @@ func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, 
 	endX := component.posXEnd + staticX + component.posXEndMiddle + deterministicSigned(effect, salt+4)*component.posXEndRand
 	endY := component.posYEnd + staticY + component.posYEndMiddle + deterministicSigned(effect, salt+5)*component.posYEndRand
 	endZ := component.posZEnd + component.posZEndMiddle + deterministicSigned(effect, salt+6)*component.posZEndRand
-	if component.posXEnd == 0 && component.posXEndRand == 0 && component.posXEndMiddle == 0 && component.posXStartRand == 0 && component.posXStartMiddle == 0 {
+	if component.circlePattern {
+		angle := effectComponentAngleDegrees(component, effect, salt)
+		radians := angle * math.Pi / 180
+		outer := deterministicFloatRange(effect, salt+23, component.circleOuterRandMin, component.circleOuterRandMax)
+		startX = math.Sin(radians)*component.circleInnerSize + staticX
+		startY = math.Cos(radians)*component.circleInnerSize + staticY
+		endX = math.Sin(radians)*outer + staticX
+		endY = math.Cos(radians)*outer + staticY
+	}
+	if !component.circlePattern && component.posXEnd == 0 && component.posXEndRand == 0 && component.posXEndMiddle == 0 && component.posXStartRand == 0 && component.posXStartMiddle == 0 {
 		endX = startX
 	}
-	if component.posYEnd == 0 && component.posYEndRand == 0 && component.posYEndMiddle == 0 && component.posYStartRand == 0 && component.posYStartMiddle == 0 {
+	if !component.circlePattern && component.posYEnd == 0 && component.posYEndRand == 0 && component.posYEndMiddle == 0 && component.posYStartRand == 0 && component.posYStartMiddle == 0 {
 		endY = startY
 	}
 	if component.posZEnd == 0 && component.posZEndRand == 0 && component.posZEndMiddle == 0 {
@@ -1819,6 +1833,25 @@ func worldEffectBillboardAngle(component worldEffectComponent, projection sceneP
 	return angle
 }
 
+func worldEffectBillboardAngleForEffect(component worldEffectComponent, projection sceneProjection, effect worldEffect, salt int, progress float64) float64 {
+	angle := effectComponentAngleDegrees(component, effect, salt)
+	if component.angleRandMax <= component.angleRandMin {
+		angle = component.angleStart + (component.angleEnd-component.angleStart)*progress
+	}
+	angle *= math.Pi / 180
+	if component.rotateWithCamera {
+		angle += degreesToRadians(projection.cameraYaw)
+	}
+	return angle
+}
+
+func effectComponentAngleDegrees(component worldEffectComponent, effect worldEffect, salt int) float64 {
+	if component.angleRandMax > component.angleRandMin {
+		return deterministicFloatRange(effect, salt+21, component.angleRandMin, component.angleRandMax)
+	}
+	return component.angleStart
+}
+
 func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, progress float64, duplicateIndex int) (float64, float64) {
 	size := effectBillboardSize(progress, component)
 	sizeX := size
@@ -1828,6 +1861,28 @@ func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, 
 	}
 	if component.sizeStartY > 0 || component.sizeEndY > 0 {
 		sizeY = effectAxisSize(progress, component.sizeStartY, component.sizeEndY, component.sizeSmooth)
+	}
+	if component.sizeStartXRandMax > component.sizeStartXRandMin || component.sizeEndXRandMax > component.sizeEndXRandMin {
+		start := component.sizeStartX
+		if component.sizeStartXRandMax > component.sizeStartXRandMin {
+			start = deterministicFloatRange(effect, salt+31, component.sizeStartXRandMin, component.sizeStartXRandMax)
+		}
+		end := component.sizeEndX
+		if component.sizeEndXRandMax > component.sizeEndXRandMin {
+			end = deterministicFloatRange(effect, salt+32, component.sizeEndXRandMin, component.sizeEndXRandMax)
+		}
+		sizeX = effectAxisSize(progress, start, end, component.sizeSmooth)
+	}
+	if component.sizeStartYRandMax > component.sizeStartYRandMin || component.sizeEndYRandMax > component.sizeEndYRandMin {
+		start := component.sizeStartY
+		if component.sizeStartYRandMax > component.sizeStartYRandMin {
+			start = deterministicFloatRange(effect, salt+33, component.sizeStartYRandMin, component.sizeStartYRandMax)
+		}
+		end := component.sizeEndY
+		if component.sizeEndYRandMax > component.sizeEndYRandMin {
+			end = deterministicFloatRange(effect, salt+34, component.sizeEndYRandMin, component.sizeEndYRandMax)
+		}
+		sizeY = effectAxisSize(progress, start, end, component.sizeSmooth)
 	}
 	if component.sizeDelta != 0 {
 		delta := component.sizeDelta * float64(duplicateIndex) * roBrowserEffectPixelRatio
@@ -1876,6 +1931,20 @@ func deterministicAngle(effect worldEffect, salt int) float64 {
 
 func deterministicSigned(effect worldEffect, salt int) float64 {
 	return deterministicUnit(effect, salt)*2 - 1
+}
+
+func deterministicDurationRange(effect worldEffect, salt int, min, max time.Duration) time.Duration {
+	if max <= min {
+		return min
+	}
+	return min + time.Duration(deterministicUnit(effect, salt)*float64(max-min))
+}
+
+func deterministicFloatRange(effect worldEffect, salt int, min, max float64) float64 {
+	if max <= min {
+		return min
+	}
+	return min + deterministicUnit(effect, salt)*(max-min)
 }
 
 func deterministicUnit(effect worldEffect, salt int) float64 {

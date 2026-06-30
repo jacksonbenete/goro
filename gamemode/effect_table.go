@@ -2,7 +2,6 @@ package gamemode
 
 import (
 	"image/color"
-	"math"
 	"time"
 )
 
@@ -256,17 +255,15 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 1000 * time.Millisecond,
 		sfx:      []string{"effect\\ef_endure.wav"},
 		components: []worldEffectComponent{{
-			kind:        effectComponentFUNC,
-			funcAdapter: effectFuncBillboard,
-			funcName:    "Billboard",
-			textureFile: "effect\\endure.tga",
+			kind:        effectComponent3D,
+			textureFile: "effect/endure.tga",
 			duration:    1000 * time.Millisecond,
 			alphaMax:    1,
 			fadeIn:      true,
 			fadeOut:     true,
 			posZ:        2,
-			sizeStart:   2.0,
-			sizeEnd:     0.7,
+			sizeStart:   200 * roBrowserEffectPixelRatio,
+			sizeEnd:     70 * roBrowserEffectPixelRatio,
 			sizeSmooth:  true,
 		}},
 	},
@@ -841,33 +838,32 @@ func bashHitComponents() []worldEffectComponent {
 	}
 	components := make([]worldEffectComponent, 0, len(angleRanges))
 	for index, angleRange := range angleRanges {
-		angle := (angleRange[0] + angleRange[1]) * 0.5
-		if index == len(angleRanges)-1 {
-			angle = 350
-		}
-		radians := angle * math.Pi / 180
 		textureFile := "effect/lens1.tga"
 		if index%2 == 1 {
 			textureFile = "effect/lens2.tga"
 		}
 		components = append(components, worldEffectComponent{
-			kind:        effectComponent2D,
-			textureFile: textureFile,
-			duration:    250 * time.Millisecond,
-			alphaMax:    12,
-			fade:        true,
-			fadeOut:     true,
-			posX:        math.Sin(radians) * 2.2,
-			posY:        math.Cos(radians) * 2.2,
-			posXEnd:     math.Sin(radians) * 5.5,
-			posYEnd:     math.Cos(radians) * 5.5,
-			sizeStartX:  32.5 * roBrowserEffectPixelRatio,
-			sizeStartY:  10 * roBrowserEffectPixelRatio,
-			sizeEndX:    1 * roBrowserEffectPixelRatio,
-			sizeEndY:    275 * roBrowserEffectPixelRatio,
-			angleStart:  angle,
-			angleEnd:    angle,
-			overlay:     true,
+			kind:               effectComponent2D,
+			textureFile:        textureFile,
+			duration:           250 * time.Millisecond,
+			durationRandMin:    200 * time.Millisecond,
+			durationRandMax:    350 * time.Millisecond,
+			alphaMax:           12,
+			fade:               true,
+			fadeOut:            true,
+			sizeStartXRandMin:  25 * roBrowserEffectPixelRatio,
+			sizeStartXRandMax:  40 * roBrowserEffectPixelRatio,
+			sizeStartY:         10 * roBrowserEffectPixelRatio,
+			sizeEndX:           1 * roBrowserEffectPixelRatio,
+			sizeEndYRandMin:    250 * roBrowserEffectPixelRatio,
+			sizeEndYRandMax:    300 * roBrowserEffectPixelRatio,
+			angleRandMin:       angleRange[0],
+			angleRandMax:       angleRange[1],
+			circlePattern:      true,
+			circleInnerSize:    2.2,
+			circleOuterRandMin: 5,
+			circleOuterRandMax: 6,
+			overlay:            true,
 		})
 	}
 	return components
