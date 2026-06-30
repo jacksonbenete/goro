@@ -960,6 +960,9 @@ func TestSightEffectSpecOrbitsAroundActor(t *testing.T) {
 	if component.spriteFile != "sight" || component.duplicate != 10 || component.orbitRadiusX != 3 || component.orbitRadiusY != 3 || component.orbitRotations != 10 {
 		t.Fatalf("sight orbit component = %+v", component)
 	}
+	if component.sizeStart != 90*roBrowserEffectPixelRatio || component.sizeEnd != 120*roBrowserEffectPixelRatio {
+		t.Fatalf("sight orbit size = %.3f -> %.3f", component.sizeStart, component.sizeEnd)
+	}
 	ctx := Context{}
 	effect := worldEffect{effectID: effectSight, actorID: 2000000}
 	mode := &WorldMode{}
