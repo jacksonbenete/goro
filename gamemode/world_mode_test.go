@@ -1668,6 +1668,63 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	}
 }
 
+func TestDecreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectDecAgility)
+	if !ok {
+		t.Fatal("decrease agility effect spec missing")
+	}
+	if spec.duration != 4800*time.Millisecond {
+		t.Fatalf("duration = %s, want 4800ms", spec.duration)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_decagility.wav" {
+		t.Fatalf("sfx = %#v", spec.sfx)
+	}
+	if len(spec.components) != 2 {
+		t.Fatalf("components = %d, want 2", len(spec.components))
+	}
+	particle := spec.components[0]
+	if particle.kind != effectComponent3D || particle.textureFile != "effect/ac_center2.tga" {
+		t.Fatalf("particle resource = %+v", particle)
+	}
+	if particle.duration != 1000*time.Millisecond || particle.duplicateDelay != 200*time.Millisecond || particle.duplicate != 20 {
+		t.Fatalf("particle timing = %+v", particle)
+	}
+	if particle.alphaMax != 1 || particle.fadeIn || !particle.fadeOut {
+		t.Fatalf("particle fade = %+v", particle)
+	}
+	if particle.posXRand != 1.5 || particle.posYRand != 1 || particle.posZStartRand != 1 || particle.posZStartMiddle != 6 || particle.posZEndRand != 1 || particle.posZEndMiddle != 1 {
+		t.Fatalf("particle position = %+v", particle)
+	}
+	if particle.sizeStartX != roBrowserEffectSize(2.5) || particle.sizeEndX != roBrowserEffectSize(2.5) {
+		t.Fatalf("particle x size = %+v", particle)
+	}
+	if particle.sizeStartY != 0 || particle.sizeEndY != 0 || particle.sizeRandY != roBrowserEffectSize(15) || particle.sizeRandYMiddle != roBrowserEffectSize(45) {
+		t.Fatalf("particle size = %+v", particle)
+	}
+	if particle.blendAdditive {
+		t.Fatal("particle should use normal alpha blending")
+	}
+	overlay := spec.components[1]
+	if overlay.kind != effectComponent3D || overlay.textureFile != "effect/slow.bmp" {
+		t.Fatalf("overlay resource = %+v", overlay)
+	}
+	if overlay.duration != 1000*time.Millisecond || overlay.alphaMax != 1 || !overlay.fadeIn || !overlay.fadeOut {
+		t.Fatalf("overlay timing/fade = %+v", overlay)
+	}
+	if overlay.posZ != 2.8 || overlay.posZEnd != 0.4 {
+		t.Fatalf("overlay position = %+v", overlay)
+	}
+	if overlay.sizeStart != roBrowserEffectSize(100) || overlay.sizeEnd != roBrowserEffectSize(100) || overlay.sizeStartY != roBrowserEffectSize(45) || overlay.sizeEndY != roBrowserEffectSize(45) || !overlay.sizeSmooth {
+		t.Fatalf("overlay size = %+v", overlay)
+	}
+	if overlay.overlay {
+		t.Fatal("overlay should use regular roBrowser 3D rendering")
+	}
+	if overlay.blendAdditive {
+		t.Fatal("overlay should use normal alpha blending")
+	}
+}
+
 func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
 	component := worldEffectComponent{
 		alphaMax:      0.2,
@@ -1746,6 +1803,7 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		effectFrostDiverHit,
 		effectLightningBolt,
 		effectThunderStorm,
+		effectDecAgility,
 		effectAqua,
 		effectSignum,
 		effectAngelus,

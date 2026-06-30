@@ -586,7 +586,28 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			},
 		},
 	},
-	effectDecAgility: soundOnlyEffectSpec("effect\\ef_decagility.wav"),
+	effectDecAgility: {
+		duration: 4800 * time.Millisecond,
+		sfx:      []string{"effect\\ef_decagility.wav"},
+		components: []worldEffectComponent{
+			decAgilityParticleComponent(),
+			{
+				kind:        effectComponent3D,
+				textureFile: "effect/slow.bmp",
+				duration:    1000 * time.Millisecond,
+				alphaMax:    1,
+				fadeIn:      true,
+				fadeOut:     true,
+				posZ:        2.8,
+				posZEnd:     0.4,
+				sizeStart:   roBrowserEffectSize(100),
+				sizeEnd:     roBrowserEffectSize(100),
+				sizeStartY:  roBrowserEffectSize(45),
+				sizeEndY:    roBrowserEffectSize(45),
+				sizeSmooth:  true,
+			},
+		},
+	},
 	effectAqua: {
 		sfx: []string{"effect\\ef_aqua.wav"},
 		components: []worldEffectComponent{{
@@ -964,5 +985,27 @@ func incAgilityParticleComponent(alpha float64, delay time.Duration, duplicate i
 		sizeRandY:       15 * roBrowserEffectPixelRatio,
 		sizeRandYMiddle: 45 * roBrowserEffectPixelRatio,
 		duplicate:       duplicate,
+	}
+}
+
+func decAgilityParticleComponent() worldEffectComponent {
+	return worldEffectComponent{
+		kind:            effectComponent3D,
+		textureFile:     "effect/ac_center2.tga",
+		duration:        1000 * time.Millisecond,
+		duplicateDelay:  200 * time.Millisecond,
+		alphaMax:        1,
+		fadeOut:         true,
+		posXRand:        1.5,
+		posYRand:        1,
+		posZStartRand:   1,
+		posZStartMiddle: 6,
+		posZEndRand:     1,
+		posZEndMiddle:   1,
+		sizeStartX:      roBrowserEffectSize(2.5),
+		sizeEndX:        roBrowserEffectSize(2.5),
+		sizeRandY:       roBrowserEffectSize(15),
+		sizeRandYMiddle: roBrowserEffectSize(45),
+		duplicate:       20,
 	}
 }
