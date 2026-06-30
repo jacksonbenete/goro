@@ -123,7 +123,6 @@ type roBrowserEffectFuncAdapter int
 const (
 	effectFuncUnknown roBrowserEffectFuncAdapter = iota
 	effectFuncBillboard
-	effectFuncBashHit
 	effectFuncGroundSample
 	effectFuncCastRing
 )
@@ -1165,7 +1164,7 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 	case effectComponentCylinder:
 		m.drawCylinderEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress)
 	case effectComponent2D:
-		m.draw2DEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
+		m.draw2DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress)
 	case effectComponent3D:
 		m.draw3DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, now)
 	case effectComponentSPR:
@@ -1180,37 +1179,11 @@ func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx Context, projection
 	switch component.funcAdapter {
 	case effectFuncBillboard:
 		m.drawBillboardEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
-	case effectFuncBashHit:
-		m.drawBashHitWorldEffect(screen, ctx, component, componentIndex, effect, worldX, worldY, worldZ, now, progress)
 	case effectFuncGroundSample:
 		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
 	case effectFuncCastRing:
 		m.drawCastRingEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, progress)
 	default:
-	}
-}
-
-func (m *WorldMode) drawBashHitWorldEffect(screen *render.Image, ctx Context, component worldEffectComponent, componentIndex int, effect worldEffect, worldX, worldY, worldZ float64, now time.Time, fallbackProgress float64) {
-	duplicates := maxInt(component.duplicate, 1)
-	duration := component.duration
-	if duration <= 0 {
-		duration = 280 * time.Millisecond
-	}
-	for i := 0; i < duplicates; i++ {
-		starts := effect.starts.Add(component.delay + time.Duration(i)*component.duplicateDelay)
-		if now.Before(starts) {
-			continue
-		}
-		progress := fallbackProgress
-		if duplicates > 1 || component.duplicateDelay > 0 || component.duration > 0 {
-			progress = worldEffectComponentProgress(starts, duration, now)
-		}
-		if progress >= 1 {
-			continue
-		}
-		salt := componentIndex*1009 + i*37
-		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, i, progress, worldX, worldY, worldZ)
-		drawBashHitEffect(screen, m.whitePixel, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, progress, component.color)
 	}
 }
 
@@ -1338,7 +1311,7 @@ func (m *WorldMode) drawBillboardEffect(screen *render.Image, ctx Context, proje
 	})
 }
 
-func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, worldX, worldY, worldZ, progress float64) {
+func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64) {
 	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
 	if texture == nil {
 		return
@@ -1347,17 +1320,14 @@ func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection s
 	if alpha <= 0 {
 		return
 	}
-	size := effectBillboardSize(progress, component)
-	if size <= 0 {
+	salt := componentIndex * 1009
+	offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, 0, progress, worldX, worldY, worldZ)
+	sizeX, sizeY := effect3DSize(component, effect, salt, progress, 0)
+	if sizeX <= 0 || sizeY <= 0 {
 		return
 	}
 	angle := worldEffectBillboardAngle(component, projection, progress)
-	drawTexturedEffectBillboardRotated(screen, projection, texture, worldX, worldY, worldZ+component.posZ, size, angle, color.RGBA{
-		R: 255,
-		G: 255,
-		B: 255,
-		A: uint8(clampFloat(alpha, 0, 1) * 255),
-	})
+	drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), true)
 }
 
 func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
@@ -1648,15 +1618,6 @@ func (m *WorldMode) drawSPREffect(screen *render.Image, ctx Context, projection 
 		z += 2.0
 	}
 	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, z, 1, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
-}
-
-func drawBashHitEffect(screen, white *render.Image, x, y, z, progress float64, c color.RGBA) {
-	alpha := 1 - progress
-	base := z + 0.65
-	drawWorldCylinderBand(screen, white, nil, x, y, base-0.16, 0.08+progress*0.24, 0.56+progress*0.42, 0.08, withAlpha(c, alpha*0.36), 24)
-	drawWorldCylinderBand(screen, white, nil, x, y, base, 0.48+progress*0.18, 0.02, 0.42, withAlpha(c, alpha*0.55), 4)
-	drawWorldCylinderBand(screen, white, nil, x, y, base+0.12, 0.02, 0.58+progress*0.22, 0.28, withAlpha(c, alpha*0.45), 4)
-	drawWorldSoftRing(screen, white, x, y, base, 0.20+progress*0.55, 0.10, withAlpha(c, alpha*0.48), 32)
 }
 
 type effectCylinderDraw struct {

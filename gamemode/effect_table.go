@@ -2,6 +2,7 @@ package gamemode
 
 import (
 	"image/color"
+	"math"
 	"time"
 )
 
@@ -102,14 +103,9 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		}},
 	},
 	effectBashHit: {
-		duration: 280 * time.Millisecond,
-		sfx:      []string{"effect\\ef_hit2.wav"},
-		components: []worldEffectComponent{{
-			kind:        effectComponentFUNC,
-			funcAdapter: effectFuncBashHit,
-			funcName:    "BashHit",
-			color:       color.RGBA{R: 255, G: 248, B: 220, A: 255},
-		}},
+		duration:   350 * time.Millisecond,
+		sfx:        []string{"effect\\ef_hit2.wav"},
+		components: bashHitComponents(),
 	},
 	effectSafetyWall: {
 		duration: 50 * time.Second,
@@ -827,6 +823,51 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			strFile: "fruit",
 		}},
 	},
+}
+
+func bashHitComponents() []worldEffectComponent {
+	angleRanges := [][2]float64{
+		{0, 35},
+		{50, 85},
+		{100, 135},
+		{150, 185},
+		{200, 235},
+		{255, 290},
+		{300, 335},
+		{340, 360},
+	}
+	components := make([]worldEffectComponent, 0, len(angleRanges))
+	for index, angleRange := range angleRanges {
+		angle := (angleRange[0] + angleRange[1]) * 0.5
+		if index == len(angleRanges)-1 {
+			angle = 350
+		}
+		radians := angle * math.Pi / 180
+		textureFile := "effect/lens1.tga"
+		if index%2 == 1 {
+			textureFile = "effect/lens2.tga"
+		}
+		components = append(components, worldEffectComponent{
+			kind:        effectComponent2D,
+			textureFile: textureFile,
+			duration:    250 * time.Millisecond,
+			alphaMax:    12,
+			fade:        true,
+			fadeOut:     true,
+			posX:        math.Sin(radians) * 2.2,
+			posY:        math.Cos(radians) * 2.2,
+			posXEnd:     math.Sin(radians) * 5.5,
+			posYEnd:     math.Cos(radians) * 5.5,
+			sizeStartX:  32.5 * roBrowserEffectPixelRatio,
+			sizeStartY:  10 * roBrowserEffectPixelRatio,
+			sizeEndX:    1 * roBrowserEffectPixelRatio,
+			sizeEndY:    275 * roBrowserEffectPixelRatio,
+			angleStart:  angle,
+			angleEnd:    angle,
+			overlay:     true,
+		})
+	}
+	return components
 }
 
 type effectCoverage struct {

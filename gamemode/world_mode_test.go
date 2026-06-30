@@ -875,6 +875,40 @@ func TestFireBoltEffectSpecUsesFallingFrameList(t *testing.T) {
 	}
 }
 
+func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectBashHit)
+	if !ok {
+		t.Fatal("bash hit effect missing")
+	}
+	if spec.duration != 350*time.Millisecond {
+		t.Fatalf("duration = %s, want 350ms", spec.duration)
+	}
+	if len(spec.components) != 8 {
+		t.Fatalf("components = %d, want 8 roBrowser lens slashes", len(spec.components))
+	}
+	for i, component := range spec.components {
+		if component.kind != effectComponent2D {
+			t.Fatalf("component %d kind = %d, want 2D", i, component.kind)
+		}
+		wantTexture := "effect/lens1.tga"
+		if i%2 == 1 {
+			wantTexture = "effect/lens2.tga"
+		}
+		if component.textureFile != wantTexture || component.duration != 250*time.Millisecond || !component.fadeOut || !component.overlay {
+			t.Fatalf("component %d = %+v", i, component)
+		}
+		if component.sizeStartX != 32.5*roBrowserEffectPixelRatio || component.sizeStartY != 10*roBrowserEffectPixelRatio {
+			t.Fatalf("component %d start size = %.3f x %.3f", i, component.sizeStartX, component.sizeStartY)
+		}
+		if component.sizeEndX != 1*roBrowserEffectPixelRatio || component.sizeEndY != 275*roBrowserEffectPixelRatio {
+			t.Fatalf("component %d end size = %.3f x %.3f", i, component.sizeEndX, component.sizeEndY)
+		}
+		if math.Hypot(component.posXEnd, component.posYEnd) <= math.Hypot(component.posX, component.posY) {
+			t.Fatalf("component %d does not move outward: start=(%.2f,%.2f) end=(%.2f,%.2f)", i, component.posX, component.posY, component.posXEnd, component.posYEnd)
+		}
+	}
+}
+
 func TestColdBoltEffectSpecMatchesRobrowserProjectileAndRing(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectColdBolt)
 	if !ok {
