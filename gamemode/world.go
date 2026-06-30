@@ -823,18 +823,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.basicMenu.update(ctx) {
-		if m.basicMenu.lastAction == "status" {
-			m.statsWindow.toggle(ctx)
-		}
-		if m.basicMenu.lastAction == "skill" {
-			m.skillWindow.toggle(ctx)
-		}
-		if m.basicMenu.lastAction == "items" {
-			m.inventoryBag.toggle(ctx)
-		}
-		if m.basicMenu.lastAction == "equip" {
-			m.equipmentWindow.toggle(ctx)
-		}
+		m.handleBasicMenuAction(ctx)
 		return nil, nil
 	}
 	m.updateCameraZoom(ctx)
@@ -895,6 +884,21 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		m.requestWalk(ctx, targetX, targetY, "key")
 	}
 	return nil, nil
+}
+
+func (m *WorldMode) handleBasicMenuAction(ctx Context) {
+	switch m.basicMenu.lastAction {
+	case "status":
+		m.statsWindow.toggle(ctx)
+	case "option":
+		m.escapeMenu.openMenu()
+	case "skill":
+		m.skillWindow.toggle(ctx)
+	case "items":
+		m.inventoryBag.toggle(ctx)
+	case "equip":
+		m.equipmentWindow.toggle(ctx)
+	}
 }
 
 func (m *WorldMode) cancelPendingSkillTargetFromInput(ctx Context) bool {
@@ -3868,13 +3872,28 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx Context, pr
 	for _, entry := range entries {
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
+	m.drawHoveredLocalPlayerNameLabel(screen, ctx, entries)
+	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
+}
+
+func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx Context, entries []sceneActorDrawEntry) {
+	if ctx.Input == nil {
+		return
+	}
 	for _, entry := range entries {
 		if !entry.isPlayer {
 			continue
 		}
-		drawActorNameLabel(screen, actorDisplayName(ctx, entry.actor, true), entry.screenX, entry.screenY, entry.scale, actorNameLabelColor(entry.actor, true))
+		if !pointInActorPickBounds(float64(ctx.Input.MouseX), float64(ctx.Input.MouseY), entry.screenX, entry.screenY, entry.scale) {
+			return
+		}
+		labelY := actorNameLabelY(entry.screenY, entry.scale)
+		if life, ok := m.actorLifeForDisplay(ctx, entry.actor); ok {
+			labelY = actorNameBelowLifeBarY(entry.screenY, entry.scale, life)
+		}
+		drawActorNameLabelAtY(screen, actorDisplayName(ctx, entry.actor, true), entry.screenX, labelY, actorNameLabelColor(entry.actor, true))
+		return
 	}
-	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
 func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
@@ -4243,12 +4262,13 @@ func actorNameLabelColor(actor worldstate.Actor, isPlayer bool) color.RGBA {
 }
 
 func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scale float64, foreground color.RGBA) {
+	drawActorNameLabelAtY(screen, label, centerX, actorNameLabelY(baseY, scale), foreground)
+}
+
+func drawActorNameLabelAtY(screen *render.Image, label string, centerX, labelY float64, foreground color.RGBA) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return
-	}
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
 	}
 	outline := color.RGBA{A: 196}
 	text := render.OutlinedTextImage(label, foreground, outline)
@@ -4256,7 +4276,7 @@ func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scal
 		return
 	}
 	x := int(math.Round(centerX)) - text.Bounds().Dx()/2
-	y := int(actorNameLabelY(baseY, scale))
+	y := int(math.Round(labelY))
 	render.DrawOutlinedTextAt(screen, label, x, y, foreground, outline)
 }
 
@@ -4271,6 +4291,17 @@ func actorLifeBarY(baseY, scale float64) float64 {
 	return actorNameLabelY(baseY, scale) + 14
 }
 
+func actorLifeBarHeight(life actorLife) float64 {
+	if life.hasSP {
+		return 9
+	}
+	return 5
+}
+
+func actorNameBelowLifeBarY(baseY, scale float64, life actorLife) float64 {
+	return actorLifeBarY(baseY, scale) + actorLifeBarHeight(life) + 3
+}
+
 func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sceneActorDrawEntry) {
 	life, ok := m.actorLifeForDisplay(ctx, entry.actor)
 	if !ok {
@@ -4283,10 +4314,7 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sc
 		ratio = 1
 	}
 	const width = 60.0
-	height := 5.0
-	if life.hasSP {
-		height = 9.0
-	}
+	height := actorLifeBarHeight(life)
 	x := math.Round(entry.screenX - width/2)
 	y := math.Round(actorLifeBarY(entry.screenY, entry.scale))
 	fillWidth := math.Round((width - 2) * ratio)

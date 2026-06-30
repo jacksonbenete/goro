@@ -49,6 +49,13 @@ type escapeMenuButton struct {
 	enabled bool
 }
 
+func (m *escapeMenuState) openMenu() {
+	m.open = true
+	m.action = escapeMenuActionNone
+	m.pending = false
+	m.status = ""
+}
+
 var escapeMenuButtons = []escapeMenuButton{
 	{label: "Character Select", action: escapeMenuActionCharacterSelect, enabled: true},
 	{label: "Settings", action: escapeMenuActionSettings, enabled: true},
@@ -62,8 +69,7 @@ func (m *escapeMenuState) update(ctx Context) bool {
 	}
 	if !m.open {
 		if ctx.Input.JustPressed(render.KeyEscape) {
-			m.open = true
-			m.status = ""
+			m.openMenu()
 			return true
 		}
 		return false

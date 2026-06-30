@@ -89,7 +89,7 @@ func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
 		}
 		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, basicMenuTextColor)
 	}
-	if m.lastAction != "" && m.lastAction != "status" && m.lastAction != "skill" && m.lastAction != "items" && m.lastAction != "equip" && time.Since(m.lastClick) < 1500*time.Millisecond {
+	if m.lastAction != "" && !basicMenuActionImplemented(m.lastAction) && time.Since(m.lastClick) < 1500*time.Millisecond {
 		label := strings.ToUpper(m.lastAction[:1]) + m.lastAction[1:]
 		render.DebugPrintAtColor(screen, fmt.Sprintf("%s: not implemented", label), x+basicMenuPad, y+h+6, basicMenuMutedColor)
 	}
@@ -131,4 +131,13 @@ func basicMenuButtonAt(mouseX, mouseY int) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+func basicMenuActionImplemented(action string) bool {
+	switch action {
+	case "status", "option", "items", "equip", "skill":
+		return true
+	default:
+		return false
+	}
 }

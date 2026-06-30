@@ -1698,6 +1698,15 @@ func TestActorOverlayLifeBarIsBelowNameLabel(t *testing.T) {
 	}
 }
 
+func TestLocalPlayerNameIsBelowHPAndSPBars(t *testing.T) {
+	life := actorLife{hasSP: true}
+	barY := actorLifeBarY(100, 1.2)
+	nameY := actorNameBelowLifeBarY(100, 1.2, life)
+	if nameY <= barY+actorLifeBarHeight(life) {
+		t.Fatalf("name y = %.1f, bar y = %.1f; want name below hp/sp bars", nameY, barY)
+	}
+}
+
 func TestCombatHitDelayUsesActionSoundMotion(t *testing.T) {
 	action := res.ACTAction{Animations: []res.ACTAnimation{
 		{Sound: -1},
@@ -1919,6 +1928,32 @@ func TestPendingSkillTargetCancelWithEscape(t *testing.T) {
 	}
 	if mode.status != "skill canceled" {
 		t.Fatalf("status = %q, want skill canceled", mode.status)
+	}
+}
+
+func TestBasicMenuOptionOpensEscapeMenu(t *testing.T) {
+	mode := &WorldMode{
+		escapeMenu: escapeMenuState{
+			action:  escapeMenuActionExit,
+			pending: true,
+			status:  "old status",
+		},
+	}
+	mode.basicMenu.lastAction = "option"
+
+	mode.handleBasicMenuAction(Context{})
+
+	if !mode.escapeMenu.open {
+		t.Fatal("escape menu did not open")
+	}
+	if mode.escapeMenu.action != escapeMenuActionNone {
+		t.Fatalf("escape menu action = %d, want none", mode.escapeMenu.action)
+	}
+	if mode.escapeMenu.pending {
+		t.Fatal("escape menu kept stale pending state")
+	}
+	if mode.escapeMenu.status != "" {
+		t.Fatalf("escape menu status = %q, want empty", mode.escapeMenu.status)
 	}
 }
 
