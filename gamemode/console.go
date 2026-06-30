@@ -175,6 +175,24 @@ func (c *chatConsole) submitCommand(ctx Context, text string) bool {
 	case "/stand":
 		c.submitSitStand(ctx, false)
 		return true
+	case "/noshift", "/ns":
+		if ctx.Session == nil {
+			c.addErrorMessage("noshift failed: no session")
+			c.input = ""
+			c.active = false
+			c.invalidate()
+			return true
+		}
+		ctx.Session.NoShift = !ctx.Session.NoShift
+		if ctx.Session.NoShift {
+			c.addSystemMessage("No Shift: On")
+		} else {
+			c.addSystemMessage("No Shift: Off")
+		}
+		c.input = ""
+		c.active = false
+		c.invalidate()
+		return true
 	default:
 		return false
 	}

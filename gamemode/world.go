@@ -1436,7 +1436,7 @@ func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProject
 		log.Printf("shortcut ground skill target sent skill=%d target=%d,%d", skill.ID, targetX, targetY)
 		return
 	}
-	actor, ok := clickedSkillTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
+	actor, ok := clickedSkillTarget(ctx, projection, skill, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
 	if !ok {
 		m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 		log.Printf("shortcut skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
@@ -2469,6 +2469,26 @@ func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColo
 		x:       ctx.World.Player.X,
 		y:       ctx.World.Player.Y,
 		text:    fmt.Sprintf("%d", amount),
+		color:   floaterColor,
+		kind:    kind,
+		starts:  now,
+		expires: now.Add(damageFloaterDuration(kind)),
+	})
+}
+
+func (m *WorldMode) addTargetRecoveryFloater(ctx Context, actorID uint32, amount int, floaterColor color.RGBA, kind damageFloaterKind, now time.Time) {
+	if ctx.World == nil || actorID == 0 || amount <= 0 {
+		return
+	}
+	x, y, ok := effectAnchor(ctx, actorID)
+	if !ok {
+		return
+	}
+	m.damageFloaters = append(m.damageFloaters, damageFloater{
+		actorID: actorID,
+		x:       x,
+		y:       y,
+		text:    strconv.Itoa(amount),
 		color:   floaterColor,
 		kind:    kind,
 		starts:  now,
@@ -3578,17 +3598,17 @@ func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY
 	return best, bestDistance < math.Inf(1)
 }
 
-func clickedSkillTarget(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
+func clickedSkillTarget(ctx Context, projection sceneProjection, skill session.Skill, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
 	if ctx.World == nil {
 		return worldstate.Actor{}, false
 	}
 	bestDistance := math.Inf(1)
 	var best worldstate.Actor
-	for _, actor := range ctx.World.Actors {
+	for _, actor := range skillTargetCandidates(ctx, skill) {
 		if _, dead := deadActors[actor.ID]; dead {
 			continue
 		}
-		if !actorCanBeSkillTargeted(ctx, actor) {
+		if !actorCanBeSkillTargeted(ctx, skill, actor) {
 			continue
 		}
 		actorX, actorY := actor.RenderPosition(now)
@@ -3609,11 +3629,82 @@ func clickedSkillTarget(ctx Context, projection sceneProjection, mouseX, mouseY 
 	return best, bestDistance < math.Inf(1)
 }
 
-func actorCanBeSkillTargeted(ctx Context, actor worldstate.Actor) bool {
-	if isLocalActor(ctx, actor.ID) || actor.ID == 0 || isWarpActor(actor) {
+func skillTargetCandidates(ctx Context, skill session.Skill) []worldstate.Actor {
+	if ctx.World == nil {
+		return nil
+	}
+	candidates := make([]worldstate.Actor, 0, len(ctx.World.Actors)+1)
+	if skillTargetFlagsIncludeSelfPick(skill.Type) {
+		if actor, ok, _ := actorForCombatID(ctx, localSkillTarget(ctx)); ok {
+			candidates = append(candidates, actor)
+		}
+	}
+	for _, actor := range ctx.World.Actors {
+		candidates = append(candidates, actor)
+	}
+	return candidates
+}
+
+func actorCanBeSkillTargeted(ctx Context, skill session.Skill, actor worldstate.Actor) bool {
+	if actor.ID == 0 || isWarpActor(actor) {
 		return false
 	}
-	return true
+	targetFlags, ok := skillTargetFlagsForActor(ctx, actor)
+	if !ok {
+		return false
+	}
+	if skill.Type&targetFlags != 0 {
+		if isLocalActor(ctx, actor.ID) && skill.Type&skillTargetEnemy != 0 {
+			return false
+		}
+		return true
+	}
+	if skillTargetOverrideActive(ctx) || skillTargetMapStateAllowsMismatch(ctx, actor) {
+		if isLocalActor(ctx, actor.ID) && skill.Type&skillTargetEnemy != 0 {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func skillTargetFlagsIncludeSelfPick(flags uint32) bool {
+	return flags&(skillTargetFriend|skillTargetSelf) != 0
+}
+
+func skillTargetFlagsForActor(ctx Context, actor worldstate.Actor) (uint32, bool) {
+	if actor.ID == 0 || isWarpActor(actor) {
+		return 0, false
+	}
+	if isLocalActor(ctx, actor.ID) {
+		return skillTargetFriend, true
+	}
+	if actor.HasObjectType {
+		switch actor.ObjectType {
+		case actorObjectTypePC, actorObjectTypeElemental:
+			return skillTargetFriend, true
+		case actorObjectTypeHomunculus, actorObjectTypeMercenary:
+			return skillTargetFriend | skillTargetHomun, true
+		case actorObjectTypeMob, actorObjectTypeUnit, actorObjectTypeNPCABR, actorObjectTypeNPCBionic:
+			return skillTargetEnemy | skillTargetPet, true
+		default:
+			return 0, false
+		}
+	}
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		return skillTargetFriend, true
+	}
+	return 0, false
+}
+
+func skillTargetOverrideActive(ctx Context) bool {
+	return (ctx.Input != nil && ctx.Input.Pressed(render.KeyShift)) || (ctx.Session != nil && ctx.Session.NoShift)
+}
+
+func skillTargetMapStateAllowsMismatch(ctx Context, actor worldstate.Actor) bool {
+	// roBrowser allows target-type mismatches on PvP/GvG maps. Goro does not yet
+	// parse map state packets, so keep the rule isolated until that state exists.
+	return false
 }
 
 func actorCanBeAttackClicked(ctx Context, actor worldstate.Actor) bool {
@@ -3700,8 +3791,14 @@ const (
 	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
 	actorJobWarpPortal            = 45
 	actorJobClearNPC              = 844
+	actorObjectTypePC             = 0
 	actorObjectTypeMob            = 5
 	actorObjectTypeNPC            = 6
+	actorObjectTypeHomunculus     = 8
+	actorObjectTypeMercenary      = 9
+	actorObjectTypeElemental      = 10
+	actorObjectTypeUnit           = 11
+	actorObjectTypeNPC2           = 12
 	actorObjectTypeNPCABR         = 13
 	actorObjectTypeNPCBionic      = 14
 )

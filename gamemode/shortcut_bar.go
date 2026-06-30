@@ -531,12 +531,22 @@ func localSkillTarget(ctx Context) uint32 {
 }
 
 func isGroundTargetSkill(skill session.Skill) bool {
-	return skill.Type&0x02 != 0 || skill.ID == 21
+	return skill.Type&skillTargetPlace != 0 || skill.ID == 21
 }
 
 func isSelfTargetSkill(skill session.Skill) bool {
-	return skill.Type&0x04 != 0 && !isGroundTargetSkill(skill)
+	return skill.Type&skillTargetSelf != 0 && !isGroundTargetSkill(skill)
 }
+
+const (
+	skillTargetEnemy  = 1
+	skillTargetPlace  = 2
+	skillTargetSelf   = 4
+	skillTargetFriend = 16
+	skillTargetTrap   = 32
+	skillTargetPet    = 64
+	skillTargetHomun  = 128
+)
 
 func (m *WorldMode) sendShortcutSkillToID(ctx Context, skill session.Skill, target uint32) error {
 	if ctx.Network == nil {

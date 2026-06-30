@@ -7,6 +7,7 @@ type Session struct {
 	UserLevel   uint32
 	Sex         byte
 	Playing     bool
+	NoShift     bool
 	CharServers []CharServer
 	Characters  []Character
 	Selected    Character

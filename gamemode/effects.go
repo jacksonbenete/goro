@@ -201,8 +201,9 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	if notify.Result == 0 {
 		return
 	}
+	now := time.Now()
 	if effectID := skillEffectID(notify.SkillID); effectID > 0 {
-		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, time.Now()) {
+		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 			log.Printf("skill effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
 		}
 	}
@@ -210,8 +211,11 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	if effectID <= 0 {
 		return
 	}
-	if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, time.Now()) {
+	if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 		log.Printf("skill success effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
+	}
+	if notify.SkillID == 28 && !isLocalActor(ctx, notify.TargetID) {
+		m.addTargetRecoveryFloater(ctx, notify.TargetID, int(notify.Amount), recoveryHPColor, damageFloaterRecoveryHP, now)
 	}
 }
 

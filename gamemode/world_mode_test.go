@@ -188,6 +188,92 @@ func TestClickedAttackTargetPicksMobOnly(t *testing.T) {
 	}
 }
 
+func TestClickedSkillTargetUsesRobrowserTargetFlags(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypePC,
+		HasObjectType: true,
+	})
+	ctx := Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	playerPoint := projection.Project(cellCenter(10), cellCenter(20), 0)
+	pcPoint := projection.Project(cellCenter(11), cellCenter(20), 0)
+
+	if actor, ok := clickedSkillTarget(ctx, projection, session.Skill{ID: 6, Type: skillTargetEnemy}, int(playerPoint.x), int(playerPoint.y), now, nil); ok {
+		t.Fatalf("enemy skill should not self-target: %+v", actor)
+	}
+
+	actor, ok := clickedSkillTarget(ctx, projection, session.Skill{ID: 28, Type: skillTargetFriend}, int(playerPoint.x), int(playerPoint.y), now, nil)
+	if !ok {
+		t.Fatal("expected friend skill to target local player")
+	}
+	if actor.ID != 100 {
+		t.Fatalf("target id = %d, want local account id 100", actor.ID)
+	}
+
+	actor, ok = clickedSkillTarget(ctx, projection, session.Skill{ID: 29, Type: skillTargetFriend}, int(pcPoint.x), int(pcPoint.y), now, nil)
+	if !ok || actor.ID != 300 {
+		t.Fatalf("friend skill target = %+v ok=%t, want pc 300", actor, ok)
+	}
+	if actor, ok := clickedSkillTarget(ctx, projection, session.Skill{ID: 13, Type: skillTargetEnemy}, int(pcPoint.x), int(pcPoint.y), now, nil); ok {
+		t.Fatalf("enemy skill should not target pc outside pvp: %+v", actor)
+	}
+
+	world = worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            400,
+		X:             12,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	ctx.World = world
+	projection = newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	mobPoint := projection.Project(cellCenter(12), cellCenter(20), 0)
+
+	if actor, ok := clickedSkillTarget(ctx, projection, session.Skill{ID: 29, Type: skillTargetFriend}, int(mobPoint.x), int(mobPoint.y), now, nil); ok {
+		t.Fatalf("friend skill should not target mob without noshift: %+v", actor)
+	}
+
+	actor, ok = clickedSkillTarget(ctx, projection, session.Skill{ID: 13, Type: skillTargetEnemy}, int(mobPoint.x), int(mobPoint.y), now, nil)
+	if !ok || actor.ID != 400 {
+		t.Fatalf("enemy skill target = %+v ok=%t, want mob 400", actor, ok)
+	}
+}
+
+func TestClickedSkillTargetNoShiftAllowsSupportOnEnemies(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            400,
+		X:             12,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	ctx := Context{
+		Session: &session.Session{AccountID: 100, CharID: 200, NoShift: true},
+		World:   world,
+	}
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	mobPoint := projection.Project(cellCenter(12), cellCenter(20), 0)
+
+	actor, ok := clickedSkillTarget(ctx, projection, session.Skill{ID: 28, Type: skillTargetFriend}, int(mobPoint.x), int(mobPoint.y), now, nil)
+	if !ok || actor.ID != 400 {
+		t.Fatalf("noshift friend skill target = %+v ok=%t, want mob 400", actor, ok)
+	}
+}
+
 func TestAttackTargetWithinRangeUsesMeleeAdjacency(t *testing.T) {
 	if !attackTargetWithinRange(10, 20, 11, 21) {
 		t.Fatal("diagonal adjacent target should be in melee range")
@@ -3190,6 +3276,30 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectProvoke || effect.x != 12 || effect.y != 22 {
 		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 28, Amount: 234, TargetID: 1100, SourceID: 2000000, Result: 1})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectHeal || effect.x != 12 || effect.y != 22 {
+		t.Fatalf("effect = %+v", effect)
+	}
+	if len(mode.damageFloaters) != 1 {
+		t.Fatalf("damage floaters = %d, want 1", len(mode.damageFloaters))
+	}
+	floater := mode.damageFloaters[0]
+	if floater.actorID != 1100 || floater.text != "234" || floater.kind != damageFloaterRecoveryHP {
+		t.Fatalf("floater = %+v", floater)
 	}
 }
 

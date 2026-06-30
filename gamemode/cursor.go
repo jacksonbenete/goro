@@ -183,7 +183,7 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 		return action
 	}
 	if m.pendingSkill.skill.ID != 0 {
-		if actor, ok := hoveredCursorActor(ctx, projection, mouseX, mouseY, now, m.actorDeaths); ok && actorCanBeSkillTargeted(ctx, actor) {
+		if _, ok := clickedSkillTarget(ctx, projection, m.pendingSkill.skill, mouseX, mouseY, now, m.actorDeaths); ok {
 			return cursorActionTarget2
 		}
 		return cursorActionTarget
