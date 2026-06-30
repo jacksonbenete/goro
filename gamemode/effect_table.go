@@ -335,9 +335,8 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		}},
 	},
 	effectMagnumBreak: {
-		duration:    300 * time.Millisecond,
-		cameraShake: 50 * time.Millisecond,
-		sfx:         []string{"effect\\ef_magnumbreak.wav"},
+		duration: 300 * time.Millisecond,
+		sfx:      []string{"effect\\ef_magnumbreak.wav"},
 		components: []worldEffectComponent{
 			{
 				kind:             effectComponentCylinder,
@@ -368,6 +367,10 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				circleSides:      32,
 			},
 		},
+	},
+	effectQuakeMagnum: {
+		duration:    50 * time.Millisecond,
+		cameraShake: 50 * time.Millisecond,
 	},
 	effectSteal: {
 		duration: 500 * time.Millisecond,

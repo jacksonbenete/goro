@@ -693,14 +693,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 66 {
-		t.Fatalf("implemented effects = %d, want 66", coverage.Implemented)
+	if coverage.Implemented != 67 {
+		t.Fatalf("implemented effects = %d, want 67", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 10.8 || coverage.ActivePercent > 10.9 {
-		t.Fatalf("active coverage = %.3f, want about 10.8", coverage.ActivePercent)
+	if coverage.ActivePercent < 11.0 || coverage.ActivePercent > 11.1 {
+		t.Fatalf("active coverage = %.3f, want about 11.0", coverage.ActivePercent)
 	}
 }
 
@@ -819,6 +819,7 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "SM_BASH begin", skillBeginEffectIDs(5), effectBashBegin)
 	expectEffectIDs(t, "SM_BASH hit", skillHitEffectIDs(5), effectBashHit)
 	expectEffectIDs(t, "SM_PROVOKE success", skillSuccessEffectIDs(6), effectProvoke)
+	expectEffectIDs(t, "SM_MAGNUM target", skillEffectIDs(7), effectQuakeMagnum)
 	expectEffectIDs(t, "SM_MAGNUM caster", skillEffectOnCasterIDs(7), effectMagnumBreak)
 	expectEffectIDs(t, "SM_ENDURE", skillEffectIDs(8), effectEndure)
 }
@@ -1339,8 +1340,8 @@ func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
 	if !ok {
 		t.Fatal("magnum break effect spec missing")
 	}
-	if spec.cameraShake != 50*time.Millisecond {
-		t.Fatalf("camera shake = %s, want 50ms", spec.cameraShake)
+	if spec.cameraShake != 0 {
+		t.Fatalf("camera shake = %s, want none; quake_magnum carries shake", spec.cameraShake)
 	}
 	if len(spec.components) != 2 {
 		t.Fatalf("components = %d, want 2", len(spec.components))
@@ -1358,15 +1359,22 @@ func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
 	}
 }
 
-func TestMagnumBreakEffectStartsCameraShake(t *testing.T) {
+func TestQuakeMagnumEffectStartsCameraShake(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectQuakeMagnum)
+	if !ok {
+		t.Fatal("quake magnum effect spec missing")
+	}
+	if spec.cameraShake != 50*time.Millisecond || len(spec.components) != 0 {
+		t.Fatalf("quake magnum spec = %+v, want no-draw 50ms camera shake", spec)
+	}
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	starts := time.Unix(100, 0)
 	mode := &WorldMode{}
 	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
-	if !mode.addWorldEffectAt(ctx, effectMagnumBreak, 2000000, starts) {
-		t.Fatal("add magnum break effect failed")
+	if !mode.addWorldEffectAt(ctx, effectQuakeMagnum, 2000000, starts) {
+		t.Fatal("add quake magnum effect failed")
 	}
 	if !mode.cameraShakeStart.Equal(starts) || !mode.cameraShakeEnd.Equal(starts.Add(50*time.Millisecond)) {
 		t.Fatalf("camera shake = %s..%s", mode.cameraShakeStart, mode.cameraShakeEnd)

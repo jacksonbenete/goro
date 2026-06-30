@@ -29,6 +29,7 @@ const (
 	effectSight         = 22
 	effectSoulStrike    = 15
 	effectMagnumBreak   = 17
+	effectQuakeMagnum   = 10022
 	effectSteal         = 18
 	effectPoisonAttack  = 20
 	effectDetoxication  = 21
@@ -817,7 +818,7 @@ type roBrowserSkillRecoveryFloater struct {
 var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
 	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: roBrowserSkillActionAttack},                                                                                                     // SM_BASH
 	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                                 // SM_PROVOKE
-	7:   {effectIDsOnCaster: []int{effectMagnumBreak}, action: roBrowserSkillActionAttack},                                                                                                                                        // SM_MAGNUM; quake_magnum is not implemented yet.
+	7:   {effectIDs: []int{effectQuakeMagnum}, effectIDsOnCaster: []int{effectMagnumBreak}, action: roBrowserSkillActionAttack},                                                                                                   // SM_MAGNUM
 	8:   {effectIDs: []int{effectEndure}, action: roBrowserSkillActionReadyFight},                                                                                                                                                 // SM_ENDURE
 	11:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // MG_NAPALMBEAT
 	12:  {},                                                                                                                                                                                                                       // MG_SAFETYWALL; persistent unit effect arrives separately.
