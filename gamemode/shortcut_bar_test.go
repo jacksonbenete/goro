@@ -1,6 +1,9 @@
 package gamemode
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/kivutar/goro/session"
@@ -24,6 +27,68 @@ func TestShortcutSlotPersistRoundTrip(t *testing.T) {
 	}
 	if got := shortcutSlotFromPersist(skill.persist()); got != skill {
 		t.Fatalf("skill slot = %+v, want %+v", got, skill)
+	}
+}
+
+func TestShortcutStatePathUsesSelectedCharacter(t *testing.T) {
+	config := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", config)
+	s := &session.Session{
+		AccountID: 2000000,
+		CharID:    150001,
+		Selected:  session.Character{ID: 150001, Name: "Osmotar"},
+	}
+
+	path, legacy, err := shortcutStatePath(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(config, "goro", "shortcuts", "char-150001.json")
+	if path != want {
+		t.Fatalf("shortcut path = %q, want %q", path, want)
+	}
+	if legacy != filepath.Join(config, "goro", "shortcuts.json") {
+		t.Fatalf("legacy path = %q", legacy)
+	}
+}
+
+func TestShortcutStatePathFallsBackToSanitizedCharacterName(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	s := &session.Session{Selected: session.Character{Name: "A/B C"}}
+
+	path, _, err := shortcutStatePath(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(path, filepath.Join("goro", "shortcuts", "name-A_B_C.json")) {
+		t.Fatalf("shortcut path = %q", path)
+	}
+}
+
+func TestShortcutLoadMigratesLegacyFileToCharacterPath(t *testing.T) {
+	config := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", config)
+	legacy := filepath.Join(config, "goro", "shortcuts.json")
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(legacy, []byte(`{"version":1,"slots":[{"kind":"skill","skill_id":6,"skill_level":2}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx := Context{Session: &session.Session{Selected: session.Character{ID: 150001}}}
+
+	bar := &shortcutBarState{}
+	bar.load(ctx)
+	if bar.slots[0].kind != shortcutSkill || bar.slots[0].skillID != 6 || bar.slots[0].skillLevel != 2 {
+		t.Fatalf("migrated slot = %+v", bar.slots[0])
+	}
+	if !strings.HasSuffix(bar.path, filepath.Join("goro", "shortcuts", "char-150001.json")) {
+		t.Fatalf("bar path = %q", bar.path)
+	}
+
+	bar.save(ctx)
+	if _, err := os.Stat(bar.path); err != nil {
+		t.Fatalf("character shortcut file not written: %v", err)
 	}
 }
 

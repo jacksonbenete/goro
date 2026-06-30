@@ -287,7 +287,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
-	m.shortcutBar.load()
+	m.shortcutBar.load(ctx)
 	m.npcDialog.reset()
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
@@ -498,7 +498,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("use item ack index=%d item=%d aid=%d amount=%d result=%d", useAck.Index, useAck.ItemID, useAck.AID, useAck.Amount, useAck.Result)
 			m.addItemUseEffect(ctx, useAck)
 			applyUseItemAck(ctx, useAck)
-			if useAck.Result != 0 && useAck.Amount == 0 && m.shortcutBar.clearDepletedItem(useAck.Index, useAck.ItemID) {
+			if useAck.Result != 0 && useAck.Amount == 0 && m.shortcutBar.clearDepletedItem(ctx, useAck.Index, useAck.ItemID) {
 				log.Printf("shortcut item depleted index=%d item=%d", useAck.Index, useAck.ItemID)
 			}
 			m.inventoryWindow.clampScroll(ctx.Session)

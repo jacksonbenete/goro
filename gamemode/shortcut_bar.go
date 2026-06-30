@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/kivutar/goro/render"
@@ -43,6 +44,7 @@ type shortcutBarState struct {
 	statusGood bool
 	statusAt   time.Time
 	loaded     bool
+	path       string
 }
 
 type shortcutPersistFile struct {
@@ -76,7 +78,7 @@ func (b *shortcutBarState) update(ctx Context, mode *WorldMode) bool {
 	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
 		b.slots[slot] = shortcutSlotState{}
 		b.setStatus(fmt.Sprintf("F%d cleared", slot+1), true)
-		b.save()
+		b.save(ctx)
 		return true
 	}
 	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
@@ -98,7 +100,7 @@ func (b *shortcutBarState) acceptItemDrop(ctx Context, item session.InventoryIte
 		identified: item.Identified,
 	}
 	b.setStatus(fmt.Sprintf("%s assigned to F%d", trimRunes(inventoryItemDisplayName(ctx.Resources, item), 24), slot+1), true)
-	b.save()
+	b.save(ctx)
 	return true
 }
 
@@ -117,14 +119,14 @@ func (b *shortcutBarState) acceptSkillDrop(ctx Context, skill session.Skill, mx,
 		skillLevel: skill.Level,
 	}
 	b.setStatus(fmt.Sprintf("%s assigned to F%d", trimRunes(skillDisplayName(ctx.Resources, skill), 24), slot+1), true)
-	b.save()
+	b.save(ctx)
 	return true
 }
 
-func (b *shortcutBarState) clearDepletedItem(index, itemID uint16) bool {
+func (b *shortcutBarState) clearDepletedItem(ctx Context, index, itemID uint16) bool {
 	changed := b.clearDepletedItemSlots(index, itemID)
 	if changed {
-		b.save()
+		b.save(ctx)
 	}
 	return changed
 }
@@ -281,22 +283,34 @@ func (b *shortcutBarState) setStatus(text string, good bool) {
 	b.statusAt = time.Now()
 }
 
-func (b *shortcutBarState) load() {
+func (b *shortcutBarState) load(ctx Context) {
 	if b.loaded {
 		return
 	}
 	b.loaded = true
-	path, err := shortcutStatePath()
+	path, legacyPath, err := shortcutStatePath(ctx.Session)
 	if err != nil {
 		log.Printf("shortcut load skipped: %v", err)
 		return
 	}
+	b.path = path
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Printf("shortcut load failed path=%s: %v", path, err)
+		if os.IsNotExist(err) && legacyPath != "" && legacyPath != path {
+			data, err = os.ReadFile(legacyPath)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					log.Printf("shortcut legacy load failed path=%s: %v", legacyPath, err)
+				}
+				return
+			}
+			log.Printf("shortcut bar migrating legacy path=%s target=%s", legacyPath, path)
+		} else {
+			if !os.IsNotExist(err) {
+				log.Printf("shortcut load failed path=%s: %v", path, err)
+			}
+			return
 		}
-		return
 	}
 	var saved shortcutPersistFile
 	if err := json.Unmarshal(data, &saved); err != nil {
@@ -309,11 +323,23 @@ func (b *shortcutBarState) load() {
 	log.Printf("shortcut bar loaded path=%s slots=%d", path, len(saved.Slots))
 }
 
-func (b *shortcutBarState) save() {
-	b.loaded = true
-	path, err := shortcutStatePath()
-	if err != nil {
-		log.Printf("shortcut save skipped: %v", err)
+func (b *shortcutBarState) save(ctx Context) {
+	if !b.loaded {
+		b.load(ctx)
+	}
+	path := b.path
+	if path == "" {
+		var err error
+		path, _, err = shortcutStatePath(ctx.Session)
+		if err != nil {
+			log.Printf("shortcut save skipped: %v", err)
+			return
+		}
+		b.path = path
+		b.loaded = true
+	}
+	if path == "" {
+		log.Printf("shortcut save skipped: no character selected")
 		return
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -337,12 +363,53 @@ func (b *shortcutBarState) save() {
 	}
 }
 
-func shortcutStatePath() (string, error) {
+func shortcutStatePath(s *session.Session) (string, string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return filepath.Join(dir, "goro", "shortcuts.json"), nil
+	legacy := filepath.Join(dir, "goro", "shortcuts.json")
+	key := shortcutCharacterKey(s)
+	if key == "" {
+		return legacy, legacy, nil
+	}
+	return filepath.Join(dir, "goro", "shortcuts", key+".json"), legacy, nil
+}
+
+func shortcutCharacterKey(s *session.Session) string {
+	if s == nil {
+		return ""
+	}
+	if s.Selected.ID != 0 {
+		return fmt.Sprintf("char-%d", s.Selected.ID)
+	}
+	if s.CharID != 0 {
+		return fmt.Sprintf("char-%d", s.CharID)
+	}
+	name := strings.TrimSpace(s.Selected.Name)
+	if name == "" {
+		return ""
+	}
+	sanitized := sanitizeShortcutPathPart(name)
+	if sanitized == "" {
+		return ""
+	}
+	return "name-" + sanitized
+}
+
+func sanitizeShortcutPathPart(value string) string {
+	var out strings.Builder
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+			out.WriteRune(r)
+		case r == '-' || r == '_':
+			out.WriteRune(r)
+		default:
+			out.WriteByte('_')
+		}
+	}
+	return strings.Trim(out.String(), "_")
 }
 
 func shortcutSlotFromPersist(saved shortcutPersistSlot) shortcutSlotState {
