@@ -4634,7 +4634,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, project
 	if !ok {
 		return false
 	}
-	drawSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
+	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
 	return true
 }
 
@@ -4651,7 +4651,7 @@ func (m *WorldMode) drawNonPCSprite3D(screen *render.Image, ctx Context, project
 	if !ok {
 		return false
 	}
-	drawSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, m.actorDeathAlpha(actor.ID, now), shadow)
+	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, m.actorDeathAlpha(actor.ID, now), shadow)
 	return true
 }
 

@@ -37,6 +37,10 @@ const (
 	humanoidBillboardHeight  = 160
 	humanoidBillboardAnchorX = 80
 	humanoidBillboardAnchorY = 120
+	// roBrowser lifts entity sprites by 0.2 map units before depth testing.
+	// Keeping actor billboards exactly coplanar with terrain lets sloped GND
+	// triangles clip the bottom pixels of tight NPC/mob sprite frames.
+	actorSpriteTerrainLift = 0.2
 )
 
 type playerSpriteView struct {
@@ -499,8 +503,16 @@ func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projec
 	if !ok {
 		return false
 	}
-	drawSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
+	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
 	return true
+}
+
+func drawActorSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
+	drawSpriteBillboardAlpha3D(screen, projection, billboard, worldX, worldY, actorSpriteWorldZ(worldZ), scale, alpha, shadow)
+}
+
+func actorSpriteWorldZ(terrainZ float64) float64 {
+	return terrainZ + actorSpriteTerrainLift
 }
 
 func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, view *playerSpriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {

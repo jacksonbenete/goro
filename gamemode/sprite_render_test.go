@@ -37,6 +37,12 @@ func TestSpriteCompositionFilterKeepsSourcePixelsCrisp(t *testing.T) {
 	}
 }
 
+func TestActorSpriteWorldZLiftsSpritesAboveTerrain(t *testing.T) {
+	if got := actorSpriteWorldZ(12.5); math.Abs(got-12.7) > 1e-9 {
+		t.Fatalf("actor sprite world z = %.3f, want 12.700", got)
+	}
+}
+
 func TestSpriteDirectionFromWorldDirShowsBackForNorth(t *testing.T) {
 	cases := map[int]int{
 		0:  4,
