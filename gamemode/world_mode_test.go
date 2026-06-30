@@ -903,9 +903,19 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 }
 
 func TestMageSkillEffectMappings(t *testing.T) {
+	if !skillForcesPassive(9) {
+		t.Fatal("MG_SRECOVERY should be passive")
+	}
 	expectEffectIDs(t, "MG_SIGHT success", skillSuccessEffectIDs(10))
+	expectEffectIDs(t, "MG_SIGHT immediate", skillEffectIDs(10))
+	if !skillForcesSelfTarget(10) {
+		t.Fatal("MG_SIGHT should force self-targeting")
+	}
 	expectEffectIDs(t, "MG_NAPALMBEAT hit", skillHitEffectIDs(11), effectBashHit)
 	expectEffectIDs(t, "MG_SAFETYWALL ground", skillGroundEffectIDs(12))
+	if !skillForcesGroundTarget(12) {
+		t.Fatal("MG_SAFETYWALL should force ground targeting")
+	}
 	expectEffectIDs(t, "MG_SOULSTRIKE before-hit", skillBeforeHitEffectIDs(13), effectSoulStrike)
 	expectEffectIDs(t, "MG_SOULSTRIKE hit", skillHitEffectIDs(13), effectBashHit)
 	expectEffectIDs(t, "MG_COLDBOLT before-hit", skillBeforeHitEffectIDs(14), effectColdBolt)
@@ -917,6 +927,9 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "MG_FIREBOLT before-hit", skillBeforeHitEffectIDs(19), effectFireBolt)
 	expectEffectIDs(t, "MG_FIREBALL before-hit", skillBeforeHitEffectIDs(17), effectFireBall)
 	expectEffectIDs(t, "MG_FIREWALL ground", skillGroundEffectIDs(18), effectFireWall)
+	if !skillForcesGroundTarget(18) {
+		t.Fatal("MG_FIREWALL should force ground targeting")
+	}
 	for _, skillID := range []uint16{17, 18, 19} {
 		expectEffectIDs(t, "fire skill hit", skillHitEffectIDs(skillID), effectFireHit)
 	}
