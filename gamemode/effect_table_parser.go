@@ -297,10 +297,17 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			sizeStart:       sizeStart * roBrowserEffectPixelRatio,
 			sizeEnd:         sizeEnd * roBrowserEffectPixelRatio,
 			sizeRand:        fieldFloat(fields, "sizeRand") * roBrowserEffectPixelRatio,
+			sizeStartX:      effectSizeAxisField(fields, "sizeX", "sizeStartX") * roBrowserEffectPixelRatio,
+			sizeStartY:      effectSizeAxisField(fields, "sizeY", "sizeStartY") * roBrowserEffectPixelRatio,
+			sizeEndX:        effectSizeAxisField(fields, "sizeX", "sizeEndX") * roBrowserEffectPixelRatio,
+			sizeEndY:        effectSizeAxisField(fields, "sizeY", "sizeEndY") * roBrowserEffectPixelRatio,
+			sizeRandX:       fieldFloat(fields, "sizeRandX") * roBrowserEffectPixelRatio,
+			sizeRandY:       fieldFloat(fields, "sizeRandY") * roBrowserEffectPixelRatio,
 			sizeSmooth:      fieldBool(fields, "sizeSmooth"),
 			duplicate:       fieldInt(fields, "duplicate"),
 			angleStart:      fieldFloat(fields, "angle"),
 			angleEnd:        fieldFloat(fields, "angle") + fieldFloat(fields, "angleDelta"),
+			blendAdditive:   fieldInt(fields, "blendMode") == 2,
 		}, sfx, true
 	case "SPR":
 		file := fieldString(fields, "file")
@@ -393,6 +400,13 @@ func effectSizeFields(fields map[string]string) (float64, float64) {
 		sizeEnd = sizeStart
 	}
 	return sizeStart, sizeEnd
+}
+
+func effectSizeAxisField(fields map[string]string, fixedKey, endpointKey string) float64 {
+	if size := fieldFloat(fields, fixedKey); size > 0 {
+		return size
+	}
+	return fieldFloat(fields, endpointKey)
 }
 
 func effectColorFields(fields map[string]string) color.RGBA {

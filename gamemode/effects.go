@@ -165,6 +165,12 @@ type worldEffectComponent struct {
 	sizeStart        float64
 	sizeEnd          float64
 	sizeRand         float64
+	sizeStartX       float64
+	sizeStartY       float64
+	sizeEndX         float64
+	sizeEndY         float64
+	sizeRandX        float64
+	sizeRandY        float64
 	sizeSmooth       bool
 	angleStart       float64
 	angleEnd         float64
@@ -172,6 +178,7 @@ type worldEffectComponent struct {
 	circleSides      int
 	duplicate        int
 	angleZRandom     float64
+	blendAdditive    bool
 }
 
 func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
@@ -1086,8 +1093,8 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 		}
 		salt := componentIndex*1009 + i*37
 		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, progress, worldX, worldY, worldZ)
-		size := effect3DSize(component, effect, salt, progress)
-		if size <= 0 {
+		sizeX, sizeY := effect3DSize(component, effect, salt, progress)
+		if sizeX <= 0 || sizeY <= 0 {
 			continue
 		}
 		if component.textureFile != "" || len(component.textureFiles) > 0 {
@@ -1096,9 +1103,10 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 				continue
 			}
 			angle := (component.angleStart + (component.angleEnd-component.angleStart)*progress) * math.Pi / 180
-			drawTexturedEffectBillboardRotated(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, angle, effectComponentTint(component, alpha))
+			drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), component.blendAdditive)
 			continue
 		}
+		size := (sizeX + sizeY) * 0.5
 		m.draw3DSpriteEffect(screen, ctx, projection, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, starts, now)
 	}
 }
@@ -1453,12 +1461,41 @@ func effectOtherEndpoint(ctx Context, effect worldEffect, fallbackX, fallbackY, 
 	return fallbackX, fallbackY, fallbackZ, false
 }
 
-func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, progress float64) float64 {
+func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, progress float64) (float64, float64) {
 	size := effectBillboardSize(progress, component)
-	if component.sizeRand != 0 {
-		size += deterministicSigned(effect, salt+7) * component.sizeRand
+	sizeX := size
+	sizeY := size
+	if component.sizeStartX > 0 || component.sizeEndX > 0 {
+		sizeX = effectAxisSize(progress, component.sizeStartX, component.sizeEndX, component.sizeSmooth)
 	}
-	return size
+	if component.sizeStartY > 0 || component.sizeEndY > 0 {
+		sizeY = effectAxisSize(progress, component.sizeStartY, component.sizeEndY, component.sizeSmooth)
+	}
+	if component.sizeRand != 0 {
+		sizeX += deterministicSigned(effect, salt+7) * component.sizeRand
+		sizeY = sizeX
+	}
+	if component.sizeRandX != 0 {
+		sizeX += deterministicSigned(effect, salt+8) * component.sizeRandX
+	}
+	if component.sizeRandY != 0 {
+		sizeY += deterministicSigned(effect, salt+9) * component.sizeRandY
+	}
+	return sizeX, sizeY
+}
+
+func effectAxisSize(progress, start, end float64, smooth bool) float64 {
+	if start <= 0 && end > 0 {
+		start = end
+	}
+	if end <= 0 && start > 0 {
+		end = start
+	}
+	if smooth {
+		factor := math.Log10(progress*9 + 1)
+		return start + (end-start)*factor
+	}
+	return start + (end-start)*progress
 }
 
 func effectComponentTint(component worldEffectComponent, alpha float64) color.RGBA {
@@ -1491,6 +1528,10 @@ func drawTexturedEffectBillboard(screen *render.Image, projection sceneProjectio
 }
 
 func drawTexturedEffectBillboardRotated(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, size, angle float64, tint color.RGBA) {
+	drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX, worldY, worldZ, size, size, angle, tint, true)
+}
+
+func drawTexturedEffectBillboardRotatedXY(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, sizeX, sizeY, angle float64, tint color.RGBA, additive bool) {
 	if screen == nil || texture == nil || tint.A == 0 {
 		return
 	}
@@ -1501,8 +1542,8 @@ func drawTexturedEffectBillboardRotated(screen *render.Image, projection scenePr
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
 	bounds := texture.Bounds()
 	w, h := float32(bounds.Dx()), float32(bounds.Dy())
-	axisScaleX := size / float64(w)
-	axisScaleY := size / float64(h)
+	axisScaleX := sizeX / float64(w)
+	axisScaleY := sizeY / float64(h)
 	rightAxis := mul3(right, axisScaleX)
 	upAxis := mul3(up, -axisScaleY)
 	if angle != 0 {
@@ -1511,7 +1552,9 @@ func drawTexturedEffectBillboardRotated(screen *render.Image, projection scenePr
 		upAxis = add3(mul3(right, sinA*axisScaleY), mul3(up, -cosA*axisScaleY))
 	}
 	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
-	options.Blend = render.BlendLighter
+	if additive {
+		options.Blend = render.BlendLighter
+	}
 	screen.DrawWorldBillboard(render.WorldBillboardCommand{
 		Texture:     texture,
 		Options:     *options,

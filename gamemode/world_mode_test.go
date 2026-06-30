@@ -1379,8 +1379,14 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 		if component.posXRand != 1.5 || component.posYRand != 1 || component.posZStartRand != 1 || component.posZStartMiddle != 1 || component.posZEndRand != 1 || component.posZEndMiddle != 6 {
 			t.Fatalf("particle %d position = %+v", tc.index, component)
 		}
-		if component.sizeStart != 45*roBrowserEffectPixelRatio || component.sizeEnd != 45*roBrowserEffectPixelRatio || component.sizeRand != 15*roBrowserEffectPixelRatio {
+		if component.sizeStartX != 2.5*roBrowserEffectPixelRatio || component.sizeEndX != 2.5*roBrowserEffectPixelRatio {
+			t.Fatalf("particle %d x size = %+v", tc.index, component)
+		}
+		if component.sizeStartY != 45*roBrowserEffectPixelRatio || component.sizeEndY != 45*roBrowserEffectPixelRatio || component.sizeRandY != 15*roBrowserEffectPixelRatio {
 			t.Fatalf("particle %d size = %+v", tc.index, component)
+		}
+		if component.blendAdditive {
+			t.Fatalf("particle %d should use normal alpha blending", tc.index)
 		}
 	}
 	overlay := spec.components[3]
@@ -1395,6 +1401,9 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	}
 	if overlay.sizeStart != 100*roBrowserEffectPixelRatio || overlay.sizeEnd != 100*roBrowserEffectPixelRatio || !overlay.sizeSmooth {
 		t.Fatalf("overlay size = %+v", overlay)
+	}
+	if overlay.blendAdditive {
+		t.Fatal("overlay should use normal alpha blending")
 	}
 }
 
