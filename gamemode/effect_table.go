@@ -15,12 +15,12 @@ func roBrowserEffectSize(value float64) float64 {
 }
 
 var worldEffectSpecs = map[int]worldEffectSpec{
-	effectBeginSpell:  castAuraEffectSpec("ring_yellow", color.RGBA{R: 255, G: 245, B: 120, A: 255}, 0.8, 4, 5),
+	effectBeginSpell:  castAuraEffectSpec("ring_yellow", color.RGBA{R: 255, G: 245, B: 120, A: 255}, 0.8, 4, 5, false),
 	effectBeginSpell2: elementalCastAuraEffectSpec("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 0.6),
 	effectBeginSpell3: elementalCastAuraEffectSpec("ring_red", color.RGBA{R: 255, G: 100, B: 100, A: 255}, 0.7),
 	effectBeginSpell4: elementalCastAuraEffectSpec("ring_white", color.RGBA{R: 150, G: 255, B: 150, A: 255}, 0.6),
 	effectBeginSpell5: elementalCastAuraEffectSpec("ring_yellow", color.RGBA{R: 255, G: 245, B: 120, A: 255}, 0.8),
-	effectBeginSpell6: castAuraEffectSpec("ring_white", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.8, 4, 5),
+	effectBeginSpell6: castAuraEffectSpec("ring_white", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.8, 4, 5, true),
 	effectBeginSpell7: elementalCastAuraEffectSpec("ring_purple", color.RGBA{R: 200, G: 160, B: 255, A: 255}, 0.7),
 	effectFirefly: {
 		duration: 3 * time.Second,
@@ -73,7 +73,6 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			funcAdapter:      effectFuncCastRing,
 			funcName:         "CastRing",
 			textureName:      "ring_yellow",
-			duration:         900 * time.Millisecond,
 			alphaMax:         0.9,
 			fade:             true,
 			rotate:           true,
@@ -94,7 +93,6 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			funcAdapter: effectFuncGroundSample,
 			funcName:    "MagicTarget",
 			textureFile: "effect/magic_target.tga",
-			duration:    900 * time.Millisecond,
 			alphaMax:    0.9,
 			posZ:        0.08,
 			sizeStart:   1,
@@ -922,17 +920,16 @@ func effectCoverageSnapshot() effectCoverage {
 	}
 }
 
-func castAuraEffectSpec(texture string, tint color.RGBA, alphaMax, height, topSize float64) worldEffectSpec {
+func castAuraEffectSpec(texture string, tint color.RGBA, alphaMax, height, topSize float64, rotate bool) worldEffectSpec {
 	return worldEffectSpec{
 		duration: 900 * time.Millisecond,
 		sfx:      []string{"effect\\ef_beginspell.wav"},
 		components: []worldEffectComponent{{
 			kind:             effectComponentCylinder,
 			textureName:      texture,
-			duration:         900 * time.Millisecond,
 			alphaMax:         alphaMax,
 			fade:             true,
-			rotate:           true,
+			rotate:           rotate,
 			animation:        2,
 			bottomSize:       1,
 			topSize:          topSize,
@@ -952,7 +949,6 @@ func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float
 			{
 				kind:             effectComponentCylinder,
 				textureName:      texture,
-				duration:         900 * time.Millisecond,
 				alphaMax:         0.3,
 				fade:             true,
 				rotate:           true,
@@ -967,7 +963,6 @@ func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float
 			{
 				kind:             effectComponentCylinder,
 				textureName:      texture,
-				duration:         900 * time.Millisecond,
 				alphaMax:         alphaMax,
 				fade:             true,
 				rotate:           true,
@@ -982,7 +977,6 @@ func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float
 			{
 				kind:             effectComponentCylinder,
 				textureName:      texture,
-				duration:         900 * time.Millisecond,
 				alphaMax:         alphaMax,
 				fade:             true,
 				rotate:           true,

@@ -159,8 +159,6 @@ type actorSoundFrame struct {
 	soundIndex   int
 }
 
-const skillCastMotion = 0
-
 type actorAnimation struct {
 	actionFamily   int
 	started        time.Time
@@ -1856,22 +1854,6 @@ func (m *WorldMode) startActorAnimationWithOptions(id uint32, actionFamily int, 
 	}
 }
 
-func (m *WorldMode) startFixedMotionActorAnimation(id uint32, actionFamily, fixedMotion int, started time.Time, duration time.Duration) {
-	if id == 0 || actionFamily < 0 || fixedMotion < 0 {
-		return
-	}
-	if m.actorAnims == nil {
-		m.actorAnims = make(map[uint32]actorAnimation)
-	}
-	m.actorAnims[id] = actorAnimation{
-		actionFamily:   actionFamily,
-		started:        started,
-		duration:       duration,
-		fixedMotion:    fixedMotion,
-		hasFixedMotion: true,
-	}
-}
-
 func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
 	m.startActorAnimation(id, actionFamily, started, duration)
 	if ctx.Session == nil || !isLocalActor(ctx, id) {
@@ -1879,15 +1861,6 @@ func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily in
 	}
 	m.startActorAnimation(ctx.Session.AccountID, actionFamily, started, duration)
 	m.startActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
-}
-
-func (m *WorldMode) startFixedMotionCombatAnimation(ctx Context, id uint32, actionFamily, fixedMotion int, started time.Time, duration time.Duration) {
-	m.startFixedMotionActorAnimation(id, actionFamily, fixedMotion, started, duration)
-	if ctx.Session == nil || !isLocalActor(ctx, id) {
-		return
-	}
-	m.startFixedMotionActorAnimation(ctx.Session.AccountID, actionFamily, fixedMotion, started, duration)
-	m.startFixedMotionActorAnimation(ctx.Session.CharID, actionFamily, fixedMotion, started, duration)
 }
 
 func (m *WorldMode) startHeldCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {

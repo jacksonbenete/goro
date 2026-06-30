@@ -1118,6 +1118,9 @@ func TestGroundSampleEffectSpecUsesMagicTargetPlane(t *testing.T) {
 	if component.kind != effectComponentFUNC || component.funcAdapter != effectFuncGroundSample || component.funcName != "MagicTarget" || component.textureFile != "effect/magic_target.tga" || component.sizeStart != 1 {
 		t.Fatalf("component = %+v", component)
 	}
+	if component.duration != 0 {
+		t.Fatalf("ground sample component duration = %s, want inherited cast duration", component.duration)
+	}
 }
 
 func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
@@ -1134,6 +1137,23 @@ func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
 	}
 	if component.bottomSize != 0.8 || component.topSize != 2.45 || component.height != 2.8 {
 		t.Fatalf("magic ring dimensions = bottom %.2f top %.2f height %.2f", component.bottomSize, component.topSize, component.height)
+	}
+	if component.duration != 0 {
+		t.Fatalf("cast ring component duration = %s, want inherited cast duration", component.duration)
+	}
+}
+
+func TestBeginSpellEffectsInheritCastDuration(t *testing.T) {
+	for _, effectID := range []int{effectBeginSpell, effectBeginSpell2, effectBeginSpell3, effectBeginSpell4, effectBeginSpell5, effectBeginSpell6, effectBeginSpell7} {
+		spec, ok := worldEffectSpecForID(effectID)
+		if !ok {
+			t.Fatalf("begin spell effect %d missing", effectID)
+		}
+		for i, component := range spec.components {
+			if component.duration != 0 {
+				t.Fatalf("effect %d component %d duration = %s, want inherited cast duration", effectID, i, component.duration)
+			}
+		}
 	}
 }
 
@@ -1362,7 +1382,7 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	if !ok {
 		t.Fatal("cast animation missing")
 	}
-	if anim.actionFamily != spriteActionPCSkill || anim.duration != 2500*time.Millisecond || !anim.hasFixedMotion || anim.fixedMotion != skillCastMotion {
+	if anim.actionFamily != spriteActionPCSkill || anim.duration != 2500*time.Millisecond || anim.hasFixedMotion {
 		t.Fatalf("cast animation = %+v", anim)
 	}
 	if world.Dir != worldstate.DirectionFromDelta(10, 20, 12, 20, 4) {
@@ -1428,7 +1448,7 @@ func TestLocalGroundSkillCastFallbackFacesCellAndStartsCastAnimation(t *testing.
 	if !ok {
 		t.Fatal("local ground cast animation missing")
 	}
-	if anim.actionFamily != spriteActionPCSkill || anim.duration != 1800*time.Millisecond || !anim.hasFixedMotion || anim.fixedMotion != skillCastMotion {
+	if anim.actionFamily != spriteActionPCSkill || anim.duration != 1800*time.Millisecond || anim.hasFixedMotion {
 		t.Fatalf("local ground cast animation = %+v", anim)
 	}
 	if len(mode.worldEffects) != 3 {
