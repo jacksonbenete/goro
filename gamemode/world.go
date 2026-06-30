@@ -4134,11 +4134,12 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	actor.Dir = actor.RenderDirection(now)
 	terrainZ := terrainHeightAt(world, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
-	if point.x < -96 || point.y < -160 || point.x > float32(screenWidth+96) || point.y > float32(screenHeight+96) {
-		return entries
-	}
 	worldX := cellCenter(actorX)
 	worldY := cellCenter(actorY)
+	scale := actorBillboardScreenScale(projection, worldX, worldY, terrainZ)
+	if actorAnchorOutsideViewport(float64(point.x), float64(point.y), screenWidth, screenHeight, scale) {
+		return entries
+	}
 	depth := actorBillboardSortDepth(projection, worldX, worldY, terrainZ)
 	shadowDepth := projection.Depth(worldX, worldY, terrainZ+0.05)
 	shadowPoint := projection.Project(worldX, worldY, terrainZ+0.05)
@@ -4149,7 +4150,7 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 		worldX:      worldX,
 		worldY:      worldY,
 		worldZ:      terrainZ,
-		scale:       actorBillboardScreenScale(projection, worldX, worldY, terrainZ),
+		scale:       scale,
 		shadow:      actorShadowFactor(world, actorX, actorY),
 		castShadow:  actorCastsShadow(actor),
 		shadowX:     float64(shadowPoint.x),
@@ -4159,6 +4160,24 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 		depth:       depth,
 		isPlayer:    isPlayer,
 	})
+}
+
+func actorAnchorOutsideViewport(anchorX, anchorY float64, screenWidth, screenHeight int, scale float64) bool {
+	left, right, top, bottom := actorViewportCullMargins(scale)
+	return anchorX < -left || anchorX > float64(screenWidth)+right || anchorY < -top || anchorY > float64(screenHeight)+bottom
+}
+
+func actorViewportCullMargins(scale float64) (left, right, top, bottom float64) {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	side := math.Max(128, float64(humanoidBillboardWidth)*scale)
+	// Most entity pixels are above the feet/anchor. The lower screen edge needs
+	// a larger margin so tall sprites do not disappear while their body is still
+	// visible and only their feet are outside the viewport.
+	topMargin := math.Max(96, float64(humanoidBillboardHeight-humanoidBillboardAnchorY)*scale*2)
+	bottomMargin := math.Max(192, float64(humanoidBillboardAnchorY)*scale*1.6)
+	return side, side, topMargin, bottomMargin
 }
 
 func actorCastsShadow(actor worldstate.Actor) bool {

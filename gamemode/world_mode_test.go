@@ -206,6 +206,27 @@ func TestActorBillboardScreenScaleUsesProjectedReferenceHeight(t *testing.T) {
 	}
 }
 
+func TestActorAnchorOutsideViewportKeepsBodyVisibleBelowScreen(t *testing.T) {
+	if actorAnchorOutsideViewport(400, 600+150, 800, 600, 1) {
+		t.Fatal("actor should remain visible while its body can still overlap the bottom edge")
+	}
+	if !actorAnchorOutsideViewport(400, 600+260, 800, 600, 1) {
+		t.Fatal("actor should be culled after the whole billboard is beyond the bottom edge")
+	}
+}
+
+func TestActorViewportCullMarginsScaleWithZoom(t *testing.T) {
+	_, _, _, bottom1 := actorViewportCullMargins(1)
+	_, _, _, bottom2 := actorViewportCullMargins(2)
+	if bottom2 <= bottom1 {
+		t.Fatalf("bottom margin did not scale: %.1f <= %.1f", bottom2, bottom1)
+	}
+	left, right, top, bottom := actorViewportCullMargins(0)
+	if left <= 0 || right <= 0 || top <= 0 || bottom <= 0 {
+		t.Fatalf("invalid fallback margins: %.1f %.1f %.1f %.1f", left, right, top, bottom)
+	}
+}
+
 func TestClickedAttackTargetPicksMobOnly(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()
