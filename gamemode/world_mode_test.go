@@ -678,15 +678,15 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 		t.Fatalf("components = %d, want 3", len(spec.components))
 	}
 	first := spec.components[0]
-	if first.kind != effectPrimitiveCylinder || first.textureName != "alpha_down" || first.circleSides != 20 || first.totalCircleSides != 20 {
+	if first.kind != effectComponentCylinder || first.textureName != "alpha_down" || first.circleSides != 20 || first.totalCircleSides != 20 {
 		t.Fatalf("first component = %+v", first)
 	}
 	second := spec.components[1]
-	if second.kind != effectPrimitiveCylinder || second.textureName != "alpha_center" || second.duplicate != 10 || second.circleSides != 1 || second.totalCircleSides != 30 {
+	if second.kind != effectComponentCylinder || second.textureName != "alpha_center" || second.duplicate != 10 || second.circleSides != 1 || second.totalCircleSides != 30 {
 		t.Fatalf("second component = %+v", second)
 	}
 	third := spec.components[2]
-	if third.kind != effectPrimitiveCylinder || third.textureName != "alpha_center" || third.duplicate != 8 || third.topSize != 4.0 {
+	if third.kind != effectComponentCylinder || third.textureName != "alpha_center" || third.duplicate != 8 || third.topSize != 4.0 {
 		t.Fatalf("third component = %+v", third)
 	}
 }
@@ -713,7 +713,7 @@ func TestPneumaEffectSpecMatchesRoBrowserSTR(t *testing.T) {
 		t.Fatalf("Pneuma components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveSTR || component.strFile != "pneuma%d" || component.strRandMin != 1 || component.strRandMax != 3 || component.attachedEntity {
+	if component.kind != effectComponentSTR || component.strFile != "pneuma%d" || component.strRandMin != 1 || component.strRandMax != 3 || component.attachedEntity {
 		t.Fatalf("Pneuma component = %+v", component)
 	}
 }
@@ -730,7 +730,7 @@ func TestTorchEffectSpecMatchesRoBrowserShape(t *testing.T) {
 		t.Fatalf("torch components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitive3D || component.spriteFile != "torch_01" || !component.spriteRepeat {
+	if component.kind != effectComponent3D || component.spriteFile != "torch_01" || !component.spriteRepeat {
 		t.Fatalf("torch component = %+v", component)
 	}
 	if component.duration != 600*time.Millisecond || component.spriteDelay != 100*time.Millisecond {
@@ -753,7 +753,7 @@ func TestFireflyEffectSpecUsesFaintSpriteParticles(t *testing.T) {
 		t.Fatalf("firefly components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitive3D || component.textureFile != "" || component.spriteFile == "" || !component.spriteRepeat {
+	if component.kind != effectComponent3D || component.textureFile != "" || component.spriteFile == "" || !component.spriteRepeat {
 		t.Fatalf("firefly component = %+v", component)
 	}
 	if component.alphaMax > 0.25 || component.sizeEnd > roBrowserEffectSize(120) {
@@ -770,7 +770,7 @@ func TestBubbleEffectSpecMatchesRoBrowserShape(t *testing.T) {
 		t.Fatalf("bubble components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveSTR || component.strFile != "bubble%d" || component.strRandMin != 1 || component.strRandMax != 4 {
+	if component.kind != effectComponentSTR || component.strFile != "bubble%d" || component.strRandMin != 1 || component.strRandMax != 4 {
 		t.Fatalf("bubble component = %+v", component)
 	}
 }
@@ -864,7 +864,7 @@ func TestFireBoltEffectSpecUsesFallingFrameList(t *testing.T) {
 		t.Fatalf("components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitive3D || len(component.textureFiles) != 6 || component.duration != 500*time.Millisecond {
+	if component.kind != effectComponent3D || len(component.textureFiles) != 6 || component.duration != 500*time.Millisecond {
 		t.Fatalf("component = %+v", component)
 	}
 	if component.posZ != 20 || component.posZEnd != 0.0001 || component.posXStartMiddle != 5 || component.posYStartMiddle != 2 || component.angleStart != 112.5 || !component.blendAdditive {
@@ -884,14 +884,14 @@ func TestColdBoltEffectSpecMatchesRobrowserProjectileAndRing(t *testing.T) {
 		t.Fatalf("components = %d, want 2", len(spec.components))
 	}
 	projectile := spec.components[0]
-	if projectile.kind != effectPrimitive3D || projectile.textureFile != "effect/icearrow.tga" || projectile.duration != 500*time.Millisecond {
+	if projectile.kind != effectComponent3D || projectile.textureFile != "effect/icearrow.tga" || projectile.duration != 500*time.Millisecond {
 		t.Fatalf("projectile = %+v", projectile)
 	}
 	if projectile.posZ != 20 || projectile.posZEnd != 0.0001 || projectile.posXStartMiddle != 5 || projectile.posYStartMiddle != 2 || projectile.sizeStart != 50*roBrowserEffectPixelRatio {
 		t.Fatalf("cold bolt projectile trajectory = %+v", projectile)
 	}
 	ring := spec.components[1]
-	if ring.kind != effectPrimitiveCylinder || ring.textureName != "ring_blue" || ring.delay != 500*time.Millisecond || ring.duration != 1000*time.Millisecond {
+	if ring.kind != effectComponentCylinder || ring.textureName != "ring_blue" || ring.delay != 500*time.Millisecond || ring.duration != 1000*time.Millisecond {
 		t.Fatalf("ring = %+v", ring)
 	}
 	if ring.bottomSize != 3 || ring.topSize != 5 || ring.animation != 4 {
@@ -973,7 +973,7 @@ func TestGroundSampleEffectSpecUsesMagicTargetPlane(t *testing.T) {
 		t.Fatalf("components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveGroundPlane || component.textureFile != "effect/magic_target.tga" || component.sizeStart != 1 {
+	if component.kind != effectComponentFUNC || component.funcAdapter != effectFuncGroundSample || component.funcName != "MagicTarget" || component.textureFile != "effect/magic_target.tga" || component.sizeStart != 1 {
 		t.Fatalf("component = %+v", component)
 	}
 }
@@ -987,7 +987,7 @@ func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
 		t.Fatalf("components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveCastRing || component.textureName != "ring_yellow" {
+	if component.kind != effectComponentFUNC || component.funcAdapter != effectFuncCastRing || component.funcName != "CastRing" || component.textureName != "ring_yellow" {
 		t.Fatalf("component = %+v", component)
 	}
 	if component.bottomSize != 0.8 || component.topSize != 2.45 || component.height != 2.8 {
@@ -1267,6 +1267,14 @@ func TestWarpEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "Fly Wing item", itemUseEffectIDs(601))
 }
 
+func TestSkillUnitEffectMappings(t *testing.T) {
+	expectEffectIDs(t, "UNT_SAFETYWALL", skillUnitEffectIDs(126), effectSafetyWall)
+	expectEffectIDs(t, "UNT_FIREWALL", skillUnitEffectIDs(127), effectFireWall)
+	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
+	expectEffectIDs(t, "UNT_PRE_WARPPORTAL", skillUnitEffectIDs(129))
+	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
+}
+
 func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectMagnumBreak)
 	if !ok {
@@ -1276,7 +1284,7 @@ func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {
 		t.Fatalf("components = %d, want 2", len(spec.components))
 	}
 	for i, component := range spec.components {
-		if component.kind != effectPrimitiveCylinder {
+		if component.kind != effectComponentCylinder {
 			t.Fatalf("component %d kind = %d, want cylinder", i, component.kind)
 		}
 		if component.fixedPerspective {
@@ -1318,7 +1326,7 @@ func TestEndureEffectSpecUsesBillboardTexture(t *testing.T) {
 		t.Fatalf("components = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveBillboard || component.textureFile != "effect\\endure.tga" {
+	if component.kind != effectComponentFUNC || component.funcAdapter != effectFuncBillboard || component.funcName != "Billboard" || component.textureFile != "effect\\endure.tga" {
 		t.Fatalf("component = %+v", component)
 	}
 	if !component.fadeIn || !component.fadeOut || !component.sizeSmooth {
@@ -1352,7 +1360,7 @@ func TestTeleportationEffectSpecUsesRobrowserCylinderStack(t *testing.T) {
 	}
 	for i, want := range expected {
 		component := spec.components[i]
-		if component.kind != effectPrimitiveCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond {
 			t.Fatalf("component %d = %+v", i, component)
 		}
 		if component.bottomSize != want.bottom || component.topSize != want.top || component.height != want.height {
@@ -1376,7 +1384,7 @@ func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
 		t.Fatalf("components = %d, want 4", len(spec.components))
 	}
 	first := spec.components[0]
-	if first.kind != effectPrimitiveCylinder || first.textureName != "ring_blue" || first.duration != 500*time.Millisecond || first.animation != 4 {
+	if first.kind != effectComponentCylinder || first.textureName != "ring_blue" || first.duration != 500*time.Millisecond || first.animation != 4 {
 		t.Fatalf("first portal component = %+v", first)
 	}
 	if spec.components[3].textureName != "alpha1" || spec.components[3].posZ != 2 || spec.components[3].height != 1 {
@@ -1399,7 +1407,7 @@ func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
 		t.Fatalf("components = %d, want 4", len(spec.components))
 	}
 	for i, component := range spec.components[:2] {
-		if component.kind != effectPrimitiveCylinder || component.textureName != "ring_white" || component.animation != 1 {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_white" || component.animation != 1 {
 			t.Fatalf("component %d = %+v", i, component)
 		}
 		if component.duration != 1500*time.Millisecond || component.height != 8 || component.alphaMax != 0.2 {
@@ -1407,7 +1415,7 @@ func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
 		}
 	}
 	firstParticle := spec.components[2]
-	if firstParticle.kind != effectPrimitive3D || firstParticle.textureFile != "effect/pok3.tga" {
+	if firstParticle.kind != effectComponent3D || firstParticle.textureFile != "effect/pok3.tga" {
 		t.Fatalf("first heal particle = %+v", firstParticle)
 	}
 	if firstParticle.duration != 1300*time.Millisecond || firstParticle.delay != 400*time.Millisecond || firstParticle.duplicateDelay != 10*time.Millisecond || firstParticle.duplicate != 15 {
@@ -1423,7 +1431,7 @@ func TestHealEffectSpecUsesRobrowserCylinderAndParticleSubset(t *testing.T) {
 		t.Fatalf("first heal particle size = %+v", firstParticle)
 	}
 	secondParticle := spec.components[3]
-	if secondParticle.kind != effectPrimitive3D || secondParticle.textureFile != "effect/pok3.tga" {
+	if secondParticle.kind != effectComponent3D || secondParticle.textureFile != "effect/pok3.tga" {
 		t.Fatalf("second heal particle = %+v", secondParticle)
 	}
 	if secondParticle.duration != 1100*time.Millisecond || secondParticle.delay != 200*time.Millisecond || secondParticle.duplicateDelay != 50*time.Millisecond || secondParticle.duplicate != 7 {
@@ -1466,7 +1474,7 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	}
 	for _, tc := range particleCases {
 		component := spec.components[tc.index]
-		if component.kind != effectPrimitive3D || component.textureFile != "effect/ac_center2.tga" {
+		if component.kind != effectComponent3D || component.textureFile != "effect/ac_center2.tga" {
 			t.Fatalf("particle %d resource = %+v", tc.index, component)
 		}
 		if component.duration != 1000*time.Millisecond || component.delay != tc.delay || component.duplicateDelay != 80*time.Millisecond || component.duplicate != tc.duplicate {
@@ -1489,7 +1497,7 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 		}
 	}
 	overlay := spec.components[3]
-	if overlay.kind != effectPrimitive3D || overlay.textureFile != "effect/agi_up.bmp" {
+	if overlay.kind != effectComponent3D || overlay.textureFile != "effect/agi_up.bmp" {
 		t.Fatalf("overlay resource = %+v", overlay)
 	}
 	if overlay.duration != 1000*time.Millisecond || overlay.alphaMax != 1 || !overlay.fadeIn || !overlay.fadeOut {
@@ -1620,7 +1628,7 @@ func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
 	if !ok {
 		t.Fatal("base level-up effect spec missing")
 	}
-	if len(base.components) != 1 || base.components[0].kind != effectPrimitiveSTR || base.components[0].strFile != "angel" {
+	if len(base.components) != 1 || base.components[0].kind != effectComponentSTR || base.components[0].strFile != "angel" {
 		t.Fatalf("base level-up spec = %+v", base)
 	}
 	if len(base.sfx) != 1 || base.sfx[0] != "levelup.wav" {
@@ -1630,7 +1638,7 @@ func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
 	if !ok {
 		t.Fatal("job level-up effect spec missing")
 	}
-	if len(job.components) != 1 || job.components[0].kind != effectPrimitiveSTR || job.components[0].strFile != "joblvup" {
+	if len(job.components) != 1 || job.components[0].kind != effectComponentSTR || job.components[0].strFile != "joblvup" {
 		t.Fatalf("job level-up spec = %+v", job)
 	}
 	if len(job.sfx) != 0 {
@@ -3528,6 +3536,55 @@ func TestSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	}
 
 	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9001})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
+	}
+}
+
+func TestWarpPortalSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9003, CreatorID: 2000000, UnitID: 128, X: 30, Y: 40, Visible: true})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 9003 || effect.effectID != effectPortal || effect.x != 30 || effect.y != 40 {
+		t.Fatalf("effect = %+v", effect)
+	}
+
+	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9003})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
+	}
+}
+
+func TestSkillUnitEntryDispatchesAllMappedUnitEffectArrays(t *testing.T) {
+	const unitID uint16 = 65000
+	roBrowserSkillUnitEffects[unitID] = roBrowserSkillUnitEffect{effectIDs: []int{effectPneuma, effectSafetyWall}}
+	defer delete(roBrowserSkillUnitEffects, unitID)
+
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9004, CreatorID: 2000000, UnitID: unitID, X: 123, Y: 456, Visible: true})
+
+	want := []int{effectPneuma, effectSafetyWall}
+	if len(mode.worldEffects) != len(want) {
+		t.Fatalf("world effects = %d, want %d: %+v", len(mode.worldEffects), len(want), mode.worldEffects)
+	}
+	for i, wantEffectID := range want {
+		effect := mode.worldEffects[i]
+		if effect.actorID != 9004 || effect.effectID != wantEffectID || effect.x != 123 || effect.y != 456 {
+			t.Fatalf("effect %d = %+v, want effect %d on unit", i, effect, wantEffectID)
+		}
+	}
+
+	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9004})
 	if len(mode.worldEffects) != 0 {
 		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
 	}

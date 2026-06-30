@@ -107,18 +107,25 @@ const (
 	effectEnergyCoat    = 169
 )
 
-type effectPrimitiveKind int
+type roBrowserEffectComponentKind int
 
 const (
-	effectPrimitiveSTR effectPrimitiveKind = iota + 1
-	effectPrimitiveCylinder
-	effectPrimitiveBillboard
-	effectPrimitiveBashHit
-	effectPrimitive2D
-	effectPrimitive3D
-	effectPrimitiveSPR
-	effectPrimitiveGroundPlane
-	effectPrimitiveCastRing
+	effectComponentSTR roBrowserEffectComponentKind = iota + 1
+	effectComponentCylinder
+	effectComponent2D
+	effectComponent3D
+	effectComponentSPR
+	effectComponentFUNC
+)
+
+type roBrowserEffectFuncAdapter int
+
+const (
+	effectFuncUnknown roBrowserEffectFuncAdapter = iota
+	effectFuncBillboard
+	effectFuncBashHit
+	effectFuncGroundSample
+	effectFuncCastRing
 )
 
 type worldEffect struct {
@@ -140,7 +147,9 @@ type worldEffectSpec struct {
 }
 
 type worldEffectComponent struct {
-	kind             effectPrimitiveKind
+	kind             roBrowserEffectComponentKind
+	funcAdapter      roBrowserEffectFuncAdapter
+	funcName         string
 	color            color.RGBA
 	duration         time.Duration
 	delay            time.Duration
@@ -372,12 +381,15 @@ func (m *WorldMode) applySkillUnitEntry(ctx Context, entry network.SkillUnitEntr
 	if !entry.Visible {
 		return
 	}
-	effectID := skillUnitEffectID(entry.UnitID)
-	if effectID <= 0 {
+	effectIDs := skillUnitEffectIDs(entry.UnitID)
+	if len(effectIDs) == 0 {
 		return
 	}
-	if m.addWorldEffectAtCellWithActor(ctx, effectID, entry.ID, int(entry.X), int(entry.Y), time.Now()) {
-		log.Printf("skill unit effect unit=%d id=%d creator=%d cell=%d,%d effect=%d", entry.UnitID, entry.ID, entry.CreatorID, entry.X, entry.Y, effectID)
+	now := time.Now()
+	for _, effectID := range effectIDs {
+		if m.addWorldEffectAtCellWithActor(ctx, effectID, entry.ID, int(entry.X), int(entry.Y), now) {
+			log.Printf("skill unit effect unit=%d id=%d creator=%d cell=%d,%d effect=%d", entry.UnitID, entry.ID, entry.CreatorID, entry.X, entry.Y, effectID)
+		}
 	}
 }
 
@@ -835,17 +847,22 @@ func skillGroundEffectIDs(skillID uint16) []int {
 	return roBrowserSkillEffects[skillID].groundEffectIDs
 }
 
-func skillUnitEffectID(unitID uint16) int {
-	switch unitID {
-	case 126:
-		return effectSafetyWall
-	case 127:
-		return effectFireWall
-	case 133:
-		return effectPneuma
-	default:
-		return 0
-	}
+type roBrowserSkillUnitEffect struct {
+	effectIDs []int
+}
+
+// This mirrors roBrowser's DB/Skills/SkillUnit.js: unit id -> effect id.
+// Keep only effect IDs that Goro can render today; roBrowser maps unit 129 to
+// EF_READYPORTAL2, but that effect spec is not implemented here yet.
+var roBrowserSkillUnitEffects = map[uint16]roBrowserSkillUnitEffect{
+	126: {effectIDs: []int{effectSafetyWall}}, // UNT_SAFETYWALL -> EF_GLASSWALL2
+	127: {effectIDs: []int{effectFireWall}},   // UNT_FIREWALL -> EF_FIREWALL
+	128: {effectIDs: []int{effectPortal}},     // UNT_WARPPORTAL -> EF_PORTAL2
+	133: {effectIDs: []int{effectPneuma}},     // UNT_PNEUMA -> EF_PNEUMA
+}
+
+func skillUnitEffectIDs(unitID uint16) []int {
+	return roBrowserSkillUnitEffects[unitID].effectIDs
 }
 
 func skillCastAuraEffectID(property uint32) int {
@@ -915,7 +932,7 @@ func cloneWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
 
 func teleportCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {
 	return worldEffectComponent{
-		kind:             effectPrimitiveCylinder,
+		kind:             effectComponentCylinder,
 		textureName:      "ring_blue",
 		duration:         1500 * time.Millisecond,
 		alphaMax:         0.5,
@@ -932,7 +949,7 @@ func teleportCylinderComponent(bottomSize, topSize, height float64) worldEffectC
 
 func portalCylinderComponent(bottomSize, topSize, height, posZ float64, textureName string, alphaMax float64) worldEffectComponent {
 	return worldEffectComponent{
-		kind:             effectPrimitiveCylinder,
+		kind:             effectComponentCylinder,
 		textureName:      textureName,
 		duration:         25000 * time.Millisecond,
 		alphaMax:         alphaMax,
@@ -950,7 +967,7 @@ func portalCylinderComponent(bottomSize, topSize, height, posZ float64, textureN
 
 func healCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {
 	return worldEffectComponent{
-		kind:             effectPrimitiveCylinder,
+		kind:             effectComponentCylinder,
 		textureName:      "ring_white",
 		duration:         1500 * time.Millisecond,
 		alphaMax:         0.2,
@@ -988,7 +1005,7 @@ func strEffectSpecAttached(file, wav string, head bool) worldEffectSpec {
 func strEffectSpecRandomAttached(file, wav string, randMin, randMax int, attached, head bool) worldEffectSpec {
 	spec := worldEffectSpec{
 		components: []worldEffectComponent{{
-			kind:           effectPrimitiveSTR,
+			kind:           effectComponentSTR,
 			strFile:        file,
 			strRandMin:     randMin,
 			strRandMax:     randMax,
@@ -1013,7 +1030,7 @@ func potionEffectSpec(file string, c color.RGBA) worldEffectSpec {
 	return worldEffectSpec{
 		duration: 850 * time.Millisecond,
 		components: []worldEffectComponent{{
-			kind:    effectPrimitiveSTR,
+			kind:    effectComponentSTR,
 			color:   c,
 			strFile: file,
 		}},
@@ -1067,12 +1084,12 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx Context, projecti
 
 func (m *WorldMode) worldEffectResolvedComponentDuration(manager *res.Manager, spec worldEffectSpec, component worldEffectComponent) time.Duration {
 	duration := worldEffectComponentDuration(spec, component)
-	if component.kind == effectPrimitiveSTR {
+	if component.kind == effectComponentSTR {
 		if str := m.loadWorldEffectSTR(manager, resolveEffectSTRFile(component, worldEffect{}), component.texturePath); str != nil {
 			duration = strEffectDuration(str, duration)
 		}
 	}
-	if component.kind == effectPrimitiveSPR && component.duration <= 0 && !component.spriteRepeat {
+	if component.kind == effectComponentSPR && component.duration <= 0 && !component.spriteRepeat {
 		if view := m.effectSpriteView(manager, component.spriteFile); view != nil && len(view.act.Actions) > 0 {
 			actionIndex := component.spriteFrame
 			if actionIndex < 0 || actionIndex >= len(view.act.Actions) {
@@ -1105,26 +1122,33 @@ func worldEffectComponentProgress(starts time.Time, duration time.Duration, now 
 
 func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.kind {
-	case effectPrimitiveSTR:
+	case effectComponentSTR:
 		m.drawSTREffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
-	case effectPrimitiveCylinder:
+	case effectComponentCylinder:
 		m.drawCylinderEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress)
-	case effectPrimitiveBillboard:
-		m.drawBillboardEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
-	case effectPrimitiveBashHit:
-		m.drawBashHitWorldEffect(screen, ctx, component, componentIndex, effect, worldX, worldY, worldZ, now, progress)
-	case effectPrimitive2D:
+	case effectComponent2D:
 		m.draw2DEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
-	case effectPrimitive3D:
+	case effectComponent3D:
 		m.draw3DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, now)
-	case effectPrimitiveSPR:
+	case effectComponentSPR:
 		m.drawSPREffect(screen, ctx, projection, effect, component, worldX, worldY, worldZ, now)
-	case effectPrimitiveGroundPlane:
+	case effectComponentFUNC:
+		m.drawFuncEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
+	default:
+	}
+}
+
+func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+	switch component.funcAdapter {
+	case effectFuncBillboard:
+		m.drawBillboardEffect(screen, ctx, projection, component, worldX, worldY, worldZ, progress)
+	case effectFuncBashHit:
+		m.drawBashHitWorldEffect(screen, ctx, component, componentIndex, effect, worldX, worldY, worldZ, now, progress)
+	case effectFuncGroundSample:
 		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
-	case effectPrimitiveCastRing:
+	case effectFuncCastRing:
 		m.drawCastRingEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, progress)
 	default:
-		drawPotionEffect(screen, m.whitePixel, worldX, worldY, worldZ, progress, component.color)
 	}
 }
 
@@ -1150,13 +1174,6 @@ func (m *WorldMode) drawBashHitWorldEffect(screen *render.Image, ctx Context, co
 		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, i, progress, worldX, worldY, worldZ)
 		drawBashHitEffect(screen, m.whitePixel, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, progress, component.color)
 	}
-}
-
-func drawPotionEffect(screen, white *render.Image, x, y, z, progress float64, c color.RGBA) {
-	alpha := 1 - progress
-	drawWorldRadialGradient(screen, white, x, y, z, 0.02, 0.34+progress*0.18, withAlpha(c, alpha*0.30), 48)
-	drawWorldSoftRing(screen, white, x, y, z+0.01, 0.24+progress*0.52, 0.22, withAlpha(c, alpha*0.75), 48)
-	drawWorldCylinderBand(screen, white, nil, x, y, z+0.05+progress*0.55, 0.18+progress*0.08, 0.06, 0.22, withAlpha(c, alpha*0.40), 32)
 }
 
 func (m *WorldMode) drawCastRingEffect(screen *render.Image, ctx Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z, progress float64) {

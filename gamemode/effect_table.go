@@ -25,7 +25,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectFirefly: {
 		duration: 3 * time.Second,
 		components: []worldEffectComponent{{
-			kind:           effectPrimitive3D,
+			kind:           effectComponent3D,
 			spriteFile:     "data/sprite/\xC0\xCC\xC6\xD1\xC6\xAE/particle1",
 			spriteRepeat:   true,
 			duration:       3 * time.Second,
@@ -48,7 +48,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectTorch: {
 		duration: 24 * time.Hour,
 		components: []worldEffectComponent{{
-			kind:           effectPrimitive3D,
+			kind:           effectComponent3D,
 			spriteFile:     "torch_01",
 			spriteRepeat:   true,
 			duration:       600 * time.Millisecond,
@@ -69,7 +69,9 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectCastRing: {
 		duration: 900 * time.Millisecond,
 		components: []worldEffectComponent{{
-			kind:             effectPrimitiveCastRing,
+			kind:             effectComponentFUNC,
+			funcAdapter:      effectFuncCastRing,
+			funcName:         "CastRing",
 			textureName:      "ring_yellow",
 			duration:         900 * time.Millisecond,
 			alphaMax:         0.9,
@@ -88,7 +90,9 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectGroundSample: {
 		duration: 900 * time.Millisecond,
 		components: []worldEffectComponent{{
-			kind:        effectPrimitiveGroundPlane,
+			kind:        effectComponentFUNC,
+			funcAdapter: effectFuncGroundSample,
+			funcName:    "MagicTarget",
 			textureFile: "effect/magic_target.tga",
 			duration:    900 * time.Millisecond,
 			alphaMax:    0.9,
@@ -101,8 +105,10 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 280 * time.Millisecond,
 		sfx:      []string{"effect\\ef_hit2.wav"},
 		components: []worldEffectComponent{{
-			kind:  effectPrimitiveBashHit,
-			color: color.RGBA{R: 255, G: 248, B: 220, A: 255},
+			kind:        effectComponentFUNC,
+			funcAdapter: effectFuncBashHit,
+			funcName:    "BashHit",
+			color:       color.RGBA{R: 255, G: 248, B: 220, A: 255},
 		}},
 	},
 	effectSafetyWall: {
@@ -110,11 +116,11 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_glasswall.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:    effectPrimitiveSTR,
+				kind:    effectComponentSTR,
 				strFile: "safetywall",
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "alpha_down",
 				duration:         50 * time.Second,
 				alphaMax:         0.4,
@@ -129,7 +135,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				color:            color.RGBA{R: 128, G: 25, B: 128, A: 255},
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "alpha_down",
 				duration:         50 * time.Second,
 				delay:            50 * time.Millisecond,
@@ -145,7 +151,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				color:            color.RGBA{R: 128, G: 25, B: 128, A: 255},
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "alpha_down",
 				duration:         50 * time.Second,
 				delay:            100 * time.Millisecond,
@@ -168,7 +174,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_sight.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "ring_blue",
 				duration:         900 * time.Millisecond,
 				duplicateDelay:   800 * time.Millisecond,
@@ -184,7 +190,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				duplicate:        10,
 			},
 			{
-				kind:             effectPrimitive3D,
+				kind:             effectComponent3D,
 				spriteFile:       "sight",
 				spriteRepeat:     true,
 				duration:         12200 * time.Millisecond,
@@ -216,7 +222,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_soulstrike.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:            effectPrimitive3D,
+				kind:            effectComponent3D,
 				color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
 				textureFile:     "effect/pok3.tga",
 				duration:        200 * time.Millisecond,
@@ -234,7 +240,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				sizeEnd:         50 * roBrowserEffectPixelRatio,
 			},
 			{
-				kind:           effectPrimitive3D,
+				kind:           effectComponent3D,
 				spriteFile:     "data/sprite/\xC0\xCC\xC6\xD1\xC6\xAE/particle1",
 				spriteRepeat:   true,
 				duration:       250 * time.Millisecond,
@@ -254,7 +260,9 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 1000 * time.Millisecond,
 		sfx:      []string{"effect\\ef_endure.wav"},
 		components: []worldEffectComponent{{
-			kind:        effectPrimitiveBillboard,
+			kind:        effectComponentFUNC,
+			funcAdapter: effectFuncBillboard,
+			funcName:    "Billboard",
 			textureFile: "effect\\endure.tga",
 			duration:    1000 * time.Millisecond,
 			alphaMax:    1,
@@ -271,7 +279,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_bash.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "alpha_down",
 				duration:         1000 * time.Millisecond,
 				alphaMax:         0.6,
@@ -286,7 +294,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				circleSides:      20,
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "alpha_center",
 				duration:         1000 * time.Millisecond,
 				alphaMax:         0.6,
@@ -303,7 +311,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				angleZRandom:     360,
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "alpha_center",
 				duration:         1000 * time.Millisecond,
 				alphaMax:         0.6,
@@ -325,7 +333,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 900 * time.Millisecond,
 		sfx:      []string{"effect\\swordman_provoke.wav"},
 		components: []worldEffectComponent{{
-			kind:    effectPrimitiveSTR,
+			kind:    effectComponentSTR,
 			color:   color.RGBA{R: 255, G: 70, B: 42, A: 255},
 			strFile: "provoke",
 		}},
@@ -335,7 +343,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_magnumbreak.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "ring_yellow",
 				duration:         300 * time.Millisecond,
 				alphaMax:         0.7,
@@ -349,7 +357,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				circleSides:      32,
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "\xb4\xeb\xc6\xf8\xb9\xdf",
 				duration:         300 * time.Millisecond,
 				alphaMax:         0.6,
@@ -368,7 +376,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 500 * time.Millisecond,
 		sfx:      []string{"effect\\ef_steal.wav"},
 		components: []worldEffectComponent{{
-			kind:          effectPrimitive3D,
+			kind:          effectComponent3D,
 			color:         color.RGBA{R: 255, G: 255, B: 216, A: 255},
 			textureFile:   "effect/pok1.tga",
 			duration:      500 * time.Millisecond,
@@ -387,7 +395,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 1000 * time.Millisecond,
 		sfx:      []string{"effect\\ef_detoxication.wav"},
 		components: []worldEffectComponent{{
-			kind:        effectPrimitive3D,
+			kind:        effectComponent3D,
 			color:       color.RGBA{R: 255, G: 178, B: 255, A: 255},
 			textureFile: "effect/pok1.tga",
 			duration:    1000 * time.Millisecond,
@@ -407,7 +415,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 1000 * time.Millisecond,
 		sfx:      []string{"effect\\ef_detoxication.wav"},
 		components: []worldEffectComponent{{
-			kind:        effectPrimitive3D,
+			kind:        effectComponent3D,
 			color:       color.RGBA{R: 178, G: 255, B: 255, A: 255},
 			textureFile: "effect/pok1.tga",
 			duration:    1000 * time.Millisecond,
@@ -429,7 +437,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_icearrow1.wav", "effect\\ef_icearrow2.wav", "effect\\ef_icearrow3.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:            effectPrimitive3D,
+				kind:            effectComponent3D,
 				textureFile:     "effect/icearrow.tga",
 				duration:        500 * time.Millisecond,
 				alphaMax:        1,
@@ -447,7 +455,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				angleEnd:        112.5,
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "ring_blue",
 				duration:         1000 * time.Millisecond,
 				delay:            500 * time.Millisecond,
@@ -468,7 +476,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 500 * time.Millisecond,
 		sfx:      []string{"effect\\ef_firearrow1.wav", "effect\\ef_firearrow2.wav", "effect\\ef_firearrow3.wav"},
 		components: []worldEffectComponent{{
-			kind: effectPrimitive3D,
+			kind: effectComponent3D,
 			textureFiles: []string{
 				"effect/\xba\xd2\xc8\xad\xbb\xec1.tga",
 				"effect/\xba\xd2\xc8\xad\xbb\xec2.tga",
@@ -500,7 +508,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 410 * time.Millisecond,
 		sfx:      []string{"effect\\ef_fireball.wav"},
 		components: []worldEffectComponent{{
-			kind:             effectPrimitive3D,
+			kind:             effectComponent3D,
 			spriteFile:       "fireball",
 			spriteRepeat:     true,
 			toSrc:            true,
@@ -521,7 +529,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 450 * time.Millisecond,
 		sfx:      []string{"effect\\ef_frostdiver.wav"},
 		components: []worldEffectComponent{{
-			kind:        effectPrimitive3D,
+			kind:        effectComponent3D,
 			textureFile: "effect/ice.tga",
 			duration:    450 * time.Millisecond,
 			toSrc:       true,
@@ -539,12 +547,12 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectLightningBolt: {
 		components: []worldEffectComponent{
 			{
-				kind:           effectPrimitiveSTR,
+				kind:           effectComponentSTR,
 				strFile:        "lightning",
 				attachedEntity: true,
 			},
 			{
-				kind:           effectPrimitiveSTR,
+				kind:           effectComponentSTR,
 				strFile:        "windhit%d",
 				strRandMin:     1,
 				strRandMax:     3,
@@ -561,7 +569,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			incAgilityParticleComponent(0.75, 400*time.Millisecond, 3),
 			incAgilityParticleComponent(1, 0, 10),
 			{
-				kind:        effectPrimitive3D,
+				kind:        effectComponent3D,
 				color:       color.RGBA{R: 255, G: 255, B: 255, A: 255},
 				textureFile: "effect/agi_up.bmp",
 				duration:    1000 * time.Millisecond,
@@ -580,7 +588,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectAqua: {
 		sfx: []string{"effect\\ef_aqua.wav"},
 		components: []worldEffectComponent{{
-			kind:       effectPrimitiveSPR,
+			kind:       effectComponentSPR,
 			spriteFile: "\xBC\xBA\xBC\xF6\xB6\xDF\xB1\xE2",
 			spriteHead: true,
 		}},
@@ -592,7 +600,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_blessing.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:          effectPrimitiveSPR,
+				kind:          effectComponentSPR,
 				spriteFile:    "\xC3\xE0\xBA\xB9",
 				duration:      1500 * time.Millisecond,
 				spriteDelay:   30 * time.Millisecond,
@@ -601,7 +609,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				spriteYOffset: -120,
 			},
 			{
-				kind:            effectPrimitive3D,
+				kind:            effectComponent3D,
 				spriteFile:      "particle6",
 				duration:        1200 * time.Millisecond,
 				delay:           300 * time.Millisecond,
@@ -620,7 +628,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				sizeEnd:         50 * roBrowserEffectPixelRatio,
 			},
 			{
-				kind:            effectPrimitive3D,
+				kind:            effectComponent3D,
 				spriteFile:      "particle6",
 				duration:        1200 * time.Millisecond,
 				delay:           400 * time.Millisecond,
@@ -639,7 +647,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				sizeEnd:         50 * roBrowserEffectPixelRatio,
 			},
 			{
-				kind:          effectPrimitive3D,
+				kind:          effectComponent3D,
 				color:         color.RGBA{R: 25, G: 191, B: 255, A: 255},
 				textureFile:   "effect/pok2.tga",
 				duration:      2500 * time.Millisecond,
@@ -656,7 +664,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectFireSplashHit: {
 		duration: 500 * time.Millisecond,
 		components: []worldEffectComponent{{
-			kind:        effectPrimitive2D,
+			kind:        effectComponent2D,
 			textureFile: "effect/firering.tga",
 			duration:    500 * time.Millisecond,
 			fadeOut:     true,
@@ -689,7 +697,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		sfx:      []string{"effect\\ef_readyportal.wav", "effect\\ef_portal.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "ring_blue",
 				duration:         500 * time.Millisecond,
 				alphaMax:         0.4,
@@ -706,7 +714,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			portalCylinderComponent(0.6, 0.6, 15, 0, "ring_blue", 0.3),
 			portalCylinderComponent(0.8, 0.8, 13, 0, "ring_blue", 0.3),
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      "alpha1",
 				duration:         25000 * time.Millisecond,
 				alphaMax:         0.5,
@@ -731,7 +739,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			healCylinderComponent(0.95, 0.95, 8),
 			healCylinderComponent(1.0, 1.0, 8),
 			{
-				kind:           effectPrimitive3D,
+				kind:           effectComponent3D,
 				color:          color.RGBA{R: 255, G: 255, B: 255, A: 255},
 				textureFile:    "effect/pok3.tga",
 				duration:       1300 * time.Millisecond,
@@ -751,7 +759,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 				blendAdditive:  true,
 			},
 			{
-				kind:           effectPrimitive3D,
+				kind:           effectComponent3D,
 				color:          color.RGBA{R: 255, G: 255, B: 255, A: 255},
 				textureFile:    "effect/pok3.tga",
 				duration:       1100 * time.Millisecond,
@@ -784,13 +792,13 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		duration: 1300 * time.Millisecond,
 		sfx:      []string{"levelup.wav"},
 		components: []worldEffectComponent{{
-			kind:    effectPrimitiveSTR,
+			kind:    effectComponentSTR,
 			strFile: "angel",
 		}},
 	},
 	effectJobLevelUp: {
 		components: []worldEffectComponent{{
-			kind:           effectPrimitiveSTR,
+			kind:           effectComponentSTR,
 			strFile:        "joblvup",
 			attachedEntity: true,
 		}},
@@ -804,7 +812,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectFood: {
 		duration: 850 * time.Millisecond,
 		components: []worldEffectComponent{{
-			kind:    effectPrimitiveSTR,
+			kind:    effectComponentSTR,
 			color:   color.RGBA{R: 255, G: 182, B: 86, A: 255},
 			strFile: "fruit",
 		}},
@@ -812,7 +820,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectFoodBlue: {
 		duration: 850 * time.Millisecond,
 		components: []worldEffectComponent{{
-			kind:    effectPrimitiveSTR,
+			kind:    effectComponentSTR,
 			color:   color.RGBA{R: 132, G: 112, B: 255, A: 255},
 			strFile: "fruit",
 		}},
@@ -843,7 +851,7 @@ func castAuraEffectSpec(texture string, tint color.RGBA, alphaMax, height, topSi
 		duration: 900 * time.Millisecond,
 		sfx:      []string{"effect\\ef_beginspell.wav"},
 		components: []worldEffectComponent{{
-			kind:             effectPrimitiveCylinder,
+			kind:             effectComponentCylinder,
 			textureName:      texture,
 			duration:         900 * time.Millisecond,
 			alphaMax:         alphaMax,
@@ -866,7 +874,7 @@ func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float
 		sfx:      []string{"effect\\ef_beginspell.wav"},
 		components: []worldEffectComponent{
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      texture,
 				duration:         900 * time.Millisecond,
 				alphaMax:         0.3,
@@ -881,7 +889,7 @@ func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float
 				color:            tint,
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      texture,
 				duration:         900 * time.Millisecond,
 				alphaMax:         alphaMax,
@@ -896,7 +904,7 @@ func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float
 				color:            tint,
 			},
 			{
-				kind:             effectPrimitiveCylinder,
+				kind:             effectComponentCylinder,
 				textureName:      texture,
 				duration:         900 * time.Millisecond,
 				alphaMax:         alphaMax,
@@ -922,7 +930,7 @@ func bluePotionEffectSpec() worldEffectSpec {
 
 func incAgilityParticleComponent(alpha float64, delay time.Duration, duplicate int) worldEffectComponent {
 	return worldEffectComponent{
-		kind:            effectPrimitive3D,
+		kind:            effectComponent3D,
 		color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
 		textureFile:     "effect/ac_center2.tga",
 		duration:        1000 * time.Millisecond,

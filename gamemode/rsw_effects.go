@@ -49,7 +49,7 @@ func (m *WorldMode) drawRSWEffect(screen *render.Image, ctx Context, projection 
 }
 
 func mapEffectComponent(component worldEffectComponent) worldEffectComponent {
-	if component.kind == effectPrimitive3D && component.spriteFile != "" {
+	if component.kind == effectComponent3D && component.spriteFile != "" {
 		component.worldSizedSprite = true
 	}
 	return component

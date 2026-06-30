@@ -35,7 +35,7 @@ export default {
 		t.Fatalf("effect 158 component count = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveSTR || component.strFile != "joblvup" {
+	if component.kind != effectComponentSTR || component.strFile != "joblvup" {
 		t.Fatalf("effect 158 component = %#v, want STR joblvup", component)
 	}
 	if !component.attachedEntity || !component.spriteHead {
@@ -80,7 +80,7 @@ export default {
 		t.Fatalf("effect 304 component count = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveCylinder || component.textureName != "ring_blue" {
+	if component.kind != effectComponentCylinder || component.textureName != "ring_blue" {
 		t.Fatalf("effect 304 component = %#v, want ring_blue cylinder", component)
 	}
 	if component.alphaMax != 0.5 || !component.fade || !component.rotate || component.animation != 5 {
@@ -121,7 +121,7 @@ export default {
 		t.Fatalf("effect 49 component count = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveSTR || component.strFile != "firehit%d" || component.strRandMin != 1 || component.strRandMax != 3 {
+	if component.kind != effectComponentSTR || component.strFile != "firehit%d" || component.strRandMin != 1 || component.strRandMax != 3 {
 		t.Fatalf("effect 49 component = %#v", component)
 	}
 }
@@ -158,7 +158,7 @@ export default {
 		t.Fatalf("effect 50 component count = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitive2D || component.textureFile != "effect/firering.tga" {
+	if component.kind != effectComponent2D || component.textureFile != "effect/firering.tga" {
 		t.Fatalf("effect 50 component = %#v", component)
 	}
 	if component.sizeStart != 10*roBrowserEffectPixelRatio || component.sizeEnd != 300*roBrowserEffectPixelRatio {
@@ -232,7 +232,7 @@ export default {
 		t.Fatalf("effect 18 component count = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitive3D || component.textureFile != "effect/pok1.tga" {
+	if component.kind != effectComponent3D || component.textureFile != "effect/pok1.tga" {
 		t.Fatalf("effect 18 component = %#v", component)
 	}
 	if component.delay != 70*time.Millisecond || component.duplicateDelay != 20*time.Millisecond || component.duplicate != 7 {
@@ -298,7 +298,7 @@ export default {
 	}
 	component := spec.components[0]
 	wantSprite := fieldString(map[string]string{"sprite": `'data/sprite/\xc0\xcc\xc6\xd1\xc6\xae/particle1'`}, "sprite")
-	if component.kind != effectPrimitive3D || component.spriteFile != wantSprite {
+	if component.kind != effectComponent3D || component.spriteFile != wantSprite {
 		t.Fatalf("effect 15 sprite component = %#v", component)
 	}
 	if !component.spriteRepeat || component.duration != 250*time.Millisecond || component.duplicate != 5 || component.duplicateDelay != 20*time.Millisecond {
@@ -347,7 +347,7 @@ export default {
 		t.Fatalf("effect 42 component count = %d, want 1", len(spec.components))
 	}
 	component := spec.components[0]
-	if component.kind != effectPrimitiveSPR || component.spriteFile != "\xC3\xE0\xBA\xB9" {
+	if component.kind != effectComponentSPR || component.spriteFile != "\xC3\xE0\xBA\xB9" {
 		t.Fatalf("effect 42 component = %#v", component)
 	}
 	if component.duration != 1500*time.Millisecond || component.spriteDelay != 30*time.Millisecond {
@@ -355,6 +355,47 @@ export default {
 	}
 	if !component.spriteRepeat || !component.spriteHead || component.spriteYOffset != -120 {
 		t.Fatalf("effect 42 sprite flags = %#v", component)
+	}
+}
+
+func TestParseRobrowserEffectTableSubsetParsesFUNC(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	513: [
+		{
+			type: 'FUNC',
+			attachedEntity: false,
+			func: function (Params) {
+				this.add(new MagicTarget(Params.Init.skillId), Params);
+			}
+		}
+	],
+	60: [
+		{
+			type: 'FUNC',
+			attachedEntity: true,
+			func: LockOnTarget
+		}
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ground, ok := specs[effectGroundSample]
+	if !ok {
+		t.Fatal("effect 513 was not parsed")
+	}
+	if len(ground.components) != 1 {
+		t.Fatalf("effect 513 component count = %d, want 1", len(ground.components))
+	}
+	component := ground.components[0]
+	if component.kind != effectComponentFUNC || component.funcAdapter != effectFuncGroundSample || component.funcName != "MagicTarget" || component.attachedEntity {
+		t.Fatalf("effect 513 component = %#v", component)
+	}
+	lockOn := specs[60].components[0]
+	if lockOn.kind != effectComponentFUNC || lockOn.funcAdapter != effectFuncUnknown || lockOn.funcName != "LockOnTarget" || !lockOn.attachedEntity {
+		t.Fatalf("effect 60 component = %#v", lockOn)
 	}
 }
 
@@ -410,7 +451,7 @@ func TestParseRobrowserEffectTableRealFileWhenAvailable(t *testing.T) {
 	if len(job.sfx) != 0 {
 		t.Fatalf("EF_JOBLVUP sfx = %v, want none", job.sfx)
 	}
-	if len(job.components) != 1 || job.components[0].kind != effectPrimitiveSTR || job.components[0].strFile != "joblvup" {
+	if len(job.components) != 1 || job.components[0].kind != effectComponentSTR || job.components[0].strFile != "joblvup" {
 		t.Fatalf("EF_JOBLVUP component = %#v", job.components)
 	}
 	teleport, ok := specs[effectTeleportation]

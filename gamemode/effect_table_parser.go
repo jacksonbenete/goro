@@ -12,6 +12,7 @@ import (
 
 var effectObjectFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|-?\d+(?:\.\d+)?|true|false|null)`)
 var effectObjectArrayFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]`)
+var effectObjectIdentifierFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)`)
 
 const roBrowserEffectPixelRatio = 1.0 / 35.0
 
@@ -174,7 +175,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 		}
 		randMin, randMax := fieldIntPair(fields, "rand")
 		return worldEffectComponent{
-			kind:           effectPrimitiveSTR,
+			kind:           effectComponentSTR,
 			strFile:        file,
 			strRandMin:     randMin,
 			strRandMax:     randMax,
@@ -185,7 +186,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 		}, sfx, true
 	case "CYLINDER":
 		component := worldEffectComponent{
-			kind:             effectPrimitiveCylinder,
+			kind:             effectComponentCylinder,
 			textureName:      fieldString(fields, "textureName"),
 			duration:         fieldDuration(fields, "duration"),
 			alphaMax:         fieldFloat(fields, "alphaMax"),
@@ -240,7 +241,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			angleEnd = angleStart + fieldFloat(fields, "angleDelta")
 		}
 		return worldEffectComponent{
-			kind:        effectPrimitive2D,
+			kind:        effectComponent2D,
 			textureFile: file,
 			duration:    fieldDuration(fields, "duration"),
 			alphaMax:    fieldFloat(fields, "alphaMax"),
@@ -264,7 +265,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 		}
 		sizeStart, sizeEnd := effectSizeFields(fields)
 		return worldEffectComponent{
-			kind:             effectPrimitive3D,
+			kind:             effectComponent3D,
 			color:            effectColorFields(fields),
 			textureFile:      file,
 			spriteFile:       spriteFile,
@@ -338,7 +339,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			return worldEffectComponent{}, sfx, false
 		}
 		return worldEffectComponent{
-			kind:            effectPrimitiveSPR,
+			kind:            effectComponentSPR,
 			spriteFile:      file,
 			duration:        fieldDuration(fields, "duration"),
 			delay:           fieldDuration(fields, "delayOffset") + fieldDuration(fields, "delayLate"),
@@ -350,6 +351,15 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			spriteDelay:     fieldDuration(fields, "delayFrame"),
 			spriteXOffset:   fieldFloat(fields, "xOffset"),
 			spriteYOffset:   fieldFloat(fields, "yOffset"),
+		}, sfx, true
+	case "FUNC":
+		funcName, adapter := roBrowserFuncAdapter(object, fields)
+		return worldEffectComponent{
+			kind:           effectComponentFUNC,
+			funcAdapter:    adapter,
+			funcName:       funcName,
+			attachedEntity: fieldBool(fields, "attachedEntity"),
+			duration:       fieldDuration(fields, "duration"),
 		}, sfx, true
 	default:
 		return worldEffectComponent{}, sfx, false
@@ -370,7 +380,29 @@ func parseJSObjectFields(object string) map[string]string {
 		}
 		out[match[1]] = match[2] + "," + match[3]
 	}
+	for _, match := range effectObjectIdentifierFieldPattern.FindAllStringSubmatch(object, -1) {
+		if len(match) != 3 {
+			continue
+		}
+		if _, exists := out[match[1]]; exists {
+			continue
+		}
+		out[match[1]] = match[2]
+	}
 	return out
+}
+
+func roBrowserFuncAdapter(object string, fields map[string]string) (string, roBrowserEffectFuncAdapter) {
+	funcName := fieldIdentifier(fields, "func")
+	if strings.Contains(object, "MagicTarget") {
+		return "MagicTarget", effectFuncGroundSample
+	}
+	switch funcName {
+	case "MagicTarget":
+		return funcName, effectFuncGroundSample
+	default:
+		return funcName, effectFuncUnknown
+	}
 }
 
 func fieldString(fields map[string]string, key string) string {
@@ -389,6 +421,21 @@ func fieldString(fields map[string]string, key string) string {
 		return inner
 	}
 	return out
+}
+
+func fieldIdentifier(fields map[string]string, key string) string {
+	value, ok := fields[key]
+	if !ok {
+		return ""
+	}
+	if decoded := fieldString(fields, key); decoded != "" {
+		return decoded
+	}
+	value = strings.TrimSpace(value)
+	if value == "function" || value == "null" || value == "true" || value == "false" {
+		return ""
+	}
+	return value
 }
 
 func fieldFloat(fields map[string]string, key string) float64 {

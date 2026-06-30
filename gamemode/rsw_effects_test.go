@@ -27,7 +27,7 @@ func TestLoopingRSWEffectStartUsesDelayPhase(t *testing.T) {
 
 func TestMapEffectComponentUsesWorldSizedSpriteWithoutChangingPlacement(t *testing.T) {
 	component := worldEffectComponent{
-		kind:       effectPrimitive3D,
+		kind:       effectComponent3D,
 		spriteFile: "torch_01",
 		posX:       0.1,
 		posY:       -0.2,
