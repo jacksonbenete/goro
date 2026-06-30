@@ -1725,6 +1725,26 @@ func TestDecreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	}
 }
 
+func TestAngelusEffectSpecUsesRobrowserSTR(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectAngelus)
+	if !ok {
+		t.Fatal("angelus effect spec missing")
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_angelus.wav" {
+		t.Fatalf("sfx = %#v", spec.sfx)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectComponentSTR || component.strFile != "angelus" || component.strMinFile != "jong_mini" {
+		t.Fatalf("STR resource = %+v", component)
+	}
+	if !component.attachedEntity || !component.spriteHead {
+		t.Fatalf("STR attachment flags = %+v", component)
+	}
+}
+
 func TestBlessingEffectSpecUsesRobrowserSpritesAndParticles(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectBlessing)
 	if !ok {

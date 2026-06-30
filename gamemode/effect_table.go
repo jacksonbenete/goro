@@ -163,7 +163,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			},
 		},
 	},
-	effectMammonite: strEffectSpecAttached("maemor", "effect\\ef_coin2.wav", false),
+	effectMammonite: strEffectSpecAttachedMin("maemor", "memor_min", "effect\\ef_coin2.wav", false),
 	effectSight: {
 		duration: 12200 * time.Millisecond,
 		sfx:      []string{"effect\\ef_sight.wav"},
@@ -617,7 +617,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		}},
 	},
 	effectSignum:  strEffectSpecAttached("cross", "effect\\ef_signum.wav", false),
-	effectAngelus: strEffectSpecAttached("angelus", "effect\\ef_angelus.wav", true),
+	effectAngelus: strEffectSpecAttachedMin("angelus", "jong_mini", "effect\\ef_angelus.wav", true),
 	effectBlessing: {
 		duration: 2500 * time.Millisecond,
 		sfx:      []string{"effect\\ef_blessing.wav"},
@@ -702,7 +702,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	},
 	effectColdHit:       soundOnlyEffectSpec("_hit_fist3.wav", "_hit_fist4.wav"),
 	effectWindHit:       strEffectSpecRandom("windhit%d", "", 1, 3),
-	effectCure:          strEffectSpecAttached("cure", "effect\\acolyte_cure.wav", false),
+	effectCure:          strEffectSpecAttachedMin("cure", "cure_min", "effect\\acolyte_cure.wav", false),
 	effectConcentration: strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
 	effectRefineOK:      strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
 	effectRefineFail:    strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),

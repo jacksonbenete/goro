@@ -177,6 +177,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 		return worldEffectComponent{
 			kind:           effectComponentSTR,
 			strFile:        file,
+			strMinFile:     fieldString(fields, "min"),
 			strRandMin:     randMin,
 			strRandMax:     randMax,
 			attachedEntity: fieldBool(fields, "attachedEntity"),

@@ -158,6 +158,7 @@ type worldEffectComponent struct {
 	delay              time.Duration
 	duplicateDelay     time.Duration
 	strFile            string
+	strMinFile         string
 	strRandMin         int
 	strRandMax         int
 	attachedEntity     bool
@@ -1094,6 +1095,12 @@ func strEffectSpecRandom(file, wav string, randMin, randMax int) worldEffectSpec
 
 func strEffectSpecAttached(file, wav string, head bool) worldEffectSpec {
 	return strEffectSpecRandomAttached(file, wav, 0, 0, true, head)
+}
+
+func strEffectSpecAttachedMin(file, minFile, wav string, head bool) worldEffectSpec {
+	spec := strEffectSpecAttached(file, wav, head)
+	spec.components[0].strMinFile = minFile
+	return spec
 }
 
 func strEffectSpecRandomAttached(file, wav string, randMin, randMax int, attached, head bool) worldEffectSpec {

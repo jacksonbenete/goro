@@ -126,6 +126,40 @@ export default {
 	}
 }
 
+func TestParseRobrowserEffectTableSubsetParsesSTRMinFile(t *testing.T) {
+	specs, err := parseRobrowserEffectTableSubset(`
+export default {
+	41: [
+		{
+			type: 'STR',
+			file: 'angelus',
+			min: 'jong_mini',
+			wav: 'effect/ef_angelus',
+			head: true,
+			attachedEntity: true
+		}
+	],
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, ok := specs[41]
+	if !ok {
+		t.Fatal("effect 41 was not parsed")
+	}
+	if !slices.Equal(spec.sfx, []string{`effect\ef_angelus.wav`}) {
+		t.Fatalf("effect 41 sfx = %v", spec.sfx)
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("effect 41 component count = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectComponentSTR || component.strFile != "angelus" || component.strMinFile != "jong_mini" || !component.spriteHead || !component.attachedEntity {
+		t.Fatalf("effect 41 component = %#v", component)
+	}
+}
+
 func TestParseRobrowserEffectTableSubsetParses2D(t *testing.T) {
 	specs, err := parseRobrowserEffectTableSubset(`
 export default {
