@@ -91,10 +91,11 @@ type humanoidBillboardKey struct {
 }
 
 type singleSpriteBillboardKey struct {
-	actionIndex int
-	motion      int
-	anchorX     float64
-	anchorY     float64
+	actionIndex       int
+	motion            int
+	anchorX           float64
+	anchorY           float64
+	ignoreLayerAngles bool
 }
 
 type spriteBillboard struct {
@@ -518,10 +519,66 @@ func drawSpriteBillboardTintAlpha3D(screen *render.Image, projection sceneProjec
 	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
 }
 
+func drawSpriteBillboardTintAlphaRotated3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, angle float64, alpha float64, shadow float64, tintColor color.RGBA) {
+	drawSpriteBillboardTintAlphaRotated3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
+}
+
 func drawSpriteBillboardTintAlphaOverlay3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
 	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, &render.DrawTrianglesOptions{
 		Filter:  spriteDrawFilter(),
 		Address: render.AddressClampToZero,
+	})
+}
+
+func drawSpriteBillboardTintAlphaRotated3DWithOptions(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	if alpha < 0 || math.IsNaN(alpha) {
+		alpha = 0
+	}
+	if alpha > 1 || math.IsInf(alpha, 0) {
+		alpha = 1
+	}
+	if shadow < 0 || math.IsNaN(shadow) {
+		shadow = 0
+	}
+	if shadow > 1 || math.IsInf(shadow, 0) {
+		shadow = 1
+	}
+	tintR := float64(tintColor.R) / 255 * shadow
+	tintG := float64(tintColor.G) / 255 * shadow
+	tintB := float64(tintColor.B) / 255 * shadow
+	tintA := float64(tintColor.A) / 255 * alpha
+	right, up, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
+	if !ok {
+		return
+	}
+	bounds := billboard.image.Bounds()
+	w := float64(bounds.Dx())
+	h := float64(bounds.Dy())
+	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
+	tint := colorRGBAFromFloats(tintR, tintG, tintB, tintA)
+	axisScale := scale * unitsPerPixel
+	sinA, cosA := math.Sin(angle), math.Cos(angle)
+	rightAxis := add3(mul3(right, cosA*axisScale), mul3(up, sinA*axisScale))
+	upAxis := add3(mul3(right, sinA*axisScale), mul3(up, -cosA*axisScale))
+	screen.DrawWorldBillboard(render.WorldBillboardCommand{
+		Texture:     billboard.image,
+		Options:     *options,
+		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
+		RightAxis:   [3]float32{float32(rightAxis.x), float32(rightAxis.y), float32(rightAxis.z)},
+		UpAxis:      [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
+		DepthUpAxis: [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
+		Width:       float32(w),
+		Height:      float32(h),
+		AnchorX:     float32(billboard.anchorX),
+		AnchorY:     float32(billboard.anchorY),
+		ColorR:      float32(tint.R) / 255,
+		ColorG:      float32(tint.G) / 255,
+		ColorB:      float32(tint.B) / 255,
+		ColorA:      float32(tint.A) / 255,
+		DepthBias:   options.DepthBias,
 	})
 }
 
@@ -865,6 +922,10 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 }
 
 func composeSingleSpriteBillboard(view *playerSpriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
+	return composeSingleSpriteBillboardWithOptions(view, anim, false)
+}
+
+func composeSingleSpriteBillboardWithOptions(view *playerSpriteView, anim res.ACTAnimation, ignoreLayerAngles bool) (*spriteBillboard, bool) {
 	minX, minY, maxX, maxY, ok := spriteAnimationLayerBounds(view, anim)
 	if !ok {
 		return nil, false
@@ -882,7 +943,7 @@ func composeSingleSpriteBillboard(view *playerSpriteView, anim res.ACTAnimation)
 	target := render.NewImage(width, height)
 	anchorX := -minX
 	anchorY := -minY
-	if !drawSpriteAnimation(target, view, anim, anchorX, anchorY, 0, 0) {
+	if !drawSpriteAnimationWithOptions(target, view, anim, anchorX, anchorY, 0, 0, ignoreLayerAngles) {
 		return nil, false
 	}
 	return &spriteBillboard{
@@ -1375,6 +1436,10 @@ func isTransientPCAction(actionFamily int) bool {
 }
 
 func drawSpriteAnimation(target *render.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) bool {
+	return drawSpriteAnimationWithOptions(target, view, anim, anchorX, anchorY, posX, posY, false)
+}
+
+func drawSpriteAnimationWithOptions(target *render.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32, ignoreLayerAngles bool) bool {
 	rendered := false
 	for _, layer := range anim.Layers {
 		if layer.Index < 0 {
@@ -1384,7 +1449,7 @@ func drawSpriteAnimation(target *render.Image, view *playerSpriteView, anim res.
 		if !ok {
 			continue
 		}
-		drawSpriteLayer(target, img, layer, anchorX+float64(posX), anchorY+float64(posY))
+		drawSpriteLayerWithOptions(target, img, layer, anchorX+float64(posX), anchorY+float64(posY), ignoreLayerAngles)
 		rendered = true
 	}
 	return rendered
@@ -1431,6 +1496,10 @@ func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*rende
 }
 
 func drawSpriteLayer(target *render.Image, img *render.Image, layer res.ACTLayer, centerX, centerY float64) {
+	drawSpriteLayerWithOptions(target, img, layer, centerX, centerY, false)
+}
+
+func drawSpriteLayerWithOptions(target *render.Image, img *render.Image, layer res.ACTLayer, centerX, centerY float64, ignoreLayerAngle bool) {
 	bounds := img.Bounds()
 	width := float64(bounds.Dx())
 	height := float64(bounds.Dy())
@@ -1449,7 +1518,7 @@ func drawSpriteLayer(target *render.Image, img *render.Image, layer res.ACTLayer
 	var opts render.DrawImageOptions
 	opts.GeoM.Translate(-width/2, -height/2)
 	opts.GeoM.Scale(scaleX, scaleY)
-	if layer.Angle != 0 {
+	if layer.Angle != 0 && !ignoreLayerAngle {
 		opts.GeoM.Rotate(float64(layer.Angle) * math.Pi / 180)
 	}
 	layerCenterX, layerCenterY := spriteLayerCenter(centerX, centerY, layer)

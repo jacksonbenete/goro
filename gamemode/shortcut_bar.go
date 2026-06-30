@@ -638,7 +638,7 @@ func (m *WorldMode) sendShortcutSkillToID(ctx Context, skill session.Skill, targ
 		m.addWorldEffect(ctx, effectID, actorID)
 	}
 	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
-		m.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), target, duration, time.Now(), "local")
+		m.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), target, 0, 0, duration, time.Now(), "local")
 	}
 	return nil
 }
@@ -659,7 +659,7 @@ func (m *WorldMode) sendShortcutSkillToGround(ctx Context, skill session.Skill, 
 		return err
 	}
 	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
-		m.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), 0, duration, time.Now(), "local-ground")
+		m.addSkillCastEffects(ctx, skill.ID, property, localSkillTarget(ctx), 0, x, y, duration, time.Now(), "local-ground")
 	}
 	if effectID := skillGroundEffectID(skill.ID); effectID > 0 {
 		m.addWorldEffectAtCellIfMissing(ctx, effectID, x, y, time.Now())

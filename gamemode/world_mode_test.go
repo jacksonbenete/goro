@@ -693,14 +693,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 65 {
-		t.Fatalf("implemented effects = %d, want 65", coverage.Implemented)
+	if coverage.Implemented != 66 {
+		t.Fatalf("implemented effects = %d, want 66", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 10.7 || coverage.ActivePercent > 10.8 {
-		t.Fatalf("active coverage = %.3f, want about 10.7", coverage.ActivePercent)
+	if coverage.ActivePercent < 10.8 || coverage.ActivePercent > 10.9 {
+		t.Fatalf("active coverage = %.3f, want about 10.9", coverage.ActivePercent)
 	}
 }
 
@@ -830,8 +830,8 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	if got := skillSuccessEffectID(10); got != effectSight {
 		t.Fatalf("MG_SIGHT success effect = %d, want %d", got, effectSight)
 	}
-	if got := skillHitEffectID(11); got != effectBashHit {
-		t.Fatalf("MG_NAPALMBEAT hit effect = %d, want %d", got, effectBashHit)
+	if got := skillHitEffectID(11); got != effectNapalmBeat {
+		t.Fatalf("MG_NAPALMBEAT hit effect = %d, want %d", got, effectNapalmBeat)
 	}
 	if got := skillGroundEffectID(12); got != effectSafetyWall {
 		t.Fatalf("MG_SAFETYWALL ground effect = %d, want %d", got, effectSafetyWall)
@@ -916,8 +916,97 @@ func TestFireBoltEffectSpecUsesFallingFrameList(t *testing.T) {
 	if component.kind != effectPrimitive3D || len(component.textureFiles) != 6 || component.duration != 500*time.Millisecond {
 		t.Fatalf("component = %+v", component)
 	}
-	if component.posZ != 20 || component.posX == 0 || component.posY == 0 || component.angleStart != 112.5 {
+	if component.posZ != 20 || component.posZEnd != 0.0001 || component.posXStartMiddle != 5 || component.posYStartMiddle != 2 || component.angleStart != 112.5 || !component.blendAdditive {
 		t.Fatalf("fire bolt trajectory = %+v", component)
+	}
+	if component.sizeStartX != 100*roBrowserEffectPixelRatio || component.sizeStartY != 50*roBrowserEffectPixelRatio {
+		t.Fatalf("fire bolt size = %.3f x %.3f", component.sizeStartX, component.sizeStartY)
+	}
+}
+
+func TestColdBoltEffectSpecMatchesRobrowserProjectileAndRing(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectColdBolt)
+	if !ok {
+		t.Fatal("cold bolt effect missing")
+	}
+	if len(spec.components) != 2 {
+		t.Fatalf("components = %d, want 2", len(spec.components))
+	}
+	projectile := spec.components[0]
+	if projectile.kind != effectPrimitive3D || projectile.textureFile != "effect/icearrow.tga" || projectile.duration != 500*time.Millisecond {
+		t.Fatalf("projectile = %+v", projectile)
+	}
+	if projectile.posZ != 20 || projectile.posZEnd != 0.0001 || projectile.posXStartMiddle != 5 || projectile.posYStartMiddle != 2 || projectile.sizeStart != 50*roBrowserEffectPixelRatio {
+		t.Fatalf("cold bolt projectile trajectory = %+v", projectile)
+	}
+	ring := spec.components[1]
+	if ring.kind != effectPrimitiveCylinder || ring.textureName != "ring_blue" || ring.delay != 500*time.Millisecond || ring.duration != 1000*time.Millisecond {
+		t.Fatalf("ring = %+v", ring)
+	}
+	if ring.bottomSize != 3 || ring.topSize != 5 || ring.animation != 4 {
+		t.Fatalf("cold bolt ring dimensions = %+v", ring)
+	}
+}
+
+func TestSightEffectSpecOrbitsAroundActor(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectSight)
+	if !ok {
+		t.Fatal("sight effect missing")
+	}
+	if len(spec.components) < 2 {
+		t.Fatalf("components = %d, want orbit sprite", len(spec.components))
+	}
+	component := spec.components[1]
+	if component.spriteFile != "sight" || component.duplicate != 10 || component.orbitRadiusX != 3 || component.orbitRadiusY != 3 || component.orbitRotations != 10 {
+		t.Fatalf("sight orbit component = %+v", component)
+	}
+	ctx := Context{}
+	effect := worldEffect{effectID: effectSight, actorID: 2000000}
+	mode := &WorldMode{}
+	x0, y0, _ := mode.effect3DOffset(ctx, component, effect, 0, 0, 0, 0, 0, 0)
+	x1, y1, _ := mode.effect3DOffset(ctx, component, effect, 0, 1, 0, 0, 0, 0)
+	x2, y2, _ := mode.effect3DOffset(ctx, component, effect, 0, 0, 0.025, 0, 0, 0)
+	if math.Hypot(x0-x1, y0-y1) < 0.1 {
+		t.Fatalf("sight duplicates overlap: duplicate0=(%.3f,%.3f) duplicate1=(%.3f,%.3f)", x0, y0, x1, y1)
+	}
+	if math.Hypot(x0-x2, y0-y2) < 0.1 {
+		t.Fatalf("sight orbit does not move over time: start=(%.3f,%.3f) later=(%.3f,%.3f)", x0, y0, x2, y2)
+	}
+}
+
+func TestFireBallSpriteRotationUsesProjectedTrajectory(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{ID: 300, X: 12, Y: 20})
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+	spec, ok := worldEffectSpecForID(effectFireBall)
+	if !ok || len(spec.components) == 0 {
+		t.Fatal("fire ball effect missing")
+	}
+	component := spec.components[0]
+	effect := worldEffect{effectID: effectFireBall, actorID: 300, targetID: 2000000}
+
+	startX, _, _, endX, _, _, ok := effectTrajectoryEndpoints(ctx, component, effect)
+	if !ok {
+		t.Fatal("trajectory endpoints missing")
+	}
+	if startX >= endX {
+		t.Fatalf("trajectory start/end = %.2f -> %.2f, want caster-to-target direction", startX, endX)
+	}
+
+	projection := newSceneProjectionForTargetYaw(800, 600, 11, 20, 0, 0)
+	angle, ok := effectSpriteScreenRotation(ctx, projection, component, effect)
+	if !ok {
+		t.Fatal("rotation missing")
+	}
+	start := projection.Project(startX, 20.5, terrainHeightAt(world, 10, 20)+0.07+component.posZ)
+	end := projection.Project(endX, 20.5, terrainHeightAt(world, 12, 20)+0.07+component.posZ)
+	want := math.Atan2(float64(end.y-start.y), float64(end.x-start.x)) - math.Pi/2
+	if math.Abs(angle-want) > 0.001 {
+		t.Fatalf("angle = %.3f, want %.3f", angle, want)
 	}
 }
 
@@ -1106,14 +1195,35 @@ func TestSkillCastEffectsDedupeServerAndLocalFallback(t *testing.T) {
 	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	start := time.Now()
-	mode.addSkillCastEffects(ctx, 19, 3, 2000000, 1100, 2800*time.Millisecond, start, "local")
-	mode.addSkillCastEffects(ctx, 19, 3, 2000000, 1100, 2800*time.Millisecond, start.Add(20*time.Millisecond), "server")
+	mode.addSkillCastEffects(ctx, 19, 3, 2000000, 1100, 0, 0, 2800*time.Millisecond, start, "local")
+	mode.addSkillCastEffects(ctx, 19, 3, 2000000, 1100, 0, 0, 2800*time.Millisecond, start.Add(20*time.Millisecond), "server")
 
 	if len(mode.worldEffects) != 2 {
 		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
 	}
 	if mode.worldEffects[0].effectID != effectCastRing || mode.worldEffects[1].effectID != effectBeginSpell3 {
 		t.Fatalf("effects = %+v", mode.worldEffects)
+	}
+}
+
+func TestGroundSkillCastEffectsAddMagicTargetMarker(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	start := time.Now()
+	mode.addSkillCastEffects(ctx, 21, 4, 2000000, 0, 123, 456, 1800*time.Millisecond, start, "local-ground")
+
+	if len(mode.worldEffects) != 3 {
+		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
+	}
+	marker := mode.worldEffects[0]
+	if marker.effectID != effectMagicTarget || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond {
+		t.Fatalf("ground marker = %+v", marker)
+	}
+	if mode.worldEffects[1].effectID != effectCastRing || mode.worldEffects[2].effectID != effectBeginSpell4 {
+		t.Fatalf("cast effects = %+v", mode.worldEffects)
 	}
 }
 

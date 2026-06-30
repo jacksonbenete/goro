@@ -15,6 +15,7 @@ import (
 
 const (
 	effectFireBolt      = 10019
+	effectNapalmBeat    = 32
 	effectMagicTarget   = 10020
 	effectCastRing      = 10021
 	effectProvoke       = 67
@@ -189,6 +190,13 @@ type worldEffectComponent struct {
 	sizeSmooth       bool
 	angleStart       float64
 	angleEnd         float64
+	orbitRadiusX     float64
+	orbitRadiusY     float64
+	orbitRadiusZ     float64
+	orbitRotations   float64
+	orbitPhase       float64
+	orbitPhaseDelta  float64
+	orbitClockwise   bool
 	totalCircleSides int
 	circleSides      int
 	duplicate        int
@@ -250,7 +258,7 @@ func (m *WorldMode) applySkillCastNotify(ctx Context, notify network.SkillCastNo
 	duration := time.Duration(notify.DelayTime) * time.Millisecond
 	now := time.Now()
 	m.startSkillCastSourceAnimation(ctx, notify, duration, now)
-	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, duration, now, "server")
+	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y), duration, now, "server")
 }
 
 func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx Context, notify network.SkillNoDamageNotify, now time.Time) {
@@ -484,10 +492,14 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, a
 }
 
 func (m *WorldMode) addWorldEffectAtCell(ctx Context, effectID int, x, y int, starts time.Time) bool {
-	return m.addWorldEffectAtCellWithActor(ctx, effectID, 0, x, y, starts)
+	return m.addWorldEffectAtCellDuration(ctx, effectID, 0, x, y, starts, 0)
 }
 
 func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time) bool {
+	return m.addWorldEffectAtCellDuration(ctx, effectID, actorID, x, y, starts, 0)
+}
+
+func (m *WorldMode) addWorldEffectAtCellDuration(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -505,6 +517,9 @@ func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, act
 	if duration <= 0 {
 		duration = 500 * time.Millisecond
 	}
+	if durationOverride > duration {
+		duration = durationOverride
+	}
 	m.worldEffects = append(m.worldEffects, worldEffect{
 		effectID: effectID,
 		actorID:  actorID,
@@ -512,6 +527,7 @@ func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, act
 		y:        y,
 		starts:   starts,
 		expires:  starts.Add(duration),
+		duration: durationOverride,
 	})
 	if len(spec.sfx) > 0 {
 		m.scheduleSound(starts, spec.sfx...)
@@ -520,13 +536,17 @@ func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, act
 }
 
 func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx Context, effectID int, x, y int, starts time.Time) bool {
+	return m.addWorldEffectAtCellDurationIfMissing(ctx, effectID, 0, x, y, starts, 0)
+}
+
+func (m *WorldMode) addWorldEffectAtCellDurationIfMissing(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration) bool {
 	now := time.Now()
 	for _, effect := range m.worldEffects {
-		if effect.effectID == effectID && effect.actorID == 0 && effect.x == x && effect.y == y && now.Before(effect.expires) {
+		if effect.effectID == effectID && effect.actorID == actorID && effect.x == x && effect.y == y && now.Before(effect.expires) {
 			return false
 		}
 	}
-	return m.addWorldEffectAtCell(ctx, effectID, x, y, starts)
+	return m.addWorldEffectAtCellDuration(ctx, effectID, actorID, x, y, starts, durationOverride)
 }
 
 func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
@@ -539,9 +559,14 @@ func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx Context, effect
 	return m.addWorldEffectBetweenAtDuration(ctx, effectID, actorID, targetID, starts, durationOverride)
 }
 
-func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property uint32, sourceID, targetID uint32, duration time.Duration, starts time.Time, source string) {
+func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property uint32, sourceID, targetID uint32, cellX, cellY int, duration time.Duration, starts time.Time, source string) {
 	if duration <= 0 || sourceID == 0 {
 		return
+	}
+	if targetID == 0 && (cellX != 0 || cellY != 0) {
+		if m.addWorldEffectAtCellDurationIfMissing(ctx, effectMagicTarget, 0, cellX, cellY, starts, duration) {
+			log.Printf("skill cast ground marker source=%s skill=%d src=%d cell=%d,%d delay_ms=%d", source, skillID, sourceID, cellX, cellY, duration.Milliseconds())
+		}
 	}
 	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectCastRing, sourceID, 0, starts, duration) {
 		log.Printf("skill cast circle source=%s skill=%d src=%d target=%d delay_ms=%d", source, skillID, sourceID, targetID, duration.Milliseconds())
@@ -749,7 +774,7 @@ func skillHitEffectID(skillID uint16) int {
 	case 5:
 		return effectBashHit
 	case 11:
-		return effectBashHit
+		return effectNapalmBeat
 	case 13:
 		return effectBashHit
 	case 14:
@@ -1179,7 +1204,7 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 			continue
 		}
 		salt := componentIndex*1009 + i*37
-		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, progress, worldX, worldY, worldZ)
+		offsetX, offsetY, offsetZ := m.effect3DOffset(ctx, component, effect, salt, i, progress, worldX, worldY, worldZ)
 		sizeX, sizeY := effect3DSize(component, effect, salt, progress, i)
 		if sizeX <= 0 || sizeY <= 0 {
 			continue
@@ -1194,7 +1219,7 @@ func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection s
 			continue
 		}
 		size := (sizeX + sizeY) * 0.5
-		m.draw3DSpriteEffect(screen, ctx, projection, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, starts, now)
+		m.draw3DSpriteEffect(screen, ctx, projection, effect, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, starts, now)
 	}
 }
 
@@ -1250,7 +1275,7 @@ func (m *WorldMode) drawGroundPlaneEffect(screen *render.Image, ctx Context, com
 	drawTexturedSurface3DAlpha(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint})
 }
 
-func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
+func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
 	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
 	if view == nil || len(view.act.Actions) == 0 {
 		return
@@ -1273,11 +1298,12 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projec
 	if motion < 0 || motion >= len(action.Animations) {
 		return
 	}
-	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion}
+	ignoreLayerAngles := component.rotateToTarget
+	key := singleSpriteBillboardKey{actionIndex: actionIndex, motion: motion, ignoreLayerAngles: ignoreLayerAngles}
 	billboard, ok := view.billboards[key]
 	if !ok {
 		var baseOK bool
-		billboard, baseOK = composeSingleSpriteBillboard(view, action.Animations[motion])
+		billboard, baseOK = composeSingleSpriteBillboardWithOptions(view, action.Animations[motion], ignoreLayerAngles)
 		if !baseOK {
 			return
 		}
@@ -1294,7 +1320,78 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projec
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
+	if angle, ok := effectSpriteScreenRotation(ctx, projection, component, effect); ok {
+		drawSpriteBillboardTintAlphaRotated3D(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint)
+		return
+	}
 	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, 1, tint)
+}
+
+func effectSpriteScreenRotation(ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect) (float64, bool) {
+	if component.rotateToTarget {
+		startX, startY, startZ, endX, endY, endZ, ok := effectTrajectoryEndpoints(ctx, component, effect)
+		if ok {
+			start := projection.Project(startX, startY, startZ)
+			end := projection.Project(endX, endY, endZ)
+			dx := float64(end.x - start.x)
+			dy := float64(end.y - start.y)
+			if math.Hypot(dx, dy) > 0.001 {
+				return math.Atan2(dy, dx) - math.Pi/2, true
+			}
+		}
+	}
+	angle := worldEffectBillboardAngle(component, projection, 0)
+	if math.Abs(angle) > 0.0001 {
+		return angle, true
+	}
+	return 0, false
+}
+
+func effectTrajectoryEndpoints(ctx Context, component worldEffectComponent, effect worldEffect) (float64, float64, float64, float64, float64, float64, bool) {
+	if ctx.World == nil {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	x, y, ok := effectAnchor(ctx, effect.actorID)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	worldX := cellCenter(float64(x))
+	worldY := cellCenter(float64(y))
+	worldZ := terrainHeightAt(ctx.World, float64(x), float64(y)) + 0.07
+	startX := component.posX + component.posXStartMiddle
+	startY := component.posY + component.posYStartMiddle
+	startZ := component.posZ + component.posZStartMiddle
+	endX := component.posXEnd + component.posXEndMiddle
+	endY := component.posYEnd + component.posYEndMiddle
+	endZ := component.posZEnd + component.posZEndMiddle
+	if component.posXEnd == 0 && component.posXEndMiddle == 0 && component.posXStartMiddle == 0 {
+		endX = startX
+	}
+	if component.posYEnd == 0 && component.posYEndMiddle == 0 && component.posYStartMiddle == 0 {
+		endY = startY
+	}
+	if component.posZEnd == 0 && component.posZEndMiddle == 0 {
+		endZ = startZ
+	}
+	if component.fromSrc || component.toSrc {
+		otherX, otherY, otherZ, otherOK := effectOtherEndpoint(ctx, effect, worldX, worldY, worldZ)
+		if otherOK {
+			dx := otherX - worldX
+			dy := otherY - worldY
+			dz := otherZ - worldZ
+			if component.fromSrc {
+				endX += dx
+				endY += dy
+				endZ += dz
+			}
+			if component.toSrc {
+				startX += dx
+				startY += dy
+				startZ += dz
+			}
+		}
+	}
+	return worldX + startX, worldY + startY, worldZ + startZ, worldX + endX, worldY + endY, worldZ + endZ, true
 }
 
 func worldEffectSpriteAngle(component worldEffectComponent) float64 {
@@ -1486,7 +1583,7 @@ func effectBillboardSize(progress float64, component worldEffectComponent) float
 	return start + (end-start)*math.Log10(progress*9+1)
 }
 
-func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, effect worldEffect, salt int, progress float64, worldX, worldY, worldZ float64) (float64, float64, float64) {
+func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, effect worldEffect, salt int, duplicateIndex int, progress float64, worldX, worldY, worldZ float64) (float64, float64, float64) {
 	staticX := deterministicSigned(effect, salt+1) * component.posXRand
 	staticY := deterministicSigned(effect, salt+2) * component.posYRand
 	startX := component.posX + staticX + component.posXStartMiddle + deterministicSigned(effect, salt+11)*component.posXStartRand
@@ -1537,6 +1634,16 @@ func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, 
 	}
 	if component.arc != 0 {
 		z += math.Sin(progress*math.Pi) * component.arc
+	}
+	if component.orbitRadiusX != 0 || component.orbitRadiusY != 0 || component.orbitRadiusZ != 0 {
+		angle := progress * component.orbitRotations * 2 * math.Pi
+		if component.orbitClockwise {
+			angle = -angle
+		}
+		angle -= (component.orbitPhase + component.orbitPhaseDelta*float64(duplicateIndex)) * math.Pi / 2
+		x += math.Cos(angle) * component.orbitRadiusX
+		y += math.Sin(angle) * component.orbitRadiusY
+		z += math.Sin(angle) * component.orbitRadiusZ
 	}
 	return x, y, z
 }
