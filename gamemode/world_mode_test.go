@@ -1201,6 +1201,12 @@ func TestSkillCastFallbackMappings(t *testing.T) {
 		{name: "fire bolt", skillID: 19, level: 4, wantProperty: 3, wantDuration: 2800 * time.Millisecond},
 		{name: "lightning bolt", skillID: 20, level: 4, wantProperty: 4, wantDuration: 2800 * time.Millisecond},
 		{name: "thunder storm", skillID: 21, level: 4, wantProperty: 4, wantDuration: 1800 * time.Millisecond},
+		{name: "warp portal", skillID: 27, level: 4, wantProperty: 0, wantDuration: time.Second},
+		{name: "increase agi", skillID: 29, level: 10, wantProperty: 0, wantDuration: time.Second},
+		{name: "decrease agi", skillID: 30, level: 10, wantProperty: 0, wantDuration: time.Second},
+		{name: "aqua benedicta", skillID: 31, level: 1, wantProperty: 0, wantDuration: time.Second},
+		{name: "signum crucis", skillID: 32, level: 10, wantProperty: 0, wantDuration: 500 * time.Millisecond},
+		{name: "angelus", skillID: 33, level: 10, wantProperty: 0, wantDuration: 500 * time.Millisecond},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1313,8 +1319,13 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 }
 
 func TestAcolyteSkillEffectMappings(t *testing.T) {
+	expectEffectIDs(t, "AL_DP passive", skillEffectIDs(22))
+	expectEffectIDs(t, "AL_DEMONBANE passive", skillEffectIDs(23))
 	expectEffectIDs(t, "AL_RUWACH", skillEffectIDs(24), effectRuwach)
 	expectEffectIDs(t, "AL_RUWACH hit", skillHitEffectIDs(24), effectBashHit)
+	expectEffectIDs(t, "AL_PNEUMA ground", skillGroundEffectIDs(25), effectPneuma)
+	expectEffectIDs(t, "AL_TELEPORT", skillEffectIDs(26))
+	expectEffectIDs(t, "AL_WARP", skillEffectIDs(27))
 	expectEffectIDs(t, "AL_HEAL", skillEffectIDs(28), effectHeal)
 	expectEffectIDs(t, "AL_HEAL hit", skillHitEffectIDs(28), effectHealOffensive)
 	expectEffectIDs(t, "AL_INCAGI", skillEffectIDs(29), effectIncAgility)

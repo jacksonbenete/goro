@@ -22,4 +22,24 @@ func TestSkillTargetModes(t *testing.T) {
 	if isSelfTargetSkill(session.Skill{ID: 21, Type: 0x06}) {
 		t.Fatal("ground bit should win over self bit")
 	}
+	for _, skillID := range []uint16{24, 26, 31, 32, 33} {
+		if !isSelfTargetSkill(session.Skill{ID: skillID, Type: 0x01}) {
+			t.Fatalf("skill %d should force self-targeting even with stale server flags", skillID)
+		}
+	}
+	for _, skillID := range []uint16{22, 23} {
+		if !skillForcesPassive(skillID) {
+			t.Fatalf("skill %d should be passive", skillID)
+		}
+	}
+}
+
+func TestPassiveAcolyteSkillsCannotBeUsed(t *testing.T) {
+	controller := skillController{}
+	for _, skillID := range []uint16{22, 23} {
+		err := controller.Use(Context{}, session.Skill{ID: skillID, Level: 1, Type: skillTargetSelf}, "test")
+		if err == nil || err.Error() != "passive skill" {
+			t.Fatalf("skill %d use error = %v, want passive skill", skillID, err)
+		}
+	}
 }

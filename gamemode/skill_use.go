@@ -45,7 +45,7 @@ func isGroundTargetSkill(skill session.Skill) bool {
 }
 
 func isSelfTargetSkill(skill session.Skill) bool {
-	return skill.ID == 26 || (skill.Type&skillTargetSelf != 0 && !isGroundTargetSkill(skill))
+	return skillForcesSelfTarget(skill.ID) || (skill.Type&skillTargetSelf != 0 && !isGroundTargetSkill(skill))
 }
 
 const (
@@ -62,7 +62,7 @@ func (c skillController) Use(ctx Context, skill session.Skill, source string) er
 	if skill.ID == 0 || skill.Level <= 0 {
 		return fmt.Errorf("skill is not learned")
 	}
-	if skill.Type == 0 {
+	if skill.Type == 0 || skillForcesPassive(skill.ID) {
 		return fmt.Errorf("passive skill")
 	}
 	if isSelfTargetSkill(skill) {

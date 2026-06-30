@@ -872,6 +872,8 @@ type roBrowserSkillEffect struct {
 	action                 roBrowserSkillAction
 	cast                   roBrowserSkillCast
 	forceGroundTarget      bool
+	forceSelfTarget        bool
+	passive                bool
 	groundCastMarkerSize   float64
 	recoveryFloater        roBrowserSkillRecoveryFloater
 	hideCastAura           bool
@@ -928,15 +930,18 @@ var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
 	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}, cast: roBrowserSkillCast{property: 3, perLevel: 700 * time.Millisecond}},                                                                 // MG_FIREBOLT
 	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, perLevel: 700 * time.Millisecond}},                                                                     // MG_LIGHTNINGBOLT
 	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, base: time.Second, perLevel: 200 * time.Millisecond}, forceGroundTarget: true, groundCastMarkerSize: 5}, // MG_THUNDERSTORM
-	24:  {effectIDs: []int{effectRuwach}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                                     // AL_RUWACH; roBrowser also keeps EF_HIT2 as the reveal hit effect.
+	22:  {passive: true},                                                                                                                                                                                                          // AL_DP
+	23:  {passive: true},                                                                                                                                                                                                          // AL_DEMONBANE
+	24:  {effectIDs: []int{effectRuwach}, hitEffectIDs: []int{effectBashHit}, forceSelfTarget: true},                                                                                                                              // AL_RUWACH; roBrowser also keeps EF_HIT2 as the reveal hit effect.
 	25:  {groundEffectIDs: []int{effectPneuma}, forceGroundTarget: true},                                                                                                                                                          // AL_PNEUMA
-	27:  {forceGroundTarget: true},                                                                                                                                                                                                // AL_WARP; the server sends ZC_WARPLIST, then the selected map creates the portal skill unit.
+	26:  {forceSelfTarget: true},                                                                                                                                                                                                  // AL_TELEPORT; the server sends ZC_WARPLIST, then the selected map changes.
+	27:  {forceGroundTarget: true, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                                                  // AL_WARP; the server sends ZC_WARPLIST, then the selected map creates the portal skill unit.
 	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}, recoveryFloater: roBrowserSkillRecoveryFloater{enabled: true, color: recoveryHPColor, kind: damageFloaterRecoveryHP}},                           // AL_HEAL
-	29:  {effectIDs: []int{effectIncAgility}},                                                                                                                                                                                     // AL_INCAGI
-	30:  {effectIDs: []int{effectDecAgility}},                                                                                                                                                                                     // AL_DECAGI
-	31:  {effectIDs: []int{effectAqua}},                                                                                                                                                                                           // AL_HOLYWATER
-	32:  {effectIDs: []int{effectSignum}},                                                                                                                                                                                         // AL_CRUCIS
-	33:  {effectIDs: []int{effectAngelus}},                                                                                                                                                                                        // AL_ANGELUS
+	29:  {effectIDs: []int{effectIncAgility}, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                                       // AL_INCAGI
+	30:  {effectIDs: []int{effectDecAgility}, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                                       // AL_DECAGI
+	31:  {effectIDs: []int{effectAqua}, forceSelfTarget: true, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                      // AL_HOLYWATER
+	32:  {effectIDs: []int{effectSignum}, forceSelfTarget: true, cast: roBrowserSkillCast{fixed: 500 * time.Millisecond}},                                                                                                         // AL_CRUCIS
+	33:  {effectIDs: []int{effectAngelus}, forceSelfTarget: true, cast: roBrowserSkillCast{fixed: 500 * time.Millisecond}},                                                                                                        // AL_ANGELUS
 	34:  {effectIDs: []int{effectBlessing}},                                                                                                                                                                                       // AL_BLESSING
 	35:  {effectIDs: []int{effectCure}},                                                                                                                                                                                           // AL_CURE
 	42:  {effectIDs: []int{effectMammonite}},                                                                                                                                                                                      // MC_MAMMONITE
@@ -983,6 +988,14 @@ func skillGroundEffectIDs(skillID uint16) []int {
 
 func skillForcesGroundTarget(skillID uint16) bool {
 	return roBrowserSkillEffects[skillID].forceGroundTarget
+}
+
+func skillForcesSelfTarget(skillID uint16) bool {
+	return roBrowserSkillEffects[skillID].forceSelfTarget
+}
+
+func skillForcesPassive(skillID uint16) bool {
+	return roBrowserSkillEffects[skillID].passive
 }
 
 type roBrowserSkillUnitEffect struct {
