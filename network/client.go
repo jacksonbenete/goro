@@ -299,6 +299,17 @@ func (c *Client) SendUseSkillToGround(skillID, level uint16, x, y int) error {
 	return err
 }
 
+func (c *Client) SendSelectWarpPoint(skillID uint16, mapName string) error {
+	packet := BuildSelectWarpPointPacket(skillID, mapName)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_SELECT_WARPPOINT opcode=0x%04X skill=%d map=%q client_date=%d", ID(packet), skillID, mapName, c.clientDate)
+	} else {
+		log.Printf("send CZ_SELECT_WARPPOINT failed opcode=0x%04X len=%d skill=%d map=%q client_date=%d: %v", ID(packet), len(packet), skillID, mapName, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) Pump() {
 }
 

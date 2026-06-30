@@ -1344,6 +1344,32 @@ func TestWarpEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "Fly Wing item", itemUseEffectIDs(601))
 }
 
+func TestTeleportSkillIsSelfTargetDespiteAttackRange(t *testing.T) {
+	if !isSelfTargetSkill(session.Skill{ID: 26, Level: 2, Type: skillTargetEnemy, Range: 1}) {
+		t.Fatal("AL_TELEPORT should self-cast even when the skill list reports attack range")
+	}
+}
+
+func TestTeleportModalRules(t *testing.T) {
+	lv1 := session.Skill{ID: 26, Level: 1, Type: skillTargetEnemy, Range: 9}
+	lv2 := session.Skill{ID: 26, Level: 2, Type: skillTargetEnemy, Range: 9}
+	modal := teleportModalState{skill: lv1}
+	if modal.savePointEnabled() {
+		t.Fatal("Teleport level 1 should not enable Save Point")
+	}
+	modal.skill = lv2
+	if !modal.savePointEnabled() {
+		t.Fatal("Teleport level 2 should enable Save Point")
+	}
+	modal.mapNames = []string{"Random", "prontera"}
+	if got := modal.randomMapName(); got != "Random" {
+		t.Fatalf("random map = %q", got)
+	}
+	if got := modal.savePointMapName(); got != "prontera" {
+		t.Fatalf("save point map = %q", got)
+	}
+}
+
 func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_SAFETYWALL", skillUnitEffectIDs(126), effectSafetyWall)
 	expectEffectIDs(t, "UNT_FIREWALL", skillUnitEffectIDs(127), effectFireWall)

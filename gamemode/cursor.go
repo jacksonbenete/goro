@@ -140,6 +140,9 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.deathModal.cursorAction(ctx); ok {
 		return action
 	}
+	if action, ok := m.teleportModal.cursorAction(ctx); ok {
+		return action
+	}
 	if ctx.Input.MousePressed(render.MouseButtonRight) {
 		return cursorActionRotate
 	}

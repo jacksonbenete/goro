@@ -82,6 +82,46 @@ func TestParseAutoRunSkill(t *testing.T) {
 	}
 }
 
+func TestBuildSelectWarpPointPacket(t *testing.T) {
+	packet := BuildSelectWarpPointPacket(26, "Random")
+	if len(packet) != 20 {
+		t.Fatalf("packet len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[0:2]); got != 0x011B {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 26 {
+		t.Fatalf("skill id = %d", got)
+	}
+	if got := string(packet[4:10]); got != "Random" {
+		t.Fatalf("map name = %q", got)
+	}
+	for i, b := range packet[10:20] {
+		if b != 0 {
+			t.Fatalf("padding byte %d = %d", i, b)
+		}
+	}
+}
+
+func TestParseWarpPointList(t *testing.T) {
+	data := make([]byte, 68)
+	binary.LittleEndian.PutUint16(data[0:2], 0x011C)
+	binary.LittleEndian.PutUint16(data[2:4], 26)
+	copy(data[4:20], []byte("Random"))
+	copy(data[20:36], []byte("prontera"))
+
+	list, ok, err := ParseWarpPointList(Packet{ID: 0x011C, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("warp point list not parsed")
+	}
+	if list.SkillID != 26 || len(list.MapNames) != 2 || list.MapNames[0] != "Random" || list.MapNames[1] != "prontera" {
+		t.Fatalf("warp point list = %+v", list)
+	}
+}
+
 func TestParseSkillNoDamageNotify(t *testing.T) {
 	tests := []struct {
 		name string

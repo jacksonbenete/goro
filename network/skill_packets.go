@@ -81,6 +81,11 @@ type SkillFailAck struct {
 	Cause   byte
 }
 
+type WarpPointList struct {
+	SkillID  uint16
+	MapNames []string
+}
+
 func ParseSkillInfoList(packet Packet) (SkillInfoList, bool, error) {
 	if packet.ID != 0x010F {
 		return SkillInfoList{}, false, nil
@@ -242,6 +247,48 @@ func ParseSkillFailAck(packet Packet) (SkillFailAck, bool, error) {
 	}, true, nil
 }
 
+func ParseWarpPointList(packet Packet) (WarpPointList, bool, error) {
+	var skillOffset int
+	var namesOffset int
+	var packetLen int
+	switch packet.ID {
+	case 0x011C:
+		if len(packet.Data) < 68 {
+			return WarpPointList{}, false, fmt.Errorf("ZC_WARPLIST too short: %d", len(packet.Data))
+		}
+		skillOffset = 2
+		namesOffset = 4
+		packetLen = 68
+	case 0x0ABE:
+		if len(packet.Data) < 6 {
+			return WarpPointList{}, false, fmt.Errorf("ZC_WARPLIST2 too short: %d", len(packet.Data))
+		}
+		packetLen = int(binary.LittleEndian.Uint16(packet.Data[2:4]))
+		if packetLen <= 0 || packetLen > len(packet.Data) {
+			packetLen = len(packet.Data)
+		}
+		skillOffset = 4
+		namesOffset = 6
+	default:
+		return WarpPointList{}, false, nil
+	}
+	if packetLen < namesOffset || (packetLen-namesOffset)%16 != 0 {
+		return WarpPointList{}, false, fmt.Errorf("ZC_WARPLIST bad body len: %d", packetLen-namesOffset)
+	}
+	names := make([]string, 0, (packetLen-namesOffset)/16)
+	for offset := namesOffset; offset+16 <= packetLen; offset += 16 {
+		name := fixedString(packet.Data[offset : offset+16])
+		if name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	return WarpPointList{
+		SkillID:  binary.LittleEndian.Uint16(packet.Data[skillOffset : skillOffset+2]),
+		MapNames: names,
+	}, true, nil
+}
+
 func BuildSkillLevelUpPacket(skillID uint16) []byte {
 	packet := make([]byte, 4)
 	binary.LittleEndian.PutUint16(packet[0:2], 0x0112)
@@ -287,6 +334,14 @@ func BuildUseSkillToGroundPacketForClientDate(skillID, level uint16, x, y int, c
 	binary.LittleEndian.PutUint16(packet[4:6], skillID)
 	binary.LittleEndian.PutUint16(packet[6:8], uint16(x))
 	binary.LittleEndian.PutUint16(packet[8:10], uint16(y))
+	return packet
+}
+
+func BuildSelectWarpPointPacket(skillID uint16, mapName string) []byte {
+	packet := make([]byte, 20)
+	binary.LittleEndian.PutUint16(packet[0:2], 0x011B)
+	binary.LittleEndian.PutUint16(packet[2:4], skillID)
+	copy(packet[4:20], []byte(mapName))
 	return packet
 }
 

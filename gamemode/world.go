@@ -82,6 +82,7 @@ type WorldMode struct {
 	console          chatConsole
 	npcDialog        npcDialogState
 	escapeMenu       escapeMenuState
+	teleportModal    teleportModalState
 	deathModal       deathModalState
 	basicMenu        basicMenuState
 	inventoryWindow  inventoryWindowState
@@ -671,6 +672,12 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			m.skills().ApplyAutoRun(ctx, auto)
 			continue
 		}
+		if warpList, ok, err := network.ParseWarpPointList(pkt); err != nil {
+			log.Printf("parse warp point list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyWarpPointList(ctx, warpList)
+			continue
+		}
 		if fail, ok, err := network.ParseSkillFailAck(pkt); err != nil {
 			log.Printf("parse skill fail ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -775,10 +782,13 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
-	if !m.escapeMenu.open && !m.deathModal.open && !m.settingsWindow.open {
+	if !m.escapeMenu.open && !m.teleportModal.open && !m.deathModal.open && !m.settingsWindow.open {
 		m.updateCameraRotation(ctx)
 	}
 	if m.deathModal.update(ctx) {
+		return nil, nil
+	}
+	if m.teleportModal.update(ctx, m) {
 		return nil, nil
 	}
 	if m.npcDialog.update(ctx) {
@@ -908,6 +918,7 @@ func (m *WorldMode) handleBasicMenuAction(ctx Context) {
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
+	m.teleportModal = teleportModalState{}
 	m.clearLocalDeathState(ctx)
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
@@ -2782,6 +2793,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.console.draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)
 	m.escapeMenu.draw(screen, ctx, width, height)
+	m.teleportModal.draw(screen, ctx, width, height)
 	m.deathModal.draw(screen, ctx, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
 	m.drawMapFade(screen, now)
