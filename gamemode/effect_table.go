@@ -65,6 +65,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 		}},
 	},
 	effectBubble: strEffectSpecRandom("bubble%d", "", 1, 4),
+	effectPneuma: strEffectSpecRandom("pneuma%d", "", 1, 3),
 	effectCastRing: {
 		duration: 900 * time.Millisecond,
 		components: []worldEffectComponent{{

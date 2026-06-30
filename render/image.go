@@ -576,9 +576,9 @@ func (i *Image) blendPixel(x, y int, src color.RGBA, blend Blend) {
 	}
 	off := i.pix.PixOffset(x, y)
 	if blend == BlendLighter {
-		i.pix.Pix[off] = addByte(i.pix.Pix[off], src.R)
-		i.pix.Pix[off+1] = addByte(i.pix.Pix[off+1], src.G)
-		i.pix.Pix[off+2] = addByte(i.pix.Pix[off+2], src.B)
+		i.pix.Pix[off] = addByte(i.pix.Pix[off], alphaByte(src.R, src.A))
+		i.pix.Pix[off+1] = addByte(i.pix.Pix[off+1], alphaByte(src.G, src.A))
+		i.pix.Pix[off+2] = addByte(i.pix.Pix[off+2], alphaByte(src.B, src.A))
 		i.pix.Pix[off+3] = addByte(i.pix.Pix[off+3], src.A)
 		return
 	}
@@ -633,6 +633,10 @@ func addByte(a, b uint8) uint8 {
 		return 255
 	}
 	return byte(sum)
+}
+
+func alphaByte(c, a uint8) uint8 {
+	return uint8((uint32(c)*uint32(a) + 127) / 255)
 }
 
 func lerpByteF(a, b uint8, t float64) float64 {

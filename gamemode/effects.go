@@ -58,6 +58,7 @@ const (
 	effectTorch         = 47
 	effectBubble        = 109
 	effectCure          = 66
+	effectPneuma        = 141
 	effectConcentration = 153
 	effectRefineOK      = 154
 	effectRefineFail    = 155
@@ -684,6 +685,8 @@ func skillGroundEffectID(skillID uint16) int {
 		return effectFireWall
 	case 21:
 		return effectThunderStorm
+	case 25:
+		return effectPneuma
 	default:
 		return 0
 	}
@@ -695,6 +698,8 @@ func skillUnitEffectID(unitID uint16) int {
 		return effectSafetyWall
 	case 127:
 		return effectFireWall
+	case 133:
+		return effectPneuma
 	default:
 		return 0
 	}
@@ -2009,10 +2014,22 @@ func drawSTRAnimation(screen *render.Image, projection sceneProjection, texture 
 		texturedSurfaceVertex3D(vertexPoint(2, 6), texturePoint{u: 1, v: 1}, tint, w, h),
 	}
 	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
-	if anim.DestAlpha == 2 {
-		options.Blend = render.BlendLighter
-	}
+	options.Blend = strAnimationBlend(anim)
 	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, options)
+}
+
+func strAnimationBlend(anim res.STRAnimation) render.Blend {
+	// roBrowser applies the Direct3D blend factors stored in each STR layer.
+	// D3DBLEND_SRCALPHA + D3DBLEND_DESTALPHA is used by bright fog-like
+	// effects such as Pneuma; on our opaque world target it matches src-alpha
+	// additive blending.
+	if anim.SrcAlpha == 5 && (anim.DestAlpha == 2 || anim.DestAlpha == 7) {
+		return render.BlendLighter
+	}
+	if anim.DestAlpha == 2 {
+		return render.BlendLighter
+	}
+	return render.BlendSourceOver
 }
 
 func strAnimationOffset(anim res.STRAnimation, attached bool) (float64, float64) {

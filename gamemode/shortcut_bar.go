@@ -531,7 +531,7 @@ func localSkillTarget(ctx Context) uint32 {
 }
 
 func isGroundTargetSkill(skill session.Skill) bool {
-	return skill.Type&skillTargetPlace != 0 || skill.ID == 21
+	return skill.Type&skillTargetPlace != 0 || skill.ID == 21 || skill.ID == 25
 }
 
 func isSelfTargetSkill(skill session.Skill) bool {

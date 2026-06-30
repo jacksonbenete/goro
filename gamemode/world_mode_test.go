@@ -12,6 +12,7 @@ import (
 
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	worldstate "github.com/kivutar/goro/world"
@@ -692,14 +693,28 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 64 {
-		t.Fatalf("implemented effects = %d, want 64", coverage.Implemented)
+	if coverage.Implemented != 65 {
+		t.Fatalf("implemented effects = %d, want 65", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 10.5 || coverage.ActivePercent > 10.6 {
-		t.Fatalf("active coverage = %.3f, want about 10.5", coverage.ActivePercent)
+	if coverage.ActivePercent < 10.7 || coverage.ActivePercent > 10.8 {
+		t.Fatalf("active coverage = %.3f, want about 10.7", coverage.ActivePercent)
+	}
+}
+
+func TestPneumaEffectSpecMatchesRoBrowserSTR(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectPneuma)
+	if !ok {
+		t.Fatal("Pneuma effect spec missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("Pneuma components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectPrimitiveSTR || component.strFile != "pneuma%d" || component.strRandMin != 1 || component.strRandMax != 3 || component.attachedEntity {
+		t.Fatalf("Pneuma component = %+v", component)
 	}
 }
 
@@ -1451,6 +1466,18 @@ func TestSTRAnimationAttachedEntityUsesActorAnchor(t *testing.T) {
 	}
 	if attachedY != 0 {
 		t.Fatalf("attached STR y offset = %.3f, want 0", attachedY)
+	}
+}
+
+func TestSTRAnimationBlendMatchesRobrowserD3DBlend(t *testing.T) {
+	if got := strAnimationBlend(res.STRAnimation{SrcAlpha: 5, DestAlpha: 7}); got != render.BlendLighter {
+		t.Fatalf("SRC_ALPHA/DST_ALPHA blend = %v, want BlendLighter", got)
+	}
+	if got := strAnimationBlend(res.STRAnimation{SrcAlpha: 5, DestAlpha: 2}); got != render.BlendLighter {
+		t.Fatalf("SRC_ALPHA/ONE blend = %v, want BlendLighter", got)
+	}
+	if got := strAnimationBlend(res.STRAnimation{SrcAlpha: 5, DestAlpha: 6}); got != render.BlendSourceOver {
+		t.Fatalf("regular STR blend = %v, want BlendSourceOver", got)
 	}
 }
 
@@ -3354,6 +3381,21 @@ func TestGroundSkillNotifyAddsCellEffect(t *testing.T) {
 	}
 }
 
+func TestPneumaGroundSkillNotifyAddsCellEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applyGroundSkillNotify(ctx, network.GroundSkillNotify{SkillID: 25, SourceID: 2000000, Level: 1, X: 123, Y: 456})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 0 || effect.effectID != effectPneuma || effect.x != 123 || effect.y != 456 {
+		t.Fatalf("effect = %+v", effect)
+	}
+}
+
 func TestSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
@@ -3370,6 +3412,26 @@ func TestSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	}
 
 	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9001})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
+	}
+}
+
+func TestPneumaSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9002, CreatorID: 2000000, UnitID: 133, X: 123, Y: 456, Visible: true})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 9002 || effect.effectID != effectPneuma || effect.x != 123 || effect.y != 456 {
+		t.Fatalf("effect = %+v", effect)
+	}
+
+	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9002})
 	if len(mode.worldEffects) != 0 {
 		t.Fatalf("world effects after disappear = %d, want 0", len(mode.worldEffects))
 	}

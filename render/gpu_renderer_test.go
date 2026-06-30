@@ -2,6 +2,7 @@ package render
 
 import (
 	"encoding/binary"
+	"image/color"
 	"math"
 	"testing"
 
@@ -117,6 +118,18 @@ func TestWorldBillboardCommandsKeepSeparateInstanceData(t *testing.T) {
 	}
 	if screen.worldBillboards[0].ColorA == screen.worldBillboards[1].ColorA {
 		t.Fatalf("billboard alpha unexpectedly identical: %v", screen.worldBillboards[0].ColorA)
+	}
+}
+
+func TestBlendLighterWeightsSourceByAlpha(t *testing.T) {
+	dst := NewImage(1, 1)
+	dst.Fill(color.RGBA{R: 10, G: 20, B: 30, A: 40})
+	dst.blendPixel(0, 0, color.RGBA{R: 100, G: 80, B: 60, A: 128}, BlendLighter)
+
+	got := dst.RGBA().RGBAAt(0, 0)
+	want := color.RGBA{R: 60, G: 60, B: 60, A: 168}
+	if got != want {
+		t.Fatalf("additive blend = %+v, want %+v", got, want)
 	}
 }
 
