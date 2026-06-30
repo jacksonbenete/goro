@@ -66,6 +66,7 @@ const (
 	effectPharmacyFail  = 306
 	effectHeal          = 312
 	effectPortal        = 317
+	effectHealOffensive = 320
 	effectBaseLevelUp   = 371
 	effectJobLevelUp    = 158
 	effectPotionRed     = 204
@@ -223,6 +224,7 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 		return
 	}
 	now := time.Now()
+	m.startSkillNoDamageSourceAnimation(ctx, notify, now)
 	if effectID := skillEffectID(notify.SkillID); effectID > 0 {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 			log.Printf("skill effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
@@ -245,7 +247,53 @@ func (m *WorldMode) applySkillCastNotify(ctx Context, notify network.SkillCastNo
 		return
 	}
 	duration := time.Duration(notify.DelayTime) * time.Millisecond
-	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, duration, time.Now(), "server")
+	now := time.Now()
+	m.startSkillCastSourceAnimation(ctx, notify, duration, now)
+	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, duration, now, "server")
+}
+
+func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx Context, notify network.SkillNoDamageNotify, now time.Time) {
+	source, ok, _ := actorForCombatID(ctx, notify.SourceID)
+	if !ok {
+		return
+	}
+	m.faceSkillSource(ctx, notify.SourceID, notify.TargetID, 0, 0)
+	m.startCombatAnimation(ctx, notify.SourceID, skillActionFamilyForActor(source, notify.SkillID), now, defaultAttackAnimationDuration)
+}
+
+func (m *WorldMode) startSkillCastSourceAnimation(ctx Context, notify network.SkillCastNotify, duration time.Duration, now time.Time) {
+	m.faceSkillSource(ctx, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y))
+	m.startSkillSourceCastAnimation(ctx, notify.SourceID, notify.SkillID, duration, now)
+}
+
+func (m *WorldMode) startSkillSourceCastAnimation(ctx Context, sourceID uint32, skillID uint16, duration time.Duration, now time.Time) {
+	source, ok, _ := actorForCombatID(ctx, sourceID)
+	if !ok {
+		return
+	}
+	m.startFixedMotionCombatAnimation(ctx, sourceID, skillActionFamilyForActor(source, skillID), skillCastMotion, now, duration)
+}
+
+func (m *WorldMode) faceSkillSource(ctx Context, sourceID, targetID uint32, cellX, cellY int) {
+	source, sourceOK, sourceLocal := actorForCombatID(ctx, sourceID)
+	if !sourceOK {
+		return
+	}
+	if target, targetOK, _ := actorForCombatID(ctx, targetID); targetOK {
+		m.faceCombatSource(ctx, source, sourceLocal, target)
+		return
+	}
+	if cellX == 0 && cellY == 0 {
+		return
+	}
+	dir := directionFromDelta(source.X, source.Y, cellX, cellY, source.Dir)
+	if sourceLocal {
+		ctx.World.Player.Dir = dir
+		ctx.World.Dir = dir
+		return
+	}
+	source.Dir = dir
+	ctx.World.UpsertActor(source)
 }
 
 func (m *WorldMode) applyGroundSkillNotify(ctx Context, notify network.GroundSkillNotify) {
@@ -709,6 +757,8 @@ func skillHitEffectID(skillID uint16) int {
 		return effectWindHit
 	case 24:
 		return effectBashHit
+	case 28:
+		return effectHealOffensive
 	case 46, 47:
 		return effectBashHit
 	case 52:
@@ -786,6 +836,14 @@ func healCylinderComponent(bottomSize, topSize, height float64) worldEffectCompo
 		totalCircleSides: 32,
 		circleSides:      32,
 	}
+}
+
+func healOffensiveCylinderComponent(bottomSize, topSize, height float64) worldEffectComponent {
+	component := healCylinderComponent(bottomSize, topSize, height)
+	component.duration = time.Second
+	component.color = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	component.blendAdditive = true
+	return component
 }
 
 func strEffectSpec(file, wav string) worldEffectSpec {

@@ -75,7 +75,10 @@ type ActorActionNotify struct {
 	SkillLevel  uint16
 }
 
-const ActorActionPickupItem uint8 = 1
+const (
+	ActorActionPickupItem uint8 = 1
+	ActorActionSkill      uint8 = 6
+)
 
 type ActorHPUpdate struct {
 	ID    uint32

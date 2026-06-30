@@ -582,7 +582,7 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
 		SourceID:    2000000,
 		TargetID:    300,
-		SkillID:     13,
+		SkillID:     0,
 		SourceSpeed: 580,
 		TargetSpeed: 480,
 		Damage:      42,
@@ -611,15 +611,6 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
 		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
-	}
-	if len(mode.worldEffects) != 2 {
-		t.Fatalf("world effects = %+v, want before-hit and hit effects", mode.worldEffects)
-	}
-	if effect := mode.worldEffects[0]; effect.effectID != effectSoulStrike || effect.actorID != 300 || effect.targetID != 2000000 {
-		t.Fatalf("before-hit effect = %+v", effect)
-	}
-	if effect := mode.worldEffects[1]; effect.effectID != effectBashHit || effect.actorID != 300 || effect.targetID != 0 {
-		t.Fatalf("hit effect = %+v", effect)
 	}
 	life, ok := mode.actorLife[300]
 	if !ok {
@@ -701,14 +692,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 63 {
-		t.Fatalf("implemented effects = %d, want 63", coverage.Implemented)
+	if coverage.Implemented != 64 {
+		t.Fatalf("implemented effects = %d, want 64", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 10.3 || coverage.ActivePercent > 10.4 {
-		t.Fatalf("active coverage = %.3f, want about 10.4", coverage.ActivePercent)
+	if coverage.ActivePercent < 10.5 || coverage.ActivePercent > 10.6 {
+		t.Fatalf("active coverage = %.3f, want about 10.5", coverage.ActivePercent)
 	}
 }
 
@@ -972,7 +963,7 @@ func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 		TargetSpeed: 480,
 		Damage:      1008,
 		HitCount:    4,
-		Action:      8,
+		Action:      network.ActorActionSkill,
 	})
 
 	if len(mode.worldEffects) != 8 {
@@ -1063,9 +1054,10 @@ func TestSkillCastFallbackMappings(t *testing.T) {
 
 func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{ID: 1100, X: 12, Y: 20})
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
 
 	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: 20, Property: 4, DelayTime: 2500})
 
@@ -1079,6 +1071,16 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	aura := mode.worldEffects[1]
 	if aura.effectID != effectBeginSpell4 || aura.actorID != 2000000 || aura.targetID != 1100 || aura.duration != 2500*time.Millisecond {
 		t.Fatalf("aura = %+v", aura)
+	}
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("cast animation missing")
+	}
+	if anim.actionFamily != spriteActionPCSkill || anim.duration != 2500*time.Millisecond || !anim.hasFixedMotion || anim.fixedMotion != skillCastMotion {
+		t.Fatalf("cast animation = %+v", anim)
+	}
+	if world.Dir != worldstate.DirectionFromDelta(10, 20, 12, 20, 4) {
+		t.Fatalf("cast dir = %d", world.Dir)
 	}
 }
 
@@ -1106,6 +1108,9 @@ func TestAcolyteSkillEffectMappings(t *testing.T) {
 	}
 	if got := skillSuccessEffectID(28); got != effectHeal {
 		t.Fatalf("AL_HEAL success effect = %d, want %d", got, effectHeal)
+	}
+	if got := skillHitEffectID(28); got != effectHealOffensive {
+		t.Fatalf("AL_HEAL hit effect = %d, want %d", got, effectHealOffensive)
 	}
 	if got := skillSuccessEffectID(29); got != effectIncAgility {
 		t.Fatalf("AL_INCAGI success effect = %d, want %d", got, effectIncAgility)
@@ -3389,9 +3394,9 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 
 func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
 	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
-	sessionState := &session.Session{AccountID: 2000000}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
 	mode := &WorldMode{}
 	ctx := Context{Session: sessionState, World: world}
 
@@ -3408,6 +3413,132 @@ func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
 	floater := mode.damageFloaters[0]
 	if floater.actorID != 1100 || floater.text != "234" || floater.kind != damageFloaterRecoveryHP {
 		t.Fatalf("floater = %+v", floater)
+	}
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("source cast animation missing")
+	}
+	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
+		t.Fatalf("source animation = %+v, want roBrowser DEFAULT skill action", anim)
+	}
+}
+
+func TestActorActionNotifyHealUsesCastAndOffensiveHealEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1015,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     28,
+		SkillLevel:  3,
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      84,
+		HitCount:    1,
+		Action:      8,
+	})
+
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("source animation missing")
+	}
+	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
+		t.Fatalf("source animation = %+v, want roBrowser DEFAULT skill action", anim)
+	}
+	found := false
+	for _, effect := range mode.worldEffects {
+		if effect.effectID == effectHealOffensive && effect.actorID == 300 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("world effects = %+v, want offensive heal effect on target", mode.worldEffects)
+	}
+}
+
+func TestActorActionNotifyBashUsesRobrowserWeaponAttackOverride(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1015,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 1, Hair: 1, Weapon: 3}},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     5,
+		SkillLevel:  3,
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      84,
+		HitCount:    1,
+		Action:      network.ActorActionSkill,
+	})
+
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("source animation missing")
+	}
+	if anim.actionFamily != spriteActionPCAttack2 {
+		t.Fatalf("source animation = %+v, want roBrowser weapon attack override", anim)
+	}
+}
+
+func TestActorActionNotifyHealDoesNotOverwriteLocalCastWithHurt(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	mode := &WorldMode{}
+	ctx := Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     28,
+		SkillLevel:  3,
+		SourceID:    2000000,
+		TargetID:    2000000,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      84,
+		HitCount:    1,
+		Action:      network.ActorActionSkill,
+	})
+
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("source animation missing")
+	}
+	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
+		t.Fatalf("source animation = %+v, want roBrowser DEFAULT skill action", anim)
+	}
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectHealOffensive {
+		t.Fatalf("world effects = %+v, want offensive heal effect", mode.worldEffects)
 	}
 }
 

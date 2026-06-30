@@ -158,11 +158,15 @@ type actorSoundFrame struct {
 	soundIndex   int
 }
 
+const skillCastMotion = 0
+
 type actorAnimation struct {
-	actionFamily int
-	started      time.Time
-	duration     time.Duration
-	holdFinal    bool
+	actionFamily   int
+	started        time.Time
+	duration       time.Duration
+	holdFinal      bool
+	fixedMotion    int
+	hasFixedMotion bool
 }
 
 type actorLife struct {
@@ -1488,7 +1492,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 	attackDuration := combatDuration(action.SourceSpeed, defaultAttackAnimationDuration)
 	attackFamily := spriteActionNonPCAttack
 	if sourceOK {
-		attackFamily = attackActionFamilyForActor(source)
+		attackFamily = skillActionFamilyForActor(source, action.SkillID)
 		m.startCombatAnimation(ctx, action.SourceID, attackFamily, now, attackDuration)
 	}
 	hitDelay := combatDuration(action.SourceSpeed, 0)
@@ -1506,7 +1510,9 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 			hitAt = now
 		}
 		m.addSkillBeforeHitEffect(ctx, action, now)
-		m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
+		if skillTargetUsesHitReaction(action, sourceLocal, targetLocal) {
+			m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
+		}
 		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
 		m.addSkillEffect(ctx, action, hitAt)
 		m.addSkillHitEffect(ctx, action, hitAt)
@@ -1879,6 +1885,22 @@ func (m *WorldMode) startActorAnimationWithOptions(id uint32, actionFamily int, 
 	}
 }
 
+func (m *WorldMode) startFixedMotionActorAnimation(id uint32, actionFamily, fixedMotion int, started time.Time, duration time.Duration) {
+	if id == 0 || actionFamily < 0 || fixedMotion < 0 {
+		return
+	}
+	if m.actorAnims == nil {
+		m.actorAnims = make(map[uint32]actorAnimation)
+	}
+	m.actorAnims[id] = actorAnimation{
+		actionFamily:   actionFamily,
+		started:        started,
+		duration:       duration,
+		fixedMotion:    fixedMotion,
+		hasFixedMotion: true,
+	}
+}
+
 func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
 	m.startActorAnimation(id, actionFamily, started, duration)
 	if ctx.Session == nil || !isLocalActor(ctx, id) {
@@ -1886,6 +1908,15 @@ func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily in
 	}
 	m.startActorAnimation(ctx.Session.AccountID, actionFamily, started, duration)
 	m.startActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
+}
+
+func (m *WorldMode) startFixedMotionCombatAnimation(ctx Context, id uint32, actionFamily, fixedMotion int, started time.Time, duration time.Duration) {
+	m.startFixedMotionActorAnimation(id, actionFamily, fixedMotion, started, duration)
+	if ctx.Session == nil || !isLocalActor(ctx, id) {
+		return
+	}
+	m.startFixedMotionActorAnimation(ctx.Session.AccountID, actionFamily, fixedMotion, started, duration)
+	m.startFixedMotionActorAnimation(ctx.Session.CharID, actionFamily, fixedMotion, started, duration)
 }
 
 func (m *WorldMode) startHeldCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
@@ -1962,6 +1993,35 @@ func attackActionFamilyForActor(actor worldstate.Actor) int {
 		return spriteActionPCAttack2
 	}
 	return spriteActionNonPCAttack
+}
+
+func skillActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
+	if skillID == 0 {
+		return attackActionFamilyForActor(actor)
+	}
+	if !res.HasPlayerJobToken(int(actor.Job)) {
+		return spriteActionNonPCAttack
+	}
+	if robrowserSkillUsesWeaponAttackAction(skillID) {
+		return attackActionFamilyForActor(actor)
+	}
+	return spriteActionPCSkill
+}
+
+func robrowserSkillUsesWeaponAttackAction(skillID uint16) bool {
+	switch skillID {
+	case 5, 7:
+		return true
+	default:
+		return false
+	}
+}
+
+func skillTargetUsesHitReaction(action network.ActorActionNotify, sourceLocal, targetLocal bool) bool {
+	if action.SkillID > 0 && sourceLocal && targetLocal && action.Action == network.ActorActionSkill {
+		return false
+	}
+	return true
 }
 
 func hurtActionFamilyForActor(actor worldstate.Actor) int {
@@ -4558,6 +4618,8 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, project
 		state.started = anim.started
 		state.loop = false
 		state.moving = false
+		state.fixedMotion = anim.fixedMotion
+		state.hasFixedMotion = anim.hasFixedMotion
 	}
 	billboard, ok := humanoidBillboardForState(view, state, now)
 	if !ok {
@@ -4603,6 +4665,8 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 		state.loop = false
 		state.moving = false
 		state.loopIdle = false
+		state.fixedMotion = anim.fixedMotion
+		state.hasFixedMotion = anim.hasFixedMotion
 	}
 	return state
 }

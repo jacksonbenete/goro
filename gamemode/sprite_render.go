@@ -28,6 +28,7 @@ const (
 	spriteActionPCDeath     = 8
 	spriteActionPCAttack2   = 10
 	spriteActionPCAttack3   = 11
+	spriteActionPCSkill     = 12
 )
 
 const (
@@ -103,17 +104,19 @@ type spriteBillboard struct {
 }
 
 type spriteState struct {
-	actionFamily int
-	direction    int
-	headDir      uint8
-	headTurn     bool
-	cameraYaw    float64
-	moving       bool
-	started      time.Time
-	loop         bool
-	loopIdle     bool
-	moveSpeedMS  int
-	walkDistance float64
+	actionFamily   int
+	direction      int
+	headDir        uint8
+	headTurn       bool
+	cameraYaw      float64
+	moving         bool
+	started        time.Time
+	loop           bool
+	loopIdle       bool
+	fixedMotion    int
+	hasFixedMotion bool
+	moveSpeedMS    int
+	walkDistance   float64
 }
 
 func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte) (*humanoidSpriteView, string) {
@@ -479,11 +482,15 @@ func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projec
 			state.started = anim.started
 			state.loop = false
 			state.moving = false
+			state.fixedMotion = anim.fixedMotion
+			state.hasFixedMotion = anim.hasFixedMotion
 		} else if anim, ok := m.actorAnimation(ctx.Session.AccountID, now); ok {
 			state.actionFamily = anim.actionFamily
 			state.started = anim.started
 			state.loop = false
 			state.moving = false
+			state.fixedMotion = anim.fixedMotion
+			state.hasFixedMotion = anim.hasFixedMotion
 		}
 	}
 	billboard, ok := humanoidBillboardForState(m.playerView, state, now)
@@ -1288,6 +1295,12 @@ func spriteMotionIndexWithDelay(action res.ACTAction, started time.Time, now tim
 }
 
 func bodyMotionForState(action res.ACTAction, state spriteState, started time.Time, now time.Time) int {
+	if state.hasFixedMotion && len(action.Animations) > 0 {
+		if state.fixedMotion >= len(action.Animations) {
+			return len(action.Animations) - 1
+		}
+		return state.fixedMotion
+	}
 	if !state.started.IsZero() {
 		started = state.started
 	}
@@ -1354,7 +1367,7 @@ func selectHeadMotion(state spriteState, bodyMotion int, headAction res.ACTActio
 
 func isTransientPCAction(actionFamily int) bool {
 	switch actionFamily {
-	case spriteActionPickup, spriteActionPCAttack1, spriteActionPCHurt, spriteActionPCDeath, spriteActionPCAttack2, spriteActionPCAttack3:
+	case spriteActionPickup, spriteActionPCAttack1, spriteActionPCHurt, spriteActionPCDeath, spriteActionPCAttack2, spriteActionPCAttack3, spriteActionPCSkill:
 		return true
 	default:
 		return false

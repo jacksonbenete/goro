@@ -756,6 +756,14 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			},
 		},
 	},
+	effectHealOffensive: {
+		duration: time.Second,
+		sfx:      []string{"_heal_effect.wav"},
+		components: []worldEffectComponent{
+			healOffensiveCylinderComponent(0.95, 0.95, 10),
+			healOffensiveCylinderComponent(1.0, 1.0, 9),
+		},
+	},
 	effectBaseLevelUp: {
 		duration: 1300 * time.Millisecond,
 		sfx:      []string{"levelup.wav"},
