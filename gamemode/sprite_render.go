@@ -20,15 +20,16 @@ const (
 )
 
 const (
-	spriteActionNonPCAttack = 2
-	spriteActionNonPCHurt   = 3
-	spriteActionNonPCDeath  = 4
-	spriteActionPCAttack1   = 5
-	spriteActionPCHurt      = 6
-	spriteActionPCDeath     = 8
-	spriteActionPCAttack2   = 10
-	spriteActionPCAttack3   = 11
-	spriteActionPCSkill     = 12
+	spriteActionNonPCAttack  = 2
+	spriteActionNonPCHurt    = 3
+	spriteActionNonPCDeath   = 4
+	spriteActionPCReadyFight = 4
+	spriteActionPCAttack1    = 5
+	spriteActionPCHurt       = 6
+	spriteActionPCDeath      = 8
+	spriteActionPCAttack2    = 10
+	spriteActionPCAttack3    = 11
+	spriteActionPCSkill      = 12
 )
 
 const (
@@ -1428,7 +1429,7 @@ func selectHeadMotion(state spriteState, bodyMotion int, headAction res.ACTActio
 
 func isTransientPCAction(actionFamily int) bool {
 	switch actionFamily {
-	case spriteActionPickup, spriteActionPCAttack1, spriteActionPCHurt, spriteActionPCDeath, spriteActionPCAttack2, spriteActionPCAttack3, spriteActionPCSkill:
+	case spriteActionPickup, spriteActionPCReadyFight, spriteActionPCAttack1, spriteActionPCHurt, spriteActionPCDeath, spriteActionPCAttack2, spriteActionPCAttack3, spriteActionPCSkill:
 		return true
 	default:
 		return false

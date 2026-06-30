@@ -785,6 +785,7 @@ type roBrowserSkillAction int
 const (
 	roBrowserSkillActionDefault roBrowserSkillAction = iota
 	roBrowserSkillActionAttack
+	roBrowserSkillActionReadyFight
 )
 
 type roBrowserSkillCast struct {
@@ -818,7 +819,7 @@ var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
 	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: roBrowserSkillActionAttack},                                                                                                     // SM_BASH
 	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                                 // SM_PROVOKE
 	7:   {effectIDsOnCaster: []int{effectMagnumBreak}, action: roBrowserSkillActionAttack},                                                                                                                                        // SM_MAGNUM; quake_magnum is not implemented yet.
-	8:   {effectIDs: []int{effectEndure}},                                                                                                                                                                                         // SM_ENDURE
+	8:   {effectIDs: []int{effectEndure}, action: roBrowserSkillActionReadyFight},                                                                                                                                                 // SM_ENDURE
 	11:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // MG_NAPALMBEAT
 	12:  {},                                                                                                                                                                                                                       // MG_SAFETYWALL; persistent unit effect arrives separately.
 	13:  {beforeHitEffectIDs: []int{effectSoulStrike}, hitEffectIDs: []int{effectBashHit}, cast: roBrowserSkillCast{property: 8, perLevel: 500 * time.Millisecond}},                                                               // MG_SOULSTRIKE

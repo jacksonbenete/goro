@@ -1947,10 +1947,14 @@ func skillActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionNonPCAttack
 	}
-	if skillAction(skillID) == roBrowserSkillActionAttack {
+	switch skillAction(skillID) {
+	case roBrowserSkillActionAttack:
 		return attackActionFamilyForActor(actor)
+	case roBrowserSkillActionReadyFight:
+		return spriteActionPCReadyFight
+	default:
+		return spriteActionPCSkill
 	}
-	return spriteActionPCSkill
 }
 
 func skillTargetUsesHitReaction(action network.ActorActionNotify, sourceLocal, targetLocal bool) bool {

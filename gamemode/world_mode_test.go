@@ -1169,6 +1169,9 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 	if skillAction(5) != roBrowserSkillActionAttack || skillAction(7) != roBrowserSkillActionAttack {
 		t.Fatalf("swordman weapon-action skills = bash:%d magnum:%d", skillAction(5), skillAction(7))
 	}
+	if skillAction(8) != roBrowserSkillActionReadyFight {
+		t.Fatalf("endure action = %d, want ready fight", skillAction(8))
+	}
 	if skillAction(28) != roBrowserSkillActionDefault {
 		t.Fatalf("heal action = %d, want default skill action", skillAction(28))
 	}
@@ -3658,6 +3661,26 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectProvoke || effect.x != 12 || effect.y != 22 {
 		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestSkillNoDamageNotifyEndureUsesReadyFightAction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 1}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 1, Hair: 1}}
+	mode := &WorldMode{}
+	ctx := Context{Session: sessionState, World: world}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 8, TargetID: 2000000, SourceID: 2000000, Result: 1})
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("source animation missing")
+	}
+	if anim.actionFamily != spriteActionPCReadyFight || anim.hasFixedMotion {
+		t.Fatalf("source animation = %+v, want roBrowser READYFIGHT action", anim)
+	}
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectEndure {
+		t.Fatalf("world effects = %+v, want Endure effect", mode.worldEffects)
 	}
 }
 
