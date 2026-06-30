@@ -181,7 +181,7 @@ func (b *shortcutBarState) activate(ctx Context, mode *WorldMode, slot int) {
 			b.setStatus("No world mode", false)
 			return
 		}
-		if err := mode.useSkill(ctx, skill, "shortcut"); err != nil {
+		if err := mode.skills().Use(ctx, skill, "shortcut"); err != nil {
 			b.setStatus(err.Error(), false)
 			return
 		}

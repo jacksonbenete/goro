@@ -668,7 +668,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if auto, ok, err := network.ParseAutoRunSkill(pkt); err != nil {
 			log.Printf("parse auto-run skill 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.applyAutoRunSkill(ctx, auto)
+			m.skills().ApplyAutoRun(ctx, auto)
 			continue
 		}
 		if fail, ok, err := network.ParseSkillFailAck(pkt); err != nil {
@@ -772,7 +772,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.mapFade.phase == mapFadeHold {
 		return nil, nil
 	}
-	if m.cancelPendingSkillTargetFromInput(ctx) {
+	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
 	if !m.escapeMenu.open && !m.deathModal.open && !m.settingsWindow.open {
@@ -852,7 +852,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
 		if m.pendingSkill.skill.ID != 0 {
-			m.handlePendingSkillClick(ctx, projection, now)
+			m.skills().HandleClick(ctx, projection, now)
 			return nil, nil
 		}
 		if item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
@@ -903,26 +903,6 @@ func (m *WorldMode) handleBasicMenuAction(ctx Context) {
 	case "equip":
 		m.equipmentWindow.toggle(ctx)
 	}
-}
-
-func (m *WorldMode) cancelPendingSkillTargetFromInput(ctx Context) bool {
-	if m.pendingSkill.skill.ID == 0 || ctx.Input == nil {
-		return false
-	}
-	if !ctx.Input.JustPressed(render.KeyEscape) && !ctx.Input.MouseJustPressed(render.MouseButtonRight) {
-		return false
-	}
-	m.cancelPendingSkillTarget("input")
-	return true
-}
-
-func (m *WorldMode) cancelPendingSkillTarget(source string) {
-	if m.pendingSkill.skill.ID == 0 {
-		return
-	}
-	log.Printf("skill target canceled skill=%d source=%s", m.pendingSkill.skill.ID, source)
-	m.pendingSkill = pendingSkillTarget{}
-	m.status = "skill canceled"
 }
 
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
@@ -1416,60 +1396,6 @@ func (m *WorldMode) sendAttackAction(ctx Context, actor worldstate.Actor, source
 		log.Printf("%s attack request failed target=%d action=%d: %v", source, actor.ID, network.ActionAttack, err)
 		m.walkCooldown = 30
 	}
-}
-
-func (m *WorldMode) handlePendingSkillClick(ctx Context, projection sceneProjection, now time.Time) {
-	skill := m.pendingSkill.skill
-	if skill.ID == 0 {
-		return
-	}
-	if isGroundTargetSkill(skill) {
-		targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
-		if !ok {
-			m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
-			log.Printf("skill ground target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
-			return
-		}
-		if err := m.sendSkillToGround(ctx, skill, targetX, targetY, "target"); err != nil {
-			m.status = "skill failed: " + err.Error()
-			log.Printf("skill ground target failed skill=%d target=%d,%d: %v", skill.ID, targetX, targetY, err)
-			return
-		}
-		m.pendingSkill = pendingSkillTarget{}
-		m.status = fmt.Sprintf("%s: %d,%d", skillDisplayName(ctx.Resources, skill), targetX, targetY)
-		log.Printf("skill ground target sent skill=%d target=%d,%d", skill.ID, targetX, targetY)
-		return
-	}
-	actor, ok := clickedSkillTarget(ctx, projection, skill, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
-	if !ok {
-		m.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
-		log.Printf("skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
-		return
-	}
-	if err := m.sendSkillToID(ctx, skill, actor.ID, "target"); err != nil {
-		m.status = "skill failed: " + err.Error()
-		log.Printf("skill target failed skill=%d target=%d: %v", skill.ID, actor.ID, err)
-		return
-	}
-	m.pendingSkill = pendingSkillTarget{}
-	m.status = fmt.Sprintf("%s: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
-	log.Printf("skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
-}
-
-func (m *WorldMode) applyAutoRunSkill(ctx Context, auto network.AutoRunSkill) {
-	skill := sessionSkillFromNetwork(auto.Skill)
-	target := localSkillTarget(ctx)
-	log.Printf("auto-run skill received skill=%d level=%d range=%d name=%q target=%d", skill.ID, skill.Level, skill.Range, skill.Name, target)
-	if target == 0 {
-		m.status = "auto skill failed: missing player id"
-		return
-	}
-	if err := m.sendSkillToID(ctx, skill, target, "auto"); err != nil {
-		m.status = "auto skill failed: " + err.Error()
-		log.Printf("auto-run skill use failed skill=%d target=%d: %v", skill.ID, target, err)
-		return
-	}
-	m.status = skillDisplayName(ctx.Resources, skill)
 }
 
 func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {

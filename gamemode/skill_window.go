@@ -155,7 +155,7 @@ func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState, mode
 					w.setStatus("No world mode", false)
 					return true
 				}
-				if err := mode.useSkill(ctx, skill, "skill-window"); err != nil {
+				if err := mode.skills().Use(ctx, skill, "skill-window"); err != nil {
 					w.setStatus(err.Error(), false)
 					return true
 				}

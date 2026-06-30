@@ -2233,7 +2233,7 @@ func TestPendingSkillTargetCancelWithEscape(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetKey(input.KeyEscape, true)
 
-	if !mode.cancelPendingSkillTargetFromInput(Context{Input: inputState}) {
+	if !mode.skills().CancelFromInput(Context{Input: inputState}) {
 		t.Fatal("pending skill target was not canceled")
 	}
 	if mode.pendingSkill.skill.ID != 0 {
@@ -2277,7 +2277,7 @@ func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetMouseButton(input.MouseButtonRight, true)
 
-	if !mode.cancelPendingSkillTargetFromInput(Context{Input: inputState}) {
+	if !mode.skills().CancelFromInput(Context{Input: inputState}) {
 		t.Fatal("pending skill target was not canceled")
 	}
 	if mode.pendingSkill.skill.ID != 0 {
