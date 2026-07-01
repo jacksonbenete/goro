@@ -952,7 +952,9 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	applyWarpPosition(ctx, change.X, change.Y)
 	ctx.World.Actors = make(map[uint32]worldstate.Actor)
 	if reuseLoadedMap {
+		zoom := m.camera.zoom
 		m.camera.Reset()
+		m.camera.zoom = zoom
 		m.camera.Update(ctx, time.Now())
 		if ctx.Network != nil {
 			if err := ctx.Network.SendLoadEndAck(); err != nil {
@@ -992,6 +994,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 
 func (m *WorldMode) nextWorldMode() *WorldMode {
 	next := NewWorldMode()
+	next.camera.zoom = m.camera.zoom
 	next.console = m.console
 	next.shortcutBar = m.shortcutBar
 	next.startMapFadeIn(time.Now())
@@ -3004,7 +3007,7 @@ func (c *followCamera) ProjectionWithOffset(ctx client.Context, width, height in
 		c.ResetRotation()
 		yawOffset = 0
 	}
-	return newSceneProjectionForTargetYawZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, c.currentZoom())
+	return newSceneProjectionForTargetYawZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, cameraZoomForMap(ctx, c.currentZoom()))
 }
 
 func (c *followCamera) store(ctx client.Context) {
@@ -3059,6 +3062,9 @@ func (m *WorldMode) updateCameraRotation(ctx client.Context) {
 }
 
 func (m *WorldMode) updateCameraZoom(ctx client.Context) {
+	if cameraZoomLockedForMap(ctx) {
+		return
+	}
 	factor := 1.0
 	if ctx.Input.WheelY != 0 {
 		m.camera.ZoomByDelta(cameraWheelZoomDelta(ctx.Input.WheelY))
@@ -3112,6 +3118,32 @@ func lockedCameraViewPointForMap(ctx client.Context) (res.CameraViewPoint, bool)
 		return res.CameraViewPoint{}, false
 	}
 	return viewPoint, true
+}
+
+func cameraZoomForMap(ctx client.Context, outdoorZoom float64) float64 {
+	if ctx.Resources == nil || ctx.World == nil {
+		return clampCameraZoom(outdoorZoom)
+	}
+	if viewPoint, ok := ctx.Resources.CameraViewPoint(ctx.World.MapName); ok && viewPoint.DistanceScope <= 0 {
+		if viewPoint.InitialDistance > 0 {
+			return clampCameraZoom(float64(viewPoint.InitialDistance))
+		}
+		return sceneCameraZoom()
+	}
+	if ctx.Resources.IsIndoorMap(ctx.World.MapName) {
+		return sceneCameraZoom()
+	}
+	return clampCameraZoom(outdoorZoom)
+}
+
+func cameraZoomLockedForMap(ctx client.Context) bool {
+	if ctx.Resources == nil || ctx.World == nil {
+		return false
+	}
+	if viewPoint, ok := ctx.Resources.CameraViewPoint(ctx.World.MapName); ok {
+		return viewPoint.DistanceScope <= 0
+	}
+	return ctx.Resources.IsIndoorMap(ctx.World.MapName)
 }
 
 func cameraDragYawDelta(mouseDX, screenWidth int) float64 {

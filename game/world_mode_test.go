@@ -3254,6 +3254,39 @@ func TestCameraYawForFixedViewPointMapIsLocked(t *testing.T) {
 	}
 }
 
+func TestIndoorCameraZoomIsLockedWithoutLosingOutdoorZoom(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.Mkdir(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "indoorrswtable.txt"), []byte("geffen_in.rsw#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	world := worldstate.New()
+	world.MapName = "geffen_in"
+	ctx := client.Context{
+		Resources: manager,
+		World:     world,
+	}
+	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0, zoom: 220}
+
+	indoorProjection := camera.Projection(ctx, 800, 600, time.Now())
+	if got := indoorProjection.cameraZoom; got != sceneCameraZoom() {
+		t.Fatalf("indoor projection zoom = %.1f, want %.1f", got, sceneCameraZoom())
+	}
+
+	ctx.World.MapName = "prontera"
+	outdoorProjection := camera.Projection(ctx, 800, 600, time.Now())
+	if got := outdoorProjection.cameraZoom; got != 220 {
+		t.Fatalf("restored outdoor projection zoom = %.1f, want 220.0", got)
+	}
+}
+
 func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "prontera"
