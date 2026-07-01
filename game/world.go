@@ -1474,6 +1474,8 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		if hitAt.Before(now) {
 			hitAt = now
 		}
+		m.addSkillBeginEffect(ctx, action, now)
+		m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, now)
 		m.addSkillBeforeHitEffect(ctx, action, now)
 		if skillTargetUsesHitReaction(action, sourceLocal, targetLocal) {
 			m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
@@ -1493,6 +1495,37 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		x, y = ctx.World.Player.X, ctx.World.Player.Y
 	}
 	m.addActionDamageFloaters(action, targetLocal, sourceLocal, x, y, hitAt)
+}
+
+func (m *WorldMode) addSkillBeginEffect(ctx client.Context, action network.ActorActionNotify, starts time.Time) {
+	if action.SkillID == 0 {
+		return
+	}
+	for _, effectID := range skillBeginEffectIDs(action.SkillID) {
+		actorID := action.SourceID
+		if effectDetachesLocalActor(effectID) && isLocalActor(ctx, actorID) {
+			actorID = 0
+		}
+		if m.addWorldEffectAt(ctx, effectID, actorID, starts) {
+			log.Printf("skill begin effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+		}
+	}
+}
+
+func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action network.ActorActionNotify, source worldstate.Actor, sourceOK bool, starts time.Time) {
+	if action.SkillID != 0 || !sourceOK || !actorUsesBow(ctx.Resources, source) {
+		return
+	}
+	if m.addWorldEffectBetweenAt(ctx, effectArrowShot, action.TargetID, action.SourceID, starts) {
+		log.Printf("normal attack before-hit effect src=%d target=%d effect=%d", action.SourceID, action.TargetID, effectArrowShot)
+	}
+}
+
+func actorUsesBow(manager *res.Manager, actor worldstate.Actor) bool {
+	if actor.Weapon <= 0 {
+		return false
+	}
+	return res.PlayerWeaponViewID(manager, int(actor.Weapon)) == 11
 }
 
 func (m *WorldMode) addSkillEffect(ctx client.Context, action network.ActorActionNotify, starts time.Time) {

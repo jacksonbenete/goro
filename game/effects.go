@@ -26,6 +26,8 @@ const (
 	effectColdBolt      = 10014
 	effectBashBegin     = 16
 	effectBashHit       = 1
+	effectArrowShot     = 10060
+	effectArrowShower   = 10061
 	effectMammonite     = 10
 	effectSight         = 22
 	effectSoulStrike    = 15
@@ -941,8 +943,8 @@ var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
 	35:  {effectIDs: []int{effectCure}},                                                                                                                                                                                           // AL_CURE
 	42:  {effectIDs: []int{effectMammonite}},                                                                                                                                                                                      // MC_MAMMONITE
 	45:  {effectIDs: []int{effectConcentration}},                                                                                                                                                                                  // AC_CONCENTRATION
-	46:  {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                         // AC_DOUBLE; ef_arrow_projectile is not implemented yet.
-	47:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // AC_SHOWER; ef_arrow_shower_projectile is not implemented yet.
+	46:  {beginCastEffectIDs: []int{effectBashBegin}, beforeHitEffectIDs: []int{effectArrowShot}, hitEffectIDs: []int{effectBashHit}},                                                                                             // AC_DOUBLE
+	47:  {effectIDs: []int{effectArrowShower}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                                // AC_SHOWER
 	50:  {successEffectIDs: []int{effectSteal}},                                                                                                                                                                                   // TF_STEAL
 	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                                                                                                                                                                // TF_POISON
 	53:  {effectIDs: []int{effectDetoxication}},                                                                                                                                                                                   // TF_DETOXIFY

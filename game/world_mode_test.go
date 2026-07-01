@@ -801,10 +801,13 @@ func TestApplyActorActionNotifyAddsBashHitEffect(t *testing.T) {
 		Action:      6,
 	})
 
-	if len(mode.worldEffects) != 1 {
-		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %d, want begin and hit effects", len(mode.worldEffects))
 	}
-	effect := mode.worldEffects[0]
+	if effect := mode.worldEffects[0]; effect.effectID != effectBashBegin || effect.actorID != 2000000 {
+		t.Fatalf("begin effect = %+v", effect)
+	}
+	effect := mode.worldEffects[1]
 	if effect.effectID != effectBashHit || effect.actorID != 300 || effect.x != 11 || effect.y != 20 {
 		t.Fatalf("effect = %+v", effect)
 	}
@@ -843,14 +846,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 69 {
-		t.Fatalf("implemented effects = %d, want 69", coverage.Implemented)
+	if coverage.Implemented != 71 {
+		t.Fatalf("implemented effects = %d, want 71", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 11.3 || coverage.ActivePercent > 11.4 {
-		t.Fatalf("active coverage = %.3f, want about 11.4", coverage.ActivePercent)
+	if coverage.ActivePercent < 11.6 || coverage.ActivePercent > 11.8 {
+		t.Fatalf("active coverage = %.3f, want about 11.7", coverage.ActivePercent)
 	}
 }
 
@@ -1581,13 +1584,69 @@ func TestAcolyteSkillEffectMappings(t *testing.T) {
 func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AC_CONCENTRATION", skillEffectIDs(45), effectConcentration)
 	expectEffectIDs(t, "AC_DOUBLE begin", skillBeginEffectIDs(46), effectBashBegin)
-	for _, skillID := range []uint16{46, 47} {
-		expectEffectIDs(t, "archer hit", skillHitEffectIDs(skillID), effectBashHit)
-	}
+	expectEffectIDs(t, "AC_DOUBLE before-hit", skillBeforeHitEffectIDs(46), effectArrowShot)
+	expectEffectIDs(t, "AC_DOUBLE hit", skillHitEffectIDs(46), effectBashHit)
+	expectEffectIDs(t, "AC_SHOWER", skillEffectIDs(47), effectArrowShower)
+	expectEffectIDs(t, "AC_SHOWER hit", skillHitEffectIDs(47), effectBashHit)
 	expectEffectIDs(t, "TF_STEAL success", skillSuccessEffectIDs(50), effectSteal)
 	expectEffectIDs(t, "TF_POISON hit", skillHitEffectIDs(52), effectPoisonAttack)
 	expectEffectIDs(t, "TF_DETOXIFY", skillEffectIDs(53), effectDetoxication)
 	expectEffectIDs(t, "MC_MAMMONITE", skillEffectIDs(42), effectMammonite)
+}
+
+func TestArcherProjectileEffectsFollowRoBrowserTable(t *testing.T) {
+	shot, ok := worldEffectSpecForID(effectArrowShot)
+	if !ok || len(shot.components) != 1 {
+		t.Fatalf("arrow shot spec = %#v ok=%t, want one component", shot, ok)
+	}
+	component := shot.components[0]
+	if component.kind != effectComponent3D || component.spriteFile != "data/sprite/npc/skel_archer_arrow" {
+		t.Fatalf("arrow shot component = %#v, want skel_archer_arrow 3D sprite", component)
+	}
+	if !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || component.duration != 140*time.Millisecond {
+		t.Fatalf("arrow shot robr flags = %#v", component)
+	}
+
+	shower, ok := worldEffectSpecForID(effectArrowShower)
+	if !ok || len(shower.components) != 1 {
+		t.Fatalf("arrow shower spec = %#v ok=%t, want one component", shower, ok)
+	}
+	component = shower.components[0]
+	if component.duplicate != 10 || component.posXEndRand != 1.5 || component.posYEndRand != 1.5 {
+		t.Fatalf("arrow shower scatter = %#v, want robr duplicate/scatter values", component)
+	}
+}
+
+func TestBowNormalAttackAddsArrowProjectileEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, X: 15, Y: 20, Job: 1002, ObjectType: 5}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 200,
+			Selected:  session.Character{ID: 200, Job: 3, Weapon: 11},
+		},
+		World: world,
+	}
+	mode := &WorldMode{}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    200,
+		TargetID:    300,
+		Damage:      12,
+		HitCount:    1,
+		Action:      0,
+		SourceSpeed: 500,
+		TargetSpeed: 500,
+	})
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want arrow projectile", len(mode.worldEffects))
+	}
+	effect := mode.worldEffects[0]
+	if effect.effectID != effectArrowShot || effect.actorID != 300 || effect.targetID != 200 {
+		t.Fatalf("normal bow projectile = %+v", effect)
+	}
 }
 
 func TestWarpEffectMappings(t *testing.T) {
