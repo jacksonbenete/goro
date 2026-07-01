@@ -1140,11 +1140,6 @@ func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uin
 		statPoints[i][1] = float64(cy) + (points[i][1]-float64(cy))*scale
 	}
 	drawFilledCharacterCreateStatPolygon(screen, statPoints, order, color.RGBA{R: 36, G: 92, B: 154, A: 220})
-	for i := 0; i < createStatCount; i++ {
-		current := order[i]
-		next := order[(i+1)%createStatCount]
-		render.DrawLine(screen, statPoints[current][0], statPoints[current][1], statPoints[next][0], statPoints[next][1], color.RGBA{R: 80, G: 146, B: 214, A: 255})
-	}
 }
 
 func drawFilledCharacterCreateStatPolygon(screen *render.Image, points [createStatCount][2]float64, order [createStatCount]int, fill color.RGBA) {
