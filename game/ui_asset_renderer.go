@@ -84,11 +84,3 @@ func (m *WorldMode) DrawEquipmentPreview(screen *render.Image, ctx Context, x, y
 	}
 	screen.DrawTrianglesOwned(vertices, quadIndices012213, billboard.image, &render.DrawTrianglesOptions{Filter: spriteDrawFilter(), Address: render.AddressClampToZero})
 }
-
-func (m *WorldMode) UseShortcutSkill(ctx Context, skill session.Skill) error {
-	return m.skills().Use(ctx, skill, "shortcut")
-}
-
-func (m *WorldMode) AddTeleportEffect(ctx Context) {
-	m.addWorldEffect(ctx, effectTeleportation, localSkillTarget(ctx))
-}

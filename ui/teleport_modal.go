@@ -80,7 +80,7 @@ func TeleportWarpListBypassesModal(skill session.Skill, list network.WarpPointLi
 	return true
 }
 
-func (m *TeleportModal) Update(ctx Context, mode WorldRenderer) bool {
+func (m *TeleportModal) Update(ctx Context, actions GameActions) bool {
 	if !m.open || ctx.Input == nil {
 		return m.open
 	}
@@ -103,13 +103,13 @@ func (m *TeleportModal) Update(ctx Context, mode WorldRenderer) bool {
 		if !pointInRect(mx, my, bx, by, bw, bh) {
 			continue
 		}
-		m.activate(ctx, mode, button.action)
+		m.activate(ctx, actions, button.action)
 		return true
 	}
 	return true
 }
 
-func (m *TeleportModal) activate(ctx Context, mode WorldRenderer, action teleportModalAction) {
+func (m *TeleportModal) activate(ctx Context, actions GameActions, action teleportModalAction) {
 	for _, button := range m.buttons() {
 		if button.action != action || !button.enabled {
 			continue
@@ -118,7 +118,7 @@ func (m *TeleportModal) activate(ctx Context, mode WorldRenderer, action telepor
 			m.cancel(ctx)
 			return
 		}
-		m.selectWarpPoint(ctx, mode, button.mapName)
+		m.selectWarpPoint(ctx, actions, button.mapName)
 		return
 	}
 }
@@ -133,7 +133,7 @@ func (m *TeleportModal) cancel(ctx Context) {
 	m.open = false
 }
 
-func (m *TeleportModal) selectWarpPoint(ctx Context, mode WorldRenderer, mapName string) {
+func (m *TeleportModal) selectWarpPoint(ctx Context, actions GameActions, mapName string) {
 	if ctx.Network == nil {
 		m.status = "Teleport failed: not connected"
 		return
@@ -146,8 +146,8 @@ func (m *TeleportModal) selectWarpPoint(ctx Context, mode WorldRenderer, mapName
 		m.status = fmt.Sprintf("Teleport failed: %v", err)
 		return
 	}
-	if mode != nil && skillID == teleportSkillID {
-		mode.AddTeleportEffect(ctx)
+	if actions != nil && skillID == teleportSkillID {
+		actions.AddTeleportEffect(ctx)
 	}
 	m.open = false
 }

@@ -262,7 +262,7 @@ func (w *ShopWindow) updateDeal(ctx Context) bool {
 	return true
 }
 
-func (w *ShopWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *ShopWindow) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if screen == nil {
 		return
 	}
@@ -284,7 +284,7 @@ func (w *ShopWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer)
 	drawUICloseButton(screen, cx, cy, cw, ch, shopButtonColor, shopTextColor)
 
 	if w.mode == shopModeBuy {
-		w.drawBuyRows(screen, ctx, mode)
+		w.drawBuyRows(screen, ctx, assets)
 	} else {
 		dx, dy, dw, dh := w.dropBounds()
 		fill := uiPanelBodyColor
@@ -666,7 +666,7 @@ func (w *ShopWindow) drawCartRow(screen *render.Image, ctx Context, row int, ite
 	w.drawTinyButton(screen, x+width-16, y+4, "x", true)
 }
 
-func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, assets AssetRenderer) {
 	dx, dy, dw, dh := w.dropBounds()
 	drawUISurface(screen, dx, dy, dw, dh, uiPanelBodyColor, uiWindowBorderColor)
 	if len(w.buyItems) == 0 {
@@ -684,8 +684,8 @@ func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, mode WorldRe
 			fill = shopHoverColor
 		}
 		drawUISurface(screen, x, y, width, height, fill, uiWindowBorderColor)
-		if mode != nil {
-			mode.DrawInventoryItemIcon(screen, ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true, Amount: 1}, x+3, y+2)
+		if assets != nil {
+			assets.DrawInventoryItemIcon(screen, ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true, Amount: 1}, x+3, y+2)
 		}
 		name := inventoryItemDisplayName(ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true})
 		price := int64(item.DiscountPrice)

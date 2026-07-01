@@ -175,7 +175,7 @@ func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage
 	return true
 }
 
-func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
@@ -221,8 +221,8 @@ func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, mode WorldR
 		if pointInRect(mx, my, cx, cy, inventoryBagCell, inventoryBagCell) {
 			render.DrawRect(screen, float64(cx), float64(cy), inventoryBagCell-1, inventoryBagCell-1, color.RGBA{R: 118, G: 150, B: 204, A: 92})
 		}
-		if mode != nil {
-			mode.DrawInventoryItemIcon(screen, ctx.Resources, item, cx+4, cy+4)
+		if assets != nil {
+			assets.DrawInventoryItemIcon(screen, ctx.Resources, item, cx+4, cy+4)
 		}
 		if item.Amount > 1 {
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), cx+inventoryBagCell-16, cy+inventoryBagCell-14, color.RGBA{R: 40, G: 36, B: 32, A: 255})
@@ -247,10 +247,10 @@ func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, mode WorldR
 		}
 		render.DebugPrintAtColor(screen, trimRunes(w.status, 34), x+inventoryBagPad, y+inventoryBagHeight-41, statusColor)
 	}
-	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && mode != nil {
+	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && assets != nil {
 		dx := ctx.Input.MouseX - inventoryIconSize/2
 		dy := ctx.Input.MouseY - inventoryIconSize/2
-		mode.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx, dy)
+		assets.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx, dy)
 	}
 }
 

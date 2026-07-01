@@ -69,7 +69,7 @@ func (w *SkillWindow) Toggle(ctx Context) {
 	w.ClampScroll(ctx.Session)
 }
 
-func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, mode WorldRenderer) bool {
+func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameActions) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -151,11 +151,11 @@ func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, mode WorldRend
 			if w.lastClick == skill.ID && now.Sub(w.lastClickAt) <= 360*time.Millisecond {
 				w.lastClick = 0
 				w.lastClickAt = time.Time{}
-				if mode == nil {
-					w.setStatus("No world mode", false)
+				if actions == nil {
+					w.setStatus("No game actions", false)
 					return true
 				}
-				if err := mode.UseShortcutSkill(ctx, skill); err != nil {
+				if err := actions.UseShortcutSkill(ctx, skill); err != nil {
 					w.setStatus(err.Error(), false)
 					return true
 				}
@@ -173,7 +173,7 @@ func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, mode WorldRend
 	return true
 }
 
-func (w *SkillWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
@@ -210,8 +210,8 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer
 				rowColor = uiPanelAltColor
 			}
 			drawUIRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
-			if mode != nil {
-				mode.DrawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+3, ry+2, 22)
+			if assets != nil {
+				assets.DrawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+3, ry+2, 22)
 			}
 			typeColor := skillWindowPassive
 			typeLabel := "P"
@@ -252,8 +252,8 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer
 		}
 		render.DebugPrintAtColor(screen, trimRunes(w.status, 44), x+skillWindowPad, y+skillWindowHeight-20, statusColor)
 	}
-	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && mode != nil {
-		mode.DrawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-12, ctx.Input.MouseY-12, 24)
+	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && assets != nil {
+		assets.DrawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-12, ctx.Input.MouseY-12, 24)
 	}
 	if !w.dragActive && ctx.Input != nil {
 		if skill, ok := w.hoveredSkill(ctx); ok {

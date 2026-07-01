@@ -32,11 +32,14 @@ const (
 
 type Context = client.Context
 
-type WorldRenderer interface {
+type AssetRenderer interface {
 	DrawInventoryItemIcon(screen *render.Image, manager *res.Manager, item session.InventoryItem, x, y int)
 	DrawSkillIcon(screen *render.Image, manager *res.Manager, skill session.Skill, x, y, size int)
 	DrawItemInfoIllustration(screen *render.Image, manager *res.Manager, item session.InventoryItem, x, y, width, height int)
 	DrawEquipmentPreview(screen *render.Image, ctx client.Context, x, y, width, height int)
+}
+
+type GameActions interface {
 	UseShortcutSkill(ctx client.Context, skill session.Skill) error
 	AddTeleportEffect(ctx client.Context)
 }

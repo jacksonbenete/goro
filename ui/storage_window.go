@@ -121,7 +121,7 @@ func (w *StorageWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	return true
 }
 
-func (w *StorageWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *StorageWindow) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
@@ -148,8 +148,8 @@ func (w *StorageWindow) Draw(screen *render.Image, ctx Context, mode WorldRender
 				fill = inventoryHoverColor
 			}
 			drawUISurface(screen, rx, ry, rw, rh, fill, uiWindowBorderColor)
-			if mode != nil {
-				mode.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
+			if assets != nil {
+				assets.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
 			}
 			name := inventoryItemDisplayName(ctx.Resources, item)
 			if item.Refine > 0 {

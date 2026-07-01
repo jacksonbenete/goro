@@ -96,7 +96,7 @@ func (w *ItemInfoWindow) Update(ctx Context) bool {
 	return true
 }
 
-func (w *ItemInfoWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *ItemInfoWindow) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
@@ -110,8 +110,8 @@ func (w *ItemInfoWindow) Draw(screen *render.Image, ctx Context, mode WorldRende
 	contentY := y + itemInfoWindowTitleH + itemInfoWindowPad
 	contentH := itemInfoWindowHeight - itemInfoWindowTitleH - itemInfoWindowPad*2
 	drawUISurface(screen, leftX, contentY, itemInfoIllustrationWidth, contentH, uiPanelBodyColor, uiWindowBorderColor)
-	if mode != nil {
-		mode.DrawItemInfoIllustration(screen, ctx.Resources, w.item, leftX+7, contentY+7, itemInfoIllustrationWidth-14, contentH-14)
+	if assets != nil {
+		assets.DrawItemInfoIllustration(screen, ctx.Resources, w.item, leftX+7, contentY+7, itemInfoIllustrationWidth-14, contentH-14)
 	}
 
 	name := inventoryItemDisplayName(ctx.Resources, w.item)

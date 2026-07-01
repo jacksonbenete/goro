@@ -130,7 +130,7 @@ func (w *InventoryWindow) Update(ctx Context, shop *ShopWindow, itemInfo *ItemIn
 	return true
 }
 
-func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
@@ -160,8 +160,8 @@ func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, mode WorldRend
 				fill = inventoryDragColor
 			}
 			drawUISurface(screen, rx, ry, rw, rh, fill, uiWindowBorderColor)
-			if mode != nil {
-				mode.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
+			if assets != nil {
+				assets.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
 			}
 			name := inventoryItemDisplayName(ctx.Resources, item)
 			if item.Refine > 0 {
@@ -185,8 +185,8 @@ func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, mode WorldRend
 		dx, dy := ctx.Input.MouseX+12, ctx.Input.MouseY+10
 		width := len([]rune(label))*7 + inventoryIconSize + 18
 		drawUISurface(screen, dx, dy, width, inventoryIconSize+6, uiPanelBodyColor, uiWindowBorderColor)
-		if mode != nil {
-			mode.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx+3, dy+3)
+		if assets != nil {
+			assets.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx+3, dy+3)
 		}
 		render.DebugPrintAtColor(screen, label, dx+inventoryIconSize+9, dy+(inventoryIconSize-13)/2+2, inventoryTextColor)
 	}

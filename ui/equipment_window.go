@@ -157,7 +157,7 @@ func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	return true
 }
 
-func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
@@ -171,8 +171,8 @@ func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, mode WorldRend
 	contentX, contentY := w.contentOrigin()
 	drawEquipmentContentSurface(screen, contentX, contentY)
 	px, py, pw, ph := w.previewBounds()
-	if mode != nil {
-		mode.DrawEquipmentPreview(screen, ctx, px, py, pw, ph)
+	if assets != nil {
+		assets.DrawEquipmentPreview(screen, ctx, px, py, pw, ph)
 	}
 
 	mx, my := -1, -1
@@ -185,8 +185,8 @@ func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, mode WorldRend
 			render.DrawRect(screen, float64(sx), float64(sy), float64(sw), float64(sh), color.RGBA{R: 118, G: 150, B: 204, A: 68})
 		}
 		item, ok := equippedItemForSlot(ctx.Session, slot.location)
-		if ok && mode != nil {
-			w.drawSlotItem(screen, ctx, mode, slot, item, sx, sy, sw, sh)
+		if ok && assets != nil {
+			w.drawSlotItem(screen, ctx, assets, slot, item, sx, sy, sw, sh)
 			continue
 		}
 		w.drawEmptySlotLabel(screen, slot, sx, sy)
@@ -297,15 +297,15 @@ func (w *EquipmentWindow) setStatus(text string, good bool) {
 	w.statusAt = time.Now()
 }
 
-func (w *EquipmentWindow) drawSlotItem(screen *render.Image, ctx Context, mode WorldRenderer, slot equipmentSlotDef, item session.InventoryItem, x, y, width, height int) {
+func (w *EquipmentWindow) drawSlotItem(screen *render.Image, ctx Context, assets AssetRenderer, slot equipmentSlotDef, item session.InventoryItem, x, y, width, height int) {
 	name := inventoryItemDisplayName(ctx.Resources, item)
 	if slot.side == equipmentSlotCenter {
 		iconX := x + (width-inventoryIconSize)/2
-		mode.DrawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
+		assets.DrawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
 		return
 	}
 	if slot.side == equipmentSlotLeft {
-		mode.DrawInventoryItemIcon(screen, ctx.Resources, item, x+4, y)
+		assets.DrawInventoryItemIcon(screen, ctx.Resources, item, x+4, y)
 		render.DebugPrintAtColor(screen, trimRunes(name, 10), x+32, y+6, uiTextColor)
 		if item.Refine > 0 {
 			render.DebugPrintAtColor(screen, "+"+formatHUDNumber(int64(item.Refine)), x+2, y+1, shopGoodColor)
@@ -313,7 +313,7 @@ func (w *EquipmentWindow) drawSlotItem(screen *render.Image, ctx Context, mode W
 		return
 	}
 	iconX := x + width - inventoryIconSize - 4
-	mode.DrawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
+	assets.DrawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
 	render.DebugPrintAtColor(screen, trimRunes(name, 10), x+4, y+6, uiTextColor)
 	if item.Refine > 0 {
 		render.DebugPrintAtColor(screen, "+"+formatHUDNumber(int64(item.Refine)), iconX-2, y+1, shopGoodColor)

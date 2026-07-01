@@ -61,13 +61,13 @@ type shortcutPersistSlot struct {
 	SkillLevel int    `json:"skill_level,omitempty"`
 }
 
-func (b *ShortcutBar) Update(ctx Context, mode WorldRenderer) bool {
+func (b *ShortcutBar) Update(ctx Context, actions GameActions) bool {
 	if ctx.Input == nil {
 		return false
 	}
 	for i := 0; i < shortcutSlots; i++ {
 		if ctx.Input.JustPressed(shortcutKey(i)) {
-			b.activate(ctx, mode, i)
+			b.activate(ctx, actions, i)
 			return true
 		}
 	}
@@ -82,7 +82,7 @@ func (b *ShortcutBar) Update(ctx Context, mode WorldRenderer) bool {
 		return true
 	}
 	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
-		b.activate(ctx, mode, slot)
+		b.activate(ctx, actions, slot)
 		return true
 	}
 	return false
@@ -149,7 +149,7 @@ func (b *ShortcutBar) clearDepletedItemSlots(index, itemID uint16) bool {
 	return changed
 }
 
-func (b *ShortcutBar) activate(ctx Context, mode WorldRenderer, slot int) {
+func (b *ShortcutBar) activate(ctx Context, actions GameActions, slot int) {
 	if slot < 0 || slot >= len(b.slots) {
 		return
 	}
@@ -159,10 +159,6 @@ func (b *ShortcutBar) activate(ctx Context, mode WorldRenderer, slot int) {
 		item, ok := inventoryItemForShortcut(ctx.Session, entry.itemIndex, entry.itemID)
 		if !ok {
 			b.setStatus(fmt.Sprintf("F%d item unavailable", slot+1), false)
-			return
-		}
-		if mode == nil {
-			b.setStatus("No world mode", false)
 			return
 		}
 		if err := useInventoryItem(ctx, item); err != nil {
@@ -177,11 +173,11 @@ func (b *ShortcutBar) activate(ctx Context, mode WorldRenderer, slot int) {
 			b.setStatus(fmt.Sprintf("F%d skill unavailable", slot+1), false)
 			return
 		}
-		if mode == nil {
-			b.setStatus("No world mode", false)
+		if actions == nil {
+			b.setStatus("No game actions", false)
 			return
 		}
-		if err := mode.UseShortcutSkill(ctx, skill); err != nil {
+		if err := actions.UseShortcutSkill(ctx, skill); err != nil {
 			b.setStatus(err.Error(), false)
 			return
 		}
@@ -191,7 +187,7 @@ func (b *ShortcutBar) activate(ctx Context, mode WorldRenderer, slot int) {
 	}
 }
 
-func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
+func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, assets AssetRenderer) {
 	if screen == nil {
 		return
 	}
@@ -213,23 +209,23 @@ func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, mode WorldRenderer
 		entry := b.slots[i]
 		switch entry.kind {
 		case shortcutItem:
-			if mode != nil {
+			if assets != nil {
 				item := session.InventoryItem{ItemID: entry.itemID, Index: entry.itemIndex, Identified: entry.identified, Amount: 1}
 				if live, ok := inventoryItemForShortcut(ctx.Session, entry.itemIndex, entry.itemID); ok {
 					item = live
 				}
-				mode.DrawInventoryItemIcon(screen, ctx.Resources, item, sx+5, sy+5)
+				assets.DrawInventoryItemIcon(screen, ctx.Resources, item, sx+5, sy+5)
 				if item.Amount > 1 {
 					render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), sx+shortcutSlot-17, sy+shortcutSlot-14, uiTextColor)
 				}
 			}
 		case shortcutSkill:
-			if mode != nil {
+			if assets != nil {
 				skill, _ := skillForShortcut(ctx.Session, entry)
 				if skill.ID == 0 {
 					skill = session.Skill{ID: entry.skillID, Level: entry.skillLevel}
 				}
-				mode.DrawSkillIcon(screen, ctx.Resources, skill, sx+5, sy+5, 24)
+				assets.DrawSkillIcon(screen, ctx.Resources, skill, sx+5, sy+5, 24)
 				if skill.Level > 0 {
 					drawShortcutSkillLevel(screen, sx, sy, skill.Level)
 				}
