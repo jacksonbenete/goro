@@ -47,13 +47,6 @@ type teleportModalButton struct {
 	enabled bool
 }
 
-func (m *teleportModalState) openSkill(skill session.Skill) {
-	m.open = true
-	m.skill = skill
-	m.mapNames = nil
-	m.status = ""
-}
-
 func (m *teleportModalState) openWarpPointList(list network.WarpPointList, skill session.Skill) {
 	m.open = true
 	m.skill = skill

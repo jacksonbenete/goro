@@ -627,18 +627,6 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, a
 	return true
 }
 
-func (m *WorldMode) addWorldEffectAtCell(ctx Context, effectID int, x, y int, starts time.Time) bool {
-	return m.addWorldEffectAtCellDurationSize(ctx, effectID, 0, x, y, starts, 0, 0)
-}
-
-func (m *WorldMode) addWorldEffectAtCellWithActor(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time) bool {
-	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, 0, 0)
-}
-
-func (m *WorldMode) addWorldEffectAtCellDuration(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration) bool {
-	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, durationOverride, 0)
-}
-
 func (m *WorldMode) addWorldEffectAtCellLifetime(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, lifetimeOverride time.Duration) bool {
 	if ctx.World == nil {
 		return false
@@ -713,10 +701,6 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx Context, effectID int, 
 
 func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx Context, effectID int, x, y int, starts time.Time) bool {
 	return m.addWorldEffectAtCellDurationSizeIfMissing(ctx, effectID, 0, x, y, starts, 0, 0)
-}
-
-func (m *WorldMode) addWorldEffectAtCellDurationIfMissing(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration) bool {
-	return m.addWorldEffectAtCellDurationSizeIfMissing(ctx, effectID, actorID, x, y, starts, durationOverride, 0)
 }
 
 func (m *WorldMode) addWorldEffectAtCellDurationSizeIfMissing(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
@@ -885,7 +869,6 @@ type roBrowserSkillEffect struct {
 	passive                bool
 	groundCastMarkerSize   float64
 	recoveryFloater        roBrowserSkillRecoveryFloater
-	hideCastAura           bool
 }
 
 type roBrowserSkillAction int
@@ -2188,14 +2171,6 @@ func deterministicUnit(effect worldEffect, salt int) float64 {
 	value *= 2246822519
 	value ^= value >> 13
 	return float64(value&0xFFFFFF) / float64(0xFFFFFF)
-}
-
-func drawTexturedEffectBillboard(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, size float64, tint color.RGBA) {
-	drawTexturedEffectBillboardRotated(screen, projection, texture, worldX, worldY, worldZ, size, 0, tint)
-}
-
-func drawTexturedEffectBillboardRotated(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, size, angle float64, tint color.RGBA) {
-	drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX, worldY, worldZ, size, size, angle, tint, true)
 }
 
 func drawTexturedEffectBillboardRotatedXY(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, sizeX, sizeY, angle float64, tint color.RGBA, additive bool) {

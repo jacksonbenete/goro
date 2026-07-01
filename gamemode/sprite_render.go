@@ -203,10 +203,6 @@ func drawSpriteBillboardTintAlpha3D(screen *render.Image, projection sceneProjec
 	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
 }
 
-func drawSpriteBillboardTintAlphaRotated3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, angle float64, alpha float64, shadow float64, tintColor color.RGBA) {
-	drawSpriteBillboardTintAlphaRotated3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
-}
-
 func drawSpriteBillboardTintAlphaOverlay3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
 	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, &render.DrawTrianglesOptions{
 		Filter:  spriteDrawFilter(),
@@ -433,14 +429,6 @@ func spriteBillboardTriangleDrawOptions() *render.DrawTrianglesOptions {
 	options := triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero)
 	options.Blend = render.BlendSourceOver
 	return options
-}
-
-func spriteBillboardVertex3D(point, depthPoint modelPoint3, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32) render.Vertex3D {
-	vertex := texturedSurfaceVertex3D(point, uv, tint, textureWidth, textureHeight)
-	vertex.DepthX = float32(depthPoint.x)
-	vertex.DepthY = float32(depthPoint.y)
-	vertex.DepthZ = float32(depthPoint.z)
-	return vertex
 }
 
 func colorRGBAFromFloats(r, g, b, a float64) color.RGBA {

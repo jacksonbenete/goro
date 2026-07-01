@@ -30,7 +30,6 @@ var (
 	uiPanelBodyColor    = color.RGBA{R: 250, G: 252, B: 255, A: 255}
 	uiPanelAltColor     = color.RGBA{R: 236, G: 244, B: 252, A: 255}
 	uiPanelHoverColor   = color.RGBA{R: 222, G: 236, B: 250, A: 255}
-	uiPanelDownColor    = color.RGBA{R: 204, G: 224, B: 246, A: 255}
 	uiDisabledColor     = color.RGBA{R: 226, G: 230, B: 235, A: 255}
 	uiTextColor         = color.RGBA{R: 38, G: 48, B: 58, A: 255}
 	uiMutedTextColor    = color.RGBA{R: 98, G: 112, B: 126, A: 255}

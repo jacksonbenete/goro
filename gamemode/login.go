@@ -1840,7 +1840,3 @@ func setSelectedCharacter(sessionState *session.Session, character session.Chara
 	sessionState.Progress = sessionProgressFromCharacter(character)
 	sessionState.Inventory.Zeny = character.Money
 }
-
-func describeConnection(conn res.Connection) string {
-	return fmt.Sprintf("%s %s:%d v=%d lang=%d", conn.Display, conn.Address, conn.Port, conn.Version, conn.LangType)
-}

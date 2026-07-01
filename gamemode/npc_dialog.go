@@ -33,11 +33,10 @@ const (
 )
 
 var (
-	npcDialogTextColor     = uiTextColor
-	npcDialogMutedColor    = uiMutedTextColor
-	npcDialogTitleColor    = uiTitleTextColor
-	npcDialogOptionColor   = uiTextColor
-	npcDialogSelectedColor = uiTitleTextColor
+	npcDialogTextColor   = uiTextColor
+	npcDialogMutedColor  = uiMutedTextColor
+	npcDialogTitleColor  = uiTitleTextColor
+	npcDialogOptionColor = uiTextColor
 )
 
 type npcDialogAction int

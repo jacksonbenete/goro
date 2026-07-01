@@ -454,7 +454,7 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 	if screen.camera.Enabled {
 		for _, meshCommand := range screen.worldMeshes {
 			mesh := meshCommand.Mesh
-			if mesh == nil || mesh.options.DepthWrite == false {
+			if mesh == nil || !mesh.options.DepthWrite {
 				continue
 			}
 			if err := r.drawWorldMesh(ctx, pass, mesh); err != nil {

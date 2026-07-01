@@ -11,22 +11,12 @@ import (
 
 const (
 	defaultRSMRenderRadius = 42
-	defaultRSMMaxFaces     = 5000
 )
 
 type modelPoint3 struct {
 	x float64
 	y float64
 	z float64
-}
-
-type modelTriangle struct {
-	points      [3]screenPoint
-	verts       [3]modelPoint3
-	uvs         [3]texturePoint
-	depth       float64
-	color       color.RGBA
-	textureName string
 }
 
 type modelWorldTriangle struct {
@@ -61,129 +51,6 @@ func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rs
 			screen.DrawWorldMesh(mesh.mesh)
 		}
 	}
-}
-
-func (m *WorldMode) collectRSMModelTriangles(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) []modelTriangle {
-	if rsw == nil || gnd == nil || models == nil {
-		return nil
-	}
-	if m.whitePixel == nil {
-		m.whitePixel = render.NewImage(1, 1)
-		m.whitePixel.Fill(color.White)
-	}
-
-	width := screen.Bounds().Dx()
-	height := screen.Bounds().Dy()
-	radius := rsmRenderRadius()
-	maxFaces := rsmMaxFaces()
-
-	type visiblePlacement struct {
-		index int
-		model res.RSWModel
-		baseX float64
-		baseY float64
-		dist2 float64
-	}
-	var visible []visiblePlacement
-	for index, placement := range rsw.Models {
-		if placement.Filename == "" {
-			continue
-		}
-		baseX := float64(placement.Position.X) + float64(gnd.Width)
-		baseY := float64(placement.Position.Z) + float64(gnd.Height)
-		dx := baseX - projection.playerX
-		dy := baseY - projection.playerY
-		if math.Abs(dx) > radius*2 || math.Abs(dy) > radius*2 {
-			continue
-		}
-		visible = append(visible, visiblePlacement{
-			index: index,
-			model: placement,
-			baseX: baseX,
-			baseY: baseY,
-			dist2: dx*dx + dy*dy,
-		})
-	}
-	sort.SliceStable(visible, func(i, j int) bool {
-		return visible[i].dist2 < visible[j].dist2
-	})
-
-	var triangles []modelTriangle
-	lighting := sceneLightingFromRSW(rsw)
-	if m.rsmWorldCache == nil {
-		m.rsmWorldCache = make(map[int][]modelWorldTriangle)
-	}
-	if m.rsmNodeMatrices == nil {
-		m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
-	}
-	if m.rsmBoundsCache == nil {
-		m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
-	}
-	for _, visiblePlacement := range visible {
-		placement := visiblePlacement.model
-		if placement.Filename == "" {
-			continue
-		}
-		baseX := visiblePlacement.baseX
-		baseY := visiblePlacement.baseY
-		rsm, ok := models[placement.Filename]
-		if !ok {
-			loaded, err := loadRSMModel(manager, placement.Filename)
-			if err == nil {
-				rsm = loaded
-			}
-			models[placement.Filename] = rsm
-		}
-		if rsm == nil {
-			continue
-		}
-
-		rootName := selectedRSMRootName(rsm, placement.NodeName)
-		nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
-		boundsKey := rsmBoundsCacheKey{rsm: rsm, root: rootName}
-		bounds, ok := m.rsmBoundsCache[boundsKey]
-		if !ok {
-			bounds = calculateRSMBoundsForNodes(rsm, nodeIndices)
-			m.rsmBoundsCache[boundsKey] = bounds
-		}
-		instance := modelInstance{
-			placement: placement,
-			bounds:    bounds.model,
-			baseX:     baseX,
-			baseY:     baseY,
-			matrix:    buildRSMInstanceMatrix(rsm, placement, baseX, baseY, bounds.model),
-		}
-
-		worldTriangles, ok := m.rsmWorldCache[visiblePlacement.index]
-		if !ok {
-			nodeMatrices, ok := m.rsmNodeMatrices[rsm]
-			if !ok {
-				nodeMatrices = buildRSMNodeMatrices(rsm)
-				m.rsmNodeMatrices[rsm] = nodeMatrices
-			}
-			for _, nodeIndex := range nodeIndices {
-				node := &rsm.Nodes[nodeIndex]
-				worldTriangles = append(worldTriangles, buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], instance, lighting)...)
-			}
-			m.rsmWorldCache[visiblePlacement.index] = worldTriangles
-		}
-		for _, worldTri := range worldTriangles {
-			if tri, ok := projectRSMWorldTriangle(worldTri, projection, fog, float64(width), float64(height)); ok {
-				triangles = append(triangles, tri)
-				if maxFaces > 0 && len(triangles) >= maxFaces {
-					break
-				}
-			}
-		}
-		if maxFaces > 0 && len(triangles) >= maxFaces {
-			break
-		}
-	}
-
-	sort.SliceStable(triangles, func(i, j int) bool {
-		return triangles[i].depth > triangles[j].depth
-	})
-	return triangles
 }
 
 type visibleRSMPlacement struct {
@@ -386,17 +253,6 @@ type modelInstance struct {
 	matrix    mat4
 }
 
-func buildRSMNodeTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, projection sceneProjection, lighting sceneLighting, fog sceneFog, screenWidth, screenHeight float64) []modelTriangle {
-	worldTriangles := buildRSMNodeWorldTriangles(rsm, node, nodeMatrix, instance, lighting)
-	triangles := make([]modelTriangle, 0, len(worldTriangles))
-	for _, worldTri := range worldTriangles {
-		if tri, ok := projectRSMWorldTriangle(worldTri, projection, fog, screenWidth, screenHeight); ok {
-			triangles = append(triangles, tri)
-		}
-	}
-	return triangles
-}
-
 func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, lighting sceneLighting) []modelWorldTriangle {
 	if len(node.Vertices) == 0 || len(node.Faces) == 0 {
 		return nil
@@ -440,35 +296,6 @@ func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4
 		})
 	}
 	return triangles
-}
-
-func projectRSMWorldTriangle(worldTri modelWorldTriangle, projection sceneProjection, fog sceneFog, screenWidth, screenHeight float64) (modelTriangle, bool) {
-	a := worldTri.verts[0]
-	b := worldTri.verts[1]
-	c := worldTri.verts[2]
-	points := [3]screenPoint{
-		projection.Project(a.x, a.z, a.y),
-		projection.Project(b.x, b.z, b.y),
-		projection.Project(c.x, c.z, c.y),
-	}
-	if triangleOutside(points, screenWidth, screenHeight) {
-		return modelTriangle{}, false
-	}
-	if !projection.VisibleForTriangle(a.x, a.z, a.y) ||
-		!projection.VisibleForTriangle(b.x, b.z, b.y) ||
-		!projection.VisibleForTriangle(c.x, c.z, c.y) {
-		return modelTriangle{}, false
-	}
-	depth := (projection.Depth(a.x, a.z, a.y) + projection.Depth(b.x, b.z, b.y) + projection.Depth(c.x, c.z, c.y)) / 3
-	faceColor := fog.mixColor(worldTri.color, (projection.FogDepth(a.x, a.z, a.y)+projection.FogDepth(b.x, b.z, b.y)+projection.FogDepth(c.x, c.z, c.y))/3)
-	return modelTriangle{
-		points:      points,
-		verts:       worldTri.verts,
-		uvs:         worldTri.uvs,
-		depth:       depth,
-		color:       faceColor,
-		textureName: worldTri.textureName,
-	}, true
 }
 
 func buildRSMInstanceMatrix(rsm *res.RSM, placement res.RSWModel, baseX, baseY float64, bounds modelBounds) mat4 {
@@ -816,18 +643,6 @@ func rsmFaceColor(textureName string, a, b, c modelPoint3, lighting sceneLightin
 	}
 }
 
-func triangleOutside(points [3]screenPoint, width, height float64) bool {
-	minX, minY := float64(points[0].x), float64(points[0].y)
-	maxX, maxY := minX, minY
-	for _, point := range points[1:] {
-		minX = math.Min(minX, float64(point.x))
-		minY = math.Min(minY, float64(point.y))
-		maxX = math.Max(maxX, float64(point.x))
-		maxY = math.Max(maxY, float64(point.y))
-	}
-	return maxX < -32 || maxY < -32 || minX > width+32 || minY > height+32
-}
-
 func sub3(a, b modelPoint3) modelPoint3 {
 	return modelPoint3{x: a.x - b.x, y: a.y - b.y, z: a.z - b.z}
 }
@@ -862,8 +677,4 @@ func degreesToRadians(degrees float64) float64 {
 
 func rsmRenderRadius() float64 {
 	return defaultRSMRenderRadius
-}
-
-func rsmMaxFaces() int {
-	return defaultRSMMaxFaces
 }

@@ -269,9 +269,7 @@ func wrapItemInfoLines(lines []string, maxRunes int) []string {
 			out = append(out, "")
 			continue
 		}
-		for _, wrapped := range wrapItemInfoLine(line, maxRunes) {
-			out = append(out, wrapped)
-		}
+		out = append(out, wrapItemInfoLine(line, maxRunes)...)
 	}
 	return out
 }
