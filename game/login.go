@@ -187,14 +187,8 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			m.updateFormInput(ctx)
 		}
 
-		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowDown) {
-			m.selected = (m.selected + 1) % len(conns)
-		}
-		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowUp) {
-			m.selected = (m.selected + len(conns) - 1) % len(conns)
-		}
 		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyEnter) {
-			m.connectAndMaybeLogin(ctx, conns[m.selected])
+			m.connectAndMaybeLogin(ctx, conns[0])
 		}
 	}
 
@@ -434,12 +428,6 @@ func (m *LoginMode) cursorAction(ctx client.Context) int {
 		pointInRect(mx, my, buttonX, buttonY, buttonW, buttonH) {
 		return cursorActionClick
 	}
-	serverY := winY + 103
-	for i := range ctx.Resources.ClientInfo.Connections {
-		if pointInRect(mx, my, winX+22, serverY+i*17, winW-44, 16) {
-			return cursorActionClick
-		}
-	}
 	return cursorActionDefault
 }
 
@@ -582,15 +570,8 @@ func (m *LoginMode) updateFormInput(ctx client.Context) {
 		return
 	}
 	if pointInRect(mx, my, buttonX, buttonY, buttonW, buttonH) && len(ctx.Resources.ClientInfo.Connections) > 0 {
-		m.connectAndMaybeLogin(ctx, ctx.Resources.ClientInfo.Connections[m.selected])
+		m.connectAndMaybeLogin(ctx, ctx.Resources.ClientInfo.Connections[0])
 		return
-	}
-	serverY := winY + 103
-	for i := range ctx.Resources.ClientInfo.Connections {
-		if pointInRect(mx, my, winX+22, serverY+i*17, winW-44, 16) {
-			m.selected = i
-			return
-		}
 	}
 }
 
@@ -959,29 +940,15 @@ func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Image) {
 func (m *LoginMode) drawLoginWindow(ctx client.Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
 	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 21)
-	gameui.DrawWindowTitle(screen, x, y, 21, 10, "Ragnarok Online", gameui.TitleTextColor)
+	gameui.DrawWindowTitle(screen, x, y, 21, 10, "Login", gameui.TitleTextColor)
 
 	labelColor := gameui.TextColor
-	mutedColor := gameui.MutedTextColor
 	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
 	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
-	render.DebugPrintAtColor(screen, "Account", x+24, userY-17, labelColor)
-	render.DebugPrintAtColor(screen, "Password", x+24, passY-17, labelColor)
+	render.DebugPrintAtColor(screen, "Account", loginLabelX(userX, "Account"), loginLabelY(userY, userH), labelColor)
+	render.DebugPrintAtColor(screen, "Password", loginLabelX(passX, "Password"), loginLabelY(passY, passH), labelColor)
 	drawLoginInput(screen, userX, userY, userW, userH, m.username, m.focus == loginFieldUser)
 	drawLoginInput(screen, passX, passY, passW, passH, strings.Repeat("*", len([]rune(m.password))), m.focus == loginFieldPassword)
-
-	serverY := y + 103
-	render.DebugPrintAtColor(screen, "Server", x+24, serverY-17, labelColor)
-	for i, conn := range ctx.Resources.ClientInfo.Connections {
-		rowY := serverY + i*17
-		bg := gameui.PanelAltColor
-		if i == m.selected {
-			bg = gameui.SelectionColor
-		}
-		gameui.DrawRowSurface(screen, x+22, rowY, w-44, 16, bg)
-		render.DebugPrintAtColor(screen, trimRunes(conn.Display, 22), x+28, rowY+1, labelColor)
-		render.DebugPrintAtColor(screen, fmt.Sprintf("%s:%d", conn.Address, conn.Port), x+180, rowY+1, mutedColor)
-	}
 
 	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
 	buttonBG := gameui.ButtonColor
@@ -989,7 +956,6 @@ func (m *LoginMode) drawLoginWindow(ctx client.Context, screen *render.Image) {
 		buttonBG = gameui.ButtonHoverColor
 	}
 	gameui.DrawButtonLabel(screen, buttonX, buttonY, buttonW, buttonH, "Login", buttonBG, labelColor)
-	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+14, y+h-20, mutedColor)
 }
 
 func (m *LoginMode) drawCharacterSelect(ctx client.Context, screen *render.Image) {
@@ -1383,7 +1349,7 @@ func loadLoginBackgroundImage(manager *res.Manager, name string) (*render.Image,
 
 func loginWindowRect(ctx client.Context) (int, int, int, int) {
 	width, height := ctx.ScreenSize()
-	w, h := 380, 202
+	w, h := 380, 142
 	x := (width - w) / 2
 	y := (height*2)/3 - h/2
 	if y < 48 {
@@ -1406,8 +1372,18 @@ func loginPasswordFieldRect(x, y, w int) (int, int, int, int) {
 	return x + 110, y + 72, w - 135, 22
 }
 
+func loginLabelX(fieldX int, label string) int {
+	return fieldX - 12 - len([]rune(label))*7
+}
+
+func loginLabelY(fieldY, fieldH int) int {
+	return fieldY + maxInt(0, (fieldH-14)/2)
+}
+
 func loginButtonRect(x, y, w int) (int, int, int, int) {
-	return x + w - 126, y + 162, 96, 24
+	fieldX, _, fieldW, _ := loginUserFieldRect(x, y, w)
+	buttonW := 96
+	return fieldX + fieldW - buttonW, y + 108, buttonW, 24
 }
 
 func loginQuitConfirmRect(ctx client.Context) (int, int, int, int) {

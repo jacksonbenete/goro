@@ -380,6 +380,43 @@ func TestLoginWindowSitsNearTwoThirdsHeight(t *testing.T) {
 	}
 }
 
+func TestLoginWindowDoesNotExposeServerSelection(t *testing.T) {
+	mode := NewLoginMode()
+	inputState := input.NewState()
+	ctx := client.Context{Input: inputState, ScreenW: 1280, ScreenH: 720}
+	x, y, w, _ := loginWindowRect(ctx)
+	inputState.SetMousePosition(x+28, y+103)
+
+	if got := mode.cursorAction(ctx); got != cursorActionDefault {
+		t.Fatalf("old server row cursor action = %d, want default", got)
+	}
+	if _, _, buttonW, _ := loginButtonRect(x, y, w); buttonW <= 0 {
+		t.Fatal("login button should still be present")
+	}
+}
+
+func TestLoginLabelsAlignInFrontOfTextboxes(t *testing.T) {
+	ctx := client.Context{ScreenW: 1280, ScreenH: 720}
+	x, y, w, _ := loginWindowRect(ctx)
+	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
+	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
+	buttonX, _, buttonW, _ := loginButtonRect(x, y, w)
+	accountX := loginLabelX(userX, "Account")
+	passwordX := loginLabelX(passX, "Password")
+	accountRight := accountX + len([]rune("Account"))*7
+	passwordRight := passwordX + len([]rune("Password"))*7
+
+	if accountRight != passwordRight || accountRight != userX-12 {
+		t.Fatalf("label right edges = %d,%d, want %d", accountRight, passwordRight, userX-12)
+	}
+	if loginLabelY(userY, userH) != userY+4 || loginLabelY(passY, passH) != passY+4 {
+		t.Fatalf("label y = %d,%d, want field y + 4", loginLabelY(userY, userH), loginLabelY(passY, passH))
+	}
+	if buttonX+buttonW != userX+userW || buttonX+buttonW != passX+passW {
+		t.Fatalf("button right edge = %d, want textbox right edge %d", buttonX+buttonW, userX+userW)
+	}
+}
+
 func TestCharacterSelectSkinRealDataWhenConfigured(t *testing.T) {
 	manager := realDataManager(t)
 	for _, name := range []string{"login_interface/win_select.bmp", "login_interface/box_select.bmp"} {
