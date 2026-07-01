@@ -1140,11 +1140,13 @@ func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uin
 	inner := 32.0
 	points := charCreateGraphPoints(cx, cy, outer)
 	mid := charCreateGraphPoints(cx, cy, inner)
+	order := charCreateGraphDrawOrder()
 	for i := 0; i < createStatCount; i++ {
-		next := (i + 1) % createStatCount
-		render.DrawLine(screen, points[i][0], points[i][1], points[next][0], points[next][1], gameui.SeparatorColor)
-		render.DrawLine(screen, mid[i][0], mid[i][1], mid[next][0], mid[next][1], gameui.SeparatorColor)
-		render.DrawLine(screen, float64(cx), float64(cy), points[i][0], points[i][1], color.RGBA{R: 185, G: 204, B: 224, A: 150})
+		current := order[i]
+		next := order[(i+1)%createStatCount]
+		render.DrawLine(screen, points[current][0], points[current][1], points[next][0], points[next][1], gameui.SeparatorColor)
+		render.DrawLine(screen, mid[current][0], mid[current][1], mid[next][0], mid[next][1], gameui.SeparatorColor)
+		render.DrawLine(screen, float64(cx), float64(cy), points[current][0], points[current][1], color.RGBA{R: 185, G: 204, B: 224, A: 150})
 	}
 	statPoints := [createStatCount][2]float64{}
 	for i := 0; i < createStatCount; i++ {
@@ -1153,8 +1155,20 @@ func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uin
 		statPoints[i][1] = float64(cy) + (points[i][1]-float64(cy))*scale
 	}
 	for i := 0; i < createStatCount; i++ {
-		next := (i + 1) % createStatCount
-		render.DrawLine(screen, statPoints[i][0], statPoints[i][1], statPoints[next][0], statPoints[next][1], color.RGBA{R: 80, G: 146, B: 214, A: 255})
+		current := order[i]
+		next := order[(i+1)%createStatCount]
+		render.DrawLine(screen, statPoints[current][0], statPoints[current][1], statPoints[next][0], statPoints[next][1], color.RGBA{R: 80, G: 146, B: 214, A: 255})
+	}
+}
+
+func charCreateGraphDrawOrder() [createStatCount]int {
+	return [createStatCount]int{
+		createStatStr,
+		createStatVit,
+		createStatLuk,
+		createStatInt,
+		createStatDex,
+		createStatAgi,
 	}
 }
 
@@ -1164,8 +1178,8 @@ func charCreateGraphPoints(cx, cy int, radius float64) [createStatCount][2]float
 		{-0.866, -0.5},
 		{0.866, -0.5},
 		{0, 1},
-		{0.866, 0.5},
 		{-0.866, 0.5},
+		{0.866, 0.5},
 	}
 	points := [createStatCount][2]float64{}
 	for i := range dirs {
@@ -1460,8 +1474,8 @@ func charCreateStatButtonRect(x, y, stat int) (int, int, int, int) {
 		{x + 181, y + 100, 38, 36}, // AGI
 		{x + 356, y + 100, 38, 36}, // VIT
 		{x + 269, y + 210, 38, 36}, // INT
-		{x + 356, y + 156, 38, 36}, // DEX
-		{x + 181, y + 156, 38, 36}, // LUK
+		{x + 181, y + 156, 38, 36}, // DEX
+		{x + 356, y + 156, 38, 36}, // LUK
 	}
 	if stat < 0 || stat >= len(rects) {
 		stat = 0
