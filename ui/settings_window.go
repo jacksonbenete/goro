@@ -33,14 +33,14 @@ type SettingsWindow struct {
 
 func (w *SettingsWindow) OpenWindow(ctx client.Context) {
 	w.open = true
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 }
 
 func (w *SettingsWindow) Update(ctx client.Context) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	width, height := ctx.ScreenSize()
 	if w.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
@@ -87,7 +87,7 @@ func (w *SettingsWindow) Draw(screen *render.Image, ctx client.Context) {
 	if !w.open || screen == nil {
 		return
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	x, y := w.x, w.y
 	DrawTitledWindowFrame(screen, x, y, settingsWindowWidth, settingsWindowHeight, settingsWindowTitleH)
 	DrawWindowTitle(screen, x, y, settingsWindowTitleH, settingsWindowPad, "Settings", TitleTextColor)
@@ -269,7 +269,7 @@ func (w *SettingsWindow) saveSettings(ctx client.Context, successStatus string) 
 	w.status = successStatus
 }
 
-func (w *SettingsWindow) ensurePosition(ctx client.Context) {
+func (w *SettingsWindow) EnsurePosition(ctx client.Context) {
 	if w.positioned {
 		return
 	}

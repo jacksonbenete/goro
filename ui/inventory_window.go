@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ var (
 	inventoryDragColor   = uiButtonDownColor
 )
 
-type inventoryWindowState struct {
+type InventoryWindow struct {
 	open       bool
 	x          int
 	y          int
@@ -43,7 +43,13 @@ type inventoryWindowState struct {
 	dragFrom   time.Time
 }
 
-func (w *inventoryWindowState) update(ctx Context, shop *shopWindowState, itemInfo *itemInfoWindowState) bool {
+func (w *InventoryWindow) OpenWindow(ctx Context) {
+	w.open = true
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
+}
+
+func (w *InventoryWindow) Update(ctx Context, shop *ShopWindow, itemInfo *ItemInfoWindow) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -53,7 +59,7 @@ func (w *inventoryWindowState) update(ctx Context, shop *shopWindowState, itemIn
 		w.dragActive = false
 		return false
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	width, height := ctx.ScreenSize()
 	if w.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
@@ -66,7 +72,7 @@ func (w *inventoryWindowState) update(ctx Context, shop *shopWindowState, itemIn
 	}
 	if w.dragActive {
 		if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
-			if shop != nil && shop.acceptInventoryDrop(ctx, w.dragItem, ctx.Input.MouseX, ctx.Input.MouseY) {
+			if shop != nil && shop.AcceptInventoryDrop(ctx, w.dragItem, ctx.Input.MouseX, ctx.Input.MouseY) {
 				w.dragActive = false
 				return true
 			}
@@ -124,12 +130,12 @@ func (w *inventoryWindowState) update(ctx Context, shop *shopWindowState, itemIn
 	return true
 }
 
-func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
+func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, inventoryWindowWidth, inventoryWindowHeight, inventoryWindowTitleH)
 	drawUIWindowTitle(screen, x, y, inventoryWindowTitleH, inventoryWindowPad, "Sell Inventory", inventoryTitleColor)
@@ -155,7 +161,7 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 			}
 			drawUISurface(screen, rx, ry, rw, rh, fill, uiWindowBorderColor)
 			if mode != nil {
-				mode.drawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
+				mode.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
 			}
 			name := inventoryItemDisplayName(ctx.Resources, item)
 			if item.Refine > 0 {
@@ -180,26 +186,26 @@ func (w *inventoryWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 		width := len([]rune(label))*7 + inventoryIconSize + 18
 		drawUISurface(screen, dx, dy, width, inventoryIconSize+6, uiPanelBodyColor, uiWindowBorderColor)
 		if mode != nil {
-			mode.drawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx+3, dy+3)
+			mode.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx+3, dy+3)
 		}
 		render.DebugPrintAtColor(screen, label, dx+inventoryIconSize+9, dy+(inventoryIconSize-13)/2+2, inventoryTextColor)
 	}
 }
 
-func (w *inventoryWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *InventoryWindow) CursorAction(ctx Context) (int, bool) {
 	if !w.open || ctx.Input == nil {
 		return 0, false
 	}
 	if w.dragActive {
-		return cursorActionPick, true
+		return CursorActionPick, true
 	}
 	if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, inventoryWindowWidth, inventoryWindowHeight) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	return 0, false
 }
 
-func (w *inventoryWindowState) ensurePosition(ctx Context) {
+func (w *InventoryWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
@@ -209,17 +215,17 @@ func (w *inventoryWindowState) ensurePosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *inventoryWindowState) closeBounds() (int, int, int, int) {
+func (w *InventoryWindow) closeBounds() (int, int, int, int) {
 	return w.x + inventoryWindowWidth - 23, w.y + 7, 16, 16
 }
 
-func (w *inventoryWindowState) rowBounds(row int) (int, int, int, int) {
+func (w *InventoryWindow) rowBounds(row int) (int, int, int, int) {
 	x := w.x + inventoryWindowPad
 	y := w.y + inventoryWindowTitleH + 10 + row*inventoryRowH
 	return x, y, inventoryWindowWidth - inventoryWindowPad*2 - 8, inventoryRowH - 4
 }
 
-func (w *inventoryWindowState) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
+func (w *InventoryWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
 	items := visibleInventoryItems(sortedInventoryItems(s), w.scroll)
 	for row, item := range items {
 		x, y, width, height := w.rowBounds(row)
@@ -230,16 +236,16 @@ func (w *inventoryWindowState) itemAt(s *session.Session, mx, my int) (session.I
 	return session.InventoryItem{}, false
 }
 
-func (w *inventoryWindowState) scrollBy(wheelY float64, s *session.Session) {
+func (w *InventoryWindow) scrollBy(wheelY float64, s *session.Session) {
 	if wheelY > 0 {
 		w.scroll--
 	} else if wheelY < 0 {
 		w.scroll++
 	}
-	w.clampScroll(s)
+	w.ClampScroll(s)
 }
 
-func (w *inventoryWindowState) clampScroll(s *session.Session) {
+func (w *InventoryWindow) ClampScroll(s *session.Session) {
 	maxScroll := maxInt(0, len(sortedInventoryItems(s))-visibleInventoryRows())
 	if w.scroll < 0 {
 		w.scroll = 0
@@ -249,7 +255,7 @@ func (w *inventoryWindowState) clampScroll(s *session.Session) {
 	}
 }
 
-func (w *inventoryWindowState) drawScrollBar(screen *render.Image, total int) {
+func (w *InventoryWindow) drawScrollBar(screen *render.Image, total int) {
 	visible := visibleInventoryRows()
 	if total <= visible {
 		return

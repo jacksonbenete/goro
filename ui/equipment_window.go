@@ -1,8 +1,7 @@
-package game
+package ui
 
 import (
 	"image/color"
-	"math"
 	"time"
 
 	"github.com/gogpu/ui/offscreen"
@@ -41,7 +40,7 @@ const (
 	equipLocationAmmo       uint16 = 1 << 15
 )
 
-type equipmentWindowState struct {
+type EquipmentWindow struct {
 	open       bool
 	x          int
 	y          int
@@ -85,21 +84,21 @@ var equipmentSlots = []equipmentSlotDef{
 
 var equipmentContentSurface *render.Image
 
-func (w *equipmentWindowState) toggle(ctx Context) {
+func (w *EquipmentWindow) Toggle(ctx Context) {
 	if w.open {
 		w.open = false
 		w.dragging = false
 		return
 	}
 	w.open = true
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 }
 
-func (w *equipmentWindowState) update(ctx Context, itemInfo *itemInfoWindowState) bool {
+func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	width, height := ctx.ScreenSize()
 	if w.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
@@ -158,11 +157,11 @@ func (w *equipmentWindowState) update(ctx Context, itemInfo *itemInfoWindowState
 	return true
 }
 
-func (w *equipmentWindowState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
+func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, equipmentWindowWidth, equipmentWindowHeight, equipmentWindowTitleH)
 	drawUIWindowTitle(screen, x, y, equipmentWindowTitleH, equipmentWindowPad, "Equipment", inventoryTitleColor)
@@ -173,7 +172,7 @@ func (w *equipmentWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	drawEquipmentContentSurface(screen, contentX, contentY)
 	px, py, pw, ph := w.previewBounds()
 	if mode != nil {
-		mode.drawEquipmentPreview(screen, ctx, px, py, pw, ph)
+		mode.DrawEquipmentPreview(screen, ctx, px, py, pw, ph)
 	}
 
 	mx, my := -1, -1
@@ -201,7 +200,7 @@ func (w *equipmentWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 		}
 		footerY := y + equipmentWindowTitleH + equipmentWindowPad + equipmentContentH + 10
 		render.DebugPrintAtColor(screen, trimRunes(name, 24), x+equipmentWindowPad, footerY, inventoryTextColor)
-		render.DebugPrintAtColor(screen, jobName(int(character.Job)), x+equipmentWindowPad, footerY+16, inventoryMutedColor)
+		render.DebugPrintAtColor(screen, JobName(int(character.Job)), x+equipmentWindowPad, footerY+16, inventoryMutedColor)
 	}
 	if w.status != "" && time.Since(w.statusAt) < 2200*time.Millisecond {
 		statusColor := inventoryMutedColor
@@ -212,17 +211,17 @@ func (w *equipmentWindowState) draw(screen *render.Image, ctx Context, mode *Wor
 	}
 }
 
-func (w *equipmentWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *EquipmentWindow) CursorAction(ctx Context) (int, bool) {
 	if !w.open || ctx.Input == nil {
 		return 0, false
 	}
 	if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, equipmentWindowWidth, equipmentWindowHeight) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	return 0, false
 }
 
-func (w *equipmentWindowState) ensurePosition(ctx Context) {
+func (w *EquipmentWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
@@ -232,20 +231,20 @@ func (w *equipmentWindowState) ensurePosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *equipmentWindowState) closeBounds() (int, int, int, int) {
+func (w *EquipmentWindow) closeBounds() (int, int, int, int) {
 	return w.x + equipmentWindowWidth - 23, w.y + 7, 16, 16
 }
 
-func (w *equipmentWindowState) contentOrigin() (int, int) {
+func (w *EquipmentWindow) contentOrigin() (int, int) {
 	return w.x + equipmentWindowPad, w.y + equipmentWindowTitleH + equipmentWindowPad
 }
 
-func (w *equipmentWindowState) previewBounds() (int, int, int, int) {
+func (w *EquipmentWindow) previewBounds() (int, int, int, int) {
 	x, y := w.contentOrigin()
 	return x + equipmentLeftColW, y + 2, equipmentCenterColW, 125
 }
 
-func (w *equipmentWindowState) slotBounds(slot equipmentSlotDef) (int, int, int, int) {
+func (w *EquipmentWindow) slotBounds(slot equipmentSlotDef) (int, int, int, int) {
 	x, y := w.contentOrigin()
 	switch slot.side {
 	case equipmentSlotLeft:
@@ -259,7 +258,7 @@ func (w *equipmentWindowState) slotBounds(slot equipmentSlotDef) (int, int, int,
 	}
 }
 
-func (w *equipmentWindowState) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
+func (w *EquipmentWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
 	for _, slot := range equipmentSlots {
 		x, y, width, height := w.slotBounds(slot)
 		if !pointInRect(mx, my, x, y, width, height) {
@@ -270,7 +269,7 @@ func (w *equipmentWindowState) itemAt(s *session.Session, mx, my int) (session.I
 	return session.InventoryItem{}, false
 }
 
-func (w *equipmentWindowState) updateHoverStatus(ctx Context) {
+func (w *EquipmentWindow) updateHoverStatus(ctx Context) {
 	item, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)
 	if !ok {
 		return
@@ -280,7 +279,7 @@ func (w *equipmentWindowState) updateHoverStatus(ctx Context) {
 	w.statusAt = time.Now()
 }
 
-func (w *equipmentWindowState) activateItem(ctx Context, item session.InventoryItem) {
+func (w *EquipmentWindow) activateItem(ctx Context, item session.InventoryItem) {
 	if ctx.Network == nil {
 		w.setStatus("Not connected", false)
 		return
@@ -292,21 +291,21 @@ func (w *equipmentWindowState) activateItem(ctx Context, item session.InventoryI
 	w.setStatus("Unequip requested", true)
 }
 
-func (w *equipmentWindowState) setStatus(text string, good bool) {
+func (w *EquipmentWindow) setStatus(text string, good bool) {
 	w.status = text
 	w.statusGood = good
 	w.statusAt = time.Now()
 }
 
-func (w *equipmentWindowState) drawSlotItem(screen *render.Image, ctx Context, mode *WorldMode, slot equipmentSlotDef, item session.InventoryItem, x, y, width, height int) {
+func (w *EquipmentWindow) drawSlotItem(screen *render.Image, ctx Context, mode WorldRenderer, slot equipmentSlotDef, item session.InventoryItem, x, y, width, height int) {
 	name := inventoryItemDisplayName(ctx.Resources, item)
 	if slot.side == equipmentSlotCenter {
 		iconX := x + (width-inventoryIconSize)/2
-		mode.drawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
+		mode.DrawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
 		return
 	}
 	if slot.side == equipmentSlotLeft {
-		mode.drawInventoryItemIcon(screen, ctx.Resources, item, x+4, y)
+		mode.DrawInventoryItemIcon(screen, ctx.Resources, item, x+4, y)
 		render.DebugPrintAtColor(screen, trimRunes(name, 10), x+32, y+6, uiTextColor)
 		if item.Refine > 0 {
 			render.DebugPrintAtColor(screen, "+"+formatHUDNumber(int64(item.Refine)), x+2, y+1, shopGoodColor)
@@ -314,14 +313,14 @@ func (w *equipmentWindowState) drawSlotItem(screen *render.Image, ctx Context, m
 		return
 	}
 	iconX := x + width - inventoryIconSize - 4
-	mode.drawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
+	mode.DrawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
 	render.DebugPrintAtColor(screen, trimRunes(name, 10), x+4, y+6, uiTextColor)
 	if item.Refine > 0 {
 		render.DebugPrintAtColor(screen, "+"+formatHUDNumber(int64(item.Refine)), iconX-2, y+1, shopGoodColor)
 	}
 }
 
-func (w *equipmentWindowState) drawEmptySlotLabel(screen *render.Image, slot equipmentSlotDef, x, y int) {
+func (w *EquipmentWindow) drawEmptySlotLabel(screen *render.Image, slot equipmentSlotDef, x, y int) {
 	if slot.side == equipmentSlotCenter {
 		render.DebugPrintAtColor(screen, "Ammo", x+14, y+6, uiMutedTextColor)
 		return
@@ -345,52 +344,6 @@ func equippedItemForSlot(s *session.Session, location uint16) (session.Inventory
 		return item, true
 	}
 	return session.InventoryItem{}, false
-}
-
-func (m *WorldMode) drawEquipmentPreview(screen *render.Image, ctx Context, x, y, width, height int) {
-	if screen == nil || width <= 0 || height <= 0 {
-		return
-	}
-	view := m.playerView
-	if view == nil && ctx.Resources != nil && ctx.Session != nil {
-		loaded, _ := loadPlayerHumanoidSpriteView(ctx.Resources, selectedCharacter(ctx.Session), ctx.Session.Sex)
-		view = loaded
-		if loaded != nil {
-			m.playerView = loaded
-		}
-	}
-	state := spriteState{
-		actionFamily: spriteActionIdle,
-		direction:    equipmentPreviewWorldDirection,
-	}
-	billboard, ok := humanoidBillboardForState(view, state, time.Now())
-	if !ok || billboard == nil || billboard.image == nil {
-		drawPanel(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 48)
-		return
-	}
-	bounds := visibleImageBounds(billboard.image)
-	if bounds.Empty() {
-		return
-	}
-	srcW, srcH := float64(bounds.Dx()), float64(bounds.Dy())
-	if srcW <= 0 || srcH <= 0 {
-		return
-	}
-	scale := math.Min(float64(width-4)/srcW, float64(height-4)/srcH)
-	scale = math.Min(scale, 1.6)
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
-	}
-	dstW, dstH := srcW*scale, srcH*scale
-	dstX := float64(x) + (float64(width)-dstW)/2
-	dstY := float64(y+height) - dstH - 7
-	vertices := []render.Vertex{
-		{DstX: float32(dstX), DstY: float32(dstY), SrcX: float32(bounds.Min.X), SrcY: float32(bounds.Min.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-		{DstX: float32(dstX + dstW), DstY: float32(dstY), SrcX: float32(bounds.Max.X), SrcY: float32(bounds.Min.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-		{DstX: float32(dstX), DstY: float32(dstY + dstH), SrcX: float32(bounds.Min.X), SrcY: float32(bounds.Max.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-		{DstX: float32(dstX + dstW), DstY: float32(dstY + dstH), SrcX: float32(bounds.Max.X), SrcY: float32(bounds.Max.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-	}
-	screen.DrawTrianglesOwned(vertices, quadIndices012213, billboard.image, &render.DrawTrianglesOptions{Filter: spriteDrawFilter(), Address: render.AddressClampToZero})
 }
 
 func drawEquipmentContentSurface(screen *render.Image, x, y int) {

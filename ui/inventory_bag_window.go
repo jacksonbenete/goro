@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ var inventoryBagTabs = []struct {
 	{label: "Etc", tab: inventoryBagTabEtc},
 }
 
-type inventoryBagWindowState struct {
+type InventoryBagWindow struct {
 	open          bool
 	x             int
 	y             int
@@ -59,33 +59,33 @@ type inventoryBagWindowState struct {
 	dragFrom      time.Time
 }
 
-func (w *inventoryBagWindowState) toggle(ctx Context) {
+func (w *InventoryBagWindow) Toggle(ctx Context) {
 	if w.open {
 		w.open = false
 		w.dragging = false
 		return
 	}
 	w.open = true
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	w.selectFirstNonEmptyTab(ctx.Session)
-	w.clampScroll(ctx.Session)
+	w.ClampScroll(ctx.Session)
 }
 
-func (w *inventoryBagWindowState) update(ctx Context, shortcuts *shortcutBarState, storage *storageWindowState, itemInfo *itemInfoWindowState) bool {
+func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, itemInfo *ItemInfoWindow) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	width, height := ctx.ScreenSize()
 	if w.dragActive {
 		if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
 			item := w.dragItem
 			w.dragActive = false
 			w.dragItem = session.InventoryItem{}
-			if storage != nil && storage.acceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+			if storage != nil && storage.AcceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 				return true
 			}
-			if shortcuts != nil && shortcuts.acceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+			if shortcuts != nil && shortcuts.AcceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 				return true
 			}
 			return pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, inventoryBagWidth, inventoryBagHeight)
@@ -175,12 +175,12 @@ func (w *inventoryBagWindowState) update(ctx Context, shortcuts *shortcutBarStat
 	return true
 }
 
-func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
+func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, inventoryBagWidth, inventoryBagHeight, inventoryBagTitleH)
 	drawUIWindowTitle(screen, x, y, inventoryBagTitleH, inventoryWindowPad, "Inventory", inventoryTitleColor)
@@ -222,7 +222,7 @@ func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *
 			render.DrawRect(screen, float64(cx), float64(cy), inventoryBagCell-1, inventoryBagCell-1, color.RGBA{R: 118, G: 150, B: 204, A: 92})
 		}
 		if mode != nil {
-			mode.drawInventoryItemIcon(screen, ctx.Resources, item, cx+4, cy+4)
+			mode.DrawInventoryItemIcon(screen, ctx.Resources, item, cx+4, cy+4)
 		}
 		if item.Amount > 1 {
 			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), cx+inventoryBagCell-16, cy+inventoryBagCell-14, color.RGBA{R: 40, G: 36, B: 32, A: 255})
@@ -250,21 +250,21 @@ func (w *inventoryBagWindowState) draw(screen *render.Image, ctx Context, mode *
 	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && mode != nil {
 		dx := ctx.Input.MouseX - inventoryIconSize/2
 		dy := ctx.Input.MouseY - inventoryIconSize/2
-		mode.drawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx, dy)
+		mode.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx, dy)
 	}
 }
 
-func (w *inventoryBagWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *InventoryBagWindow) CursorAction(ctx Context) (int, bool) {
 	if !w.open || ctx.Input == nil {
 		return 0, false
 	}
 	if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, inventoryBagWidth, inventoryBagHeight) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	return 0, false
 }
 
-func (w *inventoryBagWindowState) ensurePosition(ctx Context) {
+func (w *InventoryBagWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
@@ -274,27 +274,27 @@ func (w *inventoryBagWindowState) ensurePosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *inventoryBagWindowState) closeBounds() (int, int, int, int) {
+func (w *InventoryBagWindow) closeBounds() (int, int, int, int) {
 	return w.x + inventoryBagWidth - 23, w.y + 7, 16, 16
 }
 
-func (w *inventoryBagWindowState) tabBounds(tab int) (int, int, int, int) {
+func (w *InventoryBagWindow) tabBounds(tab int) (int, int, int, int) {
 	return w.x + inventoryBagPad + 2, w.y + inventoryBagTitleH + 12 + tab*(inventoryBagTabH+4), inventoryBagTabW, inventoryBagTabH
 }
 
-func (w *inventoryBagWindowState) panelBounds() (int, int, int, int) {
+func (w *InventoryBagWindow) panelBounds() (int, int, int, int) {
 	x := w.x + inventoryBagPad
 	y := w.y + inventoryBagTitleH + 8
 	return x, y, inventoryBagWidth - inventoryBagPad*2, inventoryBagRows*inventoryBagCell + 10
 }
 
-func (w *inventoryBagWindowState) gridBounds() (int, int, int, int) {
+func (w *InventoryBagWindow) gridBounds() (int, int, int, int) {
 	x := w.x + inventoryBagPad + inventoryBagTabW + 9
 	y := w.y + inventoryBagTitleH + 13
 	return x, y, inventoryBagCols * inventoryBagCell, inventoryBagRows * inventoryBagCell
 }
 
-func (w *inventoryBagWindowState) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
+func (w *InventoryBagWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
 	gx, gy, gw, gh := w.gridBounds()
 	if !pointInRect(mx, my, gx, gy, gw, gh) {
 		return session.InventoryItem{}, false
@@ -312,7 +312,7 @@ func (w *inventoryBagWindowState) itemAt(s *session.Session, mx, my int) (sessio
 	return items[index], true
 }
 
-func (w *inventoryBagWindowState) activateItem(ctx Context, item session.InventoryItem) {
+func (w *InventoryBagWindow) activateItem(ctx Context, item session.InventoryItem) {
 	if inventoryItemIsEquipment(item) {
 		if ctx.Network == nil {
 			w.setStatus("Not connected", false)
@@ -349,22 +349,22 @@ func (w *inventoryBagWindowState) activateItem(ctx Context, item session.Invento
 	log.Printf("inventory use requested index=%d item=%d type=%d", item.Index, item.ItemID, item.Type)
 }
 
-func (w *inventoryBagWindowState) setStatus(text string, good bool) {
+func (w *InventoryBagWindow) setStatus(text string, good bool) {
 	w.status = text
 	w.statusGood = good
 	w.statusAt = time.Now()
 }
 
-func (w *inventoryBagWindowState) scrollBy(wheelY float64, s *session.Session) {
+func (w *InventoryBagWindow) scrollBy(wheelY float64, s *session.Session) {
 	if wheelY > 0 {
 		w.scroll--
 	} else if wheelY < 0 {
 		w.scroll++
 	}
-	w.clampScroll(s)
+	w.ClampScroll(s)
 }
 
-func (w *inventoryBagWindowState) clampScroll(s *session.Session) {
+func (w *InventoryBagWindow) ClampScroll(s *session.Session) {
 	maxScroll := maxInt(0, (len(w.tabItems(s))+inventoryBagCols-1)/inventoryBagCols-inventoryBagRows)
 	if w.scroll < 0 {
 		w.scroll = 0
@@ -374,7 +374,7 @@ func (w *inventoryBagWindowState) clampScroll(s *session.Session) {
 	}
 }
 
-func (w *inventoryBagWindowState) selectFirstNonEmptyTab(s *session.Session) {
+func (w *InventoryBagWindow) selectFirstNonEmptyTab(s *session.Session) {
 	if len(w.tabItems(s)) > 0 {
 		return
 	}
@@ -392,7 +392,7 @@ func (w *inventoryBagWindowState) selectFirstNonEmptyTab(s *session.Session) {
 	w.tab = original
 }
 
-func (w *inventoryBagWindowState) visibleItems(s *session.Session) []session.InventoryItem {
+func (w *InventoryBagWindow) visibleItems(s *session.Session) []session.InventoryItem {
 	items := w.tabItems(s)
 	start := w.scroll * inventoryBagCols
 	if start < 0 {
@@ -405,7 +405,7 @@ func (w *inventoryBagWindowState) visibleItems(s *session.Session) []session.Inv
 	return items[start:end]
 }
 
-func (w *inventoryBagWindowState) tabItems(s *session.Session) []session.InventoryItem {
+func (w *InventoryBagWindow) tabItems(s *session.Session) []session.InventoryItem {
 	items := sortedInventoryItems(s)
 	if len(items) == 0 {
 		return nil
@@ -422,7 +422,7 @@ func (w *inventoryBagWindowState) tabItems(s *session.Session) []session.Invento
 	return filtered
 }
 
-func (w *inventoryBagWindowState) drawScrollBar(screen *render.Image, total int) {
+func (w *InventoryBagWindow) drawScrollBar(screen *render.Image, total int) {
 	if total <= inventoryBagCols*inventoryBagRows {
 		return
 	}

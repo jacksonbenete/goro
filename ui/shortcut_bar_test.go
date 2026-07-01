@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"os"
@@ -77,8 +77,8 @@ func TestShortcutLoadMigratesLegacyFileToCharacterPath(t *testing.T) {
 	}
 	ctx := Context{Session: &session.Session{Selected: session.Character{ID: 150001}}}
 
-	bar := &shortcutBarState{}
-	bar.load(ctx)
+	bar := &ShortcutBar{}
+	bar.Load(ctx)
 	if bar.slots[0].kind != shortcutSkill || bar.slots[0].skillID != 6 || bar.slots[0].skillLevel != 2 {
 		t.Fatalf("migrated slot = %+v", bar.slots[0])
 	}
@@ -127,7 +127,7 @@ func TestInventoryItemForShortcutRejectsReusedIndexWithDifferentItem(t *testing.
 }
 
 func TestShortcutBarClearsDepletedItem(t *testing.T) {
-	bar := &shortcutBarState{}
+	bar := &ShortcutBar{}
 	bar.slots[2] = shortcutSlotState{kind: shortcutItem, itemIndex: 12, itemID: 501}
 	bar.slots[3] = shortcutSlotState{kind: shortcutItem, itemIndex: 12, itemID: 602}
 	bar.slots[4] = shortcutSlotState{kind: shortcutItem, itemIndex: 14, itemID: 501}

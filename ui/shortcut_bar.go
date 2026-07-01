@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"encoding/json"
@@ -38,7 +38,7 @@ type shortcutSlotState struct {
 	skillLevel int
 }
 
-type shortcutBarState struct {
+type ShortcutBar struct {
 	slots      [shortcutSlots]shortcutSlotState
 	status     string
 	statusGood bool
@@ -61,7 +61,7 @@ type shortcutPersistSlot struct {
 	SkillLevel int    `json:"skill_level,omitempty"`
 }
 
-func (b *shortcutBarState) update(ctx Context, mode *WorldMode) bool {
+func (b *ShortcutBar) Update(ctx Context, mode WorldRenderer) bool {
 	if ctx.Input == nil {
 		return false
 	}
@@ -88,7 +88,7 @@ func (b *shortcutBarState) update(ctx Context, mode *WorldMode) bool {
 	return false
 }
 
-func (b *shortcutBarState) acceptItemDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
+func (b *ShortcutBar) AcceptItemDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
 	slot, ok := b.slotAt(ctx, mx, my)
 	if !ok {
 		return false
@@ -104,7 +104,7 @@ func (b *shortcutBarState) acceptItemDrop(ctx Context, item session.InventoryIte
 	return true
 }
 
-func (b *shortcutBarState) acceptSkillDrop(ctx Context, skill session.Skill, mx, my int) bool {
+func (b *ShortcutBar) AcceptSkillDrop(ctx Context, skill session.Skill, mx, my int) bool {
 	slot, ok := b.slotAt(ctx, mx, my)
 	if !ok {
 		return false
@@ -123,7 +123,7 @@ func (b *shortcutBarState) acceptSkillDrop(ctx Context, skill session.Skill, mx,
 	return true
 }
 
-func (b *shortcutBarState) clearDepletedItem(ctx Context, index, itemID uint16) bool {
+func (b *ShortcutBar) ClearDepletedItem(ctx Context, index, itemID uint16) bool {
 	changed := b.clearDepletedItemSlots(index, itemID)
 	if changed {
 		b.save(ctx)
@@ -131,7 +131,7 @@ func (b *shortcutBarState) clearDepletedItem(ctx Context, index, itemID uint16) 
 	return changed
 }
 
-func (b *shortcutBarState) clearDepletedItemSlots(index, itemID uint16) bool {
+func (b *ShortcutBar) clearDepletedItemSlots(index, itemID uint16) bool {
 	if index == 0 {
 		return false
 	}
@@ -149,7 +149,7 @@ func (b *shortcutBarState) clearDepletedItemSlots(index, itemID uint16) bool {
 	return changed
 }
 
-func (b *shortcutBarState) activate(ctx Context, mode *WorldMode, slot int) {
+func (b *ShortcutBar) activate(ctx Context, mode WorldRenderer, slot int) {
 	if slot < 0 || slot >= len(b.slots) {
 		return
 	}
@@ -181,7 +181,7 @@ func (b *shortcutBarState) activate(ctx Context, mode *WorldMode, slot int) {
 			b.setStatus("No world mode", false)
 			return
 		}
-		if err := mode.skills().Use(ctx, skill, "shortcut"); err != nil {
+		if err := mode.UseShortcutSkill(ctx, skill); err != nil {
 			b.setStatus(err.Error(), false)
 			return
 		}
@@ -191,7 +191,7 @@ func (b *shortcutBarState) activate(ctx Context, mode *WorldMode, slot int) {
 	}
 }
 
-func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
+func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
 	if screen == nil {
 		return
 	}
@@ -218,7 +218,7 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 				if live, ok := inventoryItemForShortcut(ctx.Session, entry.itemIndex, entry.itemID); ok {
 					item = live
 				}
-				mode.drawInventoryItemIcon(screen, ctx.Resources, item, sx+5, sy+5)
+				mode.DrawInventoryItemIcon(screen, ctx.Resources, item, sx+5, sy+5)
 				if item.Amount > 1 {
 					render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), sx+shortcutSlot-17, sy+shortcutSlot-14, uiTextColor)
 				}
@@ -229,7 +229,7 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 				if skill.ID == 0 {
 					skill = session.Skill{ID: entry.skillID, Level: entry.skillLevel}
 				}
-				mode.drawSkillIcon(screen, ctx.Resources, skill, sx+5, sy+5, 24)
+				mode.DrawSkillIcon(screen, ctx.Resources, skill, sx+5, sy+5, 24)
 				if skill.Level > 0 {
 					drawShortcutSkillLevel(screen, sx, sy, skill.Level)
 				}
@@ -246,17 +246,17 @@ func (b *shortcutBarState) draw(screen *render.Image, ctx Context, mode *WorldMo
 	}
 }
 
-func (b *shortcutBarState) cursorAction(ctx Context) (int, bool) {
+func (b *ShortcutBar) CursorAction(ctx Context) (int, bool) {
 	if ctx.Input == nil {
 		return 0, false
 	}
 	if _, ok := b.slotAt(ctx, ctx.Input.MouseX, ctx.Input.MouseY); ok {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	return 0, false
 }
 
-func (b *shortcutBarState) slotAt(ctx Context, mx, my int) (int, bool) {
+func (b *ShortcutBar) slotAt(ctx Context, mx, my int) (int, bool) {
 	for i := 0; i < shortcutSlots; i++ {
 		x, y := b.slotBounds(ctx, i)
 		if pointInRect(mx, my, x, y, shortcutSlot, shortcutSlot) {
@@ -266,24 +266,24 @@ func (b *shortcutBarState) slotAt(ctx Context, mx, my int) (int, bool) {
 	return 0, false
 }
 
-func (b *shortcutBarState) bounds(ctx Context) (int, int) {
+func (b *ShortcutBar) bounds(ctx Context) (int, int) {
 	width, _ := ctx.ScreenSize()
 	barW := shortcutSlots*shortcutSlot + (shortcutSlots-1)*shortcutGap + shortcutPad*2
 	return maxInt(8, (width-barW)/2), 8
 }
 
-func (b *shortcutBarState) slotBounds(ctx Context, slot int) (int, int) {
+func (b *ShortcutBar) slotBounds(ctx Context, slot int) (int, int) {
 	x, y := b.bounds(ctx)
 	return x + shortcutPad + slot*(shortcutSlot+shortcutGap), y + shortcutPad
 }
 
-func (b *shortcutBarState) setStatus(text string, good bool) {
+func (b *ShortcutBar) setStatus(text string, good bool) {
 	b.status = text
 	b.statusGood = good
 	b.statusAt = time.Now()
 }
 
-func (b *shortcutBarState) load(ctx Context) {
+func (b *ShortcutBar) Load(ctx Context) {
 	if b.loaded {
 		return
 	}
@@ -323,9 +323,9 @@ func (b *shortcutBarState) load(ctx Context) {
 	log.Printf("shortcut bar loaded path=%s slots=%d", path, len(saved.Slots))
 }
 
-func (b *shortcutBarState) save(ctx Context) {
+func (b *ShortcutBar) save(ctx Context) {
 	if !b.loaded {
-		b.load(ctx)
+		b.Load(ctx)
 	}
 	path := b.path
 	if path == "" {

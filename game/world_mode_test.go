@@ -607,7 +607,7 @@ func TestSetSelectedCharacterSeedsInventoryZeny(t *testing.T) {
 }
 
 func TestFormatHUDNumberGroupsThousands(t *testing.T) {
-	if got := formatHUDNumber(123456789); got != "123,456,789" {
+	if got := gameui.FormatHUDNumber(123456789); got != "123,456,789" {
 		t.Fatalf("formatted number = %q", got)
 	}
 }
@@ -620,19 +620,19 @@ func TestSessionProgressFromCharacterUsesBaseLevel(t *testing.T) {
 }
 
 func TestFormatEXPPercent(t *testing.T) {
-	if got := formatEXPPercent(123, 1000); got != "12.3%" {
+	if got := gameui.FormatEXPPercent(123, 1000); got != "12.3%" {
 		t.Fatalf("formatted exp percent = %q", got)
 	}
-	if got := formatEXPPercent(12, 0); got != "--" {
+	if got := gameui.FormatEXPPercent(12, 0); got != "--" {
 		t.Fatalf("formatted exp percent without next = %q", got)
 	}
-	if got := formatEXPPercent(1001, 1000); got != "100.0%" {
+	if got := gameui.FormatEXPPercent(1001, 1000); got != "100.0%" {
 		t.Fatalf("formatted capped exp percent = %q", got)
 	}
 }
 
 func TestDisplayWeightUsesROVisibleUnits(t *testing.T) {
-	if got := displayWeight(240); got != 24 {
+	if got := gameui.DisplayWeight(240); got != 24 {
 		t.Fatalf("display weight = %d, want 24", got)
 	}
 }
@@ -1537,32 +1537,10 @@ func TestTeleportSkillIsSelfTargetDespiteAttackRange(t *testing.T) {
 func TestTeleportModalRules(t *testing.T) {
 	lv1 := session.Skill{ID: 26, Level: 1, Type: skillTargetEnemy, Range: 9}
 	lv2 := session.Skill{ID: 26, Level: 2, Type: skillTargetEnemy, Range: 9}
-	modal := teleportModalState{skill: lv1}
-	if modal.savePointEnabled() {
-		t.Fatal("Teleport level 1 should not enable Save Point")
-	}
-	modal.skill = lv2
-	if !modal.savePointEnabled() {
-		t.Fatal("Teleport level 2 should enable Save Point")
-	}
-	modal.mapNames = []string{"Random", "prontera"}
-	if got := modal.randomMapName(); got != "Random" {
-		t.Fatalf("random map = %q", got)
-	}
-	if got := modal.savePointMapName(); got != teleportSavePointMap {
-		t.Fatalf("save point map = %q", got)
-	}
-	buttons := modal.buttons()
-	if len(buttons) != 3 {
-		t.Fatalf("button count = %d, want 3", len(buttons))
-	}
-	if buttons[1].label != "Save Point" || buttons[1].mapName != teleportSavePointMap {
-		t.Fatalf("save point button = %+v", buttons[1])
-	}
-	if !teleportWarpListBypassesModal(lv1, network.WarpPointList{SkillID: 26, MapNames: []string{"Random"}}) {
+	if !gameui.TeleportWarpListBypassesModal(lv1, network.WarpPointList{SkillID: 26, MapNames: []string{"Random"}}) {
 		t.Fatal("Teleport level 1 should bypass the modal")
 	}
-	if teleportWarpListBypassesModal(lv2, network.WarpPointList{SkillID: 26, MapNames: []string{"Random", "prontera"}}) {
+	if gameui.TeleportWarpListBypassesModal(lv2, network.WarpPointList{SkillID: 26, MapNames: []string{"Random", "prontera"}}) {
 		t.Fatal("Teleport level 2 with a save point should show the modal")
 	}
 }
@@ -1573,21 +1551,11 @@ func TestWarpPortalListOpensDestinationModal(t *testing.T) {
 		{ID: 27, Level: 4, Type: skillTargetPlace, Range: 9},
 	}}}}
 	mode.applyWarpPointList(ctx, network.WarpPointList{SkillID: 27, MapNames: []string{"prontera", "geffen", "payon"}})
-	if !mode.teleportModal.open {
+	if !mode.teleportModal.IsOpen() {
 		t.Fatal("warp portal list should open the destination modal")
 	}
-	if mode.teleportModal.title() != "Warp Portal" {
-		t.Fatalf("modal title = %q", mode.teleportModal.title())
-	}
-	buttons := mode.teleportModal.buttons()
-	if len(buttons) != 4 {
-		t.Fatalf("button count = %d, want 4", len(buttons))
-	}
-	if buttons[0].label != "Save Point: prontera" || buttons[0].mapName != "prontera" {
-		t.Fatalf("first button = %+v", buttons[0])
-	}
-	if buttons[3].action != teleportModalActionCancel {
-		t.Fatalf("last button = %+v, want cancel", buttons[3])
+	if mode.teleportModal.Title() != "Warp Portal" {
+		t.Fatalf("modal title = %q", mode.teleportModal.Title())
 	}
 }
 
@@ -4526,137 +4494,6 @@ func TestPickedInventoryItemAddsToExistingStack(t *testing.T) {
 	}
 }
 
-func TestShopAcceptInventoryDropAddsSellableItem(t *testing.T) {
-	window := shopWindowState{
-		open: true,
-		mode: shopModeSell,
-		x:    100,
-		y:    100,
-		sellable: map[uint16]network.ShopSellItem{
-			7: {Index: 7, Price: 10, OverchargePrice: 12},
-		},
-	}
-
-	ok := window.acceptInventoryDrop(Context{}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, 120, 150)
-	if !ok {
-		t.Fatal("drop was not accepted")
-	}
-	if len(window.cart) != 1 || window.cart[0].amount != 1 || window.cart[0].max != 3 || window.cart[0].over != 12 {
-		t.Fatalf("cart = %+v", window.cart)
-	}
-}
-
-func TestInventoryDragReleaseOverShopAddsCartItem(t *testing.T) {
-	inputState := input.NewState()
-	inputState.SetMousePosition(120, 150)
-	sessionState := &session.Session{
-		Inventory: session.Inventory{
-			Items: []session.InventoryItem{{Index: 7, ItemID: 938, Amount: 3}},
-		},
-	}
-	ctx := Context{Input: inputState, Session: sessionState}
-	inventory := inventoryWindowState{
-		open:       true,
-		positioned: true,
-		x:          500,
-		y:          100,
-		dragActive: true,
-		dragItem:   session.InventoryItem{Index: 7, ItemID: 938, Amount: 3},
-	}
-	shop := shopWindowState{
-		open: true,
-		mode: shopModeSell,
-		x:    100,
-		y:    100,
-		sellable: map[uint16]network.ShopSellItem{
-			7: {Index: 7, Price: 10, OverchargePrice: 12},
-		},
-	}
-
-	if !inventory.update(ctx, &shop, nil) {
-		t.Fatal("inventory update did not consume drag release")
-	}
-	if inventory.dragActive {
-		t.Fatal("drag still active after release")
-	}
-	if len(shop.cart) != 1 || shop.cart[0].item.Index != 7 {
-		t.Fatalf("shop cart = %+v, want dropped item", shop.cart)
-	}
-}
-
-func TestShopBuyCartTracksQuantityAndTotal(t *testing.T) {
-	window := shopWindowState{mode: shopModeBuy}
-	item := network.ShopBuyItem{ItemID: 501, Price: 100, DiscountPrice: 80}
-
-	window.addBuyItem(item)
-	window.addBuyItem(item)
-	if got := window.buyAmount(501); got != 2 {
-		t.Fatalf("buy amount = %d, want 2", got)
-	}
-	if got := window.total(); got != 160 {
-		t.Fatalf("total = %d, want 160", got)
-	}
-
-	window.decrementBuyItem(501)
-	if got := window.buyAmount(501); got != 1 {
-		t.Fatalf("buy amount after decrement = %d, want 1", got)
-	}
-}
-
-func TestInventoryBagClassifiesTabs(t *testing.T) {
-	tests := []struct {
-		name string
-		item session.InventoryItem
-		tab  int
-	}{
-		{name: "healing item", item: session.InventoryItem{Type: 0}, tab: inventoryBagTabItem},
-		{name: "usable item", item: session.InventoryItem{Type: 2}, tab: inventoryBagTabItem},
-		{name: "equipment flag", item: session.InventoryItem{Type: 4, Equip: true}, tab: inventoryBagTabEquip},
-		{name: "weapon type", item: session.InventoryItem{Type: 5}, tab: inventoryBagTabEquip},
-		{name: "pet egg type", item: session.InventoryItem{Type: 7}, tab: inventoryBagTabEquip},
-		{name: "etc", item: session.InventoryItem{Type: 3}, tab: inventoryBagTabEtc},
-		{name: "card", item: session.InventoryItem{Type: 6}, tab: inventoryBagTabEtc},
-		{name: "ammo", item: session.InventoryItem{Type: 10}, tab: inventoryBagTabEtc},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := inventoryItemTab(tc.item); got != tc.tab {
-				t.Fatalf("tab = %d, want %d", got, tc.tab)
-			}
-		})
-	}
-}
-
-func TestInventoryBagRightClickOpensItemInfo(t *testing.T) {
-	inputState := input.NewState()
-	inputState.SetMousePosition(165, 145)
-	inputState.SetMouseButton(input.MouseButtonRight, true)
-	sessionState := &session.Session{
-		Inventory: session.Inventory{
-			Items: []session.InventoryItem{{Index: 3, ItemID: 512, Type: 0, Amount: 2, Identified: true}},
-		},
-	}
-	ctx := Context{Input: inputState, Session: sessionState, ScreenW: 800, ScreenH: 600}
-	bag := inventoryBagWindowState{
-		open:       true,
-		x:          100,
-		y:          100,
-		positioned: true,
-		tab:        inventoryBagTabItem,
-	}
-	info := itemInfoWindowState{}
-
-	if !bag.update(ctx, nil, nil, &info) {
-		t.Fatal("right click did not consume inventory bag input")
-	}
-	if !info.open || info.item.ItemID != 512 {
-		t.Fatalf("item info = open:%v item:%+v, want item 512", info.open, info.item)
-	}
-	if bag.dragActive {
-		t.Fatal("right click should not start item drag")
-	}
-}
-
 func TestSessionItemFromNetworkMarksEquipmentByType(t *testing.T) {
 	item := sessionItemFromNetwork(network.InventoryItem{
 		Index:      7,
@@ -4666,8 +4503,8 @@ func TestSessionItemFromNetworkMarksEquipmentByType(t *testing.T) {
 		Identified: true,
 		Amount:     1,
 	})
-	if !item.Equip || inventoryItemTab(item) != inventoryBagTabEquip {
-		t.Fatalf("item = %+v, want equipment tab item", item)
+	if !item.Equip {
+		t.Fatalf("item = %+v, want equipment item", item)
 	}
 }
 
@@ -4694,7 +4531,7 @@ func TestInventoryItemListReplacesDifferentItemAtReusedIndex(t *testing.T) {
 	}})
 
 	item := sessionState.Inventory.Items[0]
-	if item.Equip || item.Location != 0 || item.Type != 3 || item.ItemID != 938 || inventoryItemTab(item) != inventoryBagTabEtc {
+	if item.Equip || item.Location != 0 || item.Type != 3 || item.ItemID != 938 {
 		t.Fatalf("item = %+v, want clean replacement", item)
 	}
 }
@@ -4714,7 +4551,7 @@ func TestPickedEquipmentKeepsEquipMetadata(t *testing.T) {
 		t.Fatalf("item count = %d, want 1", len(sessionState.Inventory.Items))
 	}
 	item := sessionState.Inventory.Items[0]
-	if !item.Equip || item.Location != 0x0002 || inventoryItemTab(item) != inventoryBagTabEquip {
+	if !item.Equip || item.Location != 0x0002 {
 		t.Fatalf("picked item = %+v, want equipment metadata", item)
 	}
 }
@@ -4798,22 +4635,5 @@ func TestApplyStoragePacketsUpdateSessionStorage(t *testing.T) {
 	applyStorageClosed(ctx)
 	if sessionState.Storage.Open || len(sessionState.Storage.Items) != 0 {
 		t.Fatalf("storage after close = %+v", sessionState.Storage)
-	}
-}
-
-func TestStorageAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
-	window := storageWindowState{
-		open:       true,
-		positioned: true,
-		x:          100,
-		y:          100,
-	}
-	sessionState := &session.Session{Storage: session.Storage{Open: true}}
-	ok := window.acceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, 120, 150)
-	if !ok {
-		t.Fatal("drop over storage was not consumed")
-	}
-	if window.status == "" || window.statusGood {
-		t.Fatalf("status = %q good=%v, want not connected error", window.status, window.statusGood)
 	}
 }

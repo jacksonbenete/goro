@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -175,11 +175,11 @@ var characterJobNames = map[int]string{
 	4264: "Trouvere",
 }
 
-func characterJobName(character session.Character) string {
-	return jobName(int(character.Job))
+func CharacterJobName(character session.Character) string {
+	return JobName(int(character.Job))
 }
 
-func jobName(id int) string {
+func JobName(id int) string {
 	if name, ok := characterJobNames[id]; ok {
 		return name
 	}

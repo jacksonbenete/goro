@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ var (
 	statsWindowDisabled    = uiDisabledColor
 )
 
-type statsWindowState struct {
+type StatsWindow struct {
 	open       bool
 	x          int
 	y          int
@@ -52,21 +52,21 @@ type statRow struct {
 	cost     int
 }
 
-func (w *statsWindowState) toggle(ctx Context) {
+func (w *StatsWindow) Toggle(ctx Context) {
 	if w.open {
 		w.open = false
 		w.dragging = false
 		return
 	}
 	w.open = true
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 }
 
-func (w *statsWindowState) update(ctx Context) bool {
+func (w *StatsWindow) Update(ctx Context) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	width, height := ctx.ScreenSize()
 	if w.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
@@ -122,11 +122,11 @@ func (w *statsWindowState) update(ctx Context) bool {
 	return true
 }
 
-func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
+func (w *StatsWindow) Draw(screen *render.Image, ctx Context) {
 	if !w.open || screen == nil {
 		return
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, statsWindowWidth, statsWindowHeight, statsWindowTitleH)
 	drawUIWindowTitle(screen, x, y, statsWindowTitleH, statsWindowPad, "Status", statsWindowTitleColor)
@@ -187,17 +187,17 @@ func (w *statsWindowState) draw(screen *render.Image, ctx Context) {
 	}
 }
 
-func (w *statsWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *StatsWindow) CursorAction(ctx Context) (int, bool) {
 	if !w.open || ctx.Input == nil {
 		return 0, false
 	}
 	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
 	cx, cy, cw, ch := w.closeBounds()
 	if pointInRect(mx, my, cx, cy, cw, ch) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	if pointInRect(mx, my, w.x, w.y, statsWindowWidth, statsWindowTitleH) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	for _, row := range statsRows(ctx.Session) {
 		if !canIncreaseStat(ctx.Session, row) {
@@ -205,16 +205,16 @@ func (w *statsWindowState) cursorAction(ctx Context) (int, bool) {
 		}
 		bx, by, bw, bh := w.statButtonBounds(row.statusID)
 		if pointInRect(mx, my, bx, by, bw, bh) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
 	}
 	if pointInRect(mx, my, w.x, w.y, statsWindowWidth, statsWindowHeight) {
-		return cursorActionDefault, true
+		return CursorActionDefault, true
 	}
 	return 0, false
 }
 
-func (w *statsWindowState) ensurePosition(ctx Context) {
+func (w *StatsWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
@@ -230,15 +230,15 @@ func (w *statsWindowState) ensurePosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *statsWindowState) closeBounds() (int, int, int, int) {
+func (w *StatsWindow) closeBounds() (int, int, int, int) {
 	return w.x + statsWindowWidth - 24, w.y + 6, 16, 16
 }
 
-func (w *statsWindowState) statRowY(index int) int {
+func (w *StatsWindow) statRowY(index int) int {
 	return w.y + statsWindowTitleH + 50 + index*statsRowH
 }
 
-func (w *statsWindowState) statButtonBounds(statusID uint16) (int, int, int, int) {
+func (w *StatsWindow) statButtonBounds(statusID uint16) (int, int, int, int) {
 	rows := statsRows(nil)
 	for i, row := range rows {
 		if row.statusID == statusID {
@@ -248,7 +248,7 @@ func (w *statsWindowState) statButtonBounds(statusID uint16) (int, int, int, int
 	return 0, 0, 0, 0
 }
 
-func (w *statsWindowState) setStatus(status string, good bool) {
+func (w *StatsWindow) setStatus(status string, good bool) {
 	w.status = status
 	w.statusGood = good
 	w.statusAt = time.Now()
@@ -386,7 +386,7 @@ func applyStatusSnapshot(ctx Context, snapshot network.StatusSnapshot) {
 	log.Printf("status snapshot points=%d str=%d agi=%d vit=%d int=%d dex=%d luk=%d", snapshot.Points, snapshot.Str, snapshot.Agi, snapshot.Vit, snapshot.Int, snapshot.Dex, snapshot.Luk)
 }
 
-func (w *statsWindowState) applyStatusChangeAck(ctx Context, ack network.StatusChangeAck) {
+func (w *StatsWindow) ApplyStatusChangeAck(ctx Context, ack network.StatusChangeAck) {
 	if ctx.Session == nil {
 		return
 	}

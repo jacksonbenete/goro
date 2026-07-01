@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ var (
 	shopDropColor   = uiPanelHoverColor
 )
 
-type shopWindowState struct {
+type ShopWindow struct {
 	dealOpen        bool
 	dealNPCID       uint32
 	open            bool
@@ -75,13 +75,13 @@ type shopBuyCartItem struct {
 	amount uint16
 }
 
-func (w *shopWindowState) openDeal(selection network.ShopDealSelection, ctx Context) {
+func (w *ShopWindow) OpenDeal(selection network.ShopDealSelection, ctx Context) {
 	w.dealOpen = true
 	w.dealNPCID = selection.NPCID
 	w.ensureSellPosition(ctx)
 }
 
-func (w *shopWindowState) openSell(list []network.ShopSellItem, ctx Context) {
+func (w *ShopWindow) OpenSell(list []network.ShopSellItem, ctx Context) {
 	w.dealOpen = false
 	w.open = true
 	w.mode = shopModeSell
@@ -100,7 +100,7 @@ func (w *shopWindowState) openSell(list []network.ShopSellItem, ctx Context) {
 	w.closePacketSent = false
 }
 
-func (w *shopWindowState) openBuy(list []network.ShopBuyItem, ctx Context) {
+func (w *ShopWindow) OpenBuy(list []network.ShopBuyItem, ctx Context) {
 	w.dealOpen = false
 	w.open = true
 	w.mode = shopModeBuy
@@ -116,7 +116,7 @@ func (w *shopWindowState) openBuy(list []network.ShopBuyItem, ctx Context) {
 	w.closePacketSent = false
 }
 
-func (w *shopWindowState) applyResult(ctx Context, result network.ShopResult) {
+func (w *ShopWindow) ApplyResult(ctx Context, result network.ShopResult) {
 	if !result.Sell {
 		if result.Result == 0 {
 			w.status = "Deal completed"
@@ -150,7 +150,7 @@ func (w *shopWindowState) applyResult(ctx Context, result network.ShopResult) {
 	w.statusAt = time.Now()
 }
 
-func (w *shopWindowState) update(ctx Context, itemInfo *itemInfoWindowState) bool {
+func (w *ShopWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	if ctx.Input == nil {
 		return false
 	}
@@ -236,7 +236,7 @@ func (w *shopWindowState) update(ctx Context, itemInfo *itemInfoWindowState) boo
 	return true
 }
 
-func (w *shopWindowState) updateDeal(ctx Context) bool {
+func (w *ShopWindow) updateDeal(ctx Context) bool {
 	width, height := ctx.ScreenSize()
 	x := (width - shopDealWidth) / 2
 	y := (height - shopDealHeight) * 2 / 3
@@ -262,7 +262,7 @@ func (w *shopWindowState) updateDeal(ctx Context) bool {
 	return true
 }
 
-func (w *shopWindowState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
+func (w *ShopWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
 	if screen == nil {
 		return
 	}
@@ -320,7 +320,7 @@ func (w *shopWindowState) draw(screen *render.Image, ctx Context, mode *WorldMod
 	}
 }
 
-func (w *shopWindowState) drawDeal(screen *render.Image, ctx Context) {
+func (w *ShopWindow) drawDeal(screen *render.Image, ctx Context) {
 	width, height := ctx.ScreenSize()
 	x := (width - shopDealWidth) / 2
 	y := (height - shopDealHeight) * 2 / 3
@@ -334,7 +334,7 @@ func (w *shopWindowState) drawDeal(screen *render.Image, ctx Context) {
 	w.drawButton(screen, x+166, y+64, 60, 24, "Cancel", true)
 }
 
-func (w *shopWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *ShopWindow) CursorAction(ctx Context) (int, bool) {
 	if ctx.Input == nil {
 		return 0, false
 	}
@@ -343,16 +343,16 @@ func (w *shopWindowState) cursorAction(ctx Context) (int, bool) {
 		x := (width - shopDealWidth) / 2
 		y := (height - shopDealHeight) * 2 / 3
 		if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, shopDealWidth, shopDealHeight) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
 	}
 	if w.open && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, shopWindowWidth, shopWindowHeight) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	return 0, false
 }
 
-func (w *shopWindowState) acceptInventoryDrop(ctx Context, item session.InventoryItem, mouseX, mouseY int) bool {
+func (w *ShopWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mouseX, mouseY int) bool {
 	dx, dy, dw, dh := w.dropBounds()
 	if !w.open || w.mode != shopModeSell || !pointInRect(mouseX, mouseY, dx, dy, dw, dh) {
 		return false
@@ -368,7 +368,7 @@ func (w *shopWindowState) acceptInventoryDrop(ctx Context, item session.Inventor
 	return true
 }
 
-func (w *shopWindowState) addCartItem(item session.InventoryItem, sell network.ShopSellItem) {
+func (w *ShopWindow) addCartItem(item session.InventoryItem, sell network.ShopSellItem) {
 	maxAmount := uint16(maxInt(1, item.Amount))
 	for i := range w.cart {
 		if w.cart[i].item.Index == item.Index {
@@ -394,7 +394,7 @@ func (w *shopWindowState) addCartItem(item session.InventoryItem, sell network.S
 	w.statusAt = time.Now()
 }
 
-func (w *shopWindowState) addBuyItem(item network.ShopBuyItem) {
+func (w *ShopWindow) addBuyItem(item network.ShopBuyItem) {
 	for i := range w.buyCart {
 		if w.buyCart[i].item.ItemID == item.ItemID {
 			w.buyCart[i].amount++
@@ -410,7 +410,7 @@ func (w *shopWindowState) addBuyItem(item network.ShopBuyItem) {
 	w.statusAt = time.Now()
 }
 
-func (w *shopWindowState) submit(ctx Context) {
+func (w *ShopWindow) submit(ctx Context) {
 	if w.mode == shopModeBuy {
 		w.submitBuy(ctx)
 		return
@@ -443,7 +443,7 @@ func (w *shopWindowState) submit(ctx Context) {
 	w.statusAt = time.Now()
 }
 
-func (w *shopWindowState) submitBuy(ctx Context) {
+func (w *ShopWindow) submitBuy(ctx Context) {
 	if len(w.buyCart) == 0 {
 		w.status = "No items selected"
 		w.statusGood = false
@@ -478,7 +478,7 @@ func (w *shopWindowState) submitBuy(ctx Context) {
 	w.statusAt = time.Now()
 }
 
-func (w *shopWindowState) handleBuyClick(mx, my int) bool {
+func (w *ShopWindow) handleBuyClick(mx, my int) bool {
 	for row, item := range w.visibleBuyItems() {
 		itemIndex := w.buyScroll + row
 		x, y, width, _ := w.buyRowBounds(row)
@@ -499,7 +499,7 @@ func (w *shopWindowState) handleBuyClick(mx, my int) bool {
 	return false
 }
 
-func (w *shopWindowState) itemAt(mx, my int) (session.InventoryItem, bool) {
+func (w *ShopWindow) itemAt(mx, my int) (session.InventoryItem, bool) {
 	if w.mode == shopModeBuy {
 		for row, item := range w.visibleBuyItems() {
 			x, y, width, _ := w.buyRowBounds(row)
@@ -524,7 +524,7 @@ func (w *shopWindowState) itemAt(mx, my int) (session.InventoryItem, bool) {
 	return session.InventoryItem{}, false
 }
 
-func (w *shopWindowState) decrementBuyItem(itemID uint16) {
+func (w *ShopWindow) decrementBuyItem(itemID uint16) {
 	for i := range w.buyCart {
 		if w.buyCart[i].item.ItemID != itemID {
 			continue
@@ -538,7 +538,7 @@ func (w *shopWindowState) decrementBuyItem(itemID uint16) {
 	}
 }
 
-func (w *shopWindowState) cancel(ctx Context) {
+func (w *ShopWindow) cancel(ctx Context) {
 	if w.open && !w.closePacketSent && ctx.Network != nil {
 		if w.mode == shopModeBuy {
 			if err := ctx.Network.SendShopBuyItems(nil); err != nil {
@@ -560,7 +560,7 @@ func (w *shopWindowState) cancel(ctx Context) {
 	w.closePacketSent = true
 }
 
-func (w *shopWindowState) sendDealSelection(ctx Context, dealType uint8) {
+func (w *ShopWindow) sendDealSelection(ctx Context, dealType uint8) {
 	if ctx.Network == nil {
 		w.status = "Not connected"
 		w.statusGood = false
@@ -583,7 +583,7 @@ func (w *shopWindowState) sendDealSelection(ctx Context, dealType uint8) {
 	w.statusAt = time.Now()
 }
 
-func (w *shopWindowState) ensureSellPosition(ctx Context) {
+func (w *ShopWindow) ensureSellPosition(ctx Context) {
 	if w.positioned {
 		return
 	}
@@ -593,33 +593,33 @@ func (w *shopWindowState) ensureSellPosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *shopWindowState) closeBounds() (int, int, int, int) {
+func (w *ShopWindow) closeBounds() (int, int, int, int) {
 	return w.x + shopWindowWidth - 23, w.y + 7, 16, 16
 }
 
-func (w *shopWindowState) dropBounds() (int, int, int, int) {
+func (w *ShopWindow) dropBounds() (int, int, int, int) {
 	return w.x + shopWindowPad, w.y + shopWindowTitleH + 12, shopWindowWidth - shopWindowPad*2, 194
 }
 
-func (w *shopWindowState) sellButtonBounds() (int, int, int, int) {
+func (w *ShopWindow) sellButtonBounds() (int, int, int, int) {
 	return w.x + shopWindowWidth - 146, w.y + shopWindowHeight - 54, 58, 24
 }
 
-func (w *shopWindowState) cancelButtonBounds() (int, int, int, int) {
+func (w *ShopWindow) cancelButtonBounds() (int, int, int, int) {
 	return w.x + shopWindowWidth - 80, w.y + shopWindowHeight - 54, 62, 24
 }
 
-func (w *shopWindowState) cartRowBounds(row int) (int, int, int, int) {
+func (w *ShopWindow) cartRowBounds(row int) (int, int, int, int) {
 	x, y, width, _ := w.dropBounds()
 	return x + 5, y + 5 + row*shopCartRowH, width - 10, shopCartRowH - 3
 }
 
-func (w *shopWindowState) buyRowBounds(row int) (int, int, int, int) {
+func (w *ShopWindow) buyRowBounds(row int) (int, int, int, int) {
 	x, y, width, _ := w.dropBounds()
 	return x + 5, y + 5 + row*shopBuyRowH, width - 10, shopBuyRowH - 3
 }
 
-func (w *shopWindowState) visibleBuyItems() []network.ShopBuyItem {
+func (w *ShopWindow) visibleBuyItems() []network.ShopBuyItem {
 	if w.buyScroll < 0 {
 		w.buyScroll = 0
 	}
@@ -634,7 +634,7 @@ func visibleBuyRows() int {
 	return 6
 }
 
-func (w *shopWindowState) scrollBuyBy(wheelY float64) {
+func (w *ShopWindow) scrollBuyBy(wheelY float64) {
 	if wheelY > 0 {
 		w.buyScroll--
 	} else if wheelY < 0 {
@@ -649,12 +649,12 @@ func (w *shopWindowState) scrollBuyBy(wheelY float64) {
 	}
 }
 
-func (w *shopWindowState) visibleCartItems() []shopSellCartItem {
+func (w *ShopWindow) visibleCartItems() []shopSellCartItem {
 	visible := minInt(len(w.cart), 6)
 	return w.cart[:visible]
 }
 
-func (w *shopWindowState) drawCartRow(screen *render.Image, ctx Context, row int, item shopSellCartItem) {
+func (w *ShopWindow) drawCartRow(screen *render.Image, ctx Context, row int, item shopSellCartItem) {
 	x, y, width, height := w.cartRowBounds(row)
 	drawUISurface(screen, x, y, width, height, uiPanelAltColor, uiWindowBorderColor)
 	name := inventoryItemDisplayName(ctx.Resources, item.item)
@@ -666,7 +666,7 @@ func (w *shopWindowState) drawCartRow(screen *render.Image, ctx Context, row int
 	w.drawTinyButton(screen, x+width-16, y+4, "x", true)
 }
 
-func (w *shopWindowState) drawBuyRows(screen *render.Image, ctx Context, mode *WorldMode) {
+func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, mode WorldRenderer) {
 	dx, dy, dw, dh := w.dropBounds()
 	drawUISurface(screen, dx, dy, dw, dh, uiPanelBodyColor, uiWindowBorderColor)
 	if len(w.buyItems) == 0 {
@@ -685,7 +685,7 @@ func (w *shopWindowState) drawBuyRows(screen *render.Image, ctx Context, mode *W
 		}
 		drawUISurface(screen, x, y, width, height, fill, uiWindowBorderColor)
 		if mode != nil {
-			mode.drawInventoryItemIcon(screen, ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true, Amount: 1}, x+3, y+2)
+			mode.DrawInventoryItemIcon(screen, ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true, Amount: 1}, x+3, y+2)
 		}
 		name := inventoryItemDisplayName(ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true})
 		price := int64(item.DiscountPrice)
@@ -704,7 +704,7 @@ func (w *shopWindowState) drawBuyRows(screen *render.Image, ctx Context, mode *W
 	w.drawBuyScrollBar(screen)
 }
 
-func (w *shopWindowState) drawBuyScrollBar(screen *render.Image) {
+func (w *ShopWindow) drawBuyScrollBar(screen *render.Image) {
 	total := len(w.buyItems)
 	visible := visibleBuyRows()
 	if total <= visible {
@@ -722,7 +722,7 @@ func (w *shopWindowState) drawBuyScrollBar(screen *render.Image) {
 	render.DrawRect(screen, float64(trackX), float64(thumbY), 4, float64(thumbH), shopMutedColor)
 }
 
-func (w *shopWindowState) buyAmount(itemID uint16) uint16 {
+func (w *ShopWindow) buyAmount(itemID uint16) uint16 {
 	for _, item := range w.buyCart {
 		if item.item.ItemID == itemID {
 			return item.amount
@@ -731,7 +731,7 @@ func (w *shopWindowState) buyAmount(itemID uint16) uint16 {
 	return 0
 }
 
-func (w *shopWindowState) handleCartButton(ctx Context, row int, mx, my int) bool {
+func (w *ShopWindow) handleCartButton(ctx Context, row int, mx, my int) bool {
 	if row >= len(w.cart) {
 		return false
 	}
@@ -760,7 +760,7 @@ func (w *shopWindowState) handleCartButton(ctx Context, row int, mx, my int) boo
 	}
 }
 
-func (w *shopWindowState) drawButton(screen *render.Image, x, y, width, height int, label string, enabled bool) {
+func (w *ShopWindow) drawButton(screen *render.Image, x, y, width, height int, label string, enabled bool) {
 	fill := shopButtonColor
 	text := shopTextColor
 	if !enabled {
@@ -770,11 +770,11 @@ func (w *shopWindowState) drawButton(screen *render.Image, x, y, width, height i
 	drawUIButtonLabel(screen, x, y, width, height, label, fill, text)
 }
 
-func (w *shopWindowState) drawTinyButton(screen *render.Image, x, y int, label string, enabled bool) {
+func (w *ShopWindow) drawTinyButton(screen *render.Image, x, y int, label string, enabled bool) {
 	w.drawButton(screen, x, y, 15, 17, label, enabled)
 }
 
-func (w *shopWindowState) total() int64 {
+func (w *ShopWindow) total() int64 {
 	var total int64
 	if w.mode == shopModeBuy {
 		for _, item := range w.buyCart {

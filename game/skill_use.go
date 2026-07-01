@@ -7,7 +7,9 @@ import (
 
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 )
 
 type skillController struct {
@@ -28,6 +30,34 @@ func skillByID(s *session.Session, skillID uint16) (session.Skill, bool) {
 		}
 	}
 	return session.Skill{}, false
+}
+
+func skillLabel(skill session.Skill) string {
+	if skill.Name != "" {
+		return skill.Name
+	}
+	return fmt.Sprintf("Skill %d", skill.ID)
+}
+
+func skillDisplayName(manager *res.Manager, skill session.Skill) string {
+	if manager != nil {
+		if name, ok := manager.SkillDisplayName(int(skill.ID)); ok {
+			return name
+		}
+	}
+	return skillLabel(skill)
+}
+
+func sessionSkillFromNetwork(skill network.SkillInfo) session.Skill {
+	return session.Skill{
+		ID:         skill.ID,
+		Type:       skill.Type,
+		Level:      skill.Level,
+		SPCost:     skill.SPCost,
+		Range:      skill.Range,
+		Name:       skill.Name,
+		Upgradable: skill.Upgradable,
+	}
 }
 
 func localSkillTarget(ctx Context) uint32 {
@@ -110,7 +140,7 @@ func (c skillController) SendToID(ctx Context, skill session.Skill, target uint3
 	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
 		c.mode.addLocalSkillCastFallback(ctx, skill.ID, property, localSkillTarget(ctx), target, 0, 0, duration, time.Now(), source)
 	}
-	if isLevelOneTeleportSkill(skill) {
+	if gameui.IsLevelOneTeleportSkill(skill) {
 		c.mode.addWorldEffect(ctx, effectTeleportation, localSkillTarget(ctx))
 	}
 	return nil

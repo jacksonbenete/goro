@@ -79,23 +79,23 @@ type WorldMode struct {
 	actorNameReqAt   map[uint32]time.Time
 	gndNormalSource  *res.GND
 	gndTopNormals    [][4]modelPoint3
-	minimap          minimapState
+	minimap          gameui.Minimap
 	console          gameui.ChatConsole
-	npcDialog        npcDialogState
+	npcDialog        gameui.NPCDialog
 	escapeMenu       gameui.EscapeMenu
-	teleportModal    teleportModalState
+	teleportModal    gameui.TeleportModal
 	deathModal       gameui.DeathModal
 	basicMenu        gameui.BasicMenu
-	inventoryWindow  inventoryWindowState
-	inventoryBag     inventoryBagWindowState
-	equipmentWindow  equipmentWindowState
-	storageWindow    storageWindowState
-	shopWindow       shopWindowState
-	itemInfoWindow   itemInfoWindowState
-	statsWindow      statsWindowState
-	skillWindow      skillWindowState
+	inventoryWindow  gameui.InventoryWindow
+	inventoryBag     gameui.InventoryBagWindow
+	equipmentWindow  gameui.EquipmentWindow
+	storageWindow    gameui.StorageWindow
+	shopWindow       gameui.ShopWindow
+	itemInfoWindow   gameui.ItemInfoWindow
+	statsWindow      gameui.StatsWindow
+	skillWindow      gameui.SkillWindow
 	settingsWindow   gameui.SettingsWindow
-	shortcutBar      shortcutBarState
+	shortcutBar      gameui.ShortcutBar
 	mapFade          mapFadeState
 }
 
@@ -287,8 +287,8 @@ func (m *WorldMode) Enter(ctx Context) {
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
-	m.shortcutBar.load(ctx)
-	m.npcDialog.reset()
+	m.shortcutBar.Load(ctx)
+	m.npcDialog.Reset()
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
 	character := selectedCharacter(ctx.Session)
@@ -440,7 +440,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if dialog, ok, err := network.ParseNPCDialog(pkt); err != nil {
 			log.Printf("parse npc dialog 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.npcDialog.apply(dialog)
+			m.npcDialog.Apply(dialog)
 			continue
 		}
 		if ack, ok, err := network.ParseSelfMoveAck(pkt); err != nil {
@@ -498,98 +498,98 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("use item ack index=%d item=%d aid=%d amount=%d result=%d", useAck.Index, useAck.ItemID, useAck.AID, useAck.Amount, useAck.Result)
 			m.addItemUseEffect(ctx, useAck)
 			applyUseItemAck(ctx, useAck)
-			if useAck.Result != 0 && useAck.Amount == 0 && m.shortcutBar.clearDepletedItem(ctx, useAck.Index, useAck.ItemID) {
+			if useAck.Result != 0 && useAck.Amount == 0 && m.shortcutBar.ClearDepletedItem(ctx, useAck.Index, useAck.ItemID) {
 				log.Printf("shortcut item depleted index=%d item=%d", useAck.Index, useAck.ItemID)
 			}
-			m.inventoryWindow.clampScroll(ctx.Session)
-			m.inventoryBag.clampScroll(ctx.Session)
+			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
 		if items, ok, err := network.ParseInventoryItemList(pkt); err != nil {
 			log.Printf("parse inventory item list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyInventoryItemList(ctx, items)
-			m.inventoryWindow.clampScroll(ctx.Session)
-			m.inventoryBag.clampScroll(ctx.Session)
+			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
 		if itemDelete, ok, err := network.ParseInventoryItemDelete(pkt); err != nil {
 			log.Printf("parse inventory item delete 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyInventoryItemDelete(ctx, itemDelete)
-			m.inventoryWindow.clampScroll(ctx.Session)
-			m.inventoryBag.clampScroll(ctx.Session)
+			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
 		if equipAck, ok, err := network.ParseInventoryEquipAck(pkt); err != nil {
 			log.Printf("parse inventory equip ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyInventoryEquipAck(ctx, equipAck)
-			m.inventoryWindow.clampScroll(ctx.Session)
-			m.inventoryBag.clampScroll(ctx.Session)
+			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
 		if storageItems, ok, err := network.ParseStorageItemList(pkt); err != nil {
 			log.Printf("parse storage item list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyStorageItemList(ctx, storageItems)
-			m.storageWindow.openWindow(ctx)
+			m.storageWindow.OpenWindow(ctx)
 			continue
 		}
 		if storageAmount, ok, err := network.ParseStorageAmount(pkt); err != nil {
 			log.Printf("parse storage amount 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyStorageAmount(ctx, storageAmount)
-			m.storageWindow.openWindow(ctx)
+			m.storageWindow.OpenWindow(ctx)
 			continue
 		}
 		if storageItem, ok, err := network.ParseStorageItemAdded(pkt); err != nil {
 			log.Printf("parse storage item added 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyStorageItemAdded(ctx, storageItem)
-			m.storageWindow.openWindow(ctx)
-			m.storageWindow.clampScroll(ctx.Session)
-			m.inventoryWindow.clampScroll(ctx.Session)
-			m.inventoryBag.clampScroll(ctx.Session)
+			m.storageWindow.OpenWindow(ctx)
+			m.storageWindow.ClampScroll(ctx.Session)
+			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
 		if storageItem, ok, err := network.ParseStorageItemRemoved(pkt); err != nil {
 			log.Printf("parse storage item removed 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyStorageItemRemoved(ctx, storageItem)
-			m.storageWindow.clampScroll(ctx.Session)
+			m.storageWindow.ClampScroll(ctx.Session)
 			continue
 		}
 		if network.ParseStorageClosed(pkt) {
 			applyStorageClosed(ctx)
-			m.storageWindow.open = false
+			m.storageWindow.SetOpen(false)
 			continue
 		}
 		if deal, ok, err := network.ParseShopDealSelection(pkt); err != nil {
 			log.Printf("parse shop deal selection 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.shopWindow.openDeal(deal, ctx)
+			m.shopWindow.OpenDeal(deal, ctx)
 			continue
 		}
 		if sellList, ok, err := network.ParseShopSellList(pkt); err != nil {
 			log.Printf("parse shop sell list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.shopWindow.openSell(sellList, ctx)
-			m.inventoryWindow.open = true
-			m.inventoryWindow.ensurePosition(ctx)
-			m.inventoryWindow.clampScroll(ctx.Session)
+			m.shopWindow.OpenSell(sellList, ctx)
+			m.inventoryWindow.OpenWindow(ctx)
+			m.inventoryWindow.EnsurePosition(ctx)
+			m.inventoryWindow.ClampScroll(ctx.Session)
 			continue
 		}
 		if buyList, ok, err := network.ParseShopBuyList(pkt); err != nil {
 			log.Printf("parse shop buy list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.shopWindow.openBuy(buyList, ctx)
+			m.shopWindow.OpenBuy(buyList, ctx)
 			continue
 		}
 		if result, ok, err := network.ParseShopResult(pkt); err != nil {
 			log.Printf("parse shop result 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.shopWindow.applyResult(ctx, result)
+			m.shopWindow.ApplyResult(ctx, result)
 			if result.Sell && result.Result == 0 {
 				m.console.AddBlueMessage("The deal has successfully completed.")
 			}
@@ -651,7 +651,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if ack, ok, err := network.ParseStatusChangeAck(pkt); err != nil {
 			log.Printf("parse status change ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.statsWindow.applyStatusChangeAck(ctx, ack)
+			m.statsWindow.ApplyStatusChangeAck(ctx, ack)
 			continue
 		}
 		if statusEffect, ok, err := network.ParseStatusEffectChange(pkt); err != nil {
@@ -664,14 +664,14 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			log.Printf("parse skill list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applySkillInfoList(ctx, list)
-			m.skillWindow.clampScroll(ctx.Session)
+			m.skillWindow.ClampScroll(ctx.Session)
 			continue
 		}
 		if update, ok, err := network.ParseSkillInfoUpdate(pkt); err != nil {
 			log.Printf("parse skill update 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applySkillInfoUpdate(ctx, update)
-			m.skillWindow.clampScroll(ctx.Session)
+			m.skillWindow.ClampScroll(ctx.Session)
 			continue
 		}
 		if auto, ok, err := network.ParseAutoRunSkill(pkt); err != nil {
@@ -786,7 +786,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		}
 	}
 
-	if m.npcDialog.updateMenuScroll(ctx) {
+	if m.npcDialog.UpdateMenuScroll(ctx) {
 		return nil, nil
 	}
 	m.camera.Update(ctx, now)
@@ -796,16 +796,16 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
-	if !m.escapeMenu.IsOpen() && !m.teleportModal.open && !m.deathModal.IsOpen() && !m.settingsWindow.IsOpen() {
+	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.settingsWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.deathModal.Update(ctx) {
 		return nil, nil
 	}
-	if m.teleportModal.update(ctx, m) {
+	if m.teleportModal.Update(ctx, m) {
 		return nil, nil
 	}
-	if m.npcDialog.update(ctx) {
+	if m.npcDialog.Update(ctx) {
 		return nil, nil
 	}
 	if m.console.Update(ctx) {
@@ -823,31 +823,31 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		}
 		return nil, nil
 	}
-	if m.itemInfoWindow.update(ctx) {
+	if m.itemInfoWindow.Update(ctx) {
 		return nil, nil
 	}
-	if m.shortcutBar.update(ctx, m) {
+	if m.shortcutBar.Update(ctx, m) {
 		return nil, nil
 	}
-	if m.inventoryWindow.update(ctx, &m.shopWindow, &m.itemInfoWindow) {
+	if m.inventoryWindow.Update(ctx, &m.shopWindow, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.inventoryBag.update(ctx, &m.shortcutBar, &m.storageWindow, &m.itemInfoWindow) {
+	if m.inventoryBag.Update(ctx, &m.shortcutBar, &m.storageWindow, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.equipmentWindow.update(ctx, &m.itemInfoWindow) {
+	if m.equipmentWindow.Update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.storageWindow.update(ctx, &m.itemInfoWindow) {
+	if m.storageWindow.Update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.shopWindow.update(ctx, &m.itemInfoWindow) {
+	if m.shopWindow.Update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.skillWindow.update(ctx, &m.shortcutBar, m) {
+	if m.skillWindow.Update(ctx, &m.shortcutBar, m) {
 		return nil, nil
 	}
-	if m.statsWindow.update(ctx) {
+	if m.statsWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.basicMenu.Update(ctx) {
@@ -917,22 +917,22 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 func (m *WorldMode) handleBasicMenuAction(ctx Context) {
 	switch m.basicMenu.LastAction() {
 	case "status":
-		m.statsWindow.toggle(ctx)
+		m.statsWindow.Toggle(ctx)
 	case "option":
 		m.escapeMenu.OpenMenu()
 	case "skill":
-		m.skillWindow.toggle(ctx)
+		m.skillWindow.Toggle(ctx)
 	case "items":
-		m.inventoryBag.toggle(ctx)
+		m.inventoryBag.Toggle(ctx)
 	case "equip":
-		m.equipmentWindow.toggle(ctx)
+		m.equipmentWindow.Toggle(ctx)
 	}
 }
 
 func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
-	m.teleportModal = teleportModalState{}
+	m.teleportModal = gameui.TeleportModal{}
 	m.clearLocalDeathState(ctx)
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
@@ -2772,25 +2772,25 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.drawWorldEffects(screen, ctx, projection, now)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
-	drawCharacterWindow(screen, ctx)
+	gameui.DrawCharacterWindow(screen, ctx)
 	m.basicMenu.Draw(screen, ctx)
-	m.shortcutBar.draw(screen, ctx, m)
-	m.minimap.draw(screen, ctx)
+	m.shortcutBar.Draw(screen, ctx, m)
+	m.minimap.Draw(screen, ctx)
 	m.drawStatusIcons(screen, ctx, now)
-	m.inventoryWindow.draw(screen, ctx, m)
-	m.inventoryBag.draw(screen, ctx, m)
-	m.equipmentWindow.draw(screen, ctx, m)
-	m.storageWindow.draw(screen, ctx, m)
-	m.shopWindow.draw(screen, ctx, m)
-	m.statsWindow.draw(screen, ctx)
-	m.skillWindow.draw(screen, ctx, m)
+	m.inventoryWindow.Draw(screen, ctx, m)
+	m.inventoryBag.Draw(screen, ctx, m)
+	m.equipmentWindow.Draw(screen, ctx, m)
+	m.storageWindow.Draw(screen, ctx, m)
+	m.shopWindow.Draw(screen, ctx, m)
+	m.statsWindow.Draw(screen, ctx)
+	m.skillWindow.Draw(screen, ctx, m)
 	m.settingsWindow.Draw(screen, ctx)
-	m.itemInfoWindow.draw(screen, ctx, m)
+	m.itemInfoWindow.Draw(screen, ctx, m)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.Draw(screen, width, height)
-	m.npcDialog.draw(screen, ctx, width, height)
+	m.npcDialog.Draw(screen, ctx, width, height)
 	m.escapeMenu.Draw(screen, ctx, width, height)
-	m.teleportModal.draw(screen, ctx, width, height)
+	m.teleportModal.Draw(screen, ctx, width, height)
 	m.deathModal.Draw(screen, ctx, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
 	m.drawMapFade(screen, now)

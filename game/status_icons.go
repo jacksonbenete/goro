@@ -11,6 +11,7 @@ import (
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 )
 
 const (
@@ -88,10 +89,10 @@ func (m *WorldMode) drawStatusIcons(screen *render.Image, ctx Context, now time.
 		return
 	}
 	width, height := ctx.ScreenSize()
-	minimapX, minimapY, minimapW, minimapH := minimapBounds(width, height)
+	minimapX, minimapY, minimapW, minimapH := gameui.MinimapBounds(width, height)
 	startX := minimapX + minimapW - statusIconSize
 	startY := minimapY + minimapH + statusIconGap
-	maxRows := maxInt(1, (height-startY-minimapMargin)/statusIconSpacing)
+	maxRows := maxInt(1, (height-startY-16)/statusIconSpacing)
 	hovered := -1
 	for i, id := range ids {
 		col := i / maxRows
@@ -145,7 +146,7 @@ func (m *WorldMode) drawStatusIcon(screen *render.Image, manager *res.Manager, i
 			screen.DrawImage(icon, &opts)
 		}
 	} else {
-		render.DebugPrintAtColor(screen, "?", x+12, y+9, uiMutedTextColor)
+		render.DebugPrintAtColor(screen, "?", x+12, y+9, gameui.MutedTextColor)
 	}
 	if effect.HasDuration && !effect.ExpiresAt.IsZero() && effect.ExpiresAt.After(effect.StartedAt) {
 		total := effect.ExpiresAt.Sub(effect.StartedAt)
@@ -198,10 +199,10 @@ func (m *WorldMode) drawStatusIconTooltip(screen *render.Image, statusID int, mo
 	text := info.label
 	w := len(text)*7 + 12
 	h := 20
-	x := clampInventoryWindowInt(mouseX+12, 4, maxInt(4, width-w-4))
-	y := clampInventoryWindowInt(mouseY+12, 4, maxInt(4, height-h-4))
+	x := clampInt(mouseX+12, 4, maxInt(4, width-w-4))
+	y := clampInt(mouseY+12, 4, maxInt(4, height-h-4))
 	render.DrawRect(screen, float64(x), float64(y), float64(w), float64(h), color.RGBA{R: 32, G: 36, B: 44, A: 230})
-	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, uiWindowBorderColor)
-	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, uiWindowBorderColor)
+	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, gameui.WindowBorderColor)
+	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, gameui.WindowBorderColor)
 	render.DebugPrintAtColor(screen, text, x+6, y+4, color.RGBA{R: 246, G: 246, B: 246, A: 255})
 }

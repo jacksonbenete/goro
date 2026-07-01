@@ -10,6 +10,7 @@ import (
 
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -140,7 +141,7 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.deathModal.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.teleportModal.cursorAction(ctx); ok {
+	if action, ok := m.teleportModal.CursorAction(ctx); ok {
 		return action
 	}
 	if ctx.Input.MousePressed(render.MouseButtonRight) {
@@ -152,34 +153,34 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.settingsWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.npcDialog.cursorAction(ctx); ok {
+	if action, ok := m.npcDialog.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.itemInfoWindow.cursorAction(ctx); ok {
+	if action, ok := m.itemInfoWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.shopWindow.cursorAction(ctx); ok {
+	if action, ok := m.shopWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.inventoryWindow.cursorAction(ctx); ok {
+	if action, ok := m.inventoryWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.inventoryBag.cursorAction(ctx); ok {
+	if action, ok := m.inventoryBag.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.equipmentWindow.cursorAction(ctx); ok {
+	if action, ok := m.equipmentWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.storageWindow.cursorAction(ctx); ok {
+	if action, ok := m.storageWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.skillWindow.cursorAction(ctx); ok {
+	if action, ok := m.skillWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.statsWindow.cursorAction(ctx); ok {
+	if action, ok := m.statsWindow.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.shortcutBar.cursorAction(ctx); ok {
+	if action, ok := m.shortcutBar.CursorAction(ctx); ok {
 		return action
 	}
 	if action, ok := m.basicMenu.CursorAction(ctx); ok {
@@ -325,6 +326,6 @@ func drawPendingSkillCursorLevel(screen *render.Image, ctx Context, skill sessio
 	x := ctx.Input.MouseX + 18
 	y := ctx.Input.MouseY + 16
 	width := len([]rune(label))*7 + 8
-	drawUISurface(screen, x, y, width, 15, uiPanelBodyColor, uiWindowBorderColor)
-	render.DebugPrintAtColor(screen, label, x+4, y+1, uiTitleTextColor)
+	gameui.DrawSurface(screen, x, y, width, 15, gameui.PanelBodyColor, gameui.WindowBorderColor)
+	render.DebugPrintAtColor(screen, label, x+4, y+1, gameui.TitleTextColor)
 }

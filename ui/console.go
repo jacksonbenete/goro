@@ -133,7 +133,7 @@ func (c *ChatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 		c.messages = c.messages[:80]
 	}
 	c.scroll = 0
-	c.clampScroll()
+	c.ClampScroll()
 	c.invalidate()
 }
 
@@ -369,7 +369,7 @@ func (c *ChatConsole) visibleLines(width int) []ConsoleMessage {
 	if len(c.messages) == 0 {
 		return []ConsoleMessage{{Text: "Server messages will appear here.", Color: consoleColorPlaceholder}}
 	}
-	c.clampScroll()
+	c.ClampScroll()
 	start := len(c.messages) - consoleMaxLines - c.scroll
 	if start < 0 {
 		start = 0
@@ -410,11 +410,11 @@ func (c *ChatConsole) scrollBy(wheelY float64) {
 
 func (c *ChatConsole) scrollLines(lines int) {
 	c.scroll += lines
-	c.clampScroll()
+	c.ClampScroll()
 	c.invalidate()
 }
 
-func (c *ChatConsole) clampScroll() {
+func (c *ChatConsole) ClampScroll() {
 	maxScroll := maxInt(0, len(c.messages)-consoleMaxLines)
 	if c.scroll < 0 {
 		c.scroll = 0

@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -29,7 +29,7 @@ var (
 	minimapNPCColor    = color.RGBA{R: 120, G: 190, B: 255, A: 220}
 )
 
-type minimapState struct {
+type Minimap struct {
 	mapName string
 	img     *render.Image
 }
@@ -41,7 +41,7 @@ type minimapRect struct {
 	h int
 }
 
-func (m *minimapState) draw(screen *render.Image, ctx Context) {
+func (m *Minimap) Draw(screen *render.Image, ctx Context) {
 	if screen == nil || ctx.World == nil {
 		return
 	}
@@ -74,7 +74,7 @@ func (m *minimapState) draw(screen *render.Image, ctx Context) {
 	render.DebugPrintAtColor(screen, coords, x+w-minimapPad-len(coords)*7, y+h-18, minimapMutedColor)
 }
 
-func (m *minimapState) ensureImage(manager *res.Manager, mapName string) {
+func (m *Minimap) ensureImage(manager *res.Manager, mapName string) {
 	normalized := normalizeMinimapMapName(mapName)
 	if normalized == "" || manager == nil {
 		return
@@ -94,6 +94,10 @@ func (m *minimapState) ensureImage(manager *res.Manager, mapName string) {
 func minimapBounds(width, _ int) (int, int, int, int) {
 	x := maxInt(minimapMargin, width-minimapWidth-minimapMargin)
 	return x, minimapMargin, minimapWidth, minimapHeight
+}
+
+func MinimapBounds(width, height int) (int, int, int, int) {
+	return minimapBounds(width, height)
 }
 
 func minimapMapRect(x, y, w, h int) minimapRect {
@@ -141,7 +145,7 @@ func drawMinimapFallback(screen *render.Image, rect minimapRect) {
 	}
 }
 
-func (m *minimapState) drawActorMarkers(screen *render.Image, world *worldstate.World, rect minimapRect, mapW, mapH int) {
+func (m *Minimap) drawActorMarkers(screen *render.Image, world *worldstate.World, rect minimapRect, mapW, mapH int) {
 	for _, actor := range world.Actors {
 		if actor.ID == 0 || actor.X < 0 || actor.Y < 0 || actor.X >= mapW || actor.Y >= mapH {
 			continue

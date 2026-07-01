@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"image/color"
@@ -44,7 +44,7 @@ func TestNPCDialogWrapIgnoresColorCodeWidth(t *testing.T) {
 }
 
 func TestNPCDialogMenuScrollChangesVisibleChoiceRange(t *testing.T) {
-	dialog := npcDialogState{
+	dialog := NPCDialog{
 		action:  npcDialogActionMenu,
 		options: []string{"one", "two", "three", "four", "five", "six"},
 	}
@@ -78,7 +78,7 @@ func TestNPCDialogMenuScrollConsumesWheelInsideMenu(t *testing.T) {
 	state := input.NewState()
 	state.SetMousePosition(20, 20)
 	state.AddWheel(0, -1)
-	dialog := npcDialogState{
+	dialog := NPCDialog{
 		action:  npcDialogActionMenu,
 		options: []string{"one", "two", "three", "four", "five", "six"},
 	}

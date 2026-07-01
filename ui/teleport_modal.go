@@ -1,9 +1,8 @@
-package game
+package ui
 
 import (
 	"fmt"
 	"image/color"
-	"log"
 
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
@@ -25,7 +24,15 @@ const (
 	teleportModalGap     = 8
 )
 
-type teleportModalState struct {
+const (
+	TeleportSkillID      = teleportSkillID
+	WarpPortalSkillID    = warpPortalSkillID
+	TeleportRandomMap    = teleportRandomMap
+	TeleportSavePointMap = teleportSavePointMap
+	WarpPointCancelMap   = warpPointCancelMap
+)
+
+type TeleportModal struct {
 	open     bool
 	skill    session.Skill
 	mapNames []string
@@ -47,74 +54,22 @@ type teleportModalButton struct {
 	enabled bool
 }
 
-func (m *teleportModalState) openWarpPointList(list network.WarpPointList, skill session.Skill) {
+func (m *TeleportModal) OpenWarpPointList(list network.WarpPointList, skill session.Skill) {
 	m.open = true
 	m.skill = skill
 	m.mapNames = append(m.mapNames[:0], list.MapNames...)
 	m.status = ""
 }
 
-func (m *WorldMode) applyWarpPointList(ctx Context, list network.WarpPointList) {
-	if list.SkillID != teleportSkillID && list.SkillID != warpPortalSkillID {
-		log.Printf("warp point list ignored skill=%d maps=%v", list.SkillID, list.MapNames)
-		return
-	}
-	skill, ok := skillByID(ctx.Session, list.SkillID)
-	if !ok {
-		skill = session.Skill{ID: list.SkillID, Level: 1}
-		if len(list.MapNames) > 1 {
-			skill.Level = 2
-		}
-	}
-	if teleportWarpListBypassesModal(skill, list) {
-		m.autoSelectTeleportRandom(ctx, list)
-		return
-	}
-	m.teleportModal.openWarpPointList(list, skill)
-	m.status = fmt.Sprintf("choose %s destination", warpPointSkillLabel(list.SkillID))
-	log.Printf("warp point destination list skill=%d maps=%v", list.SkillID, list.MapNames)
+func (m *TeleportModal) Reset() {
+	*m = TeleportModal{}
 }
 
-func (m *WorldMode) applyRememberWarpPointAck(_ Context, ack network.RememberWarpPointAck) {
-	switch ack.Result {
-	case 0:
-		m.console.AddBlueMessage("Saved location as a Memo Point for Warp skill.")
-	case 1:
-		m.console.AddErrorMessage("Skill Level is not high enough.")
-	case 2:
-		m.console.AddErrorMessage("You haven't learned Warp.")
-	default:
-		m.console.AddErrorMessage("Memo failed.")
-	}
-	log.Printf("remember warp point ack result=%d", ack.Result)
-}
-
-func (m *WorldMode) autoSelectTeleportRandom(ctx Context, list network.WarpPointList) {
-	mapName := teleportRandomMap
-	for _, name := range list.MapNames {
-		if name == teleportRandomMap {
-			mapName = name
-			break
-		}
-	}
-	if ctx.Network == nil {
-		m.status = "Teleport failed: not connected"
-		return
-	}
-	if err := ctx.Network.SendSelectWarpPoint(list.SkillID, mapName); err != nil {
-		m.status = fmt.Sprintf("Teleport failed: %v", err)
-		return
-	}
-	m.teleportModal = teleportModalState{}
-	m.status = "teleporting"
-	log.Printf("teleport random selected automatically skill=%d maps=%v", list.SkillID, list.MapNames)
-}
-
-func teleportWarpListBypassesModal(skill session.Skill, list network.WarpPointList) bool {
+func TeleportWarpListBypassesModal(skill session.Skill, list network.WarpPointList) bool {
 	if list.SkillID != teleportSkillID {
 		return false
 	}
-	if isLevelOneTeleportSkill(skill) {
+	if IsLevelOneTeleportSkill(skill) {
 		return true
 	}
 	for _, name := range list.MapNames {
@@ -125,7 +80,7 @@ func teleportWarpListBypassesModal(skill session.Skill, list network.WarpPointLi
 	return true
 }
 
-func (m *teleportModalState) update(ctx Context, mode *WorldMode) bool {
+func (m *TeleportModal) Update(ctx Context, mode WorldRenderer) bool {
 	if !m.open || ctx.Input == nil {
 		return m.open
 	}
@@ -154,7 +109,7 @@ func (m *teleportModalState) update(ctx Context, mode *WorldMode) bool {
 	return true
 }
 
-func (m *teleportModalState) activate(ctx Context, mode *WorldMode, action teleportModalAction) {
+func (m *TeleportModal) activate(ctx Context, mode WorldRenderer, action teleportModalAction) {
 	for _, button := range m.buttons() {
 		if button.action != action || !button.enabled {
 			continue
@@ -168,7 +123,7 @@ func (m *teleportModalState) activate(ctx Context, mode *WorldMode, action telep
 	}
 }
 
-func (m *teleportModalState) cancel(ctx Context) {
+func (m *TeleportModal) cancel(ctx Context) {
 	if m.skill.ID == warpPortalSkillID && ctx.Network != nil {
 		if err := ctx.Network.SendSelectWarpPoint(uint16(warpPortalSkillID), warpPointCancelMap); err != nil {
 			m.status = fmt.Sprintf("Cancel failed: %v", err)
@@ -178,7 +133,7 @@ func (m *teleportModalState) cancel(ctx Context) {
 	m.open = false
 }
 
-func (m *teleportModalState) selectWarpPoint(ctx Context, mode *WorldMode, mapName string) {
+func (m *TeleportModal) selectWarpPoint(ctx Context, mode WorldRenderer, mapName string) {
 	if ctx.Network == nil {
 		m.status = "Teleport failed: not connected"
 		return
@@ -192,16 +147,16 @@ func (m *teleportModalState) selectWarpPoint(ctx Context, mode *WorldMode, mapNa
 		return
 	}
 	if mode != nil && skillID == teleportSkillID {
-		mode.addWorldEffect(ctx, effectTeleportation, localSkillTarget(ctx))
+		mode.AddTeleportEffect(ctx)
 	}
 	m.open = false
 }
 
-func (m teleportModalState) savePointEnabled() bool {
+func (m TeleportModal) savePointEnabled() bool {
 	return m.savePointMapName() != ""
 }
 
-func (m teleportModalState) randomMapName() string {
+func (m TeleportModal) randomMapName() string {
 	for _, name := range m.mapNames {
 		if name == teleportRandomMap {
 			return name
@@ -210,14 +165,14 @@ func (m teleportModalState) randomMapName() string {
 	return teleportRandomMap
 }
 
-func (m teleportModalState) savePointMapName() string {
+func (m TeleportModal) savePointMapName() string {
 	if m.skill.ID == teleportSkillID && m.skill.Level >= 2 && m.hasSavePointChoice() {
 		return teleportSavePointMap
 	}
 	return ""
 }
 
-func (m teleportModalState) hasSavePointChoice() bool {
+func (m TeleportModal) hasSavePointChoice() bool {
 	if m.skill.ID != teleportSkillID || m.skill.Level < 2 {
 		return false
 	}
@@ -232,11 +187,11 @@ func (m teleportModalState) hasSavePointChoice() bool {
 	return false
 }
 
-func isLevelOneTeleportSkill(skill session.Skill) bool {
+func IsLevelOneTeleportSkill(skill session.Skill) bool {
 	return skill.ID == teleportSkillID && skill.Level <= 1
 }
 
-func (m teleportModalState) buttons() []teleportModalButton {
+func (m TeleportModal) buttons() []teleportModalButton {
 	if m.skill.ID == warpPortalSkillID {
 		buttons := make([]teleportModalButton, 0, len(m.mapNames)+1)
 		for i, name := range m.mapNames {
@@ -274,14 +229,14 @@ func warpPointSkillLabel(skillID uint16) string {
 	return "teleport"
 }
 
-func (m *teleportModalState) draw(screen *render.Image, ctx Context, width, height int) {
+func (m *TeleportModal) Draw(screen *render.Image, ctx Context, width, height int) {
 	if !m.open || screen == nil {
 		return
 	}
 	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 72}, color.RGBA{})
 	x, y, w, h := teleportModalBounds(width, height)
 	drawUITitledWindowFrame(screen, x, y, w, h, teleportModalTitleH)
-	drawUIWindowTitle(screen, x, y, teleportModalTitleH, teleportModalPad, m.title(), uiTitleTextColor)
+	drawUIWindowTitle(screen, x, y, teleportModalTitleH, teleportModalPad, m.Title(), uiTitleTextColor)
 	render.DebugPrintAtColor(screen, "Choose destination.", x+teleportModalPad, y+teleportModalTitleH+12, uiTextColor)
 
 	mx, my := -1, -1
@@ -305,14 +260,14 @@ func (m *teleportModalState) draw(screen *render.Image, ctx Context, width, heig
 	}
 }
 
-func (m teleportModalState) title() string {
+func (m TeleportModal) Title() string {
 	if m.skill.ID == warpPortalSkillID {
 		return "Warp Portal"
 	}
 	return "Teleport"
 }
 
-func (m *teleportModalState) cursorAction(ctx Context) (int, bool) {
+func (m *TeleportModal) CursorAction(ctx Context) (int, bool) {
 	if !m.open || ctx.Input == nil {
 		return 0, false
 	}
@@ -324,10 +279,14 @@ func (m *teleportModalState) cursorAction(ctx Context) (int, bool) {
 		}
 		bx, by, bw, bh := teleportModalButtonBounds(x, y, w, i)
 		if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, bx, by, bw, bh) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
 	}
-	return cursorActionDefault, true
+	return CursorActionDefault, true
+}
+
+func (m TeleportModal) IsOpen() bool {
+	return m.open
 }
 
 func teleportModalBounds(width, height int) (int, int, int, int) {

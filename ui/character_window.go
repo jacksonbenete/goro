@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ var (
 	characterWindowWeightWarn  = uiErrorTextColor
 )
 
-func drawCharacterWindow(screen *render.Image, ctx Context) {
+func DrawCharacterWindow(screen *render.Image, ctx Context) {
 	if ctx.Session == nil {
 		return
 	}
@@ -43,7 +43,7 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 		name = "Player"
 	}
 	drawUITitleTextAt(screen, x+12, y, 29, trimRunes(name, 20), characterWindowTitleColor)
-	drawUITitleTextAt(screen, x+166, y, 29, trimRunes(characterJobName(character), 20), characterWindowMutedColor)
+	drawUITitleTextAt(screen, x+166, y, 29, trimRunes(CharacterJobName(character), 20), characterWindowMutedColor)
 
 	vitals := ctx.Session.Vitals
 	if vitals.HP == 0 && vitals.MaxHP == 0 && vitals.SP == 0 && vitals.MaxSP == 0 {
@@ -79,6 +79,10 @@ func drawCharacterWindow(screen *render.Image, ctx Context) {
 
 func displayWeight(raw int) int {
 	return raw / 10
+}
+
+func DisplayWeight(raw int) int {
+	return displayWeight(raw)
 }
 
 func drawCharacterWindowBar(screen *render.Image, x, y, w int, label string, current, maxValue int, fill color.RGBA) {
@@ -151,6 +155,10 @@ func formatEXPPercent(current, next int64) string {
 	return fmt.Sprintf("%.1f%%", math.Floor(percent*10)/10)
 }
 
+func FormatEXPPercent(current, next int64) string {
+	return formatEXPPercent(current, next)
+}
+
 func formatHUDNumber(value int64) string {
 	sign := ""
 	if value < 0 {
@@ -172,4 +180,8 @@ func formatHUDNumber(value int64) string {
 		b.WriteString(text[i : i+3])
 	}
 	return sign + b.String()
+}
+
+func FormatHUDNumber(value int64) string {
+	return formatHUDNumber(value)
 }

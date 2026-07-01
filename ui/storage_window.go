@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ const (
 	storageRowH         = 32
 )
 
-type storageWindowState struct {
+type StorageWindow struct {
 	open          bool
 	x             int
 	y             int
@@ -33,13 +33,20 @@ type storageWindowState struct {
 	lastClickAt   time.Time
 }
 
-func (w *storageWindowState) openWindow(ctx Context) {
-	w.open = true
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
+func (w *StorageWindow) SetOpen(open bool) {
+	w.open = open
+	if !open {
+		w.dragging = false
+	}
 }
 
-func (w *storageWindowState) update(ctx Context, itemInfo *itemInfoWindowState) bool {
+func (w *StorageWindow) OpenWindow(ctx Context) {
+	w.open = true
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
+}
+
+func (w *StorageWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -48,7 +55,7 @@ func (w *storageWindowState) update(ctx Context, itemInfo *itemInfoWindowState) 
 		w.dragging = false
 		return false
 	}
-	w.ensurePosition(ctx)
+	w.EnsurePosition(ctx)
 	width, height := ctx.ScreenSize()
 	if w.dragging {
 		if ctx.Input.MousePressed(render.MouseButtonLeft) {
@@ -114,12 +121,12 @@ func (w *storageWindowState) update(ctx Context, itemInfo *itemInfoWindowState) 
 	return true
 }
 
-func (w *storageWindowState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
+func (w *StorageWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, storageWindowWidth, storageWindowHeight, storageWindowTitleH)
 	drawUIWindowTitle(screen, x, y, storageWindowTitleH, storageWindowPad, "Storage", inventoryTitleColor)
@@ -142,7 +149,7 @@ func (w *storageWindowState) draw(screen *render.Image, ctx Context, mode *World
 			}
 			drawUISurface(screen, rx, ry, rw, rh, fill, uiWindowBorderColor)
 			if mode != nil {
-				mode.drawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
+				mode.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
 			}
 			name := inventoryItemDisplayName(ctx.Resources, item)
 			if item.Refine > 0 {
@@ -166,17 +173,17 @@ func (w *storageWindowState) draw(screen *render.Image, ctx Context, mode *World
 	}
 }
 
-func (w *storageWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *StorageWindow) CursorAction(ctx Context) (int, bool) {
 	if !w.open || ctx.Input == nil {
 		return 0, false
 	}
 	if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, storageWindowWidth, storageWindowHeight) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	return 0, false
 }
 
-func (w *storageWindowState) acceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
+func (w *StorageWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
 	if !w.open || !pointInRect(mx, my, w.x, w.y, storageWindowWidth, storageWindowHeight) {
 		return false
 	}
@@ -196,7 +203,7 @@ func (w *storageWindowState) acceptInventoryDrop(ctx Context, item session.Inven
 	return true
 }
 
-func (w *storageWindowState) close(ctx Context) {
+func (w *StorageWindow) close(ctx Context) {
 	if ctx.Network != nil {
 		if err := ctx.Network.SendCloseStorage(); err != nil {
 			w.setStatus(err.Error(), false)
@@ -209,7 +216,7 @@ func (w *storageWindowState) close(ctx Context) {
 	}
 }
 
-func (w *storageWindowState) withdraw(ctx Context, item session.InventoryItem) {
+func (w *StorageWindow) withdraw(ctx Context, item session.InventoryItem) {
 	amount := uint32(item.Amount)
 	if amount == 0 {
 		amount = 1
@@ -225,13 +232,13 @@ func (w *storageWindowState) withdraw(ctx Context, item session.InventoryItem) {
 	w.setStatus("Withdraw requested", true)
 }
 
-func (w *storageWindowState) setStatus(text string, good bool) {
+func (w *StorageWindow) setStatus(text string, good bool) {
 	w.status = text
 	w.statusGood = good
 	w.statusAt = time.Now()
 }
 
-func (w *storageWindowState) ensurePosition(ctx Context) {
+func (w *StorageWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
@@ -241,17 +248,17 @@ func (w *storageWindowState) ensurePosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *storageWindowState) closeBounds() (int, int, int, int) {
+func (w *StorageWindow) closeBounds() (int, int, int, int) {
 	return w.x + storageWindowWidth - 23, w.y + 7, 16, 16
 }
 
-func (w *storageWindowState) rowBounds(row int) (int, int, int, int) {
+func (w *StorageWindow) rowBounds(row int) (int, int, int, int) {
 	x := w.x + storageWindowPad
 	y := w.y + storageWindowTitleH + 10 + row*storageRowH
 	return x, y, storageWindowWidth - storageWindowPad*2 - 8, storageRowH - 4
 }
 
-func (w *storageWindowState) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
+func (w *StorageWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
 	items := visibleStorageItems(sortedStorageItems(s), w.scroll)
 	for row, item := range items {
 		x, y, width, height := w.rowBounds(row)
@@ -262,16 +269,16 @@ func (w *storageWindowState) itemAt(s *session.Session, mx, my int) (session.Inv
 	return session.InventoryItem{}, false
 }
 
-func (w *storageWindowState) scrollBy(wheelY float64, s *session.Session) {
+func (w *StorageWindow) scrollBy(wheelY float64, s *session.Session) {
 	if wheelY > 0 {
 		w.scroll--
 	} else if wheelY < 0 {
 		w.scroll++
 	}
-	w.clampScroll(s)
+	w.ClampScroll(s)
 }
 
-func (w *storageWindowState) clampScroll(s *session.Session) {
+func (w *StorageWindow) ClampScroll(s *session.Session) {
 	maxScroll := maxInt(0, len(sortedStorageItems(s))-visibleStorageRows())
 	if w.scroll < 0 {
 		w.scroll = 0
@@ -281,7 +288,7 @@ func (w *storageWindowState) clampScroll(s *session.Session) {
 	}
 }
 
-func (w *storageWindowState) drawScrollBar(screen *render.Image, total int) {
+func (w *StorageWindow) drawScrollBar(screen *render.Image, total int) {
 	visible := visibleStorageRows()
 	if total <= visible {
 		return

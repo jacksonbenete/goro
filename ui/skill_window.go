@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ var (
 	skillWindowActive      = color.RGBA{R: 44, G: 92, B: 184, A: 255}
 )
 
-type skillWindowState struct {
+type SkillWindow struct {
 	open        bool
 	x           int
 	y           int
@@ -58,30 +58,30 @@ type skillWindowState struct {
 	dragFrom    time.Time
 }
 
-func (w *skillWindowState) toggle(ctx Context) {
+func (w *SkillWindow) Toggle(ctx Context) {
 	if w.open {
 		w.open = false
 		w.dragging = false
 		return
 	}
 	w.open = true
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
 }
 
-func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState, mode *WorldMode) bool {
+func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, mode WorldRenderer) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
 	width, height := ctx.ScreenSize()
 	if w.dragActive {
 		if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
 			skill := w.dragSkill
 			w.dragActive = false
 			w.dragSkill = session.Skill{}
-			if shortcuts != nil && shortcuts.acceptSkillDrop(ctx, skill, ctx.Input.MouseX, ctx.Input.MouseY) {
+			if shortcuts != nil && shortcuts.AcceptSkillDrop(ctx, skill, ctx.Input.MouseX, ctx.Input.MouseY) {
 				return true
 			}
 			return pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, skillWindowWidth, skillWindowHeight)
@@ -155,7 +155,7 @@ func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState, mode
 					w.setStatus("No world mode", false)
 					return true
 				}
-				if err := mode.skills().Use(ctx, skill, "skill-window"); err != nil {
+				if err := mode.UseShortcutSkill(ctx, skill); err != nil {
 					w.setStatus(err.Error(), false)
 					return true
 				}
@@ -173,12 +173,12 @@ func (w *skillWindowState) update(ctx Context, shortcuts *shortcutBarState, mode
 	return true
 }
 
-func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMode) {
+func (w *SkillWindow) Draw(screen *render.Image, ctx Context, mode WorldRenderer) {
 	if !w.open || screen == nil {
 		return
 	}
-	w.ensurePosition(ctx)
-	w.clampScroll(ctx.Session)
+	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
 	drawUITitledWindowFrame(screen, x, y, skillWindowWidth, skillWindowHeight, skillWindowTitleH)
 	drawUIWindowTitle(screen, x, y, skillWindowTitleH, skillWindowPad, "Skill Tree", skillWindowTitleColor)
@@ -211,7 +211,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 			}
 			drawUIRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
 			if mode != nil {
-				mode.drawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+3, ry+2, 22)
+				mode.DrawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+3, ry+2, 22)
 			}
 			typeColor := skillWindowPassive
 			typeLabel := "P"
@@ -253,7 +253,7 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 		render.DebugPrintAtColor(screen, trimRunes(w.status, 44), x+skillWindowPad, y+skillWindowHeight-20, statusColor)
 	}
 	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && mode != nil {
-		mode.drawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-12, ctx.Input.MouseY-12, 24)
+		mode.DrawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-12, ctx.Input.MouseY-12, 24)
 	}
 	if !w.dragActive && ctx.Input != nil {
 		if skill, ok := w.hoveredSkill(ctx); ok {
@@ -262,17 +262,17 @@ func (w *skillWindowState) draw(screen *render.Image, ctx Context, mode *WorldMo
 	}
 }
 
-func (w *skillWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *SkillWindow) CursorAction(ctx Context) (int, bool) {
 	if !w.open || ctx.Input == nil {
 		return 0, false
 	}
 	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
 	cx, cy, cw, ch := w.closeBounds()
 	if pointInRect(mx, my, cx, cy, cw, ch) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	if pointInRect(mx, my, w.x, w.y, skillWindowWidth, skillWindowTitleH) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	for row, skill := range visibleSkills(ctx.Session, w.scroll, visibleSkillRows()) {
 		if !canIncreaseSkill(ctx.Session, skill) {
@@ -280,16 +280,16 @@ func (w *skillWindowState) cursorAction(ctx Context) (int, bool) {
 		}
 		bx, by, bw, bh := w.levelButtonBounds(row)
 		if pointInRect(mx, my, bx, by, bw, bh) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
 	}
 	if pointInRect(mx, my, w.x, w.y, skillWindowWidth, skillWindowHeight) {
-		return cursorActionDefault, true
+		return CursorActionDefault, true
 	}
 	return 0, false
 }
 
-func (w *skillWindowState) ensurePosition(ctx Context) {
+func (w *SkillWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
@@ -305,23 +305,23 @@ func (w *skillWindowState) ensurePosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *skillWindowState) closeBounds() (int, int, int, int) {
+func (w *SkillWindow) closeBounds() (int, int, int, int) {
 	return w.x + skillWindowWidth - 24, w.y + 6, 16, 16
 }
 
-func (w *skillWindowState) skillRowY(row int) int {
+func (w *SkillWindow) skillRowY(row int) int {
 	return w.y + skillListTop + row*skillRowH
 }
 
-func (w *skillWindowState) skillRowBounds(row int) (int, int, int, int) {
+func (w *SkillWindow) skillRowBounds(row int) (int, int, int, int) {
 	return w.x + skillWindowPad, w.skillRowY(row), skillWindowWidth - 2*skillWindowPad, skillRowH - 2
 }
 
-func (w *skillWindowState) levelButtonBounds(row int) (int, int, int, int) {
+func (w *SkillWindow) levelButtonBounds(row int) (int, int, int, int) {
 	return w.x + skillWindowWidth - skillWindowPad - skillButtonSize, w.skillRowY(row) + 5, skillButtonSize, skillButtonSize
 }
 
-func (w *skillWindowState) hoveredSkill(ctx Context) (session.Skill, bool) {
+func (w *SkillWindow) hoveredSkill(ctx Context) (session.Skill, bool) {
 	if !w.open || ctx.Input == nil {
 		return session.Skill{}, false
 	}
@@ -335,13 +335,13 @@ func (w *skillWindowState) hoveredSkill(ctx Context) (session.Skill, bool) {
 	return session.Skill{}, false
 }
 
-func (w *skillWindowState) setStatus(status string, good bool) {
+func (w *SkillWindow) setStatus(status string, good bool) {
 	w.status = status
 	w.statusGood = good
 	w.statusAt = time.Now()
 }
 
-func (w *skillWindowState) scrollBy(wheelY float64, s *session.Session) {
+func (w *SkillWindow) scrollBy(wheelY float64, s *session.Session) {
 	step := int(math.Ceil(math.Abs(wheelY))) * 3
 	if step < 1 {
 		step = 1
@@ -351,10 +351,10 @@ func (w *skillWindowState) scrollBy(wheelY float64, s *session.Session) {
 	} else {
 		w.scroll -= step
 	}
-	w.clampScroll(s)
+	w.ClampScroll(s)
 }
 
-func (w *skillWindowState) clampScroll(s *session.Session) {
+func (w *SkillWindow) ClampScroll(s *session.Session) {
 	maxScroll := maxInt(0, len(sessionSkills(s))-visibleSkillRows())
 	if w.scroll < 0 {
 		w.scroll = 0
@@ -364,7 +364,7 @@ func (w *skillWindowState) clampScroll(s *session.Session) {
 	}
 }
 
-func (w *skillWindowState) drawScrollBar(screen *render.Image, s *session.Session) {
+func (w *SkillWindow) drawScrollBar(screen *render.Image, s *session.Session) {
 	total := len(sessionSkills(s))
 	visible := visibleSkillRows()
 	if total <= visible {

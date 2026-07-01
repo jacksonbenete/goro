@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"testing"
@@ -21,15 +21,15 @@ func TestJobName(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := jobName(tt.id); got != tt.want {
-			t.Fatalf("jobName(%d) = %q, want %q", tt.id, got, tt.want)
+		if got := JobName(tt.id); got != tt.want {
+			t.Fatalf("JobName(%d) = %q, want %q", tt.id, got, tt.want)
 		}
 	}
 }
 
 func TestCharacterJobName(t *testing.T) {
 	character := session.Character{Job: 7}
-	if got := characterJobName(character); got != "Knight" {
-		t.Fatalf("characterJobName() = %q, want Knight", got)
+	if got := CharacterJobName(character); got != "Knight" {
+		t.Fatalf("CharacterJobName() = %q, want Knight", got)
 	}
 }

@@ -502,11 +502,11 @@ func (m *LoginMode) drawQuitConfirm(ctx Context, screen *render.Image) {
 		return
 	}
 	width, height := ctx.ScreenSize()
-	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 80}, color.RGBA{})
+	gameui.DrawSurface(screen, 0, 0, width, height, color.RGBA{A: 80}, color.RGBA{})
 	x, y, w, h := loginQuitConfirmRect(ctx)
-	drawUITitledWindowFrame(screen, x, y, w, h, 24)
-	drawUIWindowTitle(screen, x, y, 24, 12, "Exit", uiTitleTextColor)
-	render.DebugPrintAtColor(screen, "Do you really want to quit?", x+28, y+52, uiTextColor)
+	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 24)
+	gameui.DrawWindowTitle(screen, x, y, 24, 12, "Exit", gameui.TitleTextColor)
+	render.DebugPrintAtColor(screen, "Do you really want to quit?", x+28, y+52, gameui.TextColor)
 
 	okX, okY, okW, okH := loginQuitOKRect(ctx)
 	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
@@ -515,11 +515,11 @@ func (m *LoginMode) drawQuitConfirm(ctx Context, screen *render.Image) {
 }
 
 func drawLoginQuitButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
-	fill := uiButtonColor
+	fill := gameui.ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
-		fill = uiButtonHoverColor
+		fill = gameui.ButtonHoverColor
 	}
-	drawUIButtonLabel(screen, x, y, w, h, label, fill, uiTextColor)
+	gameui.DrawButtonLabel(screen, x, y, w, h, label, fill, gameui.TextColor)
 }
 
 func (q loginQuitConfirmState) cursorAction(ctx Context) (int, bool) {
@@ -957,11 +957,11 @@ func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
 
 func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
-	drawUITitledWindowFrame(screen, x, y, w, h, 21)
-	drawUIWindowTitle(screen, x, y, 21, 10, "Ragnarok Online", uiTitleTextColor)
+	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 21)
+	gameui.DrawWindowTitle(screen, x, y, 21, 10, "Ragnarok Online", gameui.TitleTextColor)
 
-	labelColor := uiTextColor
-	mutedColor := uiMutedTextColor
+	labelColor := gameui.TextColor
+	mutedColor := gameui.MutedTextColor
 	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
 	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
 	render.DebugPrintAtColor(screen, "Account", x+24, userY-17, labelColor)
@@ -973,28 +973,28 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	render.DebugPrintAtColor(screen, "Server", x+24, serverY-17, labelColor)
 	for i, conn := range ctx.Resources.ClientInfo.Connections {
 		rowY := serverY + i*17
-		bg := uiPanelAltColor
+		bg := gameui.PanelAltColor
 		if i == m.selected {
-			bg = uiSelectionColor
+			bg = gameui.SelectionColor
 		}
-		drawUIRowSurface(screen, x+22, rowY, w-44, 16, bg)
+		gameui.DrawRowSurface(screen, x+22, rowY, w-44, 16, bg)
 		render.DebugPrintAtColor(screen, trimRunes(conn.Display, 22), x+28, rowY+1, labelColor)
 		render.DebugPrintAtColor(screen, fmt.Sprintf("%s:%d", conn.Address, conn.Port), x+180, rowY+1, mutedColor)
 	}
 
 	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
-	buttonBG := uiButtonColor
+	buttonBG := gameui.ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, buttonX, buttonY, buttonW, buttonH) {
-		buttonBG = uiButtonHoverColor
+		buttonBG = gameui.ButtonHoverColor
 	}
-	drawUIButtonLabel(screen, buttonX, buttonY, buttonW, buttonH, "Login", buttonBG, labelColor)
+	gameui.DrawButtonLabel(screen, buttonX, buttonY, buttonW, buttonH, "Login", buttonBG, labelColor)
 	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+14, y+h-20, mutedColor)
 }
 
 func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 	x, y, w, h := charSelectWindowRect(ctx)
-	drawUITitledWindowFrame(screen, x, y, w, h, 23)
-	drawUIWindowTitle(screen, x, y, 23, 12, "Select Character", uiTitleTextColor)
+	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 23)
+	gameui.DrawWindowTitle(screen, x, y, 23, 12, "Select Character", gameui.TitleTextColor)
 
 	page := charSelectPage(m.selectedSlot)
 	pageStart := page * 3
@@ -1002,18 +1002,18 @@ func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 		slot := pageStart + localSlot
 		slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
 		selected := slot == m.selectedSlot
-		bg := uiPanelBodyColor
-		border := uiWindowBorderColor
+		bg := gameui.PanelBodyColor
+		border := gameui.WindowBorderColor
 		if selected {
-			bg = uiSelectionColor
-			border = uiSelectionBorder
+			bg = gameui.SelectionColor
+			border = gameui.SelectionBorder
 		}
-		drawUISurface(screen, slotX, slotY, slotW, slotH, bg, border)
+		gameui.DrawSurface(screen, slotX, slotY, slotW, slotH, bg, border)
 		if character, ok := characterBySlot(ctx.Session.Characters, slot); ok {
 			m.drawCharacterPreview(screen, ctx, character, slotX+slotW/2, slotY+slotH-15-charSelectPreviewFeetLift)
-			render.DrawOutlinedTextAt(screen, trimRunes(character.Name, 16), slotX+8, slotY+slotH-18, uiTextColor, color.RGBA{A: 160})
+			render.DrawOutlinedTextAt(screen, trimRunes(character.Name, 16), slotX+8, slotY+slotH-18, gameui.TextColor, color.RGBA{A: 160})
 		} else {
-			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, uiMutedTextColor)
+			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, gameui.MutedTextColor)
 		}
 	}
 
@@ -1028,32 +1028,32 @@ func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 
 func (m *LoginMode) drawCharacterCreate(ctx Context, screen *render.Image) {
 	x, y, w, h := charCreateWindowRect(ctx)
-	drawUITitledWindowFrame(screen, x, y, w, h, 23)
-	drawUIWindowTitle(screen, x, y, 23, 12, "Make Character", uiTitleTextColor)
+	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 23)
+	gameui.DrawWindowTitle(screen, x, y, 23, 12, "Make Character", gameui.TitleTextColor)
 
 	m.drawCharacterCreatePreview(screen, ctx, x, y)
 	drawCharacterCreateStats(screen, ctx, x, y, m.create.stats)
 
 	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
-	render.DebugPrintAtColor(screen, "Name", nameX, nameY-15, uiTextColor)
+	render.DebugPrintAtColor(screen, "Name", nameX, nameY-15, gameui.TextColor)
 	drawLoginInput(screen, nameX, nameY, nameW, nameH, m.create.name, m.create.focusName)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Slot %d", m.create.slot+1), x+42, y+285, uiMutedTextColor)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Hair %d  Color %d", m.create.hairStyle, m.create.hairColor), x+42, y+302, uiMutedTextColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Slot %d", m.create.slot+1), x+42, y+285, gameui.MutedTextColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Hair %d  Color %d", m.create.hairStyle, m.create.hairColor), x+42, y+302, gameui.MutedTextColor)
 
 	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y)
 	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y)
 	drawCharCreateButton(screen, ctx, makeX, makeY, makeW, makeH, "Make")
 	drawCharCreateButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
-	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+12, y+h-22, uiMutedTextColor)
+	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+12, y+h-22, gameui.MutedTextColor)
 }
 
 func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx Context, x, y int) {
 	panelX, panelY, panelW, panelH := x+32, y+42, 142, 196
-	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, uiPanelBodyColor)
+	gameui.DrawPanelSurface(screen, panelX, panelY, panelW, panelH, gameui.PanelBodyColor)
 
 	view := m.characterCreatePreviewView(ctx)
 	if view == nil {
-		render.DebugPrintAtColor(screen, "?", panelX+panelW/2-3, panelY+86, uiMutedTextColor)
+		render.DebugPrintAtColor(screen, "?", panelX+panelW/2-3, panelY+86, gameui.MutedTextColor)
 	} else {
 		billboard, ok := humanoidBillboardForState(view, spriteState{
 			actionFamily: spriteActionIdle,
@@ -1109,29 +1109,29 @@ func (m *LoginMode) characterCreatePreviewView(ctx Context) *humanoidSpriteView 
 func drawCharacterCreateStats(screen *render.Image, ctx Context, x, y int, stats [6]uint8) {
 	graphX, graphY := x+204, y+58
 	graphW, graphH := 166, 166
-	drawUIPanelSurface(screen, graphX, graphY, graphW, graphH, uiPanelBodyColor)
+	gameui.DrawPanelSurface(screen, graphX, graphY, graphW, graphH, gameui.PanelBodyColor)
 	drawCharacterCreateStatGraph(screen, graphX+graphW/2, graphY+graphH/2, stats)
 
 	for i := 0; i < createStatCount; i++ {
 		sx, sy, sw, sh := charCreateStatButtonRect(x, y, i)
-		bg := uiButtonColor
+		bg := gameui.ButtonColor
 		if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, sx, sy, sw, sh) {
-			bg = uiButtonHoverColor
+			bg = gameui.ButtonHoverColor
 		}
 		label := charCreateStatLabels()[i]
-		drawUIButtonSurface(screen, sx, sy, sw, sh, bg)
-		drawUICenteredText(screen, sx, sy+2, sw, 15, label, uiTextColor)
+		gameui.DrawButtonSurface(screen, sx, sy, sw, sh, bg)
+		gameui.DrawCenteredText(screen, sx, sy+2, sw, 15, label, gameui.TextColor)
 		value := fmt.Sprintf("%d", stats[i])
-		drawUICenteredText(screen, sx, sy+18, sw, 15, value, uiTextColor)
+		gameui.DrawCenteredText(screen, sx, sy+18, sw, 15, value, gameui.TextColor)
 	}
 
 	listX, listY := x+402, y+58
-	drawUIPanelSurface(screen, listX, listY, 136, 166, uiPanelBodyColor)
+	gameui.DrawPanelSurface(screen, listX, listY, 136, 166, gameui.PanelBodyColor)
 	for i, label := range charCreateStatLabels() {
-		render.DebugPrintAtColor(screen, label, listX+18, listY+16+i*22, uiTextColor)
-		render.DebugPrintAtColor(screen, fmt.Sprintf("%d", stats[i]), listX+92, listY+16+i*22, uiTextColor)
+		render.DebugPrintAtColor(screen, label, listX+18, listY+16+i*22, gameui.TextColor)
+		render.DebugPrintAtColor(screen, fmt.Sprintf("%d", stats[i]), listX+92, listY+16+i*22, gameui.TextColor)
 	}
-	render.DebugPrintAtColor(screen, "Paired stats must total 10.", listX-3, listY+182, uiMutedTextColor)
+	render.DebugPrintAtColor(screen, "Paired stats must total 10.", listX-3, listY+182, gameui.MutedTextColor)
 }
 
 func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uint8) {
@@ -1141,8 +1141,8 @@ func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uin
 	mid := charCreateGraphPoints(cx, cy, inner)
 	for i := 0; i < createStatCount; i++ {
 		next := (i + 1) % createStatCount
-		render.DrawLine(screen, points[i][0], points[i][1], points[next][0], points[next][1], uiSeparatorColor)
-		render.DrawLine(screen, mid[i][0], mid[i][1], mid[next][0], mid[next][1], uiSeparatorColor)
+		render.DrawLine(screen, points[i][0], points[i][1], points[next][0], points[next][1], gameui.SeparatorColor)
+		render.DrawLine(screen, mid[i][0], mid[i][1], mid[next][0], mid[next][1], gameui.SeparatorColor)
 		render.DrawLine(screen, float64(cx), float64(cy), points[i][0], points[i][1], color.RGBA{R: 185, G: 204, B: 224, A: 150})
 	}
 	statPoints := [createStatCount][2]float64{}
@@ -1175,11 +1175,11 @@ func charCreateGraphPoints(cx, cy int, radius float64) [createStatCount][2]float
 }
 
 func drawCharCreateButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
-	bg := uiButtonColor
+	bg := gameui.ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
-		bg = uiButtonHoverColor
+		bg = gameui.ButtonHoverColor
 	}
-	drawUIButtonLabel(screen, x, y, w, h, label, bg, uiTextColor)
+	gameui.DrawButtonLabel(screen, x, y, w, h, label, bg, gameui.TextColor)
 }
 
 func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, character session.Character, centerX, feetY int) {
@@ -1234,15 +1234,15 @@ func (m *LoginMode) characterPreviewView(ctx Context, character session.Characte
 func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context, x, y int) {
 	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
 	panelX, panelY, panelW, panelH := x+16, y+204, 318, 108
-	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, uiPanelBodyColor)
-	text := uiTextColor
+	gameui.DrawPanelSurface(screen, panelX, panelY, panelW, panelH, gameui.PanelBodyColor)
+	text := gameui.TextColor
 	if !ok {
 		render.DebugPrintAtColor(screen, "Empty Slot", panelX+18, panelY+14, text)
 		render.DebugPrintAtColor(screen, "Use Make to create a character later.", panelX+18, panelY+34, text)
 		return
 	}
 	render.DebugPrintAtColor(screen, trimRunes(character.Name, 24), panelX+14, panelY+10, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Job: %s", trimRunes(characterJobName(character), 18)), panelX+14, panelY+28, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Job: %s", trimRunes(gameui.CharacterJobName(character), 18)), panelX+14, panelY+28, text)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Lv: %d / Job %d", character.Level, character.JobLevel), panelX+14, panelY+46, text)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("HP: %d / %d", character.HP, character.MaxHP), panelX+14, panelY+64, text)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("SP: %d / %d", character.SP, character.MaxSP), panelX+14, panelY+82, text)
@@ -1257,8 +1257,8 @@ func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context,
 func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context, x, y, w, h int) {
 	page := charSelectPage(m.selectedSlot)
 	pageCount := maxInt(1, (m.maxSlots+2)/3)
-	statusColor := uiMutedTextColor
-	labelColor := uiTextColor
+	statusColor := gameui.MutedTextColor
+	labelColor := gameui.TextColor
 	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", len(ctx.Session.Characters), m.maxSlots), x+w-112, y+198, statusColor)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", page+1, pageCount), x+w/2-18, y+190, statusColor)
 	render.DebugPrintAtColor(screen, trimRunes(m.status, 42), x+12, y+h-22, statusColor)
@@ -1274,25 +1274,25 @@ func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context,
 }
 
 func drawCharSelectButton(screen *render.Image, ctx Context, x, y, w, h int, label string, textColor color.RGBA) {
-	bg := uiButtonColor
+	bg := gameui.ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
-		bg = uiButtonHoverColor
+		bg = gameui.ButtonHoverColor
 	}
-	drawUIButtonLabel(screen, x, y, w, h, label, bg, textColor)
+	gameui.DrawButtonLabel(screen, x, y, w, h, label, bg, textColor)
 }
 
 func drawCharSelectArrow(screen *render.Image, x, y, w, h int, label string) {
-	drawUIButtonLabel(screen, x, y, w, h, label, uiButtonColor, uiTextColor)
+	gameui.DrawButtonLabel(screen, x, y, w, h, label, gameui.ButtonColor, gameui.TextColor)
 }
 
 func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused bool) {
-	bg := uiPanelBodyColor
-	border := uiButtonBorderColor
+	bg := gameui.PanelBodyColor
+	border := gameui.ButtonBorderColor
 	if focused {
-		border = uiSelectionBorder
+		border = gameui.SelectionBorder
 	}
-	drawUISurface(screen, x, y, w, h, bg, border)
-	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, uiTextColor)
+	gameui.DrawSurface(screen, x, y, w, h, bg, border)
+	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, gameui.TextColor)
 }
 
 func (m *LoginMode) loadBackground(ctx Context) {
