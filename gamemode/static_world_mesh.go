@@ -1,7 +1,9 @@
 package gamemode
 
 import (
+	"image"
 	"image/color"
+	"math"
 
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -17,9 +19,10 @@ type retainedWorldMesh struct {
 }
 
 type gndRetainedMeshCache struct {
-	gnd    *res.GND
-	rsw    *res.RSW
-	chunks map[gndRetainedChunkKey][]retainedWorldMesh
+	gnd           *res.GND
+	rsw           *res.RSW
+	lightmapAtlas gndLightmapAtlas
+	chunks        map[gndRetainedChunkKey][]retainedWorldMesh
 }
 
 type gndRetainedChunkKey struct {
@@ -28,16 +31,18 @@ type gndRetainedChunkKey struct {
 }
 
 type retainedMeshKey struct {
-	texture *render.Image
-	options render.DrawTrianglesOptions
+	texture      *render.Image
+	lightTexture *render.Image
+	options      render.DrawTrianglesOptions
 }
 
 type retainedMeshBuilder struct {
-	texture  *render.Image
-	options  render.DrawTrianglesOptions
-	vertices []render.Vertex3D
-	indices  []uint16
-	meshes   []retainedWorldMesh
+	texture      *render.Image
+	lightTexture *render.Image
+	options      render.DrawTrianglesOptions
+	vertices     []render.Vertex3D
+	indices      []uint16
+	meshes       []retainedWorldMesh
 }
 
 func (b *retainedMeshBuilder) addTriangle(a, c, d render.Vertex3D) {
@@ -72,7 +77,7 @@ func (b *retainedMeshBuilder) flush() {
 		b.indices = b.indices[:0]
 		return
 	}
-	mesh := render.NewWorldMesh(b.vertices, b.indices, b.texture, &b.options)
+	mesh := render.NewWorldMeshWithLightmap(b.vertices, b.indices, b.texture, b.lightTexture, &b.options)
 	b.meshes = append(b.meshes, retainedWorldMesh{mesh: mesh})
 	b.vertices = nil
 	b.indices = nil
@@ -84,7 +89,7 @@ func (m *WorldMode) drawGNDMeshes(screen *render.Image, manager *res.Manager, gn
 	}
 	cache := m.gndMeshCache
 	if cache == nil || cache.gnd != gnd || cache.rsw != rsw {
-		cache = &gndRetainedMeshCache{gnd: gnd, rsw: rsw, chunks: make(map[gndRetainedChunkKey][]retainedWorldMesh)}
+		cache = &gndRetainedMeshCache{gnd: gnd, rsw: rsw, lightmapAtlas: buildGNDLightmapAtlas(gnd), chunks: make(map[gndRetainedChunkKey][]retainedWorldMesh)}
 		m.gndMeshCache = cache
 	}
 	width := screen.Bounds().Dx()
@@ -106,7 +111,7 @@ func (m *WorldMode) drawGNDMeshes(screen *render.Image, manager *res.Manager, gn
 				y0 := chunkY * gndRetainedChunkSize
 				x1 := minInt(gnd.Width-1, x0+gndRetainedChunkSize-1)
 				y1 := minInt(gnd.Height-1, y0+gndRetainedChunkSize-1)
-				meshes = m.buildGNDMeshChunk(manager, gnd, rsw, x0, x1, y0, y1)
+				meshes = m.buildGNDMeshChunk(manager, gnd, rsw, cache.lightmapAtlas, x0, x1, y0, y1)
 				cache.chunks[key] = meshes
 			}
 			for _, mesh := range meshes {
@@ -116,7 +121,7 @@ func (m *WorldMode) drawGNDMeshes(screen *render.Image, manager *res.Manager, gn
 	}
 }
 
-func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *res.RSW, startX, endX, startY, endY int) []retainedWorldMesh {
+func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *res.RSW, lightmapAtlas gndLightmapAtlas, startX, endX, startY, endY int) []retainedWorldMesh {
 	if gnd == nil {
 		return nil
 	}
@@ -134,20 +139,20 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 	lighting := sceneLightingFromRSW(rsw)
 	topNormals := m.smoothGNDTopNormals(gnd)
 	builders := make(map[retainedMeshKey]*retainedMeshBuilder)
-	builderFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *retainedMeshBuilder {
+	builderFor := func(texture, lightTexture *render.Image, options *render.DrawTrianglesOptions) *retainedMeshBuilder {
 		if texture == nil || options == nil {
 			return nil
 		}
-		key := retainedMeshKey{texture: texture, options: *options}
+		key := retainedMeshKey{texture: texture, lightTexture: lightTexture, options: *options}
 		builder := builders[key]
 		if builder == nil {
-			builder = &retainedMeshBuilder{texture: texture, options: *options}
+			builder = &retainedMeshBuilder{texture: texture, lightTexture: lightTexture, options: *options}
 			builders[key] = builder
 		}
 		return builder
 	}
 	addTextured := func(texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA, options *render.DrawTrianglesOptions) {
-		builder := builderFor(texture, options)
+		builder := builderFor(texture, nil, options)
 		if builder == nil {
 			return
 		}
@@ -161,7 +166,7 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 		}, indices)
 	}
 	addColored := func(verts [4]modelPoint3, indices []uint16, tints [4]color.RGBA, options *render.DrawTrianglesOptions) {
-		builder := builderFor(m.whitePixel, options)
+		builder := builderFor(m.whitePixel, nil, options)
 		if builder == nil {
 			return
 		}
@@ -172,56 +177,33 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 			coloredSurfaceVertex3D(verts[3], 0, 1, tints[3]),
 		}, indices)
 	}
-	addLightmapped := func(texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, baseTints [4]color.RGBA, lightmap res.GNDLightmap, lightScales [4]modelPoint3) {
-		const steps = 6
-		if texture == nil {
+	addLightmapped := func(texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, baseTints [4]color.RGBA, lightmapID int, lightmap res.GNDLightmap, lightScales [4]modelPoint3) {
+		if texture == nil || lightmapAtlas.image == nil {
+			addTextured(texture, verts, uvs, quadIndices012023, scaleSurfaceVertexTints(baseTints, lightScales), groundTextureDrawOptions())
 			return
 		}
 		textureBounds := texture.Bounds()
 		textureWidth := float32(textureBounds.Dx())
 		textureHeight := float32(textureBounds.Dy())
-		baseBuilder := builderFor(texture, groundTextureDrawOptions())
-		lightOptions := triangleDrawOptions(render.FilterNearest, render.AddressUnsafe)
-		lightOptions.Blend = render.BlendLighter
-		lightOptions.DisableFog = true
-		lightBuilder := builderFor(m.whitePixel, lightOptions)
-		if baseBuilder == nil || lightBuilder == nil {
+		options := groundTextureDrawOptions()
+		builder := builderFor(texture, lightmapAtlas.image, options)
+		if builder == nil {
 			return
 		}
-		row := steps + 1
-		localBase := make([]render.Vertex3D, 0, row*row)
-		localLight := make([]render.Vertex3D, 0, row*row)
-		for y := 0; y <= steps; y++ {
-			t := float64(y) / steps
-			for x := 0; x <= steps; x++ {
-				s := float64(x) / steps
-				alpha := float64(res.GNDLightmapSampleAlpha(lightmap, s, t)) / 255
-				lm := posterizeGNDLightmapColor(res.GNDLightmapSampleColor(lightmap, s, t))
-				lightScale := bilerpModelPoint(lightScales, s, t)
-				base := bilerpColor(baseTints, s, t)
-				tint := color.RGBA{
-					R: clampColor(float64(base.R) * lightScale.x * alpha),
-					G: clampColor(float64(base.G) * lightScale.y * alpha),
-					B: clampColor(float64(base.B) * lightScale.z * alpha),
-					A: 255,
-				}
-				world := bilerpModelPoint(verts, s, t)
-				localBase = append(localBase, texturedSurfaceVertex3D(world, bilerpTexturePoint(uvs, s, t), tint, textureWidth, textureHeight))
-				localLight = append(localLight, coloredSurfaceVertex3D(world, 0, 0, lm))
+		lightUVs := lightmapAtlas.uvs(lightmapID)
+		var vertices [4]render.Vertex3D
+		for i := range vertices {
+			base := baseTints[i]
+			lightScale := lightScales[i]
+			tint := color.RGBA{
+				R: clampColor(float64(base.R) * lightScale.x),
+				G: clampColor(float64(base.G) * lightScale.y),
+				B: clampColor(float64(base.B) * lightScale.z),
+				A: base.A,
 			}
+			vertices[i] = lightmappedSurfaceVertex3D(verts[i], uvs[i], lightUVs[i], tint, textureWidth, textureHeight)
 		}
-		for y := 0; y < steps; y++ {
-			for x := 0; x < steps; x++ {
-				topLeft := y*row + x
-				topRight := y*row + x + 1
-				bottomLeft := (y+1)*row + x
-				bottomRight := (y+1)*row + x + 1
-				baseBuilder.addTriangle(localBase[topLeft], localBase[topRight], localBase[bottomRight])
-				baseBuilder.addTriangle(localBase[topLeft], localBase[bottomRight], localBase[bottomLeft])
-				lightBuilder.addTriangle(localLight[topLeft], localLight[topRight], localLight[bottomRight])
-				lightBuilder.addTriangle(localLight[topLeft], localLight[bottomRight], localLight[bottomLeft])
-			}
-		}
+		builder.addQuad(vertices, quadIndices012023)
 	}
 
 	for y := startY; y <= endY; y++ {
@@ -244,9 +226,9 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 					normals := gndTopNormalsAt(topNormals, gnd, x, y)
 					if texture := m.groundTexture(manager, gndTextureName(gnd, surface.TextureID)); texture != nil {
 						if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
-							addLightmapped(texture, verts, uvs, baseTints, lightmap, vertexLightScales(lighting, normals))
+							addLightmapped(texture, verts, uvs, baseTints, surface.LightmapID, lightmap, vertexLightScales(lighting, normals))
 						} else {
-							addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(gnd, surface, baseTints, vertexOrder, cell.Heights, normals, lighting), groundTextureDrawOptions())
+							addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(baseTints, cell.Heights, normals, lighting), groundTextureDrawOptions())
 						}
 					} else {
 						addColored(verts, quadIndices012023, groundSurfaceVertexColors(gndTextureName(gnd, surface.TextureID), surface.Color, cell.Heights, normals, lighting), worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
@@ -295,12 +277,82 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 	return meshes
 }
 
+type gndLightmapAtlas struct {
+	image  *render.Image
+	perRow int
+}
+
+func buildGNDLightmapAtlas(gnd *res.GND) gndLightmapAtlas {
+	if gnd == nil || len(gnd.Lightmaps) == 0 {
+		return gndLightmapAtlas{}
+	}
+	count := len(gnd.Lightmaps)
+	perRow := int(math.Round(math.Sqrt(float64(count))))
+	if perRow < 1 {
+		perRow = 1
+	}
+	rows := (count + perRow - 1) / perRow
+	width := nextPowerOfTwoInt(perRow * 8)
+	height := nextPowerOfTwoInt(rows * 8)
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for index, lightmap := range gnd.Lightmaps {
+		baseX := (index % perRow) * 8
+		baseY := (index / perRow) * 8
+		for y := 0; y < 8; y++ {
+			for x := 0; x < 8; x++ {
+				pixel := img.PixOffset(baseX+x, baseY+y)
+				lm := posterizeGNDLightmapColor(lightmap.Color[y][x])
+				img.Pix[pixel+0] = lm.R
+				img.Pix[pixel+1] = lm.G
+				img.Pix[pixel+2] = lm.B
+				img.Pix[pixel+3] = lightmap.Alpha[y][x]
+			}
+		}
+	}
+	return gndLightmapAtlas{
+		image:  render.NewImageFromImage(img),
+		perRow: perRow,
+	}
+}
+
+func (a gndLightmapAtlas) uvs(index int) [4]texturePoint {
+	if a.image == nil || a.perRow <= 0 || index < 0 {
+		return [4]texturePoint{}
+	}
+	baseX := float32((index % a.perRow) * 8)
+	baseY := float32((index / a.perRow) * 8)
+	return [4]texturePoint{
+		{u: baseX + 1, v: baseY + 1},
+		{u: baseX + 7, v: baseY + 1},
+		{u: baseX + 7, v: baseY + 7},
+		{u: baseX + 1, v: baseY + 7},
+	}
+}
+
+func nextPowerOfTwoInt(value int) int {
+	if value <= 1 {
+		return 1
+	}
+	out := 1
+	for out < value {
+		out *= 2
+	}
+	return out
+}
+
+func lightmappedSurfaceVertex3D(point modelPoint3, uv texturePoint, lightUV texturePoint, tint color.RGBA, textureWidth, textureHeight float32) render.Vertex3D {
+	vertex := texturedSurfaceVertex3D(point, uv, tint, textureWidth, textureHeight)
+	vertex.LightSrcX = lightUV.u
+	vertex.LightSrcY = lightUV.v
+	return vertex
+}
+
 func addGNDRetainedSurface(m *WorldMode, manager *res.Manager, gnd *res.GND, surface res.GNDSurface, vertexOrder [4]int, verts [4]modelPoint3, heights [4]float32, normals [4]modelPoint3, lighting sceneLighting, addTextured func(*render.Image, [4]modelPoint3, [4]texturePoint, []uint16, [4]color.RGBA, *render.DrawTrianglesOptions), addColored func([4]modelPoint3, []uint16, [4]color.RGBA, *render.DrawTrianglesOptions)) {
 	baseTints := uniformGNDSurfaceBaseTints(surface.Color)
 	uvs := surfaceUVs(surface, vertexOrder)
 	textureName := gndTextureName(gnd, surface.TextureID)
 	if texture := m.groundTexture(manager, textureName); texture != nil {
-		addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(gnd, surface, baseTints, vertexOrder, heights, normals, lighting), groundTextureDrawOptions())
+		addTextured(texture, verts, uvs, quadIndices012023, surfaceVertexTints(baseTints, heights, normals, lighting), groundTextureDrawOptions())
 		return
 	}
 	addColored(verts, quadIndices012023, groundSurfaceVertexColors(textureName, surface.Color, heights, normals, lighting), worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))

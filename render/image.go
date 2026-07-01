@@ -42,6 +42,7 @@ type Vertex3D struct {
 	ColorR, ColorG         float32
 	ColorB, ColorA         float32
 	DepthX, DepthY, DepthZ float32
+	LightSrcX, LightSrcY   float32
 }
 
 type Camera3D struct {
@@ -209,18 +210,20 @@ type DrawCommand struct {
 }
 
 type WorldCommand struct {
-	Vertices []Vertex3D
-	Indices  []uint16
-	Texture  *Image
-	Options  DrawTrianglesOptions
+	Vertices     []Vertex3D
+	Indices      []uint16
+	Texture      *Image
+	LightTexture *Image
+	Options      DrawTrianglesOptions
 }
 
 type WorldMesh struct {
-	vertices []Vertex3D
-	indices  []uint16
-	texture  *Image
-	options  DrawTrianglesOptions
-	version  uint64
+	vertices     []Vertex3D
+	indices      []uint16
+	texture      *Image
+	lightTexture *Image
+	options      DrawTrianglesOptions
+	version      uint64
 }
 
 type WorldMeshCommand struct {
@@ -287,16 +290,21 @@ func NewImageFromImage(src image.Image) *Image {
 }
 
 func NewWorldMesh(vertices []Vertex3D, indices []uint16, texture *Image, opts *DrawTrianglesOptions) *WorldMesh {
+	return NewWorldMeshWithLightmap(vertices, indices, texture, nil, opts)
+}
+
+func NewWorldMeshWithLightmap(vertices []Vertex3D, indices []uint16, texture, lightTexture *Image, opts *DrawTrianglesOptions) *WorldMesh {
 	var o DrawTrianglesOptions
 	if opts != nil {
 		o = *opts
 	}
 	return &WorldMesh{
-		vertices: append([]Vertex3D(nil), vertices...),
-		indices:  append([]uint16(nil), indices...),
-		texture:  texture,
-		options:  o,
-		version:  1,
+		vertices:     append([]Vertex3D(nil), vertices...),
+		indices:      append([]uint16(nil), indices...),
+		texture:      texture,
+		lightTexture: lightTexture,
+		options:      o,
+		version:      1,
 	}
 }
 

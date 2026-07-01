@@ -16,7 +16,7 @@ import (
 
 const (
 	screenVertexFloatCount      = 8
-	worldVertexFloatCount       = 14
+	worldVertexFloatCount       = 16
 	billboardVertexFloatCount   = 4
 	billboardInstanceFloatCount = 24
 	screenVertexStride          = screenVertexFloatCount * 4
@@ -58,6 +58,7 @@ type gpuRenderer struct {
 	billboardQuadBuf *wgpu.Buffer
 	frameBuffers     []*wgpu.Buffer
 	frameBindGroups  []*wgpu.BindGroup
+	neutralLightmap  *Image
 	statsEnabled     bool
 	statsLast        time.Time
 	worldDebug       bool
@@ -89,9 +90,10 @@ type samplerKey struct {
 }
 
 type bindGroupKey struct {
-	texture *gogpu.Texture
-	sampler *wgpu.Sampler
-	layout  *wgpu.BindGroupLayout
+	texture      *gogpu.Texture
+	lightTexture *gogpu.Texture
+	sampler      *wgpu.Sampler
+	layout       *wgpu.BindGroupLayout
 }
 
 func newGPURenderer(ctx *gogpu.Context, app *gogpu.App, cfg core.RenderConfig) (*gpuRenderer, error) {
@@ -180,6 +182,7 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 			{Binding: 0, Visibility: wgpu.ShaderStageVertex | wgpu.ShaderStageFragment, Buffer: &gputypes.BufferBindingLayout{Type: gputypes.BufferBindingTypeUniform, MinBindingSize: 96}},
 			{Binding: 1, Visibility: wgpu.ShaderStageFragment, Sampler: &gputypes.SamplerBindingLayout{Type: gputypes.SamplerBindingTypeFiltering}},
 			{Binding: 2, Visibility: wgpu.ShaderStageFragment, Texture: &gputypes.TextureBindingLayout{SampleType: gputypes.TextureSampleTypeFloat, ViewDimension: gputypes.TextureViewDimension2D}},
+			{Binding: 3, Visibility: wgpu.ShaderStageFragment, Texture: &gputypes.TextureBindingLayout{SampleType: gputypes.TextureSampleTypeFloat, ViewDimension: gputypes.TextureViewDimension2D}},
 		},
 	})
 	if err != nil {
@@ -290,6 +293,7 @@ func (r *gpuRenderer) createWorldPipeline(shader *wgpu.ShaderModule, blend gputy
 					{Format: gputypes.VertexFormatFloat32x3, Offset: 36, ShaderLocation: 3},
 					{Format: gputypes.VertexFormatFloat32, Offset: 48, ShaderLocation: 4},
 					{Format: gputypes.VertexFormatFloat32, Offset: 52, ShaderLocation: 5},
+					{Format: gputypes.VertexFormatFloat32x2, Offset: 56, ShaderLocation: 6},
 				},
 			}},
 		},
@@ -480,7 +484,12 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 				_ = pass.End()
 				return err
 			}
-			bg, err := r.bindGroup(r.worldBGL, r.worldUniform, 96, tex.tex, sampler)
+			lightTex, err := r.ensureBatchLightTexture(ctx, batch.key)
+			if err != nil {
+				_ = pass.End()
+				return err
+			}
+			bg, err := r.bindWorldGroup(r.worldUniform, 96, tex.tex, lightTex.tex, sampler)
 			if err != nil {
 				_ = pass.End()
 				return err
@@ -644,12 +653,37 @@ func (r *gpuRenderer) ensureTexture(ctx *gogpu.Context, img *Image, opts DrawTri
 	return out, nil
 }
 
+func (r *gpuRenderer) ensureBatchLightTexture(ctx *gogpu.Context, key drawBatchKey) (*gpuTexture, error) {
+	if key.lightTexture != nil && key.lightTexture.pix != nil {
+		return r.ensureTexture(ctx, key.lightTexture, DrawTrianglesOptions{Filter: FilterLinear, Address: AddressClampToZero})
+	}
+	return r.ensureTexture(ctx, r.neutralLightmapImage(), DrawTrianglesOptions{Filter: FilterLinear, Address: AddressClampToZero})
+}
+
+func (r *gpuRenderer) ensureMeshLightTexture(ctx *gogpu.Context, mesh *WorldMesh) (*gpuTexture, error) {
+	if mesh != nil && mesh.lightTexture != nil && mesh.lightTexture.pix != nil {
+		return r.ensureTexture(ctx, mesh.lightTexture, DrawTrianglesOptions{Filter: FilterLinear, Address: AddressClampToZero})
+	}
+	if mesh == nil {
+		return nil, fmt.Errorf("nil world mesh")
+	}
+	return r.ensureTexture(ctx, r.neutralLightmapImage(), DrawTrianglesOptions{Filter: FilterLinear, Address: AddressClampToZero})
+}
+
+func (r *gpuRenderer) neutralLightmapImage() *Image {
+	if r.neutralLightmap == nil {
+		r.neutralLightmap = NewImage(1, 1)
+		r.neutralLightmap.Fill(color.RGBA{A: 255})
+	}
+	return r.neutralLightmap
+}
+
 func (r *gpuRenderer) releaseTexture(tex *gogpu.Texture) {
 	if tex == nil {
 		return
 	}
 	for key, bg := range r.bindGroups {
-		if key.texture == tex {
+		if key.texture == tex || key.lightTexture == tex {
 			if bg != nil {
 				bg.Release()
 			}
@@ -702,6 +736,28 @@ func (r *gpuRenderer) bindGroup(layout *wgpu.BindGroupLayout, uniform *wgpu.Buff
 	return bg, nil
 }
 
+func (r *gpuRenderer) bindWorldGroup(uniform *wgpu.Buffer, uniformSize uint64, tex, lightTex *gogpu.Texture, sampler *wgpu.Sampler) (*wgpu.BindGroup, error) {
+	key := bindGroupKey{texture: tex, lightTexture: lightTex, sampler: sampler, layout: r.worldBGL}
+	if bg := r.bindGroups[key]; bg != nil {
+		return bg, nil
+	}
+	bg, err := r.dev.CreateBindGroup(&wgpu.BindGroupDescriptor{
+		Label:  "goro-world-bind-group",
+		Layout: r.worldBGL,
+		Entries: []wgpu.BindGroupEntry{
+			{Binding: 0, Buffer: uniform, Size: uniformSize},
+			{Binding: 1, Sampler: sampler},
+			{Binding: 2, TextureView: tex.View()},
+			{Binding: 3, TextureView: lightTex.View()},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	r.bindGroups[key] = bg
+	return bg, nil
+}
+
 func (r *gpuRenderer) drawWorldMesh(ctx *gogpu.Context, pass *wgpu.RenderPassEncoder, mesh *WorldMesh) error {
 	if mesh == nil || mesh.texture == nil || mesh.texture.pix == nil || len(mesh.vertices) == 0 || len(mesh.indices) == 0 {
 		return nil
@@ -714,11 +770,15 @@ func (r *gpuRenderer) drawWorldMesh(ctx *gogpu.Context, pass *wgpu.RenderPassEnc
 	if err != nil {
 		return err
 	}
+	lightTex, err := r.ensureMeshLightTexture(ctx, mesh)
+	if err != nil {
+		return err
+	}
 	sampler, err := r.sampler(mesh.options)
 	if err != nil {
 		return err
 	}
-	bg, err := r.bindGroup(r.worldBGL, r.worldUniform, 96, tex.tex, sampler)
+	bg, err := r.bindWorldGroup(r.worldUniform, 96, tex.tex, lightTex.tex, sampler)
 	if err != nil {
 		return err
 	}
@@ -747,7 +807,7 @@ func (r *gpuRenderer) drawWorldBillboard(ctx *gogpu.Context, pass *wgpu.RenderPa
 	if err != nil {
 		return err
 	}
-	bg, err := r.bindGroup(r.worldBGL, r.worldUniform, 96, tex.tex, sampler)
+	bg, err := r.bindWorldGroup(r.worldUniform, 96, tex.tex, tex.tex, sampler)
 	if err != nil {
 		return err
 	}

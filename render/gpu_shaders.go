@@ -56,6 +56,7 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 @group(0) @binding(1) var tex_sampler: sampler;
 @group(0) @binding(2) var tex: texture_2d<f32>;
+@group(0) @binding(3) var light_tex: texture_2d<f32>;
 
 struct VertexInput {
 	@location(0) pos: vec3<f32>,
@@ -64,6 +65,7 @@ struct VertexInput {
 	@location(3) depth_pos: vec3<f32>,
 	@location(4) depth_bias: f32,
 	@location(5) fog_enabled: f32,
+	@location(6) light_uv: vec2<f32>,
 }
 
 struct VertexOutput {
@@ -71,6 +73,7 @@ struct VertexOutput {
 	@location(0) uv: vec2<f32>,
 	@location(1) color: vec4<f32>,
 	@location(2) fog_enabled: f32,
+	@location(3) light_uv: vec2<f32>,
 }
 
 @vertex
@@ -86,12 +89,15 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 	out.uv = input.uv;
 	out.color = input.color;
 	out.fog_enabled = input.fog_enabled;
+	out.light_uv = input.light_uv;
 	return out;
 }
 
 @fragment
 fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 	var color = textureSample(tex, tex_sampler, input.uv) * input.color;
+	let lightmap = textureSample(light_tex, tex_sampler, input.light_uv);
+	color = vec4<f32>(color.rgb * lightmap.a + clamp(lightmap.rgb, vec3<f32>(0.0), vec3<f32>(1.0)), color.a);
 	if (color[3] < 0.01) {
 		discard;
 	}
@@ -119,6 +125,7 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 @group(0) @binding(1) var tex_sampler: sampler;
 @group(0) @binding(2) var tex: texture_2d<f32>;
+@group(0) @binding(3) var light_tex: texture_2d<f32>;
 
 struct VertexInput {
 	@location(0) local: vec2<f32>,

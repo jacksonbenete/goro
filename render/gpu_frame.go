@@ -1,8 +1,9 @@
 package render
 
 type drawBatchKey struct {
-	texture *Image
-	options DrawTrianglesOptions
+	texture      *Image
+	lightTexture *Image
+	options      DrawTrianglesOptions
 }
 
 type drawBatch struct {
@@ -42,7 +43,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			alpha = append(alpha, cmd)
 			continue
 		}
-		key := drawBatchKey{texture: cmd.Texture, options: cmd.Options}
+		key := drawBatchKey{texture: cmd.Texture, lightTexture: cmd.LightTexture, options: cmd.Options}
 		batchIndex, ok := batchByKey[key]
 		if !ok {
 			pending = append(pending, pendingWorldBatch{key: key})
@@ -54,7 +55,8 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			continue
 		}
 		batch := &pending[batchIndex]
-		batch.floats, batch.indices = appendWorldCommand(batch.floats, batch.indices, cmd, w, h)
+		lw, lh := lightTextureSize(cmd.LightTexture, w, h)
+		batch.floats, batch.indices = appendWorldCommand(batch.floats, batch.indices, cmd, w, h, lw, lh)
 	}
 	frame := worldFrame{
 		floats:  make([]float32, 0, vertexCount*worldVertexFloatCount),
@@ -79,7 +81,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 	}
 	var current *drawBatch
 	for _, cmd := range alpha {
-		key := drawBatchKey{texture: cmd.Texture, options: cmd.Options}
+		key := drawBatchKey{texture: cmd.Texture, lightTexture: cmd.LightTexture, options: cmd.Options}
 		if current == nil || current.key != key {
 			frame.batches = append(frame.batches, drawBatch{key: key, firstIndex: uint32(len(frame.indices))})
 			current = &frame.batches[len(frame.batches)-1]
@@ -89,15 +91,17 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			continue
 		}
 		indexCountBefore := len(frame.indices)
-		frame.floats, frame.indices = appendWorldCommand(frame.floats, frame.indices, cmd, w, h)
+		lw, lh := lightTextureSize(cmd.LightTexture, w, h)
+		frame.floats, frame.indices = appendWorldCommand(frame.floats, frame.indices, cmd, w, h, lw, lh)
 		current.indexCount += uint32(len(frame.indices) - indexCountBefore)
 	}
 	return frame
 }
 
-func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, width, height int) ([]float32, []uint32) {
+func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, width, height, lightWidth, lightHeight int) ([]float32, []uint32) {
 	base := uint32(len(floats) / worldVertexFloatCount)
 	invW, invH := 1/float32(width), 1/float32(height)
+	invLW, invLH := 1/float32(lightWidth), 1/float32(lightHeight)
 	depthBias := saneDepthBias(cmd.Options.DepthBias)
 	fogEnabled := float32(1)
 	if cmd.Options.DisableFog {
@@ -111,6 +115,7 @@ func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, wi
 			v.DepthX, v.DepthY, v.DepthZ,
 			depthBias,
 			fogEnabled,
+			v.LightSrcX*invLW, v.LightSrcY*invLH,
 		)
 	}
 	for _, idx := range cmd.Indices {
@@ -123,12 +128,25 @@ func worldMeshGPUData(mesh *WorldMesh, width, height int) ([]float32, []uint32) 
 	floats := make([]float32, 0, len(mesh.vertices)*worldVertexFloatCount)
 	indices := make([]uint32, 0, len(mesh.indices))
 	cmd := WorldCommand{
-		Vertices: mesh.vertices,
-		Indices:  mesh.indices,
-		Texture:  mesh.texture,
-		Options:  mesh.options,
+		Vertices:     mesh.vertices,
+		Indices:      mesh.indices,
+		Texture:      mesh.texture,
+		LightTexture: mesh.lightTexture,
+		Options:      mesh.options,
 	}
-	return appendWorldCommand(floats, indices, cmd, width, height)
+	lw, lh := lightTextureSize(mesh.lightTexture, width, height)
+	return appendWorldCommand(floats, indices, cmd, width, height, lw, lh)
+}
+
+func lightTextureSize(texture *Image, fallbackWidth, fallbackHeight int) (int, int) {
+	if texture == nil || texture.pix == nil {
+		return fallbackWidth, fallbackHeight
+	}
+	w, h := texture.Bounds().Dx(), texture.Bounds().Dy()
+	if w <= 0 || h <= 0 {
+		return fallbackWidth, fallbackHeight
+	}
+	return w, h
 }
 
 func worldFrameCounts(commands []WorldCommand) (commandsOut, vertices, indices int) {

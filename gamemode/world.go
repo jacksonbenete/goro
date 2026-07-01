@@ -5619,12 +5619,7 @@ func surfaceTint(base color.RGBA, height float32, normal modelPoint3, lighting s
 	}
 }
 
-func surfaceVertexTints(gnd *res.GND, surface res.GNDSurface, baseTints [4]color.RGBA, vertexOrder [4]int, heights [4]float32, normals [4]modelPoint3, lighting sceneLighting) [4]color.RGBA {
-	if gnd != nil {
-		if lightmap, ok := gnd.Lightmap(surface.LightmapID); ok {
-			return lightmapSurfaceVertexTints(baseTints, lightmap, vertexOrder, vertexLightScales(lighting, normals))
-		}
-	}
+func surfaceVertexTints(baseTints [4]color.RGBA, heights [4]float32, normals [4]modelPoint3, lighting sceneLighting) [4]color.RGBA {
 	return [4]color.RGBA{
 		surfaceTint(baseTints[0], heights[0], normals[0], lighting),
 		surfaceTint(baseTints[1], heights[1], normals[1], lighting),
@@ -5633,19 +5628,16 @@ func surfaceVertexTints(gnd *res.GND, surface res.GNDSurface, baseTints [4]color
 	}
 }
 
-func lightmapSurfaceVertexTints(baseTints [4]color.RGBA, lightmap res.GNDLightmap, vertexOrder [4]int, lightScales [4]modelPoint3) [4]color.RGBA {
+func scaleSurfaceVertexTints(baseTints [4]color.RGBA, lightScales [4]modelPoint3) [4]color.RGBA {
 	var tints [4]color.RGBA
-	for i, sourceVertex := range vertexOrder {
-		sample := gndLightmapRenderSample(sourceVertex)
-		alpha := float64(lightmap.Alpha[sample.y][sample.x]) / 255
-		lm := posterizeGNDLightmapColor(lightmap.Color[sample.y][sample.x])
+	for i := range tints {
 		lightScale := lightScales[i]
 		base := baseTints[i]
 		tints[i] = color.RGBA{
-			R: clampColor(float64(base.R)*lightScale.x*alpha + float64(lm.R)),
-			G: clampColor(float64(base.G)*lightScale.y*alpha + float64(lm.G)),
-			B: clampColor(float64(base.B)*lightScale.z*alpha + float64(lm.B)),
-			A: 255,
+			R: clampColor(float64(base.R) * lightScale.x),
+			G: clampColor(float64(base.G) * lightScale.y),
+			B: clampColor(float64(base.B) * lightScale.z),
+			A: base.A,
 		}
 	}
 	return tints
@@ -5657,21 +5649,6 @@ func vertexLightScales(lighting sceneLighting, normals [4]modelPoint3) [4]modelP
 		lighting.groundScale(normals[1]),
 		lighting.groundScale(normals[2]),
 		lighting.groundScale(normals[3]),
-	}
-}
-
-func gndLightmapRenderSample(sourceVertex int) struct{ y, x int } {
-	switch sourceVertex {
-	case 0:
-		return struct{ y, x int }{y: 1, x: 1}
-	case 1:
-		return struct{ y, x int }{y: 1, x: 7}
-	case 2:
-		return struct{ y, x int }{y: 7, x: 1}
-	case 3:
-		return struct{ y, x int }{y: 7, x: 7}
-	default:
-		return struct{ y, x int }{y: 1, x: 1}
 	}
 }
 
@@ -5768,48 +5745,6 @@ func posterizeGNDLightmapColor(c color.RGBA) color.RGBA {
 
 func posterizeGNDLightmapChannel(v uint8) uint8 {
 	return (v / 16) * 16
-}
-
-func bilerpTexturePoint(points [4]texturePoint, s, t float64) texturePoint {
-	top := lerpTexturePoint(points[0], points[1], s)
-	bottom := lerpTexturePoint(points[3], points[2], s)
-	return lerpTexturePoint(top, bottom, t)
-}
-
-func bilerpColor(colors [4]color.RGBA, s, t float64) color.RGBA {
-	top := lerpColor(colors[0], colors[1], s)
-	bottom := lerpColor(colors[3], colors[2], s)
-	return lerpColor(top, bottom, t)
-}
-
-func lerpColor(a, b color.RGBA, t float64) color.RGBA {
-	return color.RGBA{
-		R: clampColor(float64(a.R) + (float64(b.R)-float64(a.R))*t),
-		G: clampColor(float64(a.G) + (float64(b.G)-float64(a.G))*t),
-		B: clampColor(float64(a.B) + (float64(b.B)-float64(a.B))*t),
-		A: clampColor(float64(a.A) + (float64(b.A)-float64(a.A))*t),
-	}
-}
-
-func bilerpModelPoint(points [4]modelPoint3, s, t float64) modelPoint3 {
-	top := lerpModelPoint(points[0], points[1], s)
-	bottom := lerpModelPoint(points[3], points[2], s)
-	return lerpModelPoint(top, bottom, t)
-}
-
-func lerpModelPoint(a, b modelPoint3, t float64) modelPoint3 {
-	return modelPoint3{
-		x: a.x + (b.x-a.x)*t,
-		y: a.y + (b.y-a.y)*t,
-		z: a.z + (b.z-a.z)*t,
-	}
-}
-
-func lerpTexturePoint(a, b texturePoint, t float64) texturePoint {
-	return texturePoint{
-		u: float32(float64(a.u) + (float64(b.u)-float64(a.u))*t),
-		v: float32(float64(a.v) + (float64(b.v)-float64(a.v))*t),
-	}
 }
 
 func coloredSurfaceVertex3D(point modelPoint3, u, v float32, tint color.RGBA) render.Vertex3D {
