@@ -49,3 +49,15 @@ func TestEquipmentSlotShowsAmountOnlyForAmmo(t *testing.T) {
 		t.Fatal("weapon amount should not be shown")
 	}
 }
+
+func TestEquipmentWindowOpensCentered(t *testing.T) {
+	window := EquipmentWindow{x: 12, y: 34, positioned: true}
+	window.Toggle(Context{ScreenW: 1280, ScreenH: 720})
+
+	if !window.open {
+		t.Fatal("equipment window did not open")
+	}
+	if window.x != (1280-equipmentWindowWidth)/2 || window.y != (720-equipmentWindowHeight)/2 {
+		t.Fatalf("equipment position = %d,%d, want centered", window.x, window.y)
+	}
+}

@@ -139,6 +139,19 @@ func TestInventoryBagRightClickOpensItemInfo(t *testing.T) {
 	}
 }
 
+func TestInventoryBagOpensUnderBasicMenu(t *testing.T) {
+	bag := InventoryBagWindow{x: 400, y: 200, positioned: true}
+	bag.Toggle(Context{ScreenW: 1280, ScreenH: 720})
+	menuX, menuY, _, menuH := basicMenuBounds()
+
+	if !bag.open {
+		t.Fatal("inventory bag did not open")
+	}
+	if bag.x != menuX || bag.y != menuY+menuH+8 {
+		t.Fatalf("inventory position = %d,%d, want %d,%d", bag.x, bag.y, menuX, menuY+menuH+8)
+	}
+}
+
 func TestStorageAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
 	window := StorageWindow{
 		open:       true,

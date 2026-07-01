@@ -66,7 +66,7 @@ func (w *InventoryBagWindow) Toggle(ctx Context) {
 		return
 	}
 	w.open = true
-	w.EnsurePosition(ctx)
+	w.PlaceDefault(ctx)
 	w.selectFirstNonEmptyTab(ctx.Session)
 	w.ClampScroll(ctx.Session)
 }
@@ -268,9 +268,14 @@ func (w *InventoryBagWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
-	width, _ := ctx.ScreenSize()
-	w.x = maxInt(8, width-inventoryBagWidth-24)
-	w.y = 86
+	w.PlaceDefault(ctx)
+}
+
+func (w *InventoryBagWindow) PlaceDefault(ctx Context) {
+	width, height := ctx.ScreenSize()
+	menuX, menuY, _, menuH := basicMenuBounds()
+	w.x = clampInventoryWindowInt(menuX, 8, maxInt(8, width-inventoryBagWidth-8))
+	w.y = clampInventoryWindowInt(menuY+menuH+8, 8, maxInt(8, height-inventoryBagHeight-8))
 	w.positioned = true
 }
 

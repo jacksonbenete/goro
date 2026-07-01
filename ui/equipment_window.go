@@ -92,7 +92,7 @@ func (w *EquipmentWindow) Toggle(ctx Context) {
 		return
 	}
 	w.open = true
-	w.EnsurePosition(ctx)
+	w.PlaceDefault(ctx)
 }
 
 func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
@@ -226,9 +226,13 @@ func (w *EquipmentWindow) EnsurePosition(ctx Context) {
 	if w.positioned {
 		return
 	}
-	width, _ := ctx.ScreenSize()
-	w.x = maxInt(8, width-equipmentWindowWidth-24)
-	w.y = 104
+	w.PlaceDefault(ctx)
+}
+
+func (w *EquipmentWindow) PlaceDefault(ctx Context) {
+	width, height := ctx.ScreenSize()
+	w.x = clampInventoryWindowInt((width-equipmentWindowWidth)/2, 8, maxInt(8, width-equipmentWindowWidth-8))
+	w.y = clampInventoryWindowInt((height-equipmentWindowHeight)/2, 8, maxInt(8, height-equipmentWindowHeight-8))
 	w.positioned = true
 }
 
