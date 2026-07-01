@@ -1,6 +1,9 @@
 package res
 
-import "testing"
+import (
+	"strconv"
+	"testing"
+)
 
 func TestParseItemPairTable(t *testing.T) {
 	got := parseItemPairTable([]byte("// comment\n909#Jellopy#\r\n# comment\n0#ignored#\n1002#Poring_Card#extra\n"))
@@ -76,6 +79,7 @@ func TestItemMetadataLookupFallbacks(t *testing.T) {
 				IdentifiedDisplayName:   "Jellopy",
 				IdentifiedResource:      "jellopy",
 				IdentifiedDescription:   []string{"A tiny crystalline item."},
+				SlotCount:               1,
 				ClassNum:                10,
 				ClassNumSet:             true,
 			},
@@ -95,6 +99,33 @@ func TestItemMetadataLookupFallbacks(t *testing.T) {
 	}
 	if got, ok := manager.ItemClassNum(909); !ok || got != 10 {
 		t.Fatalf("class num = %d ok=%v, want 10/true", got, ok)
+	}
+	if got, ok := manager.ItemSlotCount(909); !ok || got != 1 {
+		t.Fatalf("slot count = %d ok=%v, want 1/true", got, ok)
+	}
+}
+
+func TestParseItemSlotCountTable(t *testing.T) {
+	manager := &Manager{
+		itemMetadataLoaded: true,
+		itemMetadata: map[int]ItemMetadata{
+			2607: {IdentifiedDisplayName: "Clip"},
+		},
+	}
+	for id, value := range parseItemPairTable([]byte("2607#1#\n2608#0#\n2609#bad#\n")) {
+		slotCount, err := strconv.Atoi(value)
+		if err != nil || slotCount <= 0 {
+			continue
+		}
+		metadata := manager.itemMetadata[id]
+		metadata.SlotCount = slotCount
+		manager.itemMetadata[id] = metadata
+	}
+	if got, ok := manager.ItemSlotCount(2607); !ok || got != 1 {
+		t.Fatalf("slot count = %d ok=%v, want 1/true", got, ok)
+	}
+	if got, ok := manager.ItemSlotCount(2608); ok || got != 0 {
+		t.Fatalf("zero slot count = %d ok=%v, want 0/false", got, ok)
 	}
 }
 

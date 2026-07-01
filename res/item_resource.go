@@ -15,6 +15,7 @@ type ItemMetadata struct {
 	IdentifiedResource      string
 	UnidentifiedDescription []string
 	IdentifiedDescription   []string
+	SlotCount               int
 	ClassNum                int
 	ClassNumSet             bool
 }
@@ -52,6 +53,10 @@ var itemDescriptionTableFiles = []struct {
 }{
 	{name: "num2itemdesctable.txt"},
 	{name: "idnum2itemdesctable.txt", identified: true},
+}
+
+var itemSlotCountTableFiles = []string{
+	"itemslotcounttable.txt",
 }
 
 func (m *Manager) ItemDisplayName(itemID int, identified bool) (string, bool) {
@@ -135,6 +140,18 @@ func (m *Manager) ItemDescription(itemID int, identified bool) ([]string, bool) 
 	return nil, false
 }
 
+func (m *Manager) ItemSlotCount(itemID int) (int, bool) {
+	if itemID <= 0 {
+		return 0, false
+	}
+	m.loadItemMetadata()
+	metadata, ok := m.itemMetadata[itemID]
+	if !ok || metadata.SlotCount <= 0 {
+		return 0, false
+	}
+	return metadata.SlotCount, true
+}
+
 func (m *Manager) ItemClassNum(itemID int) (int, bool) {
 	if itemID <= 0 {
 		return 0, false
@@ -187,6 +204,17 @@ func (m *Manager) loadItemMetadata() {
 			m.itemMetadata[id] = metadata
 		}
 	}
+	for _, table := range itemSlotCountTableFiles {
+		for id, value := range m.readItemPairTable(table) {
+			slotCount, err := strconv.Atoi(strings.TrimSpace(value))
+			if err != nil || slotCount <= 0 {
+				continue
+			}
+			metadata := m.itemMetadata[id]
+			metadata.SlotCount = slotCount
+			m.itemMetadata[id] = metadata
+		}
+	}
 	m.loadItemInfoLuaMetadata()
 }
 
@@ -207,6 +235,7 @@ func (m *Manager) loadItemInfoLuaMetadata() {
 			metadata.UnidentifiedResource = luaOptionalString(state, 3)
 			metadata.IdentifiedDisplayName = normalizeItemDisplayToken(luaOptionalString(state, 4))
 			metadata.IdentifiedResource = luaOptionalString(state, 5)
+			metadata.SlotCount = state.OptInt(6, 0)
 			metadata.ClassNum = state.OptInt(7, 0)
 			metadata.ClassNumSet = true
 			m.itemMetadata[id] = metadata

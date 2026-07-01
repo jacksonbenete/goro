@@ -109,6 +109,8 @@ func drawRatioBar(screen *render.Image, x, y, w, h int, ratio float64, fill colo
 	}
 	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, WindowBorderColor)
 	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, WindowBorderColor)
+	render.DrawRect(screen, float64(x), float64(y), 1, float64(h), WindowBorderColor)
+	render.DrawRect(screen, float64(x+w-1), float64(y), 1, float64(h), WindowBorderColor)
 }
 
 func ratioInt(current, maxValue int) float64 {

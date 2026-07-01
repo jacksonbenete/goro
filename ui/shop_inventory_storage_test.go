@@ -1,10 +1,13 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 )
 
@@ -109,6 +112,37 @@ func TestInventoryBagClassifiesTabs(t *testing.T) {
 	}
 }
 
+func TestInventoryItemDisplayNameAddsSlotCountForIdentifiedItems(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "idnum2itemdisplaynametable.txt"), []byte("2607#Clip#\n2608#Ring [1]#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "num2itemdisplaynametable.txt"), []byte("2607#Accessory#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "itemslotcounttable.txt"), []byte("2607#1#\n2608#1#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := inventoryItemDisplayName(manager, session.InventoryItem{ItemID: 2607, Identified: true}); got != "Clip [1]" {
+		t.Fatalf("identified slotted name = %q, want Clip [1]", got)
+	}
+	if got := inventoryItemDisplayName(manager, session.InventoryItem{ItemID: 2607, Identified: false}); got != "Accessory" {
+		t.Fatalf("unidentified slotted name = %q, want Accessory", got)
+	}
+	if got := inventoryItemDisplayName(manager, session.InventoryItem{ItemID: 2608, Identified: true}); got != "Ring [1]" {
+		t.Fatalf("pre-suffixed slotted name = %q, want Ring [1]", got)
+	}
+}
+
 func TestInventoryBagRightClickOpensItemInfo(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetMousePosition(165, 145)
@@ -159,8 +193,8 @@ func TestInventoryBagUsesCompactTabGridLayout(t *testing.T) {
 	_, secondTabY, _, _ := bag.tabBounds(inventoryBagTabEquip)
 	_, _, menuW, _ := basicMenuBounds()
 
-	if gridX != tabX+tabW {
-		t.Fatalf("grid x = %d, want tab right edge %d", gridX, tabX+tabW)
+	if gridX != tabX+tabW-inventoryBagTabOver {
+		t.Fatalf("grid x = %d, want 1px overlapped tab right edge %d", gridX, tabX+tabW-inventoryBagTabOver)
 	}
 	if inventoryBagWidth != menuW {
 		t.Fatalf("inventory width = %d, want basic menu width %d", inventoryBagWidth, menuW)
@@ -168,8 +202,8 @@ func TestInventoryBagUsesCompactTabGridLayout(t *testing.T) {
 	if gridY != tabY {
 		t.Fatalf("grid y = %d, want first tab y %d", gridY, tabY)
 	}
-	if secondTabY != tabY+tabH {
-		t.Fatalf("second tab y = %d, want touching tab edge %d", secondTabY, tabY+tabH)
+	if secondTabY != tabY+tabH-inventoryBagTabOver {
+		t.Fatalf("second tab y = %d, want 1px overlapped tab edge %d", secondTabY, tabY+tabH-inventoryBagTabOver)
 	}
 	if gridX+gridW != bag.x+inventoryBagWidth-1 {
 		t.Fatalf("grid right = %d, want window inner right %d", gridX+gridW, bag.x+inventoryBagWidth-1)

@@ -12,15 +12,16 @@ import (
 )
 
 const (
-	inventoryBagTitleH = 28
-	inventoryBagTabW   = 64
-	inventoryBagTabH   = 32
-	inventoryBagCell   = 32
-	inventoryBagIcon   = 24
-	inventoryBagCols   = 8
-	inventoryBagRows   = 5
-	inventoryBagWidth  = inventoryBagTabW + inventoryBagCols*inventoryBagCell + 2
-	inventoryBagHeight = inventoryBagTitleH + inventoryBagRows*inventoryBagCell + 2
+	inventoryBagTitleH  = 28
+	inventoryBagTabW    = 64
+	inventoryBagTabH    = 32
+	inventoryBagCell    = 32
+	inventoryBagIcon    = 24
+	inventoryBagCols    = 8
+	inventoryBagRows    = 5
+	inventoryBagTabOver = 1
+	inventoryBagWidth   = inventoryBagTabW + inventoryBagCols*inventoryBagCell + 2
+	inventoryBagHeight  = inventoryBagTitleH + inventoryBagRows*inventoryBagCell + 2
 )
 
 const (
@@ -190,11 +191,7 @@ func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, assets Asse
 	DrawSurface(screen, gx, gy, gw, gh, WindowBodyColor, WindowBorderColor)
 	for _, tab := range inventoryBagTabs {
 		tx, ty, tw, th := w.tabBounds(tab.tab)
-		fill := inventoryButtonColor
-		if tab.tab == w.tab {
-			fill = inventoryHoverColor
-		}
-		DrawButtonLabel(screen, tx, ty, tw, th, tab.label, fill, inventoryTextColor)
+		drawInventoryBagTab(screen, tx, ty, tw, th, tab.label, tab.tab == w.tab)
 	}
 	for row := 0; row < inventoryBagRows; row++ {
 		for col := 0; col < inventoryBagCols; col++ {
@@ -266,13 +263,23 @@ func (w *InventoryBagWindow) closeBounds() (int, int, int, int) {
 }
 
 func (w *InventoryBagWindow) tabBounds(tab int) (int, int, int, int) {
-	return w.x + 1, w.y + inventoryBagTitleH + 1 + tab*inventoryBagTabH, inventoryBagTabW, inventoryBagTabH
+	return w.x, w.y + inventoryBagTitleH + 1 + tab*(inventoryBagTabH-inventoryBagTabOver), inventoryBagTabW + inventoryBagTabOver*2, inventoryBagTabH
 }
 
 func (w *InventoryBagWindow) gridBounds() (int, int, int, int) {
 	x := w.x + 1 + inventoryBagTabW
 	y := w.y + inventoryBagTitleH + 1
 	return x, y, inventoryBagCols * inventoryBagCell, inventoryBagRows * inventoryBagCell
+}
+
+func drawInventoryBagTab(screen *render.Image, x, y, w, h int, label string, active bool) {
+	if active {
+		DrawSurface(screen, x, y, w, h, WindowBodyColor, WindowBorderColor)
+		render.DrawRect(screen, float64(x+w-1), float64(y+1), 1, float64(h-2), WindowBodyColor)
+		DrawCenteredText(screen, x, y, w-1, h, label, inventoryTextColor)
+		return
+	}
+	DrawButtonLabel(screen, x, y, w, h, label, inventoryButtonColor, inventoryTextColor)
 }
 
 func (w *InventoryBagWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {

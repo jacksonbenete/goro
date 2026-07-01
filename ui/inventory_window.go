@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -300,10 +301,34 @@ func sortedInventoryItems(s *session.Session) []session.InventoryItem {
 func inventoryItemDisplayName(manager *res.Manager, item session.InventoryItem) string {
 	if manager != nil {
 		if name, ok := manager.ItemDisplayName(int(item.ItemID), item.Identified); ok && strings.TrimSpace(name) != "" {
-			return name
+			return inventoryItemDisplayNameWithSlots(manager, item, name)
 		}
 	}
 	return fmt.Sprintf("item %d", item.ItemID)
+}
+
+func inventoryItemDisplayNameWithSlots(manager *res.Manager, item session.InventoryItem, name string) string {
+	if !item.Identified || manager == nil || itemDisplayNameHasSlotSuffix(name) {
+		return name
+	}
+	slotCount, ok := manager.ItemSlotCount(int(item.ItemID))
+	if !ok || slotCount <= 0 {
+		return name
+	}
+	return fmt.Sprintf("%s [%d]", name, slotCount)
+}
+
+func itemDisplayNameHasSlotSuffix(name string) bool {
+	name = strings.TrimSpace(name)
+	if !strings.HasSuffix(name, "]") {
+		return false
+	}
+	open := strings.LastIndex(name, "[")
+	if open < 0 || open+1 >= len(name)-1 {
+		return false
+	}
+	_, err := strconv.Atoi(strings.TrimSpace(name[open+1 : len(name)-1]))
+	return err == nil
 }
 
 func clampInventoryWindowInt(value, minValue, maxValue int) int {
