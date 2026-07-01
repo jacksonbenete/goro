@@ -27,6 +27,7 @@ var (
 	WindowTitleTop    = color.RGBA{R: 214, G: 232, B: 250, A: 255}
 	WindowTitleColor  = color.RGBA{R: 184, G: 214, B: 242, A: 255}
 	WindowBorderColor = color.RGBA{R: 118, G: 160, B: 206, A: 255}
+	WindowFooterColor = color.RGBA{R: 244, G: 246, B: 248, A: 255}
 	PanelBodyColor    = color.RGBA{R: 250, G: 252, B: 255, A: 255}
 	PanelAltColor     = color.RGBA{R: 236, G: 244, B: 252, A: 255}
 	PanelHoverColor   = color.RGBA{R: 222, G: 236, B: 250, A: 255}
@@ -41,6 +42,7 @@ var (
 	ButtonDownColor   = color.RGBA{R: 198, G: 222, B: 245, A: 255}
 	ButtonBorderColor = color.RGBA{R: 138, G: 174, B: 214, A: 255}
 	SeparatorColor    = color.RGBA{R: 160, G: 190, B: 222, A: 190}
+	FooterLineColor   = color.RGBA{R: 174, G: 180, B: 188, A: 255}
 	SelectionColor    = color.RGBA{R: 206, G: 226, B: 248, A: 255}
 	SelectionBorder   = color.RGBA{R: 82, G: 138, B: 200, A: 255}
 )
@@ -78,6 +80,22 @@ func DrawTitleBar(screen *render.Image, x, y, w, titleH int) {
 		render.DrawRect(screen, float64(x+1+inset), float64(y+1+row), float64(w-2-2*inset), 1, LerpColor(WindowTitleTop, WindowTitleColor, t))
 	}
 	render.DrawRect(screen, float64(x+1), float64(y+titleH), float64(w-2), 1, SeparatorColor)
+}
+
+func DrawWindowFooter(screen *render.Image, x, y, w, h, footerH int) {
+	if screen == nil || w <= 2 || h <= 2 || footerH <= 0 {
+		return
+	}
+	footerY := y + h - footerH
+	if footerY <= y {
+		footerY = y + 1
+	}
+	bottom := y + h - 1
+	if footerY >= bottom {
+		return
+	}
+	render.DrawRect(screen, float64(x+1), float64(footerY), float64(w-2), float64(bottom-footerY), WindowFooterColor)
+	render.DrawRect(screen, float64(x+1), float64(footerY), float64(w-2), 1, FooterLineColor)
 }
 
 func titleBarRowInset(row int) int {

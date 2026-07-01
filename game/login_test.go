@@ -380,6 +380,14 @@ func TestLoginWindowSitsNearTwoThirdsHeight(t *testing.T) {
 	}
 }
 
+func TestLoginWindowIsCompactWidth(t *testing.T) {
+	ctx := client.Context{ScreenW: 1280, ScreenH: 720}
+	_, _, w, _ := loginWindowRect(ctx)
+	if w != 304 {
+		t.Fatalf("login window width = %d, want 304", w)
+	}
+}
+
 func TestLoginWindowDoesNotExposeServerSelection(t *testing.T) {
 	mode := NewLoginMode()
 	inputState := input.NewState()
@@ -400,7 +408,8 @@ func TestLoginLabelsAlignInFrontOfTextboxes(t *testing.T) {
 	x, y, w, _ := loginWindowRect(ctx)
 	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
 	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
-	buttonX, _, buttonW, _ := loginButtonRect(x, y, w)
+	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
+	_, footerY, _, footerH := loginFooterRect(x, y, w)
 	accountX := loginLabelX(userX, "Account")
 	passwordX := loginLabelX(passX, "Password")
 	accountRight := accountX + len([]rune("Account"))*7
@@ -414,6 +423,15 @@ func TestLoginLabelsAlignInFrontOfTextboxes(t *testing.T) {
 	}
 	if buttonX+buttonW != userX+userW || buttonX+buttonW != passX+passW {
 		t.Fatalf("button right edge = %d, want textbox right edge %d", buttonX+buttonW, userX+userW)
+	}
+	if buttonY < footerY || buttonY+buttonH > footerY+footerH {
+		t.Fatalf("button y = %d..%d, want inside footer %d..%d", buttonY, buttonY+buttonH, footerY, footerY+footerH)
+	}
+	if buttonY != footerY+(footerH-buttonH)/2 {
+		t.Fatalf("button y = %d, want centered in footer at %d", buttonY, footerY+(footerH-buttonH)/2)
+	}
+	if got := footerY - (passY + passH); got != loginWindowFormBottomPad {
+		t.Fatalf("password/footer gap = %d, want %d", got, loginWindowFormBottomPad)
 	}
 }
 

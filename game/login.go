@@ -80,6 +80,14 @@ type loginQuitConfirmState struct {
 
 const (
 	loginTransitionDuration    = 500 * time.Millisecond
+	loginWindowTitleH          = 21
+	loginWindowFooterH         = 42
+	loginWindowFormTopPad      = 18
+	loginWindowFormBottomPad   = 16
+	loginWindowFieldGap        = 11
+	loginWindowFieldLeft       = 92
+	loginWindowFieldRightPad   = 20
+	loginWindowFieldH          = 22
 	charSelectPreviewDirection = 4
 	charSelectPreviewScale     = 0.92
 	charSelectPreviewFeetLift  = 10
@@ -939,8 +947,9 @@ func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Image) {
 
 func (m *LoginMode) drawLoginWindow(ctx client.Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
-	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 21)
-	gameui.DrawWindowTitle(screen, x, y, 21, 10, "Login", gameui.TitleTextColor)
+	gameui.DrawTitledWindowFrame(screen, x, y, w, h, loginWindowTitleH)
+	gameui.DrawWindowTitle(screen, x, y, loginWindowTitleH, 10, "Login", gameui.TitleTextColor)
+	gameui.DrawWindowFooter(screen, x, y, w, h, loginWindowFooterH)
 
 	labelColor := gameui.TextColor
 	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
@@ -1349,7 +1358,7 @@ func loadLoginBackgroundImage(manager *res.Manager, name string) (*render.Image,
 
 func loginWindowRect(ctx client.Context) (int, int, int, int) {
 	width, height := ctx.ScreenSize()
-	w, h := 380, 142
+	w, h := loginWindowWidth(), loginWindowHeight()
 	x := (width - w) / 2
 	y := (height*2)/3 - h/2
 	if y < 48 {
@@ -1365,11 +1374,18 @@ func loginWindowRect(ctx client.Context) (int, int, int, int) {
 }
 
 func loginUserFieldRect(x, y, w int) (int, int, int, int) {
-	return x + 110, y + 39, w - 135, 22
+	return loginFieldRect(x, y, w, 0)
 }
 
 func loginPasswordFieldRect(x, y, w int) (int, int, int, int) {
-	return x + 110, y + 72, w - 135, 22
+	return loginFieldRect(x, y, w, 1)
+}
+
+func loginFieldRect(x, y, w, row int) (int, int, int, int) {
+	fieldX := x + loginWindowFieldLeft
+	fieldY := y + loginWindowTitleH + loginWindowFormTopPad + row*(loginWindowFieldH+loginWindowFieldGap)
+	fieldW := w - loginWindowFieldLeft - loginWindowFieldRightPad
+	return fieldX, fieldY, fieldW, loginWindowFieldH
 }
 
 func loginLabelX(fieldX int, label string) int {
@@ -1383,7 +1399,21 @@ func loginLabelY(fieldY, fieldH int) int {
 func loginButtonRect(x, y, w int) (int, int, int, int) {
 	fieldX, _, fieldW, _ := loginUserFieldRect(x, y, w)
 	buttonW := 96
-	return fieldX + fieldW - buttonW, y + 108, buttonW, 24
+	_, footerY, _, footerH := loginFooterRect(x, y, w)
+	buttonH := 24
+	return fieldX + fieldW - buttonW, footerY + (footerH-buttonH)/2, buttonW, buttonH
+}
+
+func loginFooterRect(x, y, w int) (int, int, int, int) {
+	return x, y + loginWindowHeight() - loginWindowFooterH, w, loginWindowFooterH
+}
+
+func loginWindowHeight() int {
+	return loginWindowTitleH + loginWindowFormTopPad + loginWindowFieldH*2 + loginWindowFieldGap + loginWindowFormBottomPad + loginWindowFooterH
+}
+
+func loginWindowWidth() int {
+	return 304
 }
 
 func loginQuitConfirmRect(ctx client.Context) (int, int, int, int) {
