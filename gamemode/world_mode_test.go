@@ -1548,8 +1548,15 @@ func TestTeleportModalRules(t *testing.T) {
 	if got := modal.randomMapName(); got != "Random" {
 		t.Fatalf("random map = %q", got)
 	}
-	if got := modal.savePointMapName(); got != "prontera" {
+	if got := modal.savePointMapName(); got != teleportSavePointMap {
 		t.Fatalf("save point map = %q", got)
+	}
+	buttons := modal.buttons()
+	if len(buttons) != 3 {
+		t.Fatalf("button count = %d, want 3", len(buttons))
+	}
+	if buttons[1].label != "Save Point" || buttons[1].mapName != teleportSavePointMap {
+		t.Fatalf("save point button = %+v", buttons[1])
 	}
 	if !teleportWarpListBypassesModal(lv1, network.WarpPointList{SkillID: 26, MapNames: []string{"Random"}}) {
 		t.Fatal("Teleport level 1 should bypass the modal")

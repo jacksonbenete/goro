@@ -211,15 +211,25 @@ func (m teleportModalState) randomMapName() string {
 }
 
 func (m teleportModalState) savePointMapName() string {
-	for _, name := range m.mapNames {
-		if name != "" && name != teleportRandomMap {
-			return name
-		}
-	}
-	if len(m.mapNames) == 0 && m.skill.Level >= 2 {
+	if m.skill.ID == teleportSkillID && m.skill.Level >= 2 && m.hasSavePointChoice() {
 		return teleportSavePointMap
 	}
 	return ""
+}
+
+func (m teleportModalState) hasSavePointChoice() bool {
+	if m.skill.ID != teleportSkillID || m.skill.Level < 2 {
+		return false
+	}
+	if len(m.mapNames) == 0 {
+		return true
+	}
+	for _, name := range m.mapNames {
+		if name != "" && name != teleportRandomMap {
+			return true
+		}
+	}
+	return false
 }
 
 func isLevelOneTeleportSkill(skill session.Skill) bool {
