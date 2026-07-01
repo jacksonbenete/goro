@@ -10,6 +10,7 @@ type Session struct {
 	Sex         byte
 	Playing     bool
 	NoShift     bool
+	AttackRange int
 	CharServers []CharServer
 	Characters  []Character
 	Selected    Character

@@ -218,6 +218,7 @@ func rebuildLocalEquipmentAppearance(ctx client.Context) {
 	if !sawEquipment {
 		return
 	}
+	ctx.Session.AttackRange = normalAttackRangeFromEquippedItems(ctx.Session, ctx.Resources)
 	if !hasWeapon {
 		weapon = 0
 	}
@@ -225,6 +226,34 @@ func rebuildLocalEquipmentAppearance(ctx client.Context) {
 		shield = 0
 	}
 	updateLocalWeaponAppearance(ctx, weapon, shield)
+}
+
+func normalAttackRangeFromEquippedItems(s *session.Session, manager *res.Manager) int {
+	if s == nil {
+		return 1
+	}
+	for _, item := range s.Inventory.Items {
+		if !item.Equip || !item.Equipped || item.Location&equipLocationWeapon == 0 {
+			continue
+		}
+		if res.PlayerWeaponViewID(manager, int(item.ItemID)) == 11 {
+			return 5 + learnedSkillLevel(s, 44)
+		}
+		return 1
+	}
+	return 1
+}
+
+func learnedSkillLevel(s *session.Session, id uint16) int {
+	if s == nil {
+		return 0
+	}
+	for _, skill := range s.Skills.List {
+		if skill.ID == id {
+			return maxInt(0, skill.Level)
+		}
+	}
+	return 0
 }
 
 func updateLocalWeaponAppearance(ctx client.Context, weapon, shield int) {

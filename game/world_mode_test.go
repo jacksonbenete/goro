@@ -356,11 +356,14 @@ func TestClickedSkillTargetNoShiftAllowsSupportOnEnemies(t *testing.T) {
 }
 
 func TestAttackTargetWithinRangeUsesMeleeAdjacency(t *testing.T) {
-	if !attackTargetWithinRange(10, 20, 11, 21) {
+	if !attackTargetWithinRange(10, 20, 11, 21, 1) {
 		t.Fatal("diagonal adjacent target should be in melee range")
 	}
-	if attackTargetWithinRange(10, 20, 12, 20) {
+	if attackTargetWithinRange(10, 20, 12, 20, 1) {
 		t.Fatal("two cells away should be out of melee range")
+	}
+	if !attackTargetWithinRange(10, 20, 15, 20, 5) {
+		t.Fatal("five cells away should be in bow range")
 	}
 }
 
@@ -378,7 +381,7 @@ func TestAttackApproachCellChoosesClosestWalkableNeighbor(t *testing.T) {
 	ctx := client.Context{World: world}
 	actor := worldstate.Actor{ID: 300, X: 116, Y: 303}
 
-	x, y, ok := attackApproachCell(ctx, actor)
+	x, y, ok := attackApproachCell(ctx, actor, 1)
 	if !ok {
 		t.Fatal("expected approach cell")
 	}
@@ -387,12 +390,79 @@ func TestAttackApproachCellChoosesClosestWalkableNeighbor(t *testing.T) {
 	}
 
 	world.GAT.Cells[302*world.GAT.Width+115] = res.GATCell{}
-	x, y, ok = attackApproachCell(ctx, actor)
+	x, y, ok = attackApproachCell(ctx, actor, 1)
 	if !ok {
 		t.Fatal("expected fallback approach cell")
 	}
 	if x == 115 && y == 302 {
 		t.Fatalf("blocked approach cell was selected")
+	}
+}
+
+func TestAttackApproachCellUsesRangedAttackRange(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 112, Y: 302}
+	world.GAT = &res.GAT{
+		Width:  200,
+		Height: 400,
+		Cells:  make([]res.GATCell, 200*400),
+	}
+	for i := range world.GAT.Cells {
+		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
+	}
+	ctx := client.Context{World: world}
+	actor := worldstate.Actor{ID: 300, X: 120, Y: 302}
+
+	x, y, ok := attackApproachCell(ctx, actor, 5)
+	if !ok {
+		t.Fatal("expected ranged approach cell")
+	}
+	targetDistance := maxInt(absInt(x-actor.X), absInt(y-actor.Y))
+	if targetDistance > 5 {
+		t.Fatalf("ranged approach = %d,%d, distance %d from target, want within 5", x, y, targetDistance)
+	}
+	if targetDistance <= 1 {
+		t.Fatalf("ranged approach = %d,%d, want not adjacent contact", x, y)
+	}
+}
+
+func TestCurrentNormalAttackRangeUsesEquippedBowAndVultureEye(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{Items: []session.InventoryItem{
+			{Index: 1, ItemID: 1701, Location: equipLocationWeapon, Equip: true, Equipped: true},
+		}},
+		Skills: session.Skills{List: []session.Skill{
+			{ID: 44, Level: 3},
+		}},
+	}
+	ctx := client.Context{Session: sessionState}
+
+	if got := currentNormalAttackRange(ctx); got != 8 {
+		t.Fatalf("normal attack range = %d, want bow 5 + vulture 3", got)
+	}
+}
+
+func TestApplyAttackFailureForDistanceStoresServerRange(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	sessionState := &session.Session{}
+	ctx := client.Context{
+		Session: sessionState,
+		World:   world,
+	}
+	mode := &WorldMode{}
+
+	mode.applyAttackFailureForDistance(ctx, network.AttackFailureForDistance{
+		TargetID:    300,
+		TargetX:     16,
+		TargetY:     20,
+		SourceX:     10,
+		SourceY:     20,
+		AttackRange: 7,
+	})
+
+	if sessionState.AttackRange != 7 {
+		t.Fatalf("session attack range = %d, want server range 7", sessionState.AttackRange)
 	}
 }
 

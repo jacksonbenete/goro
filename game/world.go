@@ -1261,14 +1261,15 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 		return
 	}
 	m.lockAttack(actor.ID)
-	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
+	attackRange := currentNormalAttackRange(ctx)
+	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
 		m.sendAttackAction(ctx, actor, source)
 		return
 	}
-	targetX, targetY, ok := attackApproachCell(ctx, actor)
+	targetX, targetY, ok := attackApproachCell(ctx, actor, attackRange)
 	if !ok {
 		m.status = fmt.Sprintf("%s attack chase blocked: %d", source, actor.ID)
-		log.Printf("%s attack chase blocked target=%d player=%d,%d target=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+		log.Printf("%s attack chase blocked target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
 		m.walkCooldown = 12
 		return
 	}
@@ -1276,7 +1277,7 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 		targetID: actor.ID,
 		expires:  time.Now().Add(8 * time.Second),
 	}
-	log.Printf("%s attack chase target=%d player=%d,%d target=%d,%d chase=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetX, targetY)
+	log.Printf("%s attack chase target=%d player=%d,%d target=%d,%d range=%d chase=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange, targetX, targetY)
 	m.requestWalk(ctx, targetX, targetY, source+" attack chase")
 }
 
@@ -1328,8 +1329,9 @@ func (m *WorldMode) continuePendingAttack(ctx client.Context, source string) {
 		m.pendingAttack = attackIntent{}
 		return
 	}
-	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
-		log.Printf("%s pending attack still out of range target=%d player=%d,%d target=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+	attackRange := currentNormalAttackRange(ctx)
+	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
+		log.Printf("%s pending attack still out of range target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
 		return
 	}
 	readyAt := pendingAttackReadyAt(ctx.World.Player, now)
@@ -1358,8 +1360,9 @@ func (m *WorldMode) processPendingAttack(ctx client.Context) {
 		m.pendingAttack = attackIntent{}
 		return
 	}
-	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
-		log.Printf("pending attack became out of range target=%d player=%d,%d target=%d,%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+	attackRange := currentNormalAttackRange(ctx)
+	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
+		log.Printf("pending attack became out of range target=%d player=%d,%d target=%d,%d range=%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
 		m.pendingAttack.readyAt = time.Time{}
 		m.requestAttack(ctx, actor, "pending")
 		return
@@ -1390,11 +1393,12 @@ func (m *WorldMode) processLockedAttack(ctx client.Context) {
 		m.clearLockedAttack()
 		return
 	}
-	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y) {
+	attackRange := currentNormalAttackRange(ctx)
+	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
 		if !attackRetryDue(m.lastAttackAt, now) {
 			return
 		}
-		log.Printf("locked attack retry target=%d player=%d,%d target=%d,%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+		log.Printf("locked attack retry target=%d player=%d,%d target=%d,%d range=%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
 		m.sendAttackAction(ctx, actor, "locked")
 		return
 	}
@@ -1402,7 +1406,7 @@ func (m *WorldMode) processLockedAttack(ctx client.Context) {
 		return
 	}
 	m.lastChaseAt = now
-	log.Printf("locked attack chase retry target=%d player=%d,%d target=%d,%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+	log.Printf("locked attack chase retry target=%d player=%d,%d target=%d,%d range=%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
 	m.requestAttack(ctx, actor, "locked")
 }
 
@@ -2276,6 +2280,9 @@ func actionHasHitReaction(action network.ActorActionNotify) bool {
 
 func (m *WorldMode) applyAttackFailureForDistance(ctx client.Context, failure network.AttackFailureForDistance) {
 	attackRange := maxInt(1, failure.AttackRange)
+	if ctx.Session != nil {
+		ctx.Session.AttackRange = attackRange
+	}
 	log.Printf("attack distance failure target=%d server_player=%d,%d server_target=%d,%d range=%d client_player=%d,%d", failure.TargetID, failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY, attackRange, ctx.World.Player.X, ctx.World.Player.Y)
 	ctx.World.SetPlayerPosition(failure.SourceX, failure.SourceY, ctx.World.Player.Dir)
 	if actor, ok := ctx.World.Actors[failure.TargetID]; ok {
@@ -2294,7 +2301,7 @@ func (m *WorldMode) applyAttackFailureForDistance(ctx client.Context, failure ne
 	}
 	m.pendingAttack = attackIntent{}
 	m.lastAttackAt = time.Now()
-	if !attackTargetWithinRange(failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY) {
+	if !attackTargetWithinRange(failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY, attackRange) {
 		if actor, ok := ctx.World.Actors[failure.TargetID]; ok {
 			m.requestAttack(ctx, actor, "attack failure")
 		}
@@ -2603,11 +2610,26 @@ func damageFloaterDuration(kind damageFloaterKind) time.Duration {
 	}
 }
 
-func attackTargetWithinRange(playerX, playerY, targetX, targetY int) bool {
-	return maxInt(absInt(playerX-targetX), absInt(playerY-targetY)) <= 1
+func currentNormalAttackRange(ctx client.Context) int {
+	attackRange := 1
+	if ctx.Session != nil {
+		attackRange = maxInt(attackRange, ctx.Session.AttackRange)
+		attackRange = maxInt(attackRange, normalAttackRangeFromEquippedItems(ctx.Session, ctx.Resources))
+	}
+	return maxInt(1, attackRange)
 }
 
-func attackApproachCell(ctx client.Context, actor worldstate.Actor) (int, int, bool) {
+func attackTargetWithinRange(playerX, playerY, targetX, targetY, attackRange int) bool {
+	return maxInt(absInt(playerX-targetX), absInt(playerY-targetY)) <= maxInt(1, attackRange)
+}
+
+func attackApproachCell(ctx client.Context, actor worldstate.Actor, attackRange int) (int, int, bool) {
+	attackRange = maxInt(1, attackRange)
+	if attackRange > 1 {
+		if x, y, ok := rangedAttackApproachCell(ctx, actor, attackRange); ok {
+			return x, y, true
+		}
+	}
 	bestX, bestY := 0, 0
 	bestDistance := math.Inf(1)
 	for dy := -1; dy <= 1; dy++ {
@@ -2632,6 +2654,76 @@ func attackApproachCell(ctx client.Context, actor worldstate.Actor) (int, int, b
 		}
 	}
 	return bestX, bestY, bestDistance < math.Inf(1)
+}
+
+func rangedAttackApproachCell(ctx client.Context, actor worldstate.Actor, attackRange int) (int, int, bool) {
+	if ctx.World == nil {
+		return 0, 0, false
+	}
+	playerX := ctx.World.Player.X
+	playerY := ctx.World.Player.Y
+	stepX := approachSign(actor.X - playerX)
+	stepY := approachSign(actor.Y - playerY)
+	preferredX := actor.X - stepX*attackRange
+	preferredY := actor.Y - stepY*attackRange
+	type candidate struct {
+		x                 int
+		y                 int
+		sourceDistance    int
+		preferredDistance int
+	}
+	candidates := make([]candidate, 0, (attackRange*2+1)*(attackRange*2+1))
+	for dy := -attackRange; dy <= attackRange; dy++ {
+		for dx := -attackRange; dx <= attackRange; dx++ {
+			ringDistance := maxInt(absInt(dx), absInt(dy))
+			if ringDistance == 0 || ringDistance > attackRange {
+				continue
+			}
+			x := actor.X + dx
+			y := actor.Y + dy
+			if !walkTargetInBounds(ctx, x, y) {
+				continue
+			}
+			if ctx.World.GAT != nil && !ctx.World.GAT.Walkable(x, y) {
+				continue
+			}
+			candidates = append(candidates, candidate{
+				x:                 x,
+				y:                 y,
+				sourceDistance:    maxInt(absInt(x-playerX), absInt(y-playerY)),
+				preferredDistance: maxInt(absInt(x-preferredX), absInt(y-preferredY)),
+			})
+		}
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		left := candidates[i]
+		right := candidates[j]
+		if left.sourceDistance != right.sourceDistance {
+			return left.sourceDistance < right.sourceDistance
+		}
+		if left.preferredDistance != right.preferredDistance {
+			return left.preferredDistance < right.preferredDistance
+		}
+		if left.y != right.y {
+			return left.y < right.y
+		}
+		return left.x < right.x
+	})
+	for _, candidate := range candidates {
+		return candidate.x, candidate.y, true
+	}
+	return 0, 0, false
+}
+
+func approachSign(value int) int {
+	switch {
+	case value < 0:
+		return -1
+	case value > 0:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
