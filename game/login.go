@@ -96,6 +96,12 @@ const (
 	charSelectPreviewDirection = 4
 	charSelectPreviewScale     = 0.92
 	charSelectPreviewFeetLift  = 10
+	charCreateTitleH           = 23
+	charCreateFooterH          = 42
+	charCreateFooterPadX       = 12
+	charCreateFooterGap        = 8
+	charCreateButtonH          = 24
+	charCreatePanelH           = 166
 	charCreateNameMinBytes     = 4
 	charCreateNameMaxBytes     = 23
 	charCreateMinHairStyle     = 2
@@ -183,7 +189,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 
 	if ctx.Config.Login.AutoLogin && !m.autoAttempted {
 		m.autoAttempted = true
-		m.connectAndMaybeLogin(ctx, conns[m.selected])
+		m.connectAndMaybeLogin(ctx, conns[m.selected], false)
 	}
 
 	fading := m.fade.phase != loginFadeNone
@@ -201,7 +207,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		}
 
 		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyEnter) {
-			m.connectAndMaybeLogin(ctx, conns[0])
+			m.connectAndMaybeLogin(ctx, conns[0], true)
 		}
 	}
 
@@ -413,11 +419,11 @@ func (m *LoginMode) cursorAction(ctx client.Context) int {
 		return cursorActionDefault
 	}
 	if m.phase == loginPhaseCreate {
-		x, y, _, _ := charCreateWindowRect(ctx)
+		x, y, w, h := charCreateWindowRect(ctx)
 		rects := [][4]int{
 			rectArray(charCreateNameRect(x, y)),
-			rectArray(charCreateMakeButtonRect(x, y)),
-			rectArray(charCreateCancelButtonRect(x, y)),
+			rectArray(charCreateMakeButtonRect(x, y, w, h)),
+			rectArray(charCreateCancelButtonRect(x, y, w, h)),
 			rectArray(charCreateHairPrevRect(x, y)),
 			rectArray(charCreateHairNextRect(x, y)),
 			rectArray(charCreateHairColorRect(x, y)),
@@ -583,7 +589,7 @@ func (m *LoginMode) updateFormInput(ctx client.Context) {
 		return
 	}
 	if pointInRect(mx, my, buttonX, buttonY, buttonW, buttonH) && len(ctx.Resources.ClientInfo.Connections) > 0 {
-		m.connectAndMaybeLogin(ctx, ctx.Resources.ClientInfo.Connections[0])
+		m.connectAndMaybeLogin(ctx, ctx.Resources.ClientInfo.Connections[0], true)
 		return
 	}
 }
@@ -700,10 +706,10 @@ func (m *LoginMode) updateCharacterCreateInput(ctx client.Context) {
 		return
 	}
 	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
-	x, y, _, _ := charCreateWindowRect(ctx)
+	x, y, w, h := charCreateWindowRect(ctx)
 	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
-	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y)
-	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y)
+	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y, w, h)
+	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y, w, h)
 	prevX, prevY, prevW, prevH := charCreateHairPrevRect(x, y)
 	nextX, nextY, nextW, nextH := charCreateHairNextRect(x, y)
 	colorX, colorY, colorW, colorH := charCreateHairColorRect(x, y)
@@ -746,6 +752,7 @@ func (m *LoginMode) openCharacterCreate(ctx client.Context, slot int, now time.T
 	}
 	m.create = defaultCharCreateState(slot)
 	m.status = "create a character"
+	m.playConfirmSFX(ctx)
 	m.startPhaseFade(loginPhaseCreate, now)
 }
 
@@ -794,6 +801,7 @@ func (m *LoginMode) submitCharacterCreate(ctx client.Context) {
 		m.status = "create character failed: " + err.Error()
 		return
 	}
+	m.playConfirmSFX(ctx)
 	m.status = "creating character..."
 }
 
@@ -906,6 +914,7 @@ func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 		m.status = "select character failed: " + err.Error()
 		return
 	}
+	m.playConfirmSFX(ctx)
 	ctx.Session.CharID = character.ID
 	setSelectedCharacter(ctx.Session, character)
 	m.status = fmt.Sprintf("selected character %s", character.Name)
@@ -1008,8 +1017,9 @@ func (m *LoginMode) drawCharacterSelect(ctx client.Context, screen *render.Image
 
 func (m *LoginMode) drawCharacterCreate(ctx client.Context, screen *render.Image) {
 	x, y, w, h := charCreateWindowRect(ctx)
-	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 23)
-	gameui.DrawWindowTitle(screen, x, y, 23, 12, "Make Character", gameui.TitleTextColor)
+	gameui.DrawTitledWindowFrame(screen, x, y, w, h, charCreateTitleH)
+	gameui.DrawWindowTitle(screen, x, y, charCreateTitleH, 12, "Make Character", gameui.TitleTextColor)
+	gameui.DrawWindowFooter(screen, x, y, w, h, charCreateFooterH)
 
 	m.drawCharacterCreatePreview(screen, ctx, x, y)
 	drawCharacterCreateStats(screen, ctx, x, y, m.create.stats)
@@ -1017,18 +1027,15 @@ func (m *LoginMode) drawCharacterCreate(ctx client.Context, screen *render.Image
 	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
 	render.DebugPrintAtColor(screen, "Name", nameX, nameY-15, gameui.TextColor)
 	drawLoginInput(screen, nameX, nameY, nameW, nameH, m.create.name, m.create.focusName)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Slot %d", m.create.slot+1), x+42, y+285, gameui.MutedTextColor)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Hair %d  Color %d", m.create.hairStyle, m.create.hairColor), x+42, y+302, gameui.MutedTextColor)
 
-	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y)
-	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y)
+	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y, w, h)
+	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y, w, h)
 	drawCharCreateButton(screen, ctx, makeX, makeY, makeW, makeH, "Make")
 	drawCharCreateButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
-	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+12, y+h-22, gameui.MutedTextColor)
 }
 
 func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx client.Context, x, y int) {
-	panelX, panelY, panelW, panelH := x+32, y+42, 142, 196
+	panelX, panelY, panelW, panelH := charCreatePreviewPanelRect(x, y)
 	gameui.DrawPanelSurface(screen, panelX, panelY, panelW, panelH, gameui.PanelBodyColor)
 
 	view := m.characterCreatePreviewView(ctx)
@@ -1043,9 +1050,11 @@ func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx client.
 		}, time.Now())
 		if ok && billboard != nil && billboard.image != nil {
 			scale := 1.08
+			bounds := billboard.image.Bounds()
 			var opts render.DrawImageOptions
 			opts.GeoM.Scale(scale, scale)
-			opts.GeoM.Translate(float64(panelX+panelW/2)-billboard.anchorX*scale, float64(panelY+panelH-18)-billboard.anchorY*scale)
+			drawX, drawY := charCreatePreviewSpriteOrigin(panelX, panelY, panelW, panelH, bounds.Dx(), bounds.Dy(), scale)
+			opts.GeoM.Translate(drawX, drawY)
 			opts.Filter = spriteDrawFilter()
 			screen.DrawImage(billboard.image, &opts)
 		}
@@ -1087,9 +1096,7 @@ func (m *LoginMode) characterCreatePreviewView(ctx client.Context) *humanoidSpri
 }
 
 func drawCharacterCreateStats(screen *render.Image, ctx client.Context, x, y int, stats [6]uint8) {
-	graphX, graphY := x+204, y+58
-	graphW, graphH := 166, 166
-	gameui.DrawPanelSurface(screen, graphX, graphY, graphW, graphH, gameui.PanelBodyColor)
+	graphX, graphY, graphW, graphH := charCreateGraphPanelRect(x, y)
 	drawCharacterCreateStatGraph(screen, graphX+graphW/2, graphY+graphH/2, stats)
 
 	for i := 0; i < createStatCount; i++ {
@@ -1105,13 +1112,12 @@ func drawCharacterCreateStats(screen *render.Image, ctx client.Context, x, y int
 		gameui.DrawCenteredText(screen, sx, sy+18, sw, 15, value, gameui.TextColor)
 	}
 
-	listX, listY := x+402, y+58
-	gameui.DrawPanelSurface(screen, listX, listY, 136, 166, gameui.PanelBodyColor)
+	listX, listY, listW, listH := charCreateStatListPanelRect(x, y)
+	gameui.DrawPanelSurface(screen, listX, listY, listW, listH, gameui.PanelBodyColor)
 	for i, label := range charCreateStatLabels() {
 		render.DebugPrintAtColor(screen, label, listX+18, listY+16+i*22, gameui.TextColor)
 		render.DebugPrintAtColor(screen, fmt.Sprintf("%d", stats[i]), listX+92, listY+16+i*22, gameui.TextColor)
 	}
-	render.DebugPrintAtColor(screen, "Paired stats must total 10.", listX-3, listY+182, gameui.MutedTextColor)
 }
 
 func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uint8) {
@@ -1133,11 +1139,40 @@ func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uin
 		statPoints[i][0] = float64(cx) + (points[i][0]-float64(cx))*scale
 		statPoints[i][1] = float64(cy) + (points[i][1]-float64(cy))*scale
 	}
+	drawFilledCharacterCreateStatPolygon(screen, statPoints, order, color.RGBA{R: 36, G: 92, B: 154, A: 220})
 	for i := 0; i < createStatCount; i++ {
 		current := order[i]
 		next := order[(i+1)%createStatCount]
 		render.DrawLine(screen, statPoints[current][0], statPoints[current][1], statPoints[next][0], statPoints[next][1], color.RGBA{R: 80, G: 146, B: 214, A: 255})
 	}
+}
+
+func drawFilledCharacterCreateStatPolygon(screen *render.Image, points [createStatCount][2]float64, order [createStatCount]int, fill color.RGBA) {
+	if screen == nil {
+		return
+	}
+	r := float32(fill.R) / 255
+	g := float32(fill.G) / 255
+	b := float32(fill.B) / 255
+	a := float32(fill.A) / 255
+	vertices := make([]render.Vertex, 0, createStatCount)
+	for _, stat := range order {
+		vertices = append(vertices, render.Vertex{
+			DstX:   float32(points[stat][0]),
+			DstY:   float32(points[stat][1]),
+			SrcX:   0,
+			SrcY:   0,
+			ColorR: r,
+			ColorG: g,
+			ColorB: b,
+			ColorA: a,
+		})
+	}
+	indices := make([]uint16, 0, (createStatCount-2)*3)
+	for i := 1; i < createStatCount-1; i++ {
+		indices = append(indices, 0, uint16(i), uint16(i+1))
+	}
+	screen.DrawTrianglesOwned(vertices, indices, render.WhiteImage(), &render.DrawTrianglesOptions{Filter: render.FilterNearest, Address: render.AddressUnsafe})
 }
 
 func charCreateGraphDrawOrder() [createStatCount]int {
@@ -1254,7 +1289,9 @@ func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx client.C
 	statusColor := gameui.MutedTextColor
 	labelColor := gameui.TextColor
 	gameui.DrawWindowFooter(screen, x, y, w, h, charSelectFooterH)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", page+1, pageCount), x+w/2-18, y+190, statusColor)
+	pageLabel := fmt.Sprintf("%d / %d", page+1, pageCount)
+	pageX, pageY, _, _ := charSelectPagerTextRect(x, y, w, pageLabel)
+	render.DebugPrintAtColor(screen, pageLabel, pageX, pageY, statusColor)
 
 	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y, w, h)
 	makeX, makeY, makeW, makeH := charSelectMakeButtonRect(x, y, w, h)
@@ -1346,6 +1383,42 @@ func (m *LoginMode) playLoginBGM(ctx client.Context) {
 		if err := ctx.Audio.Play(path); err == nil {
 			return
 		}
+	}
+}
+
+func (m *LoginMode) playConfirmSFX(ctx client.Context) {
+	playLoginSFXFirst(ctx, loginConfirmSFXCandidates()...)
+}
+
+func playLoginSFXFirst(ctx client.Context, paths ...string) {
+	if ctx.Audio == nil {
+		return
+	}
+	for _, path := range paths {
+		if strings.TrimSpace(path) == "" {
+			continue
+		}
+		source, err := ctx.Audio.PlaySFX(path)
+		if err == nil {
+			if source != "" {
+				log.Printf("sfx playing path=%s source=%s", path, source)
+			}
+			return
+		}
+	}
+}
+
+func loginConfirmSFXCandidates() []string {
+	const koreanButtonSound = "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav"
+	return []string{
+		koreanButtonSound,
+		"wav\\" + koreanButtonSound,
+		"click.wav",
+		"button.wav",
+		"btnok.wav",
+		"btn_ok.wav",
+		"ok.wav",
+		"enter.wav",
 	}
 }
 
@@ -1462,7 +1535,8 @@ func charCreateWindowRect(ctx client.Context) (int, int, int, int) {
 }
 
 func charCreateNameRect(x, y int) (int, int, int, int) {
-	return x + 42, y + 252, 132, 22
+	previewX, _, previewW, _ := charCreatePreviewPanelRect(x, y)
+	return previewX, y + 252, previewW, 22
 }
 
 func charCreateHairPrevRect(x, y int) (int, int, int, int) {
@@ -1474,12 +1548,29 @@ func charCreateHairNextRect(x, y int) (int, int, int, int) {
 }
 
 func charCreateHairColorRect(x, y int) (int, int, int, int) {
-	return x + 91, y + 48, 24, 22
+	return x + 91, y + 66, 24, 22
+}
+
+func charCreatePreviewPanelRect(x, y int) (int, int, int, int) {
+	return x + 32, y + 58, 142, charCreatePanelH
+}
+
+func charCreatePreviewSpriteOrigin(panelX, panelY, panelW, panelH, imageW, imageH int, scale float64) (float64, float64) {
+	return float64(panelX) + float64(panelW)/2 - float64(imageW)*scale/2,
+		float64(panelY) + float64(panelH)/2 - float64(imageH)*scale/2
+}
+
+func charCreateGraphPanelRect(x, y int) (int, int, int, int) {
+	return x + 204, y + 58, 166, charCreatePanelH
+}
+
+func charCreateStatListPanelRect(x, y int) (int, int, int, int) {
+	return x + 402, y + 58, 136, charCreatePanelH
 }
 
 func charCreateStatButtonRect(x, y, stat int) (int, int, int, int) {
 	rects := [createStatCount][4]int{
-		{x + 269, y + 44, 38, 36},  // STR
+		{x + 269, y + 36, 38, 36},  // STR
 		{x + 181, y + 100, 38, 36}, // AGI
 		{x + 356, y + 100, 38, 36}, // VIT
 		{x + 269, y + 210, 38, 36}, // INT
@@ -1493,12 +1584,34 @@ func charCreateStatButtonRect(x, y, stat int) (int, int, int, int) {
 	return rect[0], rect[1], rect[2], rect[3]
 }
 
-func charCreateMakeButtonRect(x, y int) (int, int, int, int) {
-	return x + 484, y + 318, 42, 20
+func charCreateFooterRect(x, y, w, h int) (int, int, int, int) {
+	return x, y + h - charCreateFooterH, w, charCreateFooterH
 }
 
-func charCreateCancelButtonRect(x, y int) (int, int, int, int) {
-	return x + 530, y + 318, 42, 20
+func charCreateMakeButtonRect(x, y, w, h int) (int, int, int, int) {
+	return charCreateFooterButtonRect(x, y, w, h, 0)
+}
+
+func charCreateCancelButtonRect(x, y, w, h int) (int, int, int, int) {
+	return charCreateFooterButtonRect(x, y, w, h, 1)
+}
+
+func charCreateFooterButtonRect(x, y, w, h, index int) (int, int, int, int) {
+	labels := [...]string{"Make", "Cancel"}
+	if index < 0 || index >= len(labels) {
+		index = 0
+	}
+	_, footerY, _, footerH := charCreateFooterRect(x, y, w, h)
+	totalW := 0
+	for _, label := range labels {
+		totalW += gameui.ButtonLabelWidth(label)
+	}
+	totalW += charCreateFooterGap * (len(labels) - 1)
+	bx := x + w - charCreateFooterPadX - totalW
+	for i := 0; i < index; i++ {
+		bx += gameui.ButtonLabelWidth(labels[i]) + charCreateFooterGap
+	}
+	return bx, footerY + (footerH-charCreateButtonH)/2, gameui.ButtonLabelWidth(labels[index]), charCreateButtonH
 }
 
 func charSelectSlotRect(x, y, localSlot int) (int, int, int, int) {
@@ -1523,6 +1636,17 @@ func charSelectFooterRect(x, y, w, h int) (int, int, int, int) {
 
 func charSelectInfoPanelRect(x, y int) (int, int, int, int) {
 	return x + 16, y + 202, 318, 88
+}
+
+func charSelectPagerTextRect(x, y, w int, label string) (int, int, int, int) {
+	_, slotY, _, slotH := charSelectSlotRect(x, y, 0)
+	_, panelY, _, _ := charSelectInfoPanelRect(x, y)
+	textW, textH := render.DebugTextSize(label)
+	gap := panelY - (slotY + slotH)
+	if gap < textH {
+		gap = textH
+	}
+	return x + (w-textW)/2, slotY + slotH + (gap-textH)/2, textW, textH
 }
 
 func charSelectDeleteButtonRect(x, y, w, h int) (int, int, int, int) {
@@ -1767,7 +1891,7 @@ func trimLastRune(text string) string {
 	return string(runes[:len(runes)-1])
 }
 
-func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection) {
+func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection, userConfirmed bool) {
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, conn.Address, conn.Port)
 	cancel()
@@ -1791,6 +1915,9 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 	if err != nil {
 		m.status = "login packet failed: " + err.Error()
 		return
+	}
+	if userConfirmed {
+		m.playConfirmSFX(ctx)
 	}
 	m.status = "CA_LOGIN sent"
 	log.Printf("sent CA_LOGIN user=%s version=%d", m.username, conn.Version)

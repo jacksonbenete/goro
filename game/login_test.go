@@ -130,6 +130,13 @@ func TestCharacterCreateGraphDrawOrderIsValidHexagon(t *testing.T) {
 	if dexX >= lukX || dexY != lukY {
 		t.Fatalf("DEX/LUK button positions = DEX(%d,%d) LUK(%d,%d), want DEX lower-left and LUK lower-right", dexX, dexY, lukX, lukY)
 	}
+	_, graphY, _, graphH := charCreateGraphPanelRect(0, 0)
+	_, strY, _, strH := charCreateStatButtonRect(0, 0, createStatStr)
+	_, intY, _, intH := charCreateStatButtonRect(0, 0, createStatInt)
+	graphCenterY := graphY + graphH/2
+	if graphCenterY-(strY+strH/2) != (intY+intH/2)-graphCenterY {
+		t.Fatalf("STR/INT vertical distances = %d/%d, want symmetric around graph center %d", graphCenterY-(strY+strH/2), (intY+intH/2)-graphCenterY, graphCenterY)
+	}
 
 	for i := 0; i < createStatCount; i++ {
 		a1 := points[order[i]]
@@ -143,6 +150,58 @@ func TestCharacterCreateGraphDrawOrderIsValidHexagon(t *testing.T) {
 			if graphSegmentsCross(a1, a2, b1, b2) {
 				t.Fatalf("graph edges %d and %d cross", i, j)
 			}
+		}
+	}
+}
+
+func TestCharacterCreateUsesFooterAndEqualPanels(t *testing.T) {
+	ctx := client.Context{ScreenW: 1280, ScreenH: 720}
+	x, y, w, h := charCreateWindowRect(ctx)
+	_, footerY, _, footerH := charCreateFooterRect(x, y, w, h)
+	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
+	previewX, previewY, previewW, previewH := charCreatePreviewPanelRect(x, y)
+	graphX, graphY, graphW, graphH := charCreateGraphPanelRect(x, y)
+	listX, listY, listW, listH := charCreateStatListPanelRect(x, y)
+	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y, w, h)
+	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y, w, h)
+
+	if previewH != graphH || previewH != listH || previewH != charCreatePanelH {
+		t.Fatalf("panel heights preview/graph/list = %d/%d/%d, want %d", previewH, graphH, listH, charCreatePanelH)
+	}
+	if previewY != graphY || previewY != listY {
+		t.Fatalf("panel y positions preview/graph/list = %d/%d/%d, want aligned", previewY, graphY, listY)
+	}
+	if previewX >= graphX || graphX >= listX || previewW <= 0 || graphW <= 0 || listW <= 0 {
+		t.Fatalf("panel rects preview=%v graph=%v list=%v", [4]int{previewX, previewY, previewW, previewH}, [4]int{graphX, graphY, graphW, graphH}, [4]int{listX, listY, listW, listH})
+	}
+	if nameY+nameH >= footerY || nameX != previewX || nameW != previewW {
+		t.Fatalf("name field rect = %d,%d,%d,%d footer starts=%d", nameX, nameY, nameW, nameH, footerY)
+	}
+	spriteX, spriteY := charCreatePreviewSpriteOrigin(previewX, previewY, previewW, previewH, 48, 96, 1.25)
+	if spriteX+48*1.25/2 != float64(previewX)+float64(previewW)/2 {
+		t.Fatalf("preview sprite x origin = %.2f, want centered in panel", spriteX)
+	}
+	if spriteY+96*1.25/2 != float64(previewY)+float64(previewH)/2 {
+		t.Fatalf("preview sprite y origin = %.2f, want centered in panel", spriteY)
+	}
+	if makeW != gameui.ButtonLabelWidth("Make") || cancelW != gameui.ButtonLabelWidth("Cancel") {
+		t.Fatalf("create button widths = %d,%d, want normalized", makeW, cancelW)
+	}
+	if cancelX+cancelW != x+w-charCreateFooterPadX {
+		t.Fatalf("cancel button right edge = %d, want %d", cancelX+cancelW, x+w-charCreateFooterPadX)
+	}
+	if makeX+makeW+charCreateFooterGap != cancelX {
+		t.Fatalf("create button gap = %d, want %d", cancelX-(makeX+makeW), charCreateFooterGap)
+	}
+	for label, rect := range map[string][4]int{
+		"Make":   {makeX, makeY, makeW, makeH},
+		"Cancel": {cancelX, cancelY, cancelW, cancelH},
+	} {
+		if rect[1] != footerY+(footerH-charCreateButtonH)/2 || rect[3] != charCreateButtonH {
+			t.Fatalf("%s button vertical rect = %d,%d, want centered in footer", label, rect[1], rect[3])
+		}
+		if rect[1] < footerY || rect[1]+rect[3] > footerY+footerH {
+			t.Fatalf("%s button is outside footer: %v footer=%d..%d", label, rect, footerY, footerY+footerH)
 		}
 	}
 }
@@ -439,11 +498,26 @@ func TestLoginLabelsAlignInFrontOfTextboxes(t *testing.T) {
 	}
 }
 
+func TestLoginConfirmSFXCandidatesPreferClassicButtonSound(t *testing.T) {
+	candidates := loginConfirmSFXCandidates()
+	if len(candidates) < 4 {
+		t.Fatalf("confirm sfx candidates = %#v", candidates)
+	}
+	if candidates[0] != "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav" {
+		t.Fatalf("first confirm sfx candidate = %q", candidates[0])
+	}
+	if candidates[2] != "click.wav" || candidates[3] != "button.wav" {
+		t.Fatalf("confirm sfx fallbacks = %#v, want click/button after classic Korean sound", candidates)
+	}
+}
+
 func TestCharacterSelectFooterButtonsUseNormalizedLayout(t *testing.T) {
 	ctx := client.Context{ScreenW: 1280, ScreenH: 720}
 	x, y, w, h := charSelectWindowRect(ctx)
 	_, footerY, _, footerH := charSelectFooterRect(x, y, w, h)
 	panelX, panelY, panelW, panelH := charSelectInfoPanelRect(x, y)
+	_, slotY, _, slotH := charSelectSlotRect(x, y, 0)
+	pagerX, pagerY, pagerW, pagerH := charSelectPagerTextRect(x, y, w, "1 / 3")
 	leftX, _, leftW, _ := charSelectLeftArrowRect(x, y)
 	rightX, _, rightW, _ := charSelectRightArrowRect(x, y)
 	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y, w, h)
@@ -456,6 +530,12 @@ func TestCharacterSelectFooterButtonsUseNormalizedLayout(t *testing.T) {
 	}
 	if panelX != x+16 || panelW != 318 {
 		t.Fatalf("character info panel rect = %d,%d,%d,%d, want stable left panel", panelX, panelY, panelW, panelH)
+	}
+	if pagerY-(slotY+slotH) != panelY-(pagerY+pagerH) {
+		t.Fatalf("pager vertical margins = top %d bottom %d, want equal", pagerY-(slotY+slotH), panelY-(pagerY+pagerH))
+	}
+	if absInt((pagerX+pagerW/2)-(x+w/2)) > 1 {
+		t.Fatalf("pager x = %d width = %d, want centered in window", pagerX, pagerW)
 	}
 	if leftX != x+24 || rightX+rightW != x+w-24 {
 		t.Fatalf("arrow horizontal placement = left %d..%d right %d..%d, want 24px side padding", leftX, leftX+leftW, rightX, rightX+rightW)
