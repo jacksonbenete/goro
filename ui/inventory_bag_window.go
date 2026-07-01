@@ -12,16 +12,15 @@ import (
 )
 
 const (
-	inventoryBagWidth  = 320
-	inventoryBagHeight = 286
 	inventoryBagTitleH = 28
-	inventoryBagPad    = 10
-	inventoryBagTabW   = 42
+	inventoryBagTabW   = 64
 	inventoryBagTabH   = 32
 	inventoryBagCell   = 32
 	inventoryBagIcon   = 24
-	inventoryBagCols   = 7
+	inventoryBagCols   = 8
 	inventoryBagRows   = 5
+	inventoryBagWidth  = inventoryBagTabW + inventoryBagCols*inventoryBagCell + 2
+	inventoryBagHeight = inventoryBagTitleH + inventoryBagRows*inventoryBagCell + 2
 )
 
 const (
@@ -188,8 +187,6 @@ func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, assets Asse
 	DrawCloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	gx, gy, gw, gh := w.gridBounds()
-	px, py, pw, ph := w.panelBounds()
-	DrawSurface(screen, px, py, pw, ph, PanelBodyColor, WindowBorderColor)
 	DrawSurface(screen, gx, gy, gw, gh, WindowBodyColor, WindowBorderColor)
 	for _, tab := range inventoryBagTabs {
 		tx, ty, tw, th := w.tabBounds(tab.tab)
@@ -232,21 +229,6 @@ func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, assets Asse
 		}
 	}
 	w.drawScrollBar(screen, len(w.tabItems(ctx.Session)))
-
-	if ctx.Session != nil {
-		inv := ctx.Session.Inventory
-		footerY := y + inventoryBagHeight - 23
-		render.DebugPrintAtColor(screen, fmt.Sprintf("Num:%d/%d", len(ctx.Session.Inventory.Items), 100), x+inventoryBagPad, footerY, inventoryMutedColor)
-		render.DebugPrintAtColor(screen, fmt.Sprintf("Weight %d/%d", displayWeight(inv.Weight), displayWeight(inv.MaxWeight)), x+92, footerY, inventoryMutedColor)
-		render.DebugPrintAtColor(screen, formatHUDNumber(inv.Zeny)+" z", x+inventoryBagWidth-94, footerY, inventoryMutedColor)
-	}
-	if w.status != "" && time.Since(w.statusAt) < 2200*time.Millisecond {
-		statusColor := inventoryMutedColor
-		if !w.statusGood {
-			statusColor = shopErrorColor
-		}
-		render.DebugPrintAtColor(screen, trimRunes(w.status, 34), x+inventoryBagPad, y+inventoryBagHeight-41, statusColor)
-	}
 	if w.dragActive && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && assets != nil {
 		dx := ctx.Input.MouseX - inventoryIconSize/2
 		dy := ctx.Input.MouseY - inventoryIconSize/2
@@ -284,18 +266,12 @@ func (w *InventoryBagWindow) closeBounds() (int, int, int, int) {
 }
 
 func (w *InventoryBagWindow) tabBounds(tab int) (int, int, int, int) {
-	return w.x + inventoryBagPad + 2, w.y + inventoryBagTitleH + 12 + tab*(inventoryBagTabH+4), inventoryBagTabW, inventoryBagTabH
-}
-
-func (w *InventoryBagWindow) panelBounds() (int, int, int, int) {
-	x := w.x + inventoryBagPad
-	y := w.y + inventoryBagTitleH + 8
-	return x, y, inventoryBagWidth - inventoryBagPad*2, inventoryBagRows*inventoryBagCell + 10
+	return w.x + 1, w.y + inventoryBagTitleH + 1 + tab*inventoryBagTabH, inventoryBagTabW, inventoryBagTabH
 }
 
 func (w *InventoryBagWindow) gridBounds() (int, int, int, int) {
-	x := w.x + inventoryBagPad + inventoryBagTabW + 9
-	y := w.y + inventoryBagTitleH + 13
+	x := w.x + 1 + inventoryBagTabW
+	y := w.y + inventoryBagTitleH + 1
 	return x, y, inventoryBagCols * inventoryBagCell, inventoryBagRows * inventoryBagCell
 }
 
@@ -433,13 +409,13 @@ func (w *InventoryBagWindow) drawScrollBar(screen *render.Image, total int) {
 		return
 	}
 	gx, gy, gw, gh := w.gridBounds()
-	trackX := gx + gw + 7
-	render.DrawRect(screen, float64(trackX), float64(gy), 4, float64(gh), PanelAltColor)
+	trackX := gx + gw - 5
+	render.DrawRect(screen, float64(trackX), float64(gy+1), 4, float64(gh-2), PanelAltColor)
 	totalRows := (total + inventoryBagCols - 1) / inventoryBagCols
 	maxScroll := maxInt(1, totalRows-inventoryBagRows)
 	thumbH := maxInt(18, gh*inventoryBagRows/totalRows)
-	thumbTravel := gh - thumbH
-	thumbY := gy + thumbTravel*w.scroll/maxScroll
+	thumbTravel := gh - 2 - thumbH
+	thumbY := gy + 1 + thumbTravel*w.scroll/maxScroll
 	render.DrawRect(screen, float64(trackX), float64(thumbY), 4, float64(thumbH), inventoryMutedColor)
 }
 

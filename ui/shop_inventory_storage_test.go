@@ -152,6 +152,33 @@ func TestInventoryBagOpensUnderBasicMenu(t *testing.T) {
 	}
 }
 
+func TestInventoryBagUsesCompactTabGridLayout(t *testing.T) {
+	bag := InventoryBagWindow{x: 100, y: 100}
+	gridX, gridY, gridW, gridH := bag.gridBounds()
+	tabX, tabY, tabW, tabH := bag.tabBounds(inventoryBagTabItem)
+	_, secondTabY, _, _ := bag.tabBounds(inventoryBagTabEquip)
+	_, _, menuW, _ := basicMenuBounds()
+
+	if gridX != tabX+tabW {
+		t.Fatalf("grid x = %d, want tab right edge %d", gridX, tabX+tabW)
+	}
+	if inventoryBagWidth != menuW {
+		t.Fatalf("inventory width = %d, want basic menu width %d", inventoryBagWidth, menuW)
+	}
+	if gridY != tabY {
+		t.Fatalf("grid y = %d, want first tab y %d", gridY, tabY)
+	}
+	if secondTabY != tabY+tabH {
+		t.Fatalf("second tab y = %d, want touching tab edge %d", secondTabY, tabY+tabH)
+	}
+	if gridX+gridW != bag.x+inventoryBagWidth-1 {
+		t.Fatalf("grid right = %d, want window inner right %d", gridX+gridW, bag.x+inventoryBagWidth-1)
+	}
+	if gridY+gridH != bag.y+inventoryBagHeight-1 {
+		t.Fatalf("grid bottom = %d, want window inner bottom %d", gridY+gridH, bag.y+inventoryBagHeight-1)
+	}
+}
+
 func TestStorageAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
 	window := StorageWindow{
 		open:       true,
