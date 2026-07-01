@@ -23,6 +23,7 @@ var surfaceCache = map[surfaceKey]*render.Image{}
 var (
 	WindowRadius      = float32(0)
 	ButtonRadius      = float32(0)
+	ButtonPaddingX    = 14
 	WindowBodyColor   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	WindowTitleTop    = color.RGBA{R: 214, G: 232, B: 250, A: 255}
 	WindowTitleColor  = color.RGBA{R: 184, G: 214, B: 242, A: 255}
@@ -138,6 +139,11 @@ func DrawButtonSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 func DrawButtonLabel(screen *render.Image, x, y, w, h int, label string, bg, text color.RGBA) {
 	DrawButtonSurface(screen, x, y, w, h, bg)
 	DrawCenteredText(screen, x, y, w, h, label, text)
+}
+
+func ButtonLabelWidth(label string) int {
+	textW, _ := render.DebugTextSize(label)
+	return textW + ButtonPaddingX*2
 }
 
 func DrawCloseButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA) {

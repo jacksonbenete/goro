@@ -8,6 +8,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 )
 
 func TestLoginBackgroundSetsPrefer2008SingleImage(t *testing.T) {
@@ -424,6 +425,9 @@ func TestLoginLabelsAlignInFrontOfTextboxes(t *testing.T) {
 	if buttonX+buttonW != userX+userW || buttonX+buttonW != passX+passW {
 		t.Fatalf("button right edge = %d, want textbox right edge %d", buttonX+buttonW, userX+userW)
 	}
+	if buttonW != gameui.ButtonLabelWidth("Login") {
+		t.Fatalf("button width = %d, want normalized label width %d", buttonW, gameui.ButtonLabelWidth("Login"))
+	}
 	if buttonY < footerY || buttonY+buttonH > footerY+footerH {
 		t.Fatalf("button y = %d..%d, want inside footer %d..%d", buttonY, buttonY+buttonH, footerY, footerY+footerH)
 	}
@@ -432,6 +436,54 @@ func TestLoginLabelsAlignInFrontOfTextboxes(t *testing.T) {
 	}
 	if got := footerY - (passY + passH); got != loginWindowFormBottomPad {
 		t.Fatalf("password/footer gap = %d, want %d", got, loginWindowFormBottomPad)
+	}
+}
+
+func TestCharacterSelectFooterButtonsUseNormalizedLayout(t *testing.T) {
+	ctx := client.Context{ScreenW: 1280, ScreenH: 720}
+	x, y, w, h := charSelectWindowRect(ctx)
+	_, footerY, _, footerH := charSelectFooterRect(x, y, w, h)
+	panelX, panelY, panelW, panelH := charSelectInfoPanelRect(x, y)
+	leftX, _, leftW, _ := charSelectLeftArrowRect(x, y)
+	rightX, _, rightW, _ := charSelectRightArrowRect(x, y)
+	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y, w, h)
+	makeX, makeY, makeW, makeH := charSelectMakeButtonRect(x, y, w, h)
+	okX, okY, okW, okH := charSelectOKButtonRect(x, y, w, h)
+	cancelX, cancelY, cancelW, cancelH := charSelectCancelButtonRect(x, y, w, h)
+
+	if panelY+panelH >= footerY {
+		t.Fatalf("character info panel overlaps footer: panel=%d..%d footer starts=%d", panelY, panelY+panelH, footerY)
+	}
+	if panelX != x+16 || panelW != 318 {
+		t.Fatalf("character info panel rect = %d,%d,%d,%d, want stable left panel", panelX, panelY, panelW, panelH)
+	}
+	if leftX != x+24 || rightX+rightW != x+w-24 {
+		t.Fatalf("arrow horizontal placement = left %d..%d right %d..%d, want 24px side padding", leftX, leftX+leftW, rightX, rightX+rightW)
+	}
+	if deleteX != x+charSelectFooterPadX {
+		t.Fatalf("delete button x = %d, want %d", deleteX, x+charSelectFooterPadX)
+	}
+	if deleteW != gameui.ButtonLabelWidth("Delete") || makeW != gameui.ButtonLabelWidth("Make") || okW != gameui.ButtonLabelWidth("OK") || cancelW != gameui.ButtonLabelWidth("Cancel") {
+		t.Fatalf("button widths = %d,%d,%d,%d, want normalized widths", deleteW, makeW, okW, cancelW)
+	}
+	if cancelX+cancelW != x+w-charSelectFooterPadX {
+		t.Fatalf("right button edge = %d, want %d", cancelX+cancelW, x+w-charSelectFooterPadX)
+	}
+	if makeX+makeW+charSelectFooterGap != okX || okX+okW+charSelectFooterGap != cancelX {
+		t.Fatalf("right button gaps are not normalized: make=%d..%d ok=%d..%d cancel=%d..%d", makeX, makeX+makeW, okX, okX+okW, cancelX, cancelX+cancelW)
+	}
+	for label, rect := range map[string][4]int{
+		"Delete": {deleteX, deleteY, deleteW, deleteH},
+		"Make":   {makeX, makeY, makeW, makeH},
+		"OK":     {okX, okY, okW, okH},
+		"Cancel": {cancelX, cancelY, cancelW, cancelH},
+	} {
+		if rect[1] != footerY+(footerH-charSelectButtonH)/2 || rect[3] != charSelectButtonH {
+			t.Fatalf("%s button vertical rect = %d,%d, want centered in footer", label, rect[1], rect[3])
+		}
+		if rect[1] < footerY || rect[1]+rect[3] > footerY+footerH {
+			t.Fatalf("%s button is outside footer: %v footer=%d..%d", label, rect, footerY, footerY+footerH)
+		}
 	}
 }
 
