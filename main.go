@@ -5,12 +5,12 @@ import (
 	"os"
 
 	"github.com/kivutar/goro/app"
-	"github.com/kivutar/goro/core"
+	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/render"
 )
 
 func main() {
-	cfg, err := core.LoadConfig(os.Args[1:])
+	cfg, err := config.LoadConfig(os.Args[1:])
 	if err != nil {
 		log.Fatal(err)
 	}

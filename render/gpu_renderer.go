@@ -11,7 +11,7 @@ import (
 	"github.com/gogpu/gogpu"
 	"github.com/gogpu/gputypes"
 	"github.com/gogpu/wgpu"
-	"github.com/kivutar/goro/core"
+	"github.com/kivutar/goro/config"
 )
 
 const (
@@ -96,7 +96,7 @@ type bindGroupKey struct {
 	layout       *wgpu.BindGroupLayout
 }
 
-func newGPURenderer(ctx *gogpu.Context, app *gogpu.App, cfg core.RenderConfig) (*gpuRenderer, error) {
+func newGPURenderer(ctx *gogpu.Context, app *gogpu.App, cfg config.RenderConfig) (*gpuRenderer, error) {
 	provider := app.DeviceProvider()
 	if provider == nil || provider.Device() == nil {
 		return nil, fmt.Errorf("gogpu device provider is not ready")

@@ -84,12 +84,12 @@ The resource manager currently looks for loose files such as:
 This first pass establishes the same broad subsystem boundaries used by
 OpenMidgard:
 
-- `core` startup configuration
+- `config` startup configuration
 - `res` runtime data discovery and `clientinfo.xml` parsing
 - `network` TCP connection and RO packet framing
 - `session` account/character/session state
 - `world` map and actor state
-- `gamemode` login/server selection and world modes
+- `game` login/server selection and world rendering
 - `render` GoGPU backend
 - `input` per-frame input snapshot
 

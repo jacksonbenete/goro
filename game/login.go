@@ -1,0 +1,1842 @@
+package game
+
+import (
+	"context"
+	"fmt"
+	"image/color"
+	"log"
+	"strings"
+	"time"
+
+	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/res"
+	"github.com/kivutar/goro/session"
+)
+
+type LoginMode struct {
+	selected       int
+	phase          loginPhase
+	status         string
+	packets        []string
+	console        chatConsole
+	autoAttempted  bool
+	fade           loginFadeState
+	username       string
+	password       string
+	focus          loginInputField
+	background     *render.Image
+	bgTiles        []*render.Image
+	bgSource       string
+	bgLoaded       bool
+	bgmStarted     bool
+	selectedSlot   int
+	maxSlots       int
+	charViews      map[uint32]*humanoidSpriteView
+	charViewFailed map[uint32]struct{}
+	charWindow     *render.Image
+	charBox        *render.Image
+	create         charCreateState
+	cursor         roCursorState
+	quitConfirm    loginQuitConfirmState
+}
+
+type loginPhase int
+
+const (
+	loginPhaseAccount loginPhase = iota
+	loginPhaseCharacter
+	loginPhaseCreate
+)
+
+type loginFadePhase int
+
+const (
+	loginFadeNone loginFadePhase = iota
+	loginFadeOut
+	loginFadeIn
+)
+
+type loginFadeState struct {
+	phase      loginFadePhase
+	started    time.Time
+	target     loginPhase
+	hasTarget  bool
+	enterWorld bool
+}
+
+type loginInputField int
+
+const (
+	loginFieldUser loginInputField = iota
+	loginFieldPassword
+)
+
+type loginQuitConfirmState struct {
+	open bool
+}
+
+const (
+	loginTransitionDuration    = 500 * time.Millisecond
+	charSelectPreviewDirection = 4
+	charSelectPreviewScale     = 0.92
+	charSelectPreviewFeetLift  = 10
+	charCreateNameMinBytes     = 4
+	charCreateNameMaxBytes     = 23
+	charCreateMinHairStyle     = 2
+	charCreateMaxHairStyle     = 23
+)
+
+type charCreateState struct {
+	slot          int
+	name          string
+	focusName     bool
+	stats         [6]uint8
+	hairStyle     int
+	hairColor     int
+	direction     int
+	preview       *humanoidSpriteView
+	previewKey    charCreatePreviewKey
+	previewFailed bool
+}
+
+type charCreatePreviewKey struct {
+	sex       byte
+	hairStyle int
+	hairColor int
+}
+
+const (
+	createStatStr = iota
+	createStatAgi
+	createStatVit
+	createStatInt
+	createStatDex
+	createStatLuk
+	createStatCount
+)
+
+func NewLoginMode() *LoginMode {
+	return &LoginMode{status: "select a server", focus: loginFieldUser, maxSlots: 9}
+}
+
+func NewCharacterSelectMode(ctx Context, console chatConsole) *LoginMode {
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCharacter
+	mode.status = "select a character"
+	mode.autoAttempted = true
+	mode.console = console
+	mode.prepareCharacterSelectFromSession(ctx)
+	return mode
+}
+
+func (m *LoginMode) Name() string {
+	return "login"
+}
+
+func (m *LoginMode) Enter(ctx Context) {
+	if m.username == "" {
+		m.username = ctx.Config.Login.Username
+	}
+	if m.password == "" {
+		m.password = ctx.Config.Login.Password
+	}
+	m.loadBackground(ctx)
+	m.loadCharacterSelectSkin(ctx)
+	m.cursor.ensureLoaded(ctx)
+	render.SetCursorMode(render.CursorModeHidden)
+	m.playLoginBGM(ctx)
+	if m.phase == loginPhaseCharacter {
+		m.prepareCharacterSelectFromSession(ctx)
+		m.reconnectCharacterServer(ctx)
+	}
+	if m.phase == loginPhaseAccount && len(ctx.Resources.ClientInfo.Connections) == 0 {
+		m.status = "no login servers discovered"
+	}
+}
+
+func (m *LoginMode) Update(ctx Context) (Mode, error) {
+	now := time.Now()
+	if m.updateFade(now) {
+		return m.nextWorldMode(now), nil
+	}
+
+	conns := ctx.Resources.ClientInfo.Connections
+	if len(conns) == 0 {
+		return nil, nil
+	}
+
+	if ctx.Config.Login.AutoLogin && !m.autoAttempted {
+		m.autoAttempted = true
+		m.connectAndMaybeLogin(ctx, conns[m.selected])
+	}
+
+	fading := m.fade.phase != loginFadeNone
+	if !fading {
+		if m.updateQuitConfirm(ctx) {
+			// The confirmation modal is modal: no keyboard or mouse input should
+			// leak into the login form, character list, or creation controls.
+		} else if m.updatePhaseEscape(ctx, now) {
+		} else if m.phase == loginPhaseCreate {
+			m.updateCharacterCreateInput(ctx)
+		} else if m.phase == loginPhaseCharacter {
+			m.updateCharacterSelectInput(ctx)
+		} else {
+			m.updateFormInput(ctx)
+		}
+
+		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowDown) {
+			m.selected = (m.selected + 1) % len(conns)
+		}
+		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyArrowUp) {
+			m.selected = (m.selected + len(conns) - 1) % len(conns)
+		}
+		if m.phase == loginPhaseAccount && ctx.Input.JustPressed(render.KeyEnter) {
+			m.connectAndMaybeLogin(ctx, conns[m.selected])
+		}
+	}
+
+	for _, pkt := range ctx.Network.DrainPackets() {
+		log.Printf("recv packet 0x%04X len=%d", pkt.ID, len(pkt.Data))
+		m.packets = append(m.packets, pkt.String())
+		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
+			m.packets = append(m.packets, "parse chat message: "+err.Error())
+		} else if ok {
+			addConsoleMessage(&m.console, ctx.Resources, chat)
+			continue
+		}
+		if change, ok, err := network.ParseMapChange(pkt); err != nil {
+			m.packets = append(m.packets, "parse ZC_NPCACK_MAPMOVE: "+err.Error())
+		} else if ok {
+			ctx.World.MapName = change.MapName
+			ctx.Session.Zone.MapName = change.MapName
+			applyWarpPosition(ctx, change.X, change.Y)
+			ctx.Session.Playing = true
+			m.status = fmt.Sprintf("map change: %s at %d,%d", change.MapName, change.X, change.Y)
+			log.Printf("login map change map=%s x=%d y=%d server_move=%t addr=%s port=%d", change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port)
+			if change.ServerMove {
+				ctx.Session.Zone.Address = change.Address
+				ctx.Session.Zone.Port = change.Port
+				m.connectMapServer(ctx, network.ZoneServerNotify{
+					CharID:  ctx.Session.CharID,
+					MapName: change.MapName,
+					Address: change.Address,
+					Port:    change.Port,
+				})
+			} else {
+				m.startWorldFade(time.Now())
+			}
+			continue
+		}
+		if pkt.ID == 0x0069 {
+			login, err := network.ParseAccountAcceptLogin(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse AC_ACCEPT_LOGIN: "+err.Error())
+			} else {
+				ctx.Session.AccountID = login.AccountID
+				ctx.Session.AuthCode = login.AuthCode
+				ctx.Session.UserLevel = login.UserLevel
+				ctx.Session.Sex = login.Sex
+				ctx.Session.CharServers = convertCharServers(login.CharServer)
+				m.status = fmt.Sprintf("account accepted: aid=%d char_servers=%d", login.AccountID, len(login.CharServer))
+				log.Printf("account accepted aid=%d sex=%d char_servers=%d", login.AccountID, login.Sex, len(login.CharServer))
+				for _, server := range login.CharServer {
+					m.packets = append(m.packets, fmt.Sprintf("char %s %s:%d users=%d", server.Name, server.Address, server.Port, server.UserCount))
+				}
+				if len(login.CharServer) > 0 {
+					m.connectCharServer(ctx, login.CharServer[0])
+				}
+			}
+		}
+		if pkt.ID == 0x006B {
+			list, err := network.ParseCharList(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse HC_ACCEPT_ENTER: "+err.Error())
+			} else {
+				ctx.Session.Characters = convertCharacters(list.Characters)
+				m.status = fmt.Sprintf("char list: %d characters (%s)", len(list.Characters), list.Layout)
+				log.Printf("char list characters=%d layout=%s", len(list.Characters), list.Layout)
+				for _, character := range list.Characters {
+					m.packets = append(m.packets, fmt.Sprintf("char slot=%d gid=%d name=%s lv=%d job=%d", character.Slot, character.ID, character.Name, character.Level, character.Job))
+				}
+				m.maxSlots = 9
+				m.selectedSlot = 0
+				if len(list.Characters) > 0 {
+					m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+					m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
+					m.status = "select a character"
+				} else {
+					m.status = "no characters"
+				}
+				m.startPhaseFade(loginPhaseCharacter, time.Now())
+			}
+		}
+		if pkt.ID == 0x006D {
+			character, err := network.ParseMakeCharacterAccept(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse HC_ACCEPT_MAKECHAR: "+err.Error())
+			} else {
+				created := convertCharacter(character)
+				ctx.Session.Characters = upsertCharacter(ctx.Session.Characters, created)
+				m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+				m.selectedSlot = int(created.Slot)
+				m.create = charCreateState{}
+				m.charViews = nil
+				m.charViewFailed = nil
+				m.status = fmt.Sprintf("created character %s", created.Name)
+				log.Printf("character created slot=%d id=%d name=%s", created.Slot, created.ID, created.Name)
+				m.startPhaseFade(loginPhaseCharacter, time.Now())
+			}
+			continue
+		}
+		if pkt.ID == 0x006E {
+			code, err := network.ParseMakeCharacterRefuse(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse HC_REFUSE_MAKECHAR: "+err.Error())
+			} else {
+				m.status = describeMakeCharacterRefuse(code)
+				log.Printf("character creation refused code=%d", code)
+			}
+			continue
+		}
+		if pkt.ID == 0x0071 {
+			zone, err := network.ParseZoneServerNotify(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse HC_NOTIFY_ZONESVR: "+err.Error())
+			} else {
+				ctx.Session.CharID = zone.CharID
+				ctx.Session.Zone = session.ZoneServer{
+					Address: zone.Address,
+					Port:    zone.Port,
+					MapName: zone.MapName,
+				}
+				ctx.World.MapName = zone.MapName
+				m.status = fmt.Sprintf("zone server: %s %s:%d", zone.MapName, zone.Address, zone.Port)
+				log.Printf("zone server map=%s addr=%s port=%d char_id=%d", zone.MapName, zone.Address, zone.Port, zone.CharID)
+				m.connectMapServer(ctx, zone)
+			}
+		}
+		if pkt.ID == 0x0073 || pkt.ID == 0x02EB {
+			enter, err := network.ParseMapAcceptEnter(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse ZC_ACCEPT_ENTER: "+err.Error())
+			} else {
+				applyMapAcceptEnter(ctx, enter)
+				m.status = fmt.Sprintf("entered map %s at %d,%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
+				log.Printf("entered map=%s x=%d y=%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
+				m.startWorldFade(time.Now())
+			}
+		}
+		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
+			m.packets = append(m.packets, "parse actor entry: "+err.Error())
+		} else if ok {
+			upsertNetworkActor(ctx, entry)
+		}
+		if len(m.packets) > 8 {
+			m.packets = m.packets[len(m.packets)-8:]
+		}
+	}
+	for _, err := range ctx.Network.DrainErrors() {
+		log.Printf("network frame error: %v", err)
+		m.packets = append(m.packets, "frame error: "+err.Error())
+		if len(m.packets) > 8 {
+			m.packets = m.packets[len(m.packets)-8:]
+		}
+	}
+
+	if m.updateFade(time.Now()) {
+		return m.nextWorldMode(time.Now()), nil
+	}
+	return nil, nil
+}
+
+func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
+	m.drawBackground(ctx, screen)
+	if m.phase == loginPhaseCreate {
+		m.drawCharacterCreate(ctx, screen)
+	} else if m.phase == loginPhaseCharacter {
+		m.drawCharacterSelect(ctx, screen)
+	} else {
+		m.drawLoginWindow(ctx, screen)
+	}
+	now := time.Now()
+	m.drawFade(ctx, screen, now)
+	m.drawQuitConfirm(ctx, screen)
+	m.drawROCursor(screen, ctx, now)
+}
+
+func (m *LoginMode) drawROCursor(screen *render.Image, ctx Context, now time.Time) {
+	if ctx.Input == nil {
+		return
+	}
+	render.SetCursorMode(render.CursorModeHidden)
+	m.cursor.draw(screen, ctx, m.cursorAction(ctx), now)
+}
+
+func (m *LoginMode) cursorAction(ctx Context) int {
+	if ctx.Input == nil {
+		return cursorActionDefault
+	}
+	if action, ok := m.quitConfirm.cursorAction(ctx); ok {
+		return action
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	if m.phase == loginPhaseCharacter {
+		x, y, _, _ := charSelectWindowRect(ctx)
+		for localSlot := 0; localSlot < 3; localSlot++ {
+			slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
+			if pointInRect(mx, my, slotX, slotY, slotW, slotH) {
+				return cursorActionClick
+			}
+		}
+		for _, rect := range [][4]int{
+			rectArray(charSelectLeftArrowRect(x, y)),
+			rectArray(charSelectRightArrowRect(x, y)),
+			rectArray(charSelectDeleteButtonRect(x, y)),
+			rectArray(charSelectMakeButtonRect(x, y)),
+			rectArray(charSelectOKButtonRect(x, y)),
+			rectArray(charSelectCancelButtonRect(x, y)),
+		} {
+			if pointInRect(mx, my, rect[0], rect[1], rect[2], rect[3]) {
+				return cursorActionClick
+			}
+		}
+		return cursorActionDefault
+	}
+	if m.phase == loginPhaseCreate {
+		x, y, _, _ := charCreateWindowRect(ctx)
+		rects := [][4]int{
+			rectArray(charCreateNameRect(x, y)),
+			rectArray(charCreateMakeButtonRect(x, y)),
+			rectArray(charCreateCancelButtonRect(x, y)),
+			rectArray(charCreateHairPrevRect(x, y)),
+			rectArray(charCreateHairNextRect(x, y)),
+			rectArray(charCreateHairColorRect(x, y)),
+		}
+		for i := 0; i < createStatCount; i++ {
+			rects = append(rects, rectArray(charCreateStatButtonRect(x, y, i)))
+		}
+		for _, rect := range rects {
+			if pointInRect(mx, my, rect[0], rect[1], rect[2], rect[3]) {
+				return cursorActionClick
+			}
+		}
+		return cursorActionDefault
+	}
+	winX, winY, winW, _ := loginWindowRect(ctx)
+	userX, userY, userW, userH := loginUserFieldRect(winX, winY, winW)
+	passX, passY, passW, passH := loginPasswordFieldRect(winX, winY, winW)
+	buttonX, buttonY, buttonW, buttonH := loginButtonRect(winX, winY, winW)
+	if pointInRect(mx, my, userX, userY, userW, userH) ||
+		pointInRect(mx, my, passX, passY, passW, passH) ||
+		pointInRect(mx, my, buttonX, buttonY, buttonW, buttonH) {
+		return cursorActionClick
+	}
+	serverY := winY + 103
+	for i := range ctx.Resources.ClientInfo.Connections {
+		if pointInRect(mx, my, winX+22, serverY+i*17, winW-44, 16) {
+			return cursorActionClick
+		}
+	}
+	return cursorActionDefault
+}
+
+func (m *LoginMode) updatePhaseEscape(ctx Context, now time.Time) bool {
+	if ctx.Input == nil || !ctx.Input.JustPressed(render.KeyEscape) {
+		return false
+	}
+	switch m.phase {
+	case loginPhaseCreate:
+		m.cancelCharacterCreate(now)
+	case loginPhaseCharacter:
+		m.startPhaseFade(loginPhaseAccount, now)
+		if ctx.Network != nil {
+			ctx.Network.Close()
+		}
+		m.status = "char select cancelled"
+	case loginPhaseAccount:
+		m.quitConfirm.open = true
+	}
+	return true
+}
+
+func (m *LoginMode) updateQuitConfirm(ctx Context) bool {
+	if ctx.Input == nil {
+		return false
+	}
+	if !m.quitConfirm.open {
+		return false
+	}
+	if ctx.Input.JustPressed(render.KeyEscape) {
+		m.quitConfirm.open = false
+		return true
+	}
+	if ctx.Input.JustPressed(render.KeyEnter) {
+		m.quitConfirm.open = false
+		if ctx.RequestQuit != nil {
+			ctx.RequestQuit()
+		}
+		return true
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return true
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	okX, okY, okW, okH := loginQuitOKRect(ctx)
+	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
+	switch {
+	case pointInRect(mx, my, okX, okY, okW, okH):
+		m.quitConfirm.open = false
+		if ctx.RequestQuit != nil {
+			ctx.RequestQuit()
+		}
+	case pointInRect(mx, my, cancelX, cancelY, cancelW, cancelH):
+		m.quitConfirm.open = false
+	}
+	return true
+}
+
+func (m *LoginMode) drawQuitConfirm(ctx Context, screen *render.Image) {
+	if !m.quitConfirm.open || screen == nil {
+		return
+	}
+	width, height := ctx.ScreenSize()
+	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 80}, color.RGBA{})
+	x, y, w, h := loginQuitConfirmRect(ctx)
+	drawUITitledWindowFrame(screen, x, y, w, h, 24)
+	drawUIWindowTitle(screen, x, y, 24, 12, "Exit", uiTitleTextColor)
+	render.DebugPrintAtColor(screen, "Do you really want to quit?", x+28, y+52, uiTextColor)
+
+	okX, okY, okW, okH := loginQuitOKRect(ctx)
+	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
+	drawLoginQuitButton(screen, ctx, okX, okY, okW, okH, "OK")
+	drawLoginQuitButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
+}
+
+func drawLoginQuitButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
+	fill := uiButtonColor
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
+		fill = uiButtonHoverColor
+	}
+	drawUIButtonLabel(screen, x, y, w, h, label, fill, uiTextColor)
+}
+
+func (q loginQuitConfirmState) cursorAction(ctx Context) (int, bool) {
+	if !q.open || ctx.Input == nil {
+		return 0, false
+	}
+	okX, okY, okW, okH := loginQuitOKRect(ctx)
+	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
+	if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, okX, okY, okW, okH) ||
+		pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, cancelX, cancelY, cancelW, cancelH) {
+		return cursorActionClick, true
+	}
+	return cursorActionDefault, true
+}
+
+func rectArray(x, y, w, h int) [4]int {
+	return [4]int{x, y, w, h}
+}
+
+func (m *LoginMode) updateFormInput(ctx Context) {
+	if ctx.Input == nil {
+		return
+	}
+	if ctx.Input.JustPressed(render.KeyTab) {
+		if m.focus == loginFieldUser {
+			m.focus = loginFieldPassword
+		} else {
+			m.focus = loginFieldUser
+		}
+	}
+	if ctx.Input.JustPressed(render.KeyBackspace) {
+		if m.focus == loginFieldPassword {
+			m.password = trimLastRune(m.password)
+		} else {
+			m.username = trimLastRune(m.username)
+		}
+	}
+	if text := ctx.Input.TextInput(); text != "" {
+		if m.focus == loginFieldPassword {
+			m.password += text
+		} else {
+			m.username += text
+		}
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return
+	}
+	winX, winY, winW, _ := loginWindowRect(ctx)
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	userX, userY, userW, userH := loginUserFieldRect(winX, winY, winW)
+	passX, passY, passW, passH := loginPasswordFieldRect(winX, winY, winW)
+	buttonX, buttonY, buttonW, buttonH := loginButtonRect(winX, winY, winW)
+	if pointInRect(mx, my, userX, userY, userW, userH) {
+		m.focus = loginFieldUser
+		return
+	}
+	if pointInRect(mx, my, passX, passY, passW, passH) {
+		m.focus = loginFieldPassword
+		return
+	}
+	if pointInRect(mx, my, buttonX, buttonY, buttonW, buttonH) && len(ctx.Resources.ClientInfo.Connections) > 0 {
+		m.connectAndMaybeLogin(ctx, ctx.Resources.ClientInfo.Connections[m.selected])
+		return
+	}
+	serverY := winY + 103
+	for i := range ctx.Resources.ClientInfo.Connections {
+		if pointInRect(mx, my, winX+22, serverY+i*17, winW-44, 16) {
+			m.selected = i
+			return
+		}
+	}
+}
+
+func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
+	if ctx.Input == nil {
+		return
+	}
+	if ctx.Input.JustPressed(render.KeyArrowLeft) {
+		m.moveSelectedSlot(-1)
+	}
+	if ctx.Input.JustPressed(render.KeyArrowRight) {
+		m.moveSelectedSlot(1)
+	}
+	if ctx.Input.JustPressed(render.KeyEnter) {
+		m.submitSelectedCharacter(ctx)
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	x, y, _, _ := charSelectWindowRect(ctx)
+	for localSlot := 0; localSlot < 3; localSlot++ {
+		slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
+		if pointInRect(mx, my, slotX, slotY, slotW, slotH) {
+			clickedSlot := charSelectPage(m.selectedSlot)*3 + localSlot
+			if clickedSlot == m.selectedSlot {
+				if _, ok := characterBySlot(ctx.Session.Characters, clickedSlot); ok {
+					m.submitSelectedCharacter(ctx)
+				} else {
+					m.openCharacterCreate(ctx, clickedSlot, time.Now())
+				}
+				return
+			}
+			m.selectedSlot = clampCharacterSlot(clickedSlot, m.maxSlots)
+			return
+		}
+	}
+	leftX, leftY, leftW, leftH := charSelectLeftArrowRect(x, y)
+	rightX, rightY, rightW, rightH := charSelectRightArrowRect(x, y)
+	if pointInRect(mx, my, leftX, leftY, leftW, leftH) {
+		m.moveSelectedSlot(-1)
+		return
+	}
+	if pointInRect(mx, my, rightX, rightY, rightW, rightH) {
+		m.moveSelectedSlot(1)
+		return
+	}
+	okX, okY, okW, okH := charSelectOKButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charSelectCancelButtonRect(x, y)
+	makeX, makeY, makeW, makeH := charSelectMakeButtonRect(x, y)
+	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y)
+	switch {
+	case pointInRect(mx, my, okX, okY, okW, okH):
+		m.submitSelectedCharacter(ctx)
+	case pointInRect(mx, my, cancelX, cancelY, cancelW, cancelH):
+		m.startPhaseFade(loginPhaseAccount, time.Now())
+		ctx.Network.Close()
+		m.status = "char select cancelled"
+	case pointInRect(mx, my, makeX, makeY, makeW, makeH):
+		slot := m.selectedSlot
+		if _, ok := characterBySlot(ctx.Session.Characters, slot); ok {
+			if empty, hasEmpty := firstEmptyCharacterSlot(ctx.Session.Characters, m.maxSlots); hasEmpty {
+				slot = empty
+			}
+		}
+		m.openCharacterCreate(ctx, slot, time.Now())
+	case pointInRect(mx, my, deleteX, deleteY, deleteW, deleteH):
+		m.status = "character deletion is not implemented yet"
+	}
+}
+
+func (m *LoginMode) prepareCharacterSelectFromSession(ctx Context) {
+	m.maxSlots = 9
+	m.selectedSlot = 0
+	if ctx.Session == nil || len(ctx.Session.Characters) == 0 {
+		return
+	}
+	m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+	if _, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot); !ok {
+		m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
+	}
+}
+
+func (m *LoginMode) reconnectCharacterServer(ctx Context) {
+	if ctx.Network == nil || ctx.Session == nil || len(ctx.Session.CharServers) == 0 {
+		return
+	}
+	server := ctx.Session.CharServers[0]
+	m.connectCharServer(ctx, network.CharServer{
+		Address:   server.Address,
+		Port:      server.Port,
+		Name:      server.Name,
+		UserCount: server.UserCount,
+		State:     server.State,
+		Property:  server.Property,
+	})
+}
+
+func (m *LoginMode) updateCharacterCreateInput(ctx Context) {
+	if ctx.Input == nil {
+		return
+	}
+	if ctx.Input.JustPressed(render.KeyBackspace) && m.create.focusName {
+		m.create.name = trimLastRune(m.create.name)
+	}
+	if ctx.Input.JustPressed(render.KeyEnter) {
+		m.submitCharacterCreate(ctx)
+	}
+	if text := ctx.Input.TextInput(); text != "" && m.create.focusName {
+		m.create.name = appendCharacterNameInput(m.create.name, text, charCreateNameMaxBytes)
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return
+	}
+	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
+	x, y, _, _ := charCreateWindowRect(ctx)
+	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
+	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y)
+	prevX, prevY, prevW, prevH := charCreateHairPrevRect(x, y)
+	nextX, nextY, nextW, nextH := charCreateHairNextRect(x, y)
+	colorX, colorY, colorW, colorH := charCreateHairColorRect(x, y)
+	switch {
+	case pointInRect(mx, my, nameX, nameY, nameW, nameH):
+		m.create.focusName = true
+	case pointInRect(mx, my, makeX, makeY, makeW, makeH):
+		m.submitCharacterCreate(ctx)
+	case pointInRect(mx, my, cancelX, cancelY, cancelW, cancelH):
+		m.cancelCharacterCreate(time.Now())
+	case pointInRect(mx, my, prevX, prevY, prevW, prevH):
+		m.changeCreateHairStyle(-1)
+	case pointInRect(mx, my, nextX, nextY, nextW, nextH):
+		m.changeCreateHairStyle(1)
+	case pointInRect(mx, my, colorX, colorY, colorW, colorH):
+		m.changeCreateHairColor()
+	default:
+		for i := 0; i < createStatCount; i++ {
+			sx, sy, sw, sh := charCreateStatButtonRect(x, y, i)
+			if pointInRect(mx, my, sx, sy, sw, sh) {
+				if !bumpCreateStat(&m.create.stats, i) {
+					m.status = "stat limit reached"
+				}
+				return
+			}
+		}
+		m.create.focusName = false
+	}
+}
+
+func (m *LoginMode) openCharacterCreate(ctx Context, slot int, now time.Time) {
+	slot = clampCharacterSlot(slot, m.maxSlots)
+	if _, occupied := characterBySlot(ctx.Session.Characters, slot); occupied {
+		empty, ok := firstEmptyCharacterSlot(ctx.Session.Characters, m.maxSlots)
+		if !ok {
+			m.status = "no empty character slots"
+			return
+		}
+		slot = empty
+	}
+	m.create = defaultCharCreateState(slot)
+	m.status = "create a character"
+	m.startPhaseFade(loginPhaseCreate, now)
+}
+
+func defaultCharCreateState(slot int) charCreateState {
+	return charCreateState{
+		slot:      slot,
+		focusName: true,
+		stats:     [6]uint8{5, 5, 5, 5, 5, 5},
+		hairStyle: 2,
+		hairColor: 0,
+		direction: charSelectPreviewDirection,
+	}
+}
+
+func (m *LoginMode) cancelCharacterCreate(now time.Time) {
+	m.create = charCreateState{}
+	m.status = "select a character"
+	m.startPhaseFade(loginPhaseCharacter, now)
+}
+
+func (m *LoginMode) submitCharacterCreate(ctx Context) {
+	name := strings.TrimSpace(m.create.name)
+	if name == "" {
+		m.status = "enter a character name"
+		m.create.focusName = true
+		return
+	}
+	if len([]byte(name)) < charCreateNameMinBytes {
+		m.status = "name must be at least 4 characters"
+		m.create.focusName = true
+		return
+	}
+	packet := network.MakeCharacter{
+		Name:      name,
+		Str:       m.create.stats[createStatStr],
+		Agi:       m.create.stats[createStatAgi],
+		Vit:       m.create.stats[createStatVit],
+		Int:       m.create.stats[createStatInt],
+		Dex:       m.create.stats[createStatDex],
+		Luk:       m.create.stats[createStatLuk],
+		Slot:      uint8(m.create.slot),
+		HairColor: uint16(m.create.hairColor),
+		HairStyle: uint16(m.create.hairStyle),
+	}
+	if err := ctx.Network.SendMakeCharacter(packet); err != nil {
+		m.status = "create character failed: " + err.Error()
+		return
+	}
+	m.status = "creating character..."
+}
+
+func (m *LoginMode) changeCreateHairStyle(delta int) {
+	m.create.hairStyle += delta
+	if m.create.hairStyle < charCreateMinHairStyle {
+		m.create.hairStyle = charCreateMaxHairStyle
+	}
+	if m.create.hairStyle > charCreateMaxHairStyle {
+		m.create.hairStyle = charCreateMinHairStyle
+	}
+	m.create.preview = nil
+	m.create.previewFailed = false
+}
+
+func (m *LoginMode) changeCreateHairColor() {
+	m.create.hairColor = (m.create.hairColor + 1) % 10
+	m.create.preview = nil
+	m.create.previewFailed = false
+}
+
+func (m *LoginMode) startPhaseFade(target loginPhase, now time.Time) {
+	if m.fade.phase != loginFadeNone && m.fade.hasTarget && m.fade.target == target && !m.fade.enterWorld {
+		return
+	}
+	if m.phase == target && m.fade.phase == loginFadeNone {
+		return
+	}
+	m.fade = loginFadeState{
+		phase:     loginFadeOut,
+		started:   now,
+		target:    target,
+		hasTarget: true,
+	}
+}
+
+func (m *LoginMode) startWorldFade(now time.Time) {
+	if m.fade.phase != loginFadeNone && m.fade.enterWorld {
+		return
+	}
+	m.fade = loginFadeState{
+		phase:      loginFadeOut,
+		started:    now,
+		enterWorld: true,
+	}
+}
+
+func (m *LoginMode) updateFade(now time.Time) bool {
+	switch m.fade.phase {
+	case loginFadeOut:
+		if now.Sub(m.fade.started) < loginTransitionDuration {
+			return false
+		}
+		if m.fade.enterWorld {
+			return true
+		}
+		if m.fade.hasTarget {
+			m.phase = m.fade.target
+		}
+		m.fade = loginFadeState{phase: loginFadeIn, started: now}
+	case loginFadeIn:
+		if now.Sub(m.fade.started) >= loginTransitionDuration {
+			m.fade = loginFadeState{}
+		}
+	}
+	return false
+}
+
+func (m *LoginMode) fadeAlpha(now time.Time) uint8 {
+	if m.fade.started.IsZero() {
+		return 0
+	}
+	switch m.fade.phase {
+	case loginFadeOut:
+		return clampColor(255 * clampUnit(float64(now.Sub(m.fade.started))/float64(loginTransitionDuration)))
+	case loginFadeIn:
+		return clampColor(255 * (1 - clampUnit(float64(now.Sub(m.fade.started))/float64(loginTransitionDuration))))
+	default:
+		return 0
+	}
+}
+
+func (m *LoginMode) drawFade(ctx Context, screen *render.Image, now time.Time) {
+	alpha := m.fadeAlpha(now)
+	if alpha == 0 {
+		return
+	}
+	width, height := ctx.ScreenSize()
+	render.DrawRect(screen, 0, 0, float64(width), float64(height), color.RGBA{A: alpha})
+}
+
+func (m *LoginMode) nextWorldMode(now time.Time) *WorldMode {
+	next := NewWorldMode()
+	next.console = m.console
+	next.startMapFadeIn(now)
+	return next
+}
+
+func (m *LoginMode) moveSelectedSlot(delta int) {
+	m.selectedSlot = clampCharacterSlot(m.selectedSlot+delta, m.maxSlots)
+}
+
+func (m *LoginMode) submitSelectedCharacter(ctx Context) {
+	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
+	if !ok {
+		m.status = "empty character slot"
+		return
+	}
+	if err := ctx.Network.SendSelectCharacter(character.Slot); err != nil {
+		m.status = "select character failed: " + err.Error()
+		return
+	}
+	ctx.Session.CharID = character.ID
+	setSelectedCharacter(ctx.Session, character)
+	m.status = fmt.Sprintf("selected character %s", character.Name)
+}
+
+func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
+	clear(screen)
+	width, height := ctx.ScreenSize()
+	if width <= 0 || height <= 0 {
+		return
+	}
+	if len(m.bgTiles) == 12 {
+		cellW := float64(width) / 4
+		cellH := float64(height) / 3
+		for i, tile := range m.bgTiles {
+			if tile == nil {
+				continue
+			}
+			b := tile.Bounds()
+			if b.Dx() <= 0 || b.Dy() <= 0 {
+				continue
+			}
+			var opts render.DrawImageOptions
+			opts.GeoM.Scale(cellW/float64(b.Dx()), cellH/float64(b.Dy()))
+			opts.GeoM.Translate(float64(i%4)*cellW, float64(i/4)*cellH)
+			opts.Filter = render.FilterLinear
+			screen.DrawImage(tile, &opts)
+		}
+		return
+	}
+	if m.background == nil {
+		render.DrawRect(screen, 0, 0, float64(width), float64(height), color.RGBA{R: 10, G: 13, B: 22, A: 255})
+		return
+	}
+	b := m.background.Bounds()
+	if b.Dx() <= 0 || b.Dy() <= 0 {
+		return
+	}
+	var opts render.DrawImageOptions
+	opts.GeoM.Scale(float64(width)/float64(b.Dx()), float64(height)/float64(b.Dy()))
+	opts.Filter = render.FilterLinear
+	screen.DrawImage(m.background, &opts)
+}
+
+func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
+	x, y, w, h := loginWindowRect(ctx)
+	drawUITitledWindowFrame(screen, x, y, w, h, 21)
+	drawUIWindowTitle(screen, x, y, 21, 10, "Ragnarok Online", uiTitleTextColor)
+
+	labelColor := uiTextColor
+	mutedColor := uiMutedTextColor
+	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
+	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
+	render.DebugPrintAtColor(screen, "Account", x+24, userY-17, labelColor)
+	render.DebugPrintAtColor(screen, "Password", x+24, passY-17, labelColor)
+	drawLoginInput(screen, userX, userY, userW, userH, m.username, m.focus == loginFieldUser)
+	drawLoginInput(screen, passX, passY, passW, passH, strings.Repeat("*", len([]rune(m.password))), m.focus == loginFieldPassword)
+
+	serverY := y + 103
+	render.DebugPrintAtColor(screen, "Server", x+24, serverY-17, labelColor)
+	for i, conn := range ctx.Resources.ClientInfo.Connections {
+		rowY := serverY + i*17
+		bg := uiPanelAltColor
+		if i == m.selected {
+			bg = uiSelectionColor
+		}
+		drawUIRowSurface(screen, x+22, rowY, w-44, 16, bg)
+		render.DebugPrintAtColor(screen, trimRunes(conn.Display, 22), x+28, rowY+1, labelColor)
+		render.DebugPrintAtColor(screen, fmt.Sprintf("%s:%d", conn.Address, conn.Port), x+180, rowY+1, mutedColor)
+	}
+
+	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
+	buttonBG := uiButtonColor
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, buttonX, buttonY, buttonW, buttonH) {
+		buttonBG = uiButtonHoverColor
+	}
+	drawUIButtonLabel(screen, buttonX, buttonY, buttonW, buttonH, "Login", buttonBG, labelColor)
+	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+14, y+h-20, mutedColor)
+}
+
+func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
+	x, y, w, h := charSelectWindowRect(ctx)
+	drawUITitledWindowFrame(screen, x, y, w, h, 23)
+	drawUIWindowTitle(screen, x, y, 23, 12, "Select Character", uiTitleTextColor)
+
+	page := charSelectPage(m.selectedSlot)
+	pageStart := page * 3
+	for localSlot := 0; localSlot < 3; localSlot++ {
+		slot := pageStart + localSlot
+		slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
+		selected := slot == m.selectedSlot
+		bg := uiPanelBodyColor
+		border := uiWindowBorderColor
+		if selected {
+			bg = uiSelectionColor
+			border = uiSelectionBorder
+		}
+		drawUISurface(screen, slotX, slotY, slotW, slotH, bg, border)
+		if character, ok := characterBySlot(ctx.Session.Characters, slot); ok {
+			m.drawCharacterPreview(screen, ctx, character, slotX+slotW/2, slotY+slotH-15-charSelectPreviewFeetLift)
+			render.DrawOutlinedTextAt(screen, trimRunes(character.Name, 16), slotX+8, slotY+slotH-18, uiTextColor, color.RGBA{A: 160})
+		} else {
+			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, uiMutedTextColor)
+		}
+	}
+
+	leftX, leftY, leftW, leftH := charSelectLeftArrowRect(x, y)
+	rightX, rightY, rightW, rightH := charSelectRightArrowRect(x, y)
+	drawCharSelectArrow(screen, leftX, leftY, leftW, leftH, "<")
+	drawCharSelectArrow(screen, rightX, rightY, rightW, rightH, ">")
+
+	m.drawSelectedCharacterInfo(screen, ctx, x, y)
+	m.drawCharacterSelectFooter(screen, ctx, x, y, w, h)
+}
+
+func (m *LoginMode) drawCharacterCreate(ctx Context, screen *render.Image) {
+	x, y, w, h := charCreateWindowRect(ctx)
+	drawUITitledWindowFrame(screen, x, y, w, h, 23)
+	drawUIWindowTitle(screen, x, y, 23, 12, "Make Character", uiTitleTextColor)
+
+	m.drawCharacterCreatePreview(screen, ctx, x, y)
+	drawCharacterCreateStats(screen, ctx, x, y, m.create.stats)
+
+	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
+	render.DebugPrintAtColor(screen, "Name", nameX, nameY-15, uiTextColor)
+	drawLoginInput(screen, nameX, nameY, nameW, nameH, m.create.name, m.create.focusName)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Slot %d", m.create.slot+1), x+42, y+285, uiMutedTextColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Hair %d  Color %d", m.create.hairStyle, m.create.hairColor), x+42, y+302, uiMutedTextColor)
+
+	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y)
+	drawCharCreateButton(screen, ctx, makeX, makeY, makeW, makeH, "Make")
+	drawCharCreateButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
+	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+12, y+h-22, uiMutedTextColor)
+}
+
+func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx Context, x, y int) {
+	panelX, panelY, panelW, panelH := x+32, y+42, 142, 196
+	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, uiPanelBodyColor)
+
+	view := m.characterCreatePreviewView(ctx)
+	if view == nil {
+		render.DebugPrintAtColor(screen, "?", panelX+panelW/2-3, panelY+86, uiMutedTextColor)
+	} else {
+		billboard, ok := humanoidBillboardForState(view, spriteState{
+			actionFamily: spriteActionIdle,
+			direction:    m.create.direction,
+			started:      time.Now(),
+			loopIdle:     true,
+		}, time.Now())
+		if ok && billboard != nil && billboard.image != nil {
+			scale := 1.08
+			var opts render.DrawImageOptions
+			opts.GeoM.Scale(scale, scale)
+			opts.GeoM.Translate(float64(panelX+panelW/2)-billboard.anchorX*scale, float64(panelY+panelH-18)-billboard.anchorY*scale)
+			opts.Filter = spriteDrawFilter()
+			screen.DrawImage(billboard.image, &opts)
+		}
+	}
+
+	prevX, prevY, prevW, prevH := charCreateHairPrevRect(x, y)
+	nextX, nextY, nextW, nextH := charCreateHairNextRect(x, y)
+	colorX, colorY, colorW, colorH := charCreateHairColorRect(x, y)
+	drawCharCreateButton(screen, ctx, prevX, prevY, prevW, prevH, "<")
+	drawCharCreateButton(screen, ctx, nextX, nextY, nextW, nextH, ">")
+	drawCharCreateButton(screen, ctx, colorX, colorY, colorW, colorH, "^")
+}
+
+func (m *LoginMode) characterCreatePreviewView(ctx Context) *humanoidSpriteView {
+	key := charCreatePreviewKey{sex: ctx.Session.Sex, hairStyle: m.create.hairStyle, hairColor: m.create.hairColor}
+	if m.create.preview != nil && m.create.previewKey == key {
+		return m.create.preview
+	}
+	if m.create.previewFailed && m.create.previewKey == key {
+		return nil
+	}
+	character := session.Character{
+		ID:        1,
+		Name:      m.create.name,
+		Job:       0,
+		Hair:      int16(m.create.hairStyle),
+		HairColor: uint8(m.create.hairColor),
+	}
+	view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex)
+	m.create.previewKey = key
+	if view == nil {
+		m.create.previewFailed = true
+		log.Printf("char create sprite resources hair=%d color=%d sex=%d %s", m.create.hairStyle, m.create.hairColor, ctx.Session.Sex, status)
+		return nil
+	}
+	m.create.preview = view
+	m.create.previewFailed = false
+	return view
+}
+
+func drawCharacterCreateStats(screen *render.Image, ctx Context, x, y int, stats [6]uint8) {
+	graphX, graphY := x+204, y+58
+	graphW, graphH := 166, 166
+	drawUIPanelSurface(screen, graphX, graphY, graphW, graphH, uiPanelBodyColor)
+	drawCharacterCreateStatGraph(screen, graphX+graphW/2, graphY+graphH/2, stats)
+
+	for i := 0; i < createStatCount; i++ {
+		sx, sy, sw, sh := charCreateStatButtonRect(x, y, i)
+		bg := uiButtonColor
+		if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, sx, sy, sw, sh) {
+			bg = uiButtonHoverColor
+		}
+		label := charCreateStatLabels()[i]
+		drawUIButtonSurface(screen, sx, sy, sw, sh, bg)
+		drawUICenteredText(screen, sx, sy+2, sw, 15, label, uiTextColor)
+		value := fmt.Sprintf("%d", stats[i])
+		drawUICenteredText(screen, sx, sy+18, sw, 15, value, uiTextColor)
+	}
+
+	listX, listY := x+402, y+58
+	drawUIPanelSurface(screen, listX, listY, 136, 166, uiPanelBodyColor)
+	for i, label := range charCreateStatLabels() {
+		render.DebugPrintAtColor(screen, label, listX+18, listY+16+i*22, uiTextColor)
+		render.DebugPrintAtColor(screen, fmt.Sprintf("%d", stats[i]), listX+92, listY+16+i*22, uiTextColor)
+	}
+	render.DebugPrintAtColor(screen, "Paired stats must total 10.", listX-3, listY+182, uiMutedTextColor)
+}
+
+func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uint8) {
+	outer := 64.0
+	inner := 32.0
+	points := charCreateGraphPoints(cx, cy, outer)
+	mid := charCreateGraphPoints(cx, cy, inner)
+	for i := 0; i < createStatCount; i++ {
+		next := (i + 1) % createStatCount
+		render.DrawLine(screen, points[i][0], points[i][1], points[next][0], points[next][1], uiSeparatorColor)
+		render.DrawLine(screen, mid[i][0], mid[i][1], mid[next][0], mid[next][1], uiSeparatorColor)
+		render.DrawLine(screen, float64(cx), float64(cy), points[i][0], points[i][1], color.RGBA{R: 185, G: 204, B: 224, A: 150})
+	}
+	statPoints := [createStatCount][2]float64{}
+	for i := 0; i < createStatCount; i++ {
+		scale := 0.22 + float64(stats[i])/9.0*0.78
+		statPoints[i][0] = float64(cx) + (points[i][0]-float64(cx))*scale
+		statPoints[i][1] = float64(cy) + (points[i][1]-float64(cy))*scale
+	}
+	for i := 0; i < createStatCount; i++ {
+		next := (i + 1) % createStatCount
+		render.DrawLine(screen, statPoints[i][0], statPoints[i][1], statPoints[next][0], statPoints[next][1], color.RGBA{R: 80, G: 146, B: 214, A: 255})
+	}
+}
+
+func charCreateGraphPoints(cx, cy int, radius float64) [createStatCount][2]float64 {
+	dirs := [createStatCount][2]float64{
+		{0, -1},
+		{-0.866, -0.5},
+		{0.866, -0.5},
+		{0, 1},
+		{0.866, 0.5},
+		{-0.866, 0.5},
+	}
+	points := [createStatCount][2]float64{}
+	for i := range dirs {
+		points[i][0] = float64(cx) + dirs[i][0]*radius
+		points[i][1] = float64(cy) + dirs[i][1]*radius
+	}
+	return points
+}
+
+func drawCharCreateButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
+	bg := uiButtonColor
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
+		bg = uiButtonHoverColor
+	}
+	drawUIButtonLabel(screen, x, y, w, h, label, bg, uiTextColor)
+}
+
+func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, character session.Character, centerX, feetY int) {
+	view := m.characterPreviewView(ctx, character)
+	if view == nil {
+		render.DebugPrintAtColor(screen, "?", centerX-3, feetY-72, color.RGBA{R: 220, G: 220, B: 220, A: 255})
+		return
+	}
+	billboard, ok := humanoidBillboardForState(view, spriteState{
+		actionFamily: spriteActionIdle,
+		direction:    charSelectPreviewDirection,
+		started:      time.Now(),
+		loopIdle:     true,
+	}, time.Now())
+	if !ok || billboard == nil || billboard.image == nil {
+		return
+	}
+	var opts render.DrawImageOptions
+	scale := charSelectPreviewScale
+	opts.GeoM.Scale(scale, scale)
+	opts.GeoM.Translate(float64(centerX)-billboard.anchorX*scale, float64(feetY)-billboard.anchorY*scale)
+	opts.Filter = spriteDrawFilter()
+	screen.DrawImage(billboard.image, &opts)
+}
+
+func (m *LoginMode) characterPreviewView(ctx Context, character session.Character) *humanoidSpriteView {
+	if character.ID == 0 {
+		return nil
+	}
+	if _, failed := m.charViewFailed[character.ID]; failed {
+		return nil
+	}
+	if m.charViews == nil {
+		m.charViews = make(map[uint32]*humanoidSpriteView)
+	}
+	if view := m.charViews[character.ID]; view != nil {
+		return view
+	}
+	view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex)
+	if view == nil {
+		if m.charViewFailed == nil {
+			m.charViewFailed = make(map[uint32]struct{})
+		}
+		m.charViewFailed[character.ID] = struct{}{}
+		log.Printf("char select sprite resources char_id=%d name=%s job=%d %s", character.ID, character.Name, character.Job, status)
+		return nil
+	}
+	m.charViews[character.ID] = view
+	return view
+}
+
+func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context, x, y int) {
+	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
+	panelX, panelY, panelW, panelH := x+16, y+204, 318, 108
+	drawUIPanelSurface(screen, panelX, panelY, panelW, panelH, uiPanelBodyColor)
+	text := uiTextColor
+	if !ok {
+		render.DebugPrintAtColor(screen, "Empty Slot", panelX+18, panelY+14, text)
+		render.DebugPrintAtColor(screen, "Use Make to create a character later.", panelX+18, panelY+34, text)
+		return
+	}
+	render.DebugPrintAtColor(screen, trimRunes(character.Name, 24), panelX+14, panelY+10, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Job: %s", trimRunes(characterJobName(character), 18)), panelX+14, panelY+28, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Lv: %d / Job %d", character.Level, character.JobLevel), panelX+14, panelY+46, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("HP: %d / %d", character.HP, character.MaxHP), panelX+14, panelY+64, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("SP: %d / %d", character.SP, character.MaxSP), panelX+14, panelY+82, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("STR %d", character.Str), panelX+180, panelY+10, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("AGI %d", character.Agi), panelX+180, panelY+28, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("VIT %d", character.Vit), panelX+180, panelY+46, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("INT %d", character.Int), panelX+246, panelY+10, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("DEX %d", character.Dex), panelX+246, panelY+28, text)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("LUK %d", character.Luk), panelX+246, panelY+46, text)
+}
+
+func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context, x, y, w, h int) {
+	page := charSelectPage(m.selectedSlot)
+	pageCount := maxInt(1, (m.maxSlots+2)/3)
+	statusColor := uiMutedTextColor
+	labelColor := uiTextColor
+	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", len(ctx.Session.Characters), m.maxSlots), x+w-112, y+198, statusColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("%d / %d", page+1, pageCount), x+w/2-18, y+190, statusColor)
+	render.DebugPrintAtColor(screen, trimRunes(m.status, 42), x+12, y+h-22, statusColor)
+
+	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y)
+	makeX, makeY, makeW, makeH := charSelectMakeButtonRect(x, y)
+	okX, okY, okW, okH := charSelectOKButtonRect(x, y)
+	cancelX, cancelY, cancelW, cancelH := charSelectCancelButtonRect(x, y)
+	drawCharSelectButton(screen, ctx, deleteX, deleteY, deleteW, deleteH, "Delete", labelColor)
+	drawCharSelectButton(screen, ctx, makeX, makeY, makeW, makeH, "Make", labelColor)
+	drawCharSelectButton(screen, ctx, okX, okY, okW, okH, "OK", labelColor)
+	drawCharSelectButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel", labelColor)
+}
+
+func drawCharSelectButton(screen *render.Image, ctx Context, x, y, w, h int, label string, textColor color.RGBA) {
+	bg := uiButtonColor
+	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
+		bg = uiButtonHoverColor
+	}
+	drawUIButtonLabel(screen, x, y, w, h, label, bg, textColor)
+}
+
+func drawCharSelectArrow(screen *render.Image, x, y, w, h int, label string) {
+	drawUIButtonLabel(screen, x, y, w, h, label, uiButtonColor, uiTextColor)
+}
+
+func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused bool) {
+	bg := uiPanelBodyColor
+	border := uiButtonBorderColor
+	if focused {
+		border = uiSelectionBorder
+	}
+	drawUISurface(screen, x, y, w, h, bg, border)
+	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, uiTextColor)
+}
+
+func (m *LoginMode) loadBackground(ctx Context) {
+	if m.bgLoaded {
+		return
+	}
+	m.bgLoaded = true
+	for _, set := range loginBackgroundSets(ctx.Config.Packet.ClientDate) {
+		if len(set) == 1 {
+			img, source, ok := loadLoginBackgroundImage(ctx.Resources, set[0])
+			if ok {
+				m.background = img
+				m.bgSource = source
+				return
+			}
+			continue
+		}
+		tiles := make([]*render.Image, 0, len(set))
+		sources := make([]string, 0, len(set))
+		ok := true
+		for _, name := range set {
+			img, source, loaded := loadLoginBackgroundImage(ctx.Resources, name)
+			if !loaded {
+				ok = false
+				break
+			}
+			tiles = append(tiles, img)
+			sources = append(sources, source)
+		}
+		if ok {
+			m.bgTiles = tiles
+			m.bgSource = fmt.Sprintf("%d login tiles", len(sources))
+			return
+		}
+	}
+	m.bgSource = "fallback"
+}
+
+func (m *LoginMode) loadCharacterSelectSkin(ctx Context) {
+	if m.charWindow == nil {
+		if img, _, ok := loadLoginBackgroundImage(ctx.Resources, "login_interface/win_select.bmp"); ok {
+			m.charWindow = img
+		}
+	}
+	if m.charBox == nil {
+		if img, _, ok := loadLoginBackgroundImage(ctx.Resources, "login_interface/box_select.bmp"); ok {
+			m.charBox = img
+		}
+	}
+}
+
+func (m *LoginMode) playLoginBGM(ctx Context) {
+	if m.bgmStarted || ctx.Audio == nil {
+		return
+	}
+	m.bgmStarted = true
+	for _, path := range []string{"01.mp3", "BGM\\01.mp3", "bgm\\01.mp3"} {
+		if err := ctx.Audio.Play(path); err == nil {
+			return
+		}
+	}
+}
+
+func loadLoginBackgroundImage(manager *res.Manager, name string) (*render.Image, string, bool) {
+	for _, candidate := range loginInterfaceCandidates(name) {
+		img, source, err := res.LoadImageExact(manager, []string{candidate})
+		if err == nil {
+			return render.NewImageFromImage(img), source, true
+		}
+	}
+	return nil, "", false
+}
+
+func loginWindowRect(ctx Context) (int, int, int, int) {
+	width, height := ctx.ScreenSize()
+	w, h := 380, 202
+	x := (width - w) / 2
+	y := (height*2)/3 - h/2
+	if y < 48 {
+		y = (height - h) / 2
+	}
+	if x < 8 {
+		x = 8
+	}
+	if y < 8 {
+		y = 8
+	}
+	return x, y, w, h
+}
+
+func loginUserFieldRect(x, y, w int) (int, int, int, int) {
+	return x + 110, y + 39, w - 135, 22
+}
+
+func loginPasswordFieldRect(x, y, w int) (int, int, int, int) {
+	return x + 110, y + 72, w - 135, 22
+}
+
+func loginButtonRect(x, y, w int) (int, int, int, int) {
+	return x + w - 126, y + 162, 96, 24
+}
+
+func loginQuitConfirmRect(ctx Context) (int, int, int, int) {
+	width, height := ctx.ScreenSize()
+	w, h := 286, 128
+	x := (width - w) / 2
+	y := (height - h) / 2
+	if x < 8 {
+		x = 8
+	}
+	if y < 8 {
+		y = 8
+	}
+	return x, y, w, h
+}
+
+func loginQuitOKRect(ctx Context) (int, int, int, int) {
+	x, y, w, h := loginQuitConfirmRect(ctx)
+	return x + w - 150, y + h - 36, 56, 23
+}
+
+func loginQuitCancelRect(ctx Context) (int, int, int, int) {
+	x, y, w, h := loginQuitConfirmRect(ctx)
+	return x + w - 84, y + h - 36, 66, 23
+}
+
+func charSelectWindowRect(ctx Context) (int, int, int, int) {
+	width, height := ctx.ScreenSize()
+	w, h := 576, 342
+	x := (width - w) / 2
+	y := (height - h) / 2
+	if x < 8 {
+		x = 8
+	}
+	if y < 8 {
+		y = 8
+	}
+	return x, y, w, h
+}
+
+func charCreateWindowRect(ctx Context) (int, int, int, int) {
+	return charSelectWindowRect(ctx)
+}
+
+func charCreateNameRect(x, y int) (int, int, int, int) {
+	return x + 42, y + 252, 132, 22
+}
+
+func charCreateHairPrevRect(x, y int) (int, int, int, int) {
+	return x + 44, y + 126, 24, 22
+}
+
+func charCreateHairNextRect(x, y int) (int, int, int, int) {
+	return x + 138, y + 126, 24, 22
+}
+
+func charCreateHairColorRect(x, y int) (int, int, int, int) {
+	return x + 91, y + 48, 24, 22
+}
+
+func charCreateStatButtonRect(x, y, stat int) (int, int, int, int) {
+	rects := [createStatCount][4]int{
+		{x + 269, y + 44, 38, 36},  // STR
+		{x + 181, y + 100, 38, 36}, // AGI
+		{x + 356, y + 100, 38, 36}, // VIT
+		{x + 269, y + 210, 38, 36}, // INT
+		{x + 356, y + 156, 38, 36}, // DEX
+		{x + 181, y + 156, 38, 36}, // LUK
+	}
+	if stat < 0 || stat >= len(rects) {
+		stat = 0
+	}
+	rect := rects[stat]
+	return rect[0], rect[1], rect[2], rect[3]
+}
+
+func charCreateMakeButtonRect(x, y int) (int, int, int, int) {
+	return x + 484, y + 318, 42, 20
+}
+
+func charCreateCancelButtonRect(x, y int) (int, int, int, int) {
+	return x + 530, y + 318, 42, 20
+}
+
+func charSelectSlotRect(x, y, localSlot int) (int, int, int, int) {
+	lefts := [3]int{60, 224, 386}
+	if localSlot < 0 || localSlot >= len(lefts) {
+		localSlot = 0
+	}
+	return x + lefts[localSlot] - 5, y + 40, 139, 144
+}
+
+func charSelectLeftArrowRect(x, y int) (int, int, int, int) {
+	return x + 40, y + 105, 18, 18
+}
+
+func charSelectRightArrowRect(x, y int) (int, int, int, int) {
+	return x + 518, y + 105, 18, 18
+}
+
+func charSelectDeleteButtonRect(x, y int) (int, int, int, int) {
+	return x + 4, y + 318, 58, 20
+}
+
+func charSelectMakeButtonRect(x, y int) (int, int, int, int) {
+	return x + 434, y + 318, 42, 20
+}
+
+func charSelectOKButtonRect(x, y int) (int, int, int, int) {
+	return x + 484, y + 318, 42, 20
+}
+
+func charSelectCancelButtonRect(x, y int) (int, int, int, int) {
+	return x + 530, y + 318, 42, 20
+}
+
+func charSelectPage(slot int) int {
+	if slot < 0 {
+		return 0
+	}
+	return slot / 3
+}
+
+func charSelectMaxSlots(characters []session.Character) int {
+	maxSlots := 9
+	for _, character := range characters {
+		if int(character.Slot)+1 > maxSlots {
+			maxSlots = int(character.Slot) + 1
+		}
+	}
+	if maxSlots%3 != 0 {
+		maxSlots += 3 - maxSlots%3
+	}
+	return maxSlots
+}
+
+func firstOccupiedCharacterSlot(characters []session.Character) int {
+	if len(characters) == 0 {
+		return 0
+	}
+	slot := int(characters[0].Slot)
+	for _, character := range characters[1:] {
+		if int(character.Slot) < slot {
+			slot = int(character.Slot)
+		}
+	}
+	return slot
+}
+
+func firstEmptyCharacterSlot(characters []session.Character, maxSlots int) (int, bool) {
+	if maxSlots <= 0 {
+		maxSlots = 9
+	}
+	occupied := make(map[int]struct{}, len(characters))
+	for _, character := range characters {
+		occupied[int(character.Slot)] = struct{}{}
+	}
+	for slot := 0; slot < maxSlots; slot++ {
+		if _, ok := occupied[slot]; !ok {
+			return slot, true
+		}
+	}
+	return 0, false
+}
+
+func clampCharacterSlot(slot, maxSlots int) int {
+	if maxSlots <= 0 {
+		maxSlots = 1
+	}
+	if slot < 0 {
+		return 0
+	}
+	if slot >= maxSlots {
+		return maxSlots - 1
+	}
+	return slot
+}
+
+func characterBySlot(characters []session.Character, slot int) (session.Character, bool) {
+	for _, character := range characters {
+		if int(character.Slot) == slot {
+			return character, true
+		}
+	}
+	return session.Character{}, false
+}
+
+func upsertCharacter(characters []session.Character, character session.Character) []session.Character {
+	for i := range characters {
+		if characters[i].ID == character.ID || characters[i].Slot == character.Slot {
+			characters[i] = character
+			return characters
+		}
+	}
+	return append(characters, character)
+}
+
+func charCreateStatLabels() [createStatCount]string {
+	return [createStatCount]string{"STR", "AGI", "VIT", "INT", "DEX", "LUK"}
+}
+
+func pairedCreateStat(stat int) int {
+	switch stat {
+	case createStatStr:
+		return createStatInt
+	case createStatInt:
+		return createStatStr
+	case createStatAgi:
+		return createStatLuk
+	case createStatLuk:
+		return createStatAgi
+	case createStatVit:
+		return createStatDex
+	case createStatDex:
+		return createStatVit
+	default:
+		return -1
+	}
+}
+
+func bumpCreateStat(stats *[createStatCount]uint8, stat int) bool {
+	if stats == nil || stat < 0 || stat >= createStatCount {
+		return false
+	}
+	pair := pairedCreateStat(stat)
+	if pair < 0 || (*stats)[stat] >= 9 || (*stats)[pair] <= 1 {
+		return false
+	}
+	(*stats)[stat]++
+	(*stats)[pair]--
+	return true
+}
+
+func appendCharacterNameInput(current, input string, maxBytes int) string {
+	if maxBytes <= 0 {
+		return current
+	}
+	out := current
+	for _, r := range input {
+		if r < 32 || r == 127 {
+			continue
+		}
+		next := out + string(r)
+		if len([]byte(next)) > maxBytes {
+			break
+		}
+		out = next
+	}
+	return out
+}
+
+func describeMakeCharacterRefuse(code uint8) string {
+	switch code {
+	case 0:
+		return "character name already exists"
+	case 1:
+		return "account is underaged"
+	case 2:
+		return "invalid character name"
+	default:
+		return fmt.Sprintf("character creation refused (%d)", code)
+	}
+}
+
+func loginBackgroundSets(clientDate int) [][]string {
+	tiles2018 := []string{
+		"t_\xB9\xE8\xB0\xE61-1.bmp", "t_\xB9\xE8\xB0\xE61-2.bmp", "t_\xB9\xE8\xB0\xE61-3.bmp", "t_\xB9\xE8\xB0\xE61-4.bmp",
+		"t_\xB9\xE8\xB0\xE62-1.bmp", "t_\xB9\xE8\xB0\xE62-2.bmp", "t_\xB9\xE8\xB0\xE62-3.bmp", "t_\xB9\xE8\xB0\xE62-4.bmp",
+		"t_\xB9\xE8\xB0\xE63-1.bmp", "t_\xB9\xE8\xB0\xE63-2.bmp", "t_\xB9\xE8\xB0\xE63-3.bmp", "t_\xB9\xE8\xB0\xE63-4.bmp",
+	}
+	sets := make([][]string, 0, 3)
+	if clientDate >= 20221207 {
+		sets = append(sets, []string{"t_login.jpg"})
+	}
+	if clientDate >= 20181114 {
+		sets = append(sets, tiles2018)
+	}
+	sets = append(sets, []string{"bgi_temp.bmp"}, []string{"t_login.jpg"}, tiles2018)
+	return sets
+}
+
+func loginInterfaceCandidates(name string) []string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	const ui = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\"
+	candidates := []string{
+		ui + name,
+		strings.ReplaceAll(ui, "\\", "/") + name,
+		"texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\" + name,
+		"data\\texture\\interface\\" + name,
+		"data/texture/interface/" + name,
+		name,
+	}
+	return uniqueLoginStrings(candidates)
+}
+
+func uniqueLoginStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
+}
+
+func trimLastRune(text string) string {
+	if text == "" {
+		return ""
+	}
+	runes := []rune(text)
+	return string(runes[:len(runes)-1])
+}
+
+func (m *LoginMode) connectAndMaybeLogin(ctx Context, conn res.Connection) {
+	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	err := ctx.Network.Connect(dialCtx, conn.Address, conn.Port)
+	cancel()
+	if err != nil {
+		m.status = err.Error()
+		return
+	}
+
+	m.status = ctx.Network.Status()
+	log.Printf("connected login server %s:%d", conn.Address, conn.Port)
+	if strings.TrimSpace(m.username) == "" && m.password == "" {
+		return
+	}
+
+	err = ctx.Network.SendAccountLogin(
+		m.username,
+		m.password,
+		uint32(conn.Version),
+		0,
+	)
+	if err != nil {
+		m.status = "login packet failed: " + err.Error()
+		return
+	}
+	m.status = "CA_LOGIN sent"
+	log.Printf("sent CA_LOGIN user=%s version=%d", m.username, conn.Version)
+}
+
+func (m *LoginMode) connectCharServer(ctx Context, server network.CharServer) {
+	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	err := ctx.Network.Connect(dialCtx, server.Address, int(server.Port))
+	cancel()
+	if err != nil {
+		m.status = "char connect failed: " + err.Error()
+		return
+	}
+
+	err = ctx.Network.SendCharServerEnter(ctx.Session.AccountID, ctx.Session.AuthCode, ctx.Session.UserLevel, ctx.Session.Sex)
+	if err != nil {
+		m.status = "CA_ENTER failed: " + err.Error()
+		return
+	}
+	m.status = "CA_ENTER sent to char server"
+	log.Printf("sent CA_ENTER account_id=%d addr=%s port=%d", ctx.Session.AccountID, server.Address, server.Port)
+}
+
+func (m *LoginMode) connectMapServer(ctx Context, zone network.ZoneServerNotify) {
+	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	err := ctx.Network.Connect(dialCtx, zone.Address, int(zone.Port))
+	cancel()
+	if err != nil {
+		m.status = "map connect failed: " + err.Error()
+		return
+	}
+
+	err = ctx.Network.SendMapServerEnter(ctx.Session.AccountID, zone.CharID, ctx.Session.AuthCode, uint32(time.Now().UnixMilli()), ctx.Session.Sex)
+	if err != nil {
+		m.status = "CZ_ENTER2 failed: " + err.Error()
+		return
+	}
+	m.status = "CZ_ENTER2 sent to map server"
+	log.Printf("sent CZ_ENTER2 account_id=%d char_id=%d addr=%s port=%d", ctx.Session.AccountID, zone.CharID, zone.Address, zone.Port)
+}
+
+func convertCharServers(servers []network.CharServer) []session.CharServer {
+	out := make([]session.CharServer, 0, len(servers))
+	for _, server := range servers {
+		out = append(out, session.CharServer{
+			Address:   server.Address,
+			Port:      server.Port,
+			Name:      server.Name,
+			UserCount: server.UserCount,
+			State:     server.State,
+			Property:  server.Property,
+		})
+	}
+	return out
+}
+
+func convertCharacters(characters []network.Character) []session.Character {
+	out := make([]session.Character, 0, len(characters))
+	for _, character := range characters {
+		out = append(out, convertCharacter(character))
+	}
+	return out
+}
+
+func convertCharacter(character network.Character) session.Character {
+	return session.Character{
+		ID:        character.ID,
+		Money:     character.Money,
+		Name:      character.Name,
+		Slot:      character.Slot,
+		Level:     character.Level,
+		JobLevel:  character.JobLevel,
+		Job:       character.Job,
+		HP:        character.HP,
+		MaxHP:     character.MaxHP,
+		SP:        character.SP,
+		MaxSP:     character.MaxSP,
+		Str:       character.Str,
+		Agi:       character.Agi,
+		Vit:       character.Vit,
+		Int:       character.Int,
+		Dex:       character.Dex,
+		Luk:       character.Luk,
+		Hair:      character.Hair,
+		HairColor: character.HairColor,
+		HeadPal:   character.HeadPal,
+		BodyPal:   character.BodyPal,
+		Weapon:    character.Weapon,
+		Shield:    character.Shield,
+		HeadTop:   character.HeadTop,
+		HeadMid:   character.HeadMid,
+		HeadLow:   character.HeadLow,
+	}
+}
+
+func setSelectedCharacter(sessionState *session.Session, character session.Character) {
+	sessionState.Selected = character
+	sessionState.Vitals = sessionVitalsFromCharacter(character)
+	sessionState.Progress = sessionProgressFromCharacter(character)
+	sessionState.Inventory.Zeny = character.Money
+}

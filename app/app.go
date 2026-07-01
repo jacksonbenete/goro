@@ -6,8 +6,8 @@ import (
 	"time"
 
 	gameaudio "github.com/kivutar/goro/audio"
-	"github.com/kivutar/goro/core"
-	"github.com/kivutar/goro/gamemode"
+	"github.com/kivutar/goro/config"
+	"github.com/kivutar/goro/game"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
@@ -17,14 +17,14 @@ import (
 )
 
 type Game struct {
-	cfg      core.Config
+	cfg      config.Config
 	input    *input.State
 	resource *res.Manager
 	session  *session.Session
 	world    *world.World
 	network  *network.Client
 	audio    *gameaudio.BGM
-	modes    *gamemode.Manager
+	modes    *game.Manager
 	runtime  *runtimeSettings
 	started  time.Time
 	screenW  int
@@ -33,7 +33,7 @@ type Game struct {
 	quitting bool
 }
 
-func New(cfg core.Config) (*Game, error) {
+func New(cfg config.Config) (*Game, error) {
 	resource, err := res.NewManager(cfg.DataDir)
 	if err != nil {
 		return nil, fmt.Errorf("resource manager: %w", err)
@@ -55,7 +55,7 @@ func New(cfg core.Config) (*Game, error) {
 	}
 
 	ctx := g.modeContext()
-	g.modes = gamemode.NewManager(ctx, gamemode.NewLoginMode())
+	g.modes = game.NewManager(ctx, game.NewLoginMode())
 	return g, nil
 }
 
@@ -136,8 +136,8 @@ func loadClientUIFont(resource *res.Manager) {
 	}
 }
 
-func (g *Game) modeContext() gamemode.Context {
-	return gamemode.Context{
+func (g *Game) modeContext() game.Context {
+	return game.Context{
 		Config:      g.cfg,
 		Input:       g.input,
 		Resources:   g.resource,

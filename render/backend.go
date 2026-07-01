@@ -12,7 +12,7 @@ import (
 	"github.com/gogpu/gogpu"
 	gogputypes "github.com/gogpu/gogpu/gpu/types"
 	"github.com/gogpu/gpucontext"
-	"github.com/kivutar/goro/core"
+	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/input"
 )
 
@@ -44,7 +44,7 @@ type runner struct {
 	height         int
 	duration       time.Duration
 	warmup         time.Duration
-	renderCfg      core.RenderConfig
+	renderCfg      config.RenderConfig
 	started        time.Time
 	measureStarted time.Time
 	lastLog        time.Time
@@ -63,7 +63,7 @@ type runner struct {
 	vsyncWarned    bool
 }
 
-func Run(game Game, cfg core.WindowConfig, renderCfg core.RenderConfig) error {
+func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) error {
 	appConfig := gogpu.DefaultConfig()
 	api, err := graphicsAPI(renderCfg.GraphicsAPI)
 	if err != nil {
