@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"fmt"
+	"github.com/kivutar/goro/client"
 	"image/color"
 	"log"
 	"strings"
@@ -121,7 +122,7 @@ func NewLoginMode() *LoginMode {
 	return &LoginMode{status: "select a server", focus: loginFieldUser, maxSlots: 9}
 }
 
-func NewCharacterSelectMode(ctx Context, console gameui.ChatConsole) *LoginMode {
+func NewCharacterSelectMode(ctx client.Context, console gameui.ChatConsole) *LoginMode {
 	mode := NewLoginMode()
 	mode.phase = loginPhaseCharacter
 	mode.status = "select a character"
@@ -135,7 +136,7 @@ func (m *LoginMode) Name() string {
 	return "login"
 }
 
-func (m *LoginMode) Enter(ctx Context) {
+func (m *LoginMode) Enter(ctx client.Context) {
 	if m.username == "" {
 		m.username = ctx.Config.Login.Username
 	}
@@ -156,7 +157,7 @@ func (m *LoginMode) Enter(ctx Context) {
 	}
 }
 
-func (m *LoginMode) Update(ctx Context) (Mode, error) {
+func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 	now := time.Now()
 	if m.updateFade(now) {
 		return m.nextWorldMode(now), nil
@@ -351,7 +352,7 @@ func (m *LoginMode) Update(ctx Context) (Mode, error) {
 	return nil, nil
 }
 
-func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
+func (m *LoginMode) Draw(ctx client.Context, screen *render.Image) {
 	m.drawBackground(ctx, screen)
 	if m.phase == loginPhaseCreate {
 		m.drawCharacterCreate(ctx, screen)
@@ -366,7 +367,7 @@ func (m *LoginMode) Draw(ctx Context, screen *render.Image) {
 	m.drawROCursor(screen, ctx, now)
 }
 
-func (m *LoginMode) drawROCursor(screen *render.Image, ctx Context, now time.Time) {
+func (m *LoginMode) drawROCursor(screen *render.Image, ctx client.Context, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
@@ -374,7 +375,7 @@ func (m *LoginMode) drawROCursor(screen *render.Image, ctx Context, now time.Tim
 	m.cursor.draw(screen, ctx, m.cursorAction(ctx), now)
 }
 
-func (m *LoginMode) cursorAction(ctx Context) int {
+func (m *LoginMode) cursorAction(ctx client.Context) int {
 	if ctx.Input == nil {
 		return cursorActionDefault
 	}
@@ -442,7 +443,7 @@ func (m *LoginMode) cursorAction(ctx Context) int {
 	return cursorActionDefault
 }
 
-func (m *LoginMode) updatePhaseEscape(ctx Context, now time.Time) bool {
+func (m *LoginMode) updatePhaseEscape(ctx client.Context, now time.Time) bool {
 	if ctx.Input == nil || !ctx.Input.JustPressed(render.KeyEscape) {
 		return false
 	}
@@ -461,7 +462,7 @@ func (m *LoginMode) updatePhaseEscape(ctx Context, now time.Time) bool {
 	return true
 }
 
-func (m *LoginMode) updateQuitConfirm(ctx Context) bool {
+func (m *LoginMode) updateQuitConfirm(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
@@ -497,7 +498,7 @@ func (m *LoginMode) updateQuitConfirm(ctx Context) bool {
 	return true
 }
 
-func (m *LoginMode) drawQuitConfirm(ctx Context, screen *render.Image) {
+func (m *LoginMode) drawQuitConfirm(ctx client.Context, screen *render.Image) {
 	if !m.quitConfirm.open || screen == nil {
 		return
 	}
@@ -514,7 +515,7 @@ func (m *LoginMode) drawQuitConfirm(ctx Context, screen *render.Image) {
 	drawLoginQuitButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
 }
 
-func drawLoginQuitButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
+func drawLoginQuitButton(screen *render.Image, ctx client.Context, x, y, w, h int, label string) {
 	fill := gameui.ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
 		fill = gameui.ButtonHoverColor
@@ -522,7 +523,7 @@ func drawLoginQuitButton(screen *render.Image, ctx Context, x, y, w, h int, labe
 	gameui.DrawButtonLabel(screen, x, y, w, h, label, fill, gameui.TextColor)
 }
 
-func (q loginQuitConfirmState) cursorAction(ctx Context) (int, bool) {
+func (q loginQuitConfirmState) cursorAction(ctx client.Context) (int, bool) {
 	if !q.open || ctx.Input == nil {
 		return 0, false
 	}
@@ -539,7 +540,7 @@ func rectArray(x, y, w, h int) [4]int {
 	return [4]int{x, y, w, h}
 }
 
-func (m *LoginMode) updateFormInput(ctx Context) {
+func (m *LoginMode) updateFormInput(ctx client.Context) {
 	if ctx.Input == nil {
 		return
 	}
@@ -593,7 +594,7 @@ func (m *LoginMode) updateFormInput(ctx Context) {
 	}
 }
 
-func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
+func (m *LoginMode) updateCharacterSelectInput(ctx client.Context) {
 	if ctx.Input == nil {
 		return
 	}
@@ -661,7 +662,7 @@ func (m *LoginMode) updateCharacterSelectInput(ctx Context) {
 	}
 }
 
-func (m *LoginMode) prepareCharacterSelectFromSession(ctx Context) {
+func (m *LoginMode) prepareCharacterSelectFromSession(ctx client.Context) {
 	m.maxSlots = 9
 	m.selectedSlot = 0
 	if ctx.Session == nil || len(ctx.Session.Characters) == 0 {
@@ -673,7 +674,7 @@ func (m *LoginMode) prepareCharacterSelectFromSession(ctx Context) {
 	}
 }
 
-func (m *LoginMode) reconnectCharacterServer(ctx Context) {
+func (m *LoginMode) reconnectCharacterServer(ctx client.Context) {
 	if ctx.Network == nil || ctx.Session == nil || len(ctx.Session.CharServers) == 0 {
 		return
 	}
@@ -688,7 +689,7 @@ func (m *LoginMode) reconnectCharacterServer(ctx Context) {
 	})
 }
 
-func (m *LoginMode) updateCharacterCreateInput(ctx Context) {
+func (m *LoginMode) updateCharacterCreateInput(ctx client.Context) {
 	if ctx.Input == nil {
 		return
 	}
@@ -739,7 +740,7 @@ func (m *LoginMode) updateCharacterCreateInput(ctx Context) {
 	}
 }
 
-func (m *LoginMode) openCharacterCreate(ctx Context, slot int, now time.Time) {
+func (m *LoginMode) openCharacterCreate(ctx client.Context, slot int, now time.Time) {
 	slot = clampCharacterSlot(slot, m.maxSlots)
 	if _, occupied := characterBySlot(ctx.Session.Characters, slot); occupied {
 		empty, ok := firstEmptyCharacterSlot(ctx.Session.Characters, m.maxSlots)
@@ -771,7 +772,7 @@ func (m *LoginMode) cancelCharacterCreate(now time.Time) {
 	m.startPhaseFade(loginPhaseCharacter, now)
 }
 
-func (m *LoginMode) submitCharacterCreate(ctx Context) {
+func (m *LoginMode) submitCharacterCreate(ctx client.Context) {
 	name := strings.TrimSpace(m.create.name)
 	if name == "" {
 		m.status = "enter a character name"
@@ -881,7 +882,7 @@ func (m *LoginMode) fadeAlpha(now time.Time) uint8 {
 	}
 }
 
-func (m *LoginMode) drawFade(ctx Context, screen *render.Image, now time.Time) {
+func (m *LoginMode) drawFade(ctx client.Context, screen *render.Image, now time.Time) {
 	alpha := m.fadeAlpha(now)
 	if alpha == 0 {
 		return
@@ -901,7 +902,7 @@ func (m *LoginMode) moveSelectedSlot(delta int) {
 	m.selectedSlot = clampCharacterSlot(m.selectedSlot+delta, m.maxSlots)
 }
 
-func (m *LoginMode) submitSelectedCharacter(ctx Context) {
+func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
 	if !ok {
 		m.status = "empty character slot"
@@ -916,7 +917,7 @@ func (m *LoginMode) submitSelectedCharacter(ctx Context) {
 	m.status = fmt.Sprintf("selected character %s", character.Name)
 }
 
-func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
+func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Image) {
 	clear(screen)
 	width, height := ctx.ScreenSize()
 	if width <= 0 || height <= 0 {
@@ -955,7 +956,7 @@ func (m *LoginMode) drawBackground(ctx Context, screen *render.Image) {
 	screen.DrawImage(m.background, &opts)
 }
 
-func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
+func (m *LoginMode) drawLoginWindow(ctx client.Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
 	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 21)
 	gameui.DrawWindowTitle(screen, x, y, 21, 10, "Ragnarok Online", gameui.TitleTextColor)
@@ -991,7 +992,7 @@ func (m *LoginMode) drawLoginWindow(ctx Context, screen *render.Image) {
 	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+14, y+h-20, mutedColor)
 }
 
-func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
+func (m *LoginMode) drawCharacterSelect(ctx client.Context, screen *render.Image) {
 	x, y, w, h := charSelectWindowRect(ctx)
 	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 23)
 	gameui.DrawWindowTitle(screen, x, y, 23, 12, "Select Character", gameui.TitleTextColor)
@@ -1026,7 +1027,7 @@ func (m *LoginMode) drawCharacterSelect(ctx Context, screen *render.Image) {
 	m.drawCharacterSelectFooter(screen, ctx, x, y, w, h)
 }
 
-func (m *LoginMode) drawCharacterCreate(ctx Context, screen *render.Image) {
+func (m *LoginMode) drawCharacterCreate(ctx client.Context, screen *render.Image) {
 	x, y, w, h := charCreateWindowRect(ctx)
 	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 23)
 	gameui.DrawWindowTitle(screen, x, y, 23, 12, "Make Character", gameui.TitleTextColor)
@@ -1047,7 +1048,7 @@ func (m *LoginMode) drawCharacterCreate(ctx Context, screen *render.Image) {
 	render.DebugPrintAtColor(screen, trimRunes(m.status, 48), x+12, y+h-22, gameui.MutedTextColor)
 }
 
-func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx Context, x, y int) {
+func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx client.Context, x, y int) {
 	panelX, panelY, panelW, panelH := x+32, y+42, 142, 196
 	gameui.DrawPanelSurface(screen, panelX, panelY, panelW, panelH, gameui.PanelBodyColor)
 
@@ -1079,7 +1080,7 @@ func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx Context
 	drawCharCreateButton(screen, ctx, colorX, colorY, colorW, colorH, "^")
 }
 
-func (m *LoginMode) characterCreatePreviewView(ctx Context) *humanoidSpriteView {
+func (m *LoginMode) characterCreatePreviewView(ctx client.Context) *humanoidSpriteView {
 	key := charCreatePreviewKey{sex: ctx.Session.Sex, hairStyle: m.create.hairStyle, hairColor: m.create.hairColor}
 	if m.create.preview != nil && m.create.previewKey == key {
 		return m.create.preview
@@ -1106,7 +1107,7 @@ func (m *LoginMode) characterCreatePreviewView(ctx Context) *humanoidSpriteView 
 	return view
 }
 
-func drawCharacterCreateStats(screen *render.Image, ctx Context, x, y int, stats [6]uint8) {
+func drawCharacterCreateStats(screen *render.Image, ctx client.Context, x, y int, stats [6]uint8) {
 	graphX, graphY := x+204, y+58
 	graphW, graphH := 166, 166
 	gameui.DrawPanelSurface(screen, graphX, graphY, graphW, graphH, gameui.PanelBodyColor)
@@ -1174,7 +1175,7 @@ func charCreateGraphPoints(cx, cy int, radius float64) [createStatCount][2]float
 	return points
 }
 
-func drawCharCreateButton(screen *render.Image, ctx Context, x, y, w, h int, label string) {
+func drawCharCreateButton(screen *render.Image, ctx client.Context, x, y, w, h int, label string) {
 	bg := gameui.ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
 		bg = gameui.ButtonHoverColor
@@ -1182,7 +1183,7 @@ func drawCharCreateButton(screen *render.Image, ctx Context, x, y, w, h int, lab
 	gameui.DrawButtonLabel(screen, x, y, w, h, label, bg, gameui.TextColor)
 }
 
-func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, character session.Character, centerX, feetY int) {
+func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx client.Context, character session.Character, centerX, feetY int) {
 	view := m.characterPreviewView(ctx, character)
 	if view == nil {
 		render.DebugPrintAtColor(screen, "?", centerX-3, feetY-72, color.RGBA{R: 220, G: 220, B: 220, A: 255})
@@ -1205,7 +1206,7 @@ func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx Context, char
 	screen.DrawImage(billboard.image, &opts)
 }
 
-func (m *LoginMode) characterPreviewView(ctx Context, character session.Character) *humanoidSpriteView {
+func (m *LoginMode) characterPreviewView(ctx client.Context, character session.Character) *humanoidSpriteView {
 	if character.ID == 0 {
 		return nil
 	}
@@ -1231,7 +1232,7 @@ func (m *LoginMode) characterPreviewView(ctx Context, character session.Characte
 	return view
 }
 
-func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context, x, y int) {
+func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx client.Context, x, y int) {
 	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
 	panelX, panelY, panelW, panelH := x+16, y+204, 318, 108
 	gameui.DrawPanelSurface(screen, panelX, panelY, panelW, panelH, gameui.PanelBodyColor)
@@ -1254,7 +1255,7 @@ func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx Context,
 	render.DebugPrintAtColor(screen, fmt.Sprintf("LUK %d", character.Luk), panelX+246, panelY+46, text)
 }
 
-func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context, x, y, w, h int) {
+func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx client.Context, x, y, w, h int) {
 	page := charSelectPage(m.selectedSlot)
 	pageCount := maxInt(1, (m.maxSlots+2)/3)
 	statusColor := gameui.MutedTextColor
@@ -1273,7 +1274,7 @@ func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx Context,
 	drawCharSelectButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel", labelColor)
 }
 
-func drawCharSelectButton(screen *render.Image, ctx Context, x, y, w, h int, label string, textColor color.RGBA) {
+func drawCharSelectButton(screen *render.Image, ctx client.Context, x, y, w, h int, label string, textColor color.RGBA) {
 	bg := gameui.ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
 		bg = gameui.ButtonHoverColor
@@ -1295,7 +1296,7 @@ func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused b
 	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, gameui.TextColor)
 }
 
-func (m *LoginMode) loadBackground(ctx Context) {
+func (m *LoginMode) loadBackground(ctx client.Context) {
 	if m.bgLoaded {
 		return
 	}
@@ -1331,7 +1332,7 @@ func (m *LoginMode) loadBackground(ctx Context) {
 	m.bgSource = "fallback"
 }
 
-func (m *LoginMode) loadCharacterSelectSkin(ctx Context) {
+func (m *LoginMode) loadCharacterSelectSkin(ctx client.Context) {
 	if m.charWindow == nil {
 		if img, _, ok := loadLoginBackgroundImage(ctx.Resources, "login_interface/win_select.bmp"); ok {
 			m.charWindow = img
@@ -1344,7 +1345,7 @@ func (m *LoginMode) loadCharacterSelectSkin(ctx Context) {
 	}
 }
 
-func (m *LoginMode) playLoginBGM(ctx Context) {
+func (m *LoginMode) playLoginBGM(ctx client.Context) {
 	if m.bgmStarted || ctx.Audio == nil {
 		return
 	}
@@ -1366,7 +1367,7 @@ func loadLoginBackgroundImage(manager *res.Manager, name string) (*render.Image,
 	return nil, "", false
 }
 
-func loginWindowRect(ctx Context) (int, int, int, int) {
+func loginWindowRect(ctx client.Context) (int, int, int, int) {
 	width, height := ctx.ScreenSize()
 	w, h := 380, 202
 	x := (width - w) / 2
@@ -1395,7 +1396,7 @@ func loginButtonRect(x, y, w int) (int, int, int, int) {
 	return x + w - 126, y + 162, 96, 24
 }
 
-func loginQuitConfirmRect(ctx Context) (int, int, int, int) {
+func loginQuitConfirmRect(ctx client.Context) (int, int, int, int) {
 	width, height := ctx.ScreenSize()
 	w, h := 286, 128
 	x := (width - w) / 2
@@ -1409,17 +1410,17 @@ func loginQuitConfirmRect(ctx Context) (int, int, int, int) {
 	return x, y, w, h
 }
 
-func loginQuitOKRect(ctx Context) (int, int, int, int) {
+func loginQuitOKRect(ctx client.Context) (int, int, int, int) {
 	x, y, w, h := loginQuitConfirmRect(ctx)
 	return x + w - 150, y + h - 36, 56, 23
 }
 
-func loginQuitCancelRect(ctx Context) (int, int, int, int) {
+func loginQuitCancelRect(ctx client.Context) (int, int, int, int) {
 	x, y, w, h := loginQuitConfirmRect(ctx)
 	return x + w - 84, y + h - 36, 66, 23
 }
 
-func charSelectWindowRect(ctx Context) (int, int, int, int) {
+func charSelectWindowRect(ctx client.Context) (int, int, int, int) {
 	width, height := ctx.ScreenSize()
 	w, h := 576, 342
 	x := (width - w) / 2
@@ -1433,7 +1434,7 @@ func charSelectWindowRect(ctx Context) (int, int, int, int) {
 	return x, y, w, h
 }
 
-func charCreateWindowRect(ctx Context) (int, int, int, int) {
+func charCreateWindowRect(ctx client.Context) (int, int, int, int) {
 	return charSelectWindowRect(ctx)
 }
 
@@ -1716,7 +1717,7 @@ func trimLastRune(text string) string {
 	return string(runes[:len(runes)-1])
 }
 
-func (m *LoginMode) connectAndMaybeLogin(ctx Context, conn res.Connection) {
+func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection) {
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, conn.Address, conn.Port)
 	cancel()
@@ -1745,7 +1746,7 @@ func (m *LoginMode) connectAndMaybeLogin(ctx Context, conn res.Connection) {
 	log.Printf("sent CA_LOGIN user=%s version=%d", m.username, conn.Version)
 }
 
-func (m *LoginMode) connectCharServer(ctx Context, server network.CharServer) {
+func (m *LoginMode) connectCharServer(ctx client.Context, server network.CharServer) {
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, server.Address, int(server.Port))
 	cancel()
@@ -1763,7 +1764,7 @@ func (m *LoginMode) connectCharServer(ctx Context, server network.CharServer) {
 	log.Printf("sent CA_ENTER account_id=%d addr=%s port=%d", ctx.Session.AccountID, server.Address, server.Port)
 }
 
-func (m *LoginMode) connectMapServer(ctx Context, zone network.ZoneServerNotify) {
+func (m *LoginMode) connectMapServer(ctx client.Context, zone network.ZoneServerNotify) {
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, zone.Address, int(zone.Port))
 	cancel()

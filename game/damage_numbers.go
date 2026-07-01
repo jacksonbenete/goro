@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"image/color"
 	"log"
 	"math"
@@ -17,7 +18,7 @@ const (
 	damageMsgACT    = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\msg.act"
 )
 
-func (m *WorldMode) damageNumberSprite(ctx Context) *playerSpriteView {
+func (m *WorldMode) damageNumberSprite(ctx client.Context) *playerSpriteView {
 	if m.damageNumberView != nil || m.damageNumberMiss || ctx.Resources == nil {
 		return m.damageNumberView
 	}
@@ -37,7 +38,7 @@ func (m *WorldMode) damageNumberSprite(ctx Context) *playerSpriteView {
 	return view
 }
 
-func (m *WorldMode) damageNumberBillboard(ctx Context, text string) (*spriteBillboard, bool) {
+func (m *WorldMode) damageNumberBillboard(ctx client.Context, text string) (*spriteBillboard, bool) {
 	if text == "" || !allASCIIDigits(text) {
 		return nil, false
 	}
@@ -59,7 +60,7 @@ func (m *WorldMode) damageNumberBillboard(ctx Context, text string) (*spriteBill
 	return billboard, true
 }
 
-func (m *WorldMode) damageMessageSprite(ctx Context) *playerSpriteView {
+func (m *WorldMode) damageMessageSprite(ctx client.Context) *playerSpriteView {
 	if m.damageMsgView != nil || m.damageMsgMiss || ctx.Resources == nil {
 		return m.damageMsgView
 	}
@@ -79,7 +80,7 @@ func (m *WorldMode) damageMessageSprite(ctx Context) *playerSpriteView {
 	return view
 }
 
-func (m *WorldMode) damageMessageBillboard(ctx Context, actionIndex, motion int) (*spriteBillboard, bool) {
+func (m *WorldMode) damageMessageBillboard(ctx client.Context, actionIndex, motion int) (*spriteBillboard, bool) {
 	view := m.damageMessageSprite(ctx)
 	if view == nil || view.act == nil {
 		return nil, false

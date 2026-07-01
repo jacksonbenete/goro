@@ -1,20 +1,23 @@
 package game
 
-import "github.com/kivutar/goro/render"
+import (
+	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/render"
+)
 
 type Mode interface {
 	Name() string
-	Enter(Context)
-	Update(Context) (Mode, error)
-	Draw(Context, *render.Image)
+	Enter(client.Context)
+	Update(client.Context) (Mode, error)
+	Draw(client.Context, *render.Image)
 }
 
 type Manager struct {
-	ctx  Context
+	ctx  client.Context
 	mode Mode
 }
 
-func NewManager(ctx Context, mode Mode) *Manager {
+func NewManager(ctx client.Context, mode Mode) *Manager {
 	m := &Manager{ctx: ctx, mode: mode}
 	if m.mode != nil {
 		m.mode.Enter(ctx)
@@ -22,7 +25,7 @@ func NewManager(ctx Context, mode Mode) *Manager {
 	return m
 }
 
-func (m *Manager) UpdateContext(ctx Context) {
+func (m *Manager) UpdateContext(ctx client.Context) {
 	m.ctx = ctx
 }
 

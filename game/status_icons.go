@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"image/color"
 	"log"
 	"math"
@@ -49,7 +50,7 @@ var statusIconInfos = map[uint16]statusIconInfo{
 	41: {icon: "\xb9\xce\xc3\xb8\xbc\xba\xc1\xf5\xb0\xa1.tga", label: "Movement Speed Potion"},
 }
 
-func (m *WorldMode) applyStatusEffectChange(ctx Context, change network.StatusEffectChange) {
+func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.StatusEffectChange) {
 	if ctx.Session == nil || change.StatusID == 0xFFFF {
 		return
 	}
@@ -79,7 +80,7 @@ func (m *WorldMode) applyStatusEffectChange(ctx Context, change network.StatusEf
 	log.Printf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
 }
 
-func (m *WorldMode) drawStatusIcons(screen *render.Image, ctx Context, now time.Time) {
+func (m *WorldMode) drawStatusIcons(screen *render.Image, ctx client.Context, now time.Time) {
 	if screen == nil || ctx.Session == nil || len(ctx.Session.Statuses.Active) == 0 {
 		return
 	}

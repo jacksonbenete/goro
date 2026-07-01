@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"fmt"
+	"github.com/kivutar/goro/client"
 	"hash/fnv"
 	"image"
 	"image/color"
@@ -230,7 +231,7 @@ func (m *WorldMode) Name() string {
 	return "world"
 }
 
-func (m *WorldMode) Enter(ctx Context) {
+func (m *WorldMode) Enter(ctx client.Context) {
 	m.status = "loading map"
 	now := time.Now()
 	if m.mapFade.phase == mapFadeNone {
@@ -359,7 +360,7 @@ func (m *WorldMode) Enter(ctx Context) {
 	}
 }
 
-func (m *WorldMode) playMapBGM(ctx Context, rswName string) {
+func (m *WorldMode) playMapBGM(ctx client.Context, rswName string) {
 	if ctx.Audio == nil {
 		return
 	}
@@ -374,7 +375,7 @@ func (m *WorldMode) playMapBGM(ctx Context, rswName string) {
 	}
 }
 
-func (m *WorldMode) Update(ctx Context) (Mode, error) {
+func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	now := time.Now()
 	if m.mapFade.phase == mapFadeOut {
 		if !m.mapFadeElapsed(now) {
@@ -914,7 +915,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	return nil, nil
 }
 
-func (m *WorldMode) handleBasicMenuAction(ctx Context) {
+func (m *WorldMode) handleBasicMenuAction(ctx client.Context) {
 	switch m.basicMenu.LastAction() {
 	case "status":
 		m.statsWindow.Toggle(ctx)
@@ -929,7 +930,7 @@ func (m *WorldMode) handleBasicMenuAction(ctx Context) {
 	}
 }
 
-func (m *WorldMode) handleMapChange(ctx Context, change network.MapChange) Mode {
+func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
 	m.teleportModal = gameui.TeleportModal{}
@@ -988,7 +989,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	return next
 }
 
-func (m *WorldMode) nextCharacterSelectMode(ctx Context) *LoginMode {
+func (m *WorldMode) nextCharacterSelectMode(ctx client.Context) *LoginMode {
 	if ctx.Network != nil {
 		ctx.Network.Close()
 	}
@@ -1127,7 +1128,7 @@ func formatPickupConsoleMessage(manager *res.Manager, pickup network.ItemPickupA
 	return template
 }
 
-func sameLoadedMap(ctx Context, mapName string) bool {
+func sameLoadedMap(ctx client.Context, mapName string) bool {
 	if ctx.World == nil || ctx.World.MapName == "" || mapName == "" {
 		return false
 	}
@@ -1137,7 +1138,7 @@ func sameLoadedMap(ctx Context, mapName string) bool {
 	return ctx.World.GND != nil || ctx.World.GAT != nil
 }
 
-func (m *WorldMode) requestWalk(ctx Context, targetX, targetY int, source string) {
+func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source string) {
 	if !walkTargetInBounds(ctx, targetX, targetY) {
 		m.status = fmt.Sprintf("%s walk blocked by map bounds: %d,%d", source, targetX, targetY)
 		m.walkCooldown = 12
@@ -1154,14 +1155,14 @@ func (m *WorldMode) requestWalk(ctx Context, targetX, targetY int, source string
 	}
 }
 
-func shouldUseTurnOnlyGroundClick(ctx Context) bool {
+func shouldUseTurnOnlyGroundClick(ctx client.Context) bool {
 	if ctx.World == nil || ctx.Input == nil {
 		return false
 	}
 	return ctx.World.Player.Sitting || ctx.Input.Pressed(render.KeyShift)
 }
 
-func (m *WorldMode) requestChangeDirection(ctx Context, targetX, targetY int, source string) {
+func (m *WorldMode) requestChangeDirection(ctx client.Context, targetX, targetY int, source string) {
 	if ctx.Network == nil {
 		m.status = "change direction failed: not connected"
 		m.walkCooldown = 30
@@ -1232,7 +1233,7 @@ func normalizeHeadDir(headDir int) int {
 	return headDir
 }
 
-func (m *WorldMode) applyLocalDirection(ctx Context, headDir, dir uint8) {
+func (m *WorldMode) applyLocalDirection(ctx client.Context, headDir, dir uint8) {
 	if ctx.World == nil {
 		return
 	}
@@ -1244,7 +1245,7 @@ func (m *WorldMode) applyLocalDirection(ctx Context, headDir, dir uint8) {
 	}
 }
 
-func (m *WorldMode) requestAttack(ctx Context, actor worldstate.Actor, source string) {
+func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, source string) {
 	if ctx.Network == nil {
 		m.status = "attack request failed: not connected"
 		m.walkCooldown = 30
@@ -1270,7 +1271,7 @@ func (m *WorldMode) requestAttack(ctx Context, actor worldstate.Actor, source st
 	m.requestWalk(ctx, targetX, targetY, source+" attack chase")
 }
 
-func (m *WorldMode) requestNPCTalk(ctx Context, actor worldstate.Actor, source string) {
+func (m *WorldMode) requestNPCTalk(ctx client.Context, actor worldstate.Actor, source string) {
 	if ctx.Network == nil {
 		m.status = "npc talk failed: not connected"
 		m.walkCooldown = 30
@@ -1302,7 +1303,7 @@ func (m *WorldMode) clearLockedAttack() {
 	m.lastChaseAt = time.Time{}
 }
 
-func (m *WorldMode) continuePendingAttack(ctx Context, source string) {
+func (m *WorldMode) continuePendingAttack(ctx client.Context, source string) {
 	if m.pendingAttack.targetID == 0 {
 		return
 	}
@@ -1329,7 +1330,7 @@ func (m *WorldMode) continuePendingAttack(ctx Context, source string) {
 	log.Printf("%s pending attack scheduled target=%d delay_ms=%d", source, actor.ID, maxInt(0, int(m.pendingAttack.readyAt.Sub(now).Milliseconds())))
 }
 
-func (m *WorldMode) processPendingAttack(ctx Context) {
+func (m *WorldMode) processPendingAttack(ctx client.Context) {
 	if m.pendingAttack.targetID == 0 || m.pendingAttack.readyAt.IsZero() {
 		return
 	}
@@ -1358,7 +1359,7 @@ func (m *WorldMode) processPendingAttack(ctx Context) {
 	m.sendAttackAction(ctx, actor, "pending")
 }
 
-func (m *WorldMode) processLockedAttack(ctx Context) {
+func (m *WorldMode) processLockedAttack(ctx client.Context) {
 	if m.lockedAttackID == 0 || ctx.Network == nil {
 		return
 	}
@@ -1411,7 +1412,7 @@ func pendingAttackReadyAt(player worldstate.Actor, now time.Time) time.Time {
 	return readyAt
 }
 
-func (m *WorldMode) sendAttackAction(ctx Context, actor worldstate.Actor, source string) {
+func (m *WorldMode) sendAttackAction(ctx client.Context, actor worldstate.Actor, source string) {
 	if err := ctx.Network.SendActionRequest(actor.ID, network.ActionAttack); err == nil {
 		m.status = fmt.Sprintf("%s attack request: %d", source, actor.ID)
 		m.lastAttackAt = time.Now()
@@ -1423,7 +1424,7 @@ func (m *WorldMode) sendAttackAction(ctx Context, actor worldstate.Actor, source
 	}
 }
 
-func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActionNotify) {
+func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.ActorActionNotify) {
 	log.Printf("actor action src=%d dst=%d skill=%d level=%d damage=%d left_damage=%d hits=%d action=%d src_speed=%d dst_speed=%d tick=%d", action.SourceID, action.TargetID, action.SkillID, action.SkillLevel, action.Damage, action.LeftDamage, action.HitCount, action.Action, action.SourceSpeed, action.TargetSpeed, action.ServerTick)
 	now := time.Now()
 	if action.Action == network.ActorActionPickupItem {
@@ -1481,7 +1482,7 @@ func (m *WorldMode) applyActorActionNotify(ctx Context, action network.ActorActi
 	m.addActionDamageFloaters(action, targetLocal, sourceLocal, x, y, hitAt)
 }
 
-func (m *WorldMode) addSkillEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {
+func (m *WorldMode) addSkillEffect(ctx client.Context, action network.ActorActionNotify, starts time.Time) {
 	if action.SkillID == 0 {
 		return
 	}
@@ -1497,7 +1498,7 @@ func (m *WorldMode) addSkillEffect(ctx Context, action network.ActorActionNotify
 	}
 }
 
-func (m *WorldMode) addSkillBeforeHitEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {
+func (m *WorldMode) addSkillBeforeHitEffect(ctx client.Context, action network.ActorActionNotify, starts time.Time) {
 	if action.SkillID == 0 {
 		return
 	}
@@ -1522,7 +1523,7 @@ func (m *WorldMode) addSkillBeforeHitEffect(ctx Context, action network.ActorAct
 	}
 }
 
-func (m *WorldMode) addSkillHitEffect(ctx Context, action network.ActorActionNotify, starts time.Time) {
+func (m *WorldMode) addSkillHitEffect(ctx client.Context, action network.ActorActionNotify, starts time.Time) {
 	if action.SkillID == 0 || action.Damage == 0 {
 		return
 	}
@@ -1597,7 +1598,7 @@ func (m *WorldMode) addActionDamageFloaters(action network.ActorActionNotify, ta
 	}
 }
 
-func (m *WorldMode) applyActorPickupActionNotify(ctx Context, action network.ActorActionNotify, now time.Time) {
+func (m *WorldMode) applyActorPickupActionNotify(ctx client.Context, action network.ActorActionNotify, now time.Time) {
 	source, sourceOK, sourceLocal := actorForCombatID(ctx, action.SourceID)
 	if !sourceOK {
 		return
@@ -1620,7 +1621,7 @@ func (m *WorldMode) applyActorPickupActionNotify(ctx Context, action network.Act
 	m.startCombatAnimation(ctx, action.SourceID, spriteActionPickup, now, pickupAnimationDuration)
 }
 
-func (m *WorldMode) applyActorSitStandActionNotify(ctx Context, action network.ActorActionNotify) {
+func (m *WorldMode) applyActorSitStandActionNotify(ctx client.Context, action network.ActorActionNotify) {
 	id := action.SourceID
 	if id == 0 {
 		id = action.TargetID
@@ -1676,7 +1677,7 @@ func (m *WorldMode) applyActorHPUpdate(update network.ActorHPUpdate) {
 	log.Printf("actor hp id=%d hp=%d max_hp=%d tiny=%t", update.ID, hp, update.MaxHP, update.Tiny)
 }
 
-func (m *WorldMode) applyCombatLifeFallback(ctx Context, target worldstate.Actor, targetLocal bool, action network.ActorActionNotify, hitAt time.Time) {
+func (m *WorldMode) applyCombatLifeFallback(ctx client.Context, target worldstate.Actor, targetLocal bool, action network.ActorActionNotify, hitAt time.Time) {
 	if targetLocal || !actorCanBeAttackClicked(ctx, target) {
 		return
 	}
@@ -1798,7 +1799,7 @@ var preRenewalMonsterMaxHP = map[int]int{
 	1175: 284,   // Tarou
 }
 
-func actorForCombatID(ctx Context, id uint32) (worldstate.Actor, bool, bool) {
+func actorForCombatID(ctx client.Context, id uint32) (worldstate.Actor, bool, bool) {
 	if ctx.World == nil || id == 0 {
 		return worldstate.Actor{}, false, false
 	}
@@ -1821,7 +1822,7 @@ func actorForCombatID(ctx Context, id uint32) (worldstate.Actor, bool, bool) {
 	return actor, ok, false
 }
 
-func (m *WorldMode) faceCombatSource(ctx Context, source worldstate.Actor, sourceLocal bool, target worldstate.Actor) {
+func (m *WorldMode) faceCombatSource(ctx client.Context, source worldstate.Actor, sourceLocal bool, target worldstate.Actor) {
 	dir := directionFromDelta(source.X, source.Y, target.X, target.Y, source.Dir)
 	if sourceLocal {
 		ctx.World.Player.Dir = dir
@@ -1855,7 +1856,7 @@ func (m *WorldMode) startActorAnimationWithOptions(id uint32, actionFamily int, 
 	}
 }
 
-func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
+func (m *WorldMode) startCombatAnimation(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
 	m.startActorAnimation(id, actionFamily, started, duration)
 	if ctx.Session == nil || !isLocalActor(ctx, id) {
 		return
@@ -1864,7 +1865,7 @@ func (m *WorldMode) startCombatAnimation(ctx Context, id uint32, actionFamily in
 	m.startActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
 }
 
-func (m *WorldMode) startHeldCombatAnimation(ctx Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
+func (m *WorldMode) startHeldCombatAnimation(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
 	m.startHeldActorAnimation(id, actionFamily, started, duration)
 	if ctx.Session == nil || !isLocalActor(ctx, id) {
 		return
@@ -1873,7 +1874,7 @@ func (m *WorldMode) startHeldCombatAnimation(ctx Context, id uint32, actionFamil
 	m.startHeldActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
 }
 
-func (m *WorldMode) clearLocalDeathStateIfAlive(ctx Context) {
+func (m *WorldMode) clearLocalDeathStateIfAlive(ctx client.Context) {
 	if ctx.Session == nil {
 		return
 	}
@@ -1883,7 +1884,7 @@ func (m *WorldMode) clearLocalDeathStateIfAlive(ctx Context) {
 	m.clearLocalDeathState(ctx)
 }
 
-func (m *WorldMode) clearLocalDeathState(ctx Context) {
+func (m *WorldMode) clearLocalDeathState(ctx client.Context) {
 	m.deathModal.Reset()
 	if ctx.Session == nil || m.actorAnims == nil {
 		return
@@ -2091,7 +2092,7 @@ func actionSoundName(act *res.ACT, action res.ACTAction, motion int) string {
 	return sound
 }
 
-func (m *WorldMode) nonPCResolvedAction(ctx Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
+func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return res.ACTAction{}, false
@@ -2100,7 +2101,7 @@ func (m *WorldMode) nonPCResolvedAction(ctx Context, actor worldstate.Actor, act
 	return action, ok
 }
 
-func (m *WorldMode) nonPCActionACT(ctx Context, actor worldstate.Actor) *res.ACT {
+func (m *WorldMode) nonPCActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return nil
@@ -2108,7 +2109,7 @@ func (m *WorldMode) nonPCActionACT(ctx Context, actor worldstate.Actor) *res.ACT
 	return view.act
 }
 
-func (m *WorldMode) actorActionDuration(ctx Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
+func (m *WorldMode) actorActionDuration(ctx client.Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		return fallback
 	}
@@ -2162,7 +2163,7 @@ func (m *WorldMode) scheduleSound(at time.Time, paths ...string) {
 	})
 }
 
-func (m *WorldMode) playDueScheduledSounds(ctx Context, now time.Time) {
+func (m *WorldMode) playDueScheduledSounds(ctx client.Context, now time.Time) {
 	if len(m.scheduledSounds) == 0 {
 		return
 	}
@@ -2177,7 +2178,7 @@ func (m *WorldMode) playDueScheduledSounds(ctx Context, now time.Time) {
 	m.scheduledSounds = active
 }
 
-func (m *WorldMode) processActorMotionSounds(ctx Context, now time.Time) {
+func (m *WorldMode) processActorMotionSounds(ctx client.Context, now time.Time) {
 	if ctx.World == nil || len(ctx.World.Actors) == 0 {
 		return
 	}
@@ -2186,7 +2187,7 @@ func (m *WorldMode) processActorMotionSounds(ctx Context, now time.Time) {
 	}
 }
 
-func (m *WorldMode) processNonPCMotionSound(ctx Context, actor worldstate.Actor, now time.Time) {
+func (m *WorldMode) processNonPCMotionSound(ctx client.Context, actor worldstate.Actor, now time.Time) {
 	if actor.ID == 0 || res.HasPlayerJobToken(int(actor.Job)) || !actorWithinSoundRange(ctx, actor, now) {
 		return
 	}
@@ -2224,7 +2225,7 @@ func (m *WorldMode) processNonPCMotionSound(ctx Context, actor worldstate.Actor,
 	}
 }
 
-func actorWithinSoundRange(ctx Context, actor worldstate.Actor, now time.Time) bool {
+func actorWithinSoundRange(ctx client.Context, actor worldstate.Actor, now time.Time) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -2234,7 +2235,7 @@ func actorWithinSoundRange(ctx Context, actor worldstate.Actor, now time.Time) b
 	return math.Hypot(actorX-playerX, actorY-playerY) <= soundRangeCells
 }
 
-func (m *WorldMode) playSFXFirst(ctx Context, paths ...string) {
+func (m *WorldMode) playSFXFirst(ctx client.Context, paths ...string) {
 	if ctx.Audio == nil {
 		return
 	}
@@ -2264,7 +2265,7 @@ func actionHasHitReaction(action network.ActorActionNotify) bool {
 	return action.Damage > 0 || action.LeftDamage > 0
 }
 
-func (m *WorldMode) applyAttackFailureForDistance(ctx Context, failure network.AttackFailureForDistance) {
+func (m *WorldMode) applyAttackFailureForDistance(ctx client.Context, failure network.AttackFailureForDistance) {
 	attackRange := maxInt(1, failure.AttackRange)
 	log.Printf("attack distance failure target=%d server_player=%d,%d server_target=%d,%d range=%d client_player=%d,%d", failure.TargetID, failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY, attackRange, ctx.World.Player.X, ctx.World.Player.Y)
 	ctx.World.SetPlayerPosition(failure.SourceX, failure.SourceY, ctx.World.Player.Dir)
@@ -2291,7 +2292,7 @@ func (m *WorldMode) applyAttackFailureForDistance(ctx Context, failure network.A
 	}
 }
 
-func applyParameterChange(ctx Context, change network.ParameterChange) {
+func applyParameterChange(ctx client.Context, change network.ParameterChange) {
 	if ctx.Session == nil {
 		return
 	}
@@ -2358,7 +2359,7 @@ func applyParameterChange(ctx Context, change network.ParameterChange) {
 		ctx.Session.Inventory.MaxWeight)
 }
 
-func (m *WorldMode) applyParameterChange(ctx Context, change network.ParameterChange) {
+func (m *WorldMode) applyParameterChange(ctx client.Context, change network.ParameterChange) {
 	if ctx.Session == nil {
 		return
 	}
@@ -2432,7 +2433,7 @@ var statusVisualEffects = map[uint16]statusVisualEffect{
 	},
 }
 
-func (v statusVisualEffect) applyParameterChange(ctx Context, mode *WorldMode, previous int) {
+func (v statusVisualEffect) applyParameterChange(ctx client.Context, mode *WorldMode, previous int) {
 	if v.current == nil || mode == nil || ctx.Session == nil {
 		return
 	}
@@ -2486,7 +2487,7 @@ func recoverSessionSP(s *session.Session, amount int) bool {
 	return true
 }
 
-func (m *WorldMode) applyRecovery(ctx Context, recovery network.Recovery) {
+func (m *WorldMode) applyRecovery(ctx client.Context, recovery network.Recovery) {
 	if ctx.Session == nil || recovery.Amount <= 0 {
 		return
 	}
@@ -2504,7 +2505,7 @@ func (m *WorldMode) applyRecovery(ctx Context, recovery network.Recovery) {
 	log.Printf("recovery status=%d amount=%d hp=%d/%d sp=%d/%d", recovery.StatusID, recovery.Amount, ctx.Session.Vitals.HP, ctx.Session.Vitals.MaxHP, ctx.Session.Vitals.SP, ctx.Session.Vitals.MaxSP)
 }
 
-func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColor color.RGBA, kind damageFloaterKind) {
+func (m *WorldMode) addLocalRecoveryFloater(ctx client.Context, amount int, floaterColor color.RGBA, kind damageFloaterKind) {
 	if ctx.World == nil || amount <= 0 {
 		return
 	}
@@ -2528,7 +2529,7 @@ func (m *WorldMode) addLocalRecoveryFloater(ctx Context, amount int, floaterColo
 	})
 }
 
-func (m *WorldMode) addTargetRecoveryFloater(ctx Context, actorID uint32, amount int, floaterColor color.RGBA, kind damageFloaterKind, now time.Time) {
+func (m *WorldMode) addTargetRecoveryFloater(ctx client.Context, actorID uint32, amount int, floaterColor color.RGBA, kind damageFloaterKind, now time.Time) {
 	if ctx.World == nil || actorID == 0 || amount <= 0 {
 		return
 	}
@@ -2597,7 +2598,7 @@ func attackTargetWithinRange(playerX, playerY, targetX, targetY int) bool {
 	return maxInt(absInt(playerX-targetX), absInt(playerY-targetY)) <= 1
 }
 
-func attackApproachCell(ctx Context, actor worldstate.Actor) (int, int, bool) {
+func attackApproachCell(ctx client.Context, actor worldstate.Actor) (int, int, bool) {
 	bestX, bestY := 0, 0
 	bestDistance := math.Inf(1)
 	for dy := -1; dy <= 1; dy++ {
@@ -2624,7 +2625,7 @@ func attackApproachCell(ctx Context, actor worldstate.Actor) (int, int, bool) {
 	return bestX, bestY, bestDistance < math.Inf(1)
 }
 
-func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	if len(m.damageFloaters) == 0 {
 		return
 	}
@@ -2733,7 +2734,7 @@ func normalizeMapNameForSceneClear(name string) string {
 	}
 }
 
-func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
+func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	projection := m.sceneProjection(ctx, width, height, now)
@@ -2809,7 +2810,7 @@ func (c *followCamera) Reset() {
 	*c = followCamera{}
 }
 
-func (c *followCamera) Update(ctx Context, now time.Time) {
+func (c *followCamera) Update(ctx client.Context, now time.Time) {
 	targetX, targetY, targetZ := playerCameraTarget(ctx.World, now)
 	if !c.initialized {
 		c.x = targetX
@@ -2855,11 +2856,11 @@ func (c *followCamera) ResetRotation() {
 	c.yawOffset = 0
 }
 
-func (c *followCamera) Projection(ctx Context, width, height int, now time.Time) sceneProjection {
+func (c *followCamera) Projection(ctx client.Context, width, height int, now time.Time) sceneProjection {
 	return c.ProjectionWithOffset(ctx, width, height, now, 0, 0)
 }
 
-func (c *followCamera) ProjectionWithOffset(ctx Context, width, height int, now time.Time, offsetX, offsetY float64) sceneProjection {
+func (c *followCamera) ProjectionWithOffset(ctx client.Context, width, height int, now time.Time, offsetX, offsetY float64) sceneProjection {
 	if !c.initialized {
 		c.Update(ctx, now)
 	}
@@ -2872,7 +2873,7 @@ func (c *followCamera) ProjectionWithOffset(ctx Context, width, height int, now 
 	return newSceneProjectionForTargetYawZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, c.currentZoom())
 }
 
-func (c *followCamera) store(ctx Context) {
+func (c *followCamera) store(ctx client.Context) {
 	if ctx.World == nil {
 		return
 	}
@@ -2880,7 +2881,7 @@ func (c *followCamera) store(ctx Context) {
 	ctx.World.Camera.Y = c.y
 }
 
-func (m *WorldMode) sceneProjection(ctx Context, width, height int, now time.Time) sceneProjection {
+func (m *WorldMode) sceneProjection(ctx client.Context, width, height int, now time.Time) sceneProjection {
 	offsetX, offsetY := m.cameraShakeOffset(now)
 	return m.camera.ProjectionWithOffset(ctx, width, height, now, offsetX, offsetY)
 }
@@ -2908,7 +2909,7 @@ func (m *WorldMode) cameraShakeOffset(now time.Time) (float64, float64) {
 	return math.Sin(seconds*120*2*math.Pi) * amplitude, math.Cos(seconds*150*2*math.Pi) * amplitude
 }
 
-func (m *WorldMode) updateCameraRotation(ctx Context) {
+func (m *WorldMode) updateCameraRotation(ctx client.Context) {
 	if cameraRotationLockedForMap(ctx) {
 		m.camera.ResetRotation()
 		return
@@ -2923,7 +2924,7 @@ func (m *WorldMode) updateCameraRotation(ctx Context) {
 	}
 }
 
-func (m *WorldMode) updateCameraZoom(ctx Context) {
+func (m *WorldMode) updateCameraZoom(ctx client.Context) {
 	factor := 1.0
 	if ctx.Input.WheelY != 0 {
 		m.camera.ZoomByDelta(cameraWheelZoomDelta(ctx.Input.WheelY))
@@ -2948,7 +2949,7 @@ func cameraFollowFactor() float64 {
 	return defaultCameraFollowFactor
 }
 
-func cameraYawForMap(ctx Context) float64 {
+func cameraYawForMap(ctx client.Context) float64 {
 	if viewPoint, ok := lockedCameraViewPointForMap(ctx); ok {
 		return -float64(viewPoint.InitialLongitude)
 	}
@@ -2958,7 +2959,7 @@ func cameraYawForMap(ctx Context) float64 {
 	return sceneCameraYaw()
 }
 
-func cameraRotationLockedForMap(ctx Context) bool {
+func cameraRotationLockedForMap(ctx client.Context) bool {
 	if ctx.Resources == nil || ctx.World == nil {
 		return false
 	}
@@ -2968,7 +2969,7 @@ func cameraRotationLockedForMap(ctx Context) bool {
 	return ctx.Resources.IsIndoorMap(ctx.World.MapName)
 }
 
-func lockedCameraViewPointForMap(ctx Context) (res.CameraViewPoint, bool) {
+func lockedCameraViewPointForMap(ctx client.Context) (res.CameraViewPoint, bool) {
 	if ctx.Resources == nil || ctx.World == nil {
 		return res.CameraViewPoint{}, false
 	}
@@ -3037,7 +3038,7 @@ func normalizeCameraYaw(yaw float64) float64 {
 	return yaw
 }
 
-func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
+func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 	if isLocalActor(ctx, entry.ID) {
 		return
 	}
@@ -3071,7 +3072,7 @@ func upsertNetworkActor(ctx Context, entry network.ActorEntry) {
 	})
 }
 
-func (m *WorldMode) applyWarpPortalEntry(ctx Context, entry network.ActorEntry) {
+func (m *WorldMode) applyWarpPortalEntry(ctx client.Context, entry network.ActorEntry) {
 	if !isWarpPortalJob(entry.Job) {
 		return
 	}
@@ -3082,7 +3083,7 @@ func isWarpPortalJob(job int16) bool {
 	return job == 128 || job == 129
 }
 
-func (m *WorldMode) applyActorVanish(ctx Context, vanish network.ActorVanish) {
+func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVanish) {
 	log.Printf("actor vanish id=%d reason=%d", vanish.ID, vanish.Reason)
 	if vanish.Reason == 1 {
 		m.startActorDeath(ctx, vanish.ID)
@@ -3095,7 +3096,7 @@ func (m *WorldMode) applyActorVanish(ctx Context, vanish network.ActorVanish) {
 	delete(m.actorLife, vanish.ID)
 }
 
-func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
+func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 	actor, ok, local := actorForCombatID(ctx, id)
 	if !ok {
 		if !local {
@@ -3144,7 +3145,7 @@ func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
 	log.Printf("actor death id=%d job=%d local=%t action=%d death_ms=%d remove_ms=%d", id, actor.Job, local, actionFamily, deathDuration.Milliseconds(), visibleDuration.Milliseconds())
 }
 
-func (m *WorldMode) cleanupDeadActors(ctx Context, now time.Time) {
+func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 	if len(m.actorDeaths) == 0 || ctx.World == nil {
 		return
 	}
@@ -3200,7 +3201,7 @@ func (m *WorldMode) actorDeathAlpha(id uint32, now time.Time) float64 {
 	return alpha
 }
 
-func applyActorLookChange(ctx Context, look network.ActorLookChange) bool {
+func applyActorLookChange(ctx client.Context, look network.ActorLookChange) bool {
 	if look.ID == 0 {
 		return false
 	}
@@ -3292,7 +3293,7 @@ func actorHasMobObjectType(actor worldstate.Actor) bool {
 	}
 }
 
-func applyActorDirectionChange(ctx Context, direction network.ActorDirectionChange) {
+func applyActorDirectionChange(ctx client.Context, direction network.ActorDirectionChange) {
 	if ctx.World == nil || direction.ID == 0 {
 		return
 	}
@@ -3316,18 +3317,18 @@ func applyActorDirectionChange(ctx Context, direction network.ActorDirectionChan
 	ctx.World.Actors[direction.ID] = actor
 }
 
-func isLocalActor(ctx Context, id uint32) bool {
+func isLocalActor(ctx client.Context, id uint32) bool {
 	return ctx.Session != nil && id != 0 && (id == ctx.Session.AccountID || id == ctx.Session.CharID)
 }
 
-func applySelfMoveAck(ctx Context, ack network.SelfMoveAck) {
+func applySelfMoveAck(ctx client.Context, ack network.SelfMoveAck) {
 	dir := directionFromDelta(ack.FromX, ack.FromY, ack.ToX, ack.ToY, ctx.World.Dir)
 	ctx.World.SetPlayerMovement(ack.FromX, ack.FromY, ack.ToX, ack.ToY, dir)
 	ctx.Session.PlayerX = ack.ToX
 	ctx.Session.PlayerY = ack.ToY
 }
 
-func applyMapAcceptEnter(ctx Context, enter network.MapAcceptEnter) {
+func applyMapAcceptEnter(ctx client.Context, enter network.MapAcceptEnter) {
 	ctx.Session.PlayerX = enter.X
 	ctx.Session.PlayerY = enter.Y
 	ctx.Session.PlayerDir = enter.Dir
@@ -3335,7 +3336,7 @@ func applyMapAcceptEnter(ctx Context, enter network.MapAcceptEnter) {
 	ctx.World.SetPlayerPosition(enter.X, enter.Y, enter.Dir)
 }
 
-func applyWarpPosition(ctx Context, x, y int) {
+func applyWarpPosition(ctx client.Context, x, y int) {
 	dir := ctx.World.Dir
 	if ctx.Session.PlayerDir != 0 {
 		dir = ctx.Session.PlayerDir
@@ -3345,7 +3346,7 @@ func applyWarpPosition(ctx Context, x, y int) {
 	ctx.World.SetPlayerPosition(x, y, dir)
 }
 
-func applyActorSetPosition(ctx Context, position network.ActorSetPosition) {
+func applyActorSetPosition(ctx client.Context, position network.ActorSetPosition) {
 	if isLocalActor(ctx, position.ID) {
 		ctx.World.SetPlayerPosition(position.X, position.Y, ctx.World.Dir)
 		ctx.Session.PlayerX = position.X
@@ -3359,7 +3360,7 @@ func applyActorSetPosition(ctx Context, position network.ActorSetPosition) {
 	})
 }
 
-func applyActorNameAck(ctx Context, ack network.ActorNameAck) {
+func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
 	name := sanitizeActorName(ack.Name)
 	if name == "" || ctx.World == nil {
 		return
@@ -3376,7 +3377,7 @@ func applyActorNameAck(ctx Context, ack network.ActorNameAck) {
 	ctx.World.Actors[ack.ID] = actor
 }
 
-func walkTargetInBounds(ctx Context, x, y int) bool {
+func walkTargetInBounds(ctx client.Context, x, y int) bool {
 	if x < 0 || y < 0 {
 		return false
 	}
@@ -3397,7 +3398,7 @@ func cameraTargetHeightAt(world *worldstate.World, x, y float64) float64 {
 	return terrainHeightAt(world, x, y)
 }
 
-func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY int) (int, int, bool) {
+func clickedWalkTarget(ctx client.Context, projection sceneProjection, mouseX, mouseY int) (int, int, bool) {
 	minX, maxX, minY, maxY, ok := walkTargetSearchBounds(ctx)
 	if !ok {
 		return 0, 0, false
@@ -3425,7 +3426,7 @@ func clickedWalkTarget(ctx Context, projection sceneProjection, mouseX, mouseY i
 	return bestX, bestY, bestDistance < math.Inf(1)
 }
 
-func hoveredWalkCell(ctx Context, projection sceneProjection, mouseX, mouseY int) (int, int, bool) {
+func hoveredWalkCell(ctx client.Context, projection sceneProjection, mouseX, mouseY int) (int, int, bool) {
 	minX, maxX, minY, maxY, ok := walkTargetSearchBounds(ctx)
 	if !ok {
 		return 0, 0, false
@@ -3433,7 +3434,7 @@ func hoveredWalkCell(ctx Context, projection sceneProjection, mouseX, mouseY int
 	return clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY)
 }
 
-func walkTargetSearchBounds(ctx Context) (int, int, int, int, bool) {
+func walkTargetSearchBounds(ctx client.Context) (int, int, int, int, bool) {
 	if ctx.World == nil {
 		return 0, 0, 0, 0, false
 	}
@@ -3452,7 +3453,7 @@ func walkTargetSearchBounds(ctx Context) (int, int, int, int, bool) {
 	return minX, maxX, minY, maxY, minX <= maxX && minY <= maxY
 }
 
-func clickedWalkCellByProjectedPolygon(ctx Context, projection sceneProjection, mouseX, mouseY, minX, maxX, minY, maxY int) (int, int, bool) {
+func clickedWalkCellByProjectedPolygon(ctx client.Context, projection sceneProjection, mouseX, mouseY, minX, maxX, minY, maxY int) (int, int, bool) {
 	if ctx.World == nil || ctx.World.GAT == nil {
 		return 0, 0, false
 	}
@@ -3482,7 +3483,7 @@ func clickedWalkCellByProjectedPolygon(ctx Context, projection sceneProjection, 
 	return bestX, bestY, found
 }
 
-func (m *WorldMode) drawTileCursor(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
 		return
 	}
@@ -3623,7 +3624,7 @@ func screenTriangleSign(x, y float64, a, b screenPoint) float64 {
 	return (x-float64(b.x))*(float64(a.y)-float64(b.y)) - (float64(a.x)-float64(b.x))*(y-float64(b.y))
 }
 
-func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
+func clickedAttackTarget(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
 	if ctx.World == nil {
 		return worldstate.Actor{}, false
 	}
@@ -3654,7 +3655,7 @@ func clickedAttackTarget(ctx Context, projection sceneProjection, mouseX, mouseY
 	return best, bestDistance < math.Inf(1)
 }
 
-func clickedSkillTarget(ctx Context, projection sceneProjection, skill session.Skill, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
+func clickedSkillTarget(ctx client.Context, projection sceneProjection, skill session.Skill, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
 	if ctx.World == nil {
 		return worldstate.Actor{}, false
 	}
@@ -3685,7 +3686,7 @@ func clickedSkillTarget(ctx Context, projection sceneProjection, skill session.S
 	return best, bestDistance < math.Inf(1)
 }
 
-func skillTargetCandidates(ctx Context, skill session.Skill) []worldstate.Actor {
+func skillTargetCandidates(ctx client.Context, skill session.Skill) []worldstate.Actor {
 	if ctx.World == nil {
 		return nil
 	}
@@ -3701,7 +3702,7 @@ func skillTargetCandidates(ctx Context, skill session.Skill) []worldstate.Actor 
 	return candidates
 }
 
-func actorCanBeSkillTargeted(ctx Context, skill session.Skill, actor worldstate.Actor) bool {
+func actorCanBeSkillTargeted(ctx client.Context, skill session.Skill, actor worldstate.Actor) bool {
 	if actor.ID == 0 || isWarpActor(actor) {
 		return false
 	}
@@ -3728,7 +3729,7 @@ func skillTargetFlagsIncludeSelfPick(flags uint32) bool {
 	return flags&(skillTargetFriend|skillTargetSelf) != 0
 }
 
-func skillTargetFlagsForActor(ctx Context, actor worldstate.Actor) (uint32, bool) {
+func skillTargetFlagsForActor(ctx client.Context, actor worldstate.Actor) (uint32, bool) {
 	if actor.ID == 0 || isWarpActor(actor) {
 		return 0, false
 	}
@@ -3753,13 +3754,13 @@ func skillTargetFlagsForActor(ctx Context, actor worldstate.Actor) (uint32, bool
 	return 0, false
 }
 
-func skillTargetMapStateAllowsMismatch(ctx Context, actor worldstate.Actor) bool {
+func skillTargetMapStateAllowsMismatch(ctx client.Context, actor worldstate.Actor) bool {
 	// roBrowser allows target-type mismatches on PvP/GvG maps. Goro does not yet
 	// parse map state packets, so keep the rule isolated until that state exists.
 	return false
 }
 
-func actorCanBeAttackClicked(ctx Context, actor worldstate.Actor) bool {
+func actorCanBeAttackClicked(ctx client.Context, actor worldstate.Actor) bool {
 	if isLocalActor(ctx, actor.ID) {
 		return false
 	}
@@ -3965,7 +3966,7 @@ var monsterShadowSize = map[int]float64{
 	1219: 5.0,
 }
 
-func (m *WorldMode) drawSceneActors(screen *render.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
+func (m *WorldMode) drawSceneActors(screen *render.Image, ctx client.Context, projection sceneProjection) []sceneActorDrawEntry {
 	entries := m.collectSceneActorEntries(screen, ctx, projection)
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -3986,7 +3987,7 @@ type sceneDrawEntry struct {
 	itemIndex   int
 }
 
-func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, projection sceneProjection, fog sceneFog) []sceneActorDrawEntry {
+func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx client.Context, projection sceneProjection, fog sceneFog) []sceneActorDrawEntry {
 	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
@@ -4017,7 +4018,7 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx Context, 
 	return actors
 }
 
-func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx Context, projection sceneProjection, now time.Time, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time, entries []sceneActorDrawEntry) {
 	for _, entry := range entries {
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
@@ -4025,7 +4026,7 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx Context, pr
 	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
-func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx Context, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {
 	if ctx.Input == nil {
 		return
 	}
@@ -4045,7 +4046,7 @@ func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx Co
 	}
 }
 
-func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx Context, projection sceneProjection) []sceneActorDrawEntry {
+func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx client.Context, projection sceneProjection) []sceneActorDrawEntry {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	entries := make([]sceneActorDrawEntry, 0, len(ctx.World.Actors)+1)
@@ -4069,7 +4070,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx Context, 
 	return entries
 }
 
-func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	cameraYaw := projection.cameraYaw
 	if entry.isPlayer {
 		if m.drawPlayerSprite3D(ctx, screen, projection, entry, entry.actor.Dir, cameraYaw, entry.shadow) {
@@ -4256,7 +4257,7 @@ func actorBillboardSortDepth(projection sceneProjection, x, y, z float64) float6
 	return math.Min(footDepth, topDepth)
 }
 
-func actorDisplayName(ctx Context, actor worldstate.Actor, isPlayer bool) string {
+func actorDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool) string {
 	if isPlayer {
 		if name := sanitizeActorName(selectedCharacterName(ctx.Session)); name != "" {
 			return name
@@ -4278,7 +4279,7 @@ func actorDisplayName(ctx Context, actor worldstate.Actor, isPlayer bool) string
 	return ""
 }
 
-func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil || ctx.World == nil {
 		return
 	}
@@ -4300,7 +4301,7 @@ func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx Context,
 	drawActorNameLabel(screen, label, float64(point.x), float64(point.y), scale, actorNameLabelColor(actor, isLocalActor(ctx, actor.ID)))
 }
 
-func (m *WorldMode) hoveredActorDisplayName(ctx Context, actor worldstate.Actor, now time.Time) string {
+func (m *WorldMode) hoveredActorDisplayName(ctx client.Context, actor worldstate.Actor, now time.Time) string {
 	if isLocalActor(ctx, actor.ID) {
 		return actorDisplayName(ctx, actor, true)
 	}
@@ -4326,7 +4327,7 @@ func (m *WorldMode) hoveredActorDisplayName(ctx Context, actor worldstate.Actor,
 	return "Entity"
 }
 
-func actorResourceDisplayName(ctx Context, actor worldstate.Actor) string {
+func actorResourceDisplayName(ctx client.Context, actor worldstate.Actor) string {
 	if ctx.Resources == nil {
 		return ""
 	}
@@ -4336,7 +4337,7 @@ func actorResourceDisplayName(ctx Context, actor worldstate.Actor) string {
 	return ""
 }
 
-func (m *WorldMode) requestActorName(ctx Context, id uint32, now time.Time) {
+func (m *WorldMode) requestActorName(ctx client.Context, id uint32, now time.Time) {
 	if id == 0 || ctx.Network == nil || isLocalActor(ctx, id) {
 		return
 	}
@@ -4470,7 +4471,7 @@ func actorNameBelowLifeBarY(baseY, scale float64, life actorLife) float64 {
 	return actorLifeBarY(baseY, scale) + actorLifeBarHeight(life) + 3
 }
 
-func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx client.Context, entry sceneActorDrawEntry) {
 	life, ok := m.actorLifeForDisplay(ctx, entry.actor)
 	if !ok {
 		return
@@ -4514,7 +4515,7 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx Context, entry sc
 	}
 }
 
-func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (actorLife, bool) {
+func (m *WorldMode) actorLifeForDisplay(ctx client.Context, actor worldstate.Actor) (actorLife, bool) {
 	if actor.ID == 0 {
 		return actorLife{}, false
 	}
@@ -4537,7 +4538,7 @@ func (m *WorldMode) actorLifeForDisplay(ctx Context, actor worldstate.Actor) (ac
 	return life, true
 }
 
-func localPlayerLifeForDisplay(ctx Context) (actorLife, bool) {
+func localPlayerLifeForDisplay(ctx client.Context) (actorLife, bool) {
 	if ctx.Session == nil {
 		return actorLife{}, false
 	}
@@ -4568,7 +4569,7 @@ func localPlayerLifeForDisplay(ctx Context) (actorLife, bool) {
 	}, true
 }
 
-func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
 	actor := entry.actor
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return m.drawNonPCSprite3D(screen, ctx, projection, entry, cameraYaw, shadow)
@@ -4641,7 +4642,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, project
 	return true
 }
 
-func (m *WorldMode) drawNonPCSprite3D(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawNonPCSprite3D(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
 	actor := entry.actor
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
@@ -4683,7 +4684,7 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 	return state
 }
 
-func (m *WorldMode) nonPCSpriteView(ctx Context, actor worldstate.Actor) *playerSpriteView {
+func (m *WorldMode) nonPCSpriteView(ctx client.Context, actor worldstate.Actor) *playerSpriteView {
 	job := int(actor.Job)
 	if _, ok := m.nonPCViewMiss[job]; ok {
 		return nil

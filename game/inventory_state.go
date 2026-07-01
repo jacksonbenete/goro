@@ -1,12 +1,13 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 )
 
-func applyInventoryItemList(ctx Context, items []network.InventoryItem) {
+func applyInventoryItemList(ctx client.Context, items []network.InventoryItem) {
 	if ctx.Session == nil {
 		return
 	}
@@ -16,7 +17,7 @@ func applyInventoryItemList(ctx Context, items []network.InventoryItem) {
 	rebuildLocalEquipmentAppearance(ctx)
 }
 
-func applyStorageItemList(ctx Context, items []network.InventoryItem) {
+func applyStorageItemList(ctx client.Context, items []network.InventoryItem) {
 	if ctx.Session == nil {
 		return
 	}
@@ -26,7 +27,7 @@ func applyStorageItemList(ctx Context, items []network.InventoryItem) {
 	}
 }
 
-func applyStorageAmount(ctx Context, amount network.StorageAmount) {
+func applyStorageAmount(ctx client.Context, amount network.StorageAmount) {
 	if ctx.Session == nil {
 		return
 	}
@@ -35,7 +36,7 @@ func applyStorageAmount(ctx Context, amount network.StorageAmount) {
 	ctx.Session.Storage.MaxAmount = int(amount.MaxAmount)
 }
 
-func applyStorageItemAdded(ctx Context, item network.InventoryItem) {
+func applyStorageItemAdded(ctx client.Context, item network.InventoryItem) {
 	if ctx.Session == nil {
 		return
 	}
@@ -43,11 +44,11 @@ func applyStorageItemAdded(ctx Context, item network.InventoryItem) {
 	addOrReplaceSessionStorageItem(ctx.Session, sessionItemFromNetwork(item))
 }
 
-func applyStorageItemRemoved(ctx Context, item network.StorageItemRemoved) {
+func applyStorageItemRemoved(ctx client.Context, item network.StorageItemRemoved) {
 	removeSessionStorageItem(ctx.Session, item.Index, int(item.Amount))
 }
 
-func applyStorageClosed(ctx Context) {
+func applyStorageClosed(ctx client.Context) {
 	if ctx.Session == nil {
 		return
 	}
@@ -57,12 +58,12 @@ func applyStorageClosed(ctx Context) {
 	ctx.Session.Storage.MaxAmount = 0
 }
 
-func applyInventoryItemDelete(ctx Context, item network.InventoryItemDelete) {
+func applyInventoryItemDelete(ctx client.Context, item network.InventoryItemDelete) {
 	removeSessionInventoryItem(ctx.Session, item.Index, int(item.Amount))
 	rebuildLocalEquipmentAppearance(ctx)
 }
 
-func applyUseItemAck(ctx Context, ack network.UseItemAck) {
+func applyUseItemAck(ctx client.Context, ack network.UseItemAck) {
 	if ack.Result == 0 {
 		return
 	}
@@ -122,7 +123,7 @@ func addOrReplaceSessionStorageItem(s *session.Session, item session.InventoryIt
 	s.Storage.Items = append(s.Storage.Items, item)
 }
 
-func applyInventoryEquipAck(ctx Context, ack network.InventoryEquipAck) {
+func applyInventoryEquipAck(ctx client.Context, ack network.InventoryEquipAck) {
 	if ctx.Session == nil || !ack.Success || ack.Index == 0 {
 		return
 	}
@@ -142,7 +143,7 @@ func applyInventoryEquipAck(ctx Context, ack network.InventoryEquipAck) {
 	rebuildLocalEquipmentAppearance(ctx)
 }
 
-func rebuildLocalEquipmentAppearance(ctx Context) {
+func rebuildLocalEquipmentAppearance(ctx client.Context) {
 	if ctx.Session == nil {
 		return
 	}
@@ -182,7 +183,7 @@ func rebuildLocalEquipmentAppearance(ctx Context) {
 	updateLocalWeaponAppearance(ctx, weapon, shield)
 }
 
-func updateLocalWeaponAppearance(ctx Context, weapon, shield int) {
+func updateLocalWeaponAppearance(ctx client.Context, weapon, shield int) {
 	if ctx.Session == nil {
 		return
 	}

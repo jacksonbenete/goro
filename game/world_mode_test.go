@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"image/color"
 	"math"
 	"os"
@@ -28,7 +29,7 @@ func TestApplyLocalActorLookChangeUpdatesSelectedCharacter(t *testing.T) {
 			{ID: 200, Job: 0, Hair: 1},
 		},
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Session: sessionState,
 		World:   worldstate.New(),
 	}
@@ -54,7 +55,7 @@ func TestApplyLocalActorLookChangeUpdatesSelectedCharacter(t *testing.T) {
 
 func TestApplyStatusEffectChangeTracksLocalStatus(t *testing.T) {
 	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 	mode := &WorldMode{}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
@@ -84,7 +85,7 @@ func TestApplyStatusEffectChangeTracksLocalStatus(t *testing.T) {
 
 func TestApplyStatusEffectChangeIgnoresRemoteActor(t *testing.T) {
 	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 	mode := &WorldMode{}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
@@ -112,7 +113,7 @@ func TestVisibleStatusIconIDsAreKnownAndSorted(t *testing.T) {
 func TestApplyRemoteActorLookChangeUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 0, Head: 1, Appearance: true})
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 100, CharID: 200},
 		World:   world,
 	}
@@ -239,7 +240,7 @@ func TestClickedAttackTargetPicksMobOnly(t *testing.T) {
 		ObjectType:    6,
 		HasObjectType: true,
 	})
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 100, CharID: 200},
 		World:   world,
 	}
@@ -279,7 +280,7 @@ func TestClickedSkillTargetUsesRobrowserTargetFlags(t *testing.T) {
 		ObjectType:    actorObjectTypePC,
 		HasObjectType: true,
 	})
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 100, CharID: 200},
 		World:   world,
 	}
@@ -341,7 +342,7 @@ func TestClickedSkillTargetNoShiftAllowsSupportOnEnemies(t *testing.T) {
 		ObjectType:    actorObjectTypeMob,
 		HasObjectType: true,
 	})
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 100, CharID: 200, NoShift: true},
 		World:   world,
 	}
@@ -374,7 +375,7 @@ func TestAttackApproachCellChoosesClosestWalkableNeighbor(t *testing.T) {
 	for i := range world.GAT.Cells {
 		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
 	}
-	ctx := Context{World: world}
+	ctx := client.Context{World: world}
 	actor := worldstate.Actor{ID: 300, X: 116, Y: 303}
 
 	x, y, ok := attackApproachCell(ctx, actor)
@@ -411,7 +412,7 @@ func TestContinuePendingAttackSchedulesDelayedAction(t *testing.T) {
 			expires:  time.Now().Add(time.Second),
 		},
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 100, CharID: 200},
 		World:   world,
 	}
@@ -485,7 +486,7 @@ func TestApplyParameterChangeUpdatesVitals(t *testing.T) {
 		Selected: session.Character{HP: 70, MaxHP: 100, SP: 20, MaxSP: 30},
 		Vitals:   session.Vitals{HP: 70, MaxHP: 100, SP: 20, MaxSP: 30},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusHP, Value: 42})
 	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusMaxSP, Value: 55})
@@ -507,7 +508,7 @@ func TestWorldModeParameterChangeRecoveryFeedback(t *testing.T) {
 		Vitals:    session.Vitals{HP: 70, MaxHP: 100, SP: 20, MaxSP: 30},
 	}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusHP, Value: 85})
 
@@ -534,7 +535,7 @@ func TestApplyRecoveryUpdatesHPAndAddsBlueFloater(t *testing.T) {
 		Vitals:    session.Vitals{HP: 70, MaxHP: 100},
 	}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applyRecovery(ctx, network.Recovery{StatusID: network.StatusHP, Amount: 12})
 
@@ -563,7 +564,7 @@ func TestApplyParameterChangeUpdatesProgress(t *testing.T) {
 			BaseLevel: 4,
 		},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusBaseExp, Value: 123})
 	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusNextBaseExp, Value: 1000})
@@ -585,7 +586,7 @@ func TestApplyParameterChangeUpdatesProgress(t *testing.T) {
 
 func TestApplyParameterChangeUpdatesInventory(t *testing.T) {
 	sessionState := &session.Session{}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusZeny, Value: 1234567})
 	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusWeight, Value: 240})
@@ -649,7 +650,7 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 		HasObjectType: true,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 2000000,
 			CharID:    150000,
@@ -713,7 +714,7 @@ func TestApplyActorActionNotifyAddsBashHitEffect(t *testing.T) {
 		HasObjectType: true,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 1, Hair: 1}},
 		World:   world,
 	}
@@ -1011,8 +1012,8 @@ func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
 	}
 	mode := &WorldMode{}
 	effect := worldEffect{effectID: effectBashHit, actorID: 300, starts: time.Unix(10, 20)}
-	startX, startY, _ := mode.effect3DOffset(Context{}, spec.components[0], effect, 0, 0, 0, 0, 0, 0)
-	endX, endY, _ := mode.effect3DOffset(Context{}, spec.components[0], effect, 0, 0, 1, 0, 0, 0)
+	startX, startY, _ := mode.effect3DOffset(client.Context{}, spec.components[0], effect, 0, 0, 0, 0, 0, 0)
+	endX, endY, _ := mode.effect3DOffset(client.Context{}, spec.components[0], effect, 0, 0, 1, 0, 0, 0)
 	if math.Hypot(endX, endY) <= math.Hypot(startX, startY) {
 		t.Fatalf("circle pattern does not move outward: start=(%.2f,%.2f) end=(%.2f,%.2f)", startX, startY, endX, endY)
 	}
@@ -1057,7 +1058,7 @@ func TestSightEffectSpecOrbitsAroundActor(t *testing.T) {
 	if component.sizeStart != 60*roBrowserEffectPixelRatio || component.sizeEnd != 80*roBrowserEffectPixelRatio {
 		t.Fatalf("sight orbit size = %.3f -> %.3f", component.sizeStart, component.sizeEnd)
 	}
-	ctx := Context{}
+	ctx := client.Context{}
 	effect := worldEffect{effectID: effectSight, actorID: 2000000}
 	mode := &WorldMode{}
 	x0, y0, _ := mode.effect3DOffset(ctx, component, effect, 0, 0, 0, 0, 0, 0)
@@ -1075,7 +1076,7 @@ func TestFireBallSpriteRotationUsesProjectedTrajectory(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	world.UpsertActor(worldstate.Actor{ID: 300, X: 12, Y: 20})
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -1170,7 +1171,7 @@ func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 		HasObjectType: true,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -1238,7 +1239,7 @@ func TestActorActionNotifyDispatchesAllMappedCombatEffectArrays(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.UpsertActor(worldstate.Actor{ID: 300, X: 11, Y: 20, Job: 1002, ObjectType: actorObjectTypeMob, HasObjectType: true})
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
 
 	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
 		SkillID:     skillID,
@@ -1364,7 +1365,7 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.UpsertActor(worldstate.Actor{ID: 1100, X: 12, Y: 20})
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
 
 	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: 20, Property: 4, DelayTime: 2500})
 
@@ -1395,7 +1396,7 @@ func TestSkillCastEffectsDedupeServerAndLocalFallback(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	start := time.Now()
 	mode.addSkillCastEffects(ctx, 19, 3, 2000000, 1100, 0, 0, 2800*time.Millisecond, start, "local")
@@ -1414,7 +1415,7 @@ func TestSkillResultAnimationReplacesCastStance(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 4, Dir: 4}
 	world.UpsertActor(worldstate.Actor{ID: 1100, X: 12, Y: 20})
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
 
 	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: 28, DelayTime: 1200})
 	if anim, ok := mode.actorAnims[150000]; !ok || anim.actionFamily != spriteActionPCReadyFight {
@@ -1435,7 +1436,7 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	start := time.Now()
 	mode.addSkillCastEffects(ctx, 21, 4, 2000000, 0, 123, 456, 1800*time.Millisecond, start, "local-ground")
@@ -1456,7 +1457,7 @@ func TestLocalGroundSkillCastFallbackFacesCellAndStartsCastAnimation(t *testing.
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 150000, X: 10, Y: 20, Dir: 4}
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
 		World:   world,
 	}
@@ -1547,7 +1548,7 @@ func TestTeleportModalRules(t *testing.T) {
 
 func TestWarpPortalListOpensDestinationModal(t *testing.T) {
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{Skills: session.Skills{List: []session.Skill{
+	ctx := client.Context{Session: &session.Session{Skills: session.Skills{List: []session.Skill{
 		{ID: 27, Level: 4, Type: skillTargetPlace, Range: 9},
 	}}}}
 	mode.applyWarpPointList(ctx, network.WarpPointList{SkillID: 27, MapNames: []string{"prontera", "geffen", "payon"}})
@@ -1603,7 +1604,7 @@ func TestQuakeMagnumEffectStartsCameraShake(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	starts := time.Unix(100, 0)
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	if !mode.addWorldEffectAt(ctx, effectQuakeMagnum, 2000000, starts) {
 		t.Fatal("add quake magnum effect failed")
@@ -2075,7 +2076,7 @@ func TestWorldEffectOrbitReplacesBasePositionLikeRobrowser(t *testing.T) {
 		orbitPhase:     0.7,
 		orbitClockwise: true,
 	}
-	x, y, _ := (&WorldMode{}).effect3DOffset(Context{}, component, worldEffect{}, 0, 0, 0, 0, 0, 0)
+	x, y, _ := (&WorldMode{}).effect3DOffset(client.Context{}, component, worldEffect{}, 0, 0, 0, 0, 0, 0)
 	angle := -0.7 * math.Pi / 2
 	wantX := -math.Cos(angle) * 3
 	wantY := math.Sin(angle) * 3
@@ -2231,7 +2232,7 @@ func TestSpecialEffectNotifyAddsLevelUpEffects(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: network.SpecialEffectBaseLevelUp})
 	mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: network.SpecialEffectJobLevelUp})
@@ -2258,7 +2259,7 @@ func TestParameterChangeLevelUpFallbackIsDeduped(t *testing.T) {
 		Progress:  session.Progress{BaseLevel: 10, JobLevel: 4},
 	}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusBaseLevel, Value: 11})
 	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusBaseLevel, Value: 11})
@@ -2280,7 +2281,7 @@ func TestSpecialEffectNotifyDedupesParameterLevelUpFallback(t *testing.T) {
 		Progress:  session.Progress{JobLevel: 21},
 	}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusJobLevel, Value: 22})
 	mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: network.SpecialEffectJobLevelUp})
@@ -2300,7 +2301,7 @@ func TestWarpPortalActorEntryAddsPortalEffect(t *testing.T) {
 	world := worldstate.New()
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 	entry := network.ActorEntry{ID: 900, Job: 128, X: 30, Y: 40}
 
 	upsertNetworkActor(ctx, entry)
@@ -2319,7 +2320,7 @@ func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Moving: true}
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -2348,7 +2349,7 @@ func TestApplyActorActionNotifyUpdatesRemoteSitState(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, X: 10, Y: 20, Moving: true})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -2378,7 +2379,7 @@ func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testi
 		pickupReqItemID: 9001,
 		actorAnims:      make(map[uint32]actorAnimation),
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 2000000,
 			CharID:    150000,
@@ -2411,7 +2412,7 @@ func TestApplyActorPickupActionNotifyStartsPickupInsteadOfAttack(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.UpsertItem(worldstate.FloorItem{ID: 9001, ItemID: 909, X: 11, Y: 20, Amount: 1})
 	mode := &WorldMode{actorAnims: make(map[uint32]actorAnimation)}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 2000000,
 			CharID:    150000,
@@ -2465,7 +2466,7 @@ func TestCombatLifeFallbackDoesNotSubtractRawDamageFromTinyHPGauge(t *testing.T)
 		ObjectType:    actorObjectTypeMob,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -2501,7 +2502,7 @@ func TestCombatLifeFallbackUsesEstimatedRedPlantMaxHPWithoutHPPacket(t *testing.
 		ObjectType:    actorObjectTypeMob,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -2536,7 +2537,7 @@ func TestCombatLifeFallbackSubtractsRawDamageFromExactHPGauge(t *testing.T) {
 		ObjectType:    actorObjectTypeMob,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -2562,7 +2563,7 @@ func TestCombatLifeFallbackSubtractsRawDamageFromExactHPGauge(t *testing.T) {
 
 func TestActorLifeForDisplayUsesLocalPlayerHPAndSP(t *testing.T) {
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 2000000,
 			CharID:    150000,
@@ -2672,7 +2673,7 @@ func TestApplyActorActionNotifyUsesMobACTHitPhase(t *testing.T) {
 			},
 		},
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 2000000,
 			CharID:    150000,
@@ -2737,7 +2738,7 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 			},
 		},
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000}},
 		World:   world,
 	}
@@ -2787,7 +2788,7 @@ func TestMobLookChangeToPlayerJobDoesNotChangeDeathSpriteFamily(t *testing.T) {
 		Appearance:    true,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
 	}
@@ -2814,7 +2815,7 @@ func TestPendingSkillTargetCancelWithEscape(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetKey(input.KeyEscape, true)
 
-	if !mode.skills().CancelFromInput(Context{Input: inputState}) {
+	if !mode.skills().CancelFromInput(client.Context{Input: inputState}) {
 		t.Fatal("pending skill target was not canceled")
 	}
 	if mode.pendingSkill.skill.ID != 0 {
@@ -2829,7 +2830,7 @@ func TestBasicMenuOptionOpensEscapeMenu(t *testing.T) {
 	mode := &WorldMode{}
 	mode.basicMenu.SetLastAction("option")
 
-	mode.handleBasicMenuAction(Context{})
+	mode.handleBasicMenuAction(client.Context{})
 
 	if !mode.escapeMenu.IsOpen() {
 		t.Fatal("escape menu did not open")
@@ -2852,7 +2853,7 @@ func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetMouseButton(input.MouseButtonRight, true)
 
-	if !mode.skills().CancelFromInput(Context{Input: inputState}) {
+	if !mode.skills().CancelFromInput(client.Context{Input: inputState}) {
 		t.Fatal("pending skill target was not canceled")
 	}
 	if mode.pendingSkill.skill.ID != 0 {
@@ -2864,7 +2865,7 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 2000000,
 			CharID:    150000,
@@ -2958,7 +2959,7 @@ func TestProcessNonPCMotionSoundSchedulesIdleACTSound(t *testing.T) {
 			},
 		},
 	}
-	ctx := Context{World: world}
+	ctx := client.Context{World: world}
 
 	mode.processNonPCMotionSound(ctx, actor, now)
 	mode.processNonPCMotionSound(ctx, actor, now)
@@ -2985,7 +2986,7 @@ func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 		MoveStarted:  now.Add(-750 * time.Millisecond),
 		MoveDuration: 1500 * time.Millisecond,
 	}
-	ctx := Context{World: world}
+	ctx := client.Context{World: world}
 
 	camera := followCamera{}
 	camera.Update(ctx, now)
@@ -3001,7 +3002,7 @@ func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 func TestFollowCameraInterpolatesTowardPlayerLikeReferenceView(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{X: 10, Y: 20}
-	ctx := Context{World: world}
+	ctx := client.Context{World: world}
 
 	camera := followCamera{}
 	now := time.Now()
@@ -3079,7 +3080,7 @@ func TestCameraYawForIndoorMapIsLocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Resources: manager,
 		World:     &worldstate.World{MapName: "geffen_in"},
 	}
@@ -3105,7 +3106,7 @@ func TestCameraYawForFixedViewPointMapIsLocked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Resources: manager,
 		World:     &worldstate.World{MapName: "fixed_view"},
 	}
@@ -3127,7 +3128,7 @@ func TestCameraYawForFixedViewPointMapIsLocked(t *testing.T) {
 func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "prontera"
-	ctx := Context{World: world}
+	ctx := client.Context{World: world}
 	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0}
 
 	camera.Rotate(90)
@@ -3156,7 +3157,7 @@ func TestFollowCameraProjectionKeepsIndoorBaseYaw(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := Context{
+	ctx := client.Context{
 		Resources: manager,
 		World:     &worldstate.World{MapName: "geffen_in"},
 	}
@@ -3191,7 +3192,7 @@ func TestCameraRotationIsDisabledOnIndoorMap(t *testing.T) {
 	inputState.SetMousePosition(200, 100)
 	mode := &WorldMode{}
 	mode.camera.Rotate(90)
-	ctx := Context{
+	ctx := client.Context{
 		Resources: manager,
 		World:     &worldstate.World{MapName: "geffen_in"},
 		Input:     inputState,
@@ -3264,7 +3265,7 @@ func TestCameraPinchZoomFactorZoomsInWhenFingersSpread(t *testing.T) {
 
 func TestFollowCameraZoomIsClampedAndProjected(t *testing.T) {
 	world := worldstate.New()
-	ctx := Context{World: world}
+	ctx := client.Context{World: world}
 	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0}
 
 	camera.ZoomBy(0.1)
@@ -3582,7 +3583,7 @@ func TestClickedWalkCellByProjectedPolygonUsesWalkableGATCell(t *testing.T) {
 	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
-	x, y, ok := clickedWalkCellByProjectedPolygon(Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
+	x, y, ok := clickedWalkCellByProjectedPolygon(client.Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
 	if !ok || x != 6 || y != 5 {
 		t.Fatalf("clicked cell = %d,%d ok=%t, want 6,5 true", x, y, ok)
 	}
@@ -3601,7 +3602,7 @@ func TestClickedWalkCellByProjectedPolygonSkipsBlockedGATCell(t *testing.T) {
 	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
-	_, _, ok := clickedWalkCellByProjectedPolygon(Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
+	_, _, ok := clickedWalkCellByProjectedPolygon(client.Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
 	if ok {
 		t.Fatal("blocked cell should not be picked")
 	}
@@ -3622,11 +3623,11 @@ func TestHoveredWalkCellRequiresProjectedWalkableCell(t *testing.T) {
 	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
-	x, y, ok := hoveredWalkCell(Context{World: world}, projection, int(point.x), int(point.y))
+	x, y, ok := hoveredWalkCell(client.Context{World: world}, projection, int(point.x), int(point.y))
 	if !ok || x != 6 || y != 5 {
 		t.Fatalf("hovered cell = %d,%d ok=%t, want 6,5 true", x, y, ok)
 	}
-	if _, _, ok := hoveredWalkCell(Context{World: world}, projection, -10000, -10000); ok {
+	if _, _, ok := hoveredWalkCell(client.Context{World: world}, projection, -10000, -10000); ok {
 		t.Fatal("hover should not fall back to nearest cell outside the projected map")
 	}
 }
@@ -3652,7 +3653,7 @@ func TestTileCursorCellVertsUseGATHeightsWithLift(t *testing.T) {
 func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Job: 1002})
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 100, CharID: 200},
 		World:   world,
 	}
@@ -3666,7 +3667,7 @@ func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 
 func TestApplyActorNameAckUpdatesLocalPlayer(t *testing.T) {
 	world := worldstate.New()
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 100, CharID: 200},
 		World:   world,
 	}
@@ -3684,7 +3685,7 @@ func TestHandleMapChangeSameServerUpdatesMapAndResetsActors(t *testing.T) {
 	world.SetPlayerPosition(10, 20, 4)
 	world.UpsertActor(worldstate.Actor{ID: 300, Name: "Remote", X: 11, Y: 20})
 	sessionState := &session.Session{AccountID: 100, CharID: 200, PlayerDir: 4}
-	ctx := Context{
+	ctx := client.Context{
 		Session: sessionState,
 		World:   world,
 	}
@@ -3712,7 +3713,7 @@ func TestHandleMapChangeSameLoadedMapReusesModeAndSnapsCamera(t *testing.T) {
 	world.SetPlayerPosition(10, 20, 4)
 	world.UpsertActor(worldstate.Actor{ID: 300, Name: "Remote", X: 11, Y: 20})
 	sessionState := &session.Session{AccountID: 100, CharID: 200, PlayerDir: 4}
-	ctx := Context{
+	ctx := client.Context{
 		Session: sessionState,
 		World:   world,
 	}
@@ -3735,7 +3736,7 @@ func TestHandleMapChangeSameLoadedMapReusesModeAndSnapsCamera(t *testing.T) {
 }
 
 func TestActorDisplayNameUsesSelectedCharacterForPlayer(t *testing.T) {
-	ctx := Context{Session: &session.Session{CharID: 200, Selected: session.Character{ID: 200, Name: "Kivutar"}}}
+	ctx := client.Context{Session: &session.Session{CharID: 200, Selected: session.Character{ID: 200, Name: "Kivutar"}}}
 
 	if got := actorDisplayName(ctx, worldstate.Actor{Name: "Player"}, true); got != "Kivutar" {
 		t.Fatalf("display name = %q, want Kivutar", got)
@@ -3743,7 +3744,7 @@ func TestActorDisplayNameUsesSelectedCharacterForPlayer(t *testing.T) {
 }
 
 func TestActorDisplayNameUsesServerNameBeforeFallback(t *testing.T) {
-	ctx := Context{Resources: &res.Manager{}}
+	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Name: "Kafra Employee#izlude", Job: 1002}
 
 	if got := actorDisplayName(ctx, actor, false); got != "Kafra Employee" {
@@ -3752,7 +3753,7 @@ func TestActorDisplayNameUsesServerNameBeforeFallback(t *testing.T) {
 }
 
 func TestActorDisplayNameFallsBackToNonPCResource(t *testing.T) {
-	ctx := Context{Resources: &res.Manager{}}
+	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Job: 1002}
 
 	if got := actorDisplayName(ctx, actor, false); got != "Poring" {
@@ -3761,7 +3762,7 @@ func TestActorDisplayNameFallsBackToNonPCResource(t *testing.T) {
 }
 
 func TestActorDisplayNameDoesNotLabelUnnamedPlayerJob(t *testing.T) {
-	ctx := Context{Resources: &res.Manager{}}
+	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Job: 0}
 
 	if got := actorDisplayName(ctx, actor, false); got != "" {
@@ -3770,7 +3771,7 @@ func TestActorDisplayNameDoesNotLabelUnnamedPlayerJob(t *testing.T) {
 }
 
 func TestHoveredActorDisplayNameUsesServerNameForNPC(t *testing.T) {
-	ctx := Context{Resources: &res.Manager{}}
+	ctx := client.Context{Resources: &res.Manager{}}
 	mode := &WorldMode{}
 	actor := worldstate.Actor{
 		Job:           84,
@@ -3788,7 +3789,7 @@ func TestHoveredActorDisplayNameUsesServerNameForNPC(t *testing.T) {
 }
 
 func TestHoveredActorDisplayNameUsesServerNameForMonster(t *testing.T) {
-	ctx := Context{Resources: &res.Manager{}}
+	ctx := client.Context{Resources: &res.Manager{}}
 	mode := &WorldMode{}
 	actor := worldstate.Actor{
 		Job:           1002,
@@ -3855,7 +3856,7 @@ func TestFormatPickupConsoleMessageFallback(t *testing.T) {
 }
 
 func TestActorDisplayNameDoesNotLabelWarpPortal(t *testing.T) {
-	ctx := Context{Resources: &res.Manager{}}
+	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Job: actorJobWarpPortal}
 
 	if got := actorDisplayName(ctx, actor, false); got != "" {
@@ -3898,7 +3899,7 @@ func TestApplyInventoryItemListReplacesExistingAmount(t *testing.T) {
 			Items: []session.InventoryItem{{Index: 7, ItemID: 938, Amount: 3}},
 		},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyInventoryItemList(ctx, []network.InventoryItem{{
 		Index:      7,
@@ -3922,7 +3923,7 @@ func TestInventoryItemDeleteDecrementsAndRemoves(t *testing.T) {
 			Items: []session.InventoryItem{{Index: 7, ItemID: 938, Amount: 3}},
 		},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyInventoryItemDelete(ctx, network.InventoryItemDelete{Index: 7, Amount: 2})
 	if got := sessionState.Inventory.Items[0].Amount; got != 1 {
@@ -3940,7 +3941,7 @@ func TestUseItemAckSetsRemainingAmount(t *testing.T) {
 			Items: []session.InventoryItem{{Index: 12, ItemID: 512, Amount: 4}},
 		},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyUseItemAck(ctx, network.UseItemAck{Index: 12, ItemID: 512, Amount: 3, Result: 1})
 	if got := sessionState.Inventory.Items[0].Amount; got != 3 {
@@ -3959,7 +3960,7 @@ func TestUseItemAckFailureDoesNotChangeInventory(t *testing.T) {
 			Items: []session.InventoryItem{{Index: 12, ItemID: 512, Amount: 4}},
 		},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyUseItemAck(ctx, network.UseItemAck{Index: 12, ItemID: 512, Amount: 0, Result: 0})
 	if got := sessionState.Inventory.Items[0].Amount; got != 4 {
@@ -3972,7 +3973,7 @@ func TestUseItemAckAddsItemUseEffect(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: 501, AID: 2000000, Amount: 2, Result: 1})
 	if len(mode.worldEffects) != 1 {
@@ -3995,7 +3996,7 @@ func TestUseItemAckDispatchesAllMappedItemEffectArrays(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: itemID, AID: 1100, Amount: 2, Result: 1})
 
@@ -4025,7 +4026,7 @@ func TestButterflyWingEffectIsPinnedAtUsePosition(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: 602, AID: 2000000, Amount: 1, Result: 1})
 	world.Player.X = 30
@@ -4044,7 +4045,7 @@ func TestGroundSkillNotifyAddsCellEffect(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applyGroundSkillNotify(ctx, network.GroundSkillNotify{SkillID: 21, SourceID: 2000000, Level: 4, X: 123, Y: 456})
 	if len(mode.worldEffects) != 1 {
@@ -4064,7 +4065,7 @@ func TestPneumaGroundSkillNotifyAddsCellEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applyGroundSkillNotify(ctx, network.GroundSkillNotify{SkillID: 25, SourceID: 2000000, Level: 1, X: 123, Y: 456})
 	if len(mode.worldEffects) != 1 {
@@ -4080,7 +4081,7 @@ func TestSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9001, CreatorID: 2000000, UnitID: 126, X: 123, Y: 456, Visible: true})
 	if len(mode.worldEffects) != 1 {
@@ -4100,7 +4101,7 @@ func TestWarpPortalSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9003, CreatorID: 2000000, UnitID: 128, X: 30, Y: 40, Visible: true})
 	if len(mode.worldEffects) != 1 {
@@ -4120,7 +4121,7 @@ func TestRathenaActiveWarpPortalSkillUnitEntryPersistsUntilDisappear(t *testing.
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9005, CreatorID: 2000000, UnitID: 129, X: 30, Y: 40, Visible: true})
 	if len(mode.worldEffects) != 1 {
@@ -4147,7 +4148,7 @@ func TestWarpPortalSkillUnitLookChangeKeepsPortalAtSameCell(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9006, CreatorID: 2000000, UnitID: 129, X: 30, Y: 40, Visible: true})
 	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectPortal {
@@ -4174,7 +4175,7 @@ func TestSkillUnitEntryDispatchesAllMappedUnitEffectArrays(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9004, CreatorID: 2000000, UnitID: unitID, X: 123, Y: 456, Visible: true})
 
@@ -4199,7 +4200,7 @@ func TestPneumaSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9002, CreatorID: 2000000, UnitID: 133, X: 123, Y: 456, Visible: true})
 	if len(mode.worldEffects) != 1 {
@@ -4221,7 +4222,7 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 6, Amount: 2, TargetID: 1100, SourceID: 2000000, Result: 1})
 	if len(mode.worldEffects) != 1 {
@@ -4237,7 +4238,7 @@ func TestSkillNoDamageNotifyAddsRuwachAuraOnCaster(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 24, Amount: 1, TargetID: 2000000, SourceID: 2000000, Result: 1})
 	if len(mode.worldEffects) != 1 {
@@ -4253,7 +4254,7 @@ func TestSkillNoDamageNotifyEndureUsesReadyFightAction(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 1}
 	sessionState := &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 1, Hair: 1}}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 8, TargetID: 2000000, SourceID: 2000000, Result: 1})
 	anim, ok := mode.actorAnims[150000]
@@ -4282,7 +4283,7 @@ func TestSkillNoDamageNotifyDispatchesAllMappedEffectArrays(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
 	mode := &WorldMode{}
-	ctx := Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: skillID, Amount: 2, TargetID: 1100, SourceID: 2000000, Result: 1})
 
@@ -4315,7 +4316,7 @@ func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
 	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
 	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 28, Amount: 234, TargetID: 1100, SourceID: 2000000, Result: 1})
 	if len(mode.worldEffects) != 1 {
@@ -4352,7 +4353,7 @@ func TestActorActionNotifyHealUsesCastAndOffensiveHealEffect(t *testing.T) {
 		HasObjectType: true,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
 		World:   world,
 	}
@@ -4400,7 +4401,7 @@ func TestActorActionNotifyBashUsesRobrowserWeaponAttackOverride(t *testing.T) {
 		HasObjectType: true,
 	})
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 1, Hair: 1, Weapon: 3}},
 		World:   world,
 	}
@@ -4430,7 +4431,7 @@ func TestActorActionNotifyHealDoesNotOverwriteLocalCastWithHurt(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	mode := &WorldMode{}
-	ctx := Context{
+	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
 		World:   world,
 	}
@@ -4464,7 +4465,7 @@ func TestSkillFailAckAddsConsoleErrorWithoutEffect(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	mode.applySkillFailAck(ctx, network.SkillFailAck{SkillID: 6, Result: 0, Cause: 0})
 
@@ -4521,7 +4522,7 @@ func TestInventoryItemListReplacesDifferentItemAtReusedIndex(t *testing.T) {
 			}},
 		},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyInventoryItemList(ctx, []network.InventoryItem{{
 		Index:  11,
@@ -4565,7 +4566,7 @@ func TestApplyInventoryEquipAckUpdatesEquippedState(t *testing.T) {
 			},
 		},
 	}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 1, Location: 0x0002, Success: true})
 	if !sessionState.Inventory.Items[0].Equipped {
@@ -4591,7 +4592,7 @@ func TestInventoryEquipmentRebuildsLocalWeaponAppearanceFromEquippedItem(t *test
 	}
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, Job: 2, Weapon: 10}
-	ctx := Context{Session: sessionState, World: world}
+	ctx := client.Context{Session: sessionState, World: world}
 
 	applyInventoryItemList(ctx, []network.InventoryItem{
 		{Index: 2, ItemID: 1607, Type: 5, Location: 0x0002, Equip: true, Equipped: true, Identified: true},
@@ -4610,7 +4611,7 @@ func TestInventoryEquipmentRebuildsLocalWeaponAppearanceFromEquippedItem(t *test
 
 func TestApplyStoragePacketsUpdateSessionStorage(t *testing.T) {
 	sessionState := &session.Session{}
-	ctx := Context{Session: sessionState}
+	ctx := client.Context{Session: sessionState}
 
 	applyStorageAmount(ctx, network.StorageAmount{Amount: 1, MaxAmount: 300})
 	applyStorageItemList(ctx, []network.InventoryItem{{Index: 3, ItemID: 512, Type: 0, Amount: 4, Identified: true}})

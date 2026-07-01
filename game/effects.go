@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/client"
 	"image/color"
 	"log"
 	"math"
@@ -269,7 +270,7 @@ type worldEffectComponent struct {
 	overlay            bool
 }
 
-func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
+func (m *WorldMode) addItemUseEffect(ctx client.Context, ack network.UseItemAck) {
 	if ack.Result == 0 {
 		return
 	}
@@ -305,7 +306,7 @@ func (m *WorldMode) addItemUseEffect(ctx Context, ack network.UseItemAck) {
 	}
 }
 
-func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNoDamageNotify) {
+func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.SkillNoDamageNotify) {
 	if notify.Result == 0 {
 		return
 	}
@@ -336,7 +337,7 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx Context, notify network.SkillNo
 	}
 }
 
-func (m *WorldMode) applySkillCastNotify(ctx Context, notify network.SkillCastNotify) {
+func (m *WorldMode) applySkillCastNotify(ctx client.Context, notify network.SkillCastNotify) {
 	if notify.DelayTime == 0 {
 		return
 	}
@@ -346,7 +347,7 @@ func (m *WorldMode) applySkillCastNotify(ctx Context, notify network.SkillCastNo
 	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y), duration, now, "server")
 }
 
-func (m *WorldMode) addLocalSkillCastFallback(ctx Context, skillID uint16, property uint32, sourceID, targetID uint32, cellX, cellY int, duration time.Duration, starts time.Time, source string) {
+func (m *WorldMode) addLocalSkillCastFallback(ctx client.Context, skillID uint16, property uint32, sourceID, targetID uint32, cellX, cellY int, duration time.Duration, starts time.Time, source string) {
 	if duration <= 0 || sourceID == 0 {
 		return
 	}
@@ -355,7 +356,7 @@ func (m *WorldMode) addLocalSkillCastFallback(ctx Context, skillID uint16, prope
 	m.addSkillCastEffects(ctx, skillID, property, sourceID, targetID, cellX, cellY, duration, starts, source)
 }
 
-func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx Context, notify network.SkillNoDamageNotify, now time.Time) {
+func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx client.Context, notify network.SkillNoDamageNotify, now time.Time) {
 	source, ok, _ := actorForCombatID(ctx, notify.SourceID)
 	if !ok {
 		return
@@ -364,12 +365,12 @@ func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx Context, notify networ
 	m.startCombatAnimation(ctx, notify.SourceID, skillActionFamilyForActor(source, notify.SkillID), now, defaultAttackAnimationDuration)
 }
 
-func (m *WorldMode) startSkillCastSourceAnimation(ctx Context, notify network.SkillCastNotify, duration time.Duration, now time.Time) {
+func (m *WorldMode) startSkillCastSourceAnimation(ctx client.Context, notify network.SkillCastNotify, duration time.Duration, now time.Time) {
 	m.faceSkillSource(ctx, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y))
 	m.startSkillSourceCastAnimation(ctx, notify.SourceID, notify.SkillID, duration, now)
 }
 
-func (m *WorldMode) startSkillSourceCastAnimation(ctx Context, sourceID uint32, skillID uint16, duration time.Duration, now time.Time) {
+func (m *WorldMode) startSkillSourceCastAnimation(ctx client.Context, sourceID uint32, skillID uint16, duration time.Duration, now time.Time) {
 	source, ok, _ := actorForCombatID(ctx, sourceID)
 	if !ok {
 		return
@@ -377,7 +378,7 @@ func (m *WorldMode) startSkillSourceCastAnimation(ctx Context, sourceID uint32, 
 	m.startCombatAnimation(ctx, sourceID, skillCastActionFamilyForActor(source, skillID), now, duration)
 }
 
-func (m *WorldMode) faceSkillSource(ctx Context, sourceID, targetID uint32, cellX, cellY int) {
+func (m *WorldMode) faceSkillSource(ctx client.Context, sourceID, targetID uint32, cellX, cellY int) {
 	source, sourceOK, sourceLocal := actorForCombatID(ctx, sourceID)
 	if !sourceOK {
 		return
@@ -399,7 +400,7 @@ func (m *WorldMode) faceSkillSource(ctx Context, sourceID, targetID uint32, cell
 	ctx.World.UpsertActor(source)
 }
 
-func (m *WorldMode) applyGroundSkillNotify(ctx Context, notify network.GroundSkillNotify) {
+func (m *WorldMode) applyGroundSkillNotify(ctx client.Context, notify network.GroundSkillNotify) {
 	effectIDs := skillEffectIDs(notify.SkillID)
 	if len(effectIDs) == 0 {
 		effectIDs = skillGroundEffectIDs(notify.SkillID)
@@ -415,7 +416,7 @@ func (m *WorldMode) applyGroundSkillNotify(ctx Context, notify network.GroundSki
 	}
 }
 
-func (m *WorldMode) applySkillUnitEntry(ctx Context, entry network.SkillUnitEntry) {
+func (m *WorldMode) applySkillUnitEntry(ctx client.Context, entry network.SkillUnitEntry) {
 	if !entry.Visible {
 		return
 	}
@@ -431,7 +432,7 @@ func (m *WorldMode) applySkillUnitEntry(ctx Context, entry network.SkillUnitEntr
 	}
 }
 
-func (m *WorldMode) applySkillUnitLookChange(ctx Context, look network.ActorLookChange) bool {
+func (m *WorldMode) applySkillUnitLookChange(ctx client.Context, look network.ActorLookChange) bool {
 	if look.Type != 0 || look.ID == 0 {
 		return false
 	}
@@ -485,7 +486,7 @@ func (m *WorldMode) removeSkillUnitEffects(id uint32) bool {
 	return removed
 }
 
-func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.SpecialEffectNotify) {
+func (m *WorldMode) applySpecialEffectNotify(ctx client.Context, notify network.SpecialEffectNotify) {
 	effectID := specialEffectID(notify.EffectID)
 	if effectID <= 0 {
 		return
@@ -495,7 +496,7 @@ func (m *WorldMode) applySpecialEffectNotify(ctx Context, notify network.Special
 	}
 }
 
-func (m *WorldMode) applySkillFailAck(ctx Context, ack network.SkillFailAck) {
+func (m *WorldMode) applySkillFailAck(ctx client.Context, ack network.SkillFailAck) {
 	if ack.Result != 0 {
 		return
 	}
@@ -555,11 +556,11 @@ var skillFailMessagesByCause = map[uint8]string{
 	9: "Too much weight.",
 }
 
-func (m *WorldMode) addWorldEffect(ctx Context, effectID int, actorID uint32) bool {
+func (m *WorldMode) addWorldEffect(ctx client.Context, effectID int, actorID uint32) bool {
 	return m.addWorldEffectAt(ctx, effectID, actorID, time.Now())
 }
 
-func (m *WorldMode) addWorldEffectIfMissing(ctx Context, effectID int, actorID uint32) bool {
+func (m *WorldMode) addWorldEffectIfMissing(ctx client.Context, effectID int, actorID uint32) bool {
 	if m.hasActiveWorldEffect(effectID, actorID, time.Now()) {
 		return false
 	}
@@ -575,15 +576,15 @@ func (m *WorldMode) hasActiveWorldEffect(effectID int, actorID uint32, now time.
 	return false
 }
 
-func (m *WorldMode) addWorldEffectAt(ctx Context, effectID int, actorID uint32, starts time.Time) bool {
+func (m *WorldMode) addWorldEffectAt(ctx client.Context, effectID int, actorID uint32, starts time.Time) bool {
 	return m.addWorldEffectBetweenAt(ctx, effectID, actorID, 0, starts)
 }
 
-func (m *WorldMode) addWorldEffectBetweenAt(ctx Context, effectID int, actorID, targetID uint32, starts time.Time) bool {
+func (m *WorldMode) addWorldEffectBetweenAt(ctx client.Context, effectID int, actorID, targetID uint32, starts time.Time) bool {
 	return m.addWorldEffectBetweenAtDuration(ctx, effectID, actorID, targetID, starts, 0)
 }
 
-func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
+func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -627,7 +628,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx Context, effectID int, a
 	return true
 }
 
-func (m *WorldMode) addWorldEffectAtCellLifetime(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, lifetimeOverride time.Duration) bool {
+func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, lifetimeOverride time.Duration) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -662,7 +663,7 @@ func (m *WorldMode) addWorldEffectAtCellLifetime(ctx Context, effectID int, acto
 	return true
 }
 
-func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
+func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -699,11 +700,11 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx Context, effectID int, 
 	return true
 }
 
-func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx Context, effectID int, x, y int, starts time.Time) bool {
+func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx client.Context, effectID int, x, y int, starts time.Time) bool {
 	return m.addWorldEffectAtCellDurationSizeIfMissing(ctx, effectID, 0, x, y, starts, 0, 0)
 }
 
-func (m *WorldMode) addWorldEffectAtCellDurationSizeIfMissing(ctx Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
+func (m *WorldMode) addWorldEffectAtCellDurationSizeIfMissing(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
 	now := time.Now()
 	for _, effect := range m.worldEffects {
 		if effect.effectID == effectID && effect.actorID == actorID && effect.x == x && effect.y == y && now.Before(effect.expires) {
@@ -713,7 +714,7 @@ func (m *WorldMode) addWorldEffectAtCellDurationSizeIfMissing(ctx Context, effec
 	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, durationOverride, sizeOverride)
 }
 
-func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
+func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx client.Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
 	now := time.Now()
 	for _, effect := range m.worldEffects {
 		if effect.effectID == effectID && effect.actorID == actorID && effect.targetID == targetID && now.Before(effect.expires) {
@@ -723,7 +724,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx Context, effect
 	return m.addWorldEffectBetweenAtDuration(ctx, effectID, actorID, targetID, starts, durationOverride)
 }
 
-func (m *WorldMode) addSkillCastEffects(ctx Context, skillID uint16, property uint32, sourceID, targetID uint32, cellX, cellY int, duration time.Duration, starts time.Time, source string) {
+func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, property uint32, sourceID, targetID uint32, cellX, cellY int, duration time.Duration, starts time.Time, source string) {
 	if duration <= 0 || sourceID == 0 {
 		return
 	}
@@ -752,7 +753,7 @@ func skillCastGroundSampleSize(skillID uint16) float64 {
 	return 1
 }
 
-func effectAnchor(ctx Context, actorID uint32) (int, int, bool) {
+func effectAnchor(ctx client.Context, actorID uint32) (int, int, bool) {
 	if ctx.World == nil {
 		return 0, 0, false
 	}
@@ -1247,7 +1248,7 @@ func potionEffectSpec(file string, c color.RGBA) worldEffectSpec {
 	}
 }
 
-func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	if len(m.worldEffects) == 0 || screen == nil || ctx.World == nil {
 		return
 	}
@@ -1358,7 +1359,7 @@ func worldEffectComponentProgressForDraw(starts time.Time, component worldEffect
 	return clampFloat(float64(cycleElapsed)/float64(duration), 0, 1)
 }
 
-func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.kind {
 	case effectComponentSTR:
 		m.drawSTREffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
@@ -1376,7 +1377,7 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx Context, 
 	}
 }
 
-func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.funcAdapter {
 	case effectFuncGroundSample:
 		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
@@ -1386,7 +1387,7 @@ func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx Context, projection
 	}
 }
 
-func (m *WorldMode) drawCastRingEffect(screen *render.Image, ctx Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z, progress float64) {
+func (m *WorldMode) drawCastRingEffect(screen *render.Image, ctx client.Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z, progress float64) {
 	alpha := effectComponentAlpha(progress, component)
 	if alpha <= 0 {
 		return
@@ -1445,7 +1446,7 @@ func drawWorldCylinderBandRotated(screen, white, texture *render.Image, x, y, z,
 	screen.DrawTriangles3D(vertices, indices, source, options)
 }
 
-func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64) {
+func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64) {
 	texture := m.effectTexture(ctx.Resources, component.textureName)
 	if texture == nil {
 		return
@@ -1489,7 +1490,7 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx Context, projec
 	}
 }
 
-func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+func (m *WorldMode) draw2DEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
 	if texture == nil {
 		return
@@ -1515,7 +1516,7 @@ func (m *WorldMode) draw2DEffect(screen *render.Image, ctx Context, projection s
 	drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), true)
 }
 
-func (m *WorldMode) draw3DEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
+func (m *WorldMode) draw3DEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
 	if component.textureFile == "" && len(component.textureFiles) == 0 && component.spriteFile == "" {
 		return
 	}
@@ -1562,7 +1563,7 @@ func (m *WorldMode) effectTextureFrame(manager *res.Manager, component worldEffe
 	return m.effectFileTexture(manager, component.textureFiles[index])
 }
 
-func (m *WorldMode) drawGroundPlaneEffect(screen *render.Image, ctx Context, component worldEffectComponent, effect worldEffect, worldX, worldY, progress float64, now time.Time) {
+func (m *WorldMode) drawGroundPlaneEffect(screen *render.Image, ctx client.Context, component worldEffectComponent, effect worldEffect, worldX, worldY, progress float64, now time.Time) {
 	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
 	if texture == nil || ctx.World == nil {
 		return
@@ -1609,7 +1610,7 @@ func (m *WorldMode) drawGroundPlaneEffect(screen *render.Image, ctx Context, com
 	drawTexturedSurface3DAlpha(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint})
 }
 
-func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
+func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
 	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
 	if view == nil || len(view.act.Actions) == 0 {
 		return
@@ -1679,7 +1680,7 @@ func effect3DSpriteScale(size float64) float64 {
 	return size
 }
 
-func effectSpriteScreenRotation(ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect) (float64, bool) {
+func effectSpriteScreenRotation(ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect) (float64, bool) {
 	if component.rotateToTarget {
 		startX, startY, startZ, endX, endY, endZ, ok := effectTrajectoryEndpoints(ctx, component, effect)
 		if ok {
@@ -1699,7 +1700,7 @@ func effectSpriteScreenRotation(ctx Context, projection sceneProjection, compone
 	return 0, false
 }
 
-func effectTrajectoryEndpoints(ctx Context, component worldEffectComponent, effect worldEffect) (float64, float64, float64, float64, float64, float64, bool) {
+func effectTrajectoryEndpoints(ctx client.Context, component worldEffectComponent, effect worldEffect) (float64, float64, float64, float64, float64, float64, bool) {
 	if ctx.World == nil {
 		return 0, 0, 0, 0, 0, 0, false
 	}
@@ -1762,7 +1763,7 @@ func worldEffectSpriteAngle(component worldEffectComponent) float64 {
 	return angle + 90 - math.Atan2(endY-startY, endX-startX)*180/math.Pi
 }
 
-func (m *WorldMode) drawSPREffect(screen *render.Image, ctx Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, now time.Time) {
+func (m *WorldMode) drawSPREffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, now time.Time) {
 	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
 	if view == nil || len(view.act.Actions) == 0 {
 		return
@@ -1937,7 +1938,7 @@ func effectBillboardSize(progress float64, component worldEffectComponent) float
 	return start + (end-start)*math.Log10(progress*9+1)
 }
 
-func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, effect worldEffect, salt int, duplicateIndex int, progress float64, worldX, worldY, worldZ float64) (float64, float64, float64) {
+func (m *WorldMode) effect3DOffset(ctx client.Context, component worldEffectComponent, effect worldEffect, salt int, duplicateIndex int, progress float64, worldX, worldY, worldZ float64) (float64, float64, float64) {
 	staticX := deterministicSigned(effect, salt+1) * component.posXRand
 	staticY := deterministicSigned(effect, salt+2) * component.posYRand
 	startX := component.posX + staticX + component.posXStartMiddle + deterministicSigned(effect, salt+11)*component.posXStartRand
@@ -2013,7 +2014,7 @@ func (m *WorldMode) effect3DOffset(ctx Context, component worldEffectComponent, 
 	return x, y, z
 }
 
-func effectOtherEndpoint(ctx Context, effect worldEffect, fallbackX, fallbackY, fallbackZ float64) (float64, float64, float64, bool) {
+func effectOtherEndpoint(ctx client.Context, effect worldEffect, fallbackX, fallbackY, fallbackZ float64) (float64, float64, float64, bool) {
 	if effect.targetID == 0 || ctx.World == nil {
 		return fallbackX, fallbackY, fallbackZ, false
 	}
@@ -2215,7 +2216,7 @@ func drawTexturedEffectBillboardRotatedXY(screen *render.Image, projection scene
 	})
 }
 
-func (m *WorldMode) drawSTREffect(screen *render.Image, ctx Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
+func (m *WorldMode) drawSTREffect(screen *render.Image, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
 	str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, effect), component.texturePath)
 	if str == nil {
 		return false

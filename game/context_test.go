@@ -1,13 +1,14 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"testing"
 
 	"github.com/kivutar/goro/config"
 )
 
 func TestContextScreenSizeUsesLayoutSizeWhenAvailable(t *testing.T) {
-	ctx := Context{
+	ctx := client.Context{
 		Config:  config.Config{Window: config.WindowConfig{Width: 1024, Height: 768}},
 		ScreenW: 1280,
 		ScreenH: 720,
@@ -20,7 +21,7 @@ func TestContextScreenSizeUsesLayoutSizeWhenAvailable(t *testing.T) {
 }
 
 func TestContextScreenSizeFallsBackToConfig(t *testing.T) {
-	ctx := Context{
+	ctx := client.Context{
 		Config: config.Config{Window: config.WindowConfig{Width: 1024, Height: 768}},
 	}
 

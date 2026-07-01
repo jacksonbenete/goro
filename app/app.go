@@ -6,6 +6,7 @@ import (
 	"time"
 
 	gameaudio "github.com/kivutar/goro/audio"
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/game"
 	"github.com/kivutar/goro/input"
@@ -136,8 +137,8 @@ func loadClientUIFont(resource *res.Manager) {
 	}
 }
 
-func (g *Game) modeContext() game.Context {
-	return game.Context{
+func (g *Game) modeContext() client.Context {
+	return client.Context{
 		Config:      g.cfg,
 		Input:       g.input,
 		Resources:   g.resource,

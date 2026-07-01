@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"image/color"
 	"math"
 	"time"
@@ -39,7 +40,7 @@ func (m *WorldMode) DrawItemInfoIllustration(screen *render.Image, manager *res.
 	render.DebugPrintAtColor(screen, "No image", x+width/2-24, y+height/2-7, color.RGBA{R: 98, G: 112, B: 126, A: 255})
 }
 
-func (m *WorldMode) DrawEquipmentPreview(screen *render.Image, ctx Context, x, y, width, height int) {
+func (m *WorldMode) DrawEquipmentPreview(screen *render.Image, ctx client.Context, x, y, width, height int) {
 	if screen == nil || width <= 0 || height <= 0 {
 		return
 	}

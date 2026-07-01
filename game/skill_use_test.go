@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"testing"
 
 	"github.com/kivutar/goro/session"
@@ -43,7 +44,7 @@ func TestSkillTargetModes(t *testing.T) {
 func TestPassiveAcolyteSkillsCannotBeUsed(t *testing.T) {
 	controller := skillController{}
 	for _, skillID := range []uint16{22, 23} {
-		err := controller.Use(Context{}, session.Skill{ID: skillID, Level: 1, Type: skillTargetSelf}, "test")
+		err := controller.Use(client.Context{}, session.Skill{ID: skillID, Level: 1, Type: skillTargetSelf}, "test")
 		if err == nil || err.Error() != "passive skill" {
 			t.Fatalf("skill %d use error = %v, want passive skill", skillID, err)
 		}

@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/client"
 	"image"
 	"image/color"
 	"log"
@@ -50,7 +51,7 @@ const (
 	pickupAnimationDuration  = 450 * time.Millisecond
 )
 
-func (m *WorldMode) applyFloorItemEntry(ctx Context, entry network.FloorItemEntry) {
+func (m *WorldMode) applyFloorItemEntry(ctx client.Context, entry network.FloorItemEntry) {
 	if ctx.World == nil {
 		return
 	}
@@ -70,7 +71,7 @@ func (m *WorldMode) applyFloorItemEntry(ctx Context, entry network.FloorItemEntr
 	log.Printf("floor item entry id=%d item_id=%d identified=%t amount=%d x=%d y=%d sub=%d,%d falling=%t", item.ID, item.ItemID, item.Identified, item.Amount, item.X, item.Y, item.SubX, item.SubY, item.Falling)
 }
 
-func (m *WorldMode) applyFloorItemDisappear(ctx Context, disappear network.FloorItemDisappear) {
+func (m *WorldMode) applyFloorItemDisappear(ctx client.Context, disappear network.FloorItemDisappear) {
 	if ctx.World == nil {
 		return
 	}
@@ -81,7 +82,7 @@ func (m *WorldMode) applyFloorItemDisappear(ctx Context, disappear network.Floor
 	log.Printf("floor item disappear id=%d", disappear.ID)
 }
 
-func (m *WorldMode) applyItemPickupAck(ctx Context, ack network.ItemPickupAck) {
+func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPickupAck) {
 	if ack.Result == 0 {
 		m.status = fmt.Sprintf("picked item %d x%d", ack.ItemID, ack.Amount)
 		m.pendingPickup = pickupIntent{}
@@ -104,7 +105,7 @@ func (m *WorldMode) applyItemPickupAck(ctx Context, ack network.ItemPickupAck) {
 	log.Printf("item pickup ack failed index=%d item_id=%d amount=%d result=%d", ack.Index, ack.ItemID, ack.Amount, ack.Result)
 }
 
-func (m *WorldMode) requestPickup(ctx Context, item worldstate.FloorItem, source string) {
+func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem, source string) {
 	if ctx.Network == nil {
 		m.status = "pickup request failed: not connected"
 		m.walkCooldown = 30
@@ -129,7 +130,7 @@ func (m *WorldMode) requestPickup(ctx Context, item worldstate.FloorItem, source
 	m.requestWalk(ctx, targetX, targetY, source+" pickup")
 }
 
-func (m *WorldMode) continuePendingPickup(ctx Context, source string) {
+func (m *WorldMode) continuePendingPickup(ctx client.Context, source string) {
 	if m.pendingPickup.itemID == 0 || ctx.World == nil {
 		return
 	}
@@ -156,7 +157,7 @@ func (m *WorldMode) continuePendingPickup(ctx Context, source string) {
 	log.Printf("%s pending pickup scheduled item=%d delay_ms=%d", source, item.ID, maxInt(0, int(m.pendingPickup.readyAt.Sub(now).Milliseconds())))
 }
 
-func (m *WorldMode) processPendingPickup(ctx Context) {
+func (m *WorldMode) processPendingPickup(ctx client.Context) {
 	if m.pendingPickup.itemID == 0 || m.pendingPickup.readyAt.IsZero() || ctx.World == nil {
 		return
 	}
@@ -196,7 +197,7 @@ func pendingPickupReadyAt(player worldstate.Actor, now time.Time) time.Time {
 	return readyAt
 }
 
-func (m *WorldMode) sendPickupRequest(ctx Context, item worldstate.FloorItem, source string) {
+func (m *WorldMode) sendPickupRequest(ctx client.Context, item worldstate.FloorItem, source string) {
 	if err := ctx.Network.SendItemPickup(item.ID); err == nil {
 		m.status = fmt.Sprintf("%s pickup request: %d", source, item.ID)
 		m.pickupReqItemID = item.ID
@@ -208,7 +209,7 @@ func (m *WorldMode) sendPickupRequest(ctx Context, item worldstate.FloorItem, so
 	}
 }
 
-func (m *WorldMode) applyLocalPickupSuccess(ctx Context) {
+func (m *WorldMode) applyLocalPickupSuccess(ctx client.Context) {
 	if ctx.World == nil {
 		return
 	}
@@ -223,7 +224,7 @@ func (m *WorldMode) applyLocalPickupSuccess(ctx Context) {
 	m.startLocalPickupAnimation(ctx, time.Now())
 }
 
-func (m *WorldMode) startLocalPickupAnimation(ctx Context, started time.Time) {
+func (m *WorldMode) startLocalPickupAnimation(ctx client.Context, started time.Time) {
 	if ctx.Session == nil {
 		return
 	}
@@ -235,7 +236,7 @@ func (m *WorldMode) startLocalPickupAnimation(ctx Context, started time.Time) {
 	}
 }
 
-func (m *WorldMode) facePlayerTowardItem(ctx Context, item worldstate.FloorItem) {
+func (m *WorldMode) facePlayerTowardItem(ctx client.Context, item worldstate.FloorItem) {
 	if ctx.World == nil {
 		return
 	}
@@ -251,7 +252,7 @@ func itemWithinPickupRange(playerX, playerY, itemX, itemY int) bool {
 	return maxInt(absInt(playerX-itemX), absInt(playerY-itemY)) <= 1
 }
 
-func pickupApproachCell(ctx Context, item worldstate.FloorItem) (int, int, bool) {
+func pickupApproachCell(ctx client.Context, item worldstate.FloorItem) (int, int, bool) {
 	if walkTargetInBounds(ctx, item.X, item.Y) {
 		return item.X, item.Y, true
 	}
@@ -276,13 +277,13 @@ func pickupApproachCell(ctx Context, item worldstate.FloorItem) (int, int, bool)
 	return bestX, bestY, found
 }
 
-func (m *WorldMode) drawGroundItems(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawGroundItems(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	for _, entry := range m.collectSceneItemEntries(screen, ctx, projection, now) {
 		m.drawGroundItemEntry3D(screen, projection, entry)
 	}
 }
 
-func (m *WorldMode) collectSceneItemEntries(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) []sceneItemDrawEntry {
+func (m *WorldMode) collectSceneItemEntries(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) []sceneItemDrawEntry {
 	if ctx.World == nil || len(ctx.World.Items) == 0 {
 		return nil
 	}
@@ -319,7 +320,7 @@ func (m *WorldMode) drawGroundItemEntry3D(screen *render.Image, projection scene
 	m.drawFallbackGroundItemMarker(screen, entry)
 }
 
-func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
@@ -331,7 +332,7 @@ func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Image, ctx Context
 	render.DrawOutlinedTextAt(screen, label, ctx.Input.MouseX+14, ctx.Input.MouseY+18, color.RGBA{R: 255, G: 239, B: 148, A: 255}, color.RGBA{A: 196})
 }
 
-func clickedGroundItem(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.FloorItem, bool) {
+func clickedGroundItem(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.FloorItem, bool) {
 	if ctx.World == nil || len(ctx.World.Items) == 0 {
 		return worldstate.FloorItem{}, false
 	}
@@ -380,7 +381,7 @@ func floorItemRenderHeight(world *worldstate.World, item worldstate.FloorItem, n
 	return ground + itemDropBounceOffset(item.DroppedAt, now)
 }
 
-func (m *WorldMode) groundItemLabel(ctx Context, item worldstate.FloorItem) string {
+func (m *WorldMode) groundItemLabel(ctx client.Context, item worldstate.FloorItem) string {
 	name := ""
 	if ctx.Resources != nil {
 		if resolved, ok := ctx.Resources.ItemDisplayName(int(item.ItemID), item.Identified); ok {

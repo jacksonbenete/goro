@@ -1,13 +1,14 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"log"
 
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
 )
 
-func applyStatusSnapshot(ctx Context, snapshot network.StatusSnapshot) {
+func applyStatusSnapshot(ctx client.Context, snapshot network.StatusSnapshot) {
 	if ctx.Session == nil {
 		return
 	}
@@ -96,7 +97,7 @@ func setSessionStatCost(s *session.Session, statusID uint16, value int) {
 	}
 }
 
-func applySkillInfoList(ctx Context, list network.SkillInfoList) {
+func applySkillInfoList(ctx client.Context, list network.SkillInfoList) {
 	if ctx.Session == nil {
 		return
 	}
@@ -107,7 +108,7 @@ func applySkillInfoList(ctx Context, list network.SkillInfoList) {
 	log.Printf("skill list received count=%d points=%d", len(ctx.Session.Skills.List), ctx.Session.Skills.Points)
 }
 
-func applySkillInfoUpdate(ctx Context, update network.SkillInfoUpdate) {
+func applySkillInfoUpdate(ctx client.Context, update network.SkillInfoUpdate) {
 	if ctx.Session == nil {
 		return
 	}

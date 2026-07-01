@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"math"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ const (
 	specialNPCVisualTorch
 )
 
-func specialNPCVisualForActor(ctx Context, actor worldstate.Actor) specialNPCVisual {
+func specialNPCVisualForActor(ctx client.Context, actor worldstate.Actor) specialNPCVisual {
 	resourceName := ""
 	if ctx.Resources != nil {
 		resourceName, _ = ctx.Resources.JobResourceName(int(actor.Job))
@@ -60,7 +61,7 @@ func actorJobHasSpecialNoShadow(job int) bool {
 	}
 }
 
-func (m *WorldMode) drawSpecialNPCVisual(screen *render.Image, ctx Context, projection sceneProjection, entry sceneActorDrawEntry, visual specialNPCVisual, now time.Time) bool {
+func (m *WorldMode) drawSpecialNPCVisual(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, visual specialNPCVisual, now time.Time) bool {
 	switch visual {
 	case specialNPCVisualTorch:
 		m.drawPersistentWorldEffectAt(screen, ctx, projection, effectTorch, entry, now)
@@ -70,7 +71,7 @@ func (m *WorldMode) drawSpecialNPCVisual(screen *render.Image, ctx Context, proj
 	}
 }
 
-func (m *WorldMode) drawPersistentWorldEffectAt(screen *render.Image, ctx Context, projection sceneProjection, effectID int, entry sceneActorDrawEntry, now time.Time) {
+func (m *WorldMode) drawPersistentWorldEffectAt(screen *render.Image, ctx client.Context, projection sceneProjection, effectID int, entry sceneActorDrawEntry, now time.Time) {
 	spec, ok := worldEffectSpecForID(effectID)
 	if !ok {
 		return

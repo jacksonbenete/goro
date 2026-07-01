@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/client"
 	"log"
 	"time"
 
@@ -60,7 +61,7 @@ func sessionSkillFromNetwork(skill network.SkillInfo) session.Skill {
 	}
 }
 
-func localSkillTarget(ctx Context) uint32 {
+func localSkillTarget(ctx client.Context) uint32 {
 	if ctx.Session == nil {
 		return 0
 	}
@@ -88,7 +89,7 @@ const (
 	skillTargetHomun  = 128
 )
 
-func (c skillController) Use(ctx Context, skill session.Skill, source string) error {
+func (c skillController) Use(ctx client.Context, skill session.Skill, source string) error {
 	if skill.ID == 0 || skill.Level <= 0 {
 		return fmt.Errorf("skill is not learned")
 	}
@@ -115,7 +116,7 @@ func (c skillController) Use(ctx Context, skill session.Skill, source string) er
 	return c.SendToID(ctx, skill, target, source)
 }
 
-func (c skillController) SendToID(ctx Context, skill session.Skill, target uint32, source string) error {
+func (c skillController) SendToID(ctx client.Context, skill session.Skill, target uint32, source string) error {
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -146,7 +147,7 @@ func (c skillController) SendToID(ctx Context, skill session.Skill, target uint3
 	return nil
 }
 
-func (c skillController) SendToGround(ctx Context, skill session.Skill, x, y int, source string) error {
+func (c skillController) SendToGround(ctx client.Context, skill session.Skill, x, y int, source string) error {
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -174,7 +175,7 @@ func (c skillController) SendToGround(ctx Context, skill session.Skill, x, y int
 	return nil
 }
 
-func (c skillController) CancelFromInput(ctx Context) bool {
+func (c skillController) CancelFromInput(ctx client.Context) bool {
 	if c.mode.pendingSkill.skill.ID == 0 || ctx.Input == nil {
 		return false
 	}
@@ -194,7 +195,7 @@ func (c skillController) Cancel(source string) {
 	c.mode.status = "skill canceled"
 }
 
-func (c skillController) HandleClick(ctx Context, projection sceneProjection, now time.Time) {
+func (c skillController) HandleClick(ctx client.Context, projection sceneProjection, now time.Time) {
 	skill := c.mode.pendingSkill.skill
 	if skill.ID == 0 {
 		return
@@ -232,7 +233,7 @@ func (c skillController) HandleClick(ctx Context, projection sceneProjection, no
 	log.Printf("skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
 }
 
-func (c skillController) ApplyAutoRun(ctx Context, auto network.AutoRunSkill) {
+func (c skillController) ApplyAutoRun(ctx client.Context, auto network.AutoRunSkill) {
 	skill := sessionSkillFromNetwork(auto.Skill)
 	target := localSkillTarget(ctx)
 	log.Printf("auto-run skill received skill=%d level=%d range=%d name=%q target=%d", skill.ID, skill.Level, skill.Range, skill.Name, target)
@@ -248,6 +249,6 @@ func (c skillController) ApplyAutoRun(ctx Context, auto network.AutoRunSkill) {
 	c.mode.status = skillDisplayName(ctx.Resources, skill)
 }
 
-func skillTargetOverrideActive(ctx Context) bool {
+func skillTargetOverrideActive(ctx client.Context) bool {
 	return (ctx.Input != nil && ctx.Input.Pressed(render.KeyShift)) || (ctx.Session != nil && ctx.Session.NoShift)
 }

@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/client"
 	"image"
 	"image/color"
 	"log"
@@ -53,7 +54,7 @@ var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionNoWalk:  {drawX: 13, drawY: 25, delayMult: 1.0},
 }
 
-func (m *WorldMode) drawROCursor(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawROCursor(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
@@ -86,7 +87,7 @@ func (m *WorldMode) storeCursorState(state *roCursorState) {
 	m.cursorStarted = state.started
 }
 
-func (s *roCursorState) ensureLoaded(ctx Context) {
+func (s *roCursorState) ensureLoaded(ctx client.Context) {
 	if s == nil || s.loadTried || s.view != nil || s.viewMiss {
 		return
 	}
@@ -99,7 +100,7 @@ func (s *roCursorState) ensureLoaded(ctx Context) {
 	}
 }
 
-func (s *roCursorState) draw(screen *render.Image, ctx Context, action int, now time.Time) {
+func (s *roCursorState) draw(screen *render.Image, ctx client.Context, action int, now time.Time) {
 	if s == nil || screen == nil || ctx.Input == nil {
 		return
 	}
@@ -136,7 +137,7 @@ func (s *roCursorState) frame(action int, info cursorActionInfo, now time.Time) 
 	return cursorFrameBillboard(s.view, action, motion, info.drawX, info.drawY)
 }
 
-func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection, now time.Time) int {
+func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProjection, now time.Time) int {
 	mouseX, mouseY := ctx.Input.MouseX, ctx.Input.MouseY
 	if action, ok := m.deathModal.CursorAction(ctx); ok {
 		return action
@@ -216,7 +217,7 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	return cursorActionDefault
 }
 
-func hoveredCursorActor(ctx Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
+func hoveredCursorActor(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
 	if ctx.World == nil {
 		return worldstate.Actor{}, false
 	}
@@ -315,7 +316,7 @@ func drawFallbackROCursor(screen, img *render.Image, mouseX, mouseY int) {
 	screen.DrawImage(img, &opts)
 }
 
-func drawPendingSkillCursorLevel(screen *render.Image, ctx Context, skill session.Skill) {
+func drawPendingSkillCursorLevel(screen *render.Image, ctx client.Context, skill session.Skill) {
 	if screen == nil || ctx.Input == nil {
 		return
 	}

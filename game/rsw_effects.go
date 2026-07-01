@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"math"
 	"time"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func (m *WorldMode) drawRSWEffects(screen *render.Image, ctx Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawRSWEffects(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
 	if screen == nil || ctx.World == nil || ctx.World.RSW == nil || ctx.World.GND == nil {
 		return
 	}
@@ -27,7 +28,7 @@ func (m *WorldMode) drawRSWEffects(screen *render.Image, ctx Context, projection
 	}
 }
 
-func (m *WorldMode) drawRSWEffect(screen *render.Image, ctx Context, projection sceneProjection, spec worldEffectSpec, effectID int, index int, rswEffect res.RSWEffect, worldX, worldY, worldZ float64, now time.Time) {
+func (m *WorldMode) drawRSWEffect(screen *render.Image, ctx client.Context, projection sceneProjection, spec worldEffectSpec, effectID int, index int, rswEffect res.RSWEffect, worldX, worldY, worldZ float64, now time.Time) {
 	effect := worldEffect{
 		effectID: effectID,
 		x:        int(math.Round(worldX - 0.5)),

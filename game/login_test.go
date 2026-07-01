@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"strings"
 	"testing"
 	"time"
@@ -197,7 +198,7 @@ func TestLoginFadeTransitionsThroughBlack(t *testing.T) {
 func TestLoginEscapeOpensQuitConfirmation(t *testing.T) {
 	mode := NewLoginMode()
 	inputState := input.NewState()
-	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	ctx := client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}
 
 	inputState.SetKey(input.KeyEscape, true)
 	if !mode.updatePhaseEscape(ctx, time.Unix(20, 0)) {
@@ -212,7 +213,7 @@ func TestCharacterSelectEscapeReturnsToLogin(t *testing.T) {
 	mode := NewLoginMode()
 	mode.phase = loginPhaseCharacter
 	inputState := input.NewState()
-	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	ctx := client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}
 	now := time.Unix(20, 0)
 
 	inputState.SetKey(input.KeyEscape, true)
@@ -232,7 +233,7 @@ func TestCharacterCreateEscapeCancelsToSelect(t *testing.T) {
 	mode.phase = loginPhaseCreate
 	mode.create = defaultCharCreateState(2)
 	inputState := input.NewState()
-	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	ctx := client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}
 	now := time.Unix(20, 0)
 
 	inputState.SetKey(input.KeyEscape, true)
@@ -252,7 +253,7 @@ func TestLoginQuitConfirmationCancelAndOK(t *testing.T) {
 	mode.quitConfirm.open = true
 	inputState := input.NewState()
 	quit := false
-	ctx := Context{
+	ctx := client.Context{
 		Input:       inputState,
 		ScreenW:     800,
 		ScreenH:     600,
@@ -306,7 +307,7 @@ func TestLoginWorldFadeWaitsForBlack(t *testing.T) {
 }
 
 func TestLoginWindowSitsNearTwoThirdsHeight(t *testing.T) {
-	ctx := Context{ScreenW: 1280, ScreenH: 720}
+	ctx := client.Context{ScreenW: 1280, ScreenH: 720}
 	_, y, _, h := loginWindowRect(ctx)
 	centerY := y + h/2
 	want := (ctx.ScreenH * 2) / 3

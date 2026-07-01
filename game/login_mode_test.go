@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"testing"
 
 	"github.com/kivutar/goro/session"
@@ -8,7 +9,7 @@ import (
 )
 
 func TestNewCharacterSelectModePreparesSavedCharacters(t *testing.T) {
-	ctx := Context{Session: &session.Session{
+	ctx := client.Context{Session: &session.Session{
 		Characters: []session.Character{
 			{ID: 150002, Slot: 4, Name: "Second"},
 			{ID: 150001, Slot: 2, Name: "First"},

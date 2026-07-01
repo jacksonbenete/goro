@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/client"
 	"log"
 
 	"github.com/kivutar/goro/network"
@@ -9,7 +10,7 @@ import (
 	gameui "github.com/kivutar/goro/ui"
 )
 
-func (m *WorldMode) applyWarpPointList(ctx Context, list network.WarpPointList) {
+func (m *WorldMode) applyWarpPointList(ctx client.Context, list network.WarpPointList) {
 	if list.SkillID != gameui.TeleportSkillID && list.SkillID != gameui.WarpPortalSkillID {
 		log.Printf("warp point list ignored skill=%d maps=%v", list.SkillID, list.MapNames)
 		return
@@ -30,7 +31,7 @@ func (m *WorldMode) applyWarpPointList(ctx Context, list network.WarpPointList) 
 	log.Printf("warp point destination list skill=%d maps=%v", list.SkillID, list.MapNames)
 }
 
-func (m *WorldMode) applyRememberWarpPointAck(_ Context, ack network.RememberWarpPointAck) {
+func (m *WorldMode) applyRememberWarpPointAck(_ client.Context, ack network.RememberWarpPointAck) {
 	switch ack.Result {
 	case 0:
 		m.console.AddBlueMessage("Saved location as a Memo Point for Warp skill.")
@@ -44,7 +45,7 @@ func (m *WorldMode) applyRememberWarpPointAck(_ Context, ack network.RememberWar
 	log.Printf("remember warp point ack result=%d", ack.Result)
 }
 
-func (m *WorldMode) autoSelectTeleportRandom(ctx Context, list network.WarpPointList) {
+func (m *WorldMode) autoSelectTeleportRandom(ctx client.Context, list network.WarpPointList) {
 	mapName := gameui.TeleportRandomMap
 	for _, name := range list.MapNames {
 		if name == gameui.TeleportRandomMap {

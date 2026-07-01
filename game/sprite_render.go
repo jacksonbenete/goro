@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/client"
 	"image/color"
 	"math"
 	"time"
@@ -134,7 +135,7 @@ type spriteState struct {
 	walkDistance   float64
 }
 
-func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64) bool {
 	now := time.Now()
 	moving := ctx.World.Player.IsMovingAt(now)
 	state := spriteState{
