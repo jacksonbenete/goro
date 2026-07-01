@@ -37,3 +37,15 @@ func TestEquipmentSlotByLocationFindsFirstMatchingSlot(t *testing.T) {
 		t.Fatalf("slot location = 0x%04X, want weapon first", slot.location)
 	}
 }
+
+func TestEquipmentSlotShowsAmountOnlyForAmmo(t *testing.T) {
+	if !equipmentSlotShowsAmount(equipmentSlotDef{location: equipLocationAmmo}, session.InventoryItem{Amount: 120}) {
+		t.Fatal("equipped ammo should show stack amount")
+	}
+	if equipmentSlotShowsAmount(equipmentSlotDef{location: equipLocationAmmo}, session.InventoryItem{}) {
+		t.Fatal("empty ammo amount should not be shown")
+	}
+	if equipmentSlotShowsAmount(equipmentSlotDef{location: equipLocationWeapon}, session.InventoryItem{Amount: 1}) {
+		t.Fatal("weapon amount should not be shown")
+	}
+}

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 	"time"
 
@@ -302,6 +303,9 @@ func (w *EquipmentWindow) drawSlotItem(screen *render.Image, ctx Context, assets
 	if slot.side == equipmentSlotCenter {
 		iconX := x + (width-inventoryIconSize)/2
 		assets.DrawInventoryItemIcon(screen, ctx.Resources, item, iconX, y)
+		if equipmentSlotShowsAmount(slot, item) {
+			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), x+width-18, y+height-14, TextColor)
+		}
 		return
 	}
 	if slot.side == equipmentSlotLeft {
@@ -318,6 +322,10 @@ func (w *EquipmentWindow) drawSlotItem(screen *render.Image, ctx Context, assets
 	if item.Refine > 0 {
 		render.DebugPrintAtColor(screen, "+"+formatHUDNumber(int64(item.Refine)), iconX-2, y+1, shopGoodColor)
 	}
+}
+
+func equipmentSlotShowsAmount(slot equipmentSlotDef, item session.InventoryItem) bool {
+	return slot.location == equipLocationAmmo && item.Amount > 0
 }
 
 func (w *EquipmentWindow) drawEmptySlotLabel(screen *render.Image, slot equipmentSlotDef, x, y int) {
