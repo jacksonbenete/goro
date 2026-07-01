@@ -16,12 +16,13 @@ import (
 )
 
 const (
-	consoleMargin   = 16
-	consoleWidth    = 480
-	consoleHeight   = 176
-	consoleMaxLines = 9
-	consoleMaxInput = 120
-	consoleFieldH   = 24
+	consoleMargin     = 16
+	consoleWidth      = 480
+	consoleHeight     = 176
+	consoleMaxLines   = 9
+	consoleMaxInput   = 120
+	consoleMaxHistory = 20
+	consoleFieldH     = 24
 )
 
 var (
@@ -43,6 +44,9 @@ type ChatConsole struct {
 	input         string
 	messages      []ConsoleMessage
 	scroll        int
+	history       []string
+	historyIndex  int
+	historyDraft  string
 	lastMessage   string
 	lastMessageAt time.Time
 
@@ -84,11 +88,11 @@ func (c *ChatConsole) Update(ctx client.Context) bool {
 		return false
 	}
 	if ctx.Input.JustPressed(render.KeyArrowUp) {
-		c.scrollLines(1)
+		c.previousInput()
 		return true
 	}
 	if ctx.Input.JustPressed(render.KeyArrowDown) {
-		c.scrollLines(-1)
+		c.nextInput()
 		return true
 	}
 	if text := ctx.Input.TextInput(); text != "" {
@@ -144,6 +148,7 @@ func (c *ChatConsole) submit(ctx client.Context) {
 		c.invalidate()
 		return
 	}
+	c.rememberInput(text)
 	if c.SubmitCommand(ctx, text) {
 		return
 	}
@@ -271,6 +276,8 @@ func (c *ChatConsole) appendInput(text string) {
 	if text == "" {
 		return
 	}
+	c.historyIndex = 0
+	c.historyDraft = ""
 	runes := []rune(c.input + text)
 	if len(runes) > consoleMaxInput {
 		runes = runes[:consoleMaxInput]
@@ -284,7 +291,53 @@ func (c *ChatConsole) backspace() {
 	if len(runes) == 0 {
 		return
 	}
+	c.historyIndex = 0
+	c.historyDraft = ""
 	c.input = string(runes[:len(runes)-1])
+	c.invalidate()
+}
+
+func (c *ChatConsole) rememberInput(text string) {
+	if text == "" {
+		return
+	}
+	if len(c.history) == 0 || c.history[len(c.history)-1] != text {
+		c.history = append(c.history, text)
+		if len(c.history) > consoleMaxHistory {
+			copy(c.history, c.history[len(c.history)-consoleMaxHistory:])
+			c.history = c.history[:consoleMaxHistory]
+		}
+	}
+	c.historyIndex = 0
+	c.historyDraft = ""
+}
+
+func (c *ChatConsole) previousInput() {
+	if len(c.history) == 0 {
+		return
+	}
+	if c.historyIndex == 0 {
+		c.historyDraft = c.input
+		c.historyIndex = len(c.history)
+	} else if c.historyIndex > 1 {
+		c.historyIndex--
+	}
+	c.input = c.history[c.historyIndex-1]
+	c.invalidate()
+}
+
+func (c *ChatConsole) nextInput() {
+	if c.historyIndex == 0 {
+		return
+	}
+	if c.historyIndex < len(c.history) {
+		c.historyIndex++
+		c.input = c.history[c.historyIndex-1]
+	} else {
+		c.historyIndex = 0
+		c.input = c.historyDraft
+		c.historyDraft = ""
+	}
 	c.invalidate()
 }
 
