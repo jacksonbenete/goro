@@ -154,6 +154,10 @@ type InventoryEquipAck struct {
 	Unequip  bool
 }
 
+type EquippedArrow struct {
+	Index uint16
+}
+
 type StorageAmount struct {
 	Amount    uint16
 	MaxAmount uint16
@@ -577,6 +581,18 @@ func ParseInventoryEquipAck(packet Packet) (InventoryEquipAck, bool, error) {
 	default:
 		return InventoryEquipAck{}, false, nil
 	}
+}
+
+func ParseEquippedArrow(packet Packet) (EquippedArrow, bool, error) {
+	if packet.ID != 0x013C {
+		return EquippedArrow{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return EquippedArrow{}, false, fmt.Errorf("ZC_EQUIP_ARROW too short: %d", len(packet.Data))
+	}
+	return EquippedArrow{
+		Index: binary.LittleEndian.Uint16(packet.Data[2:4]),
+	}, true, nil
 }
 
 func ParseShopDealSelection(packet Packet) (ShopDealSelection, bool, error) {

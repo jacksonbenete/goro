@@ -273,6 +273,20 @@ func TestBuildUseAndEquipItemPackets(t *testing.T) {
 	}
 }
 
+func TestParseEquippedArrow(t *testing.T) {
+	data := make([]byte, 4)
+	binary.LittleEndian.PutUint16(data[0:2], 0x013C)
+	binary.LittleEndian.PutUint16(data[2:4], 9)
+
+	arrow, ok, err := ParseEquippedArrow(Packet{ID: 0x013C, Data: data})
+	if err != nil || !ok {
+		t.Fatalf("ParseEquippedArrow ok=%v err=%v", ok, err)
+	}
+	if arrow.Index != 9 {
+		t.Fatalf("arrow index = %d, want 9", arrow.Index)
+	}
+}
+
 func TestParseInventoryItemListNormalLegacy(t *testing.T) {
 	data := make([]byte, 4+10)
 	binary.LittleEndian.PutUint16(data[0:2], 0x00A3)

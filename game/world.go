@@ -530,6 +530,15 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
+		if arrow, ok, err := network.ParseEquippedArrow(pkt); err != nil {
+			log.Printf("parse equipped arrow 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("equipped arrow index=%d", arrow.Index)
+			applyEquippedArrow(ctx, arrow)
+			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
 		if storageItems, ok, err := network.ParseStorageItemList(pkt); err != nil {
 			log.Printf("parse storage item list 0x%04X: %v", pkt.ID, err)
 		} else if ok {

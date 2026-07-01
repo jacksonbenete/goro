@@ -4509,6 +4509,19 @@ func TestSessionItemFromNetworkMarksEquipmentByType(t *testing.T) {
 	}
 }
 
+func TestSessionItemFromNetworkDefaultsAmmoLocation(t *testing.T) {
+	item := sessionItemFromNetwork(network.InventoryItem{
+		Index:      8,
+		ItemID:     1750,
+		Type:       10,
+		Identified: true,
+		Amount:     100,
+	})
+	if !item.Equip || item.Location != equipLocationAmmo {
+		t.Fatalf("ammo item = %+v, want equipped ammo location 0x%04X", item, equipLocationAmmo)
+	}
+}
+
 func TestInventoryItemListReplacesDifferentItemAtReusedIndex(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{
@@ -4579,6 +4592,46 @@ func TestApplyInventoryEquipAckUpdatesEquippedState(t *testing.T) {
 	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 1, Location: 0x0002, Success: true, Unequip: true})
 	if sessionState.Inventory.Items[0].Equipped {
 		t.Fatal("unequipped item stayed equipped")
+	}
+}
+
+func TestApplyInventoryEquipAckDefaultsAmmoLocation(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 3, ItemID: 1750, Type: 10, Amount: 100, Equip: true},
+			},
+		},
+	}
+	ctx := client.Context{Session: sessionState}
+
+	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 3, Success: true})
+
+	item := sessionState.Inventory.Items[0]
+	if !item.Equipped || item.Location != equipLocationAmmo {
+		t.Fatalf("ammo item after equip ack = %+v, want equipped ammo location 0x%04X", item, equipLocationAmmo)
+	}
+}
+
+func TestApplyEquippedArrowMarksAmmoSlot(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 3, ItemID: 1750, Type: 10, Amount: 100, Location: equipLocationAmmo, Equip: true, Equipped: true},
+				{Index: 9, ItemID: 1751, Type: 10, Amount: 50},
+			},
+		},
+	}
+	ctx := client.Context{Session: sessionState}
+
+	applyEquippedArrow(ctx, network.EquippedArrow{Index: 9})
+
+	if sessionState.Inventory.Items[0].Equipped {
+		t.Fatal("previous arrow stayed equipped")
+	}
+	item := sessionState.Inventory.Items[1]
+	if !item.Equip || !item.Equipped || item.Location != equipLocationAmmo {
+		t.Fatalf("arrow item after ZC_EQUIP_ARROW = %+v, want equipped ammo location 0x%04X", item, equipLocationAmmo)
 	}
 }
 

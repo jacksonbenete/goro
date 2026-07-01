@@ -98,7 +98,7 @@ func TestInventoryBagClassifiesTabs(t *testing.T) {
 		{name: "pet egg type", item: session.InventoryItem{Type: 7}, tab: inventoryBagTabEquip},
 		{name: "etc", item: session.InventoryItem{Type: 3}, tab: inventoryBagTabEtc},
 		{name: "card", item: session.InventoryItem{Type: 6}, tab: inventoryBagTabEtc},
-		{name: "ammo", item: session.InventoryItem{Type: 10}, tab: inventoryBagTabEtc},
+		{name: "ammo", item: session.InventoryItem{Type: 10}, tab: inventoryBagTabEquip},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

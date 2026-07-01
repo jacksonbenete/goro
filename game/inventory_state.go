@@ -75,7 +75,7 @@ func sessionItemFromNetwork(item network.InventoryItem) session.InventoryItem {
 	if amount <= 0 {
 		amount = 1
 	}
-	return session.InventoryItem{
+	sessionItem := session.InventoryItem{
 		Index:      item.Index,
 		ItemID:     item.ItemID,
 		Type:       item.Type,
@@ -87,12 +87,15 @@ func sessionItemFromNetwork(item network.InventoryItem) session.InventoryItem {
 		Damaged:    item.Damaged,
 		Refine:     item.Refine,
 	}
+	normalizeSessionInventoryItem(&sessionItem)
+	return sessionItem
 }
 
 func addOrReplaceSessionInventoryItem(s *session.Session, item session.InventoryItem) {
 	if s == nil || item.Index == 0 {
 		return
 	}
+	normalizeSessionInventoryItem(&item)
 	if item.Amount <= 0 {
 		item.Amount = 1
 	}
@@ -110,6 +113,7 @@ func addOrReplaceSessionStorageItem(s *session.Session, item session.InventoryIt
 	if s == nil || item.Index == 0 {
 		return
 	}
+	normalizeSessionInventoryItem(&item)
 	if item.Amount <= 0 {
 		item.Amount = 1
 	}
@@ -127,20 +131,60 @@ func applyInventoryEquipAck(ctx client.Context, ack network.InventoryEquipAck) {
 	if ctx.Session == nil || !ack.Success || ack.Index == 0 {
 		return
 	}
+	location := ack.Location
+	if !ack.Unequip && location == 0 {
+		location = inventoryEquipAckDefaultLocation(ctx.Session, ack.Index)
+	}
 	for i := range ctx.Session.Inventory.Items {
 		item := &ctx.Session.Inventory.Items[i]
 		if item.Index != ack.Index {
-			if !ack.Unequip && ack.Location != 0 && item.Equipped && item.Location&ack.Location != 0 {
+			if !ack.Unequip && location != 0 && item.Equipped && item.Location&location != 0 {
 				item.Equipped = false
 			}
 			continue
 		}
 		item.Equipped = !ack.Unequip
-		if !ack.Unequip && ack.Location != 0 {
-			item.Location = ack.Location
+		if !ack.Unequip && location != 0 {
+			item.Location = location
+		}
+		if !ack.Unequip {
+			item.Equip = true
+			normalizeSessionInventoryItem(item)
 		}
 	}
 	rebuildLocalEquipmentAppearance(ctx)
+}
+
+func applyEquippedArrow(ctx client.Context, arrow network.EquippedArrow) {
+	applyInventoryEquipAck(ctx, network.InventoryEquipAck{
+		Index:    arrow.Index,
+		Location: equipLocationAmmo,
+		Success:  true,
+	})
+}
+
+func normalizeSessionInventoryItem(item *session.InventoryItem) {
+	if item == nil {
+		return
+	}
+	if inventoryItemTypeIsEquipment(item.Type) {
+		item.Equip = true
+	}
+	if item.Location == 0 {
+		item.Location = inventoryItemDefaultEquipLocation(item.Type)
+	}
+}
+
+func inventoryEquipAckDefaultLocation(s *session.Session, index uint16) uint16 {
+	if s == nil || index == 0 {
+		return 0
+	}
+	for _, item := range s.Inventory.Items {
+		if item.Index == index {
+			return inventoryItemDefaultEquipLocation(item.Type)
+		}
+	}
+	return 0
 }
 
 func rebuildLocalEquipmentAppearance(ctx client.Context) {
@@ -206,6 +250,7 @@ func addPickedSessionInventoryItem(s *session.Session, item session.InventoryIte
 	if s == nil || item.Index == 0 {
 		return
 	}
+	normalizeSessionInventoryItem(&item)
 	if item.Amount <= 0 {
 		item.Amount = 1
 	}

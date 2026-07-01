@@ -326,11 +326,12 @@ func (w *InventoryBagWindow) activateItem(ctx Context, item session.InventoryIte
 			w.setStatus("Unequip requested", true)
 			return
 		}
-		if item.Location == 0 {
+		location := inventoryItemEquipLocation(item)
+		if location == 0 {
 			w.setStatus("Missing equip location", false)
 			return
 		}
-		if err := ctx.Network.SendWearEquip(item.Index, item.Location); err != nil {
+		if err := ctx.Network.SendWearEquip(item.Index, location); err != nil {
 			w.setStatus(err.Error(), false)
 			return
 		}
@@ -453,11 +454,21 @@ func inventoryItemIsEquipment(item session.InventoryItem) bool {
 
 func inventoryItemTypeIsEquipment(itemType uint8) bool {
 	switch itemType {
-	case 4, 5, 7, 8, 12:
+	case 4, 5, 7, 8, 10, 12:
 		return true
 	default:
 		return false
 	}
+}
+
+func inventoryItemEquipLocation(item session.InventoryItem) uint16 {
+	if item.Location != 0 {
+		return item.Location
+	}
+	if item.Type == 10 {
+		return equipLocationAmmo
+	}
+	return 0
 }
 
 func inventoryItemIsUsable(item session.InventoryItem) bool {
