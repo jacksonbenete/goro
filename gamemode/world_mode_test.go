@@ -1382,7 +1382,7 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	if !ok {
 		t.Fatal("cast animation missing")
 	}
-	if anim.actionFamily != spriteActionPCSkill || anim.duration != 2500*time.Millisecond || anim.hasFixedMotion {
+	if anim.actionFamily != spriteActionPCReadyFight || anim.duration != 2500*time.Millisecond || anim.hasFixedMotion {
 		t.Fatalf("cast animation = %+v", anim)
 	}
 	if world.Dir != worldstate.DirectionFromDelta(10, 20, 12, 20, 4) {
@@ -1405,6 +1405,28 @@ func TestSkillCastEffectsDedupeServerAndLocalFallback(t *testing.T) {
 	}
 	if mode.worldEffects[0].effectID != effectCastRing || mode.worldEffects[1].effectID != effectBeginSpell3 {
 		t.Fatalf("effects = %+v", mode.worldEffects)
+	}
+}
+
+func TestSkillResultAnimationReplacesCastStance(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 4, Dir: 4}
+	world.UpsertActor(worldstate.Actor{ID: 1100, X: 12, Y: 20})
+	mode := &WorldMode{}
+	ctx := Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+
+	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: 28, DelayTime: 1200})
+	if anim, ok := mode.actorAnims[150000]; !ok || anim.actionFamily != spriteActionPCReadyFight {
+		t.Fatalf("cast stance animation = %+v ok=%t", anim, ok)
+	}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SourceID: 2000000, TargetID: 1100, SkillID: 28, Amount: 234, Result: 1})
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("skill result animation missing")
+	}
+	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
+		t.Fatalf("skill result animation = %+v, want delivery skill action", anim)
 	}
 }
 
@@ -1448,7 +1470,7 @@ func TestLocalGroundSkillCastFallbackFacesCellAndStartsCastAnimation(t *testing.
 	if !ok {
 		t.Fatal("local ground cast animation missing")
 	}
-	if anim.actionFamily != spriteActionPCSkill || anim.duration != 1800*time.Millisecond || anim.hasFixedMotion {
+	if anim.actionFamily != spriteActionPCReadyFight || anim.duration != 1800*time.Millisecond || anim.hasFixedMotion {
 		t.Fatalf("local ground cast animation = %+v", anim)
 	}
 	if len(mode.worldEffects) != 3 {
@@ -4736,6 +4758,33 @@ func TestApplyInventoryEquipAckUpdatesEquippedState(t *testing.T) {
 	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 1, Location: 0x0002, Success: true, Unequip: true})
 	if sessionState.Inventory.Items[0].Equipped {
 		t.Fatal("unequipped item stayed equipped")
+	}
+}
+
+func TestInventoryEquipmentRebuildsLocalWeaponAppearanceFromEquippedItem(t *testing.T) {
+	sessionState := &session.Session{
+		CharID:   150000,
+		Selected: session.Character{ID: 150000, Job: 2, Weapon: 10},
+		Characters: []session.Character{
+			{ID: 150000, Job: 2, Weapon: 10},
+		},
+	}
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, Job: 2, Weapon: 10}
+	ctx := Context{Session: sessionState, World: world}
+
+	applyInventoryItemList(ctx, []network.InventoryItem{
+		{Index: 2, ItemID: 1607, Type: 5, Location: 0x0002, Equip: true, Equipped: true, Identified: true},
+	})
+
+	if sessionState.Selected.Weapon != 10 || sessionState.Selected.Shield != 0 {
+		t.Fatalf("selected weapon = %d shield = %d, want 10/0", sessionState.Selected.Weapon, sessionState.Selected.Shield)
+	}
+	if sessionState.Characters[0].Weapon != 10 {
+		t.Fatalf("character list weapon = %d, want 10", sessionState.Characters[0].Weapon)
+	}
+	if world.Player.Weapon != 10 || world.Player.Shield != 0 {
+		t.Fatalf("world player weapon = %d shield = %d, want 10/0", world.Player.Weapon, world.Player.Shield)
 	}
 }
 

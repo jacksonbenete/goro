@@ -1956,6 +1956,13 @@ func skillActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
 	}
 }
 
+func skillCastActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
+	if !res.HasPlayerJobToken(int(actor.Job)) {
+		return spriteActionNonPCAttack
+	}
+	return spriteActionPCReadyFight
+}
+
 func skillTargetUsesHitReaction(action network.ActorActionNotify, sourceLocal, targetLocal bool) bool {
 	if action.SkillID > 0 && sourceLocal && targetLocal && action.Action == network.ActorActionSkill {
 		return false
@@ -3218,8 +3225,9 @@ func applyCharacterLookChange(sessionState *session.Session, look network.ActorL
 		case 1:
 			character.Hair = int16(look.Value)
 		case 2:
-			character.Weapon = int16(look.Value & 0xFFFF)
-			character.Shield = int16((look.Value >> 16) & 0xFFFF)
+			weapon, shield := res.NormalizePlayerWeaponShield(int(look.Value&0xFFFF), int((look.Value>>16)&0xFFFF))
+			character.Weapon = int16(weapon)
+			character.Shield = int16(shield)
 		case 3:
 			character.HeadLow = int16(look.Value)
 		case 4:
@@ -3257,8 +3265,9 @@ func applyWorldActorLookChange(actor *worldstate.Actor, look network.ActorLookCh
 	case 1:
 		actor.Head = int16(look.Value)
 	case 2:
-		actor.Weapon = int16(look.Value & 0xFFFF)
-		actor.Shield = int16((look.Value >> 16) & 0xFFFF)
+		weapon, shield := res.NormalizePlayerWeaponShield(int(look.Value&0xFFFF), int((look.Value>>16)&0xFFFF))
+		actor.Weapon = int16(weapon)
+		actor.Shield = int16(shield)
 	case 3:
 		actor.HeadLow = int16(look.Value)
 	case 4:
@@ -4563,12 +4572,13 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx Context, project
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return m.drawNonPCSprite3D(screen, ctx, projection, entry, cameraYaw, shadow)
 	}
+	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
 	key := actorSpriteKey{
 		job:     int(actor.Job),
 		head:    int(actor.Head),
 		sex:     actor.Sex,
-		weapon:  int(actor.Weapon),
-		shield:  int(actor.Shield),
+		weapon:  weapon,
+		shield:  shield,
 		headTop: int(actor.HeadTop),
 		headMid: int(actor.HeadMid),
 		headLow: int(actor.HeadLow),

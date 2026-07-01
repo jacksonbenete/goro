@@ -62,10 +62,18 @@ func executeLua51Bytecode(data []byte, globals map[string]luaValue) error {
 	if err != nil {
 		return err
 	}
-	if err := executeLuaFunctionWithGopherLua(fn, globals); err == nil {
+	if err := executeLuaFunctionWithGopherLua(fn, globals, nil); err == nil {
 		return nil
 	}
 	return executeLuaFunction(fn, globals)
+}
+
+func executeLua51BytecodeWithSetup(data []byte, globals map[string]luaValue, setup func(*glua.LState)) error {
+	fn, err := parseLua51Bytecode(data)
+	if err != nil {
+		return err
+	}
+	return executeLuaFunctionWithGopherLua(fn, globals, setup)
 }
 
 type luaReader struct {
@@ -167,7 +175,7 @@ func (r *luaReader) function() (luaFunction, error) {
 	}, nil
 }
 
-func executeLuaFunctionWithGopherLua(fn luaFunction, globals map[string]luaValue) error {
+func executeLuaFunctionWithGopherLua(fn luaFunction, globals map[string]luaValue, setup func(*glua.LState)) error {
 	if globals == nil {
 		return errors.New("nil Lua globals")
 	}
@@ -178,6 +186,9 @@ func executeLuaFunctionWithGopherLua(fn luaFunction, globals map[string]luaValue
 	state := glua.NewState(glua.Options{SkipOpenLibs: true})
 	defer state.Close()
 	openLuaResourceLibs(state)
+	if setup != nil {
+		setup(state)
+	}
 	for key, value := range globals {
 		if value.kind != luaNil {
 			state.SetGlobal(key, luaValueToGopherLua(state, value))

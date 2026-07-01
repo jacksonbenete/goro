@@ -76,6 +76,8 @@ func TestItemMetadataLookupFallbacks(t *testing.T) {
 				IdentifiedDisplayName:   "Jellopy",
 				IdentifiedResource:      "jellopy",
 				IdentifiedDescription:   []string{"A tiny crystalline item."},
+				ClassNum:                10,
+				ClassNumSet:             true,
 			},
 		},
 	}
@@ -90,6 +92,9 @@ func TestItemMetadataLookupFallbacks(t *testing.T) {
 	}
 	if got, ok := manager.ItemDescription(909, false); !ok || len(got) != 1 || got[0] != "A tiny crystalline item." {
 		t.Fatalf("description fallback = %#v ok=%v", got, ok)
+	}
+	if got, ok := manager.ItemClassNum(909); !ok || got != 10 {
+		t.Fatalf("class num = %d ok=%v, want 10/true", got, ok)
 	}
 }
 

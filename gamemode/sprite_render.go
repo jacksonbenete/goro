@@ -1,15 +1,12 @@
 package gamemode
 
 import (
-	"fmt"
 	"image/color"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
-	"github.com/kivutar/goro/session"
 )
 
 const (
@@ -41,6 +38,18 @@ const (
 	// Keeping actor billboards exactly coplanar with terrain lets sloped GND
 	// triangles clip the bottom pixels of tight NPC/mob sprite frames.
 	actorSpriteTerrainLift = 0.2
+)
+
+const (
+	humanoidLayerBody = iota
+	humanoidLayerHead
+	humanoidLayerAccessoryBottom
+	humanoidLayerAccessoryMid
+	humanoidLayerAccessoryTop
+	humanoidLayerWeapon
+	humanoidLayerWeaponLight
+	humanoidLayerShield
+	humanoidLayerCount
 )
 
 type playerSpriteView struct {
@@ -123,344 +132,6 @@ type spriteState struct {
 	hasFixedMotion bool
 	moveSpeedMS    int
 	walkDistance   float64
-}
-
-func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte) (*humanoidSpriteView, string) {
-	return loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
-		job:         int(character.Job),
-		head:        int(character.Hair),
-		sex:         sex,
-		bodyPalette: int(character.BodyPal),
-		headPalette: characterHeadPalette(character),
-		weapon:      int(character.Weapon),
-		shield:      int(character.Shield),
-		headTop:     int(character.HeadTop),
-		headMid:     int(character.HeadMid),
-		headLow:     int(character.HeadLow),
-	}, "player")
-}
-
-func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSpriteView, string) {
-	resourceName, ok := manager.JobResourceName(job)
-	if !ok {
-		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
-	}
-	if fallbackJob, ok := roBrowserGR2SpriteFallbackJob(resourceName); ok {
-		fallbackResourceName, fallbackOK := manager.JobResourceName(fallbackJob)
-		if !fallbackOK {
-			return nil, fmt.Sprintf("%s job=%d resource=%s gr2-fallback-job=%d resource-name=missing", label, job, resourceName, fallbackJob)
-		}
-		statusPrefix := fmt.Sprintf("%s gr2-fallback job=%d resource=%s -> job=%d resource=%s", label, job, resourceName, fallbackJob, fallbackResourceName)
-		view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(fallbackJob, fallbackResourceName, "act"), res.NonPCSpriteResourceCandidates(fallbackJob, fallbackResourceName, "spr"), nil, statusPrefix)
-		if view == nil {
-			return nil, status
-		}
-		return view, status
-	}
-	view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(job, resourceName, "act"), res.NonPCSpriteResourceCandidates(job, resourceName, "spr"), nil, label+" "+resourceName)
-	if view == nil {
-		return nil, status
-	}
-	if upgrade, ok := loadRicherNonPCSpritePair(manager, job, resourceName, len(view.act.Actions)); ok {
-		view.act = upgrade.act
-		view.actSource = upgrade.actSource
-		view.spr = upgrade.spr
-		view.source = upgrade.sprSource
-		status += fmt.Sprintf(" sprite-upgraded act=%s spr=%s actions=%d frames=%d", upgrade.actSource, upgrade.sprSource, len(upgrade.act.Actions), len(upgrade.spr.Frames))
-	}
-	return view, status
-}
-
-func roBrowserGR2SpriteFallbackJob(resourceName string) (int, bool) {
-	name := strings.ToLower(strings.ReplaceAll(resourceName, "/", "\\"))
-	if i := strings.LastIndex(name, "\\"); i >= 0 {
-		name = name[i+1:]
-	}
-	switch name {
-	case "aguardian90_8.gr2":
-		return 1276, true
-	case "empelium90_0.gr2":
-		return 2080, true
-	case "guildflag90_1.gr2":
-		return 1911, true
-	case "kguardian90_7.gr2":
-		return 2691, true
-	case "sguardian90_9.gr2":
-		return 1163, true
-	case "treasurebox_2.gr2":
-		return 1191, true
-	default:
-		if strings.HasSuffix(name, ".gr2") {
-			return 1002, true
-		}
-		return 0, false
-	}
-}
-
-func characterHeadPalette(character session.Character) int {
-	if character.HeadPal > 0 {
-		return int(character.HeadPal)
-	}
-	return int(character.HairColor)
-}
-
-func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, bodyPalette int, headPalette int, label string) (*humanoidSpriteView, string) {
-	return loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
-		job:         job,
-		head:        head,
-		sex:         sex,
-		bodyPalette: bodyPalette,
-		headPalette: headPalette,
-	}, label)
-}
-
-func loadHumanoidSpriteViewWithAppearance(manager *res.Manager, appearance humanoidAppearance, label string) (*humanoidSpriteView, string) {
-	body, bodyStatus := loadBodySpriteView(manager, appearance.job, appearance.sex, appearance.bodyPalette, label+" body")
-	if body == nil {
-		return nil, bodyStatus
-	}
-	headView, headStatus := loadHeadSpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headPalette, label+" head")
-	imf, imfSource, imfStatus := loadPlayerIMF(manager, appearance.job, appearance.sex)
-	accessoryBottom, accessoryBottomStatus := loadAccessorySpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headLow, "", label+" accessory-bottom")
-	accessoryMid, accessoryMidStatus := loadAccessorySpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headMid, "", label+" accessory-mid")
-	accessoryTop, accessoryTopStatus := loadAccessorySpriteView(manager, appearance.job, appearance.head, appearance.sex, appearance.headTop, "", label+" accessory-top")
-	weapon, weaponStatus := loadWeaponOverlaySpriteView(manager, appearance.job, appearance.sex, appearance.weapon, false, label+" weapon")
-	weaponLight, weaponLightStatus := loadWeaponOverlaySpriteView(manager, appearance.job, appearance.sex, appearance.weapon, true, label+" weapon-light")
-	shield, shieldStatus := loadShieldOverlaySpriteView(manager, appearance.job, appearance.sex, appearance.shield, label+" shield")
-	view := &humanoidSpriteView{
-		body:            body,
-		head:            headView,
-		accessoryBottom: accessoryBottom,
-		accessoryMid:    accessoryMid,
-		accessoryTop:    accessoryTop,
-		weapon:          weapon,
-		weaponLight:     weaponLight,
-		shield:          shield,
-		imf:             imf,
-		imfSource:       imfSource,
-		billboards:      make(map[humanoidBillboardKey]*spriteBillboard),
-		started:         time.Now(),
-	}
-	status := bodyStatus + " " + headStatus + imfStatus
-	for _, overlayStatus := range []string{accessoryBottomStatus, accessoryMidStatus, accessoryTopStatus, weaponStatus, weaponLightStatus, shieldStatus} {
-		if overlayStatus != "" {
-			status += " " + overlayStatus
-		}
-	}
-	return view, status
-}
-
-func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, label string) (*playerSpriteView, string) {
-	return loadSpriteView(manager, res.PlayerBodyResourceCandidates(job, sex, "act"), res.PlayerBodyResourceCandidates(job, sex, "spr"), res.PlayerBodyPaletteResourceCandidates(job, sex, palette, "pal"), label)
-}
-
-func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, palette int, label string) (*playerSpriteView, string) {
-	return loadSpriteView(manager, res.PlayerHeadResourceCandidates(job, head, sex, "act"), res.PlayerHeadResourceCandidates(job, head, sex, "spr"), res.PlayerHeadPaletteResourceCandidates(job, head, sex, palette, "pal"), label)
-}
-
-func loadAccessorySpriteView(manager *res.Manager, job int, head int, sex byte, viewID int, resourceName string, label string) (*playerSpriteView, string) {
-	if viewID <= 0 {
-		return nil, ""
-	}
-	if resourceName == "" {
-		if name, ok := manager.AccessoryResourceName(viewID); ok {
-			resourceName = name
-		}
-	}
-	if viewID != 185 && resourceName == "" {
-		return nil, fmt.Sprintf("%s skipped: missing accessory resource table", label)
-	}
-	return loadSpriteView(manager, res.PlayerAccessoryResourceCandidates(job, head, sex, viewID, resourceName, "act"), res.PlayerAccessoryResourceCandidates(job, head, sex, viewID, resourceName, "spr"), nil, label)
-}
-
-func loadWeaponOverlaySpriteView(manager *res.Manager, job int, sex byte, weapon int, secondLayer bool, label string) (*playerSpriteView, string) {
-	if weapon <= 0 {
-		return nil, ""
-	}
-	return loadSpriteView(manager, res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "act"), res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "spr"), nil, label)
-}
-
-func loadShieldOverlaySpriteView(manager *res.Manager, job int, sex byte, shield int, label string) (*playerSpriteView, string) {
-	if shield <= 0 {
-		return nil, ""
-	}
-	return loadSpriteView(manager, res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "act"), res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "spr"), nil, label)
-}
-
-func loadActorShadowSpriteView(manager *res.Manager) (*playerSpriteView, string) {
-	return loadSpriteView(manager,
-		[]string{"data\\sprite\\shadow.act", "data/sprite/shadow.act"},
-		[]string{"data\\sprite\\shadow.spr", "data/sprite/shadow.spr"},
-		nil,
-		"actor shadow",
-	)
-}
-
-func loadCursorSpriteView(manager *res.Manager) (*playerSpriteView, string) {
-	return loadSpriteView(manager,
-		[]string{"data\\sprite\\cursors.act", "data/sprite/cursors.act", "data\\sprite\\interface\\cursors.act", "data/sprite/interface/cursors.act"},
-		[]string{"data\\sprite\\cursors.spr", "data/sprite/cursors.spr", "data\\sprite\\interface\\cursors.spr", "data/sprite/interface/cursors.spr"},
-		nil,
-		"cursor",
-	)
-}
-
-func loadPlayerIMF(manager *res.Manager, job int, sex byte) (*res.IMF, string, string) {
-	data, source, err := readFirstResource(manager, res.PlayerIMFResourceCandidates(job, sex))
-	if err != nil {
-		return nil, "", " imf=missing"
-	}
-	imf, err := res.ParseIMF(data)
-	if err != nil {
-		return nil, "", fmt.Sprintf(" imf=%s parse-error=%v", source, err)
-	}
-	return imf, source, fmt.Sprintf(" imf=%s", source)
-}
-
-func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates []string, palCandidates []string, label string) (*playerSpriteView, string) {
-	actData, actSource, err := readFirstResource(manager, actCandidates)
-	if err != nil {
-		return nil, fmt.Sprintf("%s act: %v", label, err)
-	}
-	sprData, sprSource, err := readFirstResource(manager, sprCandidates)
-	if err != nil {
-		return nil, fmt.Sprintf("%s spr: %v", label, err)
-	}
-	act, err := res.ParseACT(actData)
-	if err != nil {
-		return nil, fmt.Sprintf("%s act parse %s: %v", label, actSource, err)
-	}
-	spr, err := res.ParseSPR(sprData)
-	if err != nil {
-		return nil, fmt.Sprintf("%s spr parse %s: %v", label, sprSource, err)
-	}
-	palette, paletteSource, paletteStatus := loadSpritePalette(manager, palCandidates)
-	return &playerSpriteView{
-		spr:           spr,
-		act:           act,
-		actSource:     actSource,
-		source:        sprSource,
-		palette:       palette,
-		paletteSource: paletteSource,
-		images:        make(map[spriteFrameKey]*render.Image),
-		billboards:    make(map[singleSpriteBillboardKey]*spriteBillboard),
-		started:       time.Now(),
-	}, fmt.Sprintf("%s: %s actions=%d frames=%d%s", label, sprSource, len(act.Actions), len(spr.Frames), paletteStatus)
-}
-
-type nonPCSpritePairUpgrade struct {
-	act       *res.ACT
-	actSource string
-	spr       *res.SPR
-	sprSource string
-}
-
-func loadRicherNonPCSpritePair(manager *res.Manager, job int, resourceName string, currentActions int) (nonPCSpritePairUpgrade, bool) {
-	if manager == nil || job < 1000 || currentActions > 8 {
-		return nonPCSpritePairUpgrade{}, false
-	}
-	var best nonPCSpritePairUpgrade
-	for _, archive := range manager.Archives {
-		for _, candidate := range res.NonPCSpriteResourceCandidates(job, resourceName, "act") {
-			data, err := archive.ReadFile(candidate)
-			if err != nil {
-				continue
-			}
-			act, err := res.ParseACT(data)
-			if err != nil {
-				continue
-			}
-			if !preferNonPCActUpgrade(job, currentActions, len(act.Actions)) {
-				continue
-			}
-			for _, sprCandidate := range res.NonPCSpriteResourceCandidates(job, resourceName, "spr") {
-				sprData, err := archive.ReadFile(sprCandidate)
-				if err != nil {
-					continue
-				}
-				spr, err := res.ParseSPR(sprData)
-				if err != nil || !actFitsSPR(act, spr) {
-					continue
-				}
-				if best.act == nil || len(act.Actions) > len(best.act.Actions) || len(act.Actions) == len(best.act.Actions) && len(spr.Frames) > len(best.spr.Frames) {
-					best = nonPCSpritePairUpgrade{
-						act:       act,
-						actSource: archive.Path() + ":" + candidate,
-						spr:       spr,
-						sprSource: archive.Path() + ":" + sprCandidate,
-					}
-				}
-			}
-		}
-	}
-	return best, best.act != nil
-}
-
-func preferNonPCActUpgrade(job int, currentActions, candidateActions int) bool {
-	return job >= 1000 && currentActions > 0 && currentActions <= 8 && candidateActions >= 40
-}
-
-func actFitsSPR(act *res.ACT, spr *res.SPR) bool {
-	if act == nil || spr == nil {
-		return false
-	}
-	for _, action := range act.Actions {
-		for _, anim := range action.Animations {
-			for _, layer := range anim.Layers {
-				if layer.Index < 0 {
-					continue
-				}
-				index := int(layer.Index)
-				if layer.SPRType == res.SPRFrameRGBA {
-					index += spr.RGBAIndex
-				}
-				if index < 0 || index >= len(spr.Frames) {
-					return false
-				}
-			}
-		}
-	}
-	return true
-}
-
-func loadSpritePalette(manager *res.Manager, candidates []string) (*res.Palette, string, string) {
-	if len(candidates) == 0 {
-		return nil, "", ""
-	}
-	data, source, err := readFirstResource(manager, candidates)
-	if err != nil {
-		return nil, "", " palette=default"
-	}
-	palette, err := res.ParsePAL(data)
-	if err != nil {
-		return nil, "", fmt.Sprintf(" palette=%s parse-error=%v", source, err)
-	}
-	return &palette, source, fmt.Sprintf(" palette=%s", source)
-}
-
-func readFirstResource(manager *res.Manager, candidates []string) ([]byte, string, error) {
-	for _, candidate := range candidates {
-		data, err := manager.ReadFile(candidate)
-		if err == nil {
-			return data, candidate, nil
-		}
-	}
-	return nil, "", fmt.Errorf("not found")
-}
-
-func selectedCharacter(s *session.Session) session.Character {
-	if s.Selected.ID != 0 {
-		return s.Selected
-	}
-	for _, character := range s.Characters {
-		if character.ID == s.CharID {
-			return character
-		}
-	}
-	if len(s.Characters) > 0 {
-		return s.Characters[0]
-	}
-	return session.Character{ID: s.CharID, Name: "Player", Job: 0}
 }
 
 func (m *WorldMode) drawPlayerSprite3D(ctx Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64) bool {
@@ -1038,9 +709,9 @@ func drawPlayerIMFLayers(target *render.Image, view *humanoidSpriteView, actionI
 	drawn := false
 	for _, layer := range order {
 		switch layer {
-		case 0:
-			drawn = drawPlayerIMFLayer(target, view.body, view.imf, 0, actionIndex, bodyMotion, nil) || drawn
-		case 1:
+		case humanoidLayerBody:
+			drawn = drawPlayerIMFLayer(target, view.body, view.imf, humanoidLayerBody, actionIndex, bodyMotion, nil) || drawn
+		case humanoidLayerHead:
 			if view.head == nil || view.head.act == nil || view.head.spr == nil {
 				continue
 			}
@@ -1048,25 +719,25 @@ func drawPlayerIMFLayers(target *render.Image, view *humanoidSpriteView, actionI
 			if bodyAnimOK {
 				attachBase = &bodyAnim
 			}
-			drawn = drawPlayerIMFLayer(target, view.head, view.imf, 1, actionIndex, headMotion, attachBase) || drawn
-		case 2:
+			drawn = drawPlayerIMFLayer(target, view.head, view.imf, humanoidLayerHead, actionIndex, headMotion, attachBase) || drawn
+		case humanoidLayerAccessoryBottom:
 			if bodyAnimOK {
 				drawn = drawAttachedAccessoryMotion(target, view.accessoryBottom, view.head, bodyAnim, actionIndex, headMotion) || drawn
 			}
-		case 3:
+		case humanoidLayerAccessoryMid:
 			if bodyAnimOK {
 				drawn = drawAttachedAccessoryMotion(target, view.accessoryMid, view.head, bodyAnim, actionIndex, headMotion) || drawn
 			}
-		case 4:
+		case humanoidLayerAccessoryTop:
 			if bodyAnimOK {
 				drawn = drawAttachedAccessoryMotion(target, view.accessoryTop, view.head, bodyAnim, actionIndex, headMotion) || drawn
 			}
-		case 5:
-			drawn = drawPlayerOverlayMotion(target, view.weapon, view.body, view.imf, 5, actionIndex, bodyMotion) || drawn
-		case 6:
-			drawn = drawPlayerOverlayMotion(target, view.weaponLight, view.body, view.imf, 6, actionIndex, bodyMotion) || drawn
-		case 7:
-			drawn = drawPlayerOverlayMotion(target, view.shield, view.body, view.imf, 7, actionIndex, bodyMotion) || drawn
+		case humanoidLayerWeapon:
+			drawn = drawPlayerOverlayMotion(target, view.weapon, view.body, view.imf, humanoidLayerWeapon, actionIndex, bodyMotion) || drawn
+		case humanoidLayerWeaponLight:
+			drawn = drawPlayerOverlayMotion(target, view.weaponLight, view.body, view.imf, humanoidLayerWeaponLight, actionIndex, bodyMotion) || drawn
+		case humanoidLayerShield:
+			drawn = drawPlayerOverlayMotion(target, view.shield, view.body, view.imf, humanoidLayerShield, actionIndex, bodyMotion) || drawn
 		}
 	}
 	return drawn
@@ -1193,9 +864,18 @@ func resolveOverlayMotionIndex(overlayAct *res.ACT, bodyAct *res.ACT, actionInde
 	return motionIndex
 }
 
-func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
+func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [humanoidLayerCount]int {
 	if imf == nil {
-		return [8]int{7, 0, 1, 4, 3, 2, 5, 6}
+		return [humanoidLayerCount]int{
+			humanoidLayerShield,
+			humanoidLayerBody,
+			humanoidLayerHead,
+			humanoidLayerAccessoryTop,
+			humanoidLayerAccessoryMid,
+			humanoidLayerAccessoryBottom,
+			humanoidLayerWeapon,
+			humanoidLayerWeaponLight,
+		}
 	}
 	resolveLayerPriority := func(priority int) int {
 		layer := imf.LayerForPriority(priority, actionIndex, motionIndex)
@@ -1208,13 +888,13 @@ func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
 	dir := actionIndex & 7
 	headLayerPassed := false
 	bodyAndAccessoryExchanged := 0
-	var order [8]int
+	var order [humanoidLayerCount]int
 	outIndex := 0
-	for pass := 7; pass >= 0; pass-- {
-		layer := 0
+	for pass := humanoidLayerCount - 1; pass >= 0; pass-- {
+		layer := humanoidLayerBody
 		if dir >= 2 && dir <= 5 {
-			if pass == 7 {
-				layer = 7
+			if pass == humanoidLayerShield {
+				layer = humanoidLayerShield
 			} else if pass >= 5 && pass <= 6 {
 				layer = resolveLayerPriority(pass - 5)
 			} else {
@@ -1227,25 +907,25 @@ func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
 		}
 
 		originalLayer := layer
-		if (headLayerPassed || layer == 1) && layer == 0 {
+		if (headLayerPassed || layer == humanoidLayerHead) && layer == humanoidLayerBody {
 			headLayerPassed = true
-			layer = 2
+			layer = humanoidLayerAccessoryBottom
 			bodyAndAccessoryExchanged++
 		}
-		if !headLayerPassed && layer == 1 {
+		if !headLayerPassed && layer == humanoidLayerHead {
 			headLayerPassed = true
 		}
-		if bodyAndAccessoryExchanged == 1 && originalLayer == 2 {
+		if bodyAndAccessoryExchanged == 1 && originalLayer == humanoidLayerAccessoryBottom {
 			bodyAndAccessoryExchanged = 2
-			layer = 0
+			layer = humanoidLayerBody
 		}
-		if layer >= 8 {
-			layer = 0
+		if layer >= humanoidLayerCount {
+			layer = humanoidLayerBody
 		}
-		if layer == 2 {
-			layer = 4
-		} else if layer == 4 {
-			layer = 2
+		if layer == humanoidLayerAccessoryBottom {
+			layer = humanoidLayerAccessoryTop
+		} else if layer == humanoidLayerAccessoryTop {
+			layer = humanoidLayerAccessoryBottom
 		}
 		order[outIndex] = layer
 		outIndex++
@@ -1253,9 +933,9 @@ func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
 
 	bodyIndex, headIndex := -1, -1
 	for index, layer := range order {
-		if layer == 0 && bodyIndex < 0 {
+		if layer == humanoidLayerBody && bodyIndex < 0 {
 			bodyIndex = index
-		} else if layer == 1 && headIndex < 0 {
+		} else if layer == humanoidLayerHead && headIndex < 0 {
 			headIndex = index
 		}
 	}
@@ -1263,8 +943,8 @@ func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
 		order[bodyIndex], order[headIndex] = order[headIndex], order[bodyIndex]
 	}
 
-	var reordered [8]int
-	var delayed [8]int
+	var reordered [humanoidLayerCount]int
+	var delayed [humanoidLayerCount]int
 	delayedCount := 0
 	reorderedCount := 0
 	headDrawn := false
@@ -1276,7 +956,7 @@ func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
 		}
 		reordered[reorderedCount] = layer
 		reorderedCount++
-		if layer == 1 {
+		if layer == humanoidLayerHead {
 			headDrawn = true
 			for index := 0; index < delayedCount; index++ {
 				reordered[reorderedCount] = delayed[index]
@@ -1289,16 +969,16 @@ func playerRenderLayerOrder(imf *res.IMF, actionIndex, motionIndex int) [8]int {
 		reordered[reorderedCount] = delayed[index]
 		reorderedCount++
 	}
-	reordered = ensureRenderLayerPresent(reordered, 0)
-	reordered = ensureRenderLayerPresent(reordered, 1)
+	reordered = ensureRenderLayerPresent(reordered, humanoidLayerBody)
+	reordered = ensureRenderLayerPresent(reordered, humanoidLayerHead)
 	return reordered
 }
 
 func isHeadAccessoryLayer(layer int) bool {
-	return layer == 2 || layer == 3 || layer == 4
+	return layer == humanoidLayerAccessoryBottom || layer == humanoidLayerAccessoryMid || layer == humanoidLayerAccessoryTop
 }
 
-func ensureRenderLayerPresent(order [8]int, required int) [8]int {
+func ensureRenderLayerPresent(order [humanoidLayerCount]int, required int) [humanoidLayerCount]int {
 	counts := make(map[int]int, len(order))
 	for _, layer := range order {
 		counts[layer]++

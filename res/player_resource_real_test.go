@@ -49,3 +49,50 @@ func TestPlayerBodyResourceRealWhenConfigured(t *testing.T) {
 	}
 	t.Logf("head resources act=%s spr=%s actions=%d frames=%d", headActSource, headSprSource, len(headAct.Actions), len(headSpr.Frames))
 }
+
+func TestPlayerMageEquippedRodOverlayRealWhenConfigured(t *testing.T) {
+	manager := realDataManager(t)
+	job := 2
+	sex := byte(0)
+	weapon := manager.PlayerWeaponViewID(1607)
+	if weapon != 10 {
+		t.Fatalf("mage weapon view id for item 1607 = %d, want roBrowser class num 10", weapon)
+	}
+
+	actSource, actData, ok := manager.ReadFirst(PlayerWeaponOverlayResourceCandidates(job, sex, weapon, false, "act"))
+	if !ok {
+		t.Fatalf("mage rod act not found candidates=%q", PlayerWeaponOverlayResourceCandidates(job, sex, weapon, false, "act"))
+	}
+	sprSource, sprData, ok := manager.ReadFirst(PlayerWeaponOverlayResourceCandidates(job, sex, weapon, false, "spr"))
+	if !ok {
+		t.Fatalf("mage rod spr not found candidates=%q", PlayerWeaponOverlayResourceCandidates(job, sex, weapon, false, "spr"))
+	}
+	act, err := ParseACT(actData)
+	if err != nil {
+		t.Fatalf("parse %s: %v", actSource, err)
+	}
+	spr, err := ParseSPR(sprData)
+	if err != nil {
+		t.Fatalf("parse %s: %v", sprSource, err)
+	}
+	t.Logf("mage rod resources act=%s spr=%s actions=%d frames=%d", actSource, sprSource, len(act.Actions), len(spr.Frames))
+	for _, actionIndex := range []int{40, 80, 88} {
+		if actionIndex >= len(act.Actions) {
+			t.Fatalf("mage rod action %d missing; actions=%d", actionIndex, len(act.Actions))
+		}
+		action := act.Actions[actionIndex]
+		visible := 0
+		for _, anim := range action.Animations {
+			for _, layer := range anim.Layers {
+				if layer.Index >= 0 {
+					visible++
+					break
+				}
+			}
+		}
+		t.Logf("mage rod action=%d animations=%d visible=%d delay=%.1f", actionIndex, len(action.Animations), visible, action.DelayMS)
+		if actionIndex == 80 && visible == 0 {
+			t.Fatalf("mage rod attack action has no visible frames")
+		}
+	}
+}

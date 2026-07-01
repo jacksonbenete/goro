@@ -374,7 +374,7 @@ func (m *WorldMode) startSkillSourceCastAnimation(ctx Context, sourceID uint32, 
 	if !ok {
 		return
 	}
-	m.startCombatAnimation(ctx, sourceID, skillActionFamilyForActor(source, skillID), now, duration)
+	m.startCombatAnimation(ctx, sourceID, skillCastActionFamilyForActor(source, skillID), now, duration)
 }
 
 func (m *WorldMode) faceSkillSource(ctx Context, sourceID, targetID uint32, cellX, cellY int) {

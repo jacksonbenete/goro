@@ -2,6 +2,7 @@ package gamemode
 
 import (
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 )
 
@@ -12,6 +13,7 @@ func applyInventoryItemList(ctx Context, items []network.InventoryItem) {
 	for _, item := range items {
 		addOrReplaceSessionInventoryItem(ctx.Session, sessionItemFromNetwork(item))
 	}
+	rebuildLocalEquipmentAppearance(ctx)
 }
 
 func applyStorageItemList(ctx Context, items []network.InventoryItem) {
@@ -57,6 +59,7 @@ func applyStorageClosed(ctx Context) {
 
 func applyInventoryItemDelete(ctx Context, item network.InventoryItemDelete) {
 	removeSessionInventoryItem(ctx.Session, item.Index, int(item.Amount))
+	rebuildLocalEquipmentAppearance(ctx)
 }
 
 func applyUseItemAck(ctx Context, ack network.UseItemAck) {
@@ -135,6 +138,66 @@ func applyInventoryEquipAck(ctx Context, ack network.InventoryEquipAck) {
 		if !ack.Unequip && ack.Location != 0 {
 			item.Location = ack.Location
 		}
+	}
+	rebuildLocalEquipmentAppearance(ctx)
+}
+
+func rebuildLocalEquipmentAppearance(ctx Context) {
+	if ctx.Session == nil {
+		return
+	}
+	sawEquipment := false
+	hasWeapon := false
+	hasShield := false
+	weapon := int(ctx.Session.Selected.Weapon)
+	shield := int(ctx.Session.Selected.Shield)
+	for _, item := range ctx.Session.Inventory.Items {
+		if !item.Equip {
+			continue
+		}
+		sawEquipment = true
+		if !item.Equipped || item.Location == 0 {
+			continue
+		}
+		occupiesRightHand := item.Location&equipLocationWeapon != 0
+		occupiesLeftHand := item.Location&equipLocationShield != 0
+		if occupiesRightHand {
+			hasWeapon = true
+			weapon = res.PlayerWeaponViewID(ctx.Resources, int(item.ItemID))
+		}
+		if occupiesLeftHand && !occupiesRightHand {
+			hasShield = true
+			shield = int(item.ItemID)
+		}
+	}
+	if !sawEquipment {
+		return
+	}
+	if !hasWeapon {
+		weapon = 0
+	}
+	if !hasShield {
+		shield = 0
+	}
+	updateLocalWeaponAppearance(ctx, weapon, shield)
+}
+
+func updateLocalWeaponAppearance(ctx Context, weapon, shield int) {
+	if ctx.Session == nil {
+		return
+	}
+	weapon, shield = res.NormalizePlayerWeaponShield(weapon, shield)
+	ctx.Session.Selected.Weapon = int16(weapon)
+	ctx.Session.Selected.Shield = int16(shield)
+	for i := range ctx.Session.Characters {
+		if ctx.Session.Characters[i].ID == ctx.Session.CharID || ctx.Session.Characters[i].ID == ctx.Session.Selected.ID {
+			ctx.Session.Characters[i].Weapon = int16(weapon)
+			ctx.Session.Characters[i].Shield = int16(shield)
+		}
+	}
+	if ctx.World != nil {
+		ctx.World.Player.Weapon = int16(weapon)
+		ctx.World.Player.Shield = int16(shield)
 	}
 }
 

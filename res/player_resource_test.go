@@ -33,9 +33,89 @@ func TestPlayerIMFResourceCandidates(t *testing.T) {
 
 func TestPlayerWeaponOverlayResourceCandidates(t *testing.T) {
 	got := PlayerWeaponOverlayResourceCandidates(0, 1, 1201, false, "act")
-	want := "data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_\xB4\xDC\xB0\xCB.act"
-	if len(got) != 1 || got[0] != want {
+	want := []string{
+		"data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_1201.act",
+		"data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_\xB4\xDC\xB0\xCB.act",
+	}
+	if len(got) != len(want) {
 		t.Fatalf("weapon overlay = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("weapon overlay[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestPlayerWeaponTypeMatchesRobrowserFallbackRanges(t *testing.T) {
+	tests := []struct {
+		itemID int
+		want   int
+	}{
+		{1101, 2},
+		{1151, 3},
+		{1201, 1},
+		{1251, 16},
+		{1501, 8},
+		{1551, 15},
+		{1601, 10},
+		{1701, 11},
+		{20000, 23},
+		{70, 10},
+		{96, 23},
+	}
+	for _, test := range tests {
+		if got := PlayerWeaponType(test.itemID); got != test.want {
+			t.Fatalf("weapon type for %d = %d, want %d", test.itemID, got, test.want)
+		}
+	}
+}
+
+func TestPlayerWeaponViewIDUsesItemClassNumBeforeFallbackRange(t *testing.T) {
+	manager := &Manager{
+		itemMetadataLoaded: true,
+		itemMetadata: map[int]ItemMetadata{
+			1607: {ClassNum: 10, ClassNumSet: true},
+			1615: {ClassNum: 70, ClassNumSet: true},
+		},
+	}
+	if got := manager.PlayerWeaponViewID(1607); got != 10 {
+		t.Fatalf("weapon view id 1607 = %d, want class num 10", got)
+	}
+	if got := manager.PlayerWeaponViewID(1615); got != 70 {
+		t.Fatalf("weapon view id 1615 = %d, want class num 70", got)
+	}
+	if got := manager.PlayerWeaponViewID(1701); got != 11 {
+		t.Fatalf("weapon view id fallback 1701 = %d, want bow type 11", got)
+	}
+}
+
+func TestPlayerWeaponOverlayTypeForJobMatchesReferenceJobRules(t *testing.T) {
+	if got := PlayerWeaponOverlayTypeForJob(2, 5, false); got != 10 {
+		t.Fatalf("mage overlay type for weapon 5 = %d, want rod type 10", got)
+	}
+	if got := PlayerWeaponOverlayTypeForJob(16, 5, false); got != 10 {
+		t.Fatalf("sage overlay type for weapon 5 = %d, want rod type 10", got)
+	}
+	if got := PlayerWeaponOverlayTypeForJob(1, 5, false); got != 5 {
+		t.Fatalf("swordman overlay type for weapon 5 = %d, want spear type 5", got)
+	}
+}
+
+func TestPlayerWeaponOverlayTokenUsesClientRodSpelling(t *testing.T) {
+	if got := PlayerWeaponOverlayToken(10); got != "\xB7\xD4\xB5\xE5" {
+		t.Fatalf("rod token = %q, want client spelling", got)
+	}
+}
+
+func TestNormalizePlayerWeaponShieldMovesLeftHandWeapon(t *testing.T) {
+	weapon, shield := NormalizePlayerWeaponShield(0, 1601)
+	if weapon != 1601 || shield != 0 {
+		t.Fatalf("normalized left-hand weapon = weapon %d shield %d, want 1601/0", weapon, shield)
+	}
+	weapon, shield = NormalizePlayerWeaponShield(0, 2101)
+	if weapon != 0 || shield != 2101 {
+		t.Fatalf("normalized real shield = weapon %d shield %d, want 0/2101", weapon, shield)
 	}
 }
 

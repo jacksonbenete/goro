@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	glua "github.com/yuin/gopher-lua"
 )
 
 type ItemMetadata struct {
@@ -13,6 +15,19 @@ type ItemMetadata struct {
 	IdentifiedResource      string
 	UnidentifiedDescription []string
 	IdentifiedDescription   []string
+	ClassNum                int
+	ClassNumSet             bool
+}
+
+var itemInfoLuaCandidates = []string{
+	"System\\itemInfo.lub",
+	"System/itemInfo.lub",
+	"data\\luafiles514\\lua files\\datainfo\\itemInfo.lub",
+	"data\\luafiles514\\lua files\\datainfo\\iteminfo.lub",
+	"data\\lua files\\datainfo\\itemInfo.lub",
+	"data\\lua files\\datainfo\\iteminfo.lub",
+	"lua files\\datainfo\\itemInfo.lub",
+	"lua files\\datainfo\\iteminfo.lub",
 }
 
 var itemDisplayTableFiles = []struct {
@@ -120,6 +135,18 @@ func (m *Manager) ItemDescription(itemID int, identified bool) ([]string, bool) 
 	return nil, false
 }
 
+func (m *Manager) ItemClassNum(itemID int) (int, bool) {
+	if itemID <= 0 {
+		return 0, false
+	}
+	m.loadItemMetadata()
+	metadata, ok := m.itemMetadata[itemID]
+	if !ok || !metadata.ClassNumSet {
+		return 0, false
+	}
+	return metadata.ClassNum, true
+}
+
 func (m *Manager) loadItemMetadata() {
 	if m.itemMetadataLoaded {
 		return
@@ -160,6 +187,63 @@ func (m *Manager) loadItemMetadata() {
 			m.itemMetadata[id] = metadata
 		}
 	}
+	m.loadItemInfoLuaMetadata()
+}
+
+func (m *Manager) loadItemInfoLuaMetadata() {
+	_, data, ok := m.ReadFirst(itemInfoLuaCandidates)
+	if !ok {
+		return
+	}
+	globals := make(map[string]luaValue)
+	_ = executeLua51BytecodeWithSetup(data, globals, func(state *glua.LState) {
+		state.SetGlobal("AddItem", state.NewFunction(func(state *glua.LState) int {
+			id := state.OptInt(1, 0)
+			if id <= 0 {
+				return 1
+			}
+			metadata := m.itemMetadata[id]
+			metadata.UnidentifiedDisplayName = normalizeItemDisplayToken(luaOptionalString(state, 2))
+			metadata.UnidentifiedResource = luaOptionalString(state, 3)
+			metadata.IdentifiedDisplayName = normalizeItemDisplayToken(luaOptionalString(state, 4))
+			metadata.IdentifiedResource = luaOptionalString(state, 5)
+			metadata.ClassNum = state.OptInt(7, 0)
+			metadata.ClassNumSet = true
+			m.itemMetadata[id] = metadata
+			return 1
+		}))
+		state.SetGlobal("AddItemUnidentifiedDesc", state.NewFunction(func(state *glua.LState) int {
+			id := state.OptInt(1, 0)
+			text := luaOptionalString(state, 2)
+			if id > 0 && text != "" {
+				metadata := m.itemMetadata[id]
+				metadata.UnidentifiedDescription = append(metadata.UnidentifiedDescription, text)
+				m.itemMetadata[id] = metadata
+			}
+			return 1
+		}))
+		state.SetGlobal("AddItemIdentifiedDesc", state.NewFunction(func(state *glua.LState) int {
+			id := state.OptInt(1, 0)
+			text := luaOptionalString(state, 2)
+			if id > 0 && text != "" {
+				metadata := m.itemMetadata[id]
+				metadata.IdentifiedDescription = append(metadata.IdentifiedDescription, text)
+				m.itemMetadata[id] = metadata
+			}
+			return 1
+		}))
+		for _, name := range []string{"AddItemEffectInfo", "AddItemIsCostume", "AddItemPackageID"} {
+			state.SetGlobal(name, state.NewFunction(func(state *glua.LState) int { return 1 }))
+		}
+	})
+}
+
+func luaOptionalString(state *glua.LState, index int) string {
+	value := state.Get(index)
+	if value == glua.LNil || value == nil {
+		return ""
+	}
+	return value.String()
 }
 
 func (m *Manager) readItemPairTable(fileName string) map[int]string {

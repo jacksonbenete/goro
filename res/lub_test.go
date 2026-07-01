@@ -19,7 +19,7 @@ func TestExecuteLuaFunctionWithGopherLuaSupportsArithmetic(t *testing.T) {
 		maxStackSize: 3,
 	}
 	globals := make(map[string]luaValue)
-	if err := executeLuaFunctionWithGopherLua(fn, globals); err != nil {
+	if err := executeLuaFunctionWithGopherLua(fn, globals, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := globals["Answer"]; got.kind != luaNumber || got.num != 42 {
@@ -44,7 +44,7 @@ func TestExecuteLuaFunctionWithGopherLuaBuildsTables(t *testing.T) {
 		maxStackSize: 2,
 	}
 	globals := make(map[string]luaValue)
-	if err := executeLuaFunctionWithGopherLua(fn, globals); err != nil {
+	if err := executeLuaFunctionWithGopherLua(fn, globals, nil); err != nil {
 		t.Fatal(err)
 	}
 	table := globals["Table"]
