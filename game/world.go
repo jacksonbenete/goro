@@ -215,7 +215,7 @@ const (
 	defaultCameraWheelZoomUnits    = 15
 	defaultCameraPinchZoomScale    = 240
 	defaultCameraMinZoom           = 65.0
-	defaultCameraMaxZoom           = 325.0
+	defaultCameraMaxZoom           = 165.0
 )
 
 var (

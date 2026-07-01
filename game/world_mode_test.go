@@ -3273,7 +3273,7 @@ func TestIndoorCameraZoomIsLockedWithoutLosingOutdoorZoom(t *testing.T) {
 		Resources: manager,
 		World:     world,
 	}
-	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0, zoom: 220}
+	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0, zoom: 150}
 
 	indoorProjection := camera.Projection(ctx, 800, 600, time.Now())
 	if got := indoorProjection.cameraZoom; got != sceneCameraZoom() {
@@ -3282,8 +3282,8 @@ func TestIndoorCameraZoomIsLockedWithoutLosingOutdoorZoom(t *testing.T) {
 
 	ctx.World.MapName = "prontera"
 	outdoorProjection := camera.Projection(ctx, 800, 600, time.Now())
-	if got := outdoorProjection.cameraZoom; got != 220 {
-		t.Fatalf("restored outdoor projection zoom = %.1f, want 220.0", got)
+	if got := outdoorProjection.cameraZoom; got != 150 {
+		t.Fatalf("restored outdoor projection zoom = %.1f, want 150.0", got)
 	}
 }
 
@@ -3402,8 +3402,8 @@ func TestCameraZoomRangeMatchesRobrowserOutdoorDefaults(t *testing.T) {
 	if got := sceneCameraZoom(); got != 125 {
 		t.Fatalf("default zoom = %.1f, want roBrowser default 125", got)
 	}
-	if defaultCameraMinZoom != 65 || defaultCameraMaxZoom != 325 {
-		t.Fatalf("zoom range = %.1f..%.1f, want roBrowser outdoor 65..325", defaultCameraMinZoom, defaultCameraMaxZoom)
+	if defaultCameraMinZoom != 65 || defaultCameraMaxZoom != 165 {
+		t.Fatalf("zoom range = %.1f..%.1f, want goro outdoor 65..165", defaultCameraMinZoom, defaultCameraMaxZoom)
 	}
 }
 
