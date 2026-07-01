@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            name: goro-windows-x86_64.exe
+          - goos: windows
+            goarch: arm64
+            name: goro-windows-arm64.exe
+          - goos: darwin
+            goarch: amd64
+            name: goro-osx-x86_64
+          - goos: darwin
+            goarch: arm64
+            name: goro-osx-arm64
+          - goos: linux
+            goarch: amd64
+            name: goro-linux-x86_64
+          - goos: linux
+            goarch: arm64
+            name: goro-linux-arm64
+    env:
+      CGO_ENABLED: "0"
+      GOFLAGS: "-tags=nofakecgo"
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go build -trimpath -ldflags="-s -w" -o dist/${{ matrix.name }} .
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.name }}
