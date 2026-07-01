@@ -128,10 +128,10 @@ func (w *StorageWindow) Draw(screen *render.Image, ctx Context, assets AssetRend
 	w.EnsurePosition(ctx)
 	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, storageWindowWidth, storageWindowHeight, storageWindowTitleH)
-	drawUIWindowTitle(screen, x, y, storageWindowTitleH, storageWindowPad, "Storage", inventoryTitleColor)
+	DrawTitledWindowFrame(screen, x, y, storageWindowWidth, storageWindowHeight, storageWindowTitleH)
+	DrawWindowTitle(screen, x, y, storageWindowTitleH, storageWindowPad, "Storage", inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	items := sortedStorageItems(ctx.Session)
 	if len(items) == 0 {
@@ -143,11 +143,11 @@ func (w *StorageWindow) Draw(screen *render.Image, ctx Context, assets AssetRend
 		}
 		for row, item := range visibleStorageItems(items, w.scroll) {
 			rx, ry, rw, rh := w.rowBounds(row)
-			fill := uiPanelAltColor
+			fill := PanelAltColor
 			if pointInRect(mx, my, rx, ry, rw, rh) {
 				fill = inventoryHoverColor
 			}
-			drawUISurface(screen, rx, ry, rw, rh, fill, uiWindowBorderColor)
+			DrawSurface(screen, rx, ry, rw, rh, fill, WindowBorderColor)
 			if assets != nil {
 				assets.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
 			}
@@ -296,7 +296,7 @@ func (w *StorageWindow) drawScrollBar(screen *render.Image, total int) {
 	trackX := w.x + storageWindowWidth - 14
 	trackY := w.y + storageWindowTitleH + 10
 	trackH := visible*storageRowH - 4
-	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), uiPanelAltColor)
+	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), PanelAltColor)
 	maxScroll := maxInt(1, total-visible)
 	thumbH := maxInt(18, trackH*visible/total)
 	thumbTravel := trackH - thumbH

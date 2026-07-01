@@ -21,12 +21,12 @@ const (
 )
 
 var (
-	inventoryTitleColor  = uiTitleTextColor
-	inventoryTextColor   = uiTextColor
-	inventoryMutedColor  = uiMutedTextColor
-	inventoryButtonColor = uiButtonColor
-	inventoryHoverColor  = uiButtonHoverColor
-	inventoryDragColor   = uiButtonDownColor
+	inventoryTitleColor  = TitleTextColor
+	inventoryTextColor   = TextColor
+	inventoryMutedColor  = MutedTextColor
+	inventoryButtonColor = ButtonColor
+	inventoryHoverColor  = ButtonHoverColor
+	inventoryDragColor   = ButtonDownColor
 )
 
 type InventoryWindow struct {
@@ -137,10 +137,10 @@ func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, assets AssetRe
 	w.EnsurePosition(ctx)
 	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, inventoryWindowWidth, inventoryWindowHeight, inventoryWindowTitleH)
-	drawUIWindowTitle(screen, x, y, inventoryWindowTitleH, inventoryWindowPad, "Sell Inventory", inventoryTitleColor)
+	DrawTitledWindowFrame(screen, x, y, inventoryWindowWidth, inventoryWindowHeight, inventoryWindowTitleH)
+	DrawWindowTitle(screen, x, y, inventoryWindowTitleH, inventoryWindowPad, "Sell Inventory", inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	items := sortedInventoryItems(ctx.Session)
 	if len(items) == 0 {
@@ -152,14 +152,14 @@ func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, assets AssetRe
 		}
 		for row, item := range visibleInventoryItems(items, w.scroll) {
 			rx, ry, rw, rh := w.rowBounds(row)
-			fill := uiPanelAltColor
+			fill := PanelAltColor
 			if pointInRect(mx, my, rx, ry, rw, rh) {
 				fill = inventoryHoverColor
 			}
 			if w.dragActive && w.dragItem.Index == item.Index {
 				fill = inventoryDragColor
 			}
-			drawUISurface(screen, rx, ry, rw, rh, fill, uiWindowBorderColor)
+			DrawSurface(screen, rx, ry, rw, rh, fill, WindowBorderColor)
 			if assets != nil {
 				assets.DrawInventoryItemIcon(screen, ctx.Resources, item, rx+3, ry+3)
 			}
@@ -184,7 +184,7 @@ func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, assets AssetRe
 		label := trimRunes(inventoryItemDisplayName(ctx.Resources, w.dragItem), 22)
 		dx, dy := ctx.Input.MouseX+12, ctx.Input.MouseY+10
 		width := len([]rune(label))*7 + inventoryIconSize + 18
-		drawUISurface(screen, dx, dy, width, inventoryIconSize+6, uiPanelBodyColor, uiWindowBorderColor)
+		DrawSurface(screen, dx, dy, width, inventoryIconSize+6, PanelBodyColor, WindowBorderColor)
 		if assets != nil {
 			assets.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, dx+3, dy+3)
 		}
@@ -263,7 +263,7 @@ func (w *InventoryWindow) drawScrollBar(screen *render.Image, total int) {
 	trackX := w.x + inventoryWindowWidth - 14
 	trackY := w.y + inventoryWindowTitleH + 10
 	trackH := visible*inventoryRowH - 4
-	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), uiPanelAltColor)
+	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), PanelAltColor)
 	maxScroll := maxInt(1, total-visible)
 	thumbH := maxInt(18, trackH*visible/total)
 	thumbTravel := trackH - thumbH

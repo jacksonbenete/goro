@@ -29,14 +29,14 @@ const (
 )
 
 var (
-	shopTitleColor  = uiTitleTextColor
-	shopTextColor   = uiTextColor
-	shopMutedColor  = uiMutedTextColor
-	shopGoodColor   = uiGoodTextColor
-	shopErrorColor  = uiErrorTextColor
-	shopButtonColor = uiButtonColor
-	shopHoverColor  = uiButtonHoverColor
-	shopDropColor   = uiPanelHoverColor
+	shopTitleColor  = TitleTextColor
+	shopTextColor   = TextColor
+	shopMutedColor  = MutedTextColor
+	shopGoodColor   = GoodTextColor
+	shopErrorColor  = ErrorTextColor
+	shopButtonColor = ButtonColor
+	shopHoverColor  = ButtonHoverColor
+	shopDropColor   = PanelHoverColor
 )
 
 type ShopWindow struct {
@@ -274,24 +274,24 @@ func (w *ShopWindow) Draw(screen *render.Image, ctx Context, assets AssetRendere
 	}
 	w.ensureSellPosition(ctx)
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, shopWindowWidth, shopWindowHeight, shopWindowTitleH)
+	DrawTitledWindowFrame(screen, x, y, shopWindowWidth, shopWindowHeight, shopWindowTitleH)
 	title := "Sell Items"
 	if w.mode == shopModeBuy {
 		title = "Buy Items"
 	}
-	drawUIWindowTitle(screen, x, y, shopWindowTitleH, shopWindowPad, title, shopTitleColor)
+	DrawWindowTitle(screen, x, y, shopWindowTitleH, shopWindowPad, title, shopTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, shopButtonColor, shopTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, shopButtonColor, shopTextColor)
 
 	if w.mode == shopModeBuy {
 		w.drawBuyRows(screen, ctx, assets)
 	} else {
 		dx, dy, dw, dh := w.dropBounds()
-		fill := uiPanelBodyColor
+		fill := PanelBodyColor
 		if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, dx, dy, dw, dh) {
 			fill = shopDropColor
 		}
-		drawUISurface(screen, dx, dy, dw, dh, fill, uiWindowBorderColor)
+		DrawSurface(screen, dx, dy, dw, dh, fill, WindowBorderColor)
 		if len(w.cart) == 0 {
 			render.DebugPrintAtColor(screen, "Drop inventory items here", dx+46, dy+72, shopMutedColor)
 		} else {
@@ -325,7 +325,7 @@ func (w *ShopWindow) drawDeal(screen *render.Image, ctx Context) {
 	x := (width - shopDealWidth) / 2
 	y := (height - shopDealHeight) * 2 / 3
 	drawNPCWindowFrame(screen, x, y, shopDealWidth, shopDealHeight)
-	drawUIWindowTitle(screen, x, y, shopWindowTitleH, shopWindowPad, "Shop", shopTitleColor)
+	DrawWindowTitle(screen, x, y, shopWindowTitleH, shopWindowPad, "Shop", shopTitleColor)
 	prompt := "What do you want to do?"
 	promptW, _ := render.DebugTextSize(prompt)
 	render.DebugPrintAtColor(screen, prompt, x+(shopDealWidth-promptW)/2, y+42, shopTextColor)
@@ -656,7 +656,7 @@ func (w *ShopWindow) visibleCartItems() []shopSellCartItem {
 
 func (w *ShopWindow) drawCartRow(screen *render.Image, ctx Context, row int, item shopSellCartItem) {
 	x, y, width, height := w.cartRowBounds(row)
-	drawUISurface(screen, x, y, width, height, uiPanelAltColor, uiWindowBorderColor)
+	DrawSurface(screen, x, y, width, height, PanelAltColor, WindowBorderColor)
 	name := inventoryItemDisplayName(ctx.Resources, item.item)
 	render.DebugPrintAtColor(screen, trimRunes(name, 22), x+7, y+5, shopTextColor)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("x%d", item.amount), x+170, y+5, shopMutedColor)
@@ -668,7 +668,7 @@ func (w *ShopWindow) drawCartRow(screen *render.Image, ctx Context, row int, ite
 
 func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, assets AssetRenderer) {
 	dx, dy, dw, dh := w.dropBounds()
-	drawUISurface(screen, dx, dy, dw, dh, uiPanelBodyColor, uiWindowBorderColor)
+	DrawSurface(screen, dx, dy, dw, dh, PanelBodyColor, WindowBorderColor)
 	if len(w.buyItems) == 0 {
 		render.DebugPrintAtColor(screen, "No items", dx+112, dy+72, shopMutedColor)
 		return
@@ -679,11 +679,11 @@ func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, assets Asset
 	}
 	for row, item := range w.visibleBuyItems() {
 		x, y, width, height := w.buyRowBounds(row)
-		fill := uiPanelAltColor
+		fill := PanelAltColor
 		if pointInRect(mx, my, x, y, width, height) {
 			fill = shopHoverColor
 		}
-		drawUISurface(screen, x, y, width, height, fill, uiWindowBorderColor)
+		DrawSurface(screen, x, y, width, height, fill, WindowBorderColor)
 		if assets != nil {
 			assets.DrawInventoryItemIcon(screen, ctx.Resources, session.InventoryItem{ItemID: item.ItemID, Identified: true, Amount: 1}, x+3, y+2)
 		}
@@ -714,7 +714,7 @@ func (w *ShopWindow) drawBuyScrollBar(screen *render.Image) {
 	trackX := dx + dw - 8
 	trackY := dy + 5
 	trackH := visible*shopBuyRowH - 3
-	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), uiPanelAltColor)
+	render.DrawRect(screen, float64(trackX), float64(trackY), 4, float64(trackH), PanelAltColor)
 	maxScroll := maxInt(1, total-visible)
 	thumbH := maxInt(18, trackH*visible/total)
 	thumbTravel := trackH - thumbH
@@ -764,10 +764,10 @@ func (w *ShopWindow) drawButton(screen *render.Image, x, y, width, height int, l
 	fill := shopButtonColor
 	text := shopTextColor
 	if !enabled {
-		fill = uiDisabledColor
+		fill = DisabledColor
 		text = shopMutedColor
 	}
-	drawUIButtonLabel(screen, x, y, width, height, label, fill, text)
+	DrawButtonLabel(screen, x, y, width, height, label, fill, text)
 }
 
 func (w *ShopWindow) drawTinyButton(screen *render.Image, x, y int, label string, enabled bool) {

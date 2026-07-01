@@ -233,11 +233,11 @@ func (m *TeleportModal) Draw(screen *render.Image, ctx Context, width, height in
 	if !m.open || screen == nil {
 		return
 	}
-	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 72}, color.RGBA{})
+	DrawSurface(screen, 0, 0, width, height, color.RGBA{A: 72}, color.RGBA{})
 	x, y, w, h := teleportModalBounds(width, height)
-	drawUITitledWindowFrame(screen, x, y, w, h, teleportModalTitleH)
-	drawUIWindowTitle(screen, x, y, teleportModalTitleH, teleportModalPad, m.Title(), uiTitleTextColor)
-	render.DebugPrintAtColor(screen, "Choose destination.", x+teleportModalPad, y+teleportModalTitleH+12, uiTextColor)
+	DrawTitledWindowFrame(screen, x, y, w, h, teleportModalTitleH)
+	DrawWindowTitle(screen, x, y, teleportModalTitleH, teleportModalPad, m.Title(), TitleTextColor)
+	render.DebugPrintAtColor(screen, "Choose destination.", x+teleportModalPad, y+teleportModalTitleH+12, TextColor)
 
 	mx, my := -1, -1
 	if ctx.Input != nil {
@@ -245,18 +245,18 @@ func (m *TeleportModal) Draw(screen *render.Image, ctx Context, width, height in
 	}
 	for i, button := range m.buttons() {
 		bx, by, bw, bh := teleportModalButtonBounds(x, y, w, i)
-		fill := uiButtonColor
-		textColor := uiTextColor
+		fill := ButtonColor
+		textColor := TextColor
 		if !button.enabled {
-			fill = uiDisabledColor
-			textColor = uiMutedTextColor
+			fill = DisabledColor
+			textColor = MutedTextColor
 		} else if pointInRect(mx, my, bx, by, bw, bh) {
-			fill = uiButtonHoverColor
+			fill = ButtonHoverColor
 		}
-		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
+		DrawButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
 	}
 	if m.status != "" {
-		render.DebugPrintAtColor(screen, trimRunes(m.status, 30), x+teleportModalPad, y+h-16, uiErrorTextColor)
+		render.DebugPrintAtColor(screen, trimRunes(m.status, 30), x+teleportModalPad, y+h-16, ErrorTextColor)
 	}
 }
 

@@ -20,15 +20,15 @@ const (
 )
 
 var (
-	statsWindowTitleColor  = uiTitleTextColor
-	statsWindowTextColor   = uiTextColor
-	statsWindowMutedColor  = uiMutedTextColor
-	statsWindowGoodColor   = uiGoodTextColor
-	statsWindowErrorColor  = uiErrorTextColor
-	statsWindowButtonColor = uiButtonColor
-	statsWindowHoverColor  = uiButtonHoverColor
-	statsWindowDownColor   = uiButtonDownColor
-	statsWindowDisabled    = uiDisabledColor
+	statsWindowTitleColor  = TitleTextColor
+	statsWindowTextColor   = TextColor
+	statsWindowMutedColor  = MutedTextColor
+	statsWindowGoodColor   = GoodTextColor
+	statsWindowErrorColor  = ErrorTextColor
+	statsWindowButtonColor = ButtonColor
+	statsWindowHoverColor  = ButtonHoverColor
+	statsWindowDownColor   = ButtonDownColor
+	statsWindowDisabled    = DisabledColor
 )
 
 type StatsWindow struct {
@@ -128,10 +128,10 @@ func (w *StatsWindow) Draw(screen *render.Image, ctx Context) {
 	}
 	w.EnsurePosition(ctx)
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, statsWindowWidth, statsWindowHeight, statsWindowTitleH)
-	drawUIWindowTitle(screen, x, y, statsWindowTitleH, statsWindowPad, "Status", statsWindowTitleColor)
+	DrawTitledWindowFrame(screen, x, y, statsWindowWidth, statsWindowHeight, statsWindowTitleH)
+	DrawWindowTitle(screen, x, y, statsWindowTitleH, statsWindowPad, "Status", statsWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, statsWindowButtonColor, statsWindowTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, statsWindowButtonColor, statsWindowTextColor)
 
 	stats := sessionStats(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Status Point : %d", stats.Points), x+statsWindowPad, y+statsWindowTitleH+10, statsWindowTextColor)
@@ -163,7 +163,7 @@ func (w *StatsWindow) Draw(screen *render.Image, ctx Context) {
 				fill = statsWindowHoverColor
 			}
 		}
-		drawUIButtonLabel(screen, bx, by, bw, bh, "+", fill, textColor)
+		DrawButtonLabel(screen, bx, by, bw, bh, "+", fill, textColor)
 	}
 
 	leftX := x + statsWindowPad

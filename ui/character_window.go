@@ -19,15 +19,15 @@ const (
 )
 
 var (
-	characterWindowTextColor   = uiTextColor
-	characterWindowMutedColor  = uiMutedTextColor
-	characterWindowTitleColor  = uiTitleTextColor
+	characterWindowTextColor   = TextColor
+	characterWindowMutedColor  = MutedTextColor
+	characterWindowTitleColor  = TitleTextColor
 	characterWindowBarBack     = color.RGBA{R: 224, G: 232, B: 242, A: 255}
 	characterWindowHPColor     = color.RGBA{R: 210, G: 72, B: 72, A: 255}
 	characterWindowSPColor     = color.RGBA{R: 70, G: 112, B: 214, A: 255}
 	characterWindowEXPColor    = color.RGBA{R: 74, G: 174, B: 98, A: 255}
 	characterWindowJobEXPColor = color.RGBA{R: 190, G: 148, B: 58, A: 255}
-	characterWindowWeightWarn  = uiErrorTextColor
+	characterWindowWeightWarn  = ErrorTextColor
 )
 
 func DrawCharacterWindow(screen *render.Image, ctx Context) {
@@ -35,15 +35,15 @@ func DrawCharacterWindow(screen *render.Image, ctx Context) {
 		return
 	}
 	x, y, w, h := characterWindowX, characterWindowY, characterWindowWidth, characterWindowHeight
-	drawUITitledWindowFrame(screen, x, y, w, h, 29)
+	DrawTitledWindowFrame(screen, x, y, w, h, 29)
 
 	character := selectedCharacter(ctx.Session)
 	name := strings.TrimSpace(character.Name)
 	if name == "" {
 		name = "Player"
 	}
-	drawUITitleTextAt(screen, x+12, y, 29, trimRunes(name, 20), characterWindowTitleColor)
-	drawUITitleTextAt(screen, x+166, y, 29, trimRunes(CharacterJobName(character), 20), characterWindowMutedColor)
+	DrawTitleTextAt(screen, x+12, y, 29, trimRunes(name, 20), characterWindowTitleColor)
+	DrawTitleTextAt(screen, x+166, y, 29, trimRunes(CharacterJobName(character), 20), characterWindowMutedColor)
 
 	vitals := ctx.Session.Vitals
 	if vitals.HP == 0 && vitals.MaxHP == 0 && vitals.SP == 0 && vitals.MaxSP == 0 {
@@ -107,8 +107,8 @@ func drawRatioBar(screen *render.Image, x, y, w, h int, ratio float64, fill colo
 		}
 		render.DrawRect(screen, float64(x), float64(y), float64(fillW), float64(h), fill)
 	}
-	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, uiWindowBorderColor)
-	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, uiWindowBorderColor)
+	render.DrawRect(screen, float64(x), float64(y), float64(w), 1, WindowBorderColor)
+	render.DrawRect(screen, float64(x), float64(y+h-1), float64(w), 1, WindowBorderColor)
 }
 
 func ratioInt(current, maxValue int) float64 {

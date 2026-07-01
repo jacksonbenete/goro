@@ -21,9 +21,9 @@ const (
 )
 
 var (
-	minimapTextColor   = uiTextColor
-	minimapMutedColor  = uiMutedTextColor
-	minimapTitleColor  = uiTitleTextColor
+	minimapTextColor   = TextColor
+	minimapMutedColor  = MutedTextColor
+	minimapTitleColor  = TitleTextColor
 	minimapPlayerColor = color.RGBA{R: 255, G: 232, B: 96, A: 255}
 	minimapMobColor    = color.RGBA{R: 255, G: 96, B: 96, A: 230}
 	minimapNPCColor    = color.RGBA{R: 120, G: 190, B: 255, A: 220}
@@ -47,8 +47,8 @@ func (m *Minimap) Draw(screen *render.Image, ctx Context) {
 	}
 	width, height := ctx.ScreenSize()
 	x, y, w, h := minimapBounds(width, height)
-	drawUIPanelSurface(screen, x, y, w, h, uiWindowBodyColor)
-	drawUITitleTextAt(screen, x+minimapPad, y, minimapTitleH, "Mini Map", minimapTitleColor)
+	DrawPanelSurface(screen, x, y, w, h, WindowBodyColor)
+	DrawTitleTextAt(screen, x+minimapPad, y, minimapTitleH, "Mini Map", minimapTitleColor)
 
 	mapRect := minimapMapRect(x, y, w, h)
 	m.ensureImage(ctx.Resources, ctx.World.MapName)
@@ -57,10 +57,10 @@ func (m *Minimap) Draw(screen *render.Image, ctx Context) {
 	} else {
 		drawMinimapFallback(screen, mapRect)
 	}
-	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), float64(mapRect.w), 1, uiWindowBorderColor)
-	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y+mapRect.h-1), float64(mapRect.w), 1, uiWindowBorderColor)
-	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), 1, float64(mapRect.h), uiWindowBorderColor)
-	render.DrawRect(screen, float64(mapRect.x+mapRect.w-1), float64(mapRect.y), 1, float64(mapRect.h), uiWindowBorderColor)
+	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), float64(mapRect.w), 1, WindowBorderColor)
+	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y+mapRect.h-1), float64(mapRect.w), 1, WindowBorderColor)
+	render.DrawRect(screen, float64(mapRect.x), float64(mapRect.y), 1, float64(mapRect.h), WindowBorderColor)
+	render.DrawRect(screen, float64(mapRect.x+mapRect.w-1), float64(mapRect.y), 1, float64(mapRect.h), WindowBorderColor)
 
 	mapW, mapH := minimapWorldSize(ctx.World)
 	if mapW > 0 && mapH > 0 {

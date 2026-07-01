@@ -26,15 +26,15 @@ const (
 )
 
 var (
-	skillWindowTitleColor  = uiTitleTextColor
-	skillWindowTextColor   = uiTextColor
-	skillWindowMutedColor  = uiMutedTextColor
-	skillWindowGoodColor   = uiGoodTextColor
-	skillWindowErrorColor  = uiErrorTextColor
-	skillWindowButtonColor = uiButtonColor
-	skillWindowHoverColor  = uiButtonHoverColor
-	skillWindowDownColor   = uiButtonDownColor
-	skillWindowDisabled    = uiDisabledColor
+	skillWindowTitleColor  = TitleTextColor
+	skillWindowTextColor   = TextColor
+	skillWindowMutedColor  = MutedTextColor
+	skillWindowGoodColor   = GoodTextColor
+	skillWindowErrorColor  = ErrorTextColor
+	skillWindowButtonColor = ButtonColor
+	skillWindowHoverColor  = ButtonHoverColor
+	skillWindowDownColor   = ButtonDownColor
+	skillWindowDisabled    = DisabledColor
 	skillWindowPassive     = color.RGBA{R: 34, G: 142, B: 158, A: 255}
 	skillWindowActive      = color.RGBA{R: 44, G: 92, B: 184, A: 255}
 )
@@ -180,10 +180,10 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetRender
 	w.EnsurePosition(ctx)
 	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, skillWindowWidth, skillWindowHeight, skillWindowTitleH)
-	drawUIWindowTitle(screen, x, y, skillWindowTitleH, skillWindowPad, "Skill Tree", skillWindowTitleColor)
+	DrawTitledWindowFrame(screen, x, y, skillWindowWidth, skillWindowHeight, skillWindowTitleH)
+	DrawWindowTitle(screen, x, y, skillWindowTitleH, skillWindowPad, "Skill Tree", skillWindowTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, skillWindowButtonColor, skillWindowTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, skillWindowButtonColor, skillWindowTextColor)
 
 	points := sessionSkillPoints(ctx.Session)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("Skill Points : %d", points), x+skillWindowPad, y+skillWindowTitleH+10, skillWindowTextColor)
@@ -205,11 +205,11 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetRender
 	} else {
 		for row, skill := range visibleSkills(ctx.Session, w.scroll, visibleSkillRows()) {
 			ry := w.skillRowY(row)
-			rowColor := uiPanelBodyColor
+			rowColor := PanelBodyColor
 			if row%2 == 1 {
-				rowColor = uiPanelAltColor
+				rowColor = PanelAltColor
 			}
-			drawUIRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
+			DrawRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
 			if assets != nil {
 				assets.DrawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+3, ry+2, 22)
 			}
@@ -241,7 +241,7 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetRender
 					fill = skillWindowHoverColor
 				}
 			}
-			drawUIButtonLabel(screen, bx, by, bw, bh, "+", fill, textColor)
+			DrawButtonLabel(screen, bx, by, bw, bh, "+", fill, textColor)
 		}
 		w.drawScrollBar(screen, ctx.Session)
 	}
@@ -467,7 +467,7 @@ func drawSkillTooltip(screen *render.Image, ctx Context, skill session.Skill) {
 	screenW, screenH := ctx.ScreenSize()
 	x = clampInventoryWindowInt(x, 8, maxInt(8, screenW-tooltipW-8))
 	y = clampInventoryWindowInt(y, 8, maxInt(8, screenH-tooltipH-8))
-	drawUISurface(screen, x, y, tooltipW, tooltipH, uiPanelBodyColor, uiWindowBorderColor)
+	DrawSurface(screen, x, y, tooltipW, tooltipH, PanelBodyColor, WindowBorderColor)
 	render.DebugPrintAtColor(screen, trimRunes(name, 38), x+7, y+6, skillWindowTextColor)
 	lineY := y + 6 + itemInfoLineH
 	for i, line := range wrapped {

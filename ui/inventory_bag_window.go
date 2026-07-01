@@ -182,22 +182,22 @@ func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, assets Asse
 	w.EnsurePosition(ctx)
 	w.ClampScroll(ctx.Session)
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, inventoryBagWidth, inventoryBagHeight, inventoryBagTitleH)
-	drawUIWindowTitle(screen, x, y, inventoryBagTitleH, inventoryWindowPad, "Inventory", inventoryTitleColor)
+	DrawTitledWindowFrame(screen, x, y, inventoryBagWidth, inventoryBagHeight, inventoryBagTitleH)
+	DrawWindowTitle(screen, x, y, inventoryBagTitleH, inventoryWindowPad, "Inventory", inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	gx, gy, gw, gh := w.gridBounds()
 	px, py, pw, ph := w.panelBounds()
-	drawUISurface(screen, px, py, pw, ph, uiPanelBodyColor, uiWindowBorderColor)
-	drawUISurface(screen, gx, gy, gw, gh, uiWindowBodyColor, uiWindowBorderColor)
+	DrawSurface(screen, px, py, pw, ph, PanelBodyColor, WindowBorderColor)
+	DrawSurface(screen, gx, gy, gw, gh, WindowBodyColor, WindowBorderColor)
 	for _, tab := range inventoryBagTabs {
 		tx, ty, tw, th := w.tabBounds(tab.tab)
 		fill := inventoryButtonColor
 		if tab.tab == w.tab {
 			fill = inventoryHoverColor
 		}
-		drawUIButtonLabel(screen, tx, ty, tw, th, tab.label, fill, inventoryTextColor)
+		DrawButtonLabel(screen, tx, ty, tw, th, tab.label, fill, inventoryTextColor)
 	}
 	for row := 0; row < inventoryBagRows; row++ {
 		for col := 0; col < inventoryBagCols; col++ {
@@ -428,7 +428,7 @@ func (w *InventoryBagWindow) drawScrollBar(screen *render.Image, total int) {
 	}
 	gx, gy, gw, gh := w.gridBounds()
 	trackX := gx + gw + 7
-	render.DrawRect(screen, float64(trackX), float64(gy), 4, float64(gh), uiPanelAltColor)
+	render.DrawRect(screen, float64(trackX), float64(gy), 4, float64(gh), PanelAltColor)
 	totalRows := (total + inventoryBagCols - 1) / inventoryBagCols
 	maxScroll := maxInt(1, totalRows-inventoryBagRows)
 	thumbH := maxInt(18, gh*inventoryBagRows/totalRows)

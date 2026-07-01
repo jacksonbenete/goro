@@ -101,15 +101,15 @@ func (w *ItemInfoWindow) Draw(screen *render.Image, ctx Context, assets AssetRen
 		return
 	}
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, itemInfoWindowWidth, itemInfoWindowHeight, itemInfoWindowTitleH)
-	drawUIWindowTitle(screen, x, y, itemInfoWindowTitleH, itemInfoWindowPad, w.title, inventoryTitleColor)
+	DrawTitledWindowFrame(screen, x, y, itemInfoWindowWidth, itemInfoWindowHeight, itemInfoWindowTitleH)
+	DrawWindowTitle(screen, x, y, itemInfoWindowTitleH, itemInfoWindowPad, w.title, inventoryTitleColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
 	leftX := x + itemInfoWindowPad
 	contentY := y + itemInfoWindowTitleH + itemInfoWindowPad
 	contentH := itemInfoWindowHeight - itemInfoWindowTitleH - itemInfoWindowPad*2
-	drawUISurface(screen, leftX, contentY, itemInfoIllustrationWidth, contentH, uiPanelBodyColor, uiWindowBorderColor)
+	DrawSurface(screen, leftX, contentY, itemInfoIllustrationWidth, contentH, PanelBodyColor, WindowBorderColor)
 	if assets != nil {
 		assets.DrawItemInfoIllustration(screen, ctx.Resources, w.item, leftX+7, contentY+7, itemInfoIllustrationWidth-14, contentH-14)
 	}
@@ -129,7 +129,7 @@ func (w *ItemInfoWindow) Draw(screen *render.Image, ctx Context, assets AssetRen
 	descY := contentY + 82
 	descW := rightW
 	descH := itemInfoWindowHeight - (descY - y) - itemInfoWindowPad
-	drawUISurface(screen, descX, descY, descW, descH, uiPanelBodyColor, uiWindowBorderColor)
+	DrawSurface(screen, descX, descY, descW, descH, PanelBodyColor, WindowBorderColor)
 	visible := w.visibleDescriptionLineCount(descH)
 	lines := w.wrappedLines(maxInt(10, (descW-18)/7))
 	if len(lines) == 0 {
@@ -343,7 +343,7 @@ func drawItemInfoScrollBar(screen *render.Image, x, y, h, scroll, visible, total
 	if screen == nil || total <= visible || h <= 0 {
 		return
 	}
-	render.DrawRect(screen, float64(x), float64(y), 4, float64(h), uiPanelAltColor)
+	render.DrawRect(screen, float64(x), float64(y), 4, float64(h), PanelAltColor)
 	maxScroll := maxInt(1, total-visible)
 	thumbH := maxInt(18, h*visible/total)
 	thumbTravel := h - thumbH

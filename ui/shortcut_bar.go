@@ -194,18 +194,18 @@ func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, assets AssetRender
 	x, y := b.bounds(ctx)
 	width := shortcutSlots*shortcutSlot + (shortcutSlots-1)*shortcutGap + shortcutPad*2
 	height := shortcutSlot + shortcutPad*2 + 12
-	drawUISurface(screen, x, y, width, height, uiWindowBodyColor, uiWindowBorderColor)
+	DrawSurface(screen, x, y, width, height, WindowBodyColor, WindowBorderColor)
 	mx, my := -1, -1
 	if ctx.Input != nil {
 		mx, my = ctx.Input.MouseX, ctx.Input.MouseY
 	}
 	for i := 0; i < shortcutSlots; i++ {
 		sx, sy := b.slotBounds(ctx, i)
-		fill := uiButtonColor
+		fill := ButtonColor
 		if pointInRect(mx, my, sx, sy, shortcutSlot, shortcutSlot) {
-			fill = uiButtonHoverColor
+			fill = ButtonHoverColor
 		}
-		drawUIButtonSurface(screen, sx, sy, shortcutSlot, shortcutSlot, fill)
+		DrawButtonSurface(screen, sx, sy, shortcutSlot, shortcutSlot, fill)
 		entry := b.slots[i]
 		switch entry.kind {
 		case shortcutItem:
@@ -216,7 +216,7 @@ func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, assets AssetRender
 				}
 				assets.DrawInventoryItemIcon(screen, ctx.Resources, item, sx+5, sy+5)
 				if item.Amount > 1 {
-					render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), sx+shortcutSlot-17, sy+shortcutSlot-14, uiTextColor)
+					render.DebugPrintAtColor(screen, fmt.Sprintf("%d", item.Amount), sx+shortcutSlot-17, sy+shortcutSlot-14, TextColor)
 				}
 			}
 		case shortcutSkill:
@@ -231,7 +231,7 @@ func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, assets AssetRender
 				}
 			}
 		}
-		render.DebugPrintAtColor(screen, fmt.Sprintf("F%d", i+1), sx+7, sy+shortcutSlot+1, uiMutedTextColor)
+		render.DebugPrintAtColor(screen, fmt.Sprintf("F%d", i+1), sx+7, sy+shortcutSlot+1, MutedTextColor)
 	}
 	if b.status != "" && time.Since(b.statusAt) < 1400*time.Millisecond {
 		statusColor := skillWindowErrorColor
@@ -521,7 +521,7 @@ func skillForShortcut(s *session.Session, entry shortcutSlotState) (session.Skil
 func drawShortcutSkillLevel(screen *render.Image, x, y int, level int) {
 	label := fmt.Sprintf("Lv%d", maxInt(1, level))
 	render.DebugPrintAtColor(screen, label, x+2, y+1, color.RGBA{A: 150})
-	render.DebugPrintAtColor(screen, label, x+3, y+1, uiTitleTextColor)
+	render.DebugPrintAtColor(screen, label, x+3, y+1, TitleTextColor)
 }
 
 func useInventoryItem(ctx Context, item session.InventoryItem) error {
