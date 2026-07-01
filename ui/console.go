@@ -1,4 +1,4 @@
-package game
+package ui
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"github.com/gogpu/ui/offscreen"
 	"github.com/gogpu/ui/primitives"
 	uiwidget "github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 )
@@ -32,15 +33,15 @@ var (
 	consoleColorInput       = color.RGBA{R: 235, G: 242, B: 250, A: 255}
 )
 
-type consoleMessage struct {
-	text  string
-	color color.RGBA
+type ConsoleMessage struct {
+	Text  string
+	Color color.RGBA
 }
 
-type chatConsole struct {
+type ChatConsole struct {
 	active        bool
 	input         string
-	messages      []consoleMessage
+	messages      []ConsoleMessage
 	scroll        int
 	lastMessage   string
 	lastMessageAt time.Time
@@ -49,7 +50,7 @@ type chatConsole struct {
 	image    *render.Image
 }
 
-func (c *chatConsole) update(ctx Context) bool {
+func (c *ChatConsole) Update(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
@@ -99,23 +100,23 @@ func (c *chatConsole) update(ctx Context) bool {
 	return true
 }
 
-func (c *chatConsole) addMessage(format string, args ...any) {
+func (c *ChatConsole) AddMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorChat, format, args...)
 }
 
-func (c *chatConsole) addSystemMessage(format string, args ...any) {
+func (c *ChatConsole) AddSystemMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorSystem, format, args...)
 }
 
-func (c *chatConsole) addBlueMessage(format string, args ...any) {
+func (c *ChatConsole) AddBlueMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorBlue, format, args...)
 }
 
-func (c *chatConsole) addErrorMessage(format string, args ...any) {
+func (c *ChatConsole) AddErrorMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorError, format, args...)
 }
 
-func (c *chatConsole) addMessageColor(messageColor color.RGBA, format string, args ...any) {
+func (c *ChatConsole) addMessageColor(messageColor color.RGBA, format string, args ...any) {
 	text := strings.TrimSpace(fmt.Sprintf(format, args...))
 	if text == "" {
 		return
@@ -126,7 +127,7 @@ func (c *chatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 	}
 	c.lastMessage = text
 	c.lastMessageAt = now
-	c.messages = append(c.messages, consoleMessage{text: text, color: messageColor})
+	c.messages = append(c.messages, ConsoleMessage{Text: text, Color: messageColor})
 	if len(c.messages) > 80 {
 		copy(c.messages, c.messages[len(c.messages)-80:])
 		c.messages = c.messages[:80]
@@ -136,26 +137,26 @@ func (c *chatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 	c.invalidate()
 }
 
-func (c *chatConsole) submit(ctx Context) {
+func (c *ChatConsole) submit(ctx client.Context) {
 	text := strings.TrimSpace(c.input)
 	if text == "" {
 		c.active = false
 		c.invalidate()
 		return
 	}
-	if c.submitCommand(ctx, text) {
+	if c.SubmitCommand(ctx, text) {
 		return
 	}
 	name := "Player"
-	if ctx.Session != nil {
-		name = selectedCharacter(ctx.Session).Name
+	if ctx.Session != nil && strings.TrimSpace(ctx.Session.Selected.Name) != "" {
+		name = ctx.Session.Selected.Name
 	}
 	if ctx.Network == nil {
-		c.addErrorMessage("send failed: not connected")
+		c.AddErrorMessage("send failed: not connected")
 		return
 	}
 	if err := ctx.Network.SendGlobalChat(name, text); err != nil {
-		c.addErrorMessage("send failed: %s", err)
+		c.AddErrorMessage("send failed: %s", err)
 		return
 	}
 	c.input = ""
@@ -163,7 +164,7 @@ func (c *chatConsole) submit(ctx Context) {
 	c.invalidate()
 }
 
-func (c *chatConsole) submitCommand(ctx Context, text string) bool {
+func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	if !strings.HasPrefix(text, "/") {
 		return false
 	}
@@ -177,7 +178,7 @@ func (c *chatConsole) submitCommand(ctx Context, text string) bool {
 		return true
 	case "/noshift", "/ns":
 		if ctx.Session == nil {
-			c.addErrorMessage("noshift failed: no session")
+			c.AddErrorMessage("noshift failed: no session")
 			c.input = ""
 			c.active = false
 			c.invalidate()
@@ -185,9 +186,9 @@ func (c *chatConsole) submitCommand(ctx Context, text string) bool {
 		}
 		ctx.Session.NoShift = !ctx.Session.NoShift
 		if ctx.Session.NoShift {
-			c.addSystemMessage("No Shift: On")
+			c.AddSystemMessage("No Shift: On")
 		} else {
-			c.addSystemMessage("No Shift: Off")
+			c.AddSystemMessage("No Shift: Off")
 		}
 		c.input = ""
 		c.active = false
@@ -201,16 +202,16 @@ func (c *chatConsole) submitCommand(ctx Context, text string) bool {
 	}
 }
 
-func (c *chatConsole) submitMemo(ctx Context) {
+func (c *ChatConsole) submitMemo(ctx client.Context) {
 	if ctx.Network == nil {
-		c.addErrorMessage("send failed: not connected")
+		c.AddErrorMessage("send failed: not connected")
 		c.input = ""
 		c.active = false
 		c.invalidate()
 		return
 	}
 	if err := ctx.Network.SendRememberWarpPoint(); err != nil {
-		c.addErrorMessage("send failed: %s", err)
+		c.AddErrorMessage("send failed: %s", err)
 		return
 	}
 	c.input = ""
@@ -218,14 +219,14 @@ func (c *chatConsole) submitMemo(ctx Context) {
 	c.invalidate()
 }
 
-func (c *chatConsole) submitSitStand(ctx Context, sit bool) {
+func (c *ChatConsole) submitSitStand(ctx client.Context, sit bool) {
 	if ctx.Network == nil {
-		c.addErrorMessage("send failed: not connected")
+		c.AddErrorMessage("send failed: not connected")
 		return
 	}
 	targetID := consoleLocalActorID(ctx)
 	if targetID == 0 {
-		c.addErrorMessage("send failed: missing local actor")
+		c.AddErrorMessage("send failed: missing local actor")
 		return
 	}
 	action := network.ActionStandUp
@@ -233,7 +234,7 @@ func (c *chatConsole) submitSitStand(ctx Context, sit bool) {
 		action = network.ActionSitDown
 	}
 	if err := ctx.Network.SendActionRequest(targetID, action); err != nil {
-		c.addErrorMessage("send failed: %s", err)
+		c.AddErrorMessage("send failed: %s", err)
 		return
 	}
 	if ctx.World != nil {
@@ -247,11 +248,11 @@ func (c *chatConsole) submitSitStand(ctx Context, sit bool) {
 	c.invalidate()
 }
 
-func consolePlayerSitting(ctx Context) bool {
+func consolePlayerSitting(ctx client.Context) bool {
 	return ctx.World != nil && ctx.World.Player.Sitting
 }
 
-func consoleLocalActorID(ctx Context) uint32 {
+func consoleLocalActorID(ctx client.Context) uint32 {
 	if ctx.Session != nil {
 		if ctx.Session.AccountID != 0 {
 			return ctx.Session.AccountID
@@ -266,7 +267,7 @@ func consoleLocalActorID(ctx Context) uint32 {
 	return 0
 }
 
-func (c *chatConsole) appendInput(text string) {
+func (c *ChatConsole) appendInput(text string) {
 	if text == "" {
 		return
 	}
@@ -278,7 +279,7 @@ func (c *chatConsole) appendInput(text string) {
 	c.invalidate()
 }
 
-func (c *chatConsole) backspace() {
+func (c *ChatConsole) backspace() {
 	runes := []rune(c.input)
 	if len(runes) == 0 {
 		return
@@ -287,7 +288,7 @@ func (c *chatConsole) backspace() {
 	c.invalidate()
 }
 
-func (c *chatConsole) draw(screen *render.Image, width, height int) {
+func (c *ChatConsole) Draw(screen *render.Image, width, height int) {
 	if screen == nil {
 		return
 	}
@@ -306,7 +307,7 @@ func (c *chatConsole) draw(screen *render.Image, width, height int) {
 	screen.DrawImage(c.image, &opts)
 }
 
-func (c *chatConsole) renderImage(width, height int) *render.Image {
+func (c *ChatConsole) renderImage(width, height int) *render.Image {
 	root := c.widgetTree(width, height)
 	r := offscreen.NewRenderer(width, height, offscreen.WithBackground(uiwidget.ColorTransparent))
 	r.Render(root)
@@ -319,7 +320,7 @@ func (c *chatConsole) renderImage(width, height int) *render.Image {
 	return out
 }
 
-func (c *chatConsole) widgetTree(width, height int) uiwidget.Widget {
+func (c *ChatConsole) widgetTree(width, height int) uiwidget.Widget {
 	contentWidth := maxInt(1, width-16)
 	field := primitives.Box().
 		Width(float32(contentWidth)).
@@ -339,17 +340,17 @@ func (c *chatConsole) widgetTree(width, height int) uiwidget.Widget {
 		Gap(4).
 		Background(uiwidget.RGBA8(14, 18, 24, 188)).
 		BorderStyle(1, uiwidget.RGBA8(180, 198, 218, 95)).
-		Rounded(uiWindowRadius)
+		Rounded(WindowRadius)
 }
 
-func (c *chatConsole) drawCrispText(img *render.Image, width, height int) {
+func (c *ChatConsole) drawCrispText(img *render.Image, width, height int) {
 	if img == nil {
 		return
 	}
 	contentWidth := maxInt(1, width-16)
 	maxRunes := maxInt(8, (contentWidth-12)/7)
 	for i, line := range c.visibleLines(width) {
-		render.DebugPrintAtColor(img, trimRunes(line.text, maxRunes), 14, 10+i*14, line.color)
+		render.DebugPrintAtColor(img, trimRunes(line.Text, maxRunes), 14, 10+i*14, line.Color)
 	}
 	c.drawScrollbar(img, width, height)
 	prompt := c.input
@@ -364,9 +365,9 @@ func (c *chatConsole) drawCrispText(img *render.Image, width, height int) {
 	render.DebugPrintAtColor(img, trimRunes(prompt, maxRunes), 15, textY, consoleColorInput)
 }
 
-func (c *chatConsole) visibleLines(width int) []consoleMessage {
+func (c *ChatConsole) visibleLines(width int) []ConsoleMessage {
 	if len(c.messages) == 0 {
-		return []consoleMessage{{text: "Server messages will appear here.", color: consoleColorPlaceholder}}
+		return []ConsoleMessage{{Text: "Server messages will appear here.", Color: consoleColorPlaceholder}}
 	}
 	c.clampScroll()
 	start := len(c.messages) - consoleMaxLines - c.scroll
@@ -374,16 +375,16 @@ func (c *chatConsole) visibleLines(width int) []consoleMessage {
 		start = 0
 	}
 	end := minInt(len(c.messages), start+consoleMaxLines)
-	out := make([]consoleMessage, 0, end-start)
+	out := make([]ConsoleMessage, 0, end-start)
 	maxRunes := maxInt(20, (width-24)/7)
 	for _, msg := range c.messages[start:end] {
-		msg.text = trimRunes(msg.text, maxRunes)
+		msg.Text = trimRunes(msg.Text, maxRunes)
 		out = append(out, msg)
 	}
 	return out
 }
 
-func (c *chatConsole) renderKey(width, height int) string {
+func (c *ChatConsole) renderKey(width, height int) string {
 	blink := int64(0)
 	if c.active {
 		blink = time.Now().UnixMilli() / 500
@@ -391,11 +392,11 @@ func (c *chatConsole) renderKey(width, height int) string {
 	return fmt.Sprintf("%dx%d:%t:%s:%s:%d:%d", width, height, c.active, c.input, c.messagesKey(), blink, c.scroll)
 }
 
-func (c *chatConsole) invalidate() {
+func (c *ChatConsole) invalidate() {
 	c.cacheKey = ""
 }
 
-func (c *chatConsole) scrollBy(wheelY float64) {
+func (c *ChatConsole) scrollBy(wheelY float64) {
 	step := int(math.Ceil(math.Abs(wheelY))) * 3
 	if step < 1 {
 		step = 1
@@ -407,13 +408,13 @@ func (c *chatConsole) scrollBy(wheelY float64) {
 	}
 }
 
-func (c *chatConsole) scrollLines(lines int) {
+func (c *ChatConsole) scrollLines(lines int) {
 	c.scroll += lines
 	c.clampScroll()
 	c.invalidate()
 }
 
-func (c *chatConsole) clampScroll() {
+func (c *ChatConsole) clampScroll() {
 	maxScroll := maxInt(0, len(c.messages)-consoleMaxLines)
 	if c.scroll < 0 {
 		c.scroll = 0
@@ -423,12 +424,12 @@ func (c *chatConsole) clampScroll() {
 	}
 }
 
-func (c *chatConsole) inputFieldTop(height int) int {
+func (c *ChatConsole) inputFieldTop(height int) int {
 	messageHeight := maxInt(20, height-16-consoleFieldH-4)
 	return 6 + messageHeight + 4
 }
 
-func (c *chatConsole) drawScrollbar(img *render.Image, width, height int) {
+func (c *ChatConsole) drawScrollbar(img *render.Image, width, height int) {
 	if len(c.messages) <= consoleMaxLines {
 		return
 	}
@@ -443,12 +444,21 @@ func (c *chatConsole) drawScrollbar(img *render.Image, width, height int) {
 	render.DrawRect(img, trackX, thumbY, 3, thumbH, color.RGBA{R: 205, G: 218, B: 232, A: 150})
 }
 
-func (c *chatConsole) messagesKey() string {
+func (c *ChatConsole) messagesKey() string {
 	var b strings.Builder
 	for _, msg := range c.messages {
-		fmt.Fprintf(&b, "%02x%02x%02x%02x:%s\n", msg.color.R, msg.color.G, msg.color.B, msg.color.A, msg.text)
+		fmt.Fprintf(&b, "%02x%02x%02x%02x:%s\n", msg.Color.R, msg.Color.G, msg.Color.B, msg.Color.A, msg.Text)
 	}
 	return b.String()
+}
+
+func (c *ChatConsole) Messages() []ConsoleMessage {
+	if c == nil {
+		return nil
+	}
+	out := make([]ConsoleMessage, len(c.messages))
+	copy(out, c.messages)
+	return out
 }
 
 func consoleBounds(screenW, screenH int) (x, y, w, h int) {
@@ -457,15 +467,4 @@ func consoleBounds(screenW, screenH int) (x, y, w, h int) {
 	x = consoleMargin
 	y = maxInt(consoleMargin, screenH-h-consoleMargin)
 	return x, y, w, h
-}
-
-func trimRunes(text string, maxRunes int) string {
-	runes := []rune(text)
-	if len(runes) <= maxRunes {
-		return text
-	}
-	if maxRunes <= 3 {
-		return string(runes[:maxRunes])
-	}
-	return string(runes[:maxRunes-3]) + "..."
 }

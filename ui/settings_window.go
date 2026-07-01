@@ -1,10 +1,11 @@
-package game
+package ui
 
 import (
 	"fmt"
 	"image/color"
 	"log"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/render"
 )
@@ -19,7 +20,7 @@ const (
 	settingsSmallButton  = 24
 )
 
-type settingsWindowState struct {
+type SettingsWindow struct {
 	open       bool
 	x          int
 	y          int
@@ -30,12 +31,12 @@ type settingsWindowState struct {
 	status     string
 }
 
-func (w *settingsWindowState) openWindow(ctx Context) {
+func (w *SettingsWindow) OpenWindow(ctx client.Context) {
 	w.open = true
 	w.ensurePosition(ctx)
 }
 
-func (w *settingsWindowState) update(ctx Context) bool {
+func (w *SettingsWindow) Update(ctx client.Context) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -82,54 +83,58 @@ func (w *settingsWindowState) update(ctx Context) bool {
 	return true
 }
 
-func (w *settingsWindowState) draw(screen *render.Image, ctx Context) {
+func (w *SettingsWindow) Draw(screen *render.Image, ctx client.Context) {
 	if !w.open || screen == nil {
 		return
 	}
 	w.ensurePosition(ctx)
 	x, y := w.x, w.y
-	drawUITitledWindowFrame(screen, x, y, settingsWindowWidth, settingsWindowHeight, settingsWindowTitleH)
-	drawUIWindowTitle(screen, x, y, settingsWindowTitleH, settingsWindowPad, "Settings", uiTitleTextColor)
+	DrawTitledWindowFrame(screen, x, y, settingsWindowWidth, settingsWindowHeight, settingsWindowTitleH)
+	DrawWindowTitle(screen, x, y, settingsWindowTitleH, settingsWindowPad, "Settings", TitleTextColor)
 	cx, cy, cw, ch := w.closeBounds()
-	drawUICloseButton(screen, cx, cy, cw, ch, uiButtonColor, uiTextColor)
+	DrawCloseButton(screen, cx, cy, cw, ch, ButtonColor, TextColor)
 
 	labelX := x + settingsWindowPad
 	rowY := y + settingsWindowTitleH + 18
-	render.DebugPrintAtColor(screen, "Display", labelX, rowY, uiTitleTextColor)
+	render.DebugPrintAtColor(screen, "Display", labelX, rowY, TitleTextColor)
 	fullscreenX, fullscreenY, fullscreenW, fullscreenH := w.fullscreenToggleBounds()
-	w.drawRuntimeToggle(screen, ctx, "Fullscreen", fullscreenX, fullscreenY, fullscreenW, fullscreenH, settingsRuntimeFullscreen(ctx))
+	w.DrawRuntimeToggle(screen, ctx, "Fullscreen", fullscreenX, fullscreenY, fullscreenW, fullscreenH, settingsRuntimeFullscreen(ctx))
 	vsyncX, vsyncY, vsyncW, vsyncH := w.vsyncToggleBounds()
-	w.drawRuntimeToggle(screen, ctx, "VSync", vsyncX, vsyncY, vsyncW, vsyncH, settingsRuntimeVSync(ctx))
+	w.DrawRuntimeToggle(screen, ctx, "VSync", vsyncX, vsyncY, vsyncW, vsyncH, settingsRuntimeVSync(ctx))
 	fpsX, fpsY, fpsW, fpsH := w.fpsToggleBounds()
-	w.drawRuntimeToggle(screen, ctx, "FPS meter", fpsX, fpsY, fpsW, fpsH, settingsRuntimeFPS(ctx))
-	render.DebugPrintAtColor(screen, "VSync applies after restart", labelX, rowY+98, uiMutedTextColor)
+	w.DrawRuntimeToggle(screen, ctx, "FPS meter", fpsX, fpsY, fpsW, fpsH, settingsRuntimeFPS(ctx))
+	render.DebugPrintAtColor(screen, "VSync applies after restart", labelX, rowY+98, MutedTextColor)
 
 	soundY := rowY + 122
-	render.DebugPrintAtColor(screen, "Sound", labelX, soundY, uiTitleTextColor)
-	render.DebugPrintAtColor(screen, "BGM Vol", labelX, soundY+20, uiTextColor)
-	w.drawVolumeControls(screen, ctx, settingsVolumeBGM(ctx), w.bgmVolumeMinusBounds, w.bgmVolumeBarBounds, w.bgmVolumePlusBounds)
-	render.DebugPrintAtColor(screen, "SFX Vol", labelX, soundY+58, uiTextColor)
-	w.drawVolumeControls(screen, ctx, settingsVolumeSFX(ctx), w.sfxVolumeMinusBounds, w.sfxVolumeBarBounds, w.sfxVolumePlusBounds)
+	render.DebugPrintAtColor(screen, "Sound", labelX, soundY, TitleTextColor)
+	render.DebugPrintAtColor(screen, "BGM Vol", labelX, soundY+20, TextColor)
+	w.DrawVolumeControls(screen, ctx, settingsVolumeBGM(ctx), w.bgmVolumeMinusBounds, w.bgmVolumeBarBounds, w.bgmVolumePlusBounds)
+	render.DebugPrintAtColor(screen, "SFX Vol", labelX, soundY+58, TextColor)
+	w.DrawVolumeControls(screen, ctx, settingsVolumeSFX(ctx), w.sfxVolumeMinusBounds, w.sfxVolumeBarBounds, w.sfxVolumePlusBounds)
 
 	if w.status != "" {
-		render.DebugPrintAtColor(screen, trimRunes(w.status, 32), labelX, y+settingsWindowHeight-18, uiGoodTextColor)
+		render.DebugPrintAtColor(screen, trimRunes(w.status, 32), labelX, y+settingsWindowHeight-18, GoodTextColor)
 	}
 }
 
-func (w *settingsWindowState) drawRuntimeToggle(screen *render.Image, ctx Context, label string, x, y, width, height int, on bool) {
-	render.DebugPrintAtColor(screen, label, w.x+settingsWindowPad, y+4, uiTextColor)
-	fill := uiButtonColor
+func (w *SettingsWindow) IsOpen() bool {
+	return w.open
+}
+
+func (w *SettingsWindow) DrawRuntimeToggle(screen *render.Image, ctx client.Context, label string, x, y, width, height int, on bool) {
+	render.DebugPrintAtColor(screen, label, w.x+settingsWindowPad, y+4, TextColor)
+	fill := ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, width, height) {
-		fill = uiButtonHoverColor
+		fill = ButtonHoverColor
 	}
 	text := "On"
 	if !on {
 		text = "Off"
 	}
-	drawUIButtonLabel(screen, x, y, width, height, text, fill, uiTextColor)
+	DrawButtonLabel(screen, x, y, width, height, text, fill, TextColor)
 }
 
-func (w *settingsWindowState) drawVolumeControls(screen *render.Image, ctx Context, volume float64, minusBounds, barBounds, plusBounds func() (int, int, int, int)) {
+func (w *SettingsWindow) DrawVolumeControls(screen *render.Image, ctx client.Context, volume float64, minusBounds, barBounds, plusBounds func() (int, int, int, int)) {
 	minusX, minusY, minusW, minusH := minusBounds()
 	plusX, plusY, plusW, plusH := plusBounds()
 	barX, barY, barW, barH := barBounds()
@@ -137,35 +142,35 @@ func (w *settingsWindowState) drawVolumeControls(screen *render.Image, ctx Conte
 	if ctx.Input != nil {
 		mx, my = ctx.Input.MouseX, ctx.Input.MouseY
 	}
-	minusFill := uiButtonColor
+	minusFill := ButtonColor
 	if pointInRect(mx, my, minusX, minusY, minusW, minusH) {
-		minusFill = uiButtonHoverColor
+		minusFill = ButtonHoverColor
 	}
-	plusFill := uiButtonColor
+	plusFill := ButtonColor
 	if pointInRect(mx, my, plusX, plusY, plusW, plusH) {
-		plusFill = uiButtonHoverColor
+		plusFill = ButtonHoverColor
 	}
-	drawUIButtonLabel(screen, minusX, minusY, minusW, minusH, "-", minusFill, uiTextColor)
-	drawUISurface(screen, barX, barY, barW, barH, uiPanelBodyColor, uiButtonBorderColor)
+	DrawButtonLabel(screen, minusX, minusY, minusW, minusH, "-", minusFill, TextColor)
+	DrawSurface(screen, barX, barY, barW, barH, PanelBodyColor, ButtonBorderColor)
 	fillW := int(volume * float64(barW-2))
 	if fillW > 0 {
 		render.DrawRect(screen, float64(barX+1), float64(barY+1), float64(fillW), float64(barH-2), color.RGBA{R: 104, G: 166, B: 224, A: 255})
 	}
-	drawUIButtonLabel(screen, plusX, plusY, plusW, plusH, "+", plusFill, uiTextColor)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("%d%%", int(volume*100+0.5)), barX+barW+8, barY+3, uiTextColor)
+	DrawButtonLabel(screen, plusX, plusY, plusW, plusH, "+", plusFill, TextColor)
+	render.DebugPrintAtColor(screen, fmt.Sprintf("%d%%", int(volume*100+0.5)), barX+barW+8, barY+3, TextColor)
 }
 
-func (w *settingsWindowState) cursorAction(ctx Context) (int, bool) {
+func (w *SettingsWindow) CursorAction(ctx client.Context) (int, bool) {
 	if !w.open || ctx.Input == nil {
 		return 0, false
 	}
 	mx, my := ctx.Input.MouseX, ctx.Input.MouseY
 	cx, cy, cw, ch := w.closeBounds()
 	if pointInRect(mx, my, cx, cy, cw, ch) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	if pointInRect(mx, my, w.x, w.y, settingsWindowWidth, settingsWindowTitleH) {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	for _, rect := range [][4]int{
 		rectArray(w.fullscreenToggleBounds()),
@@ -177,16 +182,16 @@ func (w *settingsWindowState) cursorAction(ctx Context) (int, bool) {
 		rectArray(w.sfxVolumePlusBounds()),
 	} {
 		if pointInRect(mx, my, rect[0], rect[1], rect[2], rect[3]) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
 	}
 	if pointInRect(mx, my, w.x, w.y, settingsWindowWidth, settingsWindowHeight) {
-		return cursorActionDefault, true
+		return CursorActionDefault, true
 	}
 	return 0, false
 }
 
-func (w *settingsWindowState) handleRuntimeToggleClick(ctx Context, mx, my int) bool {
+func (w *SettingsWindow) handleRuntimeToggleClick(ctx client.Context, mx, my int) bool {
 	if ctx.Runtime == nil {
 		return false
 	}
@@ -219,7 +224,7 @@ func pointInAnyRect(mx, my int, bounds func() (int, int, int, int)) bool {
 	return pointInRect(mx, my, x, y, width, height)
 }
 
-func (w *settingsWindowState) handleVolumeClick(ctx Context, mx, my int) bool {
+func (w *SettingsWindow) handleVolumeClick(ctx client.Context, mx, my int) bool {
 	if ctx.Audio == nil {
 		return false
 	}
@@ -246,7 +251,7 @@ func (w *settingsWindowState) handleVolumeClick(ctx Context, mx, my int) bool {
 	return false
 }
 
-func (w *settingsWindowState) saveSettings(ctx Context, successStatus string) {
+func (w *SettingsWindow) saveSettings(ctx client.Context, successStatus string) {
 	settings := config.UserSettings{
 		Fullscreen: settingsRuntimeFullscreen(ctx),
 		VSync:      settingsRuntimeVSync(ctx),
@@ -264,7 +269,7 @@ func (w *settingsWindowState) saveSettings(ctx Context, successStatus string) {
 	w.status = successStatus
 }
 
-func (w *settingsWindowState) ensurePosition(ctx Context) {
+func (w *SettingsWindow) ensurePosition(ctx client.Context) {
 	if w.positioned {
 		return
 	}
@@ -274,75 +279,75 @@ func (w *settingsWindowState) ensurePosition(ctx Context) {
 	w.positioned = true
 }
 
-func (w *settingsWindowState) closeBounds() (int, int, int, int) {
+func (w *SettingsWindow) closeBounds() (int, int, int, int) {
 	return w.x + settingsWindowWidth - 24, w.y + 6, 16, 16
 }
 
-func (w *settingsWindowState) bgmVolumeMinusBounds() (int, int, int, int) {
+func (w *SettingsWindow) bgmVolumeMinusBounds() (int, int, int, int) {
 	return w.x + 104, w.y + settingsWindowTitleH + 158, settingsSmallButton, settingsButtonH
 }
 
-func (w *settingsWindowState) bgmVolumeBarBounds() (int, int, int, int) {
+func (w *SettingsWindow) bgmVolumeBarBounds() (int, int, int, int) {
 	return w.x + 134, w.y + settingsWindowTitleH + 162, 92, 14
 }
 
-func (w *settingsWindowState) bgmVolumePlusBounds() (int, int, int, int) {
+func (w *SettingsWindow) bgmVolumePlusBounds() (int, int, int, int) {
 	return w.x + 232, w.y + settingsWindowTitleH + 158, settingsSmallButton, settingsButtonH
 }
 
-func (w *settingsWindowState) sfxVolumeMinusBounds() (int, int, int, int) {
+func (w *SettingsWindow) sfxVolumeMinusBounds() (int, int, int, int) {
 	return w.x + 104, w.y + settingsWindowTitleH + 196, settingsSmallButton, settingsButtonH
 }
 
-func (w *settingsWindowState) sfxVolumeBarBounds() (int, int, int, int) {
+func (w *SettingsWindow) sfxVolumeBarBounds() (int, int, int, int) {
 	return w.x + 134, w.y + settingsWindowTitleH + 200, 92, 14
 }
 
-func (w *settingsWindowState) sfxVolumePlusBounds() (int, int, int, int) {
+func (w *SettingsWindow) sfxVolumePlusBounds() (int, int, int, int) {
 	return w.x + 232, w.y + settingsWindowTitleH + 196, settingsSmallButton, settingsButtonH
 }
 
-func (w *settingsWindowState) fullscreenToggleBounds() (int, int, int, int) {
+func (w *SettingsWindow) fullscreenToggleBounds() (int, int, int, int) {
 	return w.x + settingsWindowWidth - settingsWindowPad - settingsButtonW, w.y + settingsWindowTitleH + 39, settingsButtonW, settingsButtonH
 }
 
-func (w *settingsWindowState) vsyncToggleBounds() (int, int, int, int) {
+func (w *SettingsWindow) vsyncToggleBounds() (int, int, int, int) {
 	return w.x + settingsWindowWidth - settingsWindowPad - settingsButtonW, w.y + settingsWindowTitleH + 69, settingsButtonW, settingsButtonH
 }
 
-func (w *settingsWindowState) fpsToggleBounds() (int, int, int, int) {
+func (w *SettingsWindow) fpsToggleBounds() (int, int, int, int) {
 	return w.x + settingsWindowWidth - settingsWindowPad - settingsButtonW, w.y + settingsWindowTitleH + 99, settingsButtonW, settingsButtonH
 }
 
-func settingsVolumeBGM(ctx Context) float64 {
+func settingsVolumeBGM(ctx client.Context) float64 {
 	if ctx.Audio != nil {
 		return ctx.Audio.BGMVolume()
 	}
 	return ctx.Config.Audio.BGMVolume
 }
 
-func settingsVolumeSFX(ctx Context) float64 {
+func settingsVolumeSFX(ctx client.Context) float64 {
 	if ctx.Audio != nil {
 		return ctx.Audio.SFXVolume()
 	}
 	return ctx.Config.Audio.SFXVolume
 }
 
-func settingsRuntimeFullscreen(ctx Context) bool {
+func settingsRuntimeFullscreen(ctx client.Context) bool {
 	if ctx.Runtime != nil {
 		return ctx.Runtime.Fullscreen()
 	}
 	return ctx.Config.Window.Fullscreen
 }
 
-func settingsRuntimeVSync(ctx Context) bool {
+func settingsRuntimeVSync(ctx client.Context) bool {
 	if ctx.Runtime != nil {
 		return ctx.Runtime.VSync()
 	}
 	return ctx.Config.Render.VSync
 }
 
-func settingsRuntimeFPS(ctx Context) bool {
+func settingsRuntimeFPS(ctx client.Context) bool {
 	if ctx.Runtime != nil {
 		return ctx.Runtime.FPS()
 	}

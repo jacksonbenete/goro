@@ -1,16 +1,17 @@
-package game
+package ui
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
 )
 
 const (
-	basicMenuX       = characterWindowX
-	basicMenuY       = characterWindowY + characterWindowHeight + 6
+	basicMenuX       = 16
+	basicMenuY       = 16 + 158 + 6
 	basicMenuCols    = 4
 	basicMenuRows    = 2
 	basicMenuButtonW = 72
@@ -21,15 +22,15 @@ const (
 )
 
 var (
-	basicMenuTextColor   = uiTextColor
-	basicMenuMutedColor  = uiMutedTextColor
-	basicMenuButtonColor = uiButtonColor
-	basicMenuHoverColor  = uiButtonHoverColor
-	basicMenuDownColor   = uiButtonDownColor
-	basicMenuPanelColor  = uiWindowBodyColor
+	basicMenuTextColor   = TextColor
+	basicMenuMutedColor  = MutedTextColor
+	basicMenuButtonColor = ButtonColor
+	basicMenuHoverColor  = ButtonHoverColor
+	basicMenuDownColor   = ButtonDownColor
+	basicMenuPanelColor  = WindowBodyColor
 )
 
-type basicMenuState struct {
+type BasicMenu struct {
 	lastAction string
 	lastClick  time.Time
 }
@@ -50,7 +51,7 @@ var basicMenuButtons = []basicMenuButton{
 	{key: "friend", label: "Friend"},
 }
 
-func (m *basicMenuState) update(ctx Context) bool {
+func (m *BasicMenu) Update(ctx client.Context) bool {
 	if ctx.Input == nil || !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
 		return false
 	}
@@ -63,12 +64,12 @@ func (m *basicMenuState) update(ctx Context) bool {
 	return true
 }
 
-func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
+func (m *BasicMenu) Draw(screen *render.Image, ctx client.Context) {
 	if screen == nil {
 		return
 	}
 	x, y, w, h := basicMenuBounds()
-	drawUIPanelSurface(screen, x, y, w, h, basicMenuPanelColor)
+	DrawPanelSurface(screen, x, y, w, h, basicMenuPanelColor)
 
 	mouseX, mouseY := -1, -1
 	mouseDown := false
@@ -87,7 +88,7 @@ func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
 				fill = basicMenuHoverColor
 			}
 		}
-		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, basicMenuTextColor)
+		DrawButtonLabel(screen, bx, by, bw, bh, button.label, fill, basicMenuTextColor)
 	}
 	if m.lastAction != "" && !basicMenuActionImplemented(m.lastAction) && time.Since(m.lastClick) < 1500*time.Millisecond {
 		label := strings.ToUpper(m.lastAction[:1]) + m.lastAction[1:]
@@ -95,12 +96,12 @@ func (m *basicMenuState) draw(screen *render.Image, ctx Context) {
 	}
 }
 
-func (m *basicMenuState) cursorAction(ctx Context) (int, bool) {
+func (m *BasicMenu) CursorAction(ctx client.Context) (int, bool) {
 	if ctx.Input == nil {
 		return 0, false
 	}
 	if _, ok := basicMenuButtonAt(ctx.Input.MouseX, ctx.Input.MouseY); ok {
-		return cursorActionClick, true
+		return CursorActionClick, true
 	}
 	return 0, false
 }
@@ -140,4 +141,12 @@ func basicMenuActionImplemented(action string) bool {
 	default:
 		return false
 	}
+}
+
+func (m *BasicMenu) LastAction() string {
+	return m.lastAction
+}
+
+func (m *BasicMenu) SetLastAction(action string) {
+	m.lastAction = action
 }

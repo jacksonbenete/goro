@@ -12,6 +12,7 @@ import (
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 )
 
 type LoginMode struct {
@@ -19,7 +20,7 @@ type LoginMode struct {
 	phase          loginPhase
 	status         string
 	packets        []string
-	console        chatConsole
+	console        gameui.ChatConsole
 	autoAttempted  bool
 	fade           loginFadeState
 	username       string
@@ -120,7 +121,7 @@ func NewLoginMode() *LoginMode {
 	return &LoginMode{status: "select a server", focus: loginFieldUser, maxSlots: 9}
 }
 
-func NewCharacterSelectMode(ctx Context, console chatConsole) *LoginMode {
+func NewCharacterSelectMode(ctx Context, console gameui.ChatConsole) *LoginMode {
 	mode := NewLoginMode()
 	mode.phase = loginPhaseCharacter
 	mode.status = "select a character"

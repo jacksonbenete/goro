@@ -15,6 +15,7 @@ import (
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -2857,28 +2858,22 @@ func TestPendingSkillTargetCancelWithEscape(t *testing.T) {
 }
 
 func TestBasicMenuOptionOpensEscapeMenu(t *testing.T) {
-	mode := &WorldMode{
-		escapeMenu: escapeMenuState{
-			action:  escapeMenuActionExit,
-			pending: true,
-			status:  "old status",
-		},
-	}
-	mode.basicMenu.lastAction = "option"
+	mode := &WorldMode{}
+	mode.basicMenu.SetLastAction("option")
 
 	mode.handleBasicMenuAction(Context{})
 
-	if !mode.escapeMenu.open {
+	if !mode.escapeMenu.IsOpen() {
 		t.Fatal("escape menu did not open")
 	}
-	if mode.escapeMenu.action != escapeMenuActionNone {
-		t.Fatalf("escape menu action = %d, want none", mode.escapeMenu.action)
+	if mode.escapeMenu.Action() != gameui.EscapeMenuActionNone {
+		t.Fatalf("escape menu action = %d, want none", mode.escapeMenu.Action())
 	}
-	if mode.escapeMenu.pending {
+	if mode.escapeMenu.Pending() {
 		t.Fatal("escape menu kept stale pending state")
 	}
-	if mode.escapeMenu.status != "" {
-		t.Fatalf("escape menu status = %q, want empty", mode.escapeMenu.status)
+	if mode.escapeMenu.Status() != "" {
+		t.Fatalf("escape menu status = %q, want empty", mode.escapeMenu.Status())
 	}
 }
 
@@ -2913,7 +2908,7 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 
 	mode.startActorDeath(ctx, 150000)
 
-	if !mode.deathModal.open {
+	if !mode.deathModal.IsOpen() {
 		t.Fatal("death modal should open for local death")
 	}
 	anim, ok := mode.actorAnims[150000]
@@ -2937,7 +2932,7 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	ctx.Session.Vitals.HP = 1
 	mode.clearLocalDeathStateIfAlive(ctx)
 
-	if mode.deathModal.open {
+	if mode.deathModal.IsOpen() {
 		t.Fatal("death modal should clear when player is alive")
 	}
 	if _, ok := mode.actorAnims[150000]; ok {
@@ -4508,8 +4503,9 @@ func TestSkillFailAckAddsConsoleErrorWithoutEffect(t *testing.T) {
 	if len(mode.worldEffects) != 0 {
 		t.Fatalf("world effects = %d, want 0", len(mode.worldEffects))
 	}
-	if len(mode.console.messages) != 1 || mode.console.messages[0].text != "Action failed." {
-		t.Fatalf("console messages = %+v", mode.console.messages)
+	messages := mode.console.Messages()
+	if len(messages) != 1 || messages[0].Text != "Action failed." {
+		t.Fatalf("console messages = %+v", messages)
 	}
 }
 

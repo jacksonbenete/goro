@@ -1,33 +1,34 @@
-package game
+package ui
 
 import (
 	"testing"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 )
 
 func TestEscapeMenuCharacterSelectButtonRequestsAction(t *testing.T) {
 	inputState := input.NewState()
-	menu := escapeMenuState{open: true}
-	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	menu := EscapeMenu{open: true}
+	ctx := client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}
 	x, y, w, _ := escapeMenuBounds(800, 600)
 	bx, by, bw, bh := escapeMenuButtonBounds(x, y, w, 0)
 	inputState.SetMousePosition(bx+bw/2, by+bh/2)
 	inputState.SetMouseButton(input.MouseButtonLeft, true)
 
-	if !menu.update(ctx) {
+	if !menu.Update(ctx) {
 		t.Fatal("escape menu did not consume character-select click")
 	}
-	if got := menu.consumeAction(); got != escapeMenuActionCharacterSelect {
+	if got := menu.ConsumeAction(); got != EscapeMenuActionCharacterSelect {
 		t.Fatalf("action = %d, want character select", got)
 	}
 }
 
 func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
-	menu := escapeMenuState{open: true, pending: true}
+	menu := EscapeMenu{open: true, pending: true}
 
-	if !menu.applyRestartAck(network.RestartAck{Allowed: true}) {
+	if !menu.ApplyRestartAck(network.RestartAck{Allowed: true}) {
 		t.Fatal("allowed restart ack should request character-select transition")
 	}
 	if menu.status != "Returning to character select..." {
@@ -36,9 +37,9 @@ func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
 }
 
 func TestEscapeMenuCharacterSelectAckDeniedKeepsMenuOpen(t *testing.T) {
-	menu := escapeMenuState{open: true, pending: true}
+	menu := EscapeMenu{open: true, pending: true}
 
-	if menu.applyRestartAck(network.RestartAck{Allowed: false}) {
+	if menu.ApplyRestartAck(network.RestartAck{Allowed: false}) {
 		t.Fatal("denied restart ack should not request transition")
 	}
 	if !menu.open || menu.pending {
@@ -47,8 +48,8 @@ func TestEscapeMenuCharacterSelectAckDeniedKeepsMenuOpen(t *testing.T) {
 }
 
 func TestEscapeMenuCharacterSelectWithoutNetworkShowsError(t *testing.T) {
-	menu := escapeMenuState{open: true}
-	menu.requestCharacterSelect(Context{})
+	menu := EscapeMenu{open: true}
+	menu.RequestCharacterSelect(client.Context{})
 
 	if menu.pending {
 		t.Fatal("menu stayed pending without a network connection")

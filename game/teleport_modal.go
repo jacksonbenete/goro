@@ -78,13 +78,13 @@ func (m *WorldMode) applyWarpPointList(ctx Context, list network.WarpPointList) 
 func (m *WorldMode) applyRememberWarpPointAck(_ Context, ack network.RememberWarpPointAck) {
 	switch ack.Result {
 	case 0:
-		m.console.addBlueMessage("Saved location as a Memo Point for Warp skill.")
+		m.console.AddBlueMessage("Saved location as a Memo Point for Warp skill.")
 	case 1:
-		m.console.addErrorMessage("Skill Level is not high enough.")
+		m.console.AddErrorMessage("Skill Level is not high enough.")
 	case 2:
-		m.console.addErrorMessage("You haven't learned Warp.")
+		m.console.AddErrorMessage("You haven't learned Warp.")
 	default:
-		m.console.addErrorMessage("Memo failed.")
+		m.console.AddErrorMessage("Memo failed.")
 	}
 	log.Printf("remember warp point ack result=%d", ack.Result)
 }

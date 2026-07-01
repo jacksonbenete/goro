@@ -1,9 +1,10 @@
-package game
+package ui
 
 import (
 	"fmt"
 	"image/color"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 )
@@ -18,58 +19,58 @@ const (
 )
 
 var (
-	escapeMenuTextColor     = uiTextColor
-	escapeMenuMutedColor    = uiMutedTextColor
-	escapeMenuTitleColor    = uiTitleTextColor
-	escapeMenuButtonColor   = uiButtonColor
-	escapeMenuDisabledColor = uiDisabledColor
-	escapeMenuHoverColor    = uiButtonHoverColor
+	escapeMenuTextColor     = TextColor
+	escapeMenuMutedColor    = MutedTextColor
+	escapeMenuTitleColor    = TitleTextColor
+	escapeMenuButtonColor   = ButtonColor
+	escapeMenuDisabledColor = DisabledColor
+	escapeMenuHoverColor    = ButtonHoverColor
 )
 
-type escapeMenuState struct {
+type EscapeMenu struct {
 	open    bool
-	action  escapeMenuAction
+	action  EscapeMenuAction
 	pending bool
 	status  string
 }
 
-type escapeMenuAction int
+type EscapeMenuAction int
 
 const (
-	escapeMenuActionNone escapeMenuAction = iota
-	escapeMenuActionCharacterSelect
-	escapeMenuActionSettings
-	escapeMenuActionCancel
-	escapeMenuActionExit
+	EscapeMenuActionNone EscapeMenuAction = iota
+	EscapeMenuActionCharacterSelect
+	EscapeMenuActionSettings
+	EscapeMenuActionCancel
+	EscapeMenuActionExit
 )
 
 type escapeMenuButton struct {
 	label   string
-	action  escapeMenuAction
+	action  EscapeMenuAction
 	enabled bool
 }
 
-func (m *escapeMenuState) openMenu() {
+func (m *EscapeMenu) OpenMenu() {
 	m.open = true
-	m.action = escapeMenuActionNone
+	m.action = EscapeMenuActionNone
 	m.pending = false
 	m.status = ""
 }
 
 var escapeMenuButtons = []escapeMenuButton{
-	{label: "Character Select", action: escapeMenuActionCharacterSelect, enabled: true},
-	{label: "Settings", action: escapeMenuActionSettings, enabled: true},
-	{label: "Cancel", action: escapeMenuActionCancel, enabled: true},
-	{label: "Exit to Windows", action: escapeMenuActionExit, enabled: true},
+	{label: "Character Select", action: EscapeMenuActionCharacterSelect, enabled: true},
+	{label: "Settings", action: EscapeMenuActionSettings, enabled: true},
+	{label: "Cancel", action: EscapeMenuActionCancel, enabled: true},
+	{label: "Exit to Windows", action: EscapeMenuActionExit, enabled: true},
 }
 
-func (m *escapeMenuState) update(ctx Context) bool {
+func (m *EscapeMenu) Update(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
 	if !m.open {
 		if ctx.Input.JustPressed(render.KeyEscape) {
-			m.openMenu()
+			m.OpenMenu()
 			return true
 		}
 		return false
@@ -92,18 +93,18 @@ func (m *escapeMenuState) update(ctx Context) bool {
 		if !pointInRect(mx, my, bx, by, bw, bh) {
 			continue
 		}
-		if !button.enabled || (m.pending && button.action != escapeMenuActionExit) {
+		if !button.enabled || (m.pending && button.action != EscapeMenuActionExit) {
 			return true
 		}
 		switch button.action {
-		case escapeMenuActionCharacterSelect:
-			m.action = escapeMenuActionCharacterSelect
-		case escapeMenuActionSettings:
+		case EscapeMenuActionCharacterSelect:
+			m.action = EscapeMenuActionCharacterSelect
+		case EscapeMenuActionSettings:
 			m.open = false
-			m.action = escapeMenuActionSettings
-		case escapeMenuActionCancel:
+			m.action = EscapeMenuActionSettings
+		case EscapeMenuActionCancel:
 			m.open = false
-		case escapeMenuActionExit:
+		case EscapeMenuActionExit:
 			m.open = false
 			if ctx.RequestQuit != nil {
 				ctx.RequestQuit()
@@ -114,7 +115,7 @@ func (m *escapeMenuState) update(ctx Context) bool {
 	return true
 }
 
-func (m *escapeMenuState) requestCharacterSelect(ctx Context) {
+func (m *EscapeMenu) RequestCharacterSelect(ctx client.Context) {
 	m.pending = true
 	m.status = "Requesting character select..."
 	if ctx.Network == nil {
@@ -128,7 +129,7 @@ func (m *escapeMenuState) requestCharacterSelect(ctx Context) {
 	}
 }
 
-func (m *escapeMenuState) applyRestartAck(ack network.RestartAck) bool {
+func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
 	if !m.open || !m.pending {
 		return false
 	}
@@ -141,20 +142,20 @@ func (m *escapeMenuState) applyRestartAck(ack network.RestartAck) bool {
 	return false
 }
 
-func (m *escapeMenuState) consumeAction() escapeMenuAction {
+func (m *EscapeMenu) ConsumeAction() EscapeMenuAction {
 	action := m.action
-	m.action = escapeMenuActionNone
+	m.action = EscapeMenuActionNone
 	return action
 }
 
-func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height int) {
+func (m *EscapeMenu) Draw(screen *render.Image, ctx client.Context, width, height int) {
 	if !m.open || screen == nil {
 		return
 	}
-	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 96}, color.RGBA{})
+	DrawSurface(screen, 0, 0, width, height, color.RGBA{A: 96}, color.RGBA{})
 	x, y, w, h := escapeMenuBounds(width, height)
-	drawUITitledWindowFrame(screen, x, y, w, h, escapeMenuTitleH)
-	drawUIWindowTitle(screen, x, y, escapeMenuTitleH, escapeMenuPad, "Menu", escapeMenuTitleColor)
+	DrawTitledWindowFrame(screen, x, y, w, h, escapeMenuTitleH)
+	DrawWindowTitle(screen, x, y, escapeMenuTitleH, escapeMenuPad, "Menu", escapeMenuTitleColor)
 
 	mx, my := -1, -1
 	if ctx.Input != nil {
@@ -164,40 +165,56 @@ func (m *escapeMenuState) draw(screen *render.Image, ctx Context, width, height 
 		bx, by, bw, bh := escapeMenuButtonBounds(x, y, w, i)
 		fill := escapeMenuButtonColor
 		textColor := escapeMenuTextColor
-		enabled := button.enabled && (!m.pending || button.action == escapeMenuActionExit)
+		enabled := button.enabled && (!m.pending || button.action == EscapeMenuActionExit)
 		if !enabled {
 			fill = escapeMenuDisabledColor
 			textColor = escapeMenuMutedColor
 		} else if pointInRect(mx, my, bx, by, bw, bh) {
 			fill = escapeMenuHoverColor
 		}
-		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
+		DrawButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
 	}
 	if m.status != "" {
 		statusColor := escapeMenuMutedColor
 		if !m.pending {
-			statusColor = uiErrorTextColor
+			statusColor = ErrorTextColor
 		}
 		render.DebugPrintAtColor(screen, trimRunes(m.status, 30), x+escapeMenuPad, y+h-18, statusColor)
 	}
 }
 
-func (m *escapeMenuState) cursorAction(ctx Context) (int, bool) {
+func (m *EscapeMenu) CursorAction(ctx client.Context) (int, bool) {
 	if !m.open || ctx.Input == nil {
 		return 0, false
 	}
 	width, height := ctx.ScreenSize()
 	x, y, w, _ := escapeMenuBounds(width, height)
 	for i, button := range escapeMenuButtons {
-		if !button.enabled || (m.pending && button.action != escapeMenuActionExit) {
+		if !button.enabled || (m.pending && button.action != EscapeMenuActionExit) {
 			continue
 		}
 		bx, by, bw, bh := escapeMenuButtonBounds(x, y, w, i)
 		if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, bx, by, bw, bh) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
 	}
-	return cursorActionDefault, true
+	return CursorActionDefault, true
+}
+
+func (m *EscapeMenu) IsOpen() bool {
+	return m.open
+}
+
+func (m *EscapeMenu) Pending() bool {
+	return m.pending
+}
+
+func (m *EscapeMenu) Status() string {
+	return m.status
+}
+
+func (m *EscapeMenu) Action() EscapeMenuAction {
+	return m.action
 }
 
 func escapeMenuBounds(width, height int) (int, int, int, int) {

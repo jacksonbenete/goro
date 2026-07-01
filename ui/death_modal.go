@@ -1,9 +1,10 @@
-package game
+package ui
 
 import (
 	"fmt"
 	"image/color"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 )
@@ -18,73 +19,73 @@ const (
 )
 
 var (
-	deathModalTitleColor  = uiTitleTextColor
-	deathModalTextColor   = uiTextColor
-	deathModalMutedColor  = uiMutedTextColor
-	deathModalErrorColor  = uiErrorTextColor
-	deathModalButtonColor = uiButtonColor
-	deathModalHoverColor  = uiButtonHoverColor
+	deathModalTitleColor  = TitleTextColor
+	deathModalTextColor   = TextColor
+	deathModalMutedColor  = MutedTextColor
+	deathModalErrorColor  = ErrorTextColor
+	deathModalButtonColor = ButtonColor
+	deathModalHoverColor  = ButtonHoverColor
 )
 
-type deathModalState struct {
+type DeathModal struct {
 	open    bool
-	pending deathModalAction
+	pending DeathModalAction
 	status  string
 }
 
-type deathModalAction int
+type DeathModalAction int
 
 const (
-	deathModalActionNone deathModalAction = iota
-	deathModalActionSavePoint
-	deathModalActionCharSelect
-	deathModalActionExit
+	DeathModalActionNone DeathModalAction = iota
+	DeathModalActionSavePoint
+	DeathModalActionCharSelect
+	DeathModalActionExit
 )
 
 type deathModalButton struct {
 	label  string
-	action deathModalAction
+	action DeathModalAction
 }
 
 var deathModalButtons = []deathModalButton{
-	{label: "Return to Save Point", action: deathModalActionSavePoint},
-	{label: "Character Select", action: deathModalActionCharSelect},
-	{label: "Exit to Windows", action: deathModalActionExit},
+	{label: "Return to Save Point", action: DeathModalActionSavePoint},
+	{label: "Character Select", action: DeathModalActionCharSelect},
+	{label: "Exit to Windows", action: DeathModalActionExit},
 }
 
-func (m *deathModalState) openDeath() {
+func (m *DeathModal) OpenDeath() {
 	m.open = true
-	m.pending = deathModalActionNone
+	m.pending = DeathModalActionNone
 	m.status = ""
 }
 
-func (m *deathModalState) reset() {
-	*m = deathModalState{}
+func (m *DeathModal) Reset() {
+	*m = DeathModal{}
 }
 
-func (m *deathModalState) clearIfAlive(ctx Context) {
+func (m *DeathModal) ClearIfAlive(ctx client.Context) {
 	if !m.open || ctx.Session == nil {
 		return
 	}
 	if ctx.Session.Vitals.HP > 0 || ctx.Session.Selected.HP > 0 {
-		m.reset()
+		m.Reset()
 	}
 }
 
-func (m *deathModalState) applyRestartAck(ack network.RestartAck) bool {
-	if !m.open || m.pending != deathModalActionCharSelect {
+func (m *DeathModal) ApplyRestartAck(ack network.RestartAck) bool {
+	if !m.open || m.pending != DeathModalActionCharSelect {
 		return false
 	}
 	if ack.Allowed {
 		m.status = "Returning to character select..."
 		return true
 	}
-	m.pending = deathModalActionNone
+	m.pending = DeathModalActionNone
 	m.status = "Please wait before changing characters."
 	return false
 }
 
-func (m *deathModalState) update(ctx Context) bool {
+func (m *DeathModal) Update(ctx client.Context) bool {
 	if !m.open || ctx.Input == nil {
 		return m.open
 	}
@@ -99,7 +100,7 @@ func (m *deathModalState) update(ctx Context) bool {
 		if !pointInRect(mx, my, bx, by, bw, bh) {
 			continue
 		}
-		if m.pending != deathModalActionNone && button.action != deathModalActionExit {
+		if m.pending != DeathModalActionNone && button.action != DeathModalActionExit {
 			return true
 		}
 		m.activate(ctx, button.action)
@@ -108,33 +109,33 @@ func (m *deathModalState) update(ctx Context) bool {
 	return true
 }
 
-func (m *deathModalState) activate(ctx Context, action deathModalAction) {
+func (m *DeathModal) activate(ctx client.Context, action DeathModalAction) {
 	switch action {
-	case deathModalActionSavePoint:
+	case DeathModalActionSavePoint:
 		m.pending = action
 		m.status = "Returning to save point..."
 		if ctx.Network == nil {
-			m.pending = deathModalActionNone
+			m.pending = DeathModalActionNone
 			m.status = "Respawn failed: not connected"
 			return
 		}
 		if err := ctx.Network.SendRestart(network.RestartTypeRespawn); err != nil {
-			m.pending = deathModalActionNone
+			m.pending = DeathModalActionNone
 			m.status = fmt.Sprintf("Respawn failed: %v", err)
 		}
-	case deathModalActionCharSelect:
+	case DeathModalActionCharSelect:
 		m.pending = action
 		m.status = "Requesting character select..."
 		if ctx.Network == nil {
-			m.pending = deathModalActionNone
+			m.pending = DeathModalActionNone
 			m.status = "Character select failed: not connected"
 			return
 		}
 		if err := ctx.Network.SendRestart(network.RestartTypeCharSelect); err != nil {
-			m.pending = deathModalActionNone
+			m.pending = DeathModalActionNone
 			m.status = fmt.Sprintf("Character select failed: %v", err)
 		}
-	case deathModalActionExit:
+	case DeathModalActionExit:
 		m.open = false
 		if ctx.RequestQuit != nil {
 			ctx.RequestQuit()
@@ -142,14 +143,14 @@ func (m *deathModalState) activate(ctx Context, action deathModalAction) {
 	}
 }
 
-func (m *deathModalState) draw(screen *render.Image, ctx Context, width, height int) {
+func (m *DeathModal) Draw(screen *render.Image, ctx client.Context, width, height int) {
 	if !m.open || screen == nil {
 		return
 	}
-	drawUISurface(screen, 0, 0, width, height, color.RGBA{A: 112}, color.RGBA{})
+	DrawSurface(screen, 0, 0, width, height, color.RGBA{A: 112}, color.RGBA{})
 	x, y, w, h := deathModalBounds(width, height)
-	drawUITitledWindowFrame(screen, x, y, w, h, deathModalTitleH)
-	drawUIWindowTitle(screen, x, y, deathModalTitleH, deathModalPad, "You have died", deathModalTitleColor)
+	DrawTitledWindowFrame(screen, x, y, w, h, deathModalTitleH)
+	DrawWindowTitle(screen, x, y, deathModalTitleH, deathModalPad, "You have died", deathModalTitleColor)
 	render.DebugPrintAtColor(screen, "Choose what to do next.", x+deathModalPad, y+deathModalTitleH+14, deathModalTextColor)
 
 	mx, my := -1, -1
@@ -160,45 +161,53 @@ func (m *deathModalState) draw(screen *render.Image, ctx Context, width, height 
 		bx, by, bw, bh := deathModalButtonBounds(x, y, w, i)
 		fill := deathModalButtonColor
 		textColor := deathModalTextColor
-		enabled := m.pending == deathModalActionNone || button.action == deathModalActionExit
+		enabled := m.pending == DeathModalActionNone || button.action == DeathModalActionExit
 		if !enabled {
 			fill = escapeMenuDisabledColor
 			textColor = deathModalMutedColor
 		} else if pointInRect(mx, my, bx, by, bw, bh) {
 			fill = deathModalHoverColor
 		}
-		drawUIButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
+		DrawButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
 	}
 
 	if m.status != "" {
 		statusColor := deathModalMutedColor
-		if m.pending == deathModalActionNone {
+		if m.pending == DeathModalActionNone {
 			statusColor = deathModalErrorColor
 		}
 		render.DebugPrintAtColor(screen, trimRunes(m.status, 38), x+deathModalPad, y+h-22, statusColor)
 	}
 }
 
-func (m *deathModalState) cursorAction(ctx Context) (int, bool) {
+func (m *DeathModal) CursorAction(ctx client.Context) (int, bool) {
 	if !m.open || ctx.Input == nil {
 		return 0, false
 	}
 	width, height := ctx.ScreenSize()
 	x, y, w, _ := deathModalBounds(width, height)
-	if m.pending != deathModalActionNone {
+	if m.pending != DeathModalActionNone {
 		bx, by, bw, bh := deathModalButtonBounds(x, y, w, len(deathModalButtons)-1)
 		if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, bx, by, bw, bh) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
-		return cursorActionDefault, true
+		return CursorActionDefault, true
 	}
 	for i := range deathModalButtons {
 		bx, by, bw, bh := deathModalButtonBounds(x, y, w, i)
 		if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, bx, by, bw, bh) {
-			return cursorActionClick, true
+			return CursorActionClick, true
 		}
 	}
-	return cursorActionDefault, true
+	return CursorActionDefault, true
+}
+
+func (m *DeathModal) IsOpen() bool {
+	return m.open
+}
+
+func (m *DeathModal) PendingAction() DeathModalAction {
+	return m.pending
 }
 
 func deathModalBounds(width, height int) (int, int, int, int) {

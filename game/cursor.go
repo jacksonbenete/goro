@@ -137,7 +137,7 @@ func (s *roCursorState) frame(action int, info cursorActionInfo, now time.Time) 
 
 func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection, now time.Time) int {
 	mouseX, mouseY := ctx.Input.MouseX, ctx.Input.MouseY
-	if action, ok := m.deathModal.cursorAction(ctx); ok {
+	if action, ok := m.deathModal.CursorAction(ctx); ok {
 		return action
 	}
 	if action, ok := m.teleportModal.cursorAction(ctx); ok {
@@ -146,10 +146,10 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if ctx.Input.MousePressed(render.MouseButtonRight) {
 		return cursorActionRotate
 	}
-	if action, ok := m.escapeMenu.cursorAction(ctx); ok {
+	if action, ok := m.escapeMenu.CursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.settingsWindow.cursorAction(ctx); ok {
+	if action, ok := m.settingsWindow.CursorAction(ctx); ok {
 		return action
 	}
 	if action, ok := m.npcDialog.cursorAction(ctx); ok {
@@ -182,7 +182,7 @@ func (m *WorldMode) cursorDesiredAction(ctx Context, projection sceneProjection,
 	if action, ok := m.shortcutBar.cursorAction(ctx); ok {
 		return action
 	}
-	if action, ok := m.basicMenu.cursorAction(ctx); ok {
+	if action, ok := m.basicMenu.CursorAction(ctx); ok {
 		return action
 	}
 	if m.pendingSkill.skill.ID != 0 {

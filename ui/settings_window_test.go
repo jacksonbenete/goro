@@ -1,9 +1,10 @@
-package game
+package ui
 
 import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/input"
 )
@@ -39,13 +40,13 @@ func (s *testRuntimeSettings) SetFPS(value bool) {
 }
 
 func TestSettingsWindowEscapeCloses(t *testing.T) {
-	var window settingsWindowState
+	var window SettingsWindow
 	window.open = true
 	inputState := input.NewState()
-	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	ctx := client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}
 
 	inputState.SetKey(input.KeyEscape, true)
-	if !window.update(ctx) {
+	if !window.Update(ctx) {
 		t.Fatal("settings window did not consume escape")
 	}
 	if window.open {
@@ -54,32 +55,32 @@ func TestSettingsWindowEscapeCloses(t *testing.T) {
 }
 
 func TestSettingsWindowCursorOnControls(t *testing.T) {
-	var window settingsWindowState
-	window.openWindow(Context{ScreenW: 800, ScreenH: 600})
+	var window SettingsWindow
+	window.OpenWindow(client.Context{ScreenW: 800, ScreenH: 600})
 	inputState := input.NewState()
-	ctx := Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	ctx := client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}
 	x, y, w, h := window.bgmVolumePlusBounds()
 	inputState.SetMousePosition(x+w/2, y+h/2)
 
-	action, ok := window.cursorAction(ctx)
-	if !ok || action != cursorActionClick {
+	action, ok := window.CursorAction(ctx)
+	if !ok || action != CursorActionClick {
 		t.Fatalf("cursorAction = %d, %t; want click, true", action, ok)
 	}
 }
 
 func TestSettingsWindowRuntimeToggles(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	var window settingsWindowState
+	var window SettingsWindow
 	runtime := &testRuntimeSettings{vsync: true}
 	inputState := input.NewState()
-	ctx := Context{Input: inputState, Runtime: runtime, ScreenW: 800, ScreenH: 600}
-	window.openWindow(ctx)
+	ctx := client.Context{Input: inputState, Runtime: runtime, ScreenW: 800, ScreenH: 600}
+	window.OpenWindow(ctx)
 
 	click := func(bounds func() (int, int, int, int)) {
 		x, y, w, h := bounds()
 		inputState.SetMousePosition(x+w/2, y+h/2)
 		inputState.SetMouseButton(input.MouseButtonLeft, true)
-		if !window.update(ctx) {
+		if !window.Update(ctx) {
 			t.Fatal("settings window did not consume toggle click")
 		}
 		inputState.EndFrame()

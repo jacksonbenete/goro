@@ -17,6 +17,7 @@ import (
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -79,12 +80,12 @@ type WorldMode struct {
 	gndNormalSource  *res.GND
 	gndTopNormals    [][4]modelPoint3
 	minimap          minimapState
-	console          chatConsole
+	console          gameui.ChatConsole
 	npcDialog        npcDialogState
-	escapeMenu       escapeMenuState
+	escapeMenu       gameui.EscapeMenu
 	teleportModal    teleportModalState
-	deathModal       deathModalState
-	basicMenu        basicMenuState
+	deathModal       gameui.DeathModal
+	basicMenu        gameui.BasicMenu
 	inventoryWindow  inventoryWindowState
 	inventoryBag     inventoryBagWindowState
 	equipmentWindow  equipmentWindowState
@@ -93,7 +94,7 @@ type WorldMode struct {
 	itemInfoWindow   itemInfoWindowState
 	statsWindow      statsWindowState
 	skillWindow      skillWindowState
-	settingsWindow   settingsWindowState
+	settingsWindow   gameui.SettingsWindow
 	shortcutBar      shortcutBarState
 	mapFade          mapFadeState
 }
@@ -428,10 +429,10 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		if ack, ok, err := network.ParseRestartAck(pkt); err != nil {
 			log.Printf("parse restart ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			if m.deathModal.applyRestartAck(ack) {
+			if m.deathModal.ApplyRestartAck(ack) {
 				return m.nextCharacterSelectMode(ctx), nil
 			}
-			if m.escapeMenu.applyRestartAck(ack) {
+			if m.escapeMenu.ApplyRestartAck(ack) {
 				return m.nextCharacterSelectMode(ctx), nil
 			}
 			continue
@@ -485,9 +486,9 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 			if pickup.Result == 0 {
 				message := formatPickupConsoleMessage(ctx.Resources, pickup)
 				log.Printf("console pickup message item_id=%d amount=%d text=%q", pickup.ItemID, pickup.Amount, message)
-				m.console.addBlueMessage("%s", message)
+				m.console.AddBlueMessage("%s", message)
 			} else {
-				m.console.addErrorMessage("Pickup failed item %d result=%d", pickup.ItemID, pickup.Result)
+				m.console.AddErrorMessage("Pickup failed item %d result=%d", pickup.ItemID, pickup.Result)
 			}
 			continue
 		}
@@ -590,7 +591,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 		} else if ok {
 			m.shopWindow.applyResult(ctx, result)
 			if result.Sell && result.Result == 0 {
-				m.console.addBlueMessage("The deal has successfully completed.")
+				m.console.AddBlueMessage("The deal has successfully completed.")
 			}
 			continue
 		}
@@ -795,10 +796,10 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
-	if !m.escapeMenu.open && !m.teleportModal.open && !m.deathModal.open && !m.settingsWindow.open {
+	if !m.escapeMenu.IsOpen() && !m.teleportModal.open && !m.deathModal.IsOpen() && !m.settingsWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
-	if m.deathModal.update(ctx) {
+	if m.deathModal.Update(ctx) {
 		return nil, nil
 	}
 	if m.teleportModal.update(ctx, m) {
@@ -807,18 +808,18 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.npcDialog.update(ctx) {
 		return nil, nil
 	}
-	if m.console.update(ctx) {
+	if m.console.Update(ctx) {
 		return nil, nil
 	}
-	if m.settingsWindow.update(ctx) {
+	if m.settingsWindow.Update(ctx) {
 		return nil, nil
 	}
-	if m.escapeMenu.update(ctx) {
-		switch m.escapeMenu.consumeAction() {
-		case escapeMenuActionCharacterSelect:
-			m.escapeMenu.requestCharacterSelect(ctx)
-		case escapeMenuActionSettings:
-			m.settingsWindow.openWindow(ctx)
+	if m.escapeMenu.Update(ctx) {
+		switch m.escapeMenu.ConsumeAction() {
+		case gameui.EscapeMenuActionCharacterSelect:
+			m.escapeMenu.RequestCharacterSelect(ctx)
+		case gameui.EscapeMenuActionSettings:
+			m.settingsWindow.OpenWindow(ctx)
 		}
 		return nil, nil
 	}
@@ -849,7 +850,7 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 	if m.statsWindow.update(ctx) {
 		return nil, nil
 	}
-	if m.basicMenu.update(ctx) {
+	if m.basicMenu.Update(ctx) {
 		m.handleBasicMenuAction(ctx)
 		return nil, nil
 	}
@@ -914,11 +915,11 @@ func (m *WorldMode) Update(ctx Context) (Mode, error) {
 }
 
 func (m *WorldMode) handleBasicMenuAction(ctx Context) {
-	switch m.basicMenu.lastAction {
+	switch m.basicMenu.LastAction() {
 	case "status":
 		m.statsWindow.toggle(ctx)
 	case "option":
-		m.escapeMenu.openMenu()
+		m.escapeMenu.OpenMenu()
 	case "skill":
 		m.skillWindow.toggle(ctx)
 	case "items":
@@ -1080,7 +1081,7 @@ func formatConsoleMessage(manager *res.Manager, chat network.ChatMessage) string
 	return text
 }
 
-func addConsoleMessage(console *chatConsole, manager *res.Manager, chat network.ChatMessage) {
+func addConsoleMessage(console *gameui.ChatConsole, manager *res.Manager, chat network.ChatMessage) {
 	if console == nil {
 		return
 	}
@@ -1089,10 +1090,10 @@ func addConsoleMessage(console *chatConsole, manager *res.Manager, chat network.
 		return
 	}
 	if chat.Text == "" || !strings.Contains(text, " : ") {
-		console.addSystemMessage("%s", text)
+		console.AddSystemMessage("%s", text)
 		return
 	}
-	console.addMessage("%s", text)
+	console.AddMessage("%s", text)
 }
 
 func formatPickupConsoleMessage(manager *res.Manager, pickup network.ItemPickupAck) string {
@@ -1883,7 +1884,7 @@ func (m *WorldMode) clearLocalDeathStateIfAlive(ctx Context) {
 }
 
 func (m *WorldMode) clearLocalDeathState(ctx Context) {
-	m.deathModal.reset()
+	m.deathModal.Reset()
 	if ctx.Session == nil || m.actorAnims == nil {
 		return
 	}
@@ -2772,7 +2773,7 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	drawCharacterWindow(screen, ctx)
-	m.basicMenu.draw(screen, ctx)
+	m.basicMenu.Draw(screen, ctx)
 	m.shortcutBar.draw(screen, ctx, m)
 	m.minimap.draw(screen, ctx)
 	m.drawStatusIcons(screen, ctx, now)
@@ -2783,14 +2784,14 @@ func (m *WorldMode) Draw(ctx Context, screen *render.Image) {
 	m.shopWindow.draw(screen, ctx, m)
 	m.statsWindow.draw(screen, ctx)
 	m.skillWindow.draw(screen, ctx, m)
-	m.settingsWindow.draw(screen, ctx)
+	m.settingsWindow.Draw(screen, ctx)
 	m.itemInfoWindow.draw(screen, ctx, m)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
-	m.console.draw(screen, width, height)
+	m.console.Draw(screen, width, height)
 	m.npcDialog.draw(screen, ctx, width, height)
-	m.escapeMenu.draw(screen, ctx, width, height)
+	m.escapeMenu.Draw(screen, ctx, width, height)
 	m.teleportModal.draw(screen, ctx, width, height)
-	m.deathModal.draw(screen, ctx, width, height)
+	m.deathModal.Draw(screen, ctx, width, height)
 	m.drawROCursor(screen, ctx, projection, now)
 	m.drawMapFade(screen, now)
 }
@@ -3112,7 +3113,7 @@ func (m *WorldMode) startActorDeath(ctx Context, id uint32) {
 	actor.WalkDistance = 0
 	if local {
 		ctx.World.Player.Moving = false
-		m.deathModal.openDeath()
+		m.deathModal.OpenDeath()
 	} else {
 		ctx.World.UpsertActor(actor)
 	}
