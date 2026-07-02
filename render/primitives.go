@@ -32,13 +32,23 @@ func init() {
 	bold, _ := parseOpenTypeFace(dejavusansbold.TTF, 12)
 	textFontMu.Lock()
 	defer textFontMu.Unlock()
-	debugTextFace = regular
+	debugTextFace = noKernFace{Face: regular}
 	debugTextFixedWidth = 0
 	debugTextLineHeight, debugTextBaseline = textFaceLineMetrics(regular)
 	if debugTextLineHeight < 14 {
 		debugTextLineHeight = 14
 	}
-	outlinedTextFace = bold
+	if bold != nil {
+		outlinedTextFace = noKernFace{Face: bold}
+	}
+}
+
+type noKernFace struct {
+	font.Face
+}
+
+func (f noKernFace) Kern(r0, r1 rune) fixed.Int26_6 {
+	return 0
 }
 
 // SetUIFont installs the client UI font used for ordinary window text and,
@@ -242,7 +252,7 @@ func roNameTextFace() font.Face {
 		return outlinedTextFace
 	}
 	if face, err := parseOpenTypeFace(dejavusansbold.TTF, 12); err == nil {
-		outlinedTextFace = face
+		outlinedTextFace = noKernFace{Face: face}
 		return outlinedTextFace
 	}
 	outlinedTextFace = basicfont.Face7x13
