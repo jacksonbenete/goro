@@ -782,6 +782,9 @@ func (w *ShopWindow) drawTinyButton(screen *render.Image, x, y int, label string
 		DrawPlusButton(screen, x, y, fill, text)
 	case "-":
 		DrawMinusButton(screen, x, y, fill, text)
+	case "x":
+		DrawButtonSurface(screen, x, y, IconButtonSize, IconButtonSize, fill)
+		DrawCloseGlyph(screen, x, y, IconButtonSize, IconButtonSize, text)
 	default:
 		w.drawButton(screen, x, y, IconButtonSize, IconButtonSize, label, enabled)
 	}

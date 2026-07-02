@@ -17,6 +17,7 @@ const (
 	settingsWindowPad    = 14
 	settingsButtonH      = 23
 	settingsButtonW      = 62
+	settingsVolumeBarH   = 5
 )
 
 type SettingsWindow struct {
@@ -156,7 +157,6 @@ func (w *SettingsWindow) DrawVolumeControls(screen *render.Image, ctx client.Con
 		render.DrawRect(screen, float64(barX+1), float64(barY+1), float64(fillW), float64(barH-2), color.RGBA{R: 104, G: 166, B: 224, A: 255})
 	}
 	DrawPlusButton(screen, plusX, plusY, plusFill, TextColor)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("%d%%", int(volume*100+0.5)), barX+barW+8, barY+3, TextColor)
 }
 
 func (w *SettingsWindow) CursorAction(ctx client.Context) (int, bool) {
@@ -287,7 +287,7 @@ func (w *SettingsWindow) bgmVolumeMinusBounds() (int, int, int, int) {
 }
 
 func (w *SettingsWindow) bgmVolumeBarBounds() (int, int, int, int) {
-	return w.x + 134, w.y + settingsWindowTitleH + 162, 92, 14
+	return w.x + 134, w.y + settingsWindowTitleH + 167, 92, settingsVolumeBarH
 }
 
 func (w *SettingsWindow) bgmVolumePlusBounds() (int, int, int, int) {
@@ -299,7 +299,7 @@ func (w *SettingsWindow) sfxVolumeMinusBounds() (int, int, int, int) {
 }
 
 func (w *SettingsWindow) sfxVolumeBarBounds() (int, int, int, int) {
-	return w.x + 134, w.y + settingsWindowTitleH + 200, 92, 14
+	return w.x + 134, w.y + settingsWindowTitleH + 205, 92, settingsVolumeBarH
 }
 
 func (w *SettingsWindow) sfxVolumePlusBounds() (int, int, int, int) {

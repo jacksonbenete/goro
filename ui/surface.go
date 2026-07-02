@@ -185,6 +185,10 @@ func ButtonLabelWidth(label string) int {
 
 func DrawCloseButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA) {
 	DrawButtonSurface(screen, x, y, w, h, bg)
+	DrawCloseGlyph(screen, x, y, w, h, line)
+}
+
+func DrawCloseGlyph(screen *render.Image, x, y, w, h int, line color.RGBA) {
 	icon := minInt(w, h) / 2
 	if icon < 6 {
 		icon = minInt(w, h) - 6
