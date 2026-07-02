@@ -213,6 +213,11 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 	}
 	actor, ok := clickedSkillTarget(ctx, projection, skill, ctx.Input.MouseX, ctx.Input.MouseY, now, c.mode.actorDeaths)
 	if !ok {
+		if x, y, groundOK := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); groundOK {
+			log.Printf("skill target canceled by ground click skill=%d mouse=%d,%d target=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY, x, y)
+			c.Cancel("ground-click")
+			return
+		}
 		c.mode.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 		log.Printf("skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 		return

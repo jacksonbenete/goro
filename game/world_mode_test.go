@@ -3144,6 +3144,60 @@ func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
 	}
 }
 
+func TestPendingTargetSkillCancelsWhenClickingGround(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	inputState := input.NewState()
+	projection := newSceneProjectionForTarget(1280, 720, cellCenter(10), cellCenter(20), 0)
+	point := projection.Project(cellCenter(12), cellCenter(20), 0)
+	inputState.SetMousePosition(int(math.Round(float64(point.x))), int(math.Round(float64(point.y))))
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{skill: session.Skill{ID: 6, Level: 2, Type: skillTargetEnemy, Range: 9}},
+	}
+	ctx := client.Context{
+		Input:   inputState,
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.skills().HandleClick(ctx, projection, time.Now())
+
+	if mode.pendingSkill.skill.ID != 0 {
+		t.Fatalf("pending skill id = %d, want canceled", mode.pendingSkill.skill.ID)
+	}
+	if mode.status != "skill canceled" {
+		t.Fatalf("status = %q, want skill canceled", mode.status)
+	}
+}
+
+func TestPendingGroundSkillDoesNotCancelWhenClickingGround(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	inputState := input.NewState()
+	projection := newSceneProjectionForTarget(1280, 720, cellCenter(10), cellCenter(20), 0)
+	point := projection.Project(cellCenter(12), cellCenter(20), 0)
+	inputState.SetMousePosition(int(math.Round(float64(point.x))), int(math.Round(float64(point.y))))
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{skill: session.Skill{ID: 18, Level: 1, Type: skillTargetPlace, Range: 9}},
+	}
+	ctx := client.Context{
+		Input:   inputState,
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.skills().HandleClick(ctx, projection, time.Now())
+
+	if mode.pendingSkill.skill.ID != 18 {
+		t.Fatalf("pending ground skill id = %d, want still pending after send failure", mode.pendingSkill.skill.ID)
+	}
+	if mode.status == "skill canceled" {
+		t.Fatal("ground skill was canceled instead of treated as a ground target")
+	}
+}
+
 func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
