@@ -291,6 +291,19 @@ func TestBuildDropInventoryItemPacket(t *testing.T) {
 	}
 }
 
+func TestBuildDropInventoryItemPacketFor20080910(t *testing.T) {
+	packet := BuildDropInventoryItemPacketForClientDate(15, 1, 20080910)
+	if len(packet) != 17 || ID(packet) != 0x0116 {
+		t.Fatalf("unexpected 20080910 drop packet header: % X", packet)
+	}
+	if got := binary.LittleEndian.Uint16(packet[6:8]); got != 15 {
+		t.Fatalf("20080910 drop index = %d, want 15", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[15:17]); got != 1 {
+		t.Fatalf("20080910 drop amount = %d, want 1", got)
+	}
+}
+
 func TestParseItemIdentifyListAndAck(t *testing.T) {
 	listData := make([]byte, 8)
 	binary.LittleEndian.PutUint16(listData[0:2], 0x0177)

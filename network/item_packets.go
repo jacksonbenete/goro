@@ -81,6 +81,21 @@ type storageMovePacketLayout struct {
 	amountOffset int
 }
 
+type itemDropPacketLayout struct {
+	date         int
+	opcode       uint16
+	length       int
+	indexOffset  int
+	amountOffset int
+}
+
+var itemDropPacketLayouts = []itemDropPacketLayout{
+	// 2008-09-10 with our pre-renewal rAthena build inherits the 2008-08-27
+	// renewal shuffle: 0x00A2 is no longer item drop, it is REQNAME_BYGID.
+	{date: 20101124, opcode: 0x0363, length: 6, indexOffset: 2, amountOffset: 4},
+	{date: 20080827, opcode: 0x0116, length: 17, indexOffset: 6, amountOffset: 15},
+}
+
 var moveToStoragePacketLayouts = []storageMovePacketLayout{
 	// 2008-09-10 keeps the 2007-02-12 shuffled Kafra packet offsets in
 	// rAthena's packet DB. The unshuffled 0x00F3 packet is not accepted by
@@ -766,6 +781,29 @@ func BuildDropInventoryItemPacket(index, amount uint16) []byte {
 	return packet
 }
 
+func BuildDropInventoryItemPacketForClientDate(index, amount uint16, clientDate int) []byte {
+	if amount == 0 {
+		amount = 1
+	}
+	for _, layout := range itemDropPacketLayouts {
+		if clientDate < layout.date {
+			continue
+		}
+		packet := make([]byte, layout.length)
+		binary.LittleEndian.PutUint16(packet[0:2], layout.opcode)
+		if layout.indexOffset > 2 {
+			fillLegacyPacketPadding(packet[2:layout.indexOffset])
+		}
+		binary.LittleEndian.PutUint16(packet[layout.indexOffset:layout.indexOffset+2], index)
+		if layout.amountOffset > layout.indexOffset+2 {
+			fillLegacyPacketPadding(packet[layout.indexOffset+2 : layout.amountOffset])
+		}
+		binary.LittleEndian.PutUint16(packet[layout.amountOffset:layout.amountOffset+2], amount)
+		return packet
+	}
+	return BuildDropInventoryItemPacket(index, amount)
+}
+
 func BuildItemIdentifyPacket(index uint16) []byte {
 	packet := make([]byte, 4)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqItemIdentify)
@@ -892,7 +930,7 @@ func (c *Client) SendUseInventoryItem(index uint16, targetAID uint32) error {
 }
 
 func (c *Client) SendDropInventoryItem(index, amount uint16) error {
-	packet := BuildDropInventoryItemPacket(index, amount)
+	packet := BuildDropInventoryItemPacketForClientDate(index, amount, c.clientDate)
 	err := c.Send(packet)
 	if err == nil {
 		log.Printf("sent CZ_ITEM_THROW opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
