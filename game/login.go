@@ -961,24 +961,18 @@ func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Image) {
 
 func (m *LoginMode) drawLoginWindow(ctx client.Context, screen *render.Image) {
 	x, y, w, h := loginWindowRect(ctx)
-	gameui.DrawTitledWindowFrame(screen, x, y, w, h, loginWindowTitleH)
-	gameui.DrawWindowTitle(screen, x, y, loginWindowTitleH, 10, "Login", gameui.TitleTextColor)
-	gameui.DrawWindowFooter(screen, x, y, w, h, loginWindowFooterH)
-
-	labelColor := gameui.TextColor
-	userX, userY, userW, userH := loginUserFieldRect(x, y, w)
-	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
-	render.DebugPrintAtColor(screen, "Account", loginLabelX(userX, "Account"), loginLabelY(userY, userH), labelColor)
-	render.DebugPrintAtColor(screen, "Password", loginLabelX(passX, "Password"), loginLabelY(passY, passH), labelColor)
-	drawLoginInput(screen, userX, userY, userW, userH, m.username, m.focus == loginFieldUser)
-	drawLoginInput(screen, passX, passY, passW, passH, strings.Repeat("*", len([]rune(m.password))), m.focus == loginFieldPassword)
-
 	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
-	buttonBG := gameui.ButtonColor
+	hoverLogin := false
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, buttonX, buttonY, buttonW, buttonH) {
-		buttonBG = gameui.ButtonHoverColor
+		hoverLogin = true
 	}
-	gameui.DrawButtonLabel(screen, buttonX, buttonY, buttonW, buttonH, "Login", buttonBG, labelColor)
+	opts := loginWindowDrawOptions(x, y, w, h)
+	opts.Username = m.username
+	opts.Password = m.password
+	opts.FocusUser = m.focus == loginFieldUser
+	opts.FocusPassword = m.focus == loginFieldPassword
+	opts.LoginButtonHover = hoverLogin
+	gameui.DrawLoginWindow(screen, opts)
 }
 
 func (m *LoginMode) drawCharacterSelect(ctx client.Context, screen *render.Image) {
@@ -1026,7 +1020,7 @@ func (m *LoginMode) drawCharacterCreate(ctx client.Context, screen *render.Image
 
 	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
 	render.DebugPrintAtColor(screen, "Name", nameX, nameY-15, gameui.TextColor)
-	drawLoginInput(screen, nameX, nameY, nameW, nameH, m.create.name, m.create.focusName)
+	gameui.DrawTextInput(screen, nameX, nameY, nameW, nameH, m.create.name, m.create.focusName)
 
 	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y, w, h)
 	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y, w, h)
@@ -1310,22 +1304,6 @@ func drawCharSelectArrow(screen *render.Image, x, y, w, h int, label string) {
 	gameui.DrawButtonLabel(screen, x, y, w, h, label, gameui.ButtonColor, gameui.TextColor)
 }
 
-func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused bool) {
-	bg := gameui.PanelBodyColor
-	border := gameui.ButtonBorderColor
-	if focused {
-		border = gameui.SelectionBorder
-	}
-	gameui.DrawTextBoxSurface(screen, x, y, w, h, bg, border)
-	visibleText := trimRunes(text, maxInt(1, (w-14)/7))
-	render.DebugPrintAtColor(screen, visibleText, x+6, y+4, gameui.TextColor)
-	if focused {
-		textW, _ := render.DebugTextSize(visibleText)
-		caretX := minInt(x+w-6, x+6+textW)
-		gameui.DrawBlinkingCaret(screen, caretX, y, h, gameui.TextColor)
-	}
-}
-
 func (m *LoginMode) loadBackground(ctx client.Context) {
 	if m.bgLoaded {
 		return
@@ -1451,38 +1429,19 @@ func loginWindowRect(ctx client.Context) (int, int, int, int) {
 }
 
 func loginUserFieldRect(x, y, w int) (int, int, int, int) {
-	return loginFieldRect(x, y, w, 0)
+	return gameui.LoginWindowFieldRect(loginWindowDrawOptions(x, y, w, loginWindowHeight()), 0)
 }
 
 func loginPasswordFieldRect(x, y, w int) (int, int, int, int) {
-	return loginFieldRect(x, y, w, 1)
-}
-
-func loginFieldRect(x, y, w, row int) (int, int, int, int) {
-	fieldX := x + loginWindowFieldLeft
-	fieldY := y + loginWindowTitleH + loginWindowFormTopPad + row*(loginWindowFieldH+loginWindowFieldGap)
-	fieldW := w - loginWindowFieldLeft - loginWindowFieldRightPad
-	return fieldX, fieldY, fieldW, loginWindowFieldH
-}
-
-func loginLabelX(fieldX int, label string) int {
-	return fieldX - 12 - len([]rune(label))*7
-}
-
-func loginLabelY(fieldY, fieldH int) int {
-	return fieldY + maxInt(0, (fieldH-14)/2)
+	return gameui.LoginWindowFieldRect(loginWindowDrawOptions(x, y, w, loginWindowHeight()), 1)
 }
 
 func loginButtonRect(x, y, w int) (int, int, int, int) {
-	fieldX, _, fieldW, _ := loginUserFieldRect(x, y, w)
-	buttonW := gameui.ButtonLabelWidth("Login")
-	_, footerY, _, footerH := loginFooterRect(x, y, w)
-	buttonH := 24
-	return fieldX + fieldW - buttonW, footerY + (footerH-buttonH)/2, buttonW, buttonH
+	return gameui.LoginWindowButtonRect(loginWindowDrawOptions(x, y, w, loginWindowHeight()))
 }
 
 func loginFooterRect(x, y, w int) (int, int, int, int) {
-	return x, y + loginWindowHeight() - loginWindowFooterH, w, loginWindowFooterH
+	return gameui.LoginWindowFooterRect(loginWindowDrawOptions(x, y, w, loginWindowHeight()))
 }
 
 func loginWindowHeight() int {
@@ -1491,6 +1450,22 @@ func loginWindowHeight() int {
 
 func loginWindowWidth() int {
 	return 304
+}
+
+func loginWindowDrawOptions(x, y, w, h int) gameui.LoginWindowDrawOptions {
+	return gameui.LoginWindowDrawOptions{
+		X:             x,
+		Y:             y,
+		W:             w,
+		H:             h,
+		TitleH:        loginWindowTitleH,
+		FooterH:       loginWindowFooterH,
+		FormTopPad:    loginWindowFormTopPad,
+		FieldGap:      loginWindowFieldGap,
+		FieldLeft:     loginWindowFieldLeft,
+		FieldRightPad: loginWindowFieldRightPad,
+		FieldH:        loginWindowFieldH,
+	}
 }
 
 func loginQuitConfirmRect(ctx client.Context) (int, int, int, int) {

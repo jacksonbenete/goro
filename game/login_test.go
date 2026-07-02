@@ -470,16 +470,16 @@ func TestLoginLabelsAlignInFrontOfTextboxes(t *testing.T) {
 	passX, passY, passW, passH := loginPasswordFieldRect(x, y, w)
 	buttonX, buttonY, buttonW, buttonH := loginButtonRect(x, y, w)
 	_, footerY, _, footerH := loginFooterRect(x, y, w)
-	accountX := loginLabelX(userX, "Account")
-	passwordX := loginLabelX(passX, "Password")
+	accountX := gameui.LoginWindowLabelX(userX, "Account")
+	passwordX := gameui.LoginWindowLabelX(passX, "Password")
 	accountRight := accountX + len([]rune("Account"))*7
 	passwordRight := passwordX + len([]rune("Password"))*7
 
 	if accountRight != passwordRight || accountRight != userX-12 {
 		t.Fatalf("label right edges = %d,%d, want %d", accountRight, passwordRight, userX-12)
 	}
-	if loginLabelY(userY, userH) != userY+4 || loginLabelY(passY, passH) != passY+4 {
-		t.Fatalf("label y = %d,%d, want field y + 4", loginLabelY(userY, userH), loginLabelY(passY, passH))
+	if gameui.LoginWindowLabelY(userY, userH) != userY+4 || gameui.LoginWindowLabelY(passY, passH) != passY+4 {
+		t.Fatalf("label y = %d,%d, want field y + 4", gameui.LoginWindowLabelY(userY, userH), gameui.LoginWindowLabelY(passY, passH))
 	}
 	if buttonX+buttonW != userX+userW || buttonX+buttonW != passX+passW {
 		t.Fatalf("button right edge = %d, want textbox right edge %d", buttonX+buttonW, userX+userW)
