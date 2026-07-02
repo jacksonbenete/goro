@@ -12,11 +12,16 @@ import (
 
 const (
 	shopWindowWidth  = 360
-	shopWindowHeight = 320
+	shopWindowHeight = 276
 	shopWindowTitleH = 28
 	shopWindowPad    = 10
 	shopCartRowH     = 28
 	shopBuyRowH      = 31
+	shopListH        = 194
+	shopFooterGap    = 8
+	shopButtonH      = 24
+	shopRowButtonGap = 2
+	shopRowRightPad  = 3
 
 	shopDealWidth  = 244
 	shopDealHeight = 108
@@ -300,8 +305,8 @@ func (w *ShopWindow) Draw(screen *render.Image, ctx Context, assets AssetRendere
 			}
 		}
 	}
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Total: %s z", formatHUDNumber(int64(w.total()))), x+shopWindowPad, y+shopWindowHeight-48, shopTextColor)
 	sx, sy, sw, sh := w.sellButtonBounds()
+	render.DebugPrintAtColor(screen, fmt.Sprintf("Total: %s z", formatHUDNumber(int64(w.total()))), x+shopWindowPad, sy+6, shopTextColor)
 	actionLabel := "Sell"
 	enabled := len(w.cart) > 0
 	if w.mode == shopModeBuy {
@@ -311,13 +316,6 @@ func (w *ShopWindow) Draw(screen *render.Image, ctx Context, assets AssetRendere
 	w.drawButton(screen, sx, sy, sw, sh, actionLabel, enabled)
 	bx, by, bw, bh := w.cancelButtonBounds()
 	w.drawButton(screen, bx, by, bw, bh, "Cancel", true)
-	if w.status != "" && time.Since(w.statusAt) < 2500*time.Millisecond {
-		statusColor := shopErrorColor
-		if w.statusGood {
-			statusColor = shopGoodColor
-		}
-		render.DebugPrintAtColor(screen, trimRunes(w.status, 42), x+shopWindowPad, y+shopWindowHeight-20, statusColor)
-	}
 }
 
 func (w *ShopWindow) drawDeal(screen *render.Image, ctx Context) {
@@ -482,8 +480,8 @@ func (w *ShopWindow) handleBuyClick(mx, my int) bool {
 	for row, item := range w.visibleBuyItems() {
 		itemIndex := w.buyScroll + row
 		x, y, width, _ := w.buyRowBounds(row)
-		minus := [4]int{x + width - 52, y + 6, IconButtonSize, IconButtonSize}
-		plus := [4]int{x + width - 34, y + 6, IconButtonSize, IconButtonSize}
+		minus := shopRowButtonBounds(x, y+6, width, 1)
+		plus := shopRowButtonBounds(x, y+6, width, 0)
 		switch {
 		case pointInRect(mx, my, minus[0], minus[1], minus[2], minus[3]):
 			w.decrementBuyItem(item.ItemID)
@@ -598,15 +596,17 @@ func (w *ShopWindow) closeBounds() (int, int, int, int) {
 }
 
 func (w *ShopWindow) dropBounds() (int, int, int, int) {
-	return w.x + shopWindowPad, w.y + shopWindowTitleH + 12, shopWindowWidth - shopWindowPad*2, 194
+	return w.x + shopWindowPad, w.y + shopWindowTitleH + 12, shopWindowWidth - shopWindowPad*2, shopListH
 }
 
 func (w *ShopWindow) sellButtonBounds() (int, int, int, int) {
-	return w.x + shopWindowWidth - 146, w.y + shopWindowHeight - 54, 58, 24
+	_, dropY, _, dropH := w.dropBounds()
+	return w.x + shopWindowWidth - 146, dropY + dropH + shopFooterGap, 58, shopButtonH
 }
 
 func (w *ShopWindow) cancelButtonBounds() (int, int, int, int) {
-	return w.x + shopWindowWidth - 80, w.y + shopWindowHeight - 54, 62, 24
+	_, dropY, _, dropH := w.dropBounds()
+	return w.x + shopWindowWidth - 80, dropY + dropH + shopFooterGap, 62, shopButtonH
 }
 
 func (w *ShopWindow) cartRowBounds(row int) (int, int, int, int) {
@@ -616,7 +616,7 @@ func (w *ShopWindow) cartRowBounds(row int) (int, int, int, int) {
 
 func (w *ShopWindow) buyRowBounds(row int) (int, int, int, int) {
 	x, y, width, _ := w.dropBounds()
-	return x + 5, y + 5 + row*shopBuyRowH, width - 10, shopBuyRowH - 3
+	return x + 5, y + 5 + row*shopBuyRowH, width - 18, shopBuyRowH - 3
 }
 
 func (w *ShopWindow) visibleBuyItems() []network.ShopBuyItem {
@@ -661,9 +661,9 @@ func (w *ShopWindow) drawCartRow(screen *render.Image, ctx Context, row int, ite
 	render.DebugPrintAtColor(screen, trimRunes(name, 22), x+7, y+5, shopTextColor)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("x%d", item.amount), x+170, y+5, shopMutedColor)
 	render.DebugPrintAtColor(screen, formatHUDNumber(int64(item.over)*int64(item.amount)), x+210, y+5, shopMutedColor)
-	w.drawTinyButton(screen, x+width-52, y+4, "-", true)
-	w.drawTinyButton(screen, x+width-34, y+4, "+", item.amount < item.max)
-	w.drawTinyButton(screen, x+width-16, y+4, "x", true)
+	w.drawTinyButtonAt(screen, shopRowButtonBounds(x, y+4, width, 2), "-", true)
+	w.drawTinyButtonAt(screen, shopRowButtonBounds(x, y+4, width, 1), "+", item.amount < item.max)
+	w.drawTinyButtonAt(screen, shopRowButtonBounds(x, y+4, width, 0), "x", true)
 }
 
 func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, assets AssetRenderer) {
@@ -698,8 +698,8 @@ func (w *ShopWindow) drawBuyRows(screen *render.Image, ctx Context, assets Asset
 		if amount > 0 {
 			render.DebugPrintAtColor(screen, fmt.Sprintf("x%d", amount), x+244, y+5, shopGoodColor)
 		}
-		w.drawTinyButton(screen, x+width-52, y+6, "-", amount > 0)
-		w.drawTinyButton(screen, x+width-34, y+6, "+", true)
+		w.drawTinyButtonAt(screen, shopRowButtonBounds(x, y+6, width, 1), "-", amount > 0)
+		w.drawTinyButtonAt(screen, shopRowButtonBounds(x, y+6, width, 0), "+", true)
 	}
 	w.drawBuyScrollBar(screen)
 }
@@ -736,9 +736,9 @@ func (w *ShopWindow) handleCartButton(ctx Context, row int, mx, my int) bool {
 		return false
 	}
 	x, y, width, _ := w.cartRowBounds(row)
-	minus := [4]int{x + width - 52, y + 4, IconButtonSize, IconButtonSize}
-	plus := [4]int{x + width - 34, y + 4, IconButtonSize, IconButtonSize}
-	remove := [4]int{x + width - 16, y + 4, IconButtonSize, IconButtonSize}
+	minus := shopRowButtonBounds(x, y+4, width, 2)
+	plus := shopRowButtonBounds(x, y+4, width, 1)
+	remove := shopRowButtonBounds(x, y+4, width, 0)
 	switch {
 	case pointInRect(mx, my, minus[0], minus[1], minus[2], minus[3]):
 		if w.cart[row].amount > 1 {
@@ -788,6 +788,15 @@ func (w *ShopWindow) drawTinyButton(screen *render.Image, x, y int, label string
 	default:
 		w.drawButton(screen, x, y, IconButtonSize, IconButtonSize, label, enabled)
 	}
+}
+
+func (w *ShopWindow) drawTinyButtonAt(screen *render.Image, bounds [4]int, label string, enabled bool) {
+	w.drawTinyButton(screen, bounds[0], bounds[1], label, enabled)
+}
+
+func shopRowButtonBounds(rowX, y, rowWidth, fromRight int) [4]int {
+	x := rowX + rowWidth - shopRowRightPad - IconButtonSize - fromRight*(IconButtonSize+shopRowButtonGap)
+	return [4]int{x, y, IconButtonSize, IconButtonSize}
 }
 
 func (w *ShopWindow) total() int64 {
