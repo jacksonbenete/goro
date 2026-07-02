@@ -3,12 +3,10 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"log"
 	"math"
 	"strings"
 	"time"
 
-	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -481,54 +479,6 @@ func drawSkillTooltip(screen *render.Image, ctx Context, skill session.Skill) {
 
 func canIncreaseSkill(s *session.Session, skill session.Skill) bool {
 	return s != nil && s.Skills.Points > 0 && skill.Upgradable
-}
-
-func applySkillInfoList(ctx Context, list network.SkillInfoList) {
-	if ctx.Session == nil {
-		return
-	}
-	ctx.Session.Skills.List = ctx.Session.Skills.List[:0]
-	for _, skill := range list.Skills {
-		ctx.Session.Skills.List = append(ctx.Session.Skills.List, sessionSkillFromNetwork(skill))
-	}
-	log.Printf("skill list received count=%d points=%d", len(ctx.Session.Skills.List), ctx.Session.Skills.Points)
-}
-
-func applySkillInfoUpdate(ctx Context, update network.SkillInfoUpdate) {
-	if ctx.Session == nil {
-		return
-	}
-	upsertSessionSkill(ctx.Session, sessionSkillFromNetwork(update.Skill))
-	log.Printf("skill update id=%d level=%d sp=%d range=%d upgradable=%t", update.Skill.ID, update.Skill.Level, update.Skill.SPCost, update.Skill.Range, update.Skill.Upgradable)
-}
-
-func sessionSkillFromNetwork(skill network.SkillInfo) session.Skill {
-	return session.Skill{
-		ID:         skill.ID,
-		Type:       skill.Type,
-		Level:      skill.Level,
-		SPCost:     skill.SPCost,
-		Range:      skill.Range,
-		Name:       skill.Name,
-		Upgradable: skill.Upgradable,
-	}
-}
-
-func upsertSessionSkill(s *session.Session, skill session.Skill) {
-	for i := range s.Skills.List {
-		if s.Skills.List[i].ID != skill.ID {
-			continue
-		}
-		if skill.Type == 0 {
-			skill.Type = s.Skills.List[i].Type
-		}
-		if strings.TrimSpace(skill.Name) == "" {
-			skill.Name = s.Skills.List[i].Name
-		}
-		s.Skills.List[i] = skill
-		return
-	}
-	s.Skills.List = append(s.Skills.List, skill)
 }
 
 func clampSkillWindowInt(value, minValue, maxValue int) int {

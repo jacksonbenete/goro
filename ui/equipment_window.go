@@ -23,8 +23,6 @@ const (
 	equipmentCenterColW   = 56
 	equipmentRightColW    = 112
 	equipmentRowH         = 24
-
-	equipmentPreviewWorldDirection = 4
 )
 
 const (

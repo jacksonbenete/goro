@@ -25,10 +25,6 @@ const (
 	defaultSceneCameraFOV   float64 = 15
 )
 
-func newSceneProjectionForSize(width, height, playerX, playerY int, playerZ float64) sceneProjection {
-	return newSceneProjectionForTarget(width, height, cellCenter(float64(playerX)), cellCenter(float64(playerY)), playerZ)
-}
-
 func newSceneProjectionForTarget(width, height int, targetX, targetY, targetZ float64) sceneProjection {
 	return newSceneProjectionForTargetYaw(width, height, targetX, targetY, targetZ, sceneCameraYaw())
 }

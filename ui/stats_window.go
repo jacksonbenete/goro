@@ -346,46 +346,6 @@ func clampStatsWindowInt(value, minValue, maxValue int) int {
 	return value
 }
 
-func applyStatusSnapshot(ctx Context, snapshot network.StatusSnapshot) {
-	if ctx.Session == nil {
-		return
-	}
-	ctx.Session.Stats.Points = snapshot.Points
-	setSessionStat(ctx.Session, network.StatusStr, snapshot.Str)
-	setSessionStat(ctx.Session, network.StatusAgi, snapshot.Agi)
-	setSessionStat(ctx.Session, network.StatusVit, snapshot.Vit)
-	setSessionStat(ctx.Session, network.StatusInt, snapshot.Int)
-	setSessionStat(ctx.Session, network.StatusDex, snapshot.Dex)
-	setSessionStat(ctx.Session, network.StatusLuk, snapshot.Luk)
-	ctx.Session.Stats.StrBonus = snapshot.StrBonus
-	ctx.Session.Stats.AgiBonus = snapshot.AgiBonus
-	ctx.Session.Stats.VitBonus = snapshot.VitBonus
-	ctx.Session.Stats.IntBonus = snapshot.IntBonus
-	ctx.Session.Stats.DexBonus = snapshot.DexBonus
-	ctx.Session.Stats.LukBonus = snapshot.LukBonus
-	ctx.Session.Stats.StrCost = snapshot.StrCost
-	ctx.Session.Stats.AgiCost = snapshot.AgiCost
-	ctx.Session.Stats.VitCost = snapshot.VitCost
-	ctx.Session.Stats.IntCost = snapshot.IntCost
-	ctx.Session.Stats.DexCost = snapshot.DexCost
-	ctx.Session.Stats.LukCost = snapshot.LukCost
-	ctx.Session.Stats.Attack = snapshot.Attack
-	ctx.Session.Stats.AttackBonus = snapshot.AttackBonus
-	ctx.Session.Stats.MatkMin = snapshot.MatkMin
-	ctx.Session.Stats.MatkMax = snapshot.MatkMax
-	ctx.Session.Stats.Defense = snapshot.Defense
-	ctx.Session.Stats.DefenseBonus = snapshot.DefenseBonus
-	ctx.Session.Stats.MDefense = snapshot.MDefense
-	ctx.Session.Stats.MDefenseBonus = snapshot.MDefenseBonus
-	ctx.Session.Stats.Hit = snapshot.Hit
-	ctx.Session.Stats.Flee = snapshot.Flee
-	ctx.Session.Stats.FleeBonus = snapshot.FleeBonus
-	ctx.Session.Stats.Critical = snapshot.Critical
-	ctx.Session.Stats.ASPD = snapshot.ASPD
-	ctx.Session.Stats.ASPDBonus = snapshot.ASPDBonus
-	log.Printf("status snapshot points=%d str=%d agi=%d vit=%d int=%d dex=%d luk=%d", snapshot.Points, snapshot.Str, snapshot.Agi, snapshot.Vit, snapshot.Int, snapshot.Dex, snapshot.Luk)
-}
-
 func (w *StatsWindow) ApplyStatusChangeAck(ctx Context, ack network.StatusChangeAck) {
 	if ctx.Session == nil {
 		return
@@ -430,23 +390,6 @@ func setSessionStat(s *session.Session, statusID uint16, value int) {
 	case network.StatusLuk:
 		s.Stats.Luk = value
 		s.Selected.Luk = uint8(value)
-	}
-}
-
-func setSessionStatCost(s *session.Session, statusID uint16, value int) {
-	switch statusID {
-	case network.StatusUStr:
-		s.Stats.StrCost = value
-	case network.StatusUAgi:
-		s.Stats.AgiCost = value
-	case network.StatusUVit:
-		s.Stats.VitCost = value
-	case network.StatusUInt:
-		s.Stats.IntCost = value
-	case network.StatusUDex:
-		s.Stats.DexCost = value
-	case network.StatusULuk:
-		s.Stats.LukCost = value
 	}
 }
 

@@ -1588,10 +1588,25 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AC_DOUBLE hit", skillHitEffectIDs(46), effectBashHit)
 	expectEffectIDs(t, "AC_SHOWER", skillEffectIDs(47), effectArrowShower)
 	expectEffectIDs(t, "AC_SHOWER hit", skillHitEffectIDs(47), effectBashHit)
+	expectEffectIDs(t, "TF_DOUBLE passive", skillEffectIDs(48))
+	expectEffectIDs(t, "TF_MISS passive", skillEffectIDs(49))
 	expectEffectIDs(t, "TF_STEAL success", skillSuccessEffectIDs(50), effectSteal)
+	expectEffectIDs(t, "TF_HIDING", skillEffectIDs(51))
 	expectEffectIDs(t, "TF_POISON hit", skillHitEffectIDs(52), effectPoisonAttack)
 	expectEffectIDs(t, "TF_DETOXIFY", skillEffectIDs(53), effectDetoxication)
 	expectEffectIDs(t, "MC_MAMMONITE", skillEffectIDs(42), effectMammonite)
+}
+
+func TestThiefSkillTargetRules(t *testing.T) {
+	if !skillForcesPassive(48) {
+		t.Fatal("TF_DOUBLE should be passive")
+	}
+	if !skillForcesPassive(49) {
+		t.Fatal("TF_MISS should be passive")
+	}
+	if !isSelfTargetSkill(session.Skill{ID: 51, Level: 1, Type: skillTargetEnemy, Range: 1}) {
+		t.Fatal("TF_HIDING should self-cast even when the skill list reports a range")
+	}
 }
 
 func TestArcherProjectileEffectsFollowRoBrowserTable(t *testing.T) {
@@ -4391,6 +4406,22 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectProvoke || effect.x != 12 || effect.y != 22 {
+		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestSkillNoDamageNotifyAddsStealEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 50, TargetID: 1100, SourceID: 2000000, Result: 1})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectSteal || effect.x != 12 || effect.y != 22 {
 		t.Fatalf("effect = %+v", effect)
 	}
 }

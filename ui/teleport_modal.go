@@ -222,13 +222,6 @@ func warpPortalDestinationLabel(mapName string, index int) string {
 	return mapName
 }
 
-func warpPointSkillLabel(skillID uint16) string {
-	if skillID == warpPortalSkillID {
-		return "warp portal"
-	}
-	return "teleport"
-}
-
 func (m *TeleportModal) Draw(screen *render.Image, ctx Context, width, height int) {
 	if !m.open || screen == nil {
 		return
