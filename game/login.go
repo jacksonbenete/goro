@@ -509,25 +509,13 @@ func (m *LoginMode) drawQuitConfirm(ctx client.Context, screen *render.Image) {
 	if !m.quitConfirm.open || screen == nil {
 		return
 	}
-	width, height := ctx.ScreenSize()
-	gameui.DrawSurface(screen, 0, 0, width, height, color.RGBA{A: 80}, color.RGBA{})
-	x, y, w, h := loginQuitConfirmRect(ctx)
-	gameui.DrawTitledWindowFrame(screen, x, y, w, h, 24)
-	gameui.DrawWindowTitle(screen, x, y, 24, 12, "Exit", gameui.TitleTextColor)
-	render.DebugPrintAtColor(screen, "Do you really want to quit?", x+28, y+52, gameui.TextColor)
-
-	okX, okY, okW, okH := loginQuitOKRect(ctx)
-	cancelX, cancelY, cancelW, cancelH := loginQuitCancelRect(ctx)
-	drawLoginQuitButton(screen, ctx, okX, okY, okW, okH, "OK")
-	drawLoginQuitButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
-}
-
-func drawLoginQuitButton(screen *render.Image, ctx client.Context, x, y, w, h int, label string) {
-	fill := gameui.ButtonColor
-	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
-		fill = gameui.ButtonHoverColor
+	opts := loginQuitConfirmOptions(ctx)
+	if ctx.Input != nil {
+		opts.HasMouse = true
+		opts.MouseX = ctx.Input.MouseX
+		opts.MouseY = ctx.Input.MouseY
 	}
-	gameui.DrawButtonLabel(screen, x, y, w, h, label, fill, gameui.TextColor)
+	gameui.DrawConfirmModal(screen, opts)
 }
 
 func (q loginQuitConfirmState) cursorAction(ctx client.Context) (int, bool) {
@@ -977,61 +965,39 @@ func (m *LoginMode) drawLoginWindow(ctx client.Context, screen *render.Image) {
 
 func (m *LoginMode) drawCharacterSelect(ctx client.Context, screen *render.Image) {
 	x, y, w, h := charSelectWindowRect(ctx)
-	gameui.DrawTitledWindowFrame(screen, x, y, w, h, charSelectTitleH)
-	gameui.DrawWindowTitle(screen, x, y, charSelectTitleH, 12, "Select Character", gameui.TitleTextColor)
-
-	page := charSelectPage(m.selectedSlot)
-	pageStart := page * 3
-	for localSlot := 0; localSlot < 3; localSlot++ {
-		slot := pageStart + localSlot
-		slotX, slotY, slotW, slotH := charSelectSlotRect(x, y, localSlot)
-		selected := slot == m.selectedSlot
-		bg := gameui.PanelBodyColor
-		border := gameui.WindowBorderColor
-		if selected {
-			bg = gameui.SelectionColor
-			border = gameui.SelectionBorder
-		}
-		gameui.DrawSurface(screen, slotX, slotY, slotW, slotH, bg, border)
-		if character, ok := characterBySlot(ctx.Session.Characters, slot); ok {
-			m.drawCharacterPreview(screen, ctx, character, slotX+slotW/2, slotY+slotH-15-charSelectPreviewFeetLift)
-		} else {
-			render.DebugPrintAtColor(screen, "Create", slotX+45, slotY+58, gameui.MutedTextColor)
-		}
+	opts := charSelectWindowOptions(x, y, w, h)
+	opts.SelectedSlot = m.selectedSlot
+	opts.MaxSlots = m.maxSlots
+	opts.Characters = ctx.Session.Characters
+	opts.DrawPreview = func(screen *render.Image, character session.Character, centerX, feetY int) {
+		m.drawCharacterPreview(screen, ctx, character, centerX, feetY)
 	}
-
-	leftX, leftY, leftW, leftH := charSelectLeftArrowRect(x, y)
-	rightX, rightY, rightW, rightH := charSelectRightArrowRect(x, y)
-	drawCharSelectArrow(screen, leftX, leftY, leftW, leftH, "<")
-	drawCharSelectArrow(screen, rightX, rightY, rightW, rightH, ">")
-
-	m.drawSelectedCharacterInfo(screen, ctx, x, y)
-	m.drawCharacterSelectFooter(screen, ctx, x, y, w, h)
+	if ctx.Input != nil {
+		opts.HasMouse = true
+		opts.MouseX = ctx.Input.MouseX
+		opts.MouseY = ctx.Input.MouseY
+	}
+	gameui.DrawCharacterSelectWindow(screen, opts)
 }
 
 func (m *LoginMode) drawCharacterCreate(ctx client.Context, screen *render.Image) {
 	x, y, w, h := charCreateWindowRect(ctx)
-	gameui.DrawTitledWindowFrame(screen, x, y, w, h, charCreateTitleH)
-	gameui.DrawWindowTitle(screen, x, y, charCreateTitleH, 12, "Make Character", gameui.TitleTextColor)
-	gameui.DrawWindowFooter(screen, x, y, w, h, charCreateFooterH)
-
-	m.drawCharacterCreatePreview(screen, ctx, x, y)
-	drawCharacterCreateStats(screen, ctx, x, y, m.create.stats)
-
-	nameX, nameY, nameW, nameH := charCreateNameRect(x, y)
-	render.DebugPrintAtColor(screen, "Name", nameX, nameY-15, gameui.TextColor)
-	gameui.DrawTextInput(screen, nameX, nameY, nameW, nameH, m.create.name, m.create.focusName)
-
-	makeX, makeY, makeW, makeH := charCreateMakeButtonRect(x, y, w, h)
-	cancelX, cancelY, cancelW, cancelH := charCreateCancelButtonRect(x, y, w, h)
-	drawCharCreateButton(screen, ctx, makeX, makeY, makeW, makeH, "Make")
-	drawCharCreateButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel")
+	opts := charCreateWindowOptions(x, y, w, h)
+	opts.Name = m.create.name
+	opts.FocusName = m.create.focusName
+	opts.Stats = m.create.stats
+	opts.DrawPreview = func(screen *render.Image, panelX, panelY, panelW, panelH int) {
+		m.drawCharacterCreatePreviewSprite(screen, ctx, panelX, panelY, panelW, panelH)
+	}
+	if ctx.Input != nil {
+		opts.HasMouse = true
+		opts.MouseX = ctx.Input.MouseX
+		opts.MouseY = ctx.Input.MouseY
+	}
+	gameui.DrawCharacterCreateWindow(screen, opts)
 }
 
-func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx client.Context, x, y int) {
-	panelX, panelY, panelW, panelH := charCreatePreviewPanelRect(x, y)
-	gameui.DrawPanelSurface(screen, panelX, panelY, panelW, panelH, gameui.PanelBodyColor)
-
+func (m *LoginMode) drawCharacterCreatePreviewSprite(screen *render.Image, ctx client.Context, panelX, panelY, panelW, panelH int) {
 	view := m.characterCreatePreviewView(ctx)
 	if view == nil {
 		render.DebugPrintAtColor(screen, "?", panelX+panelW/2-3, panelY+86, gameui.MutedTextColor)
@@ -1053,13 +1019,6 @@ func (m *LoginMode) drawCharacterCreatePreview(screen *render.Image, ctx client.
 			screen.DrawImage(billboard.image, &opts)
 		}
 	}
-
-	prevX, prevY, prevW, prevH := charCreateHairPrevRect(x, y)
-	nextX, nextY, nextW, nextH := charCreateHairNextRect(x, y)
-	colorX, colorY, colorW, colorH := charCreateHairColorRect(x, y)
-	drawCharCreateButton(screen, ctx, prevX, prevY, prevW, prevH, "<")
-	drawCharCreateButton(screen, ctx, nextX, nextY, nextW, nextH, ">")
-	drawCharCreateButton(screen, ctx, colorX, colorY, colorW, colorH, "^")
 }
 
 func (m *LoginMode) characterCreatePreviewView(ctx client.Context) *humanoidSpriteView {
@@ -1089,115 +1048,12 @@ func (m *LoginMode) characterCreatePreviewView(ctx client.Context) *humanoidSpri
 	return view
 }
 
-func drawCharacterCreateStats(screen *render.Image, ctx client.Context, x, y int, stats [6]uint8) {
-	graphX, graphY, graphW, graphH := charCreateGraphPanelRect(x, y)
-	drawCharacterCreateStatGraph(screen, graphX+graphW/2, graphY+graphH/2, stats)
-
-	for i := 0; i < createStatCount; i++ {
-		sx, sy, sw, sh := charCreateStatButtonRect(x, y, i)
-		bg := gameui.ButtonColor
-		if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, sx, sy, sw, sh) {
-			bg = gameui.ButtonHoverColor
-		}
-		label := charCreateStatLabels()[i]
-		gameui.DrawButtonSurface(screen, sx, sy, sw, sh, bg)
-		gameui.DrawCenteredText(screen, sx, sy+2, sw, 15, label, gameui.TextColor)
-		value := fmt.Sprintf("%d", stats[i])
-		gameui.DrawCenteredText(screen, sx, sy+18, sw, 15, value, gameui.TextColor)
-	}
-
-	listX, listY, listW, listH := charCreateStatListPanelRect(x, y)
-	gameui.DrawPanelSurface(screen, listX, listY, listW, listH, gameui.PanelBodyColor)
-	for i, label := range charCreateStatLabels() {
-		render.DebugPrintAtColor(screen, label, listX+18, listY+16+i*22, gameui.TextColor)
-		render.DebugPrintAtColor(screen, fmt.Sprintf("%d", stats[i]), listX+92, listY+16+i*22, gameui.TextColor)
-	}
-}
-
-func drawCharacterCreateStatGraph(screen *render.Image, cx, cy int, stats [6]uint8) {
-	outer := 64.0
-	inner := 32.0
-	points := charCreateGraphPoints(cx, cy, outer)
-	mid := charCreateGraphPoints(cx, cy, inner)
-	order := charCreateGraphDrawOrder()
-	for i := 0; i < createStatCount; i++ {
-		current := order[i]
-		next := order[(i+1)%createStatCount]
-		render.DrawLine(screen, points[current][0], points[current][1], points[next][0], points[next][1], gameui.SeparatorColor)
-		render.DrawLine(screen, mid[current][0], mid[current][1], mid[next][0], mid[next][1], gameui.SeparatorColor)
-		render.DrawLine(screen, float64(cx), float64(cy), points[current][0], points[current][1], color.RGBA{R: 185, G: 204, B: 224, A: 150})
-	}
-	statPoints := [createStatCount][2]float64{}
-	for i := 0; i < createStatCount; i++ {
-		scale := 0.22 + float64(stats[i])/9.0*0.78
-		statPoints[i][0] = float64(cx) + (points[i][0]-float64(cx))*scale
-		statPoints[i][1] = float64(cy) + (points[i][1]-float64(cy))*scale
-	}
-	drawFilledCharacterCreateStatPolygon(screen, statPoints, order, color.RGBA{R: 36, G: 92, B: 154, A: 220})
-}
-
-func drawFilledCharacterCreateStatPolygon(screen *render.Image, points [createStatCount][2]float64, order [createStatCount]int, fill color.RGBA) {
-	if screen == nil {
-		return
-	}
-	r := float32(fill.R) / 255
-	g := float32(fill.G) / 255
-	b := float32(fill.B) / 255
-	a := float32(fill.A) / 255
-	vertices := make([]render.Vertex, 0, createStatCount)
-	for _, stat := range order {
-		vertices = append(vertices, render.Vertex{
-			DstX:   float32(points[stat][0]),
-			DstY:   float32(points[stat][1]),
-			SrcX:   0,
-			SrcY:   0,
-			ColorR: r,
-			ColorG: g,
-			ColorB: b,
-			ColorA: a,
-		})
-	}
-	indices := make([]uint16, 0, (createStatCount-2)*3)
-	for i := 1; i < createStatCount-1; i++ {
-		indices = append(indices, 0, uint16(i), uint16(i+1))
-	}
-	screen.DrawTrianglesOwned(vertices, indices, render.WhiteImage(), &render.DrawTrianglesOptions{Filter: render.FilterNearest, Address: render.AddressUnsafe})
-}
-
 func charCreateGraphDrawOrder() [createStatCount]int {
-	return [createStatCount]int{
-		createStatStr,
-		createStatVit,
-		createStatLuk,
-		createStatInt,
-		createStatDex,
-		createStatAgi,
-	}
+	return gameui.CharacterCreateGraphDrawOrder()
 }
 
 func charCreateGraphPoints(cx, cy int, radius float64) [createStatCount][2]float64 {
-	dirs := [createStatCount][2]float64{
-		{0, -1},
-		{-0.866, -0.5},
-		{0.866, -0.5},
-		{0, 1},
-		{-0.866, 0.5},
-		{0.866, 0.5},
-	}
-	points := [createStatCount][2]float64{}
-	for i := range dirs {
-		points[i][0] = float64(cx) + dirs[i][0]*radius
-		points[i][1] = float64(cy) + dirs[i][1]*radius
-	}
-	return points
-}
-
-func drawCharCreateButton(screen *render.Image, ctx client.Context, x, y, w, h int, label string) {
-	bg := gameui.ButtonColor
-	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
-		bg = gameui.ButtonHoverColor
-	}
-	gameui.DrawButtonLabel(screen, x, y, w, h, label, bg, gameui.TextColor)
+	return gameui.CharacterCreateGraphPoints(cx, cy, radius)
 }
 
 func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx client.Context, character session.Character, centerX, feetY int) {
@@ -1247,61 +1103,6 @@ func (m *LoginMode) characterPreviewView(ctx client.Context, character session.C
 	}
 	m.charViews[character.ID] = view
 	return view
-}
-
-func (m *LoginMode) drawSelectedCharacterInfo(screen *render.Image, ctx client.Context, x, y int) {
-	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
-	panelX, panelY, panelW, panelH := charSelectInfoPanelRect(x, y)
-	gameui.DrawPanelSurface(screen, panelX, panelY, panelW, panelH, gameui.PanelBodyColor)
-	text := gameui.TextColor
-	if !ok {
-		render.DebugPrintAtColor(screen, "Empty Slot", panelX+18, panelY+14, text)
-		render.DebugPrintAtColor(screen, "Use Make to create a character later.", panelX+18, panelY+34, text)
-		return
-	}
-	render.DebugPrintAtColor(screen, trimRunes(character.Name, 24), panelX+14, panelY+8, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Job: %s", trimRunes(gameui.CharacterJobName(character), 18)), panelX+14, panelY+24, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("Lv: %d / Job %d", character.Level, character.JobLevel), panelX+14, panelY+40, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("HP: %d / %d", character.HP, character.MaxHP), panelX+14, panelY+56, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("SP: %d / %d", character.SP, character.MaxSP), panelX+14, panelY+72, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("STR %d", character.Str), panelX+180, panelY+8, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("AGI %d", character.Agi), panelX+180, panelY+24, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("VIT %d", character.Vit), panelX+180, panelY+40, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("INT %d", character.Int), panelX+246, panelY+8, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("DEX %d", character.Dex), panelX+246, panelY+24, text)
-	render.DebugPrintAtColor(screen, fmt.Sprintf("LUK %d", character.Luk), panelX+246, panelY+40, text)
-}
-
-func (m *LoginMode) drawCharacterSelectFooter(screen *render.Image, ctx client.Context, x, y, w, h int) {
-	page := charSelectPage(m.selectedSlot)
-	pageCount := maxInt(1, (m.maxSlots+2)/3)
-	statusColor := gameui.MutedTextColor
-	labelColor := gameui.TextColor
-	gameui.DrawWindowFooter(screen, x, y, w, h, charSelectFooterH)
-	pageLabel := fmt.Sprintf("%d / %d", page+1, pageCount)
-	pageX, pageY, _, _ := charSelectPagerTextRect(x, y, w, pageLabel)
-	render.DebugPrintAtColor(screen, pageLabel, pageX, pageY, statusColor)
-
-	deleteX, deleteY, deleteW, deleteH := charSelectDeleteButtonRect(x, y, w, h)
-	makeX, makeY, makeW, makeH := charSelectMakeButtonRect(x, y, w, h)
-	okX, okY, okW, okH := charSelectOKButtonRect(x, y, w, h)
-	cancelX, cancelY, cancelW, cancelH := charSelectCancelButtonRect(x, y, w, h)
-	drawCharSelectButton(screen, ctx, deleteX, deleteY, deleteW, deleteH, "Delete", labelColor)
-	drawCharSelectButton(screen, ctx, makeX, makeY, makeW, makeH, "Make", labelColor)
-	drawCharSelectButton(screen, ctx, okX, okY, okW, okH, "OK", labelColor)
-	drawCharSelectButton(screen, ctx, cancelX, cancelY, cancelW, cancelH, "Cancel", labelColor)
-}
-
-func drawCharSelectButton(screen *render.Image, ctx client.Context, x, y, w, h int, label string, textColor color.RGBA) {
-	bg := gameui.ButtonColor
-	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, w, h) {
-		bg = gameui.ButtonHoverColor
-	}
-	gameui.DrawButtonLabel(screen, x, y, w, h, label, bg, textColor)
-}
-
-func drawCharSelectArrow(screen *render.Image, x, y, w, h int, label string) {
-	gameui.DrawButtonLabel(screen, x, y, w, h, label, gameui.ButtonColor, gameui.TextColor)
 }
 
 func (m *LoginMode) loadBackground(ctx client.Context) {
@@ -1468,7 +1269,37 @@ func loginWindowDrawOptions(x, y, w, h int) gameui.LoginWindowDrawOptions {
 	}
 }
 
-func loginQuitConfirmRect(ctx client.Context) (int, int, int, int) {
+func charSelectWindowOptions(x, y, w, h int) gameui.CharacterSelectWindowOptions {
+	return gameui.CharacterSelectWindowOptions{
+		X:               x,
+		Y:               y,
+		W:               w,
+		H:               h,
+		TitleH:          charSelectTitleH,
+		FooterH:         charSelectFooterH,
+		FooterPadX:      charSelectFooterPadX,
+		FooterGap:       charSelectFooterGap,
+		ButtonH:         charSelectButtonH,
+		PreviewFeetLift: charSelectPreviewFeetLift,
+	}
+}
+
+func charCreateWindowOptions(x, y, w, h int) gameui.CharacterCreateWindowOptions {
+	return gameui.CharacterCreateWindowOptions{
+		X:          x,
+		Y:          y,
+		W:          w,
+		H:          h,
+		TitleH:     charCreateTitleH,
+		FooterH:    charCreateFooterH,
+		FooterPadX: charCreateFooterPadX,
+		FooterGap:  charCreateFooterGap,
+		ButtonH:    charCreateButtonH,
+		PanelH:     charCreatePanelH,
+	}
+}
+
+func loginQuitConfirmOptions(ctx client.Context) gameui.ConfirmModalOptions {
 	width, height := ctx.ScreenSize()
 	w, h := 286, 128
 	x := (width - w) / 2
@@ -1479,17 +1310,29 @@ func loginQuitConfirmRect(ctx client.Context) (int, int, int, int) {
 	if y < 8 {
 		y = 8
 	}
-	return x, y, w, h
+	return gameui.ConfirmModalOptions{
+		ScreenW: width,
+		ScreenH: height,
+		X:       x,
+		Y:       y,
+		W:       w,
+		H:       h,
+		Title:   "Exit",
+		Message: "Do you really want to quit?",
+	}
+}
+
+func loginQuitConfirmRect(ctx client.Context) (int, int, int, int) {
+	opts := loginQuitConfirmOptions(ctx)
+	return opts.X, opts.Y, opts.W, opts.H
 }
 
 func loginQuitOKRect(ctx client.Context) (int, int, int, int) {
-	x, y, w, h := loginQuitConfirmRect(ctx)
-	return x + w - 150, y + h - 36, 56, 23
+	return gameui.ConfirmModalOKRect(loginQuitConfirmOptions(ctx))
 }
 
 func loginQuitCancelRect(ctx client.Context) (int, int, int, int) {
-	x, y, w, h := loginQuitConfirmRect(ctx)
-	return x + w - 84, y + h - 36, 66, 23
+	return gameui.ConfirmModalCancelRect(loginQuitConfirmOptions(ctx))
 }
 
 func charSelectWindowRect(ctx client.Context) (int, int, int, int) {
@@ -1511,160 +1354,95 @@ func charCreateWindowRect(ctx client.Context) (int, int, int, int) {
 }
 
 func charCreateNameRect(x, y int) (int, int, int, int) {
-	previewX, _, previewW, _ := charCreatePreviewPanelRect(x, y)
-	return previewX, y + 252, previewW, 22
+	return gameui.CharacterCreateNameRect(charCreateWindowOptions(x, y, 0, 0))
 }
 
 func charCreateHairPrevRect(x, y int) (int, int, int, int) {
-	return x + 44, y + 126, 24, 22
+	return gameui.CharacterCreateHairPrevRect(charCreateWindowOptions(x, y, 0, 0))
 }
 
 func charCreateHairNextRect(x, y int) (int, int, int, int) {
-	return x + 138, y + 126, 24, 22
+	return gameui.CharacterCreateHairNextRect(charCreateWindowOptions(x, y, 0, 0))
 }
 
 func charCreateHairColorRect(x, y int) (int, int, int, int) {
-	return x + 91, y + 66, 24, 22
+	return gameui.CharacterCreateHairColorRect(charCreateWindowOptions(x, y, 0, 0))
 }
 
 func charCreatePreviewPanelRect(x, y int) (int, int, int, int) {
-	return x + 32, y + 58, 142, charCreatePanelH
+	return gameui.CharacterCreatePreviewPanelRect(charCreateWindowOptions(x, y, 0, 0))
 }
 
 func charCreatePreviewSpriteOrigin(panelX, panelY, panelW, panelH, imageW, imageH int, scale float64) (float64, float64) {
-	return float64(panelX) + float64(panelW)/2 - float64(imageW)*scale/2,
-		float64(panelY) + float64(panelH)/2 - float64(imageH)*scale/2
+	return gameui.CharacterCreatePreviewSpriteOrigin(panelX, panelY, panelW, panelH, imageW, imageH, scale)
 }
 
 func charCreateGraphPanelRect(x, y int) (int, int, int, int) {
-	return x + 204, y + 58, 166, charCreatePanelH
+	return gameui.CharacterCreateGraphPanelRect(charCreateWindowOptions(x, y, 0, 0))
 }
 
 func charCreateStatListPanelRect(x, y int) (int, int, int, int) {
-	return x + 402, y + 58, 136, charCreatePanelH
+	return gameui.CharacterCreateStatListPanelRect(charCreateWindowOptions(x, y, 0, 0))
 }
 
 func charCreateStatButtonRect(x, y, stat int) (int, int, int, int) {
-	rects := [createStatCount][4]int{
-		{x + 269, y + 36, 38, 36},  // STR
-		{x + 181, y + 100, 38, 36}, // AGI
-		{x + 356, y + 100, 38, 36}, // VIT
-		{x + 269, y + 210, 38, 36}, // INT
-		{x + 181, y + 156, 38, 36}, // DEX
-		{x + 356, y + 156, 38, 36}, // LUK
-	}
-	if stat < 0 || stat >= len(rects) {
-		stat = 0
-	}
-	rect := rects[stat]
-	return rect[0], rect[1], rect[2], rect[3]
+	return gameui.CharacterCreateStatButtonRect(charCreateWindowOptions(x, y, 0, 0), stat)
 }
 
 func charCreateFooterRect(x, y, w, h int) (int, int, int, int) {
-	return x, y + h - charCreateFooterH, w, charCreateFooterH
+	return gameui.CharacterCreateFooterRect(charCreateWindowOptions(x, y, w, h))
 }
 
 func charCreateMakeButtonRect(x, y, w, h int) (int, int, int, int) {
-	return charCreateFooterButtonRect(x, y, w, h, 0)
+	return gameui.CharacterCreateMakeButtonRect(charCreateWindowOptions(x, y, w, h))
 }
 
 func charCreateCancelButtonRect(x, y, w, h int) (int, int, int, int) {
-	return charCreateFooterButtonRect(x, y, w, h, 1)
-}
-
-func charCreateFooterButtonRect(x, y, w, h, index int) (int, int, int, int) {
-	labels := [...]string{"Make", "Cancel"}
-	if index < 0 || index >= len(labels) {
-		index = 0
-	}
-	_, footerY, _, footerH := charCreateFooterRect(x, y, w, h)
-	totalW := 0
-	for _, label := range labels {
-		totalW += gameui.ButtonLabelWidth(label)
-	}
-	totalW += charCreateFooterGap * (len(labels) - 1)
-	bx := x + w - charCreateFooterPadX - totalW
-	for i := 0; i < index; i++ {
-		bx += gameui.ButtonLabelWidth(labels[i]) + charCreateFooterGap
-	}
-	return bx, footerY + (footerH-charCreateButtonH)/2, gameui.ButtonLabelWidth(labels[index]), charCreateButtonH
+	return gameui.CharacterCreateCancelButtonRect(charCreateWindowOptions(x, y, w, h))
 }
 
 func charSelectSlotRect(x, y, localSlot int) (int, int, int, int) {
-	lefts := [3]int{60, 224, 386}
-	if localSlot < 0 || localSlot >= len(lefts) {
-		localSlot = 0
-	}
-	return x + lefts[localSlot] - 5, y + 40, 139, 144
+	return gameui.CharacterSelectSlotRect(charSelectWindowOptions(x, y, 0, 0), localSlot)
 }
 
 func charSelectLeftArrowRect(x, y int) (int, int, int, int) {
-	return x + 24, y + 105, 18, 18
+	return gameui.CharacterSelectLeftArrowRect(charSelectWindowOptions(x, y, 0, 0))
 }
 
 func charSelectRightArrowRect(x, y int) (int, int, int, int) {
-	return x + 534, y + 105, 18, 18
+	return gameui.CharacterSelectRightArrowRect(charSelectWindowOptions(x, y, 0, 0))
 }
 
 func charSelectFooterRect(x, y, w, h int) (int, int, int, int) {
-	return x, y + h - charSelectFooterH, w, charSelectFooterH
+	return gameui.CharacterSelectFooterRect(charSelectWindowOptions(x, y, w, h))
 }
 
 func charSelectInfoPanelRect(x, y int) (int, int, int, int) {
-	return x + 16, y + 202, 318, 88
+	return gameui.CharacterSelectInfoPanelRect(charSelectWindowOptions(x, y, 0, 0))
 }
 
 func charSelectPagerTextRect(x, y, w int, label string) (int, int, int, int) {
-	_, slotY, _, slotH := charSelectSlotRect(x, y, 0)
-	_, panelY, _, _ := charSelectInfoPanelRect(x, y)
-	textW, textH := render.DebugTextSize(label)
-	gap := panelY - (slotY + slotH)
-	if gap < textH {
-		gap = textH
-	}
-	return x + (w-textW)/2, slotY + slotH + (gap-textH)/2, textW, textH
+	return gameui.CharacterSelectPagerTextRect(charSelectWindowOptions(x, y, w, 0), label)
 }
 
 func charSelectDeleteButtonRect(x, y, w, h int) (int, int, int, int) {
-	_, footerY, _, footerH := charSelectFooterRect(x, y, w, h)
-	return x + charSelectFooterPadX, footerY + (footerH-charSelectButtonH)/2, gameui.ButtonLabelWidth("Delete"), charSelectButtonH
+	return gameui.CharacterSelectDeleteButtonRect(charSelectWindowOptions(x, y, w, h))
 }
 
 func charSelectMakeButtonRect(x, y, w, h int) (int, int, int, int) {
-	return charSelectRightButtonRect(x, y, w, h, 0)
+	return gameui.CharacterSelectMakeButtonRect(charSelectWindowOptions(x, y, w, h))
 }
 
 func charSelectOKButtonRect(x, y, w, h int) (int, int, int, int) {
-	return charSelectRightButtonRect(x, y, w, h, 1)
+	return gameui.CharacterSelectOKButtonRect(charSelectWindowOptions(x, y, w, h))
 }
 
 func charSelectCancelButtonRect(x, y, w, h int) (int, int, int, int) {
-	return charSelectRightButtonRect(x, y, w, h, 2)
-}
-
-func charSelectRightButtonRect(x, y, w, h, index int) (int, int, int, int) {
-	labels := [...]string{"Make", "OK", "Cancel"}
-	if index < 0 || index >= len(labels) {
-		index = 0
-	}
-	_, footerY, _, footerH := charSelectFooterRect(x, y, w, h)
-	totalW := 0
-	for _, label := range labels {
-		totalW += gameui.ButtonLabelWidth(label)
-	}
-	totalW += charSelectFooterGap * (len(labels) - 1)
-	bx := x + w - charSelectFooterPadX - totalW
-	for i := 0; i < index; i++ {
-		bx += gameui.ButtonLabelWidth(labels[i]) + charSelectFooterGap
-	}
-	return bx, footerY + (footerH-charSelectButtonH)/2, gameui.ButtonLabelWidth(labels[index]), charSelectButtonH
+	return gameui.CharacterSelectCancelButtonRect(charSelectWindowOptions(x, y, w, h))
 }
 
 func charSelectPage(slot int) int {
-	if slot < 0 {
-		return 0
-	}
-	return slot / 3
+	return gameui.CharacterSelectPage(slot)
 }
 
 func charSelectMaxSlots(characters []session.Character) int {
@@ -1742,7 +1520,7 @@ func upsertCharacter(characters []session.Character, character session.Character
 }
 
 func charCreateStatLabels() [createStatCount]string {
-	return [createStatCount]string{"STR", "AGI", "VIT", "INT", "DEX", "LUK"}
+	return gameui.CharacterCreateStatLabels()
 }
 
 func pairedCreateStat(stat int) int {
