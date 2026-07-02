@@ -401,9 +401,10 @@ func (c *ChatConsole) drawCrispText(img *render.Image, width, height int) {
 		return
 	}
 	contentWidth := maxInt(1, width-16)
-	maxRunes := maxInt(8, (contentWidth-12)/7)
+	textWidth := maxInt(1, contentWidth-12)
+	lineHeight := consoleTextLineHeight()
 	for i, line := range c.visibleLines(width) {
-		render.DebugPrintAtColor(img, trimRunes(line.Text, maxRunes), 14, 10+i*14, line.Color)
+		render.DebugPrintAtColor(img, trimTextToWidth(line.Text, textWidth), 14, 10+i*lineHeight, line.Color)
 	}
 	c.drawScrollbar(img, width, height)
 	prompt := c.input
@@ -414,8 +415,9 @@ func (c *ChatConsole) drawCrispText(img *render.Image, width, height int) {
 		prompt = "Press Enter to chat"
 	}
 	fieldY := c.inputFieldTop(height)
-	textY := fieldY + (consoleFieldH-13)/2 - 1
-	render.DebugPrintAtColor(img, trimRunes(prompt, maxRunes), 15, textY, consoleColorInput)
+	_, textHeight := render.DebugTextSize("Ag")
+	textY := fieldY + (consoleFieldH-textHeight)/2
+	render.DebugPrintAtColor(img, trimTextToWidth(prompt, textWidth), 15, textY, consoleColorInput)
 }
 
 func (c *ChatConsole) visibleLines(width int) []ConsoleMessage {
@@ -429,12 +431,37 @@ func (c *ChatConsole) visibleLines(width int) []ConsoleMessage {
 	}
 	end := minInt(len(c.messages), start+consoleMaxLines)
 	out := make([]ConsoleMessage, 0, end-start)
-	maxRunes := maxInt(20, (width-24)/7)
+	textWidth := maxInt(1, width-24)
 	for _, msg := range c.messages[start:end] {
-		msg.Text = trimRunes(msg.Text, maxRunes)
+		msg.Text = trimTextToWidth(msg.Text, textWidth)
 		out = append(out, msg)
 	}
 	return out
+}
+
+func consoleTextLineHeight() int {
+	_, height := render.DebugTextSize("Ag")
+	return maxInt(1, height+1)
+}
+
+func trimTextToWidth(text string, width int) string {
+	if text == "" || width <= 0 {
+		return ""
+	}
+	if textWidth, _ := render.DebugTextSize(text); textWidth <= width {
+		return text
+	}
+	runes := []rune(text)
+	lo, hi := 0, len(runes)
+	for lo < hi {
+		mid := (lo + hi + 1) / 2
+		if textWidth, _ := render.DebugTextSize(string(runes[:mid])); textWidth <= width {
+			lo = mid
+		} else {
+			hi = mid - 1
+		}
+	}
+	return string(runes[:lo])
 }
 
 func (c *ChatConsole) renderKey(width, height int) string {

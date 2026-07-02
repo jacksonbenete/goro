@@ -397,7 +397,7 @@ func (r *runner) drawFPSCounter() {
 	if r.fpsDisplay > 0 {
 		text = fmt.Sprintf("FPS %.1f  %.2f ms", r.fpsDisplay, r.frameMSDisplay)
 	}
-	width := float64(len(text)*7 + 8)
-	DrawRect(r.screen, 6, 6, width, 18, color.RGBA{R: 0, G: 0, B: 0, A: 170})
+	textW, textH := DebugTextSize(text)
+	DrawRect(r.screen, 6, 6, float64(textW+8), float64(textH+6), color.RGBA{R: 0, G: 0, B: 0, A: 170})
 	DebugPrintAtColor(r.screen, text, 10, 9, color.RGBA{R: 224, G: 255, B: 190, A: 255})
 }
