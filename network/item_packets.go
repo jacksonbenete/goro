@@ -90,10 +90,10 @@ type itemDropPacketLayout struct {
 }
 
 var itemDropPacketLayouts = []itemDropPacketLayout{
-	// 2008-09-10 with our pre-renewal rAthena build inherits the 2008-08-27
-	// renewal shuffle: 0x00A2 is no longer item drop, it is REQNAME_BYGID.
 	{date: 20101124, opcode: 0x0363, length: 6, indexOffset: 2, amountOffset: 4},
-	{date: 20080827, opcode: 0x0116, length: 17, indexOffset: 6, amountOffset: 15},
+	// Our rAthena is built as 2008-09-10 pre-renewal. That follows the main
+	// 2007-02-12 shuffle, not the 2008-08-27 renewal 17-byte layout.
+	{date: 20070212, opcode: 0x0116, length: 10, indexOffset: 5, amountOffset: 8},
 }
 
 var moveToStoragePacketLayouts = []storageMovePacketLayout{
