@@ -291,6 +291,44 @@ func TestBuildDropInventoryItemPacket(t *testing.T) {
 	}
 }
 
+func TestParseItemIdentifyListAndAck(t *testing.T) {
+	listData := make([]byte, 8)
+	binary.LittleEndian.PutUint16(listData[0:2], 0x0177)
+	binary.LittleEndian.PutUint16(listData[2:4], uint16(len(listData)))
+	binary.LittleEndian.PutUint16(listData[4:6], 7)
+	binary.LittleEndian.PutUint16(listData[6:8], 9)
+
+	list, ok, err := ParseItemIdentifyList(Packet{ID: 0x0177, Data: listData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(list.Indexes) != 2 || list.Indexes[0] != 7 || list.Indexes[1] != 9 {
+		t.Fatalf("unexpected identify list ok=%v value=%+v", ok, list)
+	}
+
+	ackData := make([]byte, 5)
+	binary.LittleEndian.PutUint16(ackData[0:2], 0x0179)
+	binary.LittleEndian.PutUint16(ackData[2:4], 9)
+	ackData[4] = 0
+	ack, ok, err := ParseItemIdentifyAck(Packet{ID: 0x0179, Data: ackData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || ack.Index != 9 || !ack.Success {
+		t.Fatalf("unexpected identify ack ok=%v value=%+v", ok, ack)
+	}
+}
+
+func TestBuildItemIdentifyPacket(t *testing.T) {
+	packet := BuildItemIdentifyPacket(9)
+	if len(packet) != 4 || ID(packet) != PacketCZReqItemIdentify {
+		t.Fatalf("unexpected identify packet header: % X", packet)
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 9 {
+		t.Fatalf("identify index = %d, want 9", got)
+	}
+}
+
 func TestParseEquippedArrow(t *testing.T) {
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint16(data[0:2], 0x013C)

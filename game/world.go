@@ -93,6 +93,7 @@ type WorldMode struct {
 	storageWindow    gameui.StorageWindow
 	shopWindow       gameui.ShopWindow
 	itemInfoWindow   gameui.ItemInfoWindow
+	identifyWindow   gameui.IdentifyWindow
 	statsWindow      gameui.StatsWindow
 	skillWindow      gameui.SkillWindow
 	settingsWindow   gameui.SettingsWindow
@@ -512,6 +513,23 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
+		if identifyList, ok, err := network.ParseItemIdentifyList(pkt); err != nil {
+			log.Printf("parse item identify list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("item identify list indexes=%v", identifyList.Indexes)
+			m.identifyWindow.OpenList(ctx, identifyList)
+			continue
+		}
+		if identifyAck, ok, err := network.ParseItemIdentifyAck(pkt); err != nil {
+			log.Printf("parse item identify ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("item identify ack index=%d success=%v", identifyAck.Index, identifyAck.Success)
+			applyItemIdentifyAck(ctx, identifyAck)
+			m.identifyWindow.ApplyAck(ctx, identifyAck)
+			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
 		if items, ok, err := network.ParseInventoryItemList(pkt); err != nil {
 			log.Printf("parse inventory item list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -813,7 +831,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
-	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.settingsWindow.IsOpen() {
+	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.deathModal.Update(ctx) {
@@ -841,6 +859,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.itemInfoWindow.Update(ctx) {
+		return nil, nil
+	}
+	if m.identifyWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.shortcutBar.Update(ctx, m) {
@@ -2931,6 +2952,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 	m.skillWindow.Draw(screen, ctx, m)
 	m.settingsWindow.Draw(screen, ctx)
 	m.itemInfoWindow.Draw(screen, ctx, m)
+	m.identifyWindow.Draw(screen, ctx, m)
 	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 	m.console.Draw(screen, width, height)
 	m.npcDialog.Draw(screen, ctx, width, height)

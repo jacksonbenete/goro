@@ -238,3 +238,25 @@ func TestInventoryDropAmountIsOneUnit(t *testing.T) {
 		t.Fatalf("zero drop amount = %d, want 1", got)
 	}
 }
+
+func TestIdentifyWindowShowsOnlyUnidentifiedEquipmentFromServerList(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 3, ItemID: 512, Type: 0, Identified: false},
+				{Index: 5, ItemID: 1201, Type: 5, Identified: false, Equip: true},
+				{Index: 7, ItemID: 1202, Type: 5, Identified: true, Equip: true},
+			},
+		},
+	}
+	window := IdentifyWindow{}
+	window.OpenList(Context{Session: sessionState, ScreenW: 800, ScreenH: 600}, network.ItemIdentifyList{Indexes: []uint16{3, 5, 7, 9}})
+
+	items := window.items(sessionState)
+	if len(items) != 1 || items[0].Index != 5 {
+		t.Fatalf("identify items = %+v, want only index 5", items)
+	}
+	if !window.IsOpen() {
+		t.Fatal("identify window did not open")
+	}
+}

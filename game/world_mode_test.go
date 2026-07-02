@@ -4227,6 +4227,42 @@ func TestUseItemAckSetsRemainingAmount(t *testing.T) {
 	}
 }
 
+func TestItemIdentifyAckMarksInventoryItemIdentified(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 7, ItemID: 1201, Type: 5, Identified: false, Equip: true},
+				{Index: 9, ItemID: 1202, Type: 5, Identified: false, Equip: true},
+			},
+		},
+	}
+	ctx := client.Context{Session: sessionState}
+
+	applyItemIdentifyAck(ctx, network.ItemIdentifyAck{Index: 9, Success: true})
+
+	if sessionState.Inventory.Items[0].Identified {
+		t.Fatal("wrong item was identified")
+	}
+	if !sessionState.Inventory.Items[1].Identified {
+		t.Fatal("target item was not identified")
+	}
+}
+
+func TestItemIdentifyAckFailureDoesNotChangeInventory(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 7, ItemID: 1201, Type: 5, Identified: false, Equip: true}},
+		},
+	}
+	ctx := client.Context{Session: sessionState}
+
+	applyItemIdentifyAck(ctx, network.ItemIdentifyAck{Index: 7, Success: false})
+
+	if sessionState.Inventory.Items[0].Identified {
+		t.Fatal("failed identify ack changed item state")
+	}
+}
+
 func TestUseItemAckFailureDoesNotChangeInventory(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{

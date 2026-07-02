@@ -63,6 +63,18 @@ func applyInventoryItemDelete(ctx client.Context, item network.InventoryItemDele
 	rebuildLocalEquipmentAppearance(ctx)
 }
 
+func applyItemIdentifyAck(ctx client.Context, ack network.ItemIdentifyAck) {
+	if ctx.Session == nil || !ack.Success {
+		return
+	}
+	for i := range ctx.Session.Inventory.Items {
+		if ctx.Session.Inventory.Items[i].Index == ack.Index {
+			ctx.Session.Inventory.Items[i].Identified = true
+			return
+		}
+	}
+}
+
 func applyUseItemAck(ctx client.Context, ack network.UseItemAck) {
 	if ack.Result == 0 {
 		return

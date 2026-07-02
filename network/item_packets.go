@@ -11,6 +11,7 @@ const PacketCZItemPickup uint16 = 0x009F
 const (
 	PacketCZACKSelectDealType  uint16 = 0x00C5
 	PacketCZItemThrow          uint16 = 0x00A2
+	PacketCZReqItemIdentify    uint16 = 0x0178
 	PacketCZUseItem2           uint16 = 0x0439
 	PacketCZUseItemLegacy      uint16 = 0x00A7
 	PacketCZReqWearEquip       uint16 = 0x00A9
@@ -146,6 +147,15 @@ type InventoryItemDelete struct {
 	Index  uint16
 	Amount uint16
 	Reason uint16
+}
+
+type ItemIdentifyList struct {
+	Indexes []uint16
+}
+
+type ItemIdentifyAck struct {
+	Index   uint16
+	Success bool
 }
 
 type InventoryEquipAck struct {
@@ -489,6 +499,43 @@ func ParseInventoryItemDelete(packet Packet) (InventoryItemDelete, bool, error) 
 	}
 }
 
+func ParseItemIdentifyList(packet Packet) (ItemIdentifyList, bool, error) {
+	if packet.ID != 0x0177 {
+		return ItemIdentifyList{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return ItemIdentifyList{}, false, fmt.Errorf("ZC_ITEMIDENTIFY_LIST too short: %d", len(packet.Data))
+	}
+	size := int(binary.LittleEndian.Uint16(packet.Data[2:4]))
+	if size > len(packet.Data) {
+		return ItemIdentifyList{}, false, fmt.Errorf("ZC_ITEMIDENTIFY_LIST invalid length: header=%d data=%d", size, len(packet.Data))
+	}
+	if size < 4 {
+		return ItemIdentifyList{}, false, fmt.Errorf("ZC_ITEMIDENTIFY_LIST invalid length: %d", size)
+	}
+	if (size-4)%2 != 0 {
+		return ItemIdentifyList{}, false, fmt.Errorf("ZC_ITEMIDENTIFY_LIST odd item payload: %d", size)
+	}
+	indexes := make([]uint16, 0, (size-4)/2)
+	for offset := 4; offset+2 <= size; offset += 2 {
+		indexes = append(indexes, binary.LittleEndian.Uint16(packet.Data[offset:offset+2]))
+	}
+	return ItemIdentifyList{Indexes: indexes}, true, nil
+}
+
+func ParseItemIdentifyAck(packet Packet) (ItemIdentifyAck, bool, error) {
+	if packet.ID != 0x0179 {
+		return ItemIdentifyAck{}, false, nil
+	}
+	if len(packet.Data) < 5 {
+		return ItemIdentifyAck{}, false, fmt.Errorf("ZC_ACK_ITEMIDENTIFY too short: %d", len(packet.Data))
+	}
+	return ItemIdentifyAck{
+		Index:   binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Success: packet.Data[4] == 0,
+	}, true, nil
+}
+
 func ParseStorageAmount(packet Packet) (StorageAmount, bool, error) {
 	if packet.ID != 0x00F2 {
 		return StorageAmount{}, false, nil
@@ -719,6 +766,13 @@ func BuildDropInventoryItemPacket(index, amount uint16) []byte {
 	return packet
 }
 
+func BuildItemIdentifyPacket(index uint16) []byte {
+	packet := make([]byte, 4)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqItemIdentify)
+	binary.LittleEndian.PutUint16(packet[2:4], index)
+	return packet
+}
+
 func BuildWearEquipPacket(index, location uint16) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWearEquip)
@@ -844,6 +898,17 @@ func (c *Client) SendDropInventoryItem(index, amount uint16) error {
 		log.Printf("sent CZ_ITEM_THROW opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
 	} else {
 		log.Printf("send CZ_ITEM_THROW failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendItemIdentify(index uint16) error {
+	packet := BuildItemIdentifyPacket(index)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_ITEMIDENTIFY opcode=0x%04X index=%d client_date=%d", ID(packet), index, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_ITEMIDENTIFY failed opcode=0x%04X len=%d index=%d client_date=%d: %v", ID(packet), len(packet), index, c.clientDate, err)
 	}
 	return err
 }
