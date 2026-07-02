@@ -218,6 +218,21 @@ func DrawMinusButton(screen *render.Image, x, y int, bg, line color.RGBA) {
 	DrawIconButton(screen, x, y, IconButtonSize, IconButtonSize, bg, line, false)
 }
 
+func DrawCheckboxButton(screen *render.Image, x, y int, bg, line color.RGBA, checked bool) {
+	DrawButtonSurface(screen, x, y, IconButtonSize, IconButtonSize, bg)
+	if !checked {
+		return
+	}
+	left := x + 4
+	midX := x + 7
+	right := x + 13
+	midY := y + 10
+	top := y + 5
+	bottom := y + 12
+	render.DrawLine(screen, float64(left), float64(midY), float64(midX), float64(bottom), line)
+	render.DrawLine(screen, float64(midX), float64(bottom), float64(right), float64(top), line)
+}
+
 func DrawIconButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA, vertical bool) {
 	DrawButtonSurface(screen, x, y, w, h, bg)
 	icon := minInt(w, h) / 2

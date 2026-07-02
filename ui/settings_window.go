@@ -15,9 +15,8 @@ const (
 	settingsWindowHeight = 272
 	settingsWindowTitleH = 28
 	settingsWindowPad    = 14
-	settingsButtonH      = 23
-	settingsButtonW      = 62
 	settingsVolumeBarH   = 5
+	settingsCheckboxGap  = 8
 )
 
 type SettingsWindow struct {
@@ -104,7 +103,7 @@ func (w *SettingsWindow) Draw(screen *render.Image, ctx client.Context) {
 	fpsX, fpsY, fpsW, fpsH := w.fpsToggleBounds()
 	w.DrawRuntimeToggle(screen, ctx, "FPS meter", fpsX, fpsY, fpsW, fpsH, settingsRuntimeFPS(ctx))
 
-	soundY := rowY + 106
+	soundY := rowY + 114
 	drawSettingsSectionLabel(screen, "Sound", labelX, soundY)
 	_, bgmBarY, _, bgmBarH := w.bgmVolumeBarBounds()
 	render.DebugPrintAtColor(screen, "BGM Vol", labelX, settingsLabelY(bgmBarY, bgmBarH), TextColor)
@@ -113,9 +112,6 @@ func (w *SettingsWindow) Draw(screen *render.Image, ctx client.Context) {
 	render.DebugPrintAtColor(screen, "SFX Vol", labelX, settingsLabelY(sfxBarY, sfxBarH), TextColor)
 	w.DrawVolumeControls(screen, ctx, settingsVolumeSFX(ctx), w.sfxVolumeMinusBounds, w.sfxVolumeBarBounds, w.sfxVolumePlusBounds)
 
-	if w.status != "" {
-		render.DebugPrintAtColor(screen, trimRunes(w.status, 32), labelX, y+settingsWindowHeight-18, GoodTextColor)
-	}
 }
 
 func drawSettingsSectionLabel(screen *render.Image, label string, x, y int) {
@@ -132,16 +128,13 @@ func (w *SettingsWindow) IsOpen() bool {
 }
 
 func (w *SettingsWindow) DrawRuntimeToggle(screen *render.Image, ctx client.Context, label string, x, y, width, height int, on bool) {
-	render.DebugPrintAtColor(screen, label, w.x+settingsWindowPad, y+4, TextColor)
 	fill := ButtonColor
 	if ctx.Input != nil && pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, width, height) {
 		fill = ButtonHoverColor
 	}
-	text := "On"
-	if !on {
-		text = "Off"
-	}
-	DrawButtonLabel(screen, x, y, width, height, text, fill, TextColor)
+	DrawCheckboxButton(screen, x, y, fill, TextColor, on)
+	labelY := y + render.DebugTextTopForCenter(height)
+	render.DebugPrintAtColor(screen, label, x+width+settingsCheckboxGap, labelY, TextColor)
 }
 
 func (w *SettingsWindow) DrawVolumeControls(screen *render.Image, ctx client.Context, volume float64, minusBounds, barBounds, plusBounds func() (int, int, int, int)) {
@@ -297,11 +290,13 @@ func (w *SettingsWindow) bgmVolumeMinusBounds() (int, int, int, int) {
 }
 
 func (w *SettingsWindow) bgmVolumeBarBounds() (int, int, int, int) {
-	return w.x + 134, w.y + settingsWindowTitleH + 167, 92, settingsVolumeBarH
+	x := w.x + 134
+	plusX, _, _, _ := w.bgmVolumePlusBounds()
+	return x, w.y + settingsWindowTitleH + 167, plusX - x - 6, settingsVolumeBarH
 }
 
 func (w *SettingsWindow) bgmVolumePlusBounds() (int, int, int, int) {
-	return w.x + 232, w.y + settingsWindowTitleH + 161, IconButtonSize, IconButtonSize
+	return w.x + settingsWindowWidth - settingsWindowPad - IconButtonSize, w.y + settingsWindowTitleH + 161, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) sfxVolumeMinusBounds() (int, int, int, int) {
@@ -309,23 +304,25 @@ func (w *SettingsWindow) sfxVolumeMinusBounds() (int, int, int, int) {
 }
 
 func (w *SettingsWindow) sfxVolumeBarBounds() (int, int, int, int) {
-	return w.x + 134, w.y + settingsWindowTitleH + 205, 92, settingsVolumeBarH
+	x := w.x + 134
+	plusX, _, _, _ := w.sfxVolumePlusBounds()
+	return x, w.y + settingsWindowTitleH + 205, plusX - x - 6, settingsVolumeBarH
 }
 
 func (w *SettingsWindow) sfxVolumePlusBounds() (int, int, int, int) {
-	return w.x + 232, w.y + settingsWindowTitleH + 199, IconButtonSize, IconButtonSize
+	return w.x + settingsWindowWidth - settingsWindowPad - IconButtonSize, w.y + settingsWindowTitleH + 199, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) fullscreenToggleBounds() (int, int, int, int) {
-	return w.x + settingsWindowWidth - settingsWindowPad - settingsButtonW, w.y + settingsWindowTitleH + 39, settingsButtonW, settingsButtonH
+	return w.x + settingsWindowPad, w.y + settingsWindowTitleH + 42, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) vsyncToggleBounds() (int, int, int, int) {
-	return w.x + settingsWindowWidth - settingsWindowPad - settingsButtonW, w.y + settingsWindowTitleH + 69, settingsButtonW, settingsButtonH
+	return w.x + settingsWindowPad, w.y + settingsWindowTitleH + 72, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) fpsToggleBounds() (int, int, int, int) {
-	return w.x + settingsWindowWidth - settingsWindowPad - settingsButtonW, w.y + settingsWindowTitleH + 99, settingsButtonW, settingsButtonH
+	return w.x + settingsWindowPad, w.y + settingsWindowTitleH + 102, IconButtonSize, IconButtonSize
 }
 
 func settingsVolumeBGM(ctx client.Context) float64 {
