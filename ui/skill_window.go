@@ -17,7 +17,7 @@ const (
 	skillWindowHeight = 382
 	skillWindowTitleH = 28
 	skillWindowPad    = 12
-	skillRowH         = 28
+	skillRowH         = 32
 	skillListTop      = 80
 	skillListBottom   = 42
 	skillButtonSize   = IconButtonSize
@@ -203,13 +203,13 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetRender
 	} else {
 		for row, skill := range visibleSkills(ctx.Session, w.scroll, visibleSkillRows()) {
 			ry := w.skillRowY(row)
-			rowColor := PanelBodyColor
+			rowColor := PanelAltColor
 			if row%2 == 1 {
-				rowColor = PanelAltColor
+				rowColor = PanelBodyColor
 			}
 			DrawRowSurface(screen, x+skillWindowPad, ry, skillWindowWidth-2*skillWindowPad, skillRowH-2, rowColor)
 			if assets != nil {
-				assets.DrawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+3, ry+2, 22)
+				assets.DrawSkillIcon(screen, ctx.Resources, skill, x+skillWindowPad+4, ry+4, 24)
 			}
 			typeColor := skillWindowPassive
 			typeLabel := "P"
@@ -221,11 +221,11 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetRender
 			if skill.Level <= 0 {
 				nameColor = skillWindowMutedColor
 			}
-			render.DebugPrintAtColor(screen, typeLabel, x+skillWindowPad+28, ry+7, typeColor)
-			render.DebugPrintAtColor(screen, trimRunes(skillDisplayName(ctx.Resources, skill), 18), x+skillWindowPad+44, ry+7, nameColor)
-			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Level), x+204, ry+7, nameColor)
-			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.SPCost), x+244, ry+7, skillWindowMutedColor)
-			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Range), x+292, ry+7, skillWindowMutedColor)
+			render.DebugPrintAtColor(screen, typeLabel, x+skillWindowPad+32, ry+9, typeColor)
+			render.DebugPrintAtColor(screen, trimRunes(skillDisplayName(ctx.Resources, skill), 18), x+skillWindowPad+48, ry+9, nameColor)
+			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Level), x+204, ry+9, nameColor)
+			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.SPCost), x+244, ry+9, skillWindowMutedColor)
+			render.DebugPrintAtColor(screen, fmt.Sprintf("%d", skill.Range), x+292, ry+9, skillWindowMutedColor)
 			bx, by, bw, bh := w.levelButtonBounds(row)
 			fill := skillWindowButtonColor
 			textColor := skillWindowGoodColor
@@ -316,7 +316,7 @@ func (w *SkillWindow) skillRowBounds(row int) (int, int, int, int) {
 }
 
 func (w *SkillWindow) levelButtonBounds(row int) (int, int, int, int) {
-	return w.x + skillWindowWidth - skillWindowPad - skillButtonSize, w.skillRowY(row) + 6, skillButtonSize, skillButtonSize
+	return w.x + skillWindowWidth - skillWindowPad - skillButtonSize, w.skillRowY(row) + 7, skillButtonSize, skillButtonSize
 }
 
 func (w *SkillWindow) hoveredSkill(ctx Context) (session.Skill, bool) {

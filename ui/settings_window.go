@@ -96,25 +96,35 @@ func (w *SettingsWindow) Draw(screen *render.Image, ctx client.Context) {
 
 	labelX := x + settingsWindowPad
 	rowY := y + settingsWindowTitleH + 18
-	render.DebugPrintAtColor(screen, "Display", labelX, rowY, TitleTextColor)
+	drawSettingsSectionLabel(screen, "Display", labelX, rowY)
 	fullscreenX, fullscreenY, fullscreenW, fullscreenH := w.fullscreenToggleBounds()
 	w.DrawRuntimeToggle(screen, ctx, "Fullscreen", fullscreenX, fullscreenY, fullscreenW, fullscreenH, settingsRuntimeFullscreen(ctx))
 	vsyncX, vsyncY, vsyncW, vsyncH := w.vsyncToggleBounds()
-	w.DrawRuntimeToggle(screen, ctx, "VSync", vsyncX, vsyncY, vsyncW, vsyncH, settingsRuntimeVSync(ctx))
+	w.DrawRuntimeToggle(screen, ctx, "VSync (Restart)", vsyncX, vsyncY, vsyncW, vsyncH, settingsRuntimeVSync(ctx))
 	fpsX, fpsY, fpsW, fpsH := w.fpsToggleBounds()
 	w.DrawRuntimeToggle(screen, ctx, "FPS meter", fpsX, fpsY, fpsW, fpsH, settingsRuntimeFPS(ctx))
-	render.DebugPrintAtColor(screen, "VSync applies after restart", labelX, rowY+98, MutedTextColor)
 
-	soundY := rowY + 122
-	render.DebugPrintAtColor(screen, "Sound", labelX, soundY, TitleTextColor)
-	render.DebugPrintAtColor(screen, "BGM Vol", labelX, soundY+20, TextColor)
+	soundY := rowY + 106
+	drawSettingsSectionLabel(screen, "Sound", labelX, soundY)
+	_, bgmBarY, _, bgmBarH := w.bgmVolumeBarBounds()
+	render.DebugPrintAtColor(screen, "BGM Vol", labelX, settingsLabelY(bgmBarY, bgmBarH), TextColor)
 	w.DrawVolumeControls(screen, ctx, settingsVolumeBGM(ctx), w.bgmVolumeMinusBounds, w.bgmVolumeBarBounds, w.bgmVolumePlusBounds)
-	render.DebugPrintAtColor(screen, "SFX Vol", labelX, soundY+58, TextColor)
+	_, sfxBarY, _, sfxBarH := w.sfxVolumeBarBounds()
+	render.DebugPrintAtColor(screen, "SFX Vol", labelX, settingsLabelY(sfxBarY, sfxBarH), TextColor)
 	w.DrawVolumeControls(screen, ctx, settingsVolumeSFX(ctx), w.sfxVolumeMinusBounds, w.sfxVolumeBarBounds, w.sfxVolumePlusBounds)
 
 	if w.status != "" {
 		render.DebugPrintAtColor(screen, trimRunes(w.status, 32), labelX, y+settingsWindowHeight-18, GoodTextColor)
 	}
+}
+
+func drawSettingsSectionLabel(screen *render.Image, label string, x, y int) {
+	render.DebugPrintAtColor(screen, label, x, y, TitleTextColor)
+	render.DebugPrintAtColor(screen, label, x+1, y, TitleTextColor)
+}
+
+func settingsLabelY(y, height int) int {
+	return y + render.DebugTextTopForCenter(height)
 }
 
 func (w *SettingsWindow) IsOpen() bool {

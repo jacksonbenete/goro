@@ -12,7 +12,7 @@ import (
 
 const (
 	statsWindowWidth  = 286
-	statsWindowHeight = 338
+	statsWindowHeight = 302
 	statsWindowTitleH = 28
 	statsWindowPad    = 12
 	statsRowH         = 22
@@ -147,6 +147,11 @@ func (w *StatsWindow) Draw(screen *render.Image, ctx Context) {
 	}
 	for i, row := range statsRows(ctx.Session) {
 		ry := w.statRowY(i)
+		rowColor := PanelAltColor
+		if i%2 == 1 {
+			rowColor = PanelBodyColor
+		}
+		DrawRowSurface(screen, x+statsWindowPad, ry, statsWindowWidth-2*statsWindowPad, statsRowH-2, rowColor)
 		render.DebugPrintAtColor(screen, row.label, x+statsWindowPad, ry+4, statsWindowTextColor)
 		render.DebugPrintAtColor(screen, formatStatValue(row.value, row.bonus), x+72, ry+4, statsWindowTextColor)
 		render.DebugPrintAtColor(screen, fmt.Sprintf("%d", statCost(row)), x+132, ry+4, statsWindowMutedColor)
@@ -177,14 +182,6 @@ func (w *StatsWindow) Draw(screen *render.Image, ctx Context) {
 	drawStatsDerived(screen, rightX, derivedY+18, "MDEF", fmt.Sprintf("%d + %d", stats.MDefense, stats.MDefenseBonus))
 	drawStatsDerived(screen, rightX, derivedY+36, "FLEE", fmt.Sprintf("%d + %d", stats.Flee, stats.FleeBonus))
 	drawStatsDerived(screen, rightX, derivedY+54, "ASPD", fmt.Sprintf("%d", displayASPD(stats.ASPD+stats.ASPDBonus)))
-
-	if w.status != "" && time.Since(w.statusAt) < 1800*time.Millisecond {
-		statusColor := statsWindowErrorColor
-		if w.statusGood {
-			statusColor = statsWindowGoodColor
-		}
-		render.DebugPrintAtColor(screen, trimRunes(w.status, 36), x+statsWindowPad, y+statsWindowHeight-20, statusColor)
-	}
 }
 
 func (w *StatsWindow) CursorAction(ctx Context) (int, bool) {
