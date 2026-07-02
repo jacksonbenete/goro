@@ -206,6 +206,17 @@ func DebugTextSize(text string) (int, int) {
 	return debugTextSize(text)
 }
 
+func DebugTextTopForCenter(containerH int) int {
+	face, lineHeight, baseline, _ := debugTextFont()
+	metrics := face.Metrics()
+	textH := (metrics.Ascent + metrics.Descent).Ceil()
+	ascent := metrics.Ascent.Ceil()
+	if textH <= 0 || ascent <= 0 {
+		return (containerH - lineHeight) / 2
+	}
+	return (containerH-textH)/2 + ascent - baseline
+}
+
 func debugTextFont() (font.Face, int, int, int) {
 	textFontMu.Lock()
 	defer textFontMu.Unlock()

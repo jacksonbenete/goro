@@ -3,7 +3,6 @@ package ui
 import (
 	"encoding/json"
 	"fmt"
-	"image/color"
 	"log"
 	"os"
 	"path/filepath"
@@ -205,7 +204,7 @@ func (b *ShortcutBar) Draw(screen *render.Image, ctx Context, assets AssetRender
 		if pointInRect(mx, my, sx, sy, shortcutSlot, shortcutSlot) {
 			fill = ButtonHoverColor
 		}
-		DrawButtonSurface(screen, sx, sy, shortcutSlot, shortcutSlot, fill)
+		DrawSurface(screen, sx, sy, shortcutSlot, shortcutSlot, fill, ButtonBorderColor)
 		entry := b.slots[i]
 		switch entry.kind {
 		case shortcutItem:
@@ -520,6 +519,5 @@ func skillForShortcut(s *session.Session, entry shortcutSlotState) (session.Skil
 
 func drawShortcutSkillLevel(screen *render.Image, x, y int, level int) {
 	label := fmt.Sprintf("Lv%d", maxInt(1, level))
-	render.DebugPrintAtColor(screen, label, x+2, y+1, color.RGBA{A: 150})
 	render.DebugPrintAtColor(screen, label, x+3, y+1, TitleTextColor)
 }

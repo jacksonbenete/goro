@@ -64,8 +64,10 @@ func DrawWindowTitle(screen *render.Image, x, y, titleH, pad int, title string, 
 }
 
 func DrawTitleTextAt(screen *render.Image, x, y, titleH int, title string, text color.RGBA) {
-	_, textH := render.DebugTextSize(title)
-	ty := y + (titleH-textH)/2
+	ty := y + render.DebugTextTopForCenter(titleH)
+	if titleH > 1 {
+		ty = y + 1 + render.DebugTextTopForCenter(titleH-1)
+	}
 	render.DebugPrintAtColor(screen, title, x, ty, text)
 }
 
