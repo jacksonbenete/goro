@@ -7,9 +7,10 @@ import (
 	"math"
 	"sync"
 
+	"github.com/go-fonts/dejavu/dejavusans"
+	"github.com/go-fonts/dejavu/dejavusansbold"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
-	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
@@ -22,6 +23,23 @@ var debugTextLineHeight = 14
 var debugTextBaseline = 13
 var debugTextFixedWidth = 7
 var outlinedTextFace font.Face
+
+func init() {
+	regular, err := parseOpenTypeFace(dejavusans.TTF, 11)
+	if err != nil {
+		return
+	}
+	bold, _ := parseOpenTypeFace(dejavusansbold.TTF, 12)
+	textFontMu.Lock()
+	defer textFontMu.Unlock()
+	debugTextFace = regular
+	debugTextFixedWidth = 0
+	debugTextLineHeight, debugTextBaseline = textFaceLineMetrics(regular)
+	if debugTextLineHeight < 14 {
+		debugTextLineHeight = 14
+	}
+	outlinedTextFace = bold
+}
 
 // SetUIFont installs the client UI font used for ordinary window text and,
 // when provided, the bold face used by outlined actor names. It is intended
@@ -223,7 +241,7 @@ func roNameTextFace() font.Face {
 	if outlinedTextFace != nil {
 		return outlinedTextFace
 	}
-	if face, err := parseOpenTypeFace(gobold.TTF, 12); err == nil {
+	if face, err := parseOpenTypeFace(dejavusansbold.TTF, 12); err == nil {
 		outlinedTextFace = face
 		return outlinedTextFace
 	}

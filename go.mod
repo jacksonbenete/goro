@@ -5,6 +5,7 @@ go 1.26.3
 require (
 	github.com/ebitengine/oto/v3 v3.5.0-alpha.8
 	github.com/ebitengine/purego v0.10.1
+	github.com/go-fonts/dejavu v0.3.4
 	github.com/gogpu/gogpu v0.42.7
 	github.com/gogpu/gpucontext v0.21.0
 	github.com/gogpu/gputypes v0.5.0
