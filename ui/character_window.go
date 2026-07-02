@@ -23,10 +23,10 @@ var (
 	characterWindowMutedColor  = MutedTextColor
 	characterWindowTitleColor  = TitleTextColor
 	characterWindowBarBack     = color.RGBA{R: 224, G: 232, B: 242, A: 255}
-	characterWindowHPColor     = color.RGBA{R: 210, G: 72, B: 72, A: 255}
-	characterWindowSPColor     = color.RGBA{R: 70, G: 112, B: 214, A: 255}
-	characterWindowEXPColor    = color.RGBA{R: 74, G: 174, B: 98, A: 255}
-	characterWindowJobEXPColor = color.RGBA{R: 190, G: 148, B: 58, A: 255}
+	characterWindowHPColor     = PlayerHPBarColor
+	characterWindowSPColor     = PlayerSPBarColor
+	characterWindowEXPColor    = WindowBorderColor
+	characterWindowJobEXPColor = WindowBorderColor
 	characterWindowWeightWarn  = ErrorTextColor
 )
 

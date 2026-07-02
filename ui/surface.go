@@ -42,6 +42,8 @@ var (
 	ButtonHoverColor  = color.RGBA{R: 218, G: 235, B: 250, A: 255}
 	ButtonDownColor   = color.RGBA{R: 198, G: 222, B: 245, A: 255}
 	ButtonBorderColor = color.RGBA{R: 138, G: 174, B: 214, A: 255}
+	PlayerHPBarColor  = color.RGBA{R: 16, G: 239, B: 33, A: 255}
+	PlayerSPBarColor  = color.RGBA{R: 24, G: 99, B: 222, A: 255}
 	SeparatorColor    = color.RGBA{R: 160, G: 190, B: 222, A: 190}
 	FooterLineColor   = color.RGBA{R: 174, G: 180, B: 188, A: 255}
 	SelectionColor    = color.RGBA{R: 206, G: 226, B: 248, A: 255}

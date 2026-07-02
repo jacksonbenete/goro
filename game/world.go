@@ -4695,7 +4695,7 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx client.Context, e
 	fillWidth := math.Round((width - 2) * ratio)
 	fill := color.RGBA{R: 255, G: 0, B: 231, A: 255}
 	if life.player {
-		fill = color.RGBA{R: 16, G: 239, B: 33, A: 255}
+		fill = gameui.PlayerHPBarColor
 		if ratio < 0.25 {
 			fill = color.RGBA{R: 255, G: 0, B: 0, A: 255}
 		}
@@ -4716,7 +4716,7 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx client.Context, e
 		}
 		render.DrawRect(screen, x, y+4, width, 1, color.RGBA{R: 16, G: 24, B: 156, A: 255})
 		if spWidth := math.Round((width - 2) * spRatio); spWidth > 0 {
-			render.DrawRect(screen, x+1, y+5, spWidth, 3, color.RGBA{R: 24, G: 99, B: 222, A: 255})
+			render.DrawRect(screen, x+1, y+5, spWidth, 3, gameui.PlayerSPBarColor)
 		}
 	}
 }
