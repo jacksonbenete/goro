@@ -20,7 +20,7 @@ const (
 	skillRowH         = 28
 	skillListTop      = 80
 	skillListBottom   = 42
-	skillButtonSize   = 17
+	skillButtonSize   = IconButtonSize
 )
 
 var (
@@ -239,7 +239,7 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetRender
 					fill = skillWindowHoverColor
 				}
 			}
-			DrawButtonLabel(screen, bx, by, bw, bh, "+", fill, textColor)
+			DrawPlusButton(screen, bx, by, fill, textColor)
 		}
 		w.drawScrollBar(screen, ctx.Session)
 	}
@@ -304,7 +304,7 @@ func (w *SkillWindow) EnsurePosition(ctx Context) {
 }
 
 func (w *SkillWindow) closeBounds() (int, int, int, int) {
-	return w.x + skillWindowWidth - 24, w.y + 6, 16, 16
+	return w.x + skillWindowWidth - 25, w.y + 6, IconButtonSize, IconButtonSize
 }
 
 func (w *SkillWindow) skillRowY(row int) int {
@@ -316,7 +316,7 @@ func (w *SkillWindow) skillRowBounds(row int) (int, int, int, int) {
 }
 
 func (w *SkillWindow) levelButtonBounds(row int) (int, int, int, int) {
-	return w.x + skillWindowWidth - skillWindowPad - skillButtonSize, w.skillRowY(row) + 5, skillButtonSize, skillButtonSize
+	return w.x + skillWindowWidth - skillWindowPad - skillButtonSize, w.skillRowY(row) + 6, skillButtonSize, skillButtonSize
 }
 
 func (w *SkillWindow) hoveredSkill(ctx Context) (session.Skill, bool) {

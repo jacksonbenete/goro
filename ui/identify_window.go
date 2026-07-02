@@ -178,7 +178,7 @@ func (w *IdentifyWindow) ClampScroll(s *session.Session) {
 }
 
 func (w *IdentifyWindow) closeBounds() (int, int, int, int) {
-	return w.x + identifyWindowWidth - 23, w.y + 7, 16, 16
+	return w.x + identifyWindowWidth - 24, w.y + 7, IconButtonSize, IconButtonSize
 }
 
 func (w *IdentifyWindow) rowBounds(row int) (int, int, int, int) {

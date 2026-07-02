@@ -217,7 +217,7 @@ func (w *InventoryWindow) EnsurePosition(ctx Context) {
 }
 
 func (w *InventoryWindow) closeBounds() (int, int, int, int) {
-	return w.x + inventoryWindowWidth - 23, w.y + 7, 16, 16
+	return w.x + inventoryWindowWidth - 24, w.y + 7, IconButtonSize, IconButtonSize
 }
 
 func (w *InventoryWindow) rowBounds(row int) (int, int, int, int) {

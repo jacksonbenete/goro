@@ -268,7 +268,7 @@ func (w *InventoryBagWindow) PlaceDefault(ctx Context) {
 }
 
 func (w *InventoryBagWindow) closeBounds() (int, int, int, int) {
-	return w.x + inventoryBagWidth - 23, w.y + 7, 16, 16
+	return w.x + inventoryBagWidth - 24, w.y + 7, IconButtonSize, IconButtonSize
 }
 
 func (w *InventoryBagWindow) tabBounds(tab int) (int, int, int, int) {

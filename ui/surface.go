@@ -21,6 +21,8 @@ type surfaceKey struct {
 
 var surfaceCache = map[surfaceKey]*render.Image{}
 
+const IconButtonSize = 17
+
 var (
 	WindowRadius      = float32(6)
 	ButtonRadius      = float32(6)
@@ -187,15 +189,54 @@ func DrawCloseButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA) 
 	if icon < 6 {
 		icon = minInt(w, h) - 6
 	}
+	if icon%2 == 0 {
+		icon--
+	}
 	if icon < 2 {
 		return
 	}
-	left := x + (w-icon)/2
-	top := y + (h-icon)/2
-	right := left + icon - 1
-	bottom := top + icon - 1
+	midX := x + w/2
+	midY := y + h/2
+	half := icon / 2
+	left := midX - half
+	right := midX + half
+	top := midY - half
+	bottom := midY + half
 	render.DrawLine(screen, float64(left), float64(top), float64(right), float64(bottom), line)
 	render.DrawLine(screen, float64(right), float64(top), float64(left), float64(bottom), line)
+}
+
+func DrawPlusButton(screen *render.Image, x, y int, bg, line color.RGBA) {
+	DrawIconButton(screen, x, y, IconButtonSize, IconButtonSize, bg, line, true)
+}
+
+func DrawMinusButton(screen *render.Image, x, y int, bg, line color.RGBA) {
+	DrawIconButton(screen, x, y, IconButtonSize, IconButtonSize, bg, line, false)
+}
+
+func DrawIconButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA, vertical bool) {
+	DrawButtonSurface(screen, x, y, w, h, bg)
+	icon := minInt(w, h) / 2
+	if icon < 6 {
+		icon = minInt(w, h) - 6
+	}
+	if icon%2 == 0 {
+		icon--
+	}
+	if icon < 2 {
+		return
+	}
+	midX := x + w/2
+	midY := y + h/2
+	half := icon / 2
+	left := midX - half
+	right := midX + half
+	render.DrawLine(screen, float64(left), float64(midY), float64(right), float64(midY), line)
+	if vertical {
+		top := midY - half
+		bottom := midY + half
+		render.DrawLine(screen, float64(midX), float64(top), float64(midX), float64(bottom), line)
+	}
 }
 
 func DrawCenteredText(screen *render.Image, x, y, w, h int, label string, text color.RGBA) {

@@ -482,8 +482,8 @@ func (w *ShopWindow) handleBuyClick(mx, my int) bool {
 	for row, item := range w.visibleBuyItems() {
 		itemIndex := w.buyScroll + row
 		x, y, width, _ := w.buyRowBounds(row)
-		minus := [4]int{x + width - 52, y + 6, 15, 17}
-		plus := [4]int{x + width - 34, y + 6, 15, 17}
+		minus := [4]int{x + width - 52, y + 6, IconButtonSize, IconButtonSize}
+		plus := [4]int{x + width - 34, y + 6, IconButtonSize, IconButtonSize}
 		switch {
 		case pointInRect(mx, my, minus[0], minus[1], minus[2], minus[3]):
 			w.decrementBuyItem(item.ItemID)
@@ -594,7 +594,7 @@ func (w *ShopWindow) ensureSellPosition(ctx Context) {
 }
 
 func (w *ShopWindow) closeBounds() (int, int, int, int) {
-	return w.x + shopWindowWidth - 23, w.y + 7, 16, 16
+	return w.x + shopWindowWidth - 24, w.y + 7, IconButtonSize, IconButtonSize
 }
 
 func (w *ShopWindow) dropBounds() (int, int, int, int) {
@@ -736,9 +736,9 @@ func (w *ShopWindow) handleCartButton(ctx Context, row int, mx, my int) bool {
 		return false
 	}
 	x, y, width, _ := w.cartRowBounds(row)
-	minus := [4]int{x + width - 52, y + 4, 15, 17}
-	plus := [4]int{x + width - 34, y + 4, 15, 17}
-	remove := [4]int{x + width - 16, y + 4, 15, 17}
+	minus := [4]int{x + width - 52, y + 4, IconButtonSize, IconButtonSize}
+	plus := [4]int{x + width - 34, y + 4, IconButtonSize, IconButtonSize}
+	remove := [4]int{x + width - 16, y + 4, IconButtonSize, IconButtonSize}
 	switch {
 	case pointInRect(mx, my, minus[0], minus[1], minus[2], minus[3]):
 		if w.cart[row].amount > 1 {
@@ -771,7 +771,20 @@ func (w *ShopWindow) drawButton(screen *render.Image, x, y, width, height int, l
 }
 
 func (w *ShopWindow) drawTinyButton(screen *render.Image, x, y int, label string, enabled bool) {
-	w.drawButton(screen, x, y, 15, 17, label, enabled)
+	fill := shopButtonColor
+	text := shopTextColor
+	if !enabled {
+		fill = DisabledColor
+		text = shopMutedColor
+	}
+	switch label {
+	case "+":
+		DrawPlusButton(screen, x, y, fill, text)
+	case "-":
+		DrawMinusButton(screen, x, y, fill, text)
+	default:
+		w.drawButton(screen, x, y, IconButtonSize, IconButtonSize, label, enabled)
+	}
 }
 
 func (w *ShopWindow) total() int64 {

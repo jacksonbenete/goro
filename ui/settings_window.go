@@ -17,7 +17,6 @@ const (
 	settingsWindowPad    = 14
 	settingsButtonH      = 23
 	settingsButtonW      = 62
-	settingsSmallButton  = 24
 )
 
 type SettingsWindow struct {
@@ -150,13 +149,13 @@ func (w *SettingsWindow) DrawVolumeControls(screen *render.Image, ctx client.Con
 	if pointInRect(mx, my, plusX, plusY, plusW, plusH) {
 		plusFill = ButtonHoverColor
 	}
-	DrawButtonLabel(screen, minusX, minusY, minusW, minusH, "-", minusFill, TextColor)
+	DrawMinusButton(screen, minusX, minusY, minusFill, TextColor)
 	DrawSurface(screen, barX, barY, barW, barH, PanelBodyColor, ButtonBorderColor)
 	fillW := int(volume * float64(barW-2))
 	if fillW > 0 {
 		render.DrawRect(screen, float64(barX+1), float64(barY+1), float64(fillW), float64(barH-2), color.RGBA{R: 104, G: 166, B: 224, A: 255})
 	}
-	DrawButtonLabel(screen, plusX, plusY, plusW, plusH, "+", plusFill, TextColor)
+	DrawPlusButton(screen, plusX, plusY, plusFill, TextColor)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("%d%%", int(volume*100+0.5)), barX+barW+8, barY+3, TextColor)
 }
 
@@ -280,11 +279,11 @@ func (w *SettingsWindow) EnsurePosition(ctx client.Context) {
 }
 
 func (w *SettingsWindow) closeBounds() (int, int, int, int) {
-	return w.x + settingsWindowWidth - 24, w.y + 6, 16, 16
+	return w.x + settingsWindowWidth - 25, w.y + 6, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) bgmVolumeMinusBounds() (int, int, int, int) {
-	return w.x + 104, w.y + settingsWindowTitleH + 158, settingsSmallButton, settingsButtonH
+	return w.x + 104, w.y + settingsWindowTitleH + 161, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) bgmVolumeBarBounds() (int, int, int, int) {
@@ -292,11 +291,11 @@ func (w *SettingsWindow) bgmVolumeBarBounds() (int, int, int, int) {
 }
 
 func (w *SettingsWindow) bgmVolumePlusBounds() (int, int, int, int) {
-	return w.x + 232, w.y + settingsWindowTitleH + 158, settingsSmallButton, settingsButtonH
+	return w.x + 232, w.y + settingsWindowTitleH + 161, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) sfxVolumeMinusBounds() (int, int, int, int) {
-	return w.x + 104, w.y + settingsWindowTitleH + 196, settingsSmallButton, settingsButtonH
+	return w.x + 104, w.y + settingsWindowTitleH + 199, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) sfxVolumeBarBounds() (int, int, int, int) {
@@ -304,7 +303,7 @@ func (w *SettingsWindow) sfxVolumeBarBounds() (int, int, int, int) {
 }
 
 func (w *SettingsWindow) sfxVolumePlusBounds() (int, int, int, int) {
-	return w.x + 232, w.y + settingsWindowTitleH + 196, settingsSmallButton, settingsButtonH
+	return w.x + 232, w.y + settingsWindowTitleH + 199, IconButtonSize, IconButtonSize
 }
 
 func (w *SettingsWindow) fullscreenToggleBounds() (int, int, int, int) {

@@ -16,7 +16,7 @@ const (
 	statsWindowTitleH = 28
 	statsWindowPad    = 12
 	statsRowH         = 22
-	statsButtonSize   = 17
+	statsButtonSize   = IconButtonSize
 )
 
 var (
@@ -163,7 +163,7 @@ func (w *StatsWindow) Draw(screen *render.Image, ctx Context) {
 				fill = statsWindowHoverColor
 			}
 		}
-		DrawButtonLabel(screen, bx, by, bw, bh, "+", fill, textColor)
+		DrawPlusButton(screen, bx, by, fill, textColor)
 	}
 
 	leftX := x + statsWindowPad
@@ -231,7 +231,7 @@ func (w *StatsWindow) EnsurePosition(ctx Context) {
 }
 
 func (w *StatsWindow) closeBounds() (int, int, int, int) {
-	return w.x + statsWindowWidth - 24, w.y + 6, 16, 16
+	return w.x + statsWindowWidth - 25, w.y + 6, IconButtonSize, IconButtonSize
 }
 
 func (w *StatsWindow) statRowY(index int) int {
@@ -242,7 +242,7 @@ func (w *StatsWindow) statButtonBounds(statusID uint16) (int, int, int, int) {
 	rows := statsRows(nil)
 	for i, row := range rows {
 		if row.statusID == statusID {
-			return w.x + statsWindowWidth - statsWindowPad - statsButtonSize, w.statRowY(i) + 2, statsButtonSize, statsButtonSize
+			return w.x + statsWindowWidth - statsWindowPad - statsButtonSize, w.statRowY(i) + 3, statsButtonSize, statsButtonSize
 		}
 	}
 	return 0, 0, 0, 0

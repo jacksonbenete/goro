@@ -249,7 +249,7 @@ func (w *StorageWindow) EnsurePosition(ctx Context) {
 }
 
 func (w *StorageWindow) closeBounds() (int, int, int, int) {
-	return w.x + storageWindowWidth - 23, w.y + 7, 16, 16
+	return w.x + storageWindowWidth - 24, w.y + 7, IconButtonSize, IconButtonSize
 }
 
 func (w *StorageWindow) rowBounds(row int) (int, int, int, int) {

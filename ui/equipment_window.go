@@ -235,7 +235,7 @@ func (w *EquipmentWindow) PlaceDefault(ctx Context) {
 }
 
 func (w *EquipmentWindow) closeBounds() (int, int, int, int) {
-	return w.x + equipmentWindowWidth - 23, w.y + 7, 16, 16
+	return w.x + equipmentWindowWidth - 24, w.y + 7, IconButtonSize, IconButtonSize
 }
 
 func (w *EquipmentWindow) contentOrigin() (int, int) {

@@ -157,7 +157,7 @@ func (w *ItemInfoWindow) CursorAction(ctx Context) (int, bool) {
 }
 
 func (w *ItemInfoWindow) closeBounds() (int, int, int, int) {
-	return w.x + itemInfoWindowWidth - 23, w.y + 7, 16, 16
+	return w.x + itemInfoWindowWidth - 24, w.y + 7, IconButtonSize, IconButtonSize
 }
 
 func (w *ItemInfoWindow) scrollBy(wheelY float64) {
