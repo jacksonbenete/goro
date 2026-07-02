@@ -34,6 +34,7 @@ const (
 	effectMagnumBreak   = 17
 	effectQuakeMagnum   = 10022
 	effectSteal         = 18
+	effectSummonSlave   = 215
 	effectPoisonAttack  = 20
 	effectDetoxication  = 21
 	effectStoneCurse    = 23

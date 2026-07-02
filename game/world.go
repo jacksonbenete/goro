@@ -4003,6 +4003,7 @@ type sceneActorDrawEntry struct {
 	shadowDepth float64
 	depth       float64
 	isPlayer    bool
+	hidden      bool
 }
 
 const (
@@ -4227,6 +4228,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx client.Co
 	}
 	player.Dir = ctx.World.Dir
 	entries = appendActorDrawEntry(entries, ctx.World, projection, player, true, now, width, height)
+	entries[len(entries)-1].hidden = localActorHidden(ctx)
 	for _, actor := range ctx.World.Actors {
 		if actor.ID == ctx.Session.AccountID || actor.ID == ctx.Session.CharID {
 			continue
@@ -4238,8 +4240,12 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx client.Co
 
 func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	cameraYaw := projection.cameraYaw
+	alpha := 1.0
+	if entry.hidden {
+		alpha = 0.35
+	}
 	if entry.isPlayer {
-		if m.drawPlayerSprite3D(ctx, screen, projection, entry, entry.actor.Dir, cameraYaw, entry.shadow) {
+		if m.drawPlayerSprite3D(ctx, screen, projection, entry, entry.actor.Dir, cameraYaw, entry.shadow, alpha) {
 			return
 		}
 		drawPanel(screen, entry.screenX-6, entry.screenY-6, 24, 24)
@@ -4266,6 +4272,9 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context
 
 func (m *WorldMode) drawActorShadowEntry(screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry) {
 	if !entry.castShadow || m.shadowView == nil || m.shadowViewMiss {
+		return
+	}
+	if entry.hidden {
 		return
 	}
 	now := time.Now()

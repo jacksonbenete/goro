@@ -83,6 +83,38 @@ func TestApplyStatusEffectChangeTracksLocalStatus(t *testing.T) {
 	}
 }
 
+func TestApplyHidingStatusTogglesLocalHiddenStateAndTransitionEffects(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: statusEffectHiding,
+		ActorID:  2000000,
+		Active:   true,
+	})
+	if !localActorHidden(ctx) {
+		t.Fatal("hiding status did not mark the local actor hidden")
+	}
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectBashBegin {
+		t.Fatalf("hide enter effects = %+v, want EF_BASH", mode.worldEffects)
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: statusEffectHiding,
+		ActorID:  2000000,
+		Active:   false,
+	})
+	if localActorHidden(ctx) {
+		t.Fatal("inactive hiding status still marks the local actor hidden")
+	}
+	if len(mode.worldEffects) != 2 || mode.worldEffects[1].effectID != effectSummonSlave {
+		t.Fatalf("hide exit effects = %+v, want EF_SUMMONSLAVE", mode.worldEffects)
+	}
+}
+
 func TestApplyStatusEffectChangeIgnoresRemoteActor(t *testing.T) {
 	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
 	ctx := client.Context{Session: sessionState}
@@ -846,14 +878,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 71 {
-		t.Fatalf("implemented effects = %d, want 71", coverage.Implemented)
+	if coverage.Implemented != 72 {
+		t.Fatalf("implemented effects = %d, want 72", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 11.6 || coverage.ActivePercent > 11.8 {
-		t.Fatalf("active coverage = %.3f, want about 11.7", coverage.ActivePercent)
+	if coverage.ActivePercent < 11.8 || coverage.ActivePercent > 12.0 {
+		t.Fatalf("active coverage = %.3f, want about 11.9", coverage.ActivePercent)
 	}
 }
 

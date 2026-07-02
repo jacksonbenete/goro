@@ -19,6 +19,8 @@ const (
 	statusIconSize    = 32
 	statusIconSpacing = 36
 	statusIconGap     = 8
+
+	statusEffectHiding uint16 = 4
 )
 
 type statusIconInfo struct {
@@ -61,6 +63,7 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	if ctx.Session.Statuses.Active == nil {
 		ctx.Session.Statuses.Active = make(map[uint16]session.StatusEffect)
 	}
+	m.addStatusEffectTransition(ctx, change)
 	if !change.Active {
 		delete(ctx.Session.Statuses.Active, change.StatusID)
 		log.Printf("status effect inactive id=%d actor=%d", change.StatusID, change.ActorID)
@@ -78,6 +81,31 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	}
 	ctx.Session.Statuses.Active[change.StatusID] = effect
 	log.Printf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
+}
+
+func (m *WorldMode) addStatusEffectTransition(ctx client.Context, change network.StatusEffectChange) {
+	if change.StatusID != statusEffectHiding {
+		return
+	}
+	effectID := effectSummonSlave
+	if change.Active {
+		effectID = effectBashBegin
+	}
+	if m.addWorldEffect(ctx, effectID, localSkillTarget(ctx)) {
+		log.Printf("status effect transition id=%d active=%t effect=%d", change.StatusID, change.Active, effectID)
+	}
+}
+
+func localActorHasStatus(ctx client.Context, statusID uint16) bool {
+	if ctx.Session == nil || ctx.Session.Statuses.Active == nil {
+		return false
+	}
+	_, ok := ctx.Session.Statuses.Active[statusID]
+	return ok
+}
+
+func localActorHidden(ctx client.Context) bool {
+	return localActorHasStatus(ctx, statusEffectHiding)
 }
 
 func (m *WorldMode) drawStatusIcons(screen *render.Image, ctx client.Context, now time.Time) {

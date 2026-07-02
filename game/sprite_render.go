@@ -135,7 +135,7 @@ type spriteState struct {
 	walkDistance   float64
 }
 
-func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64, alpha float64) bool {
 	now := time.Now()
 	moving := ctx.World.Player.IsMovingAt(now)
 	state := spriteState{
@@ -175,7 +175,7 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
+	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, alpha, shadow)
 	return true
 }
 

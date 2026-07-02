@@ -426,6 +426,13 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			duplicate:     7,
 		}},
 	},
+	effectSummonSlave: {
+		components: []worldEffectComponent{{
+			kind:           effectComponentSPR,
+			spriteFile:     "smoke",
+			attachedEntity: true,
+		}},
+	},
 	effectPoisonAttack: {
 		duration: 2800 * time.Millisecond,
 		sfx:      []string{"effect\\ef_detoxication.wav"},
