@@ -2756,7 +2756,7 @@ func TestCombatLifeFallbackUsesEstimatedRedPlantMaxHPWithoutHPPacket(t *testing.
 		Action:      0,
 	})
 
-	life, ok := mode.actorLifeForDisplay(ctx, world.Actors[300])
+	life, ok := mode.monsterLifeForSense(world.Actors[300].ID)
 	if !ok {
 		t.Fatal("red plant estimated life missing")
 	}
@@ -2822,6 +2822,25 @@ func TestActorLifeForDisplayUsesLocalPlayerHPAndSP(t *testing.T) {
 	}
 	if life.hp != 75 || life.maxHP != 100 || life.sp != 8 || life.maxSP != 20 || !life.hasSP || !life.player {
 		t.Fatalf("local player life = %+v", life)
+	}
+}
+
+func TestActorLifeForDisplayHidesMonsterHPBarsFor2008Client(t *testing.T) {
+	mode := &WorldMode{
+		actorLife: map[uint32]actorLife{
+			300: {hp: 12, maxHP: 48},
+		},
+	}
+	ctx := client.Context{
+		Session: &session.Session{CharID: 150000},
+	}
+
+	actor := worldstate.Actor{ID: 300, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	if _, ok := mode.actorLifeForDisplay(ctx, actor); ok {
+		t.Fatal("monster HP bar should be hidden for the 2008 client profile")
+	}
+	if life, ok := mode.monsterLifeForSense(300); !ok || life.hp != 12 || life.maxHP != 48 {
+		t.Fatalf("sense life cache = %+v ok=%v, want 12/48", life, ok)
 	}
 }
 

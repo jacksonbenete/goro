@@ -4729,13 +4729,17 @@ func (m *WorldMode) actorLifeForDisplay(ctx client.Context, actor worldstate.Act
 	if isLocalActor(ctx, actor.ID) {
 		return localPlayerLifeForDisplay(ctx)
 	}
+	// Monster HP bars are a 2012+ client feature. The 2008 client exposes
+	// monster HP through WZ_ESTIMATION/Sense instead, so keep the combat HP
+	// cache hidden from the normal actor overlay.
+	return actorLife{}, false
+}
+
+func (m *WorldMode) monsterLifeForSense(actorID uint32) (actorLife, bool) {
 	if m.actorLife == nil {
 		return actorLife{}, false
 	}
-	if !actorCanBeAttackClicked(ctx, actor) {
-		return actorLife{}, false
-	}
-	life, ok := m.actorLife[actor.ID]
+	life, ok := m.actorLife[actorID]
 	if !ok || life.maxHP <= 0 || life.hp < 0 {
 		return actorLife{}, false
 	}
