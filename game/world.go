@@ -124,8 +124,12 @@ type pickupIntent struct {
 }
 
 type pendingSkillTarget struct {
-	skill   session.Skill
-	started time.Time
+	skill    session.Skill
+	targetID uint32
+	expires  time.Time
+	readyAt  time.Time
+	source   string
+	started  time.Time
 }
 
 type damageFloater struct {
@@ -452,6 +456,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("walk ack from=%d,%d to=%d,%d tick=%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY, ack.ServerTick)
 			m.continuePendingAttack(ctx, "walk ack")
 			m.continuePendingPickup(ctx, "walk ack")
+			m.skills().ContinuePendingTarget(ctx, "walk ack")
 			continue
 		}
 		if position, ok, err := network.ParseActorSetPosition(pkt); err != nil {
@@ -465,6 +470,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			if isLocalActor(ctx, position.ID) {
 				m.continuePendingAttack(ctx, "position fix")
 				m.continuePendingPickup(ctx, "position fix")
+				m.skills().ContinuePendingTarget(ctx, "position fix")
 			}
 			continue
 		}
@@ -779,6 +785,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 
 	m.processPendingAttack(ctx)
 	m.processPendingPickup(ctx)
+	m.skills().ProcessPendingTarget(ctx)
 	m.processLockedAttack(ctx)
 	now = time.Now()
 	m.cleanupDeadActors(ctx, now)

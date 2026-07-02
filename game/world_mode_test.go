@@ -547,6 +547,70 @@ func TestPendingAttackReadyAtWaitsForWalkEnd(t *testing.T) {
 	}
 }
 
+func TestContinuePendingTargetSkillSchedulesAfterEnteringRange(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{
+			skill:    session.Skill{ID: 50, Level: 1, Type: skillTargetEnemy, Range: 1},
+			targetID: 300,
+			expires:  time.Now().Add(time.Second),
+		},
+	}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+
+	mode.skills().ContinuePendingTarget(ctx, "test")
+
+	if mode.pendingSkill.targetID != 300 {
+		t.Fatalf("pending target cleared")
+	}
+	if mode.pendingSkill.readyAt.IsZero() {
+		t.Fatal("pending skill was not scheduled")
+	}
+	if time.Until(mode.pendingSkill.readyAt) > 100*time.Millisecond {
+		t.Fatalf("readyAt too far in future: %s", time.Until(mode.pendingSkill.readyAt))
+	}
+}
+
+func TestContinuePendingTargetSkillWaitsWhileOutOfRange(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             15,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{
+			skill:    session.Skill{ID: 50, Level: 1, Type: skillTargetEnemy, Range: 1},
+			targetID: 300,
+			expires:  time.Now().Add(time.Second),
+		},
+	}
+	ctx := client.Context{Session: &session.Session{AccountID: 100, CharID: 200}, World: world}
+
+	mode.skills().ContinuePendingTarget(ctx, "test")
+
+	if mode.pendingSkill.targetID != 300 {
+		t.Fatalf("pending target cleared")
+	}
+	if !mode.pendingSkill.readyAt.IsZero() {
+		t.Fatalf("pending skill readyAt = %s, want zero while out of range", mode.pendingSkill.readyAt)
+	}
+}
+
 func TestAttackRetryDueUsesOpenMidgardInterval(t *testing.T) {
 	now := time.Unix(100, 0)
 	if !attackRetryDue(time.Time{}, now) {

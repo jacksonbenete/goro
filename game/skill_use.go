@@ -11,6 +11,7 @@ import (
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
+	worldstate "github.com/kivutar/goro/world"
 )
 
 type skillController struct {
@@ -216,6 +217,9 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 		log.Printf("skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 		return
 	}
+	if c.chaseTargetIfNeeded(ctx, skill, actor, "target") {
+		return
+	}
 	if err := c.SendToID(ctx, skill, actor.ID, "target"); err != nil {
 		c.mode.status = "skill failed: " + err.Error()
 		log.Printf("skill target failed skill=%d target=%d: %v", skill.ID, actor.ID, err)
@@ -224,6 +228,98 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 	c.mode.pendingSkill = pendingSkillTarget{}
 	c.mode.status = fmt.Sprintf("%s: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
 	log.Printf("skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
+}
+
+func (c skillController) chaseTargetIfNeeded(ctx client.Context, skill session.Skill, actor worldstate.Actor, source string) bool {
+	if ctx.World == nil || skill.Range <= 0 || targetSkillWithinRange(ctx, skill, actor) {
+		return false
+	}
+	targetX, targetY, ok := attackApproachCell(ctx, actor, targetSkillRange(skill))
+	if !ok {
+		c.mode.status = fmt.Sprintf("%s chase blocked: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
+		log.Printf("%s skill chase blocked skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(skill))
+		c.mode.walkCooldown = 12
+		return true
+	}
+	c.mode.pendingSkill = pendingSkillTarget{
+		skill:    skill,
+		targetID: actor.ID,
+		expires:  time.Now().Add(8 * time.Second),
+		source:   source,
+		started:  c.mode.pendingSkill.started,
+	}
+	if c.mode.pendingSkill.started.IsZero() {
+		c.mode.pendingSkill.started = time.Now()
+	}
+	log.Printf("%s skill chase target skill=%d target=%d player=%d,%d target=%d,%d range=%d chase=%d,%d", source, skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(skill), targetX, targetY)
+	c.mode.requestWalk(ctx, targetX, targetY, source+" skill chase")
+	return true
+}
+
+func (c skillController) ContinuePendingTarget(ctx client.Context, source string) {
+	pending := c.mode.pendingSkill
+	if pending.skill.ID == 0 || pending.targetID == 0 || ctx.World == nil {
+		return
+	}
+	now := time.Now()
+	if now.After(pending.expires) {
+		log.Printf("%s pending skill expired skill=%d target=%d", source, pending.skill.ID, pending.targetID)
+		c.mode.pendingSkill = pendingSkillTarget{}
+		return
+	}
+	actor, ok := ctx.World.Actors[pending.targetID]
+	if !ok {
+		log.Printf("%s pending skill target vanished skill=%d target=%d", source, pending.skill.ID, pending.targetID)
+		c.mode.pendingSkill = pendingSkillTarget{}
+		return
+	}
+	if !targetSkillWithinRange(ctx, pending.skill, actor) {
+		log.Printf("%s pending skill still out of range skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, pending.skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(pending.skill))
+		return
+	}
+	readyAt := pendingAttackReadyAt(ctx.World.Player, now)
+	if pending.readyAt.IsZero() || readyAt.After(pending.readyAt) {
+		pending.readyAt = readyAt
+	}
+	c.mode.pendingSkill = pending
+	log.Printf("%s pending skill scheduled skill=%d target=%d delay_ms=%d", source, pending.skill.ID, pending.targetID, maxInt(0, int(pending.readyAt.Sub(now).Milliseconds())))
+}
+
+func (c skillController) ProcessPendingTarget(ctx client.Context) {
+	pending := c.mode.pendingSkill
+	if pending.skill.ID == 0 || pending.targetID == 0 || pending.readyAt.IsZero() || ctx.World == nil {
+		return
+	}
+	now := time.Now()
+	if now.After(pending.expires) {
+		log.Printf("pending skill expired skill=%d target=%d", pending.skill.ID, pending.targetID)
+		c.mode.pendingSkill = pendingSkillTarget{}
+		return
+	}
+	if now.Before(pending.readyAt) {
+		return
+	}
+	actor, ok := ctx.World.Actors[pending.targetID]
+	if !ok {
+		log.Printf("pending skill target vanished skill=%d target=%d", pending.skill.ID, pending.targetID)
+		c.mode.pendingSkill = pendingSkillTarget{}
+		return
+	}
+	if !targetSkillWithinRange(ctx, pending.skill, actor) {
+		log.Printf("pending skill became out of range skill=%d target=%d player=%d,%d target=%d,%d range=%d", pending.skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(pending.skill))
+		pending.readyAt = time.Time{}
+		c.mode.pendingSkill = pending
+		c.chaseTargetIfNeeded(ctx, pending.skill, actor, "pending")
+		return
+	}
+	c.mode.pendingSkill = pendingSkillTarget{}
+	if err := c.SendToID(ctx, pending.skill, actor.ID, "pending"); err != nil {
+		c.mode.status = "skill failed: " + err.Error()
+		log.Printf("pending skill failed skill=%d target=%d: %v", pending.skill.ID, actor.ID, err)
+		return
+	}
+	c.mode.status = fmt.Sprintf("%s: %d", skillDisplayName(ctx.Resources, pending.skill), actor.ID)
+	log.Printf("pending skill sent skill=%d target=%d name=%q job=%d object_type=%d", pending.skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
 }
 
 func (c skillController) ApplyAutoRun(ctx client.Context, auto network.AutoRunSkill) {
@@ -244,4 +340,12 @@ func (c skillController) ApplyAutoRun(ctx client.Context, auto network.AutoRunSk
 
 func skillTargetOverrideActive(ctx client.Context) bool {
 	return (ctx.Input != nil && ctx.Input.Pressed(render.KeyShift)) || (ctx.Session != nil && ctx.Session.NoShift)
+}
+
+func targetSkillRange(skill session.Skill) int {
+	return maxInt(1, skill.Range)
+}
+
+func targetSkillWithinRange(ctx client.Context, skill session.Skill, actor worldstate.Actor) bool {
+	return ctx.World != nil && attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(skill))
 }
