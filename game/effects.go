@@ -112,6 +112,8 @@ const (
 	effectFirecracker6  = 686
 	effectFirecracker7  = 709
 	effectEnergyCoat    = 169
+	effectThrowItem3    = 308
+	effectSprinkleSand  = 310
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -955,6 +957,10 @@ var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
 	51:  {forceSelfTarget: true},                                                                                                                                                                                                  // TF_HIDING
 	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                                                                                                                                                                // TF_POISON
 	53:  {effectIDs: []int{effectDetoxication}},                                                                                                                                                                                   // TF_DETOXIFY
+	149: {effectIDs: []int{effectSprinkleSand}, action: roBrowserSkillActionAttack},                                                                                                                                               // TF_SPRINKLESAND
+	150: {},                                                                                                                                                                                                                       // TF_BACKSLIDING
+	151: {},                                                                                                                                                                                                                       // TF_PICKSTONE; roBrowser only hides the cast aura.
+	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: roBrowserSkillActionAttack},                                                                                                                                        // TF_THROWSTONE
 	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                     // MG_ENERGYCOAT
 }
 

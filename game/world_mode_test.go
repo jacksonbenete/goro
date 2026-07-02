@@ -942,14 +942,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 72 {
-		t.Fatalf("implemented effects = %d, want 72", coverage.Implemented)
+	if coverage.Implemented != 73 {
+		t.Fatalf("implemented effects = %d, want 73", coverage.Implemented)
 	}
 	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
 		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
 	}
-	if coverage.ActivePercent < 11.8 || coverage.ActivePercent > 12.0 {
-		t.Fatalf("active coverage = %.3f, want about 11.9", coverage.ActivePercent)
+	if coverage.ActivePercent < 12.0 || coverage.ActivePercent > 12.1 {
+		t.Fatalf("active coverage = %.3f, want about 12.0", coverage.ActivePercent)
 	}
 }
 
@@ -1690,6 +1690,10 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "TF_HIDING", skillEffectIDs(51))
 	expectEffectIDs(t, "TF_POISON hit", skillHitEffectIDs(52), effectPoisonAttack)
 	expectEffectIDs(t, "TF_DETOXIFY", skillEffectIDs(53), effectDetoxication)
+	expectEffectIDs(t, "TF_SPRINKLESAND", skillEffectIDs(149), effectSprinkleSand)
+	expectEffectIDs(t, "TF_BACKSLIDING", skillEffectIDs(150))
+	expectEffectIDs(t, "TF_PICKSTONE", skillEffectIDs(151))
+	expectEffectIDs(t, "TF_THROWSTONE before-hit", skillBeforeHitEffectIDs(152), effectThrowItem3)
 	expectEffectIDs(t, "MC_MAMMONITE", skillEffectIDs(42), effectMammonite)
 }
 
@@ -1702,6 +1706,26 @@ func TestThiefSkillTargetRules(t *testing.T) {
 	}
 	if !isSelfTargetSkill(session.Skill{ID: 51, Level: 1, Type: skillTargetEnemy, Range: 1}) {
 		t.Fatal("TF_HIDING should self-cast even when the skill list reports a range")
+	}
+	if skillAction(149) != roBrowserSkillActionAttack {
+		t.Fatal("TF_SPRINKLESAND should use attack action")
+	}
+	if skillAction(152) != roBrowserSkillActionAttack {
+		t.Fatal("TF_THROWSTONE should use attack action")
+	}
+}
+
+func TestThiefThrowStoneEffectFollowsRoBrowserTable(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectThrowItem3)
+	if !ok || len(spec.components) != 1 {
+		t.Fatalf("throw stone spec = %#v ok=%t, want one component", spec, ok)
+	}
+	component := spec.components[0]
+	if component.kind != effectComponent3D || component.textureFile != "\xc0\xaf\xc0\xfa\xc0\xce\xc5\xcd\xc6\xe4\xc0\xcc\xbd\xba/item/\xb5\xb9.bmp" {
+		t.Fatalf("throw stone component = %#v, want stone texture 3D component", component)
+	}
+	if !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || !component.rotate || component.posZ != 1 {
+		t.Fatalf("throw stone trajectory flags = %#v", component)
 	}
 }
 

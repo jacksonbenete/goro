@@ -426,6 +426,26 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			duplicate:     7,
 		}},
 	},
+	effectThrowItem3: {
+		duration: 200 * time.Millisecond,
+		components: []worldEffectComponent{{
+			kind:             effectComponent3D,
+			textureFile:      "\xc0\xaf\xc0\xfa\xc0\xce\xc5\xcd\xc6\xe4\xc0\xcc\xbd\xba/item/\xb5\xb9.bmp",
+			duration:         200 * time.Millisecond,
+			alphaMax:         1,
+			fadeIn:           true,
+			fadeOut:          true,
+			toSrc:            true,
+			rotateToTarget:   true,
+			rotateWithCamera: true,
+			rotate:           true,
+			angleStart:       180,
+			angleEnd:         360,
+			posZ:             1,
+			sizeStart:        roBrowserEffectSize(20),
+			sizeEnd:          roBrowserEffectSize(20),
+		}},
+	},
 	effectSummonSlave: {
 		components: []worldEffectComponent{{
 			kind:           effectComponentSPR,
