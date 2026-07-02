@@ -361,14 +361,17 @@ func (c *ChatConsole) Draw(screen *render.Image, width, height int) {
 }
 
 func (c *ChatConsole) renderImage(width, height int) *render.Image {
+	out := render.NewImage(width, height)
+	DrawRoundedSurface(out, 0, 0, width, height, color.RGBA{R: 14, G: 18, B: 24, A: 188}, color.RGBA{R: 180, G: 198, B: 218, A: 95}, WindowRadius)
 	root := c.widgetTree(width, height)
 	r := offscreen.NewRenderer(width, height, offscreen.WithBackground(uiwidget.ColorTransparent))
 	r.Render(root)
 	img := r.Image()
 	if img == nil {
-		return nil
+		return out
 	}
-	out := render.NewImageFromImage(img)
+	var opts render.DrawImageOptions
+	out.DrawImage(render.NewImageFromImage(img), &opts)
 	c.drawCrispText(out, width, height)
 	return out
 }
@@ -390,10 +393,7 @@ func (c *ChatConsole) widgetTree(width, height int) uiwidget.Widget {
 		Width(float32(width)).
 		Height(float32(height)).
 		PaddingXY(8, 6).
-		Gap(4).
-		Background(uiwidget.RGBA8(14, 18, 24, 188)).
-		BorderStyle(1, uiwidget.RGBA8(180, 198, 218, 95)).
-		Rounded(WindowRadius)
+		Gap(4)
 }
 
 func (c *ChatConsole) drawCrispText(img *render.Image, width, height int) {

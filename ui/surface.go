@@ -4,25 +4,25 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/gogpu/ui/offscreen"
-	"github.com/gogpu/ui/primitives"
 	uiwidget "github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/render"
 )
 
 type surfaceKey struct {
-	w      int
-	h      int
-	bg     color.RGBA
-	border color.RGBA
-	radius float32
+	w        int
+	h        int
+	top      color.RGBA
+	bottom   color.RGBA
+	border   color.RGBA
+	radius   float32
+	gradient bool
 }
 
 var surfaceCache = map[surfaceKey]*render.Image{}
 
 var (
-	WindowRadius      = float32(0)
-	ButtonRadius      = float32(0)
+	WindowRadius      = float32(6)
+	ButtonRadius      = float32(6)
 	ButtonPaddingX    = 14
 	WindowBodyColor   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	WindowTitleTop    = color.RGBA{R: 214, G: 232, B: 250, A: 255}
@@ -79,8 +79,12 @@ func DrawTitleBar(screen *render.Image, x, y, w, titleH int) {
 		if barH > 1 {
 			t = float64(row) / float64(barH-1)
 		}
-		inset := titleBarRowInset(row)
-		render.DrawRect(screen, float64(x+1+inset), float64(y+1+row), float64(w-2-2*inset), 1, LerpColor(WindowTitleTop, WindowTitleColor, t))
+		c := LerpColor(WindowTitleTop, WindowTitleColor, t)
+		for col := 1; col < w-1; col++ {
+			if roundedTopSampleInside(float64(col)+0.5, float64(row+1)+0.5, float64(w), float64(WindowRadius), 1) {
+				render.DrawRect(screen, float64(x+col), float64(y+1+row), 1, 1, c)
+			}
+		}
 	}
 	render.DrawRect(screen, float64(x+1), float64(y+titleH), float64(w-2), 1, SeparatorColor)
 }
@@ -99,19 +103,6 @@ func DrawWindowFooter(screen *render.Image, x, y, w, h, footerH int) {
 	}
 	render.DrawRect(screen, float64(x+1), float64(footerY), float64(w-2), float64(bottom-footerY), WindowFooterColor)
 	render.DrawRect(screen, float64(x+1), float64(footerY), float64(w-2), 1, FooterLineColor)
-}
-
-func titleBarRowInset(row int) int {
-	radius := int(math.Ceil(float64(WindowRadius)))
-	if radius <= 0 || row >= radius {
-		return 0
-	}
-	dy := float64(radius-row) - 0.5
-	r := float64(radius)
-	if dy <= 0 || dy >= r {
-		return radius
-	}
-	return int(math.Ceil(r - math.Sqrt(r*r-dy*dy)))
 }
 
 func LerpColor(a, b color.RGBA, t float64) color.RGBA {
@@ -134,8 +125,7 @@ func DrawPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 }
 
 func DrawButtonSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
-	DrawRoundedSurface(screen, x, y, w, h, bg, ButtonBorderColor, ButtonRadius)
-	DrawGradientInterior(screen, x, y, w, h, Lighten(bg, 0.42), bg, int(math.Ceil(float64(ButtonRadius)))-1)
+	DrawRoundedGradientSurface(screen, x, y, w, h, Lighten(bg, 0.42), bg, ButtonBorderColor, ButtonRadius)
 }
 
 func DrawButtonLabel(screen *render.Image, x, y, w, h int, label string, bg, text color.RGBA) {
@@ -181,10 +171,14 @@ func DrawSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) {
 }
 
 func DrawRoundedSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA, radius float32) {
+	DrawRoundedGradientSurface(screen, x, y, w, h, bg, bg, border, radius)
+}
+
+func DrawRoundedGradientSurface(screen *render.Image, x, y, w, h int, top, bottom, border color.RGBA, radius float32) {
 	if screen == nil || w <= 0 || h <= 0 {
 		return
 	}
-	img := cachedSurface(w, h, bg, border, radius)
+	img := cachedSurface(w, h, top, bottom, border, radius)
 	if img == nil {
 		return
 	}
@@ -194,75 +188,142 @@ func DrawRoundedSurface(screen *render.Image, x, y, w, h int, bg, border color.R
 	screen.DrawImage(img, &opts)
 }
 
-func DrawGradientInterior(screen *render.Image, x, y, w, h int, top, bottom color.RGBA, radius int) {
-	innerW := w - 2
-	innerH := h - 2
-	if screen == nil || innerW <= 0 || innerH <= 0 {
-		return
-	}
-	for row := 0; row < innerH; row++ {
-		t := 0.0
-		if innerH > 1 {
-			t = float64(row) / float64(innerH-1)
-		}
-		inset := roundedRowInset(row, innerH, radius)
-		if innerW-2*inset <= 0 {
-			continue
-		}
-		render.DrawRect(screen, float64(x+1+inset), float64(y+1+row), float64(innerW-2*inset), 1, LerpColor(top, bottom, t))
-	}
-}
-
-func roundedRowInset(row, height, radius int) int {
-	if radius <= 0 || height <= 0 {
-		return 0
-	}
-	edge := row
-	if bottom := height - 1 - row; bottom < edge {
-		edge = bottom
-	}
-	if edge >= radius {
-		return 0
-	}
-	dy := float64(radius-edge) - 0.5
-	r := float64(radius)
-	if dy <= 0 || dy >= r {
-		return radius
-	}
-	return int(math.Ceil(r - math.Sqrt(r*r-dy*dy)))
-}
-
 func Lighten(c color.RGBA, amount float64) color.RGBA {
 	return LerpColor(c, color.RGBA{R: 255, G: 255, B: 255, A: c.A}, clampUnit(amount))
 }
 
-func cachedSurface(w, h int, bg, border color.RGBA, radius float32) *render.Image {
-	key := surfaceKey{w: w, h: h, bg: bg, border: border, radius: radius}
+func cachedSurface(w, h int, top, bottom, border color.RGBA, radius float32) *render.Image {
+	key := surfaceKey{w: w, h: h, top: top, bottom: bottom, border: border, radius: radius, gradient: top != bottom}
 	if img, ok := surfaceCache[key]; ok {
 		return img
 	}
-	root := primitives.Box().
-		Width(float32(w)).
-		Height(float32(h)).
-		Background(Color(bg))
-	if radius > 0 {
-		root.Rounded(radius)
-	}
-	if border.A != 0 {
-		root.BorderStyle(1, Color(border))
-	}
-	r := offscreen.NewRenderer(w, h, offscreen.WithBackground(uiwidget.ColorTransparent))
-	r.Render(root)
-	src := r.Image()
-	if src == nil {
-		return nil
-	}
-	img := render.NewImageFromImage(src)
+	img := render.NewImage(w, h)
+	drawCachedSurface(img, w, h, top, bottom, border, float64(radius))
 	if len(surfaceCache) > 256 {
 		surfaceCache = map[surfaceKey]*render.Image{}
 	}
 	surfaceCache[key] = img
 	return img
+}
+
+func drawCachedSurface(img *render.Image, w, h int, top, bottom, border color.RGBA, radius float64) {
+	if img == nil || w <= 0 || h <= 0 {
+		return
+	}
+	maxRadius := float64(minInt(w, h)) * 0.5
+	if radius > maxRadius {
+		radius = maxRadius
+	}
+	const samples = 4
+	for py := 0; py < h; py++ {
+		t := 0.0
+		if h > 1 {
+			t = float64(py) / float64(h-1)
+		}
+		fill := LerpColor(top, bottom, t)
+		for px := 0; px < w; px++ {
+			var outer, inner float64
+			for sy := 0; sy < samples; sy++ {
+				for sx := 0; sx < samples; sx++ {
+					x := float64(px) + (float64(sx)+0.5)/samples
+					y := float64(py) + (float64(sy)+0.5)/samples
+					if roundedSampleInside(x, y, float64(w), float64(h), radius, 0) {
+						outer++
+					}
+					if roundedSampleInside(x, y, float64(w), float64(h), radius, 1) {
+						inner++
+					}
+				}
+			}
+			outer /= samples * samples
+			inner /= samples * samples
+			if border.A != 0 {
+				drawSurfacePixel(img, px, py, border, math.Max(0, outer-inner))
+				drawSurfacePixel(img, px, py, fill, inner)
+			} else {
+				drawSurfacePixel(img, px, py, fill, outer)
+			}
+		}
+	}
+}
+
+func roundedSampleInside(x, y, w, h, radius float64, inset float64) bool {
+	if x < inset || y < inset || x >= w-inset || y >= h-inset {
+		return false
+	}
+	r := radius - inset
+	if r <= 0 {
+		return true
+	}
+	left := inset + r
+	right := w - inset - r
+	top := inset + r
+	bottom := h - inset - r
+	cx := clampFloat(x, left, right)
+	cy := clampFloat(y, top, bottom)
+	dx := x - cx
+	dy := y - cy
+	return dx*dx+dy*dy <= r*r
+}
+
+func roundedTopSampleInside(x, y, w, radius float64, inset float64) bool {
+	if x < inset || y < inset || x >= w-inset {
+		return false
+	}
+	r := radius - inset
+	if r <= 0 {
+		return true
+	}
+	left := inset + r
+	right := w - inset - r
+	top := inset + r
+	if y >= top {
+		return true
+	}
+	cx := clampFloat(x, left, right)
+	dx := x - cx
+	dy := y - top
+	return dx*dx+dy*dy <= r*r
+}
+
+func drawSurfacePixel(img *render.Image, x, y int, c color.RGBA, coverage float64) {
+	if c.A == 0 || coverage <= 0 {
+		return
+	}
+	if coverage > 1 {
+		coverage = 1
+	}
+	c.A = uint8(float64(c.A)*coverage + 0.5)
+	if c.A == 0 {
+		return
+	}
+	blendStraightAlphaPixel(img, x, y, c)
+}
+
+func blendStraightAlphaPixel(img *render.Image, x, y int, src color.RGBA) {
+	rgba := img.RGBA()
+	if rgba == nil {
+		return
+	}
+	bounds := rgba.Bounds()
+	if x < 0 || y < 0 || x >= bounds.Dx() || y >= bounds.Dy() {
+		return
+	}
+	off := rgba.PixOffset(x+bounds.Min.X, y+bounds.Min.Y)
+	sa := float64(src.A) / 255
+	da := float64(rgba.Pix[off+3]) / 255
+	outA := sa + da*(1-sa)
+	if outA <= 0 {
+		rgba.Pix[off], rgba.Pix[off+1], rgba.Pix[off+2], rgba.Pix[off+3] = 0, 0, 0, 0
+		return
+	}
+	dr := float64(rgba.Pix[off])
+	dg := float64(rgba.Pix[off+1])
+	db := float64(rgba.Pix[off+2])
+	rgba.Pix[off] = uint8((float64(src.R)*sa+dr*da*(1-sa))/outA + 0.5)
+	rgba.Pix[off+1] = uint8((float64(src.G)*sa+dg*da*(1-sa))/outA + 0.5)
+	rgba.Pix[off+2] = uint8((float64(src.B)*sa+db*da*(1-sa))/outA + 0.5)
+	rgba.Pix[off+3] = uint8(outA*255 + 0.5)
 }
 
 func Color(c color.RGBA) uiwidget.Color {
@@ -282,6 +343,16 @@ func clampUnit(value float64) float64 {
 	}
 	if value > 1 {
 		return 1
+	}
+	return value
+}
+
+func clampFloat(value, minValue, maxValue float64) float64 {
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
 	}
 	return value
 }
