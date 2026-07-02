@@ -101,8 +101,48 @@ func DrawWindowFooter(screen *render.Image, x, y, w, h, footerH int) {
 	if footerY >= bottom {
 		return
 	}
-	render.DrawRect(screen, float64(x+1), float64(footerY), float64(w-2), float64(bottom-footerY), WindowFooterColor)
-	render.DrawRect(screen, float64(x+1), float64(footerY), float64(w-2), 1, FooterLineColor)
+	drawFooterRows(screen, x, y, w, h, footerY, bottom)
+}
+
+func drawFooterRows(screen *render.Image, x, y, w, h, footerY, bottom int) {
+	for row := footerY; row < bottom; row++ {
+		inset := footerInnerRowInset(w, h, row-y)
+		width := w - inset*2
+		if width <= 0 {
+			continue
+		}
+		rowColor := WindowFooterColor
+		if row == footerY {
+			rowColor = FooterLineColor
+		}
+		render.DrawRect(screen, float64(x+inset), float64(row), float64(width), 1, rowColor)
+	}
+}
+
+func footerInnerRowInset(w, h, localY int) int {
+	inset := 1
+	radius := float64(WindowRadius) - 1
+	if radius <= 0 {
+		return inset
+	}
+	bottomCenter := float64(h) - 1 - radius
+	sampleY := float64(localY) + 0.5
+	if sampleY <= bottomCenter {
+		return inset
+	}
+	dy := sampleY - bottomCenter
+	if dy >= radius {
+		return w / 2
+	}
+	dx := math.Sqrt(radius*radius - dy*dy)
+	inset = int(math.Ceil(1 + radius - dx))
+	if inset < 1 {
+		return 1
+	}
+	if inset > w/2 {
+		return w / 2
+	}
+	return inset
 }
 
 func LerpColor(a, b color.RGBA, t float64) color.RGBA {
