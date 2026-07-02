@@ -4703,6 +4703,18 @@ func TestSkillFailAckAddsConsoleErrorWithoutEffect(t *testing.T) {
 	}
 }
 
+func TestStealFailAckUsesSkillSpecificMessage(t *testing.T) {
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}}
+
+	mode.applySkillFailAck(ctx, network.SkillFailAck{SkillID: 50, Result: 0, Cause: 0})
+
+	messages := mode.console.Messages()
+	if len(messages) != 1 || messages[0].Text != "Steal failed." {
+		t.Fatalf("console messages = %+v", messages)
+	}
+}
+
 func TestPickedInventoryItemAddsToExistingStack(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{

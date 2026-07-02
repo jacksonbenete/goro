@@ -548,6 +548,9 @@ var skillFailMessagesBySkill = map[uint16]map[uint32]string{
 		6: "Cannot PK.",
 		7: "Cannot align.",
 	},
+	50: {
+		0: "Steal failed.",
+	},
 }
 
 var skillFailMessagesByCause = map[uint8]string{
