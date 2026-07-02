@@ -208,6 +208,15 @@ func DrawRowSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
 	DrawSurface(screen, x, y, w, h, bg, color.RGBA{})
 }
 
+func DrawTextBoxSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) {
+	DrawSurface(screen, x, y, w, h, bg, border)
+	shadowRows := minInt(4, h-2)
+	for row := 0; row < shadowRows; row++ {
+		alpha := uint8(34 - row*7)
+		render.DrawRect(screen, float64(x+1), float64(y+1+row), float64(w-2), 1, color.RGBA{R: 82, G: 108, B: 138, A: alpha})
+	}
+}
+
 func DrawSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) {
 	DrawRoundedSurface(screen, x, y, w, h, bg, border, 0)
 }

@@ -1316,7 +1316,7 @@ func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused b
 	if focused {
 		border = gameui.SelectionBorder
 	}
-	gameui.DrawSurface(screen, x, y, w, h, bg, border)
+	gameui.DrawTextBoxSurface(screen, x, y, w, h, bg, border)
 	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, gameui.TextColor)
 }
 

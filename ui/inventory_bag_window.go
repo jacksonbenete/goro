@@ -288,7 +288,8 @@ func drawInventoryBagTab(screen *render.Image, x, y, w, h int, label string, act
 		DrawCenteredText(screen, x, y, w-1, h, label, inventoryTextColor)
 		return
 	}
-	DrawButtonLabel(screen, x, y, w, h, label, inventoryButtonColor, inventoryTextColor)
+	DrawSurface(screen, x, y, w, h, inventoryButtonColor, ButtonBorderColor)
+	DrawCenteredText(screen, x, y, w, h, label, inventoryTextColor)
 }
 
 func (w *InventoryBagWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
