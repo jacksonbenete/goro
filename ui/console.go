@@ -408,16 +408,18 @@ func (c *ChatConsole) drawCrispText(img *render.Image, width, height int) {
 	}
 	c.drawScrollbar(img, width, height)
 	prompt := c.input
-	if c.active && time.Now().UnixMilli()/500%2 == 0 {
-		prompt += "|"
-	}
-	if prompt == "" && !c.active {
+	if !c.active && prompt == "" {
 		prompt = "Press Enter to chat"
 	}
 	fieldY := c.inputFieldTop(height)
 	_, textHeight := render.DebugTextSize("Ag")
 	textY := fieldY + (consoleFieldH-textHeight)/2
-	render.DebugPrintAtColor(img, trimTextToWidth(prompt, textWidth), 15, textY, consoleColorInput)
+	visiblePrompt := trimTextToWidth(prompt, textWidth)
+	render.DebugPrintAtColor(img, visiblePrompt, 15, textY, consoleColorInput)
+	if c.active {
+		promptW, _ := render.DebugTextSize(visiblePrompt)
+		DrawBlinkingCaret(img, minInt(14+contentWidth, 15+promptW), fieldY, consoleFieldH, consoleColorInput)
+	}
 }
 
 func (c *ChatConsole) visibleLines(width int) []ConsoleMessage {

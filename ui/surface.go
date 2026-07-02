@@ -3,6 +3,7 @@ package ui
 import (
 	"image/color"
 	"math"
+	"time"
 
 	uiwidget "github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/render"
@@ -215,6 +216,19 @@ func DrawTextBoxSurface(screen *render.Image, x, y, w, h int, bg, border color.R
 		alpha := uint8(34 - row*7)
 		render.DrawRect(screen, float64(x+1), float64(y+1+row), float64(w-2), 1, color.RGBA{R: 82, G: 108, B: 138, A: alpha})
 	}
+}
+
+func DrawBlinkingCaret(screen *render.Image, x, y, h int, c color.RGBA) {
+	if screen == nil || h <= 0 || time.Now().UnixMilli()/500%2 != 0 {
+		return
+	}
+	top := y + 4
+	caretH := h - 8
+	if caretH < 8 {
+		top = y + 2
+		caretH = maxInt(4, h-4)
+	}
+	render.DrawRect(screen, float64(x), float64(top), 1, float64(caretH), c)
 }
 
 func DrawSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) {

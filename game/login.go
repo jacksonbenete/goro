@@ -1317,7 +1317,13 @@ func drawLoginInput(screen *render.Image, x, y, w, h int, text string, focused b
 		border = gameui.SelectionBorder
 	}
 	gameui.DrawTextBoxSurface(screen, x, y, w, h, bg, border)
-	render.DebugPrintAtColor(screen, trimRunes(text, maxInt(1, (w-14)/7)), x+6, y+4, gameui.TextColor)
+	visibleText := trimRunes(text, maxInt(1, (w-14)/7))
+	render.DebugPrintAtColor(screen, visibleText, x+6, y+4, gameui.TextColor)
+	if focused {
+		textW, _ := render.DebugTextSize(visibleText)
+		caretX := minInt(x+w-6, x+6+textW)
+		gameui.DrawBlinkingCaret(screen, caretX, y, h, gameui.TextColor)
+	}
 }
 
 func (m *LoginMode) loadBackground(ctx client.Context) {
