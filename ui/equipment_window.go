@@ -2,19 +2,15 @@ package ui
 
 import (
 	"fmt"
-	"image/color"
 	"time"
 
-	"github.com/gogpu/ui/offscreen"
-	"github.com/gogpu/ui/primitives"
-	uiwidget "github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/session"
 )
 
 const (
 	equipmentWindowWidth  = 300
-	equipmentWindowHeight = 232
+	equipmentWindowHeight = 178
 	equipmentWindowTitleH = 28
 	equipmentWindowPad    = 10
 	equipmentContentW     = 280
@@ -80,8 +76,6 @@ var equipmentSlots = []equipmentSlotDef{
 	{label: "Accessory", location: equipLocationAccessory2, side: equipmentSlotRight, row: 4},
 	{label: "Ammo", location: equipLocationAmmo, side: equipmentSlotCenter, row: 1},
 }
-
-var equipmentContentSurface *render.Image
 
 func (w *EquipmentWindow) Toggle(ctx Context) {
 	if w.open {
@@ -167,8 +161,6 @@ func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, assets AssetRe
 	cx, cy, cw, ch := w.closeBounds()
 	DrawCloseButton(screen, cx, cy, cw, ch, inventoryButtonColor, inventoryTextColor)
 
-	contentX, contentY := w.contentOrigin()
-	drawEquipmentContentSurface(screen, contentX, contentY)
 	px, py, pw, ph := w.previewBounds()
 	if assets != nil {
 		assets.DrawEquipmentPreview(screen, ctx, px, py, pw, ph)
@@ -179,10 +171,15 @@ func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, assets AssetRe
 		mx, my = ctx.Input.MouseX, ctx.Input.MouseY
 	}
 	for _, slot := range equipmentSlots {
-		sx, sy, sw, sh := w.slotBounds(slot)
-		if pointInRect(mx, my, sx, sy, sw, sh) {
-			render.DrawRect(screen, float64(sx), float64(sy), float64(sw), float64(sh), color.RGBA{R: 118, G: 150, B: 204, A: 68})
+		if !equipmentSlotVisible(ctx.Session, slot) {
+			continue
 		}
+		sx, sy, sw, sh := w.slotBounds(slot)
+		lineColor := WindowBorderColor
+		if pointInRect(mx, my, sx, sy, sw, sh) {
+			lineColor = ButtonBorderColor
+		}
+		render.DrawRect(screen, float64(sx), float64(sy+sh-1), float64(sw), 1, lineColor)
 		item, ok := equippedItemForSlot(ctx.Session, slot.location)
 		if ok && assets != nil {
 			w.drawSlotItem(screen, ctx, assets, slot, item, sx, sy, sw, sh)
@@ -191,23 +188,6 @@ func (w *EquipmentWindow) Draw(screen *render.Image, ctx Context, assets AssetRe
 		w.drawEmptySlotLabel(screen, slot, sx, sy)
 	}
 
-	if ctx.Session != nil {
-		character := selectedCharacter(ctx.Session)
-		name := character.Name
-		if name == "" {
-			name = "Player"
-		}
-		footerY := y + equipmentWindowTitleH + equipmentWindowPad + equipmentContentH + 10
-		render.DebugPrintAtColor(screen, trimRunes(name, 24), x+equipmentWindowPad, footerY, inventoryTextColor)
-		render.DebugPrintAtColor(screen, JobName(int(character.Job)), x+equipmentWindowPad, footerY+16, inventoryMutedColor)
-	}
-	if w.status != "" && time.Since(w.statusAt) < 2200*time.Millisecond {
-		statusColor := inventoryMutedColor
-		if !w.statusGood {
-			statusColor = shopErrorColor
-		}
-		render.DebugPrintAtColor(screen, trimRunes(w.status, 26), x+118, y+equipmentWindowHeight-21, statusColor)
-	}
 }
 
 func (w *EquipmentWindow) CursorAction(ctx Context) (int, bool) {
@@ -263,6 +243,9 @@ func (w *EquipmentWindow) slotBounds(slot equipmentSlotDef) (int, int, int, int)
 
 func (w *EquipmentWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, bool) {
 	for _, slot := range equipmentSlots {
+		if !equipmentSlotVisible(s, slot) {
+			continue
+		}
 		x, y, width, height := w.slotBounds(slot)
 		if !pointInRect(mx, my, x, y, width, height) {
 			continue
@@ -356,67 +339,26 @@ func equippedItemForSlot(s *session.Session, location uint16) (session.Inventory
 	return session.InventoryItem{}, false
 }
 
-func drawEquipmentContentSurface(screen *render.Image, x, y int) {
-	if screen == nil {
-		return
+func equipmentSlotVisible(s *session.Session, slot equipmentSlotDef) bool {
+	if slot.location != equipLocationAmmo {
+		return true
 	}
-	img := cachedEquipmentContentSurface()
-	if img == nil {
-		return
+	if s == nil {
+		return false
 	}
-	var opts render.DrawImageOptions
-	opts.GeoM.Translate(float64(x), float64(y))
-	opts.Filter = render.FilterNearest
-	screen.DrawImage(img, &opts)
+	return jobSupportsAmmo(int(selectedCharacter(s).Job))
 }
 
-func cachedEquipmentContentSurface() *render.Image {
-	if equipmentContentSurface != nil {
-		return equipmentContentSurface
+func jobSupportsAmmo(job int) bool {
+	switch job {
+	case 3, 11, 19, 20, 24,
+		4004, 4012, 4020, 4021,
+		4026, 4034, 4042, 4043,
+		4056, 4068, 4069:
+		return true
+	default:
+		return false
 	}
-	rows := make([]uiwidget.Widget, 0, 5)
-	for row := 0; row < 5; row++ {
-		rows = append(rows, primitives.HBox(
-			equipmentCellBox(equipmentLeftColW, equipmentRowH, true),
-			equipmentCenterCellBox(row),
-			equipmentCellBox(equipmentRightColW, equipmentRowH, true),
-		).Width(equipmentContentW).Height(equipmentRowH))
-	}
-	root := primitives.VBox(rows...).
-		Width(equipmentContentW).
-		Height(equipmentContentH).
-		Background(Color(PanelBodyColor)).
-		BorderStyle(1, Color(WindowBorderColor))
-	r := offscreen.NewRenderer(equipmentContentW, equipmentContentH, offscreen.WithBackground(uiwidget.ColorTransparent))
-	r.Render(root)
-	src := r.Image()
-	if src == nil {
-		return nil
-	}
-	equipmentContentSurface = render.NewImageFromImage(src)
-	return equipmentContentSurface
-}
-
-func equipmentCellBox(width, height int, border bool) *primitives.BoxWidget {
-	box := primitives.Box().
-		Width(float32(width)).
-		Height(float32(height)).
-		Background(Color(WindowBodyColor))
-	if border {
-		box.BorderStyle(1, Color(WindowBorderColor))
-	}
-	return box
-}
-
-func equipmentCenterCellBox(row int) *primitives.BoxWidget {
-	bg := PanelBodyColor
-	if row == 1 {
-		bg = WindowBodyColor
-	}
-	return primitives.Box().
-		Width(equipmentCenterColW).
-		Height(equipmentRowH).
-		Background(Color(bg))
 }
 
 func widthForRightSlotLabel(label string) int {

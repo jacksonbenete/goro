@@ -11,7 +11,7 @@ import (
 
 const (
 	escapeMenuWidth   = 252
-	escapeMenuHeight  = 214
+	escapeMenuHeight  = 200
 	escapeMenuPad     = 16
 	escapeMenuTitleH  = 32
 	escapeMenuButtonH = 28
@@ -173,13 +173,6 @@ func (m *EscapeMenu) Draw(screen *render.Image, ctx client.Context, width, heigh
 			fill = escapeMenuHoverColor
 		}
 		DrawButtonLabel(screen, bx, by, bw, bh, button.label, fill, textColor)
-	}
-	if m.status != "" {
-		statusColor := escapeMenuMutedColor
-		if !m.pending {
-			statusColor = ErrorTextColor
-		}
-		render.DebugPrintAtColor(screen, trimRunes(m.status, 30), x+escapeMenuPad, y+h-18, statusColor)
 	}
 }
 
