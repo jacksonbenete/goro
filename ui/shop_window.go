@@ -298,10 +298,12 @@ func (w *ShopWindow) Draw(screen *render.Image, ctx Context, assets AssetRendere
 		}
 		DrawSurface(screen, dx, dy, dw, dh, fill, WindowBorderColor)
 		if len(w.cart) == 0 {
-			render.DebugPrintAtColor(screen, "Drop inventory items here", dx+46, dy+72, shopMutedColor)
+			label := "Drop inventory items here"
+			labelW, labelH := render.DebugTextSize(label)
+			render.DebugPrintAtColor(screen, label, dx+(dw-labelW)/2, dy+(dh-labelH)/2, shopMutedColor)
 		} else {
 			for i, item := range w.visibleCartItems() {
-				w.drawCartRow(screen, ctx, i, item)
+				w.drawCartRow(screen, ctx, assets, i, item)
 			}
 		}
 	}
@@ -654,11 +656,14 @@ func (w *ShopWindow) visibleCartItems() []shopSellCartItem {
 	return w.cart[:visible]
 }
 
-func (w *ShopWindow) drawCartRow(screen *render.Image, ctx Context, row int, item shopSellCartItem) {
+func (w *ShopWindow) drawCartRow(screen *render.Image, ctx Context, assets AssetRenderer, row int, item shopSellCartItem) {
 	x, y, width, height := w.cartRowBounds(row)
 	DrawSurface(screen, x, y, width, height, PanelAltColor, WindowBorderColor)
+	if assets != nil {
+		assets.DrawInventoryItemIcon(screen, ctx.Resources, item.item, x+3, y+1)
+	}
 	name := inventoryItemDisplayName(ctx.Resources, item.item)
-	render.DebugPrintAtColor(screen, trimRunes(name, 22), x+7, y+5, shopTextColor)
+	render.DebugPrintAtColor(screen, trimRunes(name, 18), x+inventoryIconSize+10, y+5, shopTextColor)
 	render.DebugPrintAtColor(screen, fmt.Sprintf("x%d", item.amount), x+170, y+5, shopMutedColor)
 	render.DebugPrintAtColor(screen, formatHUDNumber(int64(item.over)*int64(item.amount)), x+210, y+5, shopMutedColor)
 	w.drawTinyButtonAt(screen, shopRowButtonBounds(x, y+4, width, 2), "-", true)

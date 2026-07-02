@@ -610,9 +610,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("parse shop sell list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.shopWindow.OpenSell(sellList, ctx)
-			m.inventoryWindow.OpenWindow(ctx)
-			m.inventoryWindow.EnsurePosition(ctx)
-			m.inventoryWindow.ClampScroll(ctx.Session)
+			m.inventoryWindow.OpenForShop(ctx, &m.shopWindow)
 			continue
 		}
 		if buyList, ok, err := network.ParseShopBuyList(pkt); err != nil {

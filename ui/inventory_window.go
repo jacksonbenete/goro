@@ -14,11 +14,12 @@ import (
 
 const (
 	inventoryWindowWidth  = 312
-	inventoryWindowHeight = 356
+	inventoryWindowHeight = 302
 	inventoryWindowTitleH = 28
 	inventoryWindowPad    = 10
 	inventoryRowH         = 32
 	inventoryIconSize     = 24
+	inventoryWindowGap    = 8
 )
 
 var (
@@ -47,6 +48,19 @@ type InventoryWindow struct {
 func (w *InventoryWindow) OpenWindow(ctx Context) {
 	w.open = true
 	w.EnsurePosition(ctx)
+	w.ClampScroll(ctx.Session)
+}
+
+func (w *InventoryWindow) OpenForShop(ctx Context, shop *ShopWindow) {
+	w.open = true
+	if shop != nil {
+		width, height := ctx.ScreenSize()
+		w.x = clampInventoryWindowInt(shop.x+shopWindowWidth+inventoryWindowGap, inventoryWindowGap, maxInt(inventoryWindowGap, width-inventoryWindowWidth-inventoryWindowGap))
+		w.y = clampInventoryWindowInt(shop.y, inventoryWindowGap, maxInt(inventoryWindowGap, height-inventoryWindowHeight-inventoryWindowGap))
+		w.positioned = true
+	} else {
+		w.EnsurePosition(ctx)
+	}
 	w.ClampScroll(ctx.Session)
 }
 
@@ -176,11 +190,6 @@ func (w *InventoryWindow) Draw(screen *render.Image, ctx Context, assets AssetRe
 		}
 		w.drawScrollBar(screen, len(items))
 	}
-	if ctx.Session != nil {
-		inv := ctx.Session.Inventory
-		render.DebugPrintAtColor(screen, fmt.Sprintf("Weight %d / %d", displayWeight(inv.Weight), displayWeight(inv.MaxWeight)), x+inventoryWindowPad, y+inventoryWindowHeight-22, inventoryMutedColor)
-		render.DebugPrintAtColor(screen, formatHUDNumber(inv.Zeny)+" z", x+inventoryWindowWidth-112, y+inventoryWindowHeight-22, inventoryMutedColor)
-	}
 	if w.dragActive {
 		label := trimRunes(inventoryItemDisplayName(ctx.Resources, w.dragItem), 22)
 		dx, dy := ctx.Input.MouseX+12, ctx.Input.MouseY+10
@@ -273,7 +282,7 @@ func (w *InventoryWindow) drawScrollBar(screen *render.Image, total int) {
 }
 
 func visibleInventoryRows() int {
-	return (inventoryWindowHeight - inventoryWindowTitleH - 44) / inventoryRowH
+	return (inventoryWindowHeight - inventoryWindowTitleH - 18) / inventoryRowH
 }
 
 func visibleInventoryItems(items []session.InventoryItem, scroll int) []session.InventoryItem {
