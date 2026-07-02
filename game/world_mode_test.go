@@ -3144,6 +3144,69 @@ func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
 	}
 }
 
+func TestPendingSkillWheelAdjustsLevelAndConsumesWheel(t *testing.T) {
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{
+			skill:    session.Skill{ID: 19, Level: 10, Range: 9},
+			maxLevel: 10,
+		},
+	}
+	inputState := input.NewState()
+	inputState.AddWheel(0, -2)
+
+	if !mode.skills().AdjustPendingLevelFromWheel(client.Context{Input: inputState}) {
+		t.Fatal("pending skill level was not adjusted")
+	}
+	if mode.pendingSkill.skill.Level != 8 {
+		t.Fatalf("pending skill level = %d, want 8", mode.pendingSkill.skill.Level)
+	}
+	if inputState.WheelY != 0 {
+		t.Fatalf("wheel was not consumed: %f", inputState.WheelY)
+	}
+
+	inputState.AddWheel(0, 20)
+	if !mode.skills().AdjustPendingLevelFromWheel(client.Context{Input: inputState}) {
+		t.Fatal("pending skill level cap was not handled")
+	}
+	if mode.pendingSkill.skill.Level != 10 {
+		t.Fatalf("pending skill level = %d, want capped to 10", mode.pendingSkill.skill.Level)
+	}
+	if inputState.WheelY != 0 {
+		t.Fatalf("wheel was not consumed at cap: %f", inputState.WheelY)
+	}
+}
+
+func TestPendingSkillWheelDoesNotGoBelowLevelOne(t *testing.T) {
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{
+			skill:    session.Skill{ID: 19, Level: 2, Range: 9},
+			maxLevel: 10,
+		},
+	}
+	inputState := input.NewState()
+	inputState.AddWheel(0, -10)
+
+	if !mode.skills().AdjustPendingLevelFromWheel(client.Context{Input: inputState}) {
+		t.Fatal("pending skill level was not adjusted")
+	}
+	if mode.pendingSkill.skill.Level != 1 {
+		t.Fatalf("pending skill level = %d, want capped to 1", mode.pendingSkill.skill.Level)
+	}
+}
+
+func TestPendingSkillWheelIgnoredWithoutPendingSkill(t *testing.T) {
+	mode := &WorldMode{}
+	inputState := input.NewState()
+	inputState.AddWheel(0, -1)
+
+	if mode.skills().AdjustPendingLevelFromWheel(client.Context{Input: inputState}) {
+		t.Fatal("wheel was consumed without a pending skill")
+	}
+	if inputState.WheelY != -1 {
+		t.Fatalf("wheel = %f, want unchanged", inputState.WheelY)
+	}
+}
+
 func TestPendingTargetSkillCancelsWhenClickingGround(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}

@@ -2,10 +2,11 @@ package game
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/client"
 	"log"
+	"math"
 	"time"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -105,7 +106,7 @@ func (c skillController) Use(ctx client.Context, skill session.Skill, source str
 		return c.SendToID(ctx, skill, target, source)
 	}
 	if skill.Range > 0 || isGroundTargetSkill(skill) {
-		c.mode.pendingSkill = pendingSkillTarget{skill: skill, started: time.Now()}
+		c.mode.pendingSkill = pendingSkillTarget{skill: skill, maxLevel: maxInt(1, skill.Level), started: time.Now()}
 		c.mode.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 		log.Printf("%s skill target pending skill=%d level=%d range=%d", source, skill.ID, skill.Level, skill.Range)
 		return nil
@@ -189,6 +190,37 @@ func (c skillController) Cancel(source string) {
 	c.mode.status = "skill canceled"
 }
 
+func (c skillController) AdjustPendingLevelFromWheel(ctx client.Context) bool {
+	if ctx.Input == nil || ctx.Input.WheelY == 0 || c.mode.pendingSkill.skill.ID == 0 {
+		return false
+	}
+	pending := c.mode.pendingSkill
+	maxLevel := pending.maxLevel
+	if maxLevel <= 0 {
+		maxLevel = maxInt(1, pending.skill.Level)
+	}
+	step := int(math.Ceil(math.Abs(ctx.Input.WheelY)))
+	if step < 1 {
+		step = 1
+	}
+	level := pending.skill.Level
+	if ctx.Input.WheelY > 0 {
+		level += step
+	} else {
+		level -= step
+	}
+	level = clampInt(level, 1, maxLevel)
+	ctx.Input.WheelY = 0
+	if level == pending.skill.Level {
+		return true
+	}
+	pending.skill.Level = level
+	c.mode.pendingSkill = pending
+	c.mode.status = fmt.Sprintf("select target: %s Lv%d", skillDisplayName(ctx.Resources, pending.skill), level)
+	log.Printf("skill target level changed skill=%d level=%d max=%d", pending.skill.ID, level, maxLevel)
+	return true
+}
+
 func (c skillController) HandleClick(ctx client.Context, projection sceneProjection, now time.Time) {
 	skill := c.mode.pendingSkill.skill
 	if skill.ID == 0 {
@@ -248,6 +280,7 @@ func (c skillController) chaseTargetIfNeeded(ctx client.Context, skill session.S
 	}
 	c.mode.pendingSkill = pendingSkillTarget{
 		skill:    skill,
+		maxLevel: c.mode.pendingSkill.maxLevel,
 		targetID: actor.ID,
 		expires:  time.Now().Add(8 * time.Second),
 		source:   source,

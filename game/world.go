@@ -126,6 +126,7 @@ type pickupIntent struct {
 
 type pendingSkillTarget struct {
 	skill    session.Skill
+	maxLevel int
 	targetID uint32
 	expires  time.Time
 	readyAt  time.Time
@@ -831,6 +832,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
+	m.skills().AdjustPendingLevelFromWheel(ctx)
 	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
