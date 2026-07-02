@@ -273,6 +273,24 @@ func TestBuildUseAndEquipItemPackets(t *testing.T) {
 	}
 }
 
+func TestBuildDropInventoryItemPacket(t *testing.T) {
+	packet := BuildDropInventoryItemPacket(9, 2)
+	if len(packet) != 6 || ID(packet) != PacketCZItemThrow {
+		t.Fatalf("unexpected drop packet header: % X", packet)
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 9 {
+		t.Fatalf("drop item index = %d, want 9", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[4:6]); got != 2 {
+		t.Fatalf("drop amount = %d, want 2", got)
+	}
+
+	zero := BuildDropInventoryItemPacket(9, 0)
+	if got := binary.LittleEndian.Uint16(zero[4:6]); got != 1 {
+		t.Fatalf("zero drop amount = %d, want 1", got)
+	}
+}
+
 func TestParseEquippedArrow(t *testing.T) {
 	data := make([]byte, 4)
 	binary.LittleEndian.PutUint16(data[0:2], 0x013C)

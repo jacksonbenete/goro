@@ -10,6 +10,7 @@ const PacketCZItemPickup uint16 = 0x009F
 
 const (
 	PacketCZACKSelectDealType  uint16 = 0x00C5
+	PacketCZItemThrow          uint16 = 0x00A2
 	PacketCZUseItem2           uint16 = 0x0439
 	PacketCZUseItemLegacy      uint16 = 0x00A7
 	PacketCZReqWearEquip       uint16 = 0x00A9
@@ -707,6 +708,17 @@ func BuildUseInventoryItemPacketForClientDate(index uint16, targetAID uint32, cl
 	return packet
 }
 
+func BuildDropInventoryItemPacket(index, amount uint16) []byte {
+	if amount == 0 {
+		amount = 1
+	}
+	packet := make([]byte, 6)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZItemThrow)
+	binary.LittleEndian.PutUint16(packet[2:4], index)
+	binary.LittleEndian.PutUint16(packet[4:6], amount)
+	return packet
+}
+
 func BuildWearEquipPacket(index, location uint16) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWearEquip)
@@ -821,6 +833,17 @@ func (c *Client) SendUseInventoryItem(index uint16, targetAID uint32) error {
 		log.Printf("sent CZ_USE_ITEM opcode=0x%04X index=%d target=%d client_date=%d", ID(packet), index, targetAID, c.clientDate)
 	} else {
 		log.Printf("send CZ_USE_ITEM failed opcode=0x%04X len=%d index=%d target=%d client_date=%d: %v", ID(packet), len(packet), index, targetAID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendDropInventoryItem(index, amount uint16) error {
+	packet := BuildDropInventoryItemPacket(index, amount)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_ITEM_THROW opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
+	} else {
+		log.Printf("send CZ_ITEM_THROW failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
 	}
 	return err
 }

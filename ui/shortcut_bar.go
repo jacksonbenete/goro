@@ -523,23 +523,3 @@ func drawShortcutSkillLevel(screen *render.Image, x, y int, level int) {
 	render.DebugPrintAtColor(screen, label, x+2, y+1, color.RGBA{A: 150})
 	render.DebugPrintAtColor(screen, label, x+3, y+1, TitleTextColor)
 }
-
-func useInventoryItem(ctx Context, item session.InventoryItem) error {
-	if ctx.Network == nil {
-		return fmt.Errorf("not connected")
-	}
-	if !inventoryItemIsUsable(item) {
-		return fmt.Errorf("item cannot be used")
-	}
-	target := uint32(0)
-	if ctx.Session != nil {
-		target = ctx.Session.AccountID
-		if target == 0 {
-			target = ctx.Session.CharID
-		}
-	}
-	if target == 0 {
-		return fmt.Errorf("missing player id")
-	}
-	return ctx.Network.SendUseInventoryItem(item.Index, target)
-}

@@ -229,3 +229,12 @@ func TestStorageAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
 		t.Fatalf("status = %q good=%v, want not connected error", window.status, window.statusGood)
 	}
 }
+
+func TestInventoryDropAmountIsOneUnit(t *testing.T) {
+	if got := inventoryDropAmount(session.InventoryItem{Amount: 9}); got != 1 {
+		t.Fatalf("stack drop amount = %d, want 1", got)
+	}
+	if got := inventoryDropAmount(session.InventoryItem{}); got != 1 {
+		t.Fatalf("zero drop amount = %d, want 1", got)
+	}
+}

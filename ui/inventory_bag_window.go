@@ -88,7 +88,16 @@ func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage
 			if shortcuts != nil && shortcuts.AcceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 				return true
 			}
-			return pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, inventoryBagWidth, inventoryBagHeight)
+			if !pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, inventoryBagWidth, inventoryBagHeight) {
+				if err := dropInventoryItem(ctx, item); err != nil {
+					w.setStatus(err.Error(), false)
+					return true
+				}
+				w.setStatus("Drop requested", true)
+				log.Printf("inventory drop requested index=%d item=%d amount=%d", item.Index, item.ItemID, inventoryDropAmount(item))
+				return true
+			}
+			return true
 		}
 	}
 	if w.dragging {
