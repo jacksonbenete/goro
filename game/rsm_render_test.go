@@ -1,6 +1,7 @@
 package game
 
 import (
+	"image/color"
 	"math"
 	"testing"
 
@@ -96,6 +97,40 @@ func TestRSMInstanceMatrixMirrorsVerticalBasisRotations(t *testing.T) {
 				t.Fatalf("point = (%.3f, %.3f, %.3f), want (%.3f, %.3f, %.3f)", got.x, got.y, got.z, tt.wantPoint.x, tt.wantPoint.y, tt.wantPoint.z)
 			}
 		})
+	}
+}
+
+func TestRSMFaceColorShadeNoneUsesDefaultModelNormal(t *testing.T) {
+	lighting := sceneLighting{
+		direction: modelPoint3{y: -1},
+		diffuse:   modelPoint3{x: 1, y: 1, z: 1},
+		env:       modelPoint3{x: 1, y: 1, z: 1},
+	}
+	triangleNormalWouldFaceAway := [3]modelPoint3{
+		{},
+		{x: 1},
+		{z: -1},
+	}
+
+	got := rsmFaceColor(&res.RSM{ShadeType: 0}, "model.bmp",
+		triangleNormalWouldFaceAway[0],
+		triangleNormalWouldFaceAway[1],
+		triangleNormalWouldFaceAway[2],
+		lighting,
+	)
+	want := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	if got != want {
+		t.Fatalf("shade-none face color = %#v, want %#v", got, want)
+	}
+
+	flat := rsmFaceColor(&res.RSM{ShadeType: 1}, "model.bmp",
+		triangleNormalWouldFaceAway[0],
+		triangleNormalWouldFaceAway[1],
+		triangleNormalWouldFaceAway[2],
+		lighting,
+	)
+	if flat == want {
+		t.Fatalf("flat-shaded face unexpectedly matched shade-none color %#v", flat)
 	}
 }
 

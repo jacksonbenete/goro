@@ -3802,12 +3802,12 @@ func TestWorldSceneClearColorMatchesReferenceDefaults(t *testing.T) {
 
 func TestSceneLightingFromRSWMatchesReferenceDirection(t *testing.T) {
 	lighting := sceneLightingFromRSW(&res.RSW{Light: res.RSWLight{
-		Longitude: 45,
+		Longitude: 0,
 		Latitude:  45,
 		Diffuse:   [3]float32{1, 1, 1},
 		Opacity:   1,
 	}})
-	want := modelPoint3{x: -0.5, y: -math.Sqrt2 / 2, z: -0.5}
+	want := modelPoint3{x: -math.Sqrt2 / 2, y: -math.Sqrt2 / 2, z: 0}
 	if math.Abs(lighting.direction.x-want.x) > 0.0001 ||
 		math.Abs(lighting.direction.y-want.y) > 0.0001 ||
 		math.Abs(lighting.direction.z-want.z) > 0.0001 {
@@ -3833,6 +3833,20 @@ func TestSceneLightingModelScaleIgnoresOpacityLikeRobrowser(t *testing.T) {
 	normal := modelPoint3{x: 0, y: 1, z: 0}
 	if got, want := half.modelScale(normal), opaque.modelScale(normal); got != want {
 		t.Fatalf("model scale changed with opacity: got %+v want %+v", got, want)
+	}
+}
+
+func TestSceneLightingModelScaleUsesReferenceMinimumLightWeight(t *testing.T) {
+	lighting := sceneLighting{
+		direction: modelPoint3{y: -1},
+		diffuse:   modelPoint3{x: 1, y: 1, z: 1},
+		ambient:   modelPoint3{},
+		env:       modelPoint3{x: 1, y: 1, z: 1},
+	}
+	got := lighting.modelScale(modelPoint3{y: 1})
+	want := modelPoint3{x: 0.5, y: 0.5, z: 0.5}
+	if got != want {
+		t.Fatalf("model scale = %+v, want %+v", got, want)
 	}
 }
 

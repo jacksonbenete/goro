@@ -287,7 +287,7 @@ func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4
 		b := worldVerts[face.VertexIndices[1]]
 		c := worldVerts[face.VertexIndices[2]]
 		textureName, uvs := rsmFaceTexture(rsm, node, face)
-		faceColor := rsmFaceColor(textureName, a, b, c, lighting)
+		faceColor := rsmFaceColor(rsm, textureName, a, b, c, lighting)
 		triangles = append(triangles, modelWorldTriangle{
 			verts:       [3]modelPoint3{a, b, c},
 			uvs:         uvs,
@@ -628,12 +628,15 @@ func rsmFaceTexture(rsm *res.RSM, node *res.RSMNode, face res.RSMFace) (string, 
 	return textureName, uvs
 }
 
-func rsmFaceColor(textureName string, a, b, c modelPoint3, lighting sceneLighting) color.RGBA {
+func rsmFaceColor(rsm *res.RSM, textureName string, a, b, c modelPoint3, lighting sceneLighting) color.RGBA {
 	base := textureColor(textureName)
 	if textureName != "" {
 		base = color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	}
 	normal := normalize3(cross3(sub3(b, a), sub3(c, a)))
+	if rsm != nil && rsm.ShadeType == 0 {
+		normal = modelPoint3{y: -1}
+	}
 	scale := lighting.modelScale(normal)
 	return color.RGBA{
 		R: clampColor(float64(base.R) * scale.x),

@@ -5787,9 +5787,9 @@ func sceneLightingFromRSW(rsw *res.RSW) sceneLighting {
 	longitude = degreesToRadians(longitude)
 	latitude = degreesToRadians(latitude)
 	dir := normalize3(modelPoint3{
-		x: -math.Sin(longitude) * math.Sin(latitude),
+		x: -math.Cos(longitude) * math.Sin(latitude),
 		y: -math.Cos(latitude),
-		z: -math.Cos(longitude) * math.Sin(latitude),
+		z: -math.Sin(longitude) * math.Sin(latitude),
 	})
 	if dir == (modelPoint3{}) {
 		dir = normalize3(modelPoint3{x: -0.5, y: -0.7, z: -0.5})
@@ -5821,7 +5821,7 @@ func (l sceneLighting) groundScale(normal modelPoint3) modelPoint3 {
 }
 
 func (l sceneLighting) modelScale(normal modelPoint3) modelPoint3 {
-	weight := math.Max(dot3(normalize3(normal), l.direction), 0)
+	weight := math.Max(dot3(normalize3(normal), l.direction), 0.5)
 	return modelPoint3{
 		x: clampUnit(l.ambient.x+l.diffuse.x*weight) * clampUnit(l.env.x),
 		y: clampUnit(l.ambient.y+l.diffuse.y*weight) * clampUnit(l.env.y),
