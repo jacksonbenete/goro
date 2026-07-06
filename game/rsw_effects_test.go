@@ -67,3 +67,28 @@ func TestSmokeEffectSpecMatchesReferenceMapEffect(t *testing.T) {
 		t.Fatalf("smoke alpha/rotation = %+v", component)
 	}
 }
+
+func TestReferenceRSWMapEffectIDsHaveSpecs(t *testing.T) {
+	for _, effectID := range []int{
+		effectSmoke,
+		effectFirefly,
+		effectTorch,
+		effectBubble,
+		effectDragonSmoke,
+		effectBanjjakii,
+		effectMapPillar,
+		effectTorchRed,
+		effectTorchGreen,
+		effectTorchPurple,
+		effectMapGhost,
+		effectGlow1,
+		effectGlow2,
+		effectGlow4,
+		effectBubbleDrop,
+		effectRainbow,
+	} {
+		if _, ok := worldEffectSpecForID(effectID); !ok {
+			t.Fatalf("missing RSW map effect spec %d", effectID)
+		}
+	}
+}

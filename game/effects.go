@@ -61,6 +61,10 @@ const (
 	effectBeginSpell5   = 57
 	effectBeginSpell6   = 58
 	effectBeginSpell7   = 59
+	effectRain          = 161
+	effectSnow          = 162
+	effectSakura        = 163
+	effectBanjjakii     = 165
 	effectSmoke         = 44
 	effectFirefly       = 45
 	effectTorch         = 47
@@ -116,6 +120,26 @@ const (
 	effectThrowItem3    = 308
 	effectSprinkleSand  = 310
 	effectPokJuk        = 297
+	effectCloud         = 229
+	effectCloud2        = 230
+	effectMapPillar     = 231
+	effectCloud3        = 233
+	effectMaple         = 333
+	effectDragonSmoke   = 373
+	effectRainbow       = 410
+	effectCloud4        = 515
+	effectCloud5        = 516
+	effectCloud6        = 592
+	effectBubbleDrop    = 665
+	effectTorchRed      = 690
+	effectTorchGreen    = 691
+	effectMapGhost      = 692
+	effectGlow1         = 693
+	effectGlow2         = 694
+	effectGlow4         = 695
+	effectTorchPurple   = 696
+	effectCloud7        = 697
+	effectCloud8        = 698
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute

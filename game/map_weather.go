@@ -13,6 +13,7 @@ type mapWeatherKind int
 
 const (
 	mapWeatherNone mapWeatherKind = iota
+	mapWeatherLoopingEffect
 	mapWeatherFireworks
 )
 
@@ -24,11 +25,25 @@ const (
 )
 
 func mapWeatherForMap(name string) mapWeatherKind {
-	switch normalizeMapNameForWeather(name) {
-	case "comodo.rsw":
+	if mapWeatherEffectIDForMap(name) != 0 {
+		return mapWeatherLoopingEffect
+	}
+	if normalizeMapNameForWeather(name) == "comodo.rsw" {
 		return mapWeatherFireworks
+	}
+	return mapWeatherNone
+}
+
+func mapWeatherEffectIDForMap(name string) int {
+	switch normalizeMapNameForWeather(name) {
+	case "xmas.rsw":
+		return effectSnow
+	case "einbroch.rsw":
+		return effectCloud3
+	case "payon.rsw":
+		return effectRain
 	default:
-		return mapWeatherNone
+		return 0
 	}
 }
 
@@ -53,6 +68,38 @@ func (m *WorldMode) drawMapWeatherEffects(screen *render.Image, ctx client.Conte
 	switch mapWeatherForMap(ctx.World.MapName) {
 	case mapWeatherFireworks:
 		m.drawFireworksWeather(screen, ctx, projection, now)
+	case mapWeatherLoopingEffect:
+		m.drawLoopingMapWeatherEffect(screen, ctx, projection, mapWeatherEffectIDForMap(ctx.World.MapName), now)
+	}
+}
+
+func (m *WorldMode) drawLoopingMapWeatherEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effectID int, now time.Time) {
+	spec, ok := worldEffectSpecForID(effectID)
+	if !ok {
+		return
+	}
+	starts := loopingMapWeatherEffectStart(effectID, spec.duration, now)
+	effect := worldEffect{
+		effectID: effectID,
+		actorID:  uint32(effectID),
+		starts:   starts,
+		expires:  now.Add(24 * time.Hour),
+		duration: spec.duration,
+		x:        int(math.Round(projection.playerX)),
+		y:        int(math.Round(projection.playerY)),
+	}
+	worldX := projection.playerX
+	worldY := projection.playerY
+	worldZ := terrainHeightAt(ctx.World, worldX-0.5, worldY-0.5) + 1
+	for componentIndex, component := range spec.components {
+		duration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		if duration <= 0 {
+			duration = spec.duration
+		}
+		componentStarts := loopingMapWeatherEffectStart(effectID+componentIndex*17, duration, now)
+		effect.starts = componentStarts
+		progress := worldEffectComponentProgress(componentStarts, duration, now)
+		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
 	}
 }
 

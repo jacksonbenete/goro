@@ -16,6 +16,45 @@ func TestMapWeatherForComodoMatchesReferenceWeatherTable(t *testing.T) {
 	}
 }
 
+func TestMapWeatherEffectIDForReferenceWeatherTable(t *testing.T) {
+	tests := map[string]int{
+		"xmas":        effectSnow,
+		"xmas.gat":    effectSnow,
+		"einbroch":    effectCloud3,
+		"payon":       effectRain,
+		"data\\payon": effectRain,
+	}
+	for name, want := range tests {
+		if got := mapWeatherEffectIDForMap(name); got != want {
+			t.Fatalf("mapWeatherEffectIDForMap(%q) = %d, want %d", name, got, want)
+		}
+	}
+	if got := mapWeatherEffectIDForMap("prontera"); got != 0 {
+		t.Fatalf("mapWeatherEffectIDForMap(prontera) = %d, want 0", got)
+	}
+}
+
+func TestMapWeatherReferenceEffectsHaveSpecs(t *testing.T) {
+	for _, effectID := range []int{
+		effectRain,
+		effectSnow,
+		effectSakura,
+		effectMaple,
+		effectCloud,
+		effectCloud2,
+		effectCloud3,
+		effectCloud4,
+		effectCloud5,
+		effectCloud6,
+		effectCloud7,
+		effectCloud8,
+	} {
+		if _, ok := worldEffectSpecForID(effectID); !ok {
+			t.Fatalf("missing weather effect spec %d", effectID)
+		}
+	}
+}
+
 func TestPokJukWeatherEffectSpecUsesAdditiveParticles(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectPokJuk)
 	if !ok {
