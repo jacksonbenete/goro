@@ -1012,14 +1012,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 73 {
-		t.Fatalf("implemented effects = %d, want 73", coverage.Implemented)
+	if coverage.Implemented != 75 {
+		t.Fatalf("implemented effects = %d, want 75", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 12.0 || coverage.ActivePercent > 12.1 {
-		t.Fatalf("active coverage = %.3f, want about 12.0", coverage.ActivePercent)
+	if coverage.ActivePercent < 12.3 || coverage.ActivePercent > 12.4 {
+		t.Fatalf("active coverage = %.3f, want about 12.4", coverage.ActivePercent)
 	}
 }
 

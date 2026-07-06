@@ -77,6 +77,7 @@ type WorldMode struct {
 	worldEffects     []worldEffect
 	scheduledSounds  []scheduledSound
 	mapSoundNext     map[int]time.Time
+	mapWeatherSounds map[int]time.Time
 	actorDeaths      map[uint32]time.Time
 	actorSoundFrames map[uint32]actorSoundFrame
 	actorLife        map[uint32]actorLife
@@ -297,6 +298,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.damageFloaters = nil
 	m.scheduledSounds = nil
 	m.mapSoundNext = make(map[int]time.Time)
+	m.mapWeatherSounds = make(map[int]time.Time)
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
@@ -2999,6 +3001,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 
 	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
 	m.drawRSWEffects(screen, ctx, projection, now)
+	m.drawMapWeatherEffects(screen, ctx, projection, now)
 	m.drawWorldEffects(screen, ctx, projection, now)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 

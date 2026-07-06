@@ -61,6 +61,7 @@ const (
 	effectBeginSpell5   = 57
 	effectBeginSpell6   = 58
 	effectBeginSpell7   = 59
+	effectSmoke         = 44
 	effectFirefly       = 45
 	effectTorch         = 47
 	effectBubble        = 109
@@ -114,6 +115,7 @@ const (
 	effectEnergyCoat    = 169
 	effectThrowItem3    = 308
 	effectSprinkleSand  = 310
+	effectPokJuk        = 297
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1663,7 +1665,11 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx client.Context,
 	if component.worldSizedSprite {
 		scale := size / 100
 		angle := -worldEffectSpriteAngle(component) * math.Pi / 180
-		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint)
+		options := spriteBillboardTriangleDrawOptions()
+		if component.blendAdditive {
+			options.Blend = render.BlendLighter
+		}
+		drawSpriteBillboardTintAlphaWorld3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint, options)
 		return
 	}
 	scale := effect3DSpriteScale(size)

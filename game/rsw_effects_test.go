@@ -41,3 +41,29 @@ func TestMapEffectComponentUsesWorldSizedSpriteWithoutChangingPlacement(t *testi
 		t.Fatalf("mapEffectComponent = %+v", got)
 	}
 }
+
+func TestSmokeEffectSpecMatchesReferenceMapEffect(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectSmoke)
+	if !ok {
+		t.Fatal("smoke effect spec missing")
+	}
+	if spec.duration != 10*time.Second || len(spec.components) != 1 {
+		t.Fatalf("smoke spec = %+v", spec)
+	}
+	component := spec.components[0]
+	if component.kind != effectComponent3D || component.spriteFile != "\xb1\xbc\xb6\xd2\xbf\xac\xb1\xe2" {
+		t.Fatalf("smoke component sprite = %+v", component)
+	}
+	if component.duplicate != 10 || component.duplicateDelay != time.Second || component.duration != 10*time.Second {
+		t.Fatalf("smoke timing = duplicate %d delay %s duration %s", component.duplicate, component.duplicateDelay, component.duration)
+	}
+	if component.posZ != 0 || component.posZEnd != 20 || component.posXEndRand != 3 || !component.posXSmooth {
+		t.Fatalf("smoke placement = %+v", component)
+	}
+	if component.sizeStart != effectTableSize(70) || component.sizeEnd != effectTableSize(300) || !component.sizeSmooth {
+		t.Fatalf("smoke size = %.3f %.3f smooth=%t", component.sizeStart, component.sizeEnd, component.sizeSmooth)
+	}
+	if component.alphaMax != 0.8 || !component.fadeOut || !component.blendAdditive || !component.rotate || !component.rotateWithCamera {
+		t.Fatalf("smoke alpha/rotation = %+v", component)
+	}
+}

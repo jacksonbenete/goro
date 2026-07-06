@@ -313,8 +313,15 @@ func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Image, projection 
 }
 
 func drawSpriteBillboardTintAlphaWorld3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA) {
+	drawSpriteBillboardTintAlphaWorld3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, pixelScale, angle, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
+}
+
+func drawSpriteBillboardTintAlphaWorld3DWithOptions(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
 	if screen == nil || billboard == nil || billboard.image == nil {
 		return
+	}
+	if options == nil {
+		options = spriteBillboardTriangleDrawOptions()
 	}
 	if pixelScale <= 0 || math.IsNaN(pixelScale) || math.IsInf(pixelScale, 0) {
 		pixelScale = effectPixelRatio
@@ -352,7 +359,6 @@ func drawSpriteBillboardTintAlphaWorld3D(screen *render.Image, projection sceneP
 	w := float64(bounds.Dx())
 	h := float64(bounds.Dy())
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	options := spriteBillboardTriangleDrawOptions()
 	screen.DrawWorldBillboard(render.WorldBillboardCommand{
 		Texture:     billboard.image,
 		Options:     *options,
