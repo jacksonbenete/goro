@@ -150,9 +150,9 @@ func TestRoBrowserGR2SpriteFallbackJob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.resource, func(t *testing.T) {
-			got, ok := roBrowserGR2SpriteFallbackJob(tt.resource)
+			got, ok := gr2SpriteFallbackJob(tt.resource)
 			if ok != tt.wantOK || got != tt.want {
-				t.Fatalf("roBrowserGR2SpriteFallbackJob(%q) = %d, %v; want %d, %v", tt.resource, got, ok, tt.want, tt.wantOK)
+				t.Fatalf("gr2SpriteFallbackJob(%q) = %d, %v; want %d, %v", tt.resource, got, ok, tt.want, tt.wantOK)
 			}
 		})
 	}

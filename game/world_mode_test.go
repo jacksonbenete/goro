@@ -259,7 +259,7 @@ func TestActorBillboardScreenScaleUsesProjectedReferenceHeight(t *testing.T) {
 
 	scale := actorBillboardScreenScale(projection, 10.5, 20.5, 5)
 	if math.Abs(scale-1.04) > 0.01 {
-		t.Fatalf("camera billboard scale = %.3f, want about 1.04 at roBrowser default zoom", scale)
+		t.Fatalf("camera billboard scale = %.3f, want about 1.04 at reference client default zoom", scale)
 	}
 }
 
@@ -1015,8 +1015,8 @@ func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	if coverage.Implemented != 73 {
 		t.Fatalf("implemented effects = %d, want 73", coverage.Implemented)
 	}
-	if coverage.RobrowserActive != 607 || coverage.RobrowserAll != 1147 {
-		t.Fatalf("roBrowser totals = active %d all %d", coverage.RobrowserActive, coverage.RobrowserAll)
+	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
+		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
 	if coverage.ActivePercent < 12.0 || coverage.ActivePercent > 12.1 {
 		t.Fatalf("active coverage = %.3f, want about 12.0", coverage.ActivePercent)
@@ -1055,7 +1055,7 @@ func TestTorchEffectSpecMatchesRoBrowserShape(t *testing.T) {
 	if component.duration != 600*time.Millisecond || component.spriteDelay != 100*time.Millisecond {
 		t.Fatalf("torch timing = duration %s delay %s", component.duration, component.spriteDelay)
 	}
-	if component.posX != 0.1 || component.posZ != 0.8 || component.sizeStart != roBrowserEffectSize(100) || component.angleStart != 270 || !component.rotateToTarget {
+	if component.posX != 0.1 || component.posZ != 0.8 || component.sizeStart != effectTableSize(100) || component.angleStart != 270 || !component.rotateToTarget {
 		t.Fatalf("torch placement = %+v", component)
 	}
 	if got := worldEffectSpriteAngle(component); got != 360 {
@@ -1075,7 +1075,7 @@ func TestFireflyEffectSpecUsesFaintSpriteParticles(t *testing.T) {
 	if component.kind != effectComponent3D || component.textureFile != "" || component.spriteFile == "" || !component.spriteRepeat {
 		t.Fatalf("firefly component = %+v", component)
 	}
-	if component.alphaMax > 0.25 || component.sizeEnd > roBrowserEffectSize(120) {
+	if component.alphaMax > 0.25 || component.sizeEnd > effectTableSize(120) {
 		t.Fatalf("firefly should stay faint and moderately sized: %+v", component)
 	}
 }
@@ -1203,7 +1203,7 @@ func TestFireBoltEffectSpecUsesFallingFrameList(t *testing.T) {
 	if component.posZ != 20 || component.posZEnd != 0.0001 || component.posXStartMiddle != 5 || component.posYStartMiddle != 2 || component.angleStart != 112.5 || !component.blendAdditive {
 		t.Fatalf("fire bolt trajectory = %+v", component)
 	}
-	if component.sizeStartX != 100*roBrowserEffectPixelRatio || component.sizeStartY != 50*roBrowserEffectPixelRatio {
+	if component.sizeStartX != 100*effectPixelRatio || component.sizeStartY != 50*effectPixelRatio {
 		t.Fatalf("fire bolt size = %.3f x %.3f", component.sizeStartX, component.sizeStartY)
 	}
 }
@@ -1217,7 +1217,7 @@ func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
 		t.Fatalf("duration = %s, want 350ms", spec.duration)
 	}
 	if len(spec.components) != 8 {
-		t.Fatalf("components = %d, want 8 roBrowser lens slashes", len(spec.components))
+		t.Fatalf("components = %d, want 8 reference client lens slashes", len(spec.components))
 	}
 	for i, component := range spec.components {
 		if component.kind != effectComponent2D {
@@ -1233,13 +1233,13 @@ func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
 		if component.durationRandMin != 200*time.Millisecond || component.durationRandMax != 350*time.Millisecond {
 			t.Fatalf("component %d duration rand = %s..%s", i, component.durationRandMin, component.durationRandMax)
 		}
-		if component.sizeStartXRandMin != 25*roBrowserEffectPixelRatio || component.sizeStartXRandMax != 40*roBrowserEffectPixelRatio {
+		if component.sizeStartXRandMin != 25*effectPixelRatio || component.sizeStartXRandMax != 40*effectPixelRatio {
 			t.Fatalf("component %d start x range = %.3f..%.3f", i, component.sizeStartXRandMin, component.sizeStartXRandMax)
 		}
-		if component.sizeStartY != 10*roBrowserEffectPixelRatio || component.sizeEndX != 1*roBrowserEffectPixelRatio {
+		if component.sizeStartY != 10*effectPixelRatio || component.sizeEndX != 1*effectPixelRatio {
 			t.Fatalf("component %d fixed axis sizes = %.3f %.3f", i, component.sizeStartY, component.sizeEndX)
 		}
-		if component.sizeEndYRandMin != 250*roBrowserEffectPixelRatio || component.sizeEndYRandMax != 300*roBrowserEffectPixelRatio {
+		if component.sizeEndYRandMin != 250*effectPixelRatio || component.sizeEndYRandMax != 300*effectPixelRatio {
 			t.Fatalf("component %d end y range = %.3f..%.3f", i, component.sizeEndYRandMin, component.sizeEndYRandMax)
 		}
 		if !component.circlePattern || component.circleInnerSize != 2.2 || component.circleOuterRandMin != 5 || component.circleOuterRandMax != 6 {
@@ -1270,7 +1270,7 @@ func TestColdBoltEffectSpecMatchesRobrowserProjectileAndRing(t *testing.T) {
 	if projectile.kind != effectComponent3D || projectile.textureFile != "effect/icearrow.tga" || projectile.duration != 500*time.Millisecond {
 		t.Fatalf("projectile = %+v", projectile)
 	}
-	if projectile.posZ != 20 || projectile.posZEnd != 0.0001 || projectile.posXStartMiddle != 5 || projectile.posYStartMiddle != 2 || projectile.sizeStart != 50*roBrowserEffectPixelRatio {
+	if projectile.posZ != 20 || projectile.posZEnd != 0.0001 || projectile.posXStartMiddle != 5 || projectile.posYStartMiddle != 2 || projectile.sizeStart != 50*effectPixelRatio {
 		t.Fatalf("cold bolt projectile trajectory = %+v", projectile)
 	}
 	ring := spec.components[1]
@@ -1294,7 +1294,7 @@ func TestSightEffectSpecOrbitsAroundActor(t *testing.T) {
 	if component.spriteFile != "sight" || component.duplicate != 10 || component.orbitRadiusX != 3 || component.orbitRadiusY != 3 || component.orbitRotations != 10 {
 		t.Fatalf("sight orbit component = %+v", component)
 	}
-	if component.sizeStart != 60*roBrowserEffectPixelRatio || component.sizeEnd != 80*roBrowserEffectPixelRatio {
+	if component.sizeStart != 60*effectPixelRatio || component.sizeEnd != 80*effectPixelRatio {
 		t.Fatalf("sight orbit size = %.3f -> %.3f", component.sizeStart, component.sizeEnd)
 	}
 	ctx := client.Context{}
@@ -1464,7 +1464,7 @@ func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 
 func TestActorActionNotifyDispatchesAllMappedCombatEffectArrays(t *testing.T) {
 	const skillID uint16 = 65001
-	roBrowserSkillEffects[skillID] = roBrowserSkillEffect{
+	skillEffectSpecs[skillID] = skillEffectSpec{
 		effectIDs:              []int{effectHeal, effectBlessing},
 		effectIDsOnCaster:      []int{effectEndure},
 		beforeHitEffectIDs:     []int{effectSoulStrike, effectFireBolt},
@@ -1472,7 +1472,7 @@ func TestActorActionNotifyDispatchesAllMappedCombatEffectArrays(t *testing.T) {
 		hitEffectIDs:           []int{effectFireHit, effectWindHit},
 		hitEffectIDsOnCaster:   []int{effectIncAgility},
 	}
-	defer delete(roBrowserSkillEffects, skillID)
+	defer delete(skillEffectSpecs, skillID)
 
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
@@ -1575,13 +1575,13 @@ func TestSkillCastFallbackMappings(t *testing.T) {
 }
 
 func TestSkillVisualMetadataMappings(t *testing.T) {
-	if skillAction(5) != roBrowserSkillActionAttack || skillAction(7) != roBrowserSkillActionAttack {
+	if skillAction(5) != skillActionAttack || skillAction(7) != skillActionAttack {
 		t.Fatalf("swordman weapon-action skills = bash:%d magnum:%d", skillAction(5), skillAction(7))
 	}
-	if skillAction(8) != roBrowserSkillActionReadyFight {
+	if skillAction(8) != skillActionReadyFight {
 		t.Fatalf("endure action = %d, want ready fight", skillAction(8))
 	}
-	if skillAction(28) != roBrowserSkillActionDefault {
+	if skillAction(28) != skillActionDefault {
 		t.Fatalf("heal action = %d, want default skill action", skillAction(28))
 	}
 	if !skillForcesGroundTarget(21) || !skillForcesGroundTarget(25) {
@@ -1777,10 +1777,10 @@ func TestThiefSkillTargetRules(t *testing.T) {
 	if !isSelfTargetSkill(session.Skill{ID: 51, Level: 1, Type: skillTargetEnemy, Range: 1}) {
 		t.Fatal("TF_HIDING should self-cast even when the skill list reports a range")
 	}
-	if skillAction(149) != roBrowserSkillActionAttack {
+	if skillAction(149) != skillActionAttack {
 		t.Fatal("TF_SPRINKLESAND should use attack action")
 	}
-	if skillAction(152) != roBrowserSkillActionAttack {
+	if skillAction(152) != skillActionAttack {
 		t.Fatal("TF_THROWSTONE should use attack action")
 	}
 }
@@ -1969,7 +1969,7 @@ func TestEndureEffectSpecMatchesRobrowser3DTexture(t *testing.T) {
 	if !component.fadeIn || !component.fadeOut || !component.sizeSmooth {
 		t.Fatalf("component fade/size flags = %+v", component)
 	}
-	if component.posZ != 2 || component.sizeStart != 200*roBrowserEffectPixelRatio || component.sizeEnd != 70*roBrowserEffectPixelRatio {
+	if component.posZ != 2 || component.sizeStart != 200*effectPixelRatio || component.sizeEnd != 70*effectPixelRatio {
 		t.Fatalf("component position/size = %+v", component)
 	}
 }
@@ -2031,7 +2031,7 @@ func TestWarpPortalEffectSpecUsesPortal2Cylinders(t *testing.T) {
 		t.Fatalf("first portal component = %+v", first)
 	}
 	if !first.repeat || first.repeatDelay != -300*time.Millisecond {
-		t.Fatalf("first portal repeat = %t delay=%s, want roBrowser repeat -300ms", first.repeat, first.repeatDelay)
+		t.Fatalf("first portal repeat = %t delay=%s, want reference client repeat -300ms", first.repeat, first.repeatDelay)
 	}
 	if spec.components[3].textureName != "alpha1" || spec.components[3].posZ != 2 || spec.components[3].height != 1 {
 		t.Fatalf("portal cap component = %+v", spec.components[3])
@@ -2076,7 +2076,7 @@ func TestHealEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T) {
 	if firstParticle.posXRand != 1.5 || firstParticle.posYRand != 1.5 || firstParticle.posZEndRand != 2 || firstParticle.posZEndMiddle != 6 {
 		t.Fatalf("first heal particle position = %+v", firstParticle)
 	}
-	if firstParticle.sizeStart != 9*roBrowserEffectPixelRatio || firstParticle.sizeEnd != 9*roBrowserEffectPixelRatio || firstParticle.sizeRand != 2*roBrowserEffectPixelRatio {
+	if firstParticle.sizeStart != 9*effectPixelRatio || firstParticle.sizeEnd != 9*effectPixelRatio || firstParticle.sizeRand != 2*effectPixelRatio {
 		t.Fatalf("first heal particle size = %+v", firstParticle)
 	}
 	secondParticle := spec.components[3]
@@ -2092,7 +2092,7 @@ func TestHealEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T) {
 	if secondParticle.posXRand != 1 || secondParticle.posYRand != 1 || secondParticle.posZEnd != 5 || secondParticle.posZStartRand != 1 {
 		t.Fatalf("second heal particle position = %+v", secondParticle)
 	}
-	if secondParticle.sizeStart != 9*roBrowserEffectPixelRatio || secondParticle.sizeEnd != 9*roBrowserEffectPixelRatio || secondParticle.sizeRand != 2*roBrowserEffectPixelRatio {
+	if secondParticle.sizeStart != 9*effectPixelRatio || secondParticle.sizeEnd != 9*effectPixelRatio || secondParticle.sizeRand != 2*effectPixelRatio {
 		t.Fatalf("second heal particle size = %+v", secondParticle)
 	}
 }
@@ -2148,7 +2148,7 @@ func TestHealOffensiveEffectSpecUsesRobrowserCylindersAndParticles(t *testing.T)
 	if secondParticle.posXRand != 1 || secondParticle.posYRand != 1 || secondParticle.posZEnd != 6 || secondParticle.posZStartRand != 1 {
 		t.Fatalf("second offensive heal particle position = %+v", secondParticle)
 	}
-	if secondParticle.sizeStart != 9*roBrowserEffectPixelRatio || secondParticle.sizeEnd != 9*roBrowserEffectPixelRatio || secondParticle.sizeRand != 2*roBrowserEffectPixelRatio {
+	if secondParticle.sizeStart != 9*effectPixelRatio || secondParticle.sizeEnd != 9*effectPixelRatio || secondParticle.sizeRand != 2*effectPixelRatio {
 		t.Fatalf("second offensive heal particle size = %+v", secondParticle)
 	}
 }
@@ -2191,10 +2191,10 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 		if component.posXRand != 1.5 || component.posYRand != 1 || component.posZStartRand != 1 || component.posZStartMiddle != 1 || component.posZEndRand != 1 || component.posZEndMiddle != 6 {
 			t.Fatalf("particle %d position = %+v", tc.index, component)
 		}
-		if component.sizeStartX != 2.5*roBrowserEffectPixelRatio || component.sizeEndX != 2.5*roBrowserEffectPixelRatio {
+		if component.sizeStartX != 2.5*effectPixelRatio || component.sizeEndX != 2.5*effectPixelRatio {
 			t.Fatalf("particle %d x size = %+v", tc.index, component)
 		}
-		if component.sizeStartY != 0 || component.sizeEndY != 0 || component.sizeRandY != 15*roBrowserEffectPixelRatio || component.sizeRandYMiddle != 45*roBrowserEffectPixelRatio {
+		if component.sizeStartY != 0 || component.sizeEndY != 0 || component.sizeRandY != 15*effectPixelRatio || component.sizeRandYMiddle != 45*effectPixelRatio {
 			t.Fatalf("particle %d size = %+v", tc.index, component)
 		}
 		if component.blendAdditive {
@@ -2211,11 +2211,11 @@ func TestIncreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	if overlay.posZ != 0.4 || overlay.posZEnd != 3 {
 		t.Fatalf("overlay position = %+v", overlay)
 	}
-	if overlay.sizeStart != 100*roBrowserEffectPixelRatio || overlay.sizeEnd != 100*roBrowserEffectPixelRatio || overlay.sizeStartY != 45*roBrowserEffectPixelRatio || overlay.sizeEndY != 45*roBrowserEffectPixelRatio || !overlay.sizeSmooth {
+	if overlay.sizeStart != 100*effectPixelRatio || overlay.sizeEnd != 100*effectPixelRatio || overlay.sizeStartY != 45*effectPixelRatio || overlay.sizeEndY != 45*effectPixelRatio || !overlay.sizeSmooth {
 		t.Fatalf("overlay size = %+v", overlay)
 	}
 	if !overlay.overlay {
-		t.Fatal("overlay should use roBrowser overlay rendering")
+		t.Fatal("overlay should use reference client overlay rendering")
 	}
 	if overlay.blendAdditive {
 		t.Fatal("overlay should use normal alpha blending")
@@ -2249,10 +2249,10 @@ func TestDecreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	if particle.posXRand != 1.5 || particle.posYRand != 1 || particle.posZStartRand != 1 || particle.posZStartMiddle != 6 || particle.posZEndRand != 1 || particle.posZEndMiddle != 1 {
 		t.Fatalf("particle position = %+v", particle)
 	}
-	if particle.sizeStartX != roBrowserEffectSize(2.5) || particle.sizeEndX != roBrowserEffectSize(2.5) {
+	if particle.sizeStartX != effectTableSize(2.5) || particle.sizeEndX != effectTableSize(2.5) {
 		t.Fatalf("particle x size = %+v", particle)
 	}
-	if particle.sizeStartY != 0 || particle.sizeEndY != 0 || particle.sizeRandY != roBrowserEffectSize(15) || particle.sizeRandYMiddle != roBrowserEffectSize(45) {
+	if particle.sizeStartY != 0 || particle.sizeEndY != 0 || particle.sizeRandY != effectTableSize(15) || particle.sizeRandYMiddle != effectTableSize(45) {
 		t.Fatalf("particle size = %+v", particle)
 	}
 	if particle.blendAdditive {
@@ -2268,11 +2268,11 @@ func TestDecreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	if overlay.posZ != 2.8 || overlay.posZEnd != 0.4 {
 		t.Fatalf("overlay position = %+v", overlay)
 	}
-	if overlay.sizeStart != roBrowserEffectSize(100) || overlay.sizeEnd != roBrowserEffectSize(100) || overlay.sizeStartY != roBrowserEffectSize(45) || overlay.sizeEndY != roBrowserEffectSize(45) || !overlay.sizeSmooth {
+	if overlay.sizeStart != effectTableSize(100) || overlay.sizeEnd != effectTableSize(100) || overlay.sizeStartY != effectTableSize(45) || overlay.sizeEndY != effectTableSize(45) || !overlay.sizeSmooth {
 		t.Fatalf("overlay size = %+v", overlay)
 	}
 	if overlay.overlay {
-		t.Fatal("overlay should use regular roBrowser 3D rendering")
+		t.Fatal("overlay should use regular reference client 3D rendering")
 	}
 	if overlay.blendAdditive {
 		t.Fatal("overlay should use normal alpha blending")
@@ -2346,7 +2346,7 @@ func TestBlessingEffectSpecUsesRobrowserSpritesAndParticles(t *testing.T) {
 		if component.posXRand != tc.posXRand || component.posYRand != tc.posYRand || component.posZStartRand != 2 || component.posZStartMiddle != 5.5 || component.posZEndRand != 0.5 || component.posZEndMiddle != 1 {
 			t.Fatalf("particle %d position = %+v", tc.index, component)
 		}
-		if component.sizeStart != 50*roBrowserEffectPixelRatio || component.sizeEnd != 50*roBrowserEffectPixelRatio {
+		if component.sizeStart != 50*effectPixelRatio || component.sizeEnd != 50*effectPixelRatio {
 			t.Fatalf("particle %d size = %+v", tc.index, component)
 		}
 	}
@@ -2361,7 +2361,7 @@ func TestBlessingEffectSpecUsesRobrowserSpritesAndParticles(t *testing.T) {
 	if aura.color != (color.RGBA{R: 25, G: 191, B: 255, A: 255}) || !aura.blendAdditive {
 		t.Fatalf("aura tint/blend = %+v", aura)
 	}
-	if aura.sizeStart != 140*roBrowserEffectPixelRatio || aura.sizeEnd != 140*roBrowserEffectPixelRatio {
+	if aura.sizeStart != 140*effectPixelRatio || aura.sizeEnd != 140*effectPixelRatio {
 		t.Fatalf("aura size = %+v", aura)
 	}
 }
@@ -2370,22 +2370,22 @@ func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
 	component := worldEffectComponent{
 		alphaMax:      0.2,
 		alphaMaxDelta: 0.2,
-		sizeStart:     100 * roBrowserEffectPixelRatio,
-		sizeEnd:       100 * roBrowserEffectPixelRatio,
+		sizeStart:     100 * effectPixelRatio,
+		sizeEnd:       100 * effectPixelRatio,
 		sizeDelta:     -10,
 	}
 	if got := effectBillboardAlphaForDuplicate(0.5, component, 2); math.Abs(got-0.6) > 0.001 {
 		t.Fatalf("duplicate alpha = %.3f, want 0.6", got)
 	}
 	sizeX, sizeY := effect3DSize(component, worldEffect{}, 0, 0.5, 2)
-	want := 80 * roBrowserEffectPixelRatio
+	want := 80 * effectPixelRatio
 	if math.Abs(sizeX-want) > 0.001 || math.Abs(sizeY-want) > 0.001 {
 		t.Fatalf("duplicate size = %.3f x %.3f, want %.3f", sizeX, sizeY, want)
 	}
 }
 
 func TestEffect3DSpriteScaleUsesRobrowserSpriteUnits(t *testing.T) {
-	size := roBrowserEffectSize(80)
+	size := effectTableSize(80)
 	if got := effect3DSpriteScale(size); math.Abs(got-size) > 0.001 {
 		t.Fatalf("sprite scale = %.3f, want %.3f", got, size)
 	}
@@ -2478,12 +2478,12 @@ func TestSTRAnimationBlendMatchesRobrowserD3DBlend(t *testing.T) {
 func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 	source, err := os.ReadFile("/home/kivutar/src/robr/src/DB/Effects/EffectTable.js")
 	if os.IsNotExist(err) {
-		t.Skip("roBrowser checkout not available")
+		t.Skip("reference client checkout not available")
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	parsed, err := parseRobrowserEffectTableSubset(string(source))
+	parsed, err := parseReferenceEffectTableSubset(string(source))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2525,15 +2525,15 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		}
 		want, ok := parsed[effectID]
 		if !ok {
-			t.Fatalf("roBrowser effect %d missing", effectID)
+			t.Fatalf("reference client effect %d missing", effectID)
 		}
-		if !reflect.DeepEqual(roBrowserRenderableWorldEffectSpec(got), want) {
+		if !reflect.DeepEqual(renderableWorldEffectSpec(got), want) {
 			t.Fatalf("effect %d\n got: %#v\nwant: %#v", effectID, got, want)
 		}
 	}
 }
 
-func roBrowserRenderableWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
+func renderableWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
 	spec.cameraShake = 0
 	spec.detachLocalActor = false
 	return spec
@@ -3737,7 +3737,7 @@ func TestCameraWheelZoomDeltaMatchesRobrowserStep(t *testing.T) {
 
 func TestCameraZoomRangeMatchesRobrowserOutdoorDefaults(t *testing.T) {
 	if got := sceneCameraZoom(); got != 125 {
-		t.Fatalf("default zoom = %.1f, want roBrowser default 125", got)
+		t.Fatalf("default zoom = %.1f, want reference client default 125", got)
 	}
 	if defaultCameraMinZoom != 65 || defaultCameraMaxZoom != 165 {
 		t.Fatalf("zoom range = %.1f..%.1f, want goro outdoor 65..165", defaultCameraMinZoom, defaultCameraMaxZoom)
@@ -3907,7 +3907,7 @@ func TestSurfaceVertexTintsUsePerVertexNormals(t *testing.T) {
 	}
 }
 
-func TestPosterizeGNDLightmapColorUsesRObrowserBuckets(t *testing.T) {
+func TestPosterizeGNDLightmapColorUsesReferenceClientBuckets(t *testing.T) {
 	got := posterizeGNDLightmapColor(color.RGBA{R: 15, G: 31, B: 255, A: 77})
 	want := color.RGBA{R: 0, G: 16, B: 240, A: 77}
 	if got != want {
@@ -3980,7 +3980,7 @@ func TestGNDDrawBoundsUseCameraFootprint(t *testing.T) {
 	}
 }
 
-func TestGNDShadowMapPointMatchesROBrowserCellCenterMapping(t *testing.T) {
+func TestGNDShadowMapPointMatchesReferenceClientCellCenterMapping(t *testing.T) {
 	x, y := gndShadowMapPoint(10, 20)
 	if x != 42 || y != 82 {
 		t.Fatalf("shadow map point for even cell = %d,%d, want 42,82", x, y)
@@ -4537,11 +4537,11 @@ func TestUseItemAckAddsItemUseEffect(t *testing.T) {
 
 func TestUseItemAckDispatchesAllMappedItemEffectArrays(t *testing.T) {
 	const itemID uint16 = 65000
-	roBrowserItemEffects[itemID] = roBrowserItemEffect{
+	itemEffectSpecs[itemID] = itemEffectSpec{
 		effectIDs:         []int{effectPotionRed, effectBlessing},
 		effectIDsOnCaster: []int{effectEndure},
 	}
-	defer delete(roBrowserItemEffects, itemID)
+	defer delete(itemEffectSpecs, itemID)
 
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
@@ -4720,8 +4720,8 @@ func TestWarpPortalSkillUnitLookChangeKeepsPortalAtSameCell(t *testing.T) {
 
 func TestSkillUnitEntryDispatchesAllMappedUnitEffectArrays(t *testing.T) {
 	const unitID uint16 = 65000
-	roBrowserSkillUnitEffects[unitID] = roBrowserSkillUnitEffect{effectIDs: []int{effectPneuma, effectSafetyWall}}
-	defer delete(roBrowserSkillUnitEffects, unitID)
+	skillUnitEffectSpecs[unitID] = skillUnitEffectSpec{effectIDs: []int{effectPneuma, effectSafetyWall}}
+	defer delete(skillUnitEffectSpecs, unitID)
 
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
@@ -4829,7 +4829,7 @@ func TestSkillNoDamageNotifyEndureUsesReadyFightAction(t *testing.T) {
 		t.Fatal("source animation missing")
 	}
 	if anim.actionFamily != spriteActionPCReadyFight || anim.hasFixedMotion {
-		t.Fatalf("source animation = %+v, want roBrowser READYFIGHT action", anim)
+		t.Fatalf("source animation = %+v, want reference client READYFIGHT action", anim)
 	}
 	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectEndure {
 		t.Fatalf("world effects = %+v, want Endure effect", mode.worldEffects)
@@ -4838,13 +4838,13 @@ func TestSkillNoDamageNotifyEndureUsesReadyFightAction(t *testing.T) {
 
 func TestSkillNoDamageNotifyDispatchesAllMappedEffectArrays(t *testing.T) {
 	const skillID uint16 = 65000
-	roBrowserSkillEffects[skillID] = roBrowserSkillEffect{
+	skillEffectSpecs[skillID] = skillEffectSpec{
 		effectIDs:            []int{effectHeal, effectBlessing},
 		effectIDsOnCaster:    []int{effectEndure},
 		successEffectIDs:     []int{effectProvoke},
 		successEffectIDsSelf: []int{effectIncAgility},
 	}
-	defer delete(roBrowserSkillEffects, skillID)
+	defer delete(skillEffectSpecs, skillID)
 
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
@@ -4904,7 +4904,7 @@ func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
 		t.Fatal("source cast animation missing")
 	}
 	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
-		t.Fatalf("source animation = %+v, want roBrowser DEFAULT skill action", anim)
+		t.Fatalf("source animation = %+v, want reference client DEFAULT skill action", anim)
 	}
 }
 
@@ -4942,7 +4942,7 @@ func TestActorActionNotifyHealUsesCastAndOffensiveHealEffect(t *testing.T) {
 		t.Fatal("source animation missing")
 	}
 	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
-		t.Fatalf("source animation = %+v, want roBrowser DEFAULT skill action", anim)
+		t.Fatalf("source animation = %+v, want reference client DEFAULT skill action", anim)
 	}
 	found := false
 	for _, effect := range mode.worldEffects {
@@ -4990,7 +4990,7 @@ func TestActorActionNotifyBashUsesRobrowserWeaponAttackOverride(t *testing.T) {
 		t.Fatal("source animation missing")
 	}
 	if anim.actionFamily != spriteActionPCAttack2 {
-		t.Fatalf("source animation = %+v, want roBrowser weapon attack override", anim)
+		t.Fatalf("source animation = %+v, want reference client weapon attack override", anim)
 	}
 }
 
@@ -5020,10 +5020,10 @@ func TestActorActionNotifyHealDoesNotOverwriteLocalCastWithHurt(t *testing.T) {
 		t.Fatal("source animation missing")
 	}
 	if anim.actionFamily != spriteActionPCSkill || anim.hasFixedMotion {
-		t.Fatalf("source animation = %+v, want roBrowser DEFAULT skill action", anim)
+		t.Fatalf("source animation = %+v, want reference client DEFAULT skill action", anim)
 	}
 	if len(mode.worldEffects) != 2 || mode.worldEffects[0].effectID != effectHeal || mode.worldEffects[1].effectID != effectHealOffensive {
-		t.Fatalf("world effects = %+v, want roBrowser heal effect followed by hit effect", mode.worldEffects)
+		t.Fatalf("world effects = %+v, want reference client heal effect followed by hit effect", mode.worldEffects)
 	}
 }
 

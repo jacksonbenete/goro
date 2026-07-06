@@ -2042,9 +2042,9 @@ func skillActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
 		return spriteActionNonPCAttack
 	}
 	switch skillAction(skillID) {
-	case roBrowserSkillActionAttack:
+	case skillActionAttack:
 		return attackActionFamilyForActor(actor)
-	case roBrowserSkillActionReadyFight:
+	case skillActionReadyFight:
 		return spriteActionPCReadyFight
 	default:
 		return spriteActionPCSkill
@@ -3968,7 +3968,7 @@ func skillTargetFlagsForActor(ctx client.Context, actor worldstate.Actor) (uint3
 }
 
 func skillTargetMapStateAllowsMismatch(ctx client.Context, actor worldstate.Actor) bool {
-	// roBrowser allows target-type mismatches on PvP/GvG maps. Goro does not yet
+	// reference client allows target-type mismatches on PvP/GvG maps. Goro does not yet
 	// parse map state packets, so keep the rule isolated until that state exists.
 	return false
 }

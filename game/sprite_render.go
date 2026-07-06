@@ -35,7 +35,7 @@ const (
 	humanoidBillboardHeight  = 160
 	humanoidBillboardAnchorX = 80
 	humanoidBillboardAnchorY = 120
-	// roBrowser lifts entity sprites by 0.2 map units before depth testing.
+	// reference client lifts entity sprites by 0.2 map units before depth testing.
 	// Keeping actor billboards exactly coplanar with terrain lets sloped GND
 	// triangles clip the bottom pixels of tight NPC/mob sprite frames.
 	actorSpriteTerrainLift = 0.2
@@ -317,7 +317,7 @@ func drawSpriteBillboardTintAlphaWorld3D(screen *render.Image, projection sceneP
 		return
 	}
 	if pixelScale <= 0 || math.IsNaN(pixelScale) || math.IsInf(pixelScale, 0) {
-		pixelScale = roBrowserEffectPixelRatio
+		pixelScale = effectPixelRatio
 	}
 	if alpha < 0 || math.IsNaN(alpha) {
 		alpha = 0

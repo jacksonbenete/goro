@@ -45,7 +45,7 @@ type changeDirectionPacketLayout struct {
 var nameRequestPacketLayouts = []nameRequestPacketLayout{
 	// Keep this table aligned with rAthena's active packetdb branch. Our
 	// default 20080910 pre-renewal server uses PACKETVER_MAIN_NUM, not the
-	// 20080827 RagexeRE block from roBrowser's cumulative table.
+	// 20080827 RagexeRE block from reference client's cumulative table.
 	{date: 20101124, opcode: PacketCZReqNameRE, length: 6, offset: 2},
 	{date: 20070212, opcode: 0x008C, length: 11, offset: 7},
 }

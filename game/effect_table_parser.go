@@ -14,19 +14,19 @@ var effectObjectFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\
 var effectObjectArrayFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\[\s*(-?\d+)\s*,\s*(-?\d+)\s*\]`)
 var effectObjectIdentifierFieldPattern = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)`)
 
-const roBrowserEffectPixelRatio = 1.0 / 35.0
+const effectPixelRatio = 1.0 / 35.0
 
-func parseRobrowserEffectTableSubset(source string) (map[int]worldEffectSpec, error) {
+func parseReferenceEffectTableSubset(source string) (map[int]worldEffectSpec, error) {
 	source = stripJSComments(source)
 	out := make(map[int]worldEffectSpec)
-	entries, err := parseRobrowserEffectTableEntryArrays(source)
+	entries, err := parseReferenceEffectTableEntryArrays(source)
 	if err != nil {
 		return nil, err
 	}
 	for id, body := range entries {
 		spec := worldEffectSpec{}
 		for _, object := range parseJSObjectLiterals(body) {
-			component, sfx, ok := parseRobrowserEffectComponent(object)
+			component, sfx, ok := parseReferenceEffectComponent(object)
 			if sfx != "" {
 				spec.sfx = append(spec.sfx, sfx)
 			}
@@ -46,9 +46,9 @@ func parseRobrowserEffectTableSubset(source string) (map[int]worldEffectSpec, er
 	return out, nil
 }
 
-func parseRobrowserEffectTableEntryIDs(source string) (map[int]struct{}, error) {
+func parseReferenceEffectTableEntryIDs(source string) (map[int]struct{}, error) {
 	source = stripJSComments(source)
-	entries, err := parseRobrowserEffectTableEntryArrays(source)
+	entries, err := parseReferenceEffectTableEntryArrays(source)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func parseRobrowserEffectTableEntryIDs(source string) (map[int]struct{}, error) 
 	return out, nil
 }
 
-func parseRobrowserEffectTableEntryArrays(source string) (map[int]string, error) {
+func parseReferenceEffectTableEntryArrays(source string) (map[int]string, error) {
 	out := make(map[int]string)
 	for i := 0; i < len(source); i++ {
 		if !isEntryStart(source, i) {
@@ -163,10 +163,10 @@ func findMatchingJSDelimiter(source string, start int, open, close byte) (int, e
 	return -1, fmt.Errorf("unterminated %c", open)
 }
 
-func parseRobrowserEffectComponent(object string) (worldEffectComponent, string, bool) {
+func parseReferenceEffectComponent(object string) (worldEffectComponent, string, bool) {
 	fields := parseJSObjectFields(object)
 	componentType := strings.ToUpper(fieldString(fields, "type"))
-	sfx := robrowserSFXPath(fieldString(fields, "wav"))
+	sfx := effectTableSFXPath(fieldString(fields, "wav"))
 	switch componentType {
 	case "STR":
 		file := fieldString(fields, "file")
@@ -256,8 +256,8 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			fadeIn:      fieldBool(fields, "fadeIn"),
 			fadeOut:     fieldBool(fields, "fadeOut"),
 			posZ:        fieldFloat(fields, "posz"),
-			sizeStart:   sizeStart * roBrowserEffectPixelRatio,
-			sizeEnd:     sizeEnd * roBrowserEffectPixelRatio,
+			sizeStart:   sizeStart * effectPixelRatio,
+			sizeEnd:     sizeEnd * effectPixelRatio,
 			angleStart:  angleStart,
 			angleEnd:    angleEnd,
 		}, sfx, true
@@ -329,17 +329,17 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			posXSmooth:       fieldBool(fields, "posxSmooth"),
 			posYSmooth:       fieldBool(fields, "posySmooth"),
 			posZSmooth:       fieldBool(fields, "poszSmooth"),
-			sizeStart:        sizeStart * roBrowserEffectPixelRatio,
-			sizeEnd:          sizeEnd * roBrowserEffectPixelRatio,
-			sizeRand:         fieldFloat(fields, "sizeRand") * roBrowserEffectPixelRatio,
-			sizeStartX:       effectSizeAxisField(fields, "sizeX", "sizeStartX") * roBrowserEffectPixelRatio,
-			sizeStartY:       effectSizeAxisField(fields, "sizeY", "sizeStartY") * roBrowserEffectPixelRatio,
-			sizeEndX:         effectSizeAxisField(fields, "sizeX", "sizeEndX") * roBrowserEffectPixelRatio,
-			sizeEndY:         effectSizeAxisField(fields, "sizeY", "sizeEndY") * roBrowserEffectPixelRatio,
-			sizeRandX:        fieldFloat(fields, "sizeRandX") * roBrowserEffectPixelRatio,
-			sizeRandY:        fieldFloat(fields, "sizeRandY") * roBrowserEffectPixelRatio,
-			sizeRandXMiddle:  fieldFloat(fields, "sizeRandXMiddle") * roBrowserEffectPixelRatio,
-			sizeRandYMiddle:  fieldFloat(fields, "sizeRandYMiddle") * roBrowserEffectPixelRatio,
+			sizeStart:        sizeStart * effectPixelRatio,
+			sizeEnd:          sizeEnd * effectPixelRatio,
+			sizeRand:         fieldFloat(fields, "sizeRand") * effectPixelRatio,
+			sizeStartX:       effectSizeAxisField(fields, "sizeX", "sizeStartX") * effectPixelRatio,
+			sizeStartY:       effectSizeAxisField(fields, "sizeY", "sizeStartY") * effectPixelRatio,
+			sizeEndX:         effectSizeAxisField(fields, "sizeX", "sizeEndX") * effectPixelRatio,
+			sizeEndY:         effectSizeAxisField(fields, "sizeY", "sizeEndY") * effectPixelRatio,
+			sizeRandX:        fieldFloat(fields, "sizeRandX") * effectPixelRatio,
+			sizeRandY:        fieldFloat(fields, "sizeRandY") * effectPixelRatio,
+			sizeRandXMiddle:  fieldFloat(fields, "sizeRandXMiddle") * effectPixelRatio,
+			sizeRandYMiddle:  fieldFloat(fields, "sizeRandYMiddle") * effectPixelRatio,
 			sizeDelta:        fieldFloat(fields, "sizeDelta"),
 			sizeSmooth:       fieldBool(fields, "sizeSmooth"),
 			duplicate:        fieldInt(fields, "duplicate"),
@@ -376,7 +376,7 @@ func parseRobrowserEffectComponent(object string) (worldEffectComponent, string,
 			worldSizedSprite: true,
 		}, sfx, true
 	case "FUNC":
-		funcName, adapter := roBrowserFuncAdapter(object, fields)
+		funcName, adapter := effectTableFuncAdapter(object, fields)
 		return worldEffectComponent{
 			kind:           effectComponentFUNC,
 			funcAdapter:    adapter,
@@ -415,7 +415,7 @@ func parseJSObjectFields(object string) map[string]string {
 	return out
 }
 
-func roBrowserFuncAdapter(object string, fields map[string]string) (string, roBrowserEffectFuncAdapter) {
+func effectTableFuncAdapter(object string, fields map[string]string) (string, effectFuncAdapter) {
 	funcName := fieldIdentifier(fields, "func")
 	if strings.Contains(object, "MagicTarget") {
 		return "MagicTarget", effectFuncGroundSample
@@ -571,7 +571,7 @@ func fieldSignedDuration(fields map[string]string, key string) time.Duration {
 	return time.Duration(value * float64(time.Millisecond))
 }
 
-func robrowserSFXPath(wav string) string {
+func effectTableSFXPath(wav string) string {
 	wav = strings.TrimSpace(wav)
 	if wav == "" {
 		return ""

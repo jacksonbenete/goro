@@ -56,7 +56,7 @@ func TestPlayerMageEquippedRodOverlayRealWhenConfigured(t *testing.T) {
 	sex := byte(0)
 	weapon := manager.PlayerWeaponViewID(1607)
 	if weapon != 10 {
-		t.Fatalf("mage weapon view id for item 1607 = %d, want roBrowser class num 10", weapon)
+		t.Fatalf("mage weapon view id for item 1607 = %d, want reference client class num 10", weapon)
 	}
 
 	actSource, actData, ok := manager.ReadFirst(PlayerWeaponOverlayResourceCandidates(job, sex, weapon, false, "act"))

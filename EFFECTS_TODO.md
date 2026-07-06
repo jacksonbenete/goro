@@ -1,17 +1,17 @@
 # Effects TODO
 
-This tracks Goro's world/effect coverage against roBrowser's
+This tracks Goro's world/effect coverage against the reference client's
 `src/DB/Effects/EffectConst.js` and `src/DB/Effects/EffectTable.js`.
 
 ## Completion
 
-Metric used: active numeric entries in roBrowser `EffectTable.js`.
+Metric used: active numeric entries in the reference client `EffectTable.js`.
 
-- roBrowser active numeric effect table entries: 607
-- roBrowser numeric effect constants: 1147
-- Goro implemented active roBrowser effect IDs: 45
-- Completion against active roBrowser table: 7.4%
-- Completion against all roBrowser numeric constants: 3.8%
+- reference client active numeric effect table entries: 607
+- reference client numeric effect constants: 1147
+- Goro implemented active reference client effect IDs: 45
+- Completion against active reference client table: 7.4%
+- Completion against all reference client numeric constants: 3.8%
 
 This only counts world/effect IDs handled by `worldEffectSpecForID` and direct
 effect trigger mappings. It does not count unrelated UI rendering, damage number
@@ -53,7 +53,7 @@ rendering, cursor drawing, or actor sprite animation.
 - [x] `EF_REFINEOK` `154`: Refine Success STR effect.
 - [x] `EF_REFINEFAIL` `155`: Refine Fail STR effect.
 - [x] `EF_PROVOKE` `67`: Provoke STR effect.
-- [x] `EF_JOBLVUP` `158`: Job level-up STR effect, no explicit SFX in roBrowser.
+- [x] `EF_JOBLVUP` `158`: Job level-up STR effect, no explicit SFX in the reference client.
 - [x] `EF_POTION1` `204`: Red potion STR effect.
 - [x] `EF_POTION2` `205`: Orange potion STR effect.
 - [x] `EF_POTION3` `206`: Yellow potion STR effect.
@@ -71,21 +71,21 @@ rendering, cursor drawing, or actor sprite animation.
 
 ## High Priority Backlog
 
-- [ ] Generic effect-table interpreter for roBrowser component types:
+- [ ] Generic effect-table interpreter for reference client component types:
   `STR`, `CYLINDER`, `SPRITE`, `PARTICLE`, `FUNC`, `QUAKE`, repeated effects,
   randomized fields, delayed sound, delayed components, and attached/detached
   entity semantics.
-- [ ] Generic `wav` handling from roBrowser effect components. Only play sounds
+- [ ] Generic `wav` handling from the reference client effect components. Only play sounds
   when the component has `wav`, instead of inventing names from STR filenames.
 - [ ] Generic `ZC_NOTIFY_EFFECT` mapping beyond base/job level-up.
   rAthena defines refine success/failure, pharmacy success/failure, Super Novice
   level-up variants, Taekwon level-up variants, and game-over.
-- [ ] Generic skill effect routing from roBrowser `SkillEffect.js`:
+- [ ] Generic skill effect routing from the reference client `SkillEffect.js`:
   begin/caster effect, hit effect, ground effect, before-hit effect, and skill
   no-damage/success effects.
-- [ ] Generic skill-unit routing from roBrowser `SkillUnit.js`, not only
+- [ ] Generic skill-unit routing from the reference client `SkillUnit.js`, not only
   `UNT_WARPPORTAL`.
-- [ ] Generic item effect routing from roBrowser `ItemEffect.js`, not only
+- [ ] Generic item effect routing from the reference client `ItemEffect.js`, not only
   potion/food families and Butterfly Wing.
 
 ## Core Combat And Common Effects
@@ -130,11 +130,11 @@ rendering, cursor drawing, or actor sprite animation.
 - [ ] Third job and renewal effects: Rune Knight, Warlock, Ranger, Guillotine
   Cross, Mechanic, Genetic, Arch Bishop, Sura, Royal Guard, Sorcerer, Minstrel,
   Wanderer, Shadow Chaser.
-- [ ] Modern fourth/expanded class effect IDs present in newer roBrowser tables.
+- [ ] Modern fourth/expanded class effect IDs present in newer reference client tables.
 
 ## Ground, Map, Weather, And Environment
 
-- [ ] Ground skill zones from roBrowser `SkillUnit.js`: Safety Wall, Fire Wall,
+- [ ] Ground skill zones from the reference client `SkillUnit.js`: Safety Wall, Fire Wall,
   Pneuma, Sanctuary, Magnus, Volcano, Deluge, Violent Gale, Land Protector,
   Spider Web, Basilica, Suiton, Epiclesis, and others.
 - [ ] Map/weather effects: rain, snow, sakura, fog-like weather, thunder, torches,
@@ -149,14 +149,14 @@ rendering, cursor drawing, or actor sprite animation.
 - [ ] STR renderer parity: color blend modes, additive/subtractive behavior,
   alpha edge handling, texture frame selection, UV animation, rotation and scale
   interpolation, source offsets, and layer timing.
-- [ ] Cylinder parity: roBrowser blend modes, repeat texture axes, partial circle
+- [ ] Cylinder parity: reference client blend modes, repeat texture axes, partial circle
   sides, fixed perspective versus world-space orientation, late rotation deltas,
   duplicate/randomized component fields.
 - [ ] Sprite-effect parity: SPR/ACT-based effect components, not only actor
   sprites and STR textures.
-- [ ] Sound parity: roBrowser delayed `wav`, randomized `wav`, positional sound,
+- [ ] Sound parity: reference client delayed `wav`, randomized `wav`, positional sound,
   and no sound for STR-only entries such as `EF_JOBLVUP`.
-- [ ] Data-driven table generation from roBrowser-style definitions or a local
+- [ ] Data-driven table generation from reference-client-style definitions or a local
   normalized effect table, so adding effects does not require hardcoded Go
   switch cases for every ID.
 
@@ -170,24 +170,24 @@ expand through class and modern-content coverage.
 
 Goal: stop writing one Go switch case per effect.
 
-- [ ] Build a normalized local effect table generated from roBrowser
+- [ ] Build a normalized local effect table generated from reference client
   `EffectTable.js` for the subset Goro can render today.
-- [x] Add a parser for the roBrowser `EffectTable.js` subset Goro can render
+- [x] Add a parser for the reference client `EffectTable.js` subset Goro can render
   today: `STR`, `CYLINDER`, declared `wav`, timing, alpha, size, height, and
   rotation fields.
-- [ ] Support remaining core roBrowser component fields: `type`, `file`, `texturePath`,
+- [ ] Support remaining core reference client component fields: `type`, `file`, `texturePath`,
   `textureName`, `wav`, `delayWav`, `duration`, `delay`, `fade`, `fadeIn`,
   `fadeOut`, `alphaMax`, color channels, `blendMode`, `attachedEntity`,
   `renderBeforeEntities`, repeat flags, and randomized fields.
 - [x] Move current manually supported specs into a table-backed path.
 - [ ] Keep Go special handlers only for behavior that is not declarative in
-  roBrowser, such as camera quake or game-state-triggered fade.
-- [x] Add a test that tracks current implemented effect count and roBrowser
+  reference client, such as camera quake or game-state-triggered fade.
+- [x] Add a test that tracks current implemented effect count and reference client
   coverage constants.
-- [x] Add a parser-backed test that compares the current local roBrowser
+- [x] Add a parser-backed test that compares the current local reference client
   `EffectTable.js` active numeric entry count against Goro's coverage constant.
 - [ ] Add a generated-table test that compares implemented effect IDs against
-  normalized roBrowser table data instead of fixed constants.
+  normalized reference client table data instead of fixed constants.
 
 ### 2. Renderer Primitives Needed By Many Effects
 
@@ -203,7 +203,7 @@ Goal: make the generic table useful before adding many effects.
 - [x] Add basic file-backed 3D particle billboard components with alpha, fade,
   color tint, size interpolation/randomization, duplicate timing, delays, and
   randomized start/end offsets.
-- [x] Add basic SPR/ACT effect components for roBrowser `SPR` attachments.
+- [x] Add basic SPR/ACT effect components for reference client `SPR` attachments.
 - [x] Add basic sprite-backed 3D effect components, because many RO effects use
   `spriteName`/`absoluteSpriteName` inside `3D` entries rather than texture
   `file` entries.
@@ -211,8 +211,8 @@ Goal: make the generic table useful before adding many effects.
   `retreat`, and target/source interpolation.
 - [ ] Add remaining sprite-backed 3D projectile fields: `fromSrc`,
   `rotateToTarget`, `rotateWithCamera`, exact source/target z-offset behavior,
-  and roBrowser's Soul Strike pattern variance.
-- [ ] Implement roBrowser `wav` behavior exactly: play only declared `wav`
+  and the reference client's Soul Strike pattern variance.
+- [ ] Implement reference client `wav` behavior exactly: play only declared `wav`
   entries, support delay/randomization, and do not infer sound names from STRs.
 - [ ] Add persistent/attached lifecycle handling: effect follows actor while
   alive, detaches when needed, and is removed on vanish/death/state clear.
@@ -225,7 +225,7 @@ Goal: cover things every player sees regardless of class.
   miss, critical, damage message effects, and blocked/zero-damage feedback.
 - [ ] Complete level-up and class-change family: base, job, Super Novice,
   Taekwon, class-change, homunculus/job variants.
-- [ ] Complete item/consumable effects through roBrowser `ItemEffect.js`:
+- [ ] Complete item/consumable effects through reference client `ItemEffect.js`:
   potions, food, speed potions, fly/butterfly wings, status consumables.
 - [ ] Complete warp/map-transition effects: entry, exit, old/new teleport,
   ready portal, portal, map-entry effects.
@@ -257,7 +257,7 @@ Goal: make early gameplay feel correct before broad class sweeps.
 
 Goal: implement persistent world effects that affect navigation/combat.
 
-- [ ] Drive all ground units from roBrowser `SkillUnit.js`.
+- [ ] Drive all ground units from the reference client `SkillUnit.js`.
 - [ ] Prioritize Safety Wall, Fire Wall, Pneuma, Sanctuary, Magnus, Quagmire,
   traps, Bard/Dancer songs, Volcano/Deluge/Violent Gale, Land Protector,
   Spider Web, Basilica, Suiton, Epiclesis.
@@ -284,7 +284,7 @@ Goal: cover classic pre-renewal content broadly.
 - [ ] Knight/Crusader, Wizard/Sage, Priest/Monk, Assassin/Rogue,
   Hunter/Bard/Dancer, Blacksmith/Alchemist.
 - [ ] Add test maps/NPC shortcuts or atcommand helpers to exercise each family.
-- [ ] Compare each family against roBrowser first, open-midgard second.
+- [ ] Compare each family against reference client first, open-midgard second.
 
 ### 8. Environment And Map Effects
 
@@ -301,7 +301,7 @@ Goal: use the now-generic system to increase coverage quickly.
 
 - [ ] Ninja, Gunslinger, Taekwon, Star Gladiator, Soul Linker.
 - [ ] Third jobs and renewal skill families.
-- [ ] Fourth/modern classes present in newer roBrowser tables.
+- [ ] Fourth/modern classes present in newer reference client tables.
 - [ ] Modern event/UI effect entries such as enchant/refine interfaces where
   they matter to gameplay.
 
@@ -310,7 +310,7 @@ Goal: use the now-generic system to increase coverage quickly.
 Goal: keep effect work measurable.
 
 - [ ] Generate `effects_coverage.json` or similar during tests, listing
-  roBrowser ID, name, table presence, Goro support level, and notes.
+  reference client ID, name, table presence, Goro support level, and notes.
 - [ ] Add support levels: `none`, `sound-only`, `placeholder`, `partial`,
   `close`, `parity`.
 - [ ] Add a debug command or CLI flag to spawn an effect ID at the player for

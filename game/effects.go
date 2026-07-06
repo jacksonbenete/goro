@@ -118,10 +118,10 @@ const (
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
 
-type roBrowserEffectComponentKind int
+type effectComponentKind int
 
 const (
-	effectComponentSTR roBrowserEffectComponentKind = iota + 1
+	effectComponentSTR effectComponentKind = iota + 1
 	effectComponentCylinder
 	effectComponent2D
 	effectComponent3D
@@ -129,10 +129,10 @@ const (
 	effectComponentFUNC
 )
 
-type roBrowserEffectFuncAdapter int
+type effectFuncAdapter int
 
 const (
-	effectFuncUnknown roBrowserEffectFuncAdapter = iota
+	effectFuncUnknown effectFuncAdapter = iota
 	effectFuncGroundSample
 	effectFuncCastRing
 )
@@ -158,8 +158,8 @@ type worldEffectSpec struct {
 }
 
 type worldEffectComponent struct {
-	kind               roBrowserEffectComponentKind
-	funcAdapter        roBrowserEffectFuncAdapter
+	kind               effectComponentKind
+	funcAdapter        effectFuncAdapter
 	funcName           string
 	color              color.RGBA
 	duration           time.Duration
@@ -755,7 +755,7 @@ func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, prop
 }
 
 func skillCastGroundSampleSize(skillID uint16) float64 {
-	if size := roBrowserSkillEffects[skillID].groundCastMarkerSize; size > 0 {
+	if size := skillEffectSpecs[skillID].groundCastMarkerSize; size > 0 {
 		return size
 	}
 	return 1
@@ -774,17 +774,17 @@ func effectAnchor(ctx client.Context, actorID uint32) (int, int, bool) {
 	return 0, 0, false
 }
 
-type roBrowserItemEffect struct {
+type itemEffectSpec struct {
 	effectIDs         []int
 	effectIDsOnCaster []int
 }
 
-// This mirrors roBrowser's DB/Items/ItemEffect.js shape. Keep item effects as
+// This mirrors reference client's DB/Items/ItemEffect.js shape. Keep item effects as
 // data so future imports can preserve array-valued effectId/effectIdOnCaster.
-var roBrowserItemEffects = buildRoBrowserItemEffects()
+var itemEffectSpecs = buildItemEffects()
 
-func buildRoBrowserItemEffects() map[uint16]roBrowserItemEffect {
-	effects := map[uint16]roBrowserItemEffect{}
+func buildItemEffects() map[uint16]itemEffectSpec {
+	effects := map[uint16]itemEffectSpec{}
 	add := func(effectID int, itemIDs ...uint16) {
 		for _, itemID := range itemIDs {
 			itemEffect := effects[itemID]
@@ -846,21 +846,21 @@ func buildRoBrowserItemEffects() map[uint16]roBrowserItemEffect {
 	add(effectFirecracker6, 14550)
 	add(effectItemAccel, 662, 12262)
 
-	// roBrowser does not route Butterfly Wing through ItemEffect; keep Goro's
+	// reference client does not route Butterfly Wing through ItemEffect; keep Goro's
 	// local map-change anticipation here but use the same table shape.
 	add(effectTeleportation, 602)
 	return effects
 }
 
 func itemUseEffectIDs(itemID uint16) []int {
-	return roBrowserItemEffects[itemID].effectIDs
+	return itemEffectSpecs[itemID].effectIDs
 }
 
 func itemUseEffectOnCasterIDs(itemID uint16) []int {
-	return roBrowserItemEffects[itemID].effectIDsOnCaster
+	return itemEffectSpecs[itemID].effectIDsOnCaster
 }
 
-type roBrowserSkillEffect struct {
+type skillEffectSpec struct {
 	effectIDs              []int
 	effectIDsOnCaster      []int
 	beforeHitEffectIDs     []int
@@ -871,31 +871,31 @@ type roBrowserSkillEffect struct {
 	successEffectIDsSelf   []int
 	beginCastEffectIDs     []int
 	groundEffectIDs        []int
-	action                 roBrowserSkillAction
-	cast                   roBrowserSkillCast
+	action                 skillActionType
+	cast                   skillCastSpec
 	forceGroundTarget      bool
 	forceSelfTarget        bool
 	passive                bool
 	groundCastMarkerSize   float64
-	recoveryFloater        roBrowserSkillRecoveryFloater
+	recoveryFloater        skillRecoveryFloaterSpec
 }
 
-type roBrowserSkillAction int
+type skillActionType int
 
 const (
-	roBrowserSkillActionDefault roBrowserSkillAction = iota
-	roBrowserSkillActionAttack
-	roBrowserSkillActionReadyFight
+	skillActionDefault skillActionType = iota
+	skillActionAttack
+	skillActionReadyFight
 )
 
-type roBrowserSkillCast struct {
+type skillCastSpec struct {
 	property uint32
 	base     time.Duration
 	perLevel time.Duration
 	fixed    time.Duration
 }
 
-func (c roBrowserSkillCast) duration(level uint16) time.Duration {
+func (c skillCastSpec) duration(level uint16) time.Duration {
 	if c.fixed > 0 {
 		return c.fixed
 	}
@@ -905,118 +905,118 @@ func (c roBrowserSkillCast) duration(level uint16) time.Duration {
 	return c.base + c.perLevel*time.Duration(maxInt(1, int(level)))
 }
 
-type roBrowserSkillRecoveryFloater struct {
+type skillRecoveryFloaterSpec struct {
 	enabled bool
 	color   color.RGBA
 	kind    damageFloaterKind
 }
 
-// This table mirrors roBrowser's DB/Skills/SkillEffect.js shape. Keep field
+// This table mirrors reference client's DB/Skills/SkillEffect.js shape. Keep field
 // names aligned so importing more effects later is mostly data conversion.
 // Goro-only visual bridge fields, such as cast timing and recovery floaters,
 // live beside the imported effect arrays so dispatch remains table-driven.
-var roBrowserSkillEffects = map[uint16]roBrowserSkillEffect{
-	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: roBrowserSkillActionAttack},                                                                                                     // SM_BASH
-	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                                 // SM_PROVOKE
-	7:   {effectIDs: []int{effectQuakeMagnum}, effectIDsOnCaster: []int{effectMagnumBreak}, action: roBrowserSkillActionAttack},                                                                                                   // SM_MAGNUM
-	8:   {effectIDs: []int{effectEndure}, action: roBrowserSkillActionReadyFight},                                                                                                                                                 // SM_ENDURE
-	9:   {passive: true},                                                                                                                                                                                                          // MG_SRECOVERY
-	10:  {forceSelfTarget: true},                                                                                                                                                                                                  // MG_SIGHT; roBrowser starts EF_SIGHT from the actor effect-state bit, not SkillEffect.js.
-	11:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                     // MG_NAPALMBEAT
-	12:  {forceGroundTarget: true},                                                                                                                                                                                                // MG_SAFETYWALL; persistent unit effect arrives separately.
-	13:  {beforeHitEffectIDs: []int{effectSoulStrike}, hitEffectIDs: []int{effectBashHit}, cast: roBrowserSkillCast{property: 8, perLevel: 500 * time.Millisecond}},                                                               // MG_SOULSTRIKE
-	14:  {beforeHitEffectIDs: []int{effectColdBolt}, hitEffectIDs: []int{effectColdHit}, cast: roBrowserSkillCast{property: 1, perLevel: 700 * time.Millisecond}},                                                                 // MG_COLDBOLT
-	15:  {effectIDs: []int{effectFrostDiver}, hitEffectIDs: []int{effectFrostDiverHit}},                                                                                                                                           // MG_FROSTDIVER
-	16:  {effectIDs: []int{effectStoneCurse}},                                                                                                                                                                                     // MG_STONECURSE
-	17:  {beforeHitEffectIDs: []int{effectFireBall}, hitEffectIDs: []int{effectFireHit}, cast: roBrowserSkillCast{property: 3, fixed: time.Second}},                                                                               // MG_FIREBALL
-	18:  {hitEffectIDs: []int{effectFireHit}, groundEffectIDs: []int{effectFireWall}, forceGroundTarget: true},                                                                                                                    // MG_FIREWALL
-	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}, cast: roBrowserSkillCast{property: 3, perLevel: 700 * time.Millisecond}},                                                                 // MG_FIREBOLT
-	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, perLevel: 700 * time.Millisecond}},                                                                     // MG_LIGHTNINGBOLT
-	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}, cast: roBrowserSkillCast{property: 4, base: time.Second, perLevel: 200 * time.Millisecond}, forceGroundTarget: true, groundCastMarkerSize: 5}, // MG_THUNDERSTORM
-	22:  {passive: true},                                                                                                                                                                                                          // AL_DP
-	23:  {passive: true},                                                                                                                                                                                                          // AL_DEMONBANE
-	24:  {effectIDs: []int{effectRuwach}, hitEffectIDs: []int{effectBashHit}, forceSelfTarget: true},                                                                                                                              // AL_RUWACH; roBrowser also keeps EF_HIT2 as the reveal hit effect.
-	25:  {groundEffectIDs: []int{effectPneuma}, forceGroundTarget: true},                                                                                                                                                          // AL_PNEUMA
-	26:  {forceSelfTarget: true},                                                                                                                                                                                                  // AL_TELEPORT; the server sends ZC_WARPLIST, then the selected map changes.
-	27:  {forceGroundTarget: true, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                                                  // AL_WARP; the server sends ZC_WARPLIST, then the selected map creates the portal skill unit.
-	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}, recoveryFloater: roBrowserSkillRecoveryFloater{enabled: true, color: recoveryHPColor, kind: damageFloaterRecoveryHP}},                           // AL_HEAL
-	29:  {effectIDs: []int{effectIncAgility}, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                                       // AL_INCAGI
-	30:  {effectIDs: []int{effectDecAgility}, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                                       // AL_DECAGI
-	31:  {effectIDs: []int{effectAqua}, forceSelfTarget: true, cast: roBrowserSkillCast{fixed: time.Second}},                                                                                                                      // AL_HOLYWATER
-	32:  {effectIDs: []int{effectSignum}, forceSelfTarget: true, cast: roBrowserSkillCast{fixed: 500 * time.Millisecond}},                                                                                                         // AL_CRUCIS
-	33:  {effectIDs: []int{effectAngelus}, forceSelfTarget: true, cast: roBrowserSkillCast{fixed: 500 * time.Millisecond}},                                                                                                        // AL_ANGELUS
-	34:  {effectIDs: []int{effectBlessing}},                                                                                                                                                                                       // AL_BLESSING
-	35:  {effectIDs: []int{effectCure}},                                                                                                                                                                                           // AL_CURE
-	42:  {effectIDs: []int{effectMammonite}},                                                                                                                                                                                      // MC_MAMMONITE
-	45:  {effectIDs: []int{effectConcentration}},                                                                                                                                                                                  // AC_CONCENTRATION
-	46:  {beginCastEffectIDs: []int{effectBashBegin}, beforeHitEffectIDs: []int{effectArrowShot}, hitEffectIDs: []int{effectBashHit}},                                                                                             // AC_DOUBLE
-	47:  {effectIDs: []int{effectArrowShower}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                                // AC_SHOWER
-	48:  {passive: true},                                                                                                                                                                                                          // TF_DOUBLE
-	49:  {passive: true},                                                                                                                                                                                                          // TF_MISS
-	50:  {successEffectIDs: []int{effectSteal}},                                                                                                                                                                                   // TF_STEAL
-	51:  {forceSelfTarget: true},                                                                                                                                                                                                  // TF_HIDING
-	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                                                                                                                                                                // TF_POISON
-	53:  {effectIDs: []int{effectDetoxication}},                                                                                                                                                                                   // TF_DETOXIFY
-	149: {effectIDs: []int{effectSprinkleSand}, action: roBrowserSkillActionAttack},                                                                                                                                               // TF_SPRINKLESAND
-	150: {},                                                                                                                                                                                                                       // TF_BACKSLIDING
-	151: {},                                                                                                                                                                                                                       // TF_PICKSTONE; roBrowser only hides the cast aura.
-	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: roBrowserSkillActionAttack},                                                                                                                                        // TF_THROWSTONE
-	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                     // MG_ENERGYCOAT
+var skillEffectSpecs = map[uint16]skillEffectSpec{
+	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: skillActionAttack},                                                                                                         // SM_BASH
+	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                            // SM_PROVOKE
+	7:   {effectIDs: []int{effectQuakeMagnum}, effectIDsOnCaster: []int{effectMagnumBreak}, action: skillActionAttack},                                                                                                       // SM_MAGNUM
+	8:   {effectIDs: []int{effectEndure}, action: skillActionReadyFight},                                                                                                                                                     // SM_ENDURE
+	9:   {passive: true},                                                                                                                                                                                                     // MG_SRECOVERY
+	10:  {forceSelfTarget: true},                                                                                                                                                                                             // MG_SIGHT; reference client starts EF_SIGHT from the actor effect-state bit, not SkillEffect.js.
+	11:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                // MG_NAPALMBEAT
+	12:  {forceGroundTarget: true},                                                                                                                                                                                           // MG_SAFETYWALL; persistent unit effect arrives separately.
+	13:  {beforeHitEffectIDs: []int{effectSoulStrike}, hitEffectIDs: []int{effectBashHit}, cast: skillCastSpec{property: 8, perLevel: 500 * time.Millisecond}},                                                               // MG_SOULSTRIKE
+	14:  {beforeHitEffectIDs: []int{effectColdBolt}, hitEffectIDs: []int{effectColdHit}, cast: skillCastSpec{property: 1, perLevel: 700 * time.Millisecond}},                                                                 // MG_COLDBOLT
+	15:  {effectIDs: []int{effectFrostDiver}, hitEffectIDs: []int{effectFrostDiverHit}},                                                                                                                                      // MG_FROSTDIVER
+	16:  {effectIDs: []int{effectStoneCurse}},                                                                                                                                                                                // MG_STONECURSE
+	17:  {beforeHitEffectIDs: []int{effectFireBall}, hitEffectIDs: []int{effectFireHit}, cast: skillCastSpec{property: 3, fixed: time.Second}},                                                                               // MG_FIREBALL
+	18:  {hitEffectIDs: []int{effectFireHit}, groundEffectIDs: []int{effectFireWall}, forceGroundTarget: true},                                                                                                               // MG_FIREWALL
+	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}, cast: skillCastSpec{property: 3, perLevel: 700 * time.Millisecond}},                                                                 // MG_FIREBOLT
+	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}, cast: skillCastSpec{property: 4, perLevel: 700 * time.Millisecond}},                                                                     // MG_LIGHTNINGBOLT
+	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}, cast: skillCastSpec{property: 4, base: time.Second, perLevel: 200 * time.Millisecond}, forceGroundTarget: true, groundCastMarkerSize: 5}, // MG_THUNDERSTORM
+	22:  {passive: true},                                                                                                                                                                                                     // AL_DP
+	23:  {passive: true},                                                                                                                                                                                                     // AL_DEMONBANE
+	24:  {effectIDs: []int{effectRuwach}, hitEffectIDs: []int{effectBashHit}, forceSelfTarget: true},                                                                                                                         // AL_RUWACH; reference client also keeps EF_HIT2 as the reveal hit effect.
+	25:  {groundEffectIDs: []int{effectPneuma}, forceGroundTarget: true},                                                                                                                                                     // AL_PNEUMA
+	26:  {forceSelfTarget: true},                                                                                                                                                                                             // AL_TELEPORT; the server sends ZC_WARPLIST, then the selected map changes.
+	27:  {forceGroundTarget: true, cast: skillCastSpec{fixed: time.Second}},                                                                                                                                                  // AL_WARP; the server sends ZC_WARPLIST, then the selected map creates the portal skill unit.
+	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}, recoveryFloater: skillRecoveryFloaterSpec{enabled: true, color: recoveryHPColor, kind: damageFloaterRecoveryHP}},                           // AL_HEAL
+	29:  {effectIDs: []int{effectIncAgility}, cast: skillCastSpec{fixed: time.Second}},                                                                                                                                       // AL_INCAGI
+	30:  {effectIDs: []int{effectDecAgility}, cast: skillCastSpec{fixed: time.Second}},                                                                                                                                       // AL_DECAGI
+	31:  {effectIDs: []int{effectAqua}, forceSelfTarget: true, cast: skillCastSpec{fixed: time.Second}},                                                                                                                      // AL_HOLYWATER
+	32:  {effectIDs: []int{effectSignum}, forceSelfTarget: true, cast: skillCastSpec{fixed: 500 * time.Millisecond}},                                                                                                         // AL_CRUCIS
+	33:  {effectIDs: []int{effectAngelus}, forceSelfTarget: true, cast: skillCastSpec{fixed: 500 * time.Millisecond}},                                                                                                        // AL_ANGELUS
+	34:  {effectIDs: []int{effectBlessing}},                                                                                                                                                                                  // AL_BLESSING
+	35:  {effectIDs: []int{effectCure}},                                                                                                                                                                                      // AL_CURE
+	42:  {effectIDs: []int{effectMammonite}},                                                                                                                                                                                 // MC_MAMMONITE
+	45:  {effectIDs: []int{effectConcentration}},                                                                                                                                                                             // AC_CONCENTRATION
+	46:  {beginCastEffectIDs: []int{effectBashBegin}, beforeHitEffectIDs: []int{effectArrowShot}, hitEffectIDs: []int{effectBashHit}},                                                                                        // AC_DOUBLE
+	47:  {effectIDs: []int{effectArrowShower}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                           // AC_SHOWER
+	48:  {passive: true},                                                                                                                                                                                                     // TF_DOUBLE
+	49:  {passive: true},                                                                                                                                                                                                     // TF_MISS
+	50:  {successEffectIDs: []int{effectSteal}},                                                                                                                                                                              // TF_STEAL
+	51:  {forceSelfTarget: true},                                                                                                                                                                                             // TF_HIDING
+	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                                                                                                                                                           // TF_POISON
+	53:  {effectIDs: []int{effectDetoxication}},                                                                                                                                                                              // TF_DETOXIFY
+	149: {effectIDs: []int{effectSprinkleSand}, action: skillActionAttack},                                                                                                                                                   // TF_SPRINKLESAND
+	150: {},                                                                                                                                                                                                                  // TF_BACKSLIDING
+	151: {},                                                                                                                                                                                                                  // TF_PICKSTONE; reference client only hides the cast aura.
+	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: skillActionAttack},                                                                                                                                            // TF_THROWSTONE
+	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                // MG_ENERGYCOAT
 }
 
 func skillSuccessEffectIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].successEffectIDs
+	return skillEffectSpecs[skillID].successEffectIDs
 }
 
 func skillSuccessEffectSelfIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].successEffectIDsSelf
+	return skillEffectSpecs[skillID].successEffectIDsSelf
 }
 
 func skillEffectIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].effectIDs
+	return skillEffectSpecs[skillID].effectIDs
 }
 
 func skillEffectOnCasterIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].effectIDsOnCaster
+	return skillEffectSpecs[skillID].effectIDsOnCaster
 }
 
 func skillBeginEffectIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].beginCastEffectIDs
+	return skillEffectSpecs[skillID].beginCastEffectIDs
 }
 
 func skillBeforeHitEffectIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].beforeHitEffectIDs
+	return skillEffectSpecs[skillID].beforeHitEffectIDs
 }
 
 func skillBeforeHitEffectSelfIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].beforeHitEffectIDsSelf
+	return skillEffectSpecs[skillID].beforeHitEffectIDsSelf
 }
 
 func skillGroundEffectIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].groundEffectIDs
+	return skillEffectSpecs[skillID].groundEffectIDs
 }
 
 func skillForcesGroundTarget(skillID uint16) bool {
-	return roBrowserSkillEffects[skillID].forceGroundTarget
+	return skillEffectSpecs[skillID].forceGroundTarget
 }
 
 func skillForcesSelfTarget(skillID uint16) bool {
-	return roBrowserSkillEffects[skillID].forceSelfTarget
+	return skillEffectSpecs[skillID].forceSelfTarget
 }
 
 func skillForcesPassive(skillID uint16) bool {
-	return roBrowserSkillEffects[skillID].passive
+	return skillEffectSpecs[skillID].passive
 }
 
-type roBrowserSkillUnitEffect struct {
+type skillUnitEffectSpec struct {
 	effectIDs []int
 }
 
-// Mostly mirrors roBrowser's DB/Skills/SkillUnit.js: unit id -> effect id.
+// Mostly mirrors reference client's DB/Skills/SkillUnit.js: unit id -> effect id.
 // rAthena's 2008 path sends UNT_WARP_ACTIVE (129) after destination selection;
 // display the full portal there because a separate UNT_WARPPORTAL entry is not
 // guaranteed before the unit's LOOK_BASE morph.
-var roBrowserSkillUnitEffects = map[uint16]roBrowserSkillUnitEffect{
+var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	126: {effectIDs: []int{effectSafetyWall}}, // UNT_SAFETYWALL -> EF_GLASSWALL2
 	127: {effectIDs: []int{effectFireWall}},   // UNT_FIREWALL -> EF_FIREWALL
 	128: {effectIDs: []int{effectPortal}},     // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
@@ -1025,7 +1025,7 @@ var roBrowserSkillUnitEffects = map[uint16]roBrowserSkillUnitEffect{
 }
 
 func skillUnitEffectIDs(unitID uint16) []int {
-	return roBrowserSkillUnitEffects[unitID].effectIDs
+	return skillUnitEffectSpecs[unitID].effectIDs
 }
 
 func skillCastAuraEffectID(property uint32) int {
@@ -1048,24 +1048,24 @@ func skillCastAuraEffectID(property uint32) int {
 }
 
 func skillCastFallback(skillID uint16, level uint16) (uint32, time.Duration) {
-	cast := roBrowserSkillEffects[skillID].cast
+	cast := skillEffectSpecs[skillID].cast
 	return cast.property, cast.duration(level)
 }
 
 func skillHitEffectIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].hitEffectIDs
+	return skillEffectSpecs[skillID].hitEffectIDs
 }
 
 func skillHitEffectOnCasterIDs(skillID uint16) []int {
-	return roBrowserSkillEffects[skillID].hitEffectIDsOnCaster
+	return skillEffectSpecs[skillID].hitEffectIDsOnCaster
 }
 
-func skillRecoveryFloater(skillID uint16) roBrowserSkillRecoveryFloater {
-	return roBrowserSkillEffects[skillID].recoveryFloater
+func skillRecoveryFloater(skillID uint16) skillRecoveryFloaterSpec {
+	return skillEffectSpecs[skillID].recoveryFloater
 }
 
-func skillAction(skillID uint16) roBrowserSkillAction {
-	return roBrowserSkillEffects[skillID].action
+func skillAction(skillID uint16) skillActionType {
+	return skillEffectSpecs[skillID].action
 }
 
 func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
@@ -1198,9 +1198,9 @@ func healParticleComponent(alpha float64, duration, delay, duplicateDelay time.D
 		posZEnd:         posZEnd,
 		posZEndRand:     posZEndRand,
 		posZEndMiddle:   posZEndMiddle,
-		sizeStart:       9 * roBrowserEffectPixelRatio,
-		sizeEnd:         9 * roBrowserEffectPixelRatio,
-		sizeRand:        2 * roBrowserEffectPixelRatio,
+		sizeStart:       9 * effectPixelRatio,
+		sizeEnd:         9 * effectPixelRatio,
+		sizeRand:        2 * effectPixelRatio,
 		duplicate:       duplicate,
 		blendAdditive:   true,
 	}
@@ -1690,8 +1690,8 @@ func effect3DSpriteScale(size float64) float64 {
 	if size <= 0 || math.IsNaN(size) || math.IsInf(size, 0) {
 		return 1
 	}
-	// roBrowser's SpriteRenderer applies size as (size / 175) * xSize, with
-	// xSize defaulting to 5. roBrowserEffectSize already stores that scale.
+	// reference client's SpriteRenderer applies size as (size / 175) * xSize, with
+	// xSize defaulting to 5. effectTableSize already stores that scale.
 	return size
 }
 
@@ -1837,7 +1837,7 @@ func (m *WorldMode) drawSPREffect(screen *render.Image, ctx client.Context, proj
 		z += 2.0
 	}
 	if component.worldSizedSprite {
-		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, z, roBrowserEffectPixelRatio, 0, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, z, effectPixelRatio, 0, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 		return
 	}
 	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, z, 1, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
@@ -2111,7 +2111,7 @@ func effect3DSize(component worldEffectComponent, effect worldEffect, salt int, 
 		sizeY = effectAxisSize(progress, start, end, component.sizeSmooth)
 	}
 	if component.sizeDelta != 0 {
-		delta := component.sizeDelta * float64(duplicateIndex) * roBrowserEffectPixelRatio
+		delta := component.sizeDelta * float64(duplicateIndex) * effectPixelRatio
 		sizeX += delta
 		sizeY += delta
 	}
@@ -2562,7 +2562,7 @@ func drawSTRAnimation(screen *render.Image, projection sceneProjection, texture 
 }
 
 func strAnimationBlend(anim res.STRAnimation) render.Blend {
-	// roBrowser applies the Direct3D blend factors stored in each STR layer.
+	// reference client applies the Direct3D blend factors stored in each STR layer.
 	// D3DBLEND_SRCALPHA + D3DBLEND_DESTALPHA is used by bright fog-like
 	// effects such as Pneuma; on our opaque world target it matches src-alpha
 	// additive blending.

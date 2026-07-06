@@ -10,7 +10,7 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func TestSceneFogFromMapUsesRObrowserScale(t *testing.T) {
+func TestSceneFogFromMapUsesReferenceClientScale(t *testing.T) {
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {

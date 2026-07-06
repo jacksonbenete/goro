@@ -43,7 +43,7 @@ func TestCameraProjectionCentersPlayerCell(t *testing.T) {
 
 func TestSceneCameraDefaultZoomUsesGameplayScale(t *testing.T) {
 	if got := sceneCameraZoom() * 0.5; got != 62.5 {
-		t.Fatalf("default camera distance = %.1f, want roBrowser default 62.5", got)
+		t.Fatalf("default camera distance = %.1f, want reference client default 62.5", got)
 	}
 }
 

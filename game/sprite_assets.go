@@ -31,7 +31,7 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSp
 	if !ok {
 		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
 	}
-	if fallbackJob, ok := roBrowserGR2SpriteFallbackJob(resourceName); ok {
+	if fallbackJob, ok := gr2SpriteFallbackJob(resourceName); ok {
 		fallbackResourceName, fallbackOK := manager.JobResourceName(fallbackJob)
 		if !fallbackOK {
 			return nil, fmt.Sprintf("%s job=%d resource=%s gr2-fallback-job=%d resource-name=missing", label, job, resourceName, fallbackJob)
@@ -57,7 +57,7 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSp
 	return view, status
 }
 
-func roBrowserGR2SpriteFallbackJob(resourceName string) (int, bool) {
+func gr2SpriteFallbackJob(resourceName string) (int, bool) {
 	name := strings.ToLower(strings.ReplaceAll(resourceName, "/", "\\"))
 	if i := strings.LastIndex(name, "\\"); i >= 0 {
 		name = name[i+1:]

@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseRobrowserEffectTableSubsetParsesSTRWithoutImplicitSound(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	158: [
 		{
@@ -44,7 +44,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParsesCylinderAndWav(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	304: [
 		{
@@ -95,7 +95,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParsesSTRRand(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	49: [
 		{
@@ -127,7 +127,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParsesShadowTexture3D(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	33: [
 		{
@@ -166,7 +166,7 @@ export default {
 	if component.duration != 12200*time.Millisecond || component.duplicate != 8 || component.alphaMax != 0.5 {
 		t.Fatalf("effect 33 timing/alpha = %#v", component)
 	}
-	if component.sizeStart != roBrowserEffectSize(0.4) || component.sizeEnd != roBrowserEffectSize(0.4) || component.sizeDelta != 0.15 {
+	if component.sizeStart != effectTableSize(0.4) || component.sizeEnd != effectTableSize(0.4) || component.sizeDelta != 0.15 {
 		t.Fatalf("effect 33 size = %#v", component)
 	}
 	if component.orbitRadiusX != 3 || component.orbitRadiusY != 3 || component.orbitRotations != 8 || component.orbitPhase != 0.7 || component.orbitPhaseDelta != -0.1 || !component.orbitClockwise {
@@ -175,7 +175,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParsesSTRMinFile(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	41: [
 		{
@@ -209,7 +209,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParses2D(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	50: [
 		{
@@ -243,7 +243,7 @@ export default {
 	if component.kind != effectComponent2D || component.textureFile != "effect/firering.tga" {
 		t.Fatalf("effect 50 component = %#v", component)
 	}
-	if component.sizeStart != 10*roBrowserEffectPixelRatio || component.sizeEnd != 300*roBrowserEffectPixelRatio {
+	if component.sizeStart != 10*effectPixelRatio || component.sizeEnd != 300*effectPixelRatio {
 		t.Fatalf("effect 50 size = %.3f..%.3f", component.sizeStart, component.sizeEnd)
 	}
 	if component.angleStart != 0 || component.angleEnd != -360 || !component.fadeOut || component.posZ != 1 {
@@ -252,7 +252,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParses3D(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	18: [
 		{
@@ -323,7 +323,7 @@ export default {
 	if component.color.R != 255 || component.color.G != 255 || component.color.B != 216 || component.color.A != 255 {
 		t.Fatalf("effect 18 color = %#v", component.color)
 	}
-	if component.sizeStart != 200*roBrowserEffectPixelRatio || component.sizeEnd != 10*roBrowserEffectPixelRatio || component.sizeRand != 20*roBrowserEffectPixelRatio {
+	if component.sizeStart != 200*effectPixelRatio || component.sizeEnd != 10*effectPixelRatio || component.sizeRand != 20*effectPixelRatio {
 		t.Fatalf("effect 18 size = %#v", component)
 	}
 	if component.sizeDelta != -60 {
@@ -344,7 +344,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParsesSpriteBacked3D(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	15: [
 		{
@@ -389,13 +389,13 @@ export default {
 	if !component.toSrc || !component.rotateToTarget || component.arc != 4 || component.retreat != 3 {
 		t.Fatalf("effect 15 trajectory = %#v", component)
 	}
-	if component.posZ != 3 || component.sizeStart != 100*roBrowserEffectPixelRatio || component.sizeEnd != roBrowserEffectSize(500) {
+	if component.posZ != 3 || component.sizeStart != 100*effectPixelRatio || component.sizeEnd != effectTableSize(500) {
 		t.Fatalf("effect 15 transform = %#v", component)
 	}
 }
 
 func TestParseRobrowserEffectTableSubsetParsesSPR(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	42: [
 		{
@@ -441,7 +441,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableSubsetParsesFUNC(t *testing.T) {
-	specs, err := parseRobrowserEffectTableSubset(`
+	specs, err := parseReferenceEffectTableSubset(`
 export default {
 	513: [
 		{
@@ -482,7 +482,7 @@ export default {
 }
 
 func TestParseRobrowserEffectTableEntryIDsIgnoresCommentedEntries(t *testing.T) {
-	ids, err := parseRobrowserEffectTableEntryIDs(`
+	ids, err := parseReferenceEffectTableEntryIDs(`
 export default {
 	1: [],
 	//2: [],
@@ -510,19 +510,19 @@ export default {
 func TestParseRobrowserEffectTableRealFileWhenAvailable(t *testing.T) {
 	source, err := os.ReadFile("/home/kivutar/src/robr/src/DB/Effects/EffectTable.js")
 	if os.IsNotExist(err) {
-		t.Skip("roBrowser checkout not available")
+		t.Skip("reference client checkout not available")
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids, err := parseRobrowserEffectTableEntryIDs(string(source))
+	ids, err := parseReferenceEffectTableEntryIDs(string(source))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ids) != robrowserActiveEffectTableEntries {
-		t.Fatalf("active roBrowser effect entries = %d, want %d", len(ids), robrowserActiveEffectTableEntries)
+	if len(ids) != referenceActiveEffectTableEntries {
+		t.Fatalf("active reference client effect entries = %d, want %d", len(ids), referenceActiveEffectTableEntries)
 	}
-	specs, err := parseRobrowserEffectTableSubset(string(source))
+	specs, err := parseReferenceEffectTableSubset(string(source))
 	if err != nil {
 		t.Fatal(err)
 	}

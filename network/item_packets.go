@@ -31,7 +31,7 @@ type itemPickupPacketLayout struct {
 }
 
 var itemPickupPacketLayouts = []itemPickupPacketLayout{
-	// Keep this table aligned with rAthena's clif_packetdb.hpp and roBrowser's
+	// Keep this table aligned with rAthena's clif_packetdb.hpp and reference client's
 	// PacketVersions.js. For 20080910 the last active main-client remap is the
 	// 20070212 shuffled 0x00F5 packet.
 	{date: 20101124, opcode: 0x0362, length: 6, offset: 2},
@@ -61,7 +61,7 @@ type useItemPacketLayout struct {
 }
 
 var useItemPacketLayouts = []useItemPacketLayout{
-	// 2008-09-10 introduced the compact CZ_USE_ITEM2 packet. roBrowser maps
+	// 2008-09-10 introduced the compact CZ_USE_ITEM2 packet. reference client maps
 	// USE_ITEM to 0x0439 for this profile, and rAthena accepts it as the
 	// canonical 8-byte item-use packet for the server version we run.
 	{date: 20080910, opcode: PacketCZUseItem2, length: 8, indexOffset: 2, targetOffset: 4},

@@ -64,18 +64,18 @@ not become invisible project assumptions.
     handling to avoid being wrongly hidden by terrain/buildings.
   - Ugly part: RO sprites are not physically normal 3D quads; correct occlusion
     still needs policy knobs and reference-client comparison.
-  - Better fix: document and implement the exact roBrowser/OpenMidgard approach
+  - Better fix: document and implement the exact reference-client/OpenMidgard approach
     for sprite depth bias, top/head clipping, and object interaction.
 
 - **Lighting model**
-  - Current state: fog uses roBrowser's camera defaults, fog-table scaling,
+  - Current state: fog uses reference client's camera defaults, fog-table scaling,
     shader-side depth formula, and non-additive color mix. Additive GND lightmap
     layers are explicitly exempt from fog so fog is applied once to the composed
     world color.
   - Ugly part: parts of the RSW/GND lighting pipeline are still approximations,
     especially the split base/lightmap rendering and per-map visual parity.
   - Better fix: collapse GND base, lightmap alpha, posterized light color, and
-    fog into one shader path like roBrowser, then add screenshot-style regression
+    fog into one shader path like the reference client, then add screenshot-style regression
     fixtures for representative outdoor, indoor, and dungeon maps.
 
 ## Gameplay State
@@ -83,7 +83,7 @@ not become invisible project assumptions.
 - **Local death as held animation**
   - Current state: local player death uses the transient actor animation path,
     with the final death frame held until positive HP or map change.
-  - Ugly part: roBrowser models death as persistent entity action/state, not as
+  - Ugly part: reference client models death as persistent entity action/state, not as
     an expiring combat-style animation.
   - Better fix: split persistent actor state such as idle, walk, sit, and dead
     from transient overlays such as attack, hurt, and pickup, then clear dead
