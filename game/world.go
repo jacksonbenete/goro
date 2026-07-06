@@ -2978,7 +2978,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 		m.drawGNDWater(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, vertexFog)
 		m.drawTileCursor(screen, ctx, projection, now)
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 {
-			actorOverlays = m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog)
+			actorOverlays = m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog, now)
 		} else {
 			m.drawGroundItems(screen, ctx, projection, now)
 			actorOverlays = m.drawSceneActors(screen, ctx, projection)
@@ -4249,10 +4249,10 @@ type sceneDrawEntry struct {
 	itemIndex   int
 }
 
-func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx client.Context, projection sceneProjection, fog sceneFog) []sceneActorDrawEntry {
-	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog)
+func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx client.Context, projection sceneProjection, fog sceneFog, now time.Time) []sceneActorDrawEntry {
+	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog, now)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
-	items := m.collectSceneItemEntries(screen, ctx, projection, time.Now())
+	items := m.collectSceneItemEntries(screen, ctx, projection, now)
 	entries := make([]sceneDrawEntry, 0, len(actors)+len(items))
 	for i, item := range items {
 		entries = append(entries, sceneDrawEntry{depth: item.depth, actorIndex: -1, shadowIndex: -1, itemIndex: i})

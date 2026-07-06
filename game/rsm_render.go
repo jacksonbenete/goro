@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"math"
 	"sort"
+	"time"
 
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -44,13 +45,23 @@ type rsmBoundsCacheKey struct {
 
 type mat4 [16]float64
 
-func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog) {
+func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog, now time.Time) {
 	for _, placement := range m.visibleRSMPlacements(rsw, gnd, projection) {
-		meshes := m.rsmMeshesForPlacement(manager, models, rsw, gnd, placement)
+		rsm := m.rsmModelForPlacement(manager, models, placement.model)
+		if rsm == nil {
+			continue
+		}
+		frame, animated := rsmAnimationFrame(rsm, placement.model, now)
+		if animated {
+			m.drawAnimatedRSMPlacement(screen, manager, rsw, rsm, placement, frame)
+			continue
+		}
+		meshes := m.rsmMeshesForPlacement(manager, rsm, rsw, placement)
 		for _, mesh := range meshes {
 			screen.DrawWorldMesh(mesh.mesh)
 		}
 	}
+	_ = fog
 }
 
 type visibleRSMPlacement struct {
@@ -92,14 +103,7 @@ func (m *WorldMode) visibleRSMPlacements(rsw *res.RSW, gnd *res.GND, projection 
 	return visible
 }
 
-func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, models map[string]*res.RSM, rsw *res.RSW, gnd *res.GND, visible visibleRSMPlacement) []retainedWorldMesh {
-	if m.rsmMeshCache == nil {
-		m.rsmMeshCache = make(map[int][]retainedWorldMesh)
-	}
-	if meshes, ok := m.rsmMeshCache[visible.index]; ok {
-		return meshes
-	}
-	placement := visible.model
+func (m *WorldMode) rsmModelForPlacement(manager *res.Manager, models map[string]*res.RSM, placement res.RSWModel) *res.RSM {
 	if placement.Filename == "" {
 		return nil
 	}
@@ -111,36 +115,31 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, models map[strin
 		}
 		models[placement.Filename] = rsm
 	}
+	return rsm
+}
+
+func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rsw *res.RSW, visible visibleRSMPlacement) []retainedWorldMesh {
+	if m.rsmMeshCache == nil {
+		m.rsmMeshCache = make(map[int][]retainedWorldMesh)
+	}
 	if rsm == nil {
 		return nil
 	}
-	rootName := selectedRSMRootName(rsm, placement.NodeName)
-	nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
-	boundsKey := rsmBoundsCacheKey{rsm: rsm, root: rootName}
-	if m.rsmBoundsCache == nil {
-		m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
+	if meshes, ok := m.rsmMeshCache[visible.index]; ok {
+		return meshes
 	}
-	bounds, ok := m.rsmBoundsCache[boundsKey]
+	context, ok := m.rsmPlacementContext(rsm, rsw, visible)
 	if !ok {
-		bounds = calculateRSMBoundsForNodes(rsm, nodeIndices)
-		m.rsmBoundsCache[boundsKey] = bounds
-	}
-	instance := modelInstance{
-		placement: placement,
-		bounds:    bounds.model,
-		baseX:     visible.baseX,
-		baseY:     visible.baseY,
-		matrix:    buildRSMInstanceMatrix(rsm, placement, visible.baseX, visible.baseY, bounds.model),
+		return nil
 	}
 	if m.rsmNodeMatrices == nil {
 		m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
 	}
 	nodeMatrices, ok := m.rsmNodeMatrices[rsm]
 	if !ok {
-		nodeMatrices = buildRSMNodeMatrices(rsm)
+		nodeMatrices = buildRSMNodeMatrices(rsm, 0)
 		m.rsmNodeMatrices[rsm] = nodeMatrices
 	}
-	lighting := sceneLightingFromRSW(rsw)
 	builders := make(map[retainedMeshKey]*retainedMeshBuilder)
 	builderFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *retainedMeshBuilder {
 		if texture == nil || options == nil {
@@ -154,14 +153,14 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, models map[strin
 		}
 		return builder
 	}
-	for _, nodeIndex := range nodeIndices {
+	for _, nodeIndex := range context.nodeIndices {
 		node := &rsm.Nodes[nodeIndex]
-		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], instance, lighting) {
+		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], context.instance, context.lighting) {
 			texture := m.groundTexture(manager, worldTri.textureName)
 			if texture != nil {
 				bounds := texture.Bounds()
 				w, h := float32(bounds.Dx()), float32(bounds.Dy())
-				builder := builderFor(texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressRepeat))
+				builder := builderFor(texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressClampToEdge))
 				if builder != nil {
 					builder.addTriangle(
 						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
@@ -192,6 +191,127 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, models map[strin
 	}
 	m.rsmMeshCache[visible.index] = meshes
 	return meshes
+}
+
+type rsmPlacementContext struct {
+	nodeIndices []int
+	instance    modelInstance
+	lighting    sceneLighting
+}
+
+func (m *WorldMode) rsmPlacementContext(rsm *res.RSM, rsw *res.RSW, visible visibleRSMPlacement) (rsmPlacementContext, bool) {
+	placement := visible.model
+	rootName := selectedRSMRootName(rsm, placement.NodeName)
+	nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
+	if len(nodeIndices) == 0 {
+		return rsmPlacementContext{}, false
+	}
+	boundsKey := rsmBoundsCacheKey{rsm: rsm, root: rootName}
+	if m.rsmBoundsCache == nil {
+		m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
+	}
+	bounds, ok := m.rsmBoundsCache[boundsKey]
+	if !ok {
+		bounds = calculateRSMBoundsForNodes(rsm, nodeIndices)
+		m.rsmBoundsCache[boundsKey] = bounds
+	}
+	return rsmPlacementContext{
+		nodeIndices: nodeIndices,
+		instance: modelInstance{
+			placement: placement,
+			bounds:    bounds.model,
+			baseX:     visible.baseX,
+			baseY:     visible.baseY,
+			matrix:    buildRSMInstanceMatrix(rsm, placement, visible.baseX, visible.baseY, bounds.model),
+		},
+		lighting: sceneLightingFromRSW(rsw),
+	}, true
+}
+
+type animatedRSMDrawBatch struct {
+	screen  *render.Image
+	texture *render.Image
+	options render.DrawTrianglesOptions
+	verts   []render.Vertex3D
+	indices []uint16
+}
+
+func (b *animatedRSMDrawBatch) addTriangle(a, c, d render.Vertex3D) {
+	if b.texture == nil {
+		return
+	}
+	if len(b.verts)+3 > retainedWorldMeshMaxVertices {
+		b.flush()
+	}
+	base := uint16(len(b.verts))
+	b.verts = append(b.verts, a, c, d)
+	b.indices = append(b.indices, base, base+1, base+2)
+}
+
+func (b *animatedRSMDrawBatch) flush() {
+	if len(b.verts) == 0 || len(b.indices) == 0 || b.texture == nil {
+		b.verts = b.verts[:0]
+		b.indices = b.indices[:0]
+		return
+	}
+	b.screen.DrawTriangles3DOwned(b.verts, b.indices, b.texture, &b.options)
+	b.verts = nil
+	b.indices = nil
+}
+
+func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.Manager, rsw *res.RSW, rsm *res.RSM, visible visibleRSMPlacement, frame int) {
+	context, ok := m.rsmPlacementContext(rsm, rsw, visible)
+	if !ok {
+		return
+	}
+	nodeMatrices := buildRSMNodeMatrices(rsm, frame)
+	batches := make(map[retainedMeshKey]*animatedRSMDrawBatch)
+	batchFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *animatedRSMDrawBatch {
+		if texture == nil || options == nil {
+			return nil
+		}
+		key := retainedMeshKey{texture: texture, options: *options}
+		batch := batches[key]
+		if batch == nil {
+			batch = &animatedRSMDrawBatch{screen: screen, texture: texture, options: *options}
+			batches[key] = batch
+		}
+		return batch
+	}
+	for _, nodeIndex := range context.nodeIndices {
+		node := &rsm.Nodes[nodeIndex]
+		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], context.instance, context.lighting) {
+			texture := m.groundTexture(manager, worldTri.textureName)
+			if texture != nil {
+				bounds := texture.Bounds()
+				w, h := float32(bounds.Dx()), float32(bounds.Dy())
+				batch := batchFor(texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressClampToEdge))
+				if batch != nil {
+					batch.addTriangle(
+						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
+						texturedSurfaceVertex3D(worldTri.verts[1], worldTri.uvs[1], worldTri.color, w, h),
+						texturedSurfaceVertex3D(worldTri.verts[2], worldTri.uvs[2], worldTri.color, w, h),
+					)
+				}
+				continue
+			}
+			if m.whitePixel == nil {
+				m.whitePixel = render.NewImage(1, 1)
+				m.whitePixel.Fill(color.White)
+			}
+			batch := batchFor(m.whitePixel, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+			if batch != nil {
+				batch.addTriangle(
+					coloredSurfaceVertex3D(worldTri.verts[0], 0, 0, worldTri.color),
+					coloredSurfaceVertex3D(worldTri.verts[1], 1, 0, worldTri.color),
+					coloredSurfaceVertex3D(worldTri.verts[2], 1, 1, worldTri.color),
+				)
+			}
+		}
+	}
+	for _, batch := range batches {
+		batch.flush()
+	}
 }
 
 func selectedRSMRootName(rsm *res.RSM, rootName string) string {
@@ -319,7 +439,7 @@ func buildRSMInstanceMatrix(rsm *res.RSM, placement res.RSWModel, baseX, baseY f
 	return matrix
 }
 
-func buildRSMNodeMatrices(rsm *res.RSM) map[string]mat4 {
+func buildRSMNodeMatrices(rsm *res.RSM, frame int) map[string]mat4 {
 	nodes := make(map[string]*res.RSMNode, len(rsm.Nodes))
 	for i := range rsm.Nodes {
 		nodes[rsm.Nodes[i].Name] = &rsm.Nodes[i]
@@ -339,13 +459,13 @@ func buildRSMNodeMatrices(rsm *res.RSM) map[string]mat4 {
 		if parent := nodes[node.ParentName]; parent != nil && parent != node && node.ParentName != node.Name {
 			matrix = build(parent)
 		}
-		matrix = mat4Translate(matrix, vectorFromRSM(node.Position))
-		if len(node.RotationKeyframes) > 0 {
-			matrix = mat4RotateQuat(matrix, node.RotationKeyframes[0].Quaternion)
+		matrix = mat4Translate(matrix, sampleRSMPosition(node, frame))
+		if rotation, ok := sampleRSMRotation(node, frame); ok {
+			matrix = mat4RotateQuat(matrix, rotation)
 		} else {
 			matrix = mat4RotateAxis(matrix, vectorFromRSM(node.RotationAxis), float64(node.RotationAngle))
 		}
-		matrix = mat4Scale(matrix, vectorFromRSM(node.Scale))
+		matrix = mat4Scale(matrix, sampleRSMScale(node, frame))
 		out[node.Name] = matrix
 		visiting[node.Name] = false
 		return matrix
@@ -354,6 +474,191 @@ func buildRSMNodeMatrices(rsm *res.RSM) map[string]mat4 {
 		build(&rsm.Nodes[i])
 	}
 	return out
+}
+
+func rsmAnimationFrame(rsm *res.RSM, _ res.RSWModel, now time.Time) (int, bool) {
+	if !rsmHasNodeAnimation(rsm) {
+		return 0, false
+	}
+	// robr drives animated map models from the global millisecond tick. The RSW
+	// animation speed is not applied here; the keyframe times are already in ms.
+	frame := int(now.UnixMilli())
+	animLen := rsmAnimationLength(rsm)
+	if animLen > 0 {
+		frame %= animLen
+		if frame < 0 {
+			frame += animLen
+		}
+	}
+	return frame, true
+}
+
+func rsmAnimationLength(rsm *res.RSM) int {
+	if rsm == nil {
+		return 1
+	}
+	if rsm.AnimLength > 0 {
+		return int(rsm.AnimLength)
+	}
+	maxFrame := 0
+	for i := range rsm.Nodes {
+		node := &rsm.Nodes[i]
+		for _, key := range node.PositionKeyframes {
+			frame := int(key.Frame)
+			if frame > maxFrame {
+				maxFrame = frame
+			}
+		}
+		for _, key := range node.RotationKeyframes {
+			frame := int(key.Frame)
+			if frame > maxFrame {
+				maxFrame = frame
+			}
+		}
+		for _, key := range node.ScaleKeyframes {
+			frame := int(key.Frame)
+			if frame > maxFrame {
+				maxFrame = frame
+			}
+		}
+	}
+	return maxFrame + 1
+}
+
+func rsmHasNodeAnimation(rsm *res.RSM) bool {
+	if rsm == nil {
+		return false
+	}
+	for i := range rsm.Nodes {
+		node := &rsm.Nodes[i]
+		if len(node.PositionKeyframes) > 0 || len(node.RotationKeyframes) > 1 || len(node.ScaleKeyframes) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func sampleRSMPosition(node *res.RSMNode, frame int) modelPoint3 {
+	keys := node.PositionKeyframes
+	if len(keys) == 0 {
+		return vectorFromRSM(node.Position)
+	}
+	if len(keys) == 1 || frame <= int(keys[0].Frame) {
+		return vectorFromRSM(keys[0].Pos)
+	}
+	if frame >= int(keys[len(keys)-1].Frame) {
+		return vectorFromRSM(keys[len(keys)-1].Pos)
+	}
+	for index := 1; index < len(keys); index++ {
+		if frame > int(keys[index].Frame) {
+			continue
+		}
+		prev, next := keys[index-1], keys[index]
+		t := rsmKeyframeT(frame, prev.Frame, next.Frame)
+		return lerpPoint3(vectorFromRSM(prev.Pos), vectorFromRSM(next.Pos), t)
+	}
+	return vectorFromRSM(node.Position)
+}
+
+func sampleRSMScale(node *res.RSMNode, frame int) modelPoint3 {
+	keys := node.ScaleKeyframes
+	if len(keys) == 0 {
+		return vectorFromRSM(node.Scale)
+	}
+	if len(keys) == 1 || frame <= int(keys[0].Frame) {
+		return vectorFromRSM(keys[0].Scale)
+	}
+	if frame >= int(keys[len(keys)-1].Frame) {
+		return vectorFromRSM(keys[len(keys)-1].Scale)
+	}
+	for index := 1; index < len(keys); index++ {
+		if frame > int(keys[index].Frame) {
+			continue
+		}
+		prev, next := keys[index-1], keys[index]
+		t := rsmKeyframeT(frame, prev.Frame, next.Frame)
+		return lerpPoint3(vectorFromRSM(prev.Scale), vectorFromRSM(next.Scale), t)
+	}
+	return vectorFromRSM(node.Scale)
+}
+
+func sampleRSMRotation(node *res.RSMNode, frame int) ([4]float32, bool) {
+	keys := node.RotationKeyframes
+	if len(keys) == 0 {
+		return [4]float32{}, false
+	}
+	if len(keys) == 1 || frame <= int(keys[0].Frame) {
+		return keys[0].Quaternion, true
+	}
+	if frame >= int(keys[len(keys)-1].Frame) {
+		return keys[len(keys)-1].Quaternion, true
+	}
+	for index := 1; index < len(keys); index++ {
+		if frame > int(keys[index].Frame) {
+			continue
+		}
+		prev, next := keys[index-1], keys[index]
+		t := rsmKeyframeT(frame, prev.Frame, next.Frame)
+		return slerpRSMQuaternion(prev.Quaternion, next.Quaternion, t), true
+	}
+	return keys[0].Quaternion, true
+}
+
+func rsmKeyframeT(frame int, from int32, to int32) float64 {
+	delta := int(to - from)
+	if delta <= 0 {
+		return 0
+	}
+	return float64(frame-int(from)) / float64(delta)
+}
+
+func lerpPoint3(a, b modelPoint3, t float64) modelPoint3 {
+	return modelPoint3{
+		x: a.x + (b.x-a.x)*t,
+		y: a.y + (b.y-a.y)*t,
+		z: a.z + (b.z-a.z)*t,
+	}
+}
+
+func slerpRSMQuaternion(a, b [4]float32, t float64) [4]float32 {
+	from := [4]float64{float64(a[0]), float64(a[1]), float64(a[2]), float64(a[3])}
+	to := [4]float64{float64(b[0]), float64(b[1]), float64(b[2]), float64(b[3])}
+	dot := from[0]*to[0] + from[1]*to[1] + from[2]*to[2] + from[3]*to[3]
+	if dot < 0 {
+		dot = -dot
+		for i := range to {
+			to[i] = -to[i]
+		}
+	}
+	var out [4]float64
+	if dot > 0.9995 {
+		for i := range out {
+			out[i] = from[i] + (to[i]-from[i])*t
+		}
+	} else {
+		theta0 := math.Acos(math.Max(-1, math.Min(1, dot)))
+		sinTheta0 := math.Sin(theta0)
+		if math.Abs(sinTheta0) <= 1e-6 {
+			return a
+		}
+		theta := theta0 * t
+		sinTheta := math.Sin(theta)
+		s0 := math.Cos(theta) - dot*sinTheta/sinTheta0
+		s1 := sinTheta / sinTheta0
+		for i := range out {
+			out[i] = from[i]*s0 + to[i]*s1
+		}
+	}
+	length := math.Sqrt(out[0]*out[0] + out[1]*out[1] + out[2]*out[2] + out[3]*out[3])
+	if length == 0 {
+		return [4]float32{0, 0, 0, 1}
+	}
+	return [4]float32{
+		float32(out[0] / length),
+		float32(out[1] / length),
+		float32(out[2] / length),
+		float32(out[3] / length),
+	}
 }
 
 func calculateRSMBounds(rsm *res.RSM) rsmBounds {
@@ -370,7 +675,7 @@ func calculateRSMBoundsForNodes(rsm *res.RSM, nodeIndices []int) rsmBounds {
 		main:  modelBounds{},
 		nodes: make(map[string]modelBounds, len(rsm.Nodes)),
 	}
-	nodeMatrices := buildRSMNodeMatrices(rsm)
+	nodeMatrices := buildRSMNodeMatrices(rsm, 0)
 	for _, nodeIndex := range nodeIndices {
 		if nodeIndex < 0 || nodeIndex >= len(rsm.Nodes) {
 			continue
@@ -642,8 +947,18 @@ func rsmFaceColor(rsm *res.RSM, textureName string, a, b, c modelPoint3, lightin
 		R: clampColor(float64(base.R) * scale.x),
 		G: clampColor(float64(base.G) * scale.y),
 		B: clampColor(float64(base.B) * scale.z),
-		A: 255,
+		A: clampColor(float64(rsmAlpha(rsm)) * 255),
 	}
+}
+
+func rsmAlpha(rsm *res.RSM) float32 {
+	if rsm == nil || rsm.Alpha <= 0 {
+		return 1
+	}
+	if rsm.Alpha > 1 {
+		return 1
+	}
+	return rsm.Alpha
 }
 
 func sub3(a, b modelPoint3) modelPoint3 {

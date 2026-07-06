@@ -19,6 +19,7 @@ type Address int
 const (
 	AddressUnsafe Address = iota
 	AddressClampToZero
+	AddressClampToEdge
 	AddressRepeat
 )
 
