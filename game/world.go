@@ -76,6 +76,7 @@ type WorldMode struct {
 	damageFloaters   []damageFloater
 	worldEffects     []worldEffect
 	scheduledSounds  []scheduledSound
+	mapSoundNext     map[int]time.Time
 	actorDeaths      map[uint32]time.Time
 	actorSoundFrames map[uint32]actorSoundFrame
 	actorLife        map[uint32]actorLife
@@ -160,8 +161,9 @@ const (
 )
 
 type scheduledSound struct {
-	at    time.Time
-	paths []string
+	at     time.Time
+	paths  []string
+	volume float64
 }
 
 type actorSoundFrame struct {
@@ -294,6 +296,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.actorAnims = make(map[uint32]actorAnimation)
 	m.damageFloaters = nil
 	m.scheduledSounds = nil
+	m.mapSoundNext = make(map[int]time.Time)
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
@@ -803,6 +806,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	now = time.Now()
 	m.cleanupDeadActors(ctx, now)
 	m.processActorMotionSounds(ctx, now)
+	m.processMapSounds(ctx, now)
 	m.playDueScheduledSounds(ctx, now)
 
 	if m.tickCooldown > 0 {
@@ -2240,6 +2244,10 @@ func weaponHitSFXCandidates(weaponType int) []string {
 }
 
 func (m *WorldMode) scheduleSound(at time.Time, paths ...string) {
+	m.scheduleSoundVolume(at, 1, paths...)
+}
+
+func (m *WorldMode) scheduleSoundVolume(at time.Time, volume float64, paths ...string) {
 	clean := paths[:0]
 	for _, path := range paths {
 		path = strings.TrimSpace(path)
@@ -2251,8 +2259,9 @@ func (m *WorldMode) scheduleSound(at time.Time, paths ...string) {
 		return
 	}
 	m.scheduledSounds = append(m.scheduledSounds, scheduledSound{
-		at:    at,
-		paths: append([]string(nil), clean...),
+		at:     at,
+		paths:  append([]string(nil), clean...),
+		volume: volume,
 	})
 }
 
@@ -2266,9 +2275,44 @@ func (m *WorldMode) playDueScheduledSounds(ctx client.Context, now time.Time) {
 			active = append(active, sound)
 			continue
 		}
-		m.playSFXFirst(ctx, sound.paths...)
+		m.playSFXFirstVolume(ctx, sound.volume, sound.paths...)
 	}
 	m.scheduledSounds = active
+}
+
+func (m *WorldMode) processMapSounds(ctx client.Context, now time.Time) {
+	if ctx.World == nil || ctx.World.RSW == nil || ctx.World.GND == nil || len(ctx.World.RSW.Sounds) == 0 {
+		return
+	}
+	playerX, playerY := ctx.World.Player.RenderPosition(now)
+	width := float64(ctx.World.GND.Width)
+	height := float64(ctx.World.GND.Height)
+	if m.mapSoundNext == nil {
+		m.mapSoundNext = make(map[int]time.Time)
+	}
+	for index, sound := range ctx.World.RSW.Sounds {
+		if strings.TrimSpace(sound.File) == "" {
+			continue
+		}
+		if sound.Volume <= 0 {
+			continue
+		}
+		if next := m.mapSoundNext[index]; !next.IsZero() && now.Before(next) {
+			continue
+		}
+		soundX := float64(sound.Position.X) + width
+		soundY := float64(sound.Position.Z) + height
+		maxDistance := float64(sound.Range)*0.2 + float64(sound.Height)
+		if math.Hypot(soundX-playerX, soundY-playerY) > maxDistance {
+			continue
+		}
+		m.scheduleSoundVolume(now, float64(sound.Volume), sound.File)
+		delay := time.Duration(float64(time.Second) * float64(sound.Cycle))
+		if delay < 100*time.Millisecond {
+			delay = 100 * time.Millisecond
+		}
+		m.mapSoundNext[index] = now.Add(delay)
+	}
 }
 
 func (m *WorldMode) processActorMotionSounds(ctx client.Context, now time.Time) {
@@ -2329,6 +2373,10 @@ func actorWithinSoundRange(ctx client.Context, actor worldstate.Actor, now time.
 }
 
 func (m *WorldMode) playSFXFirst(ctx client.Context, paths ...string) {
+	m.playSFXFirstVolume(ctx, 1, paths...)
+}
+
+func (m *WorldMode) playSFXFirstVolume(ctx client.Context, volume float64, paths ...string) {
 	if ctx.Audio == nil {
 		return
 	}
@@ -2337,7 +2385,7 @@ func (m *WorldMode) playSFXFirst(ctx client.Context, paths ...string) {
 		if strings.TrimSpace(path) == "" {
 			continue
 		}
-		source, err := ctx.Audio.PlaySFX(path)
+		source, err := ctx.Audio.PlaySFXVolume(path, volume)
 		if err == nil {
 			if source != "" {
 				log.Printf("sfx playing path=%s source=%s", path, source)

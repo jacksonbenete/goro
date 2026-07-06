@@ -3438,6 +3438,72 @@ func TestProcessNonPCMotionSoundSchedulesIdleACTSound(t *testing.T) {
 	}
 }
 
+func TestProcessMapSoundsSchedulesNearbyRSWSound(t *testing.T) {
+	now := time.Unix(20, 0)
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 110, Y: 220}
+	world.GND = &res.GND{Width: 100, Height: 200}
+	world.RSW = &res.RSW{Sounds: []res.RSWSound{
+		{
+			File:     "water.wav",
+			Position: res.RSWVector3{X: 10, Z: 20},
+			Volume:   0.7,
+			Range:    5,
+			Cycle:    2,
+		},
+		{
+			File:     "far.wav",
+			Position: res.RSWVector3{X: 40, Z: 20},
+			Volume:   1,
+			Range:    5,
+			Cycle:    2,
+		},
+	}}
+	mode := &WorldMode{}
+	ctx := client.Context{World: world}
+
+	mode.processMapSounds(ctx, now)
+	mode.processMapSounds(ctx, now.Add(time.Second))
+
+	if len(mode.scheduledSounds) != 1 {
+		t.Fatalf("scheduled sounds = %+v, want one nearby map sound", mode.scheduledSounds)
+	}
+	sound := mode.scheduledSounds[0]
+	if sound.paths[0] != "water.wav" || math.Abs(sound.volume-0.7) > 0.0001 {
+		t.Fatalf("scheduled map sound = %+v", sound)
+	}
+	if got := mode.mapSoundNext[0]; !got.Equal(now.Add(2 * time.Second)) {
+		t.Fatalf("next map sound time = %s, want %s", got, now.Add(2*time.Second))
+	}
+	if _, ok := mode.mapSoundNext[1]; ok {
+		t.Fatalf("far sound should not have a timer: %+v", mode.mapSoundNext)
+	}
+}
+
+func TestProcessMapSoundsUsesMinimumReplayDelayForZeroCycle(t *testing.T) {
+	now := time.Unix(20, 0)
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.GND = &res.GND{Width: 10, Height: 20}
+	world.RSW = &res.RSW{Sounds: []res.RSWSound{
+		{
+			File:   "loop.wav",
+			Volume: 1,
+			Range:  5,
+		},
+	}}
+	mode := &WorldMode{}
+	ctx := client.Context{World: world}
+
+	mode.processMapSounds(ctx, now)
+	mode.processMapSounds(ctx, now.Add(50*time.Millisecond))
+	mode.processMapSounds(ctx, now.Add(100*time.Millisecond))
+
+	if len(mode.scheduledSounds) != 2 {
+		t.Fatalf("scheduled sounds = %+v, want initial sound and replay after 100ms", mode.scheduledSounds)
+	}
+}
+
 func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()

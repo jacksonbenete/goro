@@ -184,6 +184,10 @@ func (b *BGM) Play(path string) error {
 }
 
 func (b *BGM) PlaySFX(path string) (string, error) {
+	return b.PlaySFXVolume(path, 1)
+}
+
+func (b *BGM) PlaySFXVolume(path string, volume float64) (string, error) {
 	if b == nil {
 		return "", nil
 	}
@@ -210,7 +214,7 @@ func (b *BGM) PlaySFX(path string) (string, error) {
 		}
 	}
 	player := context.NewPlayer(bytes.NewReader(pcm))
-	player.SetVolume(b.sfxVolume)
+	player.SetVolume(b.sfxVolume * clampVolume(volume))
 	b.trimSFXPlayers()
 	b.sfxPlayers = append(b.sfxPlayers, player)
 	player.Play()
