@@ -141,6 +141,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 		m.rsmNodeMatrices[rsm] = nodeMatrices
 	}
 	builders := make(map[retainedMeshKey]*retainedMeshBuilder)
+	builderOrder := make([]*retainedMeshBuilder, 0, 4)
 	builderFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *retainedMeshBuilder {
 		if texture == nil || options == nil {
 			return nil
@@ -150,6 +151,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 		if builder == nil {
 			builder = &retainedMeshBuilder{texture: texture, options: *options}
 			builders[key] = builder
+			builderOrder = append(builderOrder, builder)
 		}
 		return builder
 	}
@@ -185,7 +187,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 		}
 	}
 	var meshes []retainedWorldMesh
-	for _, builder := range builders {
+	for _, builder := range builderOrder {
 		builder.flush()
 		meshes = append(meshes, builder.meshes...)
 	}
@@ -266,6 +268,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.
 	}
 	nodeMatrices := buildRSMNodeMatrices(rsm, frame)
 	batches := make(map[retainedMeshKey]*animatedRSMDrawBatch)
+	batchOrder := make([]*animatedRSMDrawBatch, 0, 4)
 	batchFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *animatedRSMDrawBatch {
 		if texture == nil || options == nil {
 			return nil
@@ -275,6 +278,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.
 		if batch == nil {
 			batch = &animatedRSMDrawBatch{screen: screen, texture: texture, options: *options}
 			batches[key] = batch
+			batchOrder = append(batchOrder, batch)
 		}
 		return batch
 	}
@@ -309,7 +313,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.
 			}
 		}
 	}
-	for _, batch := range batches {
+	for _, batch := range batchOrder {
 		batch.flush()
 	}
 }
