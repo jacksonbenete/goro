@@ -53,6 +53,9 @@ func normalizeSpecialNPCActorName(name string) string {
 }
 
 func actorJobHasSpecialNoShadow(job int) bool {
+	if actorJobHasNoSprite(job) {
+		return true
+	}
 	switch job {
 	case actorJobClearNPC:
 		return true

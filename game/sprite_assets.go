@@ -27,6 +27,9 @@ func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Charac
 }
 
 func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSpriteView, string) {
+	if actorJobHasNoSprite(job) {
+		return nil, fmt.Sprintf("%s job=%d no-sprite", label, job)
+	}
 	resourceName, ok := manager.JobResourceName(job)
 	if !ok {
 		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
@@ -57,6 +60,15 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSp
 	return view, status
 }
 
+func actorJobHasNoSprite(job int) bool {
+	switch job {
+	case actorJobWarpPortal, actorJobHiddenNPC, actorJobClearNPC:
+		return true
+	default:
+		return false
+	}
+}
+
 func gr2SpriteFallbackJob(resourceName string) (int, bool) {
 	name := strings.ToLower(strings.ReplaceAll(resourceName, "/", "\\"))
 	if i := strings.LastIndex(name, "\\"); i >= 0 {
@@ -76,9 +88,6 @@ func gr2SpriteFallbackJob(resourceName string) (int, bool) {
 	case "treasurebox_2.gr2":
 		return 1191, true
 	default:
-		if strings.HasSuffix(name, ".gr2") {
-			return 1002, true
-		}
 		return 0, false
 	}
 }

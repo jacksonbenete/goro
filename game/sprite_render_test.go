@@ -145,7 +145,7 @@ func TestRoBrowserGR2SpriteFallbackJob(t *testing.T) {
 	}{
 		{resource: "Guildflag90_1.gr2", want: 1911, wantOK: true},
 		{resource: `data\sprite\npc\empelium90_0.gr2`, want: 2080, wantOK: true},
-		{resource: "unknown.gr2", want: 1002, wantOK: true},
+		{resource: "unknown.gr2", wantOK: false},
 		{resource: "OBJ_FLAG_A", wantOK: false},
 	}
 	for _, tt := range tests {
@@ -155,6 +155,15 @@ func TestRoBrowserGR2SpriteFallbackJob(t *testing.T) {
 				t.Fatalf("gr2SpriteFallbackJob(%q) = %d, %v; want %d, %v", tt.resource, got, ok, tt.want, tt.wantOK)
 			}
 		})
+	}
+}
+
+func TestNoSpriteNPCJobsDoNotLoadFallbackSprite(t *testing.T) {
+	manager := &res.Manager{}
+	for _, job := range []int{actorJobWarpPortal, actorJobHiddenNPC, actorJobClearNPC} {
+		if view, status := loadNonPCSpriteView(manager, job, "nonpc"); view != nil {
+			t.Fatalf("job %d loaded fallback sprite: %s", job, status)
+		}
 	}
 }
 

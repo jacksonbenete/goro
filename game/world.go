@@ -4106,6 +4106,7 @@ const (
 	actorBillboardCellWorldUnits  = 5.0
 	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
 	actorJobWarpPortal            = 45
+	actorJobHiddenNPC             = 111
 	actorJobClearNPC              = 844
 	actorObjectTypePC             = 0
 	actorObjectTypeMob            = 5
@@ -4362,6 +4363,9 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context
 		return
 	}
 	if m.drawActorSprite3D(screen, ctx, projection, entry, cameraYaw, entry.shadow) {
+		return
+	}
+	if actorJobHasNoSprite(int(entry.actor.Job)) {
 		return
 	}
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())

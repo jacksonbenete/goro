@@ -48,6 +48,12 @@ func TestFallbackJobResourceName(t *testing.T) {
 	if got, ok := manager.JobResourceName(1002); !ok || got != "poring" {
 		t.Fatalf("job resource name = %q, %v, want poring, true", got, ok)
 	}
+	if got, ok := manager.JobResourceName(45); !ok || got != "WARPNPC" {
+		t.Fatalf("warp npc resource name = %q, %v, want WARPNPC, true", got, ok)
+	}
+	if got, ok := manager.JobResourceName(111); !ok || got != "HIDDEN_NPC" {
+		t.Fatalf("hidden npc resource name = %q, %v, want HIDDEN_NPC, true", got, ok)
+	}
 }
 
 func TestNonPCSpriteResourceRealWhenConfigured(t *testing.T) {

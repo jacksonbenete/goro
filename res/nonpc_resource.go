@@ -20,7 +20,7 @@ var jobNameLuaCandidates = []string{
 }
 
 var fallbackJobResourceNames = map[int]string{
-	45:   "1_ETC_01",
+	45:   "WARPNPC",
 	46:   "1_ETC_01",
 	47:   "1_M_01",
 	48:   "1_M_02",
@@ -56,6 +56,8 @@ var fallbackJobResourceNames = map[int]string{
 	1025: "snake",
 	1026: "munak",
 	1028: "soldier_skeleton",
+	111:  "HIDDEN_NPC",
+	844:  "CLEAR_NPC",
 	1911: "OBJ_NEUTRAL",
 	1912: "OBJ_FLAG_A",
 	1913: "OBJ_FLAG_B",
