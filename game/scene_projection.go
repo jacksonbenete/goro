@@ -51,6 +51,41 @@ func (p sceneProjection) Project(x, y, z float64) screenPoint {
 	return p.projectCamera(x, y, z)
 }
 
+func (p sceneProjection) Ray(screenX, screenY float64) (modelPoint3, modelPoint3, bool) {
+	if p.screenW <= 0 || p.screenH <= 0 {
+		return modelPoint3{}, modelPoint3{}, false
+	}
+	distance := normalizeSceneCameraZoom(p.cameraZoom) * 0.5
+	pitch := sceneCameraPitch()
+	if pitch > 180 {
+		pitch -= 180
+	}
+	pitch = degreesToRadians(pitch)
+	yaw := degreesToRadians(p.cameraYaw)
+	horizontal := math.Cos(pitch) * distance
+	target := modelPoint3{x: p.playerX, y: p.playerZ, z: p.playerY}
+	eye := modelPoint3{
+		x: target.x + math.Sin(yaw)*horizontal,
+		y: target.y + math.Sin(pitch)*distance,
+		z: target.z - math.Cos(yaw)*horizontal,
+	}
+	forward := normalize3(sub3(target, eye))
+	right := normalize3(cross3(modelPoint3{y: 1}, forward))
+	if right == (modelPoint3{}) {
+		right = modelPoint3{x: 1}
+	}
+	up := normalize3(cross3(forward, right))
+	aspect := p.screenW / p.screenH
+	tanHalfFOV := math.Tan(degreesToRadians(sceneCameraFOV()) * 0.5)
+	ndcX := screenX/p.screenW*2 - 1
+	ndcY := 1 - screenY/p.screenH*2
+	dir := normalize3(add3(add3(forward, mul3(right, ndcX*tanHalfFOV*aspect)), mul3(up, ndcY*tanHalfFOV)))
+	if dir == (modelPoint3{}) || !isFinite(dir.x) || !isFinite(dir.y) || !isFinite(dir.z) {
+		return modelPoint3{}, modelPoint3{}, false
+	}
+	return eye, dir, true
+}
+
 func (p sceneProjection) RenderCamera() render.Camera3D {
 	return p.RenderCameraWithFog(sceneFog{})
 }
