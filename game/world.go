@@ -59,10 +59,10 @@ type WorldMode struct {
 	actorViewMiss    map[actorSpriteKey]struct{}
 	nonPCViews       map[int]*playerSpriteView
 	nonPCViewMiss    map[int]struct{}
-	rsmWorldCache    map[int][]modelWorldTriangle
 	rsmMeshCache     map[int][]retainedWorldMesh
 	rsmNodeMatrices  map[*res.RSM]map[string]mat4
 	rsmBoundsCache   map[rsmBoundsCacheKey]rsmBounds
+	rsmFaceMetaCache map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
 	gndMeshCache     *gndRetainedMeshCache
 	pendingWarp      bool
 	pendingAttack    attackIntent
@@ -305,10 +305,10 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*playerSpriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
-	m.rsmWorldCache = make(map[int][]modelWorldTriangle)
 	m.rsmMeshCache = make(map[int][]retainedWorldMesh)
 	m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
 	m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
+	m.rsmFaceMetaCache = make(map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta)
 	m.gndMeshCache = nil
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}

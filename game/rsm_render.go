@@ -3,7 +3,6 @@ package game
 import (
 	"image/color"
 	"math"
-	"sort"
 	"time"
 
 	"github.com/kivutar/goro/render"
@@ -24,6 +23,11 @@ type modelWorldTriangle struct {
 	verts       [3]modelPoint3
 	uvs         [3]texturePoint
 	color       color.RGBA
+	textureName string
+}
+
+type rsmFaceMeta struct {
+	uvs         [3]texturePoint
 	textureName string
 }
 
@@ -97,9 +101,6 @@ func (m *WorldMode) visibleRSMPlacements(rsw *res.RSW, gnd *res.GND, projection 
 			dist2: dx*dx + dy*dy,
 		})
 	}
-	sort.SliceStable(visible, func(i, j int) bool {
-		return visible[i].dist2 < visible[j].dist2
-	})
 	return visible
 }
 
@@ -157,7 +158,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 	}
 	for _, nodeIndex := range context.nodeIndices {
 		node := &rsm.Nodes[nodeIndex]
-		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], context.instance, context.lighting) {
+		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], context.instance, context.lighting, m.rsmFaceMetas(rsm, node)) {
 			texture := m.groundTexture(manager, worldTri.textureName)
 			if texture != nil {
 				bounds := texture.Bounds()
@@ -283,7 +284,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.
 	}
 	for _, nodeIndex := range context.nodeIndices {
 		node := &rsm.Nodes[nodeIndex]
-		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], context.instance, context.lighting) {
+		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], context.instance, context.lighting, m.rsmFaceMetas(rsm, node)) {
 			texture := m.groundTexture(manager, worldTri.textureName)
 			if texture != nil {
 				bounds := texture.Bounds()
@@ -376,7 +377,31 @@ type modelInstance struct {
 	matrix    mat4
 }
 
-func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, lighting sceneLighting) []modelWorldTriangle {
+func (m *WorldMode) rsmFaceMetas(rsm *res.RSM, node *res.RSMNode) []rsmFaceMeta {
+	if rsm == nil || node == nil || len(node.Faces) == 0 {
+		return nil
+	}
+	if m.rsmFaceMetaCache == nil {
+		m.rsmFaceMetaCache = make(map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta)
+	}
+	nodeCache := m.rsmFaceMetaCache[rsm]
+	if nodeCache == nil {
+		nodeCache = make(map[*res.RSMNode][]rsmFaceMeta)
+		m.rsmFaceMetaCache[rsm] = nodeCache
+	}
+	if metas := nodeCache[node]; metas != nil {
+		return metas
+	}
+	metas := make([]rsmFaceMeta, len(node.Faces))
+	for i, face := range node.Faces {
+		textureName, uvs := rsmFaceTexture(rsm, node, face)
+		metas[i] = rsmFaceMeta{textureName: textureName, uvs: uvs}
+	}
+	nodeCache[node] = metas
+	return metas
+}
+
+func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance, lighting sceneLighting, faceMetas []rsmFaceMeta) []modelWorldTriangle {
 	if len(node.Vertices) == 0 || len(node.Faces) == 0 {
 		return nil
 	}
@@ -402,20 +427,25 @@ func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4
 	}
 
 	triangles := make([]modelWorldTriangle, 0, len(node.Faces))
-	for _, face := range node.Faces {
+	for faceIndex, face := range node.Faces {
 		if int(face.VertexIndices[0]) >= len(worldVerts) || int(face.VertexIndices[1]) >= len(worldVerts) || int(face.VertexIndices[2]) >= len(worldVerts) {
 			continue
 		}
 		a := worldVerts[face.VertexIndices[0]]
 		b := worldVerts[face.VertexIndices[1]]
 		c := worldVerts[face.VertexIndices[2]]
-		textureName, uvs := rsmFaceTexture(rsm, node, face)
-		faceColor := rsmFaceColor(rsm, textureName, a, b, c, lighting)
+		var faceMeta rsmFaceMeta
+		if faceIndex < len(faceMetas) {
+			faceMeta = faceMetas[faceIndex]
+		} else {
+			faceMeta.textureName, faceMeta.uvs = rsmFaceTexture(rsm, node, face)
+		}
+		faceColor := rsmFaceColor(rsm, faceMeta.textureName, a, b, c, lighting)
 		triangles = append(triangles, modelWorldTriangle{
 			verts:       [3]modelPoint3{a, b, c},
-			uvs:         uvs,
+			uvs:         faceMeta.uvs,
 			color:       faceColor,
-			textureName: textureName,
+			textureName: faceMeta.textureName,
 		})
 	}
 	return triangles
