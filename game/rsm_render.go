@@ -267,19 +267,18 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.
 		return
 	}
 	nodeMatrices := buildRSMNodeMatrices(rsm, frame)
-	batches := make(map[retainedMeshKey]*animatedRSMDrawBatch)
 	batchOrder := make([]*animatedRSMDrawBatch, 0, 4)
 	batchFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *animatedRSMDrawBatch {
 		if texture == nil || options == nil {
 			return nil
 		}
-		key := retainedMeshKey{texture: texture, options: *options}
-		batch := batches[key]
-		if batch == nil {
-			batch = &animatedRSMDrawBatch{screen: screen, texture: texture, options: *options}
-			batches[key] = batch
-			batchOrder = append(batchOrder, batch)
+		for _, batch := range batchOrder {
+			if batch.texture == texture && batch.options == *options {
+				return batch
+			}
 		}
+		batch := &animatedRSMDrawBatch{screen: screen, texture: texture, options: *options}
+		batchOrder = append(batchOrder, batch)
 		return batch
 	}
 	for _, nodeIndex := range context.nodeIndices {
@@ -402,7 +401,7 @@ func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4
 		worldVerts[i] = world
 	}
 
-	var triangles []modelWorldTriangle
+	triangles := make([]modelWorldTriangle, 0, len(node.Faces))
 	for _, face := range node.Faces {
 		if int(face.VertexIndices[0]) >= len(worldVerts) || int(face.VertexIndices[1]) >= len(worldVerts) || int(face.VertexIndices[2]) >= len(worldVerts) {
 			continue
@@ -938,9 +937,9 @@ func rsmFaceTexture(rsm *res.RSM, node *res.RSMNode, face res.RSMFace) (string, 
 }
 
 func rsmFaceColor(rsm *res.RSM, textureName string, a, b, c modelPoint3, lighting sceneLighting) color.RGBA {
-	base := textureColor(textureName)
-	if textureName != "" {
-		base = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	base := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	if textureName == "" {
+		base = textureColor(textureName)
 	}
 	normal := normalize3(cross3(sub3(b, a), sub3(c, a)))
 	if rsm != nil && rsm.ShadeType == 0 {
