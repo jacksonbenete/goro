@@ -61,6 +61,7 @@ type WorldMode struct {
 	nonPCViewMiss    map[int]struct{}
 	rsmMeshCache     map[int][]retainedWorldMesh
 	rsmNodeMatrices  map[*res.RSM]map[string]mat4
+	rsmAnimNodes     map[animatedRSMNodeKey]map[string]mat4
 	rsmBoundsCache   map[rsmBoundsCacheKey]rsmBounds
 	rsmFaceMetaCache map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
 	rsmPlacementGrid *rsmPlacementGrid
@@ -308,6 +309,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmMeshCache = make(map[int][]retainedWorldMesh)
 	m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
+	m.rsmAnimNodes = make(map[animatedRSMNodeKey]map[string]mat4)
 	m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
 	m.rsmFaceMetaCache = make(map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta)
 	m.rsmPlacementGrid = nil

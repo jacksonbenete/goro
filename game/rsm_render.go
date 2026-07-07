@@ -88,6 +88,11 @@ type rsmPlacementGridCell struct {
 	y int
 }
 
+type animatedRSMNodeKey struct {
+	rsm   *res.RSM
+	frame int
+}
+
 func (m *WorldMode) visibleRSMPlacements(rsw *res.RSW, gnd *res.GND, projection sceneProjection) []visibleRSMPlacement {
 	if rsw == nil || gnd == nil {
 		return nil
@@ -319,7 +324,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.
 	if !ok {
 		return
 	}
-	nodeMatrices := buildRSMNodeMatrices(rsm, frame)
+	nodeMatrices := m.animatedRSMNodeMatrices(rsm, frame)
 	batchOrder := make([]*animatedRSMDrawBatch, 0, 4)
 	batchFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *animatedRSMDrawBatch {
 		if texture == nil || options == nil {
@@ -368,6 +373,22 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.
 	for _, batch := range batchOrder {
 		batch.flush()
 	}
+}
+
+func (m *WorldMode) animatedRSMNodeMatrices(rsm *res.RSM, frame int) map[string]mat4 {
+	if rsm == nil {
+		return nil
+	}
+	if m.rsmAnimNodes == nil {
+		m.rsmAnimNodes = make(map[animatedRSMNodeKey]map[string]mat4)
+	}
+	key := animatedRSMNodeKey{rsm: rsm, frame: frame}
+	if matrices, ok := m.rsmAnimNodes[key]; ok {
+		return matrices
+	}
+	matrices := buildRSMNodeMatrices(rsm, frame)
+	m.rsmAnimNodes[key] = matrices
+	return matrices
 }
 
 func selectedRSMRootName(rsm *res.RSM, rootName string) string {
