@@ -104,6 +104,30 @@ type WorldMode struct {
 	settingsWindow   gameui.SettingsWindow
 	shortcutBar      gameui.ShortcutBar
 	mapFade          mapFadeState
+	hoveredWalk      hoveredWalkCellCache
+}
+
+type hoveredWalkCellCache struct {
+	valid bool
+	key   hoveredWalkCellKey
+	x     int
+	y     int
+	ok    bool
+}
+
+type hoveredWalkCellKey struct {
+	gat        *res.GAT
+	mouseX     int
+	mouseY     int
+	playerX    int
+	playerY    int
+	targetX    float64
+	targetY    float64
+	targetZ    float64
+	cameraYaw  float64
+	cameraZoom float64
+	screenW    float64
+	screenH    float64
 }
 
 type actorSpriteKey struct {
@@ -3701,6 +3725,39 @@ func hoveredWalkCell(ctx client.Context, projection sceneProjection, mouseX, mou
 	return clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY)
 }
 
+func (m *WorldMode) hoveredWalkCell(ctx client.Context, projection sceneProjection, mouseX, mouseY int) (int, int, bool) {
+	if ctx.World == nil || ctx.World.GAT == nil {
+		m.hoveredWalk.valid = false
+		return 0, 0, false
+	}
+	key := hoveredWalkCellKey{
+		gat:        ctx.World.GAT,
+		mouseX:     mouseX,
+		mouseY:     mouseY,
+		playerX:    ctx.World.Player.X,
+		playerY:    ctx.World.Player.Y,
+		targetX:    projection.playerX,
+		targetY:    projection.playerY,
+		targetZ:    projection.playerZ,
+		cameraYaw:  projection.cameraYaw,
+		cameraZoom: projection.cameraZoom,
+		screenW:    projection.screenW,
+		screenH:    projection.screenH,
+	}
+	if m.hoveredWalk.valid && m.hoveredWalk.key == key {
+		return m.hoveredWalk.x, m.hoveredWalk.y, m.hoveredWalk.ok
+	}
+	x, y, ok := hoveredWalkCell(ctx, projection, mouseX, mouseY)
+	m.hoveredWalk = hoveredWalkCellCache{
+		valid: true,
+		key:   key,
+		x:     x,
+		y:     y,
+		ok:    ok,
+	}
+	return x, y, ok
+}
+
 func walkTargetSearchBounds(ctx client.Context) (int, int, int, int, bool) {
 	if ctx.World == nil {
 		return 0, 0, 0, 0, false
@@ -3757,7 +3814,7 @@ func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, pro
 	if uiPointerBlocked(ctx) {
 		return
 	}
-	x, y, ok := hoveredWalkCell(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
+	x, y, ok := m.hoveredWalkCell(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
 	if !ok {
 		return
 	}

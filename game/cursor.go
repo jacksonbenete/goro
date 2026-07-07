@@ -167,7 +167,7 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		return cursorActionClick
 	}
 	if ctx.World != nil && ctx.World.GAT != nil {
-		if _, _, ok := hoveredWalkCell(ctx, projection, mouseX, mouseY); !ok {
+		if _, _, ok := m.hoveredWalkCell(ctx, projection, mouseX, mouseY); !ok {
 			return cursorActionNoWalk
 		}
 	}
