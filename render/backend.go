@@ -592,6 +592,9 @@ func framebufferScale(width, height, framebufferW, framebufferH int) (float32, f
 }
 
 func (r *runner) drawUI(screen *Image, width, height int, deviceScale float64) error {
+	if r.renderCfg.NoUI {
+		return nil
+	}
 	if r.ui == nil || screen == nil || width <= 0 || height <= 0 {
 		return nil
 	}

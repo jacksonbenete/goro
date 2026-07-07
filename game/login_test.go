@@ -8,6 +8,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -69,6 +70,41 @@ func TestCharacterSelectSlotHelpers(t *testing.T) {
 	}
 	if got, ok := firstEmptyCharacterSlot(characters, 9); !ok || got != 0 {
 		t.Fatalf("first empty slot = %d, %t, want 0, true", got, ok)
+	}
+}
+
+func TestCharacterSelectUsesConfiguredSlot(t *testing.T) {
+	mode := NewLoginMode()
+	ctx := client.Context{
+		Config: config.Config{Login: config.LoginConfig{CharSlot: 4}},
+		Session: &session.Session{Characters: []session.Character{
+			{ID: 10, Slot: 2},
+			{ID: 11, Slot: 4},
+		}},
+	}
+
+	mode.prepareCharacterSelectFromSession(ctx)
+
+	if mode.selectedSlot != 4 {
+		t.Fatalf("selected slot = %d, want configured slot 4", mode.selectedSlot)
+	}
+}
+
+func TestAutoSelectCharacterRequiresAutologin(t *testing.T) {
+	mode := NewLoginMode()
+	ctx := client.Context{
+		Config: config.Config{Login: config.LoginConfig{CharSlot: 4}},
+		Session: &session.Session{Characters: []session.Character{
+			{ID: 11, Slot: 4},
+		}},
+	}
+	mode.maxSlots = 9
+
+	if mode.autoSelectCharacter(ctx) {
+		t.Fatal("auto select ran without autologin")
+	}
+	if mode.autoCharAttempted {
+		t.Fatal("auto select marked attempted without autologin")
 	}
 }
 

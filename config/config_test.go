@@ -44,6 +44,9 @@ fullscreen = true
 [packet]
 client_date = 20211103
 
+[login]
+char_slot = 2
+
 [audio]
 bgm = false
 bgm_volume = 0.25
@@ -53,6 +56,7 @@ sfx_volume = 0.35
 graphics_api = gles
 vsync = false
 fps = true
+no_ui = true
 
 [network]
 trace = true
@@ -72,6 +76,8 @@ enabled = false
 		"--bgm-volume", "0.75",
 		"--sfx-volume", "0.85",
 		"--graphics-api", "vulkan",
+		"--no-ui=false",
+		"--char-slot", "3",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -85,10 +91,13 @@ enabled = false
 	if cfg.Packet.ClientDate != 20211103 {
 		t.Fatalf("packet client date = %d", cfg.Packet.ClientDate)
 	}
+	if cfg.Login.CharSlot != 3 {
+		t.Fatalf("login char slot = %d, want 3", cfg.Login.CharSlot)
+	}
 	if !cfg.Audio.BGM || cfg.Audio.BGMVolume != 0.75 || cfg.Audio.SFXVolume != 0.85 {
 		t.Fatalf("unexpected audio config: %#v", cfg.Audio)
 	}
-	if cfg.Render.GraphicsAPI != "vulkan" || cfg.Render.VSync || !cfg.Render.FPS {
+	if cfg.Render.GraphicsAPI != "vulkan" || cfg.Render.VSync || !cfg.Render.FPS || cfg.Render.NoUI {
 		t.Fatalf("unexpected render config: %#v", cfg.Render)
 	}
 	if !cfg.Network.Trace {
@@ -113,6 +122,13 @@ func TestLoadConfigWindowedOverridesFullscreenINI(t *testing.T) {
 	}
 	if cfg.Window.Fullscreen {
 		t.Fatal("fullscreen = true, want false")
+	}
+}
+
+func TestLoadConfigRejectsInvalidCharacterSlot(t *testing.T) {
+	isolateUserConfig(t)
+	if _, err := LoadConfig([]string{"--char-slot", "9"}); err == nil {
+		t.Fatal("expected invalid character slot error")
 	}
 }
 

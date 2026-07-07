@@ -2976,7 +2976,9 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 	if ctx.World.GND != nil {
 		m.drawGNDMeshes(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection)
 		m.drawGNDWater(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, vertexFog)
-		m.drawTileCursor(screen, ctx, projection, now)
+		if !ctx.Config.Render.NoUI {
+			m.drawTileCursor(screen, ctx, projection, now)
+		}
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 {
 			actorOverlays = m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog, now)
 		} else {
@@ -2997,18 +2999,22 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 		}
 	}
 
-	m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
+	if !ctx.Config.Render.NoUI {
+		m.drawSceneActorOverlays(screen, ctx, projection, now, actorOverlays)
+	}
 	m.drawRSWEffects(screen, ctx, projection, now)
 	m.drawMapWeatherEffects(screen, ctx, projection, now)
 	m.drawWorldEffects(screen, ctx, projection, now)
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
-	m.inventoryBag.Draw(screen, ctx, m)
-	m.storageWindow.Draw(screen, ctx, m)
-	m.shopWindow.Draw(screen, ctx, m)
-	m.skillWindow.Draw(screen, ctx, m)
-	m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
-	m.deathModal.Draw(screen, ctx, width, height)
+	if !ctx.Config.Render.NoUI {
+		m.inventoryBag.Draw(screen, ctx, m)
+		m.storageWindow.Draw(screen, ctx, m)
+		m.shopWindow.Draw(screen, ctx, m)
+		m.skillWindow.Draw(screen, ctx, m)
+		m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
+		m.deathModal.Draw(screen, ctx, width, height)
+	}
 }
 
 func (m *WorldMode) DrawOverlay(ctx client.Context, screen *render.Image) {
@@ -3016,8 +3022,10 @@ func (m *WorldMode) DrawOverlay(ctx client.Context, screen *render.Image) {
 	now := time.Now()
 	projection := m.sceneProjection(ctx, width, height, now)
 	m.drawMapFade(screen, now)
-	m.drawUIDragGhosts(screen, ctx)
-	m.drawROCursor(screen, ctx, projection, now)
+	if !ctx.Config.Render.NoUI {
+		m.drawUIDragGhosts(screen, ctx)
+		m.drawROCursor(screen, ctx, projection, now)
+	}
 }
 
 func (m *WorldMode) drawUIDragGhosts(screen *render.Image, ctx client.Context) {

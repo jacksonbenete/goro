@@ -24,6 +24,7 @@ type LoginMode struct {
 	packets           []string
 	console           gameui.ChatConsole
 	autoAttempted     bool
+	autoCharAttempted bool
 	fade              loginFadeState
 	username          string
 	password          string
@@ -256,9 +257,15 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 				if len(list.Characters) > 0 {
 					m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
 					m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
+					if configured := ctx.Config.Login.CharSlot; configured >= 0 {
+						m.selectedSlot = clampCharacterSlot(configured, m.maxSlots)
+					}
 					m.status = "select a character"
 				} else {
 					m.status = "no characters"
+				}
+				if m.autoSelectCharacter(ctx) {
+					continue
 				}
 				m.startPhaseFade(loginPhaseCharacter, time.Now())
 			}
@@ -357,6 +364,9 @@ func (m *LoginMode) Draw(ctx client.Context, screen *render.Image) {
 func (m *LoginMode) DrawOverlay(ctx client.Context, screen *render.Image) {
 	now := time.Now()
 	m.drawFade(ctx, screen, now)
+	if ctx.Config.Render.NoUI {
+		return
+	}
 	m.drawROCursor(screen, ctx, now)
 }
 
@@ -535,9 +545,29 @@ func (m *LoginMode) prepareCharacterSelectFromSession(ctx client.Context) {
 		return
 	}
 	m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+	if configured := ctx.Config.Login.CharSlot; configured >= 0 {
+		m.selectedSlot = clampCharacterSlot(configured, m.maxSlots)
+	}
 	if _, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot); !ok {
 		m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
 	}
+}
+
+func (m *LoginMode) autoSelectCharacter(ctx client.Context) bool {
+	slot := ctx.Config.Login.CharSlot
+	if !ctx.Config.Login.AutoLogin || slot < 0 || m.autoCharAttempted {
+		return false
+	}
+	m.autoCharAttempted = true
+	m.selectedSlot = clampCharacterSlot(slot, m.maxSlots)
+	if _, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot); !ok {
+		m.status = fmt.Sprintf("character slot %d is empty", slot)
+		log.Printf("autoselect character slot=%d failed: empty slot", slot)
+		return false
+	}
+	log.Printf("autoselect character slot=%d", m.selectedSlot)
+	m.submitSelectedCharacter(ctx)
+	return true
 }
 
 func (m *LoginMode) reconnectCharacterServer(ctx client.Context) {
@@ -756,6 +786,10 @@ func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
 	if !ok {
 		m.status = "empty character slot"
+		return
+	}
+	if ctx.Network == nil {
+		m.status = "select character failed: not connected"
 		return
 	}
 	if err := ctx.Network.SendSelectCharacter(character.Slot); err != nil {

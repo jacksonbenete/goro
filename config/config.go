@@ -38,6 +38,7 @@ type LoginConfig struct {
 	Username  string
 	Password  string
 	AutoLogin bool
+	CharSlot  int
 }
 
 type AudioConfig struct {
@@ -50,6 +51,7 @@ type RenderConfig struct {
 	GraphicsAPI        string
 	VSync              bool
 	FPS                bool
+	NoUI               bool
 	BenchSeconds       int
 	BenchWarmupSeconds int
 	CPUProfile         string
@@ -152,6 +154,9 @@ func defaultConfig() Config {
 			ClientDate: 20080910,
 			Profile:    23,
 		},
+		Login: LoginConfig{
+			CharSlot: -1,
+		},
 		Audio: AudioConfig{
 			BGM:       true,
 			BGMVolume: 0.55,
@@ -218,12 +223,14 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.StringVar(&cfg.Login.Username, "username", cfg.Login.Username, "login username")
 	fs.StringVar(&cfg.Login.Password, "password", cfg.Login.Password, "login password")
 	fs.BoolVar(&cfg.Login.AutoLogin, "autologin", cfg.Login.AutoLogin, "attempt login automatically")
+	fs.IntVar(&cfg.Login.CharSlot, "char-slot", cfg.Login.CharSlot, "character slot to select after autologin, 0 to 8")
 	fs.BoolVar(&cfg.Audio.BGM, "bgm", cfg.Audio.BGM, "enable BGM")
 	fs.Float64Var(&cfg.Audio.BGMVolume, "bgm-volume", cfg.Audio.BGMVolume, "BGM volume from 0 to 1")
 	fs.Float64Var(&cfg.Audio.SFXVolume, "sfx-volume", cfg.Audio.SFXVolume, "SFX volume from 0 to 1")
 	fs.StringVar(&cfg.Render.GraphicsAPI, "graphics-api", cfg.Render.GraphicsAPI, "graphics API: auto, vulkan, dx12, metal, gles, software")
 	fs.BoolVar(&cfg.Render.VSync, "vsync", cfg.Render.VSync, "enable vsync")
 	fs.BoolVar(&cfg.Render.FPS, "fps", cfg.Render.FPS, "show measured FPS counter")
+	fs.BoolVar(&cfg.Render.NoUI, "no-ui", cfg.Render.NoUI, "disable UI rendering for benchmarking")
 	fs.IntVar(&cfg.Render.BenchSeconds, "bench-seconds", cfg.Render.BenchSeconds, "quit after benchmarking for this many seconds")
 	fs.IntVar(&cfg.Render.BenchWarmupSeconds, "bench-warmup-seconds", cfg.Render.BenchWarmupSeconds, "benchmark warmup seconds")
 	fs.StringVar(&cfg.Render.CPUProfile, "cpu-profile", cfg.Render.CPUProfile, "write CPU profile to this path during benchmark")
@@ -291,6 +298,8 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		cfg.Login.Password = value
 	case "login.autologin":
 		return setBool(value, &cfg.Login.AutoLogin)
+	case "login.charslot":
+		return setInt(value, &cfg.Login.CharSlot)
 	case "audio.bgm":
 		return setBool(value, &cfg.Audio.BGM)
 	case "audio.bgmvolume":
@@ -303,6 +312,8 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		return setBool(value, &cfg.Render.VSync)
 	case "render.fps":
 		return setBool(value, &cfg.Render.FPS)
+	case "render.noui":
+		return setBool(value, &cfg.Render.NoUI)
 	case "render.benchseconds":
 		return setInt(value, &cfg.Render.BenchSeconds)
 	case "render.benchwarmupseconds":
@@ -332,6 +343,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Packet.ClientDate <= 0 {
 		return fmt.Errorf("packet client date must be positive")
+	}
+	if cfg.Login.CharSlot < -1 || cfg.Login.CharSlot > 8 {
+		return fmt.Errorf("character slot must be between 0 and 8")
 	}
 	if cfg.Audio.BGMVolume < 0 || cfg.Audio.BGMVolume > 1 {
 		return fmt.Errorf("bgm volume must be between 0 and 1")
