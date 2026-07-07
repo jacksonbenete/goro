@@ -32,7 +32,7 @@ These are not RSW object effects. roBrowser starts them from the map name throug
 - [x] `xmas.rsw` -> `snow` -> `EF_SNOW` `162`: snow weather.
 - [x] `comodo.rsw` -> `fireworks` -> `EF_POKJUK` `297`: fireworks weather.
 - [x] `einbroch.rsw` -> `cloud3` -> `EF_CLOUD3` `233`: industrial clouds/smoke.
-- [x] `payon.rsw` -> `rain` -> `EF_RAIN` `161`: rain. This is commented out in roBrowser's default table, but the renderer supports it for the 2008 target.
+- [x] `payon.rsw` -> `rain` -> `EF_RAIN` `161`: rain renderer exists, but Payon routing is disabled by default because roBrowser comments it out and it does not look natural on this target.
 
 ## Weather Systems Supported By roBrowser
 

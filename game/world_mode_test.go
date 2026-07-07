@@ -3861,6 +3861,12 @@ func TestWorldSceneClearColorMatchesReferenceDefaults(t *testing.T) {
 	if got := worldSceneClearColor("data/yuno.gat"); got != (color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}) {
 		t.Fatalf("yuno clear color = %#v", got)
 	}
+	if got := worldSceneClearColor("airplane_01"); got != (color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}) {
+		t.Fatalf("airplane_01 clear color = %#v", got)
+	}
+	if got := worldSceneClearColor("sch_gld"); got != (color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}) {
+		t.Fatalf("sch_gld clear color = %#v", got)
+	}
 	if got := worldSceneClearColor("5@tower.rsw"); got != (color.RGBA{R: 0x33, G: 0x00, B: 0x33, A: 255}) {
 		t.Fatalf("tower clear color = %#v", got)
 	}

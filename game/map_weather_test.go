@@ -18,11 +18,9 @@ func TestMapWeatherForComodoMatchesReferenceWeatherTable(t *testing.T) {
 
 func TestMapWeatherEffectIDForReferenceWeatherTable(t *testing.T) {
 	tests := map[string]int{
-		"xmas":        effectSnow,
-		"xmas.gat":    effectSnow,
-		"einbroch":    effectCloud3,
-		"payon":       effectRain,
-		"data\\payon": effectRain,
+		"xmas":     effectSnow,
+		"xmas.gat": effectSnow,
+		"einbroch": effectCloud3,
 	}
 	for name, want := range tests {
 		if got := mapWeatherEffectIDForMap(name); got != want {
@@ -31,6 +29,9 @@ func TestMapWeatherEffectIDForReferenceWeatherTable(t *testing.T) {
 	}
 	if got := mapWeatherEffectIDForMap("prontera"); got != 0 {
 		t.Fatalf("mapWeatherEffectIDForMap(prontera) = %d, want 0", got)
+	}
+	if got := mapWeatherEffectIDForMap("payon"); got != 0 {
+		t.Fatalf("mapWeatherEffectIDForMap(payon) = %d, want disabled rain", got)
 	}
 }
 

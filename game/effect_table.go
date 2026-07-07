@@ -134,7 +134,28 @@ func weatherRainEffectSpec() worldEffectSpec {
 }
 
 func weatherSnowEffectSpec() worldEffectSpec {
-	return mapFallingParticleEffectSpec("effect/pok3.tga", color.RGBA{R: 245, G: 250, B: 255, A: 255}, 70)
+	return worldEffectSpec{
+		duration: 8 * time.Second,
+		components: []worldEffectComponent{{
+			kind:          effectComponent3D,
+			textureFile:   "effect/pok3.tga",
+			duration:      8 * time.Second,
+			duplicate:     180,
+			alphaMax:      0.85,
+			fadeIn:        true,
+			fadeOut:       true,
+			blendAdditive: true,
+			posXRand:      60,
+			posYRand:      60,
+			posZStartRand: 2,
+			posZ:          20,
+			posZEnd:       -4,
+			posZSmooth:    false,
+			sizeStart:     effectTableSize(7),
+			sizeEnd:       effectTableSize(7),
+			color:         color.RGBA{R: 245, G: 250, B: 255, A: 255},
+		}},
+	}
 }
 
 func weatherLeafEffectSpec(spriteFile string, tint color.RGBA) worldEffectSpec {
