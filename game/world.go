@@ -5342,7 +5342,7 @@ func (m *WorldMode) drawGNDWater(screen *render.Image, manager *res.Manager, gnd
 	}
 	width := screen.Bounds().Dx()
 	height := screen.Bounds().Dy()
-	startX, endX, startY, endY, ok := gndDrawBounds(gnd, projection, width, height)
+	startX, endX, startY, endY, ok := gndDrawBoundsWithMargin(gnd, projection, width, height, 4)
 	if !ok {
 		return
 	}
@@ -5364,14 +5364,20 @@ func (m *WorldMode) drawGNDWater(screen *render.Image, manager *res.Manager, gnd
 }
 
 func gndDrawBounds(gnd *res.GND, projection sceneProjection, screenWidth, screenHeight int) (int, int, int, int, bool) {
+	return gndDrawBoundsWithMargin(gnd, projection, screenWidth, screenHeight, 24)
+}
+
+func gndDrawBoundsWithMargin(gnd *res.GND, projection sceneProjection, screenWidth, screenHeight, margin int) (int, int, int, int, bool) {
 	if gnd == nil || gnd.Width <= 0 || gnd.Height <= 0 {
 		return 0, 0, 0, 0, false
+	}
+	if margin < 0 {
+		margin = 0
 	}
 
 	centerX := gndTileFromWorld(projection.playerX)
 	centerY := gndTileFromWorld(projection.playerY)
 	if minWorldX, maxWorldX, minWorldY, maxWorldY, ok := cameraGroundFootprint(projection, screenWidth, screenHeight); ok {
-		const margin = 24
 		startX := minInt(gndTileFromWorld(minWorldX), centerX) - margin
 		endX := maxInt(gndTileFromWorld(maxWorldX), centerX) + margin
 		startY := minInt(gndTileFromWorld(minWorldY), centerY) - margin
