@@ -971,11 +971,11 @@ func rsmFaceColor(rsm *res.RSM, textureName string, a, b, c modelPoint3, lightin
 	if textureName == "" {
 		base = textureColor(textureName)
 	}
-	normal := normalize3(cross3(sub3(b, a), sub3(c, a)))
-	if rsm != nil && rsm.ShadeType == 0 {
-		normal = modelPoint3{y: -1}
+	normal := modelPoint3{y: -1}
+	if rsm == nil || rsm.ShadeType != 0 {
+		normal = normalize3(cross3(sub3(b, a), sub3(c, a)))
 	}
-	scale := lighting.modelScale(normal)
+	scale := lighting.modelScaleNormalized(normal)
 	return color.RGBA{
 		R: clampColor(float64(base.R) * scale.x),
 		G: clampColor(float64(base.G) * scale.y),

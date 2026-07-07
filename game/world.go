@@ -5940,6 +5940,15 @@ func (l sceneLighting) groundScale(normal modelPoint3) modelPoint3 {
 
 func (l sceneLighting) modelScale(normal modelPoint3) modelPoint3 {
 	weight := math.Max(dot3(normalize3(normal), l.direction), 0.5)
+	return l.modelScaleFromWeight(weight)
+}
+
+func (l sceneLighting) modelScaleNormalized(normal modelPoint3) modelPoint3 {
+	weight := math.Max(dot3(normal, l.direction), 0.5)
+	return l.modelScaleFromWeight(weight)
+}
+
+func (l sceneLighting) modelScaleFromWeight(weight float64) modelPoint3 {
 	return modelPoint3{
 		x: clampUnit(l.ambient.x+l.diffuse.x*weight) * clampUnit(l.env.x),
 		y: clampUnit(l.ambient.y+l.diffuse.y*weight) * clampUnit(l.env.y),
