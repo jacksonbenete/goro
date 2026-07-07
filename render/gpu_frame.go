@@ -24,6 +24,15 @@ type worldFrame struct {
 	batches []drawBatch
 }
 
+type worldFrameScratch struct {
+	floats     []float32
+	indices    []uint32
+	batches    []drawBatch
+	pending    []pendingWorldBatch
+	batchByKey map[drawBatchKey]int
+	alpha      []WorldCommand
+}
+
 type pendingWorldBatch struct {
 	key      drawBatchKey
 	commands []WorldCommand
@@ -31,37 +40,45 @@ type pendingWorldBatch struct {
 
 func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 	commandCount, vertexCount, indexCount := worldFrameCounts(screen.worldCommands)
-	pending := make([]pendingWorldBatch, 0, commandCount)
-	batchByKey := make(map[drawBatchKey]int, commandCount)
-	alpha := make([]WorldCommand, 0, commandCount)
+	scratch := &r.worldFrameScratch
+	scratch.floats = reserveSlice(scratch.floats, vertexCount*worldVertexFloatCount)
+	scratch.indices = reserveSlice(scratch.indices, indexCount)
+	scratch.batches = reserveSlice(scratch.batches, commandCount)
+	scratch.pending = reservePendingWorldBatches(scratch.pending, commandCount)
+	for index := range scratch.pending {
+		scratch.pending[index].commands = scratch.pending[index].commands[:0]
+	}
+	scratch.pending = scratch.pending[:0]
+	scratch.alpha = reserveSlice(scratch.alpha, commandCount)
+	scratch.batchByKey = clearDrawBatchKeyMap(scratch.batchByKey, commandCount)
 	for _, cmd := range screen.worldCommands {
 		if cmd.Texture == nil || cmd.Texture.pix == nil {
 			continue
 		}
 		if !cmd.Options.DepthWrite {
-			alpha = append(alpha, cmd)
+			scratch.alpha = append(scratch.alpha, cmd)
 			continue
 		}
 		key := drawBatchKey{texture: cmd.Texture, lightTexture: cmd.LightTexture, options: cmd.Options}
-		batchIndex, ok := batchByKey[key]
+		batchIndex, ok := scratch.batchByKey[key]
 		if !ok {
-			pending = append(pending, pendingWorldBatch{key: key})
-			batchIndex = len(pending) - 1
-			batchByKey[key] = batchIndex
+			scratch.pending = append(scratch.pending, pendingWorldBatch{key: key})
+			batchIndex = len(scratch.pending) - 1
+			scratch.batchByKey[key] = batchIndex
 		}
 		w, h := cmd.Texture.Bounds().Dx(), cmd.Texture.Bounds().Dy()
 		if w <= 0 || h <= 0 {
 			continue
 		}
-		batch := &pending[batchIndex]
+		batch := &scratch.pending[batchIndex]
 		batch.commands = append(batch.commands, cmd)
 	}
 	frame := worldFrame{
-		floats:  make([]float32, 0, vertexCount*worldVertexFloatCount),
-		indices: make([]uint32, 0, indexCount),
-		batches: make([]drawBatch, 0, commandCount),
+		floats:  scratch.floats,
+		indices: scratch.indices,
+		batches: scratch.batches,
 	}
-	for _, batch := range pending {
+	for _, batch := range scratch.pending {
 		if len(batch.commands) == 0 {
 			continue
 		}
@@ -86,7 +103,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		})
 	}
 	var current *drawBatch
-	for _, cmd := range alpha {
+	for _, cmd := range scratch.alpha {
 		key := drawBatchKey{texture: cmd.Texture, lightTexture: cmd.LightTexture, options: cmd.Options}
 		if current == nil || current.key != key {
 			frame.batches = append(frame.batches, drawBatch{key: key, firstIndex: uint32(len(frame.indices))})
@@ -101,7 +118,32 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		frame.floats, frame.indices = appendWorldCommand(frame.floats, frame.indices, cmd, w, h, lw, lh)
 		current.indexCount += uint32(len(frame.indices) - indexCountBefore)
 	}
+	scratch.floats = frame.floats
+	scratch.indices = frame.indices
+	scratch.batches = frame.batches
 	return frame
+}
+
+func reservePendingWorldBatches(values []pendingWorldBatch, capacity int) []pendingWorldBatch {
+	if cap(values) < capacity {
+		return make([]pendingWorldBatch, 0, capacity)
+	}
+	return values
+}
+
+func reserveSlice[T any](values []T, capacity int) []T {
+	if cap(values) < capacity {
+		return make([]T, 0, capacity)
+	}
+	return values[:0]
+}
+
+func clearDrawBatchKeyMap(values map[drawBatchKey]int, capacity int) map[drawBatchKey]int {
+	if values == nil {
+		return make(map[drawBatchKey]int, capacity)
+	}
+	clear(values)
+	return values
 }
 
 func appendWorldCommand(floats []float32, indices []uint32, cmd WorldCommand, width, height, lightWidth, lightHeight int) ([]float32, []uint32) {

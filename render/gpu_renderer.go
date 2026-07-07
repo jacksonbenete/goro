@@ -63,6 +63,8 @@ type gpuRenderer struct {
 	statsLast        time.Time
 	worldDebug       bool
 	worldDebugLast   time.Time
+
+	worldFrameScratch worldFrameScratch
 }
 
 type gpuTexture struct {
