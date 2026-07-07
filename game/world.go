@@ -3671,10 +3671,6 @@ func clickedWalkTarget(ctx client.Context, projection sceneProjection, mouseX, m
 		return 0, 0, false
 	}
 
-	if x, y, ok := rayPickedWalkCell(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY); ok {
-		return x, y, true
-	}
-
 	if x, y, ok := clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY); ok {
 		return x, y, true
 	}
@@ -3702,7 +3698,7 @@ func hoveredWalkCell(ctx client.Context, projection sceneProjection, mouseX, mou
 	if !ok {
 		return 0, 0, false
 	}
-	return rayPickedWalkCell(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY)
+	return clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, minX, maxX, minY, maxY)
 }
 
 func walkTargetSearchBounds(ctx client.Context) (int, int, int, int, bool) {
@@ -3752,88 +3748,6 @@ func clickedWalkCellByProjectedPolygon(ctx client.Context, projection sceneProje
 		}
 	}
 	return bestX, bestY, found
-}
-
-func rayPickedWalkCell(ctx client.Context, projection sceneProjection, mouseX, mouseY, minX, maxX, minY, maxY int) (int, int, bool) {
-	if ctx.World == nil || ctx.World.GAT == nil {
-		return 0, 0, false
-	}
-	hit, ok := rayIntersectGAT(ctx.World.GAT, projection, float64(mouseX), float64(mouseY), minX, maxX, minY, maxY)
-	if !ok {
-		return 0, 0, false
-	}
-	cellX := int(math.Floor(hit.x))
-	cellY := int(math.Floor(hit.z))
-	nearMinX := maxInt(minX, cellX-1)
-	nearMaxX := minInt(maxX, cellX+1)
-	nearMinY := maxInt(minY, cellY-1)
-	nearMaxY := minInt(maxY, cellY+1)
-	return clickedWalkCellByProjectedPolygon(ctx, projection, mouseX, mouseY, nearMinX, nearMaxX, nearMinY, nearMaxY)
-}
-
-func rayIntersectGAT(gat *res.GAT, projection sceneProjection, screenX, screenY float64, minX, maxX, minY, maxY int) (modelPoint3, bool) {
-	origin, dir, ok := projection.Ray(screenX, screenY)
-	if !ok {
-		return modelPoint3{}, false
-	}
-	const (
-		maxSteps = 500
-		stepSize = 1.0
-	)
-	prev := origin
-	prevDiff := 0.0
-	havePrev := false
-	for step := 1; step <= maxSteps; step++ {
-		point := add3(origin, mul3(dir, float64(step)*stepSize))
-		if point.x < float64(minX-2) || point.x > float64(maxX+3) || point.z < float64(minY-2) || point.z > float64(maxY+3) {
-			if havePrev {
-				break
-			}
-			continue
-		}
-		height, ok := gatSurfaceHeightAt(gat, point.x, point.z)
-		if !ok {
-			continue
-		}
-		diff := point.y - height
-		if math.Abs(diff) < 0.5 {
-			return point, true
-		}
-		if havePrev && ((prevDiff > 0 && diff < 0) || (prevDiff < 0 && diff > 0)) {
-			low, high := prev, point
-			for i := 0; i < 6; i++ {
-				mid := add3(low, mul3(sub3(high, low), 0.5))
-				midHeight, ok := gatSurfaceHeightAt(gat, mid.x, mid.z)
-				if !ok {
-					break
-				}
-				midDiff := mid.y - midHeight
-				if (prevDiff > 0 && midDiff > 0) || (prevDiff < 0 && midDiff < 0) {
-					low = mid
-				} else {
-					high = mid
-				}
-			}
-			return add3(low, mul3(sub3(high, low), 0.5)), true
-		}
-		prev = point
-		prevDiff = diff
-		havePrev = true
-	}
-	return modelPoint3{}, false
-}
-
-func gatSurfaceHeightAt(gat *res.GAT, x, y float64) (float64, bool) {
-	if gat == nil || x < 0 || y < 0 {
-		return 0, false
-	}
-	cellX := int(math.Floor(x))
-	cellY := int(math.Floor(y))
-	cell, ok := gat.Cell(cellX, cellY)
-	if !ok {
-		return 0, false
-	}
-	return bilinearHeight(cell.Heights, x-float64(cellX), y-float64(cellY)), true
 }
 
 func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
