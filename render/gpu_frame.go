@@ -25,9 +25,8 @@ type worldFrame struct {
 }
 
 type pendingWorldBatch struct {
-	key     drawBatchKey
-	floats  []float32
-	indices []uint32
+	key      drawBatchKey
+	commands []WorldCommand
 }
 
 func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
@@ -55,8 +54,7 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 			continue
 		}
 		batch := &pending[batchIndex]
-		lw, lh := lightTextureSize(cmd.LightTexture, w, h)
-		batch.floats, batch.indices = appendWorldCommand(batch.floats, batch.indices, cmd, w, h, lw, lh)
+		batch.commands = append(batch.commands, cmd)
 	}
 	frame := worldFrame{
 		floats:  make([]float32, 0, vertexCount*worldVertexFloatCount),
@@ -64,19 +62,27 @@ func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
 		batches: make([]drawBatch, 0, commandCount),
 	}
 	for _, batch := range pending {
-		if len(batch.indices) == 0 || len(batch.floats) == 0 {
+		if len(batch.commands) == 0 {
 			continue
 		}
-		vertexBase := uint32(len(frame.floats) / worldVertexFloatCount)
 		firstIndex := uint32(len(frame.indices))
-		frame.floats = append(frame.floats, batch.floats...)
-		for _, index := range batch.indices {
-			frame.indices = append(frame.indices, vertexBase+index)
+		indexCountBefore := len(frame.indices)
+		for _, cmd := range batch.commands {
+			w, h := cmd.Texture.Bounds().Dx(), cmd.Texture.Bounds().Dy()
+			if w <= 0 || h <= 0 {
+				continue
+			}
+			lw, lh := lightTextureSize(cmd.LightTexture, w, h)
+			frame.floats, frame.indices = appendWorldCommand(frame.floats, frame.indices, cmd, w, h, lw, lh)
+		}
+		indexCount := len(frame.indices) - indexCountBefore
+		if indexCount == 0 {
+			continue
 		}
 		frame.batches = append(frame.batches, drawBatch{
 			key:        batch.key,
 			firstIndex: firstIndex,
-			indexCount: uint32(len(batch.indices)),
+			indexCount: uint32(indexCount),
 		})
 	}
 	var current *drawBatch
