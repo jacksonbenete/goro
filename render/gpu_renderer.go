@@ -84,6 +84,45 @@ type gpuWorldMesh struct {
 	version    uint64
 }
 
+type renderPassState struct {
+	pipeline  *wgpu.RenderPipeline
+	bindGroup *wgpu.BindGroup
+	vertexBuf *wgpu.Buffer
+	indexBuf  *wgpu.Buffer
+}
+
+func (s *renderPassState) setPipeline(pass *wgpu.RenderPassEncoder, pipeline *wgpu.RenderPipeline) {
+	if pipeline == nil || s.pipeline == pipeline {
+		return
+	}
+	pass.SetPipeline(pipeline)
+	s.pipeline = pipeline
+}
+
+func (s *renderPassState) setBindGroup(pass *wgpu.RenderPassEncoder, bg *wgpu.BindGroup) {
+	if bg == nil || s.bindGroup == bg {
+		return
+	}
+	pass.SetBindGroup(0, bg, nil)
+	s.bindGroup = bg
+}
+
+func (s *renderPassState) setVertexBuffer(pass *wgpu.RenderPassEncoder, buf *wgpu.Buffer) {
+	if buf == nil || s.vertexBuf == buf {
+		return
+	}
+	pass.SetVertexBuffer(0, buf, 0)
+	s.vertexBuf = buf
+}
+
+func (s *renderPassState) setIndexBuffer(pass *wgpu.RenderPassEncoder, buf *wgpu.Buffer) {
+	if buf == nil || s.indexBuf == buf {
+		return
+	}
+	pass.SetIndexBuffer(buf, gputypes.IndexFormatUint32, 0)
+	s.indexBuf = buf
+}
+
 type samplerKey struct {
 	filter  Filter
 	address Address
@@ -455,21 +494,22 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 	if err != nil {
 		return err
 	}
+	worldState := renderPassState{}
 	if screen.camera.Enabled {
 		for _, meshCommand := range screen.worldMeshes {
 			mesh := meshCommand.Mesh
 			if mesh == nil || !mesh.options.DepthWrite {
 				continue
 			}
-			if err := r.drawWorldMesh(ctx, pass, mesh); err != nil {
+			if err := r.drawWorldMesh(ctx, pass, mesh, &worldState); err != nil {
 				_ = pass.End()
 				return err
 			}
 		}
 	}
 	if worldVertexBuf != nil && worldIndexBuf != nil && screen.camera.Enabled {
-		pass.SetVertexBuffer(0, worldVertexBuf, 0)
-		pass.SetIndexBuffer(worldIndexBuf, gputypes.IndexFormatUint32, 0)
+		worldState.setVertexBuffer(pass, worldVertexBuf)
+		worldState.setIndexBuffer(pass, worldIndexBuf)
 		for _, batch := range world.batches {
 			if batch.indexCount == 0 {
 				continue
@@ -494,8 +534,8 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 				_ = pass.End()
 				return err
 			}
-			pass.SetPipeline(r.worldPipelineFor(batch.key.options.Blend, batch.key.options.DepthWrite))
-			pass.SetBindGroup(0, bg, nil)
+			worldState.setPipeline(pass, r.worldPipelineFor(batch.key.options.Blend, batch.key.options.DepthWrite))
+			worldState.setBindGroup(pass, bg)
 			pass.DrawIndexed(batch.indexCount, 1, batch.firstIndex, 0, 0)
 		}
 	}
@@ -505,7 +545,7 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 			if mesh == nil || mesh.options.DepthWrite {
 				continue
 			}
-			if err := r.drawWorldMesh(ctx, pass, mesh); err != nil {
+			if err := r.drawWorldMesh(ctx, pass, mesh, &worldState); err != nil {
 				_ = pass.End()
 				return err
 			}
@@ -758,9 +798,12 @@ func (r *gpuRenderer) bindWorldGroup(uniform *wgpu.Buffer, uniformSize uint64, t
 	return bg, nil
 }
 
-func (r *gpuRenderer) drawWorldMesh(ctx *gogpu.Context, pass *wgpu.RenderPassEncoder, mesh *WorldMesh) error {
+func (r *gpuRenderer) drawWorldMesh(ctx *gogpu.Context, pass *wgpu.RenderPassEncoder, mesh *WorldMesh, state *renderPassState) error {
 	if mesh == nil || mesh.texture == nil || mesh.texture.pix == nil || len(mesh.vertices) == 0 || len(mesh.indices) == 0 {
 		return nil
+	}
+	if state == nil {
+		state = &renderPassState{}
 	}
 	gpuMesh, err := r.ensureWorldMesh(mesh)
 	if err != nil {
@@ -782,10 +825,10 @@ func (r *gpuRenderer) drawWorldMesh(ctx *gogpu.Context, pass *wgpu.RenderPassEnc
 	if err != nil {
 		return err
 	}
-	pass.SetPipeline(r.worldPipelineFor(mesh.options.Blend, mesh.options.DepthWrite))
-	pass.SetBindGroup(0, bg, nil)
-	pass.SetVertexBuffer(0, gpuMesh.vertexBuf, 0)
-	pass.SetIndexBuffer(gpuMesh.indexBuf, gputypes.IndexFormatUint32, 0)
+	state.setPipeline(pass, r.worldPipelineFor(mesh.options.Blend, mesh.options.DepthWrite))
+	state.setBindGroup(pass, bg)
+	state.setVertexBuffer(pass, gpuMesh.vertexBuf)
+	state.setIndexBuffer(pass, gpuMesh.indexBuf)
 	pass.DrawIndexed(gpuMesh.indexCount, 1, 0, 0, 0)
 	return nil
 }

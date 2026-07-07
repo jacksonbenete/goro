@@ -5336,20 +5336,28 @@ func loadRSMModel(manager *res.Manager, filename string) (*res.RSM, error) {
 }
 
 func (m *WorldMode) drawGNDWater(screen *render.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time, fog sceneFog) {
+	water, ok := mapWater(gnd, rsw)
+	if !ok {
+		return
+	}
 	width := screen.Bounds().Dx()
 	height := screen.Bounds().Dy()
 	startX, endX, startY, endY, ok := gndDrawBounds(gnd, projection, width, height)
 	if !ok {
 		return
 	}
+	waterFrame := waterFrameForTime(water, now)
+	waterTint := waterTint(water, rsw)
+	waterOffset := waterOffsetForTime(water, now)
+	texture := m.waterTexture(manager, int(water.Type), waterFrame)
 	for y := startY; y <= endY; y++ {
 		for x := startX; x <= endX; x++ {
 			cell, ok := gnd.Cell(x, y)
 			if !ok || cell.Top < 0 {
 				continue
 			}
-			if waterDraw, ok := newGNDWaterDraw(projection, x, y, cell, gnd, rsw, now); ok {
-				m.drawWaterSurface(screen, manager, waterDraw, projection, fog)
+			if waterDraw, ok := newGNDWaterDraw(x, y, cell, water, waterFrame, waterTint, waterOffset); ok {
+				m.drawWaterSurface(screen, texture, waterDraw, projection, fog)
 			}
 		}
 	}
@@ -5587,36 +5595,27 @@ func uniformGNDNormals(normal modelPoint3) [4]modelPoint3 {
 	return [4]modelPoint3{normal, normal, normal, normal}
 }
 
-func newGNDWaterDraw(projection sceneProjection, x, y int, cell res.GNDCell, gnd *res.GND, rsw *res.RSW, now time.Time) (gndSurfaceDraw, bool) {
-	water, ok := mapWater(gnd, rsw)
-	if !ok {
-		return gndSurfaceDraw{}, false
-	}
+func newGNDWaterDraw(x, y int, cell res.GNDCell, water res.RSWWater, waterFrame int, tint color.RGBA, waterOffset float64) (gndSurfaceDraw, bool) {
 	if !waterVisibleForCell(cell, water) {
 		return gndSurfaceDraw{}, false
 	}
-	heights := waterHeightsForCell(water, x, y, now)
+	heights := waterHeightsForCell(water, x, y, waterOffset)
 	verts := [4]modelPoint3{
 		{x: float64(x) * 2, y: float64(heights[0]), z: float64(y) * 2},
 		{x: float64(x+1) * 2, y: float64(heights[1]), z: float64(y) * 2},
 		{x: float64(x+1) * 2, y: float64(heights[3]), z: float64(y+1) * 2},
 		{x: float64(x) * 2, y: float64(heights[2]), z: float64(y+1) * 2},
 	}
-	draw := newGNDSurfaceDraw(
-		projection,
-		verts,
-		waterUVs(x, y),
-		[4]int{0, 1, 3, 2},
-		quadIndices012023,
-		res.GNDSurface{},
-		heights,
-		sceneLighting{},
-	)
-	draw.water = true
-	draw.waterType = int(water.Type)
-	draw.waterFrame = waterFrameForTime(water, now)
-	draw.tint = waterTint(water, rsw)
-	return draw, true
+	return gndSurfaceDraw{
+		verts:      verts,
+		uvs:        waterUVs(x, y),
+		indices:    quadIndices012023,
+		heights:    heights,
+		water:      true,
+		waterType:  int(water.Type),
+		waterFrame: waterFrame,
+		tint:       tint,
+	}, true
 }
 
 func mapWater(gnd *res.GND, rsw *res.RSW) (res.RSWWater, bool) {
@@ -5663,8 +5662,7 @@ func newGNDSurfaceDrawWithNormals(projection sceneProjection, verts [4]modelPoin
 	}
 }
 
-func (m *WorldMode) drawWaterSurface(screen *render.Image, manager *res.Manager, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
-	texture := m.waterTexture(manager, draw.waterType, draw.waterFrame)
+func (m *WorldMode) drawWaterSurface(screen *render.Image, texture *render.Image, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
 	tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
 	if texture == nil {
 		drawColoredSurfaceTints3DAlpha(screen, m.whitePixel, draw.verts, draw.indices, tints)
@@ -5805,12 +5803,11 @@ func waterUVs(x, y int) [4]texturePoint {
 	}
 }
 
-func waterHeightsForCell(water res.RSWWater, x, y int, now time.Time) [4]float32 {
+func waterHeightsForCell(water res.RSWWater, x, y int, offset float64) [4]float32 {
 	level := water.Level
 	if water.WaveHeight == 0 {
 		return [4]float32{level, level, level, level}
 	}
-	offset := waterOffsetForTime(water, now)
 	pitch := float64(water.WavePitch)
 	diagonal := float64(x + y)
 	h1 := waterSin(offset+pitch*diagonal)*water.WaveHeight + level
