@@ -11,6 +11,7 @@ import (
 
 const (
 	defaultRSMRenderRadius = 42
+	rsmPlacementCellSize   = 64.0
 )
 
 type modelPoint3 struct {
@@ -76,32 +77,83 @@ type visibleRSMPlacement struct {
 	dist2 float64
 }
 
+type rsmPlacementGrid struct {
+	rsw   *res.RSW
+	gnd   *res.GND
+	cells map[rsmPlacementGridCell][]visibleRSMPlacement
+}
+
+type rsmPlacementGridCell struct {
+	x int
+	y int
+}
+
 func (m *WorldMode) visibleRSMPlacements(rsw *res.RSW, gnd *res.GND, projection sceneProjection) []visibleRSMPlacement {
 	if rsw == nil || gnd == nil {
 		return nil
 	}
 	radius := rsmRenderRadius()
-	visible := make([]visibleRSMPlacement, 0, len(rsw.Models))
-	for index, placement := range rsw.Models {
-		if placement.Filename == "" {
-			continue
+	grid := m.rsmPlacementGridFor(rsw, gnd)
+	if grid == nil {
+		return nil
+	}
+	queryRadius := radius * 2
+	minCellX := rsmPlacementGridCoord(projection.playerX - queryRadius)
+	maxCellX := rsmPlacementGridCoord(projection.playerX + queryRadius)
+	minCellY := rsmPlacementGridCoord(projection.playerY - queryRadius)
+	maxCellY := rsmPlacementGridCoord(projection.playerY + queryRadius)
+	visible := make([]visibleRSMPlacement, 0, 32)
+	for cellY := minCellY; cellY <= maxCellY; cellY++ {
+		for cellX := minCellX; cellX <= maxCellX; cellX++ {
+			for _, placement := range grid.cells[rsmPlacementGridCell{x: cellX, y: cellY}] {
+				dx := placement.baseX - projection.playerX
+				dy := placement.baseY - projection.playerY
+				if math.Abs(dx) > queryRadius || math.Abs(dy) > queryRadius {
+					continue
+				}
+				placement.dist2 = dx*dx + dy*dy
+				visible = append(visible, placement)
+			}
 		}
-		baseX := float64(placement.Position.X) + float64(gnd.Width)
-		baseY := float64(placement.Position.Z) + float64(gnd.Height)
-		dx := baseX - projection.playerX
-		dy := baseY - projection.playerY
-		if math.Abs(dx) > radius*2 || math.Abs(dy) > radius*2 {
-			continue
-		}
-		visible = append(visible, visibleRSMPlacement{
-			index: index,
-			model: placement,
-			baseX: baseX,
-			baseY: baseY,
-			dist2: dx*dx + dy*dy,
-		})
 	}
 	return visible
+}
+
+func (m *WorldMode) rsmPlacementGridFor(rsw *res.RSW, gnd *res.GND) *rsmPlacementGrid {
+	if rsw == nil || gnd == nil {
+		return nil
+	}
+	if m.rsmPlacementGrid != nil && m.rsmPlacementGrid.rsw == rsw && m.rsmPlacementGrid.gnd == gnd {
+		return m.rsmPlacementGrid
+	}
+	grid := &rsmPlacementGrid{
+		rsw:   rsw,
+		gnd:   gnd,
+		cells: make(map[rsmPlacementGridCell][]visibleRSMPlacement, len(rsw.Models)/4+1),
+	}
+	for index, model := range rsw.Models {
+		if model.Filename == "" {
+			continue
+		}
+		baseX := float64(model.Position.X) + float64(gnd.Width)
+		baseY := float64(model.Position.Z) + float64(gnd.Height)
+		cell := rsmPlacementGridCell{
+			x: rsmPlacementGridCoord(baseX),
+			y: rsmPlacementGridCoord(baseY),
+		}
+		grid.cells[cell] = append(grid.cells[cell], visibleRSMPlacement{
+			index: index,
+			model: model,
+			baseX: baseX,
+			baseY: baseY,
+		})
+	}
+	m.rsmPlacementGrid = grid
+	return grid
+}
+
+func rsmPlacementGridCoord(value float64) int {
+	return int(math.Floor(value / rsmPlacementCellSize))
 }
 
 func (m *WorldMode) rsmModelForPlacement(manager *res.Manager, models map[string]*res.RSM, placement res.RSWModel) *res.RSM {

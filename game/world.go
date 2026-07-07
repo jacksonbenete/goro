@@ -63,6 +63,7 @@ type WorldMode struct {
 	rsmNodeMatrices  map[*res.RSM]map[string]mat4
 	rsmBoundsCache   map[rsmBoundsCacheKey]rsmBounds
 	rsmFaceMetaCache map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
+	rsmPlacementGrid *rsmPlacementGrid
 	gndMeshCache     *gndRetainedMeshCache
 	pendingWarp      bool
 	pendingAttack    attackIntent
@@ -309,6 +310,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
 	m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
 	m.rsmFaceMetaCache = make(map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta)
+	m.rsmPlacementGrid = nil
 	m.gndMeshCache = nil
 	m.pendingWarp = false
 	m.pendingAttack = attackIntent{}
