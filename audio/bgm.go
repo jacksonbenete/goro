@@ -13,11 +13,16 @@ import (
 	"strings"
 
 	"github.com/ebitengine/oto/v3"
-	mp3 "github.com/hajimehoshi/go-mp3"
+	mp3codec "github.com/godexture/codec-mp3"
+	"github.com/godexture/core/domain/media"
+	mp3format "github.com/godexture/format-mp3"
+	"github.com/godexture/sdk/engine"
 	"github.com/kivutar/goro/res"
 )
 
 const defaultSampleRate = 44100
+const minPCM16 = -32768
+const maxPCM16 = 32767
 
 type BGM struct {
 	resources  *res.Manager
@@ -222,27 +227,120 @@ func (b *BGM) PlaySFXVolume(path string, volume float64) (string, error) {
 }
 
 func decodeNativePCM(data []byte) ([]byte, int, string, error) {
-	if pcm, sampleRate, decoder, err := decodeMPG123PCM(data); err == nil {
-		return pcm, sampleRate, decoder, nil
-	} else {
-		log.Printf("mp3 mpg123 decoder unavailable, falling back to go-mp3: %v", err)
-	}
-	decoder, err := mp3.NewDecoder(bytes.NewReader(data))
+	demuxer, err := mp3format.NewDemuxerEngine(bytes.NewReader(data))
 	if err != nil {
 		return nil, 0, "", err
 	}
-	pcm, err := io.ReadAll(decoder)
+	streams, _, err := demuxer.Analyze()
+	if err != nil {
+		return nil, 0, "", err
+	}
+	sampleRate := defaultSampleRate
+	if len(streams) > 0 && streams[0].Audio.SampleRate > 0 {
+		sampleRate = streams[0].Audio.SampleRate
+	}
+
+	decoder := mp3codec.NewDecoderEngine(mp3codec.DecoderConfig{})
+	pcm, err := decodeMP3Packets(demuxer, decoder)
 	if err != nil {
 		return nil, 0, "", err
 	}
 	if len(pcm)%4 != 0 {
 		return nil, 0, "", fmt.Errorf("invalid stereo pcm length %d", len(pcm))
 	}
-	sampleRate := decoder.SampleRate()
-	if sampleRate <= 0 {
-		sampleRate = defaultSampleRate
+	return pcm, sampleRate, "godec/codec-mp3", nil
+}
+
+func decodeMP3Packets(demuxer engine.DemuxerEngine, decoder engine.DecoderEngine) ([]byte, error) {
+	var pcm []byte
+	for {
+		packet, _, err := demuxer.ReadPacket()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err := decoder.SendPacket(packet); err != nil && err != engine.ErrEAGAIN {
+			return nil, err
+		}
+		decoded, err := receiveMP3Frames(decoder)
+		if err != nil {
+			return nil, err
+		}
+		pcm = append(pcm, decoded...)
 	}
-	return pcm, sampleRate, "go-mp3", nil
+	if err := decoder.Flush(); err != nil {
+		return nil, err
+	}
+	decoded, err := receiveMP3Frames(decoder)
+	if err != nil {
+		return nil, err
+	}
+	pcm = append(pcm, decoded...)
+	if len(pcm) == 0 {
+		return nil, fmt.Errorf("empty decoded MP3")
+	}
+	return pcm, nil
+}
+
+func receiveMP3Frames(decoder engine.DecoderEngine) ([]byte, error) {
+	var pcm []byte
+	for {
+		frame, err := decoder.ReceiveFrame()
+		if err == engine.ErrEAGAIN || err == engine.ErrEOF {
+			return pcm, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		audioFrame, ok := (*frame).(*media.AudioFrame)
+		if !ok {
+			return nil, fmt.Errorf("decoded MP3 frame is %T, want *media.AudioFrame", *frame)
+		}
+		pcm = appendAudioFramePCM16Stereo(pcm, audioFrame)
+	}
+}
+
+func appendAudioFramePCM16Stereo(dst []byte, frame *media.AudioFrame) []byte {
+	if frame == nil || len(frame.Planes()) == 0 {
+		return dst
+	}
+	channels := frame.Layout.ChannelCount()
+	if channels <= 0 {
+		channels = 2
+	}
+	samples := frame.Samples
+	plane := frame.Planes()[0]
+	for sample := 0; sample < samples; sample++ {
+		left := readFrameFloat32(plane, sample*channels)
+		right := left
+		if channels > 1 {
+			right = readFrameFloat32(plane, sample*channels+1)
+		}
+		dst = binary.LittleEndian.AppendUint16(dst, uint16(float32ToPCM16(left)))
+		dst = binary.LittleEndian.AppendUint16(dst, uint16(float32ToPCM16(right)))
+	}
+	return dst
+}
+
+func readFrameFloat32(plane []byte, sample int) float32 {
+	offset := sample * 4
+	if offset+4 > len(plane) {
+		return 0
+	}
+	return math.Float32frombits(binary.LittleEndian.Uint32(plane[offset:]))
+}
+
+func float32ToPCM16(value float32) int16 {
+	sample := int(math.Round(float64(value * 32768)))
+	if sample < minPCM16 {
+		return minPCM16
+	}
+	if sample > maxPCM16 {
+		return maxPCM16
+	}
+	return int16(sample)
 }
 
 func outputSampleRateForSource(_ int) int {

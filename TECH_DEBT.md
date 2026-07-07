@@ -16,28 +16,12 @@ not become invisible project assumptions.
   - Also revisit whether the old fallback evaluator is still needed after enough
     real `.lub` files are covered by tests.
 
-- **MP3 playback through runtime `libmpg123`**
-  - Current state: BGM uses `go-mp3` where possible and falls back to `libmpg123`
-    through `purego` for old low-rate RO MP3 files.
-  - Ugly part: this keeps `CGO_ENABLED=0`, but still needs a platform library at
-    runtime and manually registers mpg123 symbols.
-  - Better fix: find or write a pure-Go MP3 decoder that correctly handles the
-    old 22 kHz files, or convert/cache decoded audio in a controlled asset
-    pipeline.
-
 - **`nofakecgo` build tag requirement**
   - Current state: builds are expected to use `CGO_ENABLED=0 -tags nofakecgo`.
   - Ugly part: the tag exists to avoid duplicate fake-cgo symbol providers across
     GoGPU/goffi and Oto/purego.
   - Better fix: remove the tag requirement once the dependency stack no longer
     needs competing fake-cgo shims.
-
-- **Dynamic library loading paths**
-  - Current state: `audio/dlopen_*.go` probes common mpg123 library names.
-  - Ugly part: this is best-effort and may fail silently into lower-quality or no
-    audio depending on the platform install.
-  - Better fix: explicit dependency diagnostics in the launcher, packaged
-    per-platform libraries, or no runtime library dependency.
 
 ## Rendering
 
