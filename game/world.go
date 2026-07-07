@@ -2374,10 +2374,6 @@ func actorWithinSoundRange(ctx client.Context, actor worldstate.Actor, now time.
 	return math.Hypot(actorX-playerX, actorY-playerY) <= soundRangeCells
 }
 
-func (m *WorldMode) playSFXFirst(ctx client.Context, paths ...string) {
-	m.playSFXFirstVolume(ctx, 1, paths...)
-}
-
 func (m *WorldMode) playSFXFirstVolume(ctx client.Context, volume float64, paths ...string) {
 	if ctx.Audio == nil {
 		return
