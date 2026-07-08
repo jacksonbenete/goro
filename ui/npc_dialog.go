@@ -26,8 +26,9 @@ const (
 	npcMenuMaxRows       = 8
 	npcMenuRowH          = 24
 	npcMenuPad           = 8
+	npcMenuListPad       = 1
 	npcMenuFooterH       = 32
-	npcMenuMinHeight     = ROWindowTitleHeight + npcMenuPad*2 + npcMenuMinRows*npcMenuRowH + npcMenuFooterH
+	npcMenuMinHeight     = ROWindowTitleHeight + npcMenuPad*2 + npcMenuListPad*2 + npcMenuMinRows*npcMenuRowH + npcMenuFooterH
 )
 
 var (
@@ -416,6 +417,7 @@ func (d *NPCDialog) menuTree(ctx Context, width, height int) widget.Widget {
 				scrollview.New(
 					primitives.Box(rows...).
 						Gap(2).
+						Padding(npcMenuListPad).
 						CrossAlign(primitives.CrossAxisStretch),
 					scrollview.DirectionOpt(scrollview.Vertical),
 					scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
@@ -481,7 +483,7 @@ func npcDialogBounds(width, height int) (int, int, int, int) {
 func (d *NPCDialog) menuBounds(width, height, dialogX, dialogY, dialogW, dialogH int) (int, int, int, int) {
 	w := minInt(npcMenuWidth, maxInt(220, width-40))
 	rows := maxInt(npcMenuMinRows, minInt(len(d.options), npcMenuMaxRows))
-	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+rows*npcMenuRowH+npcMenuFooterH)
+	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+npcMenuListPad*2+rows*npcMenuRowH+npcMenuFooterH)
 	x := dialogX + (dialogW-w)/2
 	y := dialogY + dialogH + 8
 	x = clampWindowInt(x, 8, maxInt(8, width-w-8))
