@@ -76,7 +76,6 @@ type WorldMode struct {
 	lastAttackAt      time.Time
 	lastChaseAt       time.Time
 	actorAnims        map[uint32]actorAnimation
-	actorStances      map[uint32]actorStanceState
 	damageFloaters    []damageFloater
 	worldEffects      []worldEffect
 	scheduledSounds   []scheduledSound
@@ -223,14 +222,11 @@ type actorAnimation struct {
 	actionFamily   int
 	started        time.Time
 	duration       time.Duration
+	loop           bool
 	holdFinal      bool
 	fixedMotion    int
 	hasFixedMotion bool
-}
-
-type actorStanceState struct {
-	actionFamily int
-	started      time.Time
+	next           *actorAnimation
 }
 
 type actorLife struct {
@@ -350,7 +346,6 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.lastAttackAt = time.Time{}
 	m.lastChaseAt = time.Time{}
 	m.actorAnims = make(map[uint32]actorAnimation)
-	m.actorStances = make(map[uint32]actorStanceState)
 	m.damageFloaters = nil
 	m.scheduledSounds = nil
 	m.mapSoundNext = make(map[int]time.Time)
@@ -518,7 +513,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("parse self move ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applySelfMoveAck(ctx, ack)
-			m.clearLocalActorStance(ctx)
+			m.clearLocalActorAction(ctx)
 			m.status = fmt.Sprintf("walk ack: %d,%d -> %d,%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY)
 			log.Printf("walk ack from=%d,%d to=%d,%d tick=%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY, ack.ServerTick)
 			m.continuePendingAttack(ctx, "walk ack")
@@ -1207,7 +1202,7 @@ func friendNameInSession(s *session.Session, name string) bool {
 func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
-	m.clearLocalActorStance(ctx)
+	m.clearLocalActorAction(ctx)
 	m.npcDialog.ResetPublished(ctx)
 	m.teleportModal = gameui.TeleportModal{}
 	m.clearLocalDeathState(ctx)
@@ -1760,9 +1755,10 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	attackFamily := spriteActionNonPCAttack
 	if sourceOK {
 		attackFamily = skillActionFamilyForActor(source, action.SkillID)
-		m.startCombatAnimation(ctx, action.SourceID, attackFamily, now, attackDuration)
 		if sourceLocal && action.SkillID == 0 && res.HasPlayerJobToken(int(source.Job)) {
-			m.setLocalActorStance(ctx, spriteActionPCReadyFight, now.Add(attackDuration))
+			m.startCombatAnimationWithNext(ctx, action.SourceID, attackFamily, now, attackDuration, readyFightAnimation(now.Add(attackDuration)))
+		} else {
+			m.startCombatAnimation(ctx, action.SourceID, attackFamily, now, attackDuration)
 		}
 	}
 	hitDelay := combatDuration(action.SourceSpeed, 0)
@@ -1783,7 +1779,8 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, now)
 		m.addSkillBeforeHitEffect(ctx, action, now)
 		if skillTargetUsesHitReaction(action, sourceLocal, targetLocal) {
-			m.startCombatAnimation(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, combatDuration(action.TargetSpeed, defaultHitAnimationDuration))
+			hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
+			m.startCombatAnimationWithNext(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, hurtDuration, postHurtAnimation(target, hitAt.Add(hurtDuration)))
 		}
 		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
 		m.addSkillEffect(ctx, action, hitAt)
@@ -1953,11 +1950,6 @@ func (m *WorldMode) applyActorPickupActionNotify(ctx client.Context, action netw
 	source, sourceOK, sourceLocal := actorForCombatID(ctx, action.SourceID)
 	if !sourceOK {
 		return
-	}
-	if sourceLocal {
-		m.clearLocalActorStance(ctx)
-	} else {
-		m.clearActorStance(action.SourceID)
 	}
 	if ctx.World != nil {
 		if item, ok := ctx.World.Items[action.TargetID]; ok {
@@ -2198,65 +2190,73 @@ func (m *WorldMode) startHeldActorAnimation(id uint32, actionFamily int, started
 }
 
 func (m *WorldMode) startActorAnimationWithOptions(id uint32, actionFamily int, started time.Time, duration time.Duration, holdFinal bool) {
-	if id == 0 || actionFamily < 0 {
+	m.startActorAnimationState(id, actorAnimation{
+		actionFamily: actionFamily,
+		started:      started,
+		duration:     duration,
+		holdFinal:    holdFinal,
+	})
+}
+
+func (m *WorldMode) startActorAnimationWithNext(id uint32, actionFamily int, started time.Time, duration time.Duration, next *actorAnimation) {
+	m.startActorAnimationState(id, actorAnimation{
+		actionFamily: actionFamily,
+		started:      started,
+		duration:     duration,
+		next:         cloneActorAnimation(next),
+	})
+}
+
+func (m *WorldMode) startActorAnimationState(id uint32, anim actorAnimation) {
+	if id == 0 || anim.actionFamily < 0 {
 		return
 	}
 	if m.actorAnims == nil {
 		m.actorAnims = make(map[uint32]actorAnimation)
 	}
-	m.actorAnims[id] = actorAnimation{
-		actionFamily: actionFamily,
+	m.actorAnims[id] = anim
+}
+
+func cloneActorAnimation(anim *actorAnimation) *actorAnimation {
+	if anim == nil {
+		return nil
+	}
+	cloned := *anim
+	cloned.next = cloneActorAnimation(anim.next)
+	return &cloned
+}
+
+func readyFightAnimation(started time.Time) *actorAnimation {
+	return &actorAnimation{
+		actionFamily: spriteActionPCReadyFight,
 		started:      started,
-		duration:     duration,
-		holdFinal:    holdFinal,
+		loop:         true,
 	}
 }
 
-func (m *WorldMode) setLocalActorStance(ctx client.Context, actionFamily int, started time.Time) {
-	if ctx.Session == nil || actionFamily < 0 {
-		return
+func postHurtAnimation(actor worldstate.Actor, started time.Time) *actorAnimation {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		return readyFightAnimation(started)
 	}
-	m.setActorStance(ctx.Session.AccountID, actionFamily, started)
-	m.setActorStance(ctx.Session.CharID, actionFamily, started)
+	return nil
 }
 
-func (m *WorldMode) setActorStance(id uint32, actionFamily int, started time.Time) {
-	if id == 0 || actionFamily < 0 {
-		return
-	}
-	if m.actorStances == nil {
-		m.actorStances = make(map[uint32]actorStanceState)
-	}
-	m.actorStances[id] = actorStanceState{actionFamily: actionFamily, started: started}
-}
-
-func (m *WorldMode) clearLocalActorStance(ctx client.Context) {
+func (m *WorldMode) clearLocalActorAction(ctx client.Context) {
 	if ctx.Session == nil {
 		return
 	}
-	m.clearActorStance(ctx.Session.AccountID)
-	m.clearActorStance(ctx.Session.CharID)
+	m.clearActorAction(ctx.Session.AccountID)
+	m.clearActorAction(ctx.Session.CharID)
 }
 
-func (m *WorldMode) clearActorStance(id uint32) {
-	if id == 0 || m.actorStances == nil {
+func (m *WorldMode) clearActorAction(id uint32) {
+	if id == 0 || m.actorAnims == nil {
 		return
 	}
-	delete(m.actorStances, id)
-}
-
-func (m *WorldMode) actorStance(id uint32, now time.Time) (int, bool) {
-	if id == 0 || m.actorStances == nil {
-		return 0, false
+	if anim, ok := m.actorAnims[id]; ok && (anim.actionFamily == spriteActionPCDeath || anim.actionFamily == spriteActionNonPCDeath) {
+		return
 	}
-	stance, ok := m.actorStances[id]
-	if !ok {
-		return 0, false
-	}
-	if !stance.started.IsZero() && now.Before(stance.started) {
-		return 0, false
-	}
-	return stance.actionFamily, true
+	delete(m.actorAnims, id)
 }
 
 func (m *WorldMode) startCombatAnimation(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
@@ -2266,6 +2266,15 @@ func (m *WorldMode) startCombatAnimation(ctx client.Context, id uint32, actionFa
 	}
 	m.startActorAnimation(ctx.Session.AccountID, actionFamily, started, duration)
 	m.startActorAnimation(ctx.Session.CharID, actionFamily, started, duration)
+}
+
+func (m *WorldMode) startCombatAnimationWithNext(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration, next *actorAnimation) {
+	m.startActorAnimationWithNext(id, actionFamily, started, duration, next)
+	if ctx.Session == nil || !isLocalActor(ctx, id) {
+		return
+	}
+	m.startActorAnimationWithNext(ctx.Session.AccountID, actionFamily, started, duration, next)
+	m.startActorAnimationWithNext(ctx.Session.CharID, actionFamily, started, duration, next)
 }
 
 func (m *WorldMode) startHeldCombatAnimation(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
@@ -2324,9 +2333,20 @@ func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bo
 	if now.Before(anim.started) {
 		return actorAnimation{}, false
 	}
+	if anim.loop {
+		return anim, true
+	}
 	if !now.Before(anim.started.Add(anim.duration)) {
 		if anim.holdFinal {
 			return anim, true
+		}
+		if anim.next != nil {
+			next := *anim.next
+			if next.started.IsZero() {
+				next.started = anim.started.Add(anim.duration)
+			}
+			m.actorAnims[id] = next
+			return m.actorAnimation(id, now)
 		}
 		delete(m.actorAnims, id)
 		return actorAnimation{}, false
@@ -3673,14 +3693,12 @@ func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVan
 	}
 	ctx.World.RemoveActor(vanish.ID)
 	delete(m.actorAnims, vanish.ID)
-	delete(m.actorStances, vanish.ID)
 	delete(m.actorDeaths, vanish.ID)
 	delete(m.actorSoundFrames, vanish.ID)
 	delete(m.actorLife, vanish.ID)
 }
 
 func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
-	m.clearActorStance(id)
 	actor, ok, local := actorForCombatID(ctx, id)
 	if !ok {
 		if !local {
@@ -3757,7 +3775,6 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 		ctx.World.RemoveActor(id)
 		delete(m.actorDeaths, id)
 		delete(m.actorAnims, id)
-		delete(m.actorStances, id)
 		delete(m.actorSoundFrames, id)
 		delete(m.actorLife, id)
 		if m.pendingAttack.targetID == id {
@@ -3773,7 +3790,6 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 func (m *WorldMode) clearActorDeath(id uint32) {
 	delete(m.actorDeaths, id)
 	delete(m.actorAnims, id)
-	delete(m.actorStances, id)
 	delete(m.actorSoundFrames, id)
 }
 
@@ -5349,7 +5365,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 	if anim, ok := m.actorAnimation(actor.ID, now); ok {
 		state.actionFamily = anim.actionFamily
 		state.started = anim.started
-		state.loop = false
+		state.loop = anim.loop
 		state.moving = false
 		state.fixedMotion = anim.fixedMotion
 		state.hasFixedMotion = anim.hasFixedMotion
@@ -5395,7 +5411,7 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 	if anim, ok := m.actorAnimation(actor.ID, now); ok {
 		state.actionFamily = anim.actionFamily
 		state.started = anim.started
-		state.loop = false
+		state.loop = anim.loop
 		state.moving = false
 		state.loopIdle = false
 		state.fixedMotion = anim.fixedMotion

@@ -153,27 +153,19 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 		state.walkDistance = ctx.World.Player.RenderWalkDistance(now)
 	} else if ctx.World.Player.Sitting {
 		state.actionFamily = spriteActionSit
-	} else if ctx.Session != nil {
-		if actionFamily, ok := m.actorStance(ctx.Session.CharID, now); ok {
-			state.actionFamily = actionFamily
-			state.loop = true
-		} else if actionFamily, ok := m.actorStance(ctx.Session.AccountID, now); ok {
-			state.actionFamily = actionFamily
-			state.loop = true
-		}
 	}
 	if ctx.Session != nil {
 		if anim, ok := m.actorAnimation(ctx.Session.CharID, now); ok {
 			state.actionFamily = anim.actionFamily
 			state.started = anim.started
-			state.loop = false
+			state.loop = anim.loop
 			state.moving = false
 			state.fixedMotion = anim.fixedMotion
 			state.hasFixedMotion = anim.hasFixedMotion
 		} else if anim, ok := m.actorAnimation(ctx.Session.AccountID, now); ok {
 			state.actionFamily = anim.actionFamily
 			state.started = anim.started
-			state.loop = false
+			state.loop = anim.loop
 			state.moving = false
 			state.fixedMotion = anim.fixedMotion
 			state.hasFixedMotion = anim.hasFixedMotion
