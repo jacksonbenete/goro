@@ -3623,15 +3623,32 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 		return
 	}
 	now := time.Now()
+	deathX, deathY := actor.RenderPosition(now)
+	actor.X = int(math.Round(deathX))
+	actor.Y = int(math.Round(deathY))
 	actor.Moving = false
 	actor.FromX = actor.X
 	actor.FromY = actor.Y
 	actor.ToX = actor.X
 	actor.ToY = actor.Y
 	actor.MovePath = nil
+	actor.HasMoveStart = false
+	actor.MoveStartX = 0
+	actor.MoveStartY = 0
 	actor.WalkDistance = 0
 	if local {
 		ctx.World.Player.Moving = false
+		ctx.World.Player.X = actor.X
+		ctx.World.Player.Y = actor.Y
+		ctx.World.Player.FromX = actor.X
+		ctx.World.Player.FromY = actor.Y
+		ctx.World.Player.ToX = actor.X
+		ctx.World.Player.ToY = actor.Y
+		ctx.World.Player.MovePath = nil
+		ctx.World.Player.HasMoveStart = false
+		ctx.World.Player.MoveStartX = 0
+		ctx.World.Player.MoveStartY = 0
+		ctx.World.Player.WalkDistance = 0
 		m.deathModal.OpenDeath()
 	} else {
 		ctx.World.UpsertActor(actor)

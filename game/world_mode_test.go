@@ -3245,6 +3245,48 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 	}
 }
 
+func TestApplyActorVanishDeathFreezesMovingMobAtRenderedPosition(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{
+		ID:            300,
+		X:             20,
+		Y:             20,
+		FromX:         10,
+		FromY:         20,
+		ToX:           20,
+		ToY:           20,
+		Moving:        true,
+		MoveStarted:   now.Add(-50 * time.Second),
+		MoveDuration:  100 * time.Second,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	}
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000}},
+		World:   world,
+	}
+
+	mode.applyActorVanish(ctx, network.ActorVanish{ID: 300, Reason: 1})
+
+	actor, ok := world.Actors[300]
+	if !ok {
+		t.Fatal("dead actor was removed immediately")
+	}
+	if actor.Moving {
+		t.Fatal("dead actor should stop moving")
+	}
+	if actor.X != 15 || actor.Y != 20 {
+		t.Fatalf("dead actor position = %d,%d, want rendered position 15,20 instead of destination 20,20", actor.X, actor.Y)
+	}
+	if actor.FromX != actor.X || actor.ToX != actor.X || actor.FromY != actor.Y || actor.ToY != actor.Y {
+		t.Fatalf("dead actor movement endpoints = from %d,%d to %d,%d, want frozen at %d,%d", actor.FromX, actor.FromY, actor.ToX, actor.ToY, actor.X, actor.Y)
+	}
+}
+
 func TestMobLookChangeToPlayerJobDoesNotChangeDeathSpriteFamily(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
