@@ -266,6 +266,49 @@ func TestSetPlayerMovementUsesPlayerSpeed(t *testing.T) {
 	}
 }
 
+func TestSetPlayerMovementAtFastForwardsRoute(t *testing.T) {
+	w := New()
+	w.Player.Speed = 100
+	now := time.Unix(100, 0)
+
+	w.SetPlayerMovementAt(0, 0, 3, 0, 6, now, 150*time.Millisecond)
+
+	x, y := w.Player.RenderPosition(now)
+	if x != 1.5 || y != 0 {
+		t.Fatalf("position = %.2f, %.2f, want 1.50, 0.00", x, y)
+	}
+}
+
+func TestSetPlayerMovementAtPreservesCurrentRouteProgress(t *testing.T) {
+	w := New()
+	now := time.Unix(100, 0)
+	w.Player = Actor{
+		X:            3,
+		Y:            0,
+		Moving:       true,
+		FromX:        0,
+		FromY:        0,
+		ToX:          3,
+		ToY:          0,
+		MoveStarted:  now.Add(-150 * time.Millisecond),
+		MoveDuration: 300 * time.Millisecond,
+		MovePath: []WalkStep{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 2, Y: 0},
+			{X: 3, Y: 0},
+		},
+		Speed: 100,
+	}
+
+	w.SetPlayerMovementAt(0, 0, 4, 0, 6, now, 0)
+
+	x, y := w.Player.RenderPosition(now)
+	if x != 1.5 || y != 0 {
+		t.Fatalf("position = %.2f, %.2f, want preserved 1.50, 0.00", x, y)
+	}
+}
+
 func TestActorRenderPositionFollowsWalkPath(t *testing.T) {
 	now := time.Now()
 	actor := Actor{

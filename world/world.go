@@ -118,8 +118,19 @@ func (w *World) SetPlayerPosition(x, y, dir int) {
 }
 
 func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
+	w.SetPlayerMovementAt(fromX, fromY, toX, toY, dir, time.Now(), 0)
+}
+
+func (w *World) SetPlayerMovementAt(fromX, fromY, toX, toY, dir int, now time.Time, fastForward time.Duration) {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	oldPlayer := w.Player
 	path := walkPath(w.GAT, fromX, fromY, toX, toY)
 	finalDir := movementFinalDirection(path, fromX, fromY, toX, toY, dir)
+	speed := actorMoveSpeed(w.Player)
+	duration := actorMovementDurationWithSpeed(path, fromX, fromY, toX, toY, speed)
+	offset := movementStartOffset(path, oldPlayer, now, fastForward, duration, speed)
 	w.Player.X = toX
 	w.Player.Y = toY
 	w.Player.Dir = finalDir
@@ -130,9 +141,10 @@ func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
 	w.Player.ToY = toY
 	w.Player.Moving = true
 	w.Player.Sitting = false
-	w.Player.MoveStarted = time.Now()
+	w.Player.MoveStarted = now.Add(-offset)
 	w.Player.MovePath = path
-	w.Player.MoveDuration = actorMovementDurationWithSpeed(w.Player.MovePath, fromX, fromY, toX, toY, actorMoveSpeed(w.Player))
+	w.Player.MoveDuration = duration
+	w.Player.WalkDistance = movementWalkDistanceOffset(path, oldPlayer, now, offset, speed)
 	w.Dir = finalDir
 }
 
@@ -143,6 +155,39 @@ func movementFinalDirection(path []WalkStep, fromX, fromY, toX, toY int, fallbac
 		return DirectionFromDelta(from.X, from.Y, to.X, to.Y, fallback)
 	}
 	return DirectionFromDelta(fromX, fromY, toX, toY, fallback)
+}
+
+func movementStartOffset(path []WalkStep, oldPlayer Actor, now time.Time, fastForward, duration time.Duration, speedMS int) time.Duration {
+	if duration > 0 && fastForward > duration*4 {
+		fastForward = 0
+	}
+	offset := clampMovementOffset(fastForward, duration)
+	if oldPlayer.IsMovingAt(now) && len(path) >= 2 {
+		x, y := oldPlayer.RenderPosition(now)
+		if currentOffset, ok := pathElapsedAtPositionWithSpeed(path, x, y, speedMS); ok && currentOffset > offset {
+			offset = clampMovementOffset(currentOffset, duration)
+		}
+	}
+	return offset
+}
+
+func movementWalkDistanceOffset(path []WalkStep, oldPlayer Actor, now time.Time, offset time.Duration, speedMS int) float64 {
+	if !oldPlayer.IsMovingAt(now) {
+		return 0
+	}
+	previous := oldPlayer.RenderWalkDistance(now)
+	current := pathWalkDistanceWithSpeed(path, offset, speedMS)
+	return previous - current
+}
+
+func clampMovementOffset(offset, duration time.Duration) time.Duration {
+	if offset < 0 {
+		return 0
+	}
+	if duration > 0 && offset > duration {
+		return duration
+	}
+	return offset
 }
 
 func (w *World) UpsertActor(actor Actor) {
@@ -382,6 +427,45 @@ func pathElapsedBeforeSegmentWithSpeed(path []WalkStep, from, to WalkStep, speed
 		total += movementSegmentDurationWithSpeed(path[i].X-path[i-1].X, path[i].Y-path[i-1].Y, speedMS)
 	}
 	return total
+}
+
+func pathElapsedAtPositionWithSpeed(path []WalkStep, x, y float64, speedMS int) (time.Duration, bool) {
+	if len(path) < 2 {
+		return 0, false
+	}
+	bestDistance := math.Inf(1)
+	bestElapsed := time.Duration(0)
+	elapsedBefore := time.Duration(0)
+	for i := 1; i < len(path); i++ {
+		from := path[i-1]
+		to := path[i]
+		dx := float64(to.X - from.X)
+		dy := float64(to.Y - from.Y)
+		segmentDuration := movementSegmentDurationWithSpeed(to.X-from.X, to.Y-from.Y, speedMS)
+		segmentLengthSq := dx*dx + dy*dy
+		if segmentLengthSq == 0 {
+			elapsedBefore += segmentDuration
+			continue
+		}
+		t := ((x-float64(from.X))*dx + (y-float64(from.Y))*dy) / segmentLengthSq
+		if t < 0 {
+			t = 0
+		} else if t > 1 {
+			t = 1
+		}
+		px := float64(from.X) + dx*t
+		py := float64(from.Y) + dy*t
+		distance := math.Hypot(x-px, y-py)
+		if distance < bestDistance {
+			bestDistance = distance
+			bestElapsed = elapsedBefore + time.Duration(float64(segmentDuration)*t)
+		}
+		elapsedBefore += segmentDuration
+	}
+	if bestDistance > 0.75 {
+		return 0, false
+	}
+	return bestElapsed, true
 }
 
 func pathWalkDistanceWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int) float64 {

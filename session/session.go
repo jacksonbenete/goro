@@ -3,34 +3,64 @@ package session
 import "time"
 
 type Session struct {
-	AccountID   uint32
-	CharID      uint32
-	AuthCode    uint32
-	UserLevel   uint32
-	Sex         byte
-	Playing     bool
-	NoShift     bool
-	NoCtrl      bool
-	AttackRange int
-	CharServers []CharServer
-	Characters  []Character
-	Selected    Character
-	Zone        ZoneServer
-	PlayerX     int
-	PlayerY     int
-	PlayerDir   int
-	Vitals      Vitals
-	Progress    Progress
-	Inventory   Inventory
-	Storage     Storage
-	Stats       Stats
-	Skills      Skills
-	Statuses    Statuses
-	Friends     Friends
+	AccountID    uint32
+	CharID       uint32
+	AuthCode     uint32
+	UserLevel    uint32
+	Sex          byte
+	Playing      bool
+	NoShift      bool
+	NoCtrl       bool
+	AttackRange  int
+	CharServers  []CharServer
+	Characters   []Character
+	Selected     Character
+	Zone         ZoneServer
+	ServerTick   uint32
+	ServerTickAt time.Time
+	PlayerX      int
+	PlayerY      int
+	PlayerDir    int
+	Vitals       Vitals
+	Progress     Progress
+	Inventory    Inventory
+	Storage      Storage
+	Stats        Stats
+	Skills       Skills
+	Statuses     Statuses
+	Friends      Friends
 }
 
 func New() *Session {
 	return &Session{}
+}
+
+func (s *Session) SyncServerTick(tick uint32, at time.Time) {
+	if s == nil {
+		return
+	}
+	s.ServerTick = tick
+	s.ServerTickAt = at
+}
+
+func (s *Session) EstimatedServerTick(at time.Time) (uint32, bool) {
+	if s == nil || s.ServerTickAt.IsZero() {
+		return 0, false
+	}
+	elapsed := at.Sub(s.ServerTickAt)
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	return s.ServerTick + uint32(elapsed/time.Millisecond), true
+}
+
+func (s *Session) ElapsedSinceServerTick(start uint32, at time.Time) (time.Duration, bool) {
+	current, ok := s.EstimatedServerTick(at)
+	if !ok {
+		return 0, false
+	}
+	elapsedMS := current - start
+	return time.Duration(elapsedMS) * time.Millisecond, true
 }
 
 type CharServer struct {

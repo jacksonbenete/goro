@@ -3823,13 +3823,23 @@ func isLocalActor(ctx client.Context, id uint32) bool {
 }
 
 func applySelfMoveAck(ctx client.Context, ack network.SelfMoveAck) {
+	now := time.Now()
+	fastForward := time.Duration(0)
+	if ctx.Session != nil {
+		if elapsed, ok := ctx.Session.ElapsedSinceServerTick(ack.ServerTick, now); ok {
+			fastForward = elapsed
+		}
+	}
 	dir := directionFromDelta(ack.FromX, ack.FromY, ack.ToX, ack.ToY, ctx.World.Dir)
-	ctx.World.SetPlayerMovement(ack.FromX, ack.FromY, ack.ToX, ack.ToY, dir)
+	ctx.World.SetPlayerMovementAt(ack.FromX, ack.FromY, ack.ToX, ack.ToY, dir, now, fastForward)
 	ctx.Session.PlayerX = ack.ToX
 	ctx.Session.PlayerY = ack.ToY
 }
 
 func applyMapAcceptEnter(ctx client.Context, enter network.MapAcceptEnter) {
+	if ctx.Session != nil {
+		ctx.Session.SyncServerTick(enter.ServerTick, time.Now())
+	}
 	ctx.Session.PlayerX = enter.X
 	ctx.Session.PlayerY = enter.Y
 	ctx.Session.PlayerDir = enter.Dir
