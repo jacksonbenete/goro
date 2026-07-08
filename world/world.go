@@ -59,6 +59,9 @@ type Actor struct {
 	MoveStarted   time.Time
 	MoveDuration  time.Duration
 	MovePath      []WalkStep
+	MoveStartX    float64
+	MoveStartY    float64
+	HasMoveStart  bool
 	WalkDistance  float64
 	ObjectType    uint8
 	HasObjectType bool
@@ -85,24 +88,6 @@ func New() *World {
 	}
 }
 
-func (w *World) MovePlayer(dx, dy int) {
-	w.TryMovePlayer(dx, dy)
-}
-
-func (w *World) TryMovePlayer(dx, dy int) bool {
-	if dx == 0 && dy == 0 {
-		return false
-	}
-	nextX := w.Player.X + dx
-	nextY := w.Player.Y + dy
-	if w.GAT != nil && !w.GAT.Walkable(nextX, nextY) {
-		return false
-	}
-	w.Player.X = nextX
-	w.Player.Y = nextY
-	return true
-}
-
 func (w *World) SetPlayerPosition(x, y, dir int) {
 	w.Player.X = x
 	w.Player.Y = y
@@ -115,6 +100,7 @@ func (w *World) SetPlayerPosition(x, y, dir int) {
 	w.Player.ToX = x
 	w.Player.ToY = y
 	w.Player.MovePath = nil
+	w.Player.HasMoveStart = false
 }
 
 func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
@@ -129,8 +115,8 @@ func (w *World) SetPlayerMovementAt(fromX, fromY, toX, toY, dir int, now time.Ti
 	path := walkPath(w.GAT, fromX, fromY, toX, toY)
 	finalDir := movementFinalDirection(path, fromX, fromY, toX, toY, dir)
 	speed := actorMoveSpeed(w.Player)
-	duration := actorMovementDurationWithSpeed(path, fromX, fromY, toX, toY, speed)
-	offset := movementStartOffset(path, oldPlayer, now, fastForward, duration, speed)
+	startX, startY, hasMoveStart, offset := movementStart(path, oldPlayer, now, fastForward, speed, fromX, fromY)
+	duration := actorMovementDurationFromWithSpeed(path, fromX, fromY, toX, toY, speed, startX, startY, hasMoveStart)
 	w.Player.X = toX
 	w.Player.Y = toY
 	w.Player.Dir = finalDir
@@ -144,7 +130,10 @@ func (w *World) SetPlayerMovementAt(fromX, fromY, toX, toY, dir int, now time.Ti
 	w.Player.MoveStarted = now.Add(-offset)
 	w.Player.MovePath = path
 	w.Player.MoveDuration = duration
-	w.Player.WalkDistance = movementWalkDistanceOffset(path, oldPlayer, now, offset, speed)
+	w.Player.MoveStartX = startX
+	w.Player.MoveStartY = startY
+	w.Player.HasMoveStart = hasMoveStart
+	w.Player.WalkDistance = movementWalkDistanceOffset(path, oldPlayer, now, offset, speed, startX, startY, hasMoveStart)
 	w.Dir = finalDir
 }
 
@@ -157,26 +146,35 @@ func movementFinalDirection(path []WalkStep, fromX, fromY, toX, toY int, fallbac
 	return DirectionFromDelta(fromX, fromY, toX, toY, fallback)
 }
 
-func movementStartOffset(path []WalkStep, oldPlayer Actor, now time.Time, fastForward, duration time.Duration, speedMS int) time.Duration {
+func movementStart(path []WalkStep, oldPlayer Actor, now time.Time, fastForward time.Duration, speedMS, fromX, fromY int) (float64, float64, bool, time.Duration) {
+	startX := float64(fromX)
+	startY := float64(fromY)
+	duration := time.Duration(0)
+	if len(path) > 0 {
+		duration = actorMovementDurationWithSpeed(path, path[0].X, path[0].Y, path[len(path)-1].X, path[len(path)-1].Y, speedMS)
+	}
 	if duration > 0 && fastForward > duration*4 {
 		fastForward = 0
 	}
 	offset := clampMovementOffset(fastForward, duration)
 	if oldPlayer.IsMovingAt(now) && len(path) >= 2 {
 		x, y := oldPlayer.RenderPosition(now)
+		if math.Hypot(x-float64(fromX), y-float64(fromY)) <= 1.25 {
+			return x, y, true, 0
+		}
 		if currentOffset, ok := pathElapsedAtPositionWithSpeed(path, x, y, speedMS); ok && currentOffset > offset {
 			offset = clampMovementOffset(currentOffset, duration)
 		}
 	}
-	return offset
+	return startX, startY, false, offset
 }
 
-func movementWalkDistanceOffset(path []WalkStep, oldPlayer Actor, now time.Time, offset time.Duration, speedMS int) float64 {
+func movementWalkDistanceOffset(path []WalkStep, oldPlayer Actor, now time.Time, offset time.Duration, speedMS int, startX, startY float64, hasMoveStart bool) float64 {
 	if !oldPlayer.IsMovingAt(now) {
 		return 0
 	}
 	previous := oldPlayer.RenderWalkDistance(now)
-	current := pathWalkDistanceWithSpeed(path, offset, speedMS)
+	current := pathWalkDistanceWithSpeed(path, offset, speedMS, startX, startY, hasMoveStart)
 	return previous - current
 }
 
@@ -244,12 +242,14 @@ func (w *World) UpsertActor(actor Actor) {
 		actor.MoveStarted = now
 		actor.MovePath = walkPath(w.GAT, actor.FromX, actor.FromY, actor.ToX, actor.ToY)
 		actor.MoveDuration = actorMovementDurationWithSpeed(actor.MovePath, actor.FromX, actor.FromY, actor.ToX, actor.ToY, actorMoveSpeed(actor))
+		actor.HasMoveStart = false
 	} else {
 		actor.FromX = actor.X
 		actor.FromY = actor.Y
 		actor.ToX = actor.X
 		actor.ToY = actor.Y
 		actor.MovePath = nil
+		actor.HasMoveStart = false
 		actor.WalkDistance = 0
 	}
 	w.Actors[actor.ID] = actor
@@ -286,7 +286,7 @@ func (a Actor) RenderPosition(now time.Time) (float64, float64) {
 	}
 	elapsed := now.Sub(a.MoveStarted)
 	if len(a.MovePath) >= 2 {
-		return renderPathPositionWithSpeed(a.MovePath, elapsed, actorMoveSpeed(a))
+		return renderPathPositionWithSpeed(a.MovePath, elapsed, actorMoveSpeed(a), a.MoveStartX, a.MoveStartY, a.HasMoveStart)
 	}
 	t := float64(elapsed) / float64(a.MoveDuration)
 	if t < 0 {
@@ -304,11 +304,11 @@ func (a Actor) RenderDirection(now time.Time) int {
 		return a.Dir
 	}
 	elapsed := now.Sub(a.MoveStarted)
-	from, to := renderPathSegmentWithSpeed(a.MovePath, elapsed, actorMoveSpeed(a))
-	if from == to {
+	fromX, fromY, toX, toY := renderPathSegmentWithSpeed(a.MovePath, elapsed, actorMoveSpeed(a), a.MoveStartX, a.MoveStartY, a.HasMoveStart)
+	if math.Abs(fromX-toX) < 0.001 && math.Abs(fromY-toY) < 0.001 {
 		return a.Dir
 	}
-	return DirectionFromDelta(from.X, from.Y, to.X, to.Y, a.Dir)
+	return DirectionFromFloatDelta(fromX, fromY, toX, toY, a.Dir)
 }
 
 func (a Actor) RenderWalkDistance(now time.Time) float64 {
@@ -321,7 +321,7 @@ func (a Actor) RenderWalkDistance(now time.Time) float64 {
 		elapsed = 0
 	}
 	if len(a.MovePath) >= 2 {
-		return base + pathWalkDistanceWithSpeed(a.MovePath, elapsed, actorMoveSpeed(a))
+		return base + pathWalkDistanceWithSpeed(a.MovePath, elapsed, actorMoveSpeed(a), a.MoveStartX, a.MoveStartY, a.HasMoveStart)
 	}
 	t := float64(elapsed) / float64(a.MoveDuration)
 	if t < 0 {
@@ -333,10 +333,15 @@ func (a Actor) RenderWalkDistance(now time.Time) float64 {
 }
 
 func actorMovementDurationWithSpeed(path []WalkStep, fromX, fromY, toX, toY int, speedMS int) time.Duration {
+	return actorMovementDurationFromWithSpeed(path, fromX, fromY, toX, toY, speedMS, 0, 0, false)
+}
+
+func actorMovementDurationFromWithSpeed(path []WalkStep, fromX, fromY, toX, toY int, speedMS int, startX, startY float64, hasMoveStart bool) time.Duration {
 	if len(path) >= 2 {
 		total := time.Duration(0)
 		for i := 1; i < len(path); i++ {
-			total += movementSegmentDurationWithSpeed(path[i].X-path[i-1].X, path[i].Y-path[i-1].Y, speedMS)
+			segmentStartX, segmentStartY := pathSegmentStart(path, i, startX, startY, hasMoveStart)
+			total += movementSegmentDurationFloatWithSpeed(float64(path[i].X)-segmentStartX, float64(path[i].Y)-segmentStartY, speedMS)
 		}
 		if total > 0 {
 			return total
@@ -382,51 +387,79 @@ func movementSegmentDurationWithSpeed(dx, dy int, speedMS int) time.Duration {
 	return time.Duration(steps*speedMS) * time.Millisecond
 }
 
-func renderPathPositionWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int) (float64, float64) {
-	from, to := renderPathSegmentWithSpeed(path, elapsed, speedMS)
-	segmentElapsed := elapsed - pathElapsedBeforeSegmentWithSpeed(path, from, to, speedMS)
-	duration := movementSegmentDurationWithSpeed(to.X-from.X, to.Y-from.Y, speedMS)
-	if duration <= 0 {
-		return float64(to.X), float64(to.Y)
+func movementSegmentDurationFloatWithSpeed(dx, dy float64, speedMS int) time.Duration {
+	if speedMS <= 0 {
+		speedMS = defaultMoveSpeedMS
 	}
-	t := float64(segmentElapsed) / float64(duration)
-	if t < 0 {
-		t = 0
-	} else if t > 1 {
-		t = 1
+	dist := math.Hypot(dx, dy)
+	if dist <= 0 {
+		return 0
 	}
-	x := float64(from.X) + float64(to.X-from.X)*t
-	y := float64(from.Y) + float64(to.Y-from.Y)*t
-	return x, y
+	return time.Duration(math.Round(dist*float64(speedMS))) * time.Millisecond
 }
 
-func renderPathSegmentWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int) (WalkStep, WalkStep) {
+func renderPathPositionWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int, startX, startY float64, hasMoveStart bool) (float64, float64) {
 	if len(path) == 0 {
-		return WalkStep{}, WalkStep{}
+		return 0, 0
 	}
-	if len(path) == 1 || elapsed <= 0 {
-		return path[0], path[0]
+	if len(path) == 1 {
+		return float64(path[0].X), float64(path[0].Y)
+	}
+	if elapsed < 0 {
+		elapsed = 0
 	}
 	remaining := elapsed
 	for i := 1; i < len(path); i++ {
-		duration := movementSegmentDurationWithSpeed(path[i].X-path[i-1].X, path[i].Y-path[i-1].Y, speedMS)
-		if remaining < duration || i == len(path)-1 {
-			return path[i-1], path[i]
+		fromX, fromY := pathSegmentStart(path, i, startX, startY, hasMoveStart)
+		toX := float64(path[i].X)
+		toY := float64(path[i].Y)
+		duration := movementSegmentDurationFloatWithSpeed(toX-fromX, toY-fromY, speedMS)
+		if duration <= 0 {
+			continue
+		}
+		if remaining <= duration || i == len(path)-1 {
+			t := float64(remaining) / float64(duration)
+			if t < 0 {
+				t = 0
+			} else if t > 1 {
+				t = 1
+			}
+			return fromX + (toX-fromX)*t, fromY + (toY-fromY)*t
 		}
 		remaining -= duration
 	}
-	return path[len(path)-1], path[len(path)-1]
+	last := path[len(path)-1]
+	return float64(last.X), float64(last.Y)
 }
 
-func pathElapsedBeforeSegmentWithSpeed(path []WalkStep, from, to WalkStep, speedMS int) time.Duration {
-	total := time.Duration(0)
-	for i := 1; i < len(path); i++ {
-		if path[i-1] == from && path[i] == to {
-			return total
-		}
-		total += movementSegmentDurationWithSpeed(path[i].X-path[i-1].X, path[i].Y-path[i-1].Y, speedMS)
+func renderPathSegmentWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int, startX, startY float64, hasMoveStart bool) (float64, float64, float64, float64) {
+	if len(path) == 0 {
+		return 0, 0, 0, 0
 	}
-	return total
+	if len(path) == 1 {
+		x := float64(path[0].X)
+		y := float64(path[0].Y)
+		return x, y, x, y
+	}
+	if elapsed <= 0 {
+		fromX, fromY := pathSegmentStart(path, 1, startX, startY, hasMoveStart)
+		return fromX, fromY, float64(path[1].X), float64(path[1].Y)
+	}
+	remaining := elapsed
+	for i := 1; i < len(path); i++ {
+		fromX, fromY := pathSegmentStart(path, i, startX, startY, hasMoveStart)
+		toX := float64(path[i].X)
+		toY := float64(path[i].Y)
+		duration := movementSegmentDurationFloatWithSpeed(toX-fromX, toY-fromY, speedMS)
+		if remaining < duration || i == len(path)-1 {
+			return fromX, fromY, toX, toY
+		}
+		remaining -= duration
+	}
+	last := path[len(path)-1]
+	x := float64(last.X)
+	y := float64(last.Y)
+	return x, y, x, y
 }
 
 func pathElapsedAtPositionWithSpeed(path []WalkStep, x, y float64, speedMS int) (time.Duration, bool) {
@@ -462,23 +495,24 @@ func pathElapsedAtPositionWithSpeed(path []WalkStep, x, y float64, speedMS int) 
 		}
 		elapsedBefore += segmentDuration
 	}
-	if bestDistance > 0.75 {
+	if bestDistance > 0.05 {
 		return 0, false
 	}
 	return bestElapsed, true
 }
 
-func pathWalkDistanceWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int) float64 {
+func pathWalkDistanceWithSpeed(path []WalkStep, elapsed time.Duration, speedMS int, startX, startY float64, hasMoveStart bool) float64 {
 	if len(path) < 2 || elapsed <= 0 {
 		return 0
 	}
 	remaining := elapsed
 	total := 0.0
 	for i := 1; i < len(path); i++ {
-		from := path[i-1]
-		to := path[i]
-		segmentDistance := math.Hypot(float64(to.X-from.X), float64(to.Y-from.Y))
-		duration := movementSegmentDurationWithSpeed(to.X-from.X, to.Y-from.Y, speedMS)
+		fromX, fromY := pathSegmentStart(path, i, startX, startY, hasMoveStart)
+		toX := float64(path[i].X)
+		toY := float64(path[i].Y)
+		segmentDistance := math.Hypot(toX-fromX, toY-fromY)
+		duration := movementSegmentDurationFloatWithSpeed(toX-fromX, toY-fromY, speedMS)
 		if duration <= 0 {
 			total += segmentDistance
 			continue
@@ -498,6 +532,14 @@ func pathWalkDistanceWithSpeed(path []WalkStep, elapsed time.Duration, speedMS i
 		break
 	}
 	return total
+}
+
+func pathSegmentStart(path []WalkStep, segmentIndex int, startX, startY float64, hasMoveStart bool) (float64, float64) {
+	if segmentIndex == 1 && hasMoveStart {
+		return startX, startY
+	}
+	from := path[segmentIndex-1]
+	return float64(from.X), float64(from.Y)
 }
 
 func walkPath(gat *res.GAT, fromX, fromY, toX, toY int) []WalkStep {
@@ -639,15 +681,19 @@ func reconstructPath(node *pathNode) []WalkStep {
 }
 
 func DirectionFromDelta(fromX, fromY, toX, toY int, fallback int) int {
+	return DirectionFromFloatDelta(float64(fromX), float64(fromY), float64(toX), float64(toY), fallback)
+}
+
+func DirectionFromFloatDelta(fromX, fromY, toX, toY float64, fallback int) int {
 	dx := toX - fromX
 	dy := toY - fromY
-	if dx == 0 && dy == 0 {
+	if math.Abs(dx) < 0.001 && math.Abs(dy) < 0.001 {
 		if fallback < 0 {
 			return 0
 		}
 		return fallback & 7
 	}
-	actionDir := int(math.Round(-math.Atan2(float64(dy), float64(dx))/(math.Pi/4)+6)) & 7
+	actionDir := int(math.Round(-math.Atan2(dy, dx)/(math.Pi/4)+6)) & 7
 	return (4 - actionDir) & 7
 }
 

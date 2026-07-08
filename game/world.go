@@ -267,7 +267,7 @@ const (
 	mapFadeInDuration              = 340 * time.Millisecond
 	actorNameRequestCooldown       = time.Second
 	defaultRSMLoadLimit            = 128
-	defaultCameraFollowFactor      = 0.1
+	defaultCameraFollowLerpPerMS   = 0.006
 	defaultCameraWheelZoomStep     = 1.12
 	defaultCameraWheelZoomUnits    = 15
 	defaultCameraPinchZoomScale    = 240
@@ -1011,19 +1011,6 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		m.updateCameraZoom(ctx)
 	}
 
-	dx, dy := 0, 0
-	if ctx.Input.Pressed(render.KeyArrowLeft) {
-		dx--
-	}
-	if ctx.Input.Pressed(render.KeyArrowRight) {
-		dx++
-	}
-	if ctx.Input.Pressed(render.KeyArrowUp) {
-		dy--
-	}
-	if ctx.Input.Pressed(render.KeyArrowDown) {
-		dy++
-	}
 	if !pointerBlocked && ctx.Input.MouseJustPressed(render.MouseButtonLeft) && m.walkReady(now) {
 		m.nextHeldWalkAt = now.Add(heldWalkRepeatInterval)
 		screenW, screenH := ctx.ScreenSize()
@@ -1060,12 +1047,6 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	}
 	if m.updateHeldWalk(ctx, pointerBlocked, now) {
 		return nil, nil
-	}
-	if (dx != 0 || dy != 0) && m.walkReady(now) {
-		targetX := ctx.World.Player.X + dx
-		targetY := ctx.World.Player.Y + dy
-		m.clearLockedAttack()
-		m.requestWalk(ctx, targetX, targetY, "key")
 	}
 	return nil, nil
 }
@@ -1108,7 +1089,6 @@ func (m *WorldMode) updateHeldWalk(ctx client.Context, pointerBlocked bool, now 
 	if !ok || playerAtWalkTarget(ctx.World.Player, targetX, targetY, now) {
 		return false
 	}
-	log.Printf("held walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
 	m.clearLockedAttack()
 	m.requestWalk(ctx, targetX, targetY, "held click")
 	return true
@@ -3274,6 +3254,7 @@ type followCamera struct {
 	x           float64
 	y           float64
 	z           float64
+	lastUpdate  time.Time
 	yawOffset   float64
 	zoom        float64
 }
@@ -3288,15 +3269,24 @@ func (c *followCamera) Update(ctx client.Context, now time.Time) {
 		c.x = targetX
 		c.y = targetY
 		c.z = targetZ
+		c.lastUpdate = now
 		c.initialized = true
 		c.store(ctx)
 		return
 	}
-	factor := cameraFollowFactor()
-	c.x += (targetX - c.x) * factor
-	c.y += (targetY - c.y) * factor
-	c.z += (targetZ - c.z) * factor
+	lerp := cameraFollowLerp(now.Sub(c.lastUpdate))
+	c.lastUpdate = now
+	c.x += (targetX - c.x) * lerp
+	c.y += (targetY - c.y) * lerp
+	c.z += (targetZ - c.z) * lerp
 	c.store(ctx)
+}
+
+func cameraFollowLerp(delta time.Duration) float64 {
+	if delta <= 0 {
+		return 0
+	}
+	return math.Min(float64(delta)/float64(time.Millisecond)*defaultCameraFollowLerpPerMS, 1.0)
 }
 
 func (c *followCamera) Rotate(delta float64) {
@@ -3418,10 +3408,6 @@ func playerCameraTarget(world *worldstate.World, now time.Time) (float64, float6
 	}
 	playerX, playerY := world.Player.RenderPosition(now)
 	return cellCenter(playerX), cellCenter(playerY), cameraTargetHeightAt(world, playerX, playerY)
-}
-
-func cameraFollowFactor() float64 {
-	return defaultCameraFollowFactor
 }
 
 func cameraYawForMap(ctx client.Context) float64 {

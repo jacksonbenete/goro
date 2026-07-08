@@ -3563,7 +3563,7 @@ func TestFollowCameraInitializesToRenderedPlayerPosition(t *testing.T) {
 	}
 }
 
-func TestFollowCameraInterpolatesTowardPlayerLikeReferenceView(t *testing.T) {
+func TestFollowCameraEasesTowardRenderedPlayerLikeReferenceView(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{X: 10, Y: 20}
 	ctx := client.Context{World: world}
@@ -3575,7 +3575,16 @@ func TestFollowCameraInterpolatesTowardPlayerLikeReferenceView(t *testing.T) {
 	camera.Update(ctx, now.Add(time.Second/60))
 
 	if math.Abs(camera.x-10.9) > 0.001 || camera.y != 20.5 {
-		t.Fatalf("camera target = %.2f, %.2f, want 10.9, 20.5", camera.x, camera.y)
+		t.Fatalf("camera target = %.3f, %.3f, want 10.900, 20.5", camera.x, camera.y)
+	}
+}
+
+func TestCameraFollowLerpClampsLikeReferenceView(t *testing.T) {
+	if got := cameraFollowLerp(100 * time.Millisecond); math.Abs(got-0.6) > 0.001 {
+		t.Fatalf("camera lerp = %.2f, want 0.60", got)
+	}
+	if got := cameraFollowLerp(time.Second); got != 1 {
+		t.Fatalf("camera lerp = %.2f, want clamped 1.00", got)
 	}
 }
 
@@ -3622,12 +3631,6 @@ func TestActorBillboardSortDepthUsesTopInCameraProjection(t *testing.T) {
 	}
 	if got >= footDepth {
 		t.Fatalf("billboard depth = %.4f, want closer than foot depth %.4f", got, footDepth)
-	}
-}
-
-func TestCameraFollowFactorUsesReferenceDefault(t *testing.T) {
-	if got := cameraFollowFactor(); got != defaultCameraFollowFactor {
-		t.Fatalf("camera follow factor = %.2f, want %.2f", got, defaultCameraFollowFactor)
 	}
 }
 

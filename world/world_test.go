@@ -309,6 +309,70 @@ func TestSetPlayerMovementAtPreservesCurrentRouteProgress(t *testing.T) {
 	}
 }
 
+func TestSetPlayerMovementAtUsesFractionalStartNearAckSource(t *testing.T) {
+	w := New()
+	now := time.Unix(100, 0)
+	w.Player = Actor{
+		X:            4,
+		Y:            0,
+		Moving:       true,
+		FromX:        0,
+		FromY:        0,
+		ToX:          4,
+		ToY:          0,
+		MoveStarted:  now.Add(-195 * time.Millisecond),
+		MoveDuration: 400 * time.Millisecond,
+		MovePath: []WalkStep{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 2, Y: 0},
+			{X: 3, Y: 0},
+			{X: 4, Y: 0},
+		},
+		Speed: 100,
+	}
+
+	w.SetPlayerMovementAt(2, 0, 5, 0, 6, now, 0)
+
+	x, y := w.Player.RenderPosition(now)
+	if x != 1.95 || y != 0 {
+		t.Fatalf("position = %.2f, %.2f, want preserved 1.95, 0.00", x, y)
+	}
+	if !w.Player.HasMoveStart || w.Player.MoveStartX != 1.95 || w.Player.MoveStartY != 0 {
+		t.Fatalf("fractional start = %.2f, %.2f enabled=%t", w.Player.MoveStartX, w.Player.MoveStartY, w.Player.HasMoveStart)
+	}
+}
+
+func TestSetPlayerMovementAtDoesNotProjectOntoNearbyParallelRoute(t *testing.T) {
+	w := New()
+	now := time.Unix(100, 0)
+	w.Player = Actor{
+		X:            3,
+		Y:            0,
+		Moving:       true,
+		FromX:        0,
+		FromY:        0,
+		ToX:          3,
+		ToY:          0,
+		MoveStarted:  now.Add(-150 * time.Millisecond),
+		MoveDuration: 300 * time.Millisecond,
+		MovePath: []WalkStep{
+			{X: 0, Y: 0},
+			{X: 1, Y: 0},
+			{X: 2, Y: 0},
+			{X: 3, Y: 0},
+		},
+		Speed: 100,
+	}
+
+	w.SetPlayerMovementAt(0, 1, 4, 1, 6, now, 0)
+
+	x, y := w.Player.RenderPosition(now)
+	if x != 0 || y != 1 {
+		t.Fatalf("position = %.2f, %.2f, want new route start 0.00, 1.00", x, y)
+	}
+}
+
 func TestActorRenderPositionFollowsWalkPath(t *testing.T) {
 	now := time.Now()
 	actor := Actor{
