@@ -148,3 +148,19 @@ func TestConsoleTypingAndRefocusScrollToBottom(t *testing.T) {
 		t.Fatalf("refocus scroll = %f, want %f", got, bottom)
 	}
 }
+
+func TestConsoleBottomScrollUsesRenderedLineHeight(t *testing.T) {
+	lines := 80
+	viewportHeight := 132
+
+	got := consoleBottomScrollY(lines, viewportHeight)
+	want := float32(lines*consoleLineH + (lines - 1) - viewportHeight)
+	if got != want {
+		t.Fatalf("bottom scroll = %f, want %f", got, want)
+	}
+
+	oldEstimate := float32(lines*11 + (lines - 1) - viewportHeight)
+	if oldEstimate/got > 0.85 {
+		t.Fatalf("old estimate ratio = %.2f, want visibly below real bottom", oldEstimate/got)
+	}
+}

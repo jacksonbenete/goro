@@ -25,6 +25,7 @@ const (
 	consoleMaxInput   = 120
 	consoleMaxHistory = 20
 	consoleFieldH     = 24
+	consoleLineH      = 14
 )
 
 var (
@@ -349,10 +350,12 @@ func (c *ChatConsole) widgetTree(width, height int) widget.Widget {
 	messageWidgets := make([]widget.Widget, 0, consoleMaxLines)
 	for _, line := range c.visibleLines() {
 		messageWidgets = append(messageWidgets,
-			rotheme.Text(line.Text).
-				Color(Color(line.Color)).
-				MaxLines(1).
-				Ellipsis(),
+			primitives.Box(
+				rotheme.Text(line.Text).
+					Color(Color(line.Color)).
+					MaxLines(1).
+					Ellipsis(),
+			).Height(consoleLineH),
 		)
 	}
 	field := primitives.Box(c.inputWidget()).
@@ -372,7 +375,7 @@ func (c *ChatConsole) widgetTree(width, height int) widget.Widget {
 			messageList,
 			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
 			scrollview.ScrollYSignal(c.ensureScrollSignal()),
-			scrollview.ScrollStep(float32(rotheme.Default.Typography.TextSize*3)),
+			scrollview.ScrollStep(float32(consoleLineH*3)),
 		),
 	).
 		Width(float32(contentWidth)).
@@ -402,7 +405,7 @@ func consoleBottomScrollY(lines int, viewportHeight int) float32 {
 	if lines <= 0 {
 		return 0
 	}
-	contentHeight := float32(lines)*rotheme.Default.Typography.TextSize + float32(maxInt(0, lines-1))
+	contentHeight := float32(lines*consoleLineH + maxInt(0, lines-1))
 	scrollY := contentHeight - float32(viewportHeight)
 	if scrollY < 0 {
 		return 0
