@@ -132,7 +132,7 @@ func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
 	w.Player.Sitting = false
 	w.Player.MoveStarted = time.Now()
 	w.Player.MovePath = path
-	w.Player.MoveDuration = actorMovementDuration(w.Player.MovePath, fromX, fromY, toX, toY)
+	w.Player.MoveDuration = actorMovementDurationWithSpeed(w.Player.MovePath, fromX, fromY, toX, toY, actorMoveSpeed(w.Player))
 	w.Dir = finalDir
 }
 
@@ -285,10 +285,6 @@ func (a Actor) RenderWalkDistance(now time.Time) float64 {
 		t = 1
 	}
 	return base + math.Hypot(float64(a.ToX-a.FromX), float64(a.ToY-a.FromY))*t
-}
-
-func actorMovementDuration(path []WalkStep, fromX, fromY, toX, toY int) time.Duration {
-	return actorMovementDurationWithSpeed(path, fromX, fromY, toX, toY, defaultMoveSpeedMS)
 }
 
 func actorMovementDurationWithSpeed(path []WalkStep, fromX, fromY, toX, toY int, speedMS int) time.Duration {

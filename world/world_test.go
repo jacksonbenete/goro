@@ -255,6 +255,17 @@ func TestSetPlayerMovementInterpolatesLocalPlayer(t *testing.T) {
 	}
 }
 
+func TestSetPlayerMovementUsesPlayerSpeed(t *testing.T) {
+	w := New()
+	w.Player.Speed = 100
+
+	w.SetPlayerMovement(10, 20, 11, 20, 6)
+
+	if w.Player.MoveDuration != 100*time.Millisecond {
+		t.Fatalf("move duration = %s, want 100ms", w.Player.MoveDuration)
+	}
+}
+
 func TestActorRenderPositionFollowsWalkPath(t *testing.T) {
 	now := time.Now()
 	actor := Actor{
