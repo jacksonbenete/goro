@@ -402,7 +402,6 @@ func (w *characterCreatePreview) setHovered(ctx widget.Context, button int) {
 		return
 	}
 	w.hovered = button
-	w.SetNeedsRedraw(true)
 }
 
 func characterCreatePreviewButtonAt(bounds geometry.Rect, point geometry.Point) int {
@@ -547,7 +546,6 @@ func (w *characterCreateStatGraph) setHovered(ctx widget.Context, stat int) {
 		return
 	}
 	w.hovered = stat
-	w.SetNeedsRedraw(true)
 }
 
 func characterCreateWidgetGraphPoints(cx, cy, radius float32) [CharacterCreateStatCount]geometry.Point {

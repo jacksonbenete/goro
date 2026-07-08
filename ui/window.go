@@ -254,9 +254,6 @@ func (w *WindowState) Publish(ctx client.Context) {
 		return
 	}
 	if root == w.published {
-		if redraw, ok := root.(interface{ SetNeedsRedraw(bool) }); ok {
-			redraw.SetNeedsRedraw(true)
-		}
 		return
 	}
 	w.Unpublish(ctx)

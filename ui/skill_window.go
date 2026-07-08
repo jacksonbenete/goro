@@ -602,14 +602,12 @@ func (w *skillRowWidget) Event(ctx widget.Context, e event.Event) bool {
 		if w.cfg.onHover != nil {
 			w.cfg.onHover(w.cfg.skill, int(ev.GlobalPosition.X), int(ev.GlobalPosition.Y))
 		}
-		w.SetNeedsRedraw(true)
 		return false
 	case event.MouseLeave:
 		w.hovered = false
 		if w.cfg.onHoverExit != nil {
 			w.cfg.onHoverExit()
 		}
-		w.SetNeedsRedraw(true)
 		return false
 	case event.MousePress:
 		if ev.Button != event.ButtonLeft {

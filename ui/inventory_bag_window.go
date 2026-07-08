@@ -474,12 +474,10 @@ func (w *tabWidget) Event(ctx widget.Context, e event.Event) bool {
 	case event.MouseEnter:
 		w.hovered = true
 		ctx.SetCursor(widget.CursorPointer)
-		w.SetNeedsRedraw(true)
 		return true
 	case event.MouseLeave:
 		w.hovered = false
 		ctx.SetCursor(widget.CursorDefault)
-		w.SetNeedsRedraw(true)
 		return false
 	case event.MousePress:
 		if mouse.Button == event.ButtonLeft && w.cfg.onClick != nil {
@@ -570,12 +568,10 @@ func (w *inventoryGridWidget) Event(ctx widget.Context, e event.Event) bool {
 			} else {
 				ctx.SetCursor(widget.CursorDefault)
 			}
-			w.SetNeedsRedraw(true)
 			return true
 		case event.MouseLeave:
 			w.hovered = -1
 			ctx.SetCursor(widget.CursorDefault)
-			w.SetNeedsRedraw(true)
 			return false
 		case event.MousePress:
 			if index < 0 || index >= len(w.cfg.items) {

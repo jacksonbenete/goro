@@ -392,12 +392,10 @@ func (w *shortcutSlotButton) Event(ctx widget.Context, e event.Event) bool {
 	case event.MouseEnter, event.MouseMove:
 		w.hovered = true
 		ctx.SetCursor(widget.CursorPointer)
-		w.SetNeedsRedraw(true)
 		return true
 	case event.MouseLeave:
 		w.hovered = false
 		ctx.SetCursor(widget.CursorDefault)
-		w.SetNeedsRedraw(true)
 	case event.MousePress:
 		switch mouse.Button {
 		case event.ButtonLeft:

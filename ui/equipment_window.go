@@ -421,12 +421,10 @@ func (w *equipmentSlotWidget) Event(ctx widget.Context, e event.Event) bool {
 		if w.cfg.hasItem {
 			ctx.SetCursor(widget.CursorPointer)
 		}
-		w.SetNeedsRedraw(true)
 		return w.cfg.hasItem
 	case event.MouseLeave:
 		w.hovered = false
 		ctx.SetCursor(widget.CursorDefault)
-		w.SetNeedsRedraw(true)
 		return false
 	case event.MousePress:
 		if !w.cfg.hasItem {
