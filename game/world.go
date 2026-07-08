@@ -2623,6 +2623,10 @@ func applyParameterChange(ctx client.Context, change network.ParameterChange) {
 	}
 	value := int(change.Value)
 	switch change.VarID {
+	case network.StatusSpeed:
+		if ctx.World != nil {
+			ctx.World.Player.Speed = value
+		}
 	case network.StatusBaseExp:
 		ctx.Session.Progress.BaseExp = change.Value
 	case network.StatusJobExp:

@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	StatusSpeed       uint16 = 0
 	StatusBaseExp     uint16 = 1
 	StatusJobExp      uint16 = 2
 	StatusHP          uint16 = 5

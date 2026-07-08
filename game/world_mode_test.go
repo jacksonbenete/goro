@@ -755,6 +755,18 @@ func TestApplyParameterChangeUpdatesVitals(t *testing.T) {
 	}
 }
 
+func TestApplyParameterChangeUpdatesPlayerSpeed(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	applyParameterChange(ctx, network.ParameterChange{VarID: network.StatusSpeed, Value: 100})
+
+	if world.Player.Speed != 100 {
+		t.Fatalf("player speed = %d, want 100", world.Player.Speed)
+	}
+}
+
 func TestWorldModeParameterChangeRecoveryFeedback(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
