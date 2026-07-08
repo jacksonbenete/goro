@@ -68,6 +68,14 @@ func SetCursorMode(mode int) {
 	applyCursorMode(app, mode)
 }
 
+func reapplyCursorMode() {
+	cursorState.Lock()
+	mode := cursorState.mode
+	app := cursorState.app
+	cursorState.Unlock()
+	applyCursorMode(app, mode)
+}
+
 func applyCursorMode(app *gogpu.App, mode int) {
 	if app == nil {
 		return

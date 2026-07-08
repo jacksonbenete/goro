@@ -469,6 +469,7 @@ func (r *runner) update() error {
 	if r.ui != nil {
 		r.ui.Frame()
 	}
+	reapplyCursorMode()
 	if r.duration <= 0 {
 		return nil
 	}
