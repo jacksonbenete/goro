@@ -285,7 +285,7 @@ func (c skillController) chaseTargetIfNeeded(ctx client.Context, skill session.S
 	if !ok {
 		c.mode.status = fmt.Sprintf("%s chase blocked: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
 		log.Printf("%s skill chase blocked skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(skill))
-		c.mode.walkCooldown = 12
+		c.mode.setWalkCooldown(walkRequestCooldown)
 		return true
 	}
 	c.mode.pendingSkill = pendingSkillTarget{

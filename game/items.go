@@ -108,7 +108,7 @@ func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPicku
 func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem, source string) {
 	if ctx.Network == nil {
 		m.status = "pickup request failed: not connected"
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
 	if itemWithinPickupRange(ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y) {
@@ -119,7 +119,7 @@ func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem,
 	if !ok {
 		m.status = fmt.Sprintf("%s pickup walk blocked: %d", source, item.ID)
 		log.Printf("%s pickup walk blocked item=%d player=%d,%d item=%d,%d", source, item.ID, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y)
-		m.walkCooldown = 12
+		m.setWalkCooldown(walkRequestCooldown)
 		return
 	}
 	m.pendingPickup = pickupIntent{
@@ -201,11 +201,11 @@ func (m *WorldMode) sendPickupRequest(ctx client.Context, item worldstate.FloorI
 	if err := ctx.Network.SendItemPickup(item.ID); err == nil {
 		m.status = fmt.Sprintf("%s pickup request: %d", source, item.ID)
 		m.pickupReqItemID = item.ID
-		m.walkCooldown = 12
+		m.setWalkCooldown(walkRequestCooldown)
 	} else {
 		m.status = source + " pickup request failed: " + err.Error()
 		log.Printf("%s pickup request failed item=%d: %v", source, item.ID, err)
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 	}
 }
 

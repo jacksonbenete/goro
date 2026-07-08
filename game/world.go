@@ -23,93 +23,109 @@ import (
 )
 
 type WorldMode struct {
-	status           string
-	walkCooldown     int
-	tickCooldown     int
-	camera           followCamera
-	cameraShakeStart time.Time
-	cameraShakeEnd   time.Time
-	whitePixel       *render.Image
-	tileCursor       *render.Image
-	textures         map[string]*render.Image
-	textureMiss      map[string]struct{}
-	imageCache       map[string]image.Image
-	imageMiss        map[string]struct{}
-	strEffects       map[string]*res.STR
-	strEffectMiss    map[string]struct{}
-	playerView       *humanoidSpriteView
-	shadowView       *playerSpriteView
-	shadowViewMiss   bool
-	cursorView       *playerSpriteView
-	cursorViewMiss   bool
-	cursorFallback   *render.Image
-	cursorAction     int
-	cursorStarted    time.Time
-	damageNumberView *playerSpriteView
-	damageNumberMiss bool
-	damageNumbers    map[string]*spriteBillboard
-	damageMsgView    *playerSpriteView
-	damageMsgMiss    bool
-	itemMarker       *render.Image
-	itemViews        map[itemSpriteKey]*playerSpriteView
-	itemViewMiss     map[itemSpriteKey]struct{}
-	effectViews      map[string]*playerSpriteView
-	effectViewMiss   map[string]struct{}
-	actorViews       map[actorSpriteKey]*humanoidSpriteView
-	actorViewMiss    map[actorSpriteKey]struct{}
-	nonPCViews       map[int]*playerSpriteView
-	nonPCViewMiss    map[int]struct{}
-	rsmMeshCache     map[int][]retainedWorldMesh
-	rsmNodeMatrices  map[*res.RSM]map[string]mat4
-	rsmAnimNodes     map[animatedRSMNodeKey]map[string]mat4
-	rsmBoundsCache   map[rsmBoundsCacheKey]rsmBounds
-	rsmFaceMetaCache map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
-	rsmPlacementGrid *rsmPlacementGrid
-	gndMeshCache     *gndRetainedMeshCache
-	pendingWarp      bool
-	pendingAttack    attackIntent
-	pendingPickup    pickupIntent
-	pendingSkill     pendingSkillTarget
-	pickupReqItemID  uint32
-	lockedAttackID   uint32
-	lastAttackAt     time.Time
-	lastChaseAt      time.Time
-	actorAnims       map[uint32]actorAnimation
-	damageFloaters   []damageFloater
-	worldEffects     []worldEffect
-	scheduledSounds  []scheduledSound
-	mapSoundNext     map[int]time.Time
-	mapWeatherSounds map[int]time.Time
-	actorDeaths      map[uint32]time.Time
-	actorSoundFrames map[uint32]actorSoundFrame
-	actorLife        map[uint32]actorLife
-	actorNameReqAt   map[uint32]time.Time
-	gndNormalSource  *res.GND
-	gndTopNormals    [][4]modelPoint3
-	minimap          gameui.Minimap
-	statusIcons      gameui.StatusIcons
-	console          gameui.ChatConsole
-	npcDialog        gameui.NPCDialog
-	escapeMenu       gameui.EscapeMenu
-	teleportModal    gameui.TeleportModal
-	deathModal       gameui.DeathModal
-	friendRequest    gameui.ConfirmModal
-	characterWindow  gameui.CharacterWindow
-	basicMenu        gameui.BasicMenu
-	inventoryBag     gameui.InventoryBagWindow
-	equipmentWindow  gameui.EquipmentWindow
-	storageWindow    gameui.StorageWindow
-	shopWindow       gameui.ShopWindow
-	itemInfoWindow   gameui.ItemInfoWindow
-	identifyWindow   gameui.IdentifyWindow
-	statsWindow      gameui.StatsWindow
-	skillWindow      gameui.SkillWindow
-	friendsWindow    gameui.FriendsWindow
-	playerContext    gameui.PlayerContextMenu
-	settingsWindow   gameui.SettingsWindow
-	shortcutBar      gameui.ShortcutBar
-	mapFade          mapFadeState
-	hoveredWalk      hoveredWalkCellCache
+	status            string
+	walkCooldownUntil time.Time
+	nextHeldWalkAt    time.Time
+	tickCooldown      int
+	camera            followCamera
+	cameraShakeStart  time.Time
+	cameraShakeEnd    time.Time
+	whitePixel        *render.Image
+	tileCursor        *render.Image
+	textures          map[string]*render.Image
+	textureMiss       map[string]struct{}
+	imageCache        map[string]image.Image
+	imageMiss         map[string]struct{}
+	strEffects        map[string]*res.STR
+	strEffectMiss     map[string]struct{}
+	playerView        *humanoidSpriteView
+	shadowView        *playerSpriteView
+	shadowViewMiss    bool
+	cursorView        *playerSpriteView
+	cursorViewMiss    bool
+	cursorFallback    *render.Image
+	cursorAction      int
+	cursorStarted     time.Time
+	damageNumberView  *playerSpriteView
+	damageNumberMiss  bool
+	damageNumbers     map[string]*spriteBillboard
+	damageMsgView     *playerSpriteView
+	damageMsgMiss     bool
+	itemMarker        *render.Image
+	itemViews         map[itemSpriteKey]*playerSpriteView
+	itemViewMiss      map[itemSpriteKey]struct{}
+	effectViews       map[string]*playerSpriteView
+	effectViewMiss    map[string]struct{}
+	actorViews        map[actorSpriteKey]*humanoidSpriteView
+	actorViewMiss     map[actorSpriteKey]struct{}
+	nonPCViews        map[int]*playerSpriteView
+	nonPCViewMiss     map[int]struct{}
+	rsmMeshCache      map[int][]retainedWorldMesh
+	rsmNodeMatrices   map[*res.RSM]map[string]mat4
+	rsmAnimNodes      map[animatedRSMNodeKey]map[string]mat4
+	rsmBoundsCache    map[rsmBoundsCacheKey]rsmBounds
+	rsmFaceMetaCache  map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
+	rsmPlacementGrid  *rsmPlacementGrid
+	gndMeshCache      *gndRetainedMeshCache
+	pendingWarp       bool
+	pendingAttack     attackIntent
+	pendingPickup     pickupIntent
+	pendingSkill      pendingSkillTarget
+	pickupReqItemID   uint32
+	lockedAttackID    uint32
+	lastAttackAt      time.Time
+	lastChaseAt       time.Time
+	actorAnims        map[uint32]actorAnimation
+	damageFloaters    []damageFloater
+	worldEffects      []worldEffect
+	scheduledSounds   []scheduledSound
+	mapSoundNext      map[int]time.Time
+	mapWeatherSounds  map[int]time.Time
+	actorDeaths       map[uint32]time.Time
+	actorSoundFrames  map[uint32]actorSoundFrame
+	actorLife         map[uint32]actorLife
+	actorNameReqAt    map[uint32]time.Time
+	gndNormalSource   *res.GND
+	gndTopNormals     [][4]modelPoint3
+	minimap           gameui.Minimap
+	statusIcons       gameui.StatusIcons
+	console           gameui.ChatConsole
+	npcDialog         gameui.NPCDialog
+	escapeMenu        gameui.EscapeMenu
+	teleportModal     gameui.TeleportModal
+	deathModal        gameui.DeathModal
+	friendRequest     gameui.ConfirmModal
+	characterWindow   gameui.CharacterWindow
+	basicMenu         gameui.BasicMenu
+	inventoryBag      gameui.InventoryBagWindow
+	equipmentWindow   gameui.EquipmentWindow
+	storageWindow     gameui.StorageWindow
+	shopWindow        gameui.ShopWindow
+	itemInfoWindow    gameui.ItemInfoWindow
+	identifyWindow    gameui.IdentifyWindow
+	statsWindow       gameui.StatsWindow
+	skillWindow       gameui.SkillWindow
+	friendsWindow     gameui.FriendsWindow
+	playerContext     gameui.PlayerContextMenu
+	settingsWindow    gameui.SettingsWindow
+	shortcutBar       gameui.ShortcutBar
+	mapFade           mapFadeState
+	hoveredWalk       hoveredWalkCellCache
+}
+
+const (
+	walkRequestCooldown    = 200 * time.Millisecond
+	walkErrorCooldown      = 500 * time.Millisecond
+	turnDirectionCooldown  = 100 * time.Millisecond
+	heldWalkRepeatInterval = 500 * time.Millisecond
+)
+
+func (m *WorldMode) setWalkCooldown(duration time.Duration) {
+	m.walkCooldownUntil = time.Now().Add(duration)
+}
+
+func (m *WorldMode) walkReady(now time.Time) bool {
+	return m.walkCooldownUntil.IsZero() || !now.Before(m.walkCooldownUntil)
 }
 
 type hoveredWalkCellCache struct {
@@ -1008,10 +1024,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if ctx.Input.Pressed(render.KeyArrowDown) {
 		dy++
 	}
-	if m.walkCooldown > 0 {
-		m.walkCooldown--
-	}
-	if !pointerBlocked && ctx.Input.MouseJustPressed(render.MouseButtonLeft) && m.walkCooldown == 0 {
+	if !pointerBlocked && ctx.Input.MouseJustPressed(render.MouseButtonLeft) && m.walkReady(now) {
+		m.nextHeldWalkAt = now.Add(heldWalkRepeatInterval)
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
 		if m.pendingSkill.skill.ID != 0 {
@@ -1044,7 +1058,10 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.requestWalk(ctx, targetX, targetY, "click")
 		}
 	}
-	if (dx != 0 || dy != 0) && m.walkCooldown == 0 {
+	if m.updateHeldWalk(ctx, pointerBlocked, now) {
+		return nil, nil
+	}
+	if (dx != 0 || dy != 0) && m.walkReady(now) {
 		targetX := ctx.World.Player.X + dx
 		targetY := ctx.World.Player.Y + dy
 		m.clearLockedAttack()
@@ -1070,6 +1087,36 @@ func (m *WorldMode) handleBasicMenuAction(ctx client.Context, action string) {
 	case "friend":
 		m.friendsWindow.Toggle(ctx)
 	}
+}
+
+func (m *WorldMode) updateHeldWalk(ctx client.Context, pointerBlocked bool, now time.Time) bool {
+	if ctx.Input == nil || !ctx.Input.MousePressed(render.MouseButtonLeft) || pointerBlocked {
+		m.nextHeldWalkAt = time.Time{}
+		return false
+	}
+	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) || m.pendingSkill.skill.ID != 0 || shouldUseTurnOnlyGroundClick(ctx) {
+		return false
+	}
+	if !m.walkReady(now) || (!m.nextHeldWalkAt.IsZero() && now.Before(m.nextHeldWalkAt)) {
+		return false
+	}
+	m.nextHeldWalkAt = now.Add(heldWalkRepeatInterval)
+
+	screenW, screenH := ctx.ScreenSize()
+	projection := m.sceneProjection(ctx, screenW, screenH, now)
+	targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
+	if !ok || playerAtWalkTarget(ctx.World.Player, targetX, targetY, now) {
+		return false
+	}
+	log.Printf("held walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
+	m.clearLockedAttack()
+	m.requestWalk(ctx, targetX, targetY, "held click")
+	return true
+}
+
+func playerAtWalkTarget(player worldstate.Actor, targetX, targetY int, now time.Time) bool {
+	x, y := player.RenderPosition(now)
+	return int(math.Round(x)) == targetX && int(math.Round(y)) == targetY
 }
 
 func (m *WorldMode) openFriendRequest(ctx client.Context, request network.FriendRequest) {
@@ -1374,17 +1421,17 @@ func sameLoadedMap(ctx client.Context, mapName string) bool {
 func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source string) {
 	if !walkTargetInBounds(ctx, targetX, targetY) {
 		m.status = fmt.Sprintf("%s walk blocked by map bounds: %d,%d", source, targetX, targetY)
-		m.walkCooldown = 12
+		m.setWalkCooldown(walkRequestCooldown)
 		return
 	}
 	log.Printf("%s walk request from=%d,%d to=%d,%d", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
 	if err := ctx.Network.SendWalkToXY(targetX, targetY); err == nil {
 		m.status = fmt.Sprintf("%s walk request: %d,%d", source, targetX, targetY)
-		m.walkCooldown = 12
+		m.setWalkCooldown(walkRequestCooldown)
 	} else {
 		m.status = source + " walk request failed: " + err.Error()
 		log.Printf("%s walk request failed from=%d,%d to=%d,%d: %v", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, err)
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 	}
 }
 
@@ -1398,7 +1445,7 @@ func shouldUseTurnOnlyGroundClick(ctx client.Context) bool {
 func (m *WorldMode) requestChangeDirection(ctx client.Context, targetX, targetY int, source string) {
 	if ctx.Network == nil {
 		m.status = "change direction failed: not connected"
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
 	if ctx.World == nil {
@@ -1413,12 +1460,12 @@ func (m *WorldMode) requestChangeDirection(ctx client.Context, targetX, targetY 
 	if err := ctx.Network.SendChangeDirection(headDir, bodyDir); err != nil {
 		m.status = source + " change direction failed: " + err.Error()
 		log.Printf("%s change direction failed target=%d,%d head_dir=%d dir=%d: %v", source, targetX, targetY, headDir, bodyDir, err)
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
 	m.status = fmt.Sprintf("%s change direction: head=%d dir=%d", source, headDir, bodyDir)
 	m.applyLocalDirection(ctx, headDir, bodyDir)
-	m.walkCooldown = 6
+	m.setWalkCooldown(turnDirectionCooldown)
 }
 
 func resolveTurnOnlyDirection(currentBodyDir int, currentHeadDir int, targetDir int) (uint8, uint8, bool) {
@@ -1481,7 +1528,7 @@ func (m *WorldMode) applyLocalDirection(ctx client.Context, headDir, dir uint8) 
 func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, source string) {
 	if ctx.Network == nil {
 		m.status = "attack request failed: not connected"
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
 	if normalAttackLockActive(ctx) {
@@ -1498,7 +1545,7 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 	if !ok {
 		m.status = fmt.Sprintf("%s attack chase blocked: %d", source, actor.ID)
 		log.Printf("%s attack chase blocked target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
-		m.walkCooldown = 12
+		m.setWalkCooldown(walkRequestCooldown)
 		return
 	}
 	m.pendingAttack = attackIntent{
@@ -1512,17 +1559,17 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 func (m *WorldMode) requestNPCTalk(ctx client.Context, actor worldstate.Actor, source string) {
 	if ctx.Network == nil {
 		m.status = "npc talk failed: not connected"
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
 	m.clearLockedAttack()
 	if err := ctx.Network.SendNPCContact(actor.ID); err == nil {
 		m.status = fmt.Sprintf("%s npc talk request: %d", source, actor.ID)
-		m.walkCooldown = 12
+		m.setWalkCooldown(walkRequestCooldown)
 	} else {
 		m.status = source + " npc talk failed: " + err.Error()
 		log.Printf("%s npc talk failed target=%d player=%d,%d target=%d,%d: %v", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, err)
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 	}
 }
 
@@ -1665,11 +1712,11 @@ func (m *WorldMode) sendAttackAction(ctx client.Context, actor worldstate.Actor,
 	if err := ctx.Network.SendActionRequest(actor.ID, network.ActionAttack); err == nil {
 		m.status = fmt.Sprintf("%s attack request: %d", source, actor.ID)
 		m.lastAttackAt = time.Now()
-		m.walkCooldown = 12
+		m.setWalkCooldown(walkRequestCooldown)
 	} else {
 		m.status = source + " attack request failed: " + err.Error()
 		log.Printf("%s attack request failed target=%d action=%d: %v", source, actor.ID, network.ActionAttack, err)
-		m.walkCooldown = 30
+		m.setWalkCooldown(walkErrorCooldown)
 	}
 }
 
