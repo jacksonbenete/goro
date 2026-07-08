@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	statusIconSize    = 32
-	statusIconSpacing = 36
-	statusIconGap     = 8
+	statusIconSize           = 32
+	statusIconSpacing        = 36
+	statusIconGap            = 8
+	statusIconRedrawInterval = 250 * time.Millisecond
 )
 
 type statusIconInfo struct {
@@ -50,15 +51,17 @@ var statusIconInfos = map[uint16]statusIconInfo{
 }
 
 type StatusIcons struct {
-	widget  *statusIconsWidget
-	root    widget.Widget
-	icons   map[uint16]image.Image
-	miss    map[uint16]struct{}
-	visible bool
-	x       int
-	y       int
-	width   int
-	height  int
+	widget     *statusIconsWidget
+	root       widget.Widget
+	icons      map[uint16]image.Image
+	miss       map[uint16]struct{}
+	visible    bool
+	x          int
+	y          int
+	width      int
+	height     int
+	lastIDs    []uint16
+	lastRedraw time.Time
 }
 
 func (s *StatusIcons) Update(ctx Context, now time.Time) bool {
@@ -80,16 +83,24 @@ func (s *StatusIcons) Update(ctx Context, now time.Time) bool {
 	s.widget.now = now
 	s.widget.ids = ids
 	s.widget.icons = s.statusIconImages(ctx.Resources, ids)
-	s.widget.SetNeedsRedraw(true)
+	needsRedraw := !sameStatusIconIDs(ids, s.lastIDs) || s.lastRedraw.IsZero() || now.Sub(s.lastRedraw) >= statusIconRedrawInterval
 	root := s.overlayRoot(x, y, w, h)
 	if root != s.root {
 		s.Unpublish(ctx)
 		s.root = root
 		ctx.UIManager.AddOverlay(root)
 		s.visible = true
+		needsRedraw = true
 	} else if redraw, ok := root.(interface{ SetNeedsRedraw(bool) }); ok {
-		redraw.SetNeedsRedraw(true)
+		if needsRedraw {
+			redraw.SetNeedsRedraw(true)
+		}
 	}
+	if needsRedraw {
+		s.widget.SetNeedsRedraw(true)
+		s.lastRedraw = now
+	}
+	s.lastIDs = append(s.lastIDs[:0], ids...)
 	return false
 }
 
@@ -100,6 +111,8 @@ func (s *StatusIcons) Unpublish(ctx Context) {
 	ctx.UIManager.RemoveOverlay(s.root)
 	s.root = nil
 	s.visible = false
+	s.lastIDs = s.lastIDs[:0]
+	s.lastRedraw = time.Time{}
 }
 
 func (s *StatusIcons) overlayRoot(x, y, w, h int) widget.Widget {
@@ -168,6 +181,18 @@ func VisibleStatusIconIDs(active map[uint16]session.StatusEffect) []uint16 {
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 	return ids
+}
+
+func sameStatusIconIDs(a, b []uint16) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func statusIconOverlayBounds(width, height, count int) (int, int, int, int) {
