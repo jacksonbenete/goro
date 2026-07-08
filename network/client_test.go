@@ -30,3 +30,32 @@ func TestClientCloseDoesNotReportReadLoopError(t *testing.T) {
 		t.Fatal("read loop did not exit")
 	}
 }
+
+func TestClientSendQueuesWithoutBlockingOnSocketWrite(t *testing.T) {
+	client := NewClient(20080910, false)
+	local, remote := net.Pipe()
+	defer remote.Close()
+
+	sendCh := make(chan outboundPacket, sendQueueSize)
+	client.mu.Lock()
+	client.conn = local
+	client.sendCh = sendCh
+	client.mu.Unlock()
+	go client.writeLoop(local, sendCh)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- client.Send([]byte{0x01, 0x02, 0x03})
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Send returned error: %v", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Send blocked on socket write")
+	}
+
+	client.Close()
+}

@@ -281,10 +281,11 @@ func (c skillController) chaseTargetIfNeeded(ctx client.Context, skill session.S
 	if ctx.World == nil || skill.Range <= 0 || targetSkillWithinRange(ctx, skill, actor) {
 		return false
 	}
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	targetX, targetY, ok := attackApproachCell(ctx, actor, targetSkillRange(skill))
 	if !ok {
 		c.mode.status = fmt.Sprintf("%s chase blocked: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
-		log.Printf("%s skill chase blocked skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(skill))
+		log.Printf("%s skill chase blocked skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, skill.ID, actor.ID, playerX, playerY, actor.X, actor.Y, targetSkillRange(skill))
 		c.mode.setWalkCooldown(walkRequestCooldown)
 		return true
 	}
@@ -299,12 +300,16 @@ func (c skillController) chaseTargetIfNeeded(ctx client.Context, skill session.S
 	if c.mode.pendingSkill.started.IsZero() {
 		c.mode.pendingSkill.started = time.Now()
 	}
-	log.Printf("%s skill chase target skill=%d target=%d player=%d,%d target=%d,%d range=%d chase=%d,%d", source, skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(skill), targetX, targetY)
+	log.Printf("%s skill chase target skill=%d target=%d player=%d,%d target=%d,%d range=%d chase=%d,%d", source, skill.ID, actor.ID, playerX, playerY, actor.X, actor.Y, targetSkillRange(skill), targetX, targetY)
 	c.mode.requestWalk(ctx, targetX, targetY, source+" skill chase")
 	return true
 }
 
 func (c skillController) ContinuePendingTarget(ctx client.Context, source string) {
+	c.UpdatePendingTarget(ctx, source, true)
+}
+
+func (c skillController) UpdatePendingTarget(ctx client.Context, source string, logOutOfRange bool) {
 	pending := c.mode.pendingSkill
 	if pending.skill.ID == 0 || pending.targetID == 0 || ctx.World == nil {
 		return
@@ -321,16 +326,21 @@ func (c skillController) ContinuePendingTarget(ctx client.Context, source string
 		c.mode.pendingSkill = pendingSkillTarget{}
 		return
 	}
+	playerX, playerY := currentPlayerCell(ctx, now)
 	if !targetSkillWithinRange(ctx, pending.skill, actor) {
-		log.Printf("%s pending skill still out of range skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, pending.skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(pending.skill))
+		if logOutOfRange {
+			log.Printf("%s pending skill still out of range skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, pending.skill.ID, actor.ID, playerX, playerY, actor.X, actor.Y, targetSkillRange(pending.skill))
+		}
 		return
 	}
 	readyAt := pendingAttackReadyAt(ctx.World.Player, now)
-	if pending.readyAt.IsZero() || readyAt.After(pending.readyAt) {
+	if pending.readyAt.IsZero() {
 		pending.readyAt = readyAt
 	}
 	c.mode.pendingSkill = pending
-	log.Printf("%s pending skill scheduled skill=%d target=%d delay_ms=%d", source, pending.skill.ID, pending.targetID, maxInt(0, int(pending.readyAt.Sub(now).Milliseconds())))
+	if logOutOfRange {
+		log.Printf("%s pending skill scheduled skill=%d target=%d delay_ms=%d", source, pending.skill.ID, pending.targetID, maxInt(0, int(pending.readyAt.Sub(now).Milliseconds())))
+	}
 }
 
 func (c skillController) ProcessPendingTarget(ctx client.Context) {
@@ -353,8 +363,9 @@ func (c skillController) ProcessPendingTarget(ctx client.Context) {
 		c.mode.pendingSkill = pendingSkillTarget{}
 		return
 	}
+	playerX, playerY := currentPlayerCell(ctx, now)
 	if !targetSkillWithinRange(ctx, pending.skill, actor) {
-		log.Printf("pending skill became out of range skill=%d target=%d player=%d,%d target=%d,%d range=%d", pending.skill.ID, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(pending.skill))
+		log.Printf("pending skill became out of range skill=%d target=%d player=%d,%d target=%d,%d range=%d", pending.skill.ID, actor.ID, playerX, playerY, actor.X, actor.Y, targetSkillRange(pending.skill))
 		pending.readyAt = time.Time{}
 		c.mode.pendingSkill = pending
 		c.chaseTargetIfNeeded(ctx, pending.skill, actor, "pending")
@@ -395,5 +406,9 @@ func targetSkillRange(skill session.Skill) int {
 }
 
 func targetSkillWithinRange(ctx client.Context, skill session.Skill, actor worldstate.Actor) bool {
-	return ctx.World != nil && attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, targetSkillRange(skill))
+	if ctx.World == nil {
+		return false
+	}
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	return attackTargetWithinRange(playerX, playerY, actor.X, actor.Y, targetSkillRange(skill))
 }

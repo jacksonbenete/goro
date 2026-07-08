@@ -159,11 +159,14 @@ func movementStart(path []WalkStep, oldPlayer Actor, now time.Time, fastForward 
 	offset := clampMovementOffset(fastForward, duration)
 	if oldPlayer.IsMovingAt(now) && len(path) >= 2 {
 		x, y := oldPlayer.RenderPosition(now)
+		if currentOffset, ok := pathElapsedAtPositionWithSpeed(path, x, y, speedMS); ok {
+			if currentOffset > offset {
+				offset = clampMovementOffset(currentOffset, duration)
+			}
+			return startX, startY, false, offset
+		}
 		if math.Hypot(x-float64(fromX), y-float64(fromY)) <= 1.25 {
 			return x, y, true, 0
-		}
-		if currentOffset, ok := pathElapsedAtPositionWithSpeed(path, x, y, speedMS); ok && currentOffset > offset {
-			offset = clampMovementOffset(currentOffset, duration)
 		}
 	}
 	return startX, startY, false, offset

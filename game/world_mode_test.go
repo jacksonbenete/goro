@@ -602,6 +602,36 @@ func TestContinuePendingAttackSchedulesDelayedAction(t *testing.T) {
 	}
 }
 
+func TestUpdatePendingAttackDoesNotKeepDelayingScheduledAction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	readyAt := time.Now().Add(10 * time.Millisecond)
+	mode := &WorldMode{
+		pendingAttack: attackIntent{
+			targetID: 300,
+			expires:  time.Now().Add(time.Second),
+			readyAt:  readyAt,
+		},
+	}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+
+	mode.updatePendingAttack(ctx, "test", false)
+
+	if !mode.pendingAttack.readyAt.Equal(readyAt) {
+		t.Fatalf("readyAt moved from %s to %s", readyAt, mode.pendingAttack.readyAt)
+	}
+}
+
 func TestPendingAttackReadyAtWaitsForWalkEnd(t *testing.T) {
 	now := time.Unix(100, 0)
 	player := worldstate.Actor{
@@ -614,6 +644,30 @@ func TestPendingAttackReadyAtWaitsForWalkEnd(t *testing.T) {
 	want := now.Add(560 * time.Millisecond)
 	if !got.Equal(want) {
 		t.Fatalf("readyAt = %s, want %s", got.Sub(now), want.Sub(now))
+	}
+}
+
+func TestUpdatePendingPickupDoesNotKeepDelayingScheduledAction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 10, Y: 20}
+	world.UpsertItem(worldstate.FloorItem{ID: 400, X: 10, Y: 20})
+	readyAt := time.Now().Add(10 * time.Millisecond)
+	mode := &WorldMode{
+		pendingPickup: pickupIntent{
+			itemID:  400,
+			expires: time.Now().Add(time.Second),
+			readyAt: readyAt,
+		},
+	}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+
+	mode.updatePendingPickup(ctx, "test", false)
+
+	if !mode.pendingPickup.readyAt.Equal(readyAt) {
+		t.Fatalf("readyAt moved from %s to %s", readyAt, mode.pendingPickup.readyAt)
 	}
 }
 
@@ -649,6 +703,37 @@ func TestContinuePendingTargetSkillSchedulesAfterEnteringRange(t *testing.T) {
 	}
 	if time.Until(mode.pendingSkill.readyAt) > 100*time.Millisecond {
 		t.Fatalf("readyAt too far in future: %s", time.Until(mode.pendingSkill.readyAt))
+	}
+}
+
+func TestUpdatePendingTargetSkillDoesNotKeepDelayingScheduledAction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	readyAt := time.Now().Add(10 * time.Millisecond)
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{
+			skill:    session.Skill{ID: 50, Level: 1, Type: skillTargetEnemy, Range: 1},
+			targetID: 300,
+			expires:  time.Now().Add(time.Second),
+			readyAt:  readyAt,
+		},
+	}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+
+	mode.skills().UpdatePendingTarget(ctx, "test", false)
+
+	if !mode.pendingSkill.readyAt.Equal(readyAt) {
+		t.Fatalf("readyAt moved from %s to %s", readyAt, mode.pendingSkill.readyAt)
 	}
 }
 

@@ -111,14 +111,15 @@ func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem,
 		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
-	if itemWithinPickupRange(ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y) {
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	if itemWithinPickupRange(playerX, playerY, item.X, item.Y) {
 		m.sendPickupRequest(ctx, item, source)
 		return
 	}
 	targetX, targetY, ok := pickupApproachCell(ctx, item)
 	if !ok {
 		m.status = fmt.Sprintf("%s pickup walk blocked: %d", source, item.ID)
-		log.Printf("%s pickup walk blocked item=%d player=%d,%d item=%d,%d", source, item.ID, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y)
+		log.Printf("%s pickup walk blocked item=%d player=%d,%d item=%d,%d", source, item.ID, playerX, playerY, item.X, item.Y)
 		m.setWalkCooldown(walkRequestCooldown)
 		return
 	}
@@ -126,11 +127,15 @@ func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem,
 		itemID:  item.ID,
 		expires: time.Now().Add(8 * time.Second),
 	}
-	log.Printf("%s pickup walk target item=%d player=%d,%d item=%d,%d walk=%d,%d", source, item.ID, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y, targetX, targetY)
+	log.Printf("%s pickup walk target item=%d player=%d,%d item=%d,%d walk=%d,%d", source, item.ID, playerX, playerY, item.X, item.Y, targetX, targetY)
 	m.requestWalk(ctx, targetX, targetY, source+" pickup")
 }
 
 func (m *WorldMode) continuePendingPickup(ctx client.Context, source string) {
+	m.updatePendingPickup(ctx, source, true)
+}
+
+func (m *WorldMode) updatePendingPickup(ctx client.Context, source string, logOutOfRange bool) {
 	if m.pendingPickup.itemID == 0 || ctx.World == nil {
 		return
 	}
@@ -146,15 +151,20 @@ func (m *WorldMode) continuePendingPickup(ctx client.Context, source string) {
 		m.pendingPickup = pickupIntent{}
 		return
 	}
-	if !itemWithinPickupRange(ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y) {
-		log.Printf("%s pending pickup still out of range item=%d player=%d,%d item=%d,%d", source, item.ID, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y)
+	playerX, playerY := currentPlayerCell(ctx, now)
+	if !itemWithinPickupRange(playerX, playerY, item.X, item.Y) {
+		if logOutOfRange {
+			log.Printf("%s pending pickup still out of range item=%d player=%d,%d item=%d,%d", source, item.ID, playerX, playerY, item.X, item.Y)
+		}
 		return
 	}
 	readyAt := pendingPickupReadyAt(ctx.World.Player, now)
-	if m.pendingPickup.readyAt.IsZero() || readyAt.After(m.pendingPickup.readyAt) {
+	if m.pendingPickup.readyAt.IsZero() {
 		m.pendingPickup.readyAt = readyAt
 	}
-	log.Printf("%s pending pickup scheduled item=%d delay_ms=%d", source, item.ID, maxInt(0, int(m.pendingPickup.readyAt.Sub(now).Milliseconds())))
+	if logOutOfRange {
+		log.Printf("%s pending pickup scheduled item=%d delay_ms=%d", source, item.ID, maxInt(0, int(m.pendingPickup.readyAt.Sub(now).Milliseconds())))
+	}
 }
 
 func (m *WorldMode) processPendingPickup(ctx client.Context) {
@@ -176,8 +186,9 @@ func (m *WorldMode) processPendingPickup(ctx client.Context) {
 		m.pendingPickup = pickupIntent{}
 		return
 	}
-	if !itemWithinPickupRange(ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y) {
-		log.Printf("pending pickup became out of range item=%d player=%d,%d item=%d,%d", item.ID, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y)
+	playerX, playerY := currentPlayerCell(ctx, now)
+	if !itemWithinPickupRange(playerX, playerY, item.X, item.Y) {
+		log.Printf("pending pickup became out of range item=%d player=%d,%d item=%d,%d", item.ID, playerX, playerY, item.X, item.Y)
 		m.pendingPickup.readyAt = time.Time{}
 		m.requestPickup(ctx, item, "pending")
 		return
@@ -240,7 +251,8 @@ func (m *WorldMode) facePlayerTowardItem(ctx client.Context, item worldstate.Flo
 	if ctx.World == nil {
 		return
 	}
-	dir := directionFromDelta(ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y, ctx.World.Dir)
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	dir := directionFromDelta(playerX, playerY, item.X, item.Y, ctx.World.Dir)
 	ctx.World.Player.Dir = dir
 	ctx.World.Dir = dir
 	if ctx.Session != nil {
@@ -256,6 +268,7 @@ func pickupApproachCell(ctx client.Context, item worldstate.FloorItem) (int, int
 	if walkTargetInBounds(ctx, item.X, item.Y) {
 		return item.X, item.Y, true
 	}
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	bestX, bestY := 0, 0
 	bestDistance := math.Inf(1)
 	found := false
@@ -265,7 +278,7 @@ func pickupApproachCell(ctx client.Context, item worldstate.FloorItem) (int, int
 			if !walkTargetInBounds(ctx, x, y) {
 				continue
 			}
-			dist := float64((ctx.World.Player.X-x)*(ctx.World.Player.X-x) + (ctx.World.Player.Y-y)*(ctx.World.Player.Y-y))
+			dist := float64((playerX-x)*(playerX-x) + (playerY-y)*(playerY-y))
 			if !found || dist < bestDistance {
 				found = true
 				bestDistance = dist

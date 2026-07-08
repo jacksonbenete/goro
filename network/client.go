@@ -18,9 +18,17 @@ type Client struct {
 
 	mu      sync.Mutex
 	conn    net.Conn
+	sendCh  chan outboundPacket
 	packets []Packet
 	status  string
 	errs    []error
+}
+
+const sendQueueSize = 256
+
+type outboundPacket struct {
+	data     []byte
+	enqueued time.Time
 }
 
 func NewClient(clientDate int, trace bool) *Client {
@@ -42,20 +50,29 @@ func (c *Client) Connect(ctx context.Context, address string, port int) error {
 		return err
 	}
 
+	sendCh := make(chan outboundPacket, sendQueueSize)
+
 	c.mu.Lock()
 	c.conn = conn
+	c.sendCh = sendCh
 	c.status = fmt.Sprintf("connected to %s:%d", address, port)
 	c.mu.Unlock()
 
 	go c.readLoop(conn)
+	go c.writeLoop(conn, sendCh)
 	return nil
 }
 
 func (c *Client) Close() {
 	c.mu.Lock()
 	conn := c.conn
+	sendCh := c.sendCh
 	c.conn = nil
+	c.sendCh = nil
 	c.status = "offline"
+	if sendCh != nil {
+		close(sendCh)
+	}
 	c.mu.Unlock()
 
 	if conn != nil {
@@ -64,23 +81,28 @@ func (c *Client) Close() {
 }
 
 func (c *Client) Send(data []byte) error {
+	packet := append([]byte(nil), data...)
+	start := time.Now()
 	c.mu.Lock()
-	conn := c.conn
-	c.mu.Unlock()
-	if conn == nil {
+	sendCh := c.sendCh
+	if c.conn == nil || sendCh == nil {
+		c.mu.Unlock()
 		return fmt.Errorf("not connected")
 	}
+	select {
+	case sendCh <- outboundPacket{data: packet, enqueued: start}:
+	default:
+		c.mu.Unlock()
+		return fmt.Errorf("send queue full")
+	}
+	c.mu.Unlock()
+	elapsed := time.Since(start)
 
-	if c.trace {
-		headLen := min(len(data), 32)
-		log.Printf("network write n=%d head=%s", len(data), hex.EncodeToString(data[:headLen]))
+	if c.trace || elapsed > 2*time.Millisecond {
+		headLen := min(len(packet), 32)
+		log.Printf("network enqueue opcode=0x%04X n=%d elapsed=%s head=%s", ID(packet), len(packet), elapsed, hex.EncodeToString(packet[:headLen]))
 	}
-	_, err := conn.Write(data)
-	if err != nil {
-		c.clearConn(conn)
-		c.addError(err)
-	}
-	return err
+	return nil
 }
 
 func (c *Client) SendAccountLogin(username, password string, version uint32, clientType uint8) error {
@@ -377,6 +399,25 @@ func (c *Client) readLoop(conn net.Conn) {
 	}
 }
 
+func (c *Client) writeLoop(conn net.Conn, sendCh <-chan outboundPacket) {
+	for packet := range sendCh {
+		queued := time.Since(packet.enqueued)
+		start := time.Now()
+		if _, err := conn.Write(packet.data); err != nil {
+			if c.isCurrentConn(conn) {
+				c.addError(err)
+			}
+			c.clearConn(conn)
+			return
+		}
+		elapsed := time.Since(start)
+		if c.trace || queued > 2*time.Millisecond || elapsed > 2*time.Millisecond {
+			headLen := min(len(packet.data), 32)
+			log.Printf("network write opcode=0x%04X n=%d queued=%s elapsed=%s head=%s", ID(packet.data), len(packet.data), queued, elapsed, hex.EncodeToString(packet.data[:headLen]))
+		}
+	}
+}
+
 func (c *Client) isCurrentConn(conn net.Conn) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -386,8 +427,13 @@ func (c *Client) isCurrentConn(conn net.Conn) bool {
 func (c *Client) clearConn(conn net.Conn) {
 	c.mu.Lock()
 	if c.conn == conn {
+		sendCh := c.sendCh
 		c.conn = nil
+		c.sendCh = nil
 		c.status = "offline"
+		if sendCh != nil {
+			close(sendCh)
+		}
 	}
 	c.mu.Unlock()
 	_ = conn.Close()

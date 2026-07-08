@@ -881,8 +881,11 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		log.Printf("network frame error: %v", err)
 	}
 
+	m.updatePendingAttack(ctx, "update", false)
 	m.processPendingAttack(ctx)
+	m.updatePendingPickup(ctx, "update", false)
 	m.processPendingPickup(ctx)
+	m.skills().UpdatePendingTarget(ctx, "update", false)
 	m.skills().ProcessPendingTarget(ctx)
 	m.processLockedAttack(ctx)
 	now = time.Now()
@@ -1019,24 +1022,25 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.skills().HandleClick(ctx, projection, now)
 			return nil, nil
 		}
+		playerX, playerY := currentPlayerCell(ctx, now)
 		if item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
-			log.Printf("click pickup target mouse=%d,%d id=%d item_id=%d amount=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, item.ID, item.ItemID, item.Amount, ctx.World.Player.X, ctx.World.Player.Y, item.X, item.Y)
+			log.Printf("click pickup target mouse=%d,%d id=%d item_id=%d amount=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, item.ID, item.ItemID, item.Amount, playerX, playerY, item.X, item.Y)
 			m.clearLockedAttack()
 			m.requestPickup(ctx, item, "click")
 			return nil, nil
 		}
 		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
-			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, playerX, playerY, actor.X, actor.Y)
 			m.requestAttack(ctx, actor, "click")
 			return nil, nil
 		}
 		if actor, ok := clickedTalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
-			log.Printf("click npc talk target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y)
+			log.Printf("click npc talk target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, playerX, playerY, actor.X, actor.Y)
 			m.requestNPCTalk(ctx, actor, "click")
 			return nil, nil
 		}
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
-			log.Printf("click walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
+			log.Printf("click walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, playerX, playerY, targetX, targetY)
 			m.clearLockedAttack()
 			if shouldUseTurnOnlyGroundClick(ctx) {
 				m.requestChangeDirection(ctx, targetX, targetY, "click")
@@ -1097,6 +1101,14 @@ func (m *WorldMode) updateHeldWalk(ctx client.Context, pointerBlocked bool, now 
 func playerAtWalkTarget(player worldstate.Actor, targetX, targetY int, now time.Time) bool {
 	x, y := player.RenderPosition(now)
 	return int(math.Round(x)) == targetX && int(math.Round(y)) == targetY
+}
+
+func currentPlayerCell(ctx client.Context, now time.Time) (int, int) {
+	if ctx.World == nil {
+		return 0, 0
+	}
+	x, y := ctx.World.Player.RenderPosition(now)
+	return int(math.Round(x)), int(math.Round(y))
 }
 
 func (m *WorldMode) openFriendRequest(ctx client.Context, request network.FriendRequest) {
@@ -1404,13 +1416,14 @@ func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source
 		m.setWalkCooldown(walkRequestCooldown)
 		return
 	}
-	log.Printf("%s walk request from=%d,%d to=%d,%d", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY)
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	log.Printf("%s walk request from=%d,%d to=%d,%d", source, playerX, playerY, targetX, targetY)
 	if err := ctx.Network.SendWalkToXY(targetX, targetY); err == nil {
 		m.status = fmt.Sprintf("%s walk request: %d,%d", source, targetX, targetY)
 		m.setWalkCooldown(walkRequestCooldown)
 	} else {
 		m.status = source + " walk request failed: " + err.Error()
-		log.Printf("%s walk request failed from=%d,%d to=%d,%d: %v", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, err)
+		log.Printf("%s walk request failed from=%d,%d to=%d,%d: %v", source, playerX, playerY, targetX, targetY, err)
 		m.setWalkCooldown(walkErrorCooldown)
 	}
 }
@@ -1431,12 +1444,13 @@ func (m *WorldMode) requestChangeDirection(ctx client.Context, targetX, targetY 
 	if ctx.World == nil {
 		return
 	}
-	targetDir := directionFromDelta(ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, ctx.World.Player.Dir)
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	targetDir := directionFromDelta(playerX, playerY, targetX, targetY, ctx.World.Player.Dir)
 	headDir, bodyDir, ok := resolveTurnOnlyDirection(ctx.World.Player.Dir, int(ctx.World.Player.HeadDir), targetDir)
 	if !ok {
 		return
 	}
-	log.Printf("%s change direction request player=%d,%d target=%d,%d head_dir=%d dir=%d", source, ctx.World.Player.X, ctx.World.Player.Y, targetX, targetY, headDir, bodyDir)
+	log.Printf("%s change direction request player=%d,%d target=%d,%d head_dir=%d dir=%d", source, playerX, playerY, targetX, targetY, headDir, bodyDir)
 	if err := ctx.Network.SendChangeDirection(headDir, bodyDir); err != nil {
 		m.status = source + " change direction failed: " + err.Error()
 		log.Printf("%s change direction failed target=%d,%d head_dir=%d dir=%d: %v", source, targetX, targetY, headDir, bodyDir, err)
@@ -1517,14 +1531,15 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 		m.clearLockedAttack()
 	}
 	attackRange := currentNormalAttackRange(ctx)
-	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	if attackTargetWithinRange(playerX, playerY, actor.X, actor.Y, attackRange) {
 		m.sendAttackAction(ctx, actor, source)
 		return
 	}
 	targetX, targetY, ok := attackApproachCell(ctx, actor, attackRange)
 	if !ok {
 		m.status = fmt.Sprintf("%s attack chase blocked: %d", source, actor.ID)
-		log.Printf("%s attack chase blocked target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
+		log.Printf("%s attack chase blocked target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, playerX, playerY, actor.X, actor.Y, attackRange)
 		m.setWalkCooldown(walkRequestCooldown)
 		return
 	}
@@ -1532,7 +1547,7 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 		targetID: actor.ID,
 		expires:  time.Now().Add(8 * time.Second),
 	}
-	log.Printf("%s attack chase target=%d player=%d,%d target=%d,%d range=%d chase=%d,%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange, targetX, targetY)
+	log.Printf("%s attack chase target=%d player=%d,%d target=%d,%d range=%d chase=%d,%d", source, actor.ID, playerX, playerY, actor.X, actor.Y, attackRange, targetX, targetY)
 	m.requestWalk(ctx, targetX, targetY, source+" attack chase")
 }
 
@@ -1548,7 +1563,8 @@ func (m *WorldMode) requestNPCTalk(ctx client.Context, actor worldstate.Actor, s
 		m.setWalkCooldown(walkRequestCooldown)
 	} else {
 		m.status = source + " npc talk failed: " + err.Error()
-		log.Printf("%s npc talk failed target=%d player=%d,%d target=%d,%d: %v", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, err)
+		playerX, playerY := currentPlayerCell(ctx, time.Now())
+		log.Printf("%s npc talk failed target=%d player=%d,%d target=%d,%d: %v", source, actor.ID, playerX, playerY, actor.X, actor.Y, err)
 		m.setWalkCooldown(walkErrorCooldown)
 	}
 }
@@ -1569,7 +1585,14 @@ func (m *WorldMode) clearLockedAttack() {
 }
 
 func (m *WorldMode) continuePendingAttack(ctx client.Context, source string) {
+	m.updatePendingAttack(ctx, source, true)
+}
+
+func (m *WorldMode) updatePendingAttack(ctx client.Context, source string, logOutOfRange bool) {
 	if m.pendingAttack.targetID == 0 {
+		return
+	}
+	if ctx.World == nil {
 		return
 	}
 	now := time.Now()
@@ -1585,15 +1608,20 @@ func (m *WorldMode) continuePendingAttack(ctx client.Context, source string) {
 		return
 	}
 	attackRange := currentNormalAttackRange(ctx)
-	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
-		log.Printf("%s pending attack still out of range target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
+	playerX, playerY := currentPlayerCell(ctx, now)
+	if !attackTargetWithinRange(playerX, playerY, actor.X, actor.Y, attackRange) {
+		if logOutOfRange {
+			log.Printf("%s pending attack still out of range target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, playerX, playerY, actor.X, actor.Y, attackRange)
+		}
 		return
 	}
 	readyAt := pendingAttackReadyAt(ctx.World.Player, now)
-	if m.pendingAttack.readyAt.IsZero() || readyAt.After(m.pendingAttack.readyAt) {
+	if m.pendingAttack.readyAt.IsZero() {
 		m.pendingAttack.readyAt = readyAt
 	}
-	log.Printf("%s pending attack scheduled target=%d delay_ms=%d", source, actor.ID, maxInt(0, int(m.pendingAttack.readyAt.Sub(now).Milliseconds())))
+	if logOutOfRange {
+		log.Printf("%s pending attack scheduled target=%d delay_ms=%d", source, actor.ID, maxInt(0, int(m.pendingAttack.readyAt.Sub(now).Milliseconds())))
+	}
 }
 
 func (m *WorldMode) processPendingAttack(ctx client.Context) {
@@ -1616,8 +1644,9 @@ func (m *WorldMode) processPendingAttack(ctx client.Context) {
 		return
 	}
 	attackRange := currentNormalAttackRange(ctx)
-	if !attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
-		log.Printf("pending attack became out of range target=%d player=%d,%d target=%d,%d range=%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
+	playerX, playerY := currentPlayerCell(ctx, now)
+	if !attackTargetWithinRange(playerX, playerY, actor.X, actor.Y, attackRange) {
+		log.Printf("pending attack became out of range target=%d player=%d,%d target=%d,%d range=%d", actor.ID, playerX, playerY, actor.X, actor.Y, attackRange)
 		m.pendingAttack.readyAt = time.Time{}
 		m.requestAttack(ctx, actor, "pending")
 		return
@@ -1653,11 +1682,12 @@ func (m *WorldMode) processLockedAttack(ctx client.Context) {
 		return
 	}
 	attackRange := currentNormalAttackRange(ctx)
-	if attackTargetWithinRange(ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange) {
+	playerX, playerY := currentPlayerCell(ctx, now)
+	if attackTargetWithinRange(playerX, playerY, actor.X, actor.Y, attackRange) {
 		if !attackRetryDue(m.lastAttackAt, now) {
 			return
 		}
-		log.Printf("locked attack retry target=%d player=%d,%d target=%d,%d range=%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
+		log.Printf("locked attack retry target=%d player=%d,%d target=%d,%d range=%d", actor.ID, playerX, playerY, actor.X, actor.Y, attackRange)
 		m.sendAttackAction(ctx, actor, "locked")
 		return
 	}
@@ -1665,7 +1695,7 @@ func (m *WorldMode) processLockedAttack(ctx client.Context) {
 		return
 	}
 	m.lastChaseAt = now
-	log.Printf("locked attack chase retry target=%d player=%d,%d target=%d,%d range=%d", actor.ID, ctx.World.Player.X, ctx.World.Player.Y, actor.X, actor.Y, attackRange)
+	log.Printf("locked attack chase retry target=%d player=%d,%d target=%d,%d range=%d", actor.ID, playerX, playerY, actor.X, actor.Y, attackRange)
 	m.requestAttack(ctx, actor, "locked")
 }
 
@@ -2619,7 +2649,8 @@ func (m *WorldMode) applyAttackFailureForDistance(ctx client.Context, failure ne
 	if ctx.Session != nil {
 		ctx.Session.AttackRange = attackRange
 	}
-	log.Printf("attack distance failure target=%d server_player=%d,%d server_target=%d,%d range=%d client_player=%d,%d", failure.TargetID, failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY, attackRange, ctx.World.Player.X, ctx.World.Player.Y)
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	log.Printf("attack distance failure target=%d server_player=%d,%d server_target=%d,%d range=%d client_player=%d,%d", failure.TargetID, failure.SourceX, failure.SourceY, failure.TargetX, failure.TargetY, attackRange, playerX, playerY)
 	ctx.World.SetPlayerPosition(failure.SourceX, failure.SourceY, ctx.World.Player.Dir)
 	if actor, ok := ctx.World.Actors[failure.TargetID]; ok {
 		actor.X = failure.TargetX
@@ -2970,6 +3001,7 @@ func attackApproachCell(ctx client.Context, actor worldstate.Actor, attackRange 
 			return x, y, true
 		}
 	}
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	bestX, bestY := 0, 0
 	bestDistance := math.Inf(1)
 	for dy := -1; dy <= 1; dy++ {
@@ -2985,7 +3017,7 @@ func attackApproachCell(ctx client.Context, actor worldstate.Actor, attackRange 
 			if ctx.World.GAT != nil && !ctx.World.GAT.Walkable(x, y) {
 				continue
 			}
-			distance := math.Hypot(float64(x-ctx.World.Player.X), float64(y-ctx.World.Player.Y))
+			distance := math.Hypot(float64(x-playerX), float64(y-playerY))
 			if distance < bestDistance {
 				bestDistance = distance
 				bestX = x
@@ -3000,8 +3032,7 @@ func rangedAttackApproachCell(ctx client.Context, actor worldstate.Actor, attack
 	if ctx.World == nil {
 		return 0, 0, false
 	}
-	playerX := ctx.World.Player.X
-	playerY := ctx.World.Player.Y
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	stepX := approachSign(actor.X - playerX)
 	stepY := approachSign(actor.Y - playerY)
 	preferredX := actor.X - stepX*attackRange
