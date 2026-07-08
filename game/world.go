@@ -4398,14 +4398,26 @@ func actorCanBeAttackClicked(ctx client.Context, actor worldstate.Actor) bool {
 }
 
 func pointInActorPickBounds(mouseX, mouseY, centerX, centerY, scale float64) bool {
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
-	}
+	scale = normalizePickScale(scale)
 	left := centerX - 44*scale
 	right := centerX + 44*scale
 	top := centerY - float64(humanoidBillboardAnchorY)*scale
 	bottom := centerY + 20*scale
 	return mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= bottom
+}
+
+func actorPickBoundsCenter(centerX, centerY, scale float64) (float64, float64) {
+	scale = normalizePickScale(scale)
+	top := centerY - float64(humanoidBillboardAnchorY)*scale
+	bottom := centerY + 20*scale
+	return centerX, (top + bottom) / 2
+}
+
+func normalizePickScale(scale float64) float64 {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		return 1
+	}
+	return scale
 }
 
 func clickWalkSearchRadius() int {

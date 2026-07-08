@@ -11,6 +11,8 @@ type Session struct {
 	Playing      bool
 	NoShift      bool
 	NoCtrl       bool
+	SnapTargets  bool
+	SnapItems    bool
 	AttackRange  int
 	CharServers  []CharServer
 	Characters   []Character

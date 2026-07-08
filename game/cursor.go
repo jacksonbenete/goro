@@ -59,8 +59,9 @@ func (m *WorldMode) drawROCursor(screen *render.Image, ctx client.Context, proje
 	}
 	render.SetCursorMode(render.CursorModeHidden)
 	action := m.cursorDesiredAction(ctx, projection, now)
+	magnetX, magnetY := m.cursorMagnetOffset(ctx, projection, action, now)
 	state := m.cursorState()
-	state.draw(screen, ctx, action, now)
+	state.draw(screen, ctx, action, now, magnetX, magnetY)
 	m.storeCursorState(state)
 	gameui.DrawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
 }
@@ -99,7 +100,7 @@ func (s *roCursorState) ensureLoaded(ctx client.Context) {
 	}
 }
 
-func (s *roCursorState) draw(screen *render.Image, ctx client.Context, action int, now time.Time) {
+func (s *roCursorState) draw(screen *render.Image, ctx client.Context, action int, now time.Time, magnetX, magnetY float64) {
 	if s == nil || screen == nil || ctx.Input == nil {
 		return
 	}
@@ -117,7 +118,7 @@ func (s *roCursorState) draw(screen *render.Image, ctx client.Context, action in
 		return
 	}
 	var opts render.DrawImageOptions
-	opts.GeoM.Translate(float64(ctx.Input.MouseX)-frame.anchorX, float64(ctx.Input.MouseY)-frame.anchorY)
+	opts.GeoM.Translate(float64(ctx.Input.MouseX)-frame.anchorX-magnetX, float64(ctx.Input.MouseY)-frame.anchorY-magnetY)
 	opts.Filter = spriteDrawFilter()
 	screen.DrawImage(frame.image, &opts)
 }
@@ -172,6 +173,117 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		}
 	}
 	return cursorActionDefault
+}
+
+func (m *WorldMode) cursorMagnetOffset(ctx client.Context, projection sceneProjection, action int, now time.Time) (float64, float64) {
+	if ctx.Input == nil {
+		return 0, 0
+	}
+	switch action {
+	case cursorActionPick:
+		if !cursorSnapItems(ctx) {
+			return 0, 0
+		}
+		item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now)
+		if !ok {
+			return 0, 0
+		}
+		x, y := floorItemWorldPosition(item)
+		z := floorItemRenderHeight(ctx.World, item, now)
+		point := projection.Project(cellCenter(x), cellCenter(y), z)
+		scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), z) * 0.42
+		targetX, targetY := groundItemPickBoundsCenter(float64(point.x), float64(point.y), scale)
+		return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
+	case cursorActionAttack:
+		if !cursorSnapTargets(ctx) {
+			return 0, 0
+		}
+		actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
+		if !ok {
+			return 0, 0
+		}
+		return m.cursorActorMagnetOffset(ctx, projection, actor, now)
+	case cursorActionTarget2:
+		if !cursorSnapTargets(ctx) || m.pendingSkill.skill.ID == 0 {
+			return 0, 0
+		}
+		actor, ok := clickedSkillTarget(ctx, projection, m.pendingSkill.skill, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
+		if !ok || !cursorActorCanSnap(actor) {
+			return 0, 0
+		}
+		return m.cursorActorMagnetOffset(ctx, projection, actor, now)
+	default:
+		return 0, 0
+	}
+}
+
+func (m *WorldMode) cursorActorMagnetOffset(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time) (float64, float64) {
+	if ctx.Input == nil || ctx.World == nil {
+		return 0, 0
+	}
+	actorX, actorY := actor.RenderPosition(now)
+	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
+	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
+	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
+	if targetX, targetY, ok := m.cursorActorSpriteCenter(ctx, projection, actor, point, scale, now); ok {
+		return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
+	}
+	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
+}
+
+func (m *WorldMode) cursorActorSpriteCenter(ctx client.Context, projection sceneProjection, actor worldstate.Actor, point screenPoint, scale float64, now time.Time) (float64, float64, bool) {
+	view := m.nonPCSpriteView(ctx, actor)
+	if view == nil {
+		return 0, 0, false
+	}
+	state := m.nonPCSpriteState(actor, now)
+	state.cameraYaw = projection.cameraYaw
+	billboard, ok := singleSpriteBillboardForState(view, state, now)
+	if !ok {
+		return 0, 0, false
+	}
+	return spriteBillboardScreenCenter(billboard, point, scale)
+}
+
+func spriteBillboardScreenCenter(billboard *spriteBillboard, point screenPoint, scale float64) (float64, float64, bool) {
+	if billboard == nil || billboard.image == nil {
+		return 0, 0, false
+	}
+	bounds := billboard.image.Bounds()
+	if bounds.Empty() {
+		return 0, 0, false
+	}
+	scale = normalizePickScale(scale)
+	x := float64(point.x) + (float64(bounds.Dx())/2-billboard.anchorX)*scale
+	y := float64(point.y) + (float64(bounds.Dy())/2-billboard.anchorY)*scale
+	return x, y, true
+}
+
+func cursorActorCanSnap(actor worldstate.Actor) bool {
+	if !actor.HasObjectType {
+		return false
+	}
+	switch actor.ObjectType {
+	case actorObjectTypeMob, actorObjectTypeNPCABR, actorObjectTypeNPCBionic:
+		return true
+	default:
+		return false
+	}
+}
+
+func cursorSnapTargets(ctx client.Context) bool {
+	if ctx.Session != nil {
+		return ctx.Session.SnapTargets
+	}
+	return ctx.Config.Gameplay.SnapTargets
+}
+
+func cursorSnapItems(ctx client.Context) bool {
+	if ctx.Session != nil {
+		return ctx.Session.SnapItems
+	}
+	return ctx.Config.Gameplay.SnapItems
 }
 
 func uiCursorAction(ctx client.Context) (int, bool) {

@@ -62,6 +62,8 @@ func New(cfg config.Config) (*Game, error) {
 	}
 	g.session.NoShift = cfg.Gameplay.NoShift
 	g.session.NoCtrl = cfg.Gameplay.NoCtrl
+	g.session.SnapTargets = cfg.Gameplay.SnapTargets
+	g.session.SnapItems = cfg.Gameplay.SnapItems
 
 	ctx := g.modeContext()
 	g.modes = game.NewManager(ctx, game.NewLoginMode())

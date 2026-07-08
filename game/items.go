@@ -371,14 +371,19 @@ func clickedGroundItem(ctx client.Context, projection sceneProjection, mouseX, m
 }
 
 func pointInGroundItemPickBounds(mouseX, mouseY, centerX, centerY, scale float64) bool {
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
-	}
+	scale = normalizePickScale(scale)
 	left := centerX - 18*scale
 	right := centerX + 18*scale
 	top := centerY - 30*scale
 	bottom := centerY + 10*scale
 	return mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= bottom
+}
+
+func groundItemPickBoundsCenter(centerX, centerY, scale float64) (float64, float64) {
+	scale = normalizePickScale(scale)
+	top := centerY - 30*scale
+	bottom := centerY + 10*scale
+	return centerX, (top + bottom) / 2
 }
 
 func floorItemWorldPosition(item worldstate.FloorItem) (float64, float64) {

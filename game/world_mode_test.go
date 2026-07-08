@@ -355,6 +355,89 @@ func TestDefaultHoveredUIRootDoesNotHideWorldWarpCursor(t *testing.T) {
 	}
 }
 
+func TestCursorMagnetOffsetFollowsTargetSnapSetting(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	point := projection.Project(cellCenter(11), cellCenter(20), 0)
+	inputState := input.NewState()
+	inputState.SetMousePosition(int(point.x)+7, int(point.y)+3)
+	ctx := client.Context{
+		Input:   inputState,
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+	mode := &WorldMode{}
+
+	if dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionAttack, now); dx != 0 || dy != 0 {
+		t.Fatalf("disabled target snap offset = %.1f,%.1f, want zero", dx, dy)
+	}
+	ctx.Session.SnapTargets = true
+	scale := actorBillboardScreenScale(projection, cellCenter(11), cellCenter(20), 0)
+	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	wantDX := float64(inputState.MouseX) - targetX
+	wantDY := float64(inputState.MouseY) - targetY
+	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionAttack, now)
+	if math.Abs(dx-wantDX) > 0.1 || math.Abs(dy-wantDY) > 0.1 {
+		t.Fatalf("target snap offset = %.1f,%.1f, want %.1f,%.1f", dx, dy, wantDX, wantDY)
+	}
+}
+
+func TestCursorMagnetOffsetFollowsItemSnapSetting(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	item := worldstate.FloorItem{ID: 9001, ItemID: 909, X: 11, Y: 20}
+	world.UpsertItem(item)
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	x, y := floorItemWorldPosition(item)
+	point := projection.Project(cellCenter(x), cellCenter(y), 0)
+	inputState := input.NewState()
+	inputState.SetMousePosition(int(point.x)+5, int(point.y)+2)
+	ctx := client.Context{
+		Input:   inputState,
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+	mode := &WorldMode{}
+
+	if dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionPick, now); dx != 0 || dy != 0 {
+		t.Fatalf("disabled item snap offset = %.1f,%.1f, want zero", dx, dy)
+	}
+	ctx.Session.SnapItems = true
+	scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), 0) * 0.42
+	targetX, targetY := groundItemPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	wantDX := float64(inputState.MouseX) - targetX
+	wantDY := float64(inputState.MouseY) - targetY
+	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionPick, now)
+	if math.Abs(dx-wantDX) > 0.1 || math.Abs(dy-wantDY) > 0.1 {
+		t.Fatalf("item snap offset = %.1f,%.1f, want %.1f,%.1f", dx, dy, wantDX, wantDY)
+	}
+}
+
+func TestSpriteBillboardScreenCenterUsesImageAndAnchor(t *testing.T) {
+	billboard := &spriteBillboard{
+		image:   render.NewImage(40, 20),
+		anchorX: 10,
+		anchorY: 30,
+	}
+	x, y, ok := spriteBillboardScreenCenter(billboard, screenPoint{x: 100, y: 200}, 2)
+	if !ok {
+		t.Fatal("expected billboard center")
+	}
+	if x != 120 || y != 160 {
+		t.Fatalf("center = %.1f,%.1f, want 120,160", x, y)
+	}
+}
+
 func cursorHoverTestContext(actor worldstate.Actor) (client.Context, sceneProjection) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}

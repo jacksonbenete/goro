@@ -69,8 +69,10 @@ type FogConfig struct {
 }
 
 type GameplayConfig struct {
-	NoShift bool
-	NoCtrl  bool
+	NoShift     bool
+	NoCtrl      bool
+	SnapTargets bool
+	SnapItems   bool
 }
 
 func LoadConfig(args []string) (Config, error) {
@@ -95,13 +97,15 @@ func LoadConfig(args []string) (Config, error) {
 }
 
 type UserSettings struct {
-	Fullscreen bool
-	VSync      bool
-	FPS        bool
-	BGMVolume  float64
-	SFXVolume  float64
-	NoShift    bool
-	NoCtrl     bool
+	Fullscreen  bool
+	VSync       bool
+	FPS         bool
+	BGMVolume   float64
+	SFXVolume   float64
+	NoShift     bool
+	NoCtrl      bool
+	SnapTargets bool
+	SnapItems   bool
 }
 
 func UserConfigPath() (string, error) {
@@ -141,6 +145,8 @@ func SaveUserSettings(settings UserSettings) (string, error) {
 		"gameplay": {
 			"no_shift": formatINIValueBool(settings.NoShift),
 			"no_ctrl":  formatINIValueBool(settings.NoCtrl),
+			"snap":     formatINIValueBool(settings.SnapTargets),
+			"itemsnap": formatINIValueBool(settings.SnapItems),
 		},
 	}
 	existing, err := os.ReadFile(path)
@@ -255,6 +261,9 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.BoolVar(&cfg.Fog.Enabled, "fog", cfg.Fog.Enabled, "enable map fog")
 	fs.BoolVar(&cfg.Gameplay.NoShift, "no-shift", cfg.Gameplay.NoShift, "allow support skills to target enemies without holding Shift")
 	fs.BoolVar(&cfg.Gameplay.NoCtrl, "no-ctrl", cfg.Gameplay.NoCtrl, "keep attacking with one click without holding Ctrl")
+	fs.BoolVar(&cfg.Gameplay.SnapTargets, "snap", cfg.Gameplay.SnapTargets, "magnetize attack and enemy skill cursors to targets")
+	fs.BoolVar(&cfg.Gameplay.SnapItems, "itemsnap", cfg.Gameplay.SnapItems, "magnetize pickup cursor to floor items")
+	fs.BoolVar(&cfg.Gameplay.SnapItems, "item-snap", cfg.Gameplay.SnapItems, "magnetize pickup cursor to floor items")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -349,6 +358,10 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		return setBool(value, &cfg.Gameplay.NoShift)
 	case "gameplay.noctrl":
 		return setBool(value, &cfg.Gameplay.NoCtrl)
+	case "gameplay.snap", "gameplay.snaptargets", "gameplay.targetsnap":
+		return setBool(value, &cfg.Gameplay.SnapTargets)
+	case "gameplay.itemsnap", "gameplay.snapitems", "gameplay.itemsnapping":
+		return setBool(value, &cfg.Gameplay.SnapItems)
 	default:
 		return fmt.Errorf("unknown key %q in section %q", key, section)
 	}

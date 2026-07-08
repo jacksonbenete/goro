@@ -67,6 +67,8 @@ enabled = false
 [gameplay]
 no_shift = true
 no_ctrl = false
+snap = true
+itemsnap = false
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -84,6 +86,8 @@ no_ctrl = false
 		"--char-slot", "3",
 		"--no-shift=false",
 		"--no-ctrl=true",
+		"--snap=false",
+		"--itemsnap=true",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -112,7 +116,7 @@ no_ctrl = false
 	if cfg.Fog.Enabled {
 		t.Fatalf("fog enabled = true, want false")
 	}
-	if cfg.Gameplay.NoShift || !cfg.Gameplay.NoCtrl {
+	if cfg.Gameplay.NoShift || !cfg.Gameplay.NoCtrl || cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
 		t.Fatalf("unexpected gameplay config: %#v", cfg.Gameplay)
 	}
 }
@@ -165,6 +169,8 @@ fps = true
 [gameplay]
 no_shift = true
 no_ctrl = false
+snap = true
+itemsnap = true
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +178,7 @@ no_ctrl = false
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Window.Fullscreen || cfg.Audio.BGMVolume != 0.10 || cfg.Audio.SFXVolume != 0.20 || cfg.Render.VSync || !cfg.Render.FPS || !cfg.Gameplay.NoShift || cfg.Gameplay.NoCtrl {
+	if !cfg.Window.Fullscreen || cfg.Audio.BGMVolume != 0.10 || cfg.Audio.SFXVolume != 0.20 || cfg.Render.VSync || !cfg.Render.FPS || !cfg.Gameplay.NoShift || cfg.Gameplay.NoCtrl || !cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
 		t.Fatalf("user config not loaded: %#v", cfg)
 	}
 }
@@ -199,13 +205,15 @@ fullscreen = false
 		t.Fatal(err)
 	}
 	writtenPath, err := SaveUserSettings(UserSettings{
-		Fullscreen: true,
-		VSync:      false,
-		FPS:        true,
-		BGMVolume:  0.33,
-		SFXVolume:  0.44,
-		NoShift:    true,
-		NoCtrl:     false,
+		Fullscreen:  true,
+		VSync:       false,
+		FPS:         true,
+		BGMVolume:   0.33,
+		SFXVolume:   0.44,
+		NoShift:     true,
+		NoCtrl:      false,
+		SnapTargets: true,
+		SnapItems:   true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -229,6 +237,8 @@ fullscreen = false
 		"sfx_volume = 0.44",
 		"no_shift = true",
 		"no_ctrl = false",
+		"snap = true",
+		"itemsnap = true",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("saved config missing %q:\n%s", want, text)

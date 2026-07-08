@@ -387,7 +387,7 @@ func (m *LoginMode) drawROCursor(screen *render.Image, ctx client.Context, now t
 		return
 	}
 	render.SetCursorMode(render.CursorModeHidden)
-	m.cursor.draw(screen, ctx, m.cursorAction(ctx), now)
+	m.cursor.draw(screen, ctx, m.cursorAction(ctx), now, 0, 0)
 }
 
 func (m *LoginMode) cursorAction(ctx client.Context) int {
