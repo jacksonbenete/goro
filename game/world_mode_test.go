@@ -1113,6 +1113,12 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	if sourceAnim.actionFamily != spriteActionPCAttack3 {
 		t.Fatalf("source action = %d, want %d", sourceAnim.actionFamily, spriteActionPCAttack3)
 	}
+	if stance, ok := mode.actorStance(150000, sourceAnim.started.Add(sourceAnim.duration-time.Millisecond)); ok {
+		t.Fatalf("early post-attack stance = %d, want hidden until attack finishes", stance)
+	}
+	if stance, ok := mode.actorStance(150000, sourceAnim.started.Add(sourceAnim.duration)); !ok || stance != spriteActionPCReadyFight {
+		t.Fatalf("post-attack stance = %d ok=%t, want READYFIGHT after attack", stance, ok)
+	}
 	targetAnim, ok := mode.actorAnims[300]
 	if !ok {
 		t.Fatal("target animation missing")
@@ -1135,6 +1141,12 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 	if life.hp != 8 || life.maxHP != 50 || !life.estimated {
 		t.Fatalf("target estimated life = %+v, want 8/50 estimated", life)
+	}
+
+	applySelfMoveAck(ctx, network.SelfMoveAck{FromX: 10, FromY: 20, ToX: 12, ToY: 20})
+	mode.clearLocalActorStance(ctx)
+	if stance, ok := mode.actorStance(150000, time.Now()); ok {
+		t.Fatalf("post-move stance = %d, want cleared", stance)
 	}
 }
 
@@ -2912,6 +2924,7 @@ func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testi
 	mode := &WorldMode{
 		pickupReqItemID: 9001,
 		actorAnims:      make(map[uint32]actorAnimation),
+		actorStances:    map[uint32]actorStanceState{150000: {actionFamily: spriteActionPCReadyFight}},
 	}
 	ctx := client.Context{
 		Session: &session.Session{
@@ -2933,6 +2946,9 @@ func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testi
 	if anim.actionFamily != spriteActionPickup {
 		t.Fatalf("pickup action = %d, want %d", anim.actionFamily, spriteActionPickup)
 	}
+	if stance, ok := mode.actorStance(150000, time.Now()); ok {
+		t.Fatalf("pickup ack should clear combat stance, got %d", stance)
+	}
 	if mode.pickupReqItemID != 0 {
 		t.Fatalf("pickup request item id = %d, want cleared", mode.pickupReqItemID)
 	}
@@ -2945,7 +2961,10 @@ func TestApplyActorPickupActionNotifyStartsPickupInsteadOfAttack(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.UpsertItem(worldstate.FloorItem{ID: 9001, ItemID: 909, X: 11, Y: 20, Amount: 1})
-	mode := &WorldMode{actorAnims: make(map[uint32]actorAnimation)}
+	mode := &WorldMode{
+		actorAnims:   make(map[uint32]actorAnimation),
+		actorStances: map[uint32]actorStanceState{150000: {actionFamily: spriteActionPCReadyFight}},
+	}
 	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 2000000,
@@ -2966,6 +2985,9 @@ func TestApplyActorPickupActionNotifyStartsPickupInsteadOfAttack(t *testing.T) {
 	}
 	if anim.actionFamily != spriteActionPickup {
 		t.Fatalf("pickup action = %d, want %d", anim.actionFamily, spriteActionPickup)
+	}
+	if stance, ok := mode.actorStance(150000, time.Now()); ok {
+		t.Fatalf("pickup should clear combat stance, got %d", stance)
 	}
 	if len(mode.damageFloaters) != 0 {
 		t.Fatalf("pickup notify should not create damage floaters: %+v", mode.damageFloaters)

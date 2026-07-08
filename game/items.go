@@ -239,6 +239,7 @@ func (m *WorldMode) startLocalPickupAnimation(ctx client.Context, started time.T
 	if ctx.Session == nil {
 		return
 	}
+	m.clearLocalActorStance(ctx)
 	if ctx.Session.AccountID != 0 {
 		m.startActorAnimation(ctx.Session.AccountID, spriteActionPickup, started, pickupAnimationDuration)
 	}
