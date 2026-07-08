@@ -249,8 +249,9 @@ func TestSetPlayerMovementInterpolatesLocalPlayer(t *testing.T) {
 	if w.Player.X != 12 || w.Player.Y != 24 || w.Player.FromX != 10 || w.Player.FromY != 20 || w.Player.ToX != 12 || w.Player.ToY != 24 {
 		t.Fatalf("unexpected player movement: %+v", w.Player)
 	}
-	if w.Dir != 3 || w.Player.Dir != 3 {
-		t.Fatalf("direction = world %d player %d, want 3", w.Dir, w.Player.Dir)
+	wantDir := movementFinalDirection(w.Player.MovePath, 10, 20, 12, 24, 3)
+	if w.Dir != wantDir || w.Player.Dir != wantDir {
+		t.Fatalf("direction = world %d player %d, want %d", w.Dir, w.Player.Dir, wantDir)
 	}
 }
 
@@ -301,6 +302,22 @@ func TestSetPlayerMovementBuildsPathAroundObstacle(t *testing.T) {
 	}
 	if got := w.Player.MoveDuration; got <= 300*time.Millisecond {
 		t.Fatalf("duration = %s, want longer than direct two-cell move", got)
+	}
+}
+
+func TestSetPlayerMovementStoresFinalSegmentDirection(t *testing.T) {
+	w := New()
+	w.GAT = testGAT(3, 3, map[WalkStep]bool{
+		{X: 1, Y: 0}: true,
+	})
+
+	w.SetPlayerMovement(0, 0, 2, 0, DirectionFromDelta(0, 0, 2, 0, 0))
+
+	if got, want := w.Player.Dir, DirectionFromDelta(2, 1, 2, 0, 0); got != want {
+		t.Fatalf("player dir = %d, want final segment dir %d; path=%+v", got, want, w.Player.MovePath)
+	}
+	if w.Dir != w.Player.Dir {
+		t.Fatalf("world dir = %d, want player dir %d", w.Dir, w.Player.Dir)
 	}
 }
 

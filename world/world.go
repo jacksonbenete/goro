@@ -118,9 +118,11 @@ func (w *World) SetPlayerPosition(x, y, dir int) {
 }
 
 func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
+	path := walkPath(w.GAT, fromX, fromY, toX, toY)
+	finalDir := movementFinalDirection(path, fromX, fromY, toX, toY, dir)
 	w.Player.X = toX
 	w.Player.Y = toY
-	w.Player.Dir = dir
+	w.Player.Dir = finalDir
 	w.Player.HeadDir = 0
 	w.Player.FromX = fromX
 	w.Player.FromY = fromY
@@ -129,9 +131,18 @@ func (w *World) SetPlayerMovement(fromX, fromY, toX, toY, dir int) {
 	w.Player.Moving = true
 	w.Player.Sitting = false
 	w.Player.MoveStarted = time.Now()
-	w.Player.MovePath = walkPath(w.GAT, fromX, fromY, toX, toY)
+	w.Player.MovePath = path
 	w.Player.MoveDuration = actorMovementDuration(w.Player.MovePath, fromX, fromY, toX, toY)
-	w.Dir = dir
+	w.Dir = finalDir
+}
+
+func movementFinalDirection(path []WalkStep, fromX, fromY, toX, toY int, fallback int) int {
+	if len(path) >= 2 {
+		from := path[len(path)-2]
+		to := path[len(path)-1]
+		return DirectionFromDelta(from.X, from.Y, to.X, to.Y, fallback)
+	}
+	return DirectionFromDelta(fromX, fromY, toX, toY, fallback)
 }
 
 func (w *World) UpsertActor(actor Actor) {
