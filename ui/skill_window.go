@@ -468,9 +468,6 @@ func (w *SkillWindow) canStageSkill(s *session.Session, skill session.Skill) boo
 	if skill.MaxLevel > 0 {
 		return skill.Level+pending < skill.MaxLevel && w.pendingCount() < sessionSkillPoints(s)
 	}
-	if pending > 0 {
-		return false
-	}
 	return w.pendingCount() < sessionSkillPoints(s)
 }
 

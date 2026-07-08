@@ -43,16 +43,18 @@ func TestSkillWindowCanStageSkillHonorsMaxLevel(t *testing.T) {
 	}
 }
 
-func TestSkillWindowCanStageSkillWithoutKnownMaxAllowsOnePendingLevel(t *testing.T) {
+func TestSkillWindowCanStageSkillWithoutKnownMaxAllowsAvailablePoints(t *testing.T) {
 	s := &session.Session{Skills: session.Skills{Points: 3}}
 	window := &SkillWindow{}
 	skill := session.Skill{ID: 999, Level: 1, Upgradable: true}
-	if !window.canStageSkill(s, skill) {
-		t.Fatal("expected unknown max skill to allow one staged level")
+	for i := 0; i < s.Skills.Points; i++ {
+		if !window.canStageSkill(s, skill) {
+			t.Fatalf("expected unknown max skill to allow staged level %d", i+1)
+		}
+		window.stageSkill(skill.ID)
 	}
-	window.stageSkill(skill.ID)
 	if window.canStageSkill(s, skill) {
-		t.Fatal("unknown max skill should wait for server update before another staged level")
+		t.Fatal("unknown max skill should not allow staging past available points")
 	}
 }
 
