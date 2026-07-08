@@ -90,6 +90,11 @@ func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameAc
 		return false
 	}
 	w.actions = actions
+	if assets, ok := actions.(AssetProvider); ok && assets != nil && !w.lastIconAssets {
+		w.assets = assets
+		w.lastIconAssets = true
+		w.snapshot = ""
+	}
 	if ctx.Input == nil {
 		w.Publish(ctx)
 		return true
@@ -142,14 +147,6 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetProvid
 		w.window.Unpublish(ctx)
 		w.unpublishTooltip(ctx)
 		return
-	}
-	if assets != nil {
-		w.assets = assets
-	}
-	if w.assets != nil && !w.lastIconAssets {
-		w.lastIconAssets = true
-		w.snapshot = w.skillSnapshot(ctx.Session)
-		w.window.SetContent(w.widgetTreeWithAssets(ctx, w.assets, w.actions))
 	}
 	w.Publish(ctx)
 	w.publishTooltip(ctx)
