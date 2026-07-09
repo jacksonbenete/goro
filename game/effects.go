@@ -12,6 +12,7 @@ import (
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
+	worldstate "github.com/kivutar/goro/world"
 )
 
 const (
@@ -897,7 +898,7 @@ type skillEffectSpec struct {
 	successEffectIDsSelf   []int
 	beginCastEffectIDs     []int
 	groundEffectIDs        []int
-	action                 skillActionType
+	action                 skillActionSpec
 	cast                   skillCastSpec
 	forceGroundTarget      bool
 	forceSelfTarget        bool
@@ -906,13 +907,37 @@ type skillEffectSpec struct {
 	recoveryFloater        skillRecoveryFloaterSpec
 }
 
-type skillActionType int
+type skillActorAction int
 
 const (
-	skillActionDefault skillActionType = iota
-	skillActionAttack
-	skillActionReadyFight
+	skillActorActionSkill skillActorAction = iota
+	skillActorActionAttack
+	skillActorActionReadyFight
 )
+
+type skillActionSpec struct {
+	action skillActorAction
+}
+
+var (
+	defaultSkillActionSpec    = skillActionSpec{action: skillActorActionSkill}
+	attackSkillActionSpec     = skillActionSpec{action: skillActorActionAttack}
+	readyFightSkillActionSpec = skillActionSpec{action: skillActorActionReadyFight}
+)
+
+func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
+	if !res.HasPlayerJobToken(int(actor.Job)) {
+		return spriteActionNonPCAttack
+	}
+	switch s.action {
+	case skillActorActionAttack:
+		return attackActionFamilyForActor(actor)
+	case skillActorActionReadyFight:
+		return spriteActionPCReadyFight
+	default:
+		return spriteActionPCSkill
+	}
+}
 
 type skillCastSpec struct {
 	property uint32
@@ -942,10 +967,10 @@ type skillRecoveryFloaterSpec struct {
 // Goro-only visual bridge fields, such as cast timing and recovery floaters,
 // live beside the imported effect arrays so dispatch remains table-driven.
 var skillEffectSpecs = map[uint16]skillEffectSpec{
-	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: skillActionAttack},                                                                                                         // SM_BASH
+	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: attackSkillActionSpec},                                                                                                     // SM_BASH
 	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                            // SM_PROVOKE
-	7:   {effectIDs: []int{effectQuakeMagnum}, effectIDsOnCaster: []int{effectMagnumBreak}, action: skillActionAttack},                                                                                                       // SM_MAGNUM
-	8:   {effectIDs: []int{effectEndure}, action: skillActionReadyFight},                                                                                                                                                     // SM_ENDURE
+	7:   {effectIDs: []int{effectQuakeMagnum}, effectIDsOnCaster: []int{effectMagnumBreak}, action: attackSkillActionSpec},                                                                                                   // SM_MAGNUM
+	8:   {effectIDs: []int{effectEndure}, action: readyFightSkillActionSpec},                                                                                                                                                 // SM_ENDURE
 	9:   {passive: true},                                                                                                                                                                                                     // MG_SRECOVERY
 	10:  {forceSelfTarget: true},                                                                                                                                                                                             // MG_SIGHT; reference client starts EF_SIGHT from the actor effect-state bit, not SkillEffect.js.
 	11:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                // MG_NAPALMBEAT
@@ -983,10 +1008,10 @@ var skillEffectSpecs = map[uint16]skillEffectSpec{
 	51:  {forceSelfTarget: true},                                                                                                                                                                                             // TF_HIDING
 	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                                                                                                                                                           // TF_POISON
 	53:  {effectIDs: []int{effectDetoxication}},                                                                                                                                                                              // TF_DETOXIFY
-	149: {effectIDs: []int{effectSprinkleSand}, action: skillActionAttack},                                                                                                                                                   // TF_SPRINKLESAND
+	149: {effectIDs: []int{effectSprinkleSand}, action: attackSkillActionSpec},                                                                                                                                               // TF_SPRINKLESAND
 	150: {},                                                                                                                                                                                                                  // TF_BACKSLIDING
 	151: {},                                                                                                                                                                                                                  // TF_PICKSTONE; reference client only hides the cast aura.
-	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: skillActionAttack},                                                                                                                                            // TF_THROWSTONE
+	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: attackSkillActionSpec},                                                                                                                                        // TF_THROWSTONE
 	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                // MG_ENERGYCOAT
 }
 
@@ -1090,8 +1115,12 @@ func skillRecoveryFloater(skillID uint16) skillRecoveryFloaterSpec {
 	return skillEffectSpecs[skillID].recoveryFloater
 }
 
-func skillAction(skillID uint16) skillActionType {
-	return skillEffectSpecs[skillID].action
+func skillAction(skillID uint16) skillActionSpec {
+	spec := skillEffectSpecs[skillID].action
+	if spec == (skillActionSpec{}) {
+		return defaultSkillActionSpec
+	}
+	return spec
 }
 
 func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {

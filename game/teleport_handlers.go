@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"github.com/kivutar/goro/client"
 	"log"
 
@@ -27,7 +26,6 @@ func (m *WorldMode) applyWarpPointList(ctx client.Context, list network.WarpPoin
 		return
 	}
 	m.teleportModal.OpenWarpPointList(list, skill)
-	m.status = fmt.Sprintf("choose %s destination", warpPointSkillLabel(list.SkillID))
 	log.Printf("warp point destination list skill=%d maps=%v", list.SkillID, list.MapNames)
 }
 
@@ -54,21 +52,11 @@ func (m *WorldMode) autoSelectTeleportRandom(ctx client.Context, list network.Wa
 		}
 	}
 	if ctx.Network == nil {
-		m.status = "Teleport failed: not connected"
 		return
 	}
 	if err := ctx.Network.SendSelectWarpPoint(list.SkillID, mapName); err != nil {
-		m.status = fmt.Sprintf("Teleport failed: %v", err)
 		return
 	}
 	m.teleportModal.Reset()
-	m.status = "teleporting"
 	log.Printf("teleport random selected automatically skill=%d maps=%v", list.SkillID, list.MapNames)
-}
-
-func warpPointSkillLabel(skillID uint16) string {
-	if skillID == gameui.WarpPortalSkillID {
-		return "warp portal"
-	}
-	return "teleport"
 }

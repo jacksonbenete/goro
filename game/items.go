@@ -84,7 +84,6 @@ func (m *WorldMode) applyFloorItemDisappear(ctx client.Context, disappear networ
 
 func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPickupAck) {
 	if ack.Result == 0 {
-		m.status = fmt.Sprintf("picked item %d x%d", ack.ItemID, ack.Amount)
 		m.pendingPickup = pickupIntent{}
 		addPickedSessionInventoryItem(ctx.Session, session.InventoryItem{
 			Index:      ack.Index,
@@ -101,13 +100,11 @@ func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPicku
 		log.Printf("item pickup ack success index=%d item_id=%d amount=%d type=%d location=0x%04X identified=%t", ack.Index, ack.ItemID, ack.Amount, ack.Type, ack.Location, ack.Identified)
 		return
 	}
-	m.status = fmt.Sprintf("pickup failed item %d result=%d", ack.ItemID, ack.Result)
 	log.Printf("item pickup ack failed index=%d item_id=%d amount=%d result=%d", ack.Index, ack.ItemID, ack.Amount, ack.Result)
 }
 
 func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem, source string) {
 	if ctx.Network == nil {
-		m.status = "pickup request failed: not connected"
 		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
@@ -118,7 +115,6 @@ func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem,
 	}
 	targetX, targetY, ok := pickupApproachCell(ctx, item)
 	if !ok {
-		m.status = fmt.Sprintf("%s pickup walk blocked: %d", source, item.ID)
 		log.Printf("%s pickup walk blocked item=%d player=%d,%d item=%d,%d", source, item.ID, playerX, playerY, item.X, item.Y)
 		m.setWalkCooldown(walkRequestCooldown)
 		return
@@ -210,11 +206,9 @@ func pendingPickupReadyAt(player worldstate.Actor, now time.Time) time.Time {
 
 func (m *WorldMode) sendPickupRequest(ctx client.Context, item worldstate.FloorItem, source string) {
 	if err := ctx.Network.SendItemPickup(item.ID); err == nil {
-		m.status = fmt.Sprintf("%s pickup request: %d", source, item.ID)
 		m.pickupReqItemID = item.ID
 		m.setWalkCooldown(walkRequestCooldown)
 	} else {
-		m.status = source + " pickup request failed: " + err.Error()
 		log.Printf("%s pickup request failed item=%d: %v", source, item.ID, err)
 		m.setWalkCooldown(walkErrorCooldown)
 	}

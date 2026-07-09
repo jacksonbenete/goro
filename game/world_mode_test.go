@@ -1906,14 +1906,14 @@ func TestSkillCastFallbackMappings(t *testing.T) {
 }
 
 func TestSkillVisualMetadataMappings(t *testing.T) {
-	if skillAction(5) != skillActionAttack || skillAction(7) != skillActionAttack {
-		t.Fatalf("swordman weapon-action skills = bash:%d magnum:%d", skillAction(5), skillAction(7))
+	if skillAction(5).action != skillActorActionAttack || skillAction(7).action != skillActorActionAttack {
+		t.Fatalf("swordman weapon-action skills = bash:%d magnum:%d", skillAction(5).action, skillAction(7).action)
 	}
-	if skillAction(8) != skillActionReadyFight {
-		t.Fatalf("endure action = %d, want ready fight", skillAction(8))
+	if skillAction(8).action != skillActorActionReadyFight {
+		t.Fatalf("endure action = %d, want ready fight", skillAction(8).action)
 	}
-	if skillAction(28) != skillActionDefault {
-		t.Fatalf("heal action = %d, want default skill action", skillAction(28))
+	if skillAction(28).action != skillActorActionSkill {
+		t.Fatalf("heal action = %d, want default skill action", skillAction(28).action)
 	}
 	if !skillForcesGroundTarget(21) || !skillForcesGroundTarget(25) {
 		t.Fatalf("ground target overrides = thunderstorm:%t pneuma:%t", skillForcesGroundTarget(21), skillForcesGroundTarget(25))
@@ -2108,10 +2108,10 @@ func TestThiefSkillTargetRules(t *testing.T) {
 	if !isSelfTargetSkill(session.Skill{ID: 51, Level: 1, Type: skillTargetEnemy, Range: 1}) {
 		t.Fatal("TF_HIDING should self-cast even when the skill list reports a range")
 	}
-	if skillAction(149) != skillActionAttack {
+	if skillAction(149).action != skillActorActionAttack {
 		t.Fatal("TF_SPRINKLESAND should use attack action")
 	}
-	if skillAction(152) != skillActionAttack {
+	if skillAction(152).action != skillActorActionAttack {
 		t.Fatal("TF_THROWSTONE should use attack action")
 	}
 }
@@ -3563,9 +3563,6 @@ func TestPendingSkillTargetCancelWithEscape(t *testing.T) {
 	if mode.pendingSkill.skill.ID != 0 {
 		t.Fatalf("pending skill id = %d, want 0", mode.pendingSkill.skill.ID)
 	}
-	if mode.status != "skill canceled" {
-		t.Fatalf("status = %q, want skill canceled", mode.status)
-	}
 }
 
 func TestBasicMenuOptionOpensEscapeMenu(t *testing.T) {
@@ -3684,9 +3681,6 @@ func TestPendingTargetSkillCancelsWhenClickingGround(t *testing.T) {
 	if mode.pendingSkill.skill.ID != 0 {
 		t.Fatalf("pending skill id = %d, want canceled", mode.pendingSkill.skill.ID)
 	}
-	if mode.status != "skill canceled" {
-		t.Fatalf("status = %q, want skill canceled", mode.status)
-	}
 }
 
 func TestPendingGroundSkillDoesNotCancelWhenClickingGround(t *testing.T) {
@@ -3710,9 +3704,6 @@ func TestPendingGroundSkillDoesNotCancelWhenClickingGround(t *testing.T) {
 
 	if mode.pendingSkill.skill.ID != 18 {
 		t.Fatalf("pending ground skill id = %d, want still pending after send failure", mode.pendingSkill.skill.ID)
-	}
-	if mode.status == "skill canceled" {
-		t.Fatal("ground skill was canceled instead of treated as a ground target")
 	}
 }
 

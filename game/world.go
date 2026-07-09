@@ -23,7 +23,6 @@ import (
 )
 
 type WorldMode struct {
-	status            string
 	walkCooldownUntil time.Time
 	nextHeldWalkAt    time.Time
 	tickCooldown      int
@@ -297,7 +296,6 @@ func (m *WorldMode) Name() string {
 }
 
 func (m *WorldMode) Enter(ctx client.Context) {
-	m.status = "loading map"
 	now := time.Now()
 	if m.mapFade.phase == mapFadeNone {
 		m.startMapFadeIn(now)
@@ -392,43 +390,31 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	render.SetCursorMode(render.CursorModeHidden)
 	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
 	if ctx.World.MapName == "" {
-		m.status = "no map selected"
 		return
 	}
 
-	gat, source, err := loadGAT(ctx.Resources, ctx.World.MapName)
+	gat, _, err := loadGAT(ctx.Resources, ctx.World.MapName)
 	if err != nil {
-		m.status = err.Error()
 		return
 	}
 	ctx.World.GAT = gat
-	m.status = fmt.Sprintf("loaded %s %dx%d", source, gat.Width, gat.Height)
-	if gnd, gndSource, err := loadGND(ctx.Resources, ctx.World.MapName); err == nil {
+	if gnd, _, err := loadGND(ctx.Resources, ctx.World.MapName); err == nil {
 		ctx.World.GND = gnd
-		m.status = fmt.Sprintf("loaded %s %dx%d", gndSource, gnd.Width, gnd.Height)
 	} else {
 		ctx.World.GND = nil
-		m.status += " gnd: " + err.Error()
 	}
 	if rsw, rswSource, err := loadRSW(ctx.Resources, ctx.World.MapName); err == nil {
 		ctx.World.RSW = rsw
 		ctx.World.RSM, ctx.World.RSMFail = loadRSMModels(ctx.Resources, rsw, defaultRSMLoadLimit)
-		m.status += fmt.Sprintf(" rsw=%s", rswSource)
 		m.playMapBGM(ctx, rswSource)
 	} else {
 		ctx.World.RSW = nil
 		ctx.World.RSM = nil
 		ctx.World.RSMFail = 0
-		m.status += " rsw: " + err.Error()
 		m.playMapBGM(ctx, ctx.World.MapName)
 	}
-	if err := ctx.Network.SendLoadEndAck(); err != nil {
-		m.status += " load-ack failed: " + err.Error()
-	} else {
+	if err := ctx.Network.SendLoadEndAck(); err == nil {
 		m.tickCooldown = 1
-	}
-	if playerStatus != "" {
-		m.status += " " + playerStatus
 	}
 }
 
@@ -436,14 +422,10 @@ func (m *WorldMode) playMapBGM(ctx client.Context, rswName string) {
 	if ctx.Audio == nil {
 		return
 	}
-	path, err := ctx.Audio.PlayMap(rswName)
+	_, err := ctx.Audio.PlayMap(rswName)
 	if err != nil {
-		m.status += " bgm: " + err.Error()
 		log.Printf("bgm failed map=%s: %v", rswName, err)
 		return
-	}
-	if path != "" {
-		m.status += " bgm=" + path
 	}
 }
 
@@ -486,7 +468,6 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		}
 		if enter, err := network.ParseMapAcceptEnter(pkt); err == nil {
 			applyMapAcceptEnter(ctx, enter)
-			m.status = fmt.Sprintf("entered map %s at %d,%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
 			if m.pendingWarp {
 				m.pendingWarp = false
 				return m.nextWorldMode(), nil
@@ -521,7 +502,6 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		} else if ok {
 			applySelfMoveAck(ctx, ack)
 			m.clearLocalActorAction(ctx)
-			m.status = fmt.Sprintf("walk ack: %d,%d -> %d,%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY)
 			log.Printf("walk ack from=%d,%d to=%d,%d tick=%d", ack.FromX, ack.FromY, ack.ToX, ack.ToY, ack.ServerTick)
 			m.continuePendingAttack(ctx, "walk ack")
 			m.continuePendingPickup(ctx, "walk ack")
@@ -532,7 +512,6 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("parse actor set position 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			if isLocalActor(ctx, position.ID) {
-				m.status = fmt.Sprintf("position fix: %d,%d", position.X, position.Y)
 				log.Printf("local position fix id=%d x=%d y=%d", position.ID, position.X, position.Y)
 			}
 			applyActorSetPosition(ctx, position)
@@ -1229,14 +1208,10 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 		m.camera.Update(ctx, time.Now())
 		if ctx.Network != nil {
 			if err := ctx.Network.SendLoadEndAck(); err != nil {
-				m.status = "same-map warp load-ack failed: " + err.Error()
 				log.Printf("same-map warp load ack failed map=%s x=%d y=%d: %v", change.MapName, change.X, change.Y, err)
 			} else {
 				m.tickCooldown = 1
-				m.status = fmt.Sprintf("warped on %s at %d,%d", change.MapName, change.X, change.Y)
 			}
-		} else {
-			m.status = fmt.Sprintf("warped on %s at %d,%d", change.MapName, change.X, change.Y)
 		}
 		return nil
 	}
@@ -1247,17 +1222,14 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 		err := ctx.Network.Connect(dialCtx, change.Address, int(change.Port))
 		cancel()
 		if err != nil {
-			m.status = "map reconnect failed: " + err.Error()
 			log.Printf("map reconnect failed map=%s addr=%s port=%d: %v", change.MapName, change.Address, change.Port, err)
 			return nil
 		}
 		if err := ctx.Network.SendMapServerEnter(ctx.Session.AccountID, ctx.Session.CharID, ctx.Session.AuthCode, uint32(time.Now().UnixMilli()), ctx.Session.Sex); err != nil {
-			m.status = "map re-enter failed: " + err.Error()
 			log.Printf("map re-enter failed map=%s addr=%s port=%d: %v", change.MapName, change.Address, change.Port, err)
 			return nil
 		}
 		m.pendingWarp = true
-		m.status = fmt.Sprintf("waiting for map enter: %s %s:%d", change.MapName, change.Address, change.Port)
 		return nil
 	}
 	return m.nextWorldMode()
@@ -1292,11 +1264,6 @@ func (m *WorldMode) startMapFadeOut(change network.MapChange, now time.Time) {
 		started:   now,
 		change:    change,
 		hasChange: true,
-	}
-	if change.MapName != "" {
-		m.status = fmt.Sprintf("leaving for %s", change.MapName)
-	} else {
-		m.status = "leaving map"
 	}
 }
 
@@ -1425,17 +1392,14 @@ func sameLoadedMap(ctx client.Context, mapName string) bool {
 
 func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source string) {
 	if !walkTargetInBounds(ctx, targetX, targetY) {
-		m.status = fmt.Sprintf("%s walk blocked by map bounds: %d,%d", source, targetX, targetY)
 		m.setWalkCooldown(walkRequestCooldown)
 		return
 	}
 	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	log.Printf("%s walk request from=%d,%d to=%d,%d", source, playerX, playerY, targetX, targetY)
 	if err := ctx.Network.SendWalkToXY(targetX, targetY); err == nil {
-		m.status = fmt.Sprintf("%s walk request: %d,%d", source, targetX, targetY)
 		m.setWalkCooldown(walkRequestCooldown)
 	} else {
-		m.status = source + " walk request failed: " + err.Error()
 		log.Printf("%s walk request failed from=%d,%d to=%d,%d: %v", source, playerX, playerY, targetX, targetY, err)
 		m.setWalkCooldown(walkErrorCooldown)
 	}
@@ -1450,7 +1414,6 @@ func shouldUseTurnOnlyGroundClick(ctx client.Context) bool {
 
 func (m *WorldMode) requestChangeDirection(ctx client.Context, targetX, targetY int, source string) {
 	if ctx.Network == nil {
-		m.status = "change direction failed: not connected"
 		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
@@ -1465,12 +1428,10 @@ func (m *WorldMode) requestChangeDirection(ctx client.Context, targetX, targetY 
 	}
 	log.Printf("%s change direction request player=%d,%d target=%d,%d head_dir=%d dir=%d", source, playerX, playerY, targetX, targetY, headDir, bodyDir)
 	if err := ctx.Network.SendChangeDirection(headDir, bodyDir); err != nil {
-		m.status = source + " change direction failed: " + err.Error()
 		log.Printf("%s change direction failed target=%d,%d head_dir=%d dir=%d: %v", source, targetX, targetY, headDir, bodyDir, err)
 		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
-	m.status = fmt.Sprintf("%s change direction: head=%d dir=%d", source, headDir, bodyDir)
 	m.applyLocalDirection(ctx, headDir, bodyDir)
 	m.setWalkCooldown(turnDirectionCooldown)
 }
@@ -1534,7 +1495,6 @@ func (m *WorldMode) applyLocalDirection(ctx client.Context, headDir, dir uint8) 
 
 func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, source string) {
 	if ctx.Network == nil {
-		m.status = "attack request failed: not connected"
 		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
@@ -1551,7 +1511,6 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 	}
 	targetX, targetY, ok := attackApproachCell(ctx, actor, attackRange)
 	if !ok {
-		m.status = fmt.Sprintf("%s attack chase blocked: %d", source, actor.ID)
 		log.Printf("%s attack chase blocked target=%d player=%d,%d target=%d,%d range=%d", source, actor.ID, playerX, playerY, actor.X, actor.Y, attackRange)
 		m.setWalkCooldown(walkRequestCooldown)
 		return
@@ -1566,16 +1525,13 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 
 func (m *WorldMode) requestNPCTalk(ctx client.Context, actor worldstate.Actor, source string) {
 	if ctx.Network == nil {
-		m.status = "npc talk failed: not connected"
 		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
 	m.clearLockedAttack()
 	if err := ctx.Network.SendNPCContact(actor.ID); err == nil {
-		m.status = fmt.Sprintf("%s npc talk request: %d", source, actor.ID)
 		m.setWalkCooldown(walkRequestCooldown)
 	} else {
-		m.status = source + " npc talk failed: " + err.Error()
 		playerX, playerY := currentPlayerCell(ctx, time.Now())
 		log.Printf("%s npc talk failed target=%d player=%d,%d target=%d,%d: %v", source, actor.ID, playerX, playerY, actor.X, actor.Y, err)
 		m.setWalkCooldown(walkErrorCooldown)
@@ -1733,11 +1689,9 @@ func pendingAttackReadyAt(player worldstate.Actor, now time.Time) time.Time {
 
 func (m *WorldMode) sendAttackAction(ctx client.Context, actor worldstate.Actor, source string) {
 	if err := ctx.Network.SendActionRequest(actor.ID, network.ActionAttack); err == nil {
-		m.status = fmt.Sprintf("%s attack request: %d", source, actor.ID)
 		m.lastAttackAt = time.Now()
 		m.setWalkCooldown(walkRequestCooldown)
 	} else {
-		m.status = source + " attack request failed: " + err.Error()
 		log.Printf("%s attack request failed target=%d action=%d: %v", source, actor.ID, network.ActionAttack, err)
 		m.setWalkCooldown(walkErrorCooldown)
 	}
@@ -2375,17 +2329,7 @@ func skillActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
 	if skillID == 0 {
 		return attackActionFamilyForActor(actor)
 	}
-	if !res.HasPlayerJobToken(int(actor.Job)) {
-		return spriteActionNonPCAttack
-	}
-	switch skillAction(skillID) {
-	case skillActionAttack:
-		return attackActionFamilyForActor(actor)
-	case skillActionReadyFight:
-		return spriteActionPCReadyFight
-	default:
-		return spriteActionPCSkill
-	}
+	return skillAction(skillID).actionFamilyForActor(actor)
 }
 
 func skillCastActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {

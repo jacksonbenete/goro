@@ -42,15 +42,6 @@ func skillLabel(skill session.Skill) string {
 	return fmt.Sprintf("Skill %d", skill.ID)
 }
 
-func skillDisplayName(manager *res.Manager, skill session.Skill) string {
-	if manager != nil {
-		if name, ok := manager.SkillDisplayName(int(skill.ID)); ok {
-			return name
-		}
-	}
-	return skillLabel(skill)
-}
-
 func sessionSkillFromNetwork(skill network.SkillInfo) session.Skill {
 	return session.Skill{
 		ID:         skill.ID,
@@ -117,7 +108,6 @@ func (c skillController) Use(ctx client.Context, skill session.Skill, source str
 	}
 	if skill.Range > 0 || isGroundTargetSkill(skill) {
 		c.mode.pendingSkill = pendingSkillTarget{skill: skill, maxLevel: maxInt(1, skill.Level), started: time.Now()}
-		c.mode.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 		log.Printf("%s skill target pending skill=%d level=%d range=%d", source, skill.ID, skill.Level, skill.Range)
 		return nil
 	}
@@ -197,7 +187,6 @@ func (c skillController) Cancel(source string) {
 	}
 	log.Printf("skill target canceled skill=%d source=%s", c.mode.pendingSkill.skill.ID, source)
 	c.mode.pendingSkill = pendingSkillTarget{}
-	c.mode.status = "skill canceled"
 }
 
 func (c skillController) AdjustPendingLevelFromWheel(ctx client.Context) bool {
@@ -226,7 +215,6 @@ func (c skillController) AdjustPendingLevelFromWheel(ctx client.Context) bool {
 	}
 	pending.skill.Level = level
 	c.mode.pendingSkill = pending
-	c.mode.status = fmt.Sprintf("select target: %s Lv%d", skillDisplayName(ctx.Resources, pending.skill), level)
 	log.Printf("skill target level changed skill=%d level=%d max=%d", pending.skill.ID, level, maxLevel)
 	return true
 }
@@ -239,17 +227,14 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 	if isGroundTargetSkill(skill) {
 		targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
 		if !ok {
-			c.mode.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 			log.Printf("skill ground target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 			return
 		}
 		if err := c.SendToGround(ctx, skill, targetX, targetY, "target"); err != nil {
-			c.mode.status = "skill failed: " + err.Error()
 			log.Printf("skill ground target failed skill=%d target=%d,%d: %v", skill.ID, targetX, targetY, err)
 			return
 		}
 		c.mode.pendingSkill = pendingSkillTarget{}
-		c.mode.status = fmt.Sprintf("%s: %d,%d", skillDisplayName(ctx.Resources, skill), targetX, targetY)
 		log.Printf("skill ground target sent skill=%d target=%d,%d", skill.ID, targetX, targetY)
 		return
 	}
@@ -260,7 +245,6 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 			c.Cancel("ground-click")
 			return
 		}
-		c.mode.status = fmt.Sprintf("select target: %s", skillDisplayName(ctx.Resources, skill))
 		log.Printf("skill target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 		return
 	}
@@ -268,12 +252,10 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 		return
 	}
 	if err := c.SendToID(ctx, skill, actor.ID, "target"); err != nil {
-		c.mode.status = "skill failed: " + err.Error()
 		log.Printf("skill target failed skill=%d target=%d: %v", skill.ID, actor.ID, err)
 		return
 	}
 	c.mode.pendingSkill = pendingSkillTarget{}
-	c.mode.status = fmt.Sprintf("%s: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
 	log.Printf("skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
 }
 
@@ -284,7 +266,6 @@ func (c skillController) chaseTargetIfNeeded(ctx client.Context, skill session.S
 	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	targetX, targetY, ok := attackApproachCell(ctx, actor, targetSkillRange(skill))
 	if !ok {
-		c.mode.status = fmt.Sprintf("%s chase blocked: %d", skillDisplayName(ctx.Resources, skill), actor.ID)
 		log.Printf("%s skill chase blocked skill=%d target=%d player=%d,%d target=%d,%d range=%d", source, skill.ID, actor.ID, playerX, playerY, actor.X, actor.Y, targetSkillRange(skill))
 		c.mode.setWalkCooldown(walkRequestCooldown)
 		return true
@@ -373,11 +354,9 @@ func (c skillController) ProcessPendingTarget(ctx client.Context) {
 	}
 	c.mode.pendingSkill = pendingSkillTarget{}
 	if err := c.SendToID(ctx, pending.skill, actor.ID, "pending"); err != nil {
-		c.mode.status = "skill failed: " + err.Error()
 		log.Printf("pending skill failed skill=%d target=%d: %v", pending.skill.ID, actor.ID, err)
 		return
 	}
-	c.mode.status = fmt.Sprintf("%s: %d", skillDisplayName(ctx.Resources, pending.skill), actor.ID)
 	log.Printf("pending skill sent skill=%d target=%d name=%q job=%d object_type=%d", pending.skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
 }
 
@@ -386,15 +365,12 @@ func (c skillController) ApplyAutoRun(ctx client.Context, auto network.AutoRunSk
 	target := localSkillTarget(ctx)
 	log.Printf("auto-run skill received skill=%d level=%d range=%d name=%q target=%d", skill.ID, skill.Level, skill.Range, skill.Name, target)
 	if target == 0 {
-		c.mode.status = "auto skill failed: missing player id"
 		return
 	}
 	if err := c.SendToID(ctx, skill, target, "auto"); err != nil {
-		c.mode.status = "auto skill failed: " + err.Error()
 		log.Printf("auto-run skill use failed skill=%d target=%d: %v", skill.ID, target, err)
 		return
 	}
-	c.mode.status = skillDisplayName(ctx.Resources, skill)
 }
 
 func skillTargetOverrideActive(ctx client.Context) bool {
