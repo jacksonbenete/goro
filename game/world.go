@@ -1338,6 +1338,15 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.camera.zoom = m.camera.zoom
 	next.console = m.console
 	next.characterWindow = m.characterWindow
+	next.basicMenu = m.basicMenu
+	next.inventoryBag = m.inventoryBag
+	next.equipmentWindow = m.equipmentWindow
+	next.cartWindow = m.cartWindow
+	next.itemInfoWindow = m.itemInfoWindow
+	next.statsWindow = m.statsWindow
+	next.skillWindow = m.skillWindow
+	next.friendsWindow = m.friendsWindow
+	next.settingsWindow = m.settingsWindow
 	next.shortcutBar = m.shortcutBar
 	next.minimap = m.minimap
 	next.startMapFadeIn(time.Now())

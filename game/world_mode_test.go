@@ -5180,6 +5180,37 @@ func TestNextWorldModeReusesMinimapOverlay(t *testing.T) {
 	}
 }
 
+func TestNextWorldModeCarriesOpenInventoryWindow(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{Items: []session.InventoryItem{
+			{Index: 2, ItemID: 501, Type: 0, Amount: 3, Identified: true},
+		}},
+	}
+	ctx := client.Context{
+		Session:   sessionState,
+		World:     worldstate.New(),
+		Input:     input.NewState(),
+		UIManager: &worldModeTestUIManager{},
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+	mode := &WorldMode{}
+	mode.inventoryBag.Toggle(ctx)
+	manager := ctx.UIManager.(*worldModeTestUIManager)
+	if len(manager.overlays) == 0 {
+		t.Fatal("inventory overlay was not published before map change")
+	}
+
+	next := mode.nextWorldMode()
+	if len(manager.overlays) != 1 {
+		t.Fatalf("inventory overlays after mode replacement = %d, want carried overlay", len(manager.overlays))
+	}
+	next.inventoryBag.Update(ctx, &next.shortcutBar, &next.storageWindow, &next.cartWindow, &next.itemInfoWindow)
+	if len(manager.overlays) != 1 {
+		t.Fatalf("inventory overlays after next mode update = %d, want 1", len(manager.overlays))
+	}
+}
+
 func TestHandleMapChangeSameLoadedMapReusesModeAndSnapsCamera(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "izlude"
