@@ -129,8 +129,12 @@ type spriteState struct {
 	started        time.Time
 	loop           bool
 	loopIdle       bool
+	play           bool
+	hasPlay        bool
 	fixedMotion    int
 	hasFixedMotion bool
+	speed          float64
+	hasSpeed       bool
 	moveSpeedMS    int
 	walkDistance   float64
 }
@@ -159,16 +163,24 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 			state.actionFamily = anim.actionFamily
 			state.started = anim.started
 			state.loop = anim.loop
+			state.play = anim.play
+			state.hasPlay = anim.hasPlay
 			state.moving = false
 			state.fixedMotion = anim.fixedMotion
 			state.hasFixedMotion = anim.hasFixedMotion
+			state.speed = anim.speed
+			state.hasSpeed = anim.hasSpeed
 		} else if anim, ok := m.actorAnimation(ctx.Session.AccountID, now); ok {
 			state.actionFamily = anim.actionFamily
 			state.started = anim.started
 			state.loop = anim.loop
+			state.play = anim.play
+			state.hasPlay = anim.hasPlay
 			state.moving = false
 			state.fixedMotion = anim.fixedMotion
 			state.hasFixedMotion = anim.hasFixedMotion
+			state.speed = anim.speed
+			state.hasSpeed = anim.hasSpeed
 		}
 	}
 	billboard, ok := humanoidBillboardForState(m.playerView, state, now)
@@ -1054,6 +1066,12 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 		started = state.started
 	}
 	delayMS := float64(action.DelayMS)
+	if state.hasSpeed && state.speed > 0 {
+		delayMS = delayMS / state.speed
+	}
+	if state.hasPlay && !state.play {
+		return 0
+	}
 	if state.actionFamily == spriteActionWalk && state.moveSpeedMS > 0 {
 		if delayMS <= 0 {
 			delayMS = 150

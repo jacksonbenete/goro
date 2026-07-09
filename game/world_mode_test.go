@@ -1313,6 +1313,36 @@ func TestApplyActorActionNotifyStopsLocalPlayerMovementOnHit(t *testing.T) {
 	}
 }
 
+func TestSetActorActionStopsMovingActor(t *testing.T) {
+	world := worldstate.New()
+	started := time.Now().Add(-time.Second)
+	world.UpsertActor(worldstate.Actor{
+		ID:           300,
+		X:            15,
+		Y:            20,
+		Job:          1,
+		Moving:       true,
+		FromX:        10,
+		FromY:        20,
+		ToX:          15,
+		ToY:          20,
+		MoveStarted:  started,
+		MoveDuration: 5 * time.Second,
+	})
+	mode := &WorldMode{}
+	ctx := client.Context{World: world}
+
+	mode.startCombatAnimation(ctx, 300, spriteActionPCAttack2, time.Now(), defaultAttackAnimationDuration)
+
+	actor := world.Actors[300]
+	if actor.Moving || actor.MovePath != nil {
+		t.Fatalf("actor movement after action = %+v, want stopped", actor)
+	}
+	if actor.X == 15 {
+		t.Fatalf("actor stopped at destination, want interpolated action position: %+v", actor)
+	}
+}
+
 func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectBashBegin)
 	if !ok {

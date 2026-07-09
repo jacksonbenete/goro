@@ -3,10 +3,11 @@
 Short-term goals for making movement, combat actions, and sprite playback closer
 to the 2008 RO client and robr.
 
-- Expand `skillActionSpec` to match robr's `DB/Skills/SkillAction.js` shape:
-  action, frame, length, speed, play, repeat, delay, and next action.
-- Move more skill stance rules into the table instead of adding per-skill combat
-  conditionals.
+- Add a central `setActorAction`, like robr's `setAction`, that owns action
+  state changes: action, frame, speed, repeat, play, delay, next action, and
+  walk-route reset.
+- Expand `skillActionSpec` toward robr's `DB/Skills/SkillAction.js` shape so
+  skill stance rules can live in data instead of scattered combat conditionals.
 - Teach actor animations to honor robr-style fixed frame, length, play=false,
   delayed action, and next-action metadata.
 - Resume walking after hurt when the actor still has a route and a focus target,

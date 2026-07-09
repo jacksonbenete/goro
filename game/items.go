@@ -234,10 +234,10 @@ func (m *WorldMode) startLocalPickupAnimation(ctx client.Context, started time.T
 		return
 	}
 	if ctx.Session.AccountID != 0 {
-		m.startActorAnimation(ctx.Session.AccountID, spriteActionPickup, started, pickupAnimationDuration)
+		m.startActorAnimation(ctx, ctx.Session.AccountID, spriteActionPickup, started, pickupAnimationDuration)
 	}
 	if ctx.Session.CharID != 0 {
-		m.startActorAnimation(ctx.Session.CharID, spriteActionPickup, started, pickupAnimationDuration)
+		m.startActorAnimation(ctx, ctx.Session.CharID, spriteActionPickup, started, pickupAnimationDuration)
 	}
 }
 
