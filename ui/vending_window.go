@@ -413,7 +413,7 @@ func rowIcons(rows []shopTableRow) []image.Image {
 }
 
 func (w *VendingWindow) cartRows(ctx Context) []shopTableRow {
-	items := sortedCartItems(ctx.Session)
+	items := vendingCartItems(ctx.Session)
 	rows := make([]shopTableRow, len(items))
 	for i, item := range items {
 		rows[i] = shopTableRow{
@@ -479,7 +479,7 @@ func (w *VendingWindow) ownRows(ctx Context) []shopTableRow {
 }
 
 func (w *VendingWindow) addCartRow(ctx Context, row int) {
-	items := sortedCartItems(ctx.Session)
+	items := vendingCartItems(ctx.Session)
 	if row < 0 || row >= len(items) || len(w.setupItems) >= w.maxItems {
 		return
 	}
@@ -663,7 +663,7 @@ func (w *VendingWindow) itemAt(ctx Context, mx, my int) (session.InventoryItem, 
 	if row, ok := w.leftRowAt(ctx, mx, my); ok {
 		switch w.mode {
 		case vendingModeSetup:
-			items := sortedCartItems(ctx.Session)
+			items := vendingCartItems(ctx.Session)
 			if row >= 0 && row < len(items) {
 				return items[row], true
 			}
@@ -705,7 +705,7 @@ func (w *VendingWindow) dragItem(ctx Context) (session.InventoryItem, bool) {
 		return session.InventoryItem{}, false
 	}
 	if w.mode == vendingModeSetup {
-		items := sortedCartItems(ctx.Session)
+		items := vendingCartItems(ctx.Session)
 		if w.pressRow >= 0 && w.pressRow < len(items) {
 			return items[w.pressRow], true
 		}
@@ -722,7 +722,7 @@ func (w *VendingWindow) leftRowAt(ctx Context, mx, my int) (int, bool) {
 	rows := vendingBuyRows
 	switch w.mode {
 	case vendingModeSetup:
-		rows = len(sortedCartItems(ctx.Session))
+		rows = len(vendingCartItems(ctx.Session))
 	case vendingModeBuy:
 		rows = len(w.buyItems)
 	case vendingModeOwn:
@@ -798,6 +798,7 @@ func (w *VendingWindow) submitOpen(ctx Context) {
 	}
 	items := make([]network.VendingOpenItem, 0, len(w.setupItems))
 	for _, item := range w.setupItems {
+		log.Printf("vending open item cart_index=%d item=%d amount=%d price=%d identified=%t damaged=%t", item.item.Index, item.item.ItemID, item.amount, item.price, item.item.Identified, item.item.Damaged)
 		items = append(items, network.VendingOpenItem{Index: item.item.Index, Amount: item.amount, Price: item.price})
 	}
 	if err := ctx.Network.SendOpenVendingStore(w.shopName, items); err != nil {
@@ -910,4 +911,16 @@ func (w *VendingWindow) markIconMiss(key shopItemIconKey) {
 
 func vendingItemName(manager *res.Manager, item network.VendingItem) string {
 	return inventoryItemDisplayName(manager, session.InventoryItem{ItemID: item.ItemID, Identified: item.Identified, Type: item.Type, Amount: int(item.Amount), Damaged: item.Damaged, Refine: item.Refine})
+}
+
+func vendingCartItems(s *session.Session) []session.InventoryItem {
+	items := sortedCartItems(s)
+	out := items[:0]
+	for _, item := range items {
+		if item.ItemID == 0 || item.Amount <= 0 || !item.Identified || item.Damaged {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
 }
