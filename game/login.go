@@ -339,6 +339,37 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			applyFriendState(ctx, friendState)
 			continue
 		}
+		if cartItems, ok, err := network.ParseCartItemList(pkt); err != nil {
+			m.packets = append(m.packets, "parse cart item list: "+err.Error())
+		} else if ok {
+			log.Printf("login cart item list items=%d", len(cartItems))
+			applyCartItemList(ctx, cartItems)
+			continue
+		}
+		if cartAmount, ok, err := network.ParseCartAmount(pkt); err != nil {
+			m.packets = append(m.packets, "parse cart amount: "+err.Error())
+		} else if ok {
+			log.Printf("login cart amount count=%d/%d weight=%d/%d", cartAmount.Amount, cartAmount.MaxAmount, cartAmount.Weight, cartAmount.MaxWeight)
+			applyCartAmount(ctx, cartAmount)
+			continue
+		}
+		if cartItem, ok, err := network.ParseCartItemAdded(pkt); err != nil {
+			m.packets = append(m.packets, "parse cart item added: "+err.Error())
+		} else if ok {
+			log.Printf("login cart item added index=%d item=%d amount=%d", cartItem.Index, cartItem.ItemID, cartItem.Amount)
+			applyCartItemAdded(ctx, cartItem)
+			continue
+		}
+		if cartItem, ok, err := network.ParseCartItemRemoved(pkt); err != nil {
+			m.packets = append(m.packets, "parse cart item removed: "+err.Error())
+		} else if ok {
+			applyCartItemRemoved(ctx, cartItem)
+			continue
+		}
+		if network.ParseCartClosed(pkt) {
+			applyCartClosed(ctx)
+			continue
+		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
 			m.packets = append(m.packets, "parse actor entry: "+err.Error())
 		} else if ok {

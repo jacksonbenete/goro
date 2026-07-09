@@ -701,10 +701,27 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if cartItem, ok, err := network.ParseCartItemAdded(pkt); err != nil {
 			log.Printf("parse cart item added 0x%04X: %v", pkt.ID, err)
 		} else if ok {
+			log.Printf("cart item added index=%d item=%d amount=%d", cartItem.Index, cartItem.ItemID, cartItem.Amount)
 			applyCartItemAdded(ctx, cartItem)
 			m.cartWindow.ClampScroll(ctx.Session)
 			m.cartWindow.Refresh(ctx, &m.itemInfoWindow)
 			m.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
+		if ack, ok, err := network.ParseCartAddAck(pkt); err != nil {
+			log.Printf("parse cart add ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			switch ack.Result {
+			case 0:
+				m.console.AddErrorMessage("Cart is overweight.")
+				log.Printf("cart add rejected result=%d reason=weight", ack.Result)
+			case 1:
+				m.console.AddErrorMessage("Cart has too many items.")
+				log.Printf("cart add rejected result=%d reason=count", ack.Result)
+			default:
+				m.console.AddErrorMessage("Cart add failed.")
+				log.Printf("cart add rejected result=%d", ack.Result)
+			}
 			continue
 		}
 		if storageItem, ok, err := network.ParseStorageItemRemoved(pkt); err != nil {
@@ -726,6 +743,11 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if network.ParseStorageClosed(pkt) {
 			applyStorageClosed(ctx)
 			m.storageWindow.SetOpen(false)
+			continue
+		}
+		if network.ParseCartClosed(pkt) {
+			applyCartClosed(ctx)
+			m.cartWindow.SetOpen(false)
 			continue
 		}
 		if deal, ok, err := network.ParseShopDealSelection(pkt); err != nil {

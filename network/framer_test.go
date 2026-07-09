@@ -99,6 +99,74 @@ func TestPacketLengths2008FramesServerMessagePackets(t *testing.T) {
 	}
 }
 
+func TestPacketLengths2008FramesCartNormalItemList(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	packets, err := framer.Push([]byte{
+		0xe9, 0x02, 0x1a, 0x00,
+		0x03, 0x00, 0x00, 0x02, 0x00, 0x01, 0x07, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x02E9 || len(packets[0].Data) != 26 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
+func TestPacketLengths2008FramesCartDeltaPackets(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := make([]byte, 0, 39)
+	data = append(data,
+		0xc5, 0x01,
+		0x03, 0x00,
+		0x07, 0x00, 0x00, 0x00,
+		0x00, 0x02,
+		0x00,
+		0x01,
+		0x00,
+		0x00,
+	)
+	data = append(data, make([]byte, 8)...)
+	data = append(data,
+		0x25, 0x01,
+		0x03, 0x00,
+		0x02, 0x00, 0x00, 0x00,
+		0x2c, 0x01, 0x01,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	)
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 4 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	for i, want := range []struct {
+		id  uint16
+		len int
+	}{
+		{0x01C5, 22},
+		{0x0125, 8},
+		{0x012C, 3},
+		{0x00B6, 6},
+	} {
+		if packets[i].ID != want.id || len(packets[i].Data) != want.len {
+			t.Fatalf("packet %d = %s, want 0x%04X len=%d", i, packets[i], want.id, want.len)
+		}
+	}
+}
+
 func TestPacketLengths2008FramesVariable01F1(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	packets, err := framer.Push([]byte{

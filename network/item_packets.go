@@ -208,6 +208,10 @@ type CartItemRemoved struct {
 	Amount uint32
 }
 
+type CartAddAck struct {
+	Result uint8
+}
+
 type ShopDealSelection struct {
 	NPCID uint32
 }
@@ -419,7 +423,7 @@ func ParseCartItemList(packet Packet) ([]InventoryItem, bool, error) {
 	case 0x0122:
 		return parseEquipInventoryItems(packet, 20)
 	case 0x02D2:
-		return parseEquipInventoryItems(packet, 28)
+		return parseEquipInventoryItems(packet, 26)
 	case 0x0994:
 		return parseEquipInventoryItems4(packet, 31)
 	default:
@@ -702,8 +706,22 @@ func ParseCartItemRemoved(packet Packet) (CartItemRemoved, bool, error) {
 	}, true, nil
 }
 
+func ParseCartAddAck(packet Packet) (CartAddAck, bool, error) {
+	if packet.ID != 0x012C {
+		return CartAddAck{}, false, nil
+	}
+	if len(packet.Data) < 3 {
+		return CartAddAck{}, false, fmt.Errorf("ZC_ACK_ADDITEM_TO_CART too short: %d", len(packet.Data))
+	}
+	return CartAddAck{Result: packet.Data[2]}, true, nil
+}
+
 func ParseStorageClosed(packet Packet) bool {
 	return packet.ID == 0x00F8
+}
+
+func ParseCartClosed(packet Packet) bool {
+	return packet.ID == 0x012B
 }
 
 func minIntNetwork(a, b int) int {

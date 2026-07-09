@@ -690,6 +690,26 @@ func TestParseCartPackets2008(t *testing.T) {
 		t.Fatalf("normal cart items ok=%v items=%+v", ok, items)
 	}
 
+	equip := make([]byte, 4+8*26)
+	binary.LittleEndian.PutUint16(equip[0:2], 0x02D2)
+	binary.LittleEndian.PutUint16(equip[2:4], uint16(len(equip)))
+	for i := 0; i < 8; i++ {
+		offset := 4 + i*26
+		binary.LittleEndian.PutUint16(equip[offset:offset+2], uint16(10+i))
+		binary.LittleEndian.PutUint16(equip[offset+2:offset+4], uint16(2301+i))
+		equip[offset+4] = 5
+		equip[offset+5] = 1
+		binary.LittleEndian.PutUint16(equip[offset+6:offset+8], 0x0010)
+		equip[offset+11] = uint8(i)
+	}
+	equipItems, ok, err := ParseCartItemList(Packet{ID: 0x02D2, Data: equip})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(equipItems) != 8 || equipItems[0].Index != 10 || equipItems[0].ItemID != 2301 || !equipItems[0].Equip || !equipItems[0].Identified || equipItems[7].Refine != 7 {
+		t.Fatalf("equip cart items ok=%v items=%+v", ok, equipItems)
+	}
+
 	amountData := make([]byte, 14)
 	binary.LittleEndian.PutUint16(amountData[0:2], 0x0121)
 	binary.LittleEndian.PutUint16(amountData[2:4], 2)
@@ -743,5 +763,25 @@ func TestBuildCartMovePackets(t *testing.T) {
 	fromCart := BuildMoveFromCartPacket(3, 9)
 	if len(fromCart) != 8 || ID(fromCart) != 0x0127 || binary.LittleEndian.Uint16(fromCart[2:4]) != 3 || binary.LittleEndian.Uint32(fromCart[4:8]) != 9 {
 		t.Fatalf("unexpected move-from-cart packet: % X", fromCart)
+	}
+}
+
+func TestParseCartAddAck(t *testing.T) {
+	data := []byte{0x2C, 0x01, 0x01}
+	ack, ok, err := ParseCartAddAck(Packet{ID: 0x012C, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || ack.Result != 1 {
+		t.Fatalf("cart ack ok=%v value=%+v", ok, ack)
+	}
+}
+
+func TestParseCartClosed(t *testing.T) {
+	if !ParseCartClosed(Packet{ID: 0x012B, Data: []byte{0x2B, 0x01}}) {
+		t.Fatal("cart close not parsed")
+	}
+	if ParseCartClosed(Packet{ID: 0x00F8, Data: []byte{0xF8, 0x00}}) {
+		t.Fatal("storage close parsed as cart close")
 	}
 }

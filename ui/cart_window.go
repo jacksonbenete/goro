@@ -49,6 +49,13 @@ func (w *CartWindow) Toggle(ctx Context) {
 	w.OpenWindow(ctx)
 }
 
+func (w *CartWindow) SetOpen(open bool) {
+	w.ensureWindow()
+	if !open {
+		w.window.Close()
+	}
+}
+
 func (w *CartWindow) OpenWindow(ctx Context) {
 	w.ensureWindow()
 	w.ClampScroll(ctx.Session)
