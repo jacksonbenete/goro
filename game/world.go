@@ -40,6 +40,8 @@ type WorldMode struct {
 	playerView        *humanoidSpriteView
 	shadowView        *playerSpriteView
 	shadowViewMiss    bool
+	cartViews         map[int]*playerSpriteView
+	cartViewMiss      map[int]struct{}
 	cursorView        *playerSpriteView
 	cursorViewMiss    bool
 	cursorFallback    *render.Image
@@ -397,6 +399,8 @@ func (m *WorldMode) Enter(ctx client.Context) {
 		m.shadowViewMiss = true
 		log.Printf("actor shadow resources unavailable: %s", status)
 	}
+	m.cartViews = make(map[int]*playerSpriteView)
+	m.cartViewMiss = make(map[int]struct{})
 	if view, status := loadCursorSpriteView(ctx.Resources); view != nil {
 		m.cursorView = view
 		if status != "" {
@@ -3892,7 +3896,7 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 	if entry.Moving {
 		dir = directionFromDelta(entry.FromX, entry.FromY, entry.ToX, entry.ToY, dir)
 	}
-	ctx.World.UpsertActor(worldstate.Actor{
+	actor := worldstate.Actor{
 		ID:            entry.ID,
 		X:             entry.X,
 		Y:             entry.Y,
@@ -3919,7 +3923,9 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 		HealthState:   entry.HealthState,
 		EffectState:   entry.EffectState,
 		HasState:      entry.HasState,
-	})
+	}
+	applyActorCartStateFromEffect(&actor)
+	ctx.World.UpsertActor(actor)
 }
 
 func (m *WorldMode) applyWarpPortalEntry(ctx client.Context, entry network.ActorEntry) {
@@ -5046,7 +5052,13 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context
 		alpha = 0.35
 	}
 	if entry.isPlayer {
+		if !cartDrawAfterActor(entry.actor, cameraYaw) {
+			m.drawActorCart3D(screen, ctx, projection, entry, cameraYaw, entry.shadow, alpha)
+		}
 		if m.drawPlayerSprite3D(ctx, screen, projection, entry, entry.actor.Dir, cameraYaw, entry.shadow, alpha) {
+			if cartDrawAfterActor(entry.actor, cameraYaw) {
+				m.drawActorCart3D(screen, ctx, projection, entry, cameraYaw, entry.shadow, alpha)
+			}
 			return
 		}
 		render.DrawRect(screen, entry.screenX-6, entry.screenY-6, 24, 24, render.ColorPanel)
@@ -5066,7 +5078,13 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context
 		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), entry.worldX, entry.worldY, entry.worldZ, time.Now())
 		return
 	}
+	if !cartDrawAfterActor(entry.actor, cameraYaw) {
+		m.drawActorCart3D(screen, ctx, projection, entry, cameraYaw, entry.shadow, alpha)
+	}
 	if m.drawActorSprite3D(screen, ctx, projection, entry, cameraYaw, entry.shadow) {
+		if cartDrawAfterActor(entry.actor, cameraYaw) {
+			m.drawActorCart3D(screen, ctx, projection, entry, cameraYaw, entry.shadow, alpha)
+		}
 		return
 	}
 	if actorJobHasNoSprite(int(entry.actor.Job)) {

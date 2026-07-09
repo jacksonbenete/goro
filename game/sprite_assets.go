@@ -194,6 +194,15 @@ func loadActorShadowSpriteView(manager *res.Manager) (*playerSpriteView, string)
 	)
 }
 
+func loadCartSpriteView(manager *res.Manager, cartNum int) (*playerSpriteView, string) {
+	return loadSpriteView(manager,
+		res.PlayerCartResourceCandidates(cartNum, "act"),
+		res.PlayerCartResourceCandidates(cartNum, "spr"),
+		nil,
+		fmt.Sprintf("cart %d", cartNum),
+	)
+}
+
 func loadCursorSpriteView(manager *res.Manager) (*playerSpriteView, string) {
 	return loadSpriteView(manager,
 		[]string{"data\\sprite\\cursors.act", "data/sprite/cursors.act", "data\\sprite\\interface\\cursors.act", "data/sprite/interface/cursors.act"},

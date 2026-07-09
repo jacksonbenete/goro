@@ -31,6 +31,19 @@ func TestPlayerIMFResourceCandidates(t *testing.T) {
 	}
 }
 
+func TestPlayerCartResourceCandidates(t *testing.T) {
+	got := PlayerCartResourceCandidates(1, "spr")
+	want := "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\\xBC\xD5\xBC\xF6\xB7\xB9.spr"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("cart 1 candidate = %q, want %q", got, want)
+	}
+	got = PlayerCartResourceCandidates(13, "act")
+	want = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\\xB8\xB6\xB5\xB5\xC4\xAB\xC6\xAE.act"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("cart 13 candidate = %q, want %q", got, want)
+	}
+}
+
 func TestPlayerWeaponOverlayResourceCandidates(t *testing.T) {
 	got := PlayerWeaponOverlayResourceCandidates(0, 1, 1201, false, "act")
 	want := []string{

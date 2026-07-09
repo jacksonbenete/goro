@@ -6,6 +6,7 @@ const (
 	playerHumanSpriteRoot = "data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\"
 	playerAccessoryRoot   = "data\\sprite\\\xBE\xC7\xBC\xBC\xBB\xE7\xB8\xAE\\"
 	playerShieldRoot      = "data\\sprite\\\xB9\xE6\xC6\xD0\\"
+	playerCartRoot        = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\"
 	playerPaletteRoot     = "data\\palette\\"
 	playerIMFRoot         = "data\\imf\\"
 	playerBodyDir         = "\xB8\xF6\xC5\xEB"
@@ -18,6 +19,23 @@ const (
 	weaponLightSuffix     = "\xB0\xCB\xB1\xA4"
 	playerWeaponTypeMax   = 103
 )
+
+var playerCartTokens = []string{
+	"\xBD\xB4\xB3\xEB\xBC\xD5\xBC\xF6\xB7\xB9",
+	"\xBC\xD5\xBC\xF6\xB7\xB9",
+	"\xBC\xD5\xBC\xF6\xB7\xB91",
+	"\xBC\xD5\xBC\xF6\xB7\xB92",
+	"\xBC\xD5\xBC\xF6\xB7\xB93",
+	"\xBC\xD5\xBC\xF6\xB7\xB94",
+	"\xBC\xD5\xBC\xF6\xB7\xB95",
+	"\xBC\xD5\xBC\xF6\xB7\xB96",
+	"\xBC\xD5\xBC\xF6\xB7\xB97",
+	"\xBC\xD5\xBC\xF6\xB7\xB98",
+	"\xBC\xB1\xB9\xB0\xBB\xF3\xC0\xDA\xC4\xAB\xC6\xAE",
+	"\xC6\xF7\xB8\xB5\xBD\xC6\xC0\xBA\xC4\xAB\xC6\xAE",
+	"\xC6\xF7\xB8\xB5\xC4\xAB\xC6\xAE",
+	"\xB8\xB6\xB5\xB5\xC4\xAB\xC6\xAE",
+}
 
 var accessoryLuaCandidates = []string{
 	"data\\luafiles514\\lua files\\datainfo\\accessoryid.lub",
@@ -64,6 +82,18 @@ func PlayerBodyResourceCandidates(job int, sex byte, extension string) []string 
 		out = append(out, fmt.Sprintf("%s%s\\%s\\%s_%s.%s", playerHumanSpriteRoot, playerBodyDir, sexToken, token, sexToken, extension))
 	}
 	return out
+}
+
+func PlayerCartResourceCandidates(cartNum int, extension string) []string {
+	if cartNum < 0 {
+		cartNum = 0
+	}
+	if cartNum >= len(playerCartTokens) {
+		cartNum = len(playerCartTokens) - 1
+	}
+	return []string{
+		fmt.Sprintf("%s%s.%s", playerCartRoot, playerCartTokens[cartNum], extension),
+	}
 }
 
 func PlayerBodyResourcePath(job int, sex byte, extension string) string {

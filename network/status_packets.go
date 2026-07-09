@@ -98,6 +98,8 @@ type StatusEffectChange struct {
 	Active      bool
 	HasDuration bool
 	Duration    time.Duration
+	HasValues   bool
+	Values      [3]int32
 }
 
 func ParseParameterChange(packet Packet) (ParameterChange, bool, error) {
@@ -213,23 +215,37 @@ func ParseStatusEffectChange(packet Packet) (StatusEffectChange, bool, error) {
 			return StatusEffectChange{}, false, fmt.Errorf("ZC_MSG_STATE_CHANGE2 too short: %d", len(packet.Data))
 		}
 		duration := binary.LittleEndian.Uint32(packet.Data[9:13])
-		return statusEffectChangeWithDuration(
+		change := statusEffectChangeWithDuration(
 			binary.LittleEndian.Uint16(packet.Data[2:4]),
 			binary.LittleEndian.Uint32(packet.Data[4:8]),
 			packet.Data[8] != 0,
 			duration,
-		), true, nil
+		)
+		change.HasValues = true
+		change.Values = [3]int32{
+			int32(binary.LittleEndian.Uint32(packet.Data[13:17])),
+			int32(binary.LittleEndian.Uint32(packet.Data[17:21])),
+			int32(binary.LittleEndian.Uint32(packet.Data[21:25])),
+		}
+		return change, true, nil
 	case 0x0983:
 		if len(packet.Data) < 29 {
 			return StatusEffectChange{}, false, fmt.Errorf("ZC_MSG_STATE_CHANGE3 too short: %d", len(packet.Data))
 		}
 		remaining := binary.LittleEndian.Uint32(packet.Data[13:17])
-		return statusEffectChangeWithDuration(
+		change := statusEffectChangeWithDuration(
 			binary.LittleEndian.Uint16(packet.Data[2:4]),
 			binary.LittleEndian.Uint32(packet.Data[4:8]),
 			packet.Data[8] != 0,
 			remaining,
-		), true, nil
+		)
+		change.HasValues = true
+		change.Values = [3]int32{
+			int32(binary.LittleEndian.Uint32(packet.Data[17:21])),
+			int32(binary.LittleEndian.Uint32(packet.Data[21:25])),
+			int32(binary.LittleEndian.Uint32(packet.Data[25:29])),
+		}
+		return change, true, nil
 	default:
 		return StatusEffectChange{}, false, nil
 	}

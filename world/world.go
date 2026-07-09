@@ -71,6 +71,9 @@ type Actor struct {
 	HealthState   uint16
 	EffectState   uint32
 	HasState      bool
+	HasCart       bool
+	CartNum       int
+	HasCartState  bool
 }
 
 type WalkStep struct {
@@ -228,6 +231,11 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.HealthState = existing.HealthState
 			actor.EffectState = existing.EffectState
 			actor.HasState = existing.HasState
+		}
+		if !actor.HasCartState {
+			actor.HasCart = existing.HasCart
+			actor.CartNum = existing.CartNum
+			actor.HasCartState = existing.HasCartState
 		}
 		if actor.Moving && actor.FromX == 0 && actor.FromY == 0 {
 			actor.FromX = existing.X

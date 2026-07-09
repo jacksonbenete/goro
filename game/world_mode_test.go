@@ -153,6 +153,81 @@ func TestApplyStatusEffectChangeIgnoresRemoteActor(t *testing.T) {
 	}
 }
 
+func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, Job: 5}
+	world.UpsertActor(worldstate.Actor{ID: 110000001, X: 10, Y: 20, Job: 5, Appearance: true})
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID:  statusEffectPushCart,
+		ActorID:   2000000,
+		Active:    true,
+		HasValues: true,
+		Values:    [3]int32{4, 0, 0},
+	})
+	if !world.Player.HasCartState || !world.Player.HasCart || world.Player.CartNum != 4 {
+		t.Fatalf("local cart state = %+v", world.Player)
+	}
+	if len(ctx.Session.Statuses.Active) != 0 {
+		t.Fatalf("pushcart should not create a buff icon: %+v", ctx.Session.Statuses.Active)
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID:  statusEffectPushCart,
+		ActorID:   110000001,
+		Active:    true,
+		HasValues: true,
+		Values:    [3]int32{2, 0, 0},
+	})
+	remote := world.Actors[110000001]
+	if !remote.HasCartState || !remote.HasCart || remote.CartNum != 2 {
+		t.Fatalf("remote cart state = %+v", remote)
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: statusEffectPushCart,
+		ActorID:  110000001,
+		Active:   false,
+	})
+	remote = world.Actors[110000001]
+	if !remote.HasCartState || remote.HasCart || remote.EffectState&actorEffectCartMask != 0 {
+		t.Fatalf("inactive remote cart state = %+v", remote)
+	}
+}
+
+func TestActorCartStateFromEffectUsesReferenceCartNumbers(t *testing.T) {
+	actor := worldstate.Actor{Job: 5, EffectState: actorEffectCart3}
+	hasCart, cartNum := actorCartState(actor)
+	if !hasCart || cartNum != 3 {
+		t.Fatalf("cart from effect = %t, %d", hasCart, cartNum)
+	}
+	actor = worldstate.Actor{Job: 23, EffectState: actorEffectCart5}
+	hasCart, cartNum = actorCartState(actor)
+	if !hasCart || cartNum != 0 {
+		t.Fatalf("super novice cart from effect = %t, %d", hasCart, cartNum)
+	}
+}
+
+func TestCartOffsetBillboardAppliesReferencePixelOffset(t *testing.T) {
+	base := &spriteBillboard{anchorX: 100, anchorY: 200}
+	dx, dy := cartSpriteOffset(2)
+	got := cartOffsetBillboard(base, dx, dy)
+	if got == base {
+		t.Fatal("cart offset should copy billboard")
+	}
+	if got.anchorX != 60 || got.anchorY != 200 {
+		t.Fatalf("offset billboard anchor = %.0f, %.0f", got.anchorX, got.anchorY)
+	}
+	if base.anchorX != 100 || base.anchorY != 200 {
+		t.Fatalf("base billboard mutated = %.0f, %.0f", base.anchorX, base.anchorY)
+	}
+}
+
 func TestApplyActorStateChangeTracksRemoteActorRenderState(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 110000001, X: 10, Y: 20, Job: 1002, Speed: 400, Appearance: true})

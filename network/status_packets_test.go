@@ -175,6 +175,9 @@ func TestParseTimedStatusEffectChange(t *testing.T) {
 	binary.LittleEndian.PutUint32(data[4:8], 2000000)
 	data[8] = 1
 	binary.LittleEndian.PutUint32(data[9:13], 30000)
+	binary.LittleEndian.PutUint32(data[13:17], 5)
+	binary.LittleEndian.PutUint32(data[17:21], 6)
+	binary.LittleEndian.PutUint32(data[21:25], 7)
 
 	change, ok, err := ParseStatusEffectChange(Packet{ID: 0x043F, Data: data})
 	if err != nil {
@@ -186,6 +189,9 @@ func TestParseTimedStatusEffectChange(t *testing.T) {
 	if change.StatusID != 12 || change.ActorID != 2000000 || !change.Active || !change.HasDuration || change.Duration != 30*time.Second {
 		t.Fatalf("change = %+v", change)
 	}
+	if !change.HasValues || change.Values != [3]int32{5, 6, 7} {
+		t.Fatalf("values = %+v", change.Values)
+	}
 }
 
 func TestParseStatusEffectChange3UsesRemainingDuration(t *testing.T) {
@@ -196,6 +202,9 @@ func TestParseStatusEffectChange3UsesRemainingDuration(t *testing.T) {
 	data[8] = 1
 	binary.LittleEndian.PutUint32(data[9:13], 60000)
 	binary.LittleEndian.PutUint32(data[13:17], 12000)
+	binary.LittleEndian.PutUint32(data[17:21], 8)
+	binary.LittleEndian.PutUint32(data[21:25], 9)
+	binary.LittleEndian.PutUint32(data[25:29], 10)
 
 	change, ok, err := ParseStatusEffectChange(Packet{ID: 0x0983, Data: data})
 	if err != nil {
@@ -206,6 +215,9 @@ func TestParseStatusEffectChange3UsesRemainingDuration(t *testing.T) {
 	}
 	if change.StatusID != 37 || !change.HasDuration || change.Duration != 12*time.Second {
 		t.Fatalf("change = %+v", change)
+	}
+	if !change.HasValues || change.Values != [3]int32{8, 9, 10} {
+		t.Fatalf("values = %+v", change.Values)
 	}
 }
 

@@ -17,6 +17,9 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	if ctx.Session == nil || change.StatusID == 0xFFFF {
 		return
 	}
+	if m.applyPushCartStatus(ctx, change) {
+		return
+	}
 	localID := localSkillTarget(ctx)
 	if change.ActorID != 0 && localID != 0 && change.ActorID != localID && change.ActorID != ctx.Session.CharID {
 		return

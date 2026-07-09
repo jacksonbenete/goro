@@ -75,6 +75,35 @@ func TestUpsertActorMovePreservesObjectType(t *testing.T) {
 	}
 }
 
+func TestUpsertActorMovePreservesCartState(t *testing.T) {
+	w := New()
+	w.UpsertActor(Actor{
+		ID:           2000001,
+		X:            10,
+		Y:            20,
+		Job:          5,
+		HasCart:      true,
+		CartNum:      3,
+		HasCartState: true,
+	})
+
+	w.UpsertActor(Actor{
+		ID:     2000001,
+		X:      12,
+		Y:      24,
+		Moving: true,
+		FromX:  10,
+		FromY:  20,
+		ToX:    12,
+		ToY:    24,
+	})
+
+	actor := w.Actors[2000001]
+	if !actor.HasCartState || !actor.HasCart || actor.CartNum != 3 {
+		t.Fatalf("cart state not preserved: %+v", actor)
+	}
+}
+
 func TestUpsertActorMoveUsesActorSpeed(t *testing.T) {
 	w := New()
 	w.UpsertActor(Actor{
