@@ -1081,6 +1081,61 @@ func TestApplyParameterChangeUpdatesPlayerSpeed(t *testing.T) {
 	}
 }
 
+func TestLocalPlayerMoveSpeedAppliesPushcartMalus(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{
+		Selected: session.Character{ID: 150004, Option: actorEffectCart1},
+		Skills: session.Skills{List: []session.Skill{
+			{ID: skillPushCart, Level: 5},
+		}},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	refreshLocalPlayerMoveSpeed(ctx)
+
+	if world.Player.Speed != 187 {
+		t.Fatalf("player speed = %d, want 187", world.Player.Speed)
+	}
+}
+
+func TestLocalPlayerMoveSpeedHasNoPushcartMalusAtLevelTen(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{
+		Selected: session.Character{ID: 150004, Option: actorEffectCart1},
+		Skills: session.Skills{List: []session.Skill{
+			{ID: skillPushCart, Level: 10},
+		}},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	refreshLocalPlayerMoveSpeed(ctx)
+
+	if world.Player.Speed != defaultPlayerMoveSpeedMS {
+		t.Fatalf("player speed = %d, want %d", world.Player.Speed, defaultPlayerMoveSpeedMS)
+	}
+}
+
+func TestLocalPlayerMoveSpeedUsesServerSpeedBeforePushcartMalus(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{
+		Selected: session.Character{ID: 150004, Option: actorEffectCart1},
+		Movement: session.Movement{
+			ServerSpeed:    100,
+			HasServerSpeed: true,
+		},
+		Skills: session.Skills{List: []session.Skill{
+			{ID: skillPushCart, Level: 5},
+		}},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	refreshLocalPlayerMoveSpeed(ctx)
+
+	if world.Player.Speed != 125 {
+		t.Fatalf("player speed = %d, want 125", world.Player.Speed)
+	}
+}
+
 func TestWorldModeParameterChangeRecoveryFeedback(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}

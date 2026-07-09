@@ -32,6 +32,7 @@ type Session struct {
 	Skills       Skills
 	Statuses     Statuses
 	Friends      Friends
+	Movement     Movement
 }
 
 func New() *Session {
@@ -210,6 +211,11 @@ type Skill struct {
 	Range      int
 	Name       string
 	Upgradable bool
+}
+
+type Movement struct {
+	ServerSpeed    int
+	HasServerSpeed bool
 }
 
 type Statuses struct {

@@ -8,6 +8,11 @@ import (
 	"github.com/kivutar/goro/session"
 )
 
+const (
+	defaultPlayerMoveSpeedMS = 150
+	skillPushCart            = 39
+)
+
 func applyStatusSnapshot(ctx client.Context, snapshot network.StatusSnapshot) {
 	if ctx.Session == nil {
 		return
@@ -105,6 +110,7 @@ func applySkillInfoList(ctx client.Context, list network.SkillInfoList) {
 	for _, skill := range list.Skills {
 		ctx.Session.Skills.List = append(ctx.Session.Skills.List, sessionSkillFromNetworkWithResources(ctx.Resources, skill))
 	}
+	refreshLocalPlayerMoveSpeed(ctx)
 	log.Printf("skill list received count=%d points=%d", len(ctx.Session.Skills.List), ctx.Session.Skills.Points)
 }
 
@@ -113,6 +119,7 @@ func applySkillInfoUpdate(ctx client.Context, update network.SkillInfoUpdate) {
 		return
 	}
 	upsertSessionSkill(ctx.Session, sessionSkillFromNetworkWithResources(ctx.Resources, update.Skill))
+	refreshLocalPlayerMoveSpeed(ctx)
 	log.Printf("skill update id=%d level=%d sp=%d range=%d upgradable=%t", update.Skill.ID, update.Skill.Level, update.Skill.SPCost, update.Skill.Range, update.Skill.Upgradable)
 }
 
@@ -125,6 +132,48 @@ func upsertSessionSkill(s *session.Session, skill session.Skill) {
 		return
 	}
 	s.Skills.List = append(s.Skills.List, skill)
+}
+
+func refreshLocalPlayerMoveSpeed(ctx client.Context) {
+	if ctx.World == nil || ctx.Session == nil {
+		return
+	}
+	speed := defaultPlayerMoveSpeedMS
+	if ctx.Session.Movement.HasServerSpeed && ctx.Session.Movement.ServerSpeed > 0 {
+		speed = ctx.Session.Movement.ServerSpeed
+	}
+	if localPlayerHasCart(ctx) {
+		level := sessionSkillLevel(ctx.Session, skillPushCart)
+		if level > 0 && level < 10 {
+			speed += speed * (50 - 5*level) / 100
+		}
+	}
+	ctx.World.Player.Speed = speed
+}
+
+func localPlayerHasCart(ctx client.Context) bool {
+	if ctx.World != nil && ctx.World.Player.HasCartState {
+		return ctx.World.Player.HasCart
+	}
+	if ctx.Session == nil {
+		return false
+	}
+	if selectedCharacter(ctx.Session).Option&actorEffectCartMask != 0 {
+		return true
+	}
+	return ctx.Session.Cart.MaxAmount > 0 || len(ctx.Session.Cart.Items) > 0
+}
+
+func sessionSkillLevel(s *session.Session, skillID uint16) int {
+	if s == nil {
+		return 0
+	}
+	for _, skill := range s.Skills.List {
+		if skill.ID == skillID {
+			return skill.Level
+		}
+	}
+	return 0
 }
 
 func applyFriendsList(ctx client.Context, friends []network.Friend) {

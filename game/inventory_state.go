@@ -55,6 +55,7 @@ func applyCartAmount(ctx client.Context, amount network.CartAmount) {
 	ctx.Session.Cart.MaxAmount = int(amount.MaxAmount)
 	ctx.Session.Cart.Weight = int(amount.Weight)
 	ctx.Session.Cart.MaxWeight = int(amount.MaxWeight)
+	refreshLocalPlayerMoveSpeed(ctx)
 }
 
 func applyStorageItemAdded(ctx client.Context, item network.InventoryItem) {

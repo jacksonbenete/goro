@@ -165,6 +165,7 @@ func (m *WorldMode) applyPushCartStatus(ctx client.Context, change network.Statu
 	}
 	if change.ActorID == 0 || isLocalActor(ctx, change.ActorID) {
 		setActorPushCartStatus(&ctx.World.Player, change.Active, cartNum)
+		refreshLocalPlayerMoveSpeed(ctx)
 		log.Printf("actor cart status local actor=%d active=%t cart=%d", change.ActorID, change.Active, ctx.World.Player.CartNum)
 		return true
 	}

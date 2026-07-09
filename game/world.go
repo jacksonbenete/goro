@@ -3077,8 +3077,10 @@ func applyParameterChange(ctx client.Context, change network.ParameterChange) {
 	value := int(change.Value)
 	switch change.VarID {
 	case network.StatusSpeed:
+		ctx.Session.Movement.ServerSpeed = value
+		ctx.Session.Movement.HasServerSpeed = value > 0
 		if ctx.World != nil {
-			ctx.World.Player.Speed = value
+			refreshLocalPlayerMoveSpeed(ctx)
 		}
 	case network.StatusBaseExp:
 		ctx.Session.Progress.BaseExp = change.Value

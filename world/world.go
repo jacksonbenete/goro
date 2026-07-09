@@ -175,8 +175,37 @@ func movementStart(path []WalkStep, oldPlayer Actor, now time.Time, fastForward 
 		if math.Hypot(x-float64(fromX), y-float64(fromY)) <= 1.25 {
 			return x, y, true, 0
 		}
+		if nearMovementStartLine(path, x, y, 3.0, 0.25) {
+			return x, y, true, 0
+		}
 	}
 	return startX, startY, false, offset
+}
+
+func nearMovementStartLine(path []WalkStep, x, y float64, maxDistance, maxLateral float64) bool {
+	if len(path) < 2 {
+		return false
+	}
+	from := path[0]
+	to := path[1]
+	fromX := float64(from.X)
+	fromY := float64(from.Y)
+	dx := float64(to.X - from.X)
+	dy := float64(to.Y - from.Y)
+	lengthSq := dx*dx + dy*dy
+	if lengthSq == 0 {
+		return false
+	}
+	if math.Hypot(x-fromX, y-fromY) > maxDistance {
+		return false
+	}
+	t := ((x-fromX)*dx + (y-fromY)*dy) / lengthSq
+	if t > 0.25 {
+		return false
+	}
+	px := fromX + dx*t
+	py := fromY + dy*t
+	return math.Hypot(x-px, y-py) <= maxLateral
 }
 
 func movementWalkDistanceOffset(path []WalkStep, oldPlayer Actor, now time.Time, offset time.Duration, speedMS int, startX, startY float64, hasMoveStart bool) float64 {

@@ -372,6 +372,51 @@ func TestSetPlayerMovementAtUsesFractionalStartNearAckSource(t *testing.T) {
 	}
 }
 
+func TestSetPlayerMovementAtBridgesServerAckSourceAheadOfRenderPosition(t *testing.T) {
+	w := New()
+	now := time.Unix(100, 0)
+	w.Player = Actor{
+		X:            157,
+		Y:            160,
+		Moving:       true,
+		FromX:        157,
+		FromY:        175,
+		ToX:          157,
+		ToY:          160,
+		MoveStarted:  now.Add(-300 * time.Millisecond),
+		MoveDuration: 1500 * time.Millisecond,
+		MovePath: []WalkStep{
+			{X: 157, Y: 175},
+			{X: 157, Y: 174},
+			{X: 157, Y: 173},
+			{X: 157, Y: 172},
+			{X: 157, Y: 171},
+			{X: 157, Y: 170},
+			{X: 157, Y: 169},
+			{X: 157, Y: 168},
+			{X: 157, Y: 167},
+			{X: 157, Y: 166},
+			{X: 157, Y: 165},
+			{X: 157, Y: 164},
+			{X: 157, Y: 163},
+			{X: 157, Y: 162},
+			{X: 157, Y: 161},
+			{X: 157, Y: 160},
+		},
+		Speed: 100,
+	}
+
+	w.SetPlayerMovementAt(157, 170, 157, 160, 4, now, 0)
+
+	x, y := w.Player.RenderPosition(now)
+	if x != 157 || y != 172 {
+		t.Fatalf("position = %.2f, %.2f, want preserved 157.00, 172.00", x, y)
+	}
+	if !w.Player.HasMoveStart || w.Player.MoveStartX != 157 || w.Player.MoveStartY != 172 {
+		t.Fatalf("fractional start = %.2f, %.2f enabled=%t", w.Player.MoveStartX, w.Player.MoveStartY, w.Player.HasMoveStart)
+	}
+}
+
 func TestSetPlayerMovementAtDoesNotProjectOntoNearbyParallelRoute(t *testing.T) {
 	w := New()
 	now := time.Unix(100, 0)
