@@ -1031,6 +1031,9 @@ func resolveSpriteAction(act *res.ACT, actionFamily, direction int) (int, res.AC
 	if preferred >= 0 && preferred < len(act.Actions) && len(act.Actions[preferred].Animations) > 0 {
 		return preferred, act.Actions[preferred], true
 	}
+	if len(act.Actions) == 8 && direction < len(act.Actions) && len(act.Actions[direction].Animations) > 0 {
+		return direction, act.Actions[direction], true
+	}
 	if actionFamily >= 0 && actionFamily < len(act.Actions) && len(act.Actions[actionFamily].Animations) > 0 {
 		return actionFamily, act.Actions[actionFamily], true
 	}

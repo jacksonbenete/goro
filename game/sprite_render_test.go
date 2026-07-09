@@ -110,6 +110,20 @@ func TestResolveSpriteActionFallsBackToFamilyBase(t *testing.T) {
 	}
 }
 
+func TestResolveSpriteActionUsesDirectionForEightActionSprites(t *testing.T) {
+	act := &res.ACT{Actions: make([]res.ACTAction, 8)}
+	for i := range act.Actions {
+		act.Actions[i] = res.ACTAction{Animations: []res.ACTAnimation{{}}, DelayMS: 100}
+	}
+	index, _, ok := resolveSpriteAction(act, spriteActionWalk, 5)
+	if !ok {
+		t.Fatal("expected action")
+	}
+	if index != 5 {
+		t.Fatalf("index = %d, want direction action 5", index)
+	}
+}
+
 func TestResolveSpriteActionUsesDirectIndexForCompactNonPCAct(t *testing.T) {
 	act := &res.ACT{Actions: make([]res.ACTAction, 5)}
 	act.Actions[spriteActionNonPCAttack] = res.ACTAction{Animations: []res.ACTAnimation{{}}, DelayMS: 100}
