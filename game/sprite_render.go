@@ -133,6 +133,8 @@ type spriteState struct {
 	hasPlay        bool
 	length         int
 	hasLength      bool
+	frameOffset    int
+	hasFrameOffset bool
 	fixedMotion    int
 	hasFixedMotion bool
 	speed          time.Duration
@@ -169,6 +171,8 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 			state.hasPlay = anim.hasPlay
 			state.length = anim.length
 			state.hasLength = anim.hasLength
+			state.frameOffset = anim.frameOffset
+			state.hasFrameOffset = anim.hasFrameOffset
 			state.moving = false
 			state.fixedMotion = anim.fixedMotion
 			state.hasFixedMotion = anim.hasFixedMotion
@@ -182,6 +186,8 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 			state.hasPlay = anim.hasPlay
 			state.length = anim.length
 			state.hasLength = anim.hasLength
+			state.frameOffset = anim.frameOffset
+			state.hasFrameOffset = anim.hasFrameOffset
 			state.moving = false
 			state.fixedMotion = anim.fixedMotion
 			state.hasFixedMotion = anim.hasFixedMotion
@@ -1040,10 +1046,10 @@ func spriteMotionIndex(action res.ACTAction, started time.Time, now time.Time, l
 }
 
 func spriteMotionIndexWithDelay(action res.ACTAction, started time.Time, now time.Time, loop bool, delayMS float64) int {
-	return spriteMotionIndexWithFrameLimit(action, started, now, loop, delayMS, 0)
+	return spriteMotionIndexWithOptions(action, started, now, loop, delayMS, 0, 0)
 }
 
-func spriteMotionIndexWithFrameLimit(action res.ACTAction, started time.Time, now time.Time, loop bool, delayMS float64, frameLimit int) int {
+func spriteMotionIndexWithOptions(action res.ACTAction, started time.Time, now time.Time, loop bool, delayMS float64, frameLimit int, frameOffset int) int {
 	if len(action.Animations) == 0 {
 		return 0
 	}
@@ -1061,12 +1067,12 @@ func spriteMotionIndexWithFrameLimit(action res.ACTAction, started time.Time, no
 	}
 	index := int(float64(elapsed.Milliseconds()) / delay)
 	if loop || motionCount == 1 {
-		return index % motionCount
+		return (index + frameOffset) % motionCount
 	}
 	if index >= motionCount {
-		return motionCount - 1
+		return minInt(frameOffset+motionCount-1, len(action.Animations)-1)
 	}
-	return index
+	return minInt(frameOffset+index, len(action.Animations)-1)
 }
 
 func bodyMotionForState(action res.ACTAction, state spriteState, started time.Time, now time.Time) int {
@@ -1084,6 +1090,9 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 		delayMS = float64(state.speed / time.Millisecond)
 	}
 	if state.hasPlay && !state.play {
+		if state.hasFrameOffset {
+			return minInt(maxInt(0, state.frameOffset), len(action.Animations)-1)
+		}
 		return 0
 	}
 	if state.actionFamily == spriteActionWalk && state.moveSpeedMS > 0 {
@@ -1102,19 +1111,23 @@ func bodyMotionForState(action res.ACTAction, state spriteState, started time.Ti
 	if state.hasLength {
 		frameLimit = state.length
 	}
+	frameOffset := 0
+	if state.hasFrameOffset {
+		frameOffset = state.frameOffset
+	}
 	if state.actionFamily == spriteActionWalk || state.loop {
-		return spriteMotionIndexWithFrameLimit(action, started, now, true, delayMS, frameLimit)
+		return spriteMotionIndexWithOptions(action, started, now, true, delayMS, frameLimit, frameOffset)
 	}
 	if state.actionFamily == spriteActionIdle && state.loopIdle {
-		return spriteMotionIndexWithFrameLimit(action, started, now, true, delayMS, frameLimit)
+		return spriteMotionIndexWithOptions(action, started, now, true, delayMS, frameLimit, frameOffset)
 	}
 	if !state.started.IsZero() {
-		return spriteMotionIndexWithFrameLimit(action, started, now, false, delayMS, frameLimit)
+		return spriteMotionIndexWithOptions(action, started, now, false, delayMS, frameLimit, frameOffset)
 	}
 	if state.actionFamily != spriteActionWalk {
 		return 0
 	}
-	return spriteMotionIndexWithFrameLimit(action, started, now, true, delayMS, frameLimit)
+	return spriteMotionIndexWithOptions(action, started, now, true, delayMS, frameLimit, frameOffset)
 }
 
 const walkDistanceToMotion = 4.6 * 0.37 * 4 * 25

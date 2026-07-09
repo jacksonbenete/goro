@@ -986,20 +986,25 @@ func (s skillActionSpec) actorAnimationForActor(actor worldstate.Actor, started 
 	if !s.defined {
 		s = defaultSkillActionSpec
 	}
-	if s.delay > 0 {
+	if s.delay > 0 && !started.IsZero() {
 		started = started.Add(s.delay)
 	}
 	anim := actorAnimation{
 		actionFamily: s.actionFamilyForActor(actor),
 		started:      started,
+		startDelay:   s.delay,
 		duration:     duration,
 		loop:         s.repeat,
 		play:         s.play,
 		hasPlay:      true,
 	}
 	if s.hasFrame {
-		anim.fixedMotion = s.frame
-		anim.hasFixedMotion = true
+		anim.frameOffset = s.frame
+		anim.hasFrameOffset = true
+		if !s.play {
+			anim.fixedMotion = s.frame
+			anim.hasFixedMotion = true
+		}
 	}
 	if s.length > 0 {
 		anim.length = s.length

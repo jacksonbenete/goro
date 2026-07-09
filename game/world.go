@@ -227,11 +227,14 @@ type actorAnimation struct {
 	actionFamily   int
 	started        time.Time
 	duration       time.Duration
+	startDelay     time.Duration
 	loop           bool
 	play           bool
 	hasPlay        bool
 	length         int
 	hasLength      bool
+	frameOffset    int
+	hasFrameOffset bool
 	holdFinal      bool
 	fixedMotion    int
 	hasFixedMotion bool
@@ -1724,7 +1727,9 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	attackFamily := spriteActionNonPCAttack
 	if sourceOK {
 		attackFamily = skillActionFamilyForActor(source, action.SkillID)
-		if sourceLocal && action.SkillID == 0 && res.HasPlayerJobToken(int(source.Job)) {
+		if action.SkillID > 0 {
+			m.startSkillActionAnimation(ctx, action.SourceID, source, skillAction(action.SkillID), now, attackDuration)
+		} else if sourceLocal && res.HasPlayerJobToken(int(source.Job)) {
 			m.startCombatAnimationWithNext(ctx, action.SourceID, attackFamily, now, attackDuration, readyFightAnimation(now.Add(attackDuration)))
 		} else {
 			m.startCombatAnimation(ctx, action.SourceID, attackFamily, now, attackDuration)
@@ -2335,7 +2340,8 @@ func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bo
 		if anim.next != nil {
 			next := *anim.next
 			if next.started.IsZero() {
-				next.started = anim.started.Add(anim.duration)
+				next.started = anim.started.Add(anim.duration).Add(next.startDelay)
+				next.startDelay = 0
 			}
 			m.actorAnims[id] = next
 			return m.actorAnimation(id, now)
@@ -5420,6 +5426,8 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 		state.hasPlay = anim.hasPlay
 		state.length = anim.length
 		state.hasLength = anim.hasLength
+		state.frameOffset = anim.frameOffset
+		state.hasFrameOffset = anim.hasFrameOffset
 		state.moving = false
 		state.fixedMotion = anim.fixedMotion
 		state.hasFixedMotion = anim.hasFixedMotion
@@ -5472,6 +5480,8 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 		state.hasPlay = anim.hasPlay
 		state.length = anim.length
 		state.hasLength = anim.hasLength
+		state.frameOffset = anim.frameOffset
+		state.hasFrameOffset = anim.hasFrameOffset
 		state.moving = false
 		state.loopIdle = false
 		state.fixedMotion = anim.fixedMotion

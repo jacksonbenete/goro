@@ -1343,6 +1343,67 @@ func TestSetActorActionStopsMovingActor(t *testing.T) {
 	}
 }
 
+func TestActorAnimationHonorsDelayedNextAction(t *testing.T) {
+	started := time.Now()
+	mode := &WorldMode{actorAnims: map[uint32]actorAnimation{
+		300: {
+			actionFamily: spriteActionPCSkill,
+			started:      started,
+			duration:     100 * time.Millisecond,
+			next: &actorAnimation{
+				actionFamily: spriteActionPCReadyFight,
+				startDelay:   50 * time.Millisecond,
+				loop:         true,
+				play:         true,
+				hasPlay:      true,
+			},
+		},
+	}}
+
+	if anim, ok := mode.actorAnimation(300, started.Add(125*time.Millisecond)); ok {
+		t.Fatalf("actorAnimation before delayed next = %+v, want inactive gap", anim)
+	}
+	anim, ok := mode.actorAnimation(300, started.Add(150*time.Millisecond))
+	if !ok || anim.actionFamily != spriteActionPCReadyFight || !anim.loop {
+		t.Fatalf("actorAnimation delayed next = %+v ok=%t, want ready fight loop", anim, ok)
+	}
+	if got := anim.started.Sub(started); got != 150*time.Millisecond {
+		t.Fatalf("delayed next start = %s, want 150ms", got)
+	}
+}
+
+func TestBodyMotionHonorsRobrowserActionMetadata(t *testing.T) {
+	action := res.ACTAction{
+		DelayMS: 100,
+		Animations: []res.ACTAnimation{
+			{}, {}, {}, {}, {},
+		},
+	}
+	started := time.Now()
+	state := spriteState{
+		started:        started,
+		actionFamily:   spriteActionPCSkill,
+		frameOffset:    1,
+		hasFrameOffset: true,
+		length:         3,
+		hasLength:      true,
+		speed:          50 * time.Millisecond,
+		hasSpeed:       true,
+	}
+
+	if got := bodyMotionForState(action, state, started, started.Add(25*time.Millisecond)); got != 1 {
+		t.Fatalf("initial offset motion = %d, want 1", got)
+	}
+	if got := bodyMotionForState(action, state, started, started.Add(125*time.Millisecond)); got != 3 {
+		t.Fatalf("length-limited motion = %d, want 3", got)
+	}
+	state.play = false
+	state.hasPlay = true
+	if got := bodyMotionForState(action, state, started, started.Add(time.Second)); got != 1 {
+		t.Fatalf("play=false motion = %d, want fixed frame offset 1", got)
+	}
+}
+
 func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectBashBegin)
 	if !ok {
@@ -1961,6 +2022,51 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 	recovery := skillRecoveryFloater(28)
 	if !recovery.enabled || recovery.kind != damageFloaterRecoveryHP || recovery.color != recoveryHPColor {
 		t.Fatalf("heal recovery floater = %+v", recovery)
+	}
+}
+
+func TestSkillActionSpecMetadataDrivesSourceAnimation(t *testing.T) {
+	const skillID uint16 = 65001
+	next := newSkillActionSpec(skillActorActionReadyFight, true, nil)
+	skillEffectSpecs[skillID] = skillEffectSpec{
+		action: skillActionSpec{
+			defined:  true,
+			action:   skillActorActionSkill,
+			frame:    2,
+			hasFrame: true,
+			length:   3,
+			speed:    50 * time.Millisecond,
+			play:     true,
+			repeat:   false,
+			delay:    75 * time.Millisecond,
+			next:     &next,
+		},
+	}
+	defer delete(skillEffectSpecs, skillID)
+
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 4}
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
+		World:   world,
+	}
+	before := time.Now()
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: skillID, TargetID: 2000000, SourceID: 2000000, Result: 1})
+
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("source animation missing")
+	}
+	if anim.actionFamily != spriteActionPCSkill || !anim.hasFrameOffset || anim.frameOffset != 2 || !anim.hasLength || anim.length != 3 || !anim.hasSpeed || anim.speed != 50*time.Millisecond || !anim.hasPlay || !anim.play {
+		t.Fatalf("source animation = %+v, want robr-style metadata applied", anim)
+	}
+	if delay := anim.started.Sub(before); delay < 70*time.Millisecond || delay > 200*time.Millisecond {
+		t.Fatalf("source animation start delay = %s, want about 75ms", delay)
+	}
+	if anim.next == nil || anim.next.actionFamily != spriteActionPCReadyFight || !anim.next.loop {
+		t.Fatalf("source animation next = %+v, want ready-fight loop", anim.next)
 	}
 }
 
