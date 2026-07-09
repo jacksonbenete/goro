@@ -1198,11 +1198,19 @@ func TestApplyActorActionNotifyAddsBashHitEffect(t *testing.T) {
 
 func TestApplyActorActionNotifyChainsPlayerHurtToReadyFight(t *testing.T) {
 	world := worldstate.New()
+	moveStarted := time.Now()
 	world.UpsertActor(worldstate.Actor{
-		ID:  300,
-		X:   10,
-		Y:   20,
-		Job: 1,
+		ID:           300,
+		X:            15,
+		Y:            20,
+		Job:          1,
+		Moving:       true,
+		FromX:        10,
+		FromY:        20,
+		ToX:          15,
+		ToY:          20,
+		MoveStarted:  moveStarted,
+		MoveDuration: 5 * time.Second,
 	})
 	world.UpsertActor(worldstate.Actor{
 		ID:            400,
@@ -1231,9 +1239,77 @@ func TestApplyActorActionNotifyChainsPlayerHurtToReadyFight(t *testing.T) {
 	if hurtAnim.actionFamily != spriteActionPCHurt {
 		t.Fatalf("target action = %d, want %d", hurtAnim.actionFamily, spriteActionPCHurt)
 	}
+	if actor := world.Actors[300]; !actor.Moving {
+		t.Fatal("target should keep moving before scheduled hit time")
+	}
+	mode.processScheduledActorStops(ctx, hurtAnim.started)
+	actor := world.Actors[300]
+	if actor.Moving || actor.MovePath != nil || actor.FromX != actor.X || actor.ToX != actor.X {
+		t.Fatalf("target movement after hit = %+v, want stopped at hit position", actor)
+	}
+	if actor.X == 15 {
+		t.Fatalf("target stopped at destination, want interpolated hit position: %+v", actor)
+	}
 	readyAnim, ok := mode.actorAnimation(300, hurtAnim.started.Add(hurtAnim.duration))
 	if !ok || readyAnim.actionFamily != spriteActionPCReadyFight || !readyAnim.loop {
 		t.Fatalf("post-hurt animation = %+v ok=%t, want looping READYFIGHT", readyAnim, ok)
+	}
+}
+
+func TestApplyActorActionNotifyStopsLocalPlayerMovementOnHit(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:           2000000,
+		X:            15,
+		Y:            20,
+		Job:          1,
+		Moving:       true,
+		FromX:        10,
+		FromY:        20,
+		ToX:          15,
+		ToY:          20,
+		MoveStarted:  time.Now(),
+		MoveDuration: 5 * time.Second,
+	}
+	world.UpsertActor(worldstate.Actor{
+		ID:            400,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    400,
+		TargetID:    2000000,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      42,
+		Action:      0,
+	})
+
+	hurtAnim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("local hurt animation missing")
+	}
+	if world.Player.Moving == false {
+		t.Fatal("local player should keep moving before scheduled hit time")
+	}
+	mode.processScheduledActorStops(ctx, hurtAnim.started)
+	if world.Player.Moving || world.Player.MovePath != nil || world.Player.FromX != world.Player.X || world.Player.ToX != world.Player.X {
+		t.Fatalf("local player movement after hit = %+v, want stopped", world.Player)
+	}
+	if world.Player.X == 15 {
+		t.Fatalf("local player stopped at destination, want interpolated hit position: %+v", world.Player)
+	}
+	if ctx.Session.PlayerX != world.Player.X || ctx.Session.PlayerY != world.Player.Y {
+		t.Fatalf("session player position = %d,%d world=%d,%d", ctx.Session.PlayerX, ctx.Session.PlayerY, world.Player.X, world.Player.Y)
 	}
 }
 

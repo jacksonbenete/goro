@@ -79,6 +79,7 @@ type WorldMode struct {
 	damageFloaters    []damageFloater
 	worldEffects      []worldEffect
 	scheduledSounds   []scheduledSound
+	scheduledStops    []scheduledActorStop
 	mapSoundNext      map[int]time.Time
 	mapWeatherSounds  map[int]time.Time
 	actorDeaths       map[uint32]time.Time
@@ -210,6 +211,11 @@ type scheduledSound struct {
 	at     time.Time
 	paths  []string
 	volume float64
+}
+
+type scheduledActorStop struct {
+	id uint32
+	at time.Time
 }
 
 type actorSoundFrame struct {
@@ -348,6 +354,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.actorAnims = make(map[uint32]actorAnimation)
 	m.damageFloaters = nil
 	m.scheduledSounds = nil
+	m.scheduledStops = nil
 	m.mapSoundNext = make(map[int]time.Time)
 	m.mapWeatherSounds = make(map[int]time.Time)
 	m.actorDeaths = make(map[uint32]time.Time)
@@ -893,6 +900,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	m.processLockedAttack(ctx)
 	now = time.Now()
 	m.cleanupDeadActors(ctx, now)
+	m.processScheduledActorStops(ctx, now)
 	m.processActorMotionSounds(ctx, now)
 	m.processMapSounds(ctx, now)
 	m.playDueScheduledSounds(ctx, now)
@@ -1203,6 +1211,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
 	m.clearLocalActorAction(ctx)
+	m.scheduledStops = nil
 	m.npcDialog.ResetPublished(ctx)
 	m.teleportModal = gameui.TeleportModal{}
 	m.clearLocalDeathState(ctx)
@@ -1780,15 +1789,13 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		m.addSkillBeforeHitEffect(ctx, action, now)
 		if skillTargetUsesHitReaction(action, sourceLocal, targetLocal) {
 			hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
+			m.scheduleActorStop(action.TargetID, hitAt)
 			m.startCombatAnimationWithNext(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, hurtDuration, postHurtAnimation(target, hitAt.Add(hurtDuration)))
 		}
 		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
 		m.addSkillEffect(ctx, action, hitAt)
 		m.addSkillHitEffect(ctx, action, hitAt)
 		m.applyCombatLifeFallback(ctx, target, targetLocal, action, hitAt)
-		if targetLocal {
-			ctx.World.Player.Moving = false
-		}
 	}
 	x, y := ctx.World.Player.X, ctx.World.Player.Y
 	if targetOK {
@@ -2589,6 +2596,74 @@ func (m *WorldMode) scheduleSoundVolume(at time.Time, volume float64, paths ...s
 		paths:  append([]string(nil), clean...),
 		volume: volume,
 	})
+}
+
+func (m *WorldMode) scheduleActorStop(id uint32, at time.Time) {
+	if id == 0 || at.IsZero() {
+		return
+	}
+	m.scheduledStops = append(m.scheduledStops, scheduledActorStop{id: id, at: at})
+}
+
+func (m *WorldMode) processScheduledActorStops(ctx client.Context, now time.Time) {
+	if len(m.scheduledStops) == 0 {
+		return
+	}
+	active := m.scheduledStops[:0]
+	for _, stop := range m.scheduledStops {
+		if now.Before(stop.at) {
+			active = append(active, stop)
+			continue
+		}
+		m.stopActorMovementAt(ctx, stop.id, stop.at)
+	}
+	m.scheduledStops = active
+}
+
+func (m *WorldMode) stopActorMovementAt(ctx client.Context, id uint32, at time.Time) {
+	if ctx.World == nil || id == 0 {
+		return
+	}
+	if isLocalActor(ctx, id) {
+		stopLocalPlayerMovementAt(ctx, at)
+		return
+	}
+	actor, ok := ctx.World.Actors[id]
+	if !ok || !actor.IsMovingAt(at) {
+		return
+	}
+	x, y := actor.RenderPosition(at)
+	actor.X = int(math.Round(x))
+	actor.Y = int(math.Round(y))
+	clearActorMovement(&actor)
+	ctx.World.Actors[id] = actor
+}
+
+func stopLocalPlayerMovementAt(ctx client.Context, at time.Time) {
+	if ctx.World == nil || !ctx.World.Player.IsMovingAt(at) {
+		return
+	}
+	x, y := ctx.World.Player.RenderPosition(at)
+	ctx.World.Player.X = int(math.Round(x))
+	ctx.World.Player.Y = int(math.Round(y))
+	clearActorMovement(&ctx.World.Player)
+	if ctx.Session != nil {
+		ctx.Session.PlayerX = ctx.World.Player.X
+		ctx.Session.PlayerY = ctx.World.Player.Y
+	}
+}
+
+func clearActorMovement(actor *worldstate.Actor) {
+	actor.Moving = false
+	actor.FromX = actor.X
+	actor.FromY = actor.Y
+	actor.ToX = actor.X
+	actor.ToY = actor.Y
+	actor.MovePath = nil
+	actor.HasMoveStart = false
+	actor.MoveStartX = 0
+	actor.MoveStartY = 0
+	actor.WalkDistance = 0
 }
 
 func (m *WorldMode) playDueScheduledSounds(ctx client.Context, now time.Time) {
