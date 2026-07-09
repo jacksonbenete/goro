@@ -9,6 +9,11 @@ import (
 )
 
 func (m *WorldMode) applyVendingBoard(ctx client.Context, board network.VendingBoard) {
+	applyVendingBoardToWorld(ctx, board)
+	log.Printf("vending board actor=%d name=%q", board.OwnerAID, board.Name)
+}
+
+func applyVendingBoardToWorld(ctx client.Context, board network.VendingBoard) {
 	if ctx.World == nil {
 		return
 	}
@@ -24,10 +29,14 @@ func (m *WorldMode) applyVendingBoard(ctx client.Context, board network.VendingB
 	actor.Vending = true
 	actor.VendingName = board.Name
 	ctx.World.Actors[board.OwnerAID] = actor
-	log.Printf("vending board actor=%d name=%q", board.OwnerAID, board.Name)
 }
 
 func (m *WorldMode) applyVendingBoardDisappear(ctx client.Context, board network.VendingBoardDisappear) {
+	applyVendingBoardDisappearToWorld(ctx, board)
+	log.Printf("vending board removed actor=%d", board.OwnerAID)
+}
+
+func applyVendingBoardDisappearToWorld(ctx client.Context, board network.VendingBoardDisappear) {
 	if ctx.World == nil {
 		return
 	}
@@ -43,7 +52,6 @@ func (m *WorldMode) applyVendingBoardDisappear(ctx client.Context, board network
 	actor.Vending = false
 	actor.VendingName = ""
 	ctx.World.Actors[board.OwnerAID] = actor
-	log.Printf("vending board removed actor=%d", board.OwnerAID)
 }
 
 func actorHasVending(actor worldstate.Actor) bool {

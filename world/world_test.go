@@ -104,6 +104,28 @@ func TestUpsertActorMovePreservesCartState(t *testing.T) {
 	}
 }
 
+func TestUpsertActorPreservesVendingState(t *testing.T) {
+	w := New()
+	w.UpsertActor(Actor{
+		ID:          2000001,
+		Vending:     true,
+		VendingName: "Cheap pots",
+	})
+
+	w.UpsertActor(Actor{
+		ID:         2000001,
+		X:          10,
+		Y:          20,
+		Job:        5,
+		Appearance: true,
+	})
+
+	actor := w.Actors[2000001]
+	if !actor.Vending || actor.VendingName != "Cheap pots" {
+		t.Fatalf("vending state not preserved: %+v", actor)
+	}
+}
+
 func TestUpsertActorMoveUsesActorSpeed(t *testing.T) {
 	w := New()
 	w.UpsertActor(Actor{

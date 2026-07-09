@@ -268,6 +268,10 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.CartNum = existing.CartNum
 			actor.HasCartState = existing.HasCartState
 		}
+		if !actor.Vending && existing.Vending {
+			actor.Vending = existing.Vending
+			actor.VendingName = existing.VendingName
+		}
 		if actor.Moving && actor.FromX == 0 && actor.FromY == 0 {
 			actor.FromX = existing.X
 			actor.FromY = existing.Y

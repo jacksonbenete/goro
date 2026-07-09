@@ -370,6 +370,20 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			applyCartClosed(ctx)
 			continue
 		}
+		if board, ok, err := network.ParseVendingBoard(pkt); err != nil {
+			m.packets = append(m.packets, "parse vending board: "+err.Error())
+		} else if ok {
+			applyVendingBoardToWorld(ctx, board)
+			log.Printf("login vending board actor=%d name=%q", board.OwnerAID, board.Name)
+			continue
+		}
+		if board, ok, err := network.ParseVendingBoardDisappear(pkt); err != nil {
+			m.packets = append(m.packets, "parse vending board disappear: "+err.Error())
+		} else if ok {
+			applyVendingBoardDisappearToWorld(ctx, board)
+			log.Printf("login vending board removed actor=%d", board.OwnerAID)
+			continue
+		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
 			m.packets = append(m.packets, "parse actor entry: "+err.Error())
 		} else if ok {
