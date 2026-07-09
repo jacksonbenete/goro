@@ -1045,10 +1045,11 @@ func (w *ShopWindow) sendDealSelection(ctx Context, dealType uint8) {
 }
 
 func (w *ShopWindow) ensureBuyPosition(ctx Context) {
-	width, _ := ctx.ScreenSize()
+	width, height := ctx.ScreenSize()
 	totalWidth := shopBuyListWindowW + 20 + shopBuyCartWindowW
+	totalHeight := maxInt(shopListWindowHeight(), w.cartWindowHeight())
 	w.x = maxInt(8, (width-totalWidth)/2)
-	w.y = 120
+	w.y = clampWindowInt((height-totalHeight)/2, 8, maxInt(8, height-totalHeight-8))
 }
 
 func (w *ShopWindow) total() int64 {
