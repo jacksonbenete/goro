@@ -546,7 +546,8 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 			},
 		},
 	},
-	effectMammonite: strEffectSpecAttachedMin("maemor", "memor_min", "effect\\ef_coin2.wav", false),
+	effectMammonite:      strEffectSpecAttachedMin("maemor", "memor_min", "effect\\ef_coin2.wav", false),
+	effectCartRevolution: strEffectSpecAttached("cartrevolution", "effect\\ef_magnumbreak.wav", false),
 	effectSight: {
 		duration: 12200 * time.Millisecond,
 		sfx:      []string{"effect\\ef_sight.wav"},
