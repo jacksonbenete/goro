@@ -158,6 +158,8 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		switch {
 		case isWarpActor(actor):
 			return cursorActionWarp
+		case actorHasVending(actor):
+			return cursorActionTalk
 		case actorCanBeAttackClicked(ctx, actor):
 			return cursorActionAttack
 		case cursorActorCanTalk(actor):

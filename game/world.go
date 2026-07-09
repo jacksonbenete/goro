@@ -105,6 +105,7 @@ type WorldMode struct {
 	storageWindow     gameui.StorageWindow
 	cartWindow        gameui.CartWindow
 	shopWindow        gameui.ShopWindow
+	vendingWindow     gameui.VendingWindow
 	itemInfoWindow    gameui.ItemInfoWindow
 	identifyWindow    gameui.IdentifyWindow
 	statsWindow       gameui.StatsWindow
@@ -754,6 +755,47 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.cartWindow.Refresh(ctx, &m.itemInfoWindow)
 			continue
 		}
+		if vendOpen, ok, err := network.ParseVendingOpenRequest(pkt); err != nil {
+			log.Printf("parse vending open request 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("vending open request max_items=%d", vendOpen.MaxItems)
+			m.vendingWindow.OpenSetup(ctx, vendOpen)
+			continue
+		}
+		if board, ok, err := network.ParseVendingBoard(pkt); err != nil {
+			log.Printf("parse vending board 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyVendingBoard(ctx, board)
+			continue
+		}
+		if board, ok, err := network.ParseVendingBoardDisappear(pkt); err != nil {
+			log.Printf("parse vending board disappear 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyVendingBoardDisappear(ctx, board)
+			continue
+		}
+		if vendList, ok, err := network.ParseVendingItemList(pkt); err != nil {
+			log.Printf("parse vending item list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			if vendList.Own {
+				m.vendingWindow.ApplyOwnList(ctx, vendList)
+			} else {
+				m.vendingWindow.OpenBuy(ctx, vendList)
+			}
+			continue
+		}
+		if vendResult, ok, err := network.ParseVendingPurchaseResult(pkt); err != nil {
+			log.Printf("parse vending purchase result 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.vendingWindow.ApplyPurchaseResult(ctx, vendResult)
+			continue
+		}
+		if sold, ok, err := network.ParseVendingSoldItem(pkt); err != nil {
+			log.Printf("parse vending sold item 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.vendingWindow.ApplySoldItem(ctx, sold)
+			continue
+		}
 		if network.ParseStorageClosed(pkt) {
 			applyStorageClosed(ctx)
 			m.storageWindow.SetOpen(false)
@@ -1089,6 +1131,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.shopWindow.Update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
+	if m.vendingWindow.Update(ctx, &m.itemInfoWindow) {
+		return nil, nil
+	}
 	if m.skillWindow.Update(ctx, &m.shortcutBar, m) {
 		return nil, nil
 	}
@@ -1134,6 +1179,11 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
 			log.Printf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, playerX, playerY, actor.X, actor.Y)
 			m.requestAttack(ctx, actor, "click")
+			return nil, nil
+		}
+		if actor, ok := clickedVendingTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
+			log.Printf("click vending target mouse=%d,%d id=%d name=%q shop=%q player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.VendingName, playerX, playerY, actor.X, actor.Y)
+			m.requestVendingList(ctx, actor, "click")
 			return nil, nil
 		}
 		if actor, ok := clickedTalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
@@ -3677,6 +3727,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 		m.storageWindow.Draw(screen, ctx, m)
 		m.cartWindow.Draw(screen, ctx, m)
 		m.shopWindow.Draw(screen, ctx, m)
+		m.vendingWindow.Draw(screen, ctx, m)
 		m.skillWindow.Draw(screen, ctx, m)
 		m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
 		m.deathModal.Draw(screen, ctx, width, height)
@@ -3699,6 +3750,7 @@ func (m *WorldMode) drawUIDragGhosts(screen *render.Image, ctx client.Context) {
 	m.storageWindow.DrawDragGhost(screen, ctx, m)
 	m.cartWindow.DrawDragGhost(screen, ctx, m)
 	m.shopWindow.DrawDragGhost(screen, ctx, m)
+	m.vendingWindow.DrawDragGhost(screen, ctx, m)
 	m.skillWindow.DrawDragGhost(screen, ctx, m)
 }
 
@@ -5086,8 +5138,19 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Cont
 	for _, entry := range entries {
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
+	m.drawVendingBoardLabels(screen, entries)
 	m.drawHoveredLocalPlayerNameLabel(screen, ctx, entries)
 	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
+}
+
+func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, entries []sceneActorDrawEntry) {
+	for _, entry := range entries {
+		if !actorHasVending(entry.actor) {
+			continue
+		}
+		labelY := actorNameLabelY(entry.screenY, entry.scale) - 18
+		drawActorNameLabelAtY(screen, entry.actor.VendingName, entry.screenX, labelY, color.RGBA{R: 255, G: 244, B: 188, A: 255})
+	}
 }
 
 func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {

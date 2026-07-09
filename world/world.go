@@ -74,6 +74,8 @@ type Actor struct {
 	HasCart       bool
 	CartNum       int
 	HasCartState  bool
+	Vending       bool
+	VendingName   string
 }
 
 type WalkStep struct {
