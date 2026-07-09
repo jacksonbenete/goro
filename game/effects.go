@@ -394,7 +394,7 @@ func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx client.Context, notify
 		return
 	}
 	m.faceSkillSource(ctx, notify.SourceID, notify.TargetID, 0, 0)
-	m.startCombatAnimation(ctx, notify.SourceID, skillActionFamilyForActor(source, notify.SkillID), now, defaultAttackAnimationDuration)
+	m.startSkillActionAnimation(ctx, notify.SourceID, source, skillAction(notify.SkillID), now, defaultAttackAnimationDuration)
 }
 
 func (m *WorldMode) startSkillCastSourceAnimation(ctx client.Context, notify network.SkillCastNotify, duration time.Duration, now time.Time) {
@@ -408,6 +408,16 @@ func (m *WorldMode) startSkillSourceCastAnimation(ctx client.Context, sourceID u
 		return
 	}
 	m.startCombatAnimation(ctx, sourceID, skillCastActionFamilyForActor(source, skillID), now, duration)
+}
+
+func (m *WorldMode) startSkillActionAnimation(ctx client.Context, id uint32, actor worldstate.Actor, spec skillActionSpec, started time.Time, duration time.Duration) {
+	anim := spec.actorAnimationForActor(actor, started, duration)
+	m.setActorAction(ctx, id, anim)
+	if ctx.Session == nil || !isLocalActor(ctx, id) {
+		return
+	}
+	m.setActorAction(ctx, ctx.Session.AccountID, anim)
+	m.setActorAction(ctx, ctx.Session.CharID, anim)
 }
 
 func (m *WorldMode) faceSkillSource(ctx client.Context, sourceID, targetID uint32, cellX, cellY int) {
@@ -910,26 +920,59 @@ type skillEffectSpec struct {
 type skillActorAction int
 
 const (
-	skillActorActionSkill skillActorAction = iota
+	skillActorActionIdle skillActorAction = iota
+	skillActorActionSkill
 	skillActorActionAttack
 	skillActorActionReadyFight
 )
 
 type skillActionSpec struct {
-	action skillActorAction
+	defined  bool
+	action   skillActorAction
+	frame    int
+	hasFrame bool
+	length   int
+	speed    time.Duration
+	play     bool
+	repeat   bool
+	delay    time.Duration
+	next     *skillActionSpec
 }
 
 var (
-	defaultSkillActionSpec    = skillActionSpec{action: skillActorActionSkill}
-	attackSkillActionSpec     = skillActionSpec{action: skillActorActionAttack}
-	readyFightSkillActionSpec = skillActionSpec{action: skillActorActionReadyFight}
+	idleSkillActionSpec       = newSkillActionSpec(skillActorActionIdle, true, nil)
+	defaultSkillActionSpec    = newSkillActionSpec(skillActorActionSkill, false, &idleSkillActionSpec)
+	attackSkillActionSpec     = newSkillActionSpec(skillActorActionAttack, false, &idleSkillActionSpec)
+	readyFightSkillActionSpec = newSkillActionSpec(skillActorActionReadyFight, false, &idleSkillActionSpec)
 )
+
+func newSkillActionSpec(action skillActorAction, repeat bool, next *skillActionSpec) skillActionSpec {
+	return skillActionSpec{
+		defined: true,
+		action:  action,
+		frame:   0,
+		repeat:  repeat,
+		play:    true,
+		next:    cloneSkillActionSpec(next),
+	}
+}
+
+func cloneSkillActionSpec(spec *skillActionSpec) *skillActionSpec {
+	if spec == nil {
+		return nil
+	}
+	clone := *spec
+	clone.next = cloneSkillActionSpec(spec.next)
+	return &clone
+}
 
 func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionNonPCAttack
 	}
 	switch s.action {
+	case skillActorActionIdle:
+		return spriteActionIdle
 	case skillActorActionAttack:
 		return attackActionFamilyForActor(actor)
 	case skillActorActionReadyFight:
@@ -937,6 +980,44 @@ func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
 	default:
 		return spriteActionPCSkill
 	}
+}
+
+func (s skillActionSpec) actorAnimationForActor(actor worldstate.Actor, started time.Time, duration time.Duration) actorAnimation {
+	if !s.defined {
+		s = defaultSkillActionSpec
+	}
+	if s.delay > 0 {
+		started = started.Add(s.delay)
+	}
+	anim := actorAnimation{
+		actionFamily: s.actionFamilyForActor(actor),
+		started:      started,
+		duration:     duration,
+		loop:         s.repeat,
+		play:         s.play,
+		hasPlay:      true,
+	}
+	if s.hasFrame {
+		anim.fixedMotion = s.frame
+		anim.hasFixedMotion = true
+	}
+	if s.length > 0 {
+		anim.length = s.length
+		anim.hasLength = true
+	}
+	if s.speed > 0 {
+		anim.speed = s.speed
+		anim.hasSpeed = true
+	}
+	if s.next != nil && !s.next.isNaturalIdleFallback() {
+		next := s.next.actorAnimationForActor(actor, time.Time{}, duration)
+		anim.next = &next
+	}
+	return anim
+}
+
+func (s skillActionSpec) isNaturalIdleFallback() bool {
+	return s.defined && s.action == skillActorActionIdle && s.repeat && s.play && s.next == nil
 }
 
 type skillCastSpec struct {
@@ -1117,7 +1198,7 @@ func skillRecoveryFloater(skillID uint16) skillRecoveryFloaterSpec {
 
 func skillAction(skillID uint16) skillActionSpec {
 	spec := skillEffectSpecs[skillID].action
-	if spec == (skillActionSpec{}) {
+	if !spec.defined {
 		return defaultSkillActionSpec
 	}
 	return spec

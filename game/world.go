@@ -230,10 +230,12 @@ type actorAnimation struct {
 	loop           bool
 	play           bool
 	hasPlay        bool
+	length         int
+	hasLength      bool
 	holdFinal      bool
 	fixedMotion    int
 	hasFixedMotion bool
-	speed          float64
+	speed          time.Duration
 	hasSpeed       bool
 	next           *actorAnimation
 }
@@ -5416,6 +5418,8 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 		state.loop = anim.loop
 		state.play = anim.play
 		state.hasPlay = anim.hasPlay
+		state.length = anim.length
+		state.hasLength = anim.hasLength
 		state.moving = false
 		state.fixedMotion = anim.fixedMotion
 		state.hasFixedMotion = anim.hasFixedMotion
@@ -5466,6 +5470,8 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 		state.loop = anim.loop
 		state.play = anim.play
 		state.hasPlay = anim.hasPlay
+		state.length = anim.length
+		state.hasLength = anim.hasLength
 		state.moving = false
 		state.loopIdle = false
 		state.fixedMotion = anim.fixedMotion

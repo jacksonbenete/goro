@@ -1945,6 +1945,10 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 	if skillAction(28).action != skillActorActionSkill {
 		t.Fatalf("heal action = %d, want default skill action", skillAction(28).action)
 	}
+	defaultAction := skillAction(28)
+	if !defaultAction.play || defaultAction.repeat || defaultAction.next == nil || defaultAction.next.action != skillActorActionIdle || !defaultAction.next.repeat {
+		t.Fatalf("default skill action shape = %+v next=%+v, want robr-style skill action followed by repeating idle", defaultAction, defaultAction.next)
+	}
 	if !skillForcesGroundTarget(21) || !skillForcesGroundTarget(25) {
 		t.Fatalf("ground target overrides = thunderstorm:%t pneuma:%t", skillForcesGroundTarget(21), skillForcesGroundTarget(25))
 	}
