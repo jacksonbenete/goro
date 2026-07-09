@@ -11,6 +11,7 @@ const (
 	PacketCZReqOpenStore             uint16 = 0x012F
 	PacketCZReqBuyFromMC             uint16 = 0x0130
 	PacketCZPCPurchaseItemListFromMC uint16 = 0x0134
+	PacketCZReqOpenStore2            uint16 = 0x01B2
 	PacketZCOpenStore                uint16 = 0x012D
 	PacketZCStoreEntry               uint16 = 0x0131
 	PacketZCDisappearEntry           uint16 = 0x0132
@@ -218,18 +219,27 @@ func BuildCloseVendingStorePacket() []byte {
 }
 
 func BuildOpenVendingStorePacket(name string, items []VendingOpenItem) []byte {
-	size := 2 + 2 + vendingStoreNamePacketSize + len(items)*8
+	size := 2 + 2 + vendingStoreNamePacketSize + 1 + len(items)*8
 	packet := make([]byte, size)
-	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqOpenStore)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqOpenStore2)
 	binary.LittleEndian.PutUint16(packet[2:4], uint16(size))
 	copyCString(packet[4:4+vendingStoreNamePacketSize], name)
-	offset := 4 + vendingStoreNamePacketSize
+	packet[4+vendingStoreNamePacketSize] = 1
+	offset := 4 + vendingStoreNamePacketSize + 1
 	for _, item := range items {
 		binary.LittleEndian.PutUint16(packet[offset:offset+2], item.Index)
 		binary.LittleEndian.PutUint16(packet[offset+2:offset+4], item.Amount)
 		binary.LittleEndian.PutUint32(packet[offset+4:offset+8], item.Price)
 		offset += 8
 	}
+	return packet
+}
+
+func BuildCancelVendingStoreOpenPacket() []byte {
+	size := 2 + 2 + vendingStoreNamePacketSize + 1
+	packet := make([]byte, size)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqOpenStore2)
+	binary.LittleEndian.PutUint16(packet[2:4], uint16(size))
 	return packet
 }
 
@@ -280,9 +290,20 @@ func (c *Client) SendOpenVendingStore(name string, items []VendingOpenItem) erro
 	packet := BuildOpenVendingStorePacket(name, items)
 	err := c.Send(packet)
 	if err == nil {
-		log.Printf("sent CZ_REQ_OPENSTORE opcode=0x%04X items=%d client_date=%d", ID(packet), len(items), c.clientDate)
+		log.Printf("sent CZ_REQ_OPENSTORE2 opcode=0x%04X items=%d client_date=%d", ID(packet), len(items), c.clientDate)
 	} else {
-		log.Printf("send CZ_REQ_OPENSTORE failed opcode=0x%04X len=%d items=%d client_date=%d: %v", ID(packet), len(packet), len(items), c.clientDate, err)
+		log.Printf("send CZ_REQ_OPENSTORE2 failed opcode=0x%04X len=%d items=%d client_date=%d: %v", ID(packet), len(packet), len(items), c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendCancelVendingStoreOpen() error {
+	packet := BuildCancelVendingStoreOpenPacket()
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_OPENSTORE2 cancel opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_OPENSTORE2 cancel failed opcode=0x%04X len=%d client_date=%d: %v", ID(packet), len(packet), c.clientDate, err)
 	}
 	return err
 }

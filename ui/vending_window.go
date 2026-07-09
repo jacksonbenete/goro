@@ -832,6 +832,11 @@ func (w *VendingWindow) closeOwnStore(ctx Context) {
 }
 
 func (w *VendingWindow) cancel(ctx Context) {
+	if w.mode == vendingModeSetup && ctx.Network != nil {
+		if err := ctx.Network.SendCancelVendingStoreOpen(); err != nil {
+			log.Printf("cancel vending setup failed: %v", err)
+		}
+	}
 	w.mode = vendingModeNone
 	w.closeBoth(ctx)
 }

@@ -103,11 +103,16 @@ func TestBuildVendingPackets(t *testing.T) {
 	}
 
 	open := BuildOpenVendingStorePacket("Shop", []VendingOpenItem{{Index: 7, Amount: 2, Price: 1500}})
-	if len(open) != 92 || ID(open) != PacketCZReqOpenStore || binary.LittleEndian.Uint16(open[2:4]) != 92 {
+	if len(open) != 93 || ID(open) != PacketCZReqOpenStore2 || binary.LittleEndian.Uint16(open[2:4]) != 93 {
 		t.Fatalf("open packet header: % X", open[:8])
 	}
-	if string(open[4:8]) != "Shop" || binary.LittleEndian.Uint16(open[84:86]) != 7 || binary.LittleEndian.Uint16(open[86:88]) != 2 || binary.LittleEndian.Uint32(open[88:92]) != 1500 {
+	if string(open[4:8]) != "Shop" || open[84] != 1 || binary.LittleEndian.Uint16(open[85:87]) != 7 || binary.LittleEndian.Uint16(open[87:89]) != 2 || binary.LittleEndian.Uint32(open[89:93]) != 1500 {
 		t.Fatalf("open packet body: % X", open)
+	}
+
+	cancel := BuildCancelVendingStoreOpenPacket()
+	if len(cancel) != 85 || ID(cancel) != PacketCZReqOpenStore2 || binary.LittleEndian.Uint16(cancel[2:4]) != 85 || cancel[84] != 0 {
+		t.Fatalf("open cancel packet: % X", cancel)
 	}
 
 	req := BuildVendingListRequestPacket(0x11223344)
