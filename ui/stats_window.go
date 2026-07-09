@@ -64,6 +64,14 @@ func (w *StatsWindow) Publish(ctx Context) {
 	w.window.Publish(ctx)
 }
 
+func (w *StatsWindow) Rebind(ctx Context) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		return
+	}
+	w.refresh(ctx)
+}
+
 func (w *StatsWindow) refresh(ctx Context) {
 	w.ensureWindow()
 	if !w.window.IsOpen() {

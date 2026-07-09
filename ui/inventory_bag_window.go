@@ -164,6 +164,15 @@ func (w *InventoryBagWindow) Publish(ctx Context) {
 	w.window.Publish(ctx)
 }
 
+func (w *InventoryBagWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		return
+	}
+	w.cart = cart
+	w.refresh(ctx, itemInfo)
+}
+
 func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
 	return Window(
 		Title("Inventory"),

@@ -78,6 +78,18 @@ func (w *ItemInfoWindow) Publish(ctx Context) {
 	w.window.Publish(ctx)
 }
 
+func (w *ItemInfoWindow) Rebind(ctx Context, assets AssetProvider) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		return
+	}
+	if assets != nil {
+		w.illustration = assets.ItemInfoIllustrationImage(ctx.Resources, w.item, itemInfoIllustrationWidth-14, itemInfoWindowHeight-ROWindowTitleHeight-itemInfoWindowPad*2-14)
+	}
+	w.window.SetContent(w.widgetTree(ctx))
+	w.Publish(ctx)
+}
+
 func (w *ItemInfoWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(itemInfoWindowWidth, itemInfoWindowHeight)

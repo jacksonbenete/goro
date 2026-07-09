@@ -99,3 +99,35 @@ func TestBasicMenuRowsUsePointerCursor(t *testing.T) {
 		t.Fatalf("second row cursor = %v, want pointer, hovered=%T", got, app.Window().HoveredWidget())
 	}
 }
+
+func TestBasicMenuRebindRefreshesButtonCallbacks(t *testing.T) {
+	app := uiapp.New()
+	manager := NewManager()
+	manager.SetUIApp(basicMenuTestApp{app: app})
+	ctx := client.Context{
+		Input:     input.NewState(),
+		UIManager: manager,
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+	var original BasicMenu
+	original.Update(ctx)
+	carried := original
+	carried.Rebind(ctx)
+
+	app.Frame()
+	app.Window().DrawTo(&uitest.MockCanvas{})
+	point := geometry.Pt(
+		float32(basicMenuX+basicMenuPad+basicMenuButtonW/2),
+		float32(basicMenuY+basicMenuPad+basicMenuButtonH/2),
+	)
+	app.Window().HandleEvent(uitest.Click(point.X, point.Y))
+	app.Window().HandleEvent(uitest.Release(point.X, point.Y))
+
+	if got := carried.PopAction(); got != "status" {
+		t.Fatalf("carried action = %q, want status", got)
+	}
+	if got := original.PopAction(); got != "" {
+		t.Fatalf("original action = %q, want empty", got)
+	}
+}

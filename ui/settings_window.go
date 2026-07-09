@@ -60,6 +60,13 @@ func (w *SettingsWindow) Publish(ctx client.Context) {
 	w.window.Publish(ctx)
 }
 
+func (w *SettingsWindow) Rebind(ctx client.Context) {
+	if !w.IsOpen() {
+		return
+	}
+	w.refresh(ctx)
+}
+
 func (w *SettingsWindow) ensureWindow(ctx client.Context) {
 	height := settingsWindowHeight(ctx)
 	if w.window.width == 0 {

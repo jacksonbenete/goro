@@ -168,6 +168,14 @@ func (w *SkillWindow) Publish(ctx Context) {
 	w.window.Publish(ctx)
 }
 
+func (w *SkillWindow) Rebind(ctx Context, actions GameActions) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		return
+	}
+	w.refresh(ctx, actions)
+}
+
 func (w *SkillWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(skillWindowWidth, skillWindowHeight)

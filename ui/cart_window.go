@@ -306,6 +306,14 @@ func (w *CartWindow) Refresh(ctx Context, itemInfo *ItemInfoWindow) {
 	w.refresh(ctx, itemInfo)
 }
 
+func (w *CartWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		return
+	}
+	w.refresh(ctx, itemInfo)
+}
+
 func (w *CartWindow) ClampScroll(s *session.Session) {
 	items := sortedCartItems(s)
 	if w.selectedRow >= len(items) {

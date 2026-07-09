@@ -413,6 +413,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	}
 	render.SetCursorMode(render.CursorModeHidden)
 	log.Printf("player sprite resources char_id=%d name=%s job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
+	m.rebindPersistentUI(ctx)
 	if ctx.World.MapName == "" {
 		return
 	}
@@ -440,6 +441,19 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	if err := ctx.Network.SendLoadEndAck(); err == nil {
 		m.tickCooldown = 1
 	}
+}
+
+func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
+	m.basicMenu.Rebind(ctx)
+	m.inventoryBag.Rebind(ctx, &m.itemInfoWindow, &m.cartWindow)
+	m.equipmentWindow.Rebind(ctx, &m.itemInfoWindow, &m.cartWindow, m)
+	m.cartWindow.Rebind(ctx, &m.itemInfoWindow)
+	m.itemInfoWindow.Rebind(ctx, m)
+	m.statsWindow.Rebind(ctx)
+	m.skillWindow.Rebind(ctx, m)
+	m.friendsWindow.Rebind(ctx)
+	m.settingsWindow.Rebind(ctx)
+	m.shortcutBar.ResetOverlay(ctx)
 }
 
 func (m *WorldMode) playMapBGM(ctx client.Context, rswName string) {

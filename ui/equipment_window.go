@@ -154,6 +154,22 @@ func (w *EquipmentWindow) Publish(ctx client.Context) {
 	w.window.Publish(ctx)
 }
 
+func (w *EquipmentWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow, assets AssetProvider) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		return
+	}
+	w.snapshot = equipmentSnapshot(ctx.Session)
+	w.itemInfo = itemInfo
+	w.cart = cart
+	w.hasCart = inventoryBagHasCart(ctx)
+	if assets != nil {
+		w.preview = assets.EquipmentPreviewImage(ctx, equipmentCenterColW, equipmentPreviewImageH)
+	}
+	w.window.SetContent(w.widgetTree(ctx, itemInfo, cart))
+	w.Publish(ctx)
+}
+
 func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
 	return Window(
 		Title("Equipment"),

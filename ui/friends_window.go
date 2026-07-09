@@ -73,6 +73,17 @@ func (w *FriendsWindow) Publish(ctx Context) {
 	w.window.Publish(ctx)
 }
 
+func (w *FriendsWindow) Rebind(ctx Context) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		return
+	}
+	w.ctx = ctx
+	w.snapshot = friendsWindowSnapshot(ctx.Session)
+	w.window.SetContent(w.widgetTree(ctx))
+	w.Publish(ctx)
+}
+
 func (w *FriendsWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(friendsWindowWidth, friendsWindowHeight)

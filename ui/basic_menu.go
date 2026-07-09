@@ -45,10 +45,22 @@ func (m *BasicMenu) Update(ctx client.Context) bool {
 	m.ensureWindow()
 	if !m.window.IsOpen() {
 		m.window.OpenAt(basicMenuX, basicMenuY, m.widgetTree())
+	} else if m.content == nil {
+		m.window.SetContent(m.widgetTree())
 	}
 	consumed := m.window.Update(ctx)
 	m.window.Publish(ctx)
 	return consumed
+}
+
+func (m *BasicMenu) Rebind(ctx client.Context) {
+	m.ensureWindow()
+	m.content = nil
+	if !m.window.IsOpen() {
+		return
+	}
+	m.window.SetContent(m.widgetTree())
+	m.window.Publish(ctx)
 }
 
 func basicMenuBounds() (int, int, int, int) {
