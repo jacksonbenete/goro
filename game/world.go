@@ -5154,8 +5154,8 @@ func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, entries []scene
 		if !actorHasVending(entry.actor) {
 			continue
 		}
-		labelY := actorNameLabelY(entry.screenY, entry.scale) - 18
-		drawActorNameLabelAtY(screen, entry.actor.VendingName, entry.screenX, labelY, color.RGBA{R: 255, G: 244, B: 188, A: 255})
+		labelY := entry.screenY - 74*entry.scale
+		drawVendingBoardLabel(screen, entry.actor.VendingName, entry.screenX, labelY)
 	}
 }
 
@@ -5608,6 +5608,23 @@ func drawActorNameLabelAtY(screen *render.Image, label string, centerX, labelY f
 	x := int(math.Round(centerX)) - text.Bounds().Dx()/2
 	y := int(math.Round(labelY))
 	render.DrawOutlinedTextAt(screen, label, x, y, foreground, outline)
+}
+
+func drawVendingBoardLabel(screen *render.Image, label string, centerX, topY float64) {
+	label = sanitizeActorName(label)
+	if label == "" {
+		return
+	}
+	textW, textH := render.DebugTextSize(label)
+	padX := 6
+	padY := 3
+	w := float64(textW + padX*2)
+	h := float64(textH + padY*2)
+	x := math.Round(centerX - w/2)
+	y := math.Round(topY)
+	render.DrawRect(screen, x, y, w, h, color.RGBA{R: 80, G: 88, B: 96, A: 230})
+	render.DrawRect(screen, x+1, y+1, w-2, h-2, color.RGBA{R: 255, G: 255, B: 255, A: 245})
+	render.DebugPrintAtColor(screen, label, int(x)+padX, int(y)+padY, color.RGBA{R: 30, G: 34, B: 40, A: 255})
 }
 
 func actorNameLabelY(baseY, scale float64) float64 {

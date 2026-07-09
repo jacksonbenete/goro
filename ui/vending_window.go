@@ -818,7 +818,11 @@ func (w *VendingWindow) submitBuy(ctx Context) {
 	}
 	if err := ctx.Network.SendVendingPurchase(w.ownerAID, items); err != nil {
 		log.Printf("vending purchase failed: %v", err)
+		return
 	}
+	w.mode = vendingModeNone
+	w.buyCart = nil
+	w.closeBoth(ctx)
 }
 
 func (w *VendingWindow) closeOwnStore(ctx Context) {

@@ -68,6 +68,9 @@ type npcDialogTextRun struct {
 func (d *NPCDialog) Apply(packet network.NPCDialog) {
 	switch packet.Kind {
 	case network.NPCDialogSay:
+		if strings.TrimSpace(packet.Message) == "" && !d.open {
+			return
+		}
 		if d.clearOnText {
 			d.lines = d.lines[:0]
 			d.clearOnText = false
@@ -84,12 +87,18 @@ func (d *NPCDialog) Apply(packet network.NPCDialog) {
 		}
 		d.dirty = true
 	case network.NPCDialogNext:
+		if !d.open && len(d.lines) == 0 {
+			return
+		}
 		d.open = true
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionNext
 		d.options = nil
 		d.dirty = true
 	case network.NPCDialogClose:
+		if !d.open && len(d.lines) == 0 {
+			return
+		}
 		d.open = true
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionClose

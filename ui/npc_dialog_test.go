@@ -70,6 +70,15 @@ func TestNPCDialogChoiceWindowOpensBelowDialogImmediately(t *testing.T) {
 	}
 }
 
+func TestNPCDialogIgnoresInitialEmptySay(t *testing.T) {
+	dialog := NPCDialog{}
+	dialog.Apply(network.NPCDialog{Kind: network.NPCDialogSay, NPCID: 100, Message: ""})
+
+	if dialog.open {
+		t.Fatalf("empty initial say opened dialog: %+v", dialog)
+	}
+}
+
 func npcDialogPlainText(runs []npcDialogTextRun) string {
 	text := ""
 	for _, run := range runs {
