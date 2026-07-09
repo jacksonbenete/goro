@@ -17,7 +17,7 @@ import (
 
 const (
 	equipmentWindowWidth   = 300
-	equipmentWindowHeight  = 178
+	equipmentWindowHeight  = 200
 	equipmentWindowPad     = 10
 	equipmentLeftColW      = 112
 	equipmentCenterColW    = 56
@@ -44,6 +44,8 @@ type EquipmentWindow struct {
 	window   WindowState
 	snapshot string
 	itemInfo *ItemInfoWindow
+	cart     *CartWindow
+	hasCart  bool
 	preview  image.Image
 	icons    map[equipmentItemIconKey]image.Image
 	iconMiss map[equipmentItemIconKey]struct{}
@@ -105,25 +107,29 @@ func (w *EquipmentWindow) Toggle(ctx Context) {
 		return
 	}
 	w.snapshot = equipmentSnapshot(ctx.Session)
+	w.hasCart = inventoryBagHasCart(ctx)
 	w.preview = nil
-	w.window.Open(ctx, w.widgetTree(ctx, nil))
+	w.window.Open(ctx, w.widgetTree(ctx, nil, nil))
 	w.Publish(ctx)
 }
 
-func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, assets AssetProvider) bool {
+func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow, assets AssetProvider) bool {
 	w.ensureWindow()
 	if !w.window.IsOpen() {
 		return false
 	}
 	snapshot := equipmentSnapshot(ctx.Session)
 	needsPreview := w.preview == nil && assets != nil
-	if snapshot != w.snapshot || itemInfo != w.itemInfo || needsPreview {
+	hasCart := inventoryBagHasCart(ctx)
+	if snapshot != w.snapshot || itemInfo != w.itemInfo || cart != w.cart || hasCart != w.hasCart || needsPreview {
 		w.snapshot = snapshot
 		w.itemInfo = itemInfo
+		w.cart = cart
+		w.hasCart = hasCart
 		if assets != nil {
 			w.preview = assets.EquipmentPreviewImage(ctx, equipmentCenterColW, equipmentPreviewImageH)
 		}
-		w.window.SetContent(w.widgetTree(ctx, itemInfo))
+		w.window.SetContent(w.widgetTree(ctx, itemInfo, cart))
 	}
 	consumed := w.window.Update(ctx)
 	if !w.window.IsOpen() {
@@ -148,7 +154,7 @@ func (w *EquipmentWindow) Publish(ctx client.Context) {
 	w.window.Publish(ctx)
 }
 
-func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
+func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
 	return Window(
 		Title("Equipment"),
 		CloseButton(true),
@@ -173,9 +179,10 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widg
 					primitives.Box(
 						newStaticImageWidget(w.preview, equipmentCenterColW, equipmentPreviewImageH),
 						w.slotWidget(ctx, itemInfo, equipmentSlotAmmo, equipmentCenterColW),
+						w.cartButtonWidget(ctx, cart),
 					).
 						Width(equipmentCenterColW).
-						Height(130).
+						Height(152).
 						Gap(0),
 
 					primitives.Box(
@@ -193,6 +200,21 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widg
 				Padding(equipmentWindowPad),
 		),
 	)
+}
+
+func (w *EquipmentWindow) cartButtonWidget(ctx Context, cart *CartWindow) widget.Widget {
+	if !inventoryBagHasCart(ctx) {
+		return primitives.Box().
+			Width(equipmentCenterColW).
+			Height(22)
+	}
+	return rotheme.Button("Cart", func() {
+		if cart != nil {
+			cart.Toggle(ctx)
+		}
+	}).
+		Width(equipmentCenterColW).
+		Height(22)
 }
 
 func (w *EquipmentWindow) slotWidget(ctx Context, itemInfo *ItemInfoWindow, slot equipmentSlotDef, width int) widget.Widget {

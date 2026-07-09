@@ -176,6 +176,15 @@ func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	if len(ctx.Session.Statuses.Active) != 0 {
 		t.Fatalf("pushcart should not create a buff icon: %+v", ctx.Session.Statuses.Active)
 	}
+	mode.applyActorStateChange(ctx, network.ActorStateChange{
+		ID:          2000000,
+		BodyState:   0,
+		HealthState: 0,
+		EffectState: 0,
+	})
+	if !world.Player.HasCartState || !world.Player.HasCart || world.Player.CartNum != 4 {
+		t.Fatalf("local cart state after actor state refresh = %+v", world.Player)
+	}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
 		StatusID:  statusEffectPushCart,
@@ -210,6 +219,34 @@ func TestActorCartStateFromEffectUsesReferenceCartNumbers(t *testing.T) {
 	hasCart, cartNum = actorCartState(actor)
 	if !hasCart || cartNum != 0 {
 		t.Fatalf("super novice cart from effect = %t, %d", hasCart, cartNum)
+	}
+}
+
+func TestCollectSceneActorEntriesUsesSelectedCharacterCartOption(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "prontera"
+	world.Player = worldstate.Actor{ID: 150004, X: 10, Y: 20, Dir: 4}
+	ctx := client.Context{
+		Session: &session.Session{
+			CharID: 150004,
+			Selected: session.Character{
+				ID:     150004,
+				Job:    5,
+				Option: actorEffectCart1,
+			},
+		},
+		World: world,
+	}
+	mode := &WorldMode{}
+	screen := render.NewImage(800, 600)
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+
+	entries := mode.collectSceneActorEntries(screen, ctx, projection)
+	if len(entries) == 0 {
+		t.Fatal("no scene actor entries collected")
+	}
+	if hasCart, cartNum := actorCartState(entries[0].actor); !hasCart || cartNum != 1 {
+		t.Fatalf("local cart from selected character option = has %t num %d actor %+v", hasCart, cartNum, entries[0].actor)
 	}
 }
 
@@ -6132,5 +6169,35 @@ func TestApplyStoragePacketsUpdateSessionStorage(t *testing.T) {
 	applyStorageClosed(ctx)
 	if sessionState.Storage.Open || len(sessionState.Storage.Items) != 0 {
 		t.Fatalf("storage after close = %+v", sessionState.Storage)
+	}
+}
+
+func TestApplyCartPacketsUpdateSessionCart(t *testing.T) {
+	sessionState := &session.Session{}
+	ctx := client.Context{Session: sessionState}
+
+	applyCartAmount(ctx, network.CartAmount{Amount: 1, MaxAmount: 100, Weight: 450, MaxWeight: 80000})
+	applyCartItemList(ctx, []network.InventoryItem{{Index: 3, ItemID: 512, Type: 0, Amount: 4, Identified: true}})
+	if !sessionState.Cart.Open {
+		t.Fatal("cart was not marked open")
+	}
+	if sessionState.Cart.Amount != 1 || sessionState.Cart.MaxAmount != 100 || sessionState.Cart.Weight != 450 || sessionState.Cart.MaxWeight != 80000 {
+		t.Fatalf("cart counts = %+v", sessionState.Cart)
+	}
+	if len(sessionState.Cart.Items) != 1 || sessionState.Cart.Items[0].ItemID != 512 || sessionState.Cart.Items[0].Amount != 4 {
+		t.Fatalf("cart items = %+v", sessionState.Cart.Items)
+	}
+
+	applyCartItemAdded(ctx, network.InventoryItem{Index: 3, ItemID: 512, Type: 0, Amount: 7, Identified: true})
+	if got := sessionState.Cart.Items[0].Amount; got != 7 {
+		t.Fatalf("cart amount after replace = %d, want 7", got)
+	}
+	applyCartItemRemoved(ctx, network.CartItemRemoved{Index: 3, Amount: 2})
+	if got := sessionState.Cart.Items[0].Amount; got != 5 {
+		t.Fatalf("cart amount after remove = %d, want 5", got)
+	}
+	applyCartClosed(ctx)
+	if sessionState.Cart.Open {
+		t.Fatalf("cart after close = %+v", sessionState.Cart)
 	}
 }

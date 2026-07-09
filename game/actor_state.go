@@ -89,7 +89,6 @@ func setActorRenderState(actor *worldstate.Actor, bodyState, healthState uint16,
 	actor.HealthState = healthState
 	actor.EffectState = effectState
 	actor.HasState = true
-	actor.HasCartState = false
 	applyActorCartStateFromEffect(actor)
 }
 

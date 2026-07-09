@@ -1481,6 +1481,7 @@ func convertCharacter(character network.Character) session.Character {
 		HeadTop:   character.HeadTop,
 		HeadMid:   character.HeadMid,
 		HeadLow:   character.HeadLow,
+		Option:    character.Option,
 	}
 }
 

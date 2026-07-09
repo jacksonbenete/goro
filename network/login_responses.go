@@ -43,6 +43,7 @@ type Character struct {
 	HeadTop   int16
 	HeadMid   int16
 	HeadLow   int16
+	Option    uint32
 }
 
 type CharList struct {
@@ -232,6 +233,7 @@ func parseCharacter108(data []byte) Character {
 		MaxHP:     int16(binary.LittleEndian.Uint16(data[44:46])),
 		SP:        int16(binary.LittleEndian.Uint16(data[46:48])),
 		MaxSP:     int16(binary.LittleEndian.Uint16(data[48:50])),
+		Option:    binary.LittleEndian.Uint32(data[28:32]),
 		Job:       int16(binary.LittleEndian.Uint16(data[52:54])),
 		Hair:      int16(binary.LittleEndian.Uint16(data[54:56])),
 		Weapon:    int16(binary.LittleEndian.Uint16(data[56:58])),
@@ -263,6 +265,7 @@ func parseLegacyCharacter106(data []byte) Character {
 		MaxHP:    int16(binary.LittleEndian.Uint16(data[44:46])),
 		SP:       int16(binary.LittleEndian.Uint16(data[46:48])),
 		MaxSP:    int16(binary.LittleEndian.Uint16(data[48:50])),
+		Option:   binary.LittleEndian.Uint32(data[28:32]),
 		Job:      int16(binary.LittleEndian.Uint16(data[52:54])),
 		Hair:     int16(binary.LittleEndian.Uint16(data[54:56])),
 		Weapon:   int16(binary.LittleEndian.Uint16(data[56:58])),

@@ -27,6 +27,16 @@ func applyStorageItemList(ctx client.Context, items []network.InventoryItem) {
 	}
 }
 
+func applyCartItemList(ctx client.Context, items []network.InventoryItem) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Cart.Open = true
+	for _, item := range items {
+		addOrReplaceSessionCartItem(ctx.Session, sessionItemFromNetwork(item))
+	}
+}
+
 func applyStorageAmount(ctx client.Context, amount network.StorageAmount) {
 	if ctx.Session == nil {
 		return
@@ -34,6 +44,17 @@ func applyStorageAmount(ctx client.Context, amount network.StorageAmount) {
 	ctx.Session.Storage.Open = true
 	ctx.Session.Storage.Amount = int(amount.Amount)
 	ctx.Session.Storage.MaxAmount = int(amount.MaxAmount)
+}
+
+func applyCartAmount(ctx client.Context, amount network.CartAmount) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Cart.Open = true
+	ctx.Session.Cart.Amount = int(amount.Amount)
+	ctx.Session.Cart.MaxAmount = int(amount.MaxAmount)
+	ctx.Session.Cart.Weight = int(amount.Weight)
+	ctx.Session.Cart.MaxWeight = int(amount.MaxWeight)
 }
 
 func applyStorageItemAdded(ctx client.Context, item network.InventoryItem) {
@@ -44,8 +65,20 @@ func applyStorageItemAdded(ctx client.Context, item network.InventoryItem) {
 	addOrReplaceSessionStorageItem(ctx.Session, sessionItemFromNetwork(item))
 }
 
+func applyCartItemAdded(ctx client.Context, item network.InventoryItem) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Cart.Open = true
+	addOrReplaceSessionCartItem(ctx.Session, sessionItemFromNetwork(item))
+}
+
 func applyStorageItemRemoved(ctx client.Context, item network.StorageItemRemoved) {
 	removeSessionStorageItem(ctx.Session, item.Index, int(item.Amount))
+}
+
+func applyCartItemRemoved(ctx client.Context, item network.CartItemRemoved) {
+	removeSessionCartItem(ctx.Session, item.Index, int(item.Amount))
 }
 
 func applyStorageClosed(ctx client.Context) {
@@ -56,6 +89,13 @@ func applyStorageClosed(ctx client.Context) {
 	ctx.Session.Storage.Items = nil
 	ctx.Session.Storage.Amount = 0
 	ctx.Session.Storage.MaxAmount = 0
+}
+
+func applyCartClosed(ctx client.Context) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Cart.Open = false
 }
 
 func applyInventoryItemDelete(ctx client.Context, item network.InventoryItemDelete) {
@@ -137,6 +177,24 @@ func addOrReplaceSessionStorageItem(s *session.Session, item session.InventoryIt
 		return
 	}
 	s.Storage.Items = append(s.Storage.Items, item)
+}
+
+func addOrReplaceSessionCartItem(s *session.Session, item session.InventoryItem) {
+	if s == nil || item.Index == 0 {
+		return
+	}
+	normalizeSessionInventoryItem(&item)
+	if item.Amount <= 0 {
+		item.Amount = 1
+	}
+	for i := range s.Cart.Items {
+		if s.Cart.Items[i].Index != item.Index {
+			continue
+		}
+		s.Cart.Items[i] = item
+		return
+	}
+	s.Cart.Items = append(s.Cart.Items, item)
 }
 
 func applyInventoryEquipAck(ctx client.Context, ack network.InventoryEquipAck) {
@@ -348,6 +406,26 @@ func removeSessionStorageItem(s *session.Session, index uint16, amount int) {
 			return
 		}
 		s.Storage.Items = append(s.Storage.Items[:i], s.Storage.Items[i+1:]...)
+		return
+	}
+}
+
+func removeSessionCartItem(s *session.Session, index uint16, amount int) {
+	if s == nil || index == 0 {
+		return
+	}
+	if amount <= 0 {
+		amount = 1
+	}
+	for i := range s.Cart.Items {
+		if s.Cart.Items[i].Index != index {
+			continue
+		}
+		s.Cart.Items[i].Amount -= amount
+		if s.Cart.Items[i].Amount > 0 {
+			return
+		}
+		s.Cart.Items = append(s.Cart.Items[:i], s.Cart.Items[i+1:]...)
 		return
 	}
 }

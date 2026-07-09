@@ -11,6 +11,7 @@ import (
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	worldstate "github.com/kivutar/goro/world"
 )
 
 func TestShopAddSellCartItemTracksAmount(t *testing.T) {
@@ -107,6 +108,36 @@ func TestStorageAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
 	ok := window.AcceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, window.window.x+12, window.window.y+20)
 	if !ok {
 		t.Fatal("drop over storage was not consumed")
+	}
+}
+
+func TestCartAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
+	window := CartWindow{}
+	sessionState := &session.Session{Cart: session.Cart{Open: true}}
+	ctx := Context{Session: sessionState, ScreenW: 800, ScreenH: 600}
+	window.OpenWindow(ctx)
+	ok := window.AcceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, window.window.x+12, window.window.y+20)
+	if !ok {
+		t.Fatal("drop over cart was not consumed")
+	}
+}
+
+func TestInventoryBagShowsCartButtonOnlyWhenPlayerHasCart(t *testing.T) {
+	if inventoryBagHasCart(Context{}) {
+		t.Fatal("empty context should not show cart button")
+	}
+	world := worldstate.New()
+	world.Player.HasCartState = true
+	world.Player.HasCart = true
+	if !inventoryBagHasCart(Context{World: world}) {
+		t.Fatal("player cart state should show cart button")
+	}
+	if !inventoryBagHasCart(Context{Session: &session.Session{Selected: session.Character{ID: 150004, Option: inventoryBagCartOptionMask}}}) {
+		t.Fatal("selected character cart option should show cart button")
+	}
+	world.Player.HasCart = false
+	if inventoryBagHasCart(Context{World: world, Session: &session.Session{Selected: session.Character{ID: 150004, Option: inventoryBagCartOptionMask}}}) {
+		t.Fatal("explicit world cart removal should hide cart button")
 	}
 }
 

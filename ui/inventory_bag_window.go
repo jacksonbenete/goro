@@ -36,6 +36,8 @@ const (
 	inventoryBagTabEtc
 )
 
+const inventoryBagCartOptionMask uint32 = 0x00000008 | 0x00000080 | 0x00000100 | 0x00000200 | 0x00000400
+
 var inventoryBagTabs = []struct {
 	label string
 	tab   int
@@ -51,6 +53,7 @@ type InventoryBagWindow struct {
 	scroll        int
 	snapshot      string
 	itemInfo      *ItemInfoWindow
+	cart          *CartWindow
 	lastClickItem uint16
 	lastClickAt   time.Time
 	dragItem      session.InventoryItem
@@ -76,24 +79,26 @@ func (w *InventoryBagWindow) Toggle(ctx Context) {
 	w.ClampScroll(ctx.Session)
 	w.snapshot = w.inventorySnapshot(ctx.Session)
 	x, y := inventoryBagDefaultPosition(ctx)
-	w.window.OpenAt(x, y, w.widgetTree(ctx, nil))
+	w.window.OpenAt(x, y, w.widgetTree(ctx, nil, nil))
 	w.Publish(ctx)
 }
 
-func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, itemInfo *ItemInfoWindow) bool {
+func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, itemInfo *ItemInfoWindow) bool {
 	w.ensureWindow()
 	if !w.window.IsOpen() || ctx.Input == nil {
 		return false
 	}
-	if w.UpdateDrag(ctx, shortcuts, storage) {
+	cartChanged := cart != w.cart
+	w.cart = cart
+	if w.UpdateDrag(ctx, shortcuts, storage, cart) {
 		return true
 	}
 	w.ClampScroll(ctx.Session)
 	snapshot := w.inventorySnapshot(ctx.Session)
-	if snapshot != w.snapshot || itemInfo != w.itemInfo {
+	if snapshot != w.snapshot || itemInfo != w.itemInfo || cartChanged {
 		w.snapshot = snapshot
 		w.itemInfo = itemInfo
-		w.window.SetContent(w.widgetTree(ctx, itemInfo))
+		w.window.SetContent(w.widgetTree(ctx, itemInfo, w.cart))
 	}
 	consumed := w.window.Update(ctx)
 	if !w.window.IsOpen() {
@@ -104,7 +109,7 @@ func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage
 	return consumed
 }
 
-func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow) bool {
+func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow) bool {
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
@@ -113,6 +118,9 @@ func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, sto
 		w.dragActive = false
 		w.dragItem = session.InventoryItem{}
 		if storage != nil && storage.AcceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+			return true
+		}
+		if cart != nil && cart.AcceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 			return true
 		}
 		if shortcuts != nil && shortcuts.AcceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
@@ -156,7 +164,7 @@ func (w *InventoryBagWindow) Publish(ctx Context) {
 	w.window.Publish(ctx)
 }
 
-func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
+func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
 	return Window(
 		Title("Inventory"),
 		CloseButton(true),
@@ -167,7 +175,7 @@ func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) w
 		Size(inventoryBagWidth, inventoryBagHeight),
 		Content(
 			primitives.HBox(
-				w.tabColumn(ctx),
+				w.tabColumn(ctx, cart),
 				newInventoryGridWidget(inventoryGridConfig{
 					items:   w.visibleItems(ctx.Session),
 					icons:   w.visibleItemIcons(ctx),
@@ -189,7 +197,7 @@ func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) w
 	)
 }
 
-func (w *InventoryBagWindow) tabColumn(ctx Context) widget.Widget {
+func (w *InventoryBagWindow) tabColumn(ctx Context, cart *CartWindow) widget.Widget {
 	tabs := make([]widget.Widget, 0, len(inventoryBagTabs))
 	for _, tab := range inventoryBagTabs {
 		tab := tab
@@ -208,6 +216,18 @@ func (w *InventoryBagWindow) tabColumn(ctx Context) widget.Widget {
 			},
 		}))
 	}
+	if inventoryBagHasCart(ctx) {
+		tabs = append(tabs,
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Cart", func() {
+				if cart != nil {
+					cart.Toggle(ctx)
+				}
+			}).
+				Width(inventoryBagTabW).
+				Height(24),
+		)
+	}
 	return primitives.Box(tabs...).
 		Width(inventoryBagTabW + inventoryBagTabOver*2).
 		Height(inventoryBagRows * inventoryBagCell).
@@ -218,8 +238,18 @@ func (w *InventoryBagWindow) refresh(ctx Context, itemInfo *ItemInfoWindow) {
 	w.ClampScroll(ctx.Session)
 	w.snapshot = w.inventorySnapshot(ctx.Session)
 	w.itemInfo = itemInfo
-	w.window.SetContent(w.widgetTree(ctx, itemInfo))
+	w.window.SetContent(w.widgetTree(ctx, itemInfo, w.cart))
 	w.Publish(ctx)
+}
+
+func inventoryBagHasCart(ctx Context) bool {
+	if ctx.World != nil && ctx.World.Player.HasCartState {
+		return ctx.World.Player.HasCart
+	}
+	if selectedCharacter(ctx.Session).Option&inventoryBagCartOptionMask != 0 {
+		return true
+	}
+	return ctx.Session != nil && (ctx.Session.Cart.MaxAmount > 0 || len(ctx.Session.Cart.Items) > 0)
 }
 
 func (w *InventoryBagWindow) startItemDragOrActivate(ctx Context, item session.InventoryItem) {

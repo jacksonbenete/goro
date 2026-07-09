@@ -21,6 +21,8 @@ const (
 	PacketCZMoveToStorage      uint16 = 0x0094
 	PacketCZMoveFromStorage    uint16 = 0x00F7
 	PacketCZCloseStorage       uint16 = 0x0193
+	PacketCZMoveToCart         uint16 = 0x0126
+	PacketCZMoveFromCart       uint16 = 0x0127
 )
 
 type itemPickupPacketLayout struct {
@@ -189,7 +191,19 @@ type StorageAmount struct {
 	MaxAmount uint16
 }
 
+type CartAmount struct {
+	Amount    uint16
+	MaxAmount uint16
+	Weight    uint32
+	MaxWeight uint32
+}
+
 type StorageItemRemoved struct {
+	Index  uint16
+	Amount uint32
+}
+
+type CartItemRemoved struct {
 	Index  uint16
 	Amount uint32
 }
@@ -394,6 +408,25 @@ func ParseStorageItemList(packet Packet) ([]InventoryItem, bool, error) {
 	}
 }
 
+func ParseCartItemList(packet Packet) ([]InventoryItem, bool, error) {
+	switch packet.ID {
+	case 0x0123:
+		return parseNormalInventoryItems(packet, 10)
+	case 0x02E9:
+		return parseNormalInventoryItems(packet, 22)
+	case 0x0993:
+		return parseNormalInventoryItems4(packet)
+	case 0x0122:
+		return parseEquipInventoryItems(packet, 20)
+	case 0x02D2:
+		return parseEquipInventoryItems(packet, 28)
+	case 0x0994:
+		return parseEquipInventoryItems4(packet, 31)
+	default:
+		return nil, false, nil
+	}
+}
+
 func parseNormalInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bool, error) {
 	if len(packet.Data) < 4 {
 		return nil, false, fmt.Errorf("ZC_NORMAL_ITEMLIST 0x%04X too short: %d", packet.ID, len(packet.Data))
@@ -564,6 +597,21 @@ func ParseStorageAmount(packet Packet) (StorageAmount, bool, error) {
 	}, true, nil
 }
 
+func ParseCartAmount(packet Packet) (CartAmount, bool, error) {
+	if packet.ID != 0x0121 {
+		return CartAmount{}, false, nil
+	}
+	if len(packet.Data) < 14 {
+		return CartAmount{}, false, fmt.Errorf("ZC_NOTIFY_CARTITEM_COUNTINFO too short: %d", len(packet.Data))
+	}
+	return CartAmount{
+		Amount:    binary.LittleEndian.Uint16(packet.Data[2:4]),
+		MaxAmount: binary.LittleEndian.Uint16(packet.Data[4:6]),
+		Weight:    binary.LittleEndian.Uint32(packet.Data[6:10]),
+		MaxWeight: binary.LittleEndian.Uint32(packet.Data[10:14]),
+	}, true, nil
+}
+
 func ParseStorageItemAdded(packet Packet) (InventoryItem, bool, error) {
 	switch packet.ID {
 	case 0x00F4:
@@ -596,6 +644,38 @@ func ParseStorageItemAdded(packet Packet) (InventoryItem, bool, error) {
 	}
 }
 
+func ParseCartItemAdded(packet Packet) (InventoryItem, bool, error) {
+	switch packet.ID {
+	case 0x0124:
+		if len(packet.Data) < 21 {
+			return InventoryItem{}, false, fmt.Errorf("ZC_ADD_ITEM_TO_CART too short: %d", len(packet.Data))
+		}
+		return InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:     uint16(minIntNetwork(int(binary.LittleEndian.Uint32(packet.Data[4:8])), int(^uint16(0)))),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[8:10]),
+			Identified: packet.Data[10] != 0,
+			Damaged:    packet.Data[11] != 0,
+			Refine:     packet.Data[12],
+		}, true, nil
+	case 0x01C5:
+		if len(packet.Data) < 22 {
+			return InventoryItem{}, false, fmt.Errorf("ZC_ADD_ITEM_TO_CART2 too short: %d", len(packet.Data))
+		}
+		return InventoryItem{
+			Index:      binary.LittleEndian.Uint16(packet.Data[2:4]),
+			Amount:     uint16(minIntNetwork(int(binary.LittleEndian.Uint32(packet.Data[4:8])), int(^uint16(0)))),
+			ItemID:     binary.LittleEndian.Uint16(packet.Data[8:10]),
+			Type:       packet.Data[10],
+			Identified: packet.Data[11] != 0,
+			Damaged:    packet.Data[12] != 0,
+			Refine:     packet.Data[13],
+		}, true, nil
+	default:
+		return InventoryItem{}, false, nil
+	}
+}
+
 func ParseStorageItemRemoved(packet Packet) (StorageItemRemoved, bool, error) {
 	if packet.ID != 0x00F6 {
 		return StorageItemRemoved{}, false, nil
@@ -604,6 +684,19 @@ func ParseStorageItemRemoved(packet Packet) (StorageItemRemoved, bool, error) {
 		return StorageItemRemoved{}, false, fmt.Errorf("ZC_DELETE_ITEM_FROM_STORE too short: %d", len(packet.Data))
 	}
 	return StorageItemRemoved{
+		Index:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Amount: binary.LittleEndian.Uint32(packet.Data[4:8]),
+	}, true, nil
+}
+
+func ParseCartItemRemoved(packet Packet) (CartItemRemoved, bool, error) {
+	if packet.ID != 0x0125 {
+		return CartItemRemoved{}, false, nil
+	}
+	if len(packet.Data) < 8 {
+		return CartItemRemoved{}, false, fmt.Errorf("ZC_DELETE_ITEM_FROM_CART too short: %d", len(packet.Data))
+	}
+	return CartItemRemoved{
 		Index:  binary.LittleEndian.Uint16(packet.Data[2:4]),
 		Amount: binary.LittleEndian.Uint32(packet.Data[4:8]),
 	}, true, nil
@@ -871,6 +964,25 @@ func BuildCloseStoragePacketForClientDate(clientDate int) []byte {
 	return packet
 }
 
+func BuildMoveToCartPacket(index uint16, amount uint32) []byte {
+	return buildCartMovePacket(PacketCZMoveToCart, index, amount)
+}
+
+func BuildMoveFromCartPacket(index uint16, amount uint32) []byte {
+	return buildCartMovePacket(PacketCZMoveFromCart, index, amount)
+}
+
+func buildCartMovePacket(opcode uint16, index uint16, amount uint32) []byte {
+	if amount == 0 {
+		amount = 1
+	}
+	packet := make([]byte, 8)
+	binary.LittleEndian.PutUint16(packet[0:2], opcode)
+	binary.LittleEndian.PutUint16(packet[2:4], index)
+	binary.LittleEndian.PutUint32(packet[4:8], amount)
+	return packet
+}
+
 func BuildShopDealSelectionPacket(npcID uint32, dealType uint8) []byte {
 	var w Writer
 	w.Uint16(PacketCZACKSelectDealType)
@@ -1002,6 +1114,28 @@ func (c *Client) SendCloseStorage() error {
 		log.Printf("sent CZ_CLOSE_STORAGE opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
 	} else {
 		log.Printf("send CZ_CLOSE_STORAGE failed opcode=0x%04X len=%d client_date=%d: %v", ID(packet), len(packet), c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMoveToCart(index uint16, amount uint32) error {
+	packet := BuildMoveToCartPacket(index, amount)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_MOVE_ITEM_TO_CART opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
+	} else {
+		log.Printf("send CZ_MOVE_ITEM_TO_CART failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMoveFromCart(index uint16, amount uint32) error {
+	packet := BuildMoveFromCartPacket(index, amount)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_MOVE_ITEM_FROM_CART opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
+	} else {
+		log.Printf("send CZ_MOVE_ITEM_FROM_CART failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
 	}
 	return err
 }

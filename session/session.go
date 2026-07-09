@@ -27,6 +27,7 @@ type Session struct {
 	Progress     Progress
 	Inventory    Inventory
 	Storage      Storage
+	Cart         Cart
 	Stats        Stats
 	Skills       Skills
 	Statuses     Statuses
@@ -101,6 +102,7 @@ type Character struct {
 	HeadTop   int16
 	HeadMid   int16
 	HeadLow   int16
+	Option    uint32
 }
 
 type Vitals struct {
@@ -130,6 +132,15 @@ type Storage struct {
 	Open      bool
 	Amount    int
 	MaxAmount int
+	Items     []InventoryItem
+}
+
+type Cart struct {
+	Open      bool
+	Amount    int
+	MaxAmount int
+	Weight    int
+	MaxWeight int
 	Items     []InventoryItem
 }
 

@@ -1,0 +1,433 @@
+package ui
+
+import (
+	"fmt"
+	"image"
+	"log"
+	"sort"
+	"time"
+
+	"github.com/gogpu/ui/core/datatable"
+	"github.com/gogpu/ui/primitives"
+	"github.com/gogpu/ui/state"
+	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/res"
+	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
+)
+
+const (
+	cartWindowWidth   = storageWindowWidth
+	cartWindowFooterH = storageWindowFooterH
+	cartRows          = storageRows
+	cartWindowHeight  = ROWindowTitleHeight + storageTableHeaderH + cartRows*storageRowH + cartWindowFooterH
+)
+
+type CartWindow struct {
+	window        WindowState
+	scrollY       state.Signal[float32]
+	selectedRow   int
+	snapshot      string
+	itemInfo      *ItemInfoWindow
+	lastClickItem uint16
+	lastClickAt   time.Time
+	dragItem      session.InventoryItem
+	dragActive    bool
+	dragFrom      time.Time
+	icons         map[storageItemIconKey]image.Image
+	iconMiss      map[storageItemIconKey]struct{}
+}
+
+func (w *CartWindow) Toggle(ctx Context) {
+	w.ensureWindow()
+	if w.window.IsOpen() {
+		w.close(ctx)
+		w.Publish(ctx)
+		return
+	}
+	w.OpenWindow(ctx)
+}
+
+func (w *CartWindow) OpenWindow(ctx Context) {
+	w.ensureWindow()
+	w.ClampScroll(ctx.Session)
+	w.selectedRow = -1
+	w.snapshot = w.cartSnapshot(ctx.Session)
+	x, y := cartDefaultPosition(ctx)
+	if !w.window.IsOpen() {
+		w.window.OpenAt(x, y, w.widgetTree(ctx, nil))
+	} else {
+		w.window.SetAutoPosition(x, y)
+		w.window.SetContent(w.widgetTree(ctx, w.itemInfo))
+	}
+	if ctx.Session != nil {
+		ctx.Session.Cart.Open = true
+	}
+	w.Publish(ctx)
+}
+
+func (w *CartWindow) Update(ctx Context, inventory *InventoryBagWindow, itemInfo *ItemInfoWindow) bool {
+	w.ensureWindow()
+	if !w.window.IsOpen() || ctx.Input == nil {
+		return false
+	}
+	if !inventoryBagHasCart(ctx) {
+		w.close(ctx)
+		w.Publish(ctx)
+		return false
+	}
+	if w.UpdateDrag(ctx, inventory) {
+		return true
+	}
+	if ctx.Input.JustPressed(render.KeyEscape) {
+		w.close(ctx)
+		w.Publish(ctx)
+		return true
+	}
+	w.ClampScroll(ctx.Session)
+	snapshot := w.cartSnapshot(ctx.Session)
+	if snapshot != w.snapshot || itemInfo != w.itemInfo {
+		w.snapshot = snapshot
+		w.itemInfo = itemInfo
+		w.window.SetContent(w.widgetTree(ctx, itemInfo))
+	}
+	if w.handlePointer(ctx, itemInfo) {
+		return true
+	}
+	consumed := w.window.Update(ctx)
+	if !w.window.IsOpen() {
+		w.Publish(ctx)
+		return consumed
+	}
+	w.Publish(ctx)
+	return consumed
+}
+
+func (w *CartWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow) bool {
+	if !w.dragActive || ctx.Input == nil {
+		return false
+	}
+	if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
+		item := w.dragItem
+		w.dragActive = false
+		w.dragItem = session.InventoryItem{}
+		if inventory != nil && inventory.AcceptStorageDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+			w.withdraw(ctx, item)
+			return true
+		}
+		return true
+	}
+	return true
+}
+
+func (w *CartWindow) Draw(screen *render.Image, ctx Context, assets AssetProvider) {
+	w.Publish(ctx)
+}
+
+func (w *CartWindow) DrawDragGhost(screen *render.Image, ctx Context, assets AssetProvider) {
+	if w.dragActive && screen != nil && ctx.Input != nil && assets != nil && time.Since(w.dragFrom) > 80*time.Millisecond {
+		assets.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, ctx.Input.MouseX-inventoryIconSize/2, ctx.Input.MouseY-inventoryIconSize/2)
+	}
+}
+
+func (w *CartWindow) Publish(ctx Context) {
+	w.ensureWindow()
+	if !w.window.IsOpen() {
+		w.window.Unpublish(ctx)
+		return
+	}
+	w.window.Publish(ctx)
+}
+
+func (w *CartWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
+	w.ensureWindow()
+	if !w.window.IsOpen() || !pointInRect(mx, my, w.window.x, w.window.y, cartWindowWidth, cartWindowHeight) {
+		return false
+	}
+	amount := uint32(item.Amount)
+	if amount == 0 {
+		amount = 1
+	}
+	if ctx.Network == nil {
+		log.Printf("cart deposit failed: not connected")
+		return true
+	}
+	if err := ctx.Network.SendMoveToCart(item.Index, amount); err != nil {
+		log.Printf("cart deposit failed: %v", err)
+		return true
+	}
+	log.Printf("cart deposit requested index=%d item=%d amount=%d", item.Index, item.ItemID, amount)
+	return true
+}
+
+func (w *CartWindow) ensureWindow() {
+	if w.window.width == 0 {
+		w.window = NewWindowState(cartWindowWidth, cartWindowHeight)
+		w.window.SetCloseOnEscape(false)
+		w.selectedRow = -1
+	}
+}
+
+func (w *CartWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
+	return Window(
+		Title("Pushcart"),
+		CloseButton(true),
+		OnClose(func() {
+			w.close(ctx)
+			w.Publish(ctx)
+		}),
+		Size(cartWindowWidth, cartWindowHeight),
+		FooterHeight(cartWindowFooterH),
+		FooterPadding(10),
+		Content(
+			primitives.Box(w.cartTableWidget(ctx)).
+				Height(storageTableHeight()).
+				Background(rotheme.Default.Colors.PanelBody),
+		),
+		Footer(
+			primitives.HBox(
+				rotheme.Text(w.cartCountText(ctx.Session)),
+				primitives.Expanded(primitives.Box()),
+				rotheme.Text(w.cartWeightText(ctx.Session)),
+			).
+				CrossAlign(primitives.CrossAxisCenter),
+		),
+	)
+}
+
+func (w *CartWindow) cartTableWidget(ctx Context) *datatable.Widget {
+	items := sortedCartItems(ctx.Session)
+	rows := w.cartRows(ctx, items)
+	return datatable.New(
+		datatable.Columns([]datatable.Column{
+			{Key: "item", Title: "Item", Width: 236},
+			{Key: "amount", Title: "Qty", Width: 76, Align: widget.TextAlignRight},
+		}),
+		datatable.RowCount(len(rows)),
+		datatable.RowHeight(storageRowH),
+		datatable.ScrollYSignal(w.ensureScrollSignal()),
+		datatable.SelectionModeOpt(datatable.SelectionSingle),
+		datatable.SelectedRow(w.selectedRow),
+		datatable.PainterOpt(storageTablePainter{icons: w.cartItemIcons(ctx, items)}),
+		datatable.CellValue(func(row int, col string) string {
+			if row < 0 || row >= len(rows) {
+				return ""
+			}
+			if col == "amount" {
+				return rows[row].amount
+			}
+			return rows[row].name
+		}),
+		datatable.OnRowSelect(func(row int) {
+			if row >= 0 && row < len(rows) {
+				w.selectedRow = row
+			}
+		}),
+	)
+}
+
+func (w *CartWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) bool {
+	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+		item, _, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)
+		if !ok {
+			return false
+		}
+		if itemInfo != nil {
+			itemInfo.openItem(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY)
+		}
+		return true
+	}
+	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+		return false
+	}
+	item, row, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)
+	if !ok {
+		return false
+	}
+	w.selectedRow = row
+	now := time.Now()
+	if w.lastClickItem == item.Index && now.Sub(w.lastClickAt) <= 360*time.Millisecond {
+		w.withdraw(ctx, item)
+		w.lastClickItem = 0
+		w.refresh(ctx, itemInfo)
+		return true
+	}
+	w.lastClickItem = item.Index
+	w.lastClickAt = now
+	w.dragItem = item
+	w.dragActive = true
+	w.dragFrom = now
+	w.refresh(ctx, itemInfo)
+	return true
+}
+
+func (w *CartWindow) close(ctx Context) {
+	w.window.Close()
+	w.dragActive = false
+	if ctx.Session != nil {
+		ctx.Session.Cart.Open = false
+	}
+}
+
+func (w *CartWindow) withdraw(ctx Context, item session.InventoryItem) {
+	amount := uint32(item.Amount)
+	if amount == 0 {
+		amount = 1
+	}
+	if ctx.Network == nil {
+		log.Printf("cart withdraw failed: not connected")
+		return
+	}
+	if err := ctx.Network.SendMoveFromCart(item.Index, amount); err != nil {
+		log.Printf("cart withdraw failed: %v", err)
+		return
+	}
+	log.Printf("cart withdraw requested index=%d item=%d amount=%d", item.Index, item.ItemID, amount)
+}
+
+func (w *CartWindow) refresh(ctx Context, itemInfo *ItemInfoWindow) {
+	w.ensureWindow()
+	w.ClampScroll(ctx.Session)
+	w.snapshot = w.cartSnapshot(ctx.Session)
+	w.itemInfo = itemInfo
+	w.window.SetContent(w.widgetTree(ctx, itemInfo))
+	w.Publish(ctx)
+}
+
+func (w *CartWindow) Refresh(ctx Context, itemInfo *ItemInfoWindow) {
+	w.refresh(ctx, itemInfo)
+}
+
+func (w *CartWindow) ClampScroll(s *session.Session) {
+	items := sortedCartItems(s)
+	if w.selectedRow >= len(items) {
+		w.selectedRow = -1
+	}
+	scroll := w.ensureScrollSignal()
+	maxScroll := float32(maxInt(0, len(items)-cartRows) * storageRowH)
+	switch value := scroll.Get(); {
+	case value < 0:
+		scroll.Set(0)
+	case value > maxScroll:
+		scroll.Set(maxScroll)
+	}
+}
+
+func (w *CartWindow) cartRows(ctx Context, items []session.InventoryItem) []storageTableRow {
+	rows := make([]storageTableRow, len(items))
+	for i, item := range items {
+		name := inventoryItemDisplayName(ctx.Resources, item)
+		if item.Refine > 0 {
+			name = fmt.Sprintf("+%d %s", item.Refine, name)
+		}
+		rows[i] = storageTableRow{
+			name:   name,
+			amount: fmt.Sprintf("x%d", maxInt(1, item.Amount)),
+		}
+	}
+	return rows
+}
+
+func (w *CartWindow) cartItemIcons(ctx Context, items []session.InventoryItem) []image.Image {
+	icons := make([]image.Image, len(items))
+	for i, item := range items {
+		icons[i] = w.itemIconImage(ctx.Resources, item)
+	}
+	return icons
+}
+
+func (w *CartWindow) itemIconImage(manager *res.Manager, item session.InventoryItem) image.Image {
+	if manager == nil || item.ItemID == 0 {
+		return nil
+	}
+	key := storageItemIconKey{itemID: item.ItemID, identified: item.Identified}
+	if w.icons != nil {
+		if img := w.icons[key]; img != nil {
+			return img
+		}
+	}
+	if _, ok := w.iconMiss[key]; ok {
+		return nil
+	}
+	resourceName, ok := manager.ItemResourceName(int(item.ItemID), item.Identified)
+	if !ok {
+		w.markIconMiss(key)
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, res.ItemIconTextureCandidates(resourceName))
+	if err != nil {
+		w.markIconMiss(key)
+		return nil
+	}
+	if w.icons == nil {
+		w.icons = make(map[storageItemIconKey]image.Image)
+	}
+	w.icons[key] = img
+	return img
+}
+
+func (w *CartWindow) markIconMiss(key storageItemIconKey) {
+	if w.iconMiss == nil {
+		w.iconMiss = make(map[storageItemIconKey]struct{})
+	}
+	w.iconMiss[key] = struct{}{}
+}
+
+func (w *CartWindow) ensureScrollSignal() state.Signal[float32] {
+	if w.scrollY == nil {
+		w.scrollY = state.NewSignal[float32](0)
+	}
+	return w.scrollY
+}
+
+func (w *CartWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, int, bool) {
+	tableX := w.window.x
+	tableY := w.window.y + ROWindowTitleHeight
+	row, ok := storageTableRowAt(mx, my, tableX, tableY, cartWindowWidth, int(storageTableHeight()), len(sortedCartItems(s)), w.ensureScrollSignal().Get())
+	if !ok {
+		return session.InventoryItem{}, 0, false
+	}
+	items := sortedCartItems(s)
+	if row < 0 || row >= len(items) {
+		return session.InventoryItem{}, 0, false
+	}
+	return items[row], row, true
+}
+
+func (w *CartWindow) cartSnapshot(s *session.Session) string {
+	if s == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d/%d:%d/%d:%v", s.Cart.Amount, s.Cart.MaxAmount, s.Cart.Weight, s.Cart.MaxWeight, sortedCartItems(s))
+}
+
+func (w *CartWindow) cartCountText(s *session.Session) string {
+	if s == nil {
+		return "Num: 0/0"
+	}
+	return fmt.Sprintf("Num: %d/%d", s.Cart.Amount, s.Cart.MaxAmount)
+}
+
+func (w *CartWindow) cartWeightText(s *session.Session) string {
+	if s == nil || s.Cart.MaxWeight <= 0 {
+		return "Weight: 0/0"
+	}
+	return fmt.Sprintf("Weight: %.1f/%.1f", float64(s.Cart.Weight)/10, float64(s.Cart.MaxWeight)/10)
+}
+
+func cartDefaultPosition(ctx Context) (int, int) {
+	width, _ := ctx.ScreenSize()
+	return maxInt(8, width-cartWindowWidth-24), 118
+}
+
+func sortedCartItems(s *session.Session) []session.InventoryItem {
+	if s == nil || len(s.Cart.Items) == 0 {
+		return nil
+	}
+	items := append([]session.InventoryItem(nil), s.Cart.Items...)
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].Index < items[j].Index
+	})
+	return items
+}
