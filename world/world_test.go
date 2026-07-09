@@ -21,6 +21,8 @@ func TestUpsertActorMovePreservesAppearance(t *testing.T) {
 		HeadTop:    22,
 		HeadMid:    33,
 		HeadLow:    11,
+		HeadPal:    8,
+		BodyPal:    6,
 		Sex:        1,
 		Appearance: true,
 	})
@@ -37,7 +39,7 @@ func TestUpsertActorMovePreservesAppearance(t *testing.T) {
 	})
 
 	actor := w.Actors[2000001]
-	if actor.Job != 3 || actor.Head != 7 || actor.Sex != 1 || actor.Weapon != 1201 || actor.Shield != 2101 || actor.HeadTop != 22 || actor.HeadMid != 33 || actor.HeadLow != 11 || !actor.Appearance {
+	if actor.Job != 3 || actor.Head != 7 || actor.Sex != 1 || actor.Weapon != 1201 || actor.Shield != 2101 || actor.HeadTop != 22 || actor.HeadMid != 33 || actor.HeadLow != 11 || actor.HeadPal != 8 || actor.BodyPal != 6 || !actor.Appearance {
 		t.Fatalf("appearance not preserved: %+v", actor)
 	}
 	if !actor.Moving || actor.FromX != 10 || actor.FromY != 20 || actor.ToX != 12 || actor.ToY != 24 {

@@ -157,14 +157,16 @@ type hoveredWalkCellKey struct {
 }
 
 type actorSpriteKey struct {
-	job     int
-	head    int
-	sex     byte
-	weapon  int
-	shield  int
-	headTop int
-	headMid int
-	headLow int
+	job         int
+	head        int
+	sex         byte
+	bodyPalette int
+	headPalette int
+	weapon      int
+	shield      int
+	headTop     int
+	headMid     int
+	headLow     int
 }
 
 type attackIntent struct {
@@ -2755,14 +2757,16 @@ func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor worldst
 	}
 	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
 	key := actorSpriteKey{
-		job:     int(actor.Job),
-		head:    int(actor.Head),
-		sex:     actor.Sex,
-		weapon:  weapon,
-		shield:  shield,
-		headTop: int(actor.HeadTop),
-		headMid: int(actor.HeadMid),
-		headLow: int(actor.HeadLow),
+		job:         int(actor.Job),
+		head:        int(actor.Head),
+		sex:         actor.Sex,
+		bodyPalette: int(actor.BodyPal),
+		headPalette: int(actor.HeadPal),
+		weapon:      weapon,
+		shield:      shield,
+		headTop:     int(actor.HeadTop),
+		headMid:     int(actor.HeadMid),
+		headLow:     int(actor.HeadLow),
 	}
 	return m.actorViews[key]
 }
@@ -4050,6 +4054,8 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 		HeadTop:       entry.HeadTop,
 		HeadMid:       entry.HeadMid,
 		HeadLow:       entry.HeadLow,
+		HeadPal:       entry.HeadPal,
+		BodyPal:       entry.BodyPal,
 		Sex:           entry.Sex,
 		HeadDir:       entry.HeadDir,
 		Appearance:    entry.Appearance,
@@ -5735,30 +5741,23 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 	}
 	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
 	key := actorSpriteKey{
-		job:     int(actor.Job),
-		head:    int(actor.Head),
-		sex:     actor.Sex,
-		weapon:  weapon,
-		shield:  shield,
-		headTop: int(actor.HeadTop),
-		headMid: int(actor.HeadMid),
-		headLow: int(actor.HeadLow),
+		job:         int(actor.Job),
+		head:        int(actor.Head),
+		sex:         actor.Sex,
+		bodyPalette: int(actor.BodyPal),
+		headPalette: int(actor.HeadPal),
+		weapon:      weapon,
+		shield:      shield,
+		headTop:     int(actor.HeadTop),
+		headMid:     int(actor.HeadMid),
+		headLow:     int(actor.HeadLow),
 	}
 	if _, ok := m.actorViewMiss[key]; ok {
 		return false
 	}
 	view, ok := m.actorViews[key]
 	if !ok {
-		loaded, status := loadHumanoidSpriteViewWithAppearance(ctx.Resources, humanoidAppearance{
-			job:     key.job,
-			head:    key.head,
-			sex:     key.sex,
-			weapon:  key.weapon,
-			shield:  key.shield,
-			headTop: key.headTop,
-			headMid: key.headMid,
-			headLow: key.headLow,
-		}, "actor")
+		loaded, status := loadHumanoidSpriteViewWithAppearance(ctx.Resources, humanoidAppearance(key), "actor")
 		if loaded == nil {
 			m.actorViewMiss[key] = struct{}{}
 			log.Printf("actor sprite unavailable id=%d job=%d head=%d sex=%d: %s", actor.ID, key.job, key.head, key.sex, status)

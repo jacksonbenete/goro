@@ -14,6 +14,8 @@ type ActorEntry struct {
 	HeadTop       int16
 	HeadMid       int16
 	HeadLow       int16
+	HeadPal       int16
+	BodyPal       int16
 	Sex           uint8
 	HeadDir       uint8
 	Appearance    bool
@@ -334,6 +336,64 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			ToY:        toY,
 			Moving:     true,
 		}, true, nil
+	case 0x02ED:
+		if len(packet.Data) < 59 {
+			return ActorEntry{}, false, fmt.Errorf("ZC_NOTIFY_NEWENTRY3 too short: %d", len(packet.Data))
+		}
+		x, y, dir := unpackPos(packet.Data[50:53])
+		weaponValue := binary.LittleEndian.Uint32(packet.Data[20:24])
+		return ActorEntry{
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:       int(binary.LittleEndian.Uint16(packet.Data[6:8])),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[8:10]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[10:12]),
+			EffectState: binary.LittleEndian.Uint32(packet.Data[12:16]),
+			HasState:    true,
+			Job:         int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Head:        int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			Weapon:      int16(weaponValue & 0xFFFF),
+			Shield:      int16((weaponValue >> 16) & 0xFFFF),
+			HeadLow:     int16(binary.LittleEndian.Uint16(packet.Data[24:26])),
+			HeadTop:     int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			HeadMid:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadPal:     int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			BodyPal:     int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
+			HeadDir:     uint8(binary.LittleEndian.Uint16(packet.Data[34:36])),
+			Sex:         packet.Data[49],
+			Appearance:  true,
+			X:           x,
+			Y:           y,
+			Dir:         dir,
+		}, true, nil
+	case 0x02EE:
+		if len(packet.Data) < 60 {
+			return ActorEntry{}, false, fmt.Errorf("ZC_NOTIFY_STANDENTRY3 too short: %d", len(packet.Data))
+		}
+		x, y, dir := unpackPos(packet.Data[50:53])
+		weaponValue := binary.LittleEndian.Uint32(packet.Data[20:24])
+		return ActorEntry{
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:       int(binary.LittleEndian.Uint16(packet.Data[6:8])),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[8:10]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[10:12]),
+			EffectState: binary.LittleEndian.Uint32(packet.Data[12:16]),
+			HasState:    true,
+			Job:         int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Head:        int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			Weapon:      int16(weaponValue & 0xFFFF),
+			Shield:      int16((weaponValue >> 16) & 0xFFFF),
+			HeadLow:     int16(binary.LittleEndian.Uint16(packet.Data[24:26])),
+			HeadTop:     int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			HeadMid:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadPal:     int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			BodyPal:     int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
+			HeadDir:     uint8(binary.LittleEndian.Uint16(packet.Data[34:36])),
+			Sex:         packet.Data[49],
+			Appearance:  true,
+			X:           x,
+			Y:           y,
+			Dir:         dir,
+		}, true, nil
 	case 0x022C, 0x02EC:
 		entry, err := parseActorMoveEntryModern(packet)
 		if err != nil {
@@ -383,6 +443,9 @@ func parseActorMoveEntryModern(packet Packet) (ActorEntry, error) {
 		HeadLow:       int16(binary.LittleEndian.Uint16(packet.Data[25:27])),
 		HeadTop:       int16(binary.LittleEndian.Uint16(packet.Data[31:33])),
 		HeadMid:       int16(binary.LittleEndian.Uint16(packet.Data[33:35])),
+		HeadPal:       int16(binary.LittleEndian.Uint16(packet.Data[35:37])),
+		BodyPal:       int16(binary.LittleEndian.Uint16(packet.Data[37:39])),
+		HeadDir:       uint8(binary.LittleEndian.Uint16(packet.Data[39:41])),
 		Sex:           packet.Data[54],
 		Appearance:    true,
 		X:             toX,
@@ -426,6 +489,9 @@ func parseActorMoveEntryVariable(packet Packet, hasRobe bool) (ActorEntry, error
 		HeadLow:       int16(binary.LittleEndian.Uint16(packet.Data[27:29])),
 		HeadTop:       int16(binary.LittleEndian.Uint16(packet.Data[33:35])),
 		HeadMid:       int16(binary.LittleEndian.Uint16(packet.Data[35:37])),
+		HeadPal:       int16(binary.LittleEndian.Uint16(packet.Data[37:39])),
+		BodyPal:       int16(binary.LittleEndian.Uint16(packet.Data[39:41])),
+		HeadDir:       uint8(binary.LittleEndian.Uint16(packet.Data[41:43])),
 		Sex:           packet.Data[sexOffset],
 		Appearance:    true,
 		X:             toX,

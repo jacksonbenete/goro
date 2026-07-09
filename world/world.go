@@ -48,6 +48,8 @@ type Actor struct {
 	HeadTop       int16
 	HeadMid       int16
 	HeadLow       int16
+	HeadPal       int16
+	BodyPal       int16
 	Sex           byte
 	HeadDir       uint8
 	Appearance    bool
@@ -246,6 +248,8 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.HeadTop = existing.HeadTop
 			actor.HeadMid = existing.HeadMid
 			actor.HeadLow = existing.HeadLow
+			actor.HeadPal = existing.HeadPal
+			actor.BodyPal = existing.BodyPal
 			actor.Sex = existing.Sex
 			actor.HeadDir = existing.HeadDir
 			actor.Appearance = existing.Appearance
