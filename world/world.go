@@ -67,6 +67,10 @@ type Actor struct {
 	HasObjectType bool
 	Speed         int
 	Sitting       bool
+	BodyState     uint16
+	HealthState   uint16
+	EffectState   uint32
+	HasState      bool
 }
 
 type WalkStep struct {
@@ -218,6 +222,12 @@ func (w *World) UpsertActor(actor Actor) {
 		}
 		if actor.Speed <= 0 {
 			actor.Speed = existing.Speed
+		}
+		if !actor.HasState {
+			actor.BodyState = existing.BodyState
+			actor.HealthState = existing.HealthState
+			actor.EffectState = existing.EffectState
+			actor.HasState = existing.HasState
 		}
 		if actor.Moving && actor.FromX == 0 && actor.FromY == 0 {
 			actor.FromX = existing.X

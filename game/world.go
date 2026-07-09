@@ -752,6 +752,18 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			applyActorDirectionChange(ctx, direction)
 			continue
 		}
+		if state, ok, err := network.ParseActorStateChange(pkt); err != nil {
+			log.Printf("parse actor state change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyActorStateChange(ctx, state)
+			continue
+		}
+		if bladeStop, ok, err := network.ParseActorBladeStop(pkt); err != nil {
+			log.Printf("parse actor blade stop 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyActorBladeStop(ctx, bladeStop)
+			continue
+		}
 		if action, ok, err := network.ParseActorActionNotify(pkt); err != nil {
 			log.Printf("parse actor action 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -3903,6 +3915,10 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 		ObjectType:    entry.ObjectType,
 		HasObjectType: entry.HasObjectType,
 		Speed:         entry.Speed,
+		BodyState:     entry.BodyState,
+		HealthState:   entry.HealthState,
+		EffectState:   entry.EffectState,
+		HasState:      entry.HasState,
 	})
 }
 
@@ -5610,11 +5626,14 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 		state.speed = anim.speed
 		state.hasSpeed = anim.hasSpeed
 	}
+	if !isDeathActionFamily(state.actionFamily) {
+		applyActorBodyState(actor, &state)
+	}
 	billboard, ok := humanoidBillboardForState(view, state, now)
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow)
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow, actorStateTint(actor))
 	return true
 }
 
@@ -5631,7 +5650,7 @@ func (m *WorldMode) drawNonPCSprite3D(screen *render.Image, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, m.actorDeathAlpha(actor.ID, now), shadow)
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, m.actorDeathAlpha(actor.ID, now), shadow, actorStateTint(actor))
 	return true
 }
 
@@ -5665,7 +5684,14 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 		state.speed = anim.speed
 		state.hasSpeed = anim.hasSpeed
 	}
+	if !isDeathActionFamily(state.actionFamily) {
+		applyActorBodyState(actor, &state)
+	}
 	return state
+}
+
+func isDeathActionFamily(actionFamily int) bool {
+	return actionFamily == spriteActionPCDeath || actionFamily == spriteActionNonPCDeath
 }
 
 func (m *WorldMode) nonPCSpriteView(ctx client.Context, actor worldstate.Actor) *playerSpriteView {

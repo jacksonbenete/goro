@@ -153,6 +153,40 @@ func TestApplyStatusEffectChangeIgnoresRemoteActor(t *testing.T) {
 	}
 }
 
+func TestApplyActorStateChangeTracksRemoteActorRenderState(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{ID: 110000001, X: 10, Y: 20, Job: 1002, Speed: 400, Appearance: true})
+	ctx := client.Context{World: world}
+	mode := &WorldMode{}
+
+	mode.applyActorStateChange(ctx, network.ActorStateChange{
+		ID:          110000001,
+		BodyState:   actorBodyStateFreeze,
+		HealthState: actorHealthBlind,
+		EffectState: 0x00402000,
+	})
+
+	actor := world.Actors[110000001]
+	if !actor.HasState || actor.BodyState != actorBodyStateFreeze || actor.HealthState != actorHealthBlind || actor.EffectState != 0x00402000 {
+		t.Fatalf("actor state = %+v", actor)
+	}
+	state := mode.nonPCSpriteState(actor, time.Now())
+	if state.actionFamily != spriteActionIdle || !state.hasPlay || state.play || !state.hasFixedMotion || state.fixedMotion != 0 {
+		t.Fatalf("frozen non-pc sprite state = %+v", state)
+	}
+}
+
+func TestActorStateTintMatchesReferenceBodyAndHealthTints(t *testing.T) {
+	tint := actorStateTint(worldstate.Actor{
+		BodyState:   actorBodyStateFreeze,
+		HealthState: actorHealthBlind,
+		HasState:    true,
+	})
+	if tint.R != 0 || tint.G != 20 || tint.B != 40 || tint.A != 255 {
+		t.Fatalf("tint = %+v, want frozen blue darkened by blind", tint)
+	}
+}
+
 func TestVisibleStatusIconIDsAreKnownAndSorted(t *testing.T) {
 	active := map[uint16]session.StatusEffect{
 		99: {ID: 99},

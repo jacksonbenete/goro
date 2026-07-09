@@ -28,6 +28,10 @@ type ActorEntry struct {
 	ObjectType    uint8
 	HasObjectType bool
 	Speed         int
+	BodyState     uint16
+	HealthState   uint16
+	EffectState   uint32
+	HasState      bool
 }
 
 type ActorVanish struct {
@@ -59,6 +63,19 @@ type ActorDirectionChange struct {
 	ID      uint32
 	HeadDir uint8
 	Dir     uint8
+}
+
+type ActorStateChange struct {
+	ID          uint32
+	BodyState   uint16
+	HealthState uint16
+	EffectState uint32
+}
+
+type ActorBladeStop struct {
+	SourceID uint32
+	TargetID uint32
+	Active   bool
 }
 
 type ActorActionNotify struct {
@@ -134,6 +151,10 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			HasObjectType: true,
 			ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
 			Speed:         int(binary.LittleEndian.Uint16(packet.Data[7:9])),
+			BodyState:     binary.LittleEndian.Uint16(packet.Data[9:11]),
+			HealthState:   binary.LittleEndian.Uint16(packet.Data[11:13]),
+			EffectState:   uint32(binary.LittleEndian.Uint16(packet.Data[13:15])),
+			HasState:      true,
 			Job:           int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
 			Head:          int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
 			Weapon:        int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
@@ -153,20 +174,24 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		}
 		x, y, dir := unpackPos(packet.Data[46:49])
 		return ActorEntry{
-			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
-			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
-			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
-			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
-			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
-			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
-			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
-			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
-			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
-			Sex:        packet.Data[45],
-			Appearance: true,
-			X:          x,
-			Y:          y,
-			Dir:        dir,
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:       int(binary.LittleEndian.Uint16(packet.Data[6:8])),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[8:10]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[10:12]),
+			EffectState: uint32(binary.LittleEndian.Uint16(packet.Data[12:14])),
+			HasState:    true,
+			Job:         int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
+			Head:        int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:      int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:     int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:      int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:     int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:     int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
+			Sex:         packet.Data[45],
+			Appearance:  true,
+			X:           x,
+			Y:           y,
+			Dir:         dir,
 		}, true, nil
 	case 0x007B:
 		if len(packet.Data) < 60 {
@@ -174,24 +199,28 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		}
 		fromX, fromY, toX, toY := unpackMovePos(packet.Data[50:56])
 		return ActorEntry{
-			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
-			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
-			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
-			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
-			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
-			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
-			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
-			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
-			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
-			Sex:        packet.Data[49],
-			Appearance: true,
-			X:          toX,
-			Y:          toY,
-			FromX:      fromX,
-			FromY:      fromY,
-			ToX:        toX,
-			ToY:        toY,
-			Moving:     true,
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:       int(binary.LittleEndian.Uint16(packet.Data[6:8])),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[8:10]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[10:12]),
+			EffectState: uint32(binary.LittleEndian.Uint16(packet.Data[12:14])),
+			HasState:    true,
+			Job:         int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
+			Head:        int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:      int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:     int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:      int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:     int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:     int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
+			Sex:         packet.Data[49],
+			Appearance:  true,
+			X:           toX,
+			Y:           toY,
+			FromX:       fromX,
+			FromY:       fromY,
+			ToX:         toX,
+			ToY:         toY,
+			Moving:      true,
 		}, true, nil
 	case 0x007C:
 		if len(packet.Data) < 42 {
@@ -203,6 +232,10 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			HasObjectType: true,
 			ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
 			Speed:         int(binary.LittleEndian.Uint16(packet.Data[7:9])),
+			BodyState:     binary.LittleEndian.Uint16(packet.Data[9:11]),
+			HealthState:   binary.LittleEndian.Uint16(packet.Data[11:13]),
+			EffectState:   uint32(binary.LittleEndian.Uint16(packet.Data[13:15])),
+			HasState:      true,
 			Job:           int16(binary.LittleEndian.Uint16(packet.Data[21:23])),
 			Head:          int16(binary.LittleEndian.Uint16(packet.Data[15:17])),
 			Sex:           packet.Data[36],
@@ -232,20 +265,24 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		}
 		x, y, dir := unpackPos(packet.Data[46:49])
 		return ActorEntry{
-			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
-			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
-			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
-			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
-			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
-			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
-			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
-			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
-			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
-			Sex:        packet.Data[45],
-			Appearance: true,
-			X:          x,
-			Y:          y,
-			Dir:        dir,
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:       int(binary.LittleEndian.Uint16(packet.Data[6:8])),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[8:10]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[10:12]),
+			EffectState: uint32(binary.LittleEndian.Uint16(packet.Data[12:14])),
+			HasState:    true,
+			Job:         int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
+			Head:        int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:      int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:     int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:      int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:     int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:     int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
+			Sex:         packet.Data[45],
+			Appearance:  true,
+			X:           x,
+			Y:           y,
+			Dir:         dir,
 		}, true, nil
 	case 0x01D9:
 		if len(packet.Data) < 53 {
@@ -253,20 +290,24 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 		}
 		x, y, dir := unpackPos(packet.Data[46:49])
 		return ActorEntry{
-			ID:         binary.LittleEndian.Uint32(packet.Data[2:6]),
-			Speed:      int(binary.LittleEndian.Uint16(packet.Data[6:8])),
-			Job:        int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
-			Head:       int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
-			Weapon:     int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
-			HeadLow:    int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
-			Shield:     int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
-			HeadTop:    int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
-			HeadMid:    int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
-			Sex:        packet.Data[45],
-			Appearance: true,
-			X:          x,
-			Y:          y,
-			Dir:        dir,
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			Speed:       int(binary.LittleEndian.Uint16(packet.Data[6:8])),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[8:10]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[10:12]),
+			EffectState: uint32(binary.LittleEndian.Uint16(packet.Data[12:14])),
+			HasState:    true,
+			Job:         int16(binary.LittleEndian.Uint16(packet.Data[14:16])),
+			Head:        int16(binary.LittleEndian.Uint16(packet.Data[16:18])),
+			Weapon:      int16(binary.LittleEndian.Uint16(packet.Data[18:20])),
+			HeadLow:     int16(binary.LittleEndian.Uint16(packet.Data[26:28])),
+			Shield:      int16(binary.LittleEndian.Uint16(packet.Data[28:30])),
+			HeadTop:     int16(binary.LittleEndian.Uint16(packet.Data[30:32])),
+			HeadMid:     int16(binary.LittleEndian.Uint16(packet.Data[32:34])),
+			Sex:         packet.Data[45],
+			Appearance:  true,
+			X:           x,
+			Y:           y,
+			Dir:         dir,
 		}, true, nil
 	case 0x01DA:
 		if len(packet.Data) < 60 {
@@ -331,6 +372,10 @@ func parseActorMoveEntryModern(packet Packet) (ActorEntry, error) {
 		HasObjectType: true,
 		ID:            binary.LittleEndian.Uint32(packet.Data[3:7]),
 		Speed:         int(binary.LittleEndian.Uint16(packet.Data[7:9])),
+		BodyState:     binary.LittleEndian.Uint16(packet.Data[9:11]),
+		HealthState:   binary.LittleEndian.Uint16(packet.Data[11:13]),
+		EffectState:   binary.LittleEndian.Uint32(packet.Data[13:17]),
+		HasState:      true,
 		Job:           int16(binary.LittleEndian.Uint16(packet.Data[17:19])),
 		Head:          int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
 		Weapon:        int16(weaponValue & 0xFFFF),
@@ -370,6 +415,10 @@ func parseActorMoveEntryVariable(packet Packet, hasRobe bool) (ActorEntry, error
 		HasObjectType: true,
 		ID:            binary.LittleEndian.Uint32(packet.Data[5:9]),
 		Speed:         int(binary.LittleEndian.Uint16(packet.Data[9:11])),
+		BodyState:     binary.LittleEndian.Uint16(packet.Data[11:13]),
+		HealthState:   binary.LittleEndian.Uint16(packet.Data[13:15]),
+		EffectState:   uint32(binary.LittleEndian.Uint32(packet.Data[15:19])),
+		HasState:      true,
 		Job:           int16(binary.LittleEndian.Uint16(packet.Data[19:21])),
 		Head:          int16(binary.LittleEndian.Uint16(packet.Data[21:23])),
 		Weapon:        int16(weaponValue & 0xFFFF),
@@ -509,6 +558,47 @@ func ParseActorDirectionChange(packet Packet) (ActorDirectionChange, bool, error
 		ID:      binary.LittleEndian.Uint32(packet.Data[2:6]),
 		HeadDir: uint8(binary.LittleEndian.Uint16(packet.Data[6:8])),
 		Dir:     packet.Data[8] & 7,
+	}, true, nil
+}
+
+func ParseActorStateChange(packet Packet) (ActorStateChange, bool, error) {
+	switch packet.ID {
+	case 0x0119:
+		if len(packet.Data) < 13 {
+			return ActorStateChange{}, false, fmt.Errorf("ZC_STATE_CHANGE too short: %d", len(packet.Data))
+		}
+		return ActorStateChange{
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[6:8]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[8:10]),
+			EffectState: uint32(binary.LittleEndian.Uint16(packet.Data[10:12])),
+		}, true, nil
+	case 0x0229:
+		if len(packet.Data) < 15 {
+			return ActorStateChange{}, false, fmt.Errorf("ZC_STATE_CHANGE3 too short: %d", len(packet.Data))
+		}
+		return ActorStateChange{
+			ID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+			BodyState:   binary.LittleEndian.Uint16(packet.Data[6:8]),
+			HealthState: binary.LittleEndian.Uint16(packet.Data[8:10]),
+			EffectState: binary.LittleEndian.Uint32(packet.Data[10:14]),
+		}, true, nil
+	default:
+		return ActorStateChange{}, false, nil
+	}
+}
+
+func ParseActorBladeStop(packet Packet) (ActorBladeStop, bool, error) {
+	if packet.ID != 0x01D1 {
+		return ActorBladeStop{}, false, nil
+	}
+	if len(packet.Data) < 14 {
+		return ActorBladeStop{}, false, fmt.Errorf("ZC_BLADESTOP too short: %d", len(packet.Data))
+	}
+	return ActorBladeStop{
+		SourceID: binary.LittleEndian.Uint32(packet.Data[2:6]),
+		TargetID: binary.LittleEndian.Uint32(packet.Data[6:10]),
+		Active:   binary.LittleEndian.Uint32(packet.Data[10:14]) != 0,
 	}, true, nil
 }
 

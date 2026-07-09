@@ -36,6 +36,9 @@ func TestParseActorStandEntryLegacy(t *testing.T) {
 	data[2] = 5
 	binary.LittleEndian.PutUint32(data[3:7], 2000003)
 	binary.LittleEndian.PutUint16(data[7:9], 420)
+	binary.LittleEndian.PutUint16(data[9:11], 2)
+	binary.LittleEndian.PutUint16(data[11:13], 0x0010)
+	binary.LittleEndian.PutUint16(data[13:15], 0x0040)
 	binary.LittleEndian.PutUint16(data[15:17], 1011)
 	binary.LittleEndian.PutUint16(data[17:19], 2)
 	data[46] = 0
@@ -50,6 +53,9 @@ func TestParseActorStandEntryLegacy(t *testing.T) {
 	}
 	if entry.ID != 2000003 || entry.Speed != 420 || entry.Job != 1011 || entry.ObjectType != 5 || entry.X != 44 || entry.Y != 55 || entry.Dir != 6 {
 		t.Fatalf("unexpected entry: %+v", entry)
+	}
+	if !entry.HasState || entry.BodyState != 2 || entry.HealthState != 0x0010 || entry.EffectState != 0x0040 {
+		t.Fatalf("unexpected state: %+v", entry)
 	}
 }
 
@@ -245,6 +251,42 @@ func TestParseActorLookChangeIgnoresStateChange3(t *testing.T) {
 	}
 	if ok {
 		t.Fatalf("state change parsed as look change: %+v", look)
+	}
+}
+
+func TestParseActorStateChange3(t *testing.T) {
+	data := make([]byte, 15)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0229)
+	binary.LittleEndian.PutUint32(data[2:6], 2000006)
+	binary.LittleEndian.PutUint16(data[6:8], 2)
+	binary.LittleEndian.PutUint16(data[8:10], 0x0010)
+	binary.LittleEndian.PutUint32(data[10:14], 0x00402000)
+
+	state, ok, err := ParseActorStateChange(Packet{ID: 0x0229, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("state change not parsed")
+	}
+	if state.ID != 2000006 || state.BodyState != 2 || state.HealthState != 0x0010 || state.EffectState != 0x00402000 {
+		t.Fatalf("unexpected state change: %+v", state)
+	}
+}
+
+func TestParseActorBladeStop(t *testing.T) {
+	data := make([]byte, 14)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01D1)
+	binary.LittleEndian.PutUint32(data[2:6], 10)
+	binary.LittleEndian.PutUint32(data[6:10], 20)
+	binary.LittleEndian.PutUint32(data[10:14], 1)
+
+	blade, ok, err := ParseActorBladeStop(Packet{ID: 0x01D1, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || blade.SourceID != 10 || blade.TargetID != 20 || !blade.Active {
+		t.Fatalf("unexpected blade stop: ok=%v blade=%+v", ok, blade)
 	}
 }
 

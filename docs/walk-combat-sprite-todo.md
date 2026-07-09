@@ -14,7 +14,7 @@ to the 2008 RO client and robr.
   matching robr's `resumeWalk` behavior.
 - [x] Revisit weapon attack timing using job, sex, weapon, and attack motion data
   instead of relying only on packet speed and broad action-family mapping.
-- [ ] Add missing body/action states that affect sprites, such as freeze, stone,
+- [x] Add missing body/action states that affect sprites, such as freeze, stone,
   blade stop/root, and other status-driven stances.
 - [ ] Keep sprite composition simple, but add action-specific layer behavior only
   where the original client needs it for visible correctness.

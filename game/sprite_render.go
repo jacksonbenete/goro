@@ -25,6 +25,7 @@ const (
 	spriteActionPCAttack1    = 5
 	spriteActionPCHurt       = 6
 	spriteActionPCDeath      = 8
+	spriteActionPCFreeze2    = 9
 	spriteActionPCAttack2    = 10
 	spriteActionPCAttack3    = 11
 	spriteActionPCSkill      = 12
@@ -145,21 +146,22 @@ type spriteState struct {
 
 func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64, alpha float64) bool {
 	now := time.Now()
-	moving := ctx.World.Player.IsMovingAt(now)
+	actor := entry.actor
+	moving := actor.IsMovingAt(now)
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    direction,
-		headDir:      ctx.World.Player.HeadDir,
+		headDir:      actor.HeadDir,
 		headTurn:     true,
 		cameraYaw:    cameraYaw,
 		moving:       moving,
-		moveSpeedMS:  ctx.World.Player.Speed,
+		moveSpeedMS:  actor.Speed,
 	}
 	if moving {
 		state.actionFamily = spriteActionWalk
 		state.loop = true
-		state.walkDistance = ctx.World.Player.RenderWalkDistance(now)
-	} else if ctx.World.Player.Sitting {
+		state.walkDistance = actor.RenderWalkDistance(now)
+	} else if actor.Sitting {
 		state.actionFamily = spriteActionSit
 	}
 	if ctx.Session != nil {
@@ -195,16 +197,19 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 			state.hasSpeed = anim.hasSpeed
 		}
 	}
+	if !isDeathActionFamily(state.actionFamily) {
+		applyActorBodyState(actor, &state)
+	}
 	billboard, ok := humanoidBillboardForState(m.playerView, state, now)
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, alpha, shadow)
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, alpha, shadow, actorStateTint(actor))
 	return true
 }
 
-func drawActorSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
-	drawSpriteBillboardAlpha3D(screen, projection, billboard, worldX, worldY, actorSpriteWorldZ(worldZ), scale, alpha, shadow)
+func drawActorSpriteBillboardTintAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
+	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, actorSpriteWorldZ(worldZ), scale, alpha, shadow, tintColor)
 }
 
 func actorSpriteWorldZ(terrainZ float64) float64 {
