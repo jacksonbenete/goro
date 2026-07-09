@@ -1313,6 +1313,68 @@ func TestApplyActorActionNotifyStopsLocalPlayerMovementOnHit(t *testing.T) {
 	}
 }
 
+func TestApplyActorActionNotifyResumesFocusedLocalWalkAfterHurt(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:           2000000,
+		X:            15,
+		Y:            20,
+		Job:          1,
+		Moving:       true,
+		FromX:        10,
+		FromY:        20,
+		ToX:          15,
+		ToY:          20,
+		MoveStarted:  time.Now(),
+		MoveDuration: 5 * time.Second,
+		MovePath: []worldstate.WalkStep{
+			{X: 10, Y: 20},
+			{X: 15, Y: 20},
+		},
+	}
+	world.UpsertActor(worldstate.Actor{
+		ID:            400,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{lockedAttackID: 400}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    400,
+		TargetID:    2000000,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      42,
+		Action:      0,
+	})
+
+	hurtAnim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("local hurt animation missing")
+	}
+	mode.processScheduledActorStops(ctx, hurtAnim.started)
+	if world.Player.Moving {
+		t.Fatalf("local player moving during hurt = %+v, want paused", world.Player)
+	}
+	if len(mode.scheduledResumes) == 0 {
+		t.Fatal("scheduled walk resume missing")
+	}
+	mode.processScheduledWalkResumes(ctx, hurtAnim.started.Add(hurtAnim.duration))
+	if !world.Player.Moving {
+		t.Fatalf("local player after hurt = %+v, want resumed walk", world.Player)
+	}
+	if world.Player.ToX != 15 || world.Player.ToY != 20 {
+		t.Fatalf("local player resumed target = %d,%d, want 15,20", world.Player.ToX, world.Player.ToY)
+	}
+}
+
 func TestSetActorActionStopsMovingActor(t *testing.T) {
 	world := worldstate.New()
 	started := time.Now().Add(-time.Second)

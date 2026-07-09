@@ -10,7 +10,7 @@ to the 2008 RO client and robr.
   skill stance rules can live in data instead of scattered combat conditionals.
 - [x] Teach actor animations to honor robr-style fixed frame, length, play=false,
   delayed action, and next-action metadata.
-- [ ] Resume walking after hurt when the actor still has a route and a focus target,
+- [x] Resume walking after hurt when the actor still has a route and a focus target,
   matching robr's `resumeWalk` behavior.
 - [ ] Revisit weapon attack timing using job, sex, weapon, and attack motion data
   instead of relying only on packet speed and broad action-family mapping.

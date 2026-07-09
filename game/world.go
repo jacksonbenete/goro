@@ -79,6 +79,7 @@ type WorldMode struct {
 	worldEffects      []worldEffect
 	scheduledSounds   []scheduledSound
 	scheduledStops    []scheduledActorStop
+	scheduledResumes  []scheduledWalkResume
 	mapSoundNext      map[int]time.Time
 	mapWeatherSounds  map[int]time.Time
 	actorDeaths       map[uint32]time.Time
@@ -213,8 +214,17 @@ type scheduledSound struct {
 }
 
 type scheduledActorStop struct {
-	id uint32
-	at time.Time
+	id         uint32
+	at         time.Time
+	resumeWalk bool
+	resumeAt   time.Time
+}
+
+type scheduledWalkResume struct {
+	id  uint32
+	at  time.Time
+	toX int
+	toY int
 }
 
 type actorSoundFrame struct {
@@ -889,6 +899,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	now = time.Now()
 	m.cleanupDeadActors(ctx, now)
 	m.processScheduledActorStops(ctx, now)
+	m.processScheduledWalkResumes(ctx, now)
 	m.processActorMotionSounds(ctx, now)
 	m.processMapSounds(ctx, now)
 	m.playDueScheduledSounds(ctx, now)
@@ -2190,10 +2201,15 @@ func (m *WorldMode) setActorAction(ctx client.Context, id uint32, anim actorAnim
 		anim.started = time.Now()
 	}
 	if actorActionResetsWalk(anim) {
+		resumeWalk := m.actorActionShouldResumeWalk(ctx, id, anim)
 		if anim.started.After(time.Now()) {
-			m.scheduleActorStop(id, anim.started)
+			m.scheduleActorStop(id, anim.started, resumeWalk, anim.started.Add(anim.duration))
 		} else {
-			m.stopActorMovementAt(ctx, id, anim.started)
+			if resumeWalk {
+				m.pauseActorMovementForResume(ctx, id, anim.started, anim.started.Add(anim.duration))
+			} else {
+				m.stopActorMovementAt(ctx, id, anim.started)
+			}
 		}
 	}
 	if m.actorAnims == nil {
@@ -2210,6 +2226,17 @@ func actorActionResetsWalk(anim actorAnimation) bool {
 	default:
 		return true
 	}
+}
+
+func (m *WorldMode) actorActionShouldResumeWalk(ctx client.Context, id uint32, anim actorAnimation) bool {
+	if anim.actionFamily != spriteActionPCHurt && anim.actionFamily != spriteActionNonPCHurt {
+		return false
+	}
+	return isLocalActor(ctx, id) && m.hasCombatFocus()
+}
+
+func (m *WorldMode) hasCombatFocus() bool {
+	return m.lockedAttackID != 0 || m.pendingAttack.targetID != 0
 }
 
 func cloneActorAnimation(anim *actorAnimation) *actorAnimation {
@@ -2579,11 +2606,11 @@ func (m *WorldMode) scheduleSoundVolume(at time.Time, volume float64, paths ...s
 	})
 }
 
-func (m *WorldMode) scheduleActorStop(id uint32, at time.Time) {
+func (m *WorldMode) scheduleActorStop(id uint32, at time.Time, resumeWalk bool, resumeAt time.Time) {
 	if id == 0 || at.IsZero() {
 		return
 	}
-	m.scheduledStops = append(m.scheduledStops, scheduledActorStop{id: id, at: at})
+	m.scheduledStops = append(m.scheduledStops, scheduledActorStop{id: id, at: at, resumeWalk: resumeWalk, resumeAt: resumeAt})
 }
 
 func (m *WorldMode) processScheduledActorStops(ctx client.Context, now time.Time) {
@@ -2596,9 +2623,74 @@ func (m *WorldMode) processScheduledActorStops(ctx client.Context, now time.Time
 			active = append(active, stop)
 			continue
 		}
-		m.stopActorMovementAt(ctx, stop.id, stop.at)
+		if stop.resumeWalk {
+			m.pauseActorMovementForResume(ctx, stop.id, stop.at, stop.resumeAt)
+		} else {
+			m.stopActorMovementAt(ctx, stop.id, stop.at)
+		}
 	}
 	m.scheduledStops = active
+}
+
+func (m *WorldMode) pauseActorMovementForResume(ctx client.Context, id uint32, at time.Time, resumeAt time.Time) {
+	if !m.canResumeActorWalk(ctx, id, at) {
+		m.stopActorMovementAt(ctx, id, at)
+		return
+	}
+	if ctx.World == nil || !isLocalActor(ctx, id) {
+		m.stopActorMovementAt(ctx, id, at)
+		return
+	}
+	toX := ctx.World.Player.ToX
+	toY := ctx.World.Player.ToY
+	stopLocalPlayerMovementAt(ctx, at)
+	if ctx.World.Player.X == toX && ctx.World.Player.Y == toY {
+		return
+	}
+	m.scheduledResumes = append(m.scheduledResumes, scheduledWalkResume{
+		id:  id,
+		at:  resumeAt,
+		toX: toX,
+		toY: toY,
+	})
+}
+
+func (m *WorldMode) canResumeActorWalk(ctx client.Context, id uint32, at time.Time) bool {
+	if ctx.World == nil || !isLocalActor(ctx, id) || !m.hasCombatFocus() {
+		return false
+	}
+	actor := ctx.World.Player
+	if !actor.IsMovingAt(at) || len(actor.MovePath) < 2 {
+		return false
+	}
+	x, y := actor.RenderPosition(at)
+	return math.Hypot(float64(actor.ToX)-x, float64(actor.ToY)-y) > 0.25
+}
+
+func (m *WorldMode) processScheduledWalkResumes(ctx client.Context, now time.Time) {
+	if len(m.scheduledResumes) == 0 {
+		return
+	}
+	active := m.scheduledResumes[:0]
+	for _, resume := range m.scheduledResumes {
+		if now.Before(resume.at) {
+			active = append(active, resume)
+			continue
+		}
+		m.resumeActorWalk(ctx, resume)
+	}
+	m.scheduledResumes = active
+}
+
+func (m *WorldMode) resumeActorWalk(ctx client.Context, resume scheduledWalkResume) {
+	if ctx.World == nil || !isLocalActor(ctx, resume.id) || !m.hasCombatFocus() {
+		return
+	}
+	player := ctx.World.Player
+	if player.X == resume.toX && player.Y == resume.toY {
+		return
+	}
+	ctx.World.SetPlayerMovementAt(player.X, player.Y, resume.toX, resume.toY, player.Dir, resume.at, 0)
 }
 
 func (m *WorldMode) stopActorMovementAt(ctx client.Context, id uint32, at time.Time) {
