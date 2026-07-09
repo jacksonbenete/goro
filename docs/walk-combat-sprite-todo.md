@@ -12,7 +12,7 @@ to the 2008 RO client and robr.
   delayed action, and next-action metadata.
 - [x] Resume walking after hurt when the actor still has a route and a focus target,
   matching robr's `resumeWalk` behavior.
-- [ ] Revisit weapon attack timing using job, sex, weapon, and attack motion data
+- [x] Revisit weapon attack timing using job, sex, weapon, and attack motion data
   instead of relying only on packet speed and broad action-family mapping.
 - [ ] Add missing body/action states that affect sprites, such as freeze, stone,
   blade stop/root, and other status-driven stances.

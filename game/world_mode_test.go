@@ -3528,6 +3528,62 @@ func TestCombatHitDelayFallsBackToMidpoint(t *testing.T) {
 	}
 }
 
+func TestActorActionFrameDelayUsesPlayerWeaponActionFrames(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 1, Weapon: 3, Dir: 0}
+	actionFamily := attackActionFamilyForActor(world.Player)
+	mode := &WorldMode{playerView: humanoidTimingView(actionFamily, 4)}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+
+	if got := mode.actorActionFrameDelay(ctx, world.Player, actionFamily, 800*time.Millisecond); got != 200*time.Millisecond {
+		t.Fatalf("frame delay = %s, want attack duration divided by weapon action frames", got)
+	}
+}
+
+func TestActorActionNotifySetsPlayerWeaponAttackFrameDelay(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 1, Weapon: 3, Dir: 0}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	actionFamily := attackActionFamilyForActor(world.Player)
+	mode := &WorldMode{playerView: humanoidTimingView(actionFamily, 4)}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 1, Weapon: 3}},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 800,
+		TargetSpeed: 480,
+		Damage:      42,
+		Action:      0,
+	})
+
+	anim, ok := mode.actorAnims[150000]
+	if !ok {
+		t.Fatal("attack animation missing")
+	}
+	if !anim.hasSpeed || anim.speed != 200*time.Millisecond {
+		t.Fatalf("attack animation = %+v, want frame delay from packet speed/action frame count", anim)
+	}
+}
+
+func humanoidTimingView(actionFamily int, frames int) *humanoidSpriteView {
+	actions := make([]res.ACTAction, actionFamily*8+8)
+	for dir := 0; dir < 8; dir++ {
+		actions[actionFamily*8+dir] = res.ACTAction{DelayMS: 150, Animations: make([]res.ACTAnimation, frames)}
+	}
+	return &humanoidSpriteView{body: &playerSpriteView{act: &res.ACT{Actions: actions}}}
+}
+
 func TestActionSoundNameResolvesACTSound(t *testing.T) {
 	act := &res.ACT{Sounds: []string{"attack.wav"}}
 	action := res.ACTAction{Animations: []res.ACTAnimation{{Sound: -1}, {Sound: 0}}}

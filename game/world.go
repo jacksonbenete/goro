@@ -1741,16 +1741,16 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		if action.SkillID > 0 {
 			m.startSkillActionAnimation(ctx, action.SourceID, source, skillAction(action.SkillID), now, attackDuration)
 		} else if sourceLocal && res.HasPlayerJobToken(int(source.Job)) {
-			m.startCombatAnimationWithNext(ctx, action.SourceID, attackFamily, now, attackDuration, readyFightAnimation(now.Add(attackDuration)))
+			m.startCombatAnimationWithTimingAndNext(ctx, action.SourceID, source, attackFamily, now, attackDuration, readyFightAnimation(now.Add(attackDuration)))
 		} else {
-			m.startCombatAnimation(ctx, action.SourceID, attackFamily, now, attackDuration)
+			m.startCombatAnimationWithTiming(ctx, action.SourceID, source, attackFamily, now, attackDuration)
 		}
 	}
 	hitDelay := combatDuration(action.SourceSpeed, 0)
-	if sourceOK && !res.HasPlayerJobToken(int(source.Job)) {
-		if actionDef, ok := m.nonPCResolvedAction(ctx, source, attackFamily); ok {
+	if sourceOK {
+		if actionDef, ok := m.actorResolvedAction(ctx, source, attackFamily); ok {
 			hitDelay = combatHitDelayFromAction(actionDef, attackDuration)
-			if sound := actionSoundName(m.nonPCActionACT(ctx, source), actionDef, firstActionSoundMotion(actionDef)); sound != "" {
+			if sound := actionSoundName(m.actorActionACT(ctx, source), actionDef, firstActionSoundMotion(actionDef)); sound != "" {
 				m.scheduleSound(now.Add(hitDelay), sound)
 			}
 		}
@@ -2292,6 +2292,11 @@ func (m *WorldMode) startCombatAnimation(ctx client.Context, id uint32, actionFa
 	m.startActorAnimation(ctx, ctx.Session.CharID, actionFamily, started, duration)
 }
 
+func (m *WorldMode) startCombatAnimationWithTiming(ctx client.Context, id uint32, actor worldstate.Actor, actionFamily int, started time.Time, duration time.Duration) {
+	anim := timedCombatAnimation(m.actorActionFrameDelay(ctx, actor, actionFamily, duration), actionFamily, started, duration, nil)
+	m.setCombatActorAction(ctx, id, anim)
+}
+
 func (m *WorldMode) startCombatAnimationWithNext(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration, next *actorAnimation) {
 	m.startActorAnimationWithNext(ctx, id, actionFamily, started, duration, next)
 	if ctx.Session == nil || !isLocalActor(ctx, id) {
@@ -2299,6 +2304,36 @@ func (m *WorldMode) startCombatAnimationWithNext(ctx client.Context, id uint32, 
 	}
 	m.startActorAnimationWithNext(ctx, ctx.Session.AccountID, actionFamily, started, duration, next)
 	m.startActorAnimationWithNext(ctx, ctx.Session.CharID, actionFamily, started, duration, next)
+}
+
+func (m *WorldMode) startCombatAnimationWithTimingAndNext(ctx client.Context, id uint32, actor worldstate.Actor, actionFamily int, started time.Time, duration time.Duration, next *actorAnimation) {
+	anim := timedCombatAnimation(m.actorActionFrameDelay(ctx, actor, actionFamily, duration), actionFamily, started, duration, next)
+	m.setCombatActorAction(ctx, id, anim)
+}
+
+func (m *WorldMode) setCombatActorAction(ctx client.Context, id uint32, anim actorAnimation) {
+	m.setActorAction(ctx, id, anim)
+	if ctx.Session == nil || !isLocalActor(ctx, id) {
+		return
+	}
+	m.setActorAction(ctx, ctx.Session.AccountID, anim)
+	m.setActorAction(ctx, ctx.Session.CharID, anim)
+}
+
+func timedCombatAnimation(frameDelay time.Duration, actionFamily int, started time.Time, duration time.Duration, next *actorAnimation) actorAnimation {
+	anim := actorAnimation{
+		actionFamily: actionFamily,
+		started:      started,
+		duration:     duration,
+		play:         true,
+		hasPlay:      true,
+		next:         cloneActorAnimation(next),
+	}
+	if frameDelay > 0 {
+		anim.speed = frameDelay
+		anim.hasSpeed = true
+	}
+	return anim
 }
 
 func (m *WorldMode) startHeldCombatAnimation(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
@@ -2539,6 +2574,47 @@ func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor worldstate.Act
 	return action, ok
 }
 
+func (m *WorldMode) actorResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		view := m.humanoidSpriteViewForActor(ctx, actor)
+		if view == nil || view.body == nil {
+			return res.ACTAction{}, false
+		}
+		_, action, ok := resolveSpriteAction(view.body.act, actionFamily, actor.Dir)
+		return action, ok
+	}
+	return m.nonPCResolvedAction(ctx, actor, actionFamily)
+}
+
+func (m *WorldMode) actorActionFrameDelay(ctx client.Context, actor worldstate.Actor, actionFamily int, duration time.Duration) time.Duration {
+	if duration <= 0 {
+		return 0
+	}
+	action, ok := m.actorResolvedAction(ctx, actor, actionFamily)
+	if !ok || len(action.Animations) == 0 {
+		return 0
+	}
+	return duration / time.Duration(len(action.Animations))
+}
+
+func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor worldstate.Actor) *humanoidSpriteView {
+	if isLocalActor(ctx, actor.ID) {
+		return m.playerView
+	}
+	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
+	key := actorSpriteKey{
+		job:     int(actor.Job),
+		head:    int(actor.Head),
+		sex:     actor.Sex,
+		weapon:  weapon,
+		shield:  shield,
+		headTop: int(actor.HeadTop),
+		headMid: int(actor.HeadMid),
+		headLow: int(actor.HeadLow),
+	}
+	return m.actorViews[key]
+}
+
 func (m *WorldMode) nonPCActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
@@ -2547,11 +2623,19 @@ func (m *WorldMode) nonPCActionACT(ctx client.Context, actor worldstate.Actor) *
 	return view.act
 }
 
-func (m *WorldMode) actorActionDuration(ctx client.Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
+func (m *WorldMode) actorActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
 	if res.HasPlayerJobToken(int(actor.Job)) {
-		return fallback
+		view := m.humanoidSpriteViewForActor(ctx, actor)
+		if view == nil || view.body == nil {
+			return nil
+		}
+		return view.body.act
 	}
-	if action, ok := m.nonPCResolvedAction(ctx, actor, actionFamily); ok {
+	return m.nonPCActionACT(ctx, actor)
+}
+
+func (m *WorldMode) actorActionDuration(ctx client.Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
+	if action, ok := m.actorResolvedAction(ctx, actor, actionFamily); ok {
 		return actionAnimationDuration(action, fallback)
 	}
 	return fallback
