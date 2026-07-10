@@ -1745,14 +1745,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 101 {
-		t.Fatalf("implemented effects = %d, want 101", coverage.Implemented)
+	if coverage.Implemented != 102 {
+		t.Fatalf("implemented effects = %d, want 102", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 16.6 || coverage.ActivePercent > 16.7 {
-		t.Fatalf("active coverage = %.3f, want about 16.6", coverage.ActivePercent)
+	if coverage.ActivePercent < 16.8 || coverage.ActivePercent > 16.9 {
+		t.Fatalf("active coverage = %.3f, want about 16.8", coverage.ActivePercent)
 	}
 }
 
@@ -2292,6 +2292,7 @@ func TestSkillCastFallbackMappings(t *testing.T) {
 		{name: "aqua benedicta", skillID: 31, level: 1, wantProperty: 0, wantDuration: time.Second},
 		{name: "signum crucis", skillID: 32, level: 10, wantProperty: 0, wantDuration: 500 * time.Millisecond},
 		{name: "angelus", skillID: 33, level: 10, wantProperty: 0, wantDuration: 500 * time.Millisecond},
+		{name: "holy light", skillID: 156, level: 1, wantProperty: 6, wantDuration: 2 * time.Second},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2400,6 +2401,13 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	aura := mode.worldEffects[1]
 	if aura.effectID != effectBeginSpell4 || aura.actorID != 2000000 || aura.targetID != 1100 || aura.duration != 2500*time.Millisecond {
 		t.Fatalf("aura = %+v", aura)
+	}
+	bar, ok := mode.actorCastBars[150000]
+	if !ok {
+		t.Fatal("local cast bar missing")
+	}
+	if bar.duration != 2500*time.Millisecond || bar.color != (color.RGBA{R: 0, G: 255, B: 0, A: 255}) {
+		t.Fatalf("cast bar = %+v", bar)
 	}
 	anim, ok := mode.actorAnims[150000]
 	if !ok {
@@ -2550,6 +2558,7 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "MC_CARTREVOLUTION begin", skillBeginEffectIDs(153), effectCartRevolution)
 	expectEffectIDs(t, "MC_CARTREVOLUTION hit", skillHitEffectIDs(153), effectCartRevolution)
 	expectEffectIDs(t, "MC_LOUD", skillEffectIDs(155), effectLoud)
+	expectEffectIDs(t, "AL_HOLYLIGHT", skillEffectIDs(156), effectHolyLight)
 }
 
 func TestThiefSkillTargetRules(t *testing.T) {
@@ -3294,6 +3303,7 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 		effectBlessing,
 		effectFireHit,
 		effectFireSplashHit,
+		effectHolyLight,
 		effectConcentration,
 		effectCure,
 		effectRefineOK,

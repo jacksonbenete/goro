@@ -1238,6 +1238,7 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectColdHit:       soundOnlyEffectSpec("_hit_fist3.wav", "_hit_fist4.wav"),
 	effectWindHit:       strEffectSpecRandom("windhit%d", "", 1, 3),
 	effectCure:          strEffectSpecAttachedMin("cure", "cure_min", "effect\\acolyte_cure.wav", false),
+	effectHolyLight:     strEffectSpecAttached("holyhit", "", false),
 	effectConcentration: strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
 	effectRefineOK:      strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
 	effectRefineFail:    strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),

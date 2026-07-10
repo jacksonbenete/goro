@@ -73,6 +73,7 @@ const (
 	effectBubble         = 109
 	effectCure           = 66
 	effectPneuma         = 141
+	effectHolyLight      = 152
 	effectConcentration  = 153
 	effectRefineOK       = 154
 	effectRefineFail     = 155
@@ -378,6 +379,7 @@ func (m *WorldMode) applySkillCastNotify(ctx client.Context, notify network.Skil
 	duration := time.Duration(notify.DelayTime) * time.Millisecond
 	now := time.Now()
 	m.startSkillCastSourceAnimation(ctx, notify, duration, now)
+	m.startActorCastBar(ctx, notify.SourceID, duration, now)
 	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y), duration, now, "server")
 }
 
@@ -387,7 +389,38 @@ func (m *WorldMode) addLocalSkillCastFallback(ctx client.Context, skillID uint16
 	}
 	m.faceSkillSource(ctx, sourceID, targetID, cellX, cellY)
 	m.startSkillSourceCastAnimation(ctx, sourceID, skillID, duration, starts)
+	m.startActorCastBar(ctx, sourceID, duration, starts)
 	m.addSkillCastEffects(ctx, skillID, property, sourceID, targetID, cellX, cellY, duration, starts, source)
+}
+
+func (m *WorldMode) startActorCastBar(ctx client.Context, sourceID uint32, duration time.Duration, started time.Time) {
+	if sourceID == 0 || duration <= 0 {
+		return
+	}
+	if started.IsZero() {
+		started = time.Now()
+	}
+	bar := actorCastBar{
+		started:  started,
+		duration: duration,
+		color:    color.RGBA{R: 0, G: 255, B: 0, A: 255},
+	}
+	m.setActorCastBar(sourceID, bar)
+	if ctx.Session == nil || !isLocalActor(ctx, sourceID) {
+		return
+	}
+	m.setActorCastBar(ctx.Session.AccountID, bar)
+	m.setActorCastBar(ctx.Session.CharID, bar)
+}
+
+func (m *WorldMode) setActorCastBar(actorID uint32, bar actorCastBar) {
+	if actorID == 0 {
+		return
+	}
+	if m.actorCastBars == nil {
+		m.actorCastBars = make(map[uint32]actorCastBar)
+	}
+	m.actorCastBars[actorID] = bar
 }
 
 func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx client.Context, notify network.SkillNoDamageNotify, now time.Time) {
@@ -1102,6 +1135,7 @@ var skillEffectSpecs = map[uint16]skillEffectSpec{
 	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: attackSkillActionSpec},                                                                                                                                        // TF_THROWSTONE
 	153: {beginCastEffectIDs: []int{effectCartRevolution}, hitEffectIDs: []int{effectCartRevolution}},                                                                                                                        // MC_CARTREVOLUTION
 	155: {effectIDs: []int{effectLoud}},                                                                                                                                                                                      // MC_LOUD
+	156: {effectIDs: []int{effectHolyLight}, cast: skillCastSpec{property: 6, fixed: 2 * time.Second}},                                                                                                                       // AL_HOLYLIGHT
 	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                // MG_ENERGYCOAT
 }
 

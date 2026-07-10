@@ -81,6 +81,7 @@ type WorldMode struct {
 	actorAnims        map[uint32]actorAnimation
 	damageFloaters    []damageFloater
 	worldEffects      []worldEffect
+	actorCastBars     map[uint32]actorCastBar
 	scheduledSounds   []scheduledSound
 	scheduledStops    []scheduledActorStop
 	scheduledResumes  []scheduledWalkResume
@@ -272,6 +273,12 @@ type actorLife struct {
 	estimated bool
 	fromTiny  bool
 	updatedAt time.Time
+}
+
+type actorCastBar struct {
+	started  time.Time
+	duration time.Duration
+	color    color.RGBA
 }
 
 type mapFadePhase int
@@ -5181,6 +5188,7 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx client.Co
 
 func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time, entries []sceneActorDrawEntry) {
 	for _, entry := range entries {
+		m.drawActorCastBar(screen, entry, now)
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
 	m.drawAttackFocusMarker(screen, ctx, now, entries)
@@ -5872,6 +5880,24 @@ func actorLifeBarY(baseY, scale float64) float64 {
 	return actorNameLabelY(baseY, scale) + 14
 }
 
+func actorCastBarY(baseY, scale float64) float64 {
+	return actorSpriteTopY(baseY, scale) - 10
+}
+
+func actorCastBarProgress(bar actorCastBar, now time.Time) (float64, bool) {
+	if bar.duration <= 0 || bar.started.IsZero() {
+		return 0, false
+	}
+	progress := float64(now.Sub(bar.started)) / float64(bar.duration)
+	if progress < 0 {
+		progress = 0
+	}
+	if progress >= 1 {
+		return 1, false
+	}
+	return progress, true
+}
+
 func actorLifeBarHeight(life actorLife) float64 {
 	if life.hasSP {
 		return 9
@@ -5924,6 +5950,35 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx client.Context, e
 		if spWidth := math.Round((width - 2) * spRatio); spWidth > 0 {
 			render.DrawRect(screen, x+1, y+5, spWidth, 3, gameui.PlayerSPBarColor)
 		}
+	}
+}
+
+func (m *WorldMode) drawActorCastBar(screen *render.Image, entry sceneActorDrawEntry, now time.Time) {
+	if entry.actor.ID == 0 || m.actorCastBars == nil {
+		return
+	}
+	bar, ok := m.actorCastBars[entry.actor.ID]
+	if !ok {
+		return
+	}
+	ratio, active := actorCastBarProgress(bar, now)
+	if !active {
+		delete(m.actorCastBars, entry.actor.ID)
+		return
+	}
+	const width = 60.0
+	const height = 6.0
+	x := math.Round(entry.screenX - width/2)
+	y := math.Round(actorCastBarY(entry.screenY, entry.scale))
+	fillWidth := math.Round((width - 2) * ratio)
+	render.DrawRect(screen, x, y, width, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
+	render.DrawRect(screen, x+1, y+1, width-2, height-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
+	if fillWidth > 0 {
+		fill := bar.color
+		if fill.A == 0 {
+			fill = color.RGBA{R: 0, G: 255, B: 0, A: 255}
+		}
+		render.DrawRect(screen, x+1, y+1, fillWidth, height-2, fill)
 	}
 }
 
