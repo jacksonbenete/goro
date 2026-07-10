@@ -1,10 +1,10 @@
 package game
 
 import (
-	"github.com/kivutar/goro/client"
 	"log"
 	"time"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
 )

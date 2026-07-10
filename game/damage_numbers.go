@@ -1,13 +1,13 @@
 package game
 
 import (
-	"github.com/kivutar/goro/client"
 	"image/color"
 	"log"
 	"math"
 	"strings"
 	"time"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
 )
 
@@ -16,6 +16,12 @@ const (
 	damageNumberACT = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\\xBC\xFD\xC0\xDA.act"
 	damageMsgSPR    = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\msg.spr"
 	damageMsgACT    = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\msg.act"
+)
+
+var (
+	damageFloaterWhite  = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	damageFloaterYellow = color.RGBA{R: 230, G: 230, B: 38, A: 255}
+	damageFloaterRed    = color.RGBA{R: 255, G: 64, B: 64, A: 255}
 )
 
 func (m *WorldMode) damageNumberSprite(ctx client.Context) *spriteView {
