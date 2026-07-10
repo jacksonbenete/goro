@@ -415,6 +415,18 @@ func (m *WorldMode) setActorCastBar(actorID uint32, bar actorCastBar) {
 	m.actorCastBars[actorID] = bar
 }
 
+func (m *WorldMode) clearActorCastBar(ctx client.Context, actorID uint32) {
+	if actorID == 0 || m.actorCastBars == nil {
+		return
+	}
+	delete(m.actorCastBars, actorID)
+	if ctx.Session == nil || !isLocalActor(ctx, actorID) {
+		return
+	}
+	delete(m.actorCastBars, ctx.Session.AccountID)
+	delete(m.actorCastBars, ctx.Session.CharID)
+}
+
 func (m *WorldMode) startSkillNoDamageSourceAnimation(ctx client.Context, notify network.SkillNoDamageNotify, now time.Time) {
 	source, ok, _ := actorForCombatID(ctx, notify.SourceID)
 	if !ok {

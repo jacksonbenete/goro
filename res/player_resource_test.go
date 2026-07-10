@@ -60,30 +60,6 @@ func TestPlayerWeaponOverlayResourceCandidates(t *testing.T) {
 	}
 }
 
-func TestPlayerWeaponTypeMatchesRobrowserFallbackRanges(t *testing.T) {
-	tests := []struct {
-		itemID int
-		want   int
-	}{
-		{1101, 2},
-		{1151, 3},
-		{1201, 1},
-		{1251, 16},
-		{1501, 8},
-		{1551, 15},
-		{1601, 10},
-		{1701, 11},
-		{20000, 23},
-		{70, 10},
-		{96, 23},
-	}
-	for _, test := range tests {
-		if got := PlayerWeaponType(test.itemID); got != test.want {
-			t.Fatalf("weapon type for %d = %d, want %d", test.itemID, got, test.want)
-		}
-	}
-}
-
 func TestPlayerWeaponViewIDUsesItemClassNumBeforeFallbackRange(t *testing.T) {
 	manager := &Manager{
 		itemMetadataLoaded: true,

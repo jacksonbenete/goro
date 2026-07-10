@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -456,6 +457,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		if hitAt.Before(now) {
 			hitAt = now
 		}
+		m.clearActorCastBar(ctx, action.TargetID)
 		m.addSkillBeginEffect(ctx, action, now)
 		m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, now)
 		m.addSkillBeforeHitEffect(ctx, action, now)
@@ -1029,7 +1031,7 @@ func deathActionFamilyForActor(actor worldstate.Actor) int {
 }
 
 func isSecondPCAttack(job int, sex byte, weaponValue int) bool {
-	weaponType := res.PlayerWeaponType(weaponValue)
+	weaponType := db.PlayerWeaponType(weaponValue)
 	switch job {
 	case 0, 23, 4001, 4045:
 		if sex != 0 {

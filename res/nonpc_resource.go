@@ -3,6 +3,8 @@ package res
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kivutar/goro/db"
 )
 
 const legacyMonsterSpriteRoot = "data\\sprite\\\xB8\xF3\xBD\xBA\xC5\xCD\\"
@@ -19,50 +21,6 @@ var jobNameLuaCandidates = []string{
 	"lua files\\datainfo\\jobname.lub",
 }
 
-var fallbackJobResourceNames = map[int]string{
-	45:   "WARPNPC",
-	46:   "1_ETC_01",
-	47:   "1_M_01",
-	48:   "1_M_02",
-	49:   "1_M_03",
-	50:   "1_M_04",
-	66:   "1_F_01",
-	67:   "1_F_02",
-	68:   "1_F_03",
-	69:   "1_F_04",
-	81:   "4_DOG01",
-	82:   "4_KID01",
-	83:   "4_M_01",
-	84:   "4_M_02",
-	85:   "4_M_03",
-	86:   "4_M_04",
-	1001: "scorpion",
-	1002: "poring",
-	1004: "hornet",
-	1005: "familiar",
-	1007: "fabre",
-	1008: "pupa",
-	1009: "condor",
-	1010: "willow",
-	1011: "chontchon",
-	1013: "wolf",
-	1014: "spore",
-	1015: "zombie",
-	1016: "archer_skeleton",
-	1018: "creamie",
-	1020: "mandragora",
-	1023: "orc_warrior",
-	1024: "worm_tail",
-	1025: "snake",
-	1026: "munak",
-	1028: "soldier_skeleton",
-	111:  "HIDDEN_NPC",
-	844:  "CLEAR_NPC",
-	1911: "OBJ_NEUTRAL",
-	1912: "OBJ_FLAG_A",
-	1913: "OBJ_FLAG_B",
-}
-
 func (m *Manager) JobResourceName(job int) (string, bool) {
 	if !m.jobResourceNamesLoaded {
 		m.loadJobResourceNames()
@@ -73,10 +31,7 @@ func (m *Manager) JobResourceName(job int) (string, bool) {
 
 func (m *Manager) loadJobResourceNames() {
 	m.jobResourceNamesLoaded = true
-	m.jobResourceNames = make(map[int]string, len(fallbackJobResourceNames))
-	for job, name := range fallbackJobResourceNames {
-		m.jobResourceNames[job] = name
-	}
+	m.jobResourceNames = db.JobResourceNames()
 
 	globals := make(map[string]luaValue)
 	for _, candidates := range [][]string{npcIdentityLuaCandidates, jobNameLuaCandidates} {

@@ -1586,6 +1586,41 @@ func TestApplyActorActionNotifyStopsLocalPlayerMovementOnHit(t *testing.T) {
 	}
 }
 
+func TestApplyActorActionNotifyClearsLocalCastBarOnHit(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 15, Y: 20, Job: 2}
+	world.UpsertActor(worldstate.Actor{
+		ID:            400,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+	mode.startActorCastBar(ctx, 2000000, 2*time.Second, time.Now())
+	if len(mode.actorCastBars) != 2 {
+		t.Fatalf("cast bars = %d, want account and char aliases", len(mode.actorCastBars))
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    400,
+		TargetID:    2000000,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      42,
+		Action:      0,
+	})
+
+	if len(mode.actorCastBars) != 0 {
+		t.Fatalf("cast bars after hit = %+v, want cleared", mode.actorCastBars)
+	}
+}
+
 func TestApplyActorActionNotifyResumesFocusedLocalWalkAfterHurt(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{

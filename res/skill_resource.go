@@ -3,6 +3,8 @@ package res
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kivutar/goro/db"
 )
 
 var skillIDLuaCandidates = []string{
@@ -18,46 +20,6 @@ var skillSPAmountCandidates = []string{
 	"leveluseskillspamount.txt",
 	"data\\leveluseskillspamount.txt",
 	"data/leveluseskillspamount.txt",
-}
-
-var fallbackSkillResourceNames = map[int]string{
-	1:   "NV_BASIC",
-	2:   "SM_SWORD",
-	3:   "SM_TWOHAND",
-	4:   "SM_RECOVERY",
-	5:   "SM_BASH",
-	6:   "SM_PROVOKE",
-	7:   "SM_MAGNUM",
-	8:   "SM_ENDURE",
-	9:   "MG_SRECOVERY",
-	10:  "MG_SIGHT",
-	11:  "MG_NAPALMBEAT",
-	12:  "MG_SAFETYWALL",
-	13:  "MG_SOULSTRIKE",
-	14:  "MG_COLDBOLT",
-	15:  "MG_FROSTDIVER",
-	16:  "MG_STONECURSE",
-	17:  "MG_FIREBALL",
-	18:  "MG_FIREWALL",
-	19:  "MG_FIREBOLT",
-	20:  "MG_LIGHTNINGBOLT",
-	21:  "MG_THUNDERSTORM",
-	22:  "AL_DP",
-	23:  "AL_DEMONBANE",
-	24:  "AL_RUWACH",
-	25:  "AL_PNEUMA",
-	26:  "AL_TELEPORT",
-	27:  "AL_WARP",
-	28:  "AL_HEAL",
-	29:  "AL_INCAGI",
-	30:  "AL_DECAGI",
-	31:  "AL_HOLYWATER",
-	32:  "AL_CRUCIS",
-	33:  "AL_ANGELUS",
-	34:  "AL_BLESSING",
-	35:  "AL_CURE",
-	142: "NV_FIRSTAID",
-	143: "NV_TRICKDEAD",
 }
 
 func (m *Manager) SkillResourceName(skillID int) (string, bool) {
@@ -104,10 +66,7 @@ func (m *Manager) loadSkillResourceNames() {
 		return
 	}
 	m.skillResourceNamesLoaded = true
-	m.skillResourceNames = make(map[int]string, len(fallbackSkillResourceNames))
-	for id, name := range fallbackSkillResourceNames {
-		m.skillResourceNames[id] = name
-	}
+	m.skillResourceNames = db.SkillResourceNames()
 	globals := make(map[string]luaValue)
 	_, data, ok := m.ReadFirst(skillIDLuaCandidates)
 	if !ok {
