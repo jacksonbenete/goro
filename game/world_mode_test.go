@@ -501,6 +501,45 @@ func TestDefaultHoveredUIRootDoesNotHideWorldWarpCursor(t *testing.T) {
 	}
 }
 
+func TestCursorActionDefaultOverPC(t *testing.T) {
+	ctx, projection := cursorHoverTestContext(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypePC,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+
+	if got := mode.cursorDesiredAction(ctx, projection, time.Now()); got != cursorActionDefault {
+		t.Fatalf("cursor action = %d, want default", got)
+	}
+}
+
+func TestCursorActionClickOverVendingBoard(t *testing.T) {
+	now := time.Now()
+	actor := worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypePC,
+		HasObjectType: true,
+		Vending:       true,
+		VendingName:   "Fresh Fish",
+	}
+	ctx, projection := cursorHoverTestContext(actor)
+	bounds, ok := vendingBoardActorBounds(ctx, projection, actor, now, nil)
+	if !ok {
+		t.Fatal("expected vending board bounds")
+	}
+	ctx.Input.SetMousePosition(int(bounds.x+bounds.w/2), int(bounds.y+bounds.h/2))
+	mode := &WorldMode{}
+
+	if got := mode.cursorDesiredAction(ctx, projection, now); got != cursorActionClick {
+		t.Fatalf("cursor action = %d, want click", got)
+	}
+}
+
 func TestCursorMagnetOffsetFollowsTargetSnapSetting(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()
@@ -6288,5 +6327,31 @@ func TestApplyCartPacketsUpdateSessionCart(t *testing.T) {
 	applyCartClosed(ctx)
 	if sessionState.Cart.Open {
 		t.Fatalf("cart after close = %+v", sessionState.Cart)
+	}
+}
+
+func TestAttackFocusTracksTargetAndAnimationStart(t *testing.T) {
+	mode := &WorldMode{}
+	first := time.Unix(10, 0)
+	second := time.Unix(20, 0)
+
+	mode.focusAttackTarget(100, first)
+	if mode.attackFocusID != 100 || !mode.attackFocusStart.Equal(first) {
+		t.Fatalf("first focus = id %d start %v", mode.attackFocusID, mode.attackFocusStart)
+	}
+
+	mode.focusAttackTarget(100, second)
+	if !mode.attackFocusStart.Equal(first) {
+		t.Fatalf("same target reset animation start to %v", mode.attackFocusStart)
+	}
+
+	mode.focusAttackTarget(200, second)
+	if mode.attackFocusID != 200 || !mode.attackFocusStart.Equal(second) {
+		t.Fatalf("second focus = id %d start %v", mode.attackFocusID, mode.attackFocusStart)
+	}
+
+	mode.clearAttackFocus()
+	if mode.attackFocusID != 0 || !mode.attackFocusStart.IsZero() {
+		t.Fatalf("clear focus = id %d start %v", mode.attackFocusID, mode.attackFocusStart)
 	}
 }

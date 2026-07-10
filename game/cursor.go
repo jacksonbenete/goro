@@ -18,6 +18,7 @@ const (
 	cursorActionDefault = 0
 	cursorActionTalk    = 1
 	cursorActionClick   = 2
+	cursorActionLock    = 3
 	cursorActionRotate  = 4
 	cursorActionAttack  = 5
 	cursorActionWarp    = 7
@@ -45,6 +46,7 @@ type roCursorState struct {
 var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionDefault: {drawX: 1, drawY: 19, delayMult: 2.0},
 	cursorActionTalk:    {drawX: 20, drawY: 40, delayMult: 1.0},
+	cursorActionLock:    {drawX: 20, drawY: 40, delayMult: 1.0},
 	cursorActionRotate:  {drawX: 18, drawY: 26, delayMult: 1.0},
 	cursorActionWarp:    {drawX: 10, drawY: 32, delayMult: 1.0},
 	cursorActionPick:    {drawX: 20, drawY: 40, delayMult: 1.0},
@@ -151,6 +153,9 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		}
 		return cursorActionTarget
 	}
+	if _, ok := m.hoveredVendingBoard(ctx, projection, mouseX, mouseY, now); ok {
+		return cursorActionClick
+	}
 	if _, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionPick
 	}
@@ -158,8 +163,6 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		switch {
 		case isWarpActor(actor):
 			return cursorActionWarp
-		case actorHasVending(actor):
-			return cursorActionTalk
 		case actorCanBeAttackClicked(ctx, actor):
 			return cursorActionAttack
 		case cursorActorCanTalk(actor):
@@ -346,7 +349,12 @@ func cursorActorCanTalk(actor worldstate.Actor) bool {
 	if actor.ID == 0 || !actor.HasObjectType {
 		return false
 	}
-	return actor.ObjectType != actorObjectTypeMob && !isWarpActor(actor)
+	switch actor.ObjectType {
+	case actorObjectTypeNPC, actorObjectTypeNPC2:
+		return !isWarpActor(actor)
+	default:
+		return false
+	}
 }
 
 func cursorInfo(action int) cursorActionInfo {

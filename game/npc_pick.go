@@ -14,11 +14,3 @@ func clickedTalkTarget(ctx client.Context, projection sceneProjection, mouseX, m
 	}
 	return actor, true
 }
-
-func clickedVendingTarget(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
-	actor, ok := hoveredCursorActor(ctx, projection, mouseX, mouseY, now, deadActors)
-	if !ok || !actorHasVending(actor) {
-		return worldstate.Actor{}, false
-	}
-	return actor, true
-}

@@ -74,6 +74,8 @@ type WorldMode struct {
 	pendingSkill      pendingSkillTarget
 	pickupReqItemID   uint32
 	lockedAttackID    uint32
+	attackFocusID     uint32
+	attackFocusStart  time.Time
 	lastAttackAt      time.Time
 	lastChaseAt       time.Time
 	actorAnims        map[uint32]actorAnimation
@@ -372,6 +374,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.pendingSkill = pendingSkillTarget{}
 	m.pickupReqItemID = 0
 	m.lockedAttackID = 0
+	m.clearAttackFocus()
 	m.lastAttackAt = time.Time{}
 	m.lastChaseAt = time.Time{}
 	m.actorAnims = make(map[uint32]actorAnimation)
@@ -845,6 +848,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			if m.lockedAttackID == vanish.ID {
 				m.clearLockedAttack()
 			}
+			if m.attackFocusID == vanish.ID {
+				m.clearAttackFocus()
+			}
 			continue
 		}
 		if look, ok, err := network.ParseActorLookChange(pkt); err != nil {
@@ -1172,9 +1178,15 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			return nil, nil
 		}
 		playerX, playerY := currentPlayerCell(ctx, now)
+		if actor, ok := m.hoveredVendingBoard(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
+			log.Printf("click vending target mouse=%d,%d id=%d name=%q shop=%q player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.VendingName, playerX, playerY, actor.X, actor.Y)
+			m.requestVendingList(ctx, actor, "click")
+			return nil, nil
+		}
 		if item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
 			log.Printf("click pickup target mouse=%d,%d id=%d item_id=%d amount=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, item.ID, item.ItemID, item.Amount, playerX, playerY, item.X, item.Y)
 			m.clearLockedAttack()
+			m.clearAttackFocus()
 			m.requestPickup(ctx, item, "click")
 			return nil, nil
 		}
@@ -1183,19 +1195,16 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.requestAttack(ctx, actor, "click")
 			return nil, nil
 		}
-		if actor, ok := clickedVendingTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
-			log.Printf("click vending target mouse=%d,%d id=%d name=%q shop=%q player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.VendingName, playerX, playerY, actor.X, actor.Y)
-			m.requestVendingList(ctx, actor, "click")
-			return nil, nil
-		}
 		if actor, ok := clickedTalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
 			log.Printf("click npc talk target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, playerX, playerY, actor.X, actor.Y)
+			m.clearAttackFocus()
 			m.requestNPCTalk(ctx, actor, "click")
 			return nil, nil
 		}
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			log.Printf("click walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, playerX, playerY, targetX, targetY)
 			m.clearLockedAttack()
+			m.clearAttackFocus()
 			if shouldUseTurnOnlyGroundClick(ctx) {
 				m.requestChangeDirection(ctx, targetX, targetY, "click")
 				return nil, nil
@@ -1248,6 +1257,7 @@ func (m *WorldMode) updateHeldWalk(ctx client.Context, pointerBlocked bool, now 
 		return false
 	}
 	m.clearLockedAttack()
+	m.clearAttackFocus()
 	m.requestWalk(ctx, targetX, targetY, "held click")
 	return true
 }
@@ -1353,6 +1363,7 @@ func friendNameInSession(s *session.Session, name string) bool {
 func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
+	m.clearAttackFocus()
 	m.clearLocalActorAction(ctx)
 	m.scheduledStops = nil
 	m.npcDialog.ResetPublished(ctx)
@@ -1672,6 +1683,7 @@ func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, so
 		m.setWalkCooldown(walkErrorCooldown)
 		return
 	}
+	m.focusAttackTarget(actor.ID, time.Now())
 	if normalAttackLockActive(ctx) {
 		m.lockAttack(actor.ID)
 	} else {
@@ -1725,6 +1737,23 @@ func (m *WorldMode) clearLockedAttack() {
 	m.lockedAttackID = 0
 	m.lastAttackAt = time.Time{}
 	m.lastChaseAt = time.Time{}
+}
+
+func (m *WorldMode) focusAttackTarget(targetID uint32, now time.Time) {
+	if targetID == 0 {
+		m.clearAttackFocus()
+		return
+	}
+	if m.attackFocusID == targetID {
+		return
+	}
+	m.attackFocusID = targetID
+	m.attackFocusStart = now
+}
+
+func (m *WorldMode) clearAttackFocus() {
+	m.attackFocusID = 0
+	m.attackFocusStart = time.Time{}
 }
 
 func (m *WorldMode) continuePendingAttack(ctx client.Context, source string) {
@@ -4089,6 +4118,9 @@ func isWarpPortalJob(job int16) bool {
 
 func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVanish) {
 	log.Printf("actor vanish id=%d reason=%d", vanish.ID, vanish.Reason)
+	if m.attackFocusID == vanish.ID {
+		m.clearAttackFocus()
+	}
 	if vanish.Reason == 1 {
 		m.startActorDeath(ctx, vanish.ID)
 		return
@@ -4184,6 +4216,9 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 		}
 		if m.lockedAttackID == id {
 			m.clearLockedAttack()
+		}
+		if m.attackFocusID == id {
+			m.clearAttackFocus()
 		}
 		log.Printf("actor death removed id=%d", id)
 	}
@@ -5144,18 +5179,70 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Cont
 	for _, entry := range entries {
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
-	m.drawVendingBoardLabels(screen, entries)
+	m.drawAttackFocusMarker(screen, ctx, now, entries)
+	m.drawVendingBoardLabels(screen, ctx, entries)
 	m.drawHoveredLocalPlayerNameLabel(screen, ctx, entries)
 	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
-func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawAttackFocusMarker(screen *render.Image, ctx client.Context, now time.Time, entries []sceneActorDrawEntry) {
+	if m.attackFocusID == 0 || screen == nil {
+		return
+	}
+	view := m.cursorSpriteView(ctx)
+	if view == nil || view.act == nil {
+		return
+	}
+	info := cursorInfo(cursorActionLock)
+	if m.attackFocusStart.IsZero() {
+		m.attackFocusStart = now
+	}
+	action := cursorActionLock
+	if action < 0 || action >= len(view.act.Actions) || len(view.act.Actions[action].Animations) == 0 {
+		return
+	}
+	actionDef := view.act.Actions[action]
+	delay := float64(actionDef.DelayMS) * info.delayMult
+	motion := spriteMotionIndexWithDelay(actionDef, m.attackFocusStart, now, true, delay)
+	frame, ok := cursorFrameBillboard(view, action, motion, info.drawX, info.drawY)
+	if !ok {
+		return
+	}
+	for _, entry := range entries {
+		if entry.actor.ID != m.attackFocusID {
+			continue
+		}
+		x, y := actorPickBoundsCenter(entry.screenX, entry.screenY, entry.scale)
+		var opts render.DrawImageOptions
+		opts.GeoM.Translate(math.Round(x-frame.anchorX), math.Round(y-frame.anchorY))
+		opts.Filter = spriteDrawFilter()
+		screen.DrawImage(frame.image, &opts)
+		return
+	}
+}
+
+func (m *WorldMode) cursorSpriteView(ctx client.Context) *playerSpriteView {
+	if m.cursorView != nil || m.cursorViewMiss {
+		return m.cursorView
+	}
+	if view, status := loadCursorSpriteView(ctx.Resources); view != nil {
+		m.cursorView = view
+	} else {
+		m.cursorViewMiss = true
+		log.Printf("cursor resources unavailable: %s", status)
+	}
+	return m.cursorView
+}
+
+func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {
+	icon := m.vendingShopIcon(ctx.Resources)
 	for _, entry := range entries {
 		if !actorHasVending(entry.actor) {
 			continue
 		}
-		labelY := entry.screenY - 74*entry.scale
-		drawVendingBoardLabel(screen, entry.actor.VendingName, entry.screenX, labelY)
+		label := sanitizeActorName(entry.actor.VendingName)
+		labelY := actorSpriteTopY(entry.screenY, entry.scale) - vendingBoardGap - vendingBoardLabelHeight(label, icon)
+		drawVendingBoardLabel(screen, entry.actor.VendingName, entry.screenX, labelY, icon)
 	}
 }
 
@@ -5610,21 +5697,164 @@ func drawActorNameLabelAtY(screen *render.Image, label string, centerX, labelY f
 	render.DrawOutlinedTextAt(screen, label, x, y, foreground, outline)
 }
 
-func drawVendingBoardLabel(screen *render.Image, label string, centerX, topY float64) {
+const (
+	vendingBoardPadX    = 9
+	vendingBoardPadY    = 5
+	vendingBoardIconGap = 4
+	vendingBoardGap     = 4
+)
+
+type vendingBoardBounds struct {
+	x float64
+	y float64
+	w float64
+	h float64
+}
+
+func (b vendingBoardBounds) contains(x, y float64) bool {
+	return x >= b.x && x < b.x+b.w && y >= b.y && y < b.y+b.h
+}
+
+func drawVendingBoardLabel(screen *render.Image, label string, centerX, topY float64, icon *render.Image) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return
 	}
+	bounds, ok := vendingBoardLabelBounds(label, centerX, topY, icon)
+	if !ok {
+		return
+	}
+	render.DrawRect(screen, bounds.x, bounds.y, bounds.w, bounds.h, color.RGBA{R: 80, G: 88, B: 96, A: 230})
+	render.DrawRect(screen, bounds.x+1, bounds.y+1, bounds.w-2, bounds.h-2, color.RGBA{R: 255, G: 255, B: 255, A: 245})
+
+	_, textH := render.DebugTextSize(label)
+	iconW, iconH := vendingBoardIconSize(icon)
+	contentH := maxInt(textH, iconH)
+	contentX := int(bounds.x) + vendingBoardPadX
+	contentY := int(bounds.y) + vendingBoardPadY
+	textX := contentX
+	if iconW > 0 && iconH > 0 {
+		iconY := contentY + (contentH-iconH)/2
+		var opts render.DrawImageOptions
+		opts.GeoM.Translate(float64(contentX), float64(iconY))
+		screen.DrawImage(icon, &opts)
+		textX += iconW + vendingBoardIconGap
+	}
+	textY := contentY + (contentH-textH)/2
+	render.DebugPrintAtColor(screen, label, textX, textY, color.RGBA{R: 30, G: 34, B: 40, A: 255})
+}
+
+func (m *WorldMode) hoveredVendingBoard(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.Actor, bool) {
+	if ctx.World == nil {
+		return worldstate.Actor{}, false
+	}
+	icon := m.vendingShopIcon(ctx.Resources)
+	bestDistance := math.Inf(1)
+	var best worldstate.Actor
+	for _, actor := range ctx.World.Actors {
+		if _, dead := m.actorDeaths[actor.ID]; dead {
+			continue
+		}
+		if actor.ID == 0 || isLocalActor(ctx, actor.ID) || !actorHasVending(actor) {
+			continue
+		}
+		bounds, ok := vendingBoardActorBounds(ctx, projection, actor, now, icon)
+		if !ok || !bounds.contains(float64(mouseX), float64(mouseY)) {
+			continue
+		}
+		dx := bounds.x + bounds.w/2 - float64(mouseX)
+		dy := bounds.y + bounds.h/2 - float64(mouseY)
+		distance := dx*dx + dy*dy
+		if distance < bestDistance {
+			bestDistance = distance
+			best = actor
+		}
+	}
+	return best, bestDistance < math.Inf(1)
+}
+
+func vendingBoardActorBounds(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time, icon *render.Image) (vendingBoardBounds, bool) {
+	label := sanitizeActorName(actor.VendingName)
+	if label == "" || ctx.World == nil {
+		return vendingBoardBounds{}, false
+	}
+	actorX, actorY := actor.RenderPosition(now)
+	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
+	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
+	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
+	topY := actorSpriteTopY(float64(point.y), scale) - vendingBoardGap - vendingBoardLabelHeight(label, icon)
+	return vendingBoardLabelBounds(label, float64(point.x), topY, icon)
+}
+
+func vendingBoardLabelBounds(label string, centerX, topY float64, icon *render.Image) (vendingBoardBounds, bool) {
+	label = sanitizeActorName(label)
+	if label == "" {
+		return vendingBoardBounds{}, false
+	}
 	textW, textH := render.DebugTextSize(label)
-	padX := 6
-	padY := 3
-	w := float64(textW + padX*2)
-	h := float64(textH + padY*2)
-	x := math.Round(centerX - w/2)
-	y := math.Round(topY)
-	render.DrawRect(screen, x, y, w, h, color.RGBA{R: 80, G: 88, B: 96, A: 230})
-	render.DrawRect(screen, x+1, y+1, w-2, h-2, color.RGBA{R: 255, G: 255, B: 255, A: 245})
-	render.DebugPrintAtColor(screen, label, int(x)+padX, int(y)+padY, color.RGBA{R: 30, G: 34, B: 40, A: 255})
+	iconW, iconH := vendingBoardIconSize(icon)
+	contentW := textW
+	if iconW > 0 && iconH > 0 {
+		contentW += iconW + vendingBoardIconGap
+	}
+	contentH := maxInt(textH, iconH)
+	w := float64(contentW + vendingBoardPadX*2)
+	h := float64(contentH + vendingBoardPadY*2)
+	return vendingBoardBounds{
+		x: math.Round(centerX - w/2),
+		y: math.Round(topY),
+		w: w,
+		h: h,
+	}, true
+}
+
+func vendingBoardLabelHeight(label string, icon *render.Image) float64 {
+	bounds, ok := vendingBoardLabelBounds(label, 0, 0, icon)
+	if !ok {
+		return 0
+	}
+	return bounds.h
+}
+
+func vendingBoardIconSize(icon *render.Image) (int, int) {
+	if icon == nil || icon.Bounds().Empty() {
+		return 0, 0
+	}
+	return icon.Bounds().Dx(), icon.Bounds().Dy()
+}
+
+func (m *WorldMode) vendingShopIcon(manager *res.Manager) *render.Image {
+	if manager == nil {
+		return nil
+	}
+	const key = "__interface_basic_interface_shop"
+	if m.textures == nil {
+		m.textures = make(map[string]*render.Image)
+	}
+	if m.textureMiss == nil {
+		m.textureMiss = make(map[string]struct{})
+	}
+	if texture, ok := m.textures[key]; ok {
+		return texture
+	}
+	if _, ok := m.textureMiss[key]; ok {
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, res.InterfaceTextureCandidates("basic_interface\\shop"))
+	if err != nil {
+		m.textureMiss[key] = struct{}{}
+		return nil
+	}
+	texture := render.NewImageFromImage(img)
+	m.textures[key] = texture
+	return texture
+}
+
+func actorSpriteTopY(baseY, scale float64) float64 {
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	return baseY - float64(humanoidBillboardAnchorY)*scale
 }
 
 func actorNameLabelY(baseY, scale float64) float64 {
