@@ -1386,12 +1386,8 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
 		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
 	}
-	life, ok := mode.actorLife[300]
-	if !ok {
-		t.Fatal("target estimated life fallback missing")
-	}
-	if life.hp != 8 || life.maxHP != 50 || !life.estimated {
-		t.Fatalf("target estimated life = %+v, want 8/50 estimated", life)
+	if _, ok := mode.actorLife[300]; ok {
+		t.Fatal("target life should not be estimated from damage")
 	}
 
 	applySelfMoveAck(ctx, network.SelfMoveAck{FromX: 10, FromY: 20, ToX: 12, ToY: 20})
@@ -3596,12 +3592,12 @@ func TestApplyActorHPUpdateStoresExactLife(t *testing.T) {
 	if !ok {
 		t.Fatal("life missing")
 	}
-	if life.hp != 12 || life.maxHP != 48 || life.fromTiny {
+	if life.hp != 12 || life.maxHP != 48 {
 		t.Fatalf("life = %+v, want exact 12/48", life)
 	}
 }
 
-func TestCombatLifeFallbackDoesNotSubtractRawDamageFromTinyHPGauge(t *testing.T) {
+func TestCombatDamageDoesNotInventMonsterLife(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.UpsertActor(worldstate.Actor{
@@ -3618,7 +3614,6 @@ func TestCombatLifeFallbackDoesNotSubtractRawDamageFromTinyHPGauge(t *testing.T)
 		World:   world,
 	}
 
-	mode.applyActorHPUpdate(network.ActorHPUpdate{ID: 300, HP: 95, MaxHP: 100, Tiny: true})
 	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
 		SourceID:    2000000,
 		TargetID:    300,
@@ -3628,51 +3623,12 @@ func TestCombatLifeFallbackDoesNotSubtractRawDamageFromTinyHPGauge(t *testing.T)
 		Action:      0,
 	})
 
-	life, ok := mode.actorLife[300]
-	if !ok {
-		t.Fatal("life missing")
-	}
-	if life.hp != 95 || life.maxHP != 100 || !life.fromTiny {
-		t.Fatalf("tiny life = %+v, want unchanged 95/100", life)
+	if _, ok := mode.actorLife[300]; ok {
+		t.Fatal("life should not be created from combat damage")
 	}
 }
 
-func TestCombatLifeFallbackUsesEstimatedRedPlantMaxHPWithoutHPPacket(t *testing.T) {
-	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
-	world.UpsertActor(worldstate.Actor{
-		ID:            300,
-		Job:           1078,
-		X:             11,
-		Y:             20,
-		HasObjectType: true,
-		ObjectType:    actorObjectTypeMob,
-	})
-	mode := &WorldMode{}
-	ctx := client.Context{
-		Session: &session.Session{AccountID: 2000000, CharID: 150000},
-		World:   world,
-	}
-
-	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
-		SourceID:    2000000,
-		TargetID:    300,
-		SourceSpeed: 580,
-		TargetSpeed: 480,
-		Damage:      1,
-		Action:      0,
-	})
-
-	life, ok := mode.monsterLifeForSense(world.Actors[300].ID)
-	if !ok {
-		t.Fatal("red plant estimated life missing")
-	}
-	if life.hp != 9 || life.maxHP != 10 || !life.estimated {
-		t.Fatalf("red plant estimated life = %+v, want 9/10 estimated", life)
-	}
-}
-
-func TestCombatLifeFallbackSubtractsRawDamageFromExactHPGauge(t *testing.T) {
+func TestCombatDamageDoesNotMutateExactMonsterLife(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.UpsertActor(worldstate.Actor{
@@ -3703,8 +3659,8 @@ func TestCombatLifeFallbackSubtractsRawDamageFromExactHPGauge(t *testing.T) {
 	if !ok {
 		t.Fatal("life missing")
 	}
-	if life.hp != 38 || life.maxHP != 100 || life.fromTiny {
-		t.Fatalf("exact life = %+v, want 38/100", life)
+	if life.hp != 50 || life.maxHP != 100 {
+		t.Fatalf("exact life = %+v, want unchanged 50/100", life)
 	}
 }
 
