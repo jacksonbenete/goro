@@ -351,9 +351,6 @@ func (m *WorldMode) waterTexture(manager *res.Manager, waterType, frame int) *re
 		return nil
 	}
 	img, _, err := res.LoadImage(manager, res.WaterTextureCandidates(waterType, frame))
-	if err != nil && waterType >= 0 {
-		img, _, err = res.LoadImage(manager, res.WaterTextureCandidates(waterType%6, frame))
-	}
 	if err != nil {
 		m.textureMiss[key] = struct{}{}
 		return nil

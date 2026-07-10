@@ -151,22 +151,20 @@ func TestPreferNonPCActUpgradeForLegacyMonsterAct(t *testing.T) {
 	}
 }
 
-func TestRoBrowserGR2SpriteFallbackJob(t *testing.T) {
+func TestGR2ResourcesDoNotUseSpriteFallbacks(t *testing.T) {
 	tests := []struct {
 		resource string
-		want     int
-		wantOK   bool
+		want     bool
 	}{
-		{resource: "Guildflag90_1.gr2", want: 1911, wantOK: true},
-		{resource: `data\sprite\npc\empelium90_0.gr2`, want: 2080, wantOK: true},
-		{resource: "unknown.gr2", wantOK: false},
-		{resource: "OBJ_FLAG_A", wantOK: false},
+		{resource: "Guildflag90_1.gr2", want: true},
+		{resource: `data\sprite\npc\empelium90_0.gr2`, want: true},
+		{resource: "unknown.gr2", want: true},
+		{resource: "OBJ_FLAG_A", want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.resource, func(t *testing.T) {
-			got, ok := gr2SpriteFallbackJob(tt.resource)
-			if ok != tt.wantOK || got != tt.want {
-				t.Fatalf("gr2SpriteFallbackJob(%q) = %d, %v; want %d, %v", tt.resource, got, ok, tt.want, tt.wantOK)
+			if got := isGR2Resource(tt.resource); got != tt.want {
+				t.Fatalf("isGR2Resource(%q) = %v, want %v", tt.resource, got, tt.want)
 			}
 		})
 	}

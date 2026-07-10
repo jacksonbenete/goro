@@ -34,17 +34,8 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*spriteVi
 	if !ok {
 		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
 	}
-	if fallbackJob, ok := gr2SpriteFallbackJob(resourceName); ok {
-		fallbackResourceName, fallbackOK := manager.JobResourceName(fallbackJob)
-		if !fallbackOK {
-			return nil, fmt.Sprintf("%s job=%d resource=%s gr2-fallback-job=%d resource-name=missing", label, job, resourceName, fallbackJob)
-		}
-		statusPrefix := fmt.Sprintf("%s gr2-fallback job=%d resource=%s -> job=%d resource=%s", label, job, resourceName, fallbackJob, fallbackResourceName)
-		view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(fallbackJob, fallbackResourceName, "act"), res.NonPCSpriteResourceCandidates(fallbackJob, fallbackResourceName, "spr"), nil, statusPrefix)
-		if view == nil {
-			return nil, status
-		}
-		return view, status
+	if isGR2Resource(resourceName) {
+		return nil, fmt.Sprintf("%s job=%d resource=%s gr2-model=unsupported", label, job, resourceName)
 	}
 	view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(job, resourceName, "act"), res.NonPCSpriteResourceCandidates(job, resourceName, "spr"), nil, label+" "+resourceName)
 	if view == nil {
@@ -69,27 +60,12 @@ func actorJobHasNoSprite(job int) bool {
 	}
 }
 
-func gr2SpriteFallbackJob(resourceName string) (int, bool) {
+func isGR2Resource(resourceName string) bool {
 	name := strings.ToLower(strings.ReplaceAll(resourceName, "/", "\\"))
 	if i := strings.LastIndex(name, "\\"); i >= 0 {
 		name = name[i+1:]
 	}
-	switch name {
-	case "aguardian90_8.gr2":
-		return 1276, true
-	case "empelium90_0.gr2":
-		return 2080, true
-	case "guildflag90_1.gr2":
-		return 1911, true
-	case "kguardian90_7.gr2":
-		return 2691, true
-	case "sguardian90_9.gr2":
-		return 1163, true
-	case "treasurebox_2.gr2":
-		return 1191, true
-	default:
-		return 0, false
-	}
+	return strings.HasSuffix(name, ".gr2")
 }
 
 func characterHeadPalette(character session.Character) int {

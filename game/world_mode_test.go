@@ -1265,8 +1265,8 @@ func TestApplyRecoveryUpdatesHPAndAddsBlueFloater(t *testing.T) {
 	if len(mode.scheduledSounds) != 1 {
 		t.Fatalf("scheduled sounds = %d, want 1", len(mode.scheduledSounds))
 	}
-	if got := mode.scheduledSounds[0].paths; len(got) < 2 || got[0] != recoveryHPSFX || got[1] != recoverySFXFallbacks[0] {
-		t.Fatalf("scheduled sound paths = %v, want %q then fallback %q", got, recoveryHPSFX, recoverySFXFallbacks[0])
+	if got := mode.scheduledSounds[0].paths; len(got) != 1 || got[0] != recoveryHPSFX {
+		t.Fatalf("scheduled sound paths = %v, want %q", got, recoveryHPSFX)
 	}
 }
 

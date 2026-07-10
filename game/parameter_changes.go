@@ -116,8 +116,6 @@ const (
 	recoverySPSFX = "effect\\\xC8\xED\xB1\xE2.wav"
 )
 
-var recoverySFXFallbacks = []string{"effect\\priest_recovery.wav"}
-
 type statusVisualEffect struct {
 	current       func(*session.Session) int
 	recover       func(*session.Session, int) bool
@@ -176,11 +174,7 @@ func (v statusVisualEffect) applyParameterChange(ctx client.Context, mode *World
 }
 
 func (v statusVisualEffect) sfxCandidates() []string {
-	if len(v.recoverySFX) == 0 {
-		return append([]string(nil), recoverySFXFallbacks...)
-	}
-	paths := append([]string(nil), v.recoverySFX...)
-	return append(paths, recoverySFXFallbacks...)
+	return append([]string(nil), v.recoverySFX...)
 }
 
 func recoverSessionHP(s *session.Session, amount int) bool {

@@ -647,11 +647,7 @@ func (m *LoginMode) playLoginBGM(ctx client.Context) {
 		return
 	}
 	m.bgmStarted = true
-	for _, path := range []string{"01.mp3", "BGM\\01.mp3", "bgm\\01.mp3"} {
-		if err := ctx.Audio.Play(path); err == nil {
-			return
-		}
-	}
+	_ = ctx.Audio.Play("01.mp3")
 }
 
 func (m *LoginMode) playConfirmSFX(ctx client.Context) {
