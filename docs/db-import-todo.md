@@ -9,9 +9,9 @@ Imported:
 - `Jobs/JobConst.js`, `Jobs/JobNameTable.js`
 - `Items/ItemTable.js`, `Items/ItemType.js`, `Items/EquipmentLocation.js`
 - `Items/WeaponTable.js`, `Items/ShieldTable.js`, `Items/HatTable.js`, `Items/RobeTable.js`
+- `Monsters/MonsterTable.js`, `Monsters/MonsterNameTable.js`, `Monsters/ShadowTable.js`, `Monsters/AttackEffectTable.js`
 
 Still useful:
 
-- `Monsters/MonsterTable.js`, `Monsters/MonsterNameTable.js`, `Monsters/ShadowTable.js`, `Monsters/AttackEffectTable.js`
 - `Effects/EffectConst.js`, `Effects/EffectTable.js`, `Effects/WeatherEffect.js`
 - `Map/MapTable.js`, `Map/MapState.js`, `Map/WorldMap.js`

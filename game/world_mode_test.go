@@ -5432,12 +5432,12 @@ func TestActorDisplayNameUsesServerNameBeforeFallback(t *testing.T) {
 	}
 }
 
-func TestActorDisplayNameDoesNotUseHardcodedNonPCFallback(t *testing.T) {
+func TestActorDisplayNameUsesImportedMonsterFallback(t *testing.T) {
 	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Job: 1002}
 
-	if got := actorDisplayName(ctx, actor, false); got != "" {
-		t.Fatalf("display name = %q, want empty without client resource table", got)
+	if got := actorDisplayName(ctx, actor, false); got != "Poring" {
+		t.Fatalf("display name = %q, want Poring from imported DB", got)
 	}
 }
 
@@ -5459,8 +5459,8 @@ func TestHoveredActorDisplayNameUsesServerNameForNPC(t *testing.T) {
 		HasObjectType: true,
 	}
 
-	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "NPC" {
-		t.Fatalf("hovered NPC name = %q, want generic label without client resource table", got)
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "4 M 02" {
+		t.Fatalf("hovered NPC name = %q, want imported resource label", got)
 	}
 	actor.Name = "Kafra Employee#izlude"
 	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Kafra Employee" {
@@ -5477,8 +5477,8 @@ func TestHoveredActorDisplayNameUsesServerNameForMonster(t *testing.T) {
 		HasObjectType: true,
 	}
 
-	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Monster" {
-		t.Fatalf("hovered monster name = %q, want generic label without client resource table", got)
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Poring" {
+		t.Fatalf("hovered monster name = %q, want imported monster label", got)
 	}
 	actor.Name = "Poring"
 	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Poring" {

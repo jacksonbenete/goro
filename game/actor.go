@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -447,116 +448,6 @@ const (
 	actorObjectTypeNPCBionic      = 14
 )
 
-var monsterShadowSize = map[int]float64{
-	111:  0.0,
-	139:  0.0,
-	1004: 0.5,
-	1005: 0.5,
-	1007: 0.5,
-	1008: 0.3,
-	1009: 0.7,
-	1011: 0.5,
-	1013: 1.2,
-	1018: 0.7,
-	1019: 1.2,
-	1020: 0.0,
-	1025: 0.0,
-	1030: 0.0,
-	1035: 0.5,
-	1037: 0.0,
-	1039: 1.2,
-	1040: 2.0,
-	1042: 0.5,
-	1046: 0.0,
-	1047: 0.2,
-	1048: 0.2,
-	1049: 0.3,
-	1050: 0.3,
-	1051: 0.3,
-	1056: 0.7,
-	1057: 0.7,
-	1061: 1.5,
-	1063: 0.5,
-	1069: 1.2,
-	1070: 0.3,
-	1072: 0.5,
-	1074: 0.5,
-	1078: 0.0,
-	1079: 0.0,
-	1080: 0.0,
-	1081: 0.0,
-	1082: 0.0,
-	1083: 0.0,
-	1084: 0.0,
-	1085: 0.0,
-	1087: 1.2,
-	1089: 1.5,
-	1090: 1.0,
-	1091: 0.5,
-	1092: 1.2,
-	1094: 0.7,
-	1095: 0.5,
-	1097: 0.2,
-	1098: 2.0,
-	1101: 0.5,
-	1102: 1.2,
-	1103: 0.3,
-	1104: 0.7,
-	1105: 0.7,
-	1106: 1.2,
-	1107: 0.7,
-	1108: 0.7,
-	1109: 0.7,
-	1110: 0.7,
-	1111: 0.5,
-	1114: 0.5,
-	1115: 1.2,
-	1121: 0.7,
-	1127: 0.0,
-	1129: 0.5,
-	1131: 0.0,
-	1138: 0.0,
-	1139: 0.5,
-	1140: 1.2,
-	1141: 0.5,
-	1142: 0.5,
-	1143: 0.5,
-	1145: 0.5,
-	1147: 1.5,
-	1149: 1.5,
-	1155: 0.5,
-	1156: 0.5,
-	1158: 0.7,
-	1159: 1.2,
-	1160: 0.7,
-	1161: 0.5,
-	1162: 0.5,
-	1167: 0.5,
-	1170: 0.7,
-	1174: 0.5,
-	1175: 0.5,
-	1176: 0.7,
-	1182: 0.0,
-	1183: 0.5,
-	1184: 0.5,
-	1186: 2.0,
-	1190: 1.2,
-	1192: 1.5,
-	1193: 2.0,
-	1194: 0.5,
-	1195: 0.5,
-	1199: 0.5,
-	1201: 1.2,
-	1202: 1.5,
-	1203: 0.5,
-	1204: 0.5,
-	1208: 1.2,
-	1209: 0.7,
-	1211: 0.5,
-	1214: 0.7,
-	1219: 5.0,
-}
-
 func (m *WorldMode) drawSceneActors(screen *render.Image, ctx client.Context, projection sceneProjection) []sceneActorDrawEntry {
 	entries := m.collectSceneActorEntries(screen, ctx, projection)
 	sort.SliceStable(entries, func(i, j int) bool {
@@ -799,7 +690,7 @@ func (m *WorldMode) actorShadowSuppressed(actor worldstate.Actor, now time.Time)
 }
 
 func actorShadowSize(actor worldstate.Actor) float64 {
-	if size, ok := monsterShadowSize[int(actor.Job)]; ok {
+	if size, ok := db.MonsterShadowSize[int(actor.Job)]; ok {
 		return size
 	}
 	return 1
@@ -889,6 +780,9 @@ func actorDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool)
 	}
 	if resourceName, ok := ctx.Resources.NonPCResourceName(int(actor.Job)); ok {
 		return displayNameFromResource(resourceName)
+	}
+	if name, ok := db.MonsterDisplayName[int(actor.Job)]; ok {
+		return name
 	}
 	return ""
 }

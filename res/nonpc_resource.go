@@ -3,6 +3,8 @@ package res
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kivutar/goro/db"
 )
 
 const legacyMonsterSpriteRoot = "data\\sprite\\\xB8\xF3\xBD\xBA\xC5\xCD\\"
@@ -42,15 +44,19 @@ func (m *Manager) loadNonPCResourceNames() {
 		}
 	}
 	table := globals["JobNameTable"]
-	if table.kind != luaTable {
-		return
-	}
-	for key, value := range table.table {
-		index, ok := key.(int)
-		if !ok || value.kind != luaString || value.str == "" {
-			continue
+	if table.kind == luaTable {
+		for key, value := range table.table {
+			index, ok := key.(int)
+			if !ok || value.kind != luaString || value.str == "" {
+				continue
+			}
+			m.nonPCResourceNames[index] = value.str
 		}
-		m.nonPCResourceNames[index] = value.str
+	}
+	for id, name := range db.MonsterResourceName {
+		if m.nonPCResourceNames[id] == "" {
+			m.nonPCResourceNames[id] = name
+		}
 	}
 }
 
