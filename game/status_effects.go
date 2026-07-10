@@ -10,11 +10,6 @@ import (
 	"github.com/kivutar/goro/session"
 )
 
-const (
-	statusEffectHiding    uint16 = db.StatusHiding
-	statusEffectTrickDead uint16 = db.StatusTrickdead
-)
-
 func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.StatusEffectChange) {
 	if ctx.Session == nil || change.StatusID == 0xFFFF {
 		return
@@ -93,7 +88,7 @@ func actorEffectStateBitForStatus(statusID uint16) (uint32, bool) {
 }
 
 func (m *WorldMode) applyTrickDeadStatus(ctx client.Context, change network.StatusEffectChange) {
-	if change.StatusID != statusEffectTrickDead || ctx.World == nil {
+	if change.StatusID != db.StatusTrickdead || ctx.World == nil {
 		return
 	}
 	id := change.ActorID
@@ -116,7 +111,7 @@ func (m *WorldMode) applyTrickDeadStatus(ctx client.Context, change network.Stat
 }
 
 func (m *WorldMode) addStatusEffectTransition(ctx client.Context, change network.StatusEffectChange) {
-	if change.StatusID != statusEffectHiding {
+	if change.StatusID != db.StatusHiding {
 		return
 	}
 	effectID := effectSummonSlave
@@ -148,5 +143,5 @@ func localActorHasStatus(ctx client.Context, statusID uint16) bool {
 }
 
 func localActorHidden(ctx client.Context) bool {
-	return localActorHasStatus(ctx, statusEffectHiding)
+	return localActorHasStatus(ctx, db.StatusHiding)
 }

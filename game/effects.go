@@ -16,6 +16,8 @@ import (
 )
 
 const (
+	effectPixelRatio = db.EffectPixelRatio
+
 	effectFireBolt       = 10019
 	effectNapalmBeat     = 32
 	effectGroundSample   = 513
@@ -350,9 +352,6 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.
 			log.Printf("skill caster effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
 		}
 	}
-	if recovery := skillRecoveryFloater(notify.SkillID); recovery.enabled && !isLocalActor(ctx, notify.TargetID) {
-		m.addTargetRecoveryFloater(ctx, notify.TargetID, int(notify.Amount), recovery.color, recovery.kind, now)
-	}
 	for _, effectID := range skillSuccessEffectIDs(notify.SkillID) {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 			log.Printf("skill success effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
@@ -374,16 +373,6 @@ func (m *WorldMode) applySkillCastNotify(ctx client.Context, notify network.Skil
 	m.startSkillCastSourceAnimation(ctx, notify, duration, now)
 	m.startActorCastBar(ctx, notify.SourceID, duration, now)
 	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y), duration, now, "server")
-}
-
-func (m *WorldMode) addLocalSkillCastFallback(ctx client.Context, skillID uint16, property uint32, sourceID, targetID uint32, cellX, cellY int, duration time.Duration, starts time.Time, source string) {
-	if duration <= 0 || sourceID == 0 {
-		return
-	}
-	m.faceSkillSource(ctx, sourceID, targetID, cellX, cellY)
-	m.startSkillSourceCastAnimation(ctx, sourceID, skillID, duration, starts)
-	m.startActorCastBar(ctx, sourceID, duration, starts)
-	m.addSkillCastEffects(ctx, skillID, property, sourceID, targetID, cellX, cellY, duration, starts, source)
 }
 
 func (m *WorldMode) startActorCastBar(ctx client.Context, sourceID uint32, duration time.Duration, started time.Time) {
@@ -832,9 +821,6 @@ func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, prop
 }
 
 func skillCastGroundSampleSize(skillID uint16) float64 {
-	if size := skillEffectSpecs[skillID].groundCastMarkerSize; size > 0 {
-		return size
-	}
 	return 1
 }
 
@@ -949,12 +935,9 @@ type skillEffectSpec struct {
 	beginCastEffectIDs     []int
 	groundEffectIDs        []int
 	action                 skillActionSpec
-	cast                   skillCastSpec
 	forceGroundTarget      bool
 	forceSelfTarget        bool
 	passive                bool
-	groundCastMarkerSize   float64
-	recoveryFloater        skillRecoveryFloaterSpec
 }
 
 type skillActorAction int
@@ -990,7 +973,6 @@ var (
 	defaultSkillActionSpec    = newSkillActionSpec(skillActorActionSkill, false, &idleSkillActionSpec)
 	attackSkillActionSpec     = newSkillActionSpec(skillActorActionAttack, false, &idleSkillActionSpec)
 	readyFightSkillActionSpec = newSkillActionSpec(skillActorActionReadyFight, false, &idleSkillActionSpec)
-	noSkillActionSpec         = newSkillActionSpec(skillActorActionNone, false, nil)
 )
 
 func newSkillActionSpec(action skillActorAction, repeat bool, next *skillActionSpec) skillActionSpec {
@@ -1083,93 +1065,8 @@ func (s skillActionSpec) isNaturalIdleFallback() bool {
 	return s.defined && s.action == skillActorActionIdle && s.repeat && s.play && s.next == nil
 }
 
-type skillCastSpec struct {
-	property uint32
-	base     time.Duration
-	perLevel time.Duration
-	fixed    time.Duration
-}
-
-func (c skillCastSpec) duration(level uint16) time.Duration {
-	if c.fixed > 0 {
-		return c.fixed
-	}
-	if c.base <= 0 && c.perLevel <= 0 {
-		return 0
-	}
-	return c.base + c.perLevel*time.Duration(maxInt(1, int(level)))
-}
-
-type skillRecoveryFloaterSpec struct {
-	enabled bool
-	color   color.RGBA
-	kind    damageFloaterKind
-}
-
-// This table mirrors reference client's DB/Skills/SkillEffect.js shape. Keep field
-// names aligned so importing more effects later is mostly data conversion.
-// Goro-only visual bridge fields, such as cast timing and recovery floaters,
-// live beside the imported effect arrays so dispatch remains table-driven.
-var skillEffectSpecs = map[uint16]skillEffectSpec{
-	142: {effectIDs: []int{effectFirstAid}, forceSelfTarget: true},                                                                                                                                                           // NV_FIRSTAID
-	143: {forceSelfTarget: true, action: noSkillActionSpec},                                                                                                                                                                  // NV_TRICKDEAD; server status switches the actor to the death pose.
-	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: attackSkillActionSpec},                                                                                                     // SM_BASH
-	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                            // SM_PROVOKE
-	7:   {effectIDs: []int{effectQuakeMagnum}, effectIDsOnCaster: []int{effectMagnumBreak}, action: attackSkillActionSpec},                                                                                                   // SM_MAGNUM
-	8:   {effectIDs: []int{effectEndure}, action: readyFightSkillActionSpec},                                                                                                                                                 // SM_ENDURE
-	9:   {passive: true},                                                                                                                                                                                                     // MG_SRECOVERY
-	10:  {forceSelfTarget: true},                                                                                                                                                                                             // MG_SIGHT; reference client starts EF_SIGHT from the actor effect-state bit, not SkillEffect.js.
-	11:  {hitEffectIDs: []int{effectBashHit}},                                                                                                                                                                                // MG_NAPALMBEAT
-	12:  {forceGroundTarget: true},                                                                                                                                                                                           // MG_SAFETYWALL; persistent unit effect arrives separately.
-	13:  {beforeHitEffectIDs: []int{effectSoulStrike}, hitEffectIDs: []int{effectBashHit}, cast: skillCastSpec{property: 8, perLevel: 500 * time.Millisecond}},                                                               // MG_SOULSTRIKE
-	14:  {beforeHitEffectIDs: []int{effectColdBolt}, hitEffectIDs: []int{effectColdHit}, cast: skillCastSpec{property: 1, perLevel: 700 * time.Millisecond}},                                                                 // MG_COLDBOLT
-	15:  {effectIDs: []int{effectFrostDiver}, hitEffectIDs: []int{effectFrostDiverHit}},                                                                                                                                      // MG_FROSTDIVER
-	16:  {effectIDs: []int{effectStoneCurse}},                                                                                                                                                                                // MG_STONECURSE
-	17:  {beforeHitEffectIDs: []int{effectFireBall}, hitEffectIDs: []int{effectFireHit}, cast: skillCastSpec{property: 3, fixed: time.Second}},                                                                               // MG_FIREBALL
-	18:  {hitEffectIDs: []int{effectFireHit}, groundEffectIDs: []int{effectFireWall}, forceGroundTarget: true},                                                                                                               // MG_FIREWALL
-	19:  {beforeHitEffectIDs: []int{effectFireBolt}, hitEffectIDs: []int{effectFireHit}, cast: skillCastSpec{property: 3, perLevel: 700 * time.Millisecond}},                                                                 // MG_FIREBOLT
-	20:  {effectIDs: []int{effectLightningBolt}, hitEffectIDs: []int{effectWindHit}, cast: skillCastSpec{property: 4, perLevel: 700 * time.Millisecond}},                                                                     // MG_LIGHTNINGBOLT
-	21:  {effectIDs: []int{effectThunderStorm}, hitEffectIDs: []int{effectWindHit}, cast: skillCastSpec{property: 4, base: time.Second, perLevel: 200 * time.Millisecond}, forceGroundTarget: true, groundCastMarkerSize: 5}, // MG_THUNDERSTORM
-	22:  {passive: true},                                                                                                                                                                                                     // AL_DP
-	23:  {passive: true},                                                                                                                                                                                                     // AL_DEMONBANE
-	24:  {effectIDs: []int{effectRuwach}, hitEffectIDs: []int{effectBashHit}, forceSelfTarget: true},                                                                                                                         // AL_RUWACH; reference client also keeps EF_HIT2 as the reveal hit effect.
-	25:  {groundEffectIDs: []int{effectPneuma}, forceGroundTarget: true},                                                                                                                                                     // AL_PNEUMA
-	26:  {forceSelfTarget: true},                                                                                                                                                                                             // AL_TELEPORT; the server sends ZC_WARPLIST, then the selected map changes.
-	27:  {forceGroundTarget: true, cast: skillCastSpec{fixed: time.Second}},                                                                                                                                                  // AL_WARP; the server sends ZC_WARPLIST, then the selected map creates the portal skill unit.
-	28:  {effectIDs: []int{effectHeal}, hitEffectIDs: []int{effectHealOffensive}, recoveryFloater: skillRecoveryFloaterSpec{enabled: true, color: recoveryHPColor, kind: damageFloaterRecoveryHP}},                           // AL_HEAL
-	29:  {effectIDs: []int{effectIncAgility}, cast: skillCastSpec{fixed: time.Second}},                                                                                                                                       // AL_INCAGI
-	30:  {effectIDs: []int{effectDecAgility}, cast: skillCastSpec{fixed: time.Second}},                                                                                                                                       // AL_DECAGI
-	31:  {effectIDs: []int{effectAqua}, forceSelfTarget: true, cast: skillCastSpec{fixed: time.Second}},                                                                                                                      // AL_HOLYWATER
-	32:  {effectIDs: []int{effectSignum}, forceSelfTarget: true, cast: skillCastSpec{fixed: 500 * time.Millisecond}},                                                                                                         // AL_CRUCIS
-	33:  {effectIDs: []int{effectAngelus}, forceSelfTarget: true, cast: skillCastSpec{fixed: 500 * time.Millisecond}},                                                                                                        // AL_ANGELUS
-	34:  {effectIDs: []int{effectBlessing}},                                                                                                                                                                                  // AL_BLESSING
-	35:  {effectIDs: []int{effectCure}},                                                                                                                                                                                      // AL_CURE
-	42:  {effectIDs: []int{effectMammonite}},                                                                                                                                                                                 // MC_MAMMONITE
-	45:  {effectIDs: []int{effectConcentration}},                                                                                                                                                                             // AC_CONCENTRATION
-	46:  {beginCastEffectIDs: []int{effectBashBegin}, beforeHitEffectIDs: []int{effectArrowShot}, hitEffectIDs: []int{effectBashHit}},                                                                                        // AC_DOUBLE
-	47:  {effectIDs: []int{effectArrowShower}, hitEffectIDs: []int{effectBashHit}},                                                                                                                                           // AC_SHOWER
-	48:  {passive: true},                                                                                                                                                                                                     // TF_DOUBLE
-	49:  {passive: true},                                                                                                                                                                                                     // TF_MISS
-	50:  {successEffectIDs: []int{effectSteal}},                                                                                                                                                                              // TF_STEAL
-	51:  {forceSelfTarget: true},                                                                                                                                                                                             // TF_HIDING
-	52:  {hitEffectIDs: []int{effectPoisonAttack}},                                                                                                                                                                           // TF_POISON
-	53:  {effectIDs: []int{effectDetoxication}},                                                                                                                                                                              // TF_DETOXIFY
-	149: {effectIDs: []int{effectSprinkleSand}, action: attackSkillActionSpec},                                                                                                                                               // TF_SPRINKLESAND
-	150: {},                                                                                                                                                                                                                  // TF_BACKSLIDING
-	151: {},                                                                                                                                                                                                                  // TF_PICKSTONE; reference client only hides the cast aura.
-	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: attackSkillActionSpec},                                                                                                                                        // TF_THROWSTONE
-	153: {beginCastEffectIDs: []int{effectCartRevolution}, hitEffectIDs: []int{effectCartRevolution}},                                                                                                                        // MC_CARTREVOLUTION
-	155: {effectIDs: []int{effectLoud}},                                                                                                                                                                                      // MC_LOUD
-	156: {effectIDs: []int{effectHolyLight}, cast: skillCastSpec{property: 6, fixed: 2 * time.Second}},                                                                                                                       // AL_HOLYLIGHT
-	157: {effectIDs: []int{effectEnergyCoat}, forceSelfTarget: true},                                                                                                                                                         // MG_ENERGYCOAT
-}
-
 func skillEffectSpecFor(skillID uint16) skillEffectSpec {
-	spec := importedSkillEffectSpec(skillID)
-	if local, ok := skillEffectSpecs[skillID]; ok {
-		return mergeSkillEffectSpec(spec, local)
-	}
-	return spec
+	return importedSkillEffectSpec(skillID)
 }
 
 func importedSkillEffectSpec(skillID uint16) skillEffectSpec {
@@ -1190,61 +1087,6 @@ func importedSkillEffectSpec(skillID uint16) skillEffectSpec {
 		out.action = action
 	}
 	return out
-}
-
-func mergeSkillEffectSpec(base, override skillEffectSpec) skillEffectSpec {
-	if len(override.effectIDs) > 0 {
-		base.effectIDs = copyIntSlice(override.effectIDs)
-	}
-	if len(override.effectIDsOnCaster) > 0 {
-		base.effectIDsOnCaster = copyIntSlice(override.effectIDsOnCaster)
-	}
-	if len(override.beforeHitEffectIDs) > 0 {
-		base.beforeHitEffectIDs = copyIntSlice(override.beforeHitEffectIDs)
-	}
-	if len(override.beforeHitEffectIDsSelf) > 0 {
-		base.beforeHitEffectIDsSelf = copyIntSlice(override.beforeHitEffectIDsSelf)
-	}
-	if len(override.hitEffectIDs) > 0 {
-		base.hitEffectIDs = copyIntSlice(override.hitEffectIDs)
-	}
-	if len(override.hitEffectIDsOnCaster) > 0 {
-		base.hitEffectIDsOnCaster = copyIntSlice(override.hitEffectIDsOnCaster)
-	}
-	if len(override.successEffectIDs) > 0 {
-		base.successEffectIDs = copyIntSlice(override.successEffectIDs)
-	}
-	if len(override.successEffectIDsSelf) > 0 {
-		base.successEffectIDsSelf = copyIntSlice(override.successEffectIDsSelf)
-	}
-	if len(override.beginCastEffectIDs) > 0 {
-		base.beginCastEffectIDs = copyIntSlice(override.beginCastEffectIDs)
-	}
-	if len(override.groundEffectIDs) > 0 {
-		base.groundEffectIDs = copyIntSlice(override.groundEffectIDs)
-	}
-	if override.action.defined {
-		base.action = override.action
-	}
-	if override.cast.fixed > 0 || override.cast.base > 0 || override.cast.perLevel > 0 || override.cast.property != 0 {
-		base.cast = override.cast
-	}
-	if override.forceGroundTarget {
-		base.forceGroundTarget = true
-	}
-	if override.forceSelfTarget {
-		base.forceSelfTarget = true
-	}
-	if override.passive {
-		base.passive = true
-	}
-	if override.groundCastMarkerSize != 0 {
-		base.groundCastMarkerSize = override.groundCastMarkerSize
-	}
-	if override.recoveryFloater.enabled {
-		base.recoveryFloater = override.recoveryFloater
-	}
-	return base
 }
 
 func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
@@ -1358,21 +1200,12 @@ func skillCastAuraEffectID(property uint32) int {
 	}
 }
 
-func skillCastFallback(skillID uint16, level uint16) (uint32, time.Duration) {
-	cast := skillEffectSpecFor(skillID).cast
-	return cast.property, cast.duration(level)
-}
-
 func skillHitEffectIDs(skillID uint16) []int {
 	return skillEffectSpecFor(skillID).hitEffectIDs
 }
 
 func skillHitEffectOnCasterIDs(skillID uint16) []int {
 	return skillEffectSpecFor(skillID).hitEffectIDsOnCaster
-}
-
-func skillRecoveryFloater(skillID uint16) skillRecoveryFloaterSpec {
-	return skillEffectSpecFor(skillID).recoveryFloater
 }
 
 func skillAction(skillID uint16) skillActionSpec {
@@ -1384,11 +1217,11 @@ func skillAction(skillID uint16) skillActionSpec {
 }
 
 func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
-	spec, ok := worldEffectSpecs[effectID]
+	spec, ok := db.EffectSpecs[effectID]
 	if !ok {
 		return worldEffectSpec{}, false
 	}
-	return cloneWorldEffectSpec(spec), true
+	return convertDBWorldEffectSpec(spec), true
 }
 
 func effectDetachesLocalActor(effectID int) bool {
@@ -1396,31 +1229,171 @@ func effectDetachesLocalActor(effectID int) bool {
 	return ok && spec.detachLocalActor
 }
 
-func cloneWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
-	if len(spec.sfx) > 0 {
-		spec.sfx = append([]string(nil), spec.sfx...)
+func convertDBWorldEffectSpec(spec db.EffectSpec) worldEffectSpec {
+	out := worldEffectSpec{
+		duration:         spec.Duration,
+		cameraShake:      spec.CameraShake,
+		detachLocalActor: spec.DetachLocalActor,
 	}
-	if len(spec.components) > 0 {
-		spec.components = append([]worldEffectComponent(nil), spec.components...)
+	if len(spec.SFX) > 0 {
+		out.sfx = append([]string(nil), spec.SFX...)
 	}
-	return spec
+	if len(spec.Components) > 0 {
+		out.components = make([]worldEffectComponent, 0, len(spec.Components))
+		for _, component := range spec.Components {
+			out.components = append(out.components, convertDBWorldEffectComponent(component))
+		}
+	}
+	return out
 }
 
-func soundOnlyEffectSpec(paths ...string) worldEffectSpec {
-	return worldEffectSpec{
-		duration: 500 * time.Millisecond,
-		sfx:      paths,
+func convertDBWorldEffectComponent(component db.EffectComponent) worldEffectComponent {
+	return worldEffectComponent{
+		kind:               convertDBEffectComponentKind(component.Kind),
+		funcAdapter:        effectFuncAdapterForName(component.FuncName),
+		funcName:           component.FuncName,
+		color:              component.Color,
+		duration:           component.Duration,
+		durationRandMin:    component.DurationRandMin,
+		durationRandMax:    component.DurationRandMax,
+		delay:              component.Delay,
+		duplicateDelay:     component.DuplicateDelay,
+		repeat:             component.Repeat,
+		repeatDelay:        component.RepeatDelay,
+		strFile:            component.STRFile,
+		strMinFile:         component.STRMinFile,
+		strRandMin:         component.STRRandMin,
+		strRandMax:         component.STRRandMax,
+		attachedEntity:     component.AttachedEntity,
+		texturePath:        component.TexturePath,
+		textureName:        component.TextureName,
+		textureFile:        component.TextureFile,
+		textureFiles:       append([]string(nil), component.TextureFiles...),
+		spriteFile:         component.SpriteFile,
+		shadowTexture:      component.ShadowTexture,
+		spriteHead:         component.SpriteHead,
+		spriteDirection:    component.SpriteDirection,
+		spriteRepeat:       component.SpriteRepeat,
+		spriteStopAtEnd:    component.SpriteStopAtEnd,
+		spriteFrame:        component.SpriteFrame,
+		spriteDelay:        component.SpriteDelay,
+		spriteXOffset:      component.SpriteXOffset,
+		spriteYOffset:      component.SpriteYOffset,
+		fromSrc:            component.FromSrc,
+		toSrc:              component.ToSrc,
+		arc:                component.Arc,
+		retreat:            component.Retreat,
+		alphaMax:           component.AlphaMax,
+		alphaMaxDelta:      component.AlphaMaxDelta,
+		sparkling:          component.Sparkling,
+		sparkNumber:        component.SparkNumber,
+		fade:               component.Fade,
+		fadeIn:             component.FadeIn,
+		fadeOut:            component.FadeOut,
+		rotate:             component.Rotate,
+		rotateWithCamera:   component.RotateWithCamera,
+		fixedPerspective:   component.FixedPerspective,
+		rotateToTarget:     component.RotateToTarget,
+		worldSizedSprite:   component.WorldSizedSprite,
+		animation:          component.Animation,
+		bottomSize:         component.BottomSize,
+		topSize:            component.TopSize,
+		height:             component.Height,
+		posX:               component.PosX,
+		posY:               component.PosY,
+		posZ:               component.PosZ,
+		posXEnd:            component.PosXEnd,
+		posYEnd:            component.PosYEnd,
+		posZEnd:            component.PosZEnd,
+		posXRand:           component.PosXRand,
+		posYRand:           component.PosYRand,
+		posXStartRand:      component.PosXStartRand,
+		posYStartRand:      component.PosYStartRand,
+		posZStartRand:      component.PosZStartRand,
+		posXStartMiddle:    component.PosXStartMiddle,
+		posYStartMiddle:    component.PosYStartMiddle,
+		posZStartMiddle:    component.PosZStartMiddle,
+		posXEndRand:        component.PosXEndRand,
+		posYEndRand:        component.PosYEndRand,
+		posZEndRand:        component.PosZEndRand,
+		posXEndMiddle:      component.PosXEndMiddle,
+		posYEndMiddle:      component.PosYEndMiddle,
+		posZEndMiddle:      component.PosZEndMiddle,
+		posXSmooth:         component.PosXSmooth,
+		posYSmooth:         component.PosYSmooth,
+		posZSmooth:         component.PosZSmooth,
+		sizeStart:          component.SizeStart,
+		sizeEnd:            component.SizeEnd,
+		sizeRand:           component.SizeRand,
+		sizeStartX:         component.SizeStartX,
+		sizeStartY:         component.SizeStartY,
+		sizeEndX:           component.SizeEndX,
+		sizeEndY:           component.SizeEndY,
+		sizeStartXRandMin:  component.SizeStartXRandMin,
+		sizeStartXRandMax:  component.SizeStartXRandMax,
+		sizeStartYRandMin:  component.SizeStartYRandMin,
+		sizeStartYRandMax:  component.SizeStartYRandMax,
+		sizeEndXRandMin:    component.SizeEndXRandMin,
+		sizeEndXRandMax:    component.SizeEndXRandMax,
+		sizeEndYRandMin:    component.SizeEndYRandMin,
+		sizeEndYRandMax:    component.SizeEndYRandMax,
+		sizeRandX:          component.SizeRandX,
+		sizeRandY:          component.SizeRandY,
+		sizeRandXMiddle:    component.SizeRandXMiddle,
+		sizeRandYMiddle:    component.SizeRandYMiddle,
+		sizeDelta:          component.SizeDelta,
+		sizeSmooth:         component.SizeSmooth,
+		angleStart:         component.AngleStart,
+		angleEnd:           component.AngleEnd,
+		angleRandMin:       component.AngleRandMin,
+		angleRandMax:       component.AngleRandMax,
+		circlePattern:      component.CirclePattern,
+		circleInnerSize:    component.CircleInnerSize,
+		circleOuterRandMin: component.CircleOuterRandMin,
+		circleOuterRandMax: component.CircleOuterRandMax,
+		orbitRadiusX:       component.OrbitRadiusX,
+		orbitRadiusY:       component.OrbitRadiusY,
+		orbitRadiusZ:       component.OrbitRadiusZ,
+		orbitRotations:     component.OrbitRotations,
+		orbitPhase:         component.OrbitPhase,
+		orbitPhaseDelta:    component.OrbitPhaseDelta,
+		orbitClockwise:     component.OrbitClockwise,
+		totalCircleSides:   component.TotalCircleSides,
+		circleSides:        component.CircleSides,
+		duplicate:          component.Duplicate,
+		angleZRandom:       component.AngleZRandom,
+		blendAdditive:      component.BlendAdditive,
+		overlay:            component.Overlay,
 	}
 }
 
-func potionEffectSpec(file string, c color.RGBA) worldEffectSpec {
-	return worldEffectSpec{
-		duration: 850 * time.Millisecond,
-		components: []worldEffectComponent{{
-			kind:    effectComponentSTR,
-			color:   c,
-			strFile: file,
-		}},
+func convertDBEffectComponentKind(kind db.EffectComponentKind) effectComponentKind {
+	switch kind {
+	case db.EffectComponentSTR:
+		return effectComponentSTR
+	case db.EffectComponentCylinder:
+		return effectComponentCylinder
+	case db.EffectComponent2D:
+		return effectComponent2D
+	case db.EffectComponent3D:
+		return effectComponent3D
+	case db.EffectComponentSPR:
+		return effectComponentSPR
+	case db.EffectComponentFUNC:
+		return effectComponentFUNC
+	default:
+		return 0
+	}
+}
+
+func effectFuncAdapterForName(name string) effectFuncAdapter {
+	switch name {
+	case "MagicTarget":
+		return effectFuncGroundSample
+	case "CastRing":
+		return effectFuncCastRing
+	default:
+		return effectFuncUnknown
 	}
 }
 

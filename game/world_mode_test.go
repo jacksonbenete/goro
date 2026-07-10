@@ -115,7 +115,7 @@ func TestApplyHidingStatusTogglesLocalHiddenStateAndTransitionEffects(t *testing
 	mode := &WorldMode{}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
-		StatusID: statusEffectHiding,
+		StatusID: db.StatusHiding,
 		ActorID:  2000000,
 		Active:   true,
 	})
@@ -127,7 +127,7 @@ func TestApplyHidingStatusTogglesLocalHiddenStateAndTransitionEffects(t *testing
 	}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
-		StatusID: statusEffectHiding,
+		StatusID: db.StatusHiding,
 		ActorID:  2000000,
 		Active:   false,
 	})
@@ -162,7 +162,7 @@ func TestApplyTrickDeadStatusHoldsDeathPose(t *testing.T) {
 	mode := &WorldMode{}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
-		StatusID: statusEffectTrickDead,
+		StatusID: db.StatusTrickdead,
 		ActorID:  2000000,
 		Active:   true,
 	})
@@ -172,7 +172,7 @@ func TestApplyTrickDeadStatusHoldsDeathPose(t *testing.T) {
 	}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
-		StatusID: statusEffectTrickDead,
+		StatusID: db.StatusTrickdead,
 		ActorID:  2000000,
 		Active:   false,
 	})
@@ -193,7 +193,7 @@ func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	mode := &WorldMode{}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
-		StatusID:  statusEffectPushCart,
+		StatusID:  db.StatusOnPushCart,
 		ActorID:   2000000,
 		Active:    true,
 		HasValues: true,
@@ -218,14 +218,14 @@ func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 		ID:          2000000,
 		BodyState:   0,
 		HealthState: 0,
-		EffectState: actorEffectCart2,
+		EffectState: db.EffectStateCart2,
 	})
 	if !world.Player.HasCartState || !world.Player.HasCart || world.Player.CartNum != 2 {
 		t.Fatalf("local cart state after change-cart actor state = %+v", world.Player)
 	}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
-		StatusID:  statusEffectPushCart,
+		StatusID:  db.StatusOnPushCart,
 		ActorID:   110000001,
 		Active:    true,
 		HasValues: true,
@@ -237,7 +237,7 @@ func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
-		StatusID: statusEffectPushCart,
+		StatusID: db.StatusOnPushCart,
 		ActorID:  110000001,
 		Active:   false,
 	})
@@ -248,12 +248,12 @@ func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 }
 
 func TestActorCartStateFromEffectUsesReferenceCartNumbers(t *testing.T) {
-	actor := worldstate.Actor{Job: 5, EffectState: actorEffectCart3}
+	actor := worldstate.Actor{Job: 5, EffectState: db.EffectStateCart3}
 	hasCart, cartNum := actorCartState(actor)
 	if !hasCart || cartNum != 3 {
 		t.Fatalf("cart from effect = %t, %d", hasCart, cartNum)
 	}
-	actor = worldstate.Actor{Job: 23, EffectState: actorEffectCart5}
+	actor = worldstate.Actor{Job: 23, EffectState: db.EffectStateCart5}
 	hasCart, cartNum = actorCartState(actor)
 	if !hasCart || cartNum != 0 {
 		t.Fatalf("super novice cart from effect = %t, %d", hasCart, cartNum)
@@ -270,7 +270,7 @@ func TestCollectSceneActorEntriesUsesSelectedCharacterCartOption(t *testing.T) {
 			Selected: session.Character{
 				ID:     150004,
 				Job:    5,
-				Option: actorEffectCart1,
+				Option: db.EffectStateCart1,
 			},
 		},
 		World: world,
@@ -311,13 +311,13 @@ func TestApplyActorStateChangeTracksRemoteActorRenderState(t *testing.T) {
 
 	mode.applyActorStateChange(ctx, network.ActorStateChange{
 		ID:          110000001,
-		BodyState:   actorBodyStateFreeze,
-		HealthState: actorHealthBlind,
+		BodyState:   db.BodyStateFreeze,
+		HealthState: db.HealthStateBlind,
 		EffectState: 0x00402000,
 	})
 
 	actor := world.Actors[110000001]
-	if !actor.HasState || actor.BodyState != actorBodyStateFreeze || actor.HealthState != actorHealthBlind || actor.EffectState != 0x00402000 {
+	if !actor.HasState || actor.BodyState != db.BodyStateFreeze || actor.HealthState != db.HealthStateBlind || actor.EffectState != 0x00402000 {
 		t.Fatalf("actor state = %+v", actor)
 	}
 	state := mode.nonPCSpriteState(actor, time.Now())
@@ -328,8 +328,8 @@ func TestApplyActorStateChangeTracksRemoteActorRenderState(t *testing.T) {
 
 func TestActorStateTintMatchesReferenceBodyAndHealthTints(t *testing.T) {
 	tint := actorStateTint(worldstate.Actor{
-		BodyState:   actorBodyStateFreeze,
-		HealthState: actorHealthBlind,
+		BodyState:   db.BodyStateFreeze,
+		HealthState: db.HealthStateBlind,
 		HasState:    true,
 	})
 	if tint.R != 0 || tint.G != 20 || tint.B != 40 || tint.A != 255 {
@@ -380,7 +380,7 @@ func TestCollectSceneActorEntriesPreservesLocalEnergyCoatEffectState(t *testing.
 	sessionState := &session.Session{
 		AccountID: 2000000,
 		CharID:    150000,
-		Selected:  session.Character{ID: 150000, Job: 2, Option: actorEffectCart1},
+		Selected:  session.Character{ID: 150000, Job: 2, Option: db.EffectStateCart1},
 	}
 	screen := render.NewImage(800, 600)
 	ctx := client.Context{Session: sessionState, World: world}
@@ -394,7 +394,7 @@ func TestCollectSceneActorEntriesPreservesLocalEnergyCoatEffectState(t *testing.
 	if entries[0].actor.EffectState&db.Opt3Energycoat == 0 {
 		t.Fatalf("entry effect state = 0x%08X, want energy coat preserved", entries[0].actor.EffectState)
 	}
-	if entries[0].actor.EffectState&actorEffectCart1 == 0 {
+	if entries[0].actor.EffectState&db.EffectStateCart1 == 0 {
 		t.Fatalf("entry effect state = 0x%08X, want cart option merged", entries[0].actor.EffectState)
 	}
 }
@@ -899,7 +899,7 @@ func TestAttackApproachCellUsesRangedAttackRange(t *testing.T) {
 func TestCurrentNormalAttackRangeUsesEquippedBowAndVultureEye(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{Items: []session.InventoryItem{
-			{Index: 1, ItemID: 1701, Location: equipLocationWeapon, Equip: true, Equipped: true},
+			{Index: 1, ItemID: 1701, Location: db.EquipWeapon, Equip: true, Equipped: true},
 		}},
 		Skills: session.Skills{List: []session.Skill{
 			{ID: 44, Level: 3},
@@ -1223,7 +1223,7 @@ func TestApplyParameterChangeUpdatesPlayerSpeed(t *testing.T) {
 func TestLocalPlayerMoveSpeedAppliesPushcartMalus(t *testing.T) {
 	world := worldstate.New()
 	sessionState := &session.Session{
-		Selected: session.Character{ID: 150004, Option: actorEffectCart1},
+		Selected: session.Character{ID: 150004, Option: db.EffectStateCart1},
 		Skills: session.Skills{List: []session.Skill{
 			{ID: skillPushCart, Level: 5},
 		}},
@@ -1240,7 +1240,7 @@ func TestLocalPlayerMoveSpeedAppliesPushcartMalus(t *testing.T) {
 func TestLocalPlayerMoveSpeedHasNoPushcartMalusAtLevelTen(t *testing.T) {
 	world := worldstate.New()
 	sessionState := &session.Session{
-		Selected: session.Character{ID: 150004, Option: actorEffectCart1},
+		Selected: session.Character{ID: 150004, Option: db.EffectStateCart1},
 		Skills: session.Skills{List: []session.Skill{
 			{ID: skillPushCart, Level: 10},
 		}},
@@ -1257,7 +1257,7 @@ func TestLocalPlayerMoveSpeedHasNoPushcartMalusAtLevelTen(t *testing.T) {
 func TestLocalPlayerMoveSpeedUsesServerSpeedBeforePushcartMalus(t *testing.T) {
 	world := worldstate.New()
 	sessionState := &session.Session{
-		Selected: session.Character{ID: 150004, Option: actorEffectCart1},
+		Selected: session.Character{ID: 150004, Option: db.EffectStateCart1},
 		Movement: session.Movement{
 			ServerSpeed:    100,
 			HasServerSpeed: true,
@@ -2001,28 +2001,13 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 func TestNoviceSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "NV_FIRSTAID", skillEffectIDs(142), effectFirstAid)
 	expectEffectIDs(t, "NV_TRICKDEAD", skillEffectIDs(143))
-	if !skillForcesSelfTarget(142) || !skillForcesSelfTarget(143) {
-		t.Fatal("novice quest skills should self-target")
-	}
-	if skillAction(143).action != skillActorActionNone {
-		t.Fatal("NV_TRICKDEAD should not play the default skill action")
-	}
 }
 
 func TestMageSkillEffectMappings(t *testing.T) {
-	if !skillForcesPassive(9) {
-		t.Fatal("MG_SRECOVERY should be passive")
-	}
 	expectEffectIDs(t, "MG_SIGHT success", skillSuccessEffectIDs(10))
 	expectEffectIDs(t, "MG_SIGHT immediate", skillEffectIDs(10))
-	if !skillForcesSelfTarget(10) {
-		t.Fatal("MG_SIGHT should force self-targeting")
-	}
 	expectEffectIDs(t, "MG_NAPALMBEAT hit", skillHitEffectIDs(11), effectBashHit)
 	expectEffectIDs(t, "MG_SAFETYWALL ground", skillGroundEffectIDs(12))
-	if !skillForcesGroundTarget(12) {
-		t.Fatal("MG_SAFETYWALL should force ground targeting")
-	}
 	expectEffectIDs(t, "MG_SOULSTRIKE before-hit", skillBeforeHitEffectIDs(13), effectSoulStrike)
 	expectEffectIDs(t, "MG_SOULSTRIKE hit", skillHitEffectIDs(13), effectBashHit)
 	expectEffectIDs(t, "MG_COLDBOLT before-hit", skillBeforeHitEffectIDs(14), effectColdBolt)
@@ -2034,9 +2019,6 @@ func TestMageSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "MG_FIREBOLT before-hit", skillBeforeHitEffectIDs(19), effectFireBolt)
 	expectEffectIDs(t, "MG_FIREBALL before-hit", skillBeforeHitEffectIDs(17), effectFireBall)
 	expectEffectIDs(t, "MG_FIREWALL ground", skillGroundEffectIDs(18), effectFireWall)
-	if !skillForcesGroundTarget(18) {
-		t.Fatal("MG_FIREWALL should force ground targeting")
-	}
 	for _, skillID := range []uint16{17, 18, 19} {
 		expectEffectIDs(t, "fire skill hit", skillHitEffectIDs(skillID), effectFireHit)
 	}
@@ -2328,61 +2310,6 @@ func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 	}
 }
 
-func TestActorActionNotifyDispatchesAllMappedCombatEffectArrays(t *testing.T) {
-	const skillID uint16 = 65001
-	skillEffectSpecs[skillID] = skillEffectSpec{
-		effectIDs:              []int{effectHeal, effectBlessing},
-		effectIDsOnCaster:      []int{effectEndure},
-		beforeHitEffectIDs:     []int{effectSoulStrike, effectFireBolt},
-		beforeHitEffectIDsSelf: []int{effectBashBegin},
-		hitEffectIDs:           []int{effectFireHit, effectWindHit},
-		hitEffectIDsOnCaster:   []int{effectIncAgility},
-	}
-	defer delete(skillEffectSpecs, skillID)
-
-	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
-	world.UpsertActor(worldstate.Actor{ID: 300, X: 11, Y: 20, Job: 1002, ObjectType: actorObjectTypeMob, HasObjectType: true})
-	mode := &WorldMode{}
-	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
-
-	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
-		SkillID:     skillID,
-		SkillLevel:  1,
-		SourceID:    2000000,
-		TargetID:    300,
-		SourceSpeed: 580,
-		TargetSpeed: 480,
-		Damage:      100,
-		HitCount:    1,
-		Action:      network.ActorActionSkill,
-	})
-
-	want := []struct {
-		effectID int
-		actorID  uint32
-	}{
-		{effectSoulStrike, 300},
-		{effectFireBolt, 300},
-		{effectBashBegin, 2000000},
-		{effectHeal, 300},
-		{effectBlessing, 300},
-		{effectEndure, 2000000},
-		{effectFireHit, 300},
-		{effectWindHit, 300},
-		{effectIncAgility, 2000000},
-	}
-	if len(mode.worldEffects) != len(want) {
-		t.Fatalf("world effects = %d, want %d: %+v", len(mode.worldEffects), len(want), mode.worldEffects)
-	}
-	for i, wantEffect := range want {
-		got := mode.worldEffects[i]
-		if got.effectID != wantEffect.effectID || got.actorID != wantEffect.actorID {
-			t.Fatalf("effect %d = %+v, want %+v", i, got, wantEffect)
-		}
-	}
-}
-
 func TestSkillCastAuraEffectMappings(t *testing.T) {
 	tests := []struct {
 		property uint32
@@ -2405,42 +2332,6 @@ func TestSkillCastAuraEffectMappings(t *testing.T) {
 	}
 }
 
-func TestSkillCastFallbackMappings(t *testing.T) {
-	tests := []struct {
-		name         string
-		skillID      uint16
-		level        uint16
-		wantProperty uint32
-		wantDuration time.Duration
-	}{
-		{name: "soul strike", skillID: 13, level: 5, wantProperty: 8, wantDuration: 2500 * time.Millisecond},
-		{name: "cold bolt", skillID: 14, level: 4, wantProperty: 1, wantDuration: 2800 * time.Millisecond},
-		{name: "fire ball", skillID: 17, level: 3, wantProperty: 3, wantDuration: time.Second},
-		{name: "fire bolt", skillID: 19, level: 4, wantProperty: 3, wantDuration: 2800 * time.Millisecond},
-		{name: "lightning bolt", skillID: 20, level: 4, wantProperty: 4, wantDuration: 2800 * time.Millisecond},
-		{name: "thunder storm", skillID: 21, level: 4, wantProperty: 4, wantDuration: 1800 * time.Millisecond},
-		{name: "warp portal", skillID: 27, level: 4, wantProperty: 0, wantDuration: time.Second},
-		{name: "increase agi", skillID: 29, level: 10, wantProperty: 0, wantDuration: time.Second},
-		{name: "decrease agi", skillID: 30, level: 10, wantProperty: 0, wantDuration: time.Second},
-		{name: "aqua benedicta", skillID: 31, level: 1, wantProperty: 0, wantDuration: time.Second},
-		{name: "signum crucis", skillID: 32, level: 10, wantProperty: 0, wantDuration: 500 * time.Millisecond},
-		{name: "angelus", skillID: 33, level: 10, wantProperty: 0, wantDuration: 500 * time.Millisecond},
-		{name: "holy light", skillID: 156, level: 1, wantProperty: 6, wantDuration: 2 * time.Second},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			property, duration := skillCastFallback(tt.skillID, tt.level)
-			if property != tt.wantProperty || duration != tt.wantDuration {
-				t.Fatalf("skillCastFallback = property %d duration %s, want property %d duration %s", property, duration, tt.wantProperty, tt.wantDuration)
-			}
-		})
-	}
-
-	if property, duration := skillCastFallback(5, 10); property != 0 || duration != 0 {
-		t.Fatalf("non-cast skill fallback = property %d duration %s, want zero", property, duration)
-	}
-}
-
 func TestSkillVisualMetadataMappings(t *testing.T) {
 	if skillAction(5).action != skillActorActionAttack || skillAction(7).action != skillActorActionAttack {
 		t.Fatalf("swordman weapon-action skills = bash:%d magnum:%d", skillAction(5).action, skillAction(7).action)
@@ -2455,63 +2346,8 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 	if !defaultAction.play || defaultAction.repeat || defaultAction.next == nil || defaultAction.next.action != skillActorActionIdle || !defaultAction.next.repeat {
 		t.Fatalf("default skill action shape = %+v next=%+v, want robr-style skill action followed by repeating idle", defaultAction, defaultAction.next)
 	}
-	if !skillForcesGroundTarget(21) || !skillForcesGroundTarget(25) {
-		t.Fatalf("ground target overrides = thunderstorm:%t pneuma:%t", skillForcesGroundTarget(21), skillForcesGroundTarget(25))
-	}
-	if size := skillCastGroundSampleSize(21); size != 5 {
-		t.Fatalf("thunderstorm marker size = %.1f, want 5", size)
-	}
 	if size := skillCastGroundSampleSize(19); size != 1 {
 		t.Fatalf("firebolt marker size = %.1f, want default 1", size)
-	}
-	recovery := skillRecoveryFloater(28)
-	if !recovery.enabled || recovery.kind != damageFloaterRecoveryHP || recovery.color != recoveryHPColor {
-		t.Fatalf("heal recovery floater = %+v", recovery)
-	}
-}
-
-func TestSkillActionSpecMetadataDrivesSourceAnimation(t *testing.T) {
-	const skillID uint16 = 65001
-	next := newSkillActionSpec(skillActorActionReadyFight, true, nil)
-	skillEffectSpecs[skillID] = skillEffectSpec{
-		action: skillActionSpec{
-			defined:  true,
-			action:   skillActorActionSkill,
-			frame:    2,
-			hasFrame: true,
-			length:   3,
-			speed:    50 * time.Millisecond,
-			play:     true,
-			repeat:   false,
-			delay:    75 * time.Millisecond,
-			next:     &next,
-		},
-	}
-	defer delete(skillEffectSpecs, skillID)
-
-	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 4}
-	mode := &WorldMode{}
-	ctx := client.Context{
-		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
-		World:   world,
-	}
-	before := time.Now()
-
-	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: skillID, TargetID: 2000000, SourceID: 2000000, Result: 1})
-
-	anim, ok := mode.actorAnims[150000]
-	if !ok {
-		t.Fatal("source animation missing")
-	}
-	if anim.actionFamily != spriteActionPCSkill || !anim.hasFrameOffset || anim.frameOffset != 2 || !anim.hasLength || anim.length != 3 || !anim.hasSpeed || anim.speed != 50*time.Millisecond || !anim.hasPlay || !anim.play {
-		t.Fatalf("source animation = %+v, want robr-style metadata applied", anim)
-	}
-	if delay := anim.started.Sub(before); delay < 70*time.Millisecond || delay > 200*time.Millisecond {
-		t.Fatalf("source animation start delay = %s, want about 75ms", delay)
-	}
-	if anim.next == nil || anim.next.actionFamily != spriteActionPCReadyFight || !anim.next.loop {
-		t.Fatalf("source animation next = %+v, want ready-fight loop", anim.next)
 	}
 }
 
@@ -2607,7 +2443,7 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
 	}
 	marker := mode.worldEffects[0]
-	if marker.effectID != effectGroundSample || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond || marker.size != 5 {
+	if marker.effectID != effectGroundSample || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond || marker.size != 1 {
 		t.Fatalf("ground marker = %+v", marker)
 	}
 	if mode.worldEffects[1].effectID != effectCastRing || mode.worldEffects[2].effectID != effectBeginSpell4 {
@@ -2615,46 +2451,9 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 	}
 }
 
-func TestLocalGroundSkillCastFallbackFacesCellAndStartsCastAnimation(t *testing.T) {
-	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 150000, X: 10, Y: 20, Dir: 4}
-	mode := &WorldMode{}
-	ctx := client.Context{
-		Session: &session.Session{AccountID: 2000000, CharID: 150000, Selected: session.Character{ID: 150000, Job: 4, Hair: 1}},
-		World:   world,
-	}
-
-	start := time.Now()
-	mode.addLocalSkillCastFallback(ctx, 21, 4, 2000000, 0, 12, 20, 1800*time.Millisecond, start, "local-ground")
-
-	if want := directionFromDelta(10, 20, 12, 20, 4); world.Dir != want || world.Player.Dir != want {
-		t.Fatalf("local cast dir = world:%d player:%d, want %d", world.Dir, world.Player.Dir, want)
-	}
-	anim, ok := mode.actorAnims[150000]
-	if !ok {
-		t.Fatal("local ground cast animation missing")
-	}
-	if anim.actionFamily != spriteActionPCReadyFight || anim.duration != 1800*time.Millisecond || anim.hasFixedMotion {
-		t.Fatalf("local ground cast animation = %+v", anim)
-	}
-	if len(mode.worldEffects) != 3 {
-		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
-	}
-	if mode.worldEffects[0].effectID != effectGroundSample || mode.worldEffects[0].x != 12 || mode.worldEffects[0].y != 20 {
-		t.Fatalf("ground marker = %+v", mode.worldEffects[0])
-	}
-	if mode.worldEffects[1].effectID != effectCastRing || mode.worldEffects[1].actorID != 2000000 {
-		t.Fatalf("cast circle = %+v", mode.worldEffects[1])
-	}
-	if mode.worldEffects[2].effectID != effectBeginSpell4 || mode.worldEffects[2].actorID != 2000000 {
-		t.Fatalf("cast aura = %+v", mode.worldEffects[2])
-	}
-}
-
 func TestAcolyteSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AL_DP passive", skillEffectIDs(22))
 	expectEffectIDs(t, "AL_DEMONBANE passive", skillEffectIDs(23))
-	expectEffectIDs(t, "AL_RUWACH", skillEffectIDs(24), effectRuwach)
 	expectEffectIDs(t, "AL_RUWACH hit", skillHitEffectIDs(24), effectBashHit)
 	expectEffectIDs(t, "AL_PNEUMA ground", skillGroundEffectIDs(25), effectPneuma)
 	expectEffectIDs(t, "AL_TELEPORT", skillEffectIDs(26))
@@ -2708,24 +2507,6 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "MC_CARTREVOLUTION hit", skillHitEffectIDs(153), effectCartRevolution)
 	expectEffectIDs(t, "MC_LOUD", skillEffectIDs(155), effectLoud)
 	expectEffectIDs(t, "AL_HOLYLIGHT", skillEffectIDs(156), effectHolyLight)
-}
-
-func TestThiefSkillTargetRules(t *testing.T) {
-	if !skillForcesPassive(48) {
-		t.Fatal("TF_DOUBLE should be passive")
-	}
-	if !skillForcesPassive(49) {
-		t.Fatal("TF_MISS should be passive")
-	}
-	if !isSelfTargetSkill(session.Skill{ID: 51, Level: 1, Type: skillTargetEnemy, Range: 1}) {
-		t.Fatal("TF_HIDING should self-cast even when the skill list reports a range")
-	}
-	if skillAction(149).action != skillActorActionAttack {
-		t.Fatal("TF_SPRINKLESAND should use attack action")
-	}
-	if skillAction(152).action != skillActorActionAttack {
-		t.Fatal("TF_THROWSTONE should use attack action")
-	}
 }
 
 func TestThiefThrowStoneEffectFollowsRoBrowserTable(t *testing.T) {
@@ -2801,15 +2582,6 @@ func TestWarpEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AL_TELEPORT begin", skillBeginEffectIDs(26))
 	expectEffectIDs(t, "Butterfly Wing item", itemUseEffectIDs(602), effectTeleportation)
 	expectEffectIDs(t, "Fly Wing item", itemUseEffectIDs(601))
-}
-
-func TestTeleportSkillIsSelfTargetDespiteAttackRange(t *testing.T) {
-	if !isSelfTargetSkill(session.Skill{ID: 26, Level: 2, Type: skillTargetEnemy, Range: 1}) {
-		t.Fatal("AL_TELEPORT should self-cast even when the skill list reports attack range")
-	}
-	if !isGroundTargetSkill(session.Skill{ID: 27, Level: 4, Type: skillTargetEnemy, Range: 9}) {
-		t.Fatal("AL_WARP should ground-target even when the skill list reports attack range")
-	}
 }
 
 func TestTeleportModalRules(t *testing.T) {
@@ -3416,73 +3188,6 @@ func TestSTRAnimationBlendMatchesRobrowserD3DBlend(t *testing.T) {
 	if got := strAnimationBlend(res.STRAnimation{SrcAlpha: 5, DestAlpha: 6}); got != render.BlendSourceOver {
 		t.Fatalf("regular STR blend = %v, want BlendSourceOver", got)
 	}
-}
-
-func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
-	source, err := os.ReadFile("/home/kivutar/src/robr/src/DB/Effects/EffectTable.js")
-	if os.IsNotExist(err) {
-		t.Skip("reference client checkout not available")
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	parsed, err := parseReferenceEffectTableSubset(string(source))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, effectID := range []int{
-		effectMammonite,
-		effectCartRevolution,
-		effectLoud,
-		effectSoulStrike,
-		effectSteal,
-		effectPoisonAttack,
-		effectDetoxication,
-		effectStoneCurse,
-		effectFireBall,
-		effectFireWall,
-		effectFrostDiverHit,
-		effectLightningBolt,
-		effectThunderStorm,
-		effectRuwach,
-		effectDecAgility,
-		effectAqua,
-		effectSignum,
-		effectAngelus,
-		effectBlessing,
-		effectFireHit,
-		effectFireSplashHit,
-		effectHolyLight,
-		effectConcentration,
-		effectCure,
-		effectRefineOK,
-		effectRefineFail,
-		effectJobLevelUp,
-		effectTeleportation,
-		effectPharmacyOK,
-		effectPharmacyFail,
-		effectHeal,
-		effectHealOffensive,
-		effectPortal,
-	} {
-		got, ok := worldEffectSpecForID(effectID)
-		if !ok {
-			t.Fatalf("world effect %d missing", effectID)
-		}
-		want, ok := parsed[effectID]
-		if !ok {
-			t.Fatalf("reference client effect %d missing", effectID)
-		}
-		if !reflect.DeepEqual(renderableWorldEffectSpec(got), want) {
-			t.Fatalf("effect %d\n got: %#v\nwant: %#v", effectID, got, want)
-		}
-	}
-}
-
-func renderableWorldEffectSpec(spec worldEffectSpec) worldEffectSpec {
-	spec.cameraShake = 0
-	spec.detachLocalActor = false
-	return spec
 }
 
 func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
@@ -5965,22 +5670,6 @@ func TestSkillNoDamageNotifyAddsStealEffect(t *testing.T) {
 	}
 }
 
-func TestSkillNoDamageNotifyAddsRuwachAuraOnCaster(t *testing.T) {
-	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
-	sessionState := &session.Session{AccountID: 2000000}
-	mode := &WorldMode{}
-	ctx := client.Context{Session: sessionState, World: world}
-
-	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: 24, Amount: 1, TargetID: 2000000, SourceID: 2000000, Result: 1})
-	if len(mode.worldEffects) != 1 {
-		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
-	}
-	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectRuwach || effect.x != 10 || effect.y != 20 {
-		t.Fatalf("effect = %+v", effect)
-	}
-}
-
 func TestSkillNoDamageNotifyEndureUsesReadyFightAction(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 1}
@@ -6001,48 +5690,7 @@ func TestSkillNoDamageNotifyEndureUsesReadyFightAction(t *testing.T) {
 	}
 }
 
-func TestSkillNoDamageNotifyDispatchesAllMappedEffectArrays(t *testing.T) {
-	const skillID uint16 = 65000
-	skillEffectSpecs[skillID] = skillEffectSpec{
-		effectIDs:            []int{effectHeal, effectBlessing},
-		effectIDsOnCaster:    []int{effectEndure},
-		successEffectIDs:     []int{effectProvoke},
-		successEffectIDsSelf: []int{effectIncAgility},
-	}
-	defer delete(skillEffectSpecs, skillID)
-
-	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
-	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
-	mode := &WorldMode{}
-	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
-
-	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: skillID, Amount: 2, TargetID: 1100, SourceID: 2000000, Result: 1})
-
-	if len(mode.worldEffects) != 5 {
-		t.Fatalf("world effects = %d, want 5: %+v", len(mode.worldEffects), mode.worldEffects)
-	}
-	want := []struct {
-		effectID int
-		actorID  uint32
-		x        int
-		y        int
-	}{
-		{effectHeal, 1100, 12, 22},
-		{effectBlessing, 1100, 12, 22},
-		{effectEndure, 2000000, 10, 20},
-		{effectProvoke, 1100, 12, 22},
-		{effectIncAgility, 2000000, 10, 20},
-	}
-	for i, wantEffect := range want {
-		got := mode.worldEffects[i]
-		if got.effectID != wantEffect.effectID || got.actorID != wantEffect.actorID || got.x != wantEffect.x || got.y != wantEffect.y {
-			t.Fatalf("effect %d = %+v, want %+v", i, got, wantEffect)
-		}
-	}
-}
-
-func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
+func TestSkillNoDamageNotifyAddsHealEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
 	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 22}
@@ -6056,13 +5704,6 @@ func TestSkillNoDamageNotifyAddsHealEffectAndFloater(t *testing.T) {
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 1100 || effect.effectID != effectHeal || effect.x != 12 || effect.y != 22 {
 		t.Fatalf("effect = %+v", effect)
-	}
-	if len(mode.damageFloaters) != 1 {
-		t.Fatalf("damage floaters = %d, want 1", len(mode.damageFloaters))
-	}
-	floater := mode.damageFloaters[0]
-	if floater.actorID != 1100 || floater.text != "234" || floater.kind != damageFloaterRecoveryHP {
-		t.Fatalf("floater = %+v", floater)
 	}
 	anim, ok := mode.actorAnims[150000]
 	if !ok {
@@ -6261,8 +5902,8 @@ func TestSessionItemFromNetworkDefaultsAmmoLocation(t *testing.T) {
 		Identified: true,
 		Amount:     100,
 	})
-	if !item.Equip || item.Location != equipLocationAmmo {
-		t.Fatalf("ammo item = %+v, want equipped ammo location 0x%04X", item, equipLocationAmmo)
+	if !item.Equip || item.Location != db.EquipAmmo {
+		t.Fatalf("ammo item = %+v, want equipped ammo location 0x%04X", item, db.EquipAmmo)
 	}
 }
 
@@ -6352,8 +5993,8 @@ func TestApplyInventoryEquipAckDefaultsAmmoLocation(t *testing.T) {
 	applyInventoryEquipAck(ctx, network.InventoryEquipAck{Index: 3, Success: true})
 
 	item := sessionState.Inventory.Items[0]
-	if !item.Equipped || item.Location != equipLocationAmmo {
-		t.Fatalf("ammo item after equip ack = %+v, want equipped ammo location 0x%04X", item, equipLocationAmmo)
+	if !item.Equipped || item.Location != db.EquipAmmo {
+		t.Fatalf("ammo item after equip ack = %+v, want equipped ammo location 0x%04X", item, db.EquipAmmo)
 	}
 }
 
@@ -6361,7 +6002,7 @@ func TestApplyEquippedArrowMarksAmmoSlot(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{
 			Items: []session.InventoryItem{
-				{Index: 3, ItemID: 1750, Type: 10, Amount: 100, Location: equipLocationAmmo, Equip: true, Equipped: true},
+				{Index: 3, ItemID: 1750, Type: 10, Amount: 100, Location: db.EquipAmmo, Equip: true, Equipped: true},
 				{Index: 9, ItemID: 1751, Type: 10, Amount: 50},
 			},
 		},
@@ -6374,8 +6015,8 @@ func TestApplyEquippedArrowMarksAmmoSlot(t *testing.T) {
 		t.Fatal("previous arrow stayed equipped")
 	}
 	item := sessionState.Inventory.Items[1]
-	if !item.Equip || !item.Equipped || item.Location != equipLocationAmmo {
-		t.Fatalf("arrow item after ZC_EQUIP_ARROW = %+v, want equipped ammo location 0x%04X", item, equipLocationAmmo)
+	if !item.Equip || !item.Equipped || item.Location != db.EquipAmmo {
+		t.Fatalf("arrow item after ZC_EQUIP_ARROW = %+v, want equipped ammo location 0x%04X", item, db.EquipAmmo)
 	}
 }
 

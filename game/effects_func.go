@@ -17,37 +17,6 @@ const (
 	effectFuncCastRing
 )
 
-func healParticleComponent(alpha float64, duration, delay, duplicateDelay time.Duration, duplicate int, posXRand, posYRand, posZStartRand, posZStartMiddle, posZEnd, posZEndRand, posZEndMiddle float64, sparkling bool) worldEffectComponent {
-	component := worldEffectComponent{
-		kind:            effectComponent3D,
-		color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
-		textureFile:     "effect/pok3.tga",
-		duration:        duration,
-		delay:           delay,
-		duplicateDelay:  duplicateDelay,
-		alphaMax:        alpha,
-		sparkling:       sparkling,
-		fadeIn:          true,
-		fadeOut:         true,
-		posXRand:        posXRand,
-		posYRand:        posYRand,
-		posZStartRand:   posZStartRand,
-		posZStartMiddle: posZStartMiddle,
-		posZEnd:         posZEnd,
-		posZEndRand:     posZEndRand,
-		posZEndMiddle:   posZEndMiddle,
-		sizeStart:       9 * effectPixelRatio,
-		sizeEnd:         9 * effectPixelRatio,
-		sizeRand:        2 * effectPixelRatio,
-		duplicate:       duplicate,
-		blendAdditive:   true,
-	}
-	if sparkling {
-		component.sparkNumber = 2
-	}
-	return component
-}
-
 func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.funcAdapter {
 	case effectFuncGroundSample:

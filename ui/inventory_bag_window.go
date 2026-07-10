@@ -704,7 +704,7 @@ func inventoryItemEquipLocation(item session.InventoryItem) uint16 {
 		return item.Location
 	}
 	if item.Type == db.ItemTypeAmmo {
-		return equipLocationAmmo
+		return db.EquipAmmo
 	}
 	return 0
 }

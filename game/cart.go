@@ -13,16 +13,7 @@ import (
 	worldstate "github.com/kivutar/goro/world"
 )
 
-const (
-	statusEffectPushCart uint16 = db.StatusOnPushCart
-
-	actorEffectCart1    uint32 = db.EffectStateCart1
-	actorEffectCart2    uint32 = db.EffectStateCart2
-	actorEffectCart3    uint32 = db.EffectStateCart3
-	actorEffectCart4    uint32 = db.EffectStateCart4
-	actorEffectCart5    uint32 = db.EffectStateCart5
-	actorEffectCartMask        = actorEffectCart1 | actorEffectCart2 | actorEffectCart3 | actorEffectCart4 | actorEffectCart5
-)
+const actorEffectCartMask = db.EffectStateCart1 | db.EffectStateCart2 | db.EffectStateCart3 | db.EffectStateCart4 | db.EffectStateCart5
 
 func applyActorCartStateFromEffect(actor *worldstate.Actor) {
 	if actor == nil {
@@ -45,13 +36,13 @@ func cartNumFromEffectState(effectState uint32, job int) (int, bool) {
 		return 0, true
 	}
 	switch {
-	case effectState&actorEffectCart5 != 0:
+	case effectState&db.EffectStateCart5 != 0:
 		return 5, true
-	case effectState&actorEffectCart4 != 0:
+	case effectState&db.EffectStateCart4 != 0:
 		return 4, true
-	case effectState&actorEffectCart3 != 0:
+	case effectState&db.EffectStateCart3 != 0:
 		return 3, true
-	case effectState&actorEffectCart2 != 0:
+	case effectState&db.EffectStateCart2 != 0:
 		return 2, true
 	default:
 		return 1, true
@@ -100,15 +91,15 @@ func playerJobUsesNoviceCart(job int) bool {
 func effectStateForCartNum(cartNum int) uint32 {
 	switch cartNum {
 	case 2:
-		return actorEffectCart2
+		return db.EffectStateCart2
 	case 3:
-		return actorEffectCart3
+		return db.EffectStateCart3
 	case 4:
-		return actorEffectCart4
+		return db.EffectStateCart4
 	case 5:
-		return actorEffectCart5
+		return db.EffectStateCart5
 	default:
-		return actorEffectCart1
+		return db.EffectStateCart1
 	}
 }
 
@@ -157,7 +148,7 @@ func cartOffsetBillboard(billboard *spriteBillboard, dx, dy float64) *spriteBill
 }
 
 func (m *WorldMode) applyPushCartStatus(ctx client.Context, change network.StatusEffectChange) bool {
-	if change.StatusID != statusEffectPushCart || ctx.World == nil {
+	if change.StatusID != db.StatusOnPushCart || ctx.World == nil {
 		return false
 	}
 	cartNum := 1

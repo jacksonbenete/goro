@@ -1145,26 +1145,6 @@ func (m *WorldMode) addLocalRecoveryFloater(ctx client.Context, amount int, floa
 	})
 }
 
-func (m *WorldMode) addTargetRecoveryFloater(ctx client.Context, actorID uint32, amount int, floaterColor color.RGBA, kind damageFloaterKind, now time.Time) {
-	if ctx.World == nil || actorID == 0 || amount <= 0 {
-		return
-	}
-	x, y, ok := effectAnchor(ctx, actorID)
-	if !ok {
-		return
-	}
-	m.damageFloaters = append(m.damageFloaters, damageFloater{
-		actorID: actorID,
-		x:       x,
-		y:       y,
-		text:    strconv.Itoa(amount),
-		color:   floaterColor,
-		kind:    kind,
-		starts:  now,
-		expires: now.Add(damageFloaterDuration(kind)),
-	})
-}
-
 func actionDamageFloater(action network.ActorActionNotify, targetLocal, sourceLocal bool) (string, damageFloaterKind, color.RGBA) {
 	total := action.Damage + action.LeftDamage
 	if total > 0 {

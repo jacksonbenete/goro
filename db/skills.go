@@ -3613,19 +3613,29 @@ type SkillEffectSpec struct {
 	HideCastAura           bool
 }
 
+const (
+	// Synthetic numeric aliases for robr EffectTable.js string keys referenced
+	// from SkillEffect.js. These are not Ragnarok packet effect IDs.
+	SkillEffectColdBolt    = 10014
+	SkillEffectFireBolt    = 10019
+	SkillEffectQuakeMagnum = 10022
+	SkillEffectArrowShot   = 10060
+	SkillEffectArrowShower = 10061
+)
+
 var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillSMBash:                     {HitEffectIDs: []int{1}, BeginCastEffectIDs: []int{16}},
 	SkillSMProvoke:                  {SuccessEffectIDs: []int{67}},
-	SkillSMMagnum:                   {EffectIDsOnCaster: []int{17}},
+	SkillSMMagnum:                   {EffectIDs: []int{SkillEffectQuakeMagnum}, EffectIDsOnCaster: []int{17}},
 	SkillSMEndure:                   {EffectIDs: []int{11}},
 	SkillMGNapalmbeat:               {HitEffectIDs: []int{1}},
 	SkillMGSoulstrike:               {HitEffectIDs: []int{1}, BeforeHitEffectIDs: []int{15}},
-	SkillMGColdbolt:                 {HitEffectIDs: []int{51}},
+	SkillMGColdbolt:                 {HitEffectIDs: []int{51}, BeforeHitEffectIDs: []int{SkillEffectColdBolt}},
 	SkillMGFrostdiver:               {EffectIDs: []int{27}, HitEffectIDs: []int{28}},
 	SkillMGStonecurse:               {EffectIDs: []int{23}},
 	SkillMGFireball:                 {HitEffectIDs: []int{49}, BeforeHitEffectIDs: []int{24}},
 	SkillMGFirewall:                 {GroundEffectIDs: []int{25}, HitEffectIDs: []int{49}},
-	SkillMGFirebolt:                 {HitEffectIDs: []int{49}},
+	SkillMGFirebolt:                 {HitEffectIDs: []int{49}, BeforeHitEffectIDs: []int{SkillEffectFireBolt}},
 	SkillMGLightningbolt:            {EffectIDs: []int{29}, HitEffectIDs: []int{52}},
 	SkillMGThunderstorm:             {EffectIDs: []int{30}, HitEffectIDs: []int{52}},
 	SkillALRuwach:                   {HitEffectIDs: []int{1}},
@@ -3640,8 +3650,8 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillALCure:                     {EffectIDs: []int{66}},
 	SkillMCMammonite:                {EffectIDs: []int{10}},
 	SkillACConcentration:            {EffectIDs: []int{153}},
-	SkillACDouble:                   {HitEffectIDs: []int{1}, BeginCastEffectIDs: []int{16}},
-	SkillACShower:                   {HitEffectIDs: []int{1}},
+	SkillACDouble:                   {HitEffectIDs: []int{1}, BeginCastEffectIDs: []int{16}, BeforeHitEffectIDs: []int{SkillEffectArrowShot}},
+	SkillACShower:                   {HitEffectIDs: []int{1}, EffectIDs: []int{SkillEffectArrowShower}},
 	SkillTFSteal:                    {SuccessEffectIDs: []int{18}},
 	SkillTFPoison:                   {HitEffectIDs: []int{20}},
 	SkillTFDetoxify:                 {EffectIDs: []int{21}},

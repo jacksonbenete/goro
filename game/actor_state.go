@@ -12,18 +12,6 @@ import (
 	worldstate "github.com/kivutar/goro/world"
 )
 
-const (
-	actorBodyStateStone     uint16 = db.BodyStateStone
-	actorBodyStateFreeze    uint16 = db.BodyStateFreeze
-	actorBodyStateStun      uint16 = db.BodyStateStun
-	actorBodyStateSleep     uint16 = db.BodyStateSleep
-	actorBodyStateStoneWait uint16 = db.BodyStateStonewait
-
-	actorHealthPoison uint16 = db.HealthStatePoison
-	actorHealthCurse  uint16 = db.HealthStateCurse
-	actorHealthBlind  uint16 = db.HealthStateBlind
-)
-
 func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.ActorStateChange) {
 	if change.ID == 0 || ctx.World == nil {
 		return
@@ -95,7 +83,7 @@ func setActorRenderState(actor *worldstate.Actor, bodyState, healthState uint16,
 
 func applyActorBodyState(actor worldstate.Actor, state *spriteState) {
 	switch actor.BodyState {
-	case actorBodyStateFreeze:
+	case db.BodyStateFreeze:
 		state.actionFamily = freezeActionFamily(actor)
 		state.moving = false
 		state.loop = false
@@ -104,7 +92,7 @@ func applyActorBodyState(actor worldstate.Actor, state *spriteState) {
 		state.hasPlay = true
 		state.fixedMotion = 0
 		state.hasFixedMotion = true
-	case actorBodyStateStone:
+	case db.BodyStateStone:
 		state.moving = false
 		state.loop = false
 		state.loopIdle = false
@@ -116,24 +104,24 @@ func applyActorBodyState(actor worldstate.Actor, state *spriteState) {
 func actorStateTint(actor worldstate.Actor) color.RGBA {
 	r, g, b := 1.0, 1.0, 1.0
 	switch actor.BodyState {
-	case actorBodyStateStone:
+	case db.BodyStateStone:
 		r, g, b = 0.1, 0.1, 0.1
-	case actorBodyStateStoneWait:
+	case db.BodyStateStonewait:
 		r, g, b = 0.3, 0.3, 0.3
-	case actorBodyStateFreeze:
+	case db.BodyStateFreeze:
 		r, g, b = 0.0, 0.4, 0.8
 	}
-	if actor.HealthState&actorHealthCurse != 0 {
+	if actor.HealthState&db.HealthStateCurse != 0 {
 		r *= 0.5
 		g *= 0.15
 		b *= 0.1
 	}
-	if actor.HealthState&actorHealthPoison != 0 {
+	if actor.HealthState&db.HealthStatePoison != 0 {
 		r *= 0.9
 		g *= 0.4
 		b *= 0.8
 	}
-	if actor.HealthState&actorHealthBlind != 0 {
+	if actor.HealthState&db.HealthStateBlind != 0 {
 		r *= 0.2
 		g *= 0.2
 		b *= 0.2

@@ -2,6 +2,7 @@ package game
 
 import (
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -229,7 +230,7 @@ func applyInventoryEquipAck(ctx client.Context, ack network.InventoryEquipAck) {
 func applyEquippedArrow(ctx client.Context, arrow network.EquippedArrow) {
 	applyInventoryEquipAck(ctx, network.InventoryEquipAck{
 		Index:    arrow.Index,
-		Location: equipLocationAmmo,
+		Location: db.EquipAmmo,
 		Success:  true,
 	})
 }
@@ -275,8 +276,8 @@ func rebuildLocalEquipmentAppearance(ctx client.Context) {
 		if !item.Equipped || item.Location == 0 {
 			continue
 		}
-		occupiesRightHand := item.Location&equipLocationWeapon != 0
-		occupiesLeftHand := item.Location&equipLocationShield != 0
+		occupiesRightHand := item.Location&db.EquipWeapon != 0
+		occupiesLeftHand := item.Location&db.EquipShield != 0
 		if occupiesRightHand {
 			hasWeapon = true
 			weapon = res.PlayerWeaponViewID(ctx.Resources, int(item.ItemID))
@@ -304,7 +305,7 @@ func normalAttackRangeFromEquippedItems(s *session.Session, manager *res.Manager
 		return 1
 	}
 	for _, item := range s.Inventory.Items {
-		if !item.Equip || !item.Equipped || item.Location&equipLocationWeapon == 0 {
+		if !item.Equip || !item.Equipped || item.Location&db.EquipWeapon == 0 {
 			continue
 		}
 		if res.PlayerWeaponViewID(manager, int(item.ItemID)) == 11 {

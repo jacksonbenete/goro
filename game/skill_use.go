@@ -153,9 +153,6 @@ func (c skillController) SendToID(ctx client.Context, skill session.Skill, targe
 	if err := ctx.Network.SendUseSkillToID(skill.ID, level, target); err != nil {
 		return err
 	}
-	if property, duration := skillCastFallback(skill.ID, level); duration > 0 {
-		c.mode.addLocalSkillCastFallback(ctx, skill.ID, property, localSkillTarget(ctx), target, 0, 0, duration, time.Now(), source)
-	}
 	if gameui.IsLevelOneTeleportSkill(skill) {
 		c.mode.addWorldEffect(ctx, effectTeleportation, localSkillTarget(ctx))
 	}
@@ -176,16 +173,6 @@ func (c skillController) SendToGround(ctx client.Context, skill session.Skill, x
 	log.Printf("%s ground skill use skill=%d level=%d target=%d,%d", source, skill.ID, level, x, y)
 	if err := ctx.Network.SendUseSkillToGround(skill.ID, level, x, y); err != nil {
 		return err
-	}
-	property, castDuration := skillCastFallback(skill.ID, level)
-	if castDuration > 0 {
-		c.mode.addLocalSkillCastFallback(ctx, skill.ID, property, localSkillTarget(ctx), 0, x, y, castDuration, time.Now(), source+"-ground")
-	}
-	if castDuration <= 0 {
-		now := time.Now()
-		for _, effectID := range skillGroundEffectIDs(skill.ID) {
-			c.mode.addWorldEffectAtCellIfMissing(ctx, effectID, x, y, now)
-		}
 	}
 	return nil
 }

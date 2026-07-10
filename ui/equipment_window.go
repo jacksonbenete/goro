@@ -27,20 +27,6 @@ const (
 	equipmentPreviewImageH = 106
 )
 
-const (
-	equipLocationHeadBottom uint16 = db.EquipHeadBottom
-	equipLocationWeapon     uint16 = db.EquipWeapon
-	equipLocationGarment    uint16 = db.EquipGarment
-	equipLocationAccessory1 uint16 = db.EquipAccessory1
-	equipLocationArmor      uint16 = db.EquipArmor
-	equipLocationShield     uint16 = db.EquipShield
-	equipLocationShoes      uint16 = db.EquipShoes
-	equipLocationAccessory2 uint16 = db.EquipAccessory2
-	equipLocationHeadTop    uint16 = db.EquipHeadTop
-	equipLocationHeadMid    uint16 = db.EquipHeadMid
-	equipLocationAmmo       uint16 = db.EquipAmmo
-)
-
 type EquipmentWindow struct {
 	window   WindowState
 	snapshot string
@@ -73,17 +59,17 @@ const (
 )
 
 var (
-	equipmentSlotHeadTop    = equipmentSlotDef{label: "Head Top", location: equipLocationHeadTop, side: equipmentSlotLeft, row: 0}
-	equipmentSlotHeadMid    = equipmentSlotDef{label: "Head Mid", location: equipLocationHeadMid, side: equipmentSlotRight, row: 0}
-	equipmentSlotHeadLow    = equipmentSlotDef{label: "Head Low", location: equipLocationHeadBottom, side: equipmentSlotLeft, row: 1}
-	equipmentSlotArmor      = equipmentSlotDef{label: "Armor", location: equipLocationArmor, side: equipmentSlotRight, row: 1}
-	equipmentSlotWeapon     = equipmentSlotDef{label: "Weapon", location: equipLocationWeapon, side: equipmentSlotLeft, row: 2}
-	equipmentSlotShield     = equipmentSlotDef{label: "Shield", location: equipLocationShield, side: equipmentSlotRight, row: 2}
-	equipmentSlotGarment    = equipmentSlotDef{label: "Garment", location: equipLocationGarment, side: equipmentSlotLeft, row: 3}
-	equipmentSlotShoes      = equipmentSlotDef{label: "Shoes", location: equipLocationShoes, side: equipmentSlotRight, row: 3}
-	equipmentSlotAccessory  = equipmentSlotDef{label: "Accessory", location: equipLocationAccessory1, side: equipmentSlotLeft, row: 4}
-	equipmentSlotAccessory2 = equipmentSlotDef{label: "Accessory", location: equipLocationAccessory2, side: equipmentSlotRight, row: 4}
-	equipmentSlotAmmo       = equipmentSlotDef{label: "Ammo", location: equipLocationAmmo, side: equipmentSlotCenter, row: 1}
+	equipmentSlotHeadTop    = equipmentSlotDef{label: "Head Top", location: db.EquipHeadTop, side: equipmentSlotLeft, row: 0}
+	equipmentSlotHeadMid    = equipmentSlotDef{label: "Head Mid", location: db.EquipHeadMid, side: equipmentSlotRight, row: 0}
+	equipmentSlotHeadLow    = equipmentSlotDef{label: "Head Low", location: db.EquipHeadBottom, side: equipmentSlotLeft, row: 1}
+	equipmentSlotArmor      = equipmentSlotDef{label: "Armor", location: db.EquipArmor, side: equipmentSlotRight, row: 1}
+	equipmentSlotWeapon     = equipmentSlotDef{label: "Weapon", location: db.EquipWeapon, side: equipmentSlotLeft, row: 2}
+	equipmentSlotShield     = equipmentSlotDef{label: "Shield", location: db.EquipShield, side: equipmentSlotRight, row: 2}
+	equipmentSlotGarment    = equipmentSlotDef{label: "Garment", location: db.EquipGarment, side: equipmentSlotLeft, row: 3}
+	equipmentSlotShoes      = equipmentSlotDef{label: "Shoes", location: db.EquipShoes, side: equipmentSlotRight, row: 3}
+	equipmentSlotAccessory  = equipmentSlotDef{label: "Accessory", location: db.EquipAccessory1, side: equipmentSlotLeft, row: 4}
+	equipmentSlotAccessory2 = equipmentSlotDef{label: "Accessory", location: db.EquipAccessory2, side: equipmentSlotRight, row: 4}
+	equipmentSlotAmmo       = equipmentSlotDef{label: "Ammo", location: db.EquipAmmo, side: equipmentSlotCenter, row: 1}
 
 	equipmentSlots = []equipmentSlotDef{
 		equipmentSlotHeadTop,
@@ -533,7 +519,7 @@ func equipmentSlotTextLimit(slot equipmentSlotDef) int {
 }
 
 func equipmentSlotShowsAmount(slot equipmentSlotDef, item session.InventoryItem) bool {
-	return slot.location == equipLocationAmmo && item.Amount > 0
+	return slot.location == db.EquipAmmo && item.Amount > 0
 }
 
 func equippedItemForSlot(s *session.Session, location uint16) (session.InventoryItem, bool) {
@@ -550,7 +536,7 @@ func equippedItemForSlot(s *session.Session, location uint16) (session.Inventory
 }
 
 func equipmentSlotVisible(s *session.Session, slot equipmentSlotDef) bool {
-	if slot.location != equipLocationAmmo {
+	if slot.location != db.EquipAmmo {
 		return true
 	}
 	if s == nil {

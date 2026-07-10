@@ -13,41 +13,6 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func strEffectSpec(file, wav string) worldEffectSpec {
-	return strEffectSpecRandom(file, wav, 0, 0)
-}
-
-func strEffectSpecRandom(file, wav string, randMin, randMax int) worldEffectSpec {
-	return strEffectSpecRandomAttached(file, wav, randMin, randMax, false, false)
-}
-
-func strEffectSpecAttached(file, wav string, head bool) worldEffectSpec {
-	return strEffectSpecRandomAttached(file, wav, 0, 0, true, head)
-}
-
-func strEffectSpecAttachedMin(file, minFile, wav string, head bool) worldEffectSpec {
-	spec := strEffectSpecAttached(file, wav, head)
-	spec.components[0].strMinFile = minFile
-	return spec
-}
-
-func strEffectSpecRandomAttached(file, wav string, randMin, randMax int, attached, head bool) worldEffectSpec {
-	spec := worldEffectSpec{
-		components: []worldEffectComponent{{
-			kind:           effectComponentSTR,
-			strFile:        file,
-			strRandMin:     randMin,
-			strRandMax:     randMax,
-			attachedEntity: attached,
-			spriteHead:     head,
-		}},
-	}
-	if wav != "" {
-		spec.sfx = []string{wav}
-	}
-	return spec
-}
-
 func (m *WorldMode) drawSTREffect(screen *render.Image, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
 	str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, effect), component.texturePath)
 	if str == nil {

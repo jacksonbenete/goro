@@ -4,12 +4,6 @@ import "github.com/kivutar/goro/db"
 
 const inventoryIconSize = 24
 
-const (
-	equipLocationWeapon uint16 = db.EquipWeapon
-	equipLocationShield uint16 = db.EquipShield
-	equipLocationAmmo   uint16 = db.EquipAmmo
-)
-
 func inventoryItemTypeIsEquipment(itemType uint8) bool {
 	switch itemType {
 	case db.ItemTypeArmor, db.ItemTypeWeapon, db.ItemTypeCard, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeAmmo, db.ItemTypeShadowGear:
@@ -25,7 +19,7 @@ func inventoryItemTypeIsAmmo(itemType uint8) bool {
 
 func inventoryItemDefaultEquipLocation(itemType uint8) uint16 {
 	if inventoryItemTypeIsAmmo(itemType) {
-		return equipLocationAmmo
+		return db.EquipAmmo
 	}
 	return 0
 }
