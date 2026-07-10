@@ -6,21 +6,22 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
 	worldstate "github.com/kivutar/goro/world"
 )
 
 const (
-	actorBodyStateStone     uint16 = 1
-	actorBodyStateFreeze    uint16 = 2
-	actorBodyStateStun      uint16 = 3
-	actorBodyStateSleep     uint16 = 4
-	actorBodyStateStoneWait uint16 = 6
+	actorBodyStateStone     uint16 = db.BodyStateStone
+	actorBodyStateFreeze    uint16 = db.BodyStateFreeze
+	actorBodyStateStun      uint16 = db.BodyStateStun
+	actorBodyStateSleep     uint16 = db.BodyStateSleep
+	actorBodyStateStoneWait uint16 = db.BodyStateStonewait
 
-	actorHealthPoison uint16 = 0x0001
-	actorHealthCurse  uint16 = 0x0002
-	actorHealthBlind  uint16 = 0x0010
+	actorHealthPoison uint16 = db.HealthStatePoison
+	actorHealthCurse  uint16 = db.HealthStateCurse
+	actorHealthBlind  uint16 = db.HealthStateBlind
 )
 
 func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.ActorStateChange) {
@@ -136,6 +137,11 @@ func actorStateTint(actor worldstate.Actor) color.RGBA {
 		r *= 0.2
 		g *= 0.2
 		b *= 0.2
+	}
+	if actor.EffectState&db.Opt3Energycoat != 0 {
+		r *= 0.5
+		g *= 0.5
+		b *= 0.85
 	}
 	return color.RGBA{R: byte(clampUnit(r) * 255), G: byte(clampUnit(g) * 255), B: byte(clampUnit(b) * 255), A: 255}
 }

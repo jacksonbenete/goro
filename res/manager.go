@@ -21,8 +21,8 @@ type Manager struct {
 	accessoryNamesLoaded     bool
 	itemMetadata             map[int]ItemMetadata
 	itemMetadataLoaded       bool
-	jobResourceNames         map[int]string
-	jobResourceNamesLoaded   bool
+	nonPCResourceNames       map[int]string
+	nonPCResourceNamesLoaded bool
 	indoorRswNames           map[string]struct{}
 	indoorRswNamesLoaded     bool
 	cameraViewPoints         map[string]CameraViewPoint

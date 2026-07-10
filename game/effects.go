@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -964,6 +965,10 @@ const (
 	skillActorActionIdle skillActorAction = iota
 	skillActorActionSkill
 	skillActorActionAttack
+	skillActorActionAttack1
+	skillActorActionAttack2
+	skillActorActionAttack3
+	skillActorActionPickup
 	skillActorActionReadyFight
 )
 
@@ -1020,6 +1025,14 @@ func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
 		return spriteActionIdle
 	case skillActorActionAttack:
 		return attackActionFamilyForActor(actor)
+	case skillActorActionAttack1:
+		return spriteActionPCAttack1
+	case skillActorActionAttack2:
+		return spriteActionPCAttack2
+	case skillActorActionAttack3:
+		return spriteActionPCAttack3
+	case skillActorActionPickup:
+		return spriteActionPickup
 	case skillActorActionReadyFight:
 		return spriteActionPCReadyFight
 	default:
@@ -1148,51 +1161,162 @@ var skillEffectSpecs = map[uint16]skillEffectSpec{
 	153: {beginCastEffectIDs: []int{effectCartRevolution}, hitEffectIDs: []int{effectCartRevolution}},                                                                                                                        // MC_CARTREVOLUTION
 	155: {effectIDs: []int{effectLoud}},                                                                                                                                                                                      // MC_LOUD
 	156: {effectIDs: []int{effectHolyLight}, cast: skillCastSpec{property: 6, fixed: 2 * time.Second}},                                                                                                                       // AL_HOLYLIGHT
-	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                // MG_ENERGYCOAT
+	157: {effectIDs: []int{effectEnergyCoat}, forceSelfTarget: true},                                                                                                                                                         // MG_ENERGYCOAT
+}
+
+func skillEffectSpecFor(skillID uint16) skillEffectSpec {
+	spec := importedSkillEffectSpec(skillID)
+	if local, ok := skillEffectSpecs[skillID]; ok {
+		return mergeSkillEffectSpec(spec, local)
+	}
+	return spec
+}
+
+func importedSkillEffectSpec(skillID uint16) skillEffectSpec {
+	out := skillEffectSpec{}
+	if spec, ok := db.SkillEffects[skillID]; ok {
+		out.effectIDs = copyIntSlice(spec.EffectIDs)
+		out.effectIDsOnCaster = copyIntSlice(spec.EffectIDsOnCaster)
+		out.beforeHitEffectIDs = copyIntSlice(spec.BeforeHitEffectIDs)
+		out.beforeHitEffectIDsSelf = copyIntSlice(spec.BeforeHitEffectIDsSelf)
+		out.hitEffectIDs = copyIntSlice(spec.HitEffectIDs)
+		out.hitEffectIDsOnCaster = copyIntSlice(spec.HitEffectIDsOnCaster)
+		out.successEffectIDs = copyIntSlice(spec.SuccessEffectIDs)
+		out.successEffectIDsSelf = copyIntSlice(spec.SuccessEffectIDsSelf)
+		out.beginCastEffectIDs = copyIntSlice(spec.BeginCastEffectIDs)
+		out.groundEffectIDs = copyIntSlice(spec.GroundEffectIDs)
+	}
+	if action, ok := importedSkillActionSpec(skillID); ok {
+		out.action = action
+	}
+	return out
+}
+
+func mergeSkillEffectSpec(base, override skillEffectSpec) skillEffectSpec {
+	if len(override.effectIDs) > 0 {
+		base.effectIDs = copyIntSlice(override.effectIDs)
+	}
+	if len(override.effectIDsOnCaster) > 0 {
+		base.effectIDsOnCaster = copyIntSlice(override.effectIDsOnCaster)
+	}
+	if len(override.beforeHitEffectIDs) > 0 {
+		base.beforeHitEffectIDs = copyIntSlice(override.beforeHitEffectIDs)
+	}
+	if len(override.beforeHitEffectIDsSelf) > 0 {
+		base.beforeHitEffectIDsSelf = copyIntSlice(override.beforeHitEffectIDsSelf)
+	}
+	if len(override.hitEffectIDs) > 0 {
+		base.hitEffectIDs = copyIntSlice(override.hitEffectIDs)
+	}
+	if len(override.hitEffectIDsOnCaster) > 0 {
+		base.hitEffectIDsOnCaster = copyIntSlice(override.hitEffectIDsOnCaster)
+	}
+	if len(override.successEffectIDs) > 0 {
+		base.successEffectIDs = copyIntSlice(override.successEffectIDs)
+	}
+	if len(override.successEffectIDsSelf) > 0 {
+		base.successEffectIDsSelf = copyIntSlice(override.successEffectIDsSelf)
+	}
+	if len(override.beginCastEffectIDs) > 0 {
+		base.beginCastEffectIDs = copyIntSlice(override.beginCastEffectIDs)
+	}
+	if len(override.groundEffectIDs) > 0 {
+		base.groundEffectIDs = copyIntSlice(override.groundEffectIDs)
+	}
+	if override.action.defined {
+		base.action = override.action
+	}
+	if override.cast.fixed > 0 || override.cast.base > 0 || override.cast.perLevel > 0 || override.cast.property != 0 {
+		base.cast = override.cast
+	}
+	if override.forceGroundTarget {
+		base.forceGroundTarget = true
+	}
+	if override.forceSelfTarget {
+		base.forceSelfTarget = true
+	}
+	if override.passive {
+		base.passive = true
+	}
+	if override.groundCastMarkerSize != 0 {
+		base.groundCastMarkerSize = override.groundCastMarkerSize
+	}
+	if override.recoveryFloater.enabled {
+		base.recoveryFloater = override.recoveryFloater
+	}
+	return base
+}
+
+func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
+	switch db.SkillActions[skillID] {
+	case db.SkillActionIdle:
+		return idleSkillActionSpec, true
+	case db.SkillActionAttack:
+		return attackSkillActionSpec, true
+	case db.SkillActionAttack1:
+		return newSkillActionSpec(skillActorActionAttack1, false, &idleSkillActionSpec), true
+	case db.SkillActionAttack2:
+		return newSkillActionSpec(skillActorActionAttack2, false, &idleSkillActionSpec), true
+	case db.SkillActionAttack3:
+		return newSkillActionSpec(skillActorActionAttack3, false, &idleSkillActionSpec), true
+	case db.SkillActionPickup:
+		return newSkillActionSpec(skillActorActionPickup, false, &idleSkillActionSpec), true
+	case db.SkillActionReadyfight:
+		return readyFightSkillActionSpec, true
+	default:
+		return skillActionSpec{}, false
+	}
+}
+
+func copyIntSlice(in []int) []int {
+	if len(in) == 0 {
+		return nil
+	}
+	return append([]int(nil), in...)
 }
 
 func skillSuccessEffectIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].successEffectIDs
+	return skillEffectSpecFor(skillID).successEffectIDs
 }
 
 func skillSuccessEffectSelfIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].successEffectIDsSelf
+	return skillEffectSpecFor(skillID).successEffectIDsSelf
 }
 
 func skillEffectIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].effectIDs
+	return skillEffectSpecFor(skillID).effectIDs
 }
 
 func skillEffectOnCasterIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].effectIDsOnCaster
+	return skillEffectSpecFor(skillID).effectIDsOnCaster
 }
 
 func skillBeginEffectIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].beginCastEffectIDs
+	return skillEffectSpecFor(skillID).beginCastEffectIDs
 }
 
 func skillBeforeHitEffectIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].beforeHitEffectIDs
+	return skillEffectSpecFor(skillID).beforeHitEffectIDs
 }
 
 func skillBeforeHitEffectSelfIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].beforeHitEffectIDsSelf
+	return skillEffectSpecFor(skillID).beforeHitEffectIDsSelf
 }
 
 func skillGroundEffectIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].groundEffectIDs
+	return skillEffectSpecFor(skillID).groundEffectIDs
 }
 
 func skillForcesGroundTarget(skillID uint16) bool {
-	return skillEffectSpecs[skillID].forceGroundTarget
+	return skillEffectSpecFor(skillID).forceGroundTarget
 }
 
 func skillForcesSelfTarget(skillID uint16) bool {
-	return skillEffectSpecs[skillID].forceSelfTarget
+	return skillEffectSpecFor(skillID).forceSelfTarget
 }
 
 func skillForcesPassive(skillID uint16) bool {
-	return skillEffectSpecs[skillID].passive
+	return skillEffectSpecFor(skillID).passive
 }
 
 type skillUnitEffectSpec struct {
@@ -1235,24 +1359,24 @@ func skillCastAuraEffectID(property uint32) int {
 }
 
 func skillCastFallback(skillID uint16, level uint16) (uint32, time.Duration) {
-	cast := skillEffectSpecs[skillID].cast
+	cast := skillEffectSpecFor(skillID).cast
 	return cast.property, cast.duration(level)
 }
 
 func skillHitEffectIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].hitEffectIDs
+	return skillEffectSpecFor(skillID).hitEffectIDs
 }
 
 func skillHitEffectOnCasterIDs(skillID uint16) []int {
-	return skillEffectSpecs[skillID].hitEffectIDsOnCaster
+	return skillEffectSpecFor(skillID).hitEffectIDsOnCaster
 }
 
 func skillRecoveryFloater(skillID uint16) skillRecoveryFloaterSpec {
-	return skillEffectSpecs[skillID].recoveryFloater
+	return skillEffectSpecFor(skillID).recoveryFloater
 }
 
 func skillAction(skillID uint16) skillActionSpec {
-	spec := skillEffectSpecs[skillID].action
+	spec := skillEffectSpecFor(skillID).action
 	if !spec.defined {
 		return defaultSkillActionSpec
 	}

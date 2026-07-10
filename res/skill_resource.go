@@ -66,7 +66,10 @@ func (m *Manager) loadSkillResourceNames() {
 		return
 	}
 	m.skillResourceNamesLoaded = true
-	m.skillResourceNames = db.SkillResourceNames()
+	m.skillResourceNames = make(map[int]string, len(db.SkillResourceName))
+	for id, name := range db.SkillResourceName {
+		m.skillResourceNames[int(id)] = name
+	}
 	globals := make(map[string]luaValue)
 	_, data, ok := m.ReadFirst(skillIDLuaCandidates)
 	if !ok {

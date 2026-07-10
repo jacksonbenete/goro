@@ -626,7 +626,11 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx client.Co
 	player.Head = character.Hair
 	player.Sex = ctx.Session.Sex
 	if !player.HasCartState {
-		player.EffectState = character.Option
+		if player.HasState {
+			player.EffectState = (player.EffectState &^ actorEffectCartMask) | (character.Option & actorEffectCartMask)
+		} else {
+			player.EffectState = character.Option
+		}
 		applyActorCartStateFromEffect(&player)
 	}
 	if character.Name != "" {
@@ -883,7 +887,7 @@ func actorDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool)
 	if res.HasPlayerJobToken(int(actor.Job)) || ctx.Resources == nil {
 		return ""
 	}
-	if resourceName, ok := ctx.Resources.JobResourceName(int(actor.Job)); ok {
+	if resourceName, ok := ctx.Resources.NonPCResourceName(int(actor.Job)); ok {
 		return displayNameFromResource(resourceName)
 	}
 	return ""
@@ -941,7 +945,7 @@ func actorResourceDisplayName(ctx client.Context, actor worldstate.Actor) string
 	if ctx.Resources == nil {
 		return ""
 	}
-	if resourceName, ok := ctx.Resources.JobResourceName(int(actor.Job)); ok {
+	if resourceName, ok := ctx.Resources.NonPCResourceName(int(actor.Job)); ok {
 		return displayNameFromResource(resourceName)
 	}
 	return ""

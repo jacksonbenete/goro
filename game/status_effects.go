@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
 )
 
 const (
-	statusEffectHiding    uint16 = 4
-	statusEffectTrickDead uint16 = 29
+	statusEffectHiding    uint16 = db.StatusHiding
+	statusEffectTrickDead uint16 = db.StatusTrickdead
 )
 
 func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.StatusEffectChange) {
@@ -21,6 +22,7 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	if m.applyPushCartStatus(ctx, change) {
 		return
 	}
+	m.applyActorEffectStateStatus(ctx, change)
 	m.applyTrickDeadStatus(ctx, change)
 	localID := localSkillTarget(ctx)
 	if change.ActorID != 0 && localID != 0 && change.ActorID != localID && change.ActorID != ctx.Session.CharID {
@@ -47,6 +49,47 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	}
 	ctx.Session.Statuses.Active[change.StatusID] = effect
 	log.Printf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
+}
+
+func (m *WorldMode) applyActorEffectStateStatus(ctx client.Context, change network.StatusEffectChange) {
+	bit, ok := actorEffectStateBitForStatus(change.StatusID)
+	if !ok || ctx.World == nil {
+		return
+	}
+	id := change.ActorID
+	if id == 0 {
+		id = localSkillTarget(ctx)
+	}
+	if id == 0 {
+		return
+	}
+	actor, ok, local := actorForCombatID(ctx, id)
+	if !ok {
+		return
+	}
+	if change.Active {
+		actor.EffectState |= bit
+	} else {
+		actor.EffectState &^= bit
+	}
+	actor.HasState = true
+	if local {
+		ctx.World.Player.EffectState = actor.EffectState
+		ctx.World.Player.HasState = true
+		return
+	}
+	ctx.World.UpsertActor(actor)
+}
+
+func actorEffectStateBitForStatus(statusID uint16) (uint32, bool) {
+	if statusID != db.StatusEnergycoat {
+		return 0, false
+	}
+	bit, ok := db.StatusOpt3State[statusID]
+	if !ok {
+		return 0, false
+	}
+	return bit, true
 }
 
 func (m *WorldMode) applyTrickDeadStatus(ctx client.Context, change network.StatusEffectChange) {

@@ -30,7 +30,7 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*spriteVi
 	if actorJobHasNoSprite(job) {
 		return nil, fmt.Sprintf("%s job=%d no-sprite", label, job)
 	}
-	resourceName, ok := manager.JobResourceName(job)
+	resourceName, ok := manager.NonPCResourceName(job)
 	if !ok {
 		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
 	}

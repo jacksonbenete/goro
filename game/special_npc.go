@@ -20,7 +20,7 @@ const (
 func specialNPCVisualForActor(ctx client.Context, actor worldstate.Actor) specialNPCVisual {
 	resourceName := ""
 	if ctx.Resources != nil {
-		resourceName, _ = ctx.Resources.JobResourceName(int(actor.Job))
+		resourceName, _ = ctx.Resources.NonPCResourceName(int(actor.Job))
 	}
 	return specialNPCVisualForActorResource(actor, resourceName)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
@@ -333,6 +334,68 @@ func TestActorStateTintMatchesReferenceBodyAndHealthTints(t *testing.T) {
 	})
 	if tint.R != 0 || tint.G != 20 || tint.B != 40 || tint.A != 255 {
 		t.Fatalf("tint = %+v, want frozen blue darkened by blind", tint)
+	}
+}
+
+func TestEnergyCoatStatusSetsActorEffectStateAndTint(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusEnergycoat,
+		ActorID:  2000000,
+		Active:   true,
+	})
+
+	if world.Player.EffectState&db.Opt3Energycoat == 0 {
+		t.Fatalf("effect state = 0x%08X, want energy coat bit", world.Player.EffectState)
+	}
+	tint := actorStateTint(world.Player)
+	if tint.R != 127 || tint.G != 127 || tint.B != 216 || tint.A != 255 {
+		t.Fatalf("energy coat tint = %+v, want robr OPT3 tint", tint)
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusEnergycoat,
+		ActorID:  2000000,
+		Active:   false,
+	})
+	if world.Player.EffectState&db.Opt3Energycoat != 0 {
+		t.Fatalf("effect state = 0x%08X, want energy coat cleared", world.Player.EffectState)
+	}
+}
+
+func TestCollectSceneActorEntriesPreservesLocalEnergyCoatEffectState(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:          2000000,
+		X:           10,
+		Y:           20,
+		EffectState: db.Opt3Energycoat,
+		HasState:    true,
+	}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150000,
+		Selected:  session.Character{ID: 150000, Job: 2, Option: actorEffectCart1},
+	}
+	screen := render.NewImage(800, 600)
+	ctx := client.Context{Session: sessionState, World: world}
+	projection := newSceneProjectionForTarget(800, 600, 10, 20, 0)
+	mode := &WorldMode{}
+
+	entries := mode.collectSceneActorEntries(screen, ctx, projection)
+	if len(entries) == 0 {
+		t.Fatal("no actor entries collected")
+	}
+	if entries[0].actor.EffectState&db.Opt3Energycoat == 0 {
+		t.Fatalf("entry effect state = 0x%08X, want energy coat preserved", entries[0].actor.EffectState)
+	}
+	if entries[0].actor.EffectState&actorEffectCart1 == 0 {
+		t.Fatalf("entry effect state = 0x%08X, want cart option merged", entries[0].actor.EffectState)
 	}
 }
 
@@ -2605,6 +2668,22 @@ func TestAcolyteSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AL_ANGELUS", skillEffectIDs(33), effectAngelus)
 	expectEffectIDs(t, "AL_BLESSING", skillEffectIDs(34), effectBlessing)
 	expectEffectIDs(t, "AL_CURE", skillEffectIDs(35), effectCure)
+}
+
+func TestImportedSkillEffectFallback(t *testing.T) {
+	expectEffectIDs(t, "PR_IMPOSITIO imported", skillEffectIDs(db.SkillPRImpositio), 84)
+	expectEffectIDs(t, "PR_TURNUNDEAD imported hit", skillHitEffectIDs(db.SkillPRTurnundead), 152)
+}
+
+func TestImportedSkillActionFallback(t *testing.T) {
+	archer := worldstate.Actor{Job: 3}
+	if action := skillAction(db.SkillACDouble).actionFamilyForActor(archer); action != spriteActionPCAttack3 {
+		t.Fatalf("AC_DOUBLE action = %d, want ATTACK3", action)
+	}
+	merchant := worldstate.Actor{Job: 5}
+	if action := skillAction(db.SkillMCCartrevolution).actionFamilyForActor(merchant); action != spriteActionPCAttack2 {
+		t.Fatalf("MC_CARTREVOLUTION action = %d, want ATTACK2", action)
+	}
 }
 
 func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
@@ -5353,12 +5432,12 @@ func TestActorDisplayNameUsesServerNameBeforeFallback(t *testing.T) {
 	}
 }
 
-func TestActorDisplayNameFallsBackToNonPCResource(t *testing.T) {
+func TestActorDisplayNameDoesNotUseHardcodedNonPCFallback(t *testing.T) {
 	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Job: 1002}
 
-	if got := actorDisplayName(ctx, actor, false); got != "Poring" {
-		t.Fatalf("display name = %q, want Poring", got)
+	if got := actorDisplayName(ctx, actor, false); got != "" {
+		t.Fatalf("display name = %q, want empty without client resource table", got)
 	}
 }
 
@@ -5380,8 +5459,8 @@ func TestHoveredActorDisplayNameUsesServerNameForNPC(t *testing.T) {
 		HasObjectType: true,
 	}
 
-	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "4 M 02" {
-		t.Fatalf("hovered NPC name = %q, want resource fallback", got)
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "NPC" {
+		t.Fatalf("hovered NPC name = %q, want generic label without client resource table", got)
 	}
 	actor.Name = "Kafra Employee#izlude"
 	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Kafra Employee" {
@@ -5398,8 +5477,8 @@ func TestHoveredActorDisplayNameUsesServerNameForMonster(t *testing.T) {
 		HasObjectType: true,
 	}
 
-	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Poring" {
-		t.Fatalf("hovered monster name = %q, want resource fallback", got)
+	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Monster" {
+		t.Fatalf("hovered monster name = %q, want generic label without client resource table", got)
 	}
 	actor.Name = "Poring"
 	if got := mode.hoveredActorDisplayName(ctx, actor, time.Now()); got != "Poring" {

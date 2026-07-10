@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -13,13 +14,13 @@ import (
 )
 
 const (
-	statusEffectPushCart uint16 = 673
+	statusEffectPushCart uint16 = db.StatusOnPushCart
 
-	actorEffectCart1    uint32 = 0x00000008
-	actorEffectCart2    uint32 = 0x00000080
-	actorEffectCart3    uint32 = 0x00000100
-	actorEffectCart4    uint32 = 0x00000200
-	actorEffectCart5    uint32 = 0x00000400
+	actorEffectCart1    uint32 = db.EffectStateCart1
+	actorEffectCart2    uint32 = db.EffectStateCart2
+	actorEffectCart3    uint32 = db.EffectStateCart3
+	actorEffectCart4    uint32 = db.EffectStateCart4
+	actorEffectCart5    uint32 = db.EffectStateCart5
 	actorEffectCartMask        = actorEffectCart1 | actorEffectCart2 | actorEffectCart3 | actorEffectCart4 | actorEffectCart5
 )
 

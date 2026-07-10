@@ -3,8 +3,6 @@ package res
 import (
 	"fmt"
 	"strings"
-
-	"github.com/kivutar/goro/db"
 )
 
 const legacyMonsterSpriteRoot = "data\\sprite\\\xB8\xF3\xBD\xBA\xC5\xCD\\"
@@ -21,17 +19,17 @@ var jobNameLuaCandidates = []string{
 	"lua files\\datainfo\\jobname.lub",
 }
 
-func (m *Manager) JobResourceName(job int) (string, bool) {
-	if !m.jobResourceNamesLoaded {
-		m.loadJobResourceNames()
+func (m *Manager) NonPCResourceName(job int) (string, bool) {
+	if !m.nonPCResourceNamesLoaded {
+		m.loadNonPCResourceNames()
 	}
-	name, ok := m.jobResourceNames[job]
+	name, ok := m.nonPCResourceNames[job]
 	return name, ok && name != ""
 }
 
-func (m *Manager) loadJobResourceNames() {
-	m.jobResourceNamesLoaded = true
-	m.jobResourceNames = db.JobResourceNames()
+func (m *Manager) loadNonPCResourceNames() {
+	m.nonPCResourceNamesLoaded = true
+	m.nonPCResourceNames = make(map[int]string)
 
 	globals := make(map[string]luaValue)
 	for _, candidates := range [][]string{npcIdentityLuaCandidates, jobNameLuaCandidates} {
@@ -52,7 +50,7 @@ func (m *Manager) loadJobResourceNames() {
 		if !ok || value.kind != luaString || value.str == "" {
 			continue
 		}
-		m.jobResourceNames[index] = value.str
+		m.nonPCResourceNames[index] = value.str
 	}
 }
 

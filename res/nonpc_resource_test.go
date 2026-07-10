@@ -43,24 +43,11 @@ func TestNonPCSpriteResourceCandidatesMonster(t *testing.T) {
 	}
 }
 
-func TestFallbackJobResourceName(t *testing.T) {
-	manager := &Manager{}
-	if got, ok := manager.JobResourceName(1002); !ok || got != "poring" {
-		t.Fatalf("job resource name = %q, %v, want poring, true", got, ok)
-	}
-	if got, ok := manager.JobResourceName(45); !ok || got != "WARPNPC" {
-		t.Fatalf("warp npc resource name = %q, %v, want WARPNPC, true", got, ok)
-	}
-	if got, ok := manager.JobResourceName(111); !ok || got != "HIDDEN_NPC" {
-		t.Fatalf("hidden npc resource name = %q, %v, want HIDDEN_NPC, true", got, ok)
-	}
-}
-
 func TestNonPCSpriteResourceRealWhenConfigured(t *testing.T) {
 	manager := realDataManager(t)
 	cases := []int{47, 1002, 1015}
 	for _, job := range cases {
-		name, ok := manager.JobResourceName(job)
+		name, ok := manager.NonPCResourceName(job)
 		if !ok {
 			t.Fatalf("job %d resource name missing", job)
 		}
@@ -79,7 +66,7 @@ func TestNonPCSpriteResourceRealWhenConfigured(t *testing.T) {
 
 func TestZombieSpriteResourceRealWhenConfigured(t *testing.T) {
 	manager := realDataManager(t)
-	name, ok := manager.JobResourceName(1015)
+	name, ok := manager.NonPCResourceName(1015)
 	if !ok {
 		t.Fatal("zombie resource name missing")
 	}
