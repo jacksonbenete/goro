@@ -10,6 +10,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
@@ -27,17 +28,17 @@ const (
 )
 
 const (
-	equipLocationHeadBottom uint16 = 1 << 0
-	equipLocationWeapon     uint16 = 1 << 1
-	equipLocationGarment    uint16 = 1 << 2
-	equipLocationAccessory1 uint16 = 1 << 3
-	equipLocationArmor      uint16 = 1 << 4
-	equipLocationShield     uint16 = 1 << 5
-	equipLocationShoes      uint16 = 1 << 6
-	equipLocationAccessory2 uint16 = 1 << 7
-	equipLocationHeadTop    uint16 = 1 << 8
-	equipLocationHeadMid    uint16 = 1 << 9
-	equipLocationAmmo       uint16 = 1 << 15
+	equipLocationHeadBottom uint16 = db.EquipHeadBottom
+	equipLocationWeapon     uint16 = db.EquipWeapon
+	equipLocationGarment    uint16 = db.EquipGarment
+	equipLocationAccessory1 uint16 = db.EquipAccessory1
+	equipLocationArmor      uint16 = db.EquipArmor
+	equipLocationShield     uint16 = db.EquipShield
+	equipLocationShoes      uint16 = db.EquipShoes
+	equipLocationAccessory2 uint16 = db.EquipAccessory2
+	equipLocationHeadTop    uint16 = db.EquipHeadTop
+	equipLocationHeadMid    uint16 = db.EquipHeadMid
+	equipLocationAmmo       uint16 = db.EquipAmmo
 )
 
 type EquipmentWindow struct {

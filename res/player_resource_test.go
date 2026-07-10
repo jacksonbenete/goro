@@ -110,7 +110,7 @@ func TestNormalizePlayerWeaponShieldMovesLeftHandWeapon(t *testing.T) {
 
 func TestPlayerShieldOverlayResourceCandidates(t *testing.T) {
 	got := PlayerShieldOverlayResourceCandidates(0, 1, 2101, "spr")
-	want := "data\\sprite\\\xB9\xE6\xC6\xD0\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_guard.spr"
+	want := "data\\sprite\\\xB9\xE6\xC6\xD0\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_\xB0\xA1\xB5\xE5.spr"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("shield overlay = %q, want %q", got, want)
 	}

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kivutar/goro/db"
 	glua "github.com/yuin/gopher-lua"
 )
 
@@ -170,6 +171,12 @@ func (m *Manager) loadItemMetadata() {
 	}
 	m.itemMetadataLoaded = true
 	m.itemMetadata = make(map[int]ItemMetadata)
+	for id, item := range db.ItemTable {
+		metadata := m.itemMetadata[id]
+		metadata.ClassNum = item.ClassNum
+		metadata.ClassNumSet = true
+		m.itemMetadata[id] = metadata
+	}
 	for _, table := range itemDisplayTableFiles {
 		for id, value := range m.readItemPairTable(table.name) {
 			metadata := m.itemMetadata[id]

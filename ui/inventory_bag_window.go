@@ -12,6 +12,7 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -691,7 +692,7 @@ func inventoryItemIsEquipment(item session.InventoryItem) bool {
 
 func inventoryItemTypeIsEquipment(itemType uint8) bool {
 	switch itemType {
-	case 4, 5, 7, 8, 10, 12:
+	case db.ItemTypeArmor, db.ItemTypeWeapon, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeAmmo, db.ItemTypeShadowGear:
 		return true
 	default:
 		return false
@@ -702,7 +703,7 @@ func inventoryItemEquipLocation(item session.InventoryItem) uint16 {
 	if item.Location != 0 {
 		return item.Location
 	}
-	if item.Type == 10 {
+	if item.Type == db.ItemTypeAmmo {
 		return equipLocationAmmo
 	}
 	return 0
@@ -710,7 +711,7 @@ func inventoryItemEquipLocation(item session.InventoryItem) uint16 {
 
 func inventoryItemIsUsable(item session.InventoryItem) bool {
 	switch item.Type {
-	case 0, 2, 11, 18:
+	case db.ItemTypeHealing, db.ItemTypeUsable, db.ItemTypeDelayConsume, db.ItemTypeCash:
 		return true
 	default:
 		return false

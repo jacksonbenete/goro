@@ -115,6 +115,10 @@ func (m *Manager) AccessoryResourceName(viewID int) (string, bool) {
 		m.loadAccessoryResourceNames()
 	}
 	name, ok := m.accessoryNames[viewID]
+	if ok && name != "" {
+		return name, true
+	}
+	name, ok = db.HatResourceName[viewID]
 	return name, ok && name != ""
 }
 
@@ -354,56 +358,14 @@ func PlayerWeaponOverlaySupportsSecondLayer(weaponType int) bool {
 }
 
 func PlayerWeaponOverlayToken(weaponType int) string {
-	switch weaponType {
-	case 1:
-		return "\xB4\xDC\xB0\xCB"
-	case 2, 3:
-		return "\xB0\xCB"
-	case 4, 5:
-		return "\xC3\xA2"
-	case 6, 7:
-		return "\xB5\xB5\xB3\xA2"
-	case 8, 9:
-		return "\xC5\xAC\xB7\xB4"
-	case 10, 23:
-		return "\xB7\xD4\xB5\xE5"
-	case 11:
-		return "\xC8\xB0"
-	case 12:
-		return "\xB3\xCA\xC5\xAC"
-	case 13:
-		return "\xBE\xC7\xB1\xE2"
-	case 14:
-		return "\xC3\xA4\xC2\xEF"
-	case 15:
-		return "\xC3\xA5"
-	case 16:
-		return "\xC4\xAB\xC5\xB8\xB8\xA3_\xC4\xAB\xC5\xB8\xB8\xA3"
-	case 17:
-		return "\xB1\xC7\xC3\xD1"
-	case 18:
-		return "\xB6\xF3\xC0\xCC\xC7\xC3"
-	case 19:
-		return "\xB1\xE2\xB0\xFC\xC3\xD1"
-	case 20:
-		return "\xBC\xA6\xB0\xC7"
-	case 22:
-		return "\xBC\xF6\xB8\xAE\xB0\xCB"
-	case 25:
-		return "\xB4\xDC\xB0\xCB_\xB4\xDC\xB0\xCB"
-	case 26:
-		return "\xB0\xCB_\xB0\xCB"
-	case 27:
-		return "\xB5\xB5\xB3\xA2_\xB5\xB5\xB3\xA2"
-	case 28:
-		return "\xB4\xDC\xB0\xCB_\xB0\xCB"
-	case 29:
-		return "\xB4\xDC\xB0\xCB_\xB5\xB5\xB3\xA2"
-	case 30:
-		return "\xB0\xCB_\xB5\xB5\xB3\xA2"
-	default:
+	token, ok := db.WeaponResourceName[weaponType]
+	if !ok {
 		return ""
 	}
+	if len(token) > 0 && token[0] == '_' {
+		return token[1:]
+	}
+	return token
 }
 
 func PlayerShieldToken(shield int) string {
@@ -425,16 +387,5 @@ func PlayerShieldToken(shield int) string {
 			return ""
 		}
 	}
-	switch viewID {
-	case 1:
-		return "guard"
-	case 2:
-		return "buckler"
-	case 3:
-		return "shield"
-	case 4:
-		return "mirrorshield"
-	default:
-		return ""
-	}
+	return db.ShieldResourceName[viewID]
 }

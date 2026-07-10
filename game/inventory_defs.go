@@ -1,16 +1,18 @@
 package game
 
+import "github.com/kivutar/goro/db"
+
 const inventoryIconSize = 24
 
 const (
-	equipLocationWeapon uint16 = 1 << 1
-	equipLocationShield uint16 = 1 << 5
-	equipLocationAmmo   uint16 = 1 << 15
+	equipLocationWeapon uint16 = db.EquipWeapon
+	equipLocationShield uint16 = db.EquipShield
+	equipLocationAmmo   uint16 = db.EquipAmmo
 )
 
 func inventoryItemTypeIsEquipment(itemType uint8) bool {
 	switch itemType {
-	case 4, 5, 6, 7, 8, 10:
+	case db.ItemTypeArmor, db.ItemTypeWeapon, db.ItemTypeCard, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeAmmo, db.ItemTypeShadowGear:
 		return true
 	default:
 		return false
@@ -18,7 +20,7 @@ func inventoryItemTypeIsEquipment(itemType uint8) bool {
 }
 
 func inventoryItemTypeIsAmmo(itemType uint8) bool {
-	return itemType == 10
+	return itemType == db.ItemTypeAmmo
 }
 
 func inventoryItemDefaultEquipLocation(itemType uint8) uint16 {
