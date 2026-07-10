@@ -121,6 +121,7 @@ const (
 	effectEnergyCoat     = 169
 	effectThrowItem3     = 308
 	effectSprinkleSand   = 310
+	effectLoud           = 311
 	effectPokJuk         = 297
 	effectCloud          = 229
 	effectCloud2         = 230
@@ -1100,6 +1101,7 @@ var skillEffectSpecs = map[uint16]skillEffectSpec{
 	151: {},                                                                                                                                                                                                                  // TF_PICKSTONE; reference client only hides the cast aura.
 	152: {beforeHitEffectIDs: []int{effectThrowItem3}, action: attackSkillActionSpec},                                                                                                                                        // TF_THROWSTONE
 	153: {beginCastEffectIDs: []int{effectCartRevolution}, hitEffectIDs: []int{effectCartRevolution}},                                                                                                                        // MC_CARTREVOLUTION
+	155: {effectIDs: []int{effectLoud}},                                                                                                                                                                                      // MC_LOUD
 	157: {effectIDs: []int{effectEnergyCoat}},                                                                                                                                                                                // MG_ENERGYCOAT
 }
 

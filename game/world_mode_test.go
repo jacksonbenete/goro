@@ -1736,14 +1736,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 100 {
-		t.Fatalf("implemented effects = %d, want 100", coverage.Implemented)
+	if coverage.Implemented != 101 {
+		t.Fatalf("implemented effects = %d, want 101", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 16.4 || coverage.ActivePercent > 16.5 {
-		t.Fatalf("active coverage = %.3f, want about 16.5", coverage.ActivePercent)
+	if coverage.ActivePercent < 16.6 || coverage.ActivePercent > 16.7 {
+		t.Fatalf("active coverage = %.3f, want about 16.6", coverage.ActivePercent)
 	}
 }
 
@@ -2540,6 +2540,7 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "MC_MAMMONITE", skillEffectIDs(42), effectMammonite)
 	expectEffectIDs(t, "MC_CARTREVOLUTION begin", skillBeginEffectIDs(153), effectCartRevolution)
 	expectEffectIDs(t, "MC_CARTREVOLUTION hit", skillHitEffectIDs(153), effectCartRevolution)
+	expectEffectIDs(t, "MC_LOUD", skillEffectIDs(155), effectLoud)
 }
 
 func TestThiefSkillTargetRules(t *testing.T) {
@@ -3265,6 +3266,7 @@ func TestWorldEffectSpecsMatchRobrowserRenderableSubset(t *testing.T) {
 	for _, effectID := range []int{
 		effectMammonite,
 		effectCartRevolution,
+		effectLoud,
 		effectSoulStrike,
 		effectSteal,
 		effectPoisonAttack,
