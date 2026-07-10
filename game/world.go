@@ -2295,48 +2295,25 @@ func clearWorldScene(screen *render.Image, mapName string) {
 }
 
 func worldSceneClearColor(mapName string) color.RGBA {
-	normalized := normalizeMapNameForSceneClear(mapName)
-	for _, name := range []string{
-		"yuno.rsw",
-		"valkyrie.rsw",
-		"rwc01.rsw",
-		"himinn.rsw",
-		"airplane.rsw",
-		"airplane_01.rsw",
-		"airplane01.rsw",
-		"sch_gld.rsw",
-		"schgld.rsw",
-		"bat_fild02.rsw",
-		"que_qsch01.rsw",
-		"que_qsch02.rsw",
-		"que_qsch03.rsw",
-		"que_qsch04.rsw",
-		"que_qsch05.rsw",
-		"que_qaru01.rsw",
-		"que_qaru02.rsw",
-		"que_qaru03.rsw",
-		"que_qaru04.rsw",
-		"que_qaru05.rsw",
-		"bat_b01.rsw",
-		"bat_b02.rsw",
-	} {
-		if normalized == name {
-			return color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}
-		}
+	if skyColor, ok := robrSkyClearColors[normalizeMapNameForSceneClear(mapName)]; ok {
+		return skyColor
 	}
-	for _, name := range []string{"gonryun.rsw", "gon_dun02.rsw", "ra_temsky.rsw", "que_temsky.rsw"} {
-		if normalized == name {
-			return color.RGBA{R: 0x66, G: 0x99, B: 0xcc, A: 255}
-		}
-	}
-	switch normalized {
-	case "thana_boss.rsw":
-		return color.RGBA{R: 0xe0, G: 0xd5, B: 0xc2, A: 255}
-	case "5@tower.rsw", "5tower.rsw":
-		return color.RGBA{R: 0x33, G: 0x00, B: 0x33, A: 255}
-	default:
-		return color.RGBA{A: 255}
-	}
+	return color.RGBA{A: 255}
+}
+
+var robrSkyClearColors = map[string]color.RGBA{
+	"airplane.rsw":    {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"airplane_01.rsw": {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"gonryun.rsw":     {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"gon_dun02.rsw":   {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"himinn.rsw":      {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"ra_temsky.rsw":   {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"rwc01.rsw":       {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"sch_gld.rsw":     {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"valkyrie.rsw":    {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"yuno.rsw":        {R: 0x66, G: 0x99, B: 0xcc, A: 255},
+	"5@tower.rsw":     {R: 0x33, G: 0x00, B: 0x33, A: 255},
+	"thana_boss.rsw":  {R: 0xe0, G: 0xd4, B: 0xc2, A: 255},
 }
 
 func normalizeMapNameForSceneClear(name string) string {

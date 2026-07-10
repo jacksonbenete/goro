@@ -4719,17 +4719,23 @@ func TestWorldSceneClearColorMatchesReferenceDefaults(t *testing.T) {
 	if got := worldSceneClearColor("geffen_in"); got != (color.RGBA{A: 255}) {
 		t.Fatalf("default map clear color = %#v, want black", got)
 	}
-	if got := worldSceneClearColor("data/yuno.gat"); got != (color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}) {
+	if got := worldSceneClearColor("data/yuno.gat"); got != (color.RGBA{R: 0x66, G: 0x99, B: 0xcc, A: 255}) {
 		t.Fatalf("yuno clear color = %#v", got)
 	}
-	if got := worldSceneClearColor("airplane_01"); got != (color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}) {
+	if got := worldSceneClearColor("airplane_01"); got != (color.RGBA{R: 0x66, G: 0x99, B: 0xcc, A: 255}) {
 		t.Fatalf("airplane_01 clear color = %#v", got)
 	}
-	if got := worldSceneClearColor("sch_gld"); got != (color.RGBA{R: 0x99, G: 0xcc, B: 0xff, A: 255}) {
+	if got := worldSceneClearColor("sch_gld"); got != (color.RGBA{R: 0x66, G: 0x99, B: 0xcc, A: 255}) {
 		t.Fatalf("sch_gld clear color = %#v", got)
+	}
+	if got := worldSceneClearColor("bat_fild02"); got != (color.RGBA{A: 255}) {
+		t.Fatalf("bat_fild02 clear color = %#v, want black", got)
 	}
 	if got := worldSceneClearColor("5@tower.rsw"); got != (color.RGBA{R: 0x33, G: 0x00, B: 0x33, A: 255}) {
 		t.Fatalf("tower clear color = %#v", got)
+	}
+	if got := worldSceneClearColor("thana_boss.rsw"); got != (color.RGBA{R: 0xe0, G: 0xd4, B: 0xc2, A: 255}) {
+		t.Fatalf("thana_boss clear color = %#v", got)
 	}
 }
 
