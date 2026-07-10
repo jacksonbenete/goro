@@ -1,10 +1,36 @@
 package db
 
-const MaxWeaponType = 103
+const (
+	WeaponNone         = 0
+	WeaponShortsword   = 1
+	WeaponSword        = 2
+	WeaponTwoHandSword = 3
+	WeaponSpear        = 4
+	WeaponTwoHandSpear = 5
+	WeaponAxe          = 6
+	WeaponTwoHandAxe   = 7
+	WeaponMace         = 8
+	WeaponTwoHandMace  = 9
+	WeaponRod          = 10
+	WeaponBow          = 11
+	WeaponKnuckle      = 12
+	WeaponInstrument   = 13
+	WeaponWhip         = 14
+	WeaponBook         = 15
+	WeaponKatar        = 16
+	WeaponGunHandgun   = 17
+	WeaponGunRifle     = 18
+	WeaponGunGatling   = 19
+	WeaponGunShotgun   = 20
+	WeaponGunGrenade   = 21
+	WeaponShuriken     = 22
+	WeaponTwoHandRod   = 23
+	MaxWeaponType      = 103
+)
 
 func PlayerWeaponType(weaponValue int) int {
 	if weaponValue <= 0 {
-		return 0
+		return WeaponNone
 	}
 	if weaponType, ok := playerWeaponTypeExpansion[weaponValue]; ok {
 		return weaponType
@@ -12,128 +38,185 @@ func PlayerWeaponType(weaponValue int) int {
 	if weaponValue < MaxWeaponType {
 		return weaponValue
 	}
+	if weaponValue < 1100 {
+		return WeaponNone
+	}
+	if weaponValue >= 1116 && weaponValue <= 1118 {
+		return WeaponTwoHandSword
+	}
+	if weaponValue >= 1314 && weaponValue <= 1315 {
+		return WeaponTwoHandAxe
+	}
+	if weaponValue >= 1410 && weaponValue <= 1412 {
+		return WeaponTwoHandSpear
+	}
+	if weaponValue >= 1472 && weaponValue <= 1473 {
+		return WeaponRod
+	}
+	if weaponValue == 1599 {
+		return WeaponMace
+	}
+	if containsInt(robrGunGatling, weaponValue) {
+		return WeaponGunGatling
+	}
+	if containsInt(robrGunShotgun, weaponValue) {
+		return WeaponGunShotgun
+	}
+	if containsInt(robrGunGrenade, weaponValue) {
+		return WeaponGunGrenade
+	}
 	switch {
-	case weaponValue >= 1100 && weaponValue <= 1149:
-		return 2
-	case weaponValue >= 1150 && weaponValue <= 1199:
-		return 3
-	case weaponValue >= 1200 && weaponValue <= 1249:
-		return 1
-	case weaponValue >= 1250 && weaponValue <= 1299:
-		return 16
-	case weaponValue >= 1300 && weaponValue <= 1349:
-		return 6
-	case weaponValue >= 1350 && weaponValue <= 1399:
-		return 7
-	case weaponValue >= 1400 && weaponValue <= 1449:
-		return 4
-	case weaponValue >= 1450 && weaponValue <= 1499:
-		return 5
-	case weaponValue >= 1500 && weaponValue <= 1549:
-		return 8
-	case weaponValue >= 1550 && weaponValue <= 1599:
-		return 15
-	case weaponValue >= 1600 && weaponValue <= 1699:
-		return 10
-	case weaponValue >= 1700 && weaponValue <= 1749:
-		return 11
-	case weaponValue >= 1800 && weaponValue <= 1849:
-		return 12
-	case weaponValue >= 1900 && weaponValue <= 1949:
-		return 13
-	case weaponValue >= 1950 && weaponValue <= 1999:
-		return 14
-	case weaponValue >= 13000 && weaponValue <= 13099:
-		return 1
-	case weaponValue >= 13100 && weaponValue <= 13149:
-		return 17
-	case weaponValue >= 13150 && weaponValue <= 13199:
-		return 18
-	case weaponValue >= 13300 && weaponValue <= 13399:
-		return 22
-	case weaponValue >= 13400 && weaponValue <= 13499:
-		return 2
-	case weaponValue >= 18100 && weaponValue <= 18499:
-		return 11
-	case weaponValue >= 20000 && weaponValue <= 20999:
-		return 23
-	case weaponValue >= 21000 && weaponValue <= 21999:
-		return 3
+	case weaponValue < 1150:
+		return WeaponSword
+	case weaponValue < 1200:
+		return WeaponTwoHandSword
+	case weaponValue < 1250:
+		return WeaponShortsword
+	case weaponValue < 1300:
+		return WeaponKatar
+	case weaponValue < 1350:
+		return WeaponAxe
+	case weaponValue < 1400:
+		return WeaponTwoHandAxe
+	case weaponValue < 1450:
+		return WeaponSpear
+	case weaponValue < 1500:
+		return WeaponTwoHandSpear
+	case weaponValue < 1550:
+		return WeaponMace
+	case weaponValue < 1600:
+		return WeaponBook
+	case weaponValue < 1650:
+		return WeaponRod
+	case weaponValue < 1700:
+		return WeaponNone
+	case weaponValue < 1750:
+		return WeaponBow
+	case weaponValue < 1800:
+		return WeaponNone
+	case weaponValue < 1850:
+		return WeaponKnuckle
+	case weaponValue < 1900:
+		return WeaponNone
+	case weaponValue < 1950:
+		return WeaponInstrument
+	case weaponValue < 2000:
+		return WeaponWhip
+	case weaponValue < 2050:
+		return WeaponTwoHandRod
+	case weaponValue < 13000:
+		return WeaponNone
+	case weaponValue < 13050:
+		return WeaponShortsword
+	case weaponValue < 13100:
+		return WeaponNone
+	case weaponValue < 13150:
+		return WeaponGunHandgun
+	case weaponValue < 13200:
+		return WeaponGunRifle
+	case weaponValue < 13300:
+		return WeaponNone
+	case weaponValue < 13350:
+		return WeaponShuriken
+	case weaponValue < 13400:
+		return WeaponNone
+	case weaponValue < 13450:
+		return WeaponSword
+	case weaponValue < 18100:
+		return WeaponNone
+	case weaponValue < 18150:
+		return WeaponBow
 	default:
-		return 0
+		return WeaponNone
 	}
 }
 
 var playerWeaponTypeExpansion = map[int]int{
-	31:  1,
-	32:  1,
-	33:  1,
-	34:  1,
-	35:  1,
-	36:  1,
-	37:  1,
-	38:  1,
-	39:  2,
-	40:  2,
-	41:  2,
-	42:  2,
-	43:  2,
-	44:  2,
-	45:  2,
-	46:  2,
-	47:  2,
-	48:  3,
-	49:  3,
-	50:  3,
-	51:  3,
-	52:  4,
-	53:  4,
-	54:  4,
-	55:  4,
-	56:  4,
-	57:  4,
-	58:  6,
-	59:  6,
-	60:  6,
-	61:  6,
-	62:  8,
-	63:  8,
-	64:  8,
-	65:  8,
-	66:  8,
-	67:  8,
-	68:  8,
-	69:  10,
-	70:  10,
-	71:  10,
-	72:  10,
-	73:  11,
-	74:  11,
-	75:  11,
-	76:  11,
-	77:  11,
-	78:  12,
-	79:  12,
-	80:  12,
-	81:  12,
-	82:  12,
-	83:  12,
-	84:  12,
-	85:  12,
-	86:  14,
-	87:  14,
-	88:  14,
-	89:  15,
-	90:  15,
-	91:  15,
-	92:  15,
-	93:  15,
-	94:  15,
-	95:  15,
-	96:  23,
-	97:  23,
-	98:  8,
-	99:  10,
-	100: 10,
-	101: 10,
+	31:  WeaponShortsword,
+	32:  WeaponShortsword,
+	33:  WeaponShortsword,
+	34:  WeaponShortsword,
+	35:  WeaponShortsword,
+	36:  WeaponShortsword,
+	37:  WeaponShortsword,
+	38:  WeaponShortsword,
+	39:  WeaponSword,
+	40:  WeaponSword,
+	41:  WeaponSword,
+	42:  WeaponSword,
+	43:  WeaponSword,
+	44:  WeaponSword,
+	45:  WeaponSword,
+	46:  WeaponSword,
+	47:  WeaponSword,
+	48:  WeaponTwoHandSword,
+	49:  WeaponTwoHandSword,
+	50:  WeaponTwoHandSword,
+	51:  WeaponTwoHandSword,
+	52:  WeaponSpear,
+	53:  WeaponSpear,
+	54:  WeaponSpear,
+	55:  WeaponSpear,
+	56:  WeaponSpear,
+	57:  WeaponSpear,
+	58:  WeaponAxe,
+	59:  WeaponAxe,
+	60:  WeaponAxe,
+	61:  WeaponAxe,
+	62:  WeaponMace,
+	63:  WeaponMace,
+	64:  WeaponMace,
+	65:  WeaponMace,
+	66:  WeaponMace,
+	67:  WeaponMace,
+	68:  WeaponMace,
+	69:  WeaponRod,
+	70:  WeaponRod,
+	71:  WeaponRod,
+	72:  WeaponRod,
+	73:  WeaponBow,
+	74:  WeaponBow,
+	75:  WeaponBow,
+	76:  WeaponBow,
+	77:  WeaponBow,
+	78:  WeaponKnuckle,
+	79:  WeaponKnuckle,
+	80:  WeaponKnuckle,
+	81:  WeaponKnuckle,
+	82:  WeaponKnuckle,
+	83:  WeaponKnuckle,
+	84:  WeaponKnuckle,
+	85:  WeaponKnuckle,
+	86:  WeaponWhip,
+	87:  WeaponWhip,
+	88:  WeaponWhip,
+	89:  WeaponBook,
+	90:  WeaponBook,
+	91:  WeaponBook,
+	92:  WeaponBook,
+	93:  WeaponBook,
+	94:  WeaponBook,
+	95:  WeaponBook,
+	96:  WeaponTwoHandRod,
+	97:  WeaponTwoHandRod,
+	98:  WeaponMace,
+	99:  WeaponRod,
+	100: WeaponRod,
+	101: WeaponRod,
+	102: WeaponRod,
+}
+
+var (
+	robrGunGatling = []int{13157, 13158, 13159, 13172, 13177}
+	robrGunShotgun = []int{13154, 13155, 13156, 13167, 13168, 13169, 13173, 13178}
+	robrGunGrenade = []int{13160, 13161, 13162, 13174, 13179}
+)
+
+func containsInt(values []int, needle int) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }

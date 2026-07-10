@@ -52,33 +52,11 @@ var accessoryNameLuaCandidates = []string{
 	"lua files\\datainfo\\accname.lub",
 }
 
-var playerJobTokens = map[int]string{
-	0:  "\xC3\xCA\xBA\xB8\xC0\xDA",
-	1:  "\xB0\xCB\xBB\xE7",
-	2:  "\xB8\xB6\xB9\xFD\xBB\xE7",
-	3:  "\xB1\xC3\xBC\xF6",
-	4:  "\xBC\xBA\xC1\xF7\xC0\xDA",
-	5:  "\xBB\xF3\xC0\xCE",
-	6:  "\xB5\xB5\xB5\xCF",
-	7:  "\xB1\xE2\xBB\xE7",
-	8:  "\xC7\xC1\xB8\xAE\xBD\xBA\xC6\xAE",
-	9:  "\xC0\xA7\xC0\xFA\xB5\xE5",
-	10: "\xC1\xA6\xC3\xB6\xB0\xF8",
-	11: "\xC7\xE5\xC5\xCD",
-	12: "\xBE\xEE\xBC\xBC\xBD\xC5",
-	14: "\xC5\xA9\xB7\xE7\xBC\xBC\xC0\xCC\xB4\xF5",
-	15: "\xB8\xF9\xC5\xA9",
-	16: "\xBC\xBC\xC0\xCC\xC1\xF6",
-	17: "\xB7\xCE\xB1\xD7",
-	18: "\xBF\xAC\xB1\xDD\xBC\xFA\xBB\xE7",
-	19: "\xB9\xD9\xB5\xE5",
-}
-
 func PlayerBodyResourceCandidates(job int, sex byte, extension string) []string {
 	sexToken := PlayerSexToken(sex)
 	tokens := []string{PlayerJobToken(job)}
-	if tokens[0] != playerJobTokens[0] {
-		tokens = append(tokens, playerJobTokens[0])
+	if tokens[0] != PlayerJobToken(0) {
+		tokens = append(tokens, PlayerJobToken(0))
 	}
 	out := make([]string, 0, len(tokens))
 	for _, token := range tokens {
@@ -169,8 +147,8 @@ func (m *Manager) loadAccessoryResourceNames() {
 func PlayerIMFResourceCandidates(job int, sex byte) []string {
 	sexToken := PlayerSexToken(sex)
 	tokens := []string{PlayerJobToken(job)}
-	if tokens[0] != playerJobTokens[0] {
-		tokens = append(tokens, playerJobTokens[0])
+	if tokens[0] != PlayerJobToken(0) {
+		tokens = append(tokens, PlayerJobToken(0))
 	}
 	out := make([]string, 0, len(tokens))
 	for _, token := range tokens {
@@ -255,8 +233,8 @@ func PlayerBodyPaletteResourceCandidates(job int, sex byte, palette int, extensi
 	}
 	sexToken := PlayerSexToken(sex)
 	tokens := []string{PlayerJobToken(job)}
-	if tokens[0] != playerJobTokens[0] {
-		tokens = append(tokens, playerJobTokens[0])
+	if tokens[0] != PlayerJobToken(0) {
+		tokens = append(tokens, PlayerJobToken(0))
 	}
 	out := make([]string, 0, len(tokens))
 	for _, token := range tokens {
@@ -291,14 +269,15 @@ func PlayerSexLabel(sex byte) string {
 }
 
 func PlayerJobToken(job int) string {
-	if token, ok := playerJobTokens[job]; ok {
+	if token, ok := db.JobSpriteResourceName(job); ok {
 		return token
 	}
-	return playerJobTokens[0]
+	token, _ := db.JobSpriteResourceName(0)
+	return token
 }
 
 func HasPlayerJobToken(job int) bool {
-	_, ok := playerJobTokens[job]
+	_, ok := db.JobSpriteResourceName(job)
 	return ok
 }
 

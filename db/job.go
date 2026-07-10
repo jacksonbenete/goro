@@ -2,6 +2,126 @@ package db
 
 import "fmt"
 
+const (
+	JobNovice      = 0
+	JobSwordman    = 1
+	JobMagician    = 2
+	JobArcher      = 3
+	JobAcolyte     = 4
+	JobMerchant    = 5
+	JobThief       = 6
+	JobKnight      = 7
+	JobPriest      = 8
+	JobWizard      = 9
+	JobBlacksmith  = 10
+	JobHunter      = 11
+	JobAssassin    = 12
+	JobKnight2     = 13
+	JobCrusader    = 14
+	JobMonk        = 15
+	JobSage        = 16
+	JobRogue       = 17
+	JobAlchemist   = 18
+	JobBard        = 19
+	JobDancer      = 20
+	JobCrusader2   = 21
+	JobMarried     = 22
+	JobSuperNovice = 23
+	JobGunslinger  = 24
+	JobNinja       = 25
+	JobXmas        = 26
+	JobSummer      = 27
+
+	JobNoviceH     = 4001
+	JobSwordmanH   = 4002
+	JobMagicianH   = 4003
+	JobArcherH     = 4004
+	JobAcolyteH    = 4005
+	JobMerchantH   = 4006
+	JobThiefH      = 4007
+	JobKnightH     = 4008
+	JobPriestH     = 4009
+	JobWizardH     = 4010
+	JobBlacksmithH = 4011
+	JobHunterH     = 4012
+	JobAssassinH   = 4013
+	JobKnight2H    = 4014
+	JobCrusaderH   = 4015
+	JobMonkH       = 4016
+	JobSageH       = 4017
+	JobRogueH      = 4018
+	JobAlchemistH  = 4019
+	JobBardH       = 4020
+	JobDancerH     = 4021
+	JobCrusader2H  = 4022
+
+	JobNoviceB      = 4023
+	JobSwordmanB    = 4024
+	JobMagicianB    = 4025
+	JobArcherB      = 4026
+	JobAcolyteB     = 4027
+	JobMerchantB    = 4028
+	JobThiefB       = 4029
+	JobKnightB      = 4030
+	JobPriestB      = 4031
+	JobWizardB      = 4032
+	JobBlacksmithB  = 4033
+	JobHunterB      = 4034
+	JobAssassinB    = 4035
+	JobKnight2B     = 4036
+	JobCrusaderB    = 4037
+	JobMonkB        = 4038
+	JobSageB        = 4039
+	JobRogueB       = 4040
+	JobAlchemistB   = 4041
+	JobBardB        = 4042
+	JobDancerB      = 4043
+	JobCrusader2B   = 4044
+	JobSuperNoviceB = 4045
+
+	JobTaekwon = 4046
+	JobStar    = 4047
+	JobStar2   = 4048
+	JobLinker  = 4049
+
+	JobRuneKnight      = 4054
+	JobWarlock         = 4055
+	JobRanger          = 4056
+	JobArchbishop      = 4057
+	JobMechanic        = 4058
+	JobGuillotine      = 4059
+	JobRoyalGuard      = 4066
+	JobSorcerer        = 4067
+	JobMinstrel        = 4068
+	JobWanderer        = 4069
+	JobSura            = 4070
+	JobGenetic         = 4071
+	JobShadowChaser    = 4072
+	JobRuneKnight2     = 4080
+	JobRoyalGuard2     = 4082
+	JobRanger2         = 4084
+	JobMechanic2       = 4086
+	JobKagerou         = 4211
+	JobOboro           = 4212
+	JobRebellion       = 4215
+	JobSummoner        = 4218
+	JobStarEmperor     = 4239
+	JobSoulReaper      = 4240
+	JobDragonKnight    = 4252
+	JobMeister         = 4253
+	JobShadowCross     = 4254
+	JobArchMage        = 4255
+	JobCardinal        = 4256
+	JobWindhawk        = 4257
+	JobImperialGuard   = 4258
+	JobBiolo           = 4259
+	JobAbyssChaser     = 4260
+	JobElementalMaster = 4261
+	JobInquisitor      = 4262
+	JobTroubadour      = 4263
+	JobTrouvere        = 4264
+)
+
 var jobDisplayNames = map[int]string{
 	0:  "Novice",
 	1:  "Swordman",
@@ -176,4 +296,91 @@ func JobDisplayName(id int) string {
 		return name
 	}
 	return fmt.Sprintf("Job %d", id)
+}
+
+var JobResourceName = map[int]string{
+	JobNovice:      "\xC3\xCA\xBA\xB8\xC0\xDA",
+	JobSwordman:    "\xB0\xCB\xBB\xE7",
+	JobMagician:    "\xB8\xB6\xB9\xFD\xBB\xE7",
+	JobArcher:      "\xB1\xC3\xBC\xF6",
+	JobAcolyte:     "\xBC\xBA\xC1\xF7\xC0\xDA",
+	JobMerchant:    "\xBB\xF3\xC0\xCE",
+	JobThief:       "\xB5\xB5\xB5\xCF",
+	JobKnight:      "\xB1\xE2\xBB\xE7",
+	JobPriest:      "\xC7\xC1\xB8\xAE\xBD\xBA\xC6\xAE",
+	JobWizard:      "\xC0\xA7\xC0\xFA\xB5\xE5",
+	JobBlacksmith:  "\xC1\xA6\xC3\xB6\xB0\xF8",
+	JobHunter:      "\xC7\xE5\xC5\xCD",
+	JobAssassin:    "\xBE\xEE\xBC\xBC\xBD\xC5",
+	JobKnight2:     "\xC6\xE4\xC4\xDA\xC6\xE4\xC4\xDA_\xB1\xE2\xBB\xE7",
+	JobCrusader:    "\xC5\xA9\xB7\xE7\xBC\xBC\xC0\xCC\xB4\xF5",
+	JobMonk:        "\xB8\xF9\xC5\xA9",
+	JobSage:        "\xBC\xBC\xC0\xCC\xC1\xF6",
+	JobRogue:       "\xB7\xCE\xB1\xD7",
+	JobAlchemist:   "\xBF\xAC\xB1\xDD\xBC\xFA\xBB\xE7",
+	JobBard:        "\xB9\xD9\xB5\xE5",
+	JobDancer:      "\xB9\xAB\xC8\xF1",
+	JobCrusader2:   "\xBD\xC5\xC6\xE4\xC4\xDA\xC5\xA9\xB7\xE7\xBC\xBC\xC0\xCC\xB4\xF5",
+	JobSuperNovice: "\xBD\xB4\xC6\xDB\xB3\xEB\xBA\xF1\xBD\xBA",
+	JobGunslinger:  "\xB0\xC7\xB3\xCA",
+	JobNinja:       "\xB4\xD1\xC0\xDA",
+	JobTaekwon:     "\xc5\xc2\xb1\xc7\xbc\xd2\xb3\xe2",
+	JobStar:        "\xb1\xc7\xbc\xba",
+	JobStar2:       "\xb1\xc7\xbc\xba\xc0\xb6\xc7\xd5",
+	JobLinker:      "\xbc\xd2\xbf\xef\xb8\xb5\xc4\xbf",
+	JobMarried:     "\xB0\xE1\xC8\xA5",
+	JobXmas:        "\xBB\xEA\xC5\xB8",
+	JobSummer:      "\xBF\xA9\xB8\xA7",
+	JobKnightH:     "\xB7\xCE\xB5\xE5\xB3\xAA\xC0\xCC\xC6\xAE",
+	JobPriestH:     "\xC7\xCF\xC0\xCC\xC7\xC1\xB8\xAE",
+	JobWizardH:     "\xC7\xCF\xC0\xCC\xC0\xA7\xC0\xFA\xB5\xE5",
+	JobBlacksmithH: "\xC8\xAD\xC0\xCC\xC6\xAE\xBD\xBA\xB9\xCC\xBD\xBA",
+	JobHunterH:     "\xBD\xBA\xB3\xAA\xC0\xCC\xC6\xDB",
+	JobAssassinH:   "\xBE\xEE\xBD\xD8\xBD\xC5\xC5\xA9\xB7\xCE\xBD\xBA",
+	JobKnight2H:    "\xB7\xCE\xB5\xE5\xC6\xE4\xC4\xDA",
+	JobCrusaderH:   "\xC6\xC8\xB6\xF3\xB5\xF2",
+	JobMonkH:       "\xC3\xA8\xC7\xC7\xBF\xC2",
+	JobSageH:       "\xC7\xC1\xB7\xCE\xC6\xE4\xBC\xAD",
+	JobRogueH:      "\xBD\xBA\xC5\xE4\xC4\xBF",
+	JobAlchemistH:  "\xC5\xA9\xB8\xAE\xBF\xA1\xC0\xCC\xC5\xCD",
+	JobBardH:       "\xC5\xAC\xB6\xF3\xBF\xEE",
+	JobDancerH:     "\xC1\xFD\xBD\xC3",
+	JobCrusader2H:  "\xC6\xE4\xC4\xDA\xC6\xC8\xB6\xF3\xB5\xF2",
+}
+
+func init() {
+	duplicateJobResourceName(JobNovice, JobNoviceH, JobNoviceB)
+	duplicateJobResourceName(JobSwordman, JobSwordmanH, JobSwordmanB)
+	duplicateJobResourceName(JobMagician, JobMagicianH, JobMagicianB)
+	duplicateJobResourceName(JobArcher, JobArcherH, JobArcherB)
+	duplicateJobResourceName(JobAcolyte, JobAcolyteH, JobAcolyteB)
+	duplicateJobResourceName(JobMerchant, JobMerchantH, JobMerchantB)
+	duplicateJobResourceName(JobThief, JobThiefH, JobThiefB)
+	duplicateJobResourceName(JobKnight, JobKnightB)
+	duplicateJobResourceName(JobKnight2, JobKnight2B)
+	duplicateJobResourceName(JobPriest, JobPriestB)
+	duplicateJobResourceName(JobWizard, JobWizardB)
+	duplicateJobResourceName(JobBlacksmith, JobBlacksmithB)
+	duplicateJobResourceName(JobHunter, JobHunterB)
+	duplicateJobResourceName(JobAssassin, JobAssassinB)
+	duplicateJobResourceName(JobCrusader, JobCrusaderB)
+	duplicateJobResourceName(JobCrusader2, JobCrusader2B)
+	duplicateJobResourceName(JobMonk, JobMonkB)
+	duplicateJobResourceName(JobSage, JobSageB)
+	duplicateJobResourceName(JobRogue, JobRogueB)
+	duplicateJobResourceName(JobAlchemist, JobAlchemistB)
+	duplicateJobResourceName(JobBard, JobBardB)
+	duplicateJobResourceName(JobDancer, JobDancerB)
+}
+
+func duplicateJobResourceName(origin int, jobs ...int) {
+	value := JobResourceName[origin]
+	for _, job := range jobs {
+		JobResourceName[job] = value
+	}
+}
+
+func JobSpriteResourceName(id int) (string, bool) {
+	name, ok := JobResourceName[id]
+	return name, ok && name != ""
 }
