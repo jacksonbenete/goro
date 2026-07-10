@@ -20,9 +20,20 @@ const (
 )
 
 type BasicMenu struct {
-	window     WindowState
-	content    widget.Widget
-	lastAction string
+	window    WindowState
+	content   widget.Widget
+	callbacks BasicMenuCallbacks
+}
+
+type BasicMenuCallbacks struct {
+	OnStatus func()
+	OnOption func()
+	OnItems  func()
+	OnEquip  func()
+	OnSkill  func()
+	OnMap    func()
+	OnComm   func()
+	OnFriend func()
 }
 
 type basicMenuButton struct {
@@ -41,7 +52,8 @@ var basicMenuButtons = []basicMenuButton{
 	{key: "friend", label: "Friend"},
 }
 
-func (m *BasicMenu) Update(ctx client.Context) bool {
+func (m *BasicMenu) Update(ctx client.Context, callbacks BasicMenuCallbacks) bool {
+	m.callbacks = callbacks
 	m.ensureWindow()
 	if !m.window.IsOpen() {
 		m.window.OpenAt(basicMenuX, basicMenuY, m.widgetTree())
@@ -53,7 +65,8 @@ func (m *BasicMenu) Update(ctx client.Context) bool {
 	return consumed
 }
 
-func (m *BasicMenu) Rebind(ctx client.Context) {
+func (m *BasicMenu) Rebind(ctx client.Context, callbacks BasicMenuCallbacks) {
+	m.callbacks = callbacks
 	m.ensureWindow()
 	m.content = nil
 	if !m.window.IsOpen() {
@@ -88,9 +101,11 @@ func (m *BasicMenu) widgetTree() widget.Widget {
 		buttons := make([]widget.Widget, 0, basicMenuCols)
 		for col := 0; col < basicMenuCols; col++ {
 			button := basicMenuButtons[row*basicMenuCols+col]
+			key := button.key
+			label := button.label
 			buttons = append(buttons,
-				rotheme.Button(button.label, func() {
-					m.lastAction = button.key
+				rotheme.Button(label, func() {
+					m.invoke(key)
 				}).
 					Width(basicMenuButtonW).
 					Height(basicMenuButtonH),
@@ -116,8 +131,27 @@ func (m *BasicMenu) widgetTree() widget.Widget {
 	return m.content
 }
 
-func (m *BasicMenu) PopAction() string {
-	action := m.lastAction
-	m.lastAction = ""
-	return action
+func (m *BasicMenu) invoke(key string) {
+	var callback func()
+	switch key {
+	case "status":
+		callback = m.callbacks.OnStatus
+	case "option":
+		callback = m.callbacks.OnOption
+	case "items":
+		callback = m.callbacks.OnItems
+	case "equip":
+		callback = m.callbacks.OnEquip
+	case "skill":
+		callback = m.callbacks.OnSkill
+	case "map":
+		callback = m.callbacks.OnMap
+	case "comm":
+		callback = m.callbacks.OnComm
+	case "friend":
+		callback = m.callbacks.OnFriend
+	}
+	if callback != nil {
+		callback()
+	}
 }

@@ -188,12 +188,6 @@ type pendingSkillTarget struct {
 	started  time.Time
 }
 
-type scheduledSound struct {
-	at     time.Time
-	paths  []string
-	volume float64
-}
-
 type scheduledActorStop struct {
 	id         uint32
 	at         time.Time
@@ -206,12 +200,6 @@ type scheduledWalkResume struct {
 	at  time.Time
 	toX int
 	toY int
-}
-
-type actorSoundFrame struct {
-	actionFamily int
-	motion       int
-	soundIndex   int
 }
 
 type mapFadePhase int
@@ -378,7 +366,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 }
 
 func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
-	m.basicMenu.Rebind(ctx)
+	m.basicMenu.Rebind(ctx, m.basicMenuCallbacks(ctx))
 	m.inventoryBag.Rebind(ctx, &m.itemInfoWindow, &m.cartWindow)
 	m.equipmentWindow.Rebind(ctx, &m.itemInfoWindow, &m.cartWindow, m)
 	m.cartWindow.Rebind(ctx, &m.itemInfoWindow)
@@ -1082,19 +1070,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.statsWindow.Update(ctx) {
 		return nil, nil
 	}
-	if m.basicMenu.Update(ctx) {
-		if action := m.basicMenu.PopAction(); action != "" {
-			m.handleBasicMenuAction(ctx, action)
-		}
+	if m.basicMenu.Update(ctx, m.basicMenuCallbacks(ctx)) {
 		return nil, nil
 	}
 	m.minimap.Update(ctx)
 	removeExpiredStatusEffects(ctx.Session, now)
 	m.statusIcons.Update(ctx, now)
-	if action := m.basicMenu.PopAction(); action != "" {
-		m.handleBasicMenuAction(ctx, action)
-		return nil, nil
-	}
 	pointerBlocked := uiPointerBlocked(ctx)
 	if !pointerBlocked {
 		m.updateCameraZoom(ctx)
@@ -1149,22 +1130,15 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	return nil, nil
 }
 
-func (m *WorldMode) handleBasicMenuAction(ctx client.Context, action string) {
-	switch action {
-	case "status":
-		m.statsWindow.Toggle(ctx)
-	case "option":
-		m.escapeMenu.OpenMenu()
-	case "skill":
-		m.skillWindow.Toggle(ctx)
-	case "items":
-		m.inventoryBag.Toggle(ctx)
-	case "equip":
-		m.equipmentWindow.Toggle(ctx)
-	case "map":
-		m.minimap.Toggle(ctx)
-	case "friend":
-		m.friendsWindow.Toggle(ctx)
+func (m *WorldMode) basicMenuCallbacks(ctx client.Context) gameui.BasicMenuCallbacks {
+	return gameui.BasicMenuCallbacks{
+		OnStatus: func() { m.statsWindow.Toggle(ctx) },
+		OnOption: func() { m.escapeMenu.OpenMenu() },
+		OnItems:  func() { m.inventoryBag.Toggle(ctx) },
+		OnEquip:  func() { m.equipmentWindow.Toggle(ctx) },
+		OnSkill:  func() { m.skillWindow.Toggle(ctx) },
+		OnMap:    func() { m.minimap.Toggle(ctx) },
+		OnFriend: func() { m.friendsWindow.Toggle(ctx) },
 	}
 }
 
@@ -1539,91 +1513,6 @@ func (m *WorldMode) requestNPCTalk(ctx client.Context, actor worldstate.Actor, s
 	}
 }
 
-func actionAnimationDuration(action res.ACTAction, fallback time.Duration) time.Duration {
-	if len(action.Animations) == 0 {
-		return fallback
-	}
-	delayMS := float64(action.DelayMS)
-	if delayMS <= 0 {
-		delayMS = 150
-	}
-	duration := time.Duration(delayMS * float64(time.Millisecond) * float64(len(action.Animations)))
-	if duration <= 0 {
-		return fallback
-	}
-	if duration > maxCombatAnimationDuration {
-		return maxCombatAnimationDuration
-	}
-	return duration
-}
-
-func combatHitDelayFromAction(action res.ACTAction, duration time.Duration) time.Duration {
-	if duration <= 0 {
-		return 0
-	}
-	motion := firstActionSoundMotion(action)
-	if motion >= 0 && len(action.Animations) > 0 {
-		return duration * time.Duration(motion) / time.Duration(len(action.Animations))
-	}
-	return duration / 2
-}
-
-func firstActionSoundMotion(action res.ACTAction) int {
-	for index, animation := range action.Animations {
-		if animation.Sound >= 0 {
-			return index
-		}
-	}
-	return -1
-}
-
-func actionSoundName(act *res.ACT, action res.ACTAction, motion int) string {
-	if act == nil || motion < 0 || motion >= len(action.Animations) {
-		return ""
-	}
-	soundIndex := action.Animations[motion].Sound
-	if soundIndex < 0 || soundIndex >= len(act.Sounds) {
-		return ""
-	}
-	sound := strings.TrimSpace(act.Sounds[soundIndex])
-	if strings.EqualFold(sound, "atk") {
-		return ""
-	}
-	return sound
-}
-
-func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
-	view := m.nonPCSpriteView(ctx, actor)
-	if view == nil {
-		return res.ACTAction{}, false
-	}
-	_, action, ok := resolveSpriteAction(view.act, actionFamily, actor.Dir)
-	return action, ok
-}
-
-func (m *WorldMode) actorResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
-	if res.HasPlayerJobToken(int(actor.Job)) {
-		view := m.humanoidSpriteViewForActor(ctx, actor)
-		if view == nil || view.body == nil {
-			return res.ACTAction{}, false
-		}
-		_, action, ok := resolveSpriteAction(view.body.act, actionFamily, actor.Dir)
-		return action, ok
-	}
-	return m.nonPCResolvedAction(ctx, actor, actionFamily)
-}
-
-func (m *WorldMode) actorActionFrameDelay(ctx client.Context, actor worldstate.Actor, actionFamily int, duration time.Duration) time.Duration {
-	if duration <= 0 {
-		return 0
-	}
-	action, ok := m.actorResolvedAction(ctx, actor, actionFamily)
-	if !ok || len(action.Animations) == 0 {
-		return 0
-	}
-	return duration / time.Duration(len(action.Animations))
-}
-
 func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor worldstate.Actor) *humanoidSpriteView {
 	if isLocalActor(ctx, actor.ID) {
 		return m.playerView
@@ -1642,81 +1531,6 @@ func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor worldst
 		headLow:     int(actor.HeadLow),
 	}
 	return m.actorViews[key]
-}
-
-func (m *WorldMode) nonPCActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
-	view := m.nonPCSpriteView(ctx, actor)
-	if view == nil {
-		return nil
-	}
-	return view.act
-}
-
-func (m *WorldMode) actorActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
-	if res.HasPlayerJobToken(int(actor.Job)) {
-		view := m.humanoidSpriteViewForActor(ctx, actor)
-		if view == nil || view.body == nil {
-			return nil
-		}
-		return view.body.act
-	}
-	return m.nonPCActionACT(ctx, actor)
-}
-
-func (m *WorldMode) actorActionDuration(ctx client.Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
-	if action, ok := m.actorResolvedAction(ctx, actor, actionFamily); ok {
-		return actionAnimationDuration(action, fallback)
-	}
-	return fallback
-}
-
-func combatHitSFXCandidates(source worldstate.Actor, sourceOK bool, target worldstate.Actor, targetOK bool) []string {
-	if targetOK && res.HasPlayerJobToken(int(target.Job)) {
-		return []string{"player_clothes.wav", "player_wooden_male.wav", "player_metal.wav"}
-	}
-	if sourceOK && res.HasPlayerJobToken(int(source.Job)) {
-		return weaponHitSFXCandidates(res.PlayerWeaponType(int(source.Weapon)))
-	}
-	return []string{"_enemy_hit_normal1.wav", "_enemy_hit_normal2.wav", "_enemy_hit_normal3.wav", "_enemy_hit_normal4.wav"}
-}
-
-func weaponHitSFXCandidates(weaponType int) []string {
-	switch weaponType {
-	case 1, 2, 3:
-		return []string{"_hit_sword.wav", "_enemy_hit_normal1.wav"}
-	case 4, 5:
-		return []string{"_hit_spear.wav", "_enemy_hit_normal1.wav"}
-	case 6, 7:
-		return []string{"_hit_axe.wav", "_enemy_hit_normal1.wav"}
-	case 11:
-		return []string{"_hit_arrow.wav", "_enemy_hit_normal1.wav"}
-	case 0, 8, 9, 10, 15, 23:
-		return []string{"_hit_mace.wav", "_enemy_hit_normal1.wav"}
-	default:
-		return []string{"_enemy_hit_normal1.wav", "_enemy_hit_normal2.wav", "_enemy_hit_normal3.wav", "_enemy_hit_normal4.wav"}
-	}
-}
-
-func (m *WorldMode) scheduleSound(at time.Time, paths ...string) {
-	m.scheduleSoundVolume(at, 1, paths...)
-}
-
-func (m *WorldMode) scheduleSoundVolume(at time.Time, volume float64, paths ...string) {
-	clean := paths[:0]
-	for _, path := range paths {
-		path = strings.TrimSpace(path)
-		if path != "" {
-			clean = append(clean, path)
-		}
-	}
-	if len(clean) == 0 {
-		return
-	}
-	m.scheduledSounds = append(m.scheduledSounds, scheduledSound{
-		at:     at,
-		paths:  append([]string(nil), clean...),
-		volume: volume,
-	})
 }
 
 func (m *WorldMode) scheduleActorStop(id uint32, at time.Time, resumeWalk bool, resumeAt time.Time) {
@@ -1850,136 +1664,6 @@ func clearActorMovement(actor *worldstate.Actor) {
 	actor.MoveStartX = 0
 	actor.MoveStartY = 0
 	actor.WalkDistance = 0
-}
-
-func (m *WorldMode) playDueScheduledSounds(ctx client.Context, now time.Time) {
-	if len(m.scheduledSounds) == 0 {
-		return
-	}
-	active := m.scheduledSounds[:0]
-	for _, sound := range m.scheduledSounds {
-		if now.Before(sound.at) {
-			active = append(active, sound)
-			continue
-		}
-		m.playSFXFirstVolume(ctx, sound.volume, sound.paths...)
-	}
-	m.scheduledSounds = active
-}
-
-func (m *WorldMode) processMapSounds(ctx client.Context, now time.Time) {
-	if ctx.World == nil || ctx.World.RSW == nil || ctx.World.GND == nil || len(ctx.World.RSW.Sounds) == 0 {
-		return
-	}
-	playerX, playerY := ctx.World.Player.RenderPosition(now)
-	width := float64(ctx.World.GND.Width)
-	height := float64(ctx.World.GND.Height)
-	if m.mapSoundNext == nil {
-		m.mapSoundNext = make(map[int]time.Time)
-	}
-	for index, sound := range ctx.World.RSW.Sounds {
-		if strings.TrimSpace(sound.File) == "" {
-			continue
-		}
-		if sound.Volume <= 0 {
-			continue
-		}
-		if next := m.mapSoundNext[index]; !next.IsZero() && now.Before(next) {
-			continue
-		}
-		soundX := float64(sound.Position.X) + width
-		soundY := float64(sound.Position.Z) + height
-		maxDistance := float64(sound.Range)*0.2 + float64(sound.Height)
-		if math.Hypot(soundX-playerX, soundY-playerY) > maxDistance {
-			continue
-		}
-		m.scheduleSoundVolume(now, float64(sound.Volume), sound.File)
-		delay := time.Duration(float64(time.Second) * float64(sound.Cycle))
-		if delay < 100*time.Millisecond {
-			delay = 100 * time.Millisecond
-		}
-		m.mapSoundNext[index] = now.Add(delay)
-	}
-}
-
-func (m *WorldMode) processActorMotionSounds(ctx client.Context, now time.Time) {
-	if ctx.World == nil || len(ctx.World.Actors) == 0 {
-		return
-	}
-	for _, actor := range ctx.World.Actors {
-		m.processNonPCMotionSound(ctx, actor, now)
-	}
-}
-
-func (m *WorldMode) processNonPCMotionSound(ctx client.Context, actor worldstate.Actor, now time.Time) {
-	if actor.ID == 0 || res.HasPlayerJobToken(int(actor.Job)) || !actorWithinSoundRange(ctx, actor, now) {
-		return
-	}
-	view := m.nonPCSpriteView(ctx, actor)
-	if view == nil || view.act == nil {
-		return
-	}
-	state := m.nonPCSpriteState(actor, now)
-	switch state.actionFamily {
-	case spriteActionNonPCAttack, spriteActionNonPCHurt:
-		return
-	}
-	_, action, ok := resolveSpriteAction(view.act, state.actionFamily, state.direction)
-	if !ok || len(action.Animations) == 0 {
-		return
-	}
-	motion := bodyMotionForState(action, state, view.started, now)
-	if motion < 0 || motion >= len(action.Animations) {
-		return
-	}
-	soundIndex := action.Animations[motion].Sound
-	current := actorSoundFrame{actionFamily: state.actionFamily, motion: motion, soundIndex: soundIndex}
-	if m.actorSoundFrames == nil {
-		m.actorSoundFrames = make(map[uint32]actorSoundFrame)
-	}
-	if previous, ok := m.actorSoundFrames[actor.ID]; ok && previous == current {
-		return
-	}
-	m.actorSoundFrames[actor.ID] = current
-	if soundIndex < 0 {
-		return
-	}
-	if sound := actionSoundName(view.act, action, motion); sound != "" {
-		m.scheduleSound(now, sound)
-	}
-}
-
-func actorWithinSoundRange(ctx client.Context, actor worldstate.Actor, now time.Time) bool {
-	if ctx.World == nil {
-		return false
-	}
-	actorX, actorY := actor.RenderPosition(now)
-	playerX, playerY := ctx.World.Player.RenderPosition(now)
-	const soundRangeCells = 25
-	return math.Hypot(actorX-playerX, actorY-playerY) <= soundRangeCells
-}
-
-func (m *WorldMode) playSFXFirstVolume(ctx client.Context, volume float64, paths ...string) {
-	if ctx.Audio == nil {
-		return
-	}
-	var lastErr error
-	for _, path := range paths {
-		if strings.TrimSpace(path) == "" {
-			continue
-		}
-		source, err := ctx.Audio.PlaySFXVolume(path, volume)
-		if err == nil {
-			if source != "" {
-				log.Printf("sfx playing path=%s source=%s", path, source)
-			}
-			return
-		}
-		lastErr = err
-	}
-	if lastErr != nil {
-		log.Printf("sfx failed paths=%v: %v", paths, lastErr)
-	}
 }
 
 func applyParameterChange(ctx client.Context, change network.ParameterChange) {
@@ -2455,108 +2139,6 @@ func clickedWalkCellByProjectedPolygon(ctx client.Context, projection sceneProje
 	return bestX, bestY, found
 }
 
-func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
-	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
-		return
-	}
-	if uiPointerBlocked(ctx) {
-		return
-	}
-	x, y, ok := m.hoveredWalkCell(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)
-	if !ok {
-		return
-	}
-	verts, ok := tileCursorCellVerts(ctx.World.GAT, x, y, now)
-	if !ok {
-		return
-	}
-	points := projectTileCursorVerts(projection, verts)
-	if quadHasInvalidPoint(points) || quadOutside(points, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())) {
-		return
-	}
-	drawTileCursorSurface3D(screen, m.tileCursorTexture(), verts)
-}
-
-func tileCursorCellVerts(gat *res.GAT, x, y int, now time.Time) ([4]modelPoint3, bool) {
-	if gat == nil {
-		return [4]modelPoint3{}, false
-	}
-	cell, ok := gat.Cell(x, y)
-	if !ok {
-		return [4]modelPoint3{}, false
-	}
-	lift := tileCursorLift(now)
-	return [4]modelPoint3{
-		{x: float64(x), y: float64(cell.Heights[0]) + lift, z: float64(y)},
-		{x: float64(x + 1), y: float64(cell.Heights[1]) + lift, z: float64(y)},
-		{x: float64(x), y: float64(cell.Heights[2]) + lift, z: float64(y + 1)},
-		{x: float64(x + 1), y: float64(cell.Heights[3]) + lift, z: float64(y + 1)},
-	}, true
-}
-
-func projectTileCursorVerts(projection sceneProjection, verts [4]modelPoint3) [4]screenPoint {
-	return [4]screenPoint{
-		projection.Project(verts[0].x, verts[0].z, verts[0].y),
-		projection.Project(verts[1].x, verts[1].z, verts[1].y),
-		projection.Project(verts[2].x, verts[2].z, verts[2].y),
-		projection.Project(verts[3].x, verts[3].z, verts[3].y),
-	}
-}
-
-func tileCursorLift(now time.Time) float64 {
-	seconds := float64(now.UnixNano()) / float64(time.Second)
-	return 0.018 + 0.006*math.Sin(seconds*math.Pi*2/1.2)
-}
-
-func (m *WorldMode) tileCursorTexture() *render.Image {
-	if m.tileCursor != nil {
-		return m.tileCursor
-	}
-	const size = 64
-	img := image.NewRGBA(image.Rect(0, 0, size, size))
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			dist := minInt(minInt(x, y), minInt(size-1-x, size-1-y))
-			alpha := uint8(0)
-			switch {
-			case dist < 3:
-				alpha = 190
-			case dist < 6:
-				alpha = 100
-			case dist < 11:
-				alpha = 32
-			}
-			if x == y || x == size-1-y {
-				alpha = maxUint8(alpha, 34)
-			}
-			if alpha > 0 {
-				img.SetRGBA(x, y, color.RGBA{R: 180, G: 230, B: 255, A: alpha})
-			}
-		}
-	}
-	m.tileCursor = render.NewImageFromImage(img)
-	return m.tileCursor
-}
-
-func drawTileCursorSurface3D(screen, texture *render.Image, verts [4]modelPoint3) {
-	if texture == nil {
-		return
-	}
-	tints := [4]color.RGBA{
-		{R: 255, G: 255, B: 255, A: 210},
-		{R: 255, G: 255, B: 255, A: 210},
-		{R: 255, G: 255, B: 255, A: 210},
-		{R: 255, G: 255, B: 255, A: 210},
-	}
-	uvs := [4]texturePoint{
-		{u: 0, v: 0},
-		{u: 1, v: 0},
-		{u: 0, v: 1},
-		{u: 1, v: 1},
-	}
-	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, quadIndices012213, tints, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
-}
-
 func projectedGATCell(projection sceneProjection, gat *res.GAT, x, y int) ([4]screenPoint, float64, bool) {
 	cell, ok := gat.Cell(x, y)
 	if !ok {
@@ -2879,30 +2461,6 @@ type texturePoint struct {
 	v float32
 }
 
-func quadOutside(points [4]screenPoint, width, height float64) bool {
-	minX, minY := float64(points[0].x), float64(points[0].y)
-	maxX, maxY := minX, minY
-	for _, point := range points[1:] {
-		minX = math.Min(minX, float64(point.x))
-		minY = math.Min(minY, float64(point.y))
-		maxX = math.Max(maxX, float64(point.x))
-		maxY = math.Max(maxY, float64(point.y))
-	}
-	return maxX < -32 || maxY < -32 || minX > width+32 || minY > height+32
-}
-
-func quadHasInvalidPoint(points [4]screenPoint) bool {
-	for _, point := range points {
-		if !isFinite(float64(point.x)) || !isFinite(float64(point.y)) {
-			return true
-		}
-		if point.x <= -1<<19 && point.y <= -1<<19 {
-			return true
-		}
-	}
-	return false
-}
-
 func quadNormal(verts [4]modelPoint3) modelPoint3 {
 	normal := normalize3(cross3(sub3(verts[1], verts[0]), sub3(verts[2], verts[0])))
 	if normal == (modelPoint3{}) {
@@ -3011,13 +2569,6 @@ func textureColor(name string) color.RGBA {
 
 func clampColor(value float64) uint8 {
 	return uint8(min(255, max(0, int(value))))
-}
-
-func maxUint8(a, b uint8) uint8 {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 func drawColoredSurfaceTints3DAlpha(screen, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA) {

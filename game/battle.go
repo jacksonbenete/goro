@@ -45,6 +45,102 @@ const (
 	damageFloaterMiss
 )
 
+func actionAnimationDuration(action res.ACTAction, fallback time.Duration) time.Duration {
+	if len(action.Animations) == 0 {
+		return fallback
+	}
+	delayMS := float64(action.DelayMS)
+	if delayMS <= 0 {
+		delayMS = 150
+	}
+	duration := time.Duration(delayMS * float64(time.Millisecond) * float64(len(action.Animations)))
+	if duration <= 0 {
+		return fallback
+	}
+	if duration > maxCombatAnimationDuration {
+		return maxCombatAnimationDuration
+	}
+	return duration
+}
+
+func combatHitDelayFromAction(action res.ACTAction, duration time.Duration) time.Duration {
+	if duration <= 0 {
+		return 0
+	}
+	motion := firstActionSoundMotion(action)
+	if motion >= 0 && len(action.Animations) > 0 {
+		return duration * time.Duration(motion) / time.Duration(len(action.Animations))
+	}
+	return duration / 2
+}
+
+func firstActionSoundMotion(action res.ACTAction) int {
+	for index, animation := range action.Animations {
+		if animation.Sound >= 0 {
+			return index
+		}
+	}
+	return -1
+}
+
+func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
+	view := m.nonPCSpriteView(ctx, actor)
+	if view == nil {
+		return res.ACTAction{}, false
+	}
+	_, action, ok := resolveSpriteAction(view.act, actionFamily, actor.Dir)
+	return action, ok
+}
+
+func (m *WorldMode) actorResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		view := m.humanoidSpriteViewForActor(ctx, actor)
+		if view == nil || view.body == nil {
+			return res.ACTAction{}, false
+		}
+		_, action, ok := resolveSpriteAction(view.body.act, actionFamily, actor.Dir)
+		return action, ok
+	}
+	return m.nonPCResolvedAction(ctx, actor, actionFamily)
+}
+
+func (m *WorldMode) actorActionFrameDelay(ctx client.Context, actor worldstate.Actor, actionFamily int, duration time.Duration) time.Duration {
+	if duration <= 0 {
+		return 0
+	}
+	action, ok := m.actorResolvedAction(ctx, actor, actionFamily)
+	if !ok || len(action.Animations) == 0 {
+		return 0
+	}
+	return duration / time.Duration(len(action.Animations))
+}
+
+func (m *WorldMode) nonPCActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
+	view := m.nonPCSpriteView(ctx, actor)
+	if view == nil {
+		return nil
+	}
+	return view.act
+}
+
+func (m *WorldMode) actorActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
+	if res.HasPlayerJobToken(int(actor.Job)) {
+		view := m.humanoidSpriteViewForActor(ctx, actor)
+		if view == nil || view.body == nil {
+			return nil
+		}
+		return view.body.act
+	}
+	return m.nonPCActionACT(ctx, actor)
+}
+
+func (m *WorldMode) actorActionDuration(ctx client.Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
+	if action, ok := m.actorResolvedAction(ctx, actor, actionFamily); ok {
+		return actionAnimationDuration(action, fallback)
+	}
+	return fallback
+}
+
 type actorAnimation struct {
 	actionFamily   int
 	started        time.Time

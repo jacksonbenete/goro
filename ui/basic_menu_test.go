@@ -74,7 +74,7 @@ func TestBasicMenuRowsUsePointerCursor(t *testing.T) {
 	var character CharacterWindow
 	var menu BasicMenu
 	character.Update(ctx)
-	menu.Update(ctx)
+	menu.Update(ctx, BasicMenuCallbacks{})
 	manager.AddOverlay(positionedWidget(newInertOverlay(), 600, 16, 188, 206))
 
 	app.Frame()
@@ -111,9 +111,16 @@ func TestBasicMenuRebindRefreshesButtonCallbacks(t *testing.T) {
 		ScreenH:   720,
 	}
 	var original BasicMenu
-	original.Update(ctx)
+	original.Update(ctx, BasicMenuCallbacks{})
 	carried := original
-	carried.Rebind(ctx)
+	originalCalls := 0
+	carriedCalls := 0
+	original.Rebind(ctx, BasicMenuCallbacks{
+		OnStatus: func() { originalCalls++ },
+	})
+	carried.Rebind(ctx, BasicMenuCallbacks{
+		OnStatus: func() { carriedCalls++ },
+	})
 
 	app.Frame()
 	app.Window().DrawTo(&uitest.MockCanvas{})
@@ -124,10 +131,10 @@ func TestBasicMenuRebindRefreshesButtonCallbacks(t *testing.T) {
 	app.Window().HandleEvent(uitest.Click(point.X, point.Y))
 	app.Window().HandleEvent(uitest.Release(point.X, point.Y))
 
-	if got := carried.PopAction(); got != "status" {
-		t.Fatalf("carried action = %q, want status", got)
+	if carriedCalls != 1 {
+		t.Fatalf("carried calls = %d, want 1", carriedCalls)
 	}
-	if got := original.PopAction(); got != "" {
-		t.Fatalf("original action = %q, want empty", got)
+	if originalCalls != 0 {
+		t.Fatalf("original calls = %d, want 0", originalCalls)
 	}
 }
