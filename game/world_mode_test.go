@@ -153,6 +153,34 @@ func TestApplyStatusEffectChangeIgnoresRemoteActor(t *testing.T) {
 	}
 }
 
+func TestApplyTrickDeadStatusHoldsDeathPose(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, Job: 0, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: statusEffectTrickDead,
+		ActorID:  2000000,
+		Active:   true,
+	})
+	anim, ok := mode.actorAnimation(150000, time.Now())
+	if !ok || anim.actionFamily != spriteActionPCDeath || !anim.holdFinal {
+		t.Fatalf("trick dead animation = %+v ok=%t, want held death pose", anim, ok)
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: statusEffectTrickDead,
+		ActorID:  2000000,
+		Active:   false,
+	})
+	anim, ok = mode.actorAnimation(150000, time.Now())
+	if !ok || anim.actionFamily != spriteActionIdle || anim.holdFinal {
+		t.Fatalf("trick dead inactive animation = %+v ok=%t, want idle", anim, ok)
+	}
+}
+
 func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 150000, Job: 5}
@@ -1741,14 +1769,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 102 {
-		t.Fatalf("implemented effects = %d, want 102", coverage.Implemented)
+	if coverage.Implemented != 103 {
+		t.Fatalf("implemented effects = %d, want 103", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 16.8 || coverage.ActivePercent > 16.9 {
-		t.Fatalf("active coverage = %.3f, want about 16.8", coverage.ActivePercent)
+	if coverage.ActivePercent < 16.9 || coverage.ActivePercent > 17.0 {
+		t.Fatalf("active coverage = %.3f, want about 17.0", coverage.ActivePercent)
 	}
 }
 
@@ -1870,6 +1898,17 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "SM_MAGNUM target", skillEffectIDs(7), effectQuakeMagnum)
 	expectEffectIDs(t, "SM_MAGNUM caster", skillEffectOnCasterIDs(7), effectMagnumBreak)
 	expectEffectIDs(t, "SM_ENDURE", skillEffectIDs(8), effectEndure)
+}
+
+func TestNoviceSkillEffectMappings(t *testing.T) {
+	expectEffectIDs(t, "NV_FIRSTAID", skillEffectIDs(142), effectFirstAid)
+	expectEffectIDs(t, "NV_TRICKDEAD", skillEffectIDs(143))
+	if !skillForcesSelfTarget(142) || !skillForcesSelfTarget(143) {
+		t.Fatal("novice quest skills should self-target")
+	}
+	if skillAction(143).action != skillActorActionNone {
+		t.Fatal("NV_TRICKDEAD should not play the default skill action")
+	}
 }
 
 func TestMageSkillEffectMappings(t *testing.T) {

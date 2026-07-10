@@ -29,7 +29,7 @@ func TestSkillTargetModes(t *testing.T) {
 	if isSelfTargetSkill(session.Skill{ID: 21, Type: 0x06}) {
 		t.Fatal("ground bit should win over self bit")
 	}
-	for _, skillID := range []uint16{10, 24, 26, 31, 32, 33} {
+	for _, skillID := range []uint16{10, 24, 26, 31, 32, 33, 142, 143} {
 		if !isSelfTargetSkill(session.Skill{ID: skillID, Type: 0x01}) {
 			t.Fatalf("skill %d should force self-targeting even with stale server flags", skillID)
 		}

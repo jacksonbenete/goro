@@ -1243,6 +1243,21 @@ var worldEffectSpecs = map[int]worldEffectSpec{
 	effectRefineOK:      strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
 	effectRefineFail:    strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),
 	effectEnergyCoat:    strEffectSpecAttached("energycoat", "", false),
+	effectFirstAid: {
+		duration: time.Second,
+		sfx:      []string{"_heal_effect.wav"},
+		components: []worldEffectComponent{{
+			kind:          effectComponent2D,
+			textureFile:   "effect/pikapika2.bmp",
+			duration:      time.Second,
+			alphaMax:      0.2,
+			blendAdditive: true,
+			fadeOut:       true,
+			posZ:          2,
+			sizeStart:     100 * effectPixelRatio,
+			sizeEnd:       100 * effectPixelRatio,
+		}},
+	},
 	effectTeleportation: {
 		duration:         1500 * time.Millisecond,
 		detachLocalActor: true,

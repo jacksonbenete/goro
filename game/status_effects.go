@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	statusEffectHiding uint16 = 4
+	statusEffectHiding    uint16 = 4
+	statusEffectTrickDead uint16 = 29
 )
 
 func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.StatusEffectChange) {
@@ -20,6 +21,7 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	if m.applyPushCartStatus(ctx, change) {
 		return
 	}
+	m.applyTrickDeadStatus(ctx, change)
 	localID := localSkillTarget(ctx)
 	if change.ActorID != 0 && localID != 0 && change.ActorID != localID && change.ActorID != ctx.Session.CharID {
 		return
@@ -45,6 +47,29 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	}
 	ctx.Session.Statuses.Active[change.StatusID] = effect
 	log.Printf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
+}
+
+func (m *WorldMode) applyTrickDeadStatus(ctx client.Context, change network.StatusEffectChange) {
+	if change.StatusID != statusEffectTrickDead || ctx.World == nil {
+		return
+	}
+	id := change.ActorID
+	if id == 0 {
+		id = localSkillTarget(ctx)
+	}
+	actor, ok, _ := actorForCombatID(ctx, id)
+	if !ok {
+		return
+	}
+	now := time.Now()
+	if change.Active {
+		actionFamily := deathActionFamilyForActor(actor)
+		m.startHeldCombatAnimation(ctx, id, actionFamily, now, m.actorActionDuration(ctx, actor, actionFamily, defaultDeathAnimationDuration))
+		log.Printf("trick dead active actor=%d", id)
+		return
+	}
+	m.startCombatAnimation(ctx, id, spriteActionIdle, now, defaultAttackAnimationDuration)
+	log.Printf("trick dead inactive actor=%d", id)
 }
 
 func (m *WorldMode) addStatusEffectTransition(ctx client.Context, change network.StatusEffectChange) {

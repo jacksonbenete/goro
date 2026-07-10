@@ -79,6 +79,7 @@ const (
 	effectTeleportation  = 304
 	effectPharmacyOK     = 305
 	effectPharmacyFail   = 306
+	effectFirstAid       = 309
 	effectHeal           = 312
 	effectReadyPortal    = 316
 	effectPortal         = 317
@@ -945,6 +946,8 @@ type skillEffectSpec struct {
 
 type skillActorAction int
 
+const skillActorActionNone skillActorAction = -1
+
 const (
 	skillActorActionIdle skillActorAction = iota
 	skillActorActionSkill
@@ -970,6 +973,7 @@ var (
 	defaultSkillActionSpec    = newSkillActionSpec(skillActorActionSkill, false, &idleSkillActionSpec)
 	attackSkillActionSpec     = newSkillActionSpec(skillActorActionAttack, false, &idleSkillActionSpec)
 	readyFightSkillActionSpec = newSkillActionSpec(skillActorActionReadyFight, false, &idleSkillActionSpec)
+	noSkillActionSpec         = newSkillActionSpec(skillActorActionNone, false, nil)
 )
 
 func newSkillActionSpec(action skillActorAction, repeat bool, next *skillActionSpec) skillActionSpec {
@@ -993,6 +997,9 @@ func cloneSkillActionSpec(spec *skillActionSpec) *skillActionSpec {
 }
 
 func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
+	if s.action == skillActorActionNone {
+		return -1
+	}
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionNonPCAttack
 	}
@@ -1079,6 +1086,8 @@ type skillRecoveryFloaterSpec struct {
 // Goro-only visual bridge fields, such as cast timing and recovery floaters,
 // live beside the imported effect arrays so dispatch remains table-driven.
 var skillEffectSpecs = map[uint16]skillEffectSpec{
+	142: {effectIDs: []int{effectFirstAid}, forceSelfTarget: true},                                                                                                                                                           // NV_FIRSTAID
+	143: {forceSelfTarget: true, action: noSkillActionSpec},                                                                                                                                                                  // NV_TRICKDEAD; server status switches the actor to the death pose.
 	5:   {beginCastEffectIDs: []int{effectBashBegin}, hitEffectIDs: []int{effectBashHit}, action: attackSkillActionSpec},                                                                                                     // SM_BASH
 	6:   {successEffectIDs: []int{effectProvoke}},                                                                                                                                                                            // SM_PROVOKE
 	7:   {effectIDs: []int{effectQuakeMagnum}, effectIDsOnCaster: []int{effectMagnumBreak}, action: attackSkillActionSpec},                                                                                                   // SM_MAGNUM
