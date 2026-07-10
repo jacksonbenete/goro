@@ -185,6 +185,15 @@ func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	if !world.Player.HasCartState || !world.Player.HasCart || world.Player.CartNum != 4 {
 		t.Fatalf("local cart state after actor state refresh = %+v", world.Player)
 	}
+	mode.applyActorStateChange(ctx, network.ActorStateChange{
+		ID:          2000000,
+		BodyState:   0,
+		HealthState: 0,
+		EffectState: actorEffectCart2,
+	})
+	if !world.Player.HasCartState || !world.Player.HasCart || world.Player.CartNum != 2 {
+		t.Fatalf("local cart state after change-cart actor state = %+v", world.Player)
+	}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
 		StatusID:  statusEffectPushCart,

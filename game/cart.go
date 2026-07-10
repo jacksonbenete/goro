@@ -24,7 +24,7 @@ const (
 )
 
 func applyActorCartStateFromEffect(actor *worldstate.Actor) {
-	if actor == nil || actor.HasCartState {
+	if actor == nil {
 		return
 	}
 	cartNum, ok := cartNumFromEffectState(actor.EffectState, int(actor.Job))
