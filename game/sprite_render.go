@@ -54,7 +54,7 @@ const (
 	humanoidLayerCount
 )
 
-type playerSpriteView struct {
+type spriteView struct {
 	spr           *res.SPR
 	act           *res.ACT
 	actSource     string
@@ -72,14 +72,14 @@ type spriteFrameKey struct {
 }
 
 type humanoidSpriteView struct {
-	body            *playerSpriteView
-	head            *playerSpriteView
-	accessoryBottom *playerSpriteView
-	accessoryMid    *playerSpriteView
-	accessoryTop    *playerSpriteView
-	weapon          *playerSpriteView
-	weaponLight     *playerSpriteView
-	shield          *playerSpriteView
+	body            *spriteView
+	head            *spriteView
+	accessoryBottom *spriteView
+	accessoryMid    *spriteView
+	accessoryTop    *spriteView
+	weapon          *spriteView
+	weaponLight     *spriteView
+	shield          *spriteView
 	imf             *res.IMF
 	imfSource       string
 	billboards      map[humanoidBillboardKey]*spriteBillboard
@@ -216,7 +216,7 @@ func actorSpriteWorldZ(terrainZ float64) float64 {
 	return terrainZ + actorSpriteTerrainLift
 }
 
-func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, view *playerSpriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
+func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, view *spriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
 	billboard, ok := fixedSpriteBillboard(view)
 	if !ok {
 		return false
@@ -517,7 +517,7 @@ func humanoidBillboardForState(view *humanoidSpriteView, state spriteState, now 
 	return billboard, true
 }
 
-func singleSpriteBillboardForState(view *playerSpriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
+func singleSpriteBillboardForState(view *spriteView, state spriteState, now time.Time) (*spriteBillboard, bool) {
 	if view == nil || view.act == nil || view.spr == nil {
 		return nil, false
 	}
@@ -542,7 +542,7 @@ func singleSpriteBillboardForState(view *playerSpriteView, state spriteState, no
 	return billboard, true
 }
 
-func fixedSpriteBillboard(view *playerSpriteView) (*spriteBillboard, bool) {
+func fixedSpriteBillboard(view *spriteView) (*spriteBillboard, bool) {
 	if view == nil || view.act == nil || view.spr == nil || len(view.act.Actions) == 0 || len(view.act.Actions[0].Animations) == 0 {
 		return nil, false
 	}
@@ -558,7 +558,7 @@ func fixedSpriteBillboard(view *playerSpriteView) (*spriteBillboard, bool) {
 	return billboard, true
 }
 
-func cursorFrameBillboard(view *playerSpriteView, actionIndex, motion int, anchorX, anchorY float64) (*spriteBillboard, bool) {
+func cursorFrameBillboard(view *spriteView, actionIndex, motion int, anchorX, anchorY float64) (*spriteBillboard, bool) {
 	if view == nil || view.act == nil || view.spr == nil || len(view.act.Actions) == 0 {
 		return nil, false
 	}
@@ -629,11 +629,11 @@ func composeHumanoidBillboard(view *humanoidSpriteView, actionFamily, direction 
 	}, true
 }
 
-func composeSingleSpriteBillboard(view *playerSpriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
+func composeSingleSpriteBillboard(view *spriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
 	return composeSingleSpriteBillboardWithOptions(view, anim, false)
 }
 
-func composeSingleSpriteBillboardWithOptions(view *playerSpriteView, anim res.ACTAnimation, ignoreLayerAngles bool) (*spriteBillboard, bool) {
+func composeSingleSpriteBillboardWithOptions(view *spriteView, anim res.ACTAnimation, ignoreLayerAngles bool) (*spriteBillboard, bool) {
 	minX, minY, maxX, maxY, ok := spriteAnimationLayerBounds(view, anim)
 	if !ok {
 		return nil, false
@@ -661,7 +661,7 @@ func composeSingleSpriteBillboardWithOptions(view *playerSpriteView, anim res.AC
 	}, true
 }
 
-func spriteAnimationLayerBounds(view *playerSpriteView, anim res.ACTAnimation) (float64, float64, float64, float64, bool) {
+func spriteAnimationLayerBounds(view *spriteView, anim res.ACTAnimation) (float64, float64, float64, float64, bool) {
 	minX, minY := math.Inf(1), math.Inf(1)
 	maxX, maxY := math.Inf(-1), math.Inf(-1)
 	ok := false
@@ -693,7 +693,7 @@ func spriteAnimationLayerBounds(view *playerSpriteView, anim res.ACTAnimation) (
 	return minX, minY, maxX, maxY, ok
 }
 
-func spriteLayerFrameSize(view *playerSpriteView, index int32, sprType int32) (float64, float64, bool) {
+func spriteLayerFrameSize(view *spriteView, index int32, sprType int32) (float64, float64, bool) {
 	if view == nil || view.spr == nil {
 		return 0, 0, false
 	}
@@ -767,7 +767,7 @@ func drawPlayerIMFLayers(target *render.Image, view *humanoidSpriteView, actionI
 	return drawn
 }
 
-func drawPlayerIMFLayer(target *render.Image, sprite *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, motionIndex int, attachBase *res.ACTAnimation) bool {
+func drawPlayerIMFLayer(target *render.Image, sprite *spriteView, imf *res.IMF, layerPriority, actionIndex, motionIndex int, attachBase *res.ACTAnimation) bool {
 	if sprite == nil || sprite.act == nil || sprite.spr == nil {
 		return false
 	}
@@ -827,7 +827,7 @@ func actionAnimation(act *res.ACT, actionIndex, motionIndex int) (res.ACTAnimati
 	return action.Animations[motionIndex], true
 }
 
-func drawAttachedAccessoryMotion(target *render.Image, accessory *playerSpriteView, head *playerSpriteView, bodyAnim res.ACTAnimation, actionIndex, headMotionIndex int) bool {
+func drawAttachedAccessoryMotion(target *render.Image, accessory *spriteView, head *spriteView, bodyAnim res.ACTAnimation, actionIndex, headMotionIndex int) bool {
 	if accessory == nil || accessory.act == nil || accessory.spr == nil || head == nil || head.act == nil || head.spr == nil {
 		return false
 	}
@@ -848,7 +848,7 @@ func drawAttachedAccessoryMotion(target *render.Image, accessory *playerSpriteVi
 	return drawSpriteAnimation(target, accessory, accessoryAnim, humanoidBillboardAnchorX, humanoidBillboardAnchorY, headDX+accessoryDX, headDY+accessoryDY)
 }
 
-func drawPlayerOverlayMotion(target *render.Image, overlay *playerSpriteView, body *playerSpriteView, imf *res.IMF, layerPriority, actionIndex, bodyMotion int) bool {
+func drawPlayerOverlayMotion(target *render.Image, overlay *spriteView, body *spriteView, imf *res.IMF, layerPriority, actionIndex, bodyMotion int) bool {
 	if overlay == nil || overlay.act == nil || overlay.spr == nil || body == nil || body.act == nil || imf == nil {
 		return false
 	}
@@ -1180,11 +1180,11 @@ func isTransientPCAction(actionFamily int) bool {
 	}
 }
 
-func drawSpriteAnimation(target *render.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) bool {
+func drawSpriteAnimation(target *render.Image, view *spriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) bool {
 	return drawSpriteAnimationWithOptions(target, view, anim, anchorX, anchorY, posX, posY, false)
 }
 
-func drawSpriteAnimationWithOptions(target *render.Image, view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32, ignoreLayerAngles bool) bool {
+func drawSpriteAnimationWithOptions(target *render.Image, view *spriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32, ignoreLayerAngles bool) bool {
 	rendered := false
 	for _, layer := range anim.Layers {
 		if layer.Index < 0 {
@@ -1200,7 +1200,7 @@ func drawSpriteAnimationWithOptions(target *render.Image, view *playerSpriteView
 	return rendered
 }
 
-func drawSpriteLayerByValue(target *render.Image, view *playerSpriteView, layer res.ACTLayer, centerX, centerY float64) bool {
+func drawSpriteLayerByValue(target *render.Image, view *spriteView, layer res.ACTLayer, centerX, centerY float64) bool {
 	if layer.Index < 0 {
 		return false
 	}
@@ -1226,7 +1226,7 @@ func attachmentDelta(baseAnim, attachedAnim res.ACTAnimation) (int32, int32) {
 	return base.X - attached.X, base.Y - attached.Y
 }
 
-func spriteViewImage(view *playerSpriteView, index int32, sprType int32) (*render.Image, bool) {
+func spriteViewImage(view *spriteView, index int32, sprType int32) (*render.Image, bool) {
 	key := spriteFrameKey{index: index, sprType: sprType}
 	if img, ok := view.images[key]; ok {
 		return img, true

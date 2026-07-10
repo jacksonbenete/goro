@@ -3801,7 +3801,7 @@ func humanoidTimingView(actionFamily int, frames int) *humanoidSpriteView {
 	for dir := 0; dir < 8; dir++ {
 		actions[actionFamily*8+dir] = res.ACTAction{DelayMS: 150, Animations: make([]res.ACTAnimation, frames)}
 	}
-	return &humanoidSpriteView{body: &playerSpriteView{act: &res.ACT{Actions: actions}}}
+	return &humanoidSpriteView{body: &spriteView{act: &res.ACT{Actions: actions}}}
 }
 
 func TestActionSoundNameResolvesACTSound(t *testing.T) {
@@ -3833,7 +3833,7 @@ func TestApplyActorActionNotifyUsesMobACTHitPhase(t *testing.T) {
 		HasObjectType: true,
 	})
 	mode := &WorldMode{
-		nonPCViews: map[int]*playerSpriteView{
+		nonPCViews: map[int]*spriteView{
 			1002: {
 				act: &res.ACT{
 					Actions: []res.ACTAction{
@@ -3901,7 +3901,7 @@ func TestApplyActorVanishDeathKeepsMobForDeathAnimation(t *testing.T) {
 		HasObjectType: true,
 	})
 	mode := &WorldMode{
-		nonPCViews: map[int]*playerSpriteView{
+		nonPCViews: map[int]*spriteView{
 			1002: {
 				act: &res.ACT{
 					Actions: []res.ACTAction{
@@ -4271,7 +4271,7 @@ func TestProcessNonPCMotionSoundSchedulesIdleACTSound(t *testing.T) {
 	}
 	world.UpsertActor(actor)
 	mode := &WorldMode{
-		nonPCViews: map[int]*playerSpriteView{
+		nonPCViews: map[int]*spriteView{
 			1002: {
 				started: now,
 				act: &res.ACT{

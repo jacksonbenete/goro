@@ -37,28 +37,28 @@ type WorldMode struct {
 	strEffects        map[string]*res.STR
 	strEffectMiss     map[string]struct{}
 	playerView        *humanoidSpriteView
-	shadowView        *playerSpriteView
+	shadowView        *spriteView
 	shadowViewMiss    bool
-	cartViews         map[int]*playerSpriteView
+	cartViews         map[int]*spriteView
 	cartViewMiss      map[int]struct{}
-	cursorView        *playerSpriteView
+	cursorView        *spriteView
 	cursorViewMiss    bool
 	cursorFallback    *render.Image
 	cursorAction      int
 	cursorStarted     time.Time
-	damageNumberView  *playerSpriteView
+	damageNumberView  *spriteView
 	damageNumberMiss  bool
 	damageNumbers     map[string]*spriteBillboard
-	damageMsgView     *playerSpriteView
+	damageMsgView     *spriteView
 	damageMsgMiss     bool
 	itemMarker        *render.Image
-	itemViews         map[itemSpriteKey]*playerSpriteView
+	itemViews         map[itemSpriteKey]*spriteView
 	itemViewMiss      map[itemSpriteKey]struct{}
-	effectViews       map[string]*playerSpriteView
+	effectViews       map[string]*spriteView
 	effectViewMiss    map[string]struct{}
 	actorViews        map[actorSpriteKey]*humanoidSpriteView
 	actorViewMiss     map[actorSpriteKey]struct{}
-	nonPCViews        map[int]*playerSpriteView
+	nonPCViews        map[int]*spriteView
 	nonPCViewMiss     map[int]struct{}
 	rsmMeshCache      map[int][]retainedWorldMesh
 	rsmNodeMatrices   map[*res.RSM]map[string]mat4
@@ -281,13 +281,13 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.damageMsgView = nil
 	m.damageMsgMiss = false
 	m.itemMarker = nil
-	m.itemViews = make(map[itemSpriteKey]*playerSpriteView)
+	m.itemViews = make(map[itemSpriteKey]*spriteView)
 	m.itemViewMiss = make(map[itemSpriteKey]struct{})
-	m.effectViews = make(map[string]*playerSpriteView)
+	m.effectViews = make(map[string]*spriteView)
 	m.effectViewMiss = make(map[string]struct{})
 	m.actorViews = make(map[actorSpriteKey]*humanoidSpriteView)
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
-	m.nonPCViews = make(map[int]*playerSpriteView)
+	m.nonPCViews = make(map[int]*spriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
 	m.rsmMeshCache = make(map[int][]retainedWorldMesh)
 	m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
@@ -334,7 +334,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 		m.shadowViewMiss = true
 		log.Printf("actor shadow resources unavailable: %s", status)
 	}
-	m.cartViews = make(map[int]*playerSpriteView)
+	m.cartViews = make(map[int]*spriteView)
 	m.cartViewMiss = make(map[int]struct{})
 	if view, status := loadCursorSpriteView(ctx.Resources); view != nil {
 		m.cursorView = view
@@ -3425,7 +3425,7 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Cont
 	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
-func (m *WorldMode) cursorSpriteView(ctx client.Context) *playerSpriteView {
+func (m *WorldMode) cursorSpriteView(ctx client.Context) *spriteView {
 	if m.cursorView != nil || m.cursorViewMiss {
 		return m.cursorView
 	}
@@ -4045,13 +4045,13 @@ func isDeathActionFamily(actionFamily int) bool {
 	return actionFamily == spriteActionPCDeath || actionFamily == spriteActionNonPCDeath
 }
 
-func (m *WorldMode) nonPCSpriteView(ctx client.Context, actor worldstate.Actor) *playerSpriteView {
+func (m *WorldMode) nonPCSpriteView(ctx client.Context, actor worldstate.Actor) *spriteView {
 	job := int(actor.Job)
 	if _, ok := m.nonPCViewMiss[job]; ok {
 		return nil
 	}
 	if m.nonPCViews == nil {
-		m.nonPCViews = make(map[int]*playerSpriteView)
+		m.nonPCViews = make(map[int]*spriteView)
 	}
 	view, ok := m.nonPCViews[job]
 	if ok {

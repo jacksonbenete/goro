@@ -636,12 +636,12 @@ func visibleImageBounds(img *render.Image) image.Rectangle {
 	return visible.Inset(-1).Intersect(bounds)
 }
 
-func (m *WorldMode) itemSpriteView(manager *res.Manager, itemID uint16, identified bool) *playerSpriteView {
+func (m *WorldMode) itemSpriteView(manager *res.Manager, itemID uint16, identified bool) *spriteView {
 	if manager == nil || itemID == 0 {
 		return nil
 	}
 	if m.itemViews == nil {
-		m.itemViews = make(map[itemSpriteKey]*playerSpriteView)
+		m.itemViews = make(map[itemSpriteKey]*spriteView)
 	}
 	if m.itemViewMiss == nil {
 		m.itemViewMiss = make(map[itemSpriteKey]struct{})
@@ -676,7 +676,7 @@ func (m *WorldMode) itemSpriteView(manager *res.Manager, itemID uint16, identifi
 	return view
 }
 
-func composeGroundItemBillboard(view *playerSpriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
+func composeGroundItemBillboard(view *spriteView, anim res.ACTAnimation) (*spriteBillboard, bool) {
 	target := render.NewImage(itemBillboardWidth, itemBillboardHeight)
 	if !drawSpriteAnimation(target, view, anim, itemBillboardAnchorX, itemBillboardAnchorY, 0, 0) {
 		return nil, false

@@ -18,7 +18,7 @@ const (
 	damageMsgACT    = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\msg.act"
 )
 
-func (m *WorldMode) damageNumberSprite(ctx client.Context) *playerSpriteView {
+func (m *WorldMode) damageNumberSprite(ctx client.Context) *spriteView {
 	if m.damageNumberView != nil || m.damageNumberMiss || ctx.Resources == nil {
 		return m.damageNumberView
 	}
@@ -60,7 +60,7 @@ func (m *WorldMode) damageNumberBillboard(ctx client.Context, text string) (*spr
 	return billboard, true
 }
 
-func (m *WorldMode) damageMessageSprite(ctx client.Context) *playerSpriteView {
+func (m *WorldMode) damageMessageSprite(ctx client.Context) *spriteView {
 	if m.damageMsgView != nil || m.damageMsgMiss || ctx.Resources == nil {
 		return m.damageMsgView
 	}
@@ -104,7 +104,7 @@ func (m *WorldMode) damageMessageBillboard(ctx client.Context, actionIndex, moti
 	return billboard, true
 }
 
-func composeDamageNumberBillboard(view *playerSpriteView, text string) (*spriteBillboard, bool) {
+func composeDamageNumberBillboard(view *spriteView, text string) (*spriteBillboard, bool) {
 	const digitGap = 2
 	digits := make([]*spriteBillboard, 0, len(text))
 	totalWidth := 0
@@ -146,7 +146,7 @@ func composeDamageNumberBillboard(view *playerSpriteView, text string) (*spriteB
 	}, true
 }
 
-func damageDigitBillboard(view *playerSpriteView, digit int) (*spriteBillboard, bool) {
+func damageDigitBillboard(view *spriteView, digit int) (*spriteBillboard, bool) {
 	if view == nil || view.act == nil || len(view.act.Actions) == 0 || digit < 0 || digit > 9 {
 		return nil, false
 	}

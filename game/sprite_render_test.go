@@ -470,7 +470,7 @@ func TestPlayerSpriteCompositionIncludesHeadWithWeapon(t *testing.T) {
 }
 
 func TestComposeSingleSpriteBillboardUsesAnimationBounds(t *testing.T) {
-	view := &playerSpriteView{
+	view := &spriteView{
 		spr: &res.SPR{
 			RGBAIndex: 0,
 			Frames: []res.SPRFrame{{
@@ -507,7 +507,7 @@ func TestComposeSingleSpriteBillboardUsesAnimationBounds(t *testing.T) {
 }
 
 func TestCursorFrameBillboardUsesCompositionAnchorAsHotspot(t *testing.T) {
-	view := &playerSpriteView{
+	view := &spriteView{
 		spr: &res.SPR{
 			RGBAIndex: 0,
 			Frames: []res.SPRFrame{{
@@ -548,7 +548,7 @@ func TestCursorFrameBillboardUsesCompositionAnchorAsHotspot(t *testing.T) {
 }
 
 func TestCursorFrameBillboardDoesNotClipTallTargetCursor(t *testing.T) {
-	view := &playerSpriteView{
+	view := &spriteView{
 		spr: &res.SPR{
 			RGBAIndex: 0,
 			Frames: []res.SPRFrame{{
@@ -603,7 +603,7 @@ func layerOrderContains(order [8]int, layer int) bool {
 	return false
 }
 
-func spriteAnimationBounds(view *playerSpriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) (float64, float64, float64, float64) {
+func spriteAnimationBounds(view *spriteView, anim res.ACTAnimation, anchorX, anchorY float64, posX, posY int32) (float64, float64, float64, float64) {
 	minX, minY := math.Inf(1), math.Inf(1)
 	maxX, maxY := math.Inf(-1), math.Inf(-1)
 	for _, layer := range anim.Layers {
@@ -630,7 +630,7 @@ func spriteAnimationBounds(view *playerSpriteView, anim res.ACTAnimation, anchor
 	return minX, minY, maxX, maxY
 }
 
-func spriteLayerBounds(view *playerSpriteView, layer res.ACTLayer, centerX, centerY float64) (float64, float64, float64, float64) {
+func spriteLayerBounds(view *spriteView, layer res.ACTLayer, centerX, centerY float64) (float64, float64, float64, float64) {
 	frameIndex := int(layer.Index)
 	if layer.SPRType == res.SPRFrameRGBA {
 		frameIndex += view.spr.RGBAIndex

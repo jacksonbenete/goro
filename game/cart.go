@@ -179,7 +179,7 @@ func (m *WorldMode) applyPushCartStatus(ctx client.Context, change network.Statu
 	return true
 }
 
-func (m *WorldMode) cartSpriteView(ctx client.Context, cartNum int) *playerSpriteView {
+func (m *WorldMode) cartSpriteView(ctx client.Context, cartNum int) *spriteView {
 	if ctx.Resources == nil {
 		return nil
 	}
@@ -190,7 +190,7 @@ func (m *WorldMode) cartSpriteView(ctx client.Context, cartNum int) *playerSprit
 		cartNum = 13
 	}
 	if m.cartViews == nil {
-		m.cartViews = make(map[int]*playerSpriteView)
+		m.cartViews = make(map[int]*spriteView)
 	}
 	if m.cartViewMiss == nil {
 		m.cartViewMiss = make(map[int]struct{})

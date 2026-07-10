@@ -35,7 +35,7 @@ type cursorActionInfo struct {
 }
 
 type roCursorState struct {
-	view      *playerSpriteView
+	view      *spriteView
 	viewMiss  bool
 	fallback  *render.Image
 	action    int

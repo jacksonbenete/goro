@@ -26,7 +26,7 @@ func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Charac
 	}, "player")
 }
 
-func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*playerSpriteView, string) {
+func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*spriteView, string) {
 	if actorJobHasNoSprite(job) {
 		return nil, fmt.Sprintf("%s job=%d no-sprite", label, job)
 	}
@@ -145,15 +145,15 @@ func loadHumanoidSpriteViewWithAppearance(manager *res.Manager, appearance human
 	return view, status
 }
 
-func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, label string) (*playerSpriteView, string) {
+func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, label string) (*spriteView, string) {
 	return loadSpriteView(manager, res.PlayerBodyResourceCandidates(job, sex, "act"), res.PlayerBodyResourceCandidates(job, sex, "spr"), res.PlayerBodyPaletteResourceCandidates(job, sex, palette, "pal"), label)
 }
 
-func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, palette int, label string) (*playerSpriteView, string) {
+func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, palette int, label string) (*spriteView, string) {
 	return loadSpriteView(manager, res.PlayerHeadResourceCandidates(job, head, sex, "act"), res.PlayerHeadResourceCandidates(job, head, sex, "spr"), res.PlayerHeadPaletteResourceCandidates(job, head, sex, palette, "pal"), label)
 }
 
-func loadAccessorySpriteView(manager *res.Manager, job int, head int, sex byte, viewID int, resourceName string, label string) (*playerSpriteView, string) {
+func loadAccessorySpriteView(manager *res.Manager, job int, head int, sex byte, viewID int, resourceName string, label string) (*spriteView, string) {
 	if viewID <= 0 {
 		return nil, ""
 	}
@@ -168,7 +168,7 @@ func loadAccessorySpriteView(manager *res.Manager, job int, head int, sex byte, 
 	return loadSpriteView(manager, res.PlayerAccessoryResourceCandidates(job, head, sex, viewID, resourceName, "act"), res.PlayerAccessoryResourceCandidates(job, head, sex, viewID, resourceName, "spr"), nil, label)
 }
 
-func loadWeaponOverlaySpriteView(manager *res.Manager, job int, sex byte, weapon int, secondLayer bool, label string) (*playerSpriteView, string) {
+func loadWeaponOverlaySpriteView(manager *res.Manager, job int, sex byte, weapon int, secondLayer bool, label string) (*spriteView, string) {
 	if weapon <= 0 {
 		return nil, ""
 	}
@@ -178,14 +178,14 @@ func loadWeaponOverlaySpriteView(manager *res.Manager, job int, sex byte, weapon
 	return loadSpriteView(manager, res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "act"), res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "spr"), nil, label)
 }
 
-func loadShieldOverlaySpriteView(manager *res.Manager, job int, sex byte, shield int, label string) (*playerSpriteView, string) {
+func loadShieldOverlaySpriteView(manager *res.Manager, job int, sex byte, shield int, label string) (*spriteView, string) {
 	if shield <= 0 {
 		return nil, ""
 	}
 	return loadSpriteView(manager, res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "act"), res.PlayerShieldOverlayResourceCandidates(job, sex, shield, "spr"), nil, label)
 }
 
-func loadActorShadowSpriteView(manager *res.Manager) (*playerSpriteView, string) {
+func loadActorShadowSpriteView(manager *res.Manager) (*spriteView, string) {
 	return loadSpriteView(manager,
 		[]string{"data\\sprite\\shadow.act", "data/sprite/shadow.act"},
 		[]string{"data\\sprite\\shadow.spr", "data/sprite/shadow.spr"},
@@ -194,7 +194,7 @@ func loadActorShadowSpriteView(manager *res.Manager) (*playerSpriteView, string)
 	)
 }
 
-func loadCartSpriteView(manager *res.Manager, cartNum int) (*playerSpriteView, string) {
+func loadCartSpriteView(manager *res.Manager, cartNum int) (*spriteView, string) {
 	return loadSpriteView(manager,
 		res.PlayerCartResourceCandidates(cartNum, "act"),
 		res.PlayerCartResourceCandidates(cartNum, "spr"),
@@ -203,7 +203,7 @@ func loadCartSpriteView(manager *res.Manager, cartNum int) (*playerSpriteView, s
 	)
 }
 
-func loadCursorSpriteView(manager *res.Manager) (*playerSpriteView, string) {
+func loadCursorSpriteView(manager *res.Manager) (*spriteView, string) {
 	return loadSpriteView(manager,
 		[]string{"data\\sprite\\cursors.act", "data/sprite/cursors.act", "data\\sprite\\interface\\cursors.act", "data/sprite/interface/cursors.act"},
 		[]string{"data\\sprite\\cursors.spr", "data/sprite/cursors.spr", "data\\sprite\\interface\\cursors.spr", "data/sprite/interface/cursors.spr"},
@@ -224,7 +224,7 @@ func loadPlayerIMF(manager *res.Manager, job int, sex byte) (*res.IMF, string, s
 	return imf, source, fmt.Sprintf(" imf=%s", source)
 }
 
-func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates []string, palCandidates []string, label string) (*playerSpriteView, string) {
+func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates []string, palCandidates []string, label string) (*spriteView, string) {
 	actData, actSource, err := readFirstResource(manager, actCandidates)
 	if err != nil {
 		return nil, fmt.Sprintf("%s act: %v", label, err)
@@ -242,7 +242,7 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 		return nil, fmt.Sprintf("%s spr parse %s: %v", label, sprSource, err)
 	}
 	palette, paletteSource, paletteStatus := loadSpritePalette(manager, palCandidates)
-	return &playerSpriteView{
+	return &spriteView{
 		spr:           spr,
 		act:           act,
 		actSource:     actSource,

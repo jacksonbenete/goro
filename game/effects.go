@@ -2574,13 +2574,13 @@ func (m *WorldMode) effectFileTexture(manager *res.Manager, path string) *render
 
 const effectSpriteRoot = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\"
 
-func (m *WorldMode) effectSpriteView(manager *res.Manager, file string) *playerSpriteView {
+func (m *WorldMode) effectSpriteView(manager *res.Manager, file string) *spriteView {
 	file = strings.TrimSpace(file)
 	if manager == nil || file == "" {
 		return nil
 	}
 	if m.effectViews == nil {
-		m.effectViews = make(map[string]*playerSpriteView)
+		m.effectViews = make(map[string]*spriteView)
 	}
 	if m.effectViewMiss == nil {
 		m.effectViewMiss = make(map[string]struct{})
