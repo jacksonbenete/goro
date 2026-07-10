@@ -180,6 +180,10 @@ func playerCameraTarget(world *worldstate.World, now time.Time) (float64, float6
 	return cellCenter(playerX), cellCenter(playerY), cameraTargetHeightAt(world, playerX, playerY)
 }
 
+func cameraTargetHeightAt(world *worldstate.World, x, y float64) float64 {
+	return terrainHeightAt(world, x, y)
+}
+
 func cameraYawForMap(ctx client.Context) float64 {
 	if viewPoint, ok := lockedCameraViewPointForMap(ctx); ok {
 		return -float64(viewPoint.InitialLongitude)
