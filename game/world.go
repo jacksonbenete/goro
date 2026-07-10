@@ -106,6 +106,7 @@ type WorldMode struct {
 	equipmentWindow   gameui.EquipmentWindow
 	storageWindow     gameui.StorageWindow
 	cartWindow        gameui.CartWindow
+	changeCartWindow  gameui.ChangeCartWindow
 	shopWindow        gameui.ShopWindow
 	vendingWindow     gameui.VendingWindow
 	itemInfoWindow    gameui.ItemInfoWindow
@@ -1134,6 +1135,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.cartWindow.Update(ctx, &m.inventoryBag, &m.itemInfoWindow) {
+		return nil, nil
+	}
+	if m.changeCartWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.shopWindow.Update(ctx, &m.itemInfoWindow) {

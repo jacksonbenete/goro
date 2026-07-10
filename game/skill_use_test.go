@@ -50,3 +50,19 @@ func TestPassiveAcolyteSkillsCannotBeUsed(t *testing.T) {
 		}
 	}
 }
+
+func TestChangeCartSkillOpensSelector(t *testing.T) {
+	mode := &WorldMode{}
+	controller := skillController{mode: mode}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}}
+
+	if err := controller.Use(ctx, session.Skill{ID: skillChangeCart, Level: 1, Type: skillTargetSelf}, "test"); err != nil {
+		t.Fatalf("change cart use failed: %v", err)
+	}
+	if !mode.changeCartWindow.IsOpen() {
+		t.Fatal("change cart window was not opened")
+	}
+	if mode.pendingSkill.skill.ID != 0 {
+		t.Fatalf("pending skill = %+v, want none", mode.pendingSkill.skill)
+	}
+}

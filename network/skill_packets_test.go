@@ -333,6 +333,13 @@ func TestBuildUseSkillToIDPacketForClientDate20080910(t *testing.T) {
 	}
 }
 
+func TestBuildChangeCartPacket(t *testing.T) {
+	packet := BuildChangeCartPacket(4)
+	if len(packet) != 4 || ID(packet) != 0x01AF || binary.LittleEndian.Uint16(packet[2:4]) != 4 {
+		t.Fatalf("unexpected change cart packet: % X", packet)
+	}
+}
+
 func TestBuildUseSkillToGroundPacketForClientDate20080910(t *testing.T) {
 	packet := BuildUseSkillToGroundPacketForClientDate(21, 4, 123, 456, 20080910)
 	if got := ID(packet); got != 0x0113 {

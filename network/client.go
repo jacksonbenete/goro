@@ -332,6 +332,17 @@ func (c *Client) SendUseSkillToGround(skillID, level uint16, x, y int) error {
 	return err
 }
 
+func (c *Client) SendChangeCart(cartNum uint16) error {
+	packet := BuildChangeCartPacket(cartNum)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_CHANGECART opcode=0x%04X cart=%d client_date=%d", ID(packet), cartNum, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_CHANGECART failed opcode=0x%04X len=%d cart=%d client_date=%d: %v", ID(packet), len(packet), cartNum, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendSelectWarpPoint(skillID uint16, mapName string) error {
 	packet := BuildSelectWarpPointPacket(skillID, mapName)
 	err := c.Send(packet)

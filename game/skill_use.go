@@ -92,12 +92,32 @@ const (
 	skillTargetHomun  = 128
 )
 
+const skillChangeCart = 154
+
 func (c skillController) Use(ctx client.Context, skill session.Skill, source string) error {
 	if skill.ID == 0 || skill.Level <= 0 {
 		return fmt.Errorf("skill is not learned")
 	}
 	if skill.Type == 0 || skillForcesPassive(skill.ID) {
 		return fmt.Errorf("passive skill")
+	}
+	if skill.ID == skillChangeCart {
+		if c.mode == nil {
+			return fmt.Errorf("missing world mode")
+		}
+		target := localSkillTarget(ctx)
+		if target == 0 {
+			return fmt.Errorf("missing skill target")
+		}
+		if ctx.Network != nil {
+			level := uint16(maxInt(1, skill.Level))
+			if err := ctx.Network.SendUseSkillToID(skill.ID, level, target); err != nil {
+				return err
+			}
+		}
+		c.mode.changeCartWindow.Open(ctx)
+		log.Printf("%s skill opens change cart selector skill=%d", source, skill.ID)
+		return nil
 	}
 	if isSelfTargetSkill(skill) {
 		target := localSkillTarget(ctx)

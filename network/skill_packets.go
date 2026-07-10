@@ -357,6 +357,13 @@ func BuildUseSkillToGroundPacketForClientDate(skillID, level uint16, x, y int, c
 	return packet
 }
 
+func BuildChangeCartPacket(cartNum uint16) []byte {
+	packet := make([]byte, 4)
+	binary.LittleEndian.PutUint16(packet[0:2], 0x01AF)
+	binary.LittleEndian.PutUint16(packet[2:4], cartNum)
+	return packet
+}
+
 func BuildSelectWarpPointPacket(skillID uint16, mapName string) []byte {
 	packet := make([]byte, 20)
 	binary.LittleEndian.PutUint16(packet[0:2], 0x011B)
