@@ -22,6 +22,10 @@ func ButtonDisabled(label string, disabled bool, onClick func()) *primitives.Box
 	return buttonWithPadding(label, disabled, ButtonPaddingY, onClick)
 }
 
+func ButtonDisabledFn(label string, disabled func() bool, onClick func()) *primitives.BoxWidget {
+	return buttonWithPaddingFn(label, disabled, ButtonPaddingY, onClick)
+}
+
 func LargeButton(label string, onClick func()) *primitives.BoxWidget {
 	return LargeButtonDisabled(label, false, onClick)
 }
@@ -37,6 +41,24 @@ func buttonWithPadding(label string, disabled bool, paddingY float32, onClick fu
 		button.PainterOpt(ButtonPainter{}),
 		button.RoundedOpt(ButtonRadius),
 		button.Disabled(disabled),
+	}
+	if onClick != nil {
+		opts = append(opts, button.OnClick(onClick))
+	}
+	return primitives.Box(
+		button.New(opts...).PaddingXY(ButtonPaddingX, paddingY),
+	).
+		CrossAlign(primitives.CrossAxisStretch).
+		Height(Default.Typography.TextSize + paddingY*2)
+}
+
+func buttonWithPaddingFn(label string, disabled func() bool, paddingY float32, onClick func()) *primitives.BoxWidget {
+	opts := []button.Option{
+		button.TextOpt(label),
+		button.SizeOpt(button.Small),
+		button.PainterOpt(ButtonPainter{}),
+		button.RoundedOpt(ButtonRadius),
+		button.DisabledFn(disabled),
 	}
 	if onClick != nil {
 		opts = append(opts, button.OnClick(onClick))

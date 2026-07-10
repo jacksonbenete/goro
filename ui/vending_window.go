@@ -5,6 +5,7 @@ import (
 	"image"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gogpu/ui/core/datatable"
@@ -296,7 +297,9 @@ func (w *VendingWindow) setupTree(ctx Context) widget.Widget {
 				rotheme.Text("Price"),
 				primitives.Box(price).Width(90).Height(22),
 				primitives.Expanded(primitives.Box()),
-				rotheme.ButtonDisabled("OK", len(w.setupItems) == 0 || w.shopName == "", func() { w.submitOpen(ctx) }),
+				rotheme.ButtonDisabledFn("OK", func() bool {
+					return len(w.setupItems) == 0 || w.currentShopName() == ""
+				}, func() { w.submitOpen(ctx) }),
 				rotheme.Button("Cancel", func() { w.cancel(ctx) }),
 			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
 		),
@@ -793,19 +796,28 @@ func (w *VendingWindow) setupRows() int {
 }
 
 func (w *VendingWindow) submitOpen(ctx Context) {
-	if ctx.Network == nil || len(w.setupItems) == 0 || w.shopName == "" {
+	shopName := w.currentShopName()
+	if ctx.Network == nil || len(w.setupItems) == 0 || shopName == "" {
 		return
 	}
+	w.shopName = shopName
 	items := make([]network.VendingOpenItem, 0, len(w.setupItems))
 	for _, item := range w.setupItems {
 		log.Printf("vending open item cart_index=%d item=%d amount=%d price=%d identified=%t damaged=%t", item.item.Index, item.item.ItemID, item.amount, item.price, item.item.Identified, item.item.Damaged)
 		items = append(items, network.VendingOpenItem{Index: item.item.Index, Amount: item.amount, Price: item.price})
 	}
-	if err := ctx.Network.SendOpenVendingStore(w.shopName, items); err != nil {
+	if err := ctx.Network.SendOpenVendingStore(shopName, items); err != nil {
 		log.Printf("open vending failed: %v", err)
 	}
 	w.mode = vendingModeNone
 	w.closeBoth(ctx)
+}
+
+func (w *VendingWindow) currentShopName() string {
+	if w.nameField != nil {
+		return strings.TrimSpace(w.nameField.Text())
+	}
+	return strings.TrimSpace(w.shopName)
 }
 
 func (w *VendingWindow) submitBuy(ctx Context) {
