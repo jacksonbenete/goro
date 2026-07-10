@@ -574,16 +574,9 @@ func TestCharacterSelectBackToLoginPublishesLoginRootAtFadeSwitch(t *testing.T) 
 	}
 }
 
-func TestLoginConfirmSFXCandidatesPreferClassicButtonSound(t *testing.T) {
-	candidates := loginConfirmSFXCandidates()
-	if len(candidates) < 4 {
-		t.Fatalf("confirm sfx candidates = %#v", candidates)
-	}
-	if candidates[0] != "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav" {
-		t.Fatalf("first confirm sfx candidate = %q", candidates[0])
-	}
-	if candidates[2] != "click.wav" || candidates[3] != "button.wav" {
-		t.Fatalf("confirm sfx fallbacks = %#v, want click/button after classic Korean sound", candidates)
+func TestLoginConfirmSFXUsesClassicButtonSound(t *testing.T) {
+	if loginConfirmSFX != "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav" {
+		t.Fatalf("confirm sfx = %q", loginConfirmSFX)
 	}
 }
 

@@ -73,6 +73,7 @@ type loginFadeState struct {
 }
 
 const loginTransitionDuration = 500 * time.Millisecond
+const loginConfirmSFX = "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav"
 
 func NewLoginMode() *LoginMode {
 	return &LoginMode{status: "select a server", maxSlots: 9}
@@ -654,38 +655,14 @@ func (m *LoginMode) playLoginBGM(ctx client.Context) {
 }
 
 func (m *LoginMode) playConfirmSFX(ctx client.Context) {
-	playLoginSFXFirst(ctx, loginConfirmSFXCandidates()...)
-}
-
-func playLoginSFXFirst(ctx client.Context, paths ...string) {
 	if ctx.Audio == nil {
 		return
 	}
-	for _, path := range paths {
-		if strings.TrimSpace(path) == "" {
-			continue
+	source, err := ctx.Audio.PlaySFX(loginConfirmSFX)
+	if err == nil {
+		if source != "" {
+			log.Printf("sfx playing path=%s source=%s", loginConfirmSFX, source)
 		}
-		source, err := ctx.Audio.PlaySFX(path)
-		if err == nil {
-			if source != "" {
-				log.Printf("sfx playing path=%s source=%s", path, source)
-			}
-			return
-		}
-	}
-}
-
-func loginConfirmSFXCandidates() []string {
-	const koreanButtonSound = "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav"
-	return []string{
-		koreanButtonSound,
-		"wav\\" + koreanButtonSound,
-		"click.wav",
-		"button.wav",
-		"btnok.wav",
-		"btn_ok.wav",
-		"ok.wav",
-		"enter.wav",
 	}
 }
 
