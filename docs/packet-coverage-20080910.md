@@ -188,7 +188,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x00B9` | C->S | referenced | `0x00b9` | `6` | `clif_parse_NpcNextClicked` | npc_packets.go |
 | `0x00BA` | S->C | referenced | `0x00ba` | `2` | `-` | packet.go |
 | `0x00BB` | C->S | referenced | `0x00bb` | `5` | `clif_parse_StatusUp` | packet.go, status_packets.go |
-| `0x00BF` | C->S | referenced | `HEADER_CZ_REQ_EMOTION` | `sizeof( PACKET_CZ_REQ_EMOTION )` | `clif_parse_Emotion` | packet.go |
+| `0x00BF` | C->S | referenced | `HEADER_CZ_REQ_EMOTION` | `sizeof( PACKET_CZ_REQ_EMOTION )` | `clif_parse_Emotion` | emotion_packets.go, packet.go |
 | `0x00C1` | C->S | referenced | `0x00c1` | `2` | `clif_parse_HowManyConnections` | packet.go |
 | `0x00C3` | S->C | referenced | `0x00c3` | `8` | `-` | actor_packets.go, packet.go |
 | `0x00C5` | C->S | referenced | `HEADER_CZ_ACK_SELECT_DEALTYPE` | `sizeof( PACKET_CZ_ACK_SELECT_DEALTYPE )` | `clif_parse_NpcBuySellSelected` | item_packets.go, packet.go |

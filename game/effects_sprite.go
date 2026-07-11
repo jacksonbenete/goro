@@ -175,6 +175,9 @@ func (m *WorldMode) drawSPREffect(screen *render.Image, ctx client.Context, proj
 		return
 	}
 	actionIndex := component.spriteFrame
+	if effect.hasSpriteFrame {
+		actionIndex = effect.spriteFrameOverride
+	}
 	if component.spriteDirection {
 		if actor, ok := ctx.World.Actors[effect.actorID]; ok {
 			actionIndex = actor.RenderDirection(now) % len(view.act.Actions)
@@ -231,7 +234,11 @@ func (m *WorldMode) drawSPREffect(screen *render.Image, ctx client.Context, proj
 		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, z, effectPixelRatio, 0, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 		return
 	}
-	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, z, 1, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+	scale := 1.0
+	if component.attachedEntity {
+		scale = actorBillboardScreenScale(projection, worldX, worldY, worldZ)
+	}
+	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, z, scale, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 }
 
 const effectSpriteRoot = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\"

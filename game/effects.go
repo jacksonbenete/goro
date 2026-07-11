@@ -147,6 +147,7 @@ const (
 	effectTorchPurple    = 696
 	effectCloud7         = 697
 	effectCloud8         = 698
+	effectEmotion        = 1000000
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -163,15 +164,17 @@ const (
 )
 
 type worldEffect struct {
-	effectID int
-	actorID  uint32
-	targetID uint32
-	x        int
-	y        int
-	starts   time.Time
-	expires  time.Time
-	duration time.Duration
-	size     float64
+	effectID            int
+	actorID             uint32
+	targetID            uint32
+	x                   int
+	y                   int
+	starts              time.Time
+	expires             time.Time
+	duration            time.Duration
+	size                float64
+	spriteFrameOverride int
+	hasSpriteFrame      bool
 }
 
 type worldEffectSpec struct {
@@ -1255,6 +1258,16 @@ func skillAction(skillID uint16) skillActionSpec {
 }
 
 func worldEffectSpecForID(effectID int) (worldEffectSpec, bool) {
+	if effectID == effectEmotion {
+		return worldEffectSpec{
+			components: []worldEffectComponent{{
+				kind:           effectComponentSPR,
+				spriteFile:     "emotion",
+				attachedEntity: true,
+				spriteYOffset:  -100,
+			}},
+		}, true
+	}
 	spec, ok := db.EffectSpecs[effectID]
 	if !ok {
 		return worldEffectSpec{}, false

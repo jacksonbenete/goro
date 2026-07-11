@@ -399,6 +399,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			addWhisperAck(&m.console, ctx.Resources, ack)
 			continue
 		}
+		if emotion, ok, err := network.ParseEmotionNotify(pkt); err != nil {
+			log.Printf("parse emotion 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyEmotionNotify(ctx, emotion)
+			continue
+		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			log.Printf("parse map change 0x%04X: %v", pkt.ID, err)
 		} else if ok {

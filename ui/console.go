@@ -12,6 +12,7 @@ import (
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
@@ -240,8 +241,29 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 		c.submitWhisper(ctx, text)
 		return true
 	default:
+		if emotionID, ok := db.EmotionCommandID(strings.TrimPrefix(command, "/")); ok {
+			c.submitEmotion(ctx, emotionID)
+			return true
+		}
 		return false
 	}
+}
+
+func (c *ChatConsole) submitEmotion(ctx client.Context, emotionID uint8) {
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendEmotion(emotionID); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	c.setInput("")
+	c.setActive(false)
 }
 
 func (c *ChatConsole) submitWhisper(ctx client.Context, text string) {

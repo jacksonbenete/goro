@@ -3304,6 +3304,23 @@ func TestBlessingEffectSpecUsesRobrowserSpritesAndParticles(t *testing.T) {
 	}
 }
 
+func TestEmotionEffectSpecUsesEntityAttachmentOffset(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectEmotion)
+	if !ok {
+		t.Fatal("emotion effect spec missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectComponentSPR || component.spriteFile != "emotion" {
+		t.Fatalf("emotion component = %+v", component)
+	}
+	if !component.attachedEntity || component.spriteYOffset != -100 || component.spriteHead {
+		t.Fatalf("emotion placement = %+v", component)
+	}
+}
+
 func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
 	component := worldEffectComponent{
 		alphaMax:      0.2,
