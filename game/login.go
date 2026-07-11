@@ -568,7 +568,7 @@ func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 }
 
 func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Image) {
-	clear(screen)
+	screen.Fill(render.ColorBackground)
 	width, height := ctx.ScreenSize()
 	if width <= 0 || height <= 0 {
 		return

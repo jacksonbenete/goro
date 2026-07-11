@@ -9,6 +9,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -289,7 +290,7 @@ func (w *CharacterSelectWindow) infoPanel(character session.Character, hasCharac
 		primitives.HBox(
 			primitives.Box(
 				rotheme.Text(trimRunes(character.Name, 24)),
-				rotheme.Text(fmt.Sprintf("Job: %s", trimRunes(CharacterJobName(character), 18))),
+				rotheme.Text(fmt.Sprintf("Job: %s", trimRunes(db.JobDisplayName(int(character.Job)), 18))),
 				rotheme.Text(fmt.Sprintf("Lv: %d / Job %d", character.Level, character.JobLevel)),
 				rotheme.Text(fmt.Sprintf("HP: %d / %d", character.HP, character.MaxHP)),
 				rotheme.Text(fmt.Sprintf("SP: %d / %d", character.SP, character.MaxSP)),

@@ -11,6 +11,7 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -73,7 +74,7 @@ func (w *CharacterWindow) widgetTree(ctx Context) widget.Widget {
 	if name == "" {
 		name = "Player"
 	}
-	jobName := strings.TrimSpace(CharacterJobName(character))
+	jobName := strings.TrimSpace(db.JobDisplayName(int(character.Job)))
 	title := trimRunes(name, 20)
 	if jobName != "" {
 		title = trimRunes(fmt.Sprintf("%s (%s)", name, jobName), 32)
@@ -152,7 +153,7 @@ func characterWindowSnapshot(s *session.Session) string {
 		"name=%s;job=%d;%s;hp=%d/%d;sp=%d/%d;bl=%d;jl=%d;bexp=%d/%d;jexp=%d/%d;zeny=%d;weight=%d/%d",
 		character.Name,
 		character.Job,
-		CharacterJobName(character),
+		db.JobDisplayName(int(character.Job)),
 		vitals.HP,
 		vitals.MaxHP,
 		vitals.SP,
