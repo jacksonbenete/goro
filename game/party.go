@@ -163,19 +163,25 @@ func applyPartyOption(ctx client.Context, option network.PartyOption) {
 }
 
 func applyPartyMemberHP(ctx client.Context, hp network.PartyMemberHP) {
-	if ctx.Session == nil {
+	if ctx.Session == nil || !ctx.Session.Party.Active() {
 		return
 	}
-	member := ensurePartyMember(&ctx.Session.Party, hp.AccountID)
+	member := findPartyMember(&ctx.Session.Party, hp.AccountID)
+	if member == nil {
+		return
+	}
 	member.HP = hp.HP
 	member.MaxHP = hp.MaxHP
 }
 
 func applyPartyMemberPosition(ctx client.Context, pos network.PartyMemberPosition) {
-	if ctx.Session == nil {
+	if ctx.Session == nil || !ctx.Session.Party.Active() {
 		return
 	}
-	member := ensurePartyMember(&ctx.Session.Party, pos.AccountID)
+	member := findPartyMember(&ctx.Session.Party, pos.AccountID)
+	if member == nil {
+		return
+	}
 	member.X = pos.X
 	member.Y = pos.Y
 }
@@ -204,13 +210,20 @@ func upsertPartyMember(p *session.Party, member session.PartyMember) {
 }
 
 func ensurePartyMember(p *session.Party, accountID uint32) *session.PartyMember {
+	if member := findPartyMember(p, accountID); member != nil {
+		return member
+	}
+	p.Members = append(p.Members, session.PartyMember{AccountID: accountID, Name: "Player"})
+	return &p.Members[len(p.Members)-1]
+}
+
+func findPartyMember(p *session.Party, accountID uint32) *session.PartyMember {
 	for i := range p.Members {
 		if p.Members[i].AccountID == accountID {
 			return &p.Members[i]
 		}
 	}
-	p.Members = append(p.Members, session.PartyMember{AccountID: accountID, Name: "Player"})
-	return &p.Members[len(p.Members)-1]
+	return nil
 }
 
 func sessionPartyMemberFromNetwork(member network.PartyMember) session.PartyMember {
