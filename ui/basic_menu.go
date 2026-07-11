@@ -20,7 +20,7 @@ const (
 )
 
 type BasicMenu struct {
-	window    WindowState
+	WindowHandle
 	content   widget.Widget
 	callbacks BasicMenuCallbacks
 }
@@ -54,7 +54,11 @@ var basicMenuButtons = []basicMenuButton{
 
 func (m *BasicMenu) Update(ctx client.Context, callbacks BasicMenuCallbacks) bool {
 	m.callbacks = callbacks
-	m.ensureWindow()
+	width, height := basicMenuSize()
+	if m.EnsureWindow(width, height) {
+		m.window.titleHeight = 0
+		m.window.SetCloseOnEscape(false)
+	}
 	if !m.window.IsOpen() {
 		m.window.OpenAt(basicMenuX, basicMenuY, m.widgetTree())
 	} else if m.content == nil {
@@ -67,7 +71,11 @@ func (m *BasicMenu) Update(ctx client.Context, callbacks BasicMenuCallbacks) boo
 
 func (m *BasicMenu) Rebind(ctx client.Context, callbacks BasicMenuCallbacks) {
 	m.callbacks = callbacks
-	m.ensureWindow()
+	width, height := basicMenuSize()
+	if m.EnsureWindow(width, height) {
+		m.window.titleHeight = 0
+		m.window.SetCloseOnEscape(false)
+	}
 	m.content = nil
 	if !m.window.IsOpen() {
 		return
@@ -77,19 +85,14 @@ func (m *BasicMenu) Rebind(ctx client.Context, callbacks BasicMenuCallbacks) {
 }
 
 func basicMenuBounds() (int, int, int, int) {
-	w := basicMenuPad*2 + basicMenuCols*basicMenuButtonW + (basicMenuCols-1)*basicMenuGapX
-	h := basicMenuPad*2 + basicMenuRows*basicMenuButtonH + (basicMenuRows-1)*basicMenuGapY
+	w, h := basicMenuSize()
 	return basicMenuX, basicMenuY, w, h
 }
 
-func (m *BasicMenu) ensureWindow() {
-	if m.window.width != 0 {
-		return
-	}
-	_, _, width, height := basicMenuBounds()
-	m.window = NewWindowState(width, height)
-	m.window.titleHeight = 0
-	m.window.SetCloseOnEscape(false)
+func basicMenuSize() (int, int) {
+	w := basicMenuPad*2 + basicMenuCols*basicMenuButtonW + (basicMenuCols-1)*basicMenuGapX
+	h := basicMenuPad*2 + basicMenuRows*basicMenuButtonH + (basicMenuRows-1)*basicMenuGapY
+	return w, h
 }
 
 func (m *BasicMenu) widgetTree() widget.Widget {
@@ -117,7 +120,7 @@ func (m *BasicMenu) widgetTree() widget.Widget {
 				CrossAlign(primitives.CrossAxisStretch),
 		)
 	}
-	_, _, width, height := basicMenuBounds()
+	width, height := basicMenuSize()
 	m.content = Window(
 		TitleBar(false),
 		Size(float32(width), float32(height)),

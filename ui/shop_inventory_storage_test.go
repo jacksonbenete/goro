@@ -169,7 +169,7 @@ func TestStorageDragReleaseOverInventoryWithdraws(t *testing.T) {
 	inputState.SetMouseButton(render.MouseButtonLeft, false)
 
 	inventory := InventoryBagWindow{}
-	inventory.ensureWindow()
+	inventory.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
 	inventory.window.OpenAt(24, 24, nil)
 	storage := StorageWindow{
 		dragItem:   session.InventoryItem{Index: 9, ItemID: 938, Amount: 2},

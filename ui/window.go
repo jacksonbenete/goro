@@ -209,6 +209,14 @@ func (h *WindowHandle) Widget() widget.Widget {
 	return h.window.Widget()
 }
 
+func (h *WindowHandle) EnsureWindow(width, height int) bool {
+	if h.window.width != 0 {
+		return false
+	}
+	h.window = NewWindowState(width, height)
+	return true
+}
+
 type ContextWindowHandle struct {
 	WindowHandle
 	ctx client.Context

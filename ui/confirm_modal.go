@@ -36,7 +36,8 @@ func (m *ConfirmModal) Open(ctx client.Context, title, message string, onOK, onC
 	m.onOK = onOK
 	m.onCancel = onCancel
 	m.ctx = ctx
-	m.ensureWindow()
+	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
+	m.window.SetCloseOnEscape(false)
 	m.window.Open(ctx, m.widgetTree(ctx))
 	m.Publish(ctx)
 }
@@ -87,16 +88,9 @@ func (m *ConfirmModal) Close(ctx client.Context) {
 	m.close(ctx)
 }
 
-func (m *ConfirmModal) ensureWindow() {
-	if m.window.width != 0 {
-		return
-	}
-	m.window = NewWindowState(smallPromptWidth, smallPromptHeight)
-	m.window.SetCloseOnEscape(false)
-}
-
 func (m *ConfirmModal) openWindow(ctx client.Context) {
-	m.ensureWindow()
+	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
+	m.window.SetCloseOnEscape(false)
 	if !m.window.IsOpen() {
 		m.window.Open(ctx, m.widgetTree(ctx))
 	}

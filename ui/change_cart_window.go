@@ -25,7 +25,7 @@ type ChangeCartWindow struct {
 
 func (w *ChangeCartWindow) Open(ctx client.Context) {
 	w.ctx = ctx
-	w.ensureWindow()
+	w.EnsureWindow(changeCartWindowWidth, changeCartWindowHeight)
 	w.status = ""
 	if !inventoryBagHasCart(ctx) {
 		w.status = "You need a cart."
@@ -49,12 +49,6 @@ func (w *ChangeCartWindow) Update(ctx client.Context) bool {
 	}
 	w.Publish(ctx)
 	return true
-}
-
-func (w *ChangeCartWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(changeCartWindowWidth, changeCartWindowHeight)
-	}
 }
 
 func (w *ChangeCartWindow) refresh(ctx client.Context) {

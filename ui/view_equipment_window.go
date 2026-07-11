@@ -22,7 +22,7 @@ type ViewEquipmentWindow struct {
 }
 
 func (w *ViewEquipmentWindow) Open(ctx Context, view network.ViewedEquipment, assets AssetProvider) {
-	w.ensureWindow()
+	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight-equipmentFooterH)
 	w.title = view.Name
 	if w.title == "" {
 		w.title = "Equipment"
@@ -51,7 +51,7 @@ func (w *ViewEquipmentWindow) Open(ctx Context, view network.ViewedEquipment, as
 }
 
 func (w *ViewEquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
-	w.ensureWindow()
+	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight-equipmentFooterH)
 	if !w.window.IsOpen() {
 		return false
 	}
@@ -62,13 +62,6 @@ func (w *ViewEquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *ViewEquipmentWindow) ensureWindow() {
-	if w.window.width != 0 {
-		return
-	}
-	w.window = NewWindowState(equipmentWindowWidth, equipmentWindowHeight-equipmentFooterH)
 }
 
 func (w *ViewEquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {

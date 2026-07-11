@@ -32,7 +32,7 @@ type statRow struct {
 }
 
 func (w *StatsWindow) Toggle(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
 	if w.window.IsOpen() {
 		w.window.Close()
 		w.Publish(ctx)
@@ -45,7 +45,7 @@ func (w *StatsWindow) Toggle(ctx Context) {
 }
 
 func (w *StatsWindow) Update(ctx Context) bool {
-	w.ensureWindow()
+	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
 	if !w.window.IsOpen() {
 		return false
 	}
@@ -60,7 +60,7 @@ func (w *StatsWindow) Update(ctx Context) bool {
 }
 
 func (w *StatsWindow) Rebind(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
 	if !w.window.IsOpen() {
 		return
 	}
@@ -68,7 +68,7 @@ func (w *StatsWindow) Rebind(ctx Context) {
 }
 
 func (w *StatsWindow) refresh(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
 	if !w.window.IsOpen() {
 		return
 	}
@@ -77,14 +77,8 @@ func (w *StatsWindow) refresh(ctx Context) {
 	w.Publish(ctx)
 }
 
-func (w *StatsWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(statsWindowWidth, statsWindowHeight)
-	}
-}
-
 func (w *StatsWindow) close(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
 	w.window.Close()
 	w.Publish(ctx)
 }

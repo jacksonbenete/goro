@@ -53,7 +53,7 @@ func (w *FriendsWindow) Toggle(ctx Context) {
 }
 
 func (w *FriendsWindow) OpenWindow(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
 	w.ctx = ctx
 	w.snapshot = friendsWindowSnapshot(ctx.Session)
 	w.tab = friendsWindowTabFriends
@@ -62,7 +62,7 @@ func (w *FriendsWindow) OpenWindow(ctx Context) {
 }
 
 func (w *FriendsWindow) Update(ctx Context) bool {
-	w.ensureWindow()
+	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
 	w.ctx = ctx
 	if !w.window.IsOpen() {
 		return false
@@ -78,7 +78,7 @@ func (w *FriendsWindow) Update(ctx Context) bool {
 }
 
 func (w *FriendsWindow) Rebind(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
 	if !w.window.IsOpen() {
 		return
 	}
@@ -92,12 +92,6 @@ func (w *FriendsWindow) PopAction() FriendsWindowAction {
 	action := w.action
 	w.action = FriendsWindowActionNone
 	return action
-}
-
-func (w *FriendsWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(friendsWindowWidth, friendsWindowHeight)
-	}
 }
 
 func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {

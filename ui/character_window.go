@@ -37,7 +37,7 @@ type CharacterWindow struct {
 }
 
 func (w *CharacterWindow) Update(ctx Context) bool {
-	w.ensureWindow()
+	w.EnsureWindow(characterWindowWidth, characterWindowHeight)
 	if ctx.Session == nil {
 		w.window.Close()
 		w.Publish(ctx)
@@ -55,12 +55,6 @@ func (w *CharacterWindow) Update(ctx Context) bool {
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *CharacterWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(characterWindowWidth, characterWindowHeight)
-	}
 }
 
 func (w *CharacterWindow) widgetTree(ctx Context) widget.Widget {

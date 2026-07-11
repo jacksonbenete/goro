@@ -22,7 +22,7 @@ type PartySettingsWindow struct {
 }
 
 func (w *PartySettingsWindow) Open(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(partySettingsW, ROWindowTitleHeight+partySettingsContent+partySettingsFooterH)
 	w.ctx = ctx
 	party := sessionParty(ctx.Session)
 	w.expShare = party.ExpShare
@@ -31,7 +31,7 @@ func (w *PartySettingsWindow) Open(ctx Context) {
 }
 
 func (w *PartySettingsWindow) Update(ctx Context) bool {
-	w.ensureWindow()
+	w.EnsureWindow(partySettingsW, ROWindowTitleHeight+partySettingsContent+partySettingsFooterH)
 	w.ctx = ctx
 	if !w.window.IsOpen() {
 		return false
@@ -48,13 +48,6 @@ func (w *PartySettingsWindow) Rebind(ctx Context) {
 	w.ctx = ctx
 	w.window.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
-}
-
-func (w *PartySettingsWindow) ensureWindow() {
-	if w.window.width != 0 {
-		return
-	}
-	w.window = NewWindowState(partySettingsW, ROWindowTitleHeight+partySettingsContent+partySettingsFooterH)
 }
 
 func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {

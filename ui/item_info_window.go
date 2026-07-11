@@ -37,7 +37,7 @@ func (w *ItemInfoWindow) openItem(ctx Context, item session.InventoryItem, mouse
 	if item.ItemID == 0 {
 		return
 	}
-	w.ensureWindow()
+	w.EnsureWindow(itemInfoWindowWidth, itemInfoWindowHeight)
 	w.item = item
 	w.title = "Item Information"
 	w.details = itemInfoDetailLines(item)
@@ -52,7 +52,7 @@ func (w *ItemInfoWindow) openItem(ctx Context, item session.InventoryItem, mouse
 }
 
 func (w *ItemInfoWindow) Update(ctx Context, assets AssetProvider) bool {
-	w.ensureWindow()
+	w.EnsureWindow(itemInfoWindowWidth, itemInfoWindowHeight)
 	if !w.window.IsOpen() {
 		return false
 	}
@@ -70,7 +70,7 @@ func (w *ItemInfoWindow) Update(ctx Context, assets AssetProvider) bool {
 }
 
 func (w *ItemInfoWindow) Rebind(ctx Context, assets AssetProvider) {
-	w.ensureWindow()
+	w.EnsureWindow(itemInfoWindowWidth, itemInfoWindowHeight)
 	if !w.window.IsOpen() {
 		return
 	}
@@ -79,12 +79,6 @@ func (w *ItemInfoWindow) Rebind(ctx Context, assets AssetProvider) {
 	}
 	w.window.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
-}
-
-func (w *ItemInfoWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(itemInfoWindowWidth, itemInfoWindowHeight)
-	}
 }
 
 func (w *ItemInfoWindow) widgetTree(ctx Context) widget.Widget {

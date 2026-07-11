@@ -53,7 +53,7 @@ type tradeWindowItem struct {
 }
 
 func (w *TradeWindow) Open(ctx Context, partnerName string) {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	w.ctx = ctx
 	w.partnerName = strings.TrimSpace(partnerName)
 	if w.partnerName == "" {
@@ -72,7 +72,7 @@ func (w *TradeWindow) Open(ctx Context, partnerName string) {
 }
 
 func (w *TradeWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	if !w.window.IsOpen() || ctx.Input == nil {
 		return false
 	}
@@ -83,13 +83,13 @@ func (w *TradeWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 }
 
 func (w *TradeWindow) Close(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	w.window.Close()
 	w.Publish(ctx)
 }
 
 func (w *TradeWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	if !w.window.IsOpen() || w.selfOK || item.Index == 0 || !pointInRect(mx, my, w.sendPanelX(), w.sendPanelY(), tradePanelW, tradePanelH) {
 		return false
 	}
@@ -113,7 +113,7 @@ func (w *TradeWindow) AcceptInventoryDrop(ctx Context, item session.InventoryIte
 }
 
 func (w *TradeWindow) AddOwnItemAck(ctx Context, ack network.TradeAddItemAck) {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	if ack.Result != 0 {
 		delete(w.pending, ack.Index)
 		log.Printf("trade add item rejected index=%d result=%d", ack.Index, ack.Result)
@@ -134,7 +134,7 @@ func (w *TradeWindow) AddOwnItemAck(ctx Context, ack network.TradeAddItemAck) {
 }
 
 func (w *TradeWindow) AddReceivedItem(ctx Context, item network.TradeItem) {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	if item.ItemID == 0 {
 		w.recvZeny = item.Amount
 		w.refresh(ctx)
@@ -151,7 +151,7 @@ func (w *TradeWindow) AddReceivedItem(ctx Context, item network.TradeItem) {
 }
 
 func (w *TradeWindow) SetConcluded(ctx Context, other bool) {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	if other {
 		w.otherOK = true
 	} else {
@@ -161,19 +161,12 @@ func (w *TradeWindow) SetConcluded(ctx Context, other bool) {
 }
 
 func (w *TradeWindow) Undo(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(tradeWindowW, tradeWindowH)
 	w.selfOK = false
 	w.sendItems = nil
 	w.sendZeny = 0
 	w.pending = make(map[uint16]session.InventoryItem)
 	w.refresh(ctx)
-}
-
-func (w *TradeWindow) ensureWindow() {
-	if w.window.width != 0 {
-		return
-	}
-	w.window = NewWindowState(tradeWindowW, tradeWindowH)
 }
 
 func (w *TradeWindow) refresh(ctx Context) {

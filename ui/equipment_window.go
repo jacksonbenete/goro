@@ -88,7 +88,7 @@ var (
 )
 
 func (w *EquipmentWindow) Toggle(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
 	if w.window.IsOpen() {
 		w.window.Close()
 		w.Publish(ctx)
@@ -102,7 +102,7 @@ func (w *EquipmentWindow) Toggle(ctx Context) {
 }
 
 func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow, assets AssetProvider) bool {
-	w.ensureWindow()
+	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
 	if !w.window.IsOpen() {
 		return false
 	}
@@ -128,14 +128,8 @@ func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, cart *Ca
 	return consumed
 }
 
-func (w *EquipmentWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(equipmentWindowWidth, equipmentWindowHeight)
-	}
-}
-
 func (w *EquipmentWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow, assets AssetProvider) {
-	w.ensureWindow()
+	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
 	if !w.window.IsOpen() {
 		return
 	}

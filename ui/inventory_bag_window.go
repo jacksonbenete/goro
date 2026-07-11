@@ -70,7 +70,7 @@ type inventoryBagIconKey struct {
 }
 
 func (w *InventoryBagWindow) Toggle(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
 	if w.window.IsOpen() {
 		w.window.Close()
 		w.Publish(ctx)
@@ -85,7 +85,7 @@ func (w *InventoryBagWindow) Toggle(ctx Context) {
 }
 
 func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow, itemInfo *ItemInfoWindow) bool {
-	w.ensureWindow()
+	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
 	if !w.window.IsOpen() || ctx.Input == nil {
 		return false
 	}
@@ -157,14 +157,8 @@ func (w *InventoryBagWindow) DrawDragGhost(screen *render.Image, ctx Context, as
 	assets.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, ctx.Input.MouseX-inventoryIconSize/2, ctx.Input.MouseY-inventoryIconSize/2)
 }
 
-func (w *InventoryBagWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(inventoryBagWidth, inventoryBagHeight)
-	}
-}
-
 func (w *InventoryBagWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) {
-	w.ensureWindow()
+	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
 	if !w.window.IsOpen() {
 		return
 	}
@@ -282,7 +276,7 @@ func (w *InventoryBagWindow) pointInside(x, y int) bool {
 }
 
 func (w *InventoryBagWindow) AcceptStorageDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
-	w.ensureWindow()
+	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
 	return w.window.IsOpen() && w.pointInside(mx, my)
 }
 

@@ -116,14 +116,8 @@ func (m *EscapeMenu) Action() EscapeMenuAction {
 	return m.action
 }
 
-func (m *EscapeMenu) ensureWindow() {
-	if m.window.width == 0 {
-		m.window = NewWindowState(escapeMenuWidth, escapeMenuHeight)
-	}
-}
-
 func (m *EscapeMenu) openWindow(ctx client.Context) {
-	m.ensureWindow()
+	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
 	if !m.window.IsOpen() {
 		m.window.Open(ctx, m.widgetTree(ctx))
 	}
@@ -131,7 +125,7 @@ func (m *EscapeMenu) openWindow(ctx client.Context) {
 }
 
 func (m *EscapeMenu) refresh(ctx client.Context) {
-	m.ensureWindow()
+	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
 	if !m.open || !m.window.IsOpen() {
 		return
 	}

@@ -135,16 +135,9 @@ func (m *DeathModal) PendingAction() DeathModalAction {
 	return m.pending
 }
 
-func (m *DeathModal) ensureWindow(ctx client.Context) {
-	if m.window.width != 0 {
-		return
-	}
-	m.window = NewWindowState(deathModalWidth, deathModalHeight)
-	m.window.SetCloseOnEscape(false)
-}
-
 func (m *DeathModal) openWindow(ctx client.Context) {
-	m.ensureWindow(ctx)
+	m.EnsureWindow(deathModalWidth, deathModalHeight)
+	m.window.SetCloseOnEscape(false)
 	if !m.window.IsOpen() {
 		m.window.Open(ctx, m.widgetTree(ctx))
 	}
