@@ -31,8 +31,8 @@ const (
 )
 
 type TradeWindow struct {
-	window WindowState
-	ctx    Context
+	WindowHandle
+	ctx Context
 
 	partnerName string
 	sendItems   []tradeWindowItem
@@ -71,11 +71,6 @@ func (w *TradeWindow) Open(ctx Context, partnerName string) {
 	w.Publish(ctx)
 }
 
-func (w *TradeWindow) IsOpen() bool {
-	w.ensureWindow()
-	return w.window.IsOpen()
-}
-
 func (w *TradeWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	w.ensureWindow()
 	if !w.window.IsOpen() || ctx.Input == nil {
@@ -85,11 +80,6 @@ func (w *TradeWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *TradeWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	w.window.Publish(ctx)
 }
 
 func (w *TradeWindow) Close(ctx Context) {

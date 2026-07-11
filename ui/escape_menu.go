@@ -19,10 +19,10 @@ const (
 )
 
 type EscapeMenu struct {
+	WindowHandle
 	open    bool
 	action  EscapeMenuAction
 	pending bool
-	window  WindowState
 	ctx     client.Context
 }
 
@@ -128,14 +128,6 @@ func (m *EscapeMenu) openWindow(ctx client.Context) {
 		m.window.Open(ctx, m.widgetTree(ctx))
 	}
 	m.Publish(ctx)
-}
-
-func (m *EscapeMenu) Publish(ctx client.Context) {
-	m.ensureWindow()
-	if ctx.UIManager == nil {
-		return
-	}
-	m.window.Publish(ctx)
 }
 
 func (m *EscapeMenu) refresh(ctx client.Context) {

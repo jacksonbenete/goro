@@ -193,6 +193,32 @@ type WindowState struct {
 	closeOnEsc  bool
 }
 
+type WindowHandle struct {
+	window WindowState
+}
+
+func (h *WindowHandle) IsOpen() bool {
+	return h.window.IsOpen()
+}
+
+func (h *WindowHandle) Publish(ctx client.Context) {
+	h.window.Publish(ctx)
+}
+
+func (h *WindowHandle) Widget() widget.Widget {
+	return h.window.Widget()
+}
+
+type ContextWindowHandle struct {
+	WindowHandle
+	ctx client.Context
+}
+
+func (h *ContextWindowHandle) Close() {
+	h.window.Close()
+	h.Publish(h.ctx)
+}
+
 const grabbedWindowOpacity = 0.95
 
 func NewWindowState(width, height int) WindowState {

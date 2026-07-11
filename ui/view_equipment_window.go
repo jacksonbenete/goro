@@ -12,7 +12,7 @@ import (
 )
 
 type ViewEquipmentWindow struct {
-	window   WindowState
+	WindowHandle
 	title    string
 	items    []session.InventoryItem
 	preview  image.Image
@@ -62,11 +62,6 @@ func (w *ViewEquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *ViewEquipmentWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	w.window.Publish(ctx)
 }
 
 func (w *ViewEquipmentWindow) ensureWindow() {

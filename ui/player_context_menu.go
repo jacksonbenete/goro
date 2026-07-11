@@ -31,8 +31,7 @@ type PlayerContextAction struct {
 }
 
 type PlayerContextMenu struct {
-	window       WindowState
-	ctx          Context
+	ContextWindowHandle
 	actorID      uint32
 	name         string
 	canAddFriend bool
@@ -76,17 +75,6 @@ func (m *PlayerContextMenu) Update(ctx Context) bool {
 	consumed := m.window.Update(ctx)
 	m.Publish(ctx)
 	return consumed
-}
-
-func (m *PlayerContextMenu) Close() {
-	m.ensureWindow()
-	m.window.Close()
-	m.Publish(m.ctx)
-}
-
-func (m *PlayerContextMenu) Publish(ctx Context) {
-	m.ensureWindow()
-	m.window.Publish(ctx)
 }
 
 func (m *PlayerContextMenu) PopAction() PlayerContextAction {

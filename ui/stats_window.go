@@ -19,7 +19,7 @@ const (
 )
 
 type StatsWindow struct {
-	window   WindowState
+	WindowHandle
 	snapshot string
 }
 
@@ -57,11 +57,6 @@ func (w *StatsWindow) Update(ctx Context) bool {
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *StatsWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	w.window.Publish(ctx)
 }
 
 func (w *StatsWindow) Rebind(ctx Context) {

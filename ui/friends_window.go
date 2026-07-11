@@ -23,8 +23,7 @@ const (
 )
 
 type FriendsWindow struct {
-	window   WindowState
-	ctx      Context
+	ContextWindowHandle
 	snapshot string
 	tab      friendsWindowTab
 	action   FriendsWindowAction
@@ -76,22 +75,6 @@ func (w *FriendsWindow) Update(ctx Context) bool {
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *FriendsWindow) IsOpen() bool {
-	w.ensureWindow()
-	return w.window.IsOpen()
-}
-
-func (w *FriendsWindow) Close() {
-	w.ensureWindow()
-	w.window.Close()
-	w.Publish(w.ctx)
-}
-
-func (w *FriendsWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	w.window.Publish(ctx)
 }
 
 func (w *FriendsWindow) Rebind(ctx Context) {

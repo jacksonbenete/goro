@@ -25,7 +25,7 @@ const (
 )
 
 type ItemInfoWindow struct {
-	window       WindowState
+	WindowHandle
 	item         session.InventoryItem
 	title        string
 	details      []string
@@ -67,15 +67,6 @@ func (w *ItemInfoWindow) Update(ctx Context, assets AssetProvider) bool {
 	}
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *ItemInfoWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
-		w.window.Unpublish(ctx)
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func (w *ItemInfoWindow) Rebind(ctx Context, assets AssetProvider) {

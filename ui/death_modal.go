@@ -20,9 +20,9 @@ const (
 )
 
 type DeathModal struct {
+	WindowHandle
 	open    bool
 	pending DeathModalAction
-	window  WindowState
 	ctx     client.Context
 }
 
@@ -149,13 +149,6 @@ func (m *DeathModal) openWindow(ctx client.Context) {
 		m.window.Open(ctx, m.widgetTree(ctx))
 	}
 	m.Publish(ctx)
-}
-
-func (m *DeathModal) Publish(ctx client.Context) {
-	if ctx.UIManager == nil {
-		return
-	}
-	m.window.Publish(ctx)
 }
 
 func (m *DeathModal) refresh(ctx client.Context) {

@@ -10,7 +10,6 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
-	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -30,7 +29,7 @@ const (
 )
 
 type EquipmentWindow struct {
-	window   WindowState
+	WindowHandle
 	snapshot string
 	itemInfo *ItemInfoWindow
 	cart     *CartWindow
@@ -133,14 +132,6 @@ func (w *EquipmentWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(equipmentWindowWidth, equipmentWindowHeight)
 	}
-}
-
-func (w *EquipmentWindow) Publish(ctx client.Context) {
-	w.ensureWindow()
-	if ctx.UIManager == nil {
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func (w *EquipmentWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow, assets AssetProvider) {

@@ -19,8 +19,7 @@ const (
 )
 
 type SettingsWindow struct {
-	window WindowState
-	ctx    client.Context
+	ContextWindowHandle
 }
 
 func (w *SettingsWindow) OpenWindow(ctx client.Context) {
@@ -39,25 +38,6 @@ func (w *SettingsWindow) Update(ctx client.Context) bool {
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *SettingsWindow) IsOpen() bool {
-	w.ensureWindow(w.ctx)
-	return w.window.IsOpen()
-}
-
-func (w *SettingsWindow) Close() {
-	w.ensureWindow(w.ctx)
-	w.window.Close()
-	w.Publish(w.ctx)
-}
-
-func (w *SettingsWindow) Publish(ctx client.Context) {
-	w.ensureWindow(ctx)
-	if ctx.UIManager == nil {
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func (w *SettingsWindow) Rebind(ctx client.Context) {

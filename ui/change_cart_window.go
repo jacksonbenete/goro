@@ -19,9 +19,8 @@ const (
 )
 
 type ChangeCartWindow struct {
-	window WindowState
+	ContextWindowHandle
 	status string
-	ctx    client.Context
 }
 
 func (w *ChangeCartWindow) Open(ctx client.Context) {
@@ -50,17 +49,6 @@ func (w *ChangeCartWindow) Update(ctx client.Context) bool {
 	}
 	w.Publish(ctx)
 	return true
-}
-
-func (w *ChangeCartWindow) IsOpen() bool {
-	return w.window.IsOpen()
-}
-
-func (w *ChangeCartWindow) Publish(ctx client.Context) {
-	if ctx.UIManager == nil {
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func (w *ChangeCartWindow) ensureWindow() {

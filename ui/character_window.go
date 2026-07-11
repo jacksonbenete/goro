@@ -32,7 +32,7 @@ var (
 )
 
 type CharacterWindow struct {
-	window   WindowState
+	WindowHandle
 	snapshot string
 }
 
@@ -55,11 +55,6 @@ func (w *CharacterWindow) Update(ctx Context) bool {
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *CharacterWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	w.window.Publish(ctx)
 }
 
 func (w *CharacterWindow) ensureWindow() {

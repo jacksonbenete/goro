@@ -29,7 +29,7 @@ const (
 )
 
 type IdentifyWindow struct {
-	window      WindowState
+	WindowHandle
 	scrollY     state.Signal[float32]
 	selectedRow int
 	indexes     []uint16
@@ -81,11 +81,6 @@ func (w *IdentifyWindow) ApplyAck(ctx Context, ack network.ItemIdentifyAck) {
 	log.Printf("identify failed index=%d", ack.Index)
 }
 
-func (w *IdentifyWindow) IsOpen() bool {
-	w.ensureWindow()
-	return w.window.IsOpen()
-}
-
 func (w *IdentifyWindow) Update(ctx Context) bool {
 	w.ensureWindow()
 	if !w.window.IsOpen() {
@@ -113,15 +108,6 @@ func (w *IdentifyWindow) Update(ctx Context) bool {
 	}
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *IdentifyWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
-		w.window.Unpublish(ctx)
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func (w *IdentifyWindow) ensureWindow() {

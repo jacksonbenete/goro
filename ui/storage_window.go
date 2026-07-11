@@ -29,7 +29,7 @@ const (
 )
 
 type StorageWindow struct {
-	window        WindowState
+	WindowHandle
 	scrollY       state.Signal[float32]
 	selectedRow   int
 	snapshot      string
@@ -141,15 +141,6 @@ func (w *StorageWindow) DrawDragGhost(screen *render.Image, ctx Context, assets 
 	if w.dragActive && screen != nil && ctx.Input != nil && assets != nil && time.Since(w.dragFrom) > 80*time.Millisecond {
 		assets.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, ctx.Input.MouseX-inventoryIconSize/2, ctx.Input.MouseY-inventoryIconSize/2)
 	}
-}
-
-func (w *StorageWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
-		w.window.Unpublish(ctx)
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func (w *StorageWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {

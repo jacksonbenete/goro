@@ -20,12 +20,12 @@ const (
 )
 
 type ConfirmModal struct {
+	WindowHandle
 	open     bool
 	title    string
 	message  string
 	onOK     func()
 	onCancel func()
-	window   WindowState
 	ctx      client.Context
 }
 
@@ -85,13 +85,6 @@ func (m *ConfirmModal) Cancel(ctx client.Context) {
 
 func (m *ConfirmModal) Close(ctx client.Context) {
 	m.close(ctx)
-}
-
-func (m *ConfirmModal) Publish(ctx client.Context) {
-	if ctx.UIManager == nil {
-		return
-	}
-	m.window.Publish(ctx)
 }
 
 func (m *ConfirmModal) ensureWindow() {

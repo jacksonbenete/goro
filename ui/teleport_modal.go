@@ -38,11 +38,11 @@ const (
 )
 
 type TeleportModal struct {
+	WindowHandle
 	open     bool
 	skill    session.Skill
 	mapNames []string
 	status   string
-	window   WindowState
 	scrollY  state.Signal[float32]
 	ctx      Context
 }
@@ -183,13 +183,6 @@ func (m TeleportModal) Title() string {
 
 func (m TeleportModal) IsOpen() bool {
 	return m.open
-}
-
-func (m *TeleportModal) Publish(ctx Context) {
-	if ctx.UIManager == nil {
-		return
-	}
-	m.window.Publish(ctx)
 }
 
 func (m *TeleportModal) ensureWindow() {

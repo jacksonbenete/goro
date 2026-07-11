@@ -17,8 +17,7 @@ const (
 )
 
 type PartySettingsWindow struct {
-	window   WindowState
-	ctx      Context
+	ContextWindowHandle
 	expShare uint32
 }
 
@@ -40,22 +39,6 @@ func (w *PartySettingsWindow) Update(ctx Context) bool {
 	consumed := w.window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
-}
-
-func (w *PartySettingsWindow) IsOpen() bool {
-	w.ensureWindow()
-	return w.window.IsOpen()
-}
-
-func (w *PartySettingsWindow) Close() {
-	w.ensureWindow()
-	w.window.Close()
-	w.Publish(w.ctx)
-}
-
-func (w *PartySettingsWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	w.window.Publish(ctx)
 }
 
 func (w *PartySettingsWindow) Rebind(ctx Context) {

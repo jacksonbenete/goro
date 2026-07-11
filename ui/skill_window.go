@@ -32,7 +32,7 @@ const (
 )
 
 type SkillWindow struct {
-	window         WindowState
+	WindowHandle
 	scrollY        state.Signal[float32]
 	snapshot       string
 	lastClick      uint16

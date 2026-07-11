@@ -49,7 +49,7 @@ var inventoryBagTabs = []struct {
 }
 
 type InventoryBagWindow struct {
-	window        WindowState
+	WindowHandle
 	tab           int
 	scroll        int
 	snapshot      string
@@ -161,11 +161,6 @@ func (w *InventoryBagWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(inventoryBagWidth, inventoryBagHeight)
 	}
-}
-
-func (w *InventoryBagWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	w.window.Publish(ctx)
 }
 
 func (w *InventoryBagWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) {
