@@ -35,9 +35,8 @@ Current audit state:
 - Behavior coverage is broad for first-class skills, but a few systems remain.
 - Static effect routing has been checked against roBrowser for the full
   first-class/platinum set.
-- Visual/SFX/timing parity is not globally certified yet. Treat those rows as
-  requiring live comparison unless explicitly called out by a focused test or
-  recent manual pass.
+- Visual/SFX/timing parity is being checked job by job. Treat rows as requiring
+  live comparison unless explicitly called out below.
 
 ## Static roBrowser Effect Routing Audit
 
@@ -94,11 +93,31 @@ roBrowser declares `{}` for `NV_TRICKDEAD`, `SM_AUTOBERSERK`,
 `MC_VENDING`, and `MC_CARTDECORATE`, so missing work there is behavior/status/UI
 rather than direct `SkillEffect.js` routing.
 
+## Deep Visual/SFX/Timing Audit
+
+### Novice And Swordman
+
+Source pass completed against roBrowser `SkillEffect.js`, `SkillAction.js`, and
+the relevant `EffectTable.js` entries.
+
+| Skill | Visual/SFX/timing status | Notes |
+| --- | --- | --- |
+| `NV_BASIC` | Matched action behavior | roBrowser suppresses default skill action; goro now does too. |
+| `NV_FIRSTAID` | Matched by source | Effect `309`: 2D `effect/pikapika2.bmp`, additive blend, `posz=2`, 1000ms, `_heal_effect`. |
+| `NV_TRICKDEAD` | Matched behavior | roBrowser declares no skill effect/action; goro waits for server status and holds the death pose. |
+| `SM_BASH` | Matched by source | Begin effect `16` and hit effect `1`; SFX comes from those effect IDs. |
+| `SM_PROVOKE` | Matched by source | Success effect `67`: STR `provoke` plus `effect/swordman_provoke`. |
+| `SM_MAGNUM` | Matched by source | Caster effect `17` matches roBrowser cylinders/SFX; target `quake_magnum` is modeled as camera shake. |
+| `SM_ENDURE` | Matched by source | Effect `11` and ready-fight action match roBrowser. |
+| `SM_MOVINGRECOVERY` | Server-only | No roBrowser skill effect/action. |
+| `SM_FATALBLOW` | Server-only | Bash extension; no roBrowser skill effect/action. |
+| `SM_AUTOBERSERK` | Status-driven | roBrowser declares no skill effect. rAthena toggle is `SC_AUTOBERSERK`; active combat state uses `SC_BERSERK`/`Opt3Berserk`, now propagated through imported Opt3 status state. |
+
 ## Novice
 
 - [x] `NV_BASIC` - Server-only basic interface/trade progression.
 - [x] `NV_FIRSTAID` - Recovery skill, server-authoritative HP change, client
-  effect routing covered; visual/SFX timing still needs live parity pass.
+  effect/SFX/timing source parity covered.
 - [x] `NV_TRICKDEAD` - Status-driven dead pose; no fake skill action before the
   server status update.
 
@@ -113,8 +132,8 @@ rather than direct `SkillEffect.js` routing.
 - [x] `SM_ENDURE` - roBrowser ready-fight action/effect/status routing.
 - [x] `SM_MOVINGRECOVERY` - Server-only platinum passive.
 - [x] `SM_FATALBLOW` - Server-only platinum Bash extension.
-- [ ] `SM_AUTOBERSERK` - Platinum status toggle still needs a live pass against
-  server status packets and any actor decoration expected by the 2008 client.
+- [x] `SM_AUTOBERSERK` - Platinum status toggle; direct skill effect is empty in
+  roBrowser and active Berserk Opt3 state is now imported/status-driven.
 
 ## Mage
 
@@ -200,9 +219,9 @@ rather than direct `SkillEffect.js` routing.
   UI, send the selected item, and verify inventory/equipped arrow updates.
 - [ ] Decide whether `MC_CARTDECORATE` belongs in the 2008 v1 target. If yes,
   implement the packet/UI and cart appearance handling.
-- [ ] Live-test `SM_AUTOBERSERK` with a real server status transition.
 - [ ] Perform a focused visual/SFX/timing comparison for every row in the
-  static routing audit table above.
+  static routing audit table above that is not already covered in the deep audit
+  section.
 - [ ] Run one manual first-class regression route per class on rAthena:
   targeting, cast bars, action stance, effect timing, status icon, sound,
   inventory/cart/shop side effects, and map transition cleanup.

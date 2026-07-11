@@ -520,6 +520,33 @@ func TestEnergyCoatStatusSetsActorEffectStateAndTint(t *testing.T) {
 	}
 }
 
+func TestBerserkStatusSetsActorEffectStateFromImportedOpt3Table(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusBerserk,
+		ActorID:  2000000,
+		Active:   true,
+	})
+
+	if world.Player.EffectState&db.Opt3Berserk == 0 {
+		t.Fatalf("effect state = 0x%08X, want berserk bit", world.Player.EffectState)
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusBerserk,
+		ActorID:  2000000,
+		Active:   false,
+	})
+	if world.Player.EffectState&db.Opt3Berserk != 0 {
+		t.Fatalf("effect state = 0x%08X, want berserk cleared", world.Player.EffectState)
+	}
+}
+
 func TestCollectSceneActorEntriesPreservesLocalEnergyCoatEffectState(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{
@@ -2151,6 +2178,9 @@ func TestSwordmanSkillEffectMappings(t *testing.T) {
 }
 
 func TestNoviceSkillEffectMappings(t *testing.T) {
+	if action := skillAction(db.SkillNVBasic); !action.defined || action.action != skillActorActionNone {
+		t.Fatalf("basic skill action = %+v, want no source action", action)
+	}
 	expectEffectIDs(t, "NV_FIRSTAID", skillEffectIDs(142), effectFirstAid)
 	expectEffectIDs(t, "NV_TRICKDEAD", skillEffectIDs(143))
 }

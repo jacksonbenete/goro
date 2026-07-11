@@ -79,9 +79,6 @@ func (m *WorldMode) applyActorEffectStateStatus(ctx client.Context, change netwo
 }
 
 func actorEffectStateBitForStatus(statusID uint16) (uint32, bool) {
-	if statusID != db.StatusEnergycoat {
-		return 0, false
-	}
 	bit, ok := db.StatusOpt3State[statusID]
 	if !ok {
 		return 0, false

@@ -4104,6 +4104,7 @@ const (
 )
 
 var SkillActions = map[uint16]SkillActionKind{
+	SkillNVBasic:              SkillActionNone,
 	SkillNVTrickdead:          SkillActionNone,
 	SkillTFBacksliding:        SkillActionNone,
 	SkillSTChasewalk:          SkillActionIdle,
