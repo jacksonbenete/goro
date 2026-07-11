@@ -105,6 +105,7 @@ type WorldMode struct {
 	basicMenu         gameui.BasicMenu
 	inventoryBag      gameui.InventoryBagWindow
 	equipmentWindow   gameui.EquipmentWindow
+	viewEquipWindow   gameui.ViewEquipmentWindow
 	storageWindow     gameui.StorageWindow
 	cartWindow        gameui.CartWindow
 	changeCartWindow  gameui.ChangeCartWindow
@@ -606,6 +607,20 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.openTradeRequest(ctx, tradeRequest)
 			continue
 		}
+		if showEquip, ok, err := network.ParseShowEquipConfig(pkt); err != nil {
+			log.Printf("parse show equip config 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			if ctx.Session != nil {
+				ctx.Session.ShowEquip = showEquip
+			}
+			continue
+		}
+		if viewedEquip, ok, err := network.ParseViewedEquipment(pkt); err != nil {
+			log.Printf("parse viewed equipment 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.viewEquipWindow.Open(ctx, viewedEquip, m)
+			continue
+		}
 		if tradeResponse, ok, err := network.ParseTradeResponse(pkt); err != nil {
 			log.Printf("parse trade response 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1003,6 +1018,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	case gameui.PlayerContextActionTrade:
 		m.sendTradeRequest(ctx, action.ActorID, action.Name)
 		return nil, nil
+	case gameui.PlayerContextActionSeeEquipment:
+		m.sendViewEquipmentRequest(ctx, action.ActorID, action.Name)
+		return nil, nil
 	}
 	if playerContextConsumed {
 		return nil, nil
@@ -1074,6 +1092,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.equipmentWindow.Update(ctx, &m.itemInfoWindow, &m.cartWindow, m) {
+		return nil, nil
+	}
+	if m.viewEquipWindow.Update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
 	if m.storageWindow.Update(ctx, &m.inventoryBag, &m.cartWindow, &m.itemInfoWindow) {

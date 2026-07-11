@@ -10,9 +10,8 @@ import (
 )
 
 const (
-	playerContextMenuWidth  = 118
-	playerContextMenuRowH   = 28
-	playerContextMenuHeight = playerContextMenuRowH * 2
+	playerContextMenuWidth = 118
+	playerContextMenuRowH  = 28
 )
 
 type PlayerContextActionKind uint8
@@ -21,6 +20,7 @@ const (
 	PlayerContextActionNone PlayerContextActionKind = iota
 	PlayerContextActionAddFriend
 	PlayerContextActionTrade
+	PlayerContextActionSeeEquipment
 )
 
 type PlayerContextAction struct {
@@ -96,7 +96,7 @@ func (m *PlayerContextMenu) ensureWindow() {
 	if m.window.width != 0 {
 		return
 	}
-	m.window = NewWindowState(playerContextMenuWidth, playerContextMenuHeight)
+	m.window = NewWindowState(playerContextMenuWidth, m.height())
 	m.window.titleHeight = 0
 }
 
@@ -104,6 +104,12 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 	rows := []widget.Widget{
 		rotheme.Button("Trade", func() {
 			m.action = PlayerContextAction{Kind: PlayerContextActionTrade, ActorID: m.actorID, Name: m.name}
+			m.Close()
+		}).
+			Width(playerContextMenuWidth).
+			Height(playerContextMenuRowH),
+		rotheme.Button("See equipment", func() {
+			m.action = PlayerContextAction{Kind: PlayerContextActionSeeEquipment, ActorID: m.actorID, Name: m.name}
 			m.Close()
 		}).
 			Width(playerContextMenuWidth).
@@ -130,8 +136,9 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 }
 
 func (m *PlayerContextMenu) height() int {
+	rows := 2
 	if m.canAddFriend {
-		return playerContextMenuHeight
+		rows++
 	}
-	return playerContextMenuRowH
+	return playerContextMenuRowH * rows
 }

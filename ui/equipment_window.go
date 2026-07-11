@@ -5,6 +5,7 @@ import (
 	"image"
 	"strings"
 
+	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
@@ -18,7 +19,8 @@ import (
 
 const (
 	equipmentWindowWidth   = 300
-	equipmentWindowHeight  = 200
+	equipmentWindowHeight  = 236
+	equipmentFooterH       = 36
 	equipmentWindowPad     = 10
 	equipmentLeftColW      = 112
 	equipmentCenterColW    = 56
@@ -166,6 +168,7 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 			w.Publish(ctx)
 		}),
 		Size(equipmentWindowWidth, equipmentWindowHeight),
+		FooterHeight(equipmentFooterH),
 		Content(
 			primitives.Box(
 				primitives.HBox(
@@ -201,6 +204,30 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 					Gap(0),
 			).
 				Padding(equipmentWindowPad),
+		),
+		Footer(
+			primitives.HBox(
+				primitives.Box(
+					rotheme.Checkbox(
+						checkbox.Checked(ctx.Session != nil && ctx.Session.ShowEquip),
+						checkbox.LabelOpt("Show Equip"),
+						checkbox.OnToggle(func(enabled bool) {
+							if ctx.Session != nil {
+								ctx.Session.ShowEquip = enabled
+							}
+							if ctx.Network != nil {
+								_ = ctx.Network.SendShowEquipConfig(enabled)
+							}
+							w.window.SetContent(w.widgetTree(ctx, itemInfo, cart))
+							w.Publish(ctx)
+						}),
+					),
+				).
+					Width(120).
+					Height(20),
+				primitives.Expanded(primitives.Box()),
+			).
+				CrossAlign(primitives.CrossAxisCenter),
 		),
 	)
 }
@@ -336,6 +363,7 @@ func equipmentSnapshot(s *session.Session) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "job=%d;", selectedCharacter(s).Job)
+	fmt.Fprintf(&b, "showEquip=%t;", s.ShowEquip)
 	for _, item := range s.Inventory.Items {
 		if !item.Equip || !item.Equipped {
 			continue

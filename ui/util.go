@@ -30,6 +30,7 @@ type AssetProvider interface {
 	SkillIconImage(manager *res.Manager, skill session.Skill, size int) image.Image
 	ItemInfoIllustrationImage(manager *res.Manager, item session.InventoryItem, width, height int) image.Image
 	EquipmentPreviewImage(ctx client.Context, width, height int) image.Image
+	EquipmentPreviewImageForCharacter(ctx client.Context, character session.Character, sex byte, width, height int) image.Image
 }
 
 type GameActions interface {

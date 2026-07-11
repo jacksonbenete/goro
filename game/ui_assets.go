@@ -94,6 +94,18 @@ func (m *WorldMode) drawEquipmentPreview(screen *render.Image, ctx client.Contex
 			m.playerView = loaded
 		}
 	}
+	m.drawHumanoidPreview(screen, view, x, y, width, height)
+}
+
+func (m *WorldMode) drawEquipmentPreviewForCharacter(screen *render.Image, ctx client.Context, character session.Character, sex byte, x, y, width, height int) {
+	if screen == nil || width <= 0 || height <= 0 || ctx.Resources == nil {
+		return
+	}
+	view, _ := loadPlayerHumanoidSpriteView(ctx.Resources, character, sex)
+	m.drawHumanoidPreview(screen, view, x, y, width, height)
+}
+
+func (m *WorldMode) drawHumanoidPreview(screen *render.Image, view *humanoidSpriteView, x, y, width, height int) {
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    4,
@@ -135,5 +147,14 @@ func (m *WorldMode) EquipmentPreviewImage(ctx client.Context, width, height int)
 	}
 	img := render.NewImage(width, height)
 	m.drawEquipmentPreview(img, ctx, 0, 0, width, height)
+	return img.RGBA()
+}
+
+func (m *WorldMode) EquipmentPreviewImageForCharacter(ctx client.Context, character session.Character, sex byte, width, height int) image.Image {
+	if width <= 0 || height <= 0 {
+		return nil
+	}
+	img := render.NewImage(width, height)
+	m.drawEquipmentPreviewForCharacter(img, ctx, character, sex, 0, 0, width, height)
 	return img.RGBA()
 }

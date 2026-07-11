@@ -20,8 +20,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `181`
-- Client-to-map accepted packets referenced by Goro: `83` / `177`
+- Effective map opcodes referenced by Goro: `183`
+- Client-to-map accepted packets referenced by Goro: `84` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## High Priority Gaps
@@ -552,8 +552,9 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x02D1` | S->C | referenced | `storageListEquipType` | `-1` | `-` | item_packets.go, packet.go |
 | `0x02D2` | S->C | referenced | `cartlistequipType` | `-1` | `-` | item_packets.go, packet.go |
 | `0x02D5` | S->C | untracked | `0x02d5` | `2` | `-` | - |
-| `0x02D6` | C->S | missing | `0x02d6` | `6` | `clif_parse_ViewPlayerEquip` | - |
-| `0x02D8` | C->S | referenced | `0x02d8` | `10` | `clif_parse_configuration` | packet.go |
+| `0x02D6` | C->S | referenced | `0x02d6` | `6` | `clif_parse_ViewPlayerEquip` | equipment_packets.go, packet.go |
+| `0x02D7` | S->C | referenced | `0x02d7` | `-1` | `-` | equipment_packets.go, packet.go |
+| `0x02D8` | C->S | referenced | `0x02d8` | `10` | `clif_parse_configuration` | equipment_packets.go, packet.go |
 | `0x02D9` | S->C | referenced | `0x02d9` | `10` | `-` | packet.go |
 | `0x02DB` | C->S | missing | `0x02db` | `-1` | `clif_parse_BattleChat` | - |
 | `0x02DC` | S->C | untracked | `0x02dc` | `-1` | `-` | - |

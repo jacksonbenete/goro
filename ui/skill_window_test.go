@@ -145,6 +145,10 @@ func (r *skillWindowTestRenderer) EquipmentPreviewImage(Context, int, int) image
 	return nil
 }
 
+func (r *skillWindowTestRenderer) EquipmentPreviewImageForCharacter(Context, session.Character, byte, int, int) image.Image {
+	return nil
+}
+
 func (r *skillWindowTestRenderer) UseShortcutSkill(_ Context, skill session.Skill) error {
 	r.used = skill
 	return nil
