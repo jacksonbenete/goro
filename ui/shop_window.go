@@ -29,8 +29,8 @@ const (
 	shopBuyCartRows      = 4
 	shopSellCartRows     = 10
 
-	shopDealWidth  = 244
-	shopDealHeight = 124
+	shopDealWidth  = smallPromptWidth
+	shopDealHeight = smallPromptHeight
 )
 
 const (
@@ -242,15 +242,9 @@ func (w *ShopWindow) dealWidgetTree(ctx Context) widget.Widget {
 		Title("Shop"),
 		CloseButton(false),
 		Size(shopDealWidth, shopDealHeight),
-		FooterHeight(42),
+		FooterHeight(smallPromptFooterH),
 		FooterPadding(10),
-		Content(
-			primitives.Box(
-				rotheme.Text("Select a transaction type"),
-			).
-				PaddingLeft(14).
-				PaddingTop(14),
-		),
+		Content(smallPromptContent("Select a transaction type")),
 		Footer(
 			primitives.HBox(
 				primitives.Expanded(primitives.Box()),

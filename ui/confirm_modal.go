@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
@@ -9,9 +11,12 @@ import (
 )
 
 const (
-	confirmModalWidth   = 286
-	confirmModalHeight  = 128
-	confirmModalFooterH = 42
+	smallPromptWidth    = 286
+	smallPromptHeight   = 128
+	smallPromptFooterH  = 42
+	smallPromptSidePad  = 12
+	smallPromptMessageH = 28
+	smallPromptLineH    = 14
 )
 
 type ConfirmModal struct {
@@ -93,7 +98,7 @@ func (m *ConfirmModal) ensureWindow() {
 	if m.window.width != 0 {
 		return
 	}
-	m.window = NewWindowState(confirmModalWidth, confirmModalHeight)
+	m.window = NewWindowState(smallPromptWidth, smallPromptHeight)
 	m.window.SetCloseOnEscape(false)
 }
 
@@ -116,17 +121,10 @@ func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
 	return Window(
 		Title(m.title),
 		CloseButton(false),
-		Size(confirmModalWidth, confirmModalHeight),
-		FooterHeight(confirmModalFooterH),
+		Size(smallPromptWidth, smallPromptHeight),
+		FooterHeight(smallPromptFooterH),
 		FooterPadding(18),
-		Content(
-			primitives.Box(
-				rotheme.Text(m.message),
-			).
-				PaddingTop(22).
-				PaddingLeft(28).
-				PaddingRight(28),
-		),
+		Content(smallPromptContent(m.message)),
 		Footer(
 			primitives.HBox(
 				primitives.Expanded(primitives.Box()),
@@ -142,4 +140,42 @@ func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
 				Gap(8),
 		),
 	)
+}
+
+func smallPromptContent(message string) widget.Widget {
+	return primitives.Box(
+		primitives.Expanded(primitives.Box()),
+		smallPromptMessage(message),
+		primitives.Expanded(primitives.Box()),
+	).
+		PaddingLeft(smallPromptSidePad).
+		PaddingRight(smallPromptSidePad)
+}
+
+func smallPromptMessage(message string) widget.Widget {
+	lines := strings.Split(message, "\n")
+	first := ""
+	second := ""
+	if len(lines) > 0 {
+		first = strings.TrimSpace(lines[0])
+	}
+	if len(lines) > 1 {
+		second = strings.TrimSpace(strings.Join(lines[1:], " "))
+	}
+	return primitives.Box(
+		smallPromptLine(first),
+		smallPromptLine(second),
+	).
+		Height(smallPromptMessageH)
+}
+
+func smallPromptLine(line string) widget.Widget {
+	if line == "" {
+		return primitives.Box().Height(smallPromptLineH)
+	}
+	return primitives.Box(
+		rotheme.Text(line).
+			MaxLines(1),
+	).
+		Height(smallPromptLineH)
 }
