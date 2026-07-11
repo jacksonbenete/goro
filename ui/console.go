@@ -236,9 +236,47 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/memo":
 		c.submitMemo(ctx)
 		return true
+	case "/w", "/whisper":
+		c.submitWhisper(ctx, text)
+		return true
 	default:
 		return false
 	}
+}
+
+func (c *ChatConsole) submitWhisper(ctx client.Context, text string) {
+	fields := strings.Fields(text)
+	if len(fields) < 2 {
+		c.AddErrorMessage("usage: /w name message")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	rest := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), fields[0]))
+	target, message, ok := strings.Cut(rest, " ")
+	target = strings.TrimSpace(target)
+	message = strings.TrimSpace(message)
+	if !ok || target == "" || message == "" {
+		c.AddErrorMessage("usage: /w name message")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendWhisper(target, message); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	c.AddBlueMessage("[ To %s ] : %s", target, message)
+	c.setInput("")
+	c.setActive(false)
 }
 
 func (c *ChatConsole) submitMemo(ctx client.Context) {

@@ -387,6 +387,18 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			addConsoleMessage(&m.console, ctx.Resources, chat)
 			continue
 		}
+		if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {
+			log.Printf("parse whisper message 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			addWhisperMessage(&m.console, whisper)
+			continue
+		}
+		if ack, ok, err := network.ParseWhisperAck(pkt); err != nil {
+			log.Printf("parse whisper ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			addWhisperAck(&m.console, ctx.Resources, ack)
+			continue
+		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			log.Printf("parse map change 0x%04X: %v", pkt.ID, err)
 		} else if ok {

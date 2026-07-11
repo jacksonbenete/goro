@@ -20,8 +20,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `183`
-- Client-to-map accepted packets referenced by Goro: `84` / `177`
+- Effective map opcodes referenced by Goro: `184`
+- Client-to-map accepted packets referenced by Goro: `85` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## High Priority Gaps
@@ -29,7 +29,6 @@ Status meaning:
 | Opcode | Direction | rAthena symbol | Length | Handler | Priority |
 |---:|---|---|---:|---|---|
 | `0x007E` | C->S | `0x007e` | `102` | `clif_parse_UseSkillToPosMoreInfo` | P0/P1 |
-| `0x0096` | C->S | `0x0096` | `-1` | `clif_parse_WisMessage` | P2 |
 | `0x00CF` | C->S | `0x00cf` | `27` | `clif_parse_PMIgnore` | P2 |
 | `0x00D0` | C->S | `HEADER_CZ_SETTING_WHISPER_STATE` | `sizeof( PACKET_CZ_SETTING_WHISPER_STATE )` | `clif_parse_PMIgnoreAll` | P2 |
 | `0x00D5` | C->S | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | P2 |
@@ -173,7 +172,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x0090` | C->S | referenced | `HEADER_CZ_CONTACTNPC` | `sizeof( PACKET_CZ_CONTACTNPC )` | `clif_parse_NpcClicked` | npc_packets.go |
 | `0x0093` | S->C | untracked | `0x0093` | `2` | `-` | - |
 | `0x0094` | C->S | referenced | `0x0094` | `14` | `clif_parse_MoveToKafra` | item_packets.go, login_packets.go |
-| `0x0096` | C->S | missing | `0x0096` | `-1` | `clif_parse_WisMessage` | - |
+| `0x0096` | C->S | referenced | `0x0096` | `-1` | `clif_parse_WisMessage` | chat_packets.go |
 | `0x0099` | C->S | referenced | `HEADER_CZ_BROADCAST` | `-1` | `clif_parse_Broadcast` | packet.go |
 | `0x009B` | C->S | referenced | `0x009b` | `26` | `clif_parse_WantToConnection` | login_packets.go, packet.go |
 | `0x009E` | S->C | referenced | `0x009e` | `17` | `-` | item_packets.go, packet.go |

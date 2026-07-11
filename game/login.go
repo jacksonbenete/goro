@@ -160,6 +160,18 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			addConsoleMessage(&m.console, ctx.Resources, chat)
 			continue
 		}
+		if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {
+			m.packets = append(m.packets, "parse whisper message: "+err.Error())
+		} else if ok {
+			addWhisperMessage(&m.console, whisper)
+			continue
+		}
+		if ack, ok, err := network.ParseWhisperAck(pkt); err != nil {
+			m.packets = append(m.packets, "parse whisper ack: "+err.Error())
+		} else if ok {
+			addWhisperAck(&m.console, ctx.Resources, ack)
+			continue
+		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			m.packets = append(m.packets, "parse ZC_NPCACK_MAPMOVE: "+err.Error())
 		} else if ok {
