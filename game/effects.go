@@ -1113,6 +1113,11 @@ func importedSkillEffectSpec(skillID uint16) skillEffectSpec {
 }
 
 func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
+	if skillID == db.SkillACShower {
+		spec := newSkillActionSpec(skillActorActionAttack, false, &readyFightSkillActionSpec)
+		spec.speed = 50 * time.Millisecond
+		return spec, true
+	}
 	switch db.SkillActions[skillID] {
 	case db.SkillActionNone:
 		return skillActionSpec{defined: true, action: skillActorActionNone}, true

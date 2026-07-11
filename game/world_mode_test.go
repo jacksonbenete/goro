@@ -2688,6 +2688,13 @@ func TestImportedSkillActionFallback(t *testing.T) {
 	if action := skillAction(db.SkillACDouble).actionFamilyForActor(archer); action != spriteActionPCAttack3 {
 		t.Fatalf("AC_DOUBLE action = %d, want ATTACK3", action)
 	}
+	shower := skillAction(db.SkillACShower)
+	if action := shower.actionFamilyForActor(archer); action != attackActionFamilyForActor(archer) {
+		t.Fatalf("AC_SHOWER action = %d, want normal attack family", action)
+	}
+	if shower.speed != 50*time.Millisecond || shower.next == nil || shower.next.action != skillActorActionReadyFight {
+		t.Fatalf("AC_SHOWER timing = %+v, want robr speed 50ms then READYFIGHT", shower)
+	}
 	merchant := worldstate.Actor{Job: 5}
 	if action := skillAction(db.SkillMCCartrevolution).actionFamilyForActor(merchant); action != spriteActionPCAttack2 {
 		t.Fatalf("MC_CARTREVOLUTION action = %d, want ATTACK2", action)

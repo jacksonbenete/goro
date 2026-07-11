@@ -138,6 +138,21 @@ overrides stance/timing from server cast ACKs.
 | `MG_THUNDERSTORM` | Matched by source | Effect `30` and hit effect `52`; ground target/cast delivery is server-driven. |
 | `MG_ENERGYCOAT` | Matched by source | Platinum effect `169`; status routing uses imported status/Opt3 metadata. |
 
+### Archer
+
+Source pass completed against roBrowser `SkillEffect.js`, `SkillAction.js`,
+and string-key `EffectTable.js` projectile entries.
+
+| Skill | Visual/SFX/timing status | Notes |
+| --- | --- | --- |
+| `AC_OWL` | Server-only | Passive DEX bonus; no roBrowser skill effect/action. |
+| `AC_VULTURE` | Server-only | Passive range bonus; no roBrowser skill effect/action. |
+| `AC_CONCENTRATION` | Matched by source | Effect `153`: STR `concentration` plus `effect/ac_concentration`; server owns status/stat updates. |
+| `AC_DOUBLE` | Matched by source | roBrowser action `ATTACK3`, begin effect `16`, projectile `ef_arrow_projectile`, and hit effect `1`. |
+| `AC_SHOWER` | Matched by source | Projectile `ef_arrow_shower_projectile`, hit effect `1`, and roBrowser action timing `ATTACK` speed 50ms followed by `READYFIGHT`. |
+| `AC_MAKINGARROW` | Missing behavior | roBrowser declares no visual effect; goro still needs the Arrow Crafting item-selection flow. |
+| `AC_CHARGEARROW` | Matched by source | roBrowser action `ATTACK`, hidden cast aura, and before-hit `ef_arrow_projectile`. |
+
 ## Novice
 
 - [x] `NV_BASIC` - Server-only basic interface/trade progression.
