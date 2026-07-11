@@ -371,7 +371,9 @@ func (m *WorldMode) applySkillCastNotify(ctx client.Context, notify network.Skil
 	duration := time.Duration(notify.DelayTime) * time.Millisecond
 	now := time.Now()
 	m.startSkillCastSourceAnimation(ctx, notify, duration, now)
-	m.startActorCastBar(ctx, notify.SourceID, duration, now)
+	if !skillHidesCastBar(notify.SkillID) {
+		m.startActorCastBar(ctx, notify.SourceID, duration, now)
+	}
 	m.addSkillCastEffects(ctx, notify.SkillID, notify.Property, notify.SourceID, notify.TargetID, int(notify.X), int(notify.Y), duration, now, "server")
 }
 
@@ -825,6 +827,9 @@ func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, prop
 	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectCastRing, sourceID, 0, starts, duration) {
 		log.Printf("skill cast circle source=%s skill=%d src=%d target=%d delay_ms=%d", source, skillID, sourceID, targetID, duration.Milliseconds())
 	}
+	if skillHidesCastAura(skillID) {
+		return
+	}
 	effectID := skillCastAuraEffectID(property)
 	if effectID <= 0 {
 		return
@@ -948,6 +953,8 @@ type skillEffectSpec struct {
 	successEffectIDsSelf   []int
 	beginCastEffectIDs     []int
 	groundEffectIDs        []int
+	hideCastBar            bool
+	hideCastAura           bool
 	action                 skillActionSpec
 	forceGroundTarget      bool
 	forceSelfTarget        bool
@@ -1096,6 +1103,8 @@ func importedSkillEffectSpec(skillID uint16) skillEffectSpec {
 		out.successEffectIDsSelf = copyIntSlice(spec.SuccessEffectIDsSelf)
 		out.beginCastEffectIDs = copyIntSlice(spec.BeginCastEffectIDs)
 		out.groundEffectIDs = copyIntSlice(spec.GroundEffectIDs)
+		out.hideCastBar = spec.HideCastBar
+		out.hideCastAura = spec.HideCastAura
 	}
 	if action, ok := importedSkillActionSpec(skillID); ok {
 		out.action = action
@@ -1163,6 +1172,14 @@ func skillBeforeHitEffectSelfIDs(skillID uint16) []int {
 
 func skillGroundEffectIDs(skillID uint16) []int {
 	return skillEffectSpecFor(skillID).groundEffectIDs
+}
+
+func skillHidesCastBar(skillID uint16) bool {
+	return skillEffectSpecFor(skillID).hideCastBar
+}
+
+func skillHidesCastAura(skillID uint16) bool {
+	return skillEffectSpecFor(skillID).hideCastAura
 }
 
 func skillForcesGroundTarget(skillID uint16) bool {

@@ -2542,6 +2542,26 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	}
 }
 
+func TestSkillCastNotifyHonorsHideCastAura(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{ID: 1100, X: 12, Y: 20})
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+
+	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: db.SkillACChargearrow, Property: 4, DelayTime: 1200})
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %+v, want only cast ring", mode.worldEffects)
+	}
+	if mode.worldEffects[0].effectID != effectCastRing {
+		t.Fatalf("effect = %+v, want cast ring", mode.worldEffects[0])
+	}
+	if _, ok := mode.actorCastBars[150000]; !ok {
+		t.Fatal("cast bar should remain visible when only hideCastAura is set")
+	}
+}
+
 func TestSkillCastEffectsDedupeServerAndLocalFallback(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
@@ -2644,6 +2664,10 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "AC_DOUBLE hit", skillHitEffectIDs(46), effectBashHit)
 	expectEffectIDs(t, "AC_SHOWER", skillEffectIDs(47), effectArrowShower)
 	expectEffectIDs(t, "AC_SHOWER hit", skillHitEffectIDs(47), effectBashHit)
+	expectEffectIDs(t, "AC_CHARGEARROW before-hit", skillBeforeHitEffectIDs(148), effectArrowShot)
+	if !skillHidesCastAura(db.SkillACChargearrow) {
+		t.Fatal("AC_CHARGEARROW should hide cast aura like roBrowser")
+	}
 	expectEffectIDs(t, "TF_DOUBLE passive", skillEffectIDs(48))
 	expectEffectIDs(t, "TF_MISS passive", skillEffectIDs(49))
 	expectEffectIDs(t, "TF_STEAL success", skillSuccessEffectIDs(50), effectSteal)
@@ -2653,6 +2677,9 @@ func TestArcherThiefMerchantSkillEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "TF_SPRINKLESAND", skillEffectIDs(149), effectSprinkleSand)
 	expectEffectIDs(t, "TF_BACKSLIDING", skillEffectIDs(150))
 	expectEffectIDs(t, "TF_PICKSTONE", skillEffectIDs(151))
+	if !skillHidesCastAura(db.SkillTFPickstone) {
+		t.Fatal("TF_PICKSTONE should hide cast aura like roBrowser")
+	}
 	expectEffectIDs(t, "TF_THROWSTONE before-hit", skillBeforeHitEffectIDs(152), effectThrowItem3)
 	expectEffectIDs(t, "MC_MAMMONITE", skillEffectIDs(42), effectMammonite)
 	expectEffectIDs(t, "MC_CARTREVOLUTION begin", skillBeginEffectIDs(153), effectCartRevolution)

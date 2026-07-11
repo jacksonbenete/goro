@@ -3714,7 +3714,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillASVenomdust:                {EffectIDs: []int{124}, GroundEffectIDs: []int{171}},
 	SkillASSplasher:                 {EffectIDs: []int{129}},
 	SkillNVFirstaid:                 {EffectIDs: []int{309}},
-	SkillACChargearrow:              {HideCastAura: true},
+	SkillACChargearrow:              {BeforeHitEffectIDs: []int{SkillEffectArrowShot}, HideCastAura: true},
 	SkillTFSprinklesand:             {EffectIDs: []int{310}},
 	SkillTFPickstone:                {HideCastAura: true},
 	SkillTFThrowstone:               {BeforeHitEffectIDs: []int{308}},
