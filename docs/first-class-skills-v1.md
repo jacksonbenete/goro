@@ -153,6 +153,31 @@ and string-key `EffectTable.js` projectile entries.
 | `AC_MAKINGARROW` | Missing behavior | roBrowser declares no visual effect; goro still needs the Arrow Crafting item-selection flow. |
 | `AC_CHARGEARROW` | Matched by source | roBrowser action `ATTACK`, hidden cast aura, and before-hit `ef_arrow_projectile`. |
 
+### Acolyte
+
+Source pass completed against roBrowser `SkillEffect.js`, `SkillUnit.js`, and
+the relevant `EffectTable.js` entries. No Acolyte first-class skill has a
+dedicated `SkillAction.js` override in the checked range; cast stance/bar timing
+comes from server cast ACKs and the generic skill action path.
+
+| Skill | Visual/SFX/timing status | Notes |
+| --- | --- | --- |
+| `AL_DP` | Server-only | Passive undead/demon resistance; no roBrowser skill effect/action. |
+| `AL_DEMONBANE` | Server-only | Passive damage bonus; no roBrowser skill effect/action. |
+| `AL_RUWACH` | Matched by source | Skill hit uses effect `1`; persistent state effect `33` is status-driven and follows roBrowser shadow/particle orbit entries. |
+| `AL_PNEUMA` | Matched by source | Ground effect `141` plus unit `UNT_PNEUMA`; STR `pneuma1..3`, no SFX. |
+| `AL_TELEPORT` | Matched behavior | roBrowser declares no direct skill effect; goro uses level-specific Teleport UI/server behavior and warp/teleport effects from item/unit flows. |
+| `AL_WARP` | Matched behavior | roBrowser declares no direct skill effect; destination list and portal visuals are driven by warp unit effects `316/317`. |
+| `AL_HEAL` | Matched by source | Effect `312` plus offensive hit effect `320`; target rules and enemy-target heal path are implemented. |
+| `AL_INCAGI` | Matched by source | Effect `37`: `ac_center2.tga` particles, `agi_up.bmp`, and `effect/ef_incagility`. |
+| `AL_DECAGI` | Matched by source | Effect `38`: `ac_center2.tga` particles, `slow.bmp`, and `effect/ef_decagility`; corrected cleanup lifetime to 1000ms. |
+| `AL_HOLYWATER` | Matched by source | Effect `39`: SPR holy-water animation plus `effect/ef_aqua`; server owns item/bottle requirement. |
+| `AL_CRUCIS` | Matched by source | Effect `40`: STR `cross` plus `effect/ef_signum`. |
+| `AL_ANGELUS` | Matched by source | Effect `41`: STR `angelus`, `jong_mini`, head-attached, `effect/ef_angelus`; cast bar/aura is server-timed. |
+| `AL_BLESSING` | Matched by source | Effect `42`: SPR blessing head animation plus two `particle6` bursts and `effect/ef_blessing`. |
+| `AL_CURE` | Matched by source | Effect `66`: STR `cure`, `cure_min`, `effect/acolyte_cure`. |
+| `AL_HOLYLIGHT` | Matched by source | Platinum effect `152`: STR `holyhit`; cast bar/aura is server-timed. |
+
 ## Novice
 
 - [x] `NV_BASIC` - Server-only basic interface/trade progression.

@@ -1564,7 +1564,7 @@ var EffectSpecs = map[int]EffectSpec{
 		},
 	},
 	effectDecAgility: {
-		Duration: 4800 * time.Millisecond,
+		Duration: 1000 * time.Millisecond,
 		SFX:      []string{"effect\\ef_decagility.wav"},
 		Components: []EffectComponent{
 			decAgilityParticleComponent(),

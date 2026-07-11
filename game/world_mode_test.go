@@ -3165,8 +3165,8 @@ func TestDecreaseAgilityEffectSpecUsesRobrowserParticles(t *testing.T) {
 	if !ok {
 		t.Fatal("decrease agility effect spec missing")
 	}
-	if spec.duration != 4800*time.Millisecond {
-		t.Fatalf("duration = %s, want 4800ms", spec.duration)
+	if spec.duration != 1000*time.Millisecond {
+		t.Fatalf("duration = %s, want 1000ms", spec.duration)
 	}
 	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_decagility.wav" {
 		t.Fatalf("sfx = %#v", spec.sfx)
