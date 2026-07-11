@@ -33,6 +33,7 @@ type Session struct {
 	Skills       Skills
 	Statuses     Statuses
 	Friends      Friends
+	Party        Party
 	Movement     Movement
 }
 
@@ -236,6 +237,37 @@ type Friend struct {
 
 func (f Friend) Online() bool {
 	return f.State == 0
+}
+
+type Party struct {
+	Name     string
+	Members  []PartyMember
+	ExpShare uint32
+}
+
+func (p Party) Active() bool {
+	return p.Name != "" || len(p.Members) > 0
+}
+
+type PartyMember struct {
+	AccountID uint32
+	Name      string
+	MapName   string
+	Role      uint32
+	State     uint8
+	X         int
+	Y         int
+	HP        int
+	MaxHP     int
+	Dead      bool
+}
+
+func (m PartyMember) Online() bool {
+	return m.State == 0
+}
+
+func (m PartyMember) Leader() bool {
+	return m.Role == 0
 }
 
 type StatusEffect struct {

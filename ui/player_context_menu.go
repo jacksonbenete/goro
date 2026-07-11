@@ -19,6 +19,7 @@ type PlayerContextActionKind uint8
 const (
 	PlayerContextActionNone PlayerContextActionKind = iota
 	PlayerContextActionAddFriend
+	PlayerContextActionInviteParty
 	PlayerContextActionTrade
 	PlayerContextActionSeeEquipment
 )
@@ -35,10 +36,11 @@ type PlayerContextMenu struct {
 	actorID      uint32
 	name         string
 	canAddFriend bool
+	canInvite    bool
 	action       PlayerContextAction
 }
 
-func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name string, canAddFriend bool) {
+func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name string, canAddFriend bool, canInvite bool) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return
@@ -48,6 +50,7 @@ func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name str
 	m.actorID = actorID
 	m.name = name
 	m.canAddFriend = canAddFriend
+	m.canInvite = canInvite
 	screenW, screenH := ctx.ScreenSize()
 	height := m.height()
 	m.window.SetSize(playerContextMenuWidth, height)
@@ -125,6 +128,16 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 				Height(playerContextMenuRowH),
 		)
 	}
+	if m.canInvite {
+		rows = append(rows,
+			rotheme.Button("Invite", func() {
+				m.action = PlayerContextAction{Kind: PlayerContextActionInviteParty, ActorID: m.actorID, Name: m.name}
+				m.Close()
+			}).
+				Width(playerContextMenuWidth).
+				Height(playerContextMenuRowH),
+		)
+	}
 	return Window(
 		TitleBar(false),
 		Radius(0),
@@ -138,6 +151,9 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 func (m *PlayerContextMenu) height() int {
 	rows := 2
 	if m.canAddFriend {
+		rows++
+	}
+	if m.canInvite {
 		rows++
 	}
 	return playerContextMenuRowH * rows

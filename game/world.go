@@ -100,6 +100,7 @@ type WorldMode struct {
 	teleportModal     gameui.TeleportModal
 	deathModal        gameui.DeathModal
 	friendRequest     gameui.ConfirmModal
+	partyRequest      gameui.ConfirmModal
 	tradeRequest      gameui.ConfirmModal
 	characterWindow   gameui.CharacterWindow
 	basicMenu         gameui.BasicMenu
@@ -116,6 +117,7 @@ type WorldMode struct {
 	statsWindow       gameui.StatsWindow
 	skillWindow       gameui.SkillWindow
 	friendsWindow     gameui.FriendsWindow
+	partySettings     gameui.PartySettingsWindow
 	playerContext     gameui.PlayerContextMenu
 	tradeWindow       gameui.TradeWindow
 	pendingTradeName  string
@@ -341,6 +343,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.statsWindow.Rebind(ctx)
 	m.skillWindow.Rebind(ctx, m)
 	m.friendsWindow.Rebind(ctx)
+	m.partySettings.Rebind(ctx)
 	m.settingsWindow.Rebind(ctx)
 	m.shortcutBar.ResetOverlay(ctx)
 }
@@ -617,6 +620,68 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("parse friend delete 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyFriendDelete(ctx, friendDeleted)
+			continue
+		}
+		if partyCreate, ok, err := network.ParsePartyCreateResult(pkt); err != nil {
+			log.Printf("parse party create result 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handlePartyCreateResult(ctx, partyCreate)
+			continue
+		}
+		if partyList, ok, err := network.ParsePartyList(pkt); err != nil {
+			log.Printf("parse party list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyPartyList(ctx, partyList)
+			continue
+		}
+		if partyInvite, ok, err := network.ParsePartyInviteRequest(pkt); err != nil {
+			log.Printf("parse party invite request 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.openPartyInviteRequest(ctx, partyInvite)
+			continue
+		}
+		if partyInviteAnswer, ok, err := network.ParsePartyInviteAnswer(pkt); err != nil {
+			log.Printf("parse party invite answer 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handlePartyInviteAnswer(partyInviteAnswer)
+			continue
+		}
+		if partyOption, ok, err := network.ParsePartyOption(pkt); err != nil {
+			log.Printf("parse party option 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyPartyOption(ctx, partyOption)
+			continue
+		}
+		if partyMember, ok, err := network.ParsePartyMemberJoin(pkt); err != nil {
+			log.Printf("parse party member join 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyPartyMemberJoin(ctx, partyMember)
+			continue
+		}
+		if partyLeave, ok, err := network.ParsePartyMemberLeave(pkt); err != nil {
+			log.Printf("parse party member leave 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			if !applyPartyMemberLeave(ctx, partyLeave) {
+				m.console.AddErrorMessage("Cannot leave party on this map.")
+			}
+			continue
+		}
+		if partyHP, ok, err := network.ParsePartyMemberHP(pkt); err != nil {
+			log.Printf("parse party member hp 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyPartyMemberHP(ctx, partyHP)
+			continue
+		}
+		if partyPosition, ok, err := network.ParsePartyMemberPosition(pkt); err != nil {
+			log.Printf("parse party member position 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyPartyMemberPosition(ctx, partyPosition)
+			continue
+		}
+		if partyChat, ok, err := network.ParsePartyChat(pkt); err != nil {
+			log.Printf("parse party chat 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyPartyChat(ctx, partyChat, &m.console)
 			continue
 		}
 		if tradeRequest, ok, err := network.ParseTradeRequest(pkt); err != nil {
@@ -1033,6 +1098,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	case gameui.PlayerContextActionAddFriend:
 		m.sendAddFriend(ctx, action.Name)
 		return nil, nil
+	case gameui.PlayerContextActionInviteParty:
+		m.sendPartyInvite(ctx, action.ActorID, action.Name)
+		return nil, nil
 	case gameui.PlayerContextActionTrade:
 		m.sendTradeRequest(ctx, action.ActorID, action.Name)
 		return nil, nil
@@ -1046,10 +1114,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.friendRequest.IsOpen() && !m.tradeRequest.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
+	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.friendRequest.IsOpen() && !m.partyRequest.IsOpen() && !m.tradeRequest.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.friendRequest.Update(ctx) {
+		return nil, nil
+	}
+	if m.partyRequest.Update(ctx) {
 		return nil, nil
 	}
 	if m.tradeRequest.Update(ctx) {
@@ -1134,6 +1205,20 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.friendsWindow.Update(ctx) {
+		switch m.friendsWindow.PopAction() {
+		case gameui.FriendsWindowActionPartySettings:
+			m.partySettings.Open(ctx)
+		case gameui.FriendsWindowActionPartyLeave:
+			if ctx.Network == nil {
+				m.console.AddErrorMessage("Leave party failed: not connected.")
+			} else if err := ctx.Network.SendLeaveParty(); err != nil {
+				m.console.AddErrorMessage("Leave party failed.")
+				log.Printf("leave party failed: %v", err)
+			}
+		}
+		return nil, nil
+	}
+	if m.partySettings.Update(ctx) {
 		return nil, nil
 	}
 	if m.statsWindow.Update(ctx) {

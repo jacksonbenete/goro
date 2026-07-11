@@ -20,8 +20,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `184`
-- Client-to-map accepted packets referenced by Goro: `85` / `177`
+- Effective map opcodes referenced by Goro: `186`
+- Client-to-map accepted packets referenced by Goro: `87` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## High Priority Gaps
@@ -32,7 +32,6 @@ Status meaning:
 | `0x00CF` | C->S | `0x00cf` | `27` | `clif_parse_PMIgnore` | P2 |
 | `0x00D0` | C->S | `HEADER_CZ_SETTING_WHISPER_STATE` | `sizeof( PACKET_CZ_SETTING_WHISPER_STATE )` | `clif_parse_PMIgnoreAll` | P2 |
 | `0x00D5` | C->S | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | P2 |
-| `0x0108` | C->S | `0x0108` | `-1` | `clif_parse_PartyMessage` | P2 |
 | `0x0143` | C->S | `HEADER_CZ_INPUT_EDITDLG` | `sizeof( PACKET_CZ_INPUT_EDITDLG )` | `clif_parse_NpcAmountInput` | P0/P1 |
 | `0x0149` | C->S | `0x0149` | `9` | `clif_parse_GMReqNoChat` | P2 |
 | `0x0161` | C->S | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | P2 |
@@ -47,10 +46,9 @@ Status meaning:
 | `0x019F` | C->S | `0x019f` | `6` | `clif_parse_CatchPet` | P2 |
 | `0x01A1` | C->S | `0x01a1` | `3` | `clif_parse_PetMenu` | P2 |
 | `0x01A5` | C->S | `0x01a5` | `26` | `clif_parse_ChangePetName` | P2 |
-| `0x01A9` | C->S | `0x01a9` | `6` | `clif_parse_SendEmotion` | P2 |
+| `0x01A9` | C->S | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | P2 |
 | `0x01AE` | C->S | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | P2 |
 | `0x01D5` | C->S | `HEADER_CZ_INPUT_EDITDLGSTR` | `-1` | `clif_parse_NpcStringInput` | P0/P1 |
-| `0x01E8` | C->S | `HEADER_CZ_MAKE_GROUP2` | `sizeof( PACKET_CZ_MAKE_GROUP2 )` | `clif_parse_CreateParty2` | P2 |
 | `0x022D` | C->S | `0x022d` | `5` | `clif_parse_HomMenu` | P2 |
 | `0x0231` | C->S | `0x0231` | `26` | `clif_parse_ChangeHomunculusName` | P2 |
 | `0x0232` | C->S | `HEADER_CZ_REQUEST_MOVENPC` | `sizeof( PACKET_CZ_REQUEST_MOVENPC )` | `clif_parse_HomMoveTo` | P2 |
@@ -188,7 +186,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x00B9` | C->S | referenced | `0x00b9` | `6` | `clif_parse_NpcNextClicked` | npc_packets.go |
 | `0x00BA` | S->C | referenced | `0x00ba` | `2` | `-` | packet.go |
 | `0x00BB` | C->S | referenced | `0x00bb` | `5` | `clif_parse_StatusUp` | packet.go, status_packets.go |
-| `0x00BF` | C->S | referenced | `HEADER_CZ_REQ_EMOTION` | `sizeof( PACKET_CZ_REQ_EMOTION )` | `clif_parse_Emotion` | emotion_packets.go, packet.go |
+| `0x00BF` | C->S | referenced | `HEADER_CZ_REQ_EMOTION` | `sizeof( PACKET_CZ_REQ_EMOTION )` | `clif_parse_Emotion` (player emote) | emotion_packets.go, packet.go |
 | `0x00C1` | C->S | referenced | `0x00c1` | `2` | `clif_parse_HowManyConnections` | packet.go |
 | `0x00C3` | S->C | referenced | `0x00c3` | `8` | `-` | actor_packets.go, packet.go |
 | `0x00C5` | C->S | referenced | `HEADER_CZ_ACK_SELECT_DEALTYPE` | `sizeof( PACKET_CZ_ACK_SELECT_DEALTYPE )` | `clif_parse_NpcBuySellSelected` | item_packets.go, packet.go |
@@ -220,18 +218,18 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x00F3` | C->S | referenced | `0x00f3` | `-1` | `clif_parse_GlobalMessage` | chat_packets.go, item_packets.go, login_packets.go, packet.go |
 | `0x00F5` | C->S | referenced | `0x00f5` | `8` | `clif_parse_TakeItem` | item_packets.go, packet.go |
 | `0x00F7` | C->S | referenced | `0x00f7` | `22` | `clif_parse_MoveFromKafra` | item_packets.go, packet.go |
-| `0x00F9` | C->S | referenced | `HEADER_CZ_MAKE_GROUP` | `sizeof( PACKET_CZ_MAKE_GROUP )` | `clif_parse_CreateParty` | packet.go |
-| `0x00FB` | S->C | referenced | `0x00fb` | `-1` | `-` | packet.go |
-| `0x00FC` | C->S | referenced | `HEADER_CZ_REQ_JOIN_GROUP` | `sizeof( PACKET_CZ_REQ_JOIN_GROUP )` | `clif_parse_PartyInvite` | packet.go |
-| `0x00FD` | S->C | referenced | `0x00fd` | `27` | `-` | packet.go |
-| `0x00FF` | C->S | referenced | `HEADER_CZ_JOIN_GROUP` | `sizeof( PACKET_CZ_JOIN_GROUP )` | `clif_parse_ReplyPartyInvite` | packet.go |
-| `0x0100` | C->S | referenced | `HEADER_CZ_REQ_LEAVE_GROUP` | `sizeof( PACKET_CZ_REQ_LEAVE_GROUP )` | `clif_parse_LeaveParty` | packet.go |
-| `0x0101` | S->C | referenced | `0x0101` | `6` | `-` | packet.go |
-| `0x0102` | C->S | referenced | `0x0102` | `6` | `clif_parse_PartyChangeOption` | packet.go |
-| `0x0103` | C->S | referenced | `HEADER_CZ_REQ_EXPEL_GROUP_MEMBER` | `sizeof( PACKET_CZ_REQ_EXPEL_GROUP_MEMBER )` | `clif_parse_RemovePartyMember` | packet.go |
-| `0x0104` | S->C | referenced | `0x0104` | `79` | `-` | packet.go |
-| `0x0108` | C->S | missing | `0x0108` | `-1` | `clif_parse_PartyMessage` | - |
-| `0x0109` | S->C | referenced | `0x0109` | `-1` | `-` | packet.go |
+| `0x00F9` | C->S | referenced | `HEADER_CZ_MAKE_GROUP` | `sizeof( PACKET_CZ_MAKE_GROUP )` | `clif_parse_CreateParty` | party_packets.go |
+| `0x00FB` | S->C | referenced | `0x00fb` | `-1` | `-` | party_packets.go |
+| `0x00FC` | C->S | referenced | `HEADER_CZ_REQ_JOIN_GROUP` | `sizeof( PACKET_CZ_REQ_JOIN_GROUP )` | `clif_parse_PartyInvite` | party_packets.go |
+| `0x00FD` | S->C | referenced | `0x00fd` | `27` | `-` | party_packets.go |
+| `0x00FF` | C->S | referenced | `HEADER_CZ_JOIN_GROUP` | `sizeof( PACKET_CZ_JOIN_GROUP )` | `clif_parse_ReplyPartyInvite` | party_packets.go |
+| `0x0100` | C->S | referenced | `HEADER_CZ_REQ_LEAVE_GROUP` | `sizeof( PACKET_CZ_REQ_LEAVE_GROUP )` | `clif_parse_LeaveParty` | party_packets.go |
+| `0x0101` | S->C | referenced | `0x0101` | `6` | `-` | party_packets.go |
+| `0x0102` | C->S | referenced | `0x0102` | `6` | `clif_parse_PartyChangeOption` | party_packets.go |
+| `0x0103` | C->S | referenced | `HEADER_CZ_REQ_EXPEL_GROUP_MEMBER` | `sizeof( PACKET_CZ_REQ_EXPEL_GROUP_MEMBER )` | `clif_parse_RemovePartyMember` | party_packets.go |
+| `0x0104` | S->C | referenced | `0x0104` | `79` | `-` | party_packets.go |
+| `0x0108` | C->S | referenced | `0x0108` | `-1` | `clif_parse_PartyMessage` | party_packets.go |
+| `0x0109` | S->C | referenced | `0x0109` | `-1` | `-` | party_packets.go |
 | `0x0112` | C->S | referenced | `0x0112` | `4` | `clif_parse_SkillUp` | skill_packets.go |
 | `0x0113` | C->S | referenced | `0x0113` | `22` | `clif_parse_UseSkillToPos` | item_packets.go, packet.go, skill_packets.go |
 | `0x0114` | S->C | referenced | `0x0114` | `31` | `-` | actor_packets.go, packet.go |
@@ -316,7 +314,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x01A6` | S->C | referenced | `0x01a6` | `-1` | `-` | packet.go |
 | `0x01A7` | C->S | missing | `0x01a7` | `4` | `clif_parse_SelectEgg` | - |
 | `0x01A8` | S->C | referenced | `0x01a8` | `4` | `-` | packet.go |
-| `0x01A9` | C->S | missing | `0x01a9` | `6` | `clif_parse_SendEmotion` | - |
+| `0x01A9` | C->S | missing | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | - |
 | `0x01AC` | S->C | untracked | `0x01ac` | `6` | `-` | - |
 | `0x01AD` | S->C | untracked | `0x01ad` | `-1` | `-` | - |
 | `0x01AE` | C->S | missing | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | - |
@@ -364,7 +362,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x01E5` | S->C | untracked | `0x01e5` | `6` | `-` | - |
 | `0x01E6` | S->C | untracked | `0x01e6` | `26` | `-` | - |
 | `0x01E7` | C->S | missing | `0x01e7` | `2` | `clif_parse_NoviceDoriDori` | - |
-| `0x01E8` | C->S | missing | `HEADER_CZ_MAKE_GROUP2` | `sizeof( PACKET_CZ_MAKE_GROUP2 )` | `clif_parse_CreateParty2` | - |
+| `0x01E8` | C->S | referenced | `HEADER_CZ_MAKE_GROUP2` | `sizeof( PACKET_CZ_MAKE_GROUP2 )` | `clif_parse_CreateParty2` | party_packets.go |
 | `0x01EC` | S->C | untracked | `0x01ec` | `26` | `-` | - |
 | `0x01ED` | C->S | missing | `0x01ed` | `2` | `clif_parse_NoviceExplosionSpirits` | - |
 | `0x01F0` | S->C | untracked | `0x01f0` | `-1` | `-` | - |

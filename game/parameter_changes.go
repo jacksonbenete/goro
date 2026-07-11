@@ -65,6 +65,10 @@ func applyParameterChange(ctx client.Context, change network.ParameterChange) {
 	default:
 		return
 	}
+	switch change.VarID {
+	case network.StatusHP, network.StatusMaxHP:
+		syncLocalPartyVitals(ctx)
+	}
 	log.Printf("parameter change var=%d value=%d hp=%d/%d sp=%d/%d base_lv=%d job_lv=%d base_exp=%d/%d job_exp=%d/%d zeny=%d weight=%d/%d",
 		change.VarID,
 		change.Value,

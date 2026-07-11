@@ -66,7 +66,7 @@ func (m *WorldMode) openPlayerContextFromInput(ctx client.Context, now time.Time
 	if !ok {
 		return false
 	}
-	m.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name))
+	m.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name), partyCanInvite(ctx.Session))
 	return true
 }
 
@@ -82,6 +82,10 @@ func (m *WorldMode) sendAddFriend(ctx client.Context, name string) {
 	if err := ctx.Network.SendAddFriend(name); err != nil {
 		log.Printf("add friend failed name=%q: %v", name, err)
 	}
+}
+
+func partyCanInvite(s *session.Session) bool {
+	return partyCanManage(s)
 }
 
 func friendNameInSession(s *session.Session, name string) bool {

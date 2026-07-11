@@ -178,11 +178,33 @@ func (c *ChatConsole) submit(ctx client.Context) {
 	if ctx.Session != nil && strings.TrimSpace(ctx.Session.Selected.Name) != "" {
 		name = ctx.Session.Selected.Name
 	}
+	if strings.HasPrefix(text, "%") {
+		c.submitPartyChat(ctx, name, strings.TrimSpace(strings.TrimPrefix(text, "%")))
+		return
+	}
 	if ctx.Network == nil {
 		c.AddErrorMessage("send failed: not connected")
 		return
 	}
 	if err := ctx.Network.SendGlobalChat(name, text); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		return
+	}
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitPartyChat(ctx client.Context, name string, message string) {
+	if message == "" {
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		return
+	}
+	if err := ctx.Network.SendPartyMessage(fmt.Sprintf("%s : %s", name, message)); err != nil {
 		c.AddErrorMessage("send failed: %s", err)
 		return
 	}
@@ -237,6 +259,15 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/memo":
 		c.submitMemo(ctx)
 		return true
+	case "/organize":
+		c.submitOrganizeParty(ctx, text)
+		return true
+	case "/leave":
+		c.submitLeaveParty(ctx)
+		return true
+	case "/invite":
+		c.submitInviteParty(ctx, text)
+		return true
 	case "/w", "/whisper":
 		c.submitWhisper(ctx, text)
 		return true
@@ -247,6 +278,100 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 		}
 		return false
 	}
+}
+
+func (c *ChatConsole) submitOrganizeParty(ctx client.Context, text string) {
+	name := consoleCommandArgs(text)
+	name = strings.Trim(name, `"`)
+	if name == "" {
+		c.AddErrorMessage("usage: /organize party_name")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendMakeParty(name); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Session != nil {
+		ctx.Session.Party.Name = name
+	}
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitLeaveParty(ctx client.Context) {
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendLeaveParty(); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitInviteParty(ctx client.Context, text string) {
+	name := consoleCommandArgs(text)
+	name = strings.Trim(name, `"`)
+	if name == "" {
+		c.AddErrorMessage("usage: /invite character_name")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.World == nil {
+		c.AddErrorMessage("invite failed: character is not visible")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	for _, actor := range ctx.World.Actors {
+		if !strings.EqualFold(strings.TrimSpace(actor.Name), name) {
+			continue
+		}
+		if ctx.Network == nil {
+			c.AddErrorMessage("send failed: not connected")
+			c.setInput("")
+			c.setActive(false)
+			return
+		}
+		if err := ctx.Network.SendPartyInvite(actor.ID, actor.Name); err != nil {
+			c.AddErrorMessage("send failed: %s", err)
+			c.setInput("")
+			c.setActive(false)
+			return
+		}
+		c.AddBlueMessage("%s has received an invitation to join your party.", actor.Name)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	c.AddErrorMessage("invite failed: character is not visible")
+	c.setInput("")
+	c.setActive(false)
+}
+
+func consoleCommandArgs(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), fields[0]))
 }
 
 func (c *ChatConsole) submitEmotion(ctx client.Context, emotionID uint8) {
