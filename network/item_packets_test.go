@@ -764,6 +764,16 @@ func TestBuildCartMovePackets(t *testing.T) {
 	if len(fromCart) != 8 || ID(fromCart) != 0x0127 || binary.LittleEndian.Uint16(fromCart[2:4]) != 3 || binary.LittleEndian.Uint32(fromCart[4:8]) != 9 {
 		t.Fatalf("unexpected move-from-cart packet: % X", fromCart)
 	}
+
+	storageToCart := BuildMoveStorageToCartPacket(5, 12)
+	if len(storageToCart) != 8 || ID(storageToCart) != 0x0128 || binary.LittleEndian.Uint16(storageToCart[2:4]) != 5 || binary.LittleEndian.Uint32(storageToCart[4:8]) != 12 {
+		t.Fatalf("unexpected move-storage-to-cart packet: % X", storageToCart)
+	}
+
+	cartToStorage := BuildMoveCartToStoragePacket(6, 18)
+	if len(cartToStorage) != 8 || ID(cartToStorage) != 0x0129 || binary.LittleEndian.Uint16(cartToStorage[2:4]) != 6 || binary.LittleEndian.Uint32(cartToStorage[4:8]) != 18 {
+		t.Fatalf("unexpected move-cart-to-storage packet: % X", cartToStorage)
+	}
 }
 
 func TestParseCartAddAck(t *testing.T) {

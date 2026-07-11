@@ -23,6 +23,8 @@ const (
 	PacketCZCloseStorage       uint16 = 0x0193
 	PacketCZMoveToCart         uint16 = 0x0126
 	PacketCZMoveFromCart       uint16 = 0x0127
+	PacketCZMoveStorageToCart  uint16 = 0x0128
+	PacketCZMoveCartToStorage  uint16 = 0x0129
 )
 
 type itemPickupPacketLayout struct {
@@ -990,6 +992,14 @@ func BuildMoveFromCartPacket(index uint16, amount uint32) []byte {
 	return buildCartMovePacket(PacketCZMoveFromCart, index, amount)
 }
 
+func BuildMoveStorageToCartPacket(index uint16, amount uint32) []byte {
+	return buildCartMovePacket(PacketCZMoveStorageToCart, index, amount)
+}
+
+func BuildMoveCartToStoragePacket(index uint16, amount uint32) []byte {
+	return buildCartMovePacket(PacketCZMoveCartToStorage, index, amount)
+}
+
 func buildCartMovePacket(opcode uint16, index uint16, amount uint32) []byte {
 	if amount == 0 {
 		amount = 1
@@ -1154,6 +1164,28 @@ func (c *Client) SendMoveFromCart(index uint16, amount uint32) error {
 		log.Printf("sent CZ_MOVE_ITEM_FROM_CART opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
 	} else {
 		log.Printf("send CZ_MOVE_ITEM_FROM_CART failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMoveStorageToCart(index uint16, amount uint32) error {
+	packet := BuildMoveStorageToCartPacket(index, amount)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_MOVE_ITEM_FROM_STORAGE_TO_CART opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
+	} else {
+		log.Printf("send CZ_MOVE_ITEM_FROM_STORAGE_TO_CART failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMoveCartToStorage(index uint16, amount uint32) error {
+	packet := BuildMoveCartToStoragePacket(index, amount)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_MOVE_ITEM_FROM_CART_TO_STORAGE opcode=0x%04X index=%d amount=%d client_date=%d", ID(packet), index, amount, c.clientDate)
+	} else {
+		log.Printf("send CZ_MOVE_ITEM_FROM_CART_TO_STORAGE failed opcode=0x%04X len=%d index=%d amount=%d client_date=%d: %v", ID(packet), len(packet), index, amount, c.clientDate, err)
 	}
 	return err
 }

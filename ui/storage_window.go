@@ -75,7 +75,7 @@ func (w *StorageWindow) OpenWindow(ctx Context) {
 	w.Publish(ctx)
 }
 
-func (w *StorageWindow) Update(ctx Context, inventory *InventoryBagWindow, itemInfo *ItemInfoWindow) bool {
+func (w *StorageWindow) Update(ctx Context, inventory *InventoryBagWindow, cart *CartWindow, itemInfo *ItemInfoWindow) bool {
 	w.ensureWindow()
 	if !w.window.IsOpen() || ctx.Input == nil {
 		return false
@@ -86,7 +86,7 @@ func (w *StorageWindow) Update(ctx Context, inventory *InventoryBagWindow, itemI
 		w.Publish(ctx)
 		return false
 	}
-	if w.UpdateDrag(ctx, inventory) {
+	if w.UpdateDrag(ctx, inventory, cart) {
 		return true
 	}
 	if ctx.Input.JustPressed(render.KeyEscape) {
@@ -113,7 +113,7 @@ func (w *StorageWindow) Update(ctx Context, inventory *InventoryBagWindow, itemI
 	return consumed
 }
 
-func (w *StorageWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow) bool {
+func (w *StorageWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow, cart *CartWindow) bool {
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
@@ -123,6 +123,9 @@ func (w *StorageWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow) b
 		w.dragItem = session.InventoryItem{}
 		if inventory != nil && inventory.AcceptStorageDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 			w.withdraw(ctx, item)
+			return true
+		}
+		if cart != nil && cart.AcceptStorageDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 			return true
 		}
 		return true
@@ -167,6 +170,27 @@ func (w *StorageWindow) AcceptInventoryDrop(ctx Context, item session.InventoryI
 		return true
 	}
 	log.Printf("storage deposit requested index=%d item=%d amount=%d", item.Index, item.ItemID, amount)
+	return true
+}
+
+func (w *StorageWindow) AcceptCartDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
+	w.ensureWindow()
+	if !w.window.IsOpen() || !pointInRect(mx, my, w.window.x, w.window.y, storageWindowWidth, storageWindowHeight) {
+		return false
+	}
+	amount := uint32(item.Amount)
+	if amount == 0 {
+		amount = 1
+	}
+	if ctx.Network == nil {
+		log.Printf("cart to storage failed: not connected")
+		return true
+	}
+	if err := ctx.Network.SendMoveCartToStorage(item.Index, amount); err != nil {
+		log.Printf("cart to storage failed: %v", err)
+		return true
+	}
+	log.Printf("cart to storage requested index=%d item=%d amount=%d", item.Index, item.ItemID, amount)
 	return true
 }
 

@@ -1000,10 +1000,10 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.inventoryBag.UpdateDrag(ctx, &m.shortcutBar, &m.storageWindow, &m.cartWindow) {
 		return nil, nil
 	}
-	if m.storageWindow.UpdateDrag(ctx, &m.inventoryBag) {
+	if m.storageWindow.UpdateDrag(ctx, &m.inventoryBag, &m.cartWindow) {
 		return nil, nil
 	}
-	if m.cartWindow.UpdateDrag(ctx, &m.inventoryBag) {
+	if m.cartWindow.UpdateDrag(ctx, &m.inventoryBag, &m.storageWindow) {
 		return nil, nil
 	}
 	if m.skillWindow.UpdateDrag(ctx, &m.shortcutBar) {
@@ -1018,10 +1018,10 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.equipmentWindow.Update(ctx, &m.itemInfoWindow, &m.cartWindow, m) {
 		return nil, nil
 	}
-	if m.storageWindow.Update(ctx, &m.inventoryBag, &m.itemInfoWindow) {
+	if m.storageWindow.Update(ctx, &m.inventoryBag, &m.cartWindow, &m.itemInfoWindow) {
 		return nil, nil
 	}
-	if m.cartWindow.Update(ctx, &m.inventoryBag, &m.itemInfoWindow) {
+	if m.cartWindow.Update(ctx, &m.inventoryBag, &m.storageWindow, &m.itemInfoWindow) {
 		return nil, nil
 	}
 	if m.changeCartWindow.Update(ctx) {

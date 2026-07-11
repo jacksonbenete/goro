@@ -122,6 +122,26 @@ func TestCartAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
 	}
 }
 
+func TestStorageAndCartAcceptCrossDropsWithoutNetwork(t *testing.T) {
+	sessionState := &session.Session{
+		Storage: session.Storage{Open: true},
+		Cart:    session.Cart{Open: true},
+	}
+	ctx := Context{Session: sessionState, ScreenW: 800, ScreenH: 600}
+
+	storage := StorageWindow{}
+	storage.OpenWindow(ctx)
+	if !storage.AcceptCartDrop(ctx, session.InventoryItem{Index: 4, ItemID: 938, Amount: 2}, storage.window.x+12, storage.window.y+20) {
+		t.Fatal("drop from cart over storage was not consumed")
+	}
+
+	cart := CartWindow{}
+	cart.OpenWindow(ctx)
+	if !cart.AcceptStorageDrop(ctx, session.InventoryItem{Index: 5, ItemID: 938, Amount: 2}, cart.window.x+12, cart.window.y+20) {
+		t.Fatal("drop from storage over cart was not consumed")
+	}
+}
+
 func TestInventoryBagShowsCartButtonOnlyWhenPlayerHasCart(t *testing.T) {
 	if inventoryBagHasCart(Context{}) {
 		t.Fatal("empty context should not show cart button")
@@ -156,7 +176,7 @@ func TestStorageDragReleaseOverInventoryWithdraws(t *testing.T) {
 		dragActive: true,
 		dragFrom:   time.Now().Add(-time.Second),
 	}
-	consumed := storage.UpdateDrag(Context{Input: inputState}, &inventory)
+	consumed := storage.UpdateDrag(Context{Input: inputState}, &inventory, nil)
 	if !consumed {
 		t.Fatal("storage drag release was not consumed")
 	}
