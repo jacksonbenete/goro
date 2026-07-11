@@ -197,6 +197,24 @@ the relevant `EffectTable.js` entries.
 | `MC_LOUD` | Matched by source | Effect `311`: STR `loud` plus Korean Crazy Uproar SFX path. |
 | `MC_CARTDECORATE` | Not in v1 yet | roBrowser declares an empty effect; keep as explicit scope decision before implementing. |
 
+### Thief
+
+Source pass completed against roBrowser `SkillEffect.js`, `SkillAction.js`, and
+the relevant `EffectTable.js` entries.
+
+| Skill | Visual/SFX/timing status | Notes |
+| --- | --- | --- |
+| `TF_DOUBLE` | Server-only | Passive double attack; no roBrowser skill effect/action. |
+| `TF_MISS` | Server-only | Passive flee bonus; no roBrowser skill effect/action. |
+| `TF_STEAL` | Matched by source | Success effect `18`: `pok1.tga` particle burst and `effect/ef_steal`; failure is server-message only. |
+| `TF_HIDING` | Status-driven | roBrowser direct skill effect is empty and comments effect `19` as invalid; goro uses server status state. |
+| `TF_POISON` | Matched by source | roBrowser action `ATTACK2`; hit effect `20`: poison `pok1.tga` particles plus `effect/ef_detoxication`. |
+| `TF_DETOXIFY` | Matched by source | Effect `21`: detox `pok1.tga` particles plus `effect/ef_detoxication`; duplicate timing uses roBrowser default 200ms. |
+| `TF_SPRINKLESAND` | Matched by source | Skill routes effect `310`, but roBrowser comments that effect as empty; goro has no local visual spec. |
+| `TF_BACKSLIDING` | Matched behavior | roBrowser suppresses default skill action; goro sends the skill and follows authoritative server movement. |
+| `TF_PICKSTONE` | Matched behavior | roBrowser pickup action and `hideCastAura`; server owns item creation. |
+| `TF_THROWSTONE` | Matched by source | Pickup-style action plus before-hit effect `308`: thrown stone projectile. |
+
 ## Novice
 
 - [x] `NV_BASIC` - Server-only basic interface/trade progression.
@@ -306,9 +324,6 @@ the relevant `EffectTable.js` entries.
   implement the packet/UI and cart appearance handling.
 - [ ] Implement the old roBrowser `effect/ice` FUNC primitive used by Frost
   Diver travelling effect `27`, then remove the remaining local approximation.
-- [ ] Perform a focused visual/SFX/timing comparison for every row in the
-  static routing audit table above that is not already covered in the deep audit
-  section.
 - [ ] Run one manual first-class regression route per class on rAthena:
   targeting, cast bars, action stance, effect timing, status icon, sound,
   inventory/cart/shop side effects, and map transition cleanup.
