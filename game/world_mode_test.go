@@ -2317,15 +2317,22 @@ func TestSightEffectSpecOrbitsAroundActor(t *testing.T) {
 	if !ok {
 		t.Fatal("sight effect missing")
 	}
-	if len(spec.components) < 2 {
-		t.Fatalf("components = %d, want orbit sprite", len(spec.components))
+	if len(spec.components) != 2 {
+		t.Fatalf("components = %d, want robr shadow + sight sprite", len(spec.components))
+	}
+	shadow := spec.components[0]
+	if !shadow.shadowTexture || shadow.spriteFile != "data\\sprite\\shadow" || shadow.duplicate != 10 {
+		t.Fatalf("sight shadow component = %+v", shadow)
+	}
+	if shadow.sizeStart != 30*effectPixelRatio || shadow.sizeDelta != 10*effectPixelRatio {
+		t.Fatalf("sight shadow size = %.3f delta %.3f", shadow.sizeStart, shadow.sizeDelta)
 	}
 	component := spec.components[1]
 	if component.spriteFile != "sight" || component.duplicate != 10 || component.orbitRadiusX != 3 || component.orbitRadiusY != 3 || component.orbitRotations != 10 {
 		t.Fatalf("sight orbit component = %+v", component)
 	}
-	if component.sizeStart != 60*effectPixelRatio || component.sizeEnd != 80*effectPixelRatio {
-		t.Fatalf("sight orbit size = %.3f -> %.3f", component.sizeStart, component.sizeEnd)
+	if component.sizeStart != 60*effectPixelRatio || component.sizeDelta != 20*effectPixelRatio || component.alphaMaxDelta != 3.0/255.0 {
+		t.Fatalf("sight orbit size/alpha delta = %.3f delta %.3f alpha_delta %.3f", component.sizeStart, component.sizeDelta, component.alphaMaxDelta)
 	}
 	ctx := client.Context{}
 	effect := worldEffect{effectID: effectSight, actorID: 2000000}

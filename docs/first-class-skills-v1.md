@@ -53,7 +53,7 @@ These are the first-class/platinum skills that roBrowser gives a non-empty
 | `MG_SAFETYWALL` | Unit `UNT_SAFETYWALL=EF_GLASSWALL2` | Matched by skill unit | Not direct `SkillEffect.js`. |
 | `MG_SOULSTRIKE` | `beforeHitEffectId=15`, `hitEffectId=1` | Matched | Uses imported roBrowser-style primitives. |
 | `MG_COLDBOLT` | `beforeHitEffectId=ef_coldbolt`, `hitEffectId=51` | Matched | Synthetic string-key ID. |
-| `MG_FROSTDIVER` | `effectId=27`, `hitEffectId=28` | Matched | |
+| `MG_FROSTDIVER` | `effectId=27`, `hitEffectId=28` | Partial visual parity | Hit effect is matched; travelling `effect/ice` FUNC primitive still needs a clean implementation. |
 | `MG_STONECURSE` | `effectId=23` | Matched | |
 | `MG_FIREBALL` | `beforeHitEffectId=24`, `hitEffectId=49` | Matched | |
 | `MG_FIREWALL` | `groundEffectId=25`, `hitEffectId=49` | Matched | Also unit-routed for wall cells. |
@@ -113,6 +113,31 @@ the relevant `EffectTable.js` entries.
 | `SM_FATALBLOW` | Server-only | Bash extension; no roBrowser skill effect/action. |
 | `SM_AUTOBERSERK` | Status-driven | roBrowser declares no skill effect. rAthena toggle is `SC_AUTOBERSERK`; active combat state uses `SC_BERSERK`/`Opt3Berserk`, now propagated through imported Opt3 status state. |
 
+### Mage
+
+Source pass completed against roBrowser `SkillEffect.js`, `SkillAction.js`,
+`SkillUnit.js`, and the relevant numeric/string-key `EffectTable.js` entries.
+roBrowser has no Mage-specific `SkillAction.js` overrides in this range, so
+Mage active skills use the default skill action unless the cast pipeline
+overrides stance/timing from server cast ACKs.
+
+| Skill | Visual/SFX/timing status | Notes |
+| --- | --- | --- |
+| `MG_SRECOVERY` | Server-only | Passive SP recovery; no roBrowser skill effect/action. |
+| `MG_SIGHT` | Matched by source | Effect `22`: roBrowser shadow-texture orbit, `sight` sprite orbit, and `effect/ef_sight` SFX. Removed the old local cylinder placeholder. |
+| `MG_NAPALMBEAT` | Matched by source | roBrowser routes hit effect `1`; effect `32` is SFX-only/commented FUNC in the table. |
+| `MG_SAFETYWALL` | Matched by source | Unit `UNT_SAFETYWALL` maps to effect `315` (`EF_GLASSWALL2`): STR `safetywall` plus three staggered `alpha_down` cylinders. |
+| `MG_SOULSTRIKE` | Matched by source | Before-hit effect `15` plus hit effect `1`; projectile particles use roBrowser timing and source-to-target movement. |
+| `MG_COLDBOLT` | Matched by source | String-key `ef_coldbolt`: falling `icearrow.tga`, random `ef_icearrow1..3`, delayed blue ring, then hit effect `51`. |
+| `MG_FROSTDIVER` | Partial | Hit effect `28` matches STR `freeze` plus `ef_frostdiver2`. Travelling effect `27` points at old roBrowser `effect/ice` FUNC behavior; goro keeps a visible approximation but removed the guessed travel SFX. |
+| `MG_STONECURSE` | Matched by source | Effect `23`; server owns success/failure/status. |
+| `MG_FIREBALL` | Matched by source | Before-hit effect `24` and hit effect `49`; projectile angle/timing follows roBrowser table. |
+| `MG_FIREWALL` | Matched by source | Ground effect `25` and hit effect `49`; unit cells are server-driven. |
+| `MG_FIREBOLT` | Matched by source | String-key `ef_firebolt`: falling fire arrow frame list, random `ef_firearrow1..3`, then hit effect `49`. |
+| `MG_LIGHTNINGBOLT` | Matched by source | Effect `29`: `lightning` STR, random `windhit1..3`, random `ef_lightningbolt1..3`, then hit effect `52`. |
+| `MG_THUNDERSTORM` | Matched by source | Effect `30` and hit effect `52`; ground target/cast delivery is server-driven. |
+| `MG_ENERGYCOAT` | Matched by source | Platinum effect `169`; status routing uses imported status/Opt3 metadata. |
+
 ## Novice
 
 - [x] `NV_BASIC` - Server-only basic interface/trade progression.
@@ -143,7 +168,8 @@ the relevant `EffectTable.js` entries.
 - [x] `MG_SAFETYWALL` - roBrowser ground skill unit effect.
 - [x] `MG_SOULSTRIKE` - roBrowser effect routing.
 - [x] `MG_COLDBOLT` - roBrowser bolt effect routing.
-- [x] `MG_FROSTDIVER` - roBrowser effect routing.
+- [ ] `MG_FROSTDIVER` - Hit effect matches roBrowser; travelling `effect/ice`
+  FUNC primitive needs a clean implementation.
 - [x] `MG_STONECURSE` - roBrowser effect/cast routing.
 - [x] `MG_FIREBALL` - roBrowser source-to-target effect routing.
 - [x] `MG_FIREWALL` - roBrowser ground skill unit effect.
@@ -219,6 +245,8 @@ the relevant `EffectTable.js` entries.
   UI, send the selected item, and verify inventory/equipped arrow updates.
 - [ ] Decide whether `MC_CARTDECORATE` belongs in the 2008 v1 target. If yes,
   implement the packet/UI and cart appearance handling.
+- [ ] Implement the old roBrowser `effect/ice` FUNC primitive used by Frost
+  Diver travelling effect `27`, then remove the remaining local approximation.
 - [ ] Perform a focused visual/SFX/timing comparison for every row in the
   static routing audit table above that is not already covered in the deep audit
   section.
