@@ -63,10 +63,10 @@ func (m *WorldMode) openPlayerContextFromInput(ctx client.Context, now time.Time
 	screenW, screenH := ctx.ScreenSize()
 	projection := m.sceneProjection(ctx, screenW, screenH, now)
 	actor, ok := clickedPlayerTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
-	if !ok || friendNameInSession(ctx.Session, actor.Name) {
+	if !ok {
 		return false
 	}
-	m.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.Name)
+	m.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name))
 	return true
 }
 

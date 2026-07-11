@@ -84,14 +84,14 @@ func (w *InventoryBagWindow) Toggle(ctx Context) {
 	w.Publish(ctx)
 }
 
-func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, itemInfo *ItemInfoWindow) bool {
+func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow, itemInfo *ItemInfoWindow) bool {
 	w.ensureWindow()
 	if !w.window.IsOpen() || ctx.Input == nil {
 		return false
 	}
 	cartChanged := cart != w.cart
 	w.cart = cart
-	if w.UpdateDrag(ctx, shortcuts, storage, cart) {
+	if w.UpdateDrag(ctx, shortcuts, storage, cart, trade) {
 		return true
 	}
 	w.ClampScroll(ctx.Session)
@@ -110,7 +110,7 @@ func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage
 	return consumed
 }
 
-func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow) bool {
+func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow) bool {
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
@@ -122,6 +122,9 @@ func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, sto
 			return true
 		}
 		if cart != nil && cart.AcceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+			return true
+		}
+		if trade != nil && trade.AcceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 			return true
 		}
 		if shortcuts != nil && shortcuts.AcceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {

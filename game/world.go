@@ -100,6 +100,7 @@ type WorldMode struct {
 	teleportModal     gameui.TeleportModal
 	deathModal        gameui.DeathModal
 	friendRequest     gameui.ConfirmModal
+	tradeRequest      gameui.ConfirmModal
 	characterWindow   gameui.CharacterWindow
 	basicMenu         gameui.BasicMenu
 	inventoryBag      gameui.InventoryBagWindow
@@ -115,6 +116,8 @@ type WorldMode struct {
 	skillWindow       gameui.SkillWindow
 	friendsWindow     gameui.FriendsWindow
 	playerContext     gameui.PlayerContextMenu
+	tradeWindow       gameui.TradeWindow
+	pendingTradeName  string
 	settingsWindow    gameui.SettingsWindow
 	shortcutBar       gameui.ShortcutBar
 	mapFade           mapFadeState
@@ -597,6 +600,51 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			applyFriendDelete(ctx, friendDeleted)
 			continue
 		}
+		if tradeRequest, ok, err := network.ParseTradeRequest(pkt); err != nil {
+			log.Printf("parse trade request 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.openTradeRequest(ctx, tradeRequest)
+			continue
+		}
+		if tradeResponse, ok, err := network.ParseTradeResponse(pkt); err != nil {
+			log.Printf("parse trade response 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleTradeResponse(ctx, tradeResponse)
+			continue
+		}
+		if tradeItem, ok, err := network.ParseTradeItem(pkt); err != nil {
+			log.Printf("parse trade item 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.tradeWindow.AddReceivedItem(ctx, tradeItem)
+			continue
+		}
+		if tradeAck, ok, err := network.ParseTradeAddItemAck(pkt); err != nil {
+			log.Printf("parse trade add item ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.tradeWindow.AddOwnItemAck(ctx, tradeAck)
+			continue
+		}
+		if tradeConclude, ok, err := network.ParseTradeConclude(pkt); err != nil {
+			log.Printf("parse trade conclude 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.tradeWindow.SetConcluded(ctx, tradeConclude.Other)
+			continue
+		}
+		if network.ParseTradeCanceled(pkt) {
+			m.tradeWindow.Close(ctx)
+			m.console.AddErrorMessage("Trade canceled.")
+			continue
+		}
+		if tradeExec, ok, err := network.ParseTradeExec(pkt); err != nil {
+			log.Printf("parse trade exec 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleTradeExec(ctx, tradeExec)
+			continue
+		}
+		if network.ParseTradeUndo(pkt) {
+			m.tradeWindow.Undo(ctx)
+			continue
+		}
 		if storageItem, ok, err := network.ParseStorageItemAdded(pkt); err != nil {
 			log.Printf("parse storage item added 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -948,8 +996,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	}
 	m.skills().AdjustPendingLevelFromWheel(ctx)
 	playerContextConsumed := m.playerContext.Update(ctx)
-	if name := m.playerContext.PopAddFriendName(); name != "" {
-		m.sendAddFriend(ctx, name)
+	switch action := m.playerContext.PopAction(); action.Kind {
+	case gameui.PlayerContextActionAddFriend:
+		m.sendAddFriend(ctx, action.Name)
+		return nil, nil
+	case gameui.PlayerContextActionTrade:
+		m.sendTradeRequest(ctx, action.ActorID, action.Name)
 		return nil, nil
 	}
 	if playerContextConsumed {
@@ -958,10 +1010,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.friendRequest.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
+	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.friendRequest.IsOpen() && !m.tradeRequest.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.friendRequest.Update(ctx) {
+		return nil, nil
+	}
+	if m.tradeRequest.Update(ctx) {
 		return nil, nil
 	}
 	if m.deathModal.Update(ctx) {
@@ -997,7 +1052,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.identifyWindow.Update(ctx) {
 		return nil, nil
 	}
-	if m.inventoryBag.UpdateDrag(ctx, &m.shortcutBar, &m.storageWindow, &m.cartWindow) {
+	if m.inventoryBag.UpdateDrag(ctx, &m.shortcutBar, &m.storageWindow, &m.cartWindow, &m.tradeWindow) {
 		return nil, nil
 	}
 	if m.storageWindow.UpdateDrag(ctx, &m.inventoryBag, &m.cartWindow) {
@@ -1012,7 +1067,10 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.shortcutBar.Update(ctx, m) {
 		return nil, nil
 	}
-	if m.inventoryBag.Update(ctx, &m.shortcutBar, &m.storageWindow, &m.cartWindow, &m.itemInfoWindow) {
+	if m.inventoryBag.Update(ctx, &m.shortcutBar, &m.storageWindow, &m.cartWindow, &m.tradeWindow, &m.itemInfoWindow) {
+		return nil, nil
+	}
+	if m.tradeWindow.Update(ctx, &m.itemInfoWindow) {
 		return nil, nil
 	}
 	if m.equipmentWindow.Update(ctx, &m.itemInfoWindow, &m.cartWindow, m) {
