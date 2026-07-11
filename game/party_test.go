@@ -37,3 +37,41 @@ func TestPartyVitalsUpdateKnownMembers(t *testing.T) {
 		t.Fatalf("party vitals not applied: %+v", member)
 	}
 }
+
+func TestApplyPartyListSyncsLocalVitals(t *testing.T) {
+	s := &session.Session{
+		AccountID: 2000000,
+		Selected:  session.Character{Name: "Kivutar"},
+		Vitals:    session.Vitals{HP: 75, MaxHP: 100},
+	}
+	ctx := client.Context{Session: s}
+
+	applyPartyList(ctx, network.PartyList{
+		Name: "party",
+		Members: []network.PartyMember{
+			{AccountID: 2000000, Name: "Kivutar"},
+			{AccountID: 3000000, Name: "Alice"},
+		},
+	})
+
+	member := findPartyMember(&s.Party, 2000000)
+	if member == nil || member.HP != 75 || member.MaxHP != 100 {
+		t.Fatalf("local party member = %+v, want 75/100", member)
+	}
+}
+
+func TestSyncLocalPartyVitalsFallsBackToSelectedCharacter(t *testing.T) {
+	s := &session.Session{
+		AccountID: 2000000,
+		Selected:  session.Character{Name: "Kivutar", HP: 40, MaxHP: 55},
+		Party:     session.Party{Name: "party"},
+	}
+	ctx := client.Context{Session: s}
+
+	syncLocalPartyVitals(ctx)
+
+	member := findPartyMember(&s.Party, 2000000)
+	if member == nil || member.HP != 40 || member.MaxHP != 55 {
+		t.Fatalf("local party member = %+v, want selected character 40/55", member)
+	}
+}

@@ -52,6 +52,7 @@ func (m *WorldMode) handlePartyCreateResult(ctx client.Context, result network.P
 	switch result.Result {
 	case 0:
 		m.console.AddBlueMessage("Party created.")
+		syncLocalPartyVitals(ctx)
 	case 1:
 		clearPendingParty(ctx)
 		m.console.AddErrorMessage("Party name already exists.")
@@ -107,6 +108,7 @@ func applyPartyList(ctx client.Context, list network.PartyList) {
 		}
 		ctx.Session.Party.Members = append(ctx.Session.Party.Members, next)
 	}
+	syncLocalPartyVitals(ctx)
 	log.Printf("party list received name=%q members=%d", list.Name, len(list.Members))
 }
 
@@ -125,6 +127,7 @@ func applyPartyMemberJoin(ctx client.Context, member network.PartyMember) {
 		next.MapName = ctx.World.MapName
 	}
 	upsertPartyMember(&ctx.Session.Party, next)
+	syncLocalPartyVitals(ctx)
 	log.Printf("party member join aid=%d name=%q map=%q", next.AccountID, next.Name, next.MapName)
 }
 
@@ -285,8 +288,26 @@ func syncLocalPartyVitals(ctx client.Context) {
 	if member.Name == "" {
 		member.Name = partyDisplayName(ctx.Session.Selected.Name)
 	}
-	member.HP = ctx.Session.Vitals.HP
-	member.MaxHP = ctx.Session.Vitals.MaxHP
+	hp, maxHP := localPartyHP(ctx.Session)
+	member.HP = hp
+	member.MaxHP = maxHP
+}
+
+func localPartyHP(s *session.Session) (int, int) {
+	if s == nil {
+		return 0, 0
+	}
+	hp := s.Vitals.HP
+	maxHP := s.Vitals.MaxHP
+	if maxHP <= 0 {
+		character := selectedCharacter(s)
+		if character.MaxHP <= 0 && s.Selected.MaxHP > 0 {
+			character = s.Selected
+		}
+		hp = int(character.HP)
+		maxHP = int(character.MaxHP)
+	}
+	return hp, maxHP
 }
 
 func partyMemberLifeForDisplay(ctx client.Context, actor worldstate.Actor) (actorLife, bool) {
