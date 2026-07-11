@@ -650,6 +650,20 @@ func (m *WorldMode) hasActiveWorldEffect(effectID int, actorID uint32, now time.
 	return false
 }
 
+func (m *WorldMode) removeWorldEffect(effectID int, actorID uint32) bool {
+	removed := false
+	active := m.worldEffects[:0]
+	for _, effect := range m.worldEffects {
+		if effect.effectID == effectID && effect.actorID == actorID {
+			removed = true
+			continue
+		}
+		active = append(active, effect)
+	}
+	m.worldEffects = active
+	return removed
+}
+
 func (m *WorldMode) addWorldEffectAt(ctx client.Context, effectID int, actorID uint32, starts time.Time) bool {
 	return m.addWorldEffectBetweenAt(ctx, effectID, actorID, 0, starts)
 }
@@ -1091,6 +1105,8 @@ func importedSkillEffectSpec(skillID uint16) skillEffectSpec {
 
 func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
 	switch db.SkillActions[skillID] {
+	case db.SkillActionNone:
+		return skillActionSpec{defined: true, action: skillActorActionNone}, true
 	case db.SkillActionIdle:
 		return idleSkillActionSpec, true
 	case db.SkillActionAttack:

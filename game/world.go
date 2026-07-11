@@ -264,6 +264,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
+	m.syncCurrentActorEffectStateEffects(ctx)
 	m.shortcutBar.Load(ctx)
 	m.npcDialog.ResetPublished(ctx)
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
@@ -895,7 +896,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("parse actor entry 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.clearActorDeath(entry.ID)
-			upsertNetworkActor(ctx, entry)
+			m.upsertNetworkActor(ctx, entry)
 			m.applyWarpPortalEntry(ctx, entry)
 		}
 	}

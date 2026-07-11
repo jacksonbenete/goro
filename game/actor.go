@@ -172,6 +172,25 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 	ctx.World.UpsertActor(actor)
 }
 
+func (m *WorldMode) upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
+	if ctx.World == nil {
+		return
+	}
+	oldState := uint32(0)
+	if existing, ok := ctx.World.Actors[entry.ID]; ok && existing.HasState {
+		oldState = existing.EffectState
+	}
+	upsertNetworkActor(ctx, entry)
+	if !entry.HasState {
+		return
+	}
+	actor, ok := ctx.World.Actors[entry.ID]
+	if !ok || !actor.HasState {
+		return
+	}
+	m.applyActorEffectStateEffects(ctx, actor.ID, oldState, actor.EffectState)
+}
+
 func (m *WorldMode) applyWarpPortalEntry(ctx client.Context, entry network.ActorEntry) {
 	if !isWarpPortalJob(entry.Job) {
 		return
@@ -192,6 +211,7 @@ func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVan
 		m.startActorDeath(ctx, vanish.ID)
 		return
 	}
+	m.removeActorEffectStateEffects(vanish.ID)
 	ctx.World.RemoveActor(vanish.ID)
 	delete(m.actorAnims, vanish.ID)
 	delete(m.actorDeaths, vanish.ID)
@@ -208,6 +228,7 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 			continue
 		}
 		ctx.World.RemoveActor(id)
+		m.removeActorEffectStateEffects(id)
 		delete(m.actorDeaths, id)
 		delete(m.actorAnims, id)
 		delete(m.actorSoundFrames, id)

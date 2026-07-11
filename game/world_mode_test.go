@@ -182,6 +182,27 @@ func TestApplyTrickDeadStatusHoldsDeathPose(t *testing.T) {
 	}
 }
 
+func TestTrickDeadSkillDoesNotStartDefaultSkillAction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, Job: 0, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	if action := skillAction(db.SkillNVTrickdead); !action.defined || action.action != skillActorActionNone {
+		t.Fatalf("trick dead skill action = %+v, want no source action", action)
+	}
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{
+		SkillID:  db.SkillNVTrickdead,
+		SourceID: 2000000,
+		TargetID: 2000000,
+		Result:   1,
+	})
+	if len(mode.actorAnims) != 0 {
+		t.Fatalf("trick dead skill animation = %+v, want none before status", mode.actorAnims)
+	}
+}
+
 func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 150000, Job: 5}
@@ -320,9 +341,103 @@ func TestApplyActorStateChangeTracksRemoteActorRenderState(t *testing.T) {
 	if !actor.HasState || actor.BodyState != db.BodyStateFreeze || actor.HealthState != db.HealthStateBlind || actor.EffectState != 0x00402000 {
 		t.Fatalf("actor state = %+v", actor)
 	}
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectRuwach || mode.worldEffects[0].actorID != 110000001 {
+		t.Fatalf("actor state effects = %+v, want Ruwach", mode.worldEffects)
+	}
 	state := mode.nonPCSpriteState(actor, time.Now())
 	if state.actionFamily != spriteActionIdle || !state.hasPlay || state.play || !state.hasFixedMotion || state.fixedMotion != 0 {
 		t.Fatalf("frozen non-pc sprite state = %+v", state)
+	}
+
+	mode.applyActorStateChange(ctx, network.ActorStateChange{
+		ID:          110000001,
+		BodyState:   db.BodyStateFreeze,
+		HealthState: db.HealthStateBlind,
+		EffectState: 0,
+	})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("actor state effects after clear = %+v, want none", mode.worldEffects)
+	}
+}
+
+func TestActorEntryWithEffectStateStartsStateEffect(t *testing.T) {
+	world := worldstate.New()
+	ctx := client.Context{World: world}
+	mode := &WorldMode{}
+
+	mode.upsertNetworkActor(ctx, network.ActorEntry{
+		ID:          110000001,
+		X:           10,
+		Y:           20,
+		Job:         1002,
+		EffectState: db.EffectStateRuwach,
+		HasState:    true,
+	})
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectRuwach || mode.worldEffects[0].actorID != 110000001 {
+		t.Fatalf("actor entry effects = %+v, want Ruwach", mode.worldEffects)
+	}
+
+	mode.upsertNetworkActor(ctx, network.ActorEntry{
+		ID:          110000001,
+		X:           10,
+		Y:           20,
+		Job:         1002,
+		EffectState: db.EffectStateRuwach,
+		HasState:    true,
+	})
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectRuwach {
+		t.Fatalf("refreshed actor entry effects = %+v, want one Ruwach", mode.worldEffects)
+	}
+
+	mode.upsertNetworkActor(ctx, network.ActorEntry{
+		ID:          110000001,
+		X:           10,
+		Y:           20,
+		Job:         1002,
+		EffectState: 0,
+		HasState:    true,
+	})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("actor entry effects after clear = %+v, want none", mode.worldEffects)
+	}
+}
+
+func TestSyncCurrentActorEffectStateEffectsStartsExistingActorEffects(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{
+		ID:          110000001,
+		X:           10,
+		Y:           20,
+		Job:         1002,
+		EffectState: db.EffectStateRuwach,
+		HasState:    true,
+	})
+	ctx := client.Context{World: world}
+	mode := &WorldMode{}
+
+	mode.syncCurrentActorEffectStateEffects(ctx)
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectRuwach || mode.worldEffects[0].actorID != 110000001 {
+		t.Fatalf("synced actor effects = %+v, want Ruwach", mode.worldEffects)
+	}
+}
+
+func TestActorVanishRemovesActorEffectStateEffects(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{ID: 110000001, X: 10, Y: 20, Job: 1002, Appearance: true})
+	ctx := client.Context{World: world}
+	mode := &WorldMode{}
+
+	mode.applyActorStateChange(ctx, network.ActorStateChange{
+		ID:          110000001,
+		EffectState: db.EffectStateRuwach,
+	})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects before vanish = %+v, want Ruwach", mode.worldEffects)
+	}
+
+	mode.applyActorVanish(ctx, network.ActorVanish{ID: 110000001})
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects after vanish = %+v, want none", mode.worldEffects)
 	}
 }
 

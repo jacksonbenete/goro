@@ -62,12 +62,14 @@ func (m *WorldMode) applyActorEffectStateStatus(ctx client.Context, change netwo
 	if !ok {
 		return
 	}
+	oldState := actor.EffectState
 	if change.Active {
 		actor.EffectState |= bit
 	} else {
 		actor.EffectState &^= bit
 	}
 	actor.HasState = true
+	m.applyActorEffectStateEffects(ctx, id, oldState, actor.EffectState)
 	if local {
 		ctx.World.Player.EffectState = actor.EffectState
 		ctx.World.Player.HasState = true
@@ -102,12 +104,23 @@ func (m *WorldMode) applyTrickDeadStatus(ctx client.Context, change network.Stat
 	now := time.Now()
 	if change.Active {
 		actionFamily := deathActionFamilyForActor(actor)
-		m.startHeldCombatAnimation(ctx, id, actionFamily, now, m.actorActionDuration(ctx, actor, actionFamily, defaultDeathAnimationDuration))
+		m.setTrickDeadStatusAction(ctx, id, actionFamily, now, m.actorActionDuration(ctx, actor, actionFamily, defaultDeathAnimationDuration), true)
 		log.Printf("trick dead active actor=%d", id)
 		return
 	}
-	m.startCombatAnimation(ctx, id, spriteActionIdle, now, defaultAttackAnimationDuration)
+	m.setTrickDeadStatusAction(ctx, id, spriteActionIdle, now, defaultAttackAnimationDuration, false)
 	log.Printf("trick dead inactive actor=%d", id)
+}
+
+func (m *WorldMode) setTrickDeadStatusAction(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration, holdFinal bool) {
+	m.setCombatActorAction(ctx, id, actorAnimation{
+		actionFamily: actionFamily,
+		started:      started,
+		duration:     duration,
+		play:         true,
+		hasPlay:      true,
+		holdFinal:    holdFinal,
+	})
 }
 
 func (m *WorldMode) addStatusEffectTransition(ctx client.Context, change network.StatusEffectChange) {

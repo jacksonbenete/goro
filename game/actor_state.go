@@ -17,7 +17,9 @@ func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.Act
 		return
 	}
 	if isLocalActor(ctx, change.ID) {
+		oldState := ctx.World.Player.EffectState
 		setActorRenderState(&ctx.World.Player, change.BodyState, change.HealthState, change.EffectState)
+		m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
 		log.Printf("actor state local id=%d body=%d health=0x%04X effect=0x%08X", change.ID, change.BodyState, change.HealthState, change.EffectState)
 		return
 	}
@@ -25,7 +27,9 @@ func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.Act
 	if !ok {
 		return
 	}
+	oldState := actor.EffectState
 	setActorRenderState(&actor, change.BodyState, change.HealthState, change.EffectState)
+	m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
 	ctx.World.UpsertActor(actor)
 	log.Printf("actor state id=%d body=%d health=0x%04X effect=0x%08X", change.ID, change.BodyState, change.HealthState, change.EffectState)
 }
