@@ -33,9 +33,9 @@ type CharacterSelectWindowCallbacks struct {
 }
 
 type CharacterSelectWindow struct {
+	WindowHandle
 	opts      CharacterSelectWindowOptions
 	callbacks CharacterSelectWindowCallbacks
-	window    WindowState
 }
 
 const (
@@ -53,8 +53,8 @@ func NewCharacterSelectWindow(ctx client.Context, opts CharacterSelectWindowOpti
 	w := &CharacterSelectWindow{
 		opts:      opts,
 		callbacks: callbacks,
-		window:    NewWindowState(width, height),
 	}
+	w.window = NewWindowState(width, height)
 	w.window.OpenAt(x, y, w.widgetTree())
 	return w
 }
@@ -74,25 +74,11 @@ func (w *CharacterSelectWindow) SetOptions(ctx client.Context, opts CharacterSel
 	w.window.SetContent(w.widgetTree())
 }
 
-func (w *CharacterSelectWindow) Widget() widget.Widget {
-	if w == nil {
-		return nil
-	}
-	return w.window.Widget()
-}
-
 func (w *CharacterSelectWindow) Update(ctx client.Context) bool {
 	if w == nil {
 		return false
 	}
 	return w.window.Update(ctx)
-}
-
-func (w *CharacterSelectWindow) Publish(ctx client.Context) {
-	if w == nil || ctx.UIManager == nil {
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func characterSelectWindowTreeEqual(a, b CharacterSelectWindowOptions) bool {

@@ -50,9 +50,9 @@ type CharacterCreateWindowCallbacks struct {
 }
 
 type CharacterCreateWindow struct {
+	WindowHandle
 	opts      CharacterCreateWindowOptions
 	callbacks CharacterCreateWindowCallbacks
-	window    WindowState
 	name      *textfield.Widget
 }
 
@@ -69,8 +69,8 @@ func NewCharacterCreateWindow(ctx client.Context, opts CharacterCreateWindowOpti
 	w := &CharacterCreateWindow{
 		opts:      opts,
 		callbacks: callbacks,
-		window:    NewWindowState(width, height),
 	}
+	w.window = NewWindowState(width, height)
 	w.window.OpenAt(x, y, w.widgetTree())
 	return w
 }
@@ -94,25 +94,11 @@ func (w *CharacterCreateWindow) SetOptions(ctx client.Context, opts CharacterCre
 	}
 }
 
-func (w *CharacterCreateWindow) Widget() widget.Widget {
-	if w == nil {
-		return nil
-	}
-	return w.window.Widget()
-}
-
 func (w *CharacterCreateWindow) Update(ctx client.Context) bool {
 	if w == nil {
 		return false
 	}
 	return w.window.Update(ctx)
-}
-
-func (w *CharacterCreateWindow) Publish(ctx client.Context) {
-	if w == nil || ctx.UIManager == nil {
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func characterCreateWindowTreeEqual(a, b CharacterCreateWindowOptions) bool {

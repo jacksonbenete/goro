@@ -20,9 +20,9 @@ type LoginWindow struct {
 	Username string
 	Password string
 
+	WindowHandle
 	layout    loginWindowLayout
 	callbacks LoginWindowCallbacks
-	window    WindowState
 	user      *textfield.Widget
 	password  *textfield.Widget
 }
@@ -43,8 +43,8 @@ func NewLoginWindow(ctx client.Context, username, password string, callbacks Log
 		Password:  password,
 		layout:    layout,
 		callbacks: callbacks,
-		window:    NewWindowState(layout.W, layout.H),
 	}
+	w.window = NewWindowState(layout.W, layout.H)
 	w.window.OpenAt(layout.X, layout.Y, w.widgetTree())
 	return w
 }
@@ -64,25 +64,11 @@ func (w *LoginWindow) SetContext(ctx client.Context) {
 	w.rebuild()
 }
 
-func (w *LoginWindow) Widget() widget.Widget {
-	if w == nil {
-		return nil
-	}
-	return w.window.Widget()
-}
-
 func (w *LoginWindow) Update(ctx client.Context) bool {
 	if w == nil {
 		return false
 	}
 	return w.window.Update(ctx)
-}
-
-func (w *LoginWindow) Publish(ctx client.Context) {
-	if w == nil || ctx.UIManager == nil {
-		return
-	}
-	w.window.Publish(ctx)
 }
 
 func (w *LoginWindow) rebuild() {
