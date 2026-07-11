@@ -178,6 +178,25 @@ comes from server cast ACKs and the generic skill action path.
 | `AL_CURE` | Matched by source | Effect `66`: STR `cure`, `cure_min`, `effect/acolyte_cure`. |
 | `AL_HOLYLIGHT` | Matched by source | Platinum effect `152`: STR `holyhit`; cast bar/aura is server-timed. |
 
+### Merchant
+
+Source pass completed against roBrowser `SkillEffect.js`, `SkillAction.js`, and
+the relevant `EffectTable.js` entries.
+
+| Skill | Visual/SFX/timing status | Notes |
+| --- | --- | --- |
+| `MC_INCCARRY` | Server-only | Passive carrying capacity; no roBrowser skill effect/action. |
+| `MC_DISCOUNT` | Server-only | Shop price modifier; no roBrowser skill effect/action. |
+| `MC_OVERCHARGE` | Server-only | Sell price modifier; no roBrowser skill effect/action. |
+| `MC_PUSHCART` | Behavior/UI | No roBrowser skill effect/action; goro handles cart status, cart sprite, cart storage, and cart packets. |
+| `MC_IDENTIFY` | Behavior/UI | roBrowser declares an empty skill effect; goro handles the magnifier/item identify UI and packet flow. |
+| `MC_VENDING` | Behavior/UI | roBrowser declares an empty skill effect; goro handles vending setup, shop board, buyer flow, and shop bubble. |
+| `MC_MAMMONITE` | Matched by source | roBrowser action `ATTACK2`; effect `10`: STR `maemor`, `memor_min`, and `effect/ef_coin2`. |
+| `MC_CARTREVOLUTION` | Matched by source | roBrowser action `ATTACK2`; begin/hit effect `170`: STR `cartrevolution` plus `effect/ef_magnumbreak`. |
+| `MC_CHANGECART` | Behavior/UI | roBrowser declares no visual effect; goro sends the change-cart packet and updates cart sprite from server state. |
+| `MC_LOUD` | Matched by source | Effect `311`: STR `loud` plus Korean Crazy Uproar SFX path. |
+| `MC_CARTDECORATE` | Not in v1 yet | roBrowser declares an empty effect; keep as explicit scope decision before implementing. |
+
 ## Novice
 
 - [x] `NV_BASIC` - Server-only basic interface/trade progression.
