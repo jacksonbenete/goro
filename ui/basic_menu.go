@@ -20,7 +20,7 @@ const (
 )
 
 type BasicMenu struct {
-	WindowHandle
+	Window
 	content   widget.Widget
 	callbacks BasicMenuCallbacks
 }
@@ -56,15 +56,15 @@ func (m *BasicMenu) Update(ctx client.Context, callbacks BasicMenuCallbacks) boo
 	m.callbacks = callbacks
 	width, height := basicMenuSize()
 	if m.EnsureWindow(width, height) {
-		m.window.titleHeight = 0
+		m.titleHeight = 0
 	}
-	if !m.window.IsOpen() {
-		m.window.OpenAt(basicMenuX, basicMenuY, m.widgetTree())
+	if !m.IsOpen() {
+		m.OpenAt(basicMenuX, basicMenuY, m.widgetTree())
 	} else if m.content == nil {
-		m.window.SetContent(m.widgetTree())
+		m.SetContent(m.widgetTree())
 	}
-	consumed := m.window.Update(ctx)
-	m.window.Publish(ctx)
+	consumed := m.Window.Update(ctx)
+	m.Publish(ctx)
 	return consumed
 }
 
@@ -72,14 +72,14 @@ func (m *BasicMenu) Rebind(ctx client.Context, callbacks BasicMenuCallbacks) {
 	m.callbacks = callbacks
 	width, height := basicMenuSize()
 	if m.EnsureWindow(width, height) {
-		m.window.titleHeight = 0
+		m.titleHeight = 0
 	}
 	m.content = nil
-	if !m.window.IsOpen() {
+	if !m.IsOpen() {
 		return
 	}
-	m.window.SetContent(m.widgetTree())
-	m.window.Publish(ctx)
+	m.SetContent(m.widgetTree())
+	m.Publish(ctx)
 }
 
 func basicMenuBounds() (int, int, int, int) {
@@ -119,7 +119,7 @@ func (m *BasicMenu) widgetTree() widget.Widget {
 		)
 	}
 	width, height := basicMenuSize()
-	m.content = Window(
+	m.content = Win(
 		TitleBar(false),
 		Size(float32(width), float32(height)),
 		Content(

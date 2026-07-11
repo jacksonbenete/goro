@@ -19,7 +19,7 @@ const (
 )
 
 type StatsWindow struct {
-	WindowHandle
+	Window
 	snapshot string
 }
 
@@ -33,35 +33,35 @@ type statRow struct {
 
 func (w *StatsWindow) Toggle(ctx Context) {
 	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
-	if w.window.IsOpen() {
-		w.window.Close()
+	if w.IsOpen() {
+		w.Close()
 		w.Publish(ctx)
 		return
 	}
 	x, y := statsWindowPosition(ctx)
 	w.snapshot = statsWindowSnapshot(ctx.Session)
-	w.window.OpenAt(x, y, w.widgetTree(ctx))
+	w.OpenAt(x, y, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *StatsWindow) Update(ctx Context) bool {
 	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
 	nextSnapshot := statsWindowSnapshot(ctx.Session)
 	if nextSnapshot != w.snapshot {
 		w.snapshot = nextSnapshot
-		w.window.SetContent(w.widgetTree(ctx))
+		w.SetContent(w.widgetTree(ctx))
 	}
-	consumed := w.window.Update(ctx)
+	consumed := w.Window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
 }
 
 func (w *StatsWindow) Rebind(ctx Context) {
 	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return
 	}
 	w.refresh(ctx)
@@ -69,17 +69,17 @@ func (w *StatsWindow) Rebind(ctx Context) {
 
 func (w *StatsWindow) refresh(ctx Context) {
 	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return
 	}
 	w.snapshot = statsWindowSnapshot(ctx.Session)
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *StatsWindow) close(ctx Context) {
 	w.EnsureWindow(statsWindowWidth, statsWindowHeight)
-	w.window.Close()
+	w.Close()
 	w.Publish(ctx)
 }
 
@@ -98,7 +98,7 @@ func statsWindowPosition(ctx Context) (int, int) {
 
 func (w *StatsWindow) widgetTree(ctx Context) widget.Widget {
 	stats := sessionStats(ctx.Session)
-	return Window(
+	return Win(
 		Title("Status"),
 		CloseButton(true),
 		OnClose(func() { w.close(ctx) }),

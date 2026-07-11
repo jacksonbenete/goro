@@ -55,8 +55,8 @@ type NPCDialog struct {
 	clearOnText bool
 	status      string
 
-	dialogWindow WindowState
-	menuWindow   WindowState
+	dialogWindow Window
+	menuWindow   Window
 	dirty        bool
 }
 
@@ -251,7 +251,7 @@ func (d *NPCDialog) ensureWindows(ctx Context) {
 	width, height := ctx.ScreenSize()
 	x, y, w, h := npcDialogBounds(width, height)
 	if d.dialogWindow.width == 0 {
-		d.dialogWindow = NewWindowState(w, h)
+		d.dialogWindow = NewWindow(w, h)
 		d.dialogWindow.OpenAt(x, y, d.dialogTree(ctx, w, h))
 	} else {
 		if d.dialogWindow.width != w || d.dialogWindow.height != h {
@@ -264,7 +264,7 @@ func (d *NPCDialog) ensureWindows(ctx Context) {
 	}
 	menuX, menuY, menuW, menuH := d.menuBounds(width, height, d.dialogWindow.x, d.dialogWindow.y, w, h)
 	if d.menuWindow.width == 0 {
-		d.menuWindow = NewWindowState(menuW, menuH)
+		d.menuWindow = NewWindow(menuW, menuH)
 		d.menuWindow.SetAutoPosition(menuX, menuY)
 	} else {
 		if d.menuWindow.width != menuW || d.menuWindow.height != menuH {
@@ -385,7 +385,7 @@ func (d *NPCDialog) dialogTree(ctx Context, width, height int) widget.Widget {
 			Footer(footer),
 		)
 	}
-	return Window(options...)
+	return Win(options...)
 }
 
 func (d *NPCDialog) dialogLineWidgets(width, contentHeight int) []widget.Widget {
@@ -415,7 +415,7 @@ func (d *NPCDialog) menuTree(ctx Context, width, height int) widget.Widget {
 	if len(rows) == 0 {
 		rows = append(rows, rotheme.Text("No options.").Color(npcDialogWidgetColor(npcDialogMutedColor)))
 	}
-	return Window(
+	return Win(
 		Title("Choose"),
 		CloseButton(false),
 		Size(float32(width), float32(height)),

@@ -20,7 +20,7 @@ type LoginWindow struct {
 	Username string
 	Password string
 
-	WindowHandle
+	Window
 	layout    loginWindowLayout
 	callbacks LoginWindowCallbacks
 	user      *textfield.Widget
@@ -44,8 +44,8 @@ func NewLoginWindow(ctx client.Context, username, password string, callbacks Log
 		layout:    layout,
 		callbacks: callbacks,
 	}
-	w.window = NewWindowState(layout.W, layout.H)
-	w.window.OpenAt(layout.X, layout.Y, w.widgetTree())
+	w.Window = NewWindow(layout.W, layout.H)
+	w.OpenAt(layout.X, layout.Y, w.widgetTree())
 	return w
 }
 
@@ -56,8 +56,8 @@ func (w *LoginWindow) SetContext(ctx client.Context) {
 	layout := loginWindowLayoutForContext(ctx)
 	sameLayout := loginWindowLayoutEqual(w.layout, layout)
 	w.layout = layout
-	w.window.SetAutoPosition(layout.X, layout.Y)
-	w.window.SetSize(layout.W, layout.H)
+	w.SetAutoPosition(layout.X, layout.Y)
+	w.SetSize(layout.W, layout.H)
 	if sameLayout {
 		return
 	}
@@ -68,12 +68,12 @@ func (w *LoginWindow) Update(ctx client.Context) bool {
 	if w == nil {
 		return false
 	}
-	return w.window.Update(ctx)
+	return w.Window.Update(ctx)
 }
 
 func (w *LoginWindow) rebuild() {
 	userFocused, passwordFocused := w.fieldFocus()
-	w.window.SetContent(w.widgetTree())
+	w.SetContent(w.widgetTree())
 	if w.user != nil {
 		w.user.SetFocused(userFocused)
 	}
@@ -113,7 +113,7 @@ func (w *LoginWindow) widgetTree() widget.Widget {
 	labelW := float32(loginWindowFieldLeft - 36)
 	fieldW := float32(w.layout.W - loginWindowFieldLeft - loginWindowFieldRightPad)
 	fieldH := float32(loginWindowFieldH)
-	return Window(
+	return Win(
 		Title("Login"),
 		CloseButton(false),
 		Size(float32(w.layout.W), float32(w.layout.H)),

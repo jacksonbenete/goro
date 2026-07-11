@@ -20,7 +20,7 @@ const (
 )
 
 type ConfirmModal struct {
-	WindowHandle
+	Window
 	open     bool
 	title    string
 	message  string
@@ -37,7 +37,7 @@ func (m *ConfirmModal) Open(ctx client.Context, title, message string, onOK, onC
 	m.onCancel = onCancel
 	m.ctx = ctx
 	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
-	m.window.Open(ctx, m.widgetTree(ctx))
+	m.Window.Open(ctx, m.widgetTree(ctx))
 	m.Publish(ctx)
 }
 
@@ -57,7 +57,7 @@ func (m *ConfirmModal) Update(ctx client.Context) bool {
 		}
 	}
 	m.openWindow(ctx)
-	if m.window.Update(ctx) {
+	if m.Window.Update(ctx) {
 		m.Publish(ctx)
 		return true
 	}
@@ -85,21 +85,21 @@ func (m *ConfirmModal) Cancel(ctx client.Context) {
 
 func (m *ConfirmModal) Close(ctx client.Context) {
 	m.open = false
-	m.window.Close()
+	m.Window.Close()
 	m.Publish(ctx)
 }
 
 func (m *ConfirmModal) openWindow(ctx client.Context) {
 	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
-	if !m.window.IsOpen() {
-		m.window.Open(ctx, m.widgetTree(ctx))
+	if !m.IsOpen() {
+		m.Window.Open(ctx, m.widgetTree(ctx))
 	}
 }
 
 func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
 	okW := float32(ButtonLabelWidth("OK"))
 	cancelW := float32(ButtonLabelWidth("Cancel"))
-	return Window(
+	return Win(
 		Title(m.title),
 		CloseButton(false),
 		Size(smallPromptWidth, smallPromptHeight),

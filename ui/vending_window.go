@@ -43,8 +43,8 @@ type VendingWindow struct {
 	maxItems    int
 	ownerAID    uint32
 	shopName    string
-	leftWindow  WindowState
-	rightWindow WindowState
+	leftWindow  Window
+	rightWindow Window
 
 	setupItems []vendingSetupItem
 	buyItems   []network.VendingItem
@@ -208,11 +208,11 @@ func (w *VendingWindow) ensurePosition(ctx Context) {
 
 func (w *VendingWindow) ensureWindows() {
 	if w.leftWindow.width == 0 {
-		w.leftWindow = NewWindowState(vendingWindowW, w.leftHeight())
+		w.leftWindow = NewWindow(vendingWindowW, w.leftHeight())
 	}
 	w.leftWindow.SetSize(vendingWindowW, w.leftHeight())
 	if w.rightWindow.width == 0 {
-		w.rightWindow = NewWindowState(vendingWindowW, w.rightHeight())
+		w.rightWindow = NewWindow(vendingWindowW, w.rightHeight())
 	}
 	w.rightWindow.SetSize(vendingWindowW, w.rightHeight())
 }
@@ -250,7 +250,7 @@ func (w *VendingWindow) closeRight(ctx Context) {
 }
 
 func (w *VendingWindow) availableCartTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Available Items for Vending"),
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
@@ -275,7 +275,7 @@ func (w *VendingWindow) setupTree(ctx Context) widget.Widget {
 		}, nil, textfield.MaxLength(10))
 		w.priceField = price
 	}
-	return Window(
+	return Win(
 		Title("Vending"),
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
@@ -305,7 +305,7 @@ func (w *VendingWindow) setupTree(ctx Context) widget.Widget {
 }
 
 func (w *VendingWindow) vendorItemsTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Vending Items"),
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
@@ -316,7 +316,7 @@ func (w *VendingWindow) vendorItemsTree(ctx Context) widget.Widget {
 }
 
 func (w *VendingWindow) buyCartTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Buying Items"),
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
@@ -335,7 +335,7 @@ func (w *VendingWindow) buyCartTree(ctx Context) widget.Widget {
 }
 
 func (w *VendingWindow) ownShopTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Vending"),
 		CloseButton(true),
 		OnClose(func() { w.closeOwnStore(ctx) }),

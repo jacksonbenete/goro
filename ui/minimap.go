@@ -35,7 +35,7 @@ type Minimap struct {
 	img         image.Image
 	scaled      image.Image
 	scaledKey   string
-	window      WindowState
+	window      Window
 	widget      *minimapWidget
 	hidden      bool
 	markerMap   string
@@ -106,11 +106,11 @@ func (m *Minimap) ensureWindow(width, height int) {
 	if m.window.width != 0 {
 		return
 	}
-	m.window = NewWindowState(width, height)
+	m.window = NewWindow(width, height)
 }
 
 func (m *Minimap) widgetTree() widget.Widget {
-	return Window(
+	return Win(
 		Title("Mini Map"),
 		CloseButton(false),
 		Size(minimapWidth, minimapHeight),

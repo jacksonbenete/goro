@@ -38,7 +38,7 @@ const (
 )
 
 type TeleportModal struct {
-	WindowHandle
+	Window
 	open     bool
 	skill    session.Skill
 	mapNames []string
@@ -86,7 +86,7 @@ func (m *TeleportModal) Update(ctx Context, actions GameActions) bool {
 		return true
 	}
 	m.openWindow(ctx, actions)
-	if m.window.Update(ctx) {
+	if m.Window.Update(ctx) {
 		m.Publish(ctx)
 		return true
 	}
@@ -187,38 +187,38 @@ func (m TeleportModal) IsOpen() bool {
 
 func (m *TeleportModal) ensureWindow() {
 	height := m.windowHeight()
-	if m.window.width == 0 {
-		m.window = NewWindowState(teleportModalWidth, height)
+	if m.width == 0 {
+		m.Window = NewWindow(teleportModalWidth, height)
 		return
 	}
-	m.window.SetSize(teleportModalWidth, height)
+	m.SetSize(teleportModalWidth, height)
 }
 
 func (m *TeleportModal) openWindow(ctx Context, actions GameActions) {
 	m.ensureWindow()
-	if !m.window.IsOpen() {
-		m.window.Open(ctx, m.widgetTree(ctx, actions))
+	if !m.IsOpen() {
+		m.Open(ctx, m.widgetTree(ctx, actions))
 	}
 }
 
 func (m *TeleportModal) refresh(ctx Context) {
 	m.ensureWindow()
-	if !m.window.IsOpen() {
+	if !m.IsOpen() {
 		return
 	}
-	m.window.SetContent(m.widgetTree(ctx, nil))
+	m.Window.SetContent(m.widgetTree(ctx, nil))
 	m.Publish(ctx)
 }
 
 func (m *TeleportModal) closeWindow() {
-	if m.window.IsOpen() {
-		m.window.Close()
+	if m.IsOpen() {
+		m.Close()
 		m.Publish(m.ctx)
 	}
 }
 
 func (m *TeleportModal) widgetTree(ctx Context, actions GameActions) widget.Widget {
-	return Window(
+	return Win(
 		Title(m.Title()),
 		CloseButton(false),
 		Size(teleportModalWidth, float32(m.windowHeight())),

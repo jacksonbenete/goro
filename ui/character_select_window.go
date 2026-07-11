@@ -33,7 +33,7 @@ type CharacterSelectWindowCallbacks struct {
 }
 
 type CharacterSelectWindow struct {
-	WindowHandle
+	Window
 	opts      CharacterSelectWindowOptions
 	callbacks CharacterSelectWindowCallbacks
 }
@@ -54,8 +54,8 @@ func NewCharacterSelectWindow(ctx client.Context, opts CharacterSelectWindowOpti
 		opts:      opts,
 		callbacks: callbacks,
 	}
-	w.window = NewWindowState(width, height)
-	w.window.OpenAt(x, y, w.widgetTree())
+	w.Window = NewWindow(width, height)
+	w.OpenAt(x, y, w.widgetTree())
 	return w
 }
 
@@ -66,19 +66,19 @@ func (w *CharacterSelectWindow) SetOptions(ctx client.Context, opts CharacterSel
 	sameTree := characterSelectWindowTreeEqual(w.opts, opts)
 	x, y, width, height := characterSelectWindowRect(ctx)
 	w.opts = opts
-	w.window.SetAutoPosition(x, y)
-	w.window.SetSize(width, height)
+	w.SetAutoPosition(x, y)
+	w.SetSize(width, height)
 	if sameTree {
 		return
 	}
-	w.window.SetContent(w.widgetTree())
+	w.SetContent(w.widgetTree())
 }
 
 func (w *CharacterSelectWindow) Update(ctx client.Context) bool {
 	if w == nil {
 		return false
 	}
-	return w.window.Update(ctx)
+	return w.Window.Update(ctx)
 }
 
 func characterSelectWindowTreeEqual(a, b CharacterSelectWindowOptions) bool {
@@ -111,7 +111,7 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 	buttonW := func(label string) float32 {
 		return float32(ButtonLabelWidth(label))
 	}
-	return Window(
+	return Win(
 		Title("Select Character"),
 		CloseButton(false),
 		Size(characterSelectWindowW, characterSelectWindowH),

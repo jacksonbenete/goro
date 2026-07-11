@@ -28,7 +28,7 @@ const (
 )
 
 type IdentifyWindow struct {
-	WindowHandle
+	Window
 	scrollY     state.Signal[float32]
 	selectedRow int
 	indexes     []uint16
@@ -47,32 +47,32 @@ type identifyTableRow struct {
 }
 
 func (w *IdentifyWindow) OpenList(ctx Context, list network.ItemIdentifyList) {
-	w.ensureWindow()
+	w.EnsureWindow(identifyWindowWidth, identifyWindowHeight)
 	w.indexes = append(w.indexes[:0], list.Indexes...)
 	w.selectedRow = -1
 	w.ensureScrollSignal().Set(0)
 	w.ClampScroll(ctx.Session)
 	if len(w.items(ctx.Session)) == 0 {
-		w.window.Close()
+		w.Close()
 		w.Publish(ctx)
 		return
 	}
 	w.snapshot = w.identifySnapshot(ctx.Session)
-	w.window.Open(ctx, w.widgetTree(ctx))
+	w.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *IdentifyWindow) ApplyAck(ctx Context, ack network.ItemIdentifyAck) {
-	w.ensureWindow()
+	w.EnsureWindow(identifyWindowWidth, identifyWindowHeight)
 	if ack.Success {
 		w.removeIndex(ack.Index)
 		w.ClampScroll(ctx.Session)
 		w.selectedRow = -1
 		if len(w.items(ctx.Session)) == 0 {
-			w.window.Close()
+			w.Close()
 		} else {
 			w.snapshot = w.identifySnapshot(ctx.Session)
-			w.window.SetContent(w.widgetTree(ctx))
+			w.SetContent(w.widgetTree(ctx))
 		}
 		w.Publish(ctx)
 		return
@@ -81,8 +81,8 @@ func (w *IdentifyWindow) ApplyAck(ctx Context, ack network.ItemIdentifyAck) {
 }
 
 func (w *IdentifyWindow) Update(ctx Context) bool {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
+	w.EnsureWindow(identifyWindowWidth, identifyWindowHeight)
+	if !w.IsOpen() {
 		return false
 	}
 	if ctx.Input == nil {
@@ -93,10 +93,10 @@ func (w *IdentifyWindow) Update(ctx Context) bool {
 	snapshot := w.identifySnapshot(ctx.Session)
 	if snapshot != w.snapshot {
 		w.snapshot = snapshot
-		w.window.SetContent(w.widgetTree(ctx))
+		w.SetContent(w.widgetTree(ctx))
 	}
-	consumed := w.window.Update(ctx)
-	if !w.window.IsOpen() {
+	consumed := w.Window.Update(ctx)
+	if !w.IsOpen() {
 		w.Publish(ctx)
 		return consumed
 	}
@@ -104,15 +104,8 @@ func (w *IdentifyWindow) Update(ctx Context) bool {
 	return consumed
 }
 
-func (w *IdentifyWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(identifyWindowWidth, identifyWindowHeight)
-		w.selectedRow = -1
-	}
-}
-
 func (w *IdentifyWindow) widgetTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Item Appraisal"),
 		CloseButton(true),
 		OnClose(func() {
@@ -275,7 +268,7 @@ func (w *IdentifyWindow) cancel(ctx Context) {
 			return
 		}
 	}
-	w.window.Close()
+	w.Close()
 }
 
 func (w *IdentifyWindow) removeIndex(index uint16) {

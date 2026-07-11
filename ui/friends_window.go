@@ -23,7 +23,7 @@ const (
 )
 
 type FriendsWindow struct {
-	ContextWindowHandle
+	Window
 	snapshot string
 	tab      friendsWindowTab
 	action   FriendsWindowAction
@@ -57,34 +57,34 @@ func (w *FriendsWindow) OpenWindow(ctx Context) {
 	w.ctx = ctx
 	w.snapshot = friendsWindowSnapshot(ctx.Session)
 	w.tab = friendsWindowTabFriends
-	w.window.Open(ctx, w.widgetTree(ctx))
+	w.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *FriendsWindow) Update(ctx Context) bool {
 	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
 	w.ctx = ctx
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
 	nextSnapshot := friendsWindowSnapshot(ctx.Session)
 	if nextSnapshot != w.snapshot {
 		w.snapshot = nextSnapshot
-		w.window.SetContent(w.widgetTree(ctx))
+		w.SetContent(w.widgetTree(ctx))
 	}
-	consumed := w.window.Update(ctx)
+	consumed := w.Window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
 }
 
 func (w *FriendsWindow) Rebind(ctx Context) {
 	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return
 	}
 	w.ctx = ctx
 	w.snapshot = friendsWindowSnapshot(ctx.Session)
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
@@ -107,7 +107,7 @@ func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {
 		footer = w.partyFooter(party)
 		footerHeight = partyFooterH
 	}
-	return Window(
+	return Win(
 		Title(title),
 		CloseButton(true),
 		OnClose(w.Close),
@@ -156,7 +156,7 @@ func (w *FriendsWindow) friendsTabs() widget.Widget {
 
 func (w *FriendsWindow) refresh(ctx Context) {
 	w.snapshot = friendsWindowSnapshot(ctx.Session)
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 

@@ -53,7 +53,7 @@ type ChatConsole struct {
 	lastMessageAt time.Time
 
 	ctx        client.Context
-	window     WindowState
+	window     Window
 	inputField *textfield.Widget
 	scrollY    state.Signal[float32]
 	cacheKey   string
@@ -111,7 +111,7 @@ func (c *ChatConsole) ensureWindow(ctx client.Context) {
 	x, y, width, height := consoleBounds(screenW, screenH)
 	key := c.renderKey(width, height)
 	if c.window.width == 0 {
-		c.window = NewWindowState(width, height)
+		c.window = NewWindow(width, height)
 		c.window.titleHeight = 0
 	}
 	c.window.SetAutoPosition(x, y)

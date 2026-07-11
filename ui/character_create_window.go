@@ -50,7 +50,7 @@ type CharacterCreateWindowCallbacks struct {
 }
 
 type CharacterCreateWindow struct {
-	WindowHandle
+	Window
 	opts      CharacterCreateWindowOptions
 	callbacks CharacterCreateWindowCallbacks
 	name      *textfield.Widget
@@ -70,8 +70,8 @@ func NewCharacterCreateWindow(ctx client.Context, opts CharacterCreateWindowOpti
 		opts:      opts,
 		callbacks: callbacks,
 	}
-	w.window = NewWindowState(width, height)
-	w.window.OpenAt(x, y, w.widgetTree())
+	w.Window = NewWindow(width, height)
+	w.OpenAt(x, y, w.widgetTree())
 	return w
 }
 
@@ -82,13 +82,13 @@ func (w *CharacterCreateWindow) SetOptions(ctx client.Context, opts CharacterCre
 	sameTree := characterCreateWindowTreeEqual(w.opts, opts)
 	x, y, width, height := characterCreateWindowRect(ctx)
 	w.opts = opts
-	w.window.SetAutoPosition(x, y)
-	w.window.SetSize(width, height)
+	w.SetAutoPosition(x, y)
+	w.SetSize(width, height)
 	if sameTree {
 		return
 	}
 	focused := w.name != nil && w.name.IsFocused()
-	w.window.SetContent(w.widgetTree())
+	w.SetContent(w.widgetTree())
 	if w.name != nil {
 		w.name.SetFocused(focused)
 	}
@@ -98,7 +98,7 @@ func (w *CharacterCreateWindow) Update(ctx client.Context) bool {
 	if w == nil {
 		return false
 	}
-	return w.window.Update(ctx)
+	return w.Window.Update(ctx)
 }
 
 func characterCreateWindowTreeEqual(a, b CharacterCreateWindowOptions) bool {
@@ -136,7 +136,7 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 	buttonW := func(label string) float32 {
 		return float32(ButtonLabelWidth(label))
 	}
-	return Window(
+	return Win(
 		Title("Make Character"),
 		CloseButton(false),
 		Size(characterCreateWindowW, characterCreateWindowH),

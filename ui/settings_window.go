@@ -18,23 +18,23 @@ const (
 )
 
 type SettingsWindow struct {
-	ContextWindowHandle
+	Window
 }
 
 func (w *SettingsWindow) OpenWindow(ctx client.Context) {
 	w.EnsureWindow(settingsWindowW, settingsWindowH)
 	w.ctx = ctx
-	w.window.Open(ctx, w.widgetTree(ctx))
+	w.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *SettingsWindow) Update(ctx client.Context) bool {
 	w.EnsureWindow(settingsWindowW, settingsWindowH)
 	w.ctx = ctx
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
-	consumed := w.window.Update(ctx)
+	consumed := w.Window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
 }
@@ -47,7 +47,7 @@ func (w *SettingsWindow) Rebind(ctx client.Context) {
 }
 
 func (w *SettingsWindow) widgetTree(ctx client.Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Settings"),
 		CloseButton(true),
 		OnClose(w.Close),
@@ -191,7 +191,7 @@ func (w *SettingsWindow) contentTree(ctx client.Context) widget.Widget {
 func (w *SettingsWindow) refresh(ctx client.Context) {
 	w.EnsureWindow(settingsWindowW, settingsWindowH)
 	w.ctx = ctx
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 

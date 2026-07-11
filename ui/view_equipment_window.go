@@ -12,7 +12,7 @@ import (
 )
 
 type ViewEquipmentWindow struct {
-	WindowHandle
+	Window
 	title    string
 	items    []session.InventoryItem
 	preview  image.Image
@@ -46,30 +46,30 @@ func (w *ViewEquipmentWindow) Open(ctx Context, view network.ViewedEquipment, as
 	if assets != nil {
 		w.preview = assets.EquipmentPreviewImageForCharacter(ctx, viewedEquipmentCharacter(view, ctx.Resources), view.Sex, equipmentCenterColW, equipmentPreviewImageH)
 	}
-	w.window.Open(ctx, w.widgetTree(ctx, nil))
+	w.Window.Open(ctx, w.widgetTree(ctx, nil))
 	w.Publish(ctx)
 }
 
 func (w *ViewEquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight-equipmentFooterH)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
 	if itemInfo != w.itemInfo {
 		w.itemInfo = itemInfo
-		w.window.SetContent(w.widgetTree(ctx, itemInfo))
+		w.SetContent(w.widgetTree(ctx, itemInfo))
 	}
-	consumed := w.window.Update(ctx)
+	consumed := w.Window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
 }
 
 func (w *ViewEquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
-	return Window(
+	return Win(
 		Title(w.title),
 		CloseButton(true),
 		OnClose(func() {
-			w.window.Close()
+			w.Close()
 			w.Publish(ctx)
 		}),
 		Size(equipmentWindowWidth, equipmentWindowHeight-equipmentFooterH),

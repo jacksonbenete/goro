@@ -49,7 +49,7 @@ var inventoryBagTabs = []struct {
 }
 
 type InventoryBagWindow struct {
-	WindowHandle
+	Window
 	tab           int
 	scroll        int
 	snapshot      string
@@ -71,8 +71,8 @@ type inventoryBagIconKey struct {
 
 func (w *InventoryBagWindow) Toggle(ctx Context) {
 	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
-	if w.window.IsOpen() {
-		w.window.Close()
+	if w.IsOpen() {
+		w.Window.Close()
 		w.Publish(ctx)
 		return
 	}
@@ -80,13 +80,13 @@ func (w *InventoryBagWindow) Toggle(ctx Context) {
 	w.ClampScroll(ctx.Session)
 	w.snapshot = w.inventorySnapshot(ctx.Session)
 	x, y := inventoryBagDefaultPosition(ctx)
-	w.window.OpenAt(x, y, w.widgetTree(ctx, nil, nil))
+	w.OpenAt(x, y, w.widgetTree(ctx, nil, nil))
 	w.Publish(ctx)
 }
 
 func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow, itemInfo *ItemInfoWindow) bool {
 	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
-	if !w.window.IsOpen() || ctx.Input == nil {
+	if !w.IsOpen() || ctx.Input == nil {
 		return false
 	}
 	cartChanged := cart != w.cart
@@ -99,10 +99,10 @@ func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage
 	if snapshot != w.snapshot || itemInfo != w.itemInfo || cartChanged {
 		w.snapshot = snapshot
 		w.itemInfo = itemInfo
-		w.window.SetContent(w.widgetTree(ctx, itemInfo, w.cart))
+		w.SetContent(w.widgetTree(ctx, itemInfo, w.cart))
 	}
-	consumed := w.window.Update(ctx)
-	if !w.window.IsOpen() {
+	consumed := w.Window.Update(ctx)
+	if !w.IsOpen() {
 		w.Publish(ctx)
 		return consumed
 	}
@@ -159,7 +159,7 @@ func (w *InventoryBagWindow) DrawDragGhost(screen *render.Image, ctx Context, as
 
 func (w *InventoryBagWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) {
 	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return
 	}
 	w.cart = cart
@@ -167,11 +167,11 @@ func (w *InventoryBagWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart 
 }
 
 func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
-	return Window(
+	return Win(
 		Title("Inventory"),
 		CloseButton(true),
 		OnClose(func() {
-			w.window.Close()
+			w.Window.Close()
 			w.Publish(ctx)
 		}),
 		Size(inventoryBagWidth, inventoryBagHeight),
@@ -240,7 +240,7 @@ func (w *InventoryBagWindow) refresh(ctx Context, itemInfo *ItemInfoWindow) {
 	w.ClampScroll(ctx.Session)
 	w.snapshot = w.inventorySnapshot(ctx.Session)
 	w.itemInfo = itemInfo
-	w.window.SetContent(w.widgetTree(ctx, itemInfo, w.cart))
+	w.SetContent(w.widgetTree(ctx, itemInfo, w.cart))
 	w.Publish(ctx)
 }
 
@@ -272,12 +272,12 @@ func (w *InventoryBagWindow) startItemDragOrActivate(ctx Context, item session.I
 }
 
 func (w *InventoryBagWindow) pointInside(x, y int) bool {
-	return pointInRect(x, y, w.window.x, w.window.y, inventoryBagWidth, inventoryBagHeight)
+	return pointInRect(x, y, w.x, w.y, inventoryBagWidth, inventoryBagHeight)
 }
 
 func (w *InventoryBagWindow) AcceptStorageDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
 	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
-	return w.window.IsOpen() && w.pointInside(mx, my)
+	return w.IsOpen() && w.pointInside(mx, my)
 }
 
 func inventoryBagDefaultPosition(ctx Context) (int, int) {

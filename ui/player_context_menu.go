@@ -31,7 +31,7 @@ type PlayerContextAction struct {
 }
 
 type PlayerContextMenu struct {
-	ContextWindowHandle
+	Window
 	actorID      uint32
 	name         string
 	canAddFriend bool
@@ -44,7 +44,8 @@ func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name str
 	if name == "" {
 		return
 	}
-	m.ensureWindow()
+	m.EnsureWindow(playerContextMenuWidth, m.height())
+	m.titleHeight = 0
 	m.ctx = ctx
 	m.actorID = actorID
 	m.name = name
@@ -52,27 +53,28 @@ func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name str
 	m.canInvite = canInvite
 	screenW, screenH := ctx.ScreenSize()
 	height := m.height()
-	m.window.SetSize(playerContextMenuWidth, height)
+	m.SetSize(playerContextMenuWidth, height)
 	x = clampWindowInt(x, 8, maxInt(8, screenW-playerContextMenuWidth-8))
 	y = clampWindowInt(y, 8, maxInt(8, screenH-height-8))
-	m.window.OpenAt(x, y, m.widgetTree(ctx))
+	m.OpenAt(x, y, m.widgetTree(ctx))
 	m.Publish(ctx)
 }
 
 func (m *PlayerContextMenu) Update(ctx Context) bool {
-	m.ensureWindow()
+	m.EnsureWindow(playerContextMenuWidth, m.height())
+	m.titleHeight = 0
 	m.ctx = ctx
-	if !m.window.IsOpen() {
+	if !m.IsOpen() {
 		return false
 	}
 	if ctx.Input != nil {
-		inside := pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, m.window.x, m.window.y, playerContextMenuWidth, m.height())
+		inside := pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, m.x, m.y, playerContextMenuWidth, m.height())
 		if ctx.Input.JustPressed(render.KeyEscape) || (!inside && (ctx.Input.MouseJustPressed(render.MouseButtonLeft) || ctx.Input.MouseJustPressed(render.MouseButtonRight))) {
 			m.Close()
 			return true
 		}
 	}
-	consumed := m.window.Update(ctx)
+	consumed := m.Window.Update(ctx)
 	m.Publish(ctx)
 	return consumed
 }
@@ -81,14 +83,6 @@ func (m *PlayerContextMenu) PopAction() PlayerContextAction {
 	action := m.action
 	m.action = PlayerContextAction{}
 	return action
-}
-
-func (m *PlayerContextMenu) ensureWindow() {
-	if m.window.width != 0 {
-		return
-	}
-	m.window = NewWindowState(playerContextMenuWidth, m.height())
-	m.window.titleHeight = 0
 }
 
 func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
@@ -126,7 +120,7 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 				Height(playerContextMenuRowH),
 		)
 	}
-	return Window(
+	return Win(
 		TitleBar(false),
 		Radius(0),
 		Size(playerContextMenuWidth, float32(m.height())),

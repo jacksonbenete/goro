@@ -19,7 +19,7 @@ const (
 )
 
 type ChangeCartWindow struct {
-	ContextWindowHandle
+	Window
 	status string
 }
 
@@ -30,17 +30,17 @@ func (w *ChangeCartWindow) Open(ctx client.Context) {
 	if !inventoryBagHasCart(ctx) {
 		w.status = "You need a cart."
 	}
-	w.window.Open(ctx, w.widgetTree(ctx))
+	w.Window.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *ChangeCartWindow) Update(ctx client.Context) bool {
 	w.ctx = ctx
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
-	if w.window.Update(ctx) {
-		if !w.window.IsOpen() {
+	if w.Window.Update(ctx) {
+		if !w.IsOpen() {
 			w.Publish(ctx)
 			return true
 		}
@@ -52,10 +52,10 @@ func (w *ChangeCartWindow) Update(ctx client.Context) bool {
 }
 
 func (w *ChangeCartWindow) refresh(ctx client.Context) {
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return
 	}
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
@@ -71,16 +71,16 @@ func (w *ChangeCartWindow) selectCart(ctx client.Context, cartNum int) {
 		w.refresh(ctx)
 		return
 	}
-	w.window.Close()
+	w.Window.Close()
 	w.Publish(ctx)
 }
 
 func (w *ChangeCartWindow) widgetTree(ctx client.Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Change Cart"),
 		CloseButton(true),
 		OnClose(func() {
-			w.window.Close()
+			w.Window.Close()
 			w.Publish(ctx)
 		}),
 		Size(changeCartWindowWidth, changeCartWindowHeight),

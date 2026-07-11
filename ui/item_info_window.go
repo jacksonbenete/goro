@@ -25,7 +25,7 @@ const (
 )
 
 type ItemInfoWindow struct {
-	WindowHandle
+	Window
 	item         session.InventoryItem
 	title        string
 	details      []string
@@ -47,21 +47,21 @@ func (w *ItemInfoWindow) openItem(ctx Context, item session.InventoryItem, mouse
 	screenW, screenH := ctx.ScreenSize()
 	x := clampWindowInt(mouseX+14, 8, maxInt(8, screenW-itemInfoWindowWidth-8))
 	y := clampWindowInt(mouseY-22, 8, maxInt(8, screenH-itemInfoWindowHeight-8))
-	w.window.OpenAt(x, y, w.widgetTree(ctx))
+	w.OpenAt(x, y, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *ItemInfoWindow) Update(ctx Context, assets AssetProvider) bool {
 	w.EnsureWindow(itemInfoWindowWidth, itemInfoWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
 	if w.illustration == nil && assets != nil {
 		w.illustration = assets.ItemInfoIllustrationImage(ctx.Resources, w.item, itemInfoIllustrationWidth-14, itemInfoWindowHeight-ROWindowTitleHeight-itemInfoWindowPad*2-14)
-		w.window.SetContent(w.widgetTree(ctx))
+		w.SetContent(w.widgetTree(ctx))
 	}
-	consumed := w.window.Update(ctx)
-	if !w.window.IsOpen() {
+	consumed := w.Window.Update(ctx)
+	if !w.IsOpen() {
 		w.Publish(ctx)
 		return consumed
 	}
@@ -71,22 +71,22 @@ func (w *ItemInfoWindow) Update(ctx Context, assets AssetProvider) bool {
 
 func (w *ItemInfoWindow) Rebind(ctx Context, assets AssetProvider) {
 	w.EnsureWindow(itemInfoWindowWidth, itemInfoWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return
 	}
 	if assets != nil {
 		w.illustration = assets.ItemInfoIllustrationImage(ctx.Resources, w.item, itemInfoIllustrationWidth-14, itemInfoWindowHeight-ROWindowTitleHeight-itemInfoWindowPad*2-14)
 	}
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *ItemInfoWindow) widgetTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title(w.title),
 		CloseButton(true),
 		OnClose(func() {
-			w.window.Close()
+			w.Window.Close()
 			w.Publish(ctx)
 		}),
 		Size(itemInfoWindowWidth, itemInfoWindowHeight),

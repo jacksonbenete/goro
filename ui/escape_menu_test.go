@@ -59,7 +59,7 @@ func TestEscapeMenuCharacterSelectAckDeniedKeepsMenuOpen(t *testing.T) {
 	if menu.ApplyRestartAck(network.RestartAck{Allowed: false}) {
 		t.Fatal("denied restart ack should not request transition")
 	}
-	if !menu.window.IsOpen() || menu.pending {
+	if !menu.Window.IsOpen() || menu.pending {
 		t.Fatalf("menu = %+v, want open without pending request", menu)
 	}
 }

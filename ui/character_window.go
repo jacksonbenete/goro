@@ -32,27 +32,27 @@ var (
 )
 
 type CharacterWindow struct {
-	WindowHandle
+	Window
 	snapshot string
 }
 
 func (w *CharacterWindow) Update(ctx Context) bool {
 	w.EnsureWindow(characterWindowWidth, characterWindowHeight)
 	if ctx.Session == nil {
-		w.window.Close()
+		w.Close()
 		w.Publish(ctx)
 		return false
 	}
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		w.snapshot = characterWindowSnapshot(ctx.Session)
-		w.window.OpenAt(characterWindowX, characterWindowY, w.widgetTree(ctx))
+		w.OpenAt(characterWindowX, characterWindowY, w.widgetTree(ctx))
 	}
 	nextSnapshot := characterWindowSnapshot(ctx.Session)
 	if nextSnapshot != w.snapshot {
 		w.snapshot = nextSnapshot
-		w.window.SetContent(w.widgetTree(ctx))
+		w.SetContent(w.widgetTree(ctx))
 	}
-	consumed := w.window.Update(ctx)
+	consumed := w.Window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
 }
@@ -74,7 +74,7 @@ func (w *CharacterWindow) widgetTree(ctx Context) widget.Widget {
 		weightColor = Color(ErrorTextColor)
 	}
 
-	return Window(
+	return Win(
 		Title(title),
 		CloseButton(false),
 		Size(float32(characterWindowWidth), float32(characterWindowHeight)),

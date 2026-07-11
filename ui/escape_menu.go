@@ -19,7 +19,7 @@ const (
 )
 
 type EscapeMenu struct {
-	WindowHandle
+	Window
 	action  EscapeMenuAction
 	pending bool
 	ctx     client.Context
@@ -36,9 +36,10 @@ const (
 )
 
 func (m *EscapeMenu) OpenMenu() {
+	m.open = true
 	m.action = EscapeMenuActionNone
 	m.pending = false
-	m.window.CloseOnEsc = true
+	m.CloseOnEsc = true
 }
 
 func (m *EscapeMenu) Update(ctx client.Context) bool {
@@ -49,7 +50,7 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
-	if !m.window.IsOpen() {
+	if !m.IsOpen() {
 		if ctx.Input.JustPressed(render.KeyEscape) {
 			m.OpenMenu()
 			m.openWindow(ctx)
@@ -58,8 +59,8 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 		return false
 	}
 	m.openWindow(ctx)
-	if m.window.Update(ctx) {
-		if !m.window.IsOpen() {
+	if m.Window.Update(ctx) {
+		if !m.IsOpen() {
 			m.Publish(ctx)
 		}
 		return true
@@ -84,7 +85,7 @@ func (m *EscapeMenu) RequestCharacterSelect(ctx client.Context) {
 }
 
 func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
-	if !m.window.IsOpen() || !m.pending {
+	if !m.pending {
 		return false
 	}
 	if ack.Allowed {
@@ -92,6 +93,8 @@ func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
 		return true
 	}
 	m.pending = false
+	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
+	m.open = true
 	m.refresh(m.ctx)
 	return false
 }
@@ -112,23 +115,23 @@ func (m *EscapeMenu) Action() EscapeMenuAction {
 
 func (m *EscapeMenu) openWindow(ctx client.Context) {
 	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
-	if !m.window.IsOpen() {
-		m.window.Open(ctx, m.widgetTree(ctx))
+	if !m.IsOpen() {
+		m.Window.Open(ctx, m.widgetTree(ctx))
 	}
 	m.Publish(ctx)
 }
 
 func (m *EscapeMenu) refresh(ctx client.Context) {
 	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
-	if !m.window.IsOpen() {
+	if !m.IsOpen() {
 		return
 	}
-	m.window.SetContent(m.widgetTree(ctx))
+	m.SetContent(m.widgetTree(ctx))
 	m.Publish(ctx)
 }
 
 func (m *EscapeMenu) widgetTree(ctx client.Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Menu"),
 		CloseButton(false),
 		Size(escapeMenuWidth, escapeMenuHeight),
@@ -140,13 +143,13 @@ func (m *EscapeMenu) widgetTree(ctx client.Context) widget.Widget {
 				}),
 				rotheme.LargeButtonDisabled("Settings", m.pending, func() {
 					m.action = EscapeMenuActionSettings
-					m.window.Close()
+					m.Window.Close()
 				}),
 				rotheme.LargeButtonDisabled("Cancel", m.pending, func() {
-					m.window.Close()
+					m.Window.Close()
 				}),
 				rotheme.LargeButton("Exit to Windows", func() {
-					m.window.Close()
+					m.Window.Close()
 					if ctx.RequestQuit != nil {
 						ctx.RequestQuit()
 					}

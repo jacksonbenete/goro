@@ -31,7 +31,7 @@ const (
 )
 
 type TradeWindow struct {
-	WindowHandle
+	Window
 	ctx Context
 
 	partnerName string
@@ -67,30 +67,30 @@ func (w *TradeWindow) Open(ctx Context, partnerName string) {
 	w.recvZeny = 0
 	w.selfOK = false
 	w.otherOK = false
-	w.window.Open(ctx, w.widgetTree(ctx))
+	w.Window.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *TradeWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	w.EnsureWindow(tradeWindowW, tradeWindowH)
-	if !w.window.IsOpen() || ctx.Input == nil {
+	if !w.IsOpen() || ctx.Input == nil {
 		return false
 	}
 	w.ctx = ctx
-	consumed := w.window.Update(ctx)
+	consumed := w.Window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
 }
 
 func (w *TradeWindow) Close(ctx Context) {
 	w.EnsureWindow(tradeWindowW, tradeWindowH)
-	w.window.Close()
+	w.Window.Close()
 	w.Publish(ctx)
 }
 
 func (w *TradeWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
 	w.EnsureWindow(tradeWindowW, tradeWindowH)
-	if !w.window.IsOpen() || w.selfOK || item.Index == 0 || !pointInRect(mx, my, w.sendPanelX(), w.sendPanelY(), tradePanelW, tradePanelH) {
+	if !w.IsOpen() || w.selfOK || item.Index == 0 || !pointInRect(mx, my, w.sendPanelX(), w.sendPanelY(), tradePanelW, tradePanelH) {
 		return false
 	}
 	amount := uint32(item.Amount)
@@ -170,7 +170,7 @@ func (w *TradeWindow) Undo(ctx Context) {
 }
 
 func (w *TradeWindow) refresh(ctx Context) {
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
@@ -183,7 +183,7 @@ func (w *TradeWindow) itemRow(ctx Context, item session.InventoryItem) tradeWind
 }
 
 func (w *TradeWindow) widgetTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Trade with "+w.partnerName),
 		CloseButton(true),
 		OnClose(func() {
@@ -300,11 +300,11 @@ func newTradeIconWidget(img image.Image) widget.Widget {
 }
 
 func (w *TradeWindow) sendPanelX() int {
-	return w.window.x + tradePanelPad
+	return w.x + tradePanelPad
 }
 
 func (w *TradeWindow) sendPanelY() int {
-	return w.window.y + ROWindowTitleHeight + tradePanelPad
+	return w.y + ROWindowTitleHeight + tradePanelPad
 }
 
 func (w *TradeWindow) conclude(ctx Context) {
@@ -332,7 +332,7 @@ func (w *TradeWindow) conclude(ctx Context) {
 }
 
 func (w *TradeWindow) cancel(ctx Context) {
-	if ctx.Network != nil && w.window.IsOpen() {
+	if ctx.Network != nil && w.IsOpen() {
 		if err := ctx.Network.SendTradeCancel(); err != nil {
 			log.Printf("trade cancel failed: %v", err)
 		}

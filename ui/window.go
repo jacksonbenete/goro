@@ -28,7 +28,7 @@ type windowConfig struct {
 
 const ROWindowTitleHeight = 28
 
-func Window(options ...WindowOption) widget.Widget {
+func Win(options ...WindowOption) widget.Widget {
 	cfg := windowConfig{
 		width:         300,
 		height:        240,
@@ -174,7 +174,7 @@ func windowCloseButton(enabled bool, onClose func()) widget.Widget {
 		Height(ROWindowTitleHeight)
 }
 
-type WindowState struct {
+type Window struct {
 	open        bool
 	x           int
 	y           int
@@ -191,60 +191,46 @@ type WindowState struct {
 	published   widget.Widget
 	opacity     float32
 	CloseOnEsc  bool
+	ctx         client.Context
 }
 
-type WindowHandle struct {
-	window WindowState
-}
-
-func (h *WindowHandle) IsOpen() bool {
-	return h.window.IsOpen()
-}
-
-func (h *WindowHandle) Publish(ctx client.Context) {
-	h.window.Publish(ctx)
-}
-
-func (h *WindowHandle) Widget() widget.Widget {
-	return h.window.Widget()
-}
-
-func (h *WindowHandle) EnsureWindow(width, height int) bool {
-	if h.window.width != 0 {
+func (w *Window) EnsureWindow(width, height int) bool {
+	if w.width != 0 {
 		return false
 	}
-	h.window = NewWindowState(width, height)
+	*w = NewWindow(width, height)
 	return true
 }
 
-type ContextWindowHandle struct {
-	WindowHandle
-	ctx client.Context
-}
-
-func (h *ContextWindowHandle) Close() {
-	h.window.Close()
-	h.Publish(h.ctx)
+func (w *Window) Close() {
+	w.setOpacity(1)
+	w.open = false
+	w.dragging = false
+	w.content = nil
+	w.placed = nil
+	w.Publish(w.ctx)
 }
 
 const grabbedWindowOpacity = 0.95
 
-func NewWindowState(width, height int) WindowState {
-	return WindowState{
+func NewWindow(width, height int) Window {
+	return Window{
 		width:       width,
 		height:      height,
 		titleHeight: ROWindowTitleHeight,
 		opacity:     1,
+		CloseOnEsc:  true,
 	}
 }
 
-func (w *WindowState) Open(ctx client.Context, content widget.Widget) {
+func (w *Window) Open(ctx client.Context, content widget.Widget) {
+	w.ctx = ctx
 	w.open = true
 	w.ensurePosition(ctx)
 	w.SetContent(content)
 }
 
-func (w *WindowState) OpenAt(x, y int, content widget.Widget) {
+func (w *Window) OpenAt(x, y int, content widget.Widget) {
 	w.open = true
 	w.x = x
 	w.y = y
@@ -252,19 +238,11 @@ func (w *WindowState) OpenAt(x, y int, content widget.Widget) {
 	w.SetContent(content)
 }
 
-func (w *WindowState) Close() {
-	w.setOpacity(1)
-	w.open = false
-	w.dragging = false
-	w.content = nil
-	w.placed = nil
-}
-
-func (w *WindowState) IsOpen() bool {
+func (w *Window) IsOpen() bool {
 	return w.open
 }
 
-func (w *WindowState) SetContent(content widget.Widget) {
+func (w *Window) SetContent(content widget.Widget) {
 	w.content = content
 	w.placed = nil
 	if w.dragging {
@@ -274,10 +252,11 @@ func (w *WindowState) SetContent(content widget.Widget) {
 	}
 }
 
-func (w *WindowState) Publish(ctx client.Context) {
+func (w *Window) Publish(ctx client.Context) {
 	if w == nil || ctx.UIManager == nil {
 		return
 	}
+	w.ctx = ctx
 	if !w.open || w.content == nil {
 		w.Unpublish(ctx)
 		return
@@ -294,7 +273,7 @@ func (w *WindowState) Publish(ctx client.Context) {
 	ctx.UIManager.AddOverlay(root)
 }
 
-func (w *WindowState) Unpublish(ctx client.Context) {
+func (w *Window) Unpublish(ctx client.Context) {
 	if w == nil || ctx.UIManager == nil || w.published == nil {
 		return
 	}
@@ -302,7 +281,7 @@ func (w *WindowState) Unpublish(ctx client.Context) {
 	w.published = nil
 }
 
-func (w *WindowState) SetSize(width, height int) {
+func (w *Window) SetSize(width, height int) {
 	if w.width == width && w.height == height {
 		return
 	}
@@ -311,7 +290,7 @@ func (w *WindowState) SetSize(width, height int) {
 	w.placed = nil
 }
 
-func (w *WindowState) SetAutoPosition(x, y int) bool {
+func (w *Window) SetAutoPosition(x, y int) bool {
 	if w.userMoved {
 		return false
 	}
@@ -325,7 +304,8 @@ func (w *WindowState) SetAutoPosition(x, y int) bool {
 	return true
 }
 
-func (w *WindowState) Update(ctx client.Context) bool {
+func (w *Window) Update(ctx client.Context) bool {
+	w.ctx = ctx
 	if !w.open || ctx.Input == nil {
 		return false
 	}
@@ -364,7 +344,7 @@ func (w *WindowState) Update(ctx client.Context) bool {
 	return true
 }
 
-func (w *WindowState) ensurePosition(ctx client.Context) {
+func (w *Window) ensurePosition(ctx client.Context) {
 	if w.positioned {
 		return
 	}
@@ -375,7 +355,7 @@ func (w *WindowState) ensurePosition(ctx client.Context) {
 	w.placed = nil
 }
 
-func (w *WindowState) setOpacity(opacity float32) {
+func (w *Window) setOpacity(opacity float32) {
 	changed := w.opacity != opacity
 	w.opacity = opacity
 	if w.titleHeight <= 0 {
@@ -392,7 +372,7 @@ func (w *WindowState) setOpacity(opacity float32) {
 	}
 }
 
-func (w *WindowState) Widget() widget.Widget {
+func (w *Window) Widget() widget.Widget {
 	if w == nil || !w.open || w.content == nil {
 		return nil
 	}

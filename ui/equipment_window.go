@@ -29,7 +29,7 @@ const (
 )
 
 type EquipmentWindow struct {
-	WindowHandle
+	Window
 	snapshot string
 	itemInfo *ItemInfoWindow
 	cart     *CartWindow
@@ -89,21 +89,21 @@ var (
 
 func (w *EquipmentWindow) Toggle(ctx Context) {
 	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
-	if w.window.IsOpen() {
-		w.window.Close()
+	if w.IsOpen() {
+		w.Window.Close()
 		w.Publish(ctx)
 		return
 	}
 	w.snapshot = equipmentSnapshot(ctx.Session)
 	w.hasCart = inventoryBagHasCart(ctx)
 	w.preview = nil
-	w.window.Open(ctx, w.widgetTree(ctx, nil, nil))
+	w.Window.Open(ctx, w.widgetTree(ctx, nil, nil))
 	w.Publish(ctx)
 }
 
 func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow, assets AssetProvider) bool {
 	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
 	snapshot := equipmentSnapshot(ctx.Session)
@@ -117,10 +117,10 @@ func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, cart *Ca
 		if assets != nil {
 			w.preview = assets.EquipmentPreviewImage(ctx, equipmentCenterColW, equipmentPreviewImageH)
 		}
-		w.window.SetContent(w.widgetTree(ctx, itemInfo, cart))
+		w.SetContent(w.widgetTree(ctx, itemInfo, cart))
 	}
-	consumed := w.window.Update(ctx)
-	if !w.window.IsOpen() {
+	consumed := w.Window.Update(ctx)
+	if !w.IsOpen() {
 		w.Publish(ctx)
 		return consumed
 	}
@@ -130,7 +130,7 @@ func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, cart *Ca
 
 func (w *EquipmentWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow, assets AssetProvider) {
 	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return
 	}
 	w.snapshot = equipmentSnapshot(ctx.Session)
@@ -140,16 +140,16 @@ func (w *EquipmentWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *Ca
 	if assets != nil {
 		w.preview = assets.EquipmentPreviewImage(ctx, equipmentCenterColW, equipmentPreviewImageH)
 	}
-	w.window.SetContent(w.widgetTree(ctx, itemInfo, cart))
+	w.SetContent(w.widgetTree(ctx, itemInfo, cart))
 	w.Publish(ctx)
 }
 
 func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
-	return Window(
+	return Win(
 		Title("Equipment"),
 		CloseButton(true),
 		OnClose(func() {
-			w.window.Close()
+			w.Window.Close()
 			w.Publish(ctx)
 		}),
 		Size(equipmentWindowWidth, equipmentWindowHeight),
@@ -203,7 +203,7 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 							if ctx.Network != nil {
 								_ = ctx.Network.SendShowEquipConfig(enabled)
 							}
-							w.window.SetContent(w.widgetTree(ctx, itemInfo, cart))
+							w.SetContent(w.widgetTree(ctx, itemInfo, cart))
 							w.Publish(ctx)
 						}),
 					),

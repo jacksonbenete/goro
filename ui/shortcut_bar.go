@@ -264,7 +264,7 @@ func (b *ShortcutBar) ensureContent() {
 	for i := 0; i < shortcutSlots; i++ {
 		columns = append(columns, b.slotColumn(i))
 	}
-	b.content = Window(
+	b.content = Win(
 		TitleBar(false),
 		Radius(0),
 		Size(float32(shortcutBarWidth()), float32(shortcutBarHeight())),

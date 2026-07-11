@@ -105,7 +105,7 @@ func TestStorageAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
 	sessionState := &session.Session{Storage: session.Storage{Open: true}}
 	ctx := Context{Session: sessionState, ScreenW: 800, ScreenH: 600}
 	window.OpenWindow(ctx)
-	ok := window.AcceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, window.window.x+12, window.window.y+20)
+	ok := window.AcceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, window.Window.x+12, window.Window.y+20)
 	if !ok {
 		t.Fatal("drop over storage was not consumed")
 	}
@@ -116,7 +116,7 @@ func TestCartAcceptInventoryDropWithoutNetworkConsumesDrop(t *testing.T) {
 	sessionState := &session.Session{Cart: session.Cart{Open: true}}
 	ctx := Context{Session: sessionState, ScreenW: 800, ScreenH: 600}
 	window.OpenWindow(ctx)
-	ok := window.AcceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, window.window.x+12, window.window.y+20)
+	ok := window.AcceptInventoryDrop(Context{Session: sessionState}, session.InventoryItem{Index: 7, ItemID: 938, Amount: 3}, window.Window.x+12, window.Window.y+20)
 	if !ok {
 		t.Fatal("drop over cart was not consumed")
 	}
@@ -131,13 +131,13 @@ func TestStorageAndCartAcceptCrossDropsWithoutNetwork(t *testing.T) {
 
 	storage := StorageWindow{}
 	storage.OpenWindow(ctx)
-	if !storage.AcceptCartDrop(ctx, session.InventoryItem{Index: 4, ItemID: 938, Amount: 2}, storage.window.x+12, storage.window.y+20) {
+	if !storage.AcceptCartDrop(ctx, session.InventoryItem{Index: 4, ItemID: 938, Amount: 2}, storage.Window.x+12, storage.Window.y+20) {
 		t.Fatal("drop from cart over storage was not consumed")
 	}
 
 	cart := CartWindow{}
 	cart.OpenWindow(ctx)
-	if !cart.AcceptStorageDrop(ctx, session.InventoryItem{Index: 5, ItemID: 938, Amount: 2}, cart.window.x+12, cart.window.y+20) {
+	if !cart.AcceptStorageDrop(ctx, session.InventoryItem{Index: 5, ItemID: 938, Amount: 2}, cart.Window.x+12, cart.Window.y+20) {
 		t.Fatal("drop from storage over cart was not consumed")
 	}
 }
@@ -170,7 +170,7 @@ func TestStorageDragReleaseOverInventoryWithdraws(t *testing.T) {
 
 	inventory := InventoryBagWindow{}
 	inventory.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
-	inventory.window.OpenAt(24, 24, nil)
+	inventory.Window.OpenAt(24, 24, nil)
 	storage := StorageWindow{
 		dragItem:   session.InventoryItem{Index: 9, ItemID: 938, Amount: 2},
 		dragActive: true,

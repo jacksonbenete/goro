@@ -25,7 +25,7 @@ const (
 )
 
 type CartWindow struct {
-	WindowHandle
+	Window
 	scrollY       state.Signal[float32]
 	selectedRow   int
 	snapshot      string
@@ -40,8 +40,8 @@ type CartWindow struct {
 }
 
 func (w *CartWindow) Toggle(ctx Context) {
-	w.ensureWindow()
-	if w.window.IsOpen() {
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
+	if w.IsOpen() {
 		w.close(ctx)
 		w.Publish(ctx)
 		return
@@ -50,23 +50,23 @@ func (w *CartWindow) Toggle(ctx Context) {
 }
 
 func (w *CartWindow) SetOpen(open bool) {
-	w.ensureWindow()
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
 	if !open {
-		w.window.Close()
+		w.Window.Close()
 	}
 }
 
 func (w *CartWindow) OpenWindow(ctx Context) {
-	w.ensureWindow()
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
 	w.ClampScroll(ctx.Session)
 	w.selectedRow = -1
 	w.snapshot = w.cartSnapshot(ctx.Session)
 	x, y := cartDefaultPosition(ctx)
-	if !w.window.IsOpen() {
-		w.window.OpenAt(x, y, w.widgetTree(ctx, nil))
+	if !w.IsOpen() {
+		w.OpenAt(x, y, w.widgetTree(ctx, nil))
 	} else {
-		w.window.SetAutoPosition(x, y)
-		w.window.SetContent(w.widgetTree(ctx, w.itemInfo))
+		w.SetAutoPosition(x, y)
+		w.SetContent(w.widgetTree(ctx, w.itemInfo))
 	}
 	if ctx.Session != nil {
 		ctx.Session.Cart.Open = true
@@ -75,8 +75,8 @@ func (w *CartWindow) OpenWindow(ctx Context) {
 }
 
 func (w *CartWindow) Update(ctx Context, inventory *InventoryBagWindow, storage *StorageWindow, itemInfo *ItemInfoWindow) bool {
-	w.ensureWindow()
-	if !w.window.IsOpen() || ctx.Input == nil {
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
+	if !w.IsOpen() || ctx.Input == nil {
 		return false
 	}
 	if !inventoryBagHasCart(ctx) {
@@ -92,13 +92,13 @@ func (w *CartWindow) Update(ctx Context, inventory *InventoryBagWindow, storage 
 	if snapshot != w.snapshot || itemInfo != w.itemInfo {
 		w.snapshot = snapshot
 		w.itemInfo = itemInfo
-		w.window.SetContent(w.widgetTree(ctx, itemInfo))
+		w.SetContent(w.widgetTree(ctx, itemInfo))
 	}
 	if w.handlePointer(ctx, itemInfo) {
 		return true
 	}
-	consumed := w.window.Update(ctx)
-	if !w.window.IsOpen() {
+	consumed := w.Window.Update(ctx)
+	if !w.IsOpen() {
 		w.Publish(ctx)
 		return consumed
 	}
@@ -137,8 +137,8 @@ func (w *CartWindow) DrawDragGhost(screen *render.Image, ctx Context, assets Ass
 }
 
 func (w *CartWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
-	w.ensureWindow()
-	if !w.window.IsOpen() || !pointInRect(mx, my, w.window.x, w.window.y, cartWindowWidth, cartWindowHeight) {
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
+	if !w.IsOpen() || !pointInRect(mx, my, w.x, w.y, cartWindowWidth, cartWindowHeight) {
 		return false
 	}
 	amount := uint32(item.Amount)
@@ -158,8 +158,8 @@ func (w *CartWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem
 }
 
 func (w *CartWindow) AcceptStorageDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
-	w.ensureWindow()
-	if !w.window.IsOpen() || !pointInRect(mx, my, w.window.x, w.window.y, cartWindowWidth, cartWindowHeight) {
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
+	if !w.IsOpen() || !pointInRect(mx, my, w.x, w.y, cartWindowWidth, cartWindowHeight) {
 		return false
 	}
 	amount := uint32(item.Amount)
@@ -178,15 +178,8 @@ func (w *CartWindow) AcceptStorageDrop(ctx Context, item session.InventoryItem, 
 	return true
 }
 
-func (w *CartWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(cartWindowWidth, cartWindowHeight)
-		w.selectedRow = -1
-	}
-}
-
 func (w *CartWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
-	return Window(
+	return Win(
 		Title("Pushcart"),
 		CloseButton(true),
 		OnClose(func() {
@@ -279,7 +272,7 @@ func (w *CartWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) bool {
 }
 
 func (w *CartWindow) close(ctx Context) {
-	w.window.Close()
+	w.Window.Close()
 	w.dragActive = false
 	if ctx.Session != nil {
 		ctx.Session.Cart.Open = false
@@ -303,11 +296,11 @@ func (w *CartWindow) withdraw(ctx Context, item session.InventoryItem) {
 }
 
 func (w *CartWindow) refresh(ctx Context, itemInfo *ItemInfoWindow) {
-	w.ensureWindow()
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
 	w.ClampScroll(ctx.Session)
 	w.snapshot = w.cartSnapshot(ctx.Session)
 	w.itemInfo = itemInfo
-	w.window.SetContent(w.widgetTree(ctx, itemInfo))
+	w.SetContent(w.widgetTree(ctx, itemInfo))
 	w.Publish(ctx)
 }
 
@@ -316,8 +309,8 @@ func (w *CartWindow) Refresh(ctx Context, itemInfo *ItemInfoWindow) {
 }
 
 func (w *CartWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow) {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
+	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
+	if !w.IsOpen() {
 		return
 	}
 	w.refresh(ctx, itemInfo)
@@ -406,8 +399,8 @@ func (w *CartWindow) ensureScrollSignal() state.Signal[float32] {
 }
 
 func (w *CartWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, int, bool) {
-	tableX := w.window.x
-	tableY := w.window.y + ROWindowTitleHeight
+	tableX := w.x
+	tableY := w.y + ROWindowTitleHeight
 	row, ok := storageTableRowAt(mx, my, tableX, tableY, cartWindowWidth, int(storageTableHeight()), len(sortedCartItems(s)), w.ensureScrollSignal().Get())
 	if !ok {
 		return session.InventoryItem{}, 0, false

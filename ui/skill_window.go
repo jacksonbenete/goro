@@ -32,7 +32,7 @@ const (
 )
 
 type SkillWindow struct {
-	WindowHandle
+	Window
 	scrollY        state.Signal[float32]
 	snapshot       string
 	lastClick      uint16
@@ -76,8 +76,8 @@ type skillRowWidget struct {
 }
 
 func (w *SkillWindow) Toggle(ctx Context) {
-	w.ensureWindow()
-	if w.window.IsOpen() {
+	w.EnsureWindow(skillWindowWidth, skillWindowHeight)
+	if w.IsOpen() {
 		w.close(ctx)
 		return
 	}
@@ -85,8 +85,8 @@ func (w *SkillWindow) Toggle(ctx Context) {
 }
 
 func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameActions) bool {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
+	w.EnsureWindow(skillWindowWidth, skillWindowHeight)
+	if !w.IsOpen() {
 		return false
 	}
 	w.actions = actions
@@ -112,10 +112,10 @@ func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameAc
 	snapshot := w.skillSnapshot(ctx.Session)
 	if snapshot != w.snapshot {
 		w.snapshot = snapshot
-		w.window.SetContent(w.widgetTree(ctx, actions))
+		w.SetContent(w.widgetTree(ctx, actions))
 	}
-	consumed := w.window.Update(ctx)
-	if !w.window.IsOpen() {
+	consumed := w.Window.Update(ctx)
+	if !w.IsOpen() {
 		w.Publish(ctx)
 		return consumed
 	}
@@ -142,9 +142,9 @@ func (w *SkillWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar) bool {
 }
 
 func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetProvider) {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
-		w.window.Unpublish(ctx)
+	w.EnsureWindow(skillWindowWidth, skillWindowHeight)
+	if !w.IsOpen() {
+		w.Unpublish(ctx)
 		w.unpublishTooltip(ctx)
 		return
 	}
@@ -159,33 +159,27 @@ func (w *SkillWindow) DrawDragGhost(screen *render.Image, ctx Context, assets As
 }
 
 func (w *SkillWindow) Publish(ctx Context) {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
-		w.window.Unpublish(ctx)
+	w.EnsureWindow(skillWindowWidth, skillWindowHeight)
+	if !w.IsOpen() {
+		w.Unpublish(ctx)
 		w.unpublishTooltip(ctx)
 		return
 	}
-	w.window.Publish(ctx)
+	w.Window.Publish(ctx)
 }
 
 func (w *SkillWindow) Rebind(ctx Context, actions GameActions) {
-	w.ensureWindow()
-	if !w.window.IsOpen() {
+	w.EnsureWindow(skillWindowWidth, skillWindowHeight)
+	if !w.IsOpen() {
 		return
 	}
 	w.refresh(ctx, actions)
 }
 
-func (w *SkillWindow) ensureWindow() {
-	if w.window.width == 0 {
-		w.window = NewWindowState(skillWindowWidth, skillWindowHeight)
-	}
-}
-
 func (w *SkillWindow) openAtDefault(ctx Context) {
 	x, y := skillDefaultPosition(ctx)
 	w.snapshot = w.skillSnapshot(ctx.Session)
-	w.window.OpenAt(x, y, w.widgetTree(ctx, w.actions))
+	w.OpenAt(x, y, w.widgetTree(ctx, w.actions))
 	w.Publish(ctx)
 }
 
@@ -193,7 +187,7 @@ func (w *SkillWindow) close(ctx Context) {
 	w.dragActive = false
 	w.hasHover = false
 	w.unpublishTooltip(ctx)
-	w.window.Close()
+	w.Window.Close()
 	w.Publish(ctx)
 }
 
@@ -208,7 +202,7 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 	if assets == nil {
 		assets = w.assets
 	}
-	return Window(
+	return Win(
 		Title("Skill Tree"),
 		CloseButton(true),
 		OnClose(func() {
@@ -317,7 +311,7 @@ func (w *SkillWindow) refresh(ctx Context, actions GameActions) {
 	}
 	w.clampScroll(ctx.Session)
 	w.snapshot = w.skillSnapshot(ctx.Session)
-	w.window.SetContent(w.widgetTreeWithAssets(ctx, w.assets, w.actions))
+	w.SetContent(w.widgetTreeWithAssets(ctx, w.assets, w.actions))
 	w.Publish(ctx)
 }
 
@@ -394,7 +388,7 @@ func (w *SkillWindow) skillAtMouse(ctx Context, mouseX, mouseY int) (session.Ski
 }
 
 func (w *SkillWindow) skillListOrigin() (int, int) {
-	return w.window.x + skillWindowPad, w.window.y + ROWindowTitleHeight + skillWindowPad + 14 + 5 + 14 + 5
+	return w.x + skillWindowPad, w.y + ROWindowTitleHeight + skillWindowPad + 14 + 5 + 14 + 5
 }
 
 func (w *SkillWindow) unpublishTooltip(ctx Context) {

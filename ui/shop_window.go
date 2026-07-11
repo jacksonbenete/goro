@@ -41,7 +41,7 @@ const (
 
 type ShopWindow struct {
 	dealNPCID       uint32
-	dealWindow      WindowState
+	dealWindow      Window
 	mode            int
 	x               int
 	y               int
@@ -49,8 +49,8 @@ type ShopWindow struct {
 	cart            []shopSellCartItem
 	buyItems        []network.ShopBuyItem
 	buyCart         []shopBuyCartItem
-	buyWindow       WindowState
-	buyCartWindow   WindowState
+	buyWindow       Window
+	buyCartWindow   Window
 	buySelectedRow  int
 	buyScrollY      state.Signal[float32]
 	buyCartScrollY  state.Signal[float32]
@@ -215,7 +215,7 @@ func (w *ShopWindow) DrawDragGhost(screen *render.Image, ctx Context, assets Ass
 
 func (w *ShopWindow) ensureDealWindow() {
 	if w.dealWindow.width == 0 {
-		w.dealWindow = NewWindowState(shopDealWidth, shopDealHeight)
+		w.dealWindow = NewWindow(shopDealWidth, shopDealHeight)
 	}
 }
 
@@ -237,7 +237,7 @@ func (w *ShopWindow) closeDealWindow(ctx Context) {
 }
 
 func (w *ShopWindow) dealWidgetTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Shop"),
 		CloseButton(false),
 		Size(shopDealWidth, shopDealHeight),
@@ -265,12 +265,12 @@ func (w *ShopWindow) dealWidgetTree(ctx Context) widget.Widget {
 
 func (w *ShopWindow) ensureBuyWindow() {
 	if w.buyWindow.width == 0 {
-		w.buyWindow = NewWindowState(shopBuyListWindowW, shopListWindowHeight())
+		w.buyWindow = NewWindow(shopBuyListWindowW, shopListWindowHeight())
 	} else {
 		w.buyWindow.SetSize(shopBuyListWindowW, shopListWindowHeight())
 	}
 	if w.buyCartWindow.width == 0 {
-		w.buyCartWindow = NewWindowState(shopBuyCartWindowW, w.cartWindowHeight())
+		w.buyCartWindow = NewWindow(shopBuyCartWindowW, w.cartWindowHeight())
 	} else {
 		w.buyCartWindow.SetSize(shopBuyCartWindowW, w.cartWindowHeight())
 	}
@@ -316,7 +316,7 @@ func (w *ShopWindow) buyListWidgetTree(ctx Context) widget.Widget {
 	if w.mode == shopModeSell {
 		title = "Sell Items"
 	}
-	return Window(
+	return Win(
 		Title(title),
 		CloseButton(true),
 		OnClose(func() {
@@ -347,7 +347,7 @@ func (w *ShopWindow) buyCartWidgetTree(ctx Context) widget.Widget {
 		action = "Sell"
 		disabled = len(w.cart) == 0
 	}
-	return Window(
+	return Win(
 		Title(title),
 		CloseButton(true),
 		OnClose(func() {

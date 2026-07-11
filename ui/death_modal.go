@@ -20,7 +20,7 @@ const (
 )
 
 type DeathModal struct {
-	WindowHandle
+	Window
 	open    bool
 	pending DeathModalAction
 	ctx     client.Context
@@ -40,8 +40,8 @@ func (m *DeathModal) OpenDeath() {
 }
 
 func (m *DeathModal) Reset() {
-	if m.window.IsOpen() {
-		m.window.Close()
+	if m.IsOpen() {
+		m.Window.Close()
 		m.Publish(m.ctx)
 	}
 	*m = DeathModal{}
@@ -75,7 +75,7 @@ func (m *DeathModal) Update(ctx client.Context) bool {
 		return false
 	}
 	m.openWindow(ctx)
-	if m.window.Update(ctx) {
+	if m.Window.Update(ctx) {
 		m.Publish(ctx)
 		return true
 	}
@@ -113,7 +113,7 @@ func (m *DeathModal) RequestCharacterSelect(ctx client.Context) {
 
 func (m *DeathModal) ExitToWindows(ctx client.Context) {
 	m.open = false
-	m.window.Close()
+	m.Window.Close()
 	m.Publish(ctx)
 	if ctx.RequestQuit != nil {
 		ctx.RequestQuit()
@@ -137,22 +137,22 @@ func (m *DeathModal) PendingAction() DeathModalAction {
 
 func (m *DeathModal) openWindow(ctx client.Context) {
 	m.EnsureWindow(deathModalWidth, deathModalHeight)
-	if !m.window.IsOpen() {
-		m.window.Open(ctx, m.widgetTree(ctx))
+	if !m.IsOpen() {
+		m.Window.Open(ctx, m.widgetTree(ctx))
 	}
 	m.Publish(ctx)
 }
 
 func (m *DeathModal) refresh(ctx client.Context) {
-	if !m.open || !m.window.IsOpen() {
+	if !m.open || !m.IsOpen() {
 		return
 	}
-	m.window.SetContent(m.widgetTree(ctx))
+	m.SetContent(m.widgetTree(ctx))
 	m.Publish(ctx)
 }
 
 func (m *DeathModal) widgetTree(ctx client.Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("You have died"),
 		CloseButton(false),
 		Size(deathModalWidth, deathModalHeight),

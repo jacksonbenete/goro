@@ -17,7 +17,7 @@ const (
 )
 
 type PartySettingsWindow struct {
-	ContextWindowHandle
+	Window
 	expShare uint32
 }
 
@@ -26,17 +26,17 @@ func (w *PartySettingsWindow) Open(ctx Context) {
 	w.ctx = ctx
 	party := sessionParty(ctx.Session)
 	w.expShare = party.ExpShare
-	w.window.Open(ctx, w.widgetTree(ctx))
+	w.Window.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *PartySettingsWindow) Update(ctx Context) bool {
 	w.EnsureWindow(partySettingsW, ROWindowTitleHeight+partySettingsContent+partySettingsFooterH)
 	w.ctx = ctx
-	if !w.window.IsOpen() {
+	if !w.IsOpen() {
 		return false
 	}
-	consumed := w.window.Update(ctx)
+	consumed := w.Window.Update(ctx)
 	w.Publish(ctx)
 	return consumed
 }
@@ -46,12 +46,12 @@ func (w *PartySettingsWindow) Rebind(ctx Context) {
 		return
 	}
 	w.ctx = ctx
-	w.window.SetContent(w.widgetTree(ctx))
+	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {
-	return Window(
+	return Win(
 		Title("Party Settings"),
 		CloseButton(true),
 		OnClose(w.Close),
@@ -96,7 +96,7 @@ func (w *PartySettingsWindow) apply(ctx Context) {
 			log.Printf("party settings failed: %v", err)
 		}
 	}
-	w.Close()
+	w.Window.Close()
 }
 
 func parsePartySettingUint32(value string) uint32 {
