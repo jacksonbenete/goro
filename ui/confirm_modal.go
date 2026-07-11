@@ -21,7 +21,6 @@ const (
 
 type ConfirmModal struct {
 	Window
-	open     bool
 	title    string
 	message  string
 	onOK     func()
@@ -30,7 +29,6 @@ type ConfirmModal struct {
 }
 
 func (m *ConfirmModal) Open(ctx client.Context, title, message string, onOK, onCancel func()) {
-	m.open = true
 	m.title = title
 	m.message = message
 	m.onOK = onOK
@@ -43,7 +41,7 @@ func (m *ConfirmModal) Open(ctx client.Context, title, message string, onOK, onC
 
 func (m *ConfirmModal) Update(ctx client.Context) bool {
 	m.ctx = ctx
-	if !m.open {
+	if !m.Window.IsOpen() {
 		return false
 	}
 	if ctx.Input != nil {
@@ -65,10 +63,6 @@ func (m *ConfirmModal) Update(ctx client.Context) bool {
 	return true
 }
 
-func (m *ConfirmModal) IsOpen() bool {
-	return m.open
-}
-
 func (m *ConfirmModal) Confirm(ctx client.Context) {
 	m.Close(ctx)
 	if m.onOK != nil {
@@ -84,14 +78,13 @@ func (m *ConfirmModal) Cancel(ctx client.Context) {
 }
 
 func (m *ConfirmModal) Close(ctx client.Context) {
-	m.open = false
 	m.Window.Close()
 	m.Publish(ctx)
 }
 
 func (m *ConfirmModal) openWindow(ctx client.Context) {
 	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
-	if !m.IsOpen() {
+	if m.content == nil {
 		m.Window.Open(ctx, m.widgetTree(ctx))
 	}
 }

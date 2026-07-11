@@ -39,7 +39,6 @@ const (
 
 type TeleportModal struct {
 	Window
-	open     bool
 	skill    session.Skill
 	mapNames []string
 	status   string
@@ -48,11 +47,11 @@ type TeleportModal struct {
 }
 
 func (m *TeleportModal) OpenWarpPointList(list network.WarpPointList, skill session.Skill) {
-	m.open = true
 	m.skill = skill
 	m.mapNames = append(m.mapNames[:0], list.MapNames...)
 	m.status = ""
-	m.closeWindow()
+	m.ensureWindow()
+	m.Window.open = true
 }
 
 func (m *TeleportModal) Reset() {
@@ -77,7 +76,7 @@ func TeleportWarpListBypassesModal(skill session.Skill, list network.WarpPointLi
 
 func (m *TeleportModal) Update(ctx Context, actions GameActions) bool {
 	m.ctx = ctx
-	if !m.open {
+	if !m.IsOpen() {
 		m.closeWindow()
 		return false
 	}
@@ -102,7 +101,6 @@ func (m *TeleportModal) cancel(ctx Context) {
 			return
 		}
 	}
-	m.open = false
 	m.closeWindow()
 }
 
@@ -124,7 +122,6 @@ func (m *TeleportModal) selectWarpPoint(ctx Context, actions GameActions, mapNam
 	if actions != nil && skillID == teleportSkillID {
 		actions.AddTeleportEffect(ctx)
 	}
-	m.open = false
 	m.closeWindow()
 }
 
@@ -181,10 +178,6 @@ func (m TeleportModal) Title() string {
 	return "Teleport"
 }
 
-func (m TeleportModal) IsOpen() bool {
-	return m.open
-}
-
 func (m *TeleportModal) ensureWindow() {
 	height := m.windowHeight()
 	if m.width == 0 {
@@ -196,9 +189,10 @@ func (m *TeleportModal) ensureWindow() {
 
 func (m *TeleportModal) openWindow(ctx Context, actions GameActions) {
 	m.ensureWindow()
-	if !m.IsOpen() {
+	if m.content == nil {
 		m.Open(ctx, m.widgetTree(ctx, actions))
 	}
+	m.Publish(ctx)
 }
 
 func (m *TeleportModal) refresh(ctx Context) {

@@ -34,14 +34,56 @@ func TestEscapeMenuOpenPublishesGogpuWindow(t *testing.T) {
 	inputState := input.NewState()
 	manager := &escapeMenuTestUIManager{}
 	menu := EscapeMenu{}
-	menu.OpenMenu()
 	ctx := client.Context{Input: inputState, UIManager: manager, ScreenW: 800, ScreenH: 600}
+	menu.Toggle(ctx)
 
 	if !menu.Update(ctx) {
 		t.Fatal("escape menu did not consume update while open")
 	}
 	if len(manager.overlays) != 1 {
 		t.Fatalf("escape menu overlays = %d, want 1", len(manager.overlays))
+	}
+}
+
+func TestEscapeMenuToggleClosesOpenWindow(t *testing.T) {
+	manager := &escapeMenuTestUIManager{}
+	menu := EscapeMenu{}
+	ctx := client.Context{Input: input.NewState(), UIManager: manager, ScreenW: 800, ScreenH: 600}
+	menu.Toggle(ctx)
+
+	menu.Toggle(ctx)
+
+	if menu.IsOpen() {
+		t.Fatal("escape menu stayed open after toggle")
+	}
+	if len(manager.overlays) != 0 {
+		t.Fatalf("escape menu overlays = %d, want 0", len(manager.overlays))
+	}
+}
+
+func TestEscapeMenuEscapeKeyTogglesWindow(t *testing.T) {
+	manager := &escapeMenuTestUIManager{}
+	inputState := input.NewState()
+	menu := EscapeMenu{}
+	ctx := client.Context{Input: inputState, UIManager: manager, ScreenW: 800, ScreenH: 600}
+
+	inputState.SetKey(input.KeyEscape, true)
+	if !menu.Update(ctx) {
+		t.Fatal("escape key did not open menu")
+	}
+	if !menu.IsOpen() {
+		t.Fatal("menu did not open from escape key")
+	}
+
+	inputState.EndFrame()
+	inputState.SetKey(input.KeyEscape, false)
+	inputState.EndFrame()
+	inputState.SetKey(input.KeyEscape, true)
+	if !menu.Update(ctx) {
+		t.Fatal("escape key did not close menu")
+	}
+	if menu.IsOpen() {
+		t.Fatal("menu did not close from escape key")
 	}
 }
 

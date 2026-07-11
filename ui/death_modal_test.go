@@ -11,7 +11,7 @@ import (
 func TestDeathModalOpenAndClearWhenAlive(t *testing.T) {
 	var modal DeathModal
 	modal.OpenDeath()
-	if !modal.open {
+	if !modal.IsOpen() {
 		t.Fatal("expected modal open")
 	}
 	if modal.pending != DeathModalActionNone {
@@ -22,13 +22,13 @@ func TestDeathModalOpenAndClearWhenAlive(t *testing.T) {
 	ctx.Session.Vitals.HP = 0
 	ctx.Session.Selected.HP = 0
 	modal.ClearIfAlive(ctx)
-	if !modal.open {
+	if !modal.IsOpen() {
 		t.Fatal("modal cleared while character is still dead")
 	}
 
 	ctx.Session.Vitals.HP = 1
 	modal.ClearIfAlive(ctx)
-	if modal.open {
+	if modal.IsOpen() {
 		t.Fatal("modal stayed open after positive HP")
 	}
 }
@@ -51,7 +51,7 @@ func TestDeathModalCharacterSelectAckDeniedKeepsModalOpen(t *testing.T) {
 	if modal.ApplyRestartAck(network.RestartAck{Allowed: false}) {
 		t.Fatal("denied restart ack should not request transition")
 	}
-	if !modal.open || modal.pending != DeathModalActionNone {
+	if !modal.IsOpen() || modal.pending != DeathModalActionNone {
 		t.Fatalf("modal = %+v, want open and no pending action", modal)
 	}
 }

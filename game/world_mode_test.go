@@ -4141,7 +4141,7 @@ func TestPendingSkillTargetCancelWithEscape(t *testing.T) {
 	}
 }
 
-func TestBasicMenuOptionOpensEscapeMenu(t *testing.T) {
+func TestBasicMenuOptionTogglesEscapeMenu(t *testing.T) {
 	mode := &WorldMode{}
 
 	mode.basicMenuCallbacks(client.Context{}).OnOption()
@@ -4154,6 +4154,12 @@ func TestBasicMenuOptionOpensEscapeMenu(t *testing.T) {
 	}
 	if mode.escapeMenu.Pending() {
 		t.Fatal("escape menu kept stale pending state")
+	}
+
+	mode.basicMenuCallbacks(client.Context{}).OnOption()
+
+	if mode.escapeMenu.IsOpen() {
+		t.Fatal("escape menu stayed open after second option click")
 	}
 }
 

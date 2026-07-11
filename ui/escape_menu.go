@@ -35,11 +35,19 @@ const (
 	EscapeMenuActionExit
 )
 
-func (m *EscapeMenu) OpenMenu() {
-	m.open = true
+func (m *EscapeMenu) Toggle(ctx client.Context) {
+	m.ctx = ctx
+	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
+	if m.IsOpen() {
+		m.Window.Close()
+		m.Publish(ctx)
+		return
+	}
 	m.action = EscapeMenuActionNone
 	m.pending = false
 	m.CloseOnEsc = true
+	m.Window.Open(ctx, m.widgetTree(ctx))
+	m.Publish(ctx)
 }
 
 func (m *EscapeMenu) Update(ctx client.Context) bool {
@@ -50,12 +58,11 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
+	if ctx.Input.JustPressed(render.KeyEscape) {
+		m.Toggle(ctx)
+		return true
+	}
 	if !m.IsOpen() {
-		if ctx.Input.JustPressed(render.KeyEscape) {
-			m.OpenMenu()
-			m.openWindow(ctx)
-			return true
-		}
 		return false
 	}
 	m.openWindow(ctx)
@@ -94,7 +101,7 @@ func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
 	}
 	m.pending = false
 	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
-	m.open = true
+	m.Window.Open(m.ctx, m.widgetTree(m.ctx))
 	m.refresh(m.ctx)
 	return false
 }
@@ -116,7 +123,10 @@ func (m *EscapeMenu) Action() EscapeMenuAction {
 func (m *EscapeMenu) openWindow(ctx client.Context) {
 	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
 	if !m.IsOpen() {
-		m.Window.Open(ctx, m.widgetTree(ctx))
+		return
+	}
+	if m.content == nil {
+		m.SetContent(m.widgetTree(ctx))
 	}
 	m.Publish(ctx)
 }

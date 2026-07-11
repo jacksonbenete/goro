@@ -21,7 +21,6 @@ const (
 
 type DeathModal struct {
 	Window
-	open    bool
 	pending DeathModalAction
 	ctx     client.Context
 }
@@ -35,20 +34,19 @@ const (
 )
 
 func (m *DeathModal) OpenDeath() {
-	m.open = true
 	m.pending = DeathModalActionNone
+	m.EnsureWindow(deathModalWidth, deathModalHeight)
+	m.Window.open = true
 }
 
 func (m *DeathModal) Reset() {
-	if m.IsOpen() {
-		m.Window.Close()
-		m.Publish(m.ctx)
-	}
+	m.Window.Close()
+	m.Publish(m.ctx)
 	*m = DeathModal{}
 }
 
 func (m *DeathModal) ClearIfAlive(ctx client.Context) {
-	if !m.open || ctx.Session == nil {
+	if !m.IsOpen() || ctx.Session == nil {
 		return
 	}
 	if ctx.Session.Vitals.HP > 0 || ctx.Session.Selected.HP > 0 {
@@ -57,7 +55,7 @@ func (m *DeathModal) ClearIfAlive(ctx client.Context) {
 }
 
 func (m *DeathModal) ApplyRestartAck(ack network.RestartAck) bool {
-	if !m.open || m.pending != DeathModalActionCharSelect {
+	if !m.IsOpen() || m.pending != DeathModalActionCharSelect {
 		return false
 	}
 	if ack.Allowed {
@@ -71,7 +69,7 @@ func (m *DeathModal) ApplyRestartAck(ack network.RestartAck) bool {
 
 func (m *DeathModal) Update(ctx client.Context) bool {
 	m.ctx = ctx
-	if !m.open {
+	if !m.IsOpen() {
 		return false
 	}
 	m.openWindow(ctx)
@@ -112,7 +110,6 @@ func (m *DeathModal) RequestCharacterSelect(ctx client.Context) {
 }
 
 func (m *DeathModal) ExitToWindows(ctx client.Context) {
-	m.open = false
 	m.Window.Close()
 	m.Publish(ctx)
 	if ctx.RequestQuit != nil {
@@ -121,14 +118,10 @@ func (m *DeathModal) ExitToWindows(ctx client.Context) {
 }
 
 func (m *DeathModal) Draw(screen *render.Image, ctx client.Context, width, height int) {
-	if !m.open || screen == nil {
+	if !m.IsOpen() || screen == nil {
 		return
 	}
 	DrawSurface(screen, 0, 0, width, height, color.RGBA{A: 112}, color.RGBA{})
-}
-
-func (m *DeathModal) IsOpen() bool {
-	return m.open
 }
 
 func (m *DeathModal) PendingAction() DeathModalAction {
@@ -137,14 +130,14 @@ func (m *DeathModal) PendingAction() DeathModalAction {
 
 func (m *DeathModal) openWindow(ctx client.Context) {
 	m.EnsureWindow(deathModalWidth, deathModalHeight)
-	if !m.IsOpen() {
+	if m.content == nil {
 		m.Window.Open(ctx, m.widgetTree(ctx))
 	}
 	m.Publish(ctx)
 }
 
 func (m *DeathModal) refresh(ctx client.Context) {
-	if !m.open || !m.IsOpen() {
+	if !m.IsOpen() {
 		return
 	}
 	m.SetContent(m.widgetTree(ctx))

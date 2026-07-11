@@ -1117,6 +1117,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.friendRequest.IsOpen() && !m.partyRequest.IsOpen() && !m.tradeRequest.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
+	if m.escapeMenu.IsOpen() {
+		if m.escapeMenu.Update(ctx) {
+			m.handleEscapeMenuAction(ctx)
+			return nil, nil
+		}
+	}
 	if m.friendRequest.Update(ctx) {
 		return nil, nil
 	}
@@ -1142,12 +1148,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.escapeMenu.Update(ctx) {
-		switch m.escapeMenu.ConsumeAction() {
-		case gameui.EscapeMenuActionCharacterSelect:
-			m.escapeMenu.RequestCharacterSelect(ctx)
-		case gameui.EscapeMenuActionSettings:
-			m.settingsWindow.OpenWindow(ctx)
-		}
+		m.handleEscapeMenuAction(ctx)
 		return nil, nil
 	}
 	if m.characterWindow.Update(ctx) {
@@ -1284,10 +1285,19 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	return nil, nil
 }
 
+func (m *WorldMode) handleEscapeMenuAction(ctx client.Context) {
+	switch m.escapeMenu.ConsumeAction() {
+	case gameui.EscapeMenuActionCharacterSelect:
+		m.escapeMenu.RequestCharacterSelect(ctx)
+	case gameui.EscapeMenuActionSettings:
+		m.settingsWindow.OpenWindow(ctx)
+	}
+}
+
 func (m *WorldMode) basicMenuCallbacks(ctx client.Context) gameui.BasicMenuCallbacks {
 	return gameui.BasicMenuCallbacks{
 		OnStatus: func() { m.statsWindow.Toggle(ctx) },
-		OnOption: func() { m.escapeMenu.OpenMenu() },
+		OnOption: func() { m.escapeMenu.Toggle(ctx) },
 		OnItems:  func() { m.inventoryBag.Toggle(ctx) },
 		OnEquip:  func() { m.equipmentWindow.Toggle(ctx) },
 		OnSkill:  func() { m.skillWindow.Toggle(ctx) },
