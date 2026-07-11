@@ -4163,6 +4163,23 @@ func TestBasicMenuOptionTogglesEscapeMenu(t *testing.T) {
 	}
 }
 
+func TestEscapeKeyOpensEscapeMenuGlobally(t *testing.T) {
+	mode := &WorldMode{}
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyEscape, true)
+	manager := &worldModeTestUIManager{}
+
+	if !mode.openEscapeMenuFromInput(client.Context{Input: inputState, UIManager: manager, ScreenW: 800, ScreenH: 600}) {
+		t.Fatal("escape key did not open escape menu")
+	}
+	if !mode.escapeMenu.IsOpen() {
+		t.Fatal("escape menu is not open")
+	}
+	if len(manager.overlays) != 1 {
+		t.Fatalf("overlays = %d, want 1", len(manager.overlays))
+	}
+}
+
 func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
 	mode := &WorldMode{
 		pendingSkill: pendingSkillTarget{skill: session.Skill{ID: 6, Level: 2, Range: 9}},

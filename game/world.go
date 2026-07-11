@@ -1092,6 +1092,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
+	if m.openEscapeMenuFromInput(ctx) {
+		return nil, nil
+	}
 	m.skills().AdjustPendingLevelFromWheel(ctx)
 	playerContextConsumed := m.playerContext.Update(ctx)
 	switch action := m.playerContext.PopAction(); action.Kind {
@@ -1292,6 +1295,17 @@ func (m *WorldMode) handleEscapeMenuAction(ctx client.Context) {
 	case gameui.EscapeMenuActionSettings:
 		m.settingsWindow.OpenWindow(ctx)
 	}
+}
+
+func (m *WorldMode) openEscapeMenuFromInput(ctx client.Context) bool {
+	if ctx.Input == nil || m.escapeMenu.IsOpen() || !ctx.Input.JustPressed(render.KeyEscape) {
+		return false
+	}
+	if m.deathModal.IsOpen() || m.teleportModal.IsOpen() || m.friendRequest.IsOpen() || m.partyRequest.IsOpen() || m.tradeRequest.IsOpen() {
+		return false
+	}
+	m.escapeMenu.Toggle(ctx)
+	return true
 }
 
 func (m *WorldMode) basicMenuCallbacks(ctx client.Context) gameui.BasicMenuCallbacks {
