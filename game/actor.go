@@ -415,6 +415,20 @@ func applyActorSetPosition(ctx client.Context, position network.ActorSetPosition
 	})
 }
 
+func applyActorJumpPosition(ctx client.Context, position network.ActorJumpPosition) {
+	if isLocalActor(ctx, position.ID) {
+		ctx.World.SetPlayerPosition(position.X, position.Y, ctx.World.Dir)
+		ctx.Session.PlayerX = position.X
+		ctx.Session.PlayerY = position.Y
+		return
+	}
+	ctx.World.UpsertActor(worldstate.Actor{
+		ID: position.ID,
+		X:  position.X,
+		Y:  position.Y,
+	})
+}
+
 func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
 	name := sanitizeActorName(ack.Name)
 	if name == "" || ctx.World == nil {

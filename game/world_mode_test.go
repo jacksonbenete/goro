@@ -203,6 +203,43 @@ func TestTrickDeadSkillDoesNotStartDefaultSkillAction(t *testing.T) {
 	}
 }
 
+func TestBackSlideSkillDoesNotStartDefaultSkillAction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	if action := skillAction(db.SkillTFBacksliding); !action.defined || action.action != skillActorActionNone {
+		t.Fatalf("back slide skill action = %+v, want no source action", action)
+	}
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{
+		SkillID:  db.SkillTFBacksliding,
+		SourceID: 2000000,
+		TargetID: 2000000,
+		Result:   1,
+	})
+	if len(mode.actorAnims) != 0 {
+		t.Fatalf("back slide skill animation = %+v, want none before jump packet", mode.actorAnims)
+	}
+}
+
+func TestApplyActorJumpPositionMovesLocalPlayer(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4, Moving: true}
+	sessionState := &session.Session{AccountID: 2000000, PlayerX: 10, PlayerY: 20}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	applyActorJumpPosition(ctx, network.ActorJumpPosition{ID: 2000000, X: 7, Y: 20})
+
+	if world.Player.X != 7 || world.Player.Y != 20 || world.Player.Moving {
+		t.Fatalf("player after jump = %+v, want stopped at 7,20", world.Player)
+	}
+	if sessionState.PlayerX != 7 || sessionState.PlayerY != 20 {
+		t.Fatalf("session position = %d,%d, want 7,20", sessionState.PlayerX, sessionState.PlayerY)
+	}
+}
+
 func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 150000, Job: 5}

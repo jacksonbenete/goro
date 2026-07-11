@@ -409,6 +409,26 @@ func TestParseActorSetPosition(t *testing.T) {
 	}
 }
 
+func TestParseActorJumpPosition(t *testing.T) {
+	data := make([]byte, 10)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01FF)
+	binary.LittleEndian.PutUint32(data[2:6], 2000006)
+	x := int16(-12)
+	binary.LittleEndian.PutUint16(data[8:10], uint16(int16(34)))
+	binary.LittleEndian.PutUint16(data[6:8], uint16(x))
+
+	position, ok, err := ParseActorJumpPosition(Packet{ID: 0x01FF, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("actor jump position not parsed")
+	}
+	if position.ID != 2000006 || position.X != -12 || position.Y != 34 {
+		t.Fatalf("unexpected actor jump position: %+v", position)
+	}
+}
+
 func TestParseAttackFailureForDistance(t *testing.T) {
 	data := make([]byte, 16)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0139)

@@ -55,6 +55,12 @@ type ActorSetPosition struct {
 	Y  int
 }
 
+type ActorJumpPosition struct {
+	ID uint32
+	X  int
+	Y  int
+}
+
 type ActorLookChange struct {
 	ID    uint32
 	Type  uint8
@@ -706,6 +712,20 @@ func ParseActorSetPosition(packet Packet) (ActorSetPosition, bool, error) {
 		return ActorSetPosition{}, false, fmt.Errorf("ZC_STOPMOVE too short: %d", len(packet.Data))
 	}
 	return ActorSetPosition{
+		ID: binary.LittleEndian.Uint32(packet.Data[2:6]),
+		X:  int(int16(binary.LittleEndian.Uint16(packet.Data[6:8]))),
+		Y:  int(int16(binary.LittleEndian.Uint16(packet.Data[8:10]))),
+	}, true, nil
+}
+
+func ParseActorJumpPosition(packet Packet) (ActorJumpPosition, bool, error) {
+	if packet.ID != 0x01FF {
+		return ActorJumpPosition{}, false, nil
+	}
+	if len(packet.Data) < 10 {
+		return ActorJumpPosition{}, false, fmt.Errorf("ZC_HIGHJUMP too short: %d", len(packet.Data))
+	}
+	return ActorJumpPosition{
 		ID: binary.LittleEndian.Uint32(packet.Data[2:6]),
 		X:  int(int16(binary.LittleEndian.Uint16(packet.Data[6:8]))),
 		Y:  int(int16(binary.LittleEndian.Uint16(packet.Data[8:10]))),

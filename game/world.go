@@ -445,6 +445,15 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			}
 			continue
 		}
+		if position, ok, err := network.ParseActorJumpPosition(pkt); err != nil {
+			log.Printf("parse actor jump position 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			if isLocalActor(ctx, position.ID) {
+				log.Printf("local jump position id=%d x=%d y=%d", position.ID, position.X, position.Y)
+			}
+			applyActorJumpPosition(ctx, position)
+			continue
+		}
 		if item, ok, err := network.ParseFloorItemEntry(pkt); err != nil {
 			log.Printf("parse floor item entry 0x%04X: %v", pkt.ID, err)
 		} else if ok {
