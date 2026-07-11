@@ -5368,6 +5368,27 @@ func TestActorDisplayNameUsesSelectedCharacterForPlayer(t *testing.T) {
 	}
 }
 
+func TestActorDisplayNameIncludesPartyName(t *testing.T) {
+	ctx := client.Context{Session: &session.Session{
+		CharID:   200,
+		Selected: session.Character{ID: 200, Name: "Kivutar"},
+		Party: session.Party{
+			Name:    "Goro",
+			Members: []session.PartyMember{{AccountID: 300, Name: "Alice"}},
+		},
+	}}
+
+	if got := actorDisplayName(ctx, worldstate.Actor{Name: "Player"}, true); got != "Kivutar (Goro)" {
+		t.Fatalf("local display name = %q, want Kivutar (Goro)", got)
+	}
+	if got := actorDisplayName(ctx, worldstate.Actor{ID: 300, Name: "Alice"}, false); got != "Alice (Goro)" {
+		t.Fatalf("party member display name = %q, want Alice (Goro)", got)
+	}
+	if got := actorDisplayName(ctx, worldstate.Actor{ID: 400, Name: "Bob"}, false); got != "Bob" {
+		t.Fatalf("non-party display name = %q, want Bob", got)
+	}
+}
+
 func TestActorDisplayNameUsesServerNameBeforeFallback(t *testing.T) {
 	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Name: "Kafra Employee#izlude", Job: 1002}

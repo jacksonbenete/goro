@@ -16,6 +16,8 @@ const (
 	PacketCZReqExpelGroupMember uint16 = 0x0103
 	PacketCZPartyMessage        uint16 = 0x0108
 	PacketCZMakeGroup2          uint16 = 0x01E8
+	PacketCZPartyJoinReq        uint16 = 0x02C4
+	PacketCZPartyJoinReqAck     uint16 = 0x02C7
 
 	PacketZCAckMakeGroup        uint16 = 0x00FA
 	PacketZCGroupList           uint16 = 0x00FB
@@ -27,6 +29,8 @@ const (
 	PacketZCNotifyHPToGroup     uint16 = 0x0106
 	PacketZCNotifyPositionToGrp uint16 = 0x0107
 	PacketZCNotifyChatParty     uint16 = 0x0109
+	PacketZCPartyJoinReqAck     uint16 = 0x02C5
+	PacketZCPartyJoinReq        uint16 = 0x02C6
 	PacketZCNotifyHPToGroupR2   uint16 = 0x080E
 )
 
@@ -128,20 +132,32 @@ func ParsePartyList(packet Packet) (PartyList, bool, error) {
 }
 
 func ParsePartyInviteAnswer(packet Packet) (PartyInviteAnswer, bool, error) {
-	if packet.ID != PacketZCAckReqJoinGroup {
+	switch packet.ID {
+	case PacketZCAckReqJoinGroup:
+		if len(packet.Data) < 27 {
+			return PartyInviteAnswer{}, true, fmt.Errorf("ZC_ACK_REQ_JOIN_GROUP too short: %d", len(packet.Data))
+		}
+		return PartyInviteAnswer{
+			Name:   fixedPacketString(packet.Data[2:26]),
+			Answer: packet.Data[26],
+		}, true, nil
+	case PacketZCPartyJoinReqAck:
+		if len(packet.Data) < 30 {
+			return PartyInviteAnswer{}, true, fmt.Errorf("ZC_PARTY_JOIN_REQ_ACK too short: %d", len(packet.Data))
+		}
+		return PartyInviteAnswer{
+			Name:   fixedPacketString(packet.Data[2:26]),
+			Answer: uint8(binary.LittleEndian.Uint32(packet.Data[26:30])),
+		}, true, nil
+	default:
 		return PartyInviteAnswer{}, false, nil
 	}
-	if len(packet.Data) < 27 {
-		return PartyInviteAnswer{}, true, fmt.Errorf("ZC_ACK_REQ_JOIN_GROUP too short: %d", len(packet.Data))
-	}
-	return PartyInviteAnswer{
-		Name:   fixedPacketString(packet.Data[2:26]),
-		Answer: packet.Data[26],
-	}, true, nil
 }
 
 func ParsePartyInviteRequest(packet Packet) (PartyInviteRequest, bool, error) {
-	if packet.ID != PacketZCReqJoinGroup {
+	switch packet.ID {
+	case PacketZCReqJoinGroup, PacketZCPartyJoinReq:
+	default:
 		return PartyInviteRequest{}, false, nil
 	}
 	if len(packet.Data) < 30 {
@@ -266,6 +282,12 @@ func BuildMakeParty2Packet(name string, itemPickupRule, itemDivisionRule uint8) 
 
 func BuildPartyInvitePacket(accountID uint32, name string) []byte {
 	var w Writer
+	name = strings.TrimSpace(name)
+	if name != "" {
+		w.Uint16(PacketCZPartyJoinReq)
+		w.CString(name, partyNameLength)
+		return w.Bytes()
+	}
 	w.Uint16(PacketCZReqJoinGroup)
 	w.Uint32(accountID)
 	return w.Bytes()
@@ -273,12 +295,12 @@ func BuildPartyInvitePacket(accountID uint32, name string) []byte {
 
 func BuildPartyInviteAckPacket(requestID uint32, accepted bool) []byte {
 	var w Writer
-	w.Uint16(PacketCZJoinGroup)
+	w.Uint16(PacketCZPartyJoinReqAck)
 	w.Uint32(requestID)
 	if accepted {
-		w.Uint32(1)
+		w.Uint8(1)
 	} else {
-		w.Uint32(0)
+		w.Uint8(0)
 	}
 	return w.Bytes()
 }
@@ -329,9 +351,9 @@ func (c *Client) SendPartyInvite(accountID uint32, name string) error {
 	packet := BuildPartyInvitePacket(accountID, name)
 	err := c.Send(packet)
 	if err == nil {
-		log.Printf("sent CZ_REQ_JOIN_GROUP opcode=0x%04X aid=%d name=%q client_date=%d", ID(packet), accountID, name, c.clientDate)
+		log.Printf("sent CZ_PARTY_JOIN_REQ opcode=0x%04X aid=%d name=%q client_date=%d", ID(packet), accountID, name, c.clientDate)
 	} else {
-		log.Printf("send CZ_REQ_JOIN_GROUP failed opcode=0x%04X len=%d aid=%d name=%q client_date=%d: %v", ID(packet), len(packet), accountID, name, c.clientDate, err)
+		log.Printf("send CZ_PARTY_JOIN_REQ failed opcode=0x%04X len=%d aid=%d name=%q client_date=%d: %v", ID(packet), len(packet), accountID, name, c.clientDate, err)
 	}
 	return err
 }
@@ -340,9 +362,9 @@ func (c *Client) SendPartyInviteAck(requestID uint32, accepted bool) error {
 	packet := BuildPartyInviteAckPacket(requestID, accepted)
 	err := c.Send(packet)
 	if err == nil {
-		log.Printf("sent CZ_JOIN_GROUP opcode=0x%04X request=%d accepted=%t client_date=%d", ID(packet), requestID, accepted, c.clientDate)
+		log.Printf("sent CZ_PARTY_JOIN_REQ_ACK opcode=0x%04X request=%d accepted=%t client_date=%d", ID(packet), requestID, accepted, c.clientDate)
 	} else {
-		log.Printf("send CZ_JOIN_GROUP failed opcode=0x%04X len=%d request=%d accepted=%t client_date=%d: %v", ID(packet), len(packet), requestID, accepted, c.clientDate, err)
+		log.Printf("send CZ_PARTY_JOIN_REQ_ACK failed opcode=0x%04X len=%d request=%d accepted=%t client_date=%d: %v", ID(packet), len(packet), requestID, accepted, c.clientDate, err)
 	}
 	return err
 }

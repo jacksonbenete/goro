@@ -800,15 +800,15 @@ func actorBillboardSortDepth(projection sceneProjection, x, y, z float64) float6
 func actorDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool) string {
 	if isPlayer {
 		if name := sanitizeActorName(selectedCharacterName(ctx.Session)); name != "" {
-			return name
+			return actorDisplayNameWithParty(ctx, actor, name, true)
 		}
-		return sanitizeActorName(actor.Name)
+		return actorDisplayNameWithParty(ctx, actor, sanitizeActorName(actor.Name), true)
 	}
 	if isWarpActor(actor) {
 		return ""
 	}
 	if name := sanitizeActorName(actor.Name); name != "" {
-		return name
+		return actorDisplayNameWithParty(ctx, actor, name, false)
 	}
 	if res.HasPlayerJobToken(int(actor.Job)) || ctx.Resources == nil {
 		return ""
@@ -820,6 +820,57 @@ func actorDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool)
 		return name
 	}
 	return ""
+}
+
+func actorDisplayNameWithParty(ctx client.Context, actor worldstate.Actor, name string, isPlayer bool) string {
+	name = strings.TrimSpace(name)
+	partyName := actorPartyDisplayName(ctx, actor, name, isPlayer)
+	if name == "" || partyName == "" {
+		return name
+	}
+	return name + " (" + partyName + ")"
+}
+
+func actorPartyDisplayName(ctx client.Context, actor worldstate.Actor, actorName string, isPlayer bool) string {
+	if ctx.Session == nil || !ctx.Session.Party.Active() {
+		return ""
+	}
+	name := strings.TrimSpace(ctx.Session.Party.Name)
+	if name == "" {
+		return ""
+	}
+	if isPlayer {
+		return name
+	}
+	if !actorCanDisplayPartyName(actor) {
+		return ""
+	}
+	if !actorIsPartyMember(ctx.Session, actor, actorName) {
+		return ""
+	}
+	return name
+}
+
+func actorCanDisplayPartyName(actor worldstate.Actor) bool {
+	if actor.HasObjectType {
+		return actor.ObjectType == actorObjectTypePC
+	}
+	return res.HasPlayerJobToken(int(actor.Job))
+}
+
+func actorIsPartyMember(s *session.Session, actor worldstate.Actor, actorName string) bool {
+	if s == nil || actor.ID == 0 {
+		return false
+	}
+	for _, member := range s.Party.Members {
+		if member.AccountID == actor.ID {
+			return true
+		}
+		if actorName != "" && strings.EqualFold(sanitizeActorName(member.Name), actorName) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
@@ -849,7 +900,7 @@ func (m *WorldMode) hoveredActorDisplayName(ctx client.Context, actor worldstate
 		return actorDisplayName(ctx, actor, true)
 	}
 	if name := sanitizeActorName(actor.Name); name != "" {
-		return name
+		return actorDisplayNameWithParty(ctx, actor, name, false)
 	}
 	if shouldUseServerNameForHoverActor(actor) {
 		m.requestActorName(ctx, actor.ID, now)

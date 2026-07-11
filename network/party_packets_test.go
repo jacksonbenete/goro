@@ -12,12 +12,12 @@ func TestBuildPartyPackets(t *testing.T) {
 	}
 
 	invite := BuildPartyInvitePacket(0x11223344, "Alice")
-	if len(invite) != 6 || ID(invite) != PacketCZReqJoinGroup || binary.LittleEndian.Uint32(invite[2:6]) != 0x11223344 {
+	if len(invite) != 26 || ID(invite) != PacketCZPartyJoinReq || string(invite[2:7]) != "Alice" {
 		t.Fatalf("BuildPartyInvitePacket = len %d id 0x%04x data %x", len(invite), ID(invite), invite)
 	}
 
 	ack := BuildPartyInviteAckPacket(0x01020304, true)
-	if len(ack) != 10 || ID(ack) != PacketCZJoinGroup || binary.LittleEndian.Uint32(ack[2:6]) != 0x01020304 || binary.LittleEndian.Uint32(ack[6:10]) != 1 {
+	if len(ack) != 7 || ID(ack) != PacketCZPartyJoinReqAck || binary.LittleEndian.Uint32(ack[2:6]) != 0x01020304 || ack[6] != 1 {
 		t.Fatalf("BuildPartyInviteAckPacket = len %d id 0x%04x data %x", len(ack), ID(ack), ack)
 	}
 
@@ -51,6 +51,24 @@ func TestParsePartyPackets(t *testing.T) {
 	parsedList, ok, err := ParsePartyList(Packet{ID: PacketZCGroupList, Data: list})
 	if !ok || err != nil || parsedList.Name != "Beta Party" || len(parsedList.Members) != 1 || parsedList.Members[0].Name != "Alice" || parsedList.Members[0].AccountID != 0x11223344 {
 		t.Fatalf("ParsePartyList ok=%t err=%v list=%+v", ok, err, parsedList)
+	}
+
+	inviteRequest := make([]byte, 30)
+	binary.LittleEndian.PutUint16(inviteRequest[0:2], PacketZCPartyJoinReq)
+	binary.LittleEndian.PutUint32(inviteRequest[2:6], 0x01020304)
+	copy(inviteRequest[6:30], []byte("Beta Party"))
+	parsedInviteRequest, ok, err := ParsePartyInviteRequest(Packet{ID: PacketZCPartyJoinReq, Data: inviteRequest})
+	if !ok || err != nil || parsedInviteRequest.RequestID != 0x01020304 || parsedInviteRequest.Name != "Beta Party" {
+		t.Fatalf("ParsePartyInviteRequest ok=%t err=%v request=%+v", ok, err, parsedInviteRequest)
+	}
+
+	inviteAnswer := make([]byte, 30)
+	binary.LittleEndian.PutUint16(inviteAnswer[0:2], PacketZCPartyJoinReqAck)
+	copy(inviteAnswer[2:26], []byte("Alice"))
+	binary.LittleEndian.PutUint32(inviteAnswer[26:30], 2)
+	parsedInviteAnswer, ok, err := ParsePartyInviteAnswer(Packet{ID: PacketZCPartyJoinReqAck, Data: inviteAnswer})
+	if !ok || err != nil || parsedInviteAnswer.Name != "Alice" || parsedInviteAnswer.Answer != 2 {
+		t.Fatalf("ParsePartyInviteAnswer ok=%t err=%v answer=%+v", ok, err, parsedInviteAnswer)
 	}
 
 	join := make([]byte, 79)

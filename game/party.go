@@ -71,23 +71,23 @@ func (m *WorldMode) handlePartyInviteAnswer(answer network.PartyInviteAnswer) {
 	name := partyDisplayName(answer.Name)
 	switch answer.Answer {
 	case 0:
-		m.console.AddErrorMessage("%s denied your party invitation.", name)
-	case 1:
 		m.console.AddErrorMessage("%s is already in a party.", name)
+	case 1:
+		m.console.AddErrorMessage("%s denied your party invitation.", name)
 	case 2:
 		m.console.AddBlueMessage("%s joined your party.", name)
 	case 3:
-		m.console.AddErrorMessage("%s cannot join the party.", name)
-	case 4:
 		m.console.AddErrorMessage("The party is full.")
+	case 4:
+		m.console.AddErrorMessage("A character from the same account is already in the party.")
 	case 5:
-		m.console.AddErrorMessage("%s is not online.", name)
+		m.console.AddErrorMessage("%s blocked party invitations.", name)
 	case 7:
-		m.console.AddErrorMessage("Party invitation failed.")
+		m.console.AddErrorMessage("%s is not online.", name)
 	case 8:
 		m.console.AddErrorMessage("Cannot invite players on this map.")
 	case 9:
-		m.console.AddErrorMessage("%s is busy.", name)
+		m.console.AddErrorMessage("Cannot join a party on this map.")
 	default:
 		m.console.AddErrorMessage("Party invitation failed.")
 	}
