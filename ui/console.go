@@ -113,7 +113,6 @@ func (c *ChatConsole) ensureWindow(ctx client.Context) {
 	if c.window.width == 0 {
 		c.window = NewWindowState(width, height)
 		c.window.titleHeight = 0
-		c.window.SetCloseOnEscape(false)
 	}
 	c.window.SetAutoPosition(x, y)
 	c.window.SetSize(width, height)

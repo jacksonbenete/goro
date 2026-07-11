@@ -189,7 +189,6 @@ func (m *TeleportModal) ensureWindow() {
 	height := m.windowHeight()
 	if m.window.width == 0 {
 		m.window = NewWindowState(teleportModalWidth, height)
-		m.window.SetCloseOnEscape(false)
 		return
 	}
 	m.window.SetSize(teleportModalWidth, height)

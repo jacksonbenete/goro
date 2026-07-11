@@ -188,7 +188,6 @@ func (w *StorageWindow) AcceptCartDrop(ctx Context, item session.InventoryItem, 
 func (w *StorageWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(storageWindowWidth, storageWindowHeight)
-		w.window.SetCloseOnEscape(false)
 		w.selectedRow = -1
 	}
 }

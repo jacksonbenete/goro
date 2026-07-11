@@ -107,7 +107,6 @@ func (m *Minimap) ensureWindow(width, height int) {
 		return
 	}
 	m.window = NewWindowState(width, height)
-	m.window.SetCloseOnEscape(false)
 }
 
 func (m *Minimap) widgetTree() widget.Widget {

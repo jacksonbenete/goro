@@ -113,7 +113,6 @@ func (w *LoginWindow) widgetTree() widget.Widget {
 	labelW := float32(loginWindowFieldLeft - 36)
 	fieldW := float32(w.layout.W - loginWindowFieldLeft - loginWindowFieldRightPad)
 	fieldH := float32(loginWindowFieldH)
-	buttonW := float32(ButtonLabelWidth("Login"))
 	return Window(
 		Title("Login"),
 		CloseButton(false),
@@ -157,8 +156,7 @@ func (w *LoginWindow) widgetTree() widget.Widget {
 		Footer(
 			primitives.HBox(
 				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Login", submit).
-					Width(buttonW),
+				rotheme.Button("Login", submit),
 			),
 		),
 	)

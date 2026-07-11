@@ -137,7 +137,6 @@ func (m *DeathModal) PendingAction() DeathModalAction {
 
 func (m *DeathModal) openWindow(ctx client.Context) {
 	m.EnsureWindow(deathModalWidth, deathModalHeight)
-	m.window.SetCloseOnEscape(false)
 	if !m.window.IsOpen() {
 		m.window.Open(ctx, m.widgetTree(ctx))
 	}

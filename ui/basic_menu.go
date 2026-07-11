@@ -57,7 +57,6 @@ func (m *BasicMenu) Update(ctx client.Context, callbacks BasicMenuCallbacks) boo
 	width, height := basicMenuSize()
 	if m.EnsureWindow(width, height) {
 		m.window.titleHeight = 0
-		m.window.SetCloseOnEscape(false)
 	}
 	if !m.window.IsOpen() {
 		m.window.OpenAt(basicMenuX, basicMenuY, m.widgetTree())
@@ -74,7 +73,6 @@ func (m *BasicMenu) Rebind(ctx client.Context, callbacks BasicMenuCallbacks) {
 	width, height := basicMenuSize()
 	if m.EnsureWindow(width, height) {
 		m.window.titleHeight = 0
-		m.window.SetCloseOnEscape(false)
 	}
 	m.content = nil
 	if !m.window.IsOpen() {

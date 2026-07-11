@@ -87,11 +87,6 @@ func (w *CartWindow) Update(ctx Context, inventory *InventoryBagWindow, storage 
 	if w.UpdateDrag(ctx, inventory, storage) {
 		return true
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) {
-		w.close(ctx)
-		w.Publish(ctx)
-		return true
-	}
 	w.ClampScroll(ctx.Session)
 	snapshot := w.cartSnapshot(ctx.Session)
 	if snapshot != w.snapshot || itemInfo != w.itemInfo {
@@ -186,7 +181,6 @@ func (w *CartWindow) AcceptStorageDrop(ctx Context, item session.InventoryItem, 
 func (w *CartWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(cartWindowWidth, cartWindowHeight)
-		w.window.SetCloseOnEscape(false)
 		w.selectedRow = -1
 	}
 }

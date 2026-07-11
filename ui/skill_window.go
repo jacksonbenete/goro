@@ -179,7 +179,6 @@ func (w *SkillWindow) Rebind(ctx Context, actions GameActions) {
 func (w *SkillWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(skillWindowWidth, skillWindowHeight)
-		w.window.SetCloseOnEscape(false)
 	}
 }
 

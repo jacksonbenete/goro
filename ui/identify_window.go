@@ -12,7 +12,6 @@ import (
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
@@ -90,11 +89,6 @@ func (w *IdentifyWindow) Update(ctx Context) bool {
 		w.Publish(ctx)
 		return true
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) || ctx.Input.MouseJustPressed(render.MouseButtonRight) {
-		w.cancel(ctx)
-		w.Publish(ctx)
-		return true
-	}
 	w.ClampScroll(ctx.Session)
 	snapshot := w.identifySnapshot(ctx.Session)
 	if snapshot != w.snapshot {
@@ -113,7 +107,6 @@ func (w *IdentifyWindow) Update(ctx Context) bool {
 func (w *IdentifyWindow) ensureWindow() {
 	if w.window.width == 0 {
 		w.window = NewWindowState(identifyWindowWidth, identifyWindowHeight)
-		w.window.SetCloseOnEscape(false)
 		w.selectedRow = -1
 	}
 }

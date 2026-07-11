@@ -190,7 +190,7 @@ type WindowState struct {
 	placed      widget.Widget
 	published   widget.Widget
 	opacity     float32
-	closeOnEsc  bool
+	CloseOnEsc  bool
 }
 
 type WindowHandle struct {
@@ -235,7 +235,6 @@ func NewWindowState(width, height int) WindowState {
 		height:      height,
 		titleHeight: ROWindowTitleHeight,
 		opacity:     1,
-		closeOnEsc:  true,
 	}
 }
 
@@ -326,10 +325,6 @@ func (w *WindowState) SetAutoPosition(x, y int) bool {
 	return true
 }
 
-func (w *WindowState) SetCloseOnEscape(enabled bool) {
-	w.closeOnEsc = enabled
-}
-
 func (w *WindowState) Update(ctx client.Context) bool {
 	if !w.open || ctx.Input == nil {
 		return false
@@ -347,7 +342,7 @@ func (w *WindowState) Update(ctx client.Context) bool {
 		w.setOpacity(1)
 		return true
 	}
-	if w.closeOnEsc && ctx.Input.JustPressed(render.KeyEscape) {
+	if w.CloseOnEsc && ctx.Input.JustPressed(render.KeyEscape) {
 		w.Close()
 		return true
 	}

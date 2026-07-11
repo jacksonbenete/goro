@@ -20,7 +20,6 @@ const (
 
 type EscapeMenu struct {
 	WindowHandle
-	open    bool
 	action  EscapeMenuAction
 	pending bool
 	ctx     client.Context
@@ -37,9 +36,9 @@ const (
 )
 
 func (m *EscapeMenu) OpenMenu() {
-	m.open = true
 	m.action = EscapeMenuActionNone
 	m.pending = false
+	m.window.CloseOnEsc = true
 }
 
 func (m *EscapeMenu) Update(ctx client.Context) bool {
@@ -50,7 +49,7 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
-	if !m.open {
+	if !m.window.IsOpen() {
 		if ctx.Input.JustPressed(render.KeyEscape) {
 			m.OpenMenu()
 			m.openWindow(ctx)
@@ -61,7 +60,6 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 	m.openWindow(ctx)
 	if m.window.Update(ctx) {
 		if !m.window.IsOpen() {
-			m.open = false
 			m.Publish(ctx)
 		}
 		return true
@@ -86,7 +84,7 @@ func (m *EscapeMenu) RequestCharacterSelect(ctx client.Context) {
 }
 
 func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
-	if !m.open || !m.pending {
+	if !m.window.IsOpen() || !m.pending {
 		return false
 	}
 	if ack.Allowed {
@@ -102,10 +100,6 @@ func (m *EscapeMenu) ConsumeAction() EscapeMenuAction {
 	action := m.action
 	m.action = EscapeMenuActionNone
 	return action
-}
-
-func (m *EscapeMenu) IsOpen() bool {
-	return m.open
 }
 
 func (m *EscapeMenu) Pending() bool {
@@ -126,16 +120,10 @@ func (m *EscapeMenu) openWindow(ctx client.Context) {
 
 func (m *EscapeMenu) refresh(ctx client.Context) {
 	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
-	if !m.open || !m.window.IsOpen() {
+	if !m.window.IsOpen() {
 		return
 	}
 	m.window.SetContent(m.widgetTree(ctx))
-	m.Publish(ctx)
-}
-
-func (m *EscapeMenu) close(ctx client.Context) {
-	m.open = false
-	m.window.Close()
 	m.Publish(ctx)
 }
 
@@ -152,13 +140,13 @@ func (m *EscapeMenu) widgetTree(ctx client.Context) widget.Widget {
 				}),
 				rotheme.LargeButtonDisabled("Settings", m.pending, func() {
 					m.action = EscapeMenuActionSettings
-					m.close(ctx)
+					m.window.Close()
 				}),
 				rotheme.LargeButtonDisabled("Cancel", m.pending, func() {
-					m.close(ctx)
+					m.window.Close()
 				}),
 				rotheme.LargeButton("Exit to Windows", func() {
-					m.close(ctx)
+					m.window.Close()
 					if ctx.RequestQuit != nil {
 						ctx.RequestQuit()
 					}

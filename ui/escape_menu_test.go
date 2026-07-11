@@ -46,7 +46,7 @@ func TestEscapeMenuOpenPublishesGogpuWindow(t *testing.T) {
 }
 
 func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
-	menu := EscapeMenu{open: true, pending: true}
+	menu := EscapeMenu{pending: true}
 
 	if !menu.ApplyRestartAck(network.RestartAck{Allowed: true}) {
 		t.Fatal("allowed restart ack should request character-select transition")
@@ -54,18 +54,18 @@ func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
 }
 
 func TestEscapeMenuCharacterSelectAckDeniedKeepsMenuOpen(t *testing.T) {
-	menu := EscapeMenu{open: true, pending: true}
+	menu := EscapeMenu{pending: true}
 
 	if menu.ApplyRestartAck(network.RestartAck{Allowed: false}) {
 		t.Fatal("denied restart ack should not request transition")
 	}
-	if !menu.open || menu.pending {
+	if !menu.window.IsOpen() || menu.pending {
 		t.Fatalf("menu = %+v, want open without pending request", menu)
 	}
 }
 
 func TestEscapeMenuCharacterSelectWithoutNetworkShowsError(t *testing.T) {
-	menu := EscapeMenu{open: true}
+	menu := EscapeMenu{}
 	menu.RequestCharacterSelect(client.Context{})
 
 	if menu.pending {

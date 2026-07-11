@@ -252,7 +252,6 @@ func (d *NPCDialog) ensureWindows(ctx Context) {
 	x, y, w, h := npcDialogBounds(width, height)
 	if d.dialogWindow.width == 0 {
 		d.dialogWindow = NewWindowState(w, h)
-		d.dialogWindow.SetCloseOnEscape(false)
 		d.dialogWindow.OpenAt(x, y, d.dialogTree(ctx, w, h))
 	} else {
 		if d.dialogWindow.width != w || d.dialogWindow.height != h {
@@ -266,7 +265,6 @@ func (d *NPCDialog) ensureWindows(ctx Context) {
 	menuX, menuY, menuW, menuH := d.menuBounds(width, height, d.dialogWindow.x, d.dialogWindow.y, w, h)
 	if d.menuWindow.width == 0 {
 		d.menuWindow = NewWindowState(menuW, menuH)
-		d.menuWindow.SetCloseOnEscape(false)
 		d.menuWindow.SetAutoPosition(menuX, menuY)
 	} else {
 		if d.menuWindow.width != menuW || d.menuWindow.height != menuH {

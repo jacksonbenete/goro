@@ -37,7 +37,6 @@ func (m *ConfirmModal) Open(ctx client.Context, title, message string, onOK, onC
 	m.onCancel = onCancel
 	m.ctx = ctx
 	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
-	m.window.SetCloseOnEscape(false)
 	m.window.Open(ctx, m.widgetTree(ctx))
 	m.Publish(ctx)
 }
@@ -71,35 +70,30 @@ func (m *ConfirmModal) IsOpen() bool {
 }
 
 func (m *ConfirmModal) Confirm(ctx client.Context) {
-	m.close(ctx)
+	m.Close(ctx)
 	if m.onOK != nil {
 		m.onOK()
 	}
 }
 
 func (m *ConfirmModal) Cancel(ctx client.Context) {
-	m.close(ctx)
+	m.Close(ctx)
 	if m.onCancel != nil {
 		m.onCancel()
 	}
 }
 
 func (m *ConfirmModal) Close(ctx client.Context) {
-	m.close(ctx)
+	m.open = false
+	m.window.Close()
+	m.Publish(ctx)
 }
 
 func (m *ConfirmModal) openWindow(ctx client.Context) {
 	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
-	m.window.SetCloseOnEscape(false)
 	if !m.window.IsOpen() {
 		m.window.Open(ctx, m.widgetTree(ctx))
 	}
-}
-
-func (m *ConfirmModal) close(ctx client.Context) {
-	m.open = false
-	m.window.Close()
-	m.Publish(ctx)
 }
 
 func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
@@ -123,8 +117,7 @@ func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
 					m.Cancel(ctx)
 				}).
 					Width(cancelW),
-			).
-				Gap(8),
+			).Gap(8),
 		),
 	)
 }

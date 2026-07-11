@@ -216,7 +216,6 @@ func (w *ShopWindow) DrawDragGhost(screen *render.Image, ctx Context, assets Ass
 func (w *ShopWindow) ensureDealWindow() {
 	if w.dealWindow.width == 0 {
 		w.dealWindow = NewWindowState(shopDealWidth, shopDealHeight)
-		w.dealWindow.SetCloseOnEscape(false)
 	}
 }
 
@@ -267,13 +266,11 @@ func (w *ShopWindow) dealWidgetTree(ctx Context) widget.Widget {
 func (w *ShopWindow) ensureBuyWindow() {
 	if w.buyWindow.width == 0 {
 		w.buyWindow = NewWindowState(shopBuyListWindowW, shopListWindowHeight())
-		w.buyWindow.SetCloseOnEscape(false)
 	} else {
 		w.buyWindow.SetSize(shopBuyListWindowW, shopListWindowHeight())
 	}
 	if w.buyCartWindow.width == 0 {
 		w.buyCartWindow = NewWindowState(shopBuyCartWindowW, w.cartWindowHeight())
-		w.buyCartWindow.SetCloseOnEscape(false)
 	} else {
 		w.buyCartWindow.SetSize(shopBuyCartWindowW, w.cartWindowHeight())
 	}

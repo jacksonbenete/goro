@@ -2,11 +2,9 @@ package ui
 
 import (
 	"log"
-	"math"
 
 	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/slider"
-	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
@@ -15,7 +13,8 @@ import (
 )
 
 const (
-	settingsWindowWidth = 300
+	settingsWindowW = 300
+	settingsWindowH = 400
 )
 
 type SettingsWindow struct {
@@ -23,14 +22,14 @@ type SettingsWindow struct {
 }
 
 func (w *SettingsWindow) OpenWindow(ctx client.Context) {
-	w.ensureWindow(ctx)
+	w.EnsureWindow(settingsWindowW, settingsWindowH)
 	w.ctx = ctx
 	w.window.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *SettingsWindow) Update(ctx client.Context) bool {
-	w.ensureWindow(ctx)
+	w.EnsureWindow(settingsWindowW, settingsWindowH)
 	w.ctx = ctx
 	if !w.window.IsOpen() {
 		return false
@@ -47,24 +46,13 @@ func (w *SettingsWindow) Rebind(ctx client.Context) {
 	w.refresh(ctx)
 }
 
-func (w *SettingsWindow) ensureWindow(ctx client.Context) {
-	height := settingsWindowHeight(ctx)
-	if w.window.width == 0 {
-		w.window = NewWindowState(settingsWindowWidth, height)
-		return
-	}
-	w.window.SetSize(settingsWindowWidth, height)
-}
-
 func (w *SettingsWindow) widgetTree(ctx client.Context) widget.Widget {
-	content := w.contentTree(ctx)
 	return Window(
 		Title("Settings"),
 		CloseButton(true),
 		OnClose(w.Close),
-		Size(settingsWindowWidth, float32(settingsWindowHeightForContent(content))),
-
-		Content(content),
+		Size(settingsWindowW, settingsWindowH),
+		Content(w.contentTree(ctx)),
 	)
 }
 
@@ -200,17 +188,8 @@ func (w *SettingsWindow) contentTree(ctx client.Context) widget.Widget {
 		Gap(8)
 }
 
-func settingsWindowHeight(ctx client.Context) int {
-	return settingsWindowHeightForContent((&SettingsWindow{}).contentTree(ctx))
-}
-
-func settingsWindowHeightForContent(content widget.Widget) int {
-	size := content.Layout(widget.NewContext(), geometry.TightWidth(settingsWindowWidth))
-	return int(math.Ceil(float64(ROWindowTitleHeight + size.Height)))
-}
-
 func (w *SettingsWindow) refresh(ctx client.Context) {
-	w.ensureWindow(ctx)
+	w.EnsureWindow(settingsWindowW, settingsWindowH)
 	w.ctx = ctx
 	w.window.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)

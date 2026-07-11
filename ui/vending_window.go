@@ -209,12 +209,10 @@ func (w *VendingWindow) ensurePosition(ctx Context) {
 func (w *VendingWindow) ensureWindows() {
 	if w.leftWindow.width == 0 {
 		w.leftWindow = NewWindowState(vendingWindowW, w.leftHeight())
-		w.leftWindow.SetCloseOnEscape(false)
 	}
 	w.leftWindow.SetSize(vendingWindowW, w.leftHeight())
 	if w.rightWindow.width == 0 {
 		w.rightWindow = NewWindowState(vendingWindowW, w.rightHeight())
-		w.rightWindow.SetCloseOnEscape(false)
 	}
 	w.rightWindow.SetSize(vendingWindowW, w.rightHeight())
 }
