@@ -48,7 +48,11 @@ func newSceneProjectionForTargetYawZoom(width, height int, targetX, targetY, tar
 }
 
 func (p sceneProjection) Project(x, y, z float64) screenPoint {
-	return p.projectCamera(x, y, z)
+	point, ok := p.projectPoint(x, y, z)
+	if !ok {
+		return screenPoint{x: -1 << 20, y: -1 << 20}
+	}
+	return point
 }
 
 func (p sceneProjection) RenderCamera() render.Camera3D {
@@ -131,17 +135,17 @@ func (p sceneProjection) VisibleForTriangle(x, y, z float64) bool {
 	return clipZ >= -clipW && clipZ <= clipW
 }
 
-func (p sceneProjection) projectCamera(x, y, z float64) screenPoint {
+func (p sceneProjection) projectPoint(x, y, z float64) (screenPoint, bool) {
 	clipX, clipY, _, clipW := mat4TransformVec4(p.viewProjection, x, z, y, 1)
 	if clipW <= 0.001 || !finite4(clipX, clipY, clipW, 1) {
-		return screenPoint{x: -1 << 20, y: -1 << 20}
+		return screenPoint{}, false
 	}
 	ndcX := clipX / clipW
 	ndcY := clipY / clipW
 	return screenPoint{
 		x: float32((ndcX + 1) * p.screenW * 0.5),
 		y: float32((1 - ndcY) * p.screenH * 0.5),
-	}
+	}, true
 }
 
 func sceneCameraMatrixWithYawZoom(width, height, targetX, targetY, targetZ, yawDegrees, zoom float64) mat4 {

@@ -5145,14 +5145,7 @@ func TestClickedWalkCellByProjectedPolygonUsesWalkableGATCell(t *testing.T) {
 	world := worldstate.New()
 	world.Player.X = 5
 	world.Player.Y = 5
-	world.GAT = &res.GAT{
-		Width:  12,
-		Height: 12,
-		Cells:  make([]res.GATCell, 12*12),
-	}
-	for i := range world.GAT.Cells {
-		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
-	}
+	world.GAT = flatWalkableGAT(12, 12)
 	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
@@ -5181,18 +5174,49 @@ func TestClickedWalkCellByProjectedPolygonSkipsBlockedGATCell(t *testing.T) {
 	}
 }
 
+func TestClickedWalkTargetRejectsInvalidProjectedCells(t *testing.T) {
+	world := worldstate.New()
+	world.Player.X = 107
+	world.Player.Y = 90
+	world.GAT = flatWalkableGAT(180, 160)
+	projection := newSceneProjectionForTargetYawZoom(1280, 720, cellCenter(107), cellCenter(90), 0, -45, sceneCameraZoom())
+
+	x, y, ok := clickedWalkTarget(client.Context{World: world}, projection, 896, 589)
+	if !ok {
+		t.Fatal("expected a visible walk target")
+	}
+	if x == 37 && y == 20 {
+		t.Fatal("selected invalid off-camera search corner")
+	}
+	if points, _, ok := projectedGATCell(projection, world.GAT, x, y); !ok || !projectedGATCellHasArea(points) {
+		t.Fatalf("selected invalid projected target %d,%d ok=%t", x, y, ok)
+	}
+}
+
+func TestProjectedGATCellRejectsPartiallyClippedCells(t *testing.T) {
+	gat := flatWalkableGAT(180, 160)
+	projection := newSceneProjectionForTargetYawZoom(1280, 720, cellCenter(107), cellCenter(90), 0, -45, defaultCameraMinZoom)
+
+	for y := 20; y <= 159; y++ {
+		for x := 37; x <= 177; x++ {
+			verts, ok := gatCellVerts(gat, x, y)
+			if !ok || !partiallyProjectableGATCell(projection, verts) {
+				continue
+			}
+			if _, _, ok := projectedGATCell(projection, gat, x, y); ok {
+				t.Fatalf("partially clipped cell %d,%d was accepted", x, y)
+			}
+			return
+		}
+	}
+	t.Fatal("test setup did not find a partially clipped cell")
+}
+
 func TestHoveredWalkCellRequiresProjectedWalkableCell(t *testing.T) {
 	world := worldstate.New()
 	world.Player.X = 5
 	world.Player.Y = 5
-	world.GAT = &res.GAT{
-		Width:  12,
-		Height: 12,
-		Cells:  make([]res.GATCell, 12*12),
-	}
-	for i := range world.GAT.Cells {
-		world.GAT.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
-	}
+	world.GAT = flatWalkableGAT(12, 12)
 	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
 	point := projection.Project(6.5, 5.5, 0)
 
@@ -5203,6 +5227,28 @@ func TestHoveredWalkCellRequiresProjectedWalkableCell(t *testing.T) {
 	if _, _, ok := hoveredWalkCell(client.Context{World: world}, projection, -10000, -10000); ok {
 		t.Fatal("hover should not fall back to nearest cell outside the projected map")
 	}
+}
+
+func flatWalkableGAT(width, height int) *res.GAT {
+	gat := &res.GAT{
+		Width:  width,
+		Height: height,
+		Cells:  make([]res.GATCell, width*height),
+	}
+	for i := range gat.Cells {
+		gat.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
+	}
+	return gat
+}
+
+func partiallyProjectableGATCell(projection sceneProjection, verts [4]modelPoint3) bool {
+	projected := 0
+	for _, vert := range verts {
+		if _, ok := projection.projectPoint(vert.x, vert.z, vert.y); ok {
+			projected++
+		}
+	}
+	return projected > 0 && projected < len(verts)
 }
 
 func TestTileCursorCellVertsUseGATHeightsWithLift(t *testing.T) {
