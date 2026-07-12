@@ -5269,21 +5269,19 @@ func flatWalkableGAT(width, height int) *res.GAT {
 	return gat
 }
 
-func TestTileCursorCellVertsUseGATHeightsWithLift(t *testing.T) {
+func TestTileCursorCellVertsUseGATHeights(t *testing.T) {
 	gat := &res.GAT{
 		Width:  4,
 		Height: 4,
 		Cells:  make([]res.GATCell, 16),
 	}
 	gat.Cells[2*gat.Width+1] = res.GATCell{Heights: [4]float32{2, 2, 2, 2}, Type: res.GATTypeWalkable}
-	now := time.Unix(0, 0)
-	verts, ok := tileCursorCellVerts(gat, 1, 2, now)
+	verts, ok := tileCursorCellVerts(gat, 1, 2)
 	if !ok {
 		t.Fatal("missing cursor cell")
 	}
-	wantY := 2 + tileCursorLift(now)
-	if math.Abs(verts[0].y-wantY) > 0.001 {
-		t.Fatalf("cursor vertex y = %.4f, want %.4f", verts[0].y, wantY)
+	if math.Abs(verts[0].y-2) > 0.001 {
+		t.Fatalf("cursor vertex y = %.4f, want 2", verts[0].y)
 	}
 }
 

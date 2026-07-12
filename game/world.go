@@ -1465,7 +1465,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 		m.drawGNDMeshes(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection)
 		m.drawGNDWater(screen, ctx.Resources, ctx.World.GND, ctx.World.RSW, projection, now, vertexFog)
 		if !ctx.Config.Render.NoUI {
-			m.drawTileCursor(screen, ctx, projection, now)
+			m.drawTileCursor(screen, ctx, projection)
 		}
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 {
 			actorOverlays = m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog, now)

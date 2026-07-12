@@ -4,14 +4,15 @@ import (
 	"image"
 	"image/color"
 	"math"
-	"time"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 )
 
-func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+const tileCursorDepthBias = 0.001
+
+func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, projection sceneProjection) {
 	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
 		return
 	}
@@ -22,7 +23,7 @@ func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, pro
 	if !ok {
 		return
 	}
-	verts, ok := tileCursorCellVerts(ctx.World.GAT, x, y, now)
+	verts, ok := tileCursorCellVerts(ctx.World.GAT, x, y)
 	if !ok {
 		return
 	}
@@ -30,10 +31,10 @@ func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, pro
 	if quadHasInvalidPoint(points) || quadOutside(points, float64(screen.Bounds().Dx()), float64(screen.Bounds().Dy())) {
 		return
 	}
-	drawTileCursorSurface3D(screen, m.tileCursorTexture(), verts)
+	drawTileCursorSurface3D(screen, m.tileCursorTexture(ctx.Resources), verts)
 }
 
-func tileCursorCellVerts(gat *res.GAT, x, y int, now time.Time) ([4]modelPoint3, bool) {
+func tileCursorCellVerts(gat *res.GAT, x, y int) ([4]modelPoint3, bool) {
 	if gat == nil {
 		return [4]modelPoint3{}, false
 	}
@@ -41,12 +42,11 @@ func tileCursorCellVerts(gat *res.GAT, x, y int, now time.Time) ([4]modelPoint3,
 	if !ok {
 		return [4]modelPoint3{}, false
 	}
-	lift := tileCursorLift(now)
 	return [4]modelPoint3{
-		{x: float64(x), y: float64(cell.Heights[0]) + lift, z: float64(y)},
-		{x: float64(x + 1), y: float64(cell.Heights[1]) + lift, z: float64(y)},
-		{x: float64(x), y: float64(cell.Heights[2]) + lift, z: float64(y + 1)},
-		{x: float64(x + 1), y: float64(cell.Heights[3]) + lift, z: float64(y + 1)},
+		{x: float64(x), y: float64(cell.Heights[0]), z: float64(y)},
+		{x: float64(x + 1), y: float64(cell.Heights[1]), z: float64(y)},
+		{x: float64(x), y: float64(cell.Heights[2]), z: float64(y + 1)},
+		{x: float64(x + 1), y: float64(cell.Heights[3]), z: float64(y + 1)},
 	}, true
 }
 
@@ -83,15 +83,34 @@ func quadHasInvalidPoint(points [4]screenPoint) bool {
 	return false
 }
 
-func tileCursorLift(now time.Time) float64 {
-	seconds := float64(now.UnixNano()) / float64(time.Second)
-	return 0.018 + 0.006*math.Sin(seconds*math.Pi*2/1.2)
-}
-
-func (m *WorldMode) tileCursorTexture() *render.Image {
+func (m *WorldMode) tileCursorTexture(manager *res.Manager) *render.Image {
 	if m.tileCursor != nil {
 		return m.tileCursor
 	}
+	if manager != nil {
+		if img, _, err := res.LoadImageExact(manager, []string{"data\\texture\\grid.tga", "data/texture/grid.tga"}); err == nil {
+			m.tileCursor = render.NewImageFromImage(tintTileCursorImage(img))
+			return m.tileCursor
+		}
+	}
+	m.tileCursor = render.NewImageFromImage(fallbackTileCursorImage())
+	return m.tileCursor
+}
+
+func tintTileCursorImage(src image.Image) *image.NRGBA {
+	bounds := src.Bounds()
+	out := image.NewNRGBA(bounds)
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			_, _, _, a := src.At(x, y).RGBA()
+			alpha := uint8((a >> 8) * 153 / 255)
+			out.SetNRGBA(x, y, color.NRGBA{R: 50, G: 240, B: 160, A: alpha})
+		}
+	}
+	return out
+}
+
+func fallbackTileCursorImage() image.Image {
 	const size = 64
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
 	for y := 0; y < size; y++ {
@@ -110,12 +129,11 @@ func (m *WorldMode) tileCursorTexture() *render.Image {
 				alpha = maxUint8(alpha, 34)
 			}
 			if alpha > 0 {
-				img.SetRGBA(x, y, color.RGBA{R: 180, G: 230, B: 255, A: alpha})
+				img.SetRGBA(x, y, color.RGBA{R: 50, G: 240, B: 160, A: alpha})
 			}
 		}
 	}
-	m.tileCursor = render.NewImageFromImage(img)
-	return m.tileCursor
+	return img
 }
 
 func maxUint8(a, b uint8) uint8 {
@@ -130,10 +148,10 @@ func drawTileCursorSurface3D(screen, texture *render.Image, verts [4]modelPoint3
 		return
 	}
 	tints := [4]color.RGBA{
-		{R: 255, G: 255, B: 255, A: 210},
-		{R: 255, G: 255, B: 255, A: 210},
-		{R: 255, G: 255, B: 255, A: 210},
-		{R: 255, G: 255, B: 255, A: 210},
+		{R: 255, G: 255, B: 255, A: 255},
+		{R: 255, G: 255, B: 255, A: 255},
+		{R: 255, G: 255, B: 255, A: 255},
+		{R: 255, G: 255, B: 255, A: 255},
 	}
 	uvs := [4]texturePoint{
 		{u: 0, v: 0},
@@ -141,5 +159,7 @@ func drawTileCursorSurface3D(screen, texture *render.Image, verts [4]modelPoint3
 		{u: 0, v: 1},
 		{u: 1, v: 1},
 	}
-	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, quadIndices012213, tints, triangleDrawOptions(render.FilterLinear, render.AddressClampToZero))
+	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
+	options.DepthBias = tileCursorDepthBias
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, quadIndices012213, tints, options)
 }
