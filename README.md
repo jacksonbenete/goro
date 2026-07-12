@@ -1,24 +1,24 @@
 # goro
 
-`goro` is a Go Ragnarok Online client foundation.
+`goro` is an open Ragnarok Online client recreation implemented in Go.
 
 The runtime uses GoGPU/wgpu for the window and presentation path, with a modern
-GPU pipeline and Vulkan support. Build and run with `CGO_ENABLED=0` and
-`-tags nofakecgo`.
+GPU pipeline and Vulkan support. Built 100% in Go without CGO, it is fully statically
+compiled and can be easily deployed.
 
 ## Goals
 
 - Faithfully reimplement the Ragnarok Online client.
 - Focus on the pre-renewal 2008 experience first.
-- Stay pure Go, without cgo, so cross-compilation and deployment stay simple on
+- Stay pure Go, without CGO, so cross-compilation and deployment stay simple on
   many platforms.
 - Use a modern GPU pipeline through GoGPU, including Vulkan and Wayland support.
 - Deliver good performance, including support for high-refresh-rate displays.
-- Provide a modernized, themeable UI built with `gogpu/ui`.
+- Provide a modernized, neat themeable UI built with `gogpu/ui`.
 - Keep the engine reusable for creating new MMORPGs.
-- Become a drop-in replacement for `ragexe` and `sakexe`.
+- Become a drop-in replacement for `Ragexe` and `Sakexe`.
 
-Stretch goals:
+### Stretch goals:
 
 - Provide GRF tooling.
 - Provide map, sprite, and model viewers.
@@ -94,17 +94,47 @@ The resource manager currently looks for loose files such as:
 
 ## Current Scope
 
-This first pass establishes the same broad subsystem boundaries used by
-OpenMidgard:
+Mostly done:
 
-- `config` startup configuration
-- `res` runtime data discovery and `clientinfo.xml` parsing
-- `network` TCP connection and RO packet framing
-- `session` account/character/session state
-- `world` map and actor state
-- `game` login/server selection and world rendering
-- `render` GoGPU backend
-- `input` per-frame input snapshot
-
-It is not yet a complete RO implementation. The next substantial steps are GRF
-loading, packet serializers for account/char/map login, and map asset parsers.
+ * Login
+ * Character selection
+ * Character creation
+ * Maps display
+   * Water
+   * Map sounds
+   * Lightmaps
+   * Fog (innacurate)
+   * Animated models
+   * Weather effects
+ * Camera, zoom, rotation
+ * Battle
+   * Enemies
+   * Drops
+   * Jobs
+     * Novice
+     * 1-1
+       * Swordman
+       * Magician
+       * Archer
+       * Acolyte
+       * Thief
+   * Skill effects
+ * UI
+   * Basic information
+   * Button bar
+   * Shortcuts bar
+   * Console
+   * Minimap
+   * Items
+   * Equipment
+   * Option
+     * Settings
+   * Friends
+   * Party
+   * Skills (flat version)
+   * Cart Storage
+   * Kafra Storage
+   * Teleport skill modal
+   * Warp skill modal
+   * Cart appearance modal
+ * Emotes
