@@ -3541,11 +3541,11 @@ func TestWarpPortalActorEntryAddsPortalEffect(t *testing.T) {
 	}
 }
 
-func TestWarpActorUsesRawWorldAnchor(t *testing.T) {
+func TestWarpActorUsesCenteredWorldAnchor(t *testing.T) {
 	actor := worldstate.Actor{Job: actorJobWarpPortal}
 	x, y := actorWorldAnchor(actor, 30, 40)
-	if x != 30 || y != 40 {
-		t.Fatalf("warp anchor = %.1f, %.1f; want 30, 40", x, y)
+	if x != 30.5 || y != 40.5 {
+		t.Fatalf("warp anchor = %.1f, %.1f; want 30.5, 40.5", x, y)
 	}
 }
 

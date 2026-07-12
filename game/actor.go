@@ -29,9 +29,6 @@ func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) floa
 }
 
 func actorWorldAnchor(actor worldstate.Actor, x, y float64) (float64, float64) {
-	if isWarpActor(actor) {
-		return x, y
-	}
 	return cellCenter(x), cellCenter(y)
 }
 
