@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/gogpu/ui/core/scrollview"
+	"github.com/gogpu/ui/event"
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/network"
@@ -63,6 +65,13 @@ type NPCDialog struct {
 type npcDialogTextRun struct {
 	text  string
 	color color.RGBA
+}
+
+type npcDialogTextSegment struct {
+	text  string
+	color color.RGBA
+	x     float32
+	width float32
 }
 
 func (d *NPCDialog) Apply(packet network.NPCDialog) {
@@ -445,23 +454,12 @@ func (d *NPCDialog) menuTree(ctx Context, width, height int) widget.Widget {
 }
 
 func npcDialogTextLine(runs []npcDialogTextRun) widget.Widget {
-	parts := make([]widget.Widget, 0, len(runs))
-	for _, run := range runs {
-		if run.text == "" {
-			continue
-		}
-		parts = append(parts,
-			rotheme.Text(run.text).
-				Color(npcDialogWidgetColor(run.color)).
-				LineHeight(npcDialogLineH/rotheme.Default.Typography.TextSize),
-		)
+	line := &npcDialogTextLineWidget{
+		runs: append([]npcDialogTextRun(nil), runs...),
 	}
-	if len(parts) == 0 {
-		return primitives.Box().Height(npcDialogLineH)
-	}
-	return primitives.HBox(parts...).
-		Height(npcDialogLineH).
-		CrossAlign(primitives.CrossAxisCenter)
+	line.SetVisible(true)
+	line.SetEnabled(true)
+	return line
 }
 
 func npcDialogRunsPlainText(runs []npcDialogTextRun) string {
@@ -474,6 +472,73 @@ func npcDialogRunsPlainText(runs []npcDialogTextRun) string {
 
 func npcDialogWidgetColor(c color.RGBA) widget.Color {
 	return widget.RGBA8(c.R, c.G, c.B, c.A)
+}
+
+type npcDialogTextLineWidget struct {
+	widget.WidgetBase
+	runs []npcDialogTextRun
+}
+
+func (w *npcDialogTextLineWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+	width := npcDialogEstimatedTextWidth(npcDialogRunsPlainText(w.runs))
+	size := constraints.Constrain(geometry.Sz(width, npcDialogLineH))
+	w.SetBounds(geometry.FromPointSize(w.Position(), size))
+	return size
+}
+
+func (w *npcDialogTextLineWidget) Draw(_ widget.Context, canvas widget.Canvas) {
+	if !w.IsVisible() {
+		return
+	}
+	bounds := w.Bounds()
+	if bounds.IsEmpty() {
+		return
+	}
+	segments := npcDialogTextSegments(w.runs, func(text string) float32 {
+		return rotheme.MeasureText(canvas, text, rotheme.Default.Typography.TextSize, false)
+	})
+	if len(segments) == 0 {
+		return
+	}
+	canvas.PushClip(bounds)
+	defer canvas.PopClip()
+	for _, segment := range segments {
+		if segment.width <= 0 {
+			continue
+		}
+		textBounds := geometry.NewRect(bounds.Min.X+segment.x, bounds.Min.Y, segment.width+1, bounds.Height())
+		rotheme.DrawText(canvas, segment.text, textBounds, rotheme.Default.Typography.TextSize, npcDialogWidgetColor(segment.color), false, widget.TextAlignLeft)
+	}
+}
+
+func (w *npcDialogTextLineWidget) Event(_ widget.Context, _ event.Event) bool {
+	return false
+}
+
+func npcDialogTextSegments(runs []npcDialogTextRun, measure func(string) float32) []npcDialogTextSegment {
+	segments := make([]npcDialogTextSegment, 0, len(runs))
+	x := float32(0)
+	for _, run := range runs {
+		if run.text == "" {
+			continue
+		}
+		width := measure(run.text)
+		if width < 0 {
+			width = 0
+		}
+		segments = append(segments, npcDialogTextSegment{
+			text:  run.text,
+			color: run.color,
+			x:     x,
+			width: width,
+		})
+		x += width
+	}
+	return segments
+}
+
+func npcDialogEstimatedTextWidth(text string) float32 {
+	return float32(utf8.RuneCountInString(text)) * rotheme.Default.Typography.TextSize * 0.6
 }
 
 func npcDialogBounds(width, height int) (int, int, int, int) {

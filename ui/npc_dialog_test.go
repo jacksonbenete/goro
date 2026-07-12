@@ -44,6 +44,33 @@ func TestNPCDialogWrapIgnoresColorCodeWidth(t *testing.T) {
 	}
 }
 
+func TestNPCDialogTextSegmentsAdvanceByMeasuredRuns(t *testing.T) {
+	base := color.RGBA{R: 246, G: 242, B: 232, A: 255}
+	red := color.RGBA{R: 255, A: 255}
+	runs := []npcDialogTextRun{
+		{text: "hello ", color: base},
+		{text: "red", color: red},
+		{text: " again", color: base},
+	}
+
+	segments := npcDialogTextSegments(runs, func(text string) float32 {
+		return float32(len([]rune(text)) * 10)
+	})
+
+	if len(segments) != 3 {
+		t.Fatalf("segment count = %d, want 3: %#v", len(segments), segments)
+	}
+	if segments[0].x != 0 || segments[0].width != 60 {
+		t.Fatalf("first segment = %#v, want x=0 width=60", segments[0])
+	}
+	if segments[1].x != 60 || segments[1].width != 30 || segments[1].color != red {
+		t.Fatalf("colored segment = %#v, want x=60 width=30 red", segments[1])
+	}
+	if segments[2].x != 90 || segments[2].width != 60 {
+		t.Fatalf("final segment = %#v, want x=90 width=60", segments[2])
+	}
+}
+
 func TestNPCDialogChoiceWindowOpensBelowDialogImmediately(t *testing.T) {
 	dialog := NPCDialog{}
 	ctx := Context{
