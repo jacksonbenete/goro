@@ -744,6 +744,9 @@ func actorShadowFactor(world *worldstate.World, x, y float64) float64 {
 	if world == nil || world.GND == nil {
 		return 1
 	}
+	if actorOnElevatedWalkSurface(world, x, y) {
+		return 1
+	}
 	shadowX, shadowY := gndShadowMapPoint(x, y)
 	total := 0
 	for dy := -3; dy < 3; dy++ {
@@ -752,6 +755,20 @@ func actorShadowFactor(world *worldstate.World, x, y float64) float64 {
 		}
 	}
 	return clampUnit(float64(total) / (6 * 6 * 255))
+}
+
+func actorOnElevatedWalkSurface(world *worldstate.World, x, y float64) bool {
+	const elevatedSurfaceThreshold = 0.5
+
+	gatHeight, ok := gatTerrainHeightAt(world, x, y)
+	if !ok {
+		return false
+	}
+	gndHeight, ok := gndTerrainHeightAt(world, x, y)
+	if !ok {
+		return false
+	}
+	return gatHeight-gndHeight > elevatedSurfaceThreshold
 }
 
 func gndShadowMapPoint(x, y float64) (int, int) {

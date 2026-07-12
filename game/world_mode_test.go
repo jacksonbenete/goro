@@ -5108,6 +5108,38 @@ func TestActorShadowFactorAveragesGNDLightmapAlpha(t *testing.T) {
 	}
 }
 
+func TestActorShadowFactorIgnoresGroundShadowBelowElevatedGAT(t *testing.T) {
+	var lightmap res.GNDLightmap
+	for y := range lightmap.Alpha {
+		for x := range lightmap.Alpha[y] {
+			lightmap.Alpha[y][x] = 32
+		}
+	}
+	gnd := &res.GND{
+		Width:     4,
+		Height:    4,
+		Lightmaps: []res.GNDLightmap{lightmap},
+		Surfaces:  []res.GNDSurface{{LightmapID: 0}},
+		Cells:     make([]res.GNDCell, 16),
+	}
+	for i := range gnd.Cells {
+		gnd.Cells[i].Top = 0
+	}
+	gat := &res.GAT{
+		Width:  8,
+		Height: 8,
+		Cells:  make([]res.GATCell, 64),
+	}
+	for i := range gat.Cells {
+		gat.Cells[i].Heights = [4]float32{2, 2, 2, 2}
+	}
+
+	got := actorShadowFactor(&worldstate.World{GAT: gat, GND: gnd}, 3, 3)
+	if got != 1 {
+		t.Fatalf("elevated GAT shadow factor = %.4f, want 1", got)
+	}
+}
+
 func TestActorShadowFactorDefaultsToLitWithoutGroundLightmap(t *testing.T) {
 	if got := actorShadowFactor(nil, 3, 3); got != 1 {
 		t.Fatalf("nil world shadow = %.2f, want 1", got)

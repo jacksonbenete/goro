@@ -51,7 +51,7 @@ Goal: migrate the remaining RO windows and dialogs to the gogpu/ui tree style:
 
 - [x] Shared drag ghost overlay
   - Inventory, storage, shop, and skill drag ghosts render in the top-level game overlay, above gogpu/ui windows and below the RO cursor.
-- [ ] Final UI sharpness pass
+- [x] Final UI sharpness pass
   - Revisit text/image crispness after the migration work settles.
 
 ## Cleanup After Each Migration
