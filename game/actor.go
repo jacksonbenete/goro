@@ -462,8 +462,6 @@ type sceneActorDrawEntry struct {
 	scale       float64
 	shadow      float64
 	castShadow  bool
-	shadowX     float64
-	shadowY     float64
 	shadowScale float64
 	shadowDepth float64
 	depth       float64
@@ -657,7 +655,7 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Image, projection sceneP
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		return
 	}
-	drawFixedSpriteBillboardAlphaFlat3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+0.03, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
+	drawFixedSpriteShadowBillboard3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+actorShadowTerrainLift, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
 }
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
@@ -671,8 +669,7 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 		return entries
 	}
 	depth := actorBillboardSortDepth(projection, worldX, worldY, terrainZ)
-	shadowDepth := projection.Depth(worldX, worldY, terrainZ+0.05)
-	shadowPoint := projection.Project(worldX, worldY, terrainZ+0.05)
+	shadowDepth := projection.Depth(worldX, worldY, terrainZ+actorShadowTerrainLift)
 	return append(entries, sceneActorDrawEntry{
 		actor:       actor,
 		screenX:     float64(point.x),
@@ -683,8 +680,6 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 		scale:       scale,
 		shadow:      actorShadowFactor(world, actorX, actorY),
 		castShadow:  actorCastsShadow(actor),
-		shadowX:     float64(shadowPoint.x),
-		shadowY:     float64(shadowPoint.y),
 		shadowScale: actorShadowSize(actor),
 		shadowDepth: shadowDepth,
 		depth:       depth,

@@ -40,6 +40,8 @@ const (
 	// Keeping actor billboards exactly coplanar with terrain lets sloped GND
 	// triangles clip the bottom pixels of tight NPC/mob sprite frames.
 	actorSpriteTerrainLift = 0.2
+	actorShadowTerrainLift = 0.05
+	actorShadowDepthBias   = 0.001
 )
 
 const (
@@ -216,12 +218,14 @@ func actorSpriteWorldZ(terrainZ float64) float64 {
 	return terrainZ + actorSpriteTerrainLift
 }
 
-func drawFixedSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, view *spriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
+func drawFixedSpriteShadowBillboard3D(screen *render.Image, projection sceneProjection, view *spriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
 	billboard, ok := fixedSpriteBillboard(view)
 	if !ok {
 		return false
 	}
-	drawSpriteBillboardAlphaFlat3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow)
+	options := spriteBillboardTriangleDrawOptions()
+	options.DepthBias = actorShadowDepthBias
+	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, color.RGBA{R: 255, G: 255, B: 255, A: 255}, options)
 	return true
 }
 
@@ -404,60 +408,6 @@ func drawSpriteBillboardTintAlphaWorld3DWithOptions(screen *render.Image, projec
 		ColorB:      float32(tint.B) / 255,
 		ColorA:      float32(tint.A) / 255,
 		DepthBias:   options.DepthBias,
-	})
-}
-
-func drawSpriteBillboardAlphaFlat3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
-	}
-	if alpha < 0 || math.IsNaN(alpha) {
-		alpha = 0
-	}
-	if alpha > 1 || math.IsInf(alpha, 0) {
-		alpha = 1
-	}
-	if shadow < 0 || math.IsNaN(shadow) {
-		shadow = 0
-	}
-	if shadow > 1 || math.IsInf(shadow, 0) {
-		shadow = 1
-	}
-	_, _, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
-	if !ok {
-		return
-	}
-	yaw := degreesToRadians(projection.cameraYaw)
-	right := normalize3(modelPoint3{x: math.Cos(yaw), z: math.Sin(yaw)})
-	down := normalize3(modelPoint3{x: math.Sin(yaw), z: -math.Cos(yaw)})
-	if right == (modelPoint3{}) {
-		right = modelPoint3{x: 1}
-	}
-	if down == (modelPoint3{}) {
-		down = modelPoint3{z: -1}
-	}
-	bounds := billboard.image.Bounds()
-	w := float64(bounds.Dx())
-	h := float64(bounds.Dy())
-	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	tint := colorRGBAFromFloats(shadow, shadow, shadow, alpha)
-	axisScale := scale * unitsPerPixel
-	options := triangleDrawOptions(spriteDrawFilter(), render.AddressClampToZero)
-	screen.DrawWorldBillboard(render.WorldBillboardCommand{
-		Texture:     billboard.image,
-		Options:     *options,
-		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
-		RightAxis:   [3]float32{float32(right.x * axisScale), float32(right.y * axisScale), float32(right.z * axisScale)},
-		UpAxis:      [3]float32{float32(down.x * axisScale), float32(down.y * axisScale), float32(down.z * axisScale)},
-		DepthUpAxis: [3]float32{float32(down.x * axisScale), float32(down.y * axisScale), float32(down.z * axisScale)},
-		Width:       float32(w),
-		Height:      float32(h),
-		AnchorX:     float32(billboard.anchorX),
-		AnchorY:     float32(billboard.anchorY),
-		ColorR:      float32(tint.R) / 255,
-		ColorG:      float32(tint.G) / 255,
-		ColorB:      float32(tint.B) / 255,
-		ColorA:      float32(tint.A) / 255,
 	})
 }
 
