@@ -3541,6 +3541,22 @@ func TestWarpPortalActorEntryAddsPortalEffect(t *testing.T) {
 	}
 }
 
+func TestWarpActorUsesRawWorldAnchor(t *testing.T) {
+	actor := worldstate.Actor{Job: actorJobWarpPortal}
+	x, y := actorWorldAnchor(actor, 30, 40)
+	if x != 30 || y != 40 {
+		t.Fatalf("warp anchor = %.1f, %.1f; want 30, 40", x, y)
+	}
+}
+
+func TestNormalActorUsesCenteredWorldAnchor(t *testing.T) {
+	actor := worldstate.Actor{Job: 1002}
+	x, y := actorWorldAnchor(actor, 30, 40)
+	if x != 30.5 || y != 40.5 {
+		t.Fatalf("normal actor anchor = %.1f, %.1f; want 30.5, 40.5", x, y)
+	}
+}
+
 func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Moving: true}

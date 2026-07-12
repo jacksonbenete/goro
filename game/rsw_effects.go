@@ -58,9 +58,9 @@ func mapEffectComponent(component worldEffectComponent) worldEffectComponent {
 
 func rswEffectWorldPosition(gnd *res.GND, effect res.RSWEffect) (float64, float64, float64) {
 	if gnd == nil {
-		return float64(effect.Position.X), float64(effect.Position.Z), float64(effect.Position.Y) + 1
+		return float64(effect.Position.X) - 0.5, float64(effect.Position.Z) - 0.5, float64(effect.Position.Y) + 1
 	}
-	return float64(effect.Position.X) + float64(gnd.Width), float64(effect.Position.Z) + float64(gnd.Height), float64(effect.Position.Y) + 1
+	return float64(effect.Position.X) + float64(gnd.Width) - 0.5, float64(effect.Position.Z) + float64(gnd.Height) - 0.5, float64(effect.Position.Y) + 1
 }
 
 func loopingRSWEffectStart(effect res.RSWEffect, index int, duration time.Duration, now time.Time) time.Time {

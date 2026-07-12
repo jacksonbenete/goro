@@ -28,6 +28,13 @@ func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) floa
 	return projectedHeight / float64(humanoidBillboardAnchorY)
 }
 
+func actorWorldAnchor(actor worldstate.Actor, x, y float64) (float64, float64) {
+	if isWarpActor(actor) {
+		return x, y
+	}
+	return cellCenter(x), cellCenter(y)
+}
+
 func pointInActorPickBounds(mouseX, mouseY, centerX, centerY, scale float64) bool {
 	scale = normalizePickScale(scale)
 	left := centerX - 44*scale
@@ -660,9 +667,8 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	actorX, actorY := actor.RenderPosition(now)
 	actor.Dir = actor.RenderDirection(now)
 	terrainZ := terrainHeightAt(world, actorX, actorY)
-	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
-	worldX := cellCenter(actorX)
-	worldY := cellCenter(actorY)
+	worldX, worldY := actorWorldAnchor(actor, actorX, actorY)
+	point := projection.Project(worldX, worldY, terrainZ)
 	scale := actorBillboardScreenScale(projection, worldX, worldY, terrainZ)
 	if actorAnchorOutsideViewport(float64(point.x), float64(point.y), screenWidth, screenHeight, scale) {
 		return entries

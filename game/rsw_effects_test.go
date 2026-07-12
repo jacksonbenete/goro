@@ -11,8 +11,8 @@ func TestRSWEffectWorldPositionUsesMapOffset(t *testing.T) {
 	gnd := &res.GND{Width: 300, Height: 200}
 	effect := res.RSWEffect{Position: res.RSWVector3{X: 12, Y: -3, Z: 34}}
 	x, y, z := rswEffectWorldPosition(gnd, effect)
-	if x != 312 || y != 234 || z != -2 {
-		t.Fatalf("rswEffectWorldPosition = %.1f, %.1f, %.1f; want 312, 234, -2", x, y, z)
+	if x != 311.5 || y != 233.5 || z != -2 {
+		t.Fatalf("rswEffectWorldPosition = %.1f, %.1f, %.1f; want 311.5, 233.5, -2", x, y, z)
 	}
 }
 
