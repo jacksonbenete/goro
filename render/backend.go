@@ -676,8 +676,9 @@ func (r *runner) drawUI(screen *Image, width, height int, deviceScale float64) e
 		win.ClearAnimationFrame()
 		drawn := false
 		if err := r.uiCanvas.Draw(func(cc *gg.Context) {
-			canvas := uirender.NewCanvas(cc, width, height)
-			if textMode, ok := canvas.(widget.TextModeController); ok {
+			baseCanvas := uirender.NewCanvas(cc, width, height)
+			canvas := widget.Canvas(scaledImageCanvas{Canvas: baseCanvas, scale: float32(deviceScale)})
+			if textMode, ok := baseCanvas.(widget.TextModeController); ok {
 				textMode.SetTextMode(widget.TextModeVector)
 				defer textMode.SetTextMode(widget.TextModeAuto)
 			}
