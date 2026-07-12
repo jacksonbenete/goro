@@ -81,6 +81,33 @@ func (p sceneProjection) BillboardBasis(x, y, z float64) (modelPoint3, modelPoin
 	if p.screenH <= 0 {
 		return modelPoint3{}, modelPoint3{}, 0, false
 	}
+	eye, forward, right, up := p.cameraBasis()
+	center := modelPoint3{x: x, y: z, z: y}
+	cameraDepth := dot3(sub3(center, eye), forward)
+	unitsPerPixel := 2 * cameraDepth * math.Tan(degreesToRadians(sceneCameraFOV())*0.5) / p.screenH
+	if unitsPerPixel <= 0 || !isFinite(unitsPerPixel) {
+		return modelPoint3{}, modelPoint3{}, 0, false
+	}
+	return right, up, unitsPerPixel, true
+}
+
+func (p sceneProjection) ScreenRay(mouseX, mouseY int) (modelPoint3, modelPoint3, bool) {
+	if p.screenW <= 0 || p.screenH <= 0 {
+		return modelPoint3{}, modelPoint3{}, false
+	}
+	eye, forward, right, up := p.cameraBasis()
+	aspect := p.screenW / p.screenH
+	tanHalfFOV := math.Tan(degreesToRadians(sceneCameraFOV()) * 0.5)
+	ndcX := (float64(mouseX)/p.screenW)*2 - 1
+	ndcY := 1 - (float64(mouseY)/p.screenH)*2
+	dir := normalize3(add3(add3(forward, mul3(right, ndcX*tanHalfFOV*aspect)), mul3(up, ndcY*tanHalfFOV)))
+	if dir == (modelPoint3{}) {
+		return modelPoint3{}, modelPoint3{}, false
+	}
+	return eye, dir, true
+}
+
+func (p sceneProjection) cameraBasis() (eye, forward, right, up modelPoint3) {
 	distance := normalizeSceneCameraZoom(p.cameraZoom) * 0.5
 	pitch := sceneCameraPitch()
 	if pitch > 180 {
@@ -90,24 +117,18 @@ func (p sceneProjection) BillboardBasis(x, y, z float64) (modelPoint3, modelPoin
 	yaw := degreesToRadians(p.cameraYaw)
 	horizontal := math.Cos(pitch) * distance
 	target := modelPoint3{x: p.playerX, y: p.playerZ, z: p.playerY}
-	eye := modelPoint3{
+	eye = modelPoint3{
 		x: target.x + math.Sin(yaw)*horizontal,
 		y: target.y + math.Sin(pitch)*distance,
 		z: target.z - math.Cos(yaw)*horizontal,
 	}
-	center := modelPoint3{x: x, y: z, z: y}
-	forward := normalize3(sub3(target, eye))
-	right := normalize3(cross3(modelPoint3{y: 1}, forward))
+	forward = normalize3(sub3(target, eye))
+	right = normalize3(cross3(modelPoint3{y: 1}, forward))
 	if right == (modelPoint3{}) {
 		right = modelPoint3{x: 1}
 	}
-	up := normalize3(cross3(forward, right))
-	cameraDepth := dot3(sub3(center, eye), forward)
-	unitsPerPixel := 2 * cameraDepth * math.Tan(degreesToRadians(sceneCameraFOV())*0.5) / p.screenH
-	if unitsPerPixel <= 0 || !isFinite(unitsPerPixel) {
-		return modelPoint3{}, modelPoint3{}, 0, false
-	}
-	return right, up, unitsPerPixel, true
+	up = normalize3(cross3(forward, right))
+	return eye, forward, right, up
 }
 
 func (p sceneProjection) Depth(x, y, z float64) float64 {

@@ -4261,6 +4261,7 @@ func TestPendingSkillWheelIgnoredWithoutPendingSkill(t *testing.T) {
 func TestPendingTargetSkillCancelsWhenClickingGround(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.GAT = flatWalkableGAT(32, 32)
 	inputState := input.NewState()
 	projection := newSceneProjectionForTarget(1280, 720, cellCenter(10), cellCenter(20), 0)
 	point := projection.Project(cellCenter(12), cellCenter(20), 0)
@@ -4285,6 +4286,7 @@ func TestPendingTargetSkillCancelsWhenClickingGround(t *testing.T) {
 func TestPendingGroundSkillDoesNotCancelWhenClickingGround(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.GAT = flatWalkableGAT(32, 32)
 	inputState := input.NewState()
 	projection := newSceneProjectionForTarget(1280, 720, cellCenter(10), cellCenter(20), 0)
 	point := projection.Project(cellCenter(12), cellCenter(20), 0)
@@ -5141,78 +5143,56 @@ func TestWaterVisibleForCellUsesInvertedHeightConvention(t *testing.T) {
 	}
 }
 
-func TestClickedWalkCellByProjectedPolygonUsesWalkableGATCell(t *testing.T) {
+func TestRayWalkCellHitsProjectedGATCellCenter(t *testing.T) {
 	world := worldstate.New()
-	world.Player.X = 5
-	world.Player.Y = 5
-	world.GAT = flatWalkableGAT(12, 12)
-	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
-	point := projection.Project(6.5, 5.5, 0)
-
-	x, y, ok := clickedWalkCellByProjectedPolygon(client.Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
-	if !ok || x != 6 || y != 5 {
-		t.Fatalf("clicked cell = %d,%d ok=%t, want 6,5 true", x, y, ok)
-	}
-}
-
-func TestClickedWalkCellByProjectedPolygonSkipsBlockedGATCell(t *testing.T) {
-	world := worldstate.New()
-	world.Player.X = 5
-	world.Player.Y = 5
-	world.GAT = &res.GAT{
-		Width:  12,
-		Height: 12,
-		Cells:  make([]res.GATCell, 12*12),
-	}
-	world.GAT.Cells[5*world.GAT.Width+6] = res.GATCell{Type: res.GATTypeNone}
-	projection := newSceneProjectionForTarget(800, 600, 5.5, 5.5, 0)
-	point := projection.Project(6.5, 5.5, 0)
-
-	_, _, ok := clickedWalkCellByProjectedPolygon(client.Context{World: world}, projection, int(point.x), int(point.y), 0, 11, 0, 11)
-	if ok {
-		t.Fatal("blocked cell should not be picked")
-	}
-}
-
-func TestClickedWalkTargetRejectsInvalidProjectedCells(t *testing.T) {
-	world := worldstate.New()
-	world.Player.X = 107
-	world.Player.Y = 90
 	world.GAT = flatWalkableGAT(180, 160)
 	projection := newSceneProjectionForTargetYawZoom(1280, 720, cellCenter(107), cellCenter(90), 0, -45, sceneCameraZoom())
+	point := projection.Project(cellCenter(107), cellCenter(87), 0)
 
-	x, y, ok := clickedWalkTarget(client.Context{World: world}, projection, 896, 589)
-	if !ok {
-		t.Fatal("expected a visible walk target")
-	}
-	if x == 37 && y == 20 {
-		t.Fatal("selected invalid off-camera search corner")
-	}
-	if points, _, ok := projectedGATCell(projection, world.GAT, x, y); !ok || !projectedGATCellHasArea(points) {
-		t.Fatalf("selected invalid projected target %d,%d ok=%t", x, y, ok)
+	x, y, ok := rayWalkCell(client.Context{World: world}, projection, int(math.Round(float64(point.x))), int(math.Round(float64(point.y))))
+	if !ok || x != 107 || y != 87 {
+		t.Fatalf("ray walk cell = %d,%d ok=%t, want 107,87 true", x, y, ok)
 	}
 }
 
-func TestProjectedGATCellRejectsPartiallyClippedCells(t *testing.T) {
-	gat := flatWalkableGAT(180, 160)
+func TestRayWalkCellSkipsBlockedGATCell(t *testing.T) {
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(180, 160)
+	world.GAT.Cells[87*world.GAT.Width+107] = res.GATCell{Type: res.GATTypeNone}
+	projection := newSceneProjectionForTargetYawZoom(1280, 720, cellCenter(107), cellCenter(90), 0, -45, sceneCameraZoom())
+	point := projection.Project(cellCenter(107), cellCenter(87), 0)
+
+	_, _, ok := rayWalkCell(client.Context{World: world}, projection, int(math.Round(float64(point.x))), int(math.Round(float64(point.y))))
+	if ok {
+		t.Fatal("blocked ray walk cell should not be picked")
+	}
+}
+
+func TestRayWalkCellWorksAtCloseZoom(t *testing.T) {
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(180, 160)
 	projection := newSceneProjectionForTargetYawZoom(1280, 720, cellCenter(107), cellCenter(90), 0, -45, defaultCameraMinZoom)
+	point := projection.Project(cellCenter(107), cellCenter(87), 0)
 
-	for y := 20; y <= 159; y++ {
-		for x := 37; x <= 177; x++ {
-			verts, ok := gatCellVerts(gat, x, y)
-			if !ok || !partiallyProjectableGATCell(projection, verts) {
-				continue
-			}
-			if _, _, ok := projectedGATCell(projection, gat, x, y); ok {
-				t.Fatalf("partially clipped cell %d,%d was accepted", x, y)
-			}
-			return
-		}
+	x, y, ok := rayWalkCell(client.Context{World: world}, projection, int(math.Round(float64(point.x))), int(math.Round(float64(point.y))))
+	if !ok || x != 107 || y != 87 {
+		t.Fatalf("close zoom ray walk cell = %d,%d ok=%t, want 107,87 true", x, y, ok)
 	}
-	t.Fatal("test setup did not find a partially clipped cell")
 }
 
-func TestHoveredWalkCellRequiresProjectedWalkableCell(t *testing.T) {
+func TestClickedWalkTargetUsesRayWalkCell(t *testing.T) {
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(180, 160)
+	projection := newSceneProjectionForTargetYawZoom(1280, 720, cellCenter(107), cellCenter(90), 0, -45, sceneCameraZoom())
+	point := projection.Project(cellCenter(107), cellCenter(87), 0)
+
+	x, y, ok := clickedWalkTarget(client.Context{World: world}, projection, int(math.Round(float64(point.x))), int(math.Round(float64(point.y))))
+	if !ok || x != 107 || y != 87 {
+		t.Fatalf("clicked walk target = %d,%d ok=%t, want 107,87 true", x, y, ok)
+	}
+}
+
+func TestHoveredWalkCellUsesRayWalkCell(t *testing.T) {
 	world := worldstate.New()
 	world.Player.X = 5
 	world.Player.Y = 5
@@ -5239,16 +5219,6 @@ func flatWalkableGAT(width, height int) *res.GAT {
 		gat.Cells[i] = res.GATCell{Type: res.GATTypeWalkable}
 	}
 	return gat
-}
-
-func partiallyProjectableGATCell(projection sceneProjection, verts [4]modelPoint3) bool {
-	projected := 0
-	for _, vert := range verts {
-		if _, ok := projection.projectPoint(vert.x, vert.z, vert.y); ok {
-			projected++
-		}
-	}
-	return projected > 0 && projected < len(verts)
 }
 
 func TestTileCursorCellVertsUseGATHeightsWithLift(t *testing.T) {
