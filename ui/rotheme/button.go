@@ -89,12 +89,16 @@ func (ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState) 
 	if state.Disabled {
 		bg = Default.Colors.Disabled
 	}
+	border := Default.Colors.ButtonBorder
+	if state.Disabled {
+		border = Default.Colors.FooterLine
+	}
 	radius := ButtonRadius
 	if state.Radius != nil {
 		radius = *state.Radius
 	}
 	drawButtonGradient(canvas, state.Bounds, bg, radius)
-	canvas.StrokeRoundRect(state.Bounds, Default.Colors.ButtonBorder, radius, 1)
+	canvas.StrokeRoundRect(state.Bounds, border, radius, 1)
 
 	text := Default.Colors.Text
 	if state.Disabled {

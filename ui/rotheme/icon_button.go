@@ -70,7 +70,7 @@ func DrawIconButton(canvas widget.Canvas, bounds geometry.Rect, kind IconButtonK
 	if disabled {
 		bg = Default.Colors.Disabled
 		color = Default.Colors.MutedText
-		border = Default.Colors.Disabled
+		border = Default.Colors.FooterLine
 	}
 	drawButtonGradient(canvas, bounds, bg, ButtonRadius)
 	canvas.StrokeRoundRect(bounds, border, ButtonRadius, 1)
