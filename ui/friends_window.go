@@ -162,6 +162,7 @@ func (w *FriendsWindow) refresh(ctx Context) {
 
 func (w *FriendsWindow) partyFooter(party session.Party) widget.Widget {
 	return primitives.HBox(
+		primitives.Expanded(primitives.Box()),
 		rotheme.ButtonDisabled("Settings", !party.Active(), func() {
 			w.action = FriendsWindowActionPartySettings
 		}).Width(82),
@@ -169,7 +170,8 @@ func (w *FriendsWindow) partyFooter(party session.Party) widget.Widget {
 			w.action = FriendsWindowActionPartyLeave
 		}).Width(66),
 	).
-		Gap(8)
+		Gap(8).
+		CrossAlign(primitives.CrossAxisCenter)
 }
 
 func friendsList(friends []session.Friend) widget.Widget {

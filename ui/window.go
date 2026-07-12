@@ -56,16 +56,22 @@ func Win(options ...WindowOption) widget.Widget {
 	if cfg.content != nil {
 		children = append(children, primitives.Expanded(cfg.content))
 	}
-	if cfg.footer != nil {
-		footerBody := primitives.Box(cfg.footer).
+	if cfg.footer != nil || cfg.footerHeight > 0 {
+		footerContent := cfg.footer
+		if footerContent == nil {
+			footerContent = primitives.Box()
+		}
+		footerBody := primitives.Box(footerContent).
+			CrossAlign(primitives.CrossAxisStretch).
 			Padding(cfg.footerPadding).
 			Background(rotheme.Default.Colors.WindowFooter)
 		if cfg.footerHeight > 0 {
 			footerBody = primitives.Box(
 				primitives.Expanded(primitives.Box()),
-				cfg.footer,
+				footerContent,
 				primitives.Expanded(primitives.Box()),
 			).
+				CrossAlign(primitives.CrossAxisStretch).
 				PaddingXY(cfg.footerPadding, 0).
 				Height(cfg.footerHeight - 1).
 				Background(rotheme.Default.Colors.WindowFooter)
@@ -80,13 +86,15 @@ func Win(options ...WindowOption) widget.Widget {
 			).
 				Height(1),
 			footerBody,
-		)
+		).
+			CrossAlign(primitives.CrossAxisStretch)
 		children = append(children,
 			footer,
 		)
 	}
 
 	return primitives.Box(children...).
+		CrossAlign(primitives.CrossAxisStretch).
 		Width(cfg.width).
 		Height(cfg.height).
 		Background(rotheme.Default.Colors.WindowBody).
