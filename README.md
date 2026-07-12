@@ -6,12 +6,16 @@ The runtime uses GoGPU/wgpu for the window and presentation path, with a modern
 GPU pipeline and Vulkan support. Built 100% in Go without CGO, it is fully statically
 compiled and can be easily deployed.
 
-## Goals
+This project wouldn't be possible without the existence of other open source clients
+like ROBrowser Legacy and Open Midgard and their reverse engineering efforts.
 
-- Faithfully reimplement the Ragnarok Online client.
+## Project Goals
+
+- Faithfully reimplement the original Ragnarok Online client.
 - Focus on the pre-renewal 2008 experience first.
 - Stay pure Go, without CGO, so cross-compilation and deployment stay simple on
   many platforms.
+- Aim for simple, readable, hackable codebase.
 - Use a modern GPU pipeline through GoGPU, including Vulkan and Wayland support.
 - Deliver good performance, including support for high-refresh-rate displays.
 - Provide a modernized, neat themeable UI built with `gogpu/ui`.
@@ -62,19 +66,19 @@ trace = false
 Command-line options override the ini file:
 
 ```sh
-CGO_ENABLED=0 go run -tags nofakecgo . --data-dir /home/kivutar/Téléchargements/OldRO --fullscreen
-CGO_ENABLED=0 go run -tags nofakecgo . --config ./oldro.ini --bgm=false --graphics-api gles
+CGO_ENABLED=0 go run -tags nofakecgo . --data-dir ~/kRO --fullscreen
+CGO_ENABLED=0 go run -tags nofakecgo . --config ./goro.ini --bgm=false --graphics-api vulkan
 ```
 
 Useful options:
 
 ```sh
-CGO_ENABLED=0 go run -tags nofakecgo . --net-trace
-CGO_ENABLED=0 go run -tags nofakecgo . --packet-client-date 20211103 # only when rAthena is rebuilt for that packetver
-CGO_ENABLED=0 go run -tags nofakecgo . --fullscreen
-CGO_ENABLED=0 go run -tags nofakecgo . --bgm=false
-CGO_ENABLED=0 go run -tags nofakecgo . --bgm-volume 0.35
-CGO_ENABLED=0 go run -tags nofakecgo . --graphics-api gles # fallback if Vulkan is unavailable
+--net-trace
+--packet-client-date 20211103 # only when rAthena is rebuilt for that packetver
+--fullscreen
+--bgm=false
+--bgm-volume 0.35
+--graphics-api gles # fallback if Vulkan is unavailable
 ```
 
 Runtime data is discovered from, in order:
@@ -106,10 +110,13 @@ Mostly done:
    * Fog (innacurate)
    * Animated models
    * Weather effects
+   * Indoors
  * Camera, zoom, rotation
- * Battle
+ * Battle and Gameplay
    * Enemies
+   * Path finding
    * Drops
+   * Playable characters animation chain
    * Jobs
      * Novice
      * 1-1
@@ -119,6 +126,12 @@ Mostly done:
        * Acolyte
        * Thief
    * Skill effects
+   * Skill casting
+   * Walk cancellation
+   * Casting cancellation
+   * Cursor snap
+   * Noshift
+   * Noctrl
  * UI
    * Basic information
    * Button bar
@@ -130,10 +143,11 @@ Mostly done:
    * Option
      * Settings
    * Friends
-   * Party
+   * Party & party settings
+   * Stats
    * Skills (flat version)
    * Cart Storage
-   * Kafra Storage
+   * Kafra Storage (simple)
    * Teleport skill modal
    * Warp skill modal
    * Cart appearance modal
