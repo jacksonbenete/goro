@@ -260,41 +260,28 @@ func normalizeSceneCameraZoom(zoom float64) float64 {
 }
 
 func terrainHeightAt(world *worldstate.World, x, y float64) float64 {
-	if height, ok := gatTerrainHeightAt(world, x, y); ok {
-		return height
+	if world == nil {
+		return 0
 	}
-	if height, ok := gndTerrainHeightAt(world, x, y); ok {
-		return height
+	if world.GAT != nil {
+		cellX := int(math.Floor(x + 0.5))
+		cellY := int(math.Floor(y + 0.5))
+		cell, ok := world.GAT.Cell(cellX, cellY)
+		if ok {
+			return bilinearHeight(cell.Heights, x+0.5-float64(cellX), y+0.5-float64(cellY))
+		}
+	}
+	if world.GND != nil {
+		gridX := (x + 0.5) * 0.5
+		gridY := (y + 0.5) * 0.5
+		cellX := int(math.Floor(gridX))
+		cellY := int(math.Floor(gridY))
+		cell, ok := world.GND.Cell(cellX, cellY)
+		if ok {
+			return bilinearHeight(cell.Heights, gridX-float64(cellX), gridY-float64(cellY))
+		}
 	}
 	return 0
-}
-
-func gatTerrainHeightAt(world *worldstate.World, x, y float64) (float64, bool) {
-	if world == nil || world.GAT == nil {
-		return 0, false
-	}
-	cellX := int(math.Floor(x + 0.5))
-	cellY := int(math.Floor(y + 0.5))
-	cell, ok := world.GAT.Cell(cellX, cellY)
-	if !ok {
-		return 0, false
-	}
-	return bilinearHeight(cell.Heights, x+0.5-float64(cellX), y+0.5-float64(cellY)), true
-}
-
-func gndTerrainHeightAt(world *worldstate.World, x, y float64) (float64, bool) {
-	if world == nil || world.GND == nil {
-		return 0, false
-	}
-	gridX := (x + 0.5) * 0.5
-	gridY := (y + 0.5) * 0.5
-	cellX := int(math.Floor(gridX))
-	cellY := int(math.Floor(gridY))
-	cell, ok := world.GND.Cell(cellX, cellY)
-	if !ok {
-		return 0, false
-	}
-	return bilinearHeight(cell.Heights, gridX-float64(cellX), gridY-float64(cellY)), true
 }
 
 func cellCenter(value float64) float64 {
