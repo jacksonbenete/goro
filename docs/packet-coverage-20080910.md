@@ -10,6 +10,7 @@ Sources:
 This is the final effective rAthena map packet table. rAthena defines historical remaps by calling `packetdb_addpacket` more than once for the same opcode; the last definition wins, so this document records the winning definition per opcode.
 
 Status meaning:
+- `implemented`: the opcode is referenced by Goro network code and wired to an active client parser/builder flow.
 - `referenced`: the opcode appears in Goro network code. This is opcode-level coverage, not a promise that every field/layout variant is complete.
 - `missing`: rAthena accepts this client packet for 20080910 and Goro does not reference its opcode yet.
 - `untracked`: server-to-client packet in rAthena packet DB that Goro does not reference yet; many are optional until the feature exists.
@@ -226,7 +227,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x0100` | C->S | referenced | `HEADER_CZ_REQ_LEAVE_GROUP` | `sizeof( PACKET_CZ_REQ_LEAVE_GROUP )` | `clif_parse_LeaveParty` | party_packets.go |
 | `0x0101` | S->C | referenced | `0x0101` | `6` | `-` | party_packets.go |
 | `0x0102` | C->S | referenced | `0x0102` | `6` | `clif_parse_PartyChangeOption` | party_packets.go |
-| `0x0103` | C->S | referenced | `HEADER_CZ_REQ_EXPEL_GROUP_MEMBER` | `sizeof( PACKET_CZ_REQ_EXPEL_GROUP_MEMBER )` | `clif_parse_RemovePartyMember` | party_packets.go |
+| `0x0103` | C->S | implemented | `HEADER_CZ_REQ_EXPEL_GROUP_MEMBER` | `sizeof( PACKET_CZ_REQ_EXPEL_GROUP_MEMBER )` | `clif_parse_RemovePartyMember` | party_packets.go |
 | `0x0104` | S->C | referenced | `0x0104` | `79` | `-` | party_packets.go |
 | `0x0108` | C->S | referenced | `0x0108` | `-1` | `clif_parse_PartyMessage` | party_packets.go |
 | `0x0109` | S->C | referenced | `0x0109` | `-1` | `-` | party_packets.go |
@@ -362,7 +363,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x01E5` | S->C | untracked | `0x01e5` | `6` | `-` | - |
 | `0x01E6` | S->C | untracked | `0x01e6` | `26` | `-` | - |
 | `0x01E7` | C->S | missing | `0x01e7` | `2` | `clif_parse_NoviceDoriDori` | - |
-| `0x01E8` | C->S | referenced | `HEADER_CZ_MAKE_GROUP2` | `sizeof( PACKET_CZ_MAKE_GROUP2 )` | `clif_parse_CreateParty2` | party_packets.go |
+| `0x01E8` | C->S | implemented | `HEADER_CZ_MAKE_GROUP2` | `sizeof( PACKET_CZ_MAKE_GROUP2 )` | `clif_parse_CreateParty2` | party_packets.go |
 | `0x01EC` | S->C | untracked | `0x01ec` | `26` | `-` | - |
 | `0x01ED` | C->S | missing | `0x01ed` | `2` | `clif_parse_NoviceExplosionSpirits` | - |
 | `0x01F0` | S->C | untracked | `0x01f0` | `-1` | `-` | - |
