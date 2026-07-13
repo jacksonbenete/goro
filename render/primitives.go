@@ -378,14 +378,22 @@ func DrawOutlinedTextAt(dst *Image, text string, x, y int, foreground, outline c
 }
 
 func DrawUIOutlinedTextAt(dst *Image, text string, x, y float64, foreground, outline color.RGBA) {
-	drawOrQueueUIOutlinedText(dst, text, x, y, foreground, outline, false)
+	drawOrQueueUITextLabel(dst, text, x, y, foreground, outline, false, true, 12)
 }
 
 func DrawCenteredUIOutlinedTextAt(dst *Image, text string, centerX, y float64, foreground, outline color.RGBA) {
-	drawOrQueueUIOutlinedText(dst, text, centerX, y, foreground, outline, true)
+	drawOrQueueUITextLabel(dst, text, centerX, y, foreground, outline, true, true, 12)
 }
 
-func drawOrQueueUIOutlinedText(dst *Image, text string, x, y float64, foreground, outline color.RGBA, centered bool) {
+func DrawUITextAt(dst *Image, text string, x, y float64, foreground color.RGBA) {
+	drawOrQueueUITextLabel(dst, text, x, y, foreground, color.RGBA{}, false, false, 12)
+}
+
+func DrawCenteredUITextAt(dst *Image, text string, centerX, y float64, foreground color.RGBA) {
+	drawOrQueueUITextLabel(dst, text, centerX, y, foreground, color.RGBA{}, true, false, 12)
+}
+
+func drawOrQueueUITextLabel(dst *Image, text string, x, y float64, foreground, outline color.RGBA, centered, bold bool, size float32) {
 	if dst == nil || text == "" {
 		return
 	}
@@ -397,9 +405,18 @@ func drawOrQueueUIOutlinedText(dst *Image, text string, x, y float64, foreground
 			Foreground: foreground,
 			Outline:    outline,
 			Centered:   centered,
-			Bold:       true,
-			Size:       12,
+			Bold:       bold,
+			Size:       size,
 		})
+		return
+	}
+	if outline.A == 0 && !bold {
+		if centered {
+			width, _ := DebugTextSize(text)
+			x -= float64(width) / 2
+		}
+		x, y = snapScreenPoint(dst, x, y)
+		DebugPrintAtColor(dst, text, int(x), int(y), foreground)
 		return
 	}
 	img := OutlinedTextImage(text, foreground, outline)

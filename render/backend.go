@@ -884,8 +884,10 @@ func (r *runner) cachedTextLabelImage(provider gpucontext.DeviceProvider, label 
 			defer textMode.SetTextMode(widget.TextModeAuto)
 		}
 		bounds := geometry.NewRect(2, 2, float32(width), float32(height))
-		for _, offset := range [][2]float32{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
-			rotheme.DrawText(uiCanvas, label.Text, bounds.TranslateXY(offset[0], offset[1]), size, outline, label.Bold, widget.TextAlignLeft)
+		if label.Outline.A != 0 {
+			for _, offset := range [][2]float32{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+				rotheme.DrawText(uiCanvas, label.Text, bounds.TranslateXY(offset[0], offset[1]), size, outline, label.Bold, widget.TextAlignLeft)
+			}
 		}
 		rotheme.DrawText(uiCanvas, label.Text, bounds, size, fg, label.Bold, widget.TextAlignLeft)
 	}); err != nil {

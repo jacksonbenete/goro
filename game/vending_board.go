@@ -52,10 +52,13 @@ func chatRoomBoardLabel(actor worldstate.Actor) string {
 }
 
 const (
-	vendingBoardPadX    = 9
-	vendingBoardPadY    = 5
-	vendingBoardIconGap = 4
-	vendingBoardGap     = 4
+	vendingBoardW            = 140
+	vendingBoardH            = 28
+	vendingBoardPadX         = 3
+	vendingBoardIconGap      = 5
+	vendingBoardGap          = 4
+	vendingBoardIcon         = 24
+	vendingBoardTextOverlayH = 20
 )
 
 type vendingBoardBounds struct {
@@ -78,24 +81,48 @@ func drawVendingBoardLabel(screen *render.Image, label string, centerX, topY flo
 	if !ok {
 		return
 	}
-	render.DrawRect(screen, bounds.x, bounds.y, bounds.w, bounds.h, color.RGBA{R: 80, G: 88, B: 96, A: 230})
-	render.DrawRect(screen, bounds.x+1, bounds.y+1, bounds.w-2, bounds.h-2, color.RGBA{R: 255, G: 255, B: 255, A: 245})
+	render.DrawRect(screen, bounds.x, bounds.y, bounds.w, bounds.h, color.RGBA{R: 255, G: 255, B: 255, A: 245})
+	border := color.RGBA{R: 176, G: 184, B: 190, A: 245}
+	render.DrawRect(screen, bounds.x, bounds.y, bounds.w, 1, border)
+	render.DrawRect(screen, bounds.x, bounds.y+bounds.h-1, bounds.w, 1, border)
+	render.DrawRect(screen, bounds.x, bounds.y, 1, bounds.h, border)
+	render.DrawRect(screen, bounds.x+bounds.w-1, bounds.y, 1, bounds.h, border)
 
-	_, textH := render.DebugTextSize(label)
-	iconW, iconH := vendingBoardIconSize(icon)
-	contentH := maxInt(textH, iconH)
 	contentX := int(bounds.x) + vendingBoardPadX
-	contentY := int(bounds.y) + vendingBoardPadY
 	textX := contentX
-	if iconW > 0 && iconH > 0 {
-		iconY := contentY + (contentH-iconH)/2
-		var opts render.DrawImageOptions
-		opts.GeoM.Translate(float64(contentX), float64(iconY))
-		screen.DrawImage(icon, &opts)
-		textX += iconW + vendingBoardIconGap
+	if icon != nil && !icon.Bounds().Empty() {
+		drawBoardIcon(screen, icon, contentX, int(bounds.y)+(vendingBoardH-vendingBoardIcon)/2)
+		textX += vendingBoardIcon + vendingBoardIconGap
 	}
-	textY := contentY + (contentH-textH)/2
-	render.DebugPrintAtColor(screen, label, textX, textY, color.RGBA{R: 30, G: 34, B: 40, A: 255})
+	maxTextWidth := int(bounds.x+bounds.w) - textX - vendingBoardPadX
+	text := trimBoardLabel(label, maxTextWidth)
+	textY := bounds.y + float64(vendingBoardH-vendingBoardTextOverlayH)/2
+	render.DrawUITextAt(screen, text, float64(textX), textY, color.RGBA{R: 30, G: 34, B: 40, A: 255})
+}
+
+func drawBoardIcon(screen *render.Image, icon *render.Image, x, y int) {
+	if screen == nil || icon == nil {
+		return
+	}
+	src := visibleImageBounds(icon)
+	if src.Empty() {
+		return
+	}
+	srcW, srcH := float64(src.Dx()), float64(src.Dy())
+	if srcW <= 0 || srcH <= 0 {
+		return
+	}
+	scale := math.Min(float64(vendingBoardIcon)/srcW, float64(vendingBoardIcon)/srcH)
+	dstW, dstH := srcW*scale, srcH*scale
+	dstX := float64(x) + (float64(vendingBoardIcon)-dstW)/2
+	dstY := float64(y) + (float64(vendingBoardIcon)-dstH)/2
+	vertices := []render.Vertex{
+		{DstX: float32(dstX), DstY: float32(dstY), SrcX: float32(src.Min.X), SrcY: float32(src.Min.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(dstX + dstW), DstY: float32(dstY), SrcX: float32(src.Max.X), SrcY: float32(src.Min.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(dstX), DstY: float32(dstY + dstH), SrcX: float32(src.Min.X), SrcY: float32(src.Max.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{DstX: float32(dstX + dstW), DstY: float32(dstY + dstH), SrcX: float32(src.Max.X), SrcY: float32(src.Max.Y), ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}
+	screen.DrawTrianglesOwned(vertices, quadIndices012213, icon, &render.DrawTrianglesOptions{Filter: spriteDrawFilter(), Address: render.AddressClampToZero})
 }
 
 func (m *WorldMode) hoveredVendingBoard(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.Actor, bool) {
@@ -190,20 +217,11 @@ func vendingBoardLabelBounds(label string, centerX, topY float64, icon *render.I
 	if label == "" {
 		return vendingBoardBounds{}, false
 	}
-	textW, textH := render.DebugTextSize(label)
-	iconW, iconH := vendingBoardIconSize(icon)
-	contentW := textW
-	if iconW > 0 && iconH > 0 {
-		contentW += iconW + vendingBoardIconGap
-	}
-	contentH := maxInt(textH, iconH)
-	w := float64(contentW + vendingBoardPadX*2)
-	h := float64(contentH + vendingBoardPadY*2)
 	return vendingBoardBounds{
-		x: math.Round(centerX - w/2),
+		x: math.Round(centerX - float64(vendingBoardW)/2),
 		y: math.Round(topY),
-		w: w,
-		h: h,
+		w: vendingBoardW,
+		h: vendingBoardH,
 	}, true
 }
 
@@ -215,11 +233,27 @@ func vendingBoardLabelHeight(label string, icon *render.Image) float64 {
 	return bounds.h
 }
 
-func vendingBoardIconSize(icon *render.Image) (int, int) {
-	if icon == nil || icon.Bounds().Empty() {
-		return 0, 0
+func trimBoardLabel(label string, maxWidth int) string {
+	label = sanitizeActorName(label)
+	if label == "" || maxWidth <= 0 {
+		return ""
 	}
-	return icon.Bounds().Dx(), icon.Bounds().Dy()
+	maxWidth -= 14
+	if maxWidth <= 0 {
+		return "..."
+	}
+	if w, _ := render.DebugTextSize(label); w <= maxWidth {
+		return label
+	}
+	runes := []rune(label)
+	for len(runes) > 1 {
+		runes = runes[:len(runes)-1]
+		candidate := string(runes) + "..."
+		if w, _ := render.DebugTextSize(candidate); w <= maxWidth {
+			return candidate
+		}
+	}
+	return "..."
 }
 
 func (m *WorldMode) vendingShopIcon(manager *res.Manager) *render.Image {
