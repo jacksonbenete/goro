@@ -347,6 +347,17 @@ func (c *Client) SendMakeParty(name string) error {
 	return err
 }
 
+func (c *Client) SendMakeParty2(name string, itemPickupRule, itemDivisionRule uint8) error {
+	packet := BuildMakeParty2Packet(name, itemPickupRule, itemDivisionRule)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_MAKE_GROUP2 opcode=0x%04X name=%q pickup=%d division=%d client_date=%d", ID(packet), name, itemPickupRule, itemDivisionRule, c.clientDate)
+	} else {
+		log.Printf("send CZ_MAKE_GROUP2 failed opcode=0x%04X len=%d name=%q pickup=%d division=%d client_date=%d: %v", ID(packet), len(packet), name, itemPickupRule, itemDivisionRule, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendPartyInvite(accountID uint32, name string) error {
 	packet := BuildPartyInvitePacket(accountID, name)
 	err := c.Send(packet)
@@ -387,6 +398,17 @@ func (c *Client) SendPartyOption(expOption uint32) error {
 		log.Printf("sent CZ_CHANGE_GROUPEXPOPTION opcode=0x%04X exp=%d client_date=%d", ID(packet), expOption, c.clientDate)
 	} else {
 		log.Printf("send CZ_CHANGE_GROUPEXPOPTION failed opcode=0x%04X len=%d exp=%d client_date=%d: %v", ID(packet), len(packet), expOption, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendExpelPartyMember(accountID uint32, name string) error {
+	packet := BuildExpelPartyMemberPacket(accountID, name)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_EXPEL_GROUP_MEMBER opcode=0x%04X aid=%d name=%q client_date=%d", ID(packet), accountID, name, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_EXPEL_GROUP_MEMBER failed opcode=0x%04X len=%d aid=%d name=%q client_date=%d: %v", ID(packet), len(packet), accountID, name, c.clientDate, err)
 	}
 	return err
 }

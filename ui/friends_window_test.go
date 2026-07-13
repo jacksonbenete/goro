@@ -8,6 +8,7 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
 )
 
@@ -24,6 +25,33 @@ func TestPartyFooterAlignsButtonsRight(t *testing.T) {
 	leave := children[2].(interface{ Bounds() geometry.Rect }).Bounds()
 	if leave.Max.X != 180 {
 		t.Fatalf("leave button right edge = %.1f, want 180.0", leave.Max.X)
+	}
+}
+
+func TestPartyFooterShowsCreateWhenNoParty(t *testing.T) {
+	var window FriendsWindow
+	footer := window.partyFooter(session.Party{})
+
+	children := footer.Children()
+	if len(children) != 2 {
+		t.Fatalf("empty party footer children = %d, want spacer and create button", len(children))
+	}
+}
+
+func TestPartyFooterShowsInviteForLeader(t *testing.T) {
+	var window FriendsWindow
+	window.ctx = Context{Session: &session.Session{
+		AccountID: 10,
+		Party: session.Party{
+			Name:    "Goro",
+			Members: []session.PartyMember{{AccountID: 10, Role: 0}},
+		},
+	}}
+	footer := window.partyFooter(window.ctx.Session.Party)
+
+	children := footer.Children()
+	if len(children) != 4 {
+		t.Fatalf("leader party footer children = %d, want spacer, invite, settings, leave", len(children))
 	}
 }
 
@@ -82,6 +110,36 @@ func TestFriendRowLeftClickStartsWhisper(t *testing.T) {
 	}
 }
 
+func TestPartyRowRightClickOpensContextMenu(t *testing.T) {
+	var window FriendsWindow
+	window.ctx = Context{
+		Session: &session.Session{
+			AccountID: 10,
+			Party: session.Party{
+				Name:    "Goro",
+				Members: []session.PartyMember{{AccountID: 10, Role: 0}},
+			},
+		},
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	member := session.PartyMember{AccountID: 11, Name: "Alice"}
+	row := window.partyRow(window.ctx, member, 0)
+
+	row.Event(widget.NewContext(), event.NewMouseEvent(
+		event.MousePress,
+		event.ButtonRight,
+		event.ButtonStateRight,
+		geometry.Pt(4, 4),
+		geometry.Pt(40, 40),
+		0,
+	))
+
+	if !window.partyContextMenu.IsOpen() {
+		t.Fatal("party row right click did not open context menu")
+	}
+}
+
 func TestFriendsWindowDrainsClosedContextMenuAction(t *testing.T) {
 	var window FriendsWindow
 	friend := session.Friend{AccountID: 10, CharID: 20, Name: "Alice Smith"}
@@ -94,6 +152,67 @@ func TestFriendsWindowDrainsClosedContextMenuAction(t *testing.T) {
 	action := window.PopAction()
 	if action.Kind != FriendsWindowActionFriendWhisper || action.Friend.Name != friend.Name {
 		t.Fatalf("action = %+v, want whisper for %+v", action, friend)
+	}
+}
+
+func TestPartyCreateWindowSubmitAction(t *testing.T) {
+	var window PartyCreateWindow
+	window.Open(Context{})
+	window.name = "Goro"
+	window.itemPickup = 1
+	window.itemDivision = 1
+
+	window.submit(Context{})
+
+	action := window.PopAction()
+	if action.Name != "Goro" || action.ItemPickup != 1 || action.ItemDivision != 1 {
+		t.Fatalf("party create action = %+v", action)
+	}
+}
+
+func TestPartyCreateWindowFocusedEnterSubmitsImmediately(t *testing.T) {
+	inputState := input.NewState()
+	ctx := Context{Input: inputState}
+	var window PartyCreateWindow
+	window.Open(ctx)
+	window.name = "Goro"
+	window.nameInput(ctx).SetFocused(true)
+	inputState.SetKey(input.KeyEnter, true)
+
+	if !window.Update(ctx) {
+		t.Fatal("focused enter did not consume party create update")
+	}
+	if action := window.PopAction(); action.Name != "Goro" {
+		t.Fatalf("party create action = %+v, want Goro", action)
+	}
+}
+
+func TestPartyInviteWindowSubmitAction(t *testing.T) {
+	var window PartyInviteWindow
+	window.Open(Context{})
+	window.name = "Alice"
+
+	window.submit(Context{})
+
+	if action := window.PopAction(); action != "Alice" {
+		t.Fatalf("party invite action = %q, want Alice", action)
+	}
+}
+
+func TestPartyInviteWindowFocusedEnterSubmitsImmediately(t *testing.T) {
+	inputState := input.NewState()
+	ctx := Context{Input: inputState}
+	var window PartyInviteWindow
+	window.Open(ctx)
+	window.name = "Alice"
+	window.nameInput(ctx).SetFocused(true)
+	inputState.SetKey(input.KeyEnter, true)
+
+	if !window.Update(ctx) {
+		t.Fatal("focused enter did not consume party invite update")
+	}
+	if action := window.PopAction(); action != "Alice" {
+		t.Fatalf("party invite action = %q, want Alice", action)
 	}
 }
 

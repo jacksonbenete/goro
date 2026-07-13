@@ -11,6 +11,11 @@ func TestBuildPartyPackets(t *testing.T) {
 		t.Fatalf("BuildMakePartyPacket = len %d id 0x%04x data %q", len(makeParty), ID(makeParty), makeParty[2:6])
 	}
 
+	makeParty2 := BuildMakeParty2Packet("Goro", 1, 1)
+	if len(makeParty2) != 28 || ID(makeParty2) != PacketCZMakeGroup2 || string(makeParty2[2:6]) != "Goro" || makeParty2[26] != 1 || makeParty2[27] != 1 {
+		t.Fatalf("BuildMakeParty2Packet = len %d id 0x%04x data %x", len(makeParty2), ID(makeParty2), makeParty2)
+	}
+
 	invite := BuildPartyInvitePacket(0x11223344, "Alice")
 	if len(invite) != 26 || ID(invite) != PacketCZPartyJoinReq || string(invite[2:7]) != "Alice" {
 		t.Fatalf("BuildPartyInvitePacket = len %d id 0x%04x data %x", len(invite), ID(invite), invite)
@@ -29,6 +34,11 @@ func TestBuildPartyPackets(t *testing.T) {
 	opt := BuildPartyOptionPacket(1)
 	if len(opt) != 6 || ID(opt) != PacketCZChangeGroupExp || binary.LittleEndian.Uint32(opt[2:6]) != 1 {
 		t.Fatalf("BuildPartyOptionPacket = len %d id 0x%04x data %x", len(opt), ID(opt), opt)
+	}
+
+	expel := BuildExpelPartyMemberPacket(0x11223344, "Alice")
+	if len(expel) != 30 || ID(expel) != PacketCZReqExpelGroupMember || binary.LittleEndian.Uint32(expel[2:6]) != 0x11223344 || string(expel[6:11]) != "Alice" {
+		t.Fatalf("BuildExpelPartyMemberPacket = len %d id 0x%04x data %x", len(expel), ID(expel), expel)
 	}
 }
 

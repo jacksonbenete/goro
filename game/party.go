@@ -13,18 +13,92 @@ import (
 )
 
 func (m *WorldMode) sendPartyInvite(ctx client.Context, actorID uint32, name string) {
-	if actorID == 0 {
+	name = strings.TrimSpace(name)
+	if actorID == 0 && name == "" {
 		return
 	}
 	if ctx.Network == nil {
 		log.Printf("party invite failed target=%d name=%q: not connected", actorID, name)
+		m.console.AddErrorMessage("Party invitation failed: not connected.")
 		return
 	}
 	if err := ctx.Network.SendPartyInvite(actorID, name); err != nil {
 		log.Printf("party invite failed target=%d name=%q: %v", actorID, name, err)
+		m.console.AddErrorMessage("Party invitation failed.")
 		return
 	}
 	m.console.AddBlueMessage("%s has received an invitation to join your party.", partyDisplayName(name))
+}
+
+func (m *WorldMode) updatePartyHelperWindows(ctx client.Context) bool {
+	createConsumed := m.partyCreate.Update(ctx)
+	if action := m.partyCreate.PopAction(); action.Name != "" {
+		m.createPartyFromWindow(ctx, action)
+		return true
+	}
+	if createConsumed {
+		return true
+	}
+	inviteConsumed := m.partyInvite.Update(ctx)
+	if name := m.partyInvite.PopAction(); name != "" {
+		m.sendPartyInvite(ctx, 0, name)
+		return true
+	}
+	return inviteConsumed
+}
+
+func (m *WorldMode) createPartyFromWindow(ctx client.Context, action gameui.PartyCreateWindowAction) {
+	name := strings.TrimSpace(action.Name)
+	if name == "" {
+		return
+	}
+	if ctx.Session != nil && ctx.Session.Party.Active() {
+		m.console.AddErrorMessage("You are already in a party.")
+		return
+	}
+	if ctx.Network == nil {
+		m.console.AddErrorMessage("Create party failed: not connected.")
+		return
+	}
+	if err := ctx.Network.SendMakeParty2(name, action.ItemPickup, action.ItemDivision); err != nil {
+		m.console.AddErrorMessage("Create party failed.")
+		log.Printf("party create failed name=%q pickup=%d division=%d: %v", name, action.ItemPickup, action.ItemDivision, err)
+		return
+	}
+	if ctx.Session != nil {
+		ctx.Session.Party.Name = name
+		ctx.Session.Party.ItemPickupRule = action.ItemPickup
+		ctx.Session.Party.ItemDivisionRule = action.ItemDivision
+	}
+}
+
+func (m *WorldMode) openPartyMemberInfo(ctx client.Context, member session.PartyMember) {
+	name := partyDisplayName(member.Name)
+	mapName := strings.TrimSpace(member.MapName)
+	if mapName == "" {
+		mapName = "Unknown map"
+	}
+	state := "Offline"
+	if member.Online() {
+		state = "Online"
+	}
+	m.partyInfo.OpenAlert(ctx, "Party Member", fmt.Sprintf("%s\n%s, %s", name, mapName, state), nil)
+}
+
+func (m *WorldMode) openExpelPartyMemberConfirm(ctx client.Context, member session.PartyMember) {
+	name := partyDisplayName(member.Name)
+	m.partyInfo.Open(ctx, "Expel Party Member", fmt.Sprintf("Expel %s from the party?", name), func() {
+		if ctx.Network == nil {
+			m.console.AddErrorMessage("Expel party member failed: not connected.")
+			return
+		}
+		if err := ctx.Network.SendExpelPartyMember(member.AccountID, member.Name); err != nil {
+			m.console.AddErrorMessage("Expel party member failed.")
+			log.Printf("party expel failed aid=%d name=%q: %v", member.AccountID, member.Name, err)
+			return
+		}
+		m.console.AddSystemMessage("Expel request sent for %s.", name)
+	}, nil)
 }
 
 func (m *WorldMode) openPartyInviteRequest(ctx client.Context, request network.PartyInviteRequest) {

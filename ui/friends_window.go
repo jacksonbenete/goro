@@ -25,10 +25,11 @@ const (
 
 type FriendsWindow struct {
 	Window
-	snapshot    string
-	tab         friendsWindowTab
-	action      FriendsWindowAction
-	contextMenu FriendContextMenu
+	snapshot         string
+	tab              friendsWindowTab
+	action           FriendsWindowAction
+	contextMenu      FriendContextMenu
+	partyContextMenu PartyContextMenu
 }
 
 type friendsWindowTab int
@@ -47,11 +48,21 @@ const (
 	FriendsWindowActionFriendWhisper
 	FriendsWindowActionFriendDelete
 	FriendsWindowActionFriendSettings
+	FriendsWindowActionPartyCreate
+	FriendsWindowActionPartyInvite
+	FriendsWindowActionPartyMemberInfo
+	FriendsWindowActionPartyMemberWhisper
+	FriendsWindowActionPartyMemberExpel
 )
 
 type FriendsWindowAction struct {
-	Kind   FriendsWindowActionKind
-	Friend session.Friend
+	Kind         FriendsWindowActionKind
+	Friend       session.Friend
+	PartyMember  session.PartyMember
+	PartyName    string
+	InviteName   string
+	ItemPickup   uint8
+	ItemDivision uint8
 }
 
 func (w *FriendsWindow) Toggle(ctx Context) {
@@ -73,6 +84,7 @@ func (w *FriendsWindow) OpenWindow(ctx Context) {
 
 func (w *FriendsWindow) Close() {
 	w.contextMenu.Close()
+	w.partyContextMenu.Close()
 	w.Window.Close()
 }
 
@@ -83,6 +95,10 @@ func (w *FriendsWindow) Update(ctx Context) bool {
 		return true
 	}
 	if w.contextMenu.Update(ctx) {
+		w.drainContextMenuAction()
+		return true
+	}
+	if w.partyContextMenu.Update(ctx) {
 		w.drainContextMenuAction()
 		return true
 	}
@@ -100,6 +116,7 @@ func (w *FriendsWindow) Update(ctx Context) bool {
 	consumed := w.Window.Update(ctx)
 	if !w.Window.IsOpen() {
 		w.contextMenu.Close()
+		w.partyContextMenu.Close()
 	}
 	w.Publish(ctx)
 	return consumed
@@ -110,12 +127,17 @@ func (w *FriendsWindow) drainContextMenuAction() bool {
 		w.action = action
 		return true
 	}
+	if action := w.partyContextMenu.PopAction(); action.Kind != FriendsWindowActionNone {
+		w.action = action
+		return true
+	}
 	return false
 }
 
 func (w *FriendsWindow) Rebind(ctx Context) {
 	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
 	w.contextMenu.Rebind(ctx)
+	w.partyContextMenu.Rebind(ctx)
 	if !w.IsOpen() {
 		return
 	}
@@ -140,7 +162,7 @@ func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {
 	footerHeight := float32(friendsFooterH)
 	if w.tab == friendsWindowTabParty {
 		title = partyWindowTitle(party)
-		content = partyList(party)
+		content = w.partyList(ctx, party)
 		footer = w.partyFooter(party)
 		footerHeight = partyFooterH
 	}
@@ -198,15 +220,32 @@ func (w *FriendsWindow) refresh(ctx Context) {
 }
 
 func (w *FriendsWindow) partyFooter(party session.Party) widget.Widget {
-	return primitives.HBox(
+	if !party.Active() {
+		return primitives.HBox(
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Create", func() {
+				w.action = FriendsWindowAction{Kind: FriendsWindowActionPartyCreate}
+			}).Width(74),
+		).
+			CrossAlign(primitives.CrossAxisCenter)
+	}
+	children := []widget.Widget{
 		primitives.Expanded(primitives.Box()),
+	}
+	if partyCanManageSession(w.ctx.Session) {
+		children = append(children, rotheme.Button("Invite", func() {
+			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartyInvite}
+		}).Width(66))
+	}
+	children = append(children,
 		rotheme.ButtonDisabled("Settings", !party.Active(), func() {
 			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartySettings}
 		}).Width(82),
 		rotheme.ButtonDisabled("Leave", !party.Active(), func() {
 			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartyLeave}
 		}).Width(66),
-	).
+	)
+	return primitives.HBox(children...).
 		Gap(8).
 		CrossAlign(primitives.CrossAxisCenter)
 }
@@ -367,13 +406,18 @@ func partyWindowTitle(party session.Party) string {
 }
 
 func partyList(party session.Party) widget.Widget {
+	var window FriendsWindow
+	return window.partyList(Context{}, party)
+}
+
+func (w *FriendsWindow) partyList(ctx Context, party session.Party) widget.Widget {
 	members := party.Members
 	rows := make([]widget.Widget, 0, maxInt(1, len(members)))
 	if len(members) == 0 {
 		rows = append(rows, emptyFriendsList("No party"))
 	} else {
 		for i, member := range members {
-			rows = append(rows, partyRow(member, i))
+			rows = append(rows, w.partyRow(ctx, member, i))
 		}
 	}
 	return primitives.Box(rows...).
@@ -382,6 +426,11 @@ func partyList(party session.Party) widget.Widget {
 }
 
 func partyRow(member session.PartyMember, index int) widget.Widget {
+	var window FriendsWindow
+	return window.partyRow(Context{}, member, index)
+}
+
+func (w *FriendsWindow) partyRow(ctx Context, member session.PartyMember, index int) widget.Widget {
 	bg := rotheme.Default.Colors.WindowBody
 	if index%2 == 0 {
 		bg = Color(PanelAltColor)
@@ -402,23 +451,100 @@ func partyRow(member session.PartyMember, index int) widget.Widget {
 		}
 		stateColor = Color(GoodTextColor)
 	}
-	return primitives.Box(
-		primitives.HBox(
-			rotheme.Text(trimRunes(name, 20)).
-				Align(primitives.TextAlignStart),
-			primitives.Expanded(primitives.Box()),
-			rotheme.Text(state).
-				Color(stateColor).
-				Align(primitives.TextAlignEnd),
-		).
-			Height(13).
-			CrossAlign(primitives.CrossAxisCenter),
-		newPartyHPBar(member.HP, member.MaxHP),
-	).
-		PaddingXY(8, 2).
-		Height(friendsRowHeight).
-		Background(bg).
-		CrossAlign(primitives.CrossAxisStretch)
+	row := &partyRowWidget{
+		member:     member,
+		name:       name,
+		state:      state,
+		stateColor: stateColor,
+		bg:         bg,
+		hp:         member.HP,
+		maxHP:      member.MaxHP,
+		canManage:  partyCanManageSession(ctx.Session),
+		isSelf:     ctx.Session != nil && member.AccountID == ctx.Session.AccountID,
+		onMenu: func(member session.PartyMember) {
+			x, y := w.x+friendsWindowWidth/2, w.y+ROWindowTitleHeight+friendsTabHeight+friendsRowHeight
+			if w.ctx.Input != nil {
+				x, y = w.ctx.Input.MouseX, w.ctx.Input.MouseY
+			}
+			w.partyContextMenu.Open(w.ctx, x, y, member, partyCanManageSession(w.ctx.Session), w.ctx.Session != nil && member.AccountID == w.ctx.Session.AccountID)
+		},
+	}
+	row.SetVisible(true)
+	row.SetEnabled(true)
+	return row
+}
+
+type partyRowWidget struct {
+	widget.WidgetBase
+	member     session.PartyMember
+	name       string
+	state      string
+	stateColor widget.Color
+	bg         widget.Color
+	hp         int
+	maxHP      int
+	canManage  bool
+	isSelf     bool
+	hovered    bool
+	onMenu     func(session.PartyMember)
+}
+
+func (w *partyRowWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+	size := constraints.Constrain(geometry.Sz(friendsWindowWidth, friendsRowHeight))
+	w.SetBounds(geometry.FromPointSize(w.Position(), size))
+	return size
+}
+
+func (w *partyRowWidget) Draw(_ widget.Context, canvas widget.Canvas) {
+	bounds := w.Bounds()
+	bg := w.bg
+	if w.hovered {
+		bg = rotheme.Default.Colors.ButtonHover
+	}
+	canvas.DrawRect(bounds, bg)
+	textY := bounds.Min.Y + 3
+	rotheme.DrawText(canvas, trimRunes(w.name, 20), geometry.NewRect(bounds.Min.X+8, textY, bounds.Width()-88, 13), rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignLeft)
+	rotheme.DrawText(canvas, w.state, geometry.NewRect(bounds.Max.X-72, textY, 64, 13), rotheme.Default.Typography.TextSize, w.stateColor, false, widget.TextAlignRight)
+	bar := geometry.NewRect(bounds.Min.X+8, bounds.Max.Y-8, bounds.Width()-16, 5)
+	canvas.DrawRect(bar, widget.RGBA8(224, 232, 242, 255))
+	fillW := float32(0)
+	if w.maxHP > 0 && w.hp > 0 {
+		fillW = bar.Width() * float32(w.hp) / float32(w.maxHP)
+		if fillW > bar.Width() {
+			fillW = bar.Width()
+		}
+	}
+	if fillW > 0 {
+		canvas.DrawRect(geometry.NewRect(bar.Min.X, bar.Min.Y, fillW, bar.Height()), Color(PlayerHPBarColor))
+	}
+	canvas.StrokeRect(bar, rotheme.Default.Colors.WindowBorder, 1)
+}
+
+func (w *partyRowWidget) Event(ctx widget.Context, e event.Event) bool {
+	mouse, ok := e.(*event.MouseEvent)
+	if !ok {
+		return false
+	}
+	switch mouse.MouseType {
+	case event.MouseEnter, event.MouseMove:
+		w.hovered = true
+		ctx.SetCursor(widget.CursorPointer)
+		return true
+	case event.MouseLeave:
+		w.hovered = false
+		ctx.SetCursor(widget.CursorDefault)
+		return true
+	case event.MousePress:
+		if mouse.Button == event.ButtonRight && w.onMenu != nil {
+			w.onMenu(w.member)
+			return true
+		}
+	}
+	return false
+}
+
+func (w *partyRowWidget) Children() []widget.Widget {
+	return nil
 }
 
 type partyHPBar struct {
@@ -476,6 +602,21 @@ func sessionParty(s *session.Session) session.Party {
 		return session.Party{}
 	}
 	return s.Party
+}
+
+func partyCanManageSession(s *session.Session) bool {
+	if s == nil || !s.Party.Active() {
+		return false
+	}
+	if len(s.Party.Members) == 0 {
+		return true
+	}
+	for _, member := range s.Party.Members {
+		if member.AccountID == s.AccountID {
+			return member.Leader()
+		}
+	}
+	return false
 }
 
 func friendsWindowSnapshot(s *session.Session) string {

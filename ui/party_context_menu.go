@@ -1,0 +1,122 @@
+package ui
+
+import (
+	"strings"
+
+	"github.com/gogpu/ui/primitives"
+	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
+)
+
+const (
+	partyContextMenuWidth = 132
+	partyContextMenuRowH  = 28
+)
+
+type PartyContextMenu struct {
+	Window
+	member    session.PartyMember
+	canManage bool
+	isSelf    bool
+	action    FriendsWindowAction
+}
+
+func (m *PartyContextMenu) Open(ctx Context, x, y int, member session.PartyMember, canManage, isSelf bool) {
+	name := strings.TrimSpace(member.Name)
+	if name == "" {
+		return
+	}
+	m.EnsureWindow(partyContextMenuWidth, m.height())
+	m.titleHeight = 0
+	m.ctx = ctx
+	m.member = member
+	m.canManage = canManage
+	m.isSelf = isSelf
+	screenW, screenH := ctx.ScreenSize()
+	height := m.height()
+	m.SetSize(partyContextMenuWidth, height)
+	x = clampWindowInt(x, 8, maxInt(8, screenW-partyContextMenuWidth-8))
+	y = clampWindowInt(y, 8, maxInt(8, screenH-height-8))
+	m.OpenAt(x, y, m.widgetTree())
+	m.Publish(ctx)
+}
+
+func (m *PartyContextMenu) Update(ctx Context) bool {
+	m.EnsureWindow(partyContextMenuWidth, m.height())
+	m.titleHeight = 0
+	m.ctx = ctx
+	if !m.IsOpen() {
+		return false
+	}
+	if ctx.Input != nil {
+		inside := pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, m.x, m.y, partyContextMenuWidth, m.height())
+		if ctx.Input.JustPressed(render.KeyEscape) || (!inside && (ctx.Input.MouseJustPressed(render.MouseButtonLeft) || ctx.Input.MouseJustPressed(render.MouseButtonRight))) {
+			m.Close()
+			return true
+		}
+	}
+	consumed := m.Window.Update(ctx)
+	m.Publish(ctx)
+	return consumed
+}
+
+func (m *PartyContextMenu) Rebind(ctx Context) {
+	if !m.IsOpen() {
+		return
+	}
+	m.ctx = ctx
+	m.SetContent(m.widgetTree())
+	m.Publish(ctx)
+}
+
+func (m *PartyContextMenu) PopAction() FriendsWindowAction {
+	action := m.action
+	m.action = FriendsWindowAction{}
+	return action
+}
+
+func (m *PartyContextMenu) widgetTree() widget.Widget {
+	rows := []widget.Widget{
+		m.button("Information", FriendsWindowActionPartyMemberInfo),
+	}
+	if !m.isSelf {
+		rows = append(rows, m.button("1:1 Chat", FriendsWindowActionPartyMemberWhisper))
+	}
+	if m.canManage && !m.isSelf {
+		rows = append(rows, m.button("Expel", FriendsWindowActionPartyMemberExpel))
+	}
+	if m.isSelf {
+		rows = append(rows, m.button("Leave Party", FriendsWindowActionPartyLeave))
+	}
+	return Win(
+		TitleBar(false),
+		Radius(0),
+		Size(partyContextMenuWidth, float32(m.height())),
+		Content(primitives.Box(rows...)),
+	)
+}
+
+func (m *PartyContextMenu) button(label string, kind FriendsWindowActionKind) widget.Widget {
+	return rotheme.Button(label, func() {
+		m.action = FriendsWindowAction{Kind: kind, PartyMember: m.member}
+		m.Close()
+	}).
+		Width(partyContextMenuWidth).
+		Height(partyContextMenuRowH)
+}
+
+func (m *PartyContextMenu) height() int {
+	rows := 1
+	if !m.isSelf {
+		rows++
+	}
+	if m.canManage && !m.isSelf {
+		rows++
+	}
+	if m.isSelf {
+		rows++
+	}
+	return partyContextMenuRowH * rows
+}

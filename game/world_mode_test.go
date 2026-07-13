@@ -5480,6 +5480,70 @@ func TestNextWorldModeCarriesAndRebindsFriendSettingsWindow(t *testing.T) {
 	}
 }
 
+func TestNextWorldModeCarriesAndRebindsPartySettingsWindow(t *testing.T) {
+	ctx := client.Context{
+		Session: &session.Session{Party: session.Party{
+			Name:    "Goro",
+			Members: []session.PartyMember{{AccountID: 10, Role: 0}},
+		}},
+		Input:     input.NewState(),
+		UIManager: &worldModeTestUIManager{},
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+	mode := &WorldMode{}
+	mode.partySettings.Open(ctx)
+	manager := ctx.UIManager.(*worldModeTestUIManager)
+	if len(manager.overlays) != 1 {
+		t.Fatalf("party settings overlays before map change = %d, want 1", len(manager.overlays))
+	}
+	previousOverlay := manager.overlays[0]
+
+	next := mode.nextWorldMode()
+	if !next.partySettings.IsOpen() {
+		t.Fatal("next world mode did not carry open party settings window")
+	}
+	next.rebindPersistentUI(ctx)
+
+	if len(manager.overlays) != 1 {
+		t.Fatalf("party settings overlays after rebind = %d, want 1", len(manager.overlays))
+	}
+	if manager.overlays[0] == previousOverlay {
+		t.Fatal("party settings overlay was not rebound")
+	}
+}
+
+func TestNextWorldModeCarriesAndRebindsPartyHelperWindows(t *testing.T) {
+	ctx := client.Context{
+		Input:     input.NewState(),
+		UIManager: &worldModeTestUIManager{},
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+	mode := &WorldMode{}
+	mode.partyCreate.Open(ctx)
+	mode.partyInvite.Open(ctx)
+	manager := ctx.UIManager.(*worldModeTestUIManager)
+	if len(manager.overlays) != 2 {
+		t.Fatalf("party helper overlays before map change = %d, want 2", len(manager.overlays))
+	}
+	previousCreate := manager.overlays[0]
+	previousInvite := manager.overlays[1]
+
+	next := mode.nextWorldMode()
+	if !next.partyCreate.IsOpen() || !next.partyInvite.IsOpen() {
+		t.Fatalf("next world mode did not carry helper windows create=%t invite=%t", next.partyCreate.IsOpen(), next.partyInvite.IsOpen())
+	}
+	next.rebindPersistentUI(ctx)
+
+	if len(manager.overlays) != 2 {
+		t.Fatalf("party helper overlays after rebind = %d, want 2", len(manager.overlays))
+	}
+	if manager.overlays[0] == previousCreate || manager.overlays[1] == previousInvite {
+		t.Fatal("party helper overlay was not rebound")
+	}
+}
+
 func TestHandleMapChangeSameLoadedMapReusesModeAndSnapsCamera(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "izlude"

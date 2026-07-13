@@ -257,9 +257,11 @@ func (f Friend) Online() bool {
 }
 
 type Party struct {
-	Name     string
-	Members  []PartyMember
-	ExpShare uint32
+	Name             string
+	Members          []PartyMember
+	ExpShare         uint32
+	ItemPickupRule   uint8
+	ItemDivisionRule uint8
 }
 
 func (p Party) Active() bool {

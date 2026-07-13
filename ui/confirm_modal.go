@@ -14,6 +14,7 @@ const (
 	smallPromptWidth        = 286
 	smallPromptHeight       = 128
 	alertPromptHeight       = 156
+	smallPromptContentH     = 42
 	smallPromptFooterH      = 42
 	smallPromptSidePad      = 12
 	smallPromptLineH        = 14
@@ -114,14 +115,14 @@ func (m *ConfirmModal) promptHeight() int {
 	if m.okOnly {
 		return alertPromptHeight
 	}
-	return smallPromptHeight
+	return ROWindowTitleHeight + smallPromptContentH + smallPromptLineH*(m.messageMaxLines()-1) + smallPromptFooterH
 }
 
 func (m *ConfirmModal) messageMaxLines() int {
 	if m.okOnly {
 		return alertPromptMaxLines
 	}
-	return smallPromptDefaultLines
+	return smallPromptVisibleLineCount(m.message, smallPromptDefaultLines)
 }
 
 func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
@@ -196,6 +197,15 @@ func smallPromptLines(message string, maxLines int) []string {
 		lines = append(lines, "")
 	}
 	return lines
+}
+
+func smallPromptVisibleLineCount(message string, maxLines int) int {
+	lines := smallPromptLines(message, maxLines)
+	count := len(lines)
+	for count > 1 && lines[count-1] == "" {
+		count--
+	}
+	return count
 }
 
 func wrapSmallPromptLine(line string) []string {

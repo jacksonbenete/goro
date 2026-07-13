@@ -106,3 +106,11 @@ func parsePartySettingUint32(value string) uint32 {
 	}
 	return uint32(n)
 }
+
+func parsePartySettingUint8(value string) uint8 {
+	n, err := strconv.Atoi(value)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return 1
+}

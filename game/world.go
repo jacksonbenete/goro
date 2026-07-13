@@ -123,6 +123,9 @@ type WorldMode struct {
 	friendSettings    gameui.FriendSettingsWindow
 	whisperWindow     gameui.WhisperWindow
 	partySettings     gameui.PartySettingsWindow
+	partyCreate       gameui.PartyCreateWindow
+	partyInvite       gameui.PartyInviteWindow
+	partyInfo         gameui.ConfirmModal
 	playerContext     gameui.PlayerContextMenu
 	tradeWindow       gameui.TradeWindow
 	pendingTradeName  string
@@ -351,6 +354,8 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.friendsWindow.Rebind(ctx)
 	m.friendSettings.Rebind(ctx)
 	m.partySettings.Rebind(ctx)
+	m.partyCreate.Rebind(ctx)
+	m.partyInvite.Rebind(ctx)
 	m.settingsWindow.Rebind(ctx)
 	m.whisperWindow.Rebind(ctx)
 	m.shortcutBar.ResetOverlay(ctx)
@@ -1163,6 +1168,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.partyRequest.Update(ctx) {
 		return nil, nil
 	}
+	if m.partyInfo.Update(ctx) {
+		return nil, nil
+	}
 	if m.tradeRequest.Update(ctx) {
 		return nil, nil
 	}
@@ -1176,6 +1184,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.updateWhisperWindow(ctx) {
+		return nil, nil
+	}
+	if m.updatePartyHelperWindows(ctx) {
 		return nil, nil
 	}
 	if m.console.Update(ctx) {
@@ -1246,6 +1257,10 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		switch action := m.friendsWindow.PopAction(); action.Kind {
 		case gameui.FriendsWindowActionPartySettings:
 			m.partySettings.Open(ctx)
+		case gameui.FriendsWindowActionPartyCreate:
+			m.partyCreate.Open(ctx)
+		case gameui.FriendsWindowActionPartyInvite:
+			m.partyInvite.Open(ctx)
 		case gameui.FriendsWindowActionPartyLeave:
 			if ctx.Network == nil {
 				m.console.AddErrorMessage("Leave party failed: not connected.")
@@ -1259,6 +1274,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.openDeleteFriendConfirm(ctx, action.Friend)
 		case gameui.FriendsWindowActionFriendSettings:
 			m.friendSettings.Open(ctx)
+		case gameui.FriendsWindowActionPartyMemberInfo:
+			m.openPartyMemberInfo(ctx, action.PartyMember)
+		case gameui.FriendsWindowActionPartyMemberWhisper:
+			m.whisperWindow.Open(ctx, action.PartyMember.Name)
+		case gameui.FriendsWindowActionPartyMemberExpel:
+			m.openExpelPartyMemberConfirm(ctx, action.PartyMember)
 		}
 		return nil, nil
 	}
@@ -1431,7 +1452,10 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.friendsWindow = m.friendsWindow
 	next.friendSettings = m.friendSettings
 	next.whisperWindow = m.whisperWindow
+	next.partySettings = m.partySettings
 	next.settingsWindow = m.settingsWindow
+	next.partyCreate = m.partyCreate
+	next.partyInvite = m.partyInvite
 	next.shortcutBar = m.shortcutBar
 	next.minimap = m.minimap
 	next.startMapFadeIn(time.Now())
