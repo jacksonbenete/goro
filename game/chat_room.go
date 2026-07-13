@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
@@ -266,6 +267,15 @@ func (m *WorldMode) addChatRoomMessage(ctx client.Context, chat network.ChatMess
 		return
 	}
 	m.chatRoom.AddMessage(ctx, text)
+}
+
+func (m *WorldMode) handleChatMessage(ctx client.Context, chat network.ChatMessage, now time.Time) {
+	if m.chatRoom.IsOpen() {
+		m.addChatRoomMessage(ctx, chat)
+		return
+	}
+	m.applySpeechBubble(ctx, chat, now)
+	addConsoleMessage(&m.console, ctx.Resources, chat)
 }
 
 func chatRoomMemberMessage(ctx client.Context, messageID int, fallback string, name string) string {

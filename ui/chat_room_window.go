@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/primitives"
-	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
@@ -42,7 +40,6 @@ type ChatRoomWindow struct {
 	input      string
 	inputField *textfield.Widget
 	lines      []chatRoomLine
-	scrollY    state.Signal[float32]
 	action     ChatRoomWindowAction
 }
 
@@ -230,6 +227,10 @@ func (w *ChatRoomWindow) widgetTree(ctx Context) widget.Widget {
 func (w *ChatRoomWindow) contentTree() widget.Widget {
 	lines := w.visibleLines()
 	messageHeight := chatRoomWindowContentH - 24 - chatRoomMessagePadY*2
+	maxLines := maxInt(1, (messageHeight+1)/(consoleLineH+1))
+	if len(lines) > maxLines {
+		lines = lines[len(lines)-maxLines:]
+	}
 	contentHeight := whisperMessageContentHeight(len(lines))
 	rows := make([]widget.Widget, 0, len(lines)+1)
 	if spacerH := messageHeight - contentHeight; spacerH > 0 {
@@ -248,20 +249,12 @@ func (w *ChatRoomWindow) contentTree() widget.Widget {
 	messageList := primitives.Box(rows...).
 		Gap(1).
 		CrossAlign(primitives.CrossAxisStretch)
-	w.ensureScrollSignal().Set(consoleBottomScrollY(len(lines), messageHeight))
 	return primitives.Box(
 		primitives.Box(w.memberSummary()).
 			Height(20).
 			PaddingXY(chatRoomMessagePadX, 3).
 			CrossAlign(primitives.CrossAxisStretch),
-		primitives.Box(
-			scrollview.New(
-				messageList,
-				scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
-				scrollview.ScrollYSignal(w.ensureScrollSignal()),
-				scrollview.ScrollStep(float32(consoleLineH*3)),
-			),
-		).
+		primitives.Box(messageList).
 			Height(float32(messageHeight)).
 			PaddingXY(chatRoomMessagePadX, chatRoomMessagePadY).
 			CrossAlign(primitives.CrossAxisStretch),
@@ -364,19 +357,15 @@ func (w *ChatRoomWindow) refresh(ctx Context) {
 	w.SetContent(w.widgetTree(ctx))
 	w.focusInput()
 	w.Publish(ctx)
+	if ctx.UIApp != nil {
+		ctx.UIApp.Invalidate()
+	}
 }
 
 func (w *ChatRoomWindow) focusInput() {
 	if w.inputField != nil {
 		w.inputField.SetFocused(true)
 	}
-}
-
-func (w *ChatRoomWindow) ensureScrollSignal() state.Signal[float32] {
-	if w.scrollY == nil {
-		w.scrollY = state.NewSignal[float32](0)
-	}
-	return w.scrollY
 }
 
 func (w *ChatRoomWindow) windowTitle() string {

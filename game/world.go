@@ -429,9 +429,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
 			log.Printf("parse chat message 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.applySpeechBubble(ctx, chat, now)
-			addConsoleMessage(&m.console, ctx.Resources, chat)
-			m.addChatRoomMessage(ctx, chat)
+			m.handleChatMessage(ctx, chat, now)
 			continue
 		}
 		if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {
