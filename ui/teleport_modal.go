@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 
-	"github.com/gogpu/ui/core/scrollview"
+	"github.com/gogpu/ui/core/listview"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
@@ -23,10 +23,10 @@ const (
 	teleportModalWidth   = 260
 	teleportModalMinH    = 168
 	teleportModalMaxRows = 6
-	teleportModalListPad = 1
 	teleportModalFooterH = 42
 	teleportModalPad     = 14
 	teleportModalGap     = 8
+	teleportModalRowH    = 20
 )
 
 const (
@@ -43,13 +43,24 @@ type TeleportModal struct {
 	mapNames []string
 	status   string
 	scrollY  state.Signal[float32]
+	row      int
 	ctx      Context
+}
+
+type teleportDestination struct {
+	label   string
+	mapName string
+	enabled bool
 }
 
 func (m *TeleportModal) OpenWarpPointList(list network.WarpPointList, skill session.Skill) {
 	m.skill = skill
 	m.mapNames = append(m.mapNames[:0], list.MapNames...)
 	m.status = ""
+	m.row = initialTeleportRow(m.destinations())
+	if m.scrollY != nil {
+		m.scrollY.Set(0)
+	}
 	m.ensureWindow()
 	m.Window.open = true
 }
@@ -82,6 +93,10 @@ func (m *TeleportModal) Update(ctx Context, actions GameActions) bool {
 	}
 	if ctx.Input != nil && (ctx.Input.JustPressed(render.KeyEscape) || ctx.Input.MouseJustPressed(render.MouseButtonRight)) {
 		m.cancel(ctx)
+		return true
+	}
+	if ctx.Input != nil && ctx.Input.JustPressed(render.KeyEnter) {
+		m.selectCurrent(ctx, actions)
 		return true
 	}
 	m.openWindow(ctx, actions)
@@ -123,6 +138,14 @@ func (m *TeleportModal) selectWarpPoint(ctx Context, actions GameActions, mapNam
 		actions.AddTeleportEffect(ctx)
 	}
 	m.closeWindow()
+}
+
+func (m *TeleportModal) selectCurrent(ctx Context, actions GameActions) {
+	destinations := m.destinations()
+	if m.row < 0 || m.row >= len(destinations) || !destinations[m.row].enabled {
+		return
+	}
+	m.selectWarpPoint(ctx, actions, destinations[m.row].mapName)
 }
 
 func (m TeleportModal) savePointEnabled() bool {
@@ -220,7 +243,7 @@ func (m *TeleportModal) widgetTree(ctx Context, actions GameActions) widget.Widg
 		Content(
 			primitives.Box(
 				rotheme.Text("Choose destination."),
-				m.destinationList(ctx, actions),
+				m.destinationList(),
 				m.statusText(),
 			).
 				Padding(teleportModalPad).
@@ -229,57 +252,70 @@ func (m *TeleportModal) widgetTree(ctx Context, actions GameActions) widget.Widg
 		Footer(
 			primitives.HBox(
 				primitives.Expanded(primitives.Box()),
+				rotheme.ButtonDisabledFn("OK", func() bool {
+					destinations := m.destinations()
+					return m.row < 0 || m.row >= len(destinations) || !destinations[m.row].enabled
+				}, func() {
+					m.selectCurrent(m.ctx, actions)
+				}).Width(54),
 				rotheme.Button("Cancel", func() {
 					m.cancel(m.ctx)
 				}).Width(float32(ButtonLabelWidth("Cancel"))),
-			),
+			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
 		),
 	)
 }
 
-func (m *TeleportModal) destinationList(ctx Context, actions GameActions) widget.Widget {
-	rows := m.destinationRows(ctx, actions)
-	if len(rows) == 0 {
-		return primitives.Box().Height(float32(teleportModalRowHeight()))
+func (m *TeleportModal) destinationList() widget.Widget {
+	destinations := m.destinations()
+	if m.row >= len(destinations) {
+		m.row = initialTeleportRow(destinations)
 	}
-	rowH := teleportModalRowHeight()
+	lv := listview.New(
+		listview.ItemCount(len(destinations)),
+		listview.FixedItemHeight(teleportModalRowH),
+		listview.ScrollYSignal(m.ensureScrollSignal()),
+		listview.SelectionModeOpt(listview.SelectionSingle),
+		listview.SelectedIndex(m.row),
+		listview.OnSelectionChange(func(index int) {
+			m.row = index
+		}),
+		listview.PainterOpt(rotheme.SelectListPainter{EmptyText: "No destinations."}),
+		listview.BuildItem(func(item listview.ItemContext) widget.Widget {
+			if item.Index < 0 || item.Index >= len(destinations) {
+				return rotheme.SelectListRow("", false, teleportModalRowH)
+			}
+			destination := destinations[item.Index]
+			return rotheme.SelectListRow(trimRunes(destination.label, 32), destination.enabled, teleportModalRowH)
+		}),
+	)
+	lv.SetFocused(true)
 	return primitives.Box(
-		scrollview.New(
-			primitives.Box(rows...).
-				Gap(teleportModalGap).
-				Padding(teleportModalListPad).
-				CrossAlign(primitives.CrossAxisStretch),
-			scrollview.DirectionOpt(scrollview.Vertical),
-			scrollview.ScrollYSignal(m.ensureScrollSignal()),
-			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
-			scrollview.ScrollStep(float32(rowH)),
-		),
+		lv,
 	).
 		Height(float32(m.destinationListHeight())).
 		CrossAlign(primitives.CrossAxisStretch)
 }
 
-func (m *TeleportModal) destinationRows(ctx Context, actions GameActions) []widget.Widget {
+func (m *TeleportModal) destinations() []teleportDestination {
 	if m.skill.ID == warpPortalSkillID {
-		rows := make([]widget.Widget, 0, len(m.mapNames))
+		destinations := make([]teleportDestination, 0, len(m.mapNames))
 		for i, name := range m.mapNames {
 			if name == "" {
 				continue
 			}
-			rows = append(rows, m.destinationButton(ctx, actions, warpPortalDestinationLabel(name, i), name, true))
+			destinations = append(destinations, teleportDestination{
+				label:   warpPortalDestinationLabel(name, i),
+				mapName: name,
+				enabled: true,
+			})
 		}
-		return rows
+		return destinations
 	}
-	return []widget.Widget{
-		m.destinationButton(ctx, actions, "Random", m.randomMapName(), true),
-		m.destinationButton(ctx, actions, "Save Point", m.savePointMapName(), m.savePointEnabled()),
+	return []teleportDestination{
+		{label: "Random", mapName: m.randomMapName(), enabled: true},
+		{label: "Save Point", mapName: m.savePointMapName(), enabled: m.savePointEnabled()},
 	}
-}
-
-func (m *TeleportModal) destinationButton(ctx Context, actions GameActions, label, mapName string, enabled bool) widget.Widget {
-	return rotheme.LargeButtonDisabled(label, !enabled, func() {
-		m.selectWarpPoint(ctx, actions, mapName)
-	})
 }
 
 func (m *TeleportModal) statusText() widget.Widget {
@@ -290,26 +326,14 @@ func (m *TeleportModal) statusText() widget.Widget {
 }
 
 func (m *TeleportModal) destinationListHeight() int {
-	count := 2
-	if m.skill.ID == warpPortalSkillID {
-		count = 0
-		for _, name := range m.mapNames {
-			if name != "" {
-				count++
-			}
-		}
-	}
+	count := len(m.destinations())
 	if count < 1 {
 		count = 1
 	}
 	if count > teleportModalMaxRows {
 		count = teleportModalMaxRows
 	}
-	return count*teleportModalRowHeight() + (count-1)*teleportModalGap + teleportModalListPad*2
-}
-
-func teleportModalRowHeight() int {
-	return int(rotheme.Default.Typography.TextSize + rotheme.LargeButtonPaddingY*2)
+	return count * teleportModalRowH
 }
 
 func (m *TeleportModal) windowHeight() int {
@@ -325,4 +349,13 @@ func (m *TeleportModal) ensureScrollSignal() state.Signal[float32] {
 		m.scrollY = state.NewSignal[float32](0)
 	}
 	return m.scrollY
+}
+
+func initialTeleportRow(destinations []teleportDestination) int {
+	for i, destination := range destinations {
+		if destination.enabled {
+			return i
+		}
+	}
+	return -1
 }

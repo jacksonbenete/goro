@@ -7,11 +7,12 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/gogpu/ui/core/scrollview"
+	"github.com/gogpu/ui/core/listview"
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
@@ -27,12 +28,11 @@ const (
 	npcDialogMaxMessages = 32
 	npcMenuWidth         = 260
 	npcMenuMinRows       = 4
-	npcMenuMaxRows       = 8
-	npcMenuRowH          = 24
+	npcMenuMaxRows       = 5
+	npcMenuRowH          = 20
 	npcMenuPad           = 8
-	npcMenuListPad       = 1
 	npcMenuFooterH       = 32
-	npcMenuMinHeight     = ROWindowTitleHeight + npcMenuPad*2 + npcMenuListPad*2 + npcMenuMinRows*npcMenuRowH + npcMenuFooterH
+	npcMenuMinHeight     = ROWindowTitleHeight + npcMenuPad*2 + npcMenuMinRows*npcMenuRowH + npcMenuFooterH
 	npcInputNumberWidth  = 174
 	npcInputTextWidth    = 274
 	npcInputHeight       = 52
@@ -40,9 +40,8 @@ const (
 )
 
 var (
-	npcDialogTextColor   = TextColor
-	npcDialogMutedColor  = MutedTextColor
-	npcDialogOptionColor = TextColor
+	npcDialogTextColor  = TextColor
+	npcDialogMutedColor = MutedTextColor
 )
 
 type npcDialogAction int
@@ -66,6 +65,8 @@ type NPCDialog struct {
 	status      string
 	input       string
 	inputField  *textfield.Widget
+	menuRow     int
+	menuScrollY state.Signal[float32]
 
 	dialogWindow Window
 	menuWindow   Window
@@ -132,6 +133,8 @@ func (d *NPCDialog) Apply(packet network.NPCDialog) {
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionMenu
 		d.options = append([]string(nil), packet.Options...)
+		d.menuRow = initialNPCMenuRow(d.options)
+		d.ensureMenuScrollSignal().Set(0)
 		d.clearInput()
 		d.dirty = true
 	case network.NPCDialogClear:
@@ -154,6 +157,10 @@ func (d *NPCDialog) Reset() {
 	d.action = npcDialogActionNone
 	d.clearOnText = false
 	d.status = ""
+	d.menuRow = -1
+	if d.menuScrollY != nil {
+		d.menuScrollY.Set(0)
+	}
 	d.clearInput()
 	d.dirty = true
 }
@@ -192,6 +199,8 @@ func (d *NPCDialog) Update(ctx Context) bool {
 			d.next(ctx)
 		case npcDialogActionClose:
 			d.close(ctx)
+		case npcDialogActionMenu:
+			d.chooseSelected(ctx)
 		case npcDialogActionNumberInput, npcDialogActionStringInput:
 			d.submitInput(ctx)
 		}
@@ -333,6 +342,13 @@ func (d *NPCDialog) choose(ctx Context, choice int) {
 	d.status = ""
 	d.dirty = true
 	d.refresh(ctx)
+}
+
+func (d *NPCDialog) chooseSelected(ctx Context) {
+	if d.menuRow < 0 || d.menuRow >= len(d.options) {
+		return
+	}
+	d.choose(ctx, d.menuRow+1)
 }
 
 func (d *NPCDialog) ensureWindows(ctx Context) {
@@ -596,45 +612,66 @@ func (d *NPCDialog) dialogLineWidgets(width, contentHeight int) []widget.Widget 
 }
 
 func (d *NPCDialog) menuTree(ctx Context, width, height int) widget.Widget {
-	rows := make([]widget.Widget, 0, maxInt(1, len(d.options)))
-	for i, option := range d.options {
-		choice := i + 1
-		rows = append(rows,
-			rotheme.Button(fmt.Sprintf("%d. %s", choice, npcDialogRunsPlainText(npcDialogTextRuns(option, npcDialogOptionColor))), func() {
-				d.choose(ctx, choice)
-			}).Height(npcMenuRowH),
-		)
-	}
-	if len(rows) == 0 {
-		rows = append(rows, rotheme.Text("No options.").Color(npcDialogWidgetColor(npcDialogMutedColor)))
-	}
 	return Win(
 		Title("Choose"),
 		CloseButton(false),
 		Size(float32(width), float32(height)),
 		Content(
-			primitives.Box(
-				scrollview.New(
-					primitives.Box(rows...).
-						Gap(2).
-						Padding(npcMenuListPad).
-						CrossAlign(primitives.CrossAxisStretch),
-					scrollview.DirectionOpt(scrollview.Vertical),
-					scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
-					scrollview.ScrollStep(npcMenuRowH),
-				),
-			).Padding(npcMenuPad),
+			primitives.Box(d.menuList()).
+				Padding(npcMenuPad),
 		),
 		FooterHeight(32),
 		Footer(
 			primitives.HBox(
 				primitives.Expanded(primitives.Box()),
+				rotheme.ButtonDisabledFn("OK", func() bool {
+					return d.menuRow < 0 || d.menuRow >= len(d.options)
+				}, func() {
+					d.chooseSelected(ctx)
+				}).Width(54),
 				rotheme.Button("Cancel", func() {
 					d.choose(ctx, 255)
 				}).Width(68),
-			).CrossAlign(primitives.CrossAxisCenter),
+			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
 		),
 	)
+}
+
+func (d *NPCDialog) menuList() widget.Widget {
+	lv := listview.New(
+		listview.ItemCount(len(d.options)),
+		listview.FixedItemHeight(npcMenuRowH),
+		listview.ScrollYSignal(d.ensureMenuScrollSignal()),
+		listview.SelectionModeOpt(listview.SelectionSingle),
+		listview.SelectedIndex(d.menuRow),
+		listview.OnSelectionChange(func(index int) {
+			d.menuRow = index
+		}),
+		listview.PainterOpt(rotheme.SelectListPainter{EmptyText: "No options."}),
+		listview.BuildItem(func(item listview.ItemContext) widget.Widget {
+			if item.Index < 0 || item.Index >= len(d.options) {
+				return rotheme.SelectListRow("", true, npcMenuRowH)
+			}
+			label := fmt.Sprintf("%d. %s", item.Index+1, npcDialogRunsPlainText(npcDialogTextRuns(d.options[item.Index], npcDialogTextColor)))
+			return rotheme.SelectListRow(trimRunes(label, 34), true, npcMenuRowH)
+		}),
+	)
+	lv.SetFocused(true)
+	return lv
+}
+
+func (d *NPCDialog) ensureMenuScrollSignal() state.Signal[float32] {
+	if d.menuScrollY == nil {
+		d.menuScrollY = state.NewSignal[float32](0)
+	}
+	return d.menuScrollY
+}
+
+func initialNPCMenuRow(options []string) int {
+	if len(options) == 0 {
+		return -1
+	}
+	return 0
 }
 
 func npcDialogTextLine(runs []npcDialogTextRun) widget.Widget {
@@ -739,7 +776,7 @@ func npcDialogBounds(width, height int) (int, int, int, int) {
 func (d *NPCDialog) menuBounds(width, height, dialogX, dialogY, dialogW, dialogH int) (int, int, int, int) {
 	w := minInt(npcMenuWidth, maxInt(220, width-40))
 	rows := maxInt(npcMenuMinRows, minInt(len(d.options), npcMenuMaxRows))
-	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+npcMenuListPad*2+rows*npcMenuRowH+npcMenuFooterH)
+	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+rows*npcMenuRowH+npcMenuFooterH)
 	x := dialogX + (dialogW-w)/2
 	y := dialogY + dialogH + 8
 	x = clampWindowInt(x, 8, maxInt(8, width-w-8))

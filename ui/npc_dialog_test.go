@@ -97,6 +97,56 @@ func TestNPCDialogChoiceWindowOpensBelowDialogImmediately(t *testing.T) {
 	}
 }
 
+func TestNPCDialogMenuStartsWithFirstSelection(t *testing.T) {
+	dialog := NPCDialog{}
+	dialog.menuRow = 2
+	dialog.ensureMenuScrollSignal().Set(48)
+
+	dialog.Apply(network.NPCDialog{
+		Kind:    network.NPCDialogMenu,
+		NPCID:   100,
+		Options: []string{"Prontera", "Geffen"},
+	})
+
+	if dialog.menuRow != 0 {
+		t.Fatalf("menu row = %d, want first selection", dialog.menuRow)
+	}
+	if scroll := dialog.ensureMenuScrollSignal().Get(); scroll != 0 {
+		t.Fatalf("menu scroll = %.1f, want 0", scroll)
+	}
+}
+
+func TestNPCDialogEmptyMenuStartsWithoutSelection(t *testing.T) {
+	dialog := NPCDialog{}
+
+	dialog.Apply(network.NPCDialog{Kind: network.NPCDialogMenu, NPCID: 100})
+
+	if dialog.menuRow != -1 {
+		t.Fatalf("menu row = %d, want no selection for empty menu", dialog.menuRow)
+	}
+}
+
+func TestNPCDialogMenuChoiceRequiresSelection(t *testing.T) {
+	dialog := NPCDialog{
+		open:    true,
+		npcID:   100,
+		action:  npcDialogActionMenu,
+		options: []string{"Prontera", "Geffen"},
+		menuRow: -1,
+	}
+
+	dialog.chooseSelected(Context{})
+
+	if dialog.status != "" {
+		t.Fatalf("status = %q, want no submit attempt without selection", dialog.status)
+	}
+	dialog.menuRow = 1
+	dialog.chooseSelected(Context{})
+	if dialog.status != "not connected" {
+		t.Fatalf("status = %q, want submit attempt after selection", dialog.status)
+	}
+}
+
 func TestNPCDialogIgnoresInitialEmptySay(t *testing.T) {
 	dialog := NPCDialog{}
 	dialog.Apply(network.NPCDialog{Kind: network.NPCDialogSay, NPCID: 100, Message: ""})
