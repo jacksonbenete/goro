@@ -5416,6 +5416,70 @@ func TestNextWorldModeCarriesOpenInventoryWindow(t *testing.T) {
 	}
 }
 
+func TestNextWorldModeCarriesAndRebindsWhisperWindow(t *testing.T) {
+	ctx := client.Context{
+		Input:     input.NewState(),
+		UIManager: &worldModeTestUIManager{},
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+	mode := &WorldMode{}
+	mode.whisperWindow.Open(ctx, "Alice")
+	manager := ctx.UIManager.(*worldModeTestUIManager)
+	if len(manager.overlays) != 1 {
+		t.Fatalf("whisper overlays before map change = %d, want 1", len(manager.overlays))
+	}
+	previousOverlay := manager.overlays[0]
+
+	next := mode.nextWorldMode()
+	if !next.whisperWindow.IsOpen() {
+		t.Fatal("next world mode did not carry open whisper window")
+	}
+	next.rebindPersistentUI(ctx)
+
+	if len(manager.overlays) != 1 {
+		t.Fatalf("whisper overlays after rebind = %d, want 1", len(manager.overlays))
+	}
+	if manager.overlays[0] == previousOverlay {
+		t.Fatal("whisper overlay was not rebound")
+	}
+
+	next.whisperWindow.AddError(ctx, "send failed")
+	if len(manager.overlays) != 1 {
+		t.Fatalf("whisper overlays after refresh = %d, want 1", len(manager.overlays))
+	}
+}
+
+func TestNextWorldModeCarriesAndRebindsFriendSettingsWindow(t *testing.T) {
+	ctx := client.Context{
+		Session:   &session.Session{},
+		Input:     input.NewState(),
+		UIManager: &worldModeTestUIManager{},
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+	mode := &WorldMode{}
+	mode.friendSettings.Open(ctx)
+	manager := ctx.UIManager.(*worldModeTestUIManager)
+	if len(manager.overlays) != 1 {
+		t.Fatalf("friend settings overlays before map change = %d, want 1", len(manager.overlays))
+	}
+	previousOverlay := manager.overlays[0]
+
+	next := mode.nextWorldMode()
+	if !next.friendSettings.IsOpen() {
+		t.Fatal("next world mode did not carry open friend settings window")
+	}
+	next.rebindPersistentUI(ctx)
+
+	if len(manager.overlays) != 1 {
+		t.Fatalf("friend settings overlays after rebind = %d, want 1", len(manager.overlays))
+	}
+	if manager.overlays[0] == previousOverlay {
+		t.Fatal("friend settings overlay was not rebound")
+	}
+}
+
 func TestHandleMapChangeSameLoadedMapReusesModeAndSnapsCamera(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "izlude"

@@ -24,6 +24,7 @@ type windowConfig struct {
 	footerHeight  float32
 	titleBar      bool
 	radius        float32
+	background    *widget.Color
 }
 
 const ROWindowTitleHeight = 28
@@ -93,11 +94,15 @@ func Win(options ...WindowOption) widget.Widget {
 		)
 	}
 
+	background := rotheme.Default.Colors.WindowBody
+	if cfg.background != nil {
+		background = *cfg.background
+	}
 	return primitives.Box(children...).
 		CrossAlign(primitives.CrossAxisStretch).
 		Width(cfg.width).
 		Height(cfg.height).
-		Background(rotheme.Default.Colors.WindowBody).
+		Background(background).
 		BorderStyle(1, rotheme.Default.Colors.WindowBorder).
 		Rounded(cfg.radius)
 }
@@ -169,6 +174,12 @@ func Radius(radius float32) WindowOption {
 	}
 }
 
+func Background(color widget.Color) WindowOption {
+	return func(cfg *windowConfig) {
+		cfg.background = &color
+	}
+}
+
 func windowCloseButton(enabled bool, onClose func()) widget.Widget {
 	if !enabled {
 		return primitives.Box().Width(17).Height(ROWindowTitleHeight)
@@ -198,6 +209,8 @@ type Window struct {
 	placed      widget.Widget
 	published   widget.Widget
 	opacity     float32
+	background  *widget.Color
+	fullRedraw  bool
 	CloseOnEsc  bool
 	ctx         client.Context
 }
@@ -273,6 +286,9 @@ func (w *Window) Publish(ctx client.Context) {
 	if root == nil {
 		return
 	}
+	if w.fullRedraw {
+		markNeedsRedraw(root)
+	}
 	if root == w.published {
 		return
 	}
@@ -296,6 +312,15 @@ func (w *Window) SetSize(width, height int) {
 	w.width = width
 	w.height = height
 	w.placed = nil
+}
+
+func (w *Window) SetBackground(color widget.Color) {
+	w.background = &color
+	w.setOpacity(w.opacity)
+}
+
+func (w *Window) SetFullRedraw(enabled bool) {
+	w.fullRedraw = enabled
 }
 
 func (w *Window) SetAutoPosition(x, y int) bool {
@@ -370,7 +395,12 @@ func (w *Window) setOpacity(opacity float32) {
 		return
 	}
 	if box, ok := w.content.(*primitives.BoxWidget); ok {
-		box.Background(windowBodyColor(opacity))
+		background := windowBodyColor(opacity)
+		if w.background != nil {
+			background = *w.background
+			background.A *= opacity
+		}
+		box.Background(background)
 		box.SetNeedsRedraw(true)
 	}
 	if changed {
@@ -388,6 +418,15 @@ func (w *Window) Widget() widget.Widget {
 		w.placed = positionedWidget(w.content, w.x, w.y, w.width, w.height)
 	}
 	return w.placed
+}
+
+func markNeedsRedraw(root widget.Widget) {
+	type redrawSetter interface {
+		SetNeedsRedraw(bool)
+	}
+	if redraw, ok := root.(redrawSetter); ok {
+		redraw.SetNeedsRedraw(true)
+	}
 }
 
 func positionedWidget(content widget.Widget, x, y, width, height int) widget.Widget {

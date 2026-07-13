@@ -102,6 +102,7 @@ type WorldMode struct {
 	deathModal        gameui.DeathModal
 	disconnectDialog  gameui.ConfirmModal
 	friendRequest     gameui.ConfirmModal
+	friendConfirm     gameui.ConfirmModal
 	partyRequest      gameui.ConfirmModal
 	tradeRequest      gameui.ConfirmModal
 	characterWindow   gameui.CharacterWindow
@@ -119,6 +120,8 @@ type WorldMode struct {
 	statsWindow       gameui.StatsWindow
 	skillWindow       gameui.SkillWindow
 	friendsWindow     gameui.FriendsWindow
+	friendSettings    gameui.FriendSettingsWindow
+	whisperWindow     gameui.WhisperWindow
 	partySettings     gameui.PartySettingsWindow
 	playerContext     gameui.PlayerContextMenu
 	tradeWindow       gameui.TradeWindow
@@ -346,8 +349,10 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.statsWindow.Rebind(ctx)
 	m.skillWindow.Rebind(ctx, m)
 	m.friendsWindow.Rebind(ctx)
+	m.friendSettings.Rebind(ctx)
 	m.partySettings.Rebind(ctx)
 	m.settingsWindow.Rebind(ctx)
+	m.whisperWindow.Rebind(ctx)
 	m.shortcutBar.ResetOverlay(ctx)
 }
 
@@ -405,12 +410,14 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("parse whisper message 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			addWhisperMessage(&m.console, whisper)
+			m.addWhisperWindowIncoming(ctx, whisper)
 			continue
 		}
 		if ack, ok, err := network.ParseWhisperAck(pkt); err != nil {
 			log.Printf("parse whisper ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			addWhisperAck(&m.console, ctx.Resources, ack)
+			m.addWhisperWindowAck(ctx, ack)
 			continue
 		}
 		if emotion, ok, err := network.ParseEmotionNotify(pkt); err != nil {
@@ -630,7 +637,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if friendDeleted, ok, err := network.ParseFriendDelete(pkt); err != nil {
 			log.Printf("parse friend delete 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			applyFriendDelete(ctx, friendDeleted)
+			if friend, removed := applyFriendDelete(ctx, friendDeleted); removed {
+				name := friend.Name
+				if strings.TrimSpace(name) == "" {
+					name = "Friend"
+				}
+				m.console.AddSystemMessage("%s removed from your friend list.", name)
+			}
 			continue
 		}
 		if partyCreate, ok, err := network.ParsePartyCreateResult(pkt); err != nil {
@@ -1132,7 +1145,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.friendRequest.IsOpen() && !m.partyRequest.IsOpen() && !m.tradeRequest.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
+	if !m.escapeMenu.IsOpen() && !m.teleportModal.IsOpen() && !m.deathModal.IsOpen() && !m.friendRequest.IsOpen() && !m.friendConfirm.IsOpen() && !m.partyRequest.IsOpen() && !m.tradeRequest.IsOpen() && !m.settingsWindow.IsOpen() && !m.identifyWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.escapeMenu.IsOpen() {
@@ -1142,6 +1155,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		}
 	}
 	if m.friendRequest.Update(ctx) {
+		return nil, nil
+	}
+	if m.friendConfirm.Update(ctx) {
 		return nil, nil
 	}
 	if m.partyRequest.Update(ctx) {
@@ -1157,6 +1173,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.npcDialog.Update(ctx) {
+		return nil, nil
+	}
+	if m.updateWhisperWindow(ctx) {
 		return nil, nil
 	}
 	if m.console.Update(ctx) {
@@ -1224,7 +1243,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.friendsWindow.Update(ctx) {
-		switch m.friendsWindow.PopAction() {
+		switch action := m.friendsWindow.PopAction(); action.Kind {
 		case gameui.FriendsWindowActionPartySettings:
 			m.partySettings.Open(ctx)
 		case gameui.FriendsWindowActionPartyLeave:
@@ -1234,7 +1253,16 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 				m.console.AddErrorMessage("Leave party failed.")
 				log.Printf("leave party failed: %v", err)
 			}
+		case gameui.FriendsWindowActionFriendWhisper:
+			m.whisperWindow.Open(ctx, action.Friend.Name)
+		case gameui.FriendsWindowActionFriendDelete:
+			m.openDeleteFriendConfirm(ctx, action.Friend)
+		case gameui.FriendsWindowActionFriendSettings:
+			m.friendSettings.Open(ctx)
 		}
+		return nil, nil
+	}
+	if m.friendSettings.Update(ctx) {
 		return nil, nil
 	}
 	if m.partySettings.Update(ctx) {
@@ -1316,7 +1344,7 @@ func (m *WorldMode) openEscapeMenuFromInput(ctx client.Context) bool {
 	if ctx.Input == nil || m.escapeMenu.IsOpen() || !ctx.Input.JustPressed(render.KeyEscape) {
 		return false
 	}
-	if m.deathModal.IsOpen() || m.teleportModal.IsOpen() || m.friendRequest.IsOpen() || m.partyRequest.IsOpen() || m.tradeRequest.IsOpen() {
+	if m.deathModal.IsOpen() || m.teleportModal.IsOpen() || m.friendRequest.IsOpen() || m.friendConfirm.IsOpen() || m.partyRequest.IsOpen() || m.tradeRequest.IsOpen() {
 		return false
 	}
 	m.escapeMenu.Toggle(ctx)
@@ -1401,6 +1429,8 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.statsWindow = m.statsWindow
 	next.skillWindow = m.skillWindow
 	next.friendsWindow = m.friendsWindow
+	next.friendSettings = m.friendSettings
+	next.whisperWindow = m.whisperWindow
 	next.settingsWindow = m.settingsWindow
 	next.shortcutBar = m.shortcutBar
 	next.minimap = m.minimap

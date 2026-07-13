@@ -6,6 +6,7 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/client"
 )
 
 func TestFixedHeightFooterStretchesContent(t *testing.T) {
@@ -57,5 +58,32 @@ func TestFooterHeightCreatesEmptyFooterBand(t *testing.T) {
 	body := footerChildren[1]
 	if got := body.(interface{ Bounds() geometry.Rect }).Bounds().Width(); got != 200 {
 		t.Fatalf("footer body width = %.1f, want 200.0", got)
+	}
+}
+
+func TestWindowFullRedrawMarksPublishedRootDirty(t *testing.T) {
+	manager := &escapeMenuTestUIManager{}
+	ctx := client.Context{UIManager: manager, ScreenW: 800, ScreenH: 600}
+	window := NewWindow(100, 80)
+	window.SetFullRedraw(true)
+	window.OpenAt(10, 20, primitives.Box())
+	window.Publish(ctx)
+	if len(manager.overlays) != 1 {
+		t.Fatalf("published overlays = %d, want 1", len(manager.overlays))
+	}
+
+	root := manager.overlays[0]
+	widget.ClearRedrawInTree(root)
+	redraw, ok := root.(interface{ NeedsRedraw() bool })
+	if !ok {
+		t.Fatal("published root does not expose redraw state")
+	}
+	if redraw.NeedsRedraw() {
+		t.Fatal("published root stayed dirty after clear")
+	}
+
+	window.Publish(ctx)
+	if !redraw.NeedsRedraw() {
+		t.Fatal("full redraw publish did not dirty the published root")
 	}
 }

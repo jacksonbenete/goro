@@ -65,6 +65,10 @@ func addWhisperAck(console *gameui.ChatConsole, manager *res.Manager, ack networ
 	if console == nil || ack.Result == 0 {
 		return
 	}
+	console.AddErrorMessage("%s", whisperAckMessage(manager, ack))
+}
+
+func whisperAckMessage(manager *res.Manager, ack network.WhisperAck) string {
 	message := ""
 	if manager != nil {
 		message, _ = manager.MsgString(int(147 + ack.Result))
@@ -72,7 +76,7 @@ func addWhisperAck(console *gameui.ChatConsole, manager *res.Manager, ack networ
 	if message == "" {
 		message = "Whisper failed."
 	}
-	console.AddErrorMessage("%s", message)
+	return message
 }
 
 func formatPickupConsoleMessage(manager *res.Manager, pickup network.ItemPickupAck) string {

@@ -33,12 +33,13 @@ type Session struct {
 	Skills       Skills
 	Statuses     Statuses
 	Friends      Friends
+	Whisper      WhisperSettings
 	Party        Party
 	Movement     Movement
 }
 
 func New() *Session {
-	return &Session{}
+	return &Session{Whisper: DefaultWhisperSettings()}
 }
 
 func (s *Session) SyncServerTick(tick uint32, at time.Time) {
@@ -226,6 +227,22 @@ type Statuses struct {
 
 type Friends struct {
 	List []Friend
+}
+
+type WhisperSettings struct {
+	OpenStrangers bool
+	OpenFriends   bool
+	Alert         bool
+	Configured    bool
+}
+
+func DefaultWhisperSettings() WhisperSettings {
+	return WhisperSettings{
+		OpenStrangers: true,
+		OpenFriends:   true,
+		Alert:         true,
+		Configured:    true,
+	}
 }
 
 type Friend struct {

@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
@@ -55,6 +56,51 @@ func TestFriendsWindowListStartsBelowTabs(t *testing.T) {
 	listBounds := stackChildren[1].(interface{ Bounds() geometry.Rect }).Bounds()
 	if listBounds.Min.Y != tabsBounds.Height() {
 		t.Fatalf("list top = %.1f, want tabs height %.1f", listBounds.Min.Y, tabsBounds.Height())
+	}
+}
+
+func TestFriendRowLeftClickStartsWhisper(t *testing.T) {
+	var window FriendsWindow
+	friend := session.Friend{AccountID: 10, CharID: 20, Name: "Alice Smith"}
+	row := window.friendRow(friend, 0)
+
+	row.Event(widget.NewContext(), event.NewMouseEvent(
+		event.MousePress,
+		event.ButtonLeft,
+		event.ButtonStateLeft,
+		geometry.Pt(4, 4),
+		geometry.Pt(40, 40),
+		0,
+	))
+
+	action := window.PopAction()
+	if action.Kind != FriendsWindowActionFriendWhisper {
+		t.Fatalf("action kind = %d, want whisper", action.Kind)
+	}
+	if action.Friend.Name != friend.Name || action.Friend.AccountID != friend.AccountID || action.Friend.CharID != friend.CharID {
+		t.Fatalf("action friend = %+v, want %+v", action.Friend, friend)
+	}
+}
+
+func TestFriendsWindowDrainsClosedContextMenuAction(t *testing.T) {
+	var window FriendsWindow
+	friend := session.Friend{AccountID: 10, CharID: 20, Name: "Alice Smith"}
+	window.contextMenu.action = FriendsWindowAction{Kind: FriendsWindowActionFriendWhisper, Friend: friend}
+
+	if !window.Update(Context{}) {
+		t.Fatal("friends window did not consume pending context menu action")
+	}
+
+	action := window.PopAction()
+	if action.Kind != FriendsWindowActionFriendWhisper || action.Friend.Name != friend.Name {
+		t.Fatalf("action = %+v, want whisper for %+v", action, friend)
+	}
+}
+
+func TestFriendSettingsDefaultEnabled(t *testing.T) {
+	settings := friendSettings(&session.Session{})
+	if !settings.OpenStrangers || !settings.OpenFriends || !settings.Alert {
+		t.Fatalf("default friend settings = %+v, want all enabled", settings)
 	}
 }
 

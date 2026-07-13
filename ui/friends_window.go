@@ -19,14 +19,16 @@ const (
 	friendsTabWidth     = 72
 	friendsTabHeight    = 24
 	friendsListMax      = 40
+	friendsFooterH      = 42
 	partyFooterH        = 42
 )
 
 type FriendsWindow struct {
 	Window
-	snapshot string
-	tab      friendsWindowTab
-	action   FriendsWindowAction
+	snapshot    string
+	tab         friendsWindowTab
+	action      FriendsWindowAction
+	contextMenu FriendContextMenu
 }
 
 type friendsWindowTab int
@@ -36,13 +38,21 @@ const (
 	friendsWindowTabParty
 )
 
-type FriendsWindowAction int
+type FriendsWindowActionKind int
 
 const (
-	FriendsWindowActionNone FriendsWindowAction = iota
+	FriendsWindowActionNone FriendsWindowActionKind = iota
 	FriendsWindowActionPartySettings
 	FriendsWindowActionPartyLeave
+	FriendsWindowActionFriendWhisper
+	FriendsWindowActionFriendDelete
+	FriendsWindowActionFriendSettings
 )
+
+type FriendsWindowAction struct {
+	Kind   FriendsWindowActionKind
+	Friend session.Friend
+}
 
 func (w *FriendsWindow) Toggle(ctx Context) {
 	if w.IsOpen() {
@@ -61,9 +71,24 @@ func (w *FriendsWindow) OpenWindow(ctx Context) {
 	w.Publish(ctx)
 }
 
+func (w *FriendsWindow) Close() {
+	w.contextMenu.Close()
+	w.Window.Close()
+}
+
 func (w *FriendsWindow) Update(ctx Context) bool {
 	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
 	w.ctx = ctx
+	if w.drainContextMenuAction() {
+		return true
+	}
+	if w.contextMenu.Update(ctx) {
+		w.drainContextMenuAction()
+		return true
+	}
+	if w.drainContextMenuAction() {
+		return true
+	}
 	if !w.IsOpen() {
 		return false
 	}
@@ -73,12 +98,24 @@ func (w *FriendsWindow) Update(ctx Context) bool {
 		w.SetContent(w.widgetTree(ctx))
 	}
 	consumed := w.Window.Update(ctx)
+	if !w.Window.IsOpen() {
+		w.contextMenu.Close()
+	}
 	w.Publish(ctx)
 	return consumed
 }
 
+func (w *FriendsWindow) drainContextMenuAction() bool {
+	if action := w.contextMenu.PopAction(); action.Kind != FriendsWindowActionNone {
+		w.action = action
+		return true
+	}
+	return false
+}
+
 func (w *FriendsWindow) Rebind(ctx Context) {
 	w.EnsureWindow(friendsWindowWidth, friendsWindowHeight)
+	w.contextMenu.Rebind(ctx)
 	if !w.IsOpen() {
 		return
 	}
@@ -90,7 +127,7 @@ func (w *FriendsWindow) Rebind(ctx Context) {
 
 func (w *FriendsWindow) PopAction() FriendsWindowAction {
 	action := w.action
-	w.action = FriendsWindowActionNone
+	w.action = FriendsWindowAction{}
 	return action
 }
 
@@ -98,9 +135,9 @@ func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {
 	friends := sessionFriends(ctx.Session)
 	party := sessionParty(ctx.Session)
 	title := fmt.Sprintf("Friends (%d/%d)", len(friends), friendsListMax)
-	content := friendsList(friends)
-	var footer widget.Widget
-	var footerHeight float32
+	content := w.friendsList(friends)
+	footer := w.friendsFooter()
+	footerHeight := float32(friendsFooterH)
 	if w.tab == friendsWindowTabParty {
 		title = partyWindowTitle(party)
 		content = partyList(party)
@@ -164,23 +201,33 @@ func (w *FriendsWindow) partyFooter(party session.Party) widget.Widget {
 	return primitives.HBox(
 		primitives.Expanded(primitives.Box()),
 		rotheme.ButtonDisabled("Settings", !party.Active(), func() {
-			w.action = FriendsWindowActionPartySettings
+			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartySettings}
 		}).Width(82),
 		rotheme.ButtonDisabled("Leave", !party.Active(), func() {
-			w.action = FriendsWindowActionPartyLeave
+			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartyLeave}
 		}).Width(66),
 	).
 		Gap(8).
 		CrossAlign(primitives.CrossAxisCenter)
 }
 
-func friendsList(friends []session.Friend) widget.Widget {
+func (w *FriendsWindow) friendsFooter() widget.Widget {
+	return primitives.HBox(
+		primitives.Expanded(primitives.Box()),
+		rotheme.Button("Setup", func() {
+			w.action = FriendsWindowAction{Kind: FriendsWindowActionFriendSettings}
+		}).Width(74),
+	).
+		CrossAlign(primitives.CrossAxisCenter)
+}
+
+func (w *FriendsWindow) friendsList(friends []session.Friend) widget.Widget {
 	rows := make([]widget.Widget, 0, maxInt(1, len(friends)))
 	if len(friends) == 0 {
 		rows = append(rows, emptyFriendsList("No friends"))
 	} else {
 		for i, friend := range friends {
-			rows = append(rows, friendRow(friend, i))
+			rows = append(rows, w.friendRow(friend, i))
 		}
 	}
 	return primitives.Box(rows...).
@@ -201,7 +248,12 @@ func emptyFriendsList(label string) widget.Widget {
 	)
 }
 
-func friendRow(friend session.Friend, index int) widget.Widget {
+func friendsList(friends []session.Friend) widget.Widget {
+	var window FriendsWindow
+	return window.friendsList(friends)
+}
+
+func (w *FriendsWindow) friendRow(friend session.Friend, index int) widget.Widget {
 	state := "Offline"
 	stateColor := rotheme.Default.Colors.MutedText
 	if friend.Online() {
@@ -216,18 +268,91 @@ func friendRow(friend session.Friend, index int) widget.Widget {
 	if name == "" {
 		name = "Unknown"
 	}
-	return primitives.HBox(
-		rotheme.Text(trimRunes(name, 24)).
-			Align(primitives.TextAlignStart),
-		primitives.Expanded(primitives.Box()),
-		rotheme.Text(state).
-			Color(stateColor).
-			Align(primitives.TextAlignEnd),
-	).
-		PaddingXY(8, 0).
-		Height(friendsRowHeight).
-		Background(bg).
-		CrossAlign(primitives.CrossAxisCenter)
+	row := &friendRowWidget{
+		friend:     friend,
+		name:       name,
+		state:      state,
+		stateColor: stateColor,
+		bg:         bg,
+		onWhisper: func(friend session.Friend) {
+			w.action = FriendsWindowAction{Kind: FriendsWindowActionFriendWhisper, Friend: friend}
+		},
+		onMenu: func(friend session.Friend) {
+			x, y := w.x+friendsWindowWidth/2, w.y+ROWindowTitleHeight+friendsTabHeight+friendsRowHeight
+			if w.ctx.Input != nil {
+				x, y = w.ctx.Input.MouseX, w.ctx.Input.MouseY
+			}
+			w.contextMenu.Open(w.ctx, x, y, friend)
+		},
+	}
+	row.SetVisible(true)
+	row.SetEnabled(true)
+	return row
+}
+
+type friendRowWidget struct {
+	widget.WidgetBase
+	friend     session.Friend
+	name       string
+	state      string
+	stateColor widget.Color
+	bg         widget.Color
+	hovered    bool
+	onWhisper  func(session.Friend)
+	onMenu     func(session.Friend)
+}
+
+func (w *friendRowWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+	size := constraints.Constrain(geometry.Sz(friendsWindowWidth, friendsRowHeight))
+	w.SetBounds(geometry.FromPointSize(w.Position(), size))
+	return size
+}
+
+func (w *friendRowWidget) Draw(_ widget.Context, canvas widget.Canvas) {
+	bounds := w.Bounds()
+	bg := w.bg
+	if w.hovered {
+		bg = rotheme.Default.Colors.ButtonHover
+	}
+	canvas.DrawRect(bounds, bg)
+	textY := bounds.Min.Y + (bounds.Height()-14)/2
+	rotheme.DrawText(canvas, trimRunes(w.name, 24), geometry.NewRect(bounds.Min.X+8, textY, bounds.Width()-88, 14), rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignLeft)
+	rotheme.DrawText(canvas, w.state, geometry.NewRect(bounds.Max.X-72, textY, 64, 14), rotheme.Default.Typography.TextSize, w.stateColor, false, widget.TextAlignRight)
+}
+
+func (w *friendRowWidget) Event(ctx widget.Context, e event.Event) bool {
+	mouse, ok := e.(*event.MouseEvent)
+	if !ok {
+		return false
+	}
+	switch mouse.MouseType {
+	case event.MouseEnter, event.MouseMove:
+		w.hovered = true
+		ctx.SetCursor(widget.CursorPointer)
+		return true
+	case event.MouseLeave:
+		w.hovered = false
+		ctx.SetCursor(widget.CursorDefault)
+		return true
+	case event.MousePress:
+		switch mouse.Button {
+		case event.ButtonLeft:
+			if w.onWhisper != nil {
+				w.onWhisper(w.friend)
+			}
+			return true
+		case event.ButtonRight:
+			if w.onMenu != nil {
+				w.onMenu(w.friend)
+			}
+			return true
+		}
+	}
+	return true
+}
+
+func (w *friendRowWidget) Children() []widget.Widget {
+	return nil
 }
 
 func partyWindowTitle(party session.Party) string {

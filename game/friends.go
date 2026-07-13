@@ -84,6 +84,25 @@ func (m *WorldMode) sendAddFriend(ctx client.Context, name string) {
 	}
 }
 
+func (m *WorldMode) openDeleteFriendConfirm(ctx client.Context, friend session.Friend) {
+	name := strings.TrimSpace(friend.Name)
+	if name == "" {
+		name = "this friend"
+	}
+	m.friendConfirm.Open(ctx, "Delete Friend", fmt.Sprintf("Delete %s from your friend list?", name), func() {
+		if ctx.Network == nil {
+			m.console.AddErrorMessage("Delete friend failed: not connected.")
+			return
+		}
+		if err := ctx.Network.SendDeleteFriend(friend.AccountID, friend.CharID); err != nil {
+			m.console.AddErrorMessage("Delete friend failed.")
+			log.Printf("delete friend failed aid=%d gid=%d name=%q: %v", friend.AccountID, friend.CharID, friend.Name, err)
+			return
+		}
+		m.console.AddSystemMessage("Delete friend request sent for %s.", name)
+	}, nil)
+}
+
 func partyCanInvite(s *session.Session) bool {
 	return partyCanManage(s)
 }
@@ -160,9 +179,9 @@ func applyFriendAddResult(ctx client.Context, result network.FriendAddResult) {
 	log.Printf("friend added aid=%d gid=%d name=%q", result.AccountID, result.CharID, result.Name)
 }
 
-func applyFriendDelete(ctx client.Context, deleted network.FriendDelete) {
+func applyFriendDelete(ctx client.Context, deleted network.FriendDelete) (session.Friend, bool) {
 	if ctx.Session == nil {
-		return
+		return session.Friend{}, false
 	}
 	for i := range ctx.Session.Friends.List {
 		friend := ctx.Session.Friends.List[i]
@@ -171,8 +190,10 @@ func applyFriendDelete(ctx client.Context, deleted network.FriendDelete) {
 		}
 		ctx.Session.Friends.List = append(ctx.Session.Friends.List[:i], ctx.Session.Friends.List[i+1:]...)
 		log.Printf("friend deleted aid=%d gid=%d name=%q", friend.AccountID, friend.CharID, friend.Name)
-		return
+		return friend, true
 	}
+	log.Printf("friend delete not found aid=%d gid=%d", deleted.AccountID, deleted.CharID)
+	return session.Friend{}, false
 }
 
 func sessionFriendFromNetwork(friend network.Friend) session.Friend {
