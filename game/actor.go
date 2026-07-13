@@ -206,15 +206,23 @@ func isWarpPortalJob(job int16) bool {
 	return job == 128 || job == 129
 }
 
+const (
+	actorVanishOutOfSight = 0
+	actorVanishDeath      = 1
+	actorVanishLogout     = 2
+	actorVanishTeleport   = 3
+)
+
 func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVanish) {
 	log.Printf("actor vanish id=%d reason=%d", vanish.ID, vanish.Reason)
 	if m.attackFocusID == vanish.ID {
 		m.clearAttackFocus()
 	}
-	if vanish.Reason == 1 {
+	if vanish.Reason == actorVanishDeath {
 		m.startActorDeath(ctx, vanish.ID)
 		return
 	}
+	m.addActorVanishTeleportEffect(ctx, vanish)
 	m.removeActorEffectStateEffects(vanish.ID)
 	ctx.World.RemoveActor(vanish.ID)
 	delete(m.actorAnims, vanish.ID)
@@ -222,6 +230,27 @@ func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVan
 	delete(m.actorSoundFrames, vanish.ID)
 	delete(m.actorLife, vanish.ID)
 	delete(m.speechBubbles, vanish.ID)
+}
+
+func (m *WorldMode) addActorVanishTeleportEffect(ctx client.Context, vanish network.ActorVanish) {
+	if vanish.Reason != actorVanishLogout && vanish.Reason != actorVanishTeleport {
+		return
+	}
+	if ctx.World == nil {
+		return
+	}
+	now := time.Now()
+	if isLocalActor(ctx, vanish.ID) {
+		x, y := ctx.World.Player.RenderPosition(now)
+		m.addWorldEffectAtCellDurationSize(ctx, effectTeleportation, 0, int(math.Round(x)), int(math.Round(y)), now, 0, 0)
+		return
+	}
+	actor, ok := ctx.World.Actors[vanish.ID]
+	if !ok {
+		return
+	}
+	x, y := actor.RenderPosition(now)
+	m.addWorldEffectAtCellDurationSize(ctx, effectTeleportation, 0, int(math.Round(x)), int(math.Round(y)), now, 0, 0)
 }
 
 func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {

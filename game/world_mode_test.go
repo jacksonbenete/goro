@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"os"
@@ -4167,6 +4168,62 @@ func TestApplyActorVanishDeathFreezesMovingMobAtRenderedPosition(t *testing.T) {
 	}
 	if actor.FromX != actor.X || actor.ToX != actor.X || actor.FromY != actor.Y || actor.ToY != actor.Y {
 		t.Fatalf("dead actor movement endpoints = from %d,%d to %d,%d, want frozen at %d,%d", actor.FromX, actor.FromY, actor.ToX, actor.ToY, actor.X, actor.Y)
+	}
+}
+
+func TestApplyActorVanishLogoutAndTeleportAddTeleportEffect(t *testing.T) {
+	for _, reason := range []uint8{actorVanishLogout, actorVanishTeleport} {
+		t.Run(fmt.Sprintf("reason_%d", reason), func(t *testing.T) {
+			now := time.Now()
+			world := worldstate.New()
+			world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+			world.Actors[300] = worldstate.Actor{
+				ID:           300,
+				X:            20,
+				Y:            20,
+				FromX:        10,
+				FromY:        20,
+				ToX:          20,
+				ToY:          20,
+				Moving:       true,
+				MoveStarted:  now.Add(-50 * time.Second),
+				MoveDuration: 100 * time.Second,
+			}
+			mode := &WorldMode{}
+			ctx := client.Context{
+				Session: &session.Session{AccountID: 2000000, CharID: 150000},
+				World:   world,
+			}
+
+			mode.applyActorVanish(ctx, network.ActorVanish{ID: 300, Reason: reason})
+
+			if _, ok := world.Actors[300]; ok {
+				t.Fatal("vanished actor was not removed")
+			}
+			if len(mode.worldEffects) != 1 {
+				t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+			}
+			if effect := mode.worldEffects[0]; effect.actorID != 0 || effect.effectID != effectTeleportation || effect.x != 15 || effect.y != 20 {
+				t.Fatalf("effect = %+v, want pinned teleportation at rendered position 15,20", effect)
+			}
+		})
+	}
+}
+
+func TestApplyActorVanishOutOfSightDoesNotAddTeleportEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, X: 11, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorVanish(ctx, network.ActorVanish{ID: 300, Reason: actorVanishOutOfSight})
+
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects = %+v, want none", mode.worldEffects)
 	}
 }
 
