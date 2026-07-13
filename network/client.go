@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +11,23 @@ import (
 	"sync"
 	"time"
 )
+
+var ErrDisconnected = errors.New("disconnected from server")
+
+type FrameError struct {
+	Err error
+}
+
+func (e FrameError) Error() string {
+	if e.Err == nil {
+		return "frame error"
+	}
+	return e.Err.Error()
+}
+
+func (e FrameError) Unwrap() error {
+	return e.Err
+}
 
 type Client struct {
 	clientDate int
@@ -396,13 +414,17 @@ func (c *Client) readLoop(conn net.Conn) {
 			c.mu.Lock()
 			c.packets = append(c.packets, packets...)
 			if frameErr != nil {
-				c.errs = append(c.errs, frameErr)
+				c.errs = append(c.errs, FrameError{Err: frameErr})
 			}
 			c.mu.Unlock()
 		}
 		if err != nil {
-			if err != io.EOF && c.isCurrentConn(conn) {
-				c.addError(err)
+			if c.isCurrentConn(conn) {
+				if err == io.EOF {
+					c.addError(ErrDisconnected)
+				} else {
+					c.addError(err)
+				}
 			}
 			c.clearConn(conn)
 			return

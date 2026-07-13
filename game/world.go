@@ -100,6 +100,7 @@ type WorldMode struct {
 	escapeMenu        gameui.EscapeMenu
 	teleportModal     gameui.TeleportModal
 	deathModal        gameui.DeathModal
+	disconnectDialog  gameui.ConfirmModal
 	friendRequest     gameui.ConfirmModal
 	partyRequest      gameui.ConfirmModal
 	tradeRequest      gameui.ConfirmModal
@@ -385,7 +386,14 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		m.mapFade = mapFadeState{}
 	}
 
+	if m.updateDisconnectDialog(ctx) {
+		return nil, nil
+	}
+
 	for _, pkt := range ctx.Network.DrainPackets() {
+		if handleDisconnectPacket(ctx, &m.disconnectDialog, pkt) {
+			continue
+		}
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
 			log.Printf("parse chat message 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1058,7 +1066,11 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.applyWarpPortalEntry(ctx, entry)
 		}
 	}
-	for _, err := range ctx.Network.DrainErrors() {
+	networkErrors := ctx.Network.DrainErrors()
+	if handleNetworkDisconnectErrors(ctx, &m.disconnectDialog, networkErrors) {
+		return nil, nil
+	}
+	for _, err := range networkErrors {
 		log.Printf("network frame error: %v", err)
 	}
 
@@ -1361,10 +1373,13 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 		cancel()
 		if err != nil {
 			log.Printf("map reconnect failed map=%s addr=%s port=%d: %v", change.MapName, change.Address, change.Port, err)
+			openConnectionFailedDialog(ctx, &m.disconnectDialog)
 			return nil
 		}
 		if err := ctx.Network.SendMapServerEnter(ctx.Session.AccountID, ctx.Session.CharID, ctx.Session.AuthCode, uint32(time.Now().UnixMilli()), ctx.Session.Sex); err != nil {
 			log.Printf("map re-enter failed map=%s addr=%s port=%d: %v", change.MapName, change.Address, change.Port, err)
+			message := disconnectMessageText(ctx.Resources, disconnectMessage{disconnectTransportMsgID, disconnectTransportMessage})
+			openDisconnectDialog(ctx, &m.disconnectDialog, message)
 			return nil
 		}
 		m.pendingWarp = true
@@ -1404,6 +1419,13 @@ func (m *WorldMode) nextCharacterSelectMode(ctx client.Context) *LoginMode {
 	}
 	next := NewCharacterSelectMode(ctx, m.console)
 	return next
+}
+
+func (m *WorldMode) updateDisconnectDialog(ctx client.Context) bool {
+	if !m.disconnectDialog.IsOpen() {
+		return false
+	}
+	return m.disconnectDialog.Update(ctx)
 }
 
 func sameLoadedMap(ctx client.Context, mapName string) bool {

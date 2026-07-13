@@ -20,7 +20,7 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `186`
+- Effective map opcodes referenced by Goro: `187`
 - Client-to-map accepted packets referenced by Goro: `87` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
@@ -82,7 +82,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x006F` | `HC_ACCEPT_DELETECHAR` | packet.go |
 | `0x0070` | `HC_REFUSE_DELETECHAR` | packet.go |
 | `0x0071` | `HC_NOTIFY_ZONESVR` | login_responses.go, packet.go |
-| `0x0081` | `SC_NOTIFY_BAN` | packet.go |
+| `0x0081` | `SC_NOTIFY_BAN` | disconnect_packets.go, packet.go |
 | `0x0187` | `PING` | packet.go |
 | `0x01DB` | `CA_REQ_HASH` | - |
 | `0x01DC` | `AC_ACK_HASH` | packet.go |
@@ -549,7 +549,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x02D0` | S->C | referenced | `inventorylistequipType` | `-1` | `-` | item_packets.go, packet.go |
 | `0x02D1` | S->C | referenced | `storageListEquipType` | `-1` | `-` | item_packets.go, packet.go |
 | `0x02D2` | S->C | referenced | `cartlistequipType` | `-1` | `-` | item_packets.go, packet.go |
-| `0x02D5` | S->C | untracked | `0x02d5` | `2` | `-` | - |
+| `0x02D5` | S->C | referenced | `0x02d5` | `2` | `-` | disconnect_packets.go, packet.go |
 | `0x02D6` | C->S | referenced | `0x02d6` | `6` | `clif_parse_ViewPlayerEquip` | equipment_packets.go, packet.go |
 | `0x02D7` | S->C | referenced | `0x02d7` | `-1` | `-` | equipment_packets.go, packet.go |
 | `0x02D8` | C->S | referenced | `0x02d8` | `10` | `clif_parse_configuration` | equipment_packets.go, packet.go |

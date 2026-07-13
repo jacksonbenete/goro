@@ -11,12 +11,15 @@ import (
 )
 
 const (
-	smallPromptWidth    = 286
-	smallPromptHeight   = 128
-	smallPromptFooterH  = 42
-	smallPromptSidePad  = 12
-	smallPromptMessageH = 28
-	smallPromptLineH    = 14
+	smallPromptWidth        = 286
+	smallPromptHeight       = 128
+	alertPromptHeight       = 156
+	smallPromptFooterH      = 42
+	smallPromptSidePad      = 12
+	smallPromptLineH        = 14
+	smallPromptDefaultLines = 2
+	alertPromptMaxLines     = 4
+	smallPromptLineMaxRunes = 42
 )
 
 type ConfirmModal struct {
@@ -25,6 +28,7 @@ type ConfirmModal struct {
 	message  string
 	onOK     func()
 	onCancel func()
+	okOnly   bool
 	ctx      client.Context
 }
 
@@ -33,8 +37,21 @@ func (m *ConfirmModal) Open(ctx client.Context, title, message string, onOK, onC
 	m.message = message
 	m.onOK = onOK
 	m.onCancel = onCancel
+	m.okOnly = false
 	m.ctx = ctx
-	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
+	m.EnsureWindow(smallPromptWidth, m.promptHeight())
+	m.Window.Open(ctx, m.widgetTree(ctx))
+	m.Publish(ctx)
+}
+
+func (m *ConfirmModal) OpenAlert(ctx client.Context, title, message string, onOK func()) {
+	m.title = title
+	m.message = message
+	m.onOK = onOK
+	m.onCancel = nil
+	m.okOnly = true
+	m.ctx = ctx
+	m.EnsureWindow(smallPromptWidth, m.promptHeight())
 	m.Window.Open(ctx, m.widgetTree(ctx))
 	m.Publish(ctx)
 }
@@ -46,7 +63,11 @@ func (m *ConfirmModal) Update(ctx client.Context) bool {
 	}
 	if ctx.Input != nil {
 		if ctx.Input.JustPressed(render.KeyEscape) {
-			m.Cancel(ctx)
+			if m.okOnly {
+				m.Confirm(ctx)
+			} else {
+				m.Cancel(ctx)
+			}
 			return true
 		}
 		if ctx.Input.JustPressed(render.KeyEnter) {
@@ -83,63 +104,123 @@ func (m *ConfirmModal) Close(ctx client.Context) {
 }
 
 func (m *ConfirmModal) openWindow(ctx client.Context) {
-	m.EnsureWindow(smallPromptWidth, smallPromptHeight)
+	m.EnsureWindow(smallPromptWidth, m.promptHeight())
 	if m.content == nil {
 		m.Window.Open(ctx, m.widgetTree(ctx))
 	}
 }
 
+func (m *ConfirmModal) promptHeight() int {
+	if m.okOnly {
+		return alertPromptHeight
+	}
+	return smallPromptHeight
+}
+
+func (m *ConfirmModal) messageMaxLines() int {
+	if m.okOnly {
+		return alertPromptMaxLines
+	}
+	return smallPromptDefaultLines
+}
+
 func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
 	okW := float32(ButtonLabelWidth("OK"))
 	cancelW := float32(ButtonLabelWidth("Cancel"))
+	var footer widget.Widget = primitives.HBox(
+		primitives.Expanded(primitives.Box()),
+		rotheme.Button("OK", func() {
+			m.Confirm(ctx)
+		}).
+			Width(okW),
+		rotheme.Button("Cancel", func() {
+			m.Cancel(ctx)
+		}).
+			Width(cancelW),
+	).Gap(8)
+	if m.okOnly {
+		footer = primitives.HBox(
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("OK", func() {
+				m.Confirm(ctx)
+			}).
+				Width(okW),
+		)
+	}
 	return Win(
 		Title(m.title),
 		CloseButton(false),
-		Size(smallPromptWidth, smallPromptHeight),
+		Size(smallPromptWidth, float32(m.promptHeight())),
 		FooterHeight(smallPromptFooterH),
 		FooterPadding(18),
-		Content(smallPromptContent(m.message)),
-		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("OK", func() {
-					m.Confirm(ctx)
-				}).
-					Width(okW),
-				rotheme.Button("Cancel", func() {
-					m.Cancel(ctx)
-				}).
-					Width(cancelW),
-			).Gap(8),
-		),
+		Content(smallPromptContent(m.message, m.messageMaxLines())),
+		Footer(footer),
 	)
 }
 
-func smallPromptContent(message string) widget.Widget {
+func smallPromptContent(message string, maxLines int) widget.Widget {
 	return primitives.Box(
 		primitives.Expanded(primitives.Box()),
-		smallPromptMessage(message),
+		smallPromptMessage(message, maxLines),
 		primitives.Expanded(primitives.Box()),
 	).
 		PaddingLeft(smallPromptSidePad).
 		PaddingRight(smallPromptSidePad)
 }
 
-func smallPromptMessage(message string) widget.Widget {
-	lines := strings.Split(message, "\n")
-	first := ""
-	second := ""
-	if len(lines) > 0 {
-		first = strings.TrimSpace(lines[0])
+func smallPromptMessage(message string, maxLines int) widget.Widget {
+	lines := smallPromptLines(message, maxLines)
+	rows := make([]widget.Widget, 0, len(lines))
+	for _, line := range lines {
+		rows = append(rows, smallPromptLine(line))
 	}
-	if len(lines) > 1 {
-		second = strings.TrimSpace(strings.Join(lines[1:], " "))
+	return primitives.Box(rows...).Height(float32(smallPromptLineH * maxLines))
+}
+
+func smallPromptLines(message string, maxLines int) []string {
+	if maxLines < 1 {
+		maxLines = 1
 	}
-	return primitives.Box(
-		smallPromptLine(first),
-		smallPromptLine(second),
-	).
-		Height(smallPromptMessageH)
+	var lines []string
+	for _, paragraph := range strings.Split(message, "\n") {
+		wrapped := wrapSmallPromptLine(paragraph)
+		lines = append(lines, wrapped...)
+	}
+	if len(lines) == 0 {
+		lines = append(lines, "")
+	}
+	if len(lines) > maxLines {
+		lines = lines[:maxLines]
+	}
+	for len(lines) < maxLines {
+		lines = append(lines, "")
+	}
+	return lines
+}
+
+func wrapSmallPromptLine(line string) []string {
+	words := strings.Fields(line)
+	if len(words) == 0 {
+		return []string{""}
+	}
+	var lines []string
+	current := ""
+	for _, word := range words {
+		if current == "" {
+			current = word
+			continue
+		}
+		if len([]rune(current))+1+len([]rune(word)) <= smallPromptLineMaxRunes {
+			current += " " + word
+			continue
+		}
+		lines = append(lines, current)
+		current = word
+	}
+	if current != "" {
+		lines = append(lines, current)
+	}
+	return lines
 }
 
 func smallPromptLine(line string) widget.Widget {

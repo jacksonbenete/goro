@@ -46,6 +46,7 @@ type LoginMode struct {
 	create            charCreateState
 	cursor            roCursorState
 	quitConfirm       gameui.ConfirmModal
+	disconnectDialog  gameui.ConfirmModal
 }
 
 type loginPhase int
@@ -128,6 +129,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		if m.updateQuitConfirm(ctx) {
 			// The confirmation modal is modal: no keyboard or mouse input should
 			// leak into the login form, character list, or creation controls.
+		} else if m.updateDisconnectDialog(ctx) {
 		} else if m.updatePhaseEscape(ctx, now) {
 		} else if m.phase == loginPhaseCreate {
 			m.updateCharacterCreateInput(ctx)
@@ -153,6 +155,9 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 
 	for _, pkt := range ctx.Network.DrainPackets() {
 		log.Printf("recv packet 0x%04X len=%d", pkt.ID, len(pkt.Data))
+		if handleDisconnectPacket(ctx, &m.disconnectDialog, pkt) {
+			continue
+		}
 		m.packets = append(m.packets, pkt.String())
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
 			m.packets = append(m.packets, "parse chat message: "+err.Error())
@@ -367,7 +372,11 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			m.packets = m.packets[len(m.packets)-8:]
 		}
 	}
-	for _, err := range ctx.Network.DrainErrors() {
+	networkErrors := ctx.Network.DrainErrors()
+	if handleNetworkDisconnectErrors(ctx, &m.disconnectDialog, networkErrors) {
+		return nil, nil
+	}
+	for _, err := range networkErrors {
 		log.Printf("network frame error: %v", err)
 		m.packets = append(m.packets, "frame error: "+err.Error())
 		if len(m.packets) > 8 {
@@ -444,6 +453,13 @@ func (m *LoginMode) updateQuitConfirm(ctx client.Context) bool {
 		return false
 	}
 	return m.quitConfirm.Update(ctx)
+}
+
+func (m *LoginMode) updateDisconnectDialog(ctx client.Context) bool {
+	if !m.disconnectDialog.IsOpen() {
+		return false
+	}
+	return m.disconnectDialog.Update(ctx)
 }
 
 func (m *LoginMode) openQuitConfirm(ctx client.Context) {
@@ -741,6 +757,7 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 	cancel()
 	if err != nil {
 		m.status = err.Error()
+		openConnectionFailedDialog(ctx, &m.disconnectDialog)
 		return
 	}
 
@@ -773,6 +790,7 @@ func (m *LoginMode) connectCharServer(ctx client.Context, server network.CharSer
 	cancel()
 	if err != nil {
 		m.status = "char connect failed: " + err.Error()
+		openConnectionFailedDialog(ctx, &m.disconnectDialog)
 		return
 	}
 
@@ -791,6 +809,7 @@ func (m *LoginMode) connectMapServer(ctx client.Context, zone network.ZoneServer
 	cancel()
 	if err != nil {
 		m.status = "map connect failed: " + err.Error()
+		openConnectionFailedDialog(ctx, &m.disconnectDialog)
 		return
 	}
 

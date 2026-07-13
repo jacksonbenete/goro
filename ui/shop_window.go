@@ -243,7 +243,7 @@ func (w *ShopWindow) dealWidgetTree(ctx Context) widget.Widget {
 		Size(shopDealWidth, shopDealHeight),
 		FooterHeight(smallPromptFooterH),
 		FooterPadding(10),
-		Content(smallPromptContent("Select a transaction type")),
+		Content(smallPromptContent("Select a transaction type", smallPromptDefaultLines)),
 		Footer(
 			primitives.HBox(
 				primitives.Expanded(primitives.Box()),
