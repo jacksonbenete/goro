@@ -440,6 +440,10 @@ func snapScreenPoint(dst *Image, x, y float64) (float64, float64) {
 	return snapScreenValue(x, float64(dst.screenScaleX)), snapScreenValue(y, float64(dst.screenScaleY))
 }
 
+func SnapScreenPoint(dst *Image, x, y float64) (float64, float64) {
+	return snapScreenPoint(dst, x, y)
+}
+
 func snapScreenValue(v, scale float64) float64 {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		return math.Round(v)
