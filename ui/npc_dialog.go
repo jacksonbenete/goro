@@ -3,10 +3,12 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/gogpu/ui/core/scrollview"
+	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
@@ -31,6 +33,10 @@ const (
 	npcMenuListPad       = 1
 	npcMenuFooterH       = 32
 	npcMenuMinHeight     = ROWindowTitleHeight + npcMenuPad*2 + npcMenuListPad*2 + npcMenuMinRows*npcMenuRowH + npcMenuFooterH
+	npcInputNumberWidth  = 174
+	npcInputTextWidth    = 274
+	npcInputHeight       = 52
+	npcInputMaxLength    = 80
 )
 
 var (
@@ -46,6 +52,8 @@ const (
 	npcDialogActionNext
 	npcDialogActionClose
 	npcDialogActionMenu
+	npcDialogActionNumberInput
+	npcDialogActionStringInput
 )
 
 type NPCDialog struct {
@@ -56,9 +64,12 @@ type NPCDialog struct {
 	action      npcDialogAction
 	clearOnText bool
 	status      string
+	input       string
+	inputField  *textfield.Widget
 
 	dialogWindow Window
 	menuWindow   Window
+	inputWindow  Window
 	dirty        bool
 }
 
@@ -88,6 +99,7 @@ func (d *NPCDialog) Apply(packet network.NPCDialog) {
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionNone
 		d.options = nil
+		d.clearInput()
 		if packet.Message != "" {
 			d.lines = append(d.lines, packet.Message)
 			if len(d.lines) > npcDialogMaxMessages {
@@ -103,6 +115,7 @@ func (d *NPCDialog) Apply(packet network.NPCDialog) {
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionNext
 		d.options = nil
+		d.clearInput()
 		d.dirty = true
 	case network.NPCDialogClose:
 		if !d.open && len(d.lines) == 0 {
@@ -112,17 +125,23 @@ func (d *NPCDialog) Apply(packet network.NPCDialog) {
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionClose
 		d.options = nil
+		d.clearInput()
 		d.dirty = true
 	case network.NPCDialogMenu:
 		d.open = true
 		d.npcID = packet.NPCID
 		d.action = npcDialogActionMenu
 		d.options = append([]string(nil), packet.Options...)
+		d.clearInput()
 		d.dirty = true
 	case network.NPCDialogClear:
 		if !d.open || d.npcID == 0 || packet.NPCID == 0 || d.npcID == packet.NPCID {
 			d.Reset()
 		}
+	case network.NPCDialogNumberInput:
+		d.openInput(packet.NPCID, npcDialogActionNumberInput)
+	case network.NPCDialogStringInput:
+		d.openInput(packet.NPCID, npcDialogActionStringInput)
 	}
 }
 
@@ -135,6 +154,7 @@ func (d *NPCDialog) Reset() {
 	d.action = npcDialogActionNone
 	d.clearOnText = false
 	d.status = ""
+	d.clearInput()
 	d.dirty = true
 }
 
@@ -145,7 +165,7 @@ func (d *NPCDialog) ResetPublished(ctx Context) {
 
 func (d *NPCDialog) Update(ctx Context) bool {
 	if !d.open {
-		if d.dialogWindow.published != nil || d.menuWindow.published != nil {
+		if d.dialogWindow.published != nil || d.menuWindow.published != nil || d.inputWindow.published != nil {
 			d.publish(ctx)
 			return true
 		}
@@ -172,6 +192,8 @@ func (d *NPCDialog) Update(ctx Context) bool {
 			d.next(ctx)
 		case npcDialogActionClose:
 			d.close(ctx)
+		case npcDialogActionNumberInput, npcDialogActionStringInput:
+			d.submitInput(ctx)
 		}
 		d.publish(ctx)
 		return true
@@ -179,6 +201,9 @@ func (d *NPCDialog) Update(ctx Context) bool {
 
 	consumed := false
 	if d.action == npcDialogActionMenu && d.menuWindow.Update(ctx) {
+		consumed = true
+	}
+	if d.isInputAction() && d.inputWindow.Update(ctx) {
 		consumed = true
 	}
 	if d.dialogWindow.Update(ctx) {
@@ -209,6 +234,60 @@ func (d *NPCDialog) next(ctx Context) {
 	d.status = ""
 	d.dirty = true
 	d.refresh(ctx)
+}
+
+func (d *NPCDialog) openInput(npcID uint32, action npcDialogAction) {
+	d.open = true
+	d.npcID = npcID
+	d.action = action
+	d.options = nil
+	d.status = ""
+	d.input = ""
+	d.inputField = nil
+	d.dirty = true
+}
+
+func (d *NPCDialog) submitInput(ctx Context) {
+	text := strings.TrimSpace(d.input)
+	if text == "" {
+		return
+	}
+	if ctx.Network == nil {
+		d.status = "not connected"
+		d.dirty = true
+		d.refresh(ctx)
+		return
+	}
+	var err error
+	switch d.action {
+	case npcDialogActionNumberInput:
+		value, parseErr := strconv.ParseInt(text, 10, 32)
+		if parseErr != nil {
+			value = 0
+		}
+		err = ctx.Network.SendNPCNumberInput(d.npcID, int32(value))
+	case npcDialogActionStringInput:
+		err = ctx.Network.SendNPCStringInput(d.npcID, text)
+	default:
+		return
+	}
+	if err != nil {
+		d.status = err.Error()
+		d.dirty = true
+		d.refresh(ctx)
+		return
+	}
+	d.action = npcDialogActionNone
+	d.clearOnText = true
+	d.status = ""
+	d.clearInput()
+	d.dirty = true
+	d.refresh(ctx)
+}
+
+func (d *NPCDialog) clearInput() {
+	d.input = ""
+	d.inputField = nil
 }
 
 func (d *NPCDialog) close(ctx Context) {
@@ -284,6 +363,21 @@ func (d *NPCDialog) ensureWindows(ctx Context) {
 			d.dirty = true
 		}
 	}
+	inputX, inputY, inputW, inputH := d.inputBounds(width, height, d.dialogWindow.x, d.dialogWindow.y, w, h)
+	if d.inputWindow.width == 0 {
+		d.inputWindow = NewWindow(inputW, inputH)
+		d.inputWindow.titleHeight = 0
+		d.inputWindow.SetAutoPosition(inputX, inputY)
+	} else {
+		d.inputWindow.titleHeight = 0
+		if d.inputWindow.width != inputW || d.inputWindow.height != inputH {
+			d.dirty = true
+		}
+		d.inputWindow.SetSize(inputW, inputH)
+		if d.inputWindow.SetAutoPosition(inputX, inputY) {
+			d.dirty = true
+		}
+	}
 }
 
 func (d *NPCDialog) openWindows(ctx Context) bool {
@@ -306,8 +400,20 @@ func (d *NPCDialog) openWindows(ctx Context) bool {
 		d.menuWindow.Close()
 		changed = true
 	}
+	if d.isInputAction() {
+		if !d.inputWindow.IsOpen() {
+			d.inputWindow.OpenAt(d.inputWindow.x, d.inputWindow.y, d.inputTree(ctx, d.inputWindow.width, d.inputWindow.height))
+			changed = true
+		} else if d.dirty {
+			d.inputWindow.SetContent(d.inputTree(ctx, d.inputWindow.width, d.inputWindow.height))
+		}
+	} else if d.inputWindow.IsOpen() {
+		d.inputWindow.Close()
+		changed = true
+	}
 	d.dirty = false
 	if changed {
+		d.focusInput()
 		d.publish(ctx)
 	}
 	return changed
@@ -319,6 +425,9 @@ func (d *NPCDialog) closeWindows() {
 	}
 	if d.menuWindow.IsOpen() {
 		d.menuWindow.Close()
+	}
+	if d.inputWindow.IsOpen() {
+		d.inputWindow.Close()
 	}
 }
 
@@ -336,14 +445,20 @@ func (d *NPCDialog) publish(ctx Context) {
 	if !d.open || !d.dialogWindow.IsOpen() {
 		d.dialogWindow.Unpublish(ctx)
 		d.menuWindow.Unpublish(ctx)
+		d.inputWindow.Unpublish(ctx)
 		return
 	}
 	d.dialogWindow.Publish(ctx)
-	if d.action != npcDialogActionMenu || !d.menuWindow.IsOpen() {
+	if d.action == npcDialogActionMenu && d.menuWindow.IsOpen() {
+		d.menuWindow.Publish(ctx)
+	} else {
 		d.menuWindow.Unpublish(ctx)
-		return
 	}
-	d.menuWindow.Publish(ctx)
+	if d.isInputAction() && d.inputWindow.IsOpen() {
+		d.inputWindow.Publish(ctx)
+	} else {
+		d.inputWindow.Unpublish(ctx)
+	}
 }
 
 func (d *NPCDialog) dialogTree(ctx Context, width, height int) widget.Widget {
@@ -395,6 +510,75 @@ func (d *NPCDialog) dialogTree(ctx Context, width, height int) widget.Widget {
 		)
 	}
 	return Win(options...)
+}
+
+func (d *NPCDialog) isInputAction() bool {
+	return d.action == npcDialogActionNumberInput || d.action == npcDialogActionStringInput
+}
+
+func (d *NPCDialog) inputTree(ctx Context, width, height int) widget.Widget {
+	label := ""
+	if d.action == npcDialogActionNumberInput {
+		label = "Input number"
+	}
+	children := make([]widget.Widget, 0, 2)
+	if label != "" {
+		children = append(children, rotheme.Text(label).Color(npcDialogWidgetColor(TextColor)))
+	}
+	children = append(children,
+		primitives.HBox(
+			primitives.Expanded(
+				primitives.Box(d.inputWidget(ctx)).
+					Height(22).
+					CrossAlign(primitives.CrossAxisStretch),
+			),
+			rotheme.Button("OK", func() {
+				d.submitInput(ctx)
+			}).Width(42),
+		).
+			Gap(8).
+			CrossAlign(primitives.CrossAxisCenter),
+	)
+	return primitives.Box(
+		primitives.Box(children...).
+			PaddingXY(10, 5).
+			Gap(3).
+			CrossAlign(primitives.CrossAxisStretch),
+	).
+		Width(float32(width)).
+		Height(float32(height)).
+		Background(widget.RGBA8(255, 255, 255, 255)).
+		BorderStyle(1, widget.RGBA8(193, 198, 194, 255)).
+		Rounded(5)
+}
+
+func (d *NPCDialog) inputWidget(ctx Context) *textfield.Widget {
+	if d.inputField != nil {
+		return d.inputField
+	}
+	inputType := textfield.TypeText
+	if d.action == npcDialogActionNumberInput {
+		inputType = textfield.TypeNumber
+	}
+	d.inputField = rotheme.TextField(
+		d.input,
+		inputType,
+		func(value string) {
+			d.input = value
+		},
+		func(string) {
+			d.submitInput(ctx)
+		},
+		textfield.MaxLength(npcInputMaxLength),
+	)
+	d.focusInput()
+	return d.inputField
+}
+
+func (d *NPCDialog) focusInput() {
+	if d.inputField != nil && d.isInputAction() {
+		d.inputField.SetFocused(true)
+	}
 }
 
 func (d *NPCDialog) dialogLineWidgets(width, contentHeight int) []widget.Widget {
@@ -556,6 +740,20 @@ func (d *NPCDialog) menuBounds(width, height, dialogX, dialogY, dialogW, dialogH
 	w := minInt(npcMenuWidth, maxInt(220, width-40))
 	rows := maxInt(npcMenuMinRows, minInt(len(d.options), npcMenuMaxRows))
 	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+npcMenuListPad*2+rows*npcMenuRowH+npcMenuFooterH)
+	x := dialogX + (dialogW-w)/2
+	y := dialogY + dialogH + 8
+	x = clampWindowInt(x, 8, maxInt(8, width-w-8))
+	y = clampWindowInt(y, 8, maxInt(8, height-h-8))
+	return x, y, w, h
+}
+
+func (d *NPCDialog) inputBounds(width, height, dialogX, dialogY, dialogW, dialogH int) (int, int, int, int) {
+	w := npcInputTextWidth
+	if d.action == npcDialogActionNumberInput {
+		w = npcInputNumberWidth
+	}
+	w = minInt(w, maxInt(140, width-40))
+	h := npcInputHeight
 	x := dialogX + (dialogW-w)/2
 	y := dialogY + dialogH + 8
 	x = clampWindowInt(x, 8, maxInt(8, width-w-8))

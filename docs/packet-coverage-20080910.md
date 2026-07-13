@@ -33,7 +33,6 @@ Status meaning:
 | `0x00CF` | C->S | `0x00cf` | `27` | `clif_parse_PMIgnore` | P2 |
 | `0x00D0` | C->S | `HEADER_CZ_SETTING_WHISPER_STATE` | `sizeof( PACKET_CZ_SETTING_WHISPER_STATE )` | `clif_parse_PMIgnoreAll` | P2 |
 | `0x00D5` | C->S | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | P2 |
-| `0x0143` | C->S | `HEADER_CZ_INPUT_EDITDLG` | `sizeof( PACKET_CZ_INPUT_EDITDLG )` | `clif_parse_NpcAmountInput` | P0/P1 |
 | `0x0149` | C->S | `0x0149` | `9` | `clif_parse_GMReqNoChat` | P2 |
 | `0x0161` | C->S | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | P2 |
 | `0x0165` | C->S | `0x0165` | `30` | `clif_parse_CreateGuild` | P2 |
@@ -49,7 +48,6 @@ Status meaning:
 | `0x01A5` | C->S | `0x01a5` | `26` | `clif_parse_ChangePetName` | P2 |
 | `0x01A9` | C->S | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | P2 |
 | `0x01AE` | C->S | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | P2 |
-| `0x01D5` | C->S | `HEADER_CZ_INPUT_EDITDLGSTR` | `-1` | `clif_parse_NpcStringInput` | P0/P1 |
 | `0x022D` | C->S | `0x022d` | `5` | `clif_parse_HomMenu` | P2 |
 | `0x0231` | C->S | `0x0231` | `26` | `clif_parse_ChangeHomunculusName` | P2 |
 | `0x0232` | C->S | `HEADER_CZ_REQUEST_MOVENPC` | `sizeof( PACKET_CZ_REQUEST_MOVENPC )` | `clif_parse_HomMoveTo` | P2 |
@@ -253,7 +251,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x0138` | S->C | untracked | `0x0138` | `3` | `-` | - |
 | `0x013F` | C->S | missing | `0x013f` | `26` | `clif_parse_GM_Item_Monster` | - |
 | `0x0140` | C->S | missing | `HEADER_CZ_MOVETO_MAP` | `sizeof( PACKET_CZ_MOVETO_MAP )` | `clif_parse_MapMove` | - |
-| `0x0143` | C->S | missing | `HEADER_CZ_INPUT_EDITDLG` | `sizeof( PACKET_CZ_INPUT_EDITDLG )` | `clif_parse_NpcAmountInput` | - |
+| `0x0143` | C->S | implemented | `HEADER_CZ_INPUT_EDITDLG` | `sizeof( PACKET_CZ_INPUT_EDITDLG )` | `clif_parse_NpcAmountInput` | npc_packets.go |
 | `0x0145` | S->C | referenced | `0x0145` | `19` | `-` | packet.go |
 | `0x0146` | C->S | referenced | `HEADER_CZ_CLOSE_DIALOG` | `sizeof( PACKET_CZ_CLOSE_DIALOG )` | `clif_parse_NpcCloseClicked` | npc_packets.go |
 | `0x0147` | S->C | referenced | `0x0147` | `39` | `-` | packet.go, skill_packets.go |
@@ -345,7 +343,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x01CE` | C->S | missing | `HEADER_CZ_SELECTAUTOSPELL` | `sizeof( PACKET_CZ_SELECTAUTOSPELL )` | `clif_parse_AutoSpell` | - |
 | `0x01CF` | S->C | referenced | `0x01cf` | `28` | `-` | packet.go |
 | `0x01D0` | S->C | referenced | `0x01d0` | `8` | `-` | packet.go |
-| `0x01D5` | C->S | missing | `HEADER_CZ_INPUT_EDITDLGSTR` | `-1` | `clif_parse_NpcStringInput` | - |
+| `0x01D5` | C->S | implemented | `HEADER_CZ_INPUT_EDITDLGSTR` | `-1` | `clif_parse_NpcStringInput` | npc_packets.go |
 | `0x01D7` | S->C | referenced | `0x01d7` | `11` | `-` | actor_packets.go, packet.go |
 | `0x01D8` | S->C | referenced | `0x01d8` | `54` | `-` | actor_packets.go, packet.go |
 | `0x01D9` | S->C | referenced | `0x01d9` | `53` | `-` | actor_packets.go, packet.go |

@@ -306,6 +306,28 @@ func (c *Client) SendNPCMenuChoice(npcID uint32, choice uint8) error {
 	return err
 }
 
+func (c *Client) SendNPCNumberInput(npcID uint32, value int32) error {
+	packet := BuildNPCNumberInputPacket(npcID, value)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_INPUT_EDITDLG opcode=0x%04X npc=%d value=%d client_date=%d", ID(packet), npcID, value, c.clientDate)
+	} else {
+		log.Printf("send CZ_INPUT_EDITDLG failed opcode=0x%04X npc=%d value=%d client_date=%d: %v", ID(packet), npcID, value, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendNPCStringInput(npcID uint32, value string) error {
+	packet := BuildNPCStringInputPacket(npcID, value)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_INPUT_EDITDLGSTR opcode=0x%04X npc=%d len=%d client_date=%d", ID(packet), npcID, len(value), c.clientDate)
+	} else {
+		log.Printf("send CZ_INPUT_EDITDLGSTR failed opcode=0x%04X npc=%d len=%d client_date=%d: %v", ID(packet), npcID, len(value), c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendStatusIncrease(statusID uint16) error {
 	packet := BuildStatusIncreasePacket(statusID)
 	err := c.Send(packet)

@@ -5,12 +5,11 @@
   - [x] Quit game: 0x018A QuitGame
   - [x] Less effects toggle: 0x021D LessEffect
   - [x] Hotkey save: 0x02BA Hotkey
-  - [ ] Progress bar ack/cancel: 0x02F1 progressbar
 
   NPC Dialogs
 
-  - [ ] Number input: 0x0143 NpcAmountInput
-  - [ ] String input: 0x01D5 NpcStringInput
+  - [x] Number input: 0x0143 NpcAmountInput
+  - [x] String input: 0x01D5 NpcStringInput
 
   Chat / Social
 
@@ -81,6 +80,7 @@
 
   - [ ] Quest state ack: 0x02B6
   - [ ] Memorial dungeon command: 0x02CF
+  - [ ] Progress bar ack/cancel: 0x02F1 progressbar
 
   Class-Specific / Skill Dialog Choices
 

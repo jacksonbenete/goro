@@ -15,6 +15,8 @@ const (
 	NPCDialogClose
 	NPCDialogMenu
 	NPCDialogClear
+	NPCDialogNumberInput
+	NPCDialogStringInput
 )
 
 type NPCDialog struct {
@@ -61,6 +63,16 @@ func ParseNPCDialog(packet Packet) (NPCDialog, bool, error) {
 			return NPCDialog{}, true, fmt.Errorf("ZC_CLEAR_DIALOG too short: %d", len(packet.Data))
 		}
 		return NPCDialog{Kind: NPCDialogClear, NPCID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
+	case 0x0142:
+		if len(packet.Data) < 6 {
+			return NPCDialog{}, true, fmt.Errorf("ZC_OPEN_EDITDLG too short: %d", len(packet.Data))
+		}
+		return NPCDialog{Kind: NPCDialogNumberInput, NPCID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
+	case 0x01D4:
+		if len(packet.Data) < 6 {
+			return NPCDialog{}, true, fmt.Errorf("ZC_OPEN_EDITDLGSTR too short: %d", len(packet.Data))
+		}
+		return NPCDialog{Kind: NPCDialogStringInput, NPCID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
 	default:
 		return NPCDialog{}, false, nil
 	}
@@ -93,6 +105,25 @@ func BuildNPCClosePacket(npcID uint32) []byte {
 	var w Writer
 	w.Uint16(0x0146)
 	w.Uint32(npcID)
+	return w.Bytes()
+}
+
+func BuildNPCNumberInputPacket(npcID uint32, value int32) []byte {
+	var w Writer
+	w.Uint16(0x0143)
+	w.Uint32(npcID)
+	w.Uint32(uint32(value))
+	return w.Bytes()
+}
+
+func BuildNPCStringInputPacket(npcID uint32, value string) []byte {
+	data := []byte(value)
+	var w Writer
+	w.Uint16(0x01D5)
+	w.Uint16(uint16(8 + len(data) + 1))
+	w.Uint32(npcID)
+	_, _ = w.Write(data)
+	w.Uint8(0)
 	return w.Bytes()
 }
 
