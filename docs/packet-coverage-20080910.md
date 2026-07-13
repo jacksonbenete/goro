@@ -30,8 +30,6 @@ Status meaning:
 | Opcode | Direction | rAthena symbol | Length | Handler | Priority |
 |---:|---|---|---:|---|---|
 | `0x007E` | C->S | `0x007e` | `102` | `clif_parse_UseSkillToPosMoreInfo` | P0/P1 |
-| `0x00CF` | C->S | `0x00cf` | `27` | `clif_parse_PMIgnore` | P2 |
-| `0x00D0` | C->S | `HEADER_CZ_SETTING_WHISPER_STATE` | `sizeof( PACKET_CZ_SETTING_WHISPER_STATE )` | `clif_parse_PMIgnoreAll` | P2 |
 | `0x00D5` | C->S | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | P2 |
 | `0x0149` | C->S | `0x0149` | `9` | `clif_parse_GMReqNoChat` | P2 |
 | `0x0161` | C->S | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | P2 |
@@ -197,8 +195,8 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x00CC` | C->S | missing | `0x00cc` | `6` | `clif_parse_GMKick` | - |
 | `0x00CD` | S->C | untracked | `0x00cd` | `3` | `-` | - |
 | `0x00CE` | C->S | missing | `0x00ce` | `2` | `clif_parse_GMKickAll` | - |
-| `0x00CF` | C->S | missing | `0x00cf` | `27` | `clif_parse_PMIgnore` | - |
-| `0x00D0` | C->S | missing | `HEADER_CZ_SETTING_WHISPER_STATE` | `sizeof( PACKET_CZ_SETTING_WHISPER_STATE )` | `clif_parse_PMIgnoreAll` | - |
+| `0x00CF` | C->S | implemented | `0x00cf` | `27` | `clif_parse_PMIgnore` | chat_packets.go |
+| `0x00D0` | C->S | implemented | `HEADER_CZ_SETTING_WHISPER_STATE` | `sizeof( PACKET_CZ_SETTING_WHISPER_STATE )` | `clif_parse_PMIgnoreAll` | chat_packets.go |
 | `0x00D3` | C->S | referenced | `0x00d3` | `2` | `clif_parse_PMIgnoreList` | packet.go |
 | `0x00D5` | C->S | missing | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | - |
 | `0x00D9` | C->S | referenced | `HEADER_CZ_REQ_ENTER_ROOM` | `sizeof( PACKET_CZ_REQ_ENTER_ROOM )` | `clif_parse_ChatAddMember` | packet.go |

@@ -48,6 +48,7 @@ const (
 	FriendsWindowActionFriendWhisper
 	FriendsWindowActionFriendDelete
 	FriendsWindowActionFriendSettings
+	FriendsWindowActionFriendBlockWhisper
 	FriendsWindowActionPartyCreate
 	FriendsWindowActionPartyInvite
 	FriendsWindowActionPartyMemberInfo

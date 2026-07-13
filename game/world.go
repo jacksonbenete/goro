@@ -442,6 +442,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.addWhisperWindowAck(ctx, ack)
 			continue
 		}
+		if ack, ok, err := network.ParseWhisperIgnoreAck(pkt); err != nil {
+			log.Printf("parse whisper ignore ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			addWhisperIgnoreAck(&m.console, ack)
+			continue
+		}
 		if emotion, ok, err := network.ParseEmotionNotify(pkt); err != nil {
 			log.Printf("parse emotion 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1309,6 +1315,14 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.openDeleteFriendConfirm(ctx, action.Friend)
 		case gameui.FriendsWindowActionFriendSettings:
 			m.friendSettings.Open(ctx)
+		case gameui.FriendsWindowActionFriendBlockWhisper:
+			name := strings.TrimSpace(action.Friend.Name)
+			if ctx.Network == nil {
+				m.console.AddErrorMessage("Block whisper failed: not connected.")
+			} else if err := ctx.Network.SendWhisperIgnore(name, false); err != nil {
+				m.console.AddErrorMessage("Block whisper failed.")
+				log.Printf("block whisper failed name=%q: %v", name, err)
+			}
 		case gameui.FriendsWindowActionPartyMemberInfo:
 			m.openPartyMemberInfo(ctx, action.PartyMember)
 		case gameui.FriendsWindowActionPartyMemberWhisper:

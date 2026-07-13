@@ -68,6 +68,46 @@ func addWhisperAck(console *gameui.ChatConsole, manager *res.Manager, ack networ
 	console.AddErrorMessage("%s", whisperAckMessage(manager, ack))
 }
 
+func addWhisperIgnoreAck(console *gameui.ChatConsole, ack network.WhisperIgnoreAck) {
+	if console == nil {
+		return
+	}
+	if ack.Result != 0 {
+		console.AddErrorMessage("%s", whisperIgnoreAckFailure(ack))
+		return
+	}
+	console.AddSystemMessage("%s", whisperIgnoreAckSuccess(ack))
+}
+
+func whisperIgnoreAckSuccess(ack network.WhisperIgnoreAck) string {
+	if ack.TargetAll {
+		if ack.Allow {
+			return "Whispers from everyone are allowed."
+		}
+		return "Whispers from everyone are blocked."
+	}
+	if ack.Allow {
+		return "Whispers from that player are allowed."
+	}
+	return "Whispers from that player are blocked."
+}
+
+func whisperIgnoreAckFailure(ack network.WhisperIgnoreAck) string {
+	if !ack.TargetAll && ack.Result == 2 {
+		return "Whisper block list is full."
+	}
+	if ack.TargetAll {
+		if ack.Allow {
+			return "Allow all whispers failed."
+		}
+		return "Block all whispers failed."
+	}
+	if ack.Allow {
+		return "Allow whisper failed."
+	}
+	return "Block whisper failed."
+}
+
 func whisperAckMessage(manager *res.Manager, ack network.WhisperAck) string {
 	message := ""
 	if manager != nil {

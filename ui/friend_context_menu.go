@@ -92,11 +92,17 @@ func (m *FriendContextMenu) widgetTree() widget.Widget {
 				}).
 					Width(friendContextMenuWidth).
 					Height(friendContextMenuRowH),
+				rotheme.Button("Block Whisper", func() {
+					m.action = FriendsWindowAction{Kind: FriendsWindowActionFriendBlockWhisper, Friend: m.friend}
+					m.Close()
+				}).
+					Width(friendContextMenuWidth).
+					Height(friendContextMenuRowH),
 			),
 		),
 	)
 }
 
 func (m *FriendContextMenu) height() int {
-	return friendContextMenuRowH * 2
+	return friendContextMenuRowH * 3
 }

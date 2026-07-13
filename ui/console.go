@@ -274,6 +274,18 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/w", "/whisper":
 		c.submitWhisper(ctx, text)
 		return true
+	case "/ex":
+		c.submitWhisperIgnore(ctx, text, false)
+		return true
+	case "/in":
+		c.submitWhisperIgnore(ctx, text, true)
+		return true
+	case "/exall":
+		c.submitWhisperIgnoreAll(ctx, false)
+		return true
+	case "/inall":
+		c.submitWhisperIgnoreAll(ctx, true)
+		return true
 	default:
 		if emotionID, ok := db.EmotionCommandID(strings.TrimPrefix(command, "/")); ok {
 			c.submitEmotion(ctx, emotionID)
@@ -451,6 +463,52 @@ func (c *ChatConsole) submitWhisper(ctx client.Context, text string) {
 		return
 	}
 	c.AddBlueMessage("[ To %s ] : %s", target, message)
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitWhisperIgnore(ctx client.Context, text string, allow bool) {
+	name := consoleCommandArgs(text)
+	name = strings.Trim(name, `"`)
+	if name == "" {
+		if allow {
+			c.AddErrorMessage("usage: /in character_name")
+		} else {
+			c.AddErrorMessage("usage: /ex character_name")
+		}
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendWhisperIgnore(name, allow); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitWhisperIgnoreAll(ctx client.Context, allow bool) {
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendWhisperIgnoreAll(allow); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
 	c.setInput("")
 	c.setActive(false)
 }

@@ -12,10 +12,14 @@ const (
 	PacketCZRequestChatLegacy uint16 = 0x008C
 	PacketCZRequestChat       uint16 = 0x00F3
 	PacketCZWhisper           uint16 = 0x0096
+	PacketCZWhisperIgnore     uint16 = 0x00CF
+	PacketCZWhisperIgnoreAll  uint16 = 0x00D0
 	PacketZCNotifyChat        uint16 = 0x008D
 	PacketZCNotifyPlayerChat  uint16 = 0x008E
 	PacketZCWhisper           uint16 = 0x0097
 	PacketZCAckWhisper        uint16 = 0x0098
+	PacketZCWhisperIgnoreAck  uint16 = 0x00D1
+	PacketZCWhisperAllAck     uint16 = 0x00D2
 	PacketZCBroadcast         uint16 = 0x009A
 	PacketZCMsg               uint16 = 0x0291
 	PacketZCMsgValue          uint16 = 0x07E2
@@ -39,6 +43,12 @@ type WhisperMessage struct {
 
 type WhisperAck struct {
 	Result uint8
+}
+
+type WhisperIgnoreAck struct {
+	TargetAll bool
+	Allow     bool
+	Result    uint8
 }
 
 func BuildGlobalChatPacket(name, message string) []byte {
@@ -81,6 +91,29 @@ func BuildWhisperPacket(receiver, message string) []byte {
 	writeFixedCString(packet[4:28], receiver)
 	copy(packet[28:], []byte(message))
 	return packet
+}
+
+func BuildWhisperIgnorePacket(name string, allow bool) []byte {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	packet := make([]byte, 27)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZWhisperIgnore)
+	writeFixedName(packet[2:26], name)
+	packet[26] = whisperAllowByte(allow)
+	return packet
+}
+
+func BuildWhisperIgnoreAllPacket(allow bool) []byte {
+	return []byte{byte(PacketCZWhisperIgnoreAll), byte(PacketCZWhisperIgnoreAll >> 8), whisperAllowByte(allow)}
+}
+
+func whisperAllowByte(allow bool) byte {
+	if allow {
+		return 1
+	}
+	return 0
 }
 
 func ParseChatMessage(packet Packet) (ChatMessage, bool, error) {
@@ -161,6 +194,30 @@ func ParseWhisperAck(packet Packet) (WhisperAck, bool, error) {
 	return WhisperAck{Result: packet.Data[2]}, true, nil
 }
 
+func ParseWhisperIgnoreAck(packet Packet) (WhisperIgnoreAck, bool, error) {
+	switch packet.ID {
+	case PacketZCWhisperIgnoreAck:
+		if len(packet.Data) < 4 {
+			return WhisperIgnoreAck{}, false, fmt.Errorf("ZC_SETTING_WHISPER_PC too short: %d", len(packet.Data))
+		}
+		return WhisperIgnoreAck{
+			Allow:  packet.Data[2] != 0,
+			Result: packet.Data[3],
+		}, true, nil
+	case PacketZCWhisperAllAck:
+		if len(packet.Data) < 4 {
+			return WhisperIgnoreAck{}, false, fmt.Errorf("ZC_SETTING_WHISPER_STATE too short: %d", len(packet.Data))
+		}
+		return WhisperIgnoreAck{
+			TargetAll: true,
+			Allow:     packet.Data[2] != 0,
+			Result:    packet.Data[3],
+		}, true, nil
+	default:
+		return WhisperIgnoreAck{}, false, nil
+	}
+}
+
 func packetCString(data []byte) string {
 	if i := bytes.IndexByte(data, 0); i >= 0 {
 		data = data[:i]
@@ -174,6 +231,18 @@ func writeFixedCString(dst []byte, value string) {
 	if len(src) < len(dst) {
 		dst[len(src)] = 0
 	}
+}
+
+func writeFixedName(dst []byte, value string) {
+	if len(dst) == 0 {
+		return
+	}
+	src := []byte(value)
+	if len(src) >= len(dst) {
+		src = src[:len(dst)-1]
+	}
+	copy(dst, src)
+	dst[len(src)] = 0
 }
 
 func (c *Client) SendGlobalChat(name, message string) error {
@@ -200,6 +269,31 @@ func (c *Client) SendWhisper(receiver, message string) error {
 		log.Printf("sent CZ_WHISPER opcode=0x%04X len=%d receiver=%q client_date=%d", ID(packet), len(packet), receiver, c.clientDate)
 	} else {
 		log.Printf("send CZ_WHISPER failed opcode=0x%04X len=%d receiver=%q client_date=%d: %v", ID(packet), len(packet), receiver, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendWhisperIgnore(name string, allow bool) error {
+	packet := BuildWhisperIgnorePacket(name, allow)
+	if len(packet) == 0 {
+		return fmt.Errorf("empty whisper ignore target")
+	}
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_SETTING_WHISPER_PC opcode=0x%04X name=%q allow=%t client_date=%d", ID(packet), name, allow, c.clientDate)
+	} else {
+		log.Printf("send CZ_SETTING_WHISPER_PC failed opcode=0x%04X name=%q allow=%t client_date=%d: %v", ID(packet), name, allow, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendWhisperIgnoreAll(allow bool) error {
+	packet := BuildWhisperIgnoreAllPacket(allow)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_SETTING_WHISPER_STATE opcode=0x%04X allow=%t client_date=%d", ID(packet), allow, c.clientDate)
+	} else {
+		log.Printf("send CZ_SETTING_WHISPER_STATE failed opcode=0x%04X allow=%t client_date=%d: %v", ID(packet), allow, c.clientDate, err)
 	}
 	return err
 }

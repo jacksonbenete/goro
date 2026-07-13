@@ -13,8 +13,8 @@
 
   Chat / Social
 
-  - [ ] Ignore whisper from player: 0x00CF PMIgnore
-  - [ ] Ignore all whispers: 0x00D0 PMIgnoreAll
+  - [x] Ignore whisper from player: 0x00CF PMIgnore
+  - [x] Ignore all whispers: 0x00D0 PMIgnoreAll
   - [ ] Create chat room: 0x00D5 CreateChatRoom
   - [ ] Battle chat: 0x02DB BattleChat
 

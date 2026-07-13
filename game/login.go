@@ -183,6 +183,12 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			addWhisperAck(&m.console, ctx.Resources, ack)
 			continue
 		}
+		if ack, ok, err := network.ParseWhisperIgnoreAck(pkt); err != nil {
+			m.packets = append(m.packets, "parse whisper ignore ack: "+err.Error())
+		} else if ok {
+			addWhisperIgnoreAck(&m.console, ack)
+			continue
+		}
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			m.packets = append(m.packets, "parse ZC_NPCACK_MAPMOVE: "+err.Error())
 		} else if ok {

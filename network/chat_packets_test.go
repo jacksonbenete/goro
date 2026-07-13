@@ -43,6 +43,48 @@ func TestBuildWhisperPacket(t *testing.T) {
 	}
 }
 
+func TestBuildWhisperIgnorePackets(t *testing.T) {
+	packet := BuildWhisperIgnorePacket("Rekka", false)
+	if got := ID(packet); got != PacketCZWhisperIgnore {
+		t.Fatalf("opcode = 0x%04X, want 0x%04X", got, PacketCZWhisperIgnore)
+	}
+	if len(packet) != 27 {
+		t.Fatalf("len = %d, want 27", len(packet))
+	}
+	if got := string(packet[2:7]); got != "Rekka" {
+		t.Fatalf("name prefix = %q", got)
+	}
+	if packet[7] != 0 {
+		t.Fatalf("name is not nul terminated")
+	}
+	if packet[26] != 0 {
+		t.Fatalf("type = %d, want deny 0", packet[26])
+	}
+
+	packet = BuildWhisperIgnorePacket("123456789012345678901234", false)
+	if got := string(packet[2:25]); got != "12345678901234567890123" || packet[25] != 0 {
+		t.Fatalf("long name field = %x", packet[2:26])
+	}
+
+	packet = BuildWhisperIgnorePacket("Rekka", true)
+	if packet[26] != 1 {
+		t.Fatalf("type = %d, want allow 1", packet[26])
+	}
+
+	packet = BuildWhisperIgnoreAllPacket(false)
+	if got := ID(packet); got != PacketCZWhisperIgnoreAll {
+		t.Fatalf("opcode = 0x%04X, want 0x%04X", got, PacketCZWhisperIgnoreAll)
+	}
+	if len(packet) != 3 || packet[2] != 0 {
+		t.Fatalf("ignore all packet = %x, want deny", packet)
+	}
+
+	packet = BuildWhisperIgnoreAllPacket(true)
+	if len(packet) != 3 || packet[2] != 1 {
+		t.Fatalf("ignore all packet = %x, want allow", packet)
+	}
+}
+
 func TestParseNotifyChat(t *testing.T) {
 	packet := Packet{ID: PacketZCNotifyChat, Data: []byte{0x8d, 0x00, 0x11, 0x00, 0x44, 0x33, 0x22, 0x11, 'h', 'i', 0}}
 	chat, ok, err := ParseChatMessage(packet)
@@ -85,6 +127,30 @@ func TestParseWhisperAck(t *testing.T) {
 	}
 	if ack.Result != 1 {
 		t.Fatalf("result = %d, want 1", ack.Result)
+	}
+}
+
+func TestParseWhisperIgnoreAck(t *testing.T) {
+	ack, ok, err := ParseWhisperIgnoreAck(Packet{ID: PacketZCWhisperIgnoreAck, Data: []byte{0xd1, 0x00, 0x00, 0x02}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("whisper ignore ack not recognized")
+	}
+	if ack.TargetAll || ack.Allow || ack.Result != 2 {
+		t.Fatalf("ack = %+v", ack)
+	}
+
+	ack, ok, err = ParseWhisperIgnoreAck(Packet{ID: PacketZCWhisperAllAck, Data: []byte{0xd2, 0x00, 0x01, 0x00}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("whisper all ack not recognized")
+	}
+	if !ack.TargetAll || !ack.Allow || ack.Result != 0 {
+		t.Fatalf("ack = %+v", ack)
 	}
 }
 
