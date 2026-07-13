@@ -55,3 +55,31 @@ func TestDeathModalCharacterSelectAckDeniedKeepsModalOpen(t *testing.T) {
 		t.Fatalf("modal = %+v, want open and no pending action", modal)
 	}
 }
+
+func TestDeathModalQuitAckRefusedKeepsModalOpen(t *testing.T) {
+	var modal DeathModal
+	modal.OpenDeath()
+	modal.pending = DeathModalActionExit
+
+	if !modal.ApplyQuitGameAck(network.QuitGameAck{Allowed: false, Result: 1}) {
+		t.Fatal("quit ack was not handled")
+	}
+	if !modal.IsOpen() || modal.pending != DeathModalActionNone {
+		t.Fatalf("modal = %+v, want open and no pending action", modal)
+	}
+}
+
+func TestDeathModalQuitWithoutNetworkRequestsQuit(t *testing.T) {
+	quit := false
+	var modal DeathModal
+	modal.OpenDeath()
+
+	modal.ExitToWindows(client.Context{RequestQuit: func() { quit = true }})
+
+	if !quit {
+		t.Fatal("quit callback was not called")
+	}
+	if modal.pending != DeathModalActionNone {
+		t.Fatalf("pending = %d, want none", modal.pending)
+	}
+}

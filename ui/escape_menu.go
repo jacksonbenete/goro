@@ -20,9 +20,10 @@ const (
 
 type EscapeMenu struct {
 	Window
-	action  EscapeMenuAction
-	pending bool
-	ctx     client.Context
+	action        EscapeMenuAction
+	pending       bool
+	pendingAction EscapeMenuAction
+	ctx           client.Context
 }
 
 type EscapeMenuAction int
@@ -45,6 +46,7 @@ func (m *EscapeMenu) Toggle(ctx client.Context) {
 	}
 	m.action = EscapeMenuActionNone
 	m.pending = false
+	m.pendingAction = EscapeMenuActionNone
 	m.CloseOnEsc = true
 	m.Window.Open(ctx, m.widgetTree(ctx))
 	m.Publish(ctx)
@@ -77,13 +79,16 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 
 func (m *EscapeMenu) RequestCharacterSelect(ctx client.Context) {
 	m.pending = true
+	m.pendingAction = EscapeMenuActionCharacterSelect
 	if ctx.Network == nil {
 		m.pending = false
+		m.pendingAction = EscapeMenuActionNone
 		m.refresh(ctx)
 		return
 	}
 	if err := ctx.Network.SendRestart(network.RestartTypeCharSelect); err != nil {
 		m.pending = false
+		m.pendingAction = EscapeMenuActionNone
 		log.Printf("escape menu character select failed: %v", err)
 		m.refresh(ctx)
 		return
@@ -91,8 +96,30 @@ func (m *EscapeMenu) RequestCharacterSelect(ctx client.Context) {
 	m.refresh(ctx)
 }
 
+func (m *EscapeMenu) RequestQuitGame(ctx client.Context) {
+	m.pending = true
+	m.pendingAction = EscapeMenuActionExit
+	if ctx.Network == nil {
+		m.pending = false
+		m.pendingAction = EscapeMenuActionNone
+		m.refresh(ctx)
+		if ctx.RequestQuit != nil {
+			ctx.RequestQuit()
+		}
+		return
+	}
+	if err := ctx.Network.SendQuitGame(); err != nil {
+		m.pending = false
+		m.pendingAction = EscapeMenuActionNone
+		log.Printf("escape menu quit failed: %v", err)
+		m.refresh(ctx)
+		return
+	}
+	m.refresh(ctx)
+}
+
 func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
-	if !m.pending {
+	if !m.pending || m.pendingAction != EscapeMenuActionCharacterSelect {
 		return false
 	}
 	if ack.Allowed {
@@ -100,10 +127,27 @@ func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
 		return true
 	}
 	m.pending = false
+	m.pendingAction = EscapeMenuActionNone
 	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
 	m.Window.Open(m.ctx, m.widgetTree(m.ctx))
 	m.refresh(m.ctx)
 	return false
+}
+
+func (m *EscapeMenu) ApplyQuitGameAck(ack network.QuitGameAck) bool {
+	if !m.pending || m.pendingAction != EscapeMenuActionExit {
+		return false
+	}
+	if ack.Allowed {
+		m.refresh(m.ctx)
+		return true
+	}
+	m.pending = false
+	m.pendingAction = EscapeMenuActionNone
+	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
+	m.Window.Open(m.ctx, m.widgetTree(m.ctx))
+	m.refresh(m.ctx)
+	return true
 }
 
 func (m *EscapeMenu) ConsumeAction() EscapeMenuAction {
@@ -158,11 +202,8 @@ func (m *EscapeMenu) widgetTree(ctx client.Context) widget.Widget {
 				rotheme.LargeButtonDisabled("Cancel", m.pending, func() {
 					m.Window.Close()
 				}),
-				rotheme.LargeButton("Exit to Windows", func() {
-					m.Window.Close()
-					if ctx.RequestQuit != nil {
-						ctx.RequestQuit()
-					}
+				rotheme.LargeButtonDisabled("Exit to Windows", m.pending, func() {
+					m.RequestQuitGame(ctx)
 				}),
 			).
 				Padding(escapeMenuPad).

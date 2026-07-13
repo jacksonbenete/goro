@@ -107,6 +107,19 @@ func TestBuildRestartPacket(t *testing.T) {
 	}
 }
 
+func TestBuildQuitGamePacket(t *testing.T) {
+	packet := BuildQuitGamePacket()
+	want := []byte{0x8A, 0x01, 0x00, 0x00}
+	if len(packet) != len(want) {
+		t.Fatalf("len = %d", len(packet))
+	}
+	for i := range want {
+		if packet[i] != want[i] {
+			t.Fatalf("packet = % x, want % x", packet, want)
+		}
+	}
+}
+
 func TestBuildMapServerEnterPacket(t *testing.T) {
 	packet := BuildMapServerEnterPacket(MapServerEnter{
 		AccountID:  0x11223344,

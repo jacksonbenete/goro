@@ -296,8 +296,8 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x0183` | C->S | missing | `0x0183` | `10` | `clif_parse_GuildDelAlliance` | - |
 | `0x0185` | S->C | untracked | `0x0185` | `34` | `-` | - |
 | `0x0187` | S->C | referenced | `0x0187` | `6` | `-` | packet.go |
-| `0x018A` | C->S | missing | `0x018a` | `4` | `clif_parse_QuitGame` | - |
-| `0x018B` | S->C | referenced | `0x018b` | `4` | `-` | packet.go |
+| `0x018A` | C->S | implemented | `0x018a` | `4` | `clif_parse_QuitGame` | login_packets.go |
+| `0x018B` | S->C | referenced | `0x018b` | `4` | `-` | packet.go, restart_packets.go |
 | `0x018E` | C->S | missing | `HEADER_CZ_REQMAKINGITEM` | `sizeof( struct PACKET_CZ_REQMAKINGITEM )` | `clif_parse_ProduceMix` | - |
 | `0x0190` | C->S | referenced | `0x0190` | `19` | `clif_parse_ActionRequest` | item_packets.go, login_packets.go |
 | `0x0193` | C->S | referenced | `0x0193` | `2` | `clif_parse_CloseKafra` | item_packets.go |

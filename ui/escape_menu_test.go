@@ -88,7 +88,7 @@ func TestEscapeMenuEscapeKeyTogglesWindow(t *testing.T) {
 }
 
 func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
-	menu := EscapeMenu{pending: true}
+	menu := EscapeMenu{pending: true, pendingAction: EscapeMenuActionCharacterSelect}
 
 	if !menu.ApplyRestartAck(network.RestartAck{Allowed: true}) {
 		t.Fatal("allowed restart ack should request character-select transition")
@@ -96,7 +96,7 @@ func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
 }
 
 func TestEscapeMenuCharacterSelectAckDeniedKeepsMenuOpen(t *testing.T) {
-	menu := EscapeMenu{pending: true}
+	menu := EscapeMenu{pending: true, pendingAction: EscapeMenuActionCharacterSelect}
 
 	if menu.ApplyRestartAck(network.RestartAck{Allowed: false}) {
 		t.Fatal("denied restart ack should not request transition")
@@ -112,5 +112,37 @@ func TestEscapeMenuCharacterSelectWithoutNetworkShowsError(t *testing.T) {
 
 	if menu.pending {
 		t.Fatal("menu stayed pending without a network connection")
+	}
+}
+
+func TestEscapeMenuQuitWithoutNetworkRequestsQuit(t *testing.T) {
+	quit := false
+	menu := EscapeMenu{}
+	menu.Toggle(client.Context{ScreenW: 800, ScreenH: 600})
+	menu.RequestQuitGame(client.Context{
+		ScreenW:     800,
+		ScreenH:     600,
+		RequestQuit: func() { quit = true },
+	})
+
+	if !quit {
+		t.Fatal("quit callback was not called")
+	}
+	if menu.pending {
+		t.Fatal("menu stayed pending without a network connection")
+	}
+}
+
+func TestEscapeMenuQuitAckRefusedKeepsMenuOpen(t *testing.T) {
+	menu := EscapeMenu{pending: true, pendingAction: EscapeMenuActionExit}
+	menu.Toggle(client.Context{ScreenW: 800, ScreenH: 600})
+	menu.pending = true
+	menu.pendingAction = EscapeMenuActionExit
+
+	if !menu.ApplyQuitGameAck(network.QuitGameAck{Allowed: false, Result: 1}) {
+		t.Fatal("quit ack was not handled")
+	}
+	if !menu.Window.IsOpen() || menu.pending {
+		t.Fatalf("menu = %+v, want open without pending request", menu)
 	}
 }

@@ -175,6 +175,17 @@ func (c *Client) SendRestart(restartType uint8) error {
 	return err
 }
 
+func (c *Client) SendQuitGame() error {
+	packet := BuildQuitGamePacket()
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_DISCONNECT opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_DISCONNECT failed opcode=0x%04X len=%d client_date=%d: %v", ID(packet), len(packet), c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendTick(clientTick uint32) error {
 	packet := BuildTickSendPacketForClientDate(clientTick, c.clientDate)
 	err := c.Send(packet)

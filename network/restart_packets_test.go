@@ -32,3 +32,21 @@ func TestParseRestartAckIgnoresOtherPackets(t *testing.T) {
 		t.Fatal("unexpected restart ack")
 	}
 }
+
+func TestParseQuitGameAck(t *testing.T) {
+	ack, ok, err := ParseQuitGameAck(Packet{ID: PacketZCQuitGameAck, Data: []byte{0x8B, 0x01, 0x00, 0x00}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !ack.Allowed || ack.Result != 0 {
+		t.Fatalf("accepted quit ack = %+v ok=%t", ack, ok)
+	}
+
+	ack, ok, err = ParseQuitGameAck(Packet{ID: PacketZCQuitGameAck, Data: []byte{0x8B, 0x01, 0x01, 0x00}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || ack.Allowed || ack.Result != 1 {
+		t.Fatalf("refused quit ack = %+v ok=%t", ack, ok)
+	}
+}

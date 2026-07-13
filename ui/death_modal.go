@@ -31,6 +31,7 @@ const (
 	DeathModalActionNone DeathModalAction = iota
 	DeathModalActionSavePoint
 	DeathModalActionCharSelect
+	DeathModalActionExit
 )
 
 func (m *DeathModal) OpenDeath() {
@@ -65,6 +66,19 @@ func (m *DeathModal) ApplyRestartAck(ack network.RestartAck) bool {
 	m.pending = DeathModalActionNone
 	m.refresh(m.ctx)
 	return false
+}
+
+func (m *DeathModal) ApplyQuitGameAck(ack network.QuitGameAck) bool {
+	if !m.IsOpen() || m.pending != DeathModalActionExit {
+		return false
+	}
+	if ack.Allowed {
+		m.refresh(m.ctx)
+		return true
+	}
+	m.pending = DeathModalActionNone
+	m.refresh(m.ctx)
+	return true
 }
 
 func (m *DeathModal) Update(ctx client.Context) bool {
@@ -110,11 +124,20 @@ func (m *DeathModal) RequestCharacterSelect(ctx client.Context) {
 }
 
 func (m *DeathModal) ExitToWindows(ctx client.Context) {
-	m.Window.Close()
-	m.Publish(ctx)
-	if ctx.RequestQuit != nil {
-		ctx.RequestQuit()
+	m.pending = DeathModalActionExit
+	if ctx.Network == nil {
+		m.pending = DeathModalActionNone
+		m.refresh(ctx)
+		if ctx.RequestQuit != nil {
+			ctx.RequestQuit()
+		}
+		return
 	}
+	if err := ctx.Network.SendQuitGame(); err != nil {
+		m.pending = DeathModalActionNone
+		log.Printf("death modal quit failed: %v", err)
+	}
+	m.refresh(ctx)
 }
 
 func (m *DeathModal) Draw(screen *render.Image, ctx client.Context, width, height int) {

@@ -473,6 +473,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			}
 			continue
 		}
+		if ack, ok, err := network.ParseQuitGameAck(pkt); err != nil {
+			log.Printf("parse quit game ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyQuitGameAck(ctx, ack)
+			continue
+		}
 		if dialog, ok, err := network.ParseNPCDialog(pkt); err != nil {
 			log.Printf("parse npc dialog 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1372,6 +1378,22 @@ func (m *WorldMode) handleEscapeMenuAction(ctx client.Context) {
 		m.escapeMenu.RequestCharacterSelect(ctx)
 	case gameui.EscapeMenuActionSettings:
 		m.settingsWindow.OpenWindow(ctx)
+	}
+}
+
+func (m *WorldMode) applyQuitGameAck(ctx client.Context, ack network.QuitGameAck) {
+	handled := m.escapeMenu.ApplyQuitGameAck(ack)
+	if m.deathModal.ApplyQuitGameAck(ack) {
+		handled = true
+	}
+	if ack.Allowed {
+		if ctx.RequestQuit != nil {
+			ctx.RequestQuit()
+		}
+		return
+	}
+	if handled {
+		m.console.AddErrorMessage("You cannot exit the game right now.")
 	}
 }
 

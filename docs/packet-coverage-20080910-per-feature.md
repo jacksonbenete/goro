@@ -2,7 +2,7 @@
 
   - [x] Skill targeting: 0x007E UseSkillToPosMoreInfo
   - [x] Remove cart option: 0x012A RemoveOption
-  - [ ] Quit game: 0x018A QuitGame
+  - [x] Quit game: 0x018A QuitGame
   - [ ] Less effects toggle: 0x021D LessEffect
   - [ ] Hotkey save: 0x02BA Hotkey
   - [ ] Progress bar ack/cancel: 0x02F1 progressbar
