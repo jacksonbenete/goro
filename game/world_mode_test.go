@@ -2056,14 +2056,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 103 {
-		t.Fatalf("implemented effects = %d, want 103", coverage.Implemented)
+	if coverage.Implemented != 113 {
+		t.Fatalf("implemented effects = %d, want 113", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 16.9 || coverage.ActivePercent > 17.0 {
-		t.Fatalf("active coverage = %.3f, want about 17.0", coverage.ActivePercent)
+	if coverage.ActivePercent < 18.6 || coverage.ActivePercent > 18.7 {
+		t.Fatalf("active coverage = %.3f, want about 18.6", coverage.ActivePercent)
 	}
 }
 
@@ -2700,7 +2700,48 @@ func TestAcolyteSkillEffectMappings(t *testing.T) {
 
 func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "PR_IMPOSITIO imported", skillEffectIDs(db.SkillPRImpositio), 84)
+	expectEffectIDs(t, "ALL_RESURRECTION imported", skillEffectIDs(db.SkillALLResurrection), effectResurrection, 140)
+	expectEffectIDs(t, "PR_SUFFRAGIUM imported", skillEffectIDs(db.SkillPRSuffragium), effectSuffragium)
+	expectEffectIDs(t, "PR_KYRIE imported", skillEffectIDs(db.SkillPRKyrie), effectKyrie)
+	expectEffectIDs(t, "PR_MAGNIFICAT imported", skillEffectIDs(db.SkillPRMagnificat), effectMagnificat)
+	expectEffectIDs(t, "PR_GLORIA imported", skillEffectIDs(db.SkillPRGloria), effectGloria)
+	expectEffectIDs(t, "PR_LEXAETERNA imported", skillEffectIDs(db.SkillPRLexaeterna), effectLexAeterna)
 	expectEffectIDs(t, "PR_TURNUNDEAD imported hit", skillHitEffectIDs(db.SkillPRTurnundead), 152)
+	expectEffectIDs(t, "WZ_STORMGUST imported", skillEffectIDs(db.SkillWZStormgust), effectStormGust)
+	expectEffectIDs(t, "BS_WEAPONPERFECT imported", skillEffectIDs(db.SkillBSWeaponperfect), effectWeaponPerfect)
+	expectEffectIDs(t, "BS_MAXIMIZE imported", skillEffectIDs(db.SkillBSMaximize), effectMaximizePower)
+}
+
+func TestRobrowserMiniSTREffectSpecs(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		id   int
+		file string
+		min  string
+	}{
+		{"Mammonite", effectMammonite, "maemor", "memor_min"},
+		{"Angelus", effectAngelus, "angelus", "jong_mini"},
+		{"Cure", effectCure, "cure", "cure_min"},
+		{"Gloria", effectGloria, "gloria", "gloria_min"},
+		{"Magnificat", effectMagnificat, "magnificat", "magnificat_min"},
+		{"Resurrection", effectResurrection, "resurrection", "resurrection_min"},
+		{"Lex Aeterna", effectLexAeterna, "lexaeterna", "lexaeterna_min"},
+		{"Suffragium", effectSuffragium, "suffragium", "suffragium_min"},
+		{"Storm Gust", effectStormGust, "stormgust", "storm_min"},
+		{"Weapon Perfection", effectWeaponPerfect, "weaponperfection", "weaponperfection_min"},
+		{"Maximize Power", effectMaximizePower, "maximizepower", "maximize_min"},
+		{"Kyrie Eleison", effectKyrie, "kyrie", "kyrie_min"},
+		{"Christmas Carol", effectChristmasCarol, "angelus", "jong_mini"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.strMinFile != tc.min || !component.attachedEntity {
+			t.Fatalf("%s component = %+v, want STR %q min %q attached", tc.name, component, tc.file, tc.min)
+		}
+	}
 }
 
 func TestImportedSkillActionFallback(t *testing.T) {

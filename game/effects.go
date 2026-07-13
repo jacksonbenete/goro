@@ -55,6 +55,16 @@ const (
 	effectSignum         = 40
 	effectAngelus        = 41
 	effectBlessing       = 42
+	effectGloria         = 75
+	effectMagnificat     = 76
+	effectResurrection   = 77
+	effectLexAeterna     = 85
+	effectSuffragium     = 88
+	effectStormGust      = 89
+	effectWeaponPerfect  = 103
+	effectMaximizePower  = 104
+	effectKyrie          = 112
+	effectChristmasCarol = 717
 	effectFireHit        = 49
 	effectFireSplashHit  = 50
 	effectColdHit        = 51

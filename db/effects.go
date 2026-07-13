@@ -48,6 +48,16 @@ const (
 	effectSignum         = 40
 	effectAngelus        = 41
 	effectBlessing       = 42
+	effectGloria         = 75
+	effectMagnificat     = 76
+	effectResurrection   = 77
+	effectLexAeterna     = 85
+	effectSuffragium     = 88
+	effectStormGust      = 89
+	effectWeaponPerfect  = 103
+	effectMaximizePower  = 104
+	effectKyrie          = 112
+	effectChristmasCarol = 717
 	effectFireHit        = 49
 	effectFireSplashHit  = 50
 	effectColdHit        = 51
@@ -1596,6 +1606,7 @@ var EffectSpecs = map[int]EffectSpec{
 	},
 	effectSignum:  strEffectSpecAttached("cross", "effect\\ef_signum.wav", false),
 	effectAngelus: strEffectSpecAttachedMin("angelus", "jong_mini", "effect\\ef_angelus.wav", true),
+	effectGloria:  strEffectSpecAttachedMin("gloria", "gloria_min", "effect\\priest_gloria.wav", false),
 	effectBlessing: {
 		Duration: 2500 * time.Millisecond,
 		SFX:      []string{"effect\\ef_blessing.wav"},
@@ -1682,6 +1693,14 @@ var EffectSpecs = map[int]EffectSpec{
 	effectColdHit:       soundOnlyEffectSpec("_hit_fist3.wav", "_hit_fist4.wav"),
 	effectWindHit:       strEffectSpecRandom("windhit%d", "", 1, 3),
 	effectCure:          strEffectSpecAttachedMin("cure", "cure_min", "effect\\acolyte_cure.wav", false),
+	effectMagnificat:    strEffectSpecAttachedMin("magnificat", "magnificat_min", "effect\\priest_magnificat.wav", false),
+	effectResurrection:  strEffectSpecAttachedMin("resurrection", "resurrection_min", "effect\\priest_resurrection.wav", false),
+	effectLexAeterna:    strEffectSpecAttachedMin("lexaeterna", "lexaeterna_min", "effect\\priest_lexaeterna.wav", false),
+	effectSuffragium:    strEffectSpecAttachedMin("suffragium", "suffragium_min", "effect\\priest_suffragium.wav", false),
+	effectStormGust:     strEffectSpecAttachedMin("stormgust", "storm_min", "effect\\wizard_stormgust.wav", false),
+	effectWeaponPerfect: strEffectSpecAttachedMin("weaponperfection", "weaponperfection_min", "effect\\black_weapon_perfection.wav", false),
+	effectMaximizePower: strEffectSpecAttachedMin("maximizepower", "maximize_min", "", false),
+	effectKyrie:         strEffectSpecAttachedMin("kyrie", "kyrie_min", "effect\\priest_kyrie_eleison_a.wav", false),
 	effectHolyLight:     strEffectSpecAttached("holyhit", "", false),
 	effectConcentration: strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
 	effectRefineOK:      strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
@@ -1805,6 +1824,7 @@ var EffectSpecs = map[int]EffectSpec{
 			STRFile: "fruit",
 		}},
 	},
+	effectChristmasCarol: strEffectSpecAttachedMin("angelus", "jong_mini", "effect\\wewish.wav", false),
 }
 
 func bashHitComponents() []EffectComponent {
