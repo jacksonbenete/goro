@@ -161,6 +161,21 @@ func (w *SettingsWindow) contentTree(ctx client.Context) widget.Widget {
 		),
 
 		rotheme.Checkbox(
+			checkbox.Checked(settingsLessEffects(ctx)),
+			checkbox.LabelOpt("Less Effects"),
+			checkbox.OnToggle(func(enabled bool) {
+				if ctx.Session != nil {
+					ctx.Session.LessEffects = enabled
+				}
+				if ctx.Network != nil {
+					_ = ctx.Network.SendLessEffect(enabled)
+				}
+				w.saveSettings(ctx)
+				w.refresh(ctx)
+			}),
+		),
+
+		rotheme.Checkbox(
 			checkbox.Checked(settingsSnapTargets(ctx)),
 			checkbox.LabelOpt("Snap to targets"),
 			checkbox.OnToggle(func(enabled bool) {
@@ -204,6 +219,7 @@ func (w *SettingsWindow) saveSettings(ctx client.Context) {
 		SFXVolume:   settingsVolumeSFX(ctx),
 		NoShift:     settingsNoShift(ctx),
 		NoCtrl:      settingsNoCtrl(ctx),
+		LessEffects: settingsLessEffects(ctx),
 		SnapTargets: settingsSnapTargets(ctx),
 		SnapItems:   settingsSnapItems(ctx),
 	}
@@ -262,6 +278,13 @@ func settingsNoCtrl(ctx client.Context) bool {
 		return ctx.Session.NoCtrl
 	}
 	return ctx.Config.Gameplay.NoCtrl
+}
+
+func settingsLessEffects(ctx client.Context) bool {
+	if ctx.Session != nil {
+		return ctx.Session.LessEffects
+	}
+	return ctx.Config.Gameplay.LessEffects
 }
 
 func settingsSnapTargets(ctx client.Context) bool {

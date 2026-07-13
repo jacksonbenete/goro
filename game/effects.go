@@ -691,7 +691,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID
 	}
 	duration := spec.duration
 	for _, component := range spec.components {
-		componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		componentDuration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 		if componentDuration > duration {
 			duration = componentDuration
 		}
@@ -731,7 +731,7 @@ func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID in
 	}
 	duration := spec.duration
 	for _, component := range spec.components {
-		componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		componentDuration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 		if componentDuration > duration {
 			duration = componentDuration
 		}
@@ -766,7 +766,7 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectI
 	}
 	duration := spec.duration
 	for _, component := range spec.components {
-		componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		componentDuration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 		if componentDuration > duration {
 			duration = componentDuration
 		}
@@ -1479,7 +1479,7 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx client.Context, p
 		worldY := cellCenter(y)
 		worldZ := terrainHeightAt(ctx.World, x, y) + 0.07
 		for index, component := range spec.components {
-			componentDuration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+			componentDuration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 			if effect.duration > componentDuration && !component.repeat {
 				componentDuration = effect.duration
 			}
@@ -1493,15 +1493,15 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx client.Context, p
 	m.worldEffects = active
 }
 
-func (m *WorldMode) worldEffectResolvedComponentDuration(manager *res.Manager, spec worldEffectSpec, component worldEffectComponent) time.Duration {
+func (m *WorldMode) worldEffectResolvedComponentDuration(ctx client.Context, spec worldEffectSpec, component worldEffectComponent) time.Duration {
 	duration := worldEffectComponentDuration(spec, component)
 	if component.kind == effectComponentSTR {
-		if str := m.loadWorldEffectSTR(manager, resolveEffectSTRFile(component, worldEffect{}), component.texturePath); str != nil {
+		if str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, worldEffect{}, lessEffectsEnabled(ctx)), component.texturePath); str != nil {
 			duration = strEffectDuration(str, duration)
 		}
 	}
 	if component.kind == effectComponentSPR && component.duration <= 0 && !component.spriteRepeat {
-		if view := m.effectSpriteView(manager, component.spriteFile); view != nil && len(view.act.Actions) > 0 {
+		if view := m.effectSpriteView(ctx.Resources, component.spriteFile); view != nil && len(view.act.Actions) > 0 {
 			actionIndex := component.spriteFrame
 			if actionIndex < 0 || actionIndex >= len(view.act.Actions) {
 				actionIndex = 0
@@ -1510,6 +1510,13 @@ func (m *WorldMode) worldEffectResolvedComponentDuration(manager *res.Manager, s
 		}
 	}
 	return duration
+}
+
+func lessEffectsEnabled(ctx client.Context) bool {
+	if ctx.Session != nil {
+		return ctx.Session.LessEffects
+	}
+	return ctx.Config.Gameplay.LessEffects
 }
 
 func worldEffectComponentDuration(spec worldEffectSpec, component worldEffectComponent) time.Duration {

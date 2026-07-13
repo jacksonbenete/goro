@@ -71,6 +71,7 @@ type FogConfig struct {
 type GameplayConfig struct {
 	NoShift     bool
 	NoCtrl      bool
+	LessEffects bool
 	SnapTargets bool
 	SnapItems   bool
 }
@@ -104,6 +105,7 @@ type UserSettings struct {
 	SFXVolume   float64
 	NoShift     bool
 	NoCtrl      bool
+	LessEffects bool
 	SnapTargets bool
 	SnapItems   bool
 }
@@ -143,10 +145,11 @@ func SaveUserSettings(settings UserSettings) (string, error) {
 			"sfx_volume": formatINIValueFloat(settings.SFXVolume),
 		},
 		"gameplay": {
-			"no_shift": formatINIValueBool(settings.NoShift),
-			"no_ctrl":  formatINIValueBool(settings.NoCtrl),
-			"snap":     formatINIValueBool(settings.SnapTargets),
-			"itemsnap": formatINIValueBool(settings.SnapItems),
+			"no_shift":     formatINIValueBool(settings.NoShift),
+			"no_ctrl":      formatINIValueBool(settings.NoCtrl),
+			"less_effects": formatINIValueBool(settings.LessEffects),
+			"snap":         formatINIValueBool(settings.SnapTargets),
+			"itemsnap":     formatINIValueBool(settings.SnapItems),
 		},
 	}
 	existing, err := os.ReadFile(path)
@@ -261,6 +264,7 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.BoolVar(&cfg.Fog.Enabled, "fog", cfg.Fog.Enabled, "enable map fog")
 	fs.BoolVar(&cfg.Gameplay.NoShift, "no-shift", cfg.Gameplay.NoShift, "allow support skills to target enemies without holding Shift")
 	fs.BoolVar(&cfg.Gameplay.NoCtrl, "no-ctrl", cfg.Gameplay.NoCtrl, "keep attacking with one click without holding Ctrl")
+	fs.BoolVar(&cfg.Gameplay.LessEffects, "mineffect", cfg.Gameplay.LessEffects, "use simpler visual effects")
 	fs.BoolVar(&cfg.Gameplay.SnapTargets, "snap", cfg.Gameplay.SnapTargets, "magnetize attack and enemy skill cursors to targets")
 	fs.BoolVar(&cfg.Gameplay.SnapItems, "itemsnap", cfg.Gameplay.SnapItems, "magnetize pickup cursor to floor items")
 	fs.BoolVar(&cfg.Gameplay.SnapItems, "item-snap", cfg.Gameplay.SnapItems, "magnetize pickup cursor to floor items")
@@ -358,6 +362,8 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		return setBool(value, &cfg.Gameplay.NoShift)
 	case "gameplay.noctrl":
 		return setBool(value, &cfg.Gameplay.NoCtrl)
+	case "gameplay.lesseffects", "gameplay.lesseffect", "gameplay.mineffect", "gameplay.less_effects", "gameplay.less_effect":
+		return setBool(value, &cfg.Gameplay.LessEffects)
 	case "gameplay.snap", "gameplay.snaptargets", "gameplay.targetsnap":
 		return setBool(value, &cfg.Gameplay.SnapTargets)
 	case "gameplay.itemsnap", "gameplay.snapitems", "gameplay.itemsnapping":

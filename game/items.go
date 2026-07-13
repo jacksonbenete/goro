@@ -51,6 +51,8 @@ const (
 	pickupAnimationDuration  = 450 * time.Millisecond
 )
 
+var itemNameLabelForeground = color.RGBA{R: 255, G: 239, B: 148, A: 255}
+
 func (m *WorldMode) applyFloorItemEntry(ctx client.Context, entry network.FloorItemEntry) {
 	if ctx.World == nil {
 		return
@@ -336,7 +338,11 @@ func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Image, ctx client.
 		return
 	}
 	label := m.groundItemLabel(ctx, item)
-	render.DrawOutlinedTextAt(screen, label, ctx.Input.MouseX+14, ctx.Input.MouseY+18, color.RGBA{R: 255, G: 239, B: 148, A: 255}, color.RGBA{A: 196})
+	x, y := floorItemWorldPosition(item)
+	z := floorItemRenderHeight(ctx.World, item, now)
+	point := projection.Project(cellCenter(x), cellCenter(y), z)
+	scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), z) * groundItemScreenScale
+	drawGroundItemNameLabel(screen, label, float64(point.x), float64(point.y), scale)
 }
 
 func clickedGroundItem(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.FloorItem, bool) {
@@ -401,6 +407,18 @@ func (m *WorldMode) groundItemLabel(ctx client.Context, item worldstate.FloorIte
 		}
 	}
 	return res.FormatGroundItemLabel(name, int(item.Amount))
+}
+
+func drawGroundItemNameLabel(screen *render.Image, label string, centerX, baseY, scale float64) {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return
+	}
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		scale = 1
+	}
+	labelY := baseY + 12*scale
+	render.DrawCenteredUIOutlinedTextAt(screen, label, centerX, labelY, itemNameLabelForeground, color.RGBA{A: 196})
 }
 
 func (m *WorldMode) itemSpriteBillboard(manager *res.Manager, item worldstate.FloorItem, now time.Time) *spriteBillboard {

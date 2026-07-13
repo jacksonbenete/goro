@@ -3,9 +3,13 @@ package network
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 )
 
 const (
+	PacketCZLessEffect uint16 = 0x021D
+	PacketZCLessEffect uint16 = 0x021E
+
 	SpecialEffectBaseLevelUp = 0
 	SpecialEffectJobLevelUp  = 1
 )
@@ -13,6 +17,27 @@ const (
 type SpecialEffectNotify struct {
 	AID      uint32
 	EffectID uint32
+}
+
+func BuildLessEffectPacket(enabled bool) []byte {
+	state := uint32(0)
+	if enabled {
+		state = 1
+	}
+	var w Writer
+	w.Uint16(PacketCZLessEffect)
+	w.Uint32(state)
+	return w.Bytes()
+}
+
+func ParseLessEffect(packet Packet) (bool, bool, error) {
+	if packet.ID != PacketZCLessEffect {
+		return false, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return false, false, fmt.Errorf("ZC_LESSEFFECT too short: %d", len(packet.Data))
+	}
+	return binary.LittleEndian.Uint32(packet.Data[2:6]) != 0, true, nil
 }
 
 func ParseSpecialEffectNotify(packet Packet) (SpecialEffectNotify, bool, error) {
@@ -26,4 +51,15 @@ func ParseSpecialEffectNotify(packet Packet) (SpecialEffectNotify, bool, error) 
 		AID:      binary.LittleEndian.Uint32(packet.Data[2:6]),
 		EffectID: binary.LittleEndian.Uint32(packet.Data[6:10]),
 	}, true, nil
+}
+
+func (c *Client) SendLessEffect(enabled bool) error {
+	packet := BuildLessEffectPacket(enabled)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_LESSEFFECT opcode=0x%04X enabled=%t client_date=%d", ID(packet), enabled, c.clientDate)
+	} else {
+		log.Printf("send CZ_LESSEFFECT failed opcode=0x%04X len=%d enabled=%t client_date=%d: %v", ID(packet), len(packet), enabled, c.clientDate, err)
+	}
+	return err
 }

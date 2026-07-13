@@ -38,7 +38,7 @@ func (m *WorldMode) drawRSWEffect(screen *render.Image, ctx client.Context, proj
 	}
 	for componentIndex, component := range spec.components {
 		component = mapEffectComponent(component)
-		duration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		duration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 		if duration <= 0 {
 			duration = 600 * time.Millisecond
 		}

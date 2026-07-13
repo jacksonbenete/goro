@@ -67,6 +67,7 @@ enabled = false
 [gameplay]
 no_shift = true
 no_ctrl = false
+mineffect = true
 snap = true
 itemsnap = false
 `), 0o644); err != nil {
@@ -86,6 +87,7 @@ itemsnap = false
 		"--char-slot", "3",
 		"--no-shift=false",
 		"--no-ctrl=true",
+		"--mineffect=false",
 		"--snap=false",
 		"--itemsnap=true",
 	})
@@ -116,7 +118,7 @@ itemsnap = false
 	if cfg.Fog.Enabled {
 		t.Fatalf("fog enabled = true, want false")
 	}
-	if cfg.Gameplay.NoShift || !cfg.Gameplay.NoCtrl || cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
+	if cfg.Gameplay.NoShift || !cfg.Gameplay.NoCtrl || cfg.Gameplay.LessEffects || cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
 		t.Fatalf("unexpected gameplay config: %#v", cfg.Gameplay)
 	}
 }
@@ -169,6 +171,7 @@ fps = true
 [gameplay]
 no_shift = true
 no_ctrl = false
+less_effects = true
 snap = true
 itemsnap = true
 `), 0o644); err != nil {
@@ -178,7 +181,7 @@ itemsnap = true
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Window.Fullscreen || cfg.Audio.BGMVolume != 0.10 || cfg.Audio.SFXVolume != 0.20 || cfg.Render.VSync || !cfg.Render.FPS || !cfg.Gameplay.NoShift || cfg.Gameplay.NoCtrl || !cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
+	if !cfg.Window.Fullscreen || cfg.Audio.BGMVolume != 0.10 || cfg.Audio.SFXVolume != 0.20 || cfg.Render.VSync || !cfg.Render.FPS || !cfg.Gameplay.NoShift || cfg.Gameplay.NoCtrl || !cfg.Gameplay.LessEffects || !cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
 		t.Fatalf("user config not loaded: %#v", cfg)
 	}
 }
@@ -212,6 +215,7 @@ fullscreen = false
 		SFXVolume:   0.44,
 		NoShift:     true,
 		NoCtrl:      false,
+		LessEffects: true,
 		SnapTargets: true,
 		SnapItems:   true,
 	})
@@ -237,6 +241,7 @@ fullscreen = false
 		"sfx_volume = 0.44",
 		"no_shift = true",
 		"no_ctrl = false",
+		"less_effects = true",
 		"snap = true",
 		"itemsnap = true",
 	} {

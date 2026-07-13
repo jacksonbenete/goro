@@ -52,6 +52,29 @@ func TestConsoleNoCtrlCommandTogglesSessionPreference(t *testing.T) {
 	}
 }
 
+func TestConsoleMineffectCommandTogglesSessionPreference(t *testing.T) {
+	console := &ChatConsole{input: "/mineffect", active: true}
+	sessionState := &session.Session{}
+	ctx := client.Context{Session: sessionState}
+
+	if !console.SubmitCommand(ctx, "/mineffect") {
+		t.Fatal("mineffect command was not handled")
+	}
+	if !sessionState.LessEffects {
+		t.Fatal("less effects was not enabled")
+	}
+	if console.active || console.input != "" {
+		t.Fatalf("console active=%t input=%q, want closed empty input", console.active, console.input)
+	}
+
+	if !console.SubmitCommand(ctx, "/mineffect") {
+		t.Fatal("mineffect command was not handled")
+	}
+	if sessionState.LessEffects {
+		t.Fatal("less effects was not disabled")
+	}
+}
+
 func TestConsoleMemoCommandWithoutNetwork(t *testing.T) {
 	console := &ChatConsole{input: "/memo", active: true}
 

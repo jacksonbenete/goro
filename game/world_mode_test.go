@@ -2162,12 +2162,22 @@ func TestResolveEffectSTRFileUsesDeterministicRandRange(t *testing.T) {
 		strRandMax: 3,
 	}
 	effect := worldEffect{effectID: effectFireHit, actorID: 100, starts: time.Unix(10, 20)}
-	got := resolveEffectSTRFile(component, effect)
+	got := resolveEffectSTRFile(component, effect, false)
 	if got != "firehit1" && got != "firehit2" && got != "firehit3" {
 		t.Fatalf("resolved STR file = %q, want firehit1..3", got)
 	}
-	if again := resolveEffectSTRFile(component, effect); again != got {
+	if again := resolveEffectSTRFile(component, effect, false); again != got {
 		t.Fatalf("resolved STR file changed from %q to %q", got, again)
+	}
+}
+
+func TestResolveEffectSTRFileUsesMinFileForLessEffects(t *testing.T) {
+	component := worldEffectComponent{
+		strFile:    "angelus",
+		strMinFile: "jong_mini",
+	}
+	if got := resolveEffectSTRFile(component, worldEffect{}, true); got != "jong_mini" {
+		t.Fatalf("resolved STR file = %q, want jong_mini", got)
 	}
 }
 

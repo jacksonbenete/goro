@@ -60,6 +60,7 @@ func New(cfg config.Config) (*Game, error) {
 	}
 	g.session.NoShift = cfg.Gameplay.NoShift
 	g.session.NoCtrl = cfg.Gameplay.NoCtrl
+	g.session.LessEffects = cfg.Gameplay.LessEffects
 	g.session.SnapTargets = cfg.Gameplay.SnapTargets
 	g.session.SnapItems = cfg.Gameplay.SnapItems
 

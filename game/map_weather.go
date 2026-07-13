@@ -90,7 +90,7 @@ func (m *WorldMode) drawLoopingMapWeatherEffect(screen *render.Image, ctx client
 	worldY := projection.playerY
 	worldZ := terrainHeightAt(ctx.World, worldX-0.5, worldY-0.5) + 1
 	for componentIndex, component := range spec.components {
-		duration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+		duration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 		if duration <= 0 {
 			duration = spec.duration
 		}
@@ -124,7 +124,7 @@ func (m *WorldMode) drawFireworksWeather(screen *render.Image, ctx client.Contex
 		worldY := projection.playerY + deterministicSigned(effect, 12)*10
 		worldZ := terrainHeightAt(ctx.World, worldX-0.5, worldY-0.5) + 1
 		for componentIndex, component := range spec.components {
-			duration := m.worldEffectResolvedComponentDuration(ctx.Resources, spec, component)
+			duration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 			if duration <= 0 {
 				duration = spec.duration
 			}

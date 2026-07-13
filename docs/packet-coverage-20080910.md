@@ -396,8 +396,8 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x0216` | S->C | untracked | `0x0216` | `6` | `-` | - |
 | `0x0217` | C->S | missing | `HEADER_CZ_BLACKSMITH_RANK` | `sizeof( PACKET_CZ_BLACKSMITH_RANK )` | `clif_parse_ranklist_blacksmith` | - |
 | `0x0218` | C->S | missing | `HEADER_CZ_ALCHEMIST_RANK` | `sizeof( PACKET_CZ_ALCHEMIST_RANK )` | `clif_parse_ranklist_alchemist` | - |
-| `0x021D` | C->S | missing | `HEADER_CZ_LESSEFFECT` | `sizeof( PACKET_CZ_LESSEFFECT )` | `clif_parse_LessEffect` | - |
-| `0x021E` | S->C | untracked | `0x021e` | `6` | `-` | - |
+| `0x021D` | C->S | implemented | `HEADER_CZ_LESSEFFECT` | `sizeof( PACKET_CZ_LESSEFFECT )` | `clif_parse_LessEffect` | effect_packets.go |
+| `0x021E` | S->C | implemented | `0x021e` | `6` | `-` | effect_packets.go, packet.go |
 | `0x021F` | S->C | untracked | `0x021f` | `66` | `-` | - |
 | `0x0220` | S->C | referenced | `0x0220` | `10` | `-` | packet.go |
 | `0x0221` | S->C | untracked | `0x0221` | `-1` | `-` | - |

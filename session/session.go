@@ -11,6 +11,7 @@ type Session struct {
 	Playing      bool
 	NoShift      bool
 	NoCtrl       bool
+	LessEffects  bool
 	ShowEquip    bool
 	SnapTargets  bool
 	SnapItems    bool

@@ -301,6 +301,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 				m.packets = append(m.packets, "parse ZC_ACCEPT_ENTER: "+err.Error())
 			} else {
 				applyMapAcceptEnter(ctx, enter)
+				sendLessEffectPreference(ctx)
 				m.status = fmt.Sprintf("entered map %s at %d,%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
 				log.Printf("entered map=%s x=%d y=%d dir=%d tick=%d", ctx.World.MapName, enter.X, enter.Y, enter.Dir, enter.ServerTick)
 				m.startWorldFade(time.Now())

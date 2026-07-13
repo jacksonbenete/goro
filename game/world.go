@@ -450,6 +450,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		}
 		if enter, err := network.ParseMapAcceptEnter(pkt); err == nil {
 			applyMapAcceptEnter(ctx, enter)
+			sendLessEffectPreference(ctx)
 			if m.pendingWarp {
 				m.pendingWarp = false
 				return m.nextWorldMode(), nil
@@ -741,6 +742,14 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		} else if ok {
 			if ctx.Session != nil {
 				ctx.Session.ShowEquip = showEquip
+			}
+			continue
+		}
+		if lessEffects, ok, err := network.ParseLessEffect(pkt); err != nil {
+			log.Printf("parse less effect 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			if ctx.Session != nil {
+				ctx.Session.LessEffects = lessEffects
 			}
 			continue
 		}

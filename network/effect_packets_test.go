@@ -23,6 +23,41 @@ func TestParseSpecialEffectNotify(t *testing.T) {
 	}
 }
 
+func TestBuildLessEffectPacket(t *testing.T) {
+	packet := BuildLessEffectPacket(true)
+	if len(packet) != 6 || ID(packet) != PacketCZLessEffect {
+		t.Fatalf("less effect packet = % X", packet)
+	}
+	if got := binary.LittleEndian.Uint32(packet[2:6]); got != 1 {
+		t.Fatalf("less effect state = %d, want 1", got)
+	}
+
+	packet = BuildLessEffectPacket(false)
+	if got := binary.LittleEndian.Uint32(packet[2:6]); got != 0 {
+		t.Fatalf("less effect state = %d, want 0", got)
+	}
+}
+
+func TestParseLessEffect(t *testing.T) {
+	data := make([]byte, 6)
+	binary.LittleEndian.PutUint16(data[0:2], PacketZCLessEffect)
+	binary.LittleEndian.PutUint32(data[2:6], 1)
+
+	enabled, ok, err := ParseLessEffect(Packet{ID: PacketZCLessEffect, Data: data})
+	if err != nil || !ok || !enabled {
+		t.Fatalf("ParseLessEffect enabled=%t ok=%t err=%v", enabled, ok, err)
+	}
+}
+
+func TestLessEffectPacketDirections(t *testing.T) {
+	if _, ok := PacketLengths2008()[PacketCZLessEffect]; ok {
+		t.Fatal("0x021D is client-to-server and must not be in the receive framer")
+	}
+	if got := PacketLengths2008()[PacketZCLessEffect]; got != 6 {
+		t.Fatalf("0x021E receive length = %d, want 6", got)
+	}
+}
+
 func TestParseSpecialEffectNotifyIgnoresOtherPackets(t *testing.T) {
 	_, ok, err := ParseSpecialEffectNotify(Packet{ID: 0x019A, Data: make([]byte, 10)})
 	if err != nil {

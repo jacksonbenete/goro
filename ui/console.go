@@ -256,6 +256,9 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 		c.setInput("")
 		c.setActive(false)
 		return true
+	case "/mineffect":
+		c.submitLessEffects(ctx)
+		return true
 	case "/memo":
 		c.submitMemo(ctx)
 		return true
@@ -278,6 +281,32 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 		}
 		return false
 	}
+}
+
+func (c *ChatConsole) submitLessEffects(ctx client.Context) {
+	if ctx.Session == nil {
+		c.AddErrorMessage("mineffect failed: no session")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	enabled := !ctx.Session.LessEffects
+	if ctx.Network != nil {
+		if err := ctx.Network.SendLessEffect(enabled); err != nil {
+			c.AddErrorMessage("send failed: %s", err)
+			c.setInput("")
+			c.setActive(false)
+			return
+		}
+	}
+	ctx.Session.LessEffects = enabled
+	if enabled {
+		c.AddSystemMessage("Less Effects: On")
+	} else {
+		c.AddSystemMessage("Less Effects: Off")
+	}
+	c.setInput("")
+	c.setActive(false)
 }
 
 func (c *ChatConsole) submitOrganizeParty(ctx client.Context, text string) {

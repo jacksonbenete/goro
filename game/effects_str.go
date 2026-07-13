@@ -14,7 +14,7 @@ import (
 )
 
 func (m *WorldMode) drawSTREffect(screen *render.Image, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
-	str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, effect), component.texturePath)
+	str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, effect, lessEffectsEnabled(ctx)), component.texturePath)
 	if str == nil {
 		return false
 	}
@@ -46,7 +46,10 @@ func (m *WorldMode) drawSTREffect(screen *render.Image, ctx client.Context, proj
 	return drawn
 }
 
-func resolveEffectSTRFile(component worldEffectComponent, effect worldEffect) string {
+func resolveEffectSTRFile(component worldEffectComponent, effect worldEffect, lessEffects bool) string {
+	if lessEffects && component.strMinFile != "" {
+		return component.strMinFile
+	}
 	if component.strFile == "" || !strings.Contains(component.strFile, "%d") || component.strRandMax < component.strRandMin || component.strRandMin <= 0 {
 		return component.strFile
 	}
