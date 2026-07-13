@@ -286,11 +286,11 @@ func (w *Window) Publish(ctx client.Context) {
 	if root == nil {
 		return
 	}
-	if w.fullRedraw {
-		markNeedsRedraw(root)
-	}
 	if root == w.published {
 		return
+	}
+	if w.fullRedraw {
+		markNeedsRedraw(root)
 	}
 	w.Unpublish(ctx)
 	w.published = root

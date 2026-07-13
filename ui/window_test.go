@@ -61,7 +61,7 @@ func TestFooterHeightCreatesEmptyFooterBand(t *testing.T) {
 	}
 }
 
-func TestWindowFullRedrawMarksPublishedRootDirty(t *testing.T) {
+func TestWindowFullRedrawPublishIsIdempotent(t *testing.T) {
 	manager := &escapeMenuTestUIManager{}
 	ctx := client.Context{UIManager: manager, ScreenW: 800, ScreenH: 600}
 	window := NewWindow(100, 80)
@@ -83,7 +83,23 @@ func TestWindowFullRedrawMarksPublishedRootDirty(t *testing.T) {
 	}
 
 	window.Publish(ctx)
-	if !redraw.NeedsRedraw() {
-		t.Fatal("full redraw publish did not dirty the published root")
+	if redraw.NeedsRedraw() {
+		t.Fatal("unchanged full redraw publish dirtied the published root")
+	}
+	if manager.overlays[0] != root {
+		t.Fatal("unchanged full redraw publish replaced the published root")
+	}
+
+	window.SetContent(primitives.Box())
+	window.Publish(ctx)
+	if manager.overlays[0] == root {
+		t.Fatal("content change did not replace the published root")
+	}
+	replaced, ok := manager.overlays[0].(interface{ NeedsRedraw() bool })
+	if !ok {
+		t.Fatal("replaced root does not expose redraw state")
+	}
+	if !replaced.NeedsRedraw() {
+		t.Fatal("full redraw content replacement did not dirty the new root")
 	}
 }

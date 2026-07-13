@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	minimapWidth   = 188
-	minimapHeight  = 206
-	minimapMargin  = 16
-	minimapPad     = 10
-	minimapFooterH = 22
+	minimapWidth                   = 188
+	minimapHeight                  = 206
+	minimapMargin                  = 16
+	minimapPad                     = 10
+	minimapFooterH                 = 22
+	minimapMarkerRedrawDelayFrames = 4
 )
 
 var (
@@ -31,17 +32,18 @@ var (
 )
 
 type Minimap struct {
-	mapName     string
-	img         image.Image
-	scaled      image.Image
-	scaledKey   string
-	window      Window
-	widget      *minimapWidget
-	hidden      bool
-	markerMap   string
-	markerX     int
-	markerY     int
-	hasPosition bool
+	mapName           string
+	img               image.Image
+	scaled            image.Image
+	scaledKey         string
+	window            Window
+	widget            *minimapWidget
+	hidden            bool
+	markerMap         string
+	markerX           int
+	markerY           int
+	hasPosition       bool
+	markerRedrawDelay int
 }
 
 type minimapRect struct {
@@ -63,6 +65,7 @@ func (m *Minimap) Update(ctx Context) bool {
 	}
 	previousMap := m.mapName
 	m.ensureImage(ctx.Resources, ctx.World.MapName)
+	mapChanged := previousMap != m.mapName
 	if m.widget == nil {
 		m.widget = newMinimapWidget()
 	}
@@ -70,13 +73,22 @@ func (m *Minimap) Update(ctx Context) bool {
 	m.widget.image = m.scaledImage(minimapContentMapSize(w, h))
 	markerChanged := m.playerMarkerChanged(ctx.World.Player.X, ctx.World.Player.Y)
 	needsPublish := false
+	needsRedraw := mapChanged
 	if !m.window.IsOpen() {
 		m.window.OpenAt(x, y, m.widgetTree())
 		needsPublish = true
+		m.markerRedrawDelay = 0
 	} else {
-		if markerChanged || previousMap != m.mapName {
-			m.window.SetContent(m.widgetTree())
-			needsPublish = true
+		if mapChanged {
+			m.markerRedrawDelay = 0
+		} else if markerChanged {
+			m.markerRedrawDelay = minimapMarkerRedrawDelayFrames
+		}
+		if m.markerRedrawDelay > 0 {
+			m.markerRedrawDelay--
+			if m.markerRedrawDelay == 0 {
+				needsRedraw = true
+			}
 		}
 		if m.window.SetAutoPosition(x, y) {
 			needsPublish = true
@@ -88,6 +100,8 @@ func (m *Minimap) Update(ctx Context) bool {
 	if needsPublish {
 		m.widget.SetNeedsRedraw(true)
 		m.window.Publish(ctx)
+	} else if needsRedraw {
+		m.widget.SetNeedsRedraw(true)
 	}
 	return false
 }
@@ -213,6 +227,7 @@ func newMinimapWidget() *minimapWidget {
 	w := &minimapWidget{}
 	w.SetVisible(true)
 	w.SetEnabled(false)
+	w.SetRepaintBoundary(true)
 	return w
 }
 
