@@ -30,12 +30,13 @@ func (m *WorldMode) drawChatRoomBoardLabels(screen *render.Image, ctx client.Con
 			continue
 		}
 		label := chatRoomBoardLabel(entry.actor)
-		labelY := actorSpriteTopY(entry.screenY, entry.scale) - vendingBoardGap - vendingBoardLabelHeight(label, nil)
+		icon := m.chatRoomBoardIcon(ctx.Resources, entry.actor.ChatRoomPublic)
+		labelY := actorSpriteTopY(entry.screenY, entry.scale) - vendingBoardGap - vendingBoardLabelHeight(label, icon)
 		if actorHasVending(entry.actor) {
 			vendingLabel := sanitizeActorName(entry.actor.VendingName)
 			labelY -= vendingBoardLabelHeight(vendingLabel, m.vendingShopIcon(ctx.Resources)) + vendingBoardGap
 		}
-		drawVendingBoardLabel(screen, label, entry.screenX, labelY, nil)
+		drawVendingBoardLabel(screen, label, entry.screenX, labelY, icon)
 	}
 }
 
@@ -172,15 +173,16 @@ func (m *WorldMode) chatRoomBoardActorBounds(ctx client.Context, projection scen
 	if label == "" || ctx.World == nil {
 		return vendingBoardBounds{}, false
 	}
+	icon := m.chatRoomBoardIcon(ctx.Resources, actor.ChatRoomPublic)
 	actorX, actorY := actor.RenderPosition(now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
-	topY := actorSpriteTopY(float64(point.y), scale) - vendingBoardGap - vendingBoardLabelHeight(label, nil)
+	topY := actorSpriteTopY(float64(point.y), scale) - vendingBoardGap - vendingBoardLabelHeight(label, icon)
 	if actorHasVending(actor) {
 		topY -= vendingBoardLabelHeight(actor.VendingName, m.vendingShopIcon(ctx.Resources)) + vendingBoardGap
 	}
-	return vendingBoardLabelBounds(label, float64(point.x), topY, nil)
+	return vendingBoardLabelBounds(label, float64(point.x), topY, icon)
 }
 
 func vendingBoardLabelBounds(label string, centerX, topY float64, icon *render.Image) (vendingBoardBounds, bool) {
@@ -221,10 +223,20 @@ func vendingBoardIconSize(icon *render.Image) (int, int) {
 }
 
 func (m *WorldMode) vendingShopIcon(manager *res.Manager) *render.Image {
+	return m.roomBoardIcon(manager, "__interface_basic_interface_shop", "basic_interface\\shop")
+}
+
+func (m *WorldMode) chatRoomBoardIcon(manager *res.Manager, public bool) *render.Image {
+	if public {
+		return m.roomBoardIcon(manager, "__interface_basic_interface_chat_open", "basic_interface\\chat_open")
+	}
+	return m.roomBoardIcon(manager, "__interface_basic_interface_chat_close", "basic_interface\\chat_close")
+}
+
+func (m *WorldMode) roomBoardIcon(manager *res.Manager, key, resource string) *render.Image {
 	if manager == nil {
 		return nil
 	}
-	const key = "__interface_basic_interface_shop"
 	if m.textures == nil {
 		m.textures = make(map[string]*render.Image)
 	}
@@ -237,7 +249,7 @@ func (m *WorldMode) vendingShopIcon(manager *res.Manager) *render.Image {
 	if _, ok := m.textureMiss[key]; ok {
 		return nil
 	}
-	img, _, err := res.LoadImage(manager, res.InterfaceTextureCandidates("basic_interface\\shop"))
+	img, _, err := res.LoadImage(manager, res.InterfaceTextureCandidates(resource))
 	if err != nil {
 		m.textureMiss[key] = struct{}{}
 		return nil

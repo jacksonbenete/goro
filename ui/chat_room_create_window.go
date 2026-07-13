@@ -14,7 +14,7 @@ import (
 
 const (
 	chatRoomCreateW        = 306
-	chatRoomCreateContentH = 152
+	chatRoomCreateContentH = 180
 	chatRoomCreateFooterH  = 42
 )
 

@@ -14,7 +14,7 @@ import (
 
 const (
 	settingsWindowW = 300
-	settingsWindowH = 400
+	settingsWindowH = 430
 )
 
 type SettingsWindow struct {
