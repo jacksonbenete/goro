@@ -2,6 +2,7 @@ package network
 
 import (
 	"encoding/binary"
+	"strings"
 	"testing"
 )
 
@@ -359,6 +360,51 @@ func TestBuildUseSkillToGroundPacketForClientDate20080910(t *testing.T) {
 	}
 	if got := binary.LittleEndian.Uint16(packet[20:22]); got != 456 {
 		t.Fatalf("y = %d", got)
+	}
+}
+
+func TestBuildUseSkillToGroundWithTextPacketForClientDate20080910(t *testing.T) {
+	packet := BuildUseSkillToGroundWithTextPacketForClientDate(125, 4, 123, 456, "hello", 20080910)
+	if got := ID(packet); got != 0x007E {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if len(packet) != 102 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[5:7]); got != 4 {
+		t.Fatalf("level = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[9:11]); got != 125 {
+		t.Fatalf("skill = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[12:14]); got != 123 {
+		t.Fatalf("x = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[20:22]); got != 456 {
+		t.Fatalf("y = %d", got)
+	}
+	if got := string(packet[22:27]); got != "hello" {
+		t.Fatalf("text = %q", got)
+	}
+	if packet[27] != 0 {
+		t.Fatalf("text was not nul-terminated")
+	}
+}
+
+func TestBuildUseSkillToGroundWithTextPacketTruncatesToMessageSize(t *testing.T) {
+	packet := BuildUseSkillToGroundWithTextPacketForClientDate(125, 4, 123, 456, strings.Repeat("a", 90), 20080910)
+	message := packet[22 : 22+skillGroundMessageLen]
+	if got := len(packetCString(message)); got != 79 {
+		t.Fatalf("message len = %d, want 79", got)
+	}
+	if message[79] != 0 {
+		t.Fatal("message was not nul-terminated at byte 79")
+	}
+}
+
+func TestPacketLengths2008IncludesUseSkillToGroundWithText(t *testing.T) {
+	if got := PacketLengths2008()[0x007E]; got != 102 {
+		t.Fatalf("0x007E len = %d, want 102", got)
 	}
 }
 

@@ -71,6 +71,7 @@ type WorldMode struct {
 	pendingAttack     attackIntent
 	pendingPickup     pickupIntent
 	pendingSkill      pendingSkillTarget
+	pendingSkillText  pendingSkillTextTarget
 	pickupReqItemID   uint32
 	lockedAttackID    uint32
 	attackFocusID     uint32
@@ -126,6 +127,7 @@ type WorldMode struct {
 	partyCreate       gameui.PartyCreateWindow
 	partyInvite       gameui.PartyInviteWindow
 	partyInfo         gameui.ConfirmModal
+	skillTextPrompt   gameui.TextPromptWindow
 	playerContext     gameui.PlayerContextMenu
 	tradeWindow       gameui.TradeWindow
 	pendingTradeName  string
@@ -162,6 +164,13 @@ type pendingSkillTarget struct {
 	readyAt  time.Time
 	source   string
 	started  time.Time
+}
+
+type pendingSkillTextTarget struct {
+	skill  session.Skill
+	x      int
+	y      int
+	source string
 }
 
 type scheduledActorStop struct {
@@ -264,6 +273,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.pendingAttack = attackIntent{}
 	m.pendingPickup = pickupIntent{}
 	m.pendingSkill = pendingSkillTarget{}
+	m.pendingSkillText = pendingSkillTextTarget{}
 	m.pickupReqItemID = 0
 	m.lockedAttackID = 0
 	m.clearAttackFocus()
@@ -356,6 +366,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.partySettings.Rebind(ctx)
 	m.partyCreate.Rebind(ctx)
 	m.partyInvite.Rebind(ctx)
+	m.skillTextPrompt.Rebind(ctx)
 	m.settingsWindow.Rebind(ctx)
 	m.whisperWindow.Rebind(ctx)
 	m.shortcutBar.ResetOverlay(ctx)
@@ -1189,6 +1200,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.updatePartyHelperWindows(ctx) {
 		return nil, nil
 	}
+	if m.updateSkillTextPrompt(ctx) {
+		return nil, nil
+	}
 	if m.console.Update(ctx) {
 		return nil, nil
 	}
@@ -1456,6 +1470,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.settingsWindow = m.settingsWindow
 	next.partyCreate = m.partyCreate
 	next.partyInvite = m.partyInvite
+	next.skillTextPrompt = m.skillTextPrompt
 	next.shortcutBar = m.shortcutBar
 	next.minimap = m.minimap
 	next.startMapFadeIn(time.Now())

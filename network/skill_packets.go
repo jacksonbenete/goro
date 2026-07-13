@@ -11,6 +11,7 @@ import (
 )
 
 const skillInfoEntryLen = 37
+const skillGroundMessageLen = 80
 
 type SkillInfo struct {
 	ID         uint16
@@ -355,6 +356,49 @@ func BuildUseSkillToGroundPacketForClientDate(skillID, level uint16, x, y int, c
 	binary.LittleEndian.PutUint16(packet[6:8], uint16(x))
 	binary.LittleEndian.PutUint16(packet[8:10], uint16(y))
 	return packet
+}
+
+func BuildUseSkillToGroundWithTextPacketForClientDate(skillID, level uint16, x, y int, text string, clientDate int) []byte {
+	if clientDate >= 20120307 {
+		packet := make([]byte, 10+skillGroundMessageLen)
+		binary.LittleEndian.PutUint16(packet[0:2], 0x0367)
+		binary.LittleEndian.PutUint16(packet[2:4], level)
+		binary.LittleEndian.PutUint16(packet[4:6], skillID)
+		binary.LittleEndian.PutUint16(packet[6:8], uint16(x))
+		binary.LittleEndian.PutUint16(packet[8:10], uint16(y))
+		writeSkillGroundMessage(packet[10:10+skillGroundMessageLen], text)
+		return packet
+	}
+	if clientDate >= 20080910 {
+		packet := make([]byte, 102)
+		binary.LittleEndian.PutUint16(packet[0:2], 0x007E)
+		binary.LittleEndian.PutUint16(packet[5:7], level)
+		binary.LittleEndian.PutUint16(packet[9:11], skillID)
+		binary.LittleEndian.PutUint16(packet[12:14], uint16(x))
+		binary.LittleEndian.PutUint16(packet[20:22], uint16(y))
+		writeSkillGroundMessage(packet[22:22+skillGroundMessageLen], text)
+		return packet
+	}
+	packet := make([]byte, 10+skillGroundMessageLen)
+	binary.LittleEndian.PutUint16(packet[0:2], 0x0190)
+	binary.LittleEndian.PutUint16(packet[2:4], level)
+	binary.LittleEndian.PutUint16(packet[4:6], skillID)
+	binary.LittleEndian.PutUint16(packet[6:8], uint16(x))
+	binary.LittleEndian.PutUint16(packet[8:10], uint16(y))
+	writeSkillGroundMessage(packet[10:10+skillGroundMessageLen], text)
+	return packet
+}
+
+func writeSkillGroundMessage(dst []byte, text string) {
+	if len(dst) == 0 {
+		return
+	}
+	src := []byte(text)
+	if len(src) >= len(dst) {
+		src = src[:len(dst)-1]
+	}
+	copy(dst, src)
+	dst[len(src)] = 0
 }
 
 func BuildChangeCartPacket(cartNum uint16) []byte {

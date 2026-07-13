@@ -350,6 +350,17 @@ func (c *Client) SendUseSkillToGround(skillID, level uint16, x, y int) error {
 	return err
 }
 
+func (c *Client) SendUseSkillToGroundWithText(skillID, level uint16, x, y int, text string) error {
+	packet := BuildUseSkillToGroundWithTextPacketForClientDate(skillID, level, x, y, text, c.clientDate)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_USE_SKILL_TOGROUND_WITHTALKBOX opcode=0x%04X skill=%d level=%d dst=%d,%d text_len=%d client_date=%d", ID(packet), skillID, level, x, y, len([]byte(text)), c.clientDate)
+	} else {
+		log.Printf("send CZ_USE_SKILL_TOGROUND_WITHTALKBOX failed opcode=0x%04X len=%d skill=%d level=%d dst=%d,%d text_len=%d client_date=%d: %v", ID(packet), len(packet), skillID, level, x, y, len([]byte(text)), c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendChangeCart(cartNum uint16) error {
 	packet := BuildChangeCartPacket(cartNum)
 	err := c.Send(packet)

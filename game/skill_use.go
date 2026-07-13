@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -93,6 +94,7 @@ const (
 )
 
 const skillChangeCart = 154
+const skillGroundTextMaxBytes = 79
 
 func (c skillController) Use(ctx client.Context, skill session.Skill, source string) error {
 	if skill.ID == 0 || skill.Level <= 0 {
@@ -177,6 +179,24 @@ func (c skillController) SendToGround(ctx client.Context, skill session.Skill, x
 	return nil
 }
 
+func (c skillController) SendToGroundWithText(ctx client.Context, skill session.Skill, x, y int, text string, source string) error {
+	if ctx.Network == nil {
+		return fmt.Errorf("not connected")
+	}
+	if skill.ID == 0 || skill.Level <= 0 {
+		return fmt.Errorf("skill is not learned")
+	}
+	if !walkTargetInBounds(ctx, x, y) {
+		return fmt.Errorf("invalid ground target %d,%d", x, y)
+	}
+	level := uint16(maxInt(1, skill.Level))
+	log.Printf("%s ground skill with text use skill=%d level=%d target=%d,%d text_len=%d", source, skill.ID, level, x, y, len([]byte(text)))
+	if err := ctx.Network.SendUseSkillToGroundWithText(skill.ID, level, x, y, text); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c skillController) CancelFromInput(ctx client.Context) bool {
 	if c.mode.pendingSkill.skill.ID == 0 || ctx.Input == nil {
 		return false
@@ -237,6 +257,12 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 			log.Printf("skill ground target miss skill=%d mouse=%d,%d", skill.ID, ctx.Input.MouseX, ctx.Input.MouseY)
 			return
 		}
+		if skillNeedsGroundText(skill.ID) {
+			c.mode.openSkillTextPrompt(ctx, skill, targetX, targetY, "target")
+			c.mode.pendingSkill = pendingSkillTarget{}
+			log.Printf("skill ground text prompt opened skill=%d target=%d,%d", skill.ID, targetX, targetY)
+			return
+		}
 		if err := c.SendToGround(ctx, skill, targetX, targetY, "target"); err != nil {
 			log.Printf("skill ground target failed skill=%d target=%d,%d: %v", skill.ID, targetX, targetY, err)
 			return
@@ -264,6 +290,10 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 	}
 	c.mode.pendingSkill = pendingSkillTarget{}
 	log.Printf("skill target sent skill=%d target=%d name=%q job=%d object_type=%d", skill.ID, actor.ID, actor.Name, actor.Job, actor.ObjectType)
+}
+
+func skillNeedsGroundText(skillID uint16) bool {
+	return skillID == db.SkillHTTalkiebox || skillID == db.SkillRGGraffiti
 }
 
 func (c skillController) chaseTargetIfNeeded(ctx client.Context, skill session.Skill, actor worldstate.Actor, source string) bool {

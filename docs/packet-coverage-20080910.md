@@ -158,7 +158,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x007B` | S->C | referenced | `0x007b` | `60` | `-` | actor_packets.go, packet.go |
 | `0x007C` | S->C | referenced | `0x007c` | `42` | `-` | actor_packets.go, packet.go |
 | `0x007D` | C->S | referenced | `0x007d` | `2` | `clif_parse_LoadEndAck` | login_packets.go |
-| `0x007E` | C->S | missing | `0x007e` | `102` | `clif_parse_UseSkillToPosMoreInfo` | - |
+| `0x007E` | C->S | implemented | `0x007e` | `102` | `clif_parse_UseSkillToPosMoreInfo` | skill_packets.go |
 | `0x0082` | S->C | untracked | `0x0082` | `2` | `-` | - |
 | `0x0083` | S->C | untracked | `0x0083` | `2` | `-` | - |
 | `0x0084` | S->C | untracked | `0x0084` | `2` | `-` | - |

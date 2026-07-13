@@ -1,6 +1,6 @@
   Core Gameplay / UI
 
-  - [ ] Skill targeting: 0x007E UseSkillToPosMoreInfo
+  - [x] Skill targeting: 0x007E UseSkillToPosMoreInfo
   - [ ] Remove option/status: 0x012A RemoveOption
   - [ ] Quit game: 0x018A QuitGame
   - [ ] Less effects toggle: 0x021D LessEffect
@@ -100,4 +100,3 @@
   - [ ] GM shift/recall variants: 0x01BA, 0x01BB, 0x01BC, 0x01BD
   - [ ] GM request account name: 0x01DF
   - [ ] GM remote command/check: 0x0212, 0x0213
-
