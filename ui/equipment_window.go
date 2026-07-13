@@ -217,6 +217,7 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 					Width(120).
 					Height(20),
 				primitives.Expanded(primitives.Box()),
+				w.removeCartOptionButton(ctx),
 			).
 				CrossAlign(primitives.CrossAxisCenter),
 		),
@@ -236,6 +237,16 @@ func (w *EquipmentWindow) cartButtonWidget(ctx Context, cart *CartWindow) widget
 	}).
 		Width(equipmentCenterColW).
 		Height(22)
+}
+
+func (w *EquipmentWindow) removeCartOptionButton(ctx Context) widget.Widget {
+	if !inventoryBagHasCart(ctx) {
+		return primitives.Box()
+	}
+	return rotheme.Button("Cart Off", func() {
+		w.removeCartOption(ctx)
+	}).
+		Width(float32(ButtonLabelWidth("Cart Off")))
 }
 
 func (w *EquipmentWindow) slotWidget(ctx Context, itemInfo *ItemInfoWindow, slot equipmentSlotDef, width int) widget.Widget {
@@ -367,6 +378,13 @@ func (w *EquipmentWindow) activateItem(ctx Context, item session.InventoryItem) 
 	if err := ctx.Network.SendTakeoffEquip(item.Index); err != nil {
 		return
 	}
+}
+
+func (w *EquipmentWindow) removeCartOption(ctx Context) {
+	if ctx.Network == nil {
+		return
+	}
+	_ = ctx.Network.SendRemoveOption()
 }
 
 func equipmentSnapshot(s *session.Session) string {

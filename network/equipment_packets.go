@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	PacketCZReqCartOff         uint16 = 0x012A
 	PacketCZEquipWinMicroscope uint16 = 0x02D6
 	PacketZCEquipWinMicroscope uint16 = 0x02D7
 	PacketCZConfig             uint16 = 0x02D8
@@ -104,6 +105,12 @@ func BuildShowEquipConfigPacket(enabled bool) []byte {
 	return w.Bytes()
 }
 
+func BuildRemoveOptionPacket() []byte {
+	var w Writer
+	w.Uint16(PacketCZReqCartOff)
+	return w.Bytes()
+}
+
 func (c *Client) SendViewPlayerEquipment(targetID uint32) error {
 	packet := BuildViewPlayerEquipmentPacket(targetID)
 	err := c.Send(packet)
@@ -111,6 +118,17 @@ func (c *Client) SendViewPlayerEquipment(targetID uint32) error {
 		log.Printf("sent CZ_EQUIPWIN_MICROSCOPE opcode=0x%04X target=%d client_date=%d", ID(packet), targetID, c.clientDate)
 	} else {
 		log.Printf("send CZ_EQUIPWIN_MICROSCOPE failed opcode=0x%04X target=%d client_date=%d: %v", ID(packet), targetID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendRemoveOption() error {
+	packet := BuildRemoveOptionPacket()
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_CARTOFF opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_CARTOFF failed opcode=0x%04X client_date=%d: %v", ID(packet), c.clientDate, err)
 	}
 	return err
 }

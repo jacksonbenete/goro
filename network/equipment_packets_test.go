@@ -6,6 +6,11 @@ import (
 )
 
 func TestBuildEquipmentPackets(t *testing.T) {
+	removeOption := BuildRemoveOptionPacket()
+	if len(removeOption) != 2 || ID(removeOption) != PacketCZReqCartOff {
+		t.Fatalf("remove option packet = % X", removeOption)
+	}
+
 	view := BuildViewPlayerEquipmentPacket(0x11223344)
 	if len(view) != 6 || ID(view) != PacketCZEquipWinMicroscope || binary.LittleEndian.Uint32(view[2:6]) != 0x11223344 {
 		t.Fatalf("view packet = % X", view)
@@ -25,6 +30,12 @@ func TestBuildEquipmentPackets(t *testing.T) {
 	hide := BuildShowEquipConfigPacket(false)
 	if got := binary.LittleEndian.Uint32(hide[6:10]); got != 0 {
 		t.Fatalf("value = %d, want 0", got)
+	}
+}
+
+func TestRemoveOptionIsOutgoingOnly(t *testing.T) {
+	if _, ok := PacketLengths2008()[PacketCZReqCartOff]; ok {
+		t.Fatal("0x012A is client-to-server and must not be in the receive framer")
 	}
 }
 

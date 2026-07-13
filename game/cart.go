@@ -20,12 +20,14 @@ func applyActorCartStateFromEffect(actor *worldstate.Actor) {
 		return
 	}
 	cartNum, ok := cartNumFromEffectState(actor.EffectState, int(actor.Job))
+	actor.HasCartState = true
 	if !ok {
+		actor.HasCart = false
+		actor.CartNum = 0
 		return
 	}
 	actor.HasCart = true
 	actor.CartNum = cartNum
-	actor.HasCartState = true
 }
 
 func cartNumFromEffectState(effectState uint32, job int) (int, bool) {

@@ -1,7 +1,7 @@
   Core Gameplay / UI
 
   - [x] Skill targeting: 0x007E UseSkillToPosMoreInfo
-  - [ ] Remove option/status: 0x012A RemoveOption
+  - [x] Remove cart option: 0x012A RemoveOption
   - [ ] Quit game: 0x018A QuitGame
   - [ ] Less effects toggle: 0x021D LessEffect
   - [ ] Hotkey save: 0x02BA Hotkey

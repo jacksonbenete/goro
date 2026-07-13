@@ -245,7 +245,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x0127` | C->S | referenced | `HEADER_CZ_MOVE_ITEM_FROM_CART_TO_BODY` | `sizeof( PACKET_CZ_MOVE_ITEM_FROM_CART_TO_BODY )` | `clif_parse_GetItemFromCart` | item_packets.go |
 | `0x0128` | C->S | referenced | `HEADER_CZ_MOVE_ITEM_FROM_STORE_TO_CART` | `sizeof( PACKET_CZ_MOVE_ITEM_FROM_STORE_TO_CART )` | `clif_parse_MoveFromKafraToCart` | item_packets.go |
 | `0x0129` | C->S | referenced | `HEADER_CZ_MOVE_ITEM_FROM_CART_TO_STORE` | `sizeof( PACKET_CZ_MOVE_ITEM_FROM_CART_TO_STORE )` | `clif_parse_MoveToKafraFromCart` | item_packets.go |
-| `0x012A` | C->S | missing | `0x012a` | `2` | `clif_parse_RemoveOption` | - |
+| `0x012A` | C->S | implemented | `0x012a` | `2` | `clif_parse_RemoveOption` | equipment_packets.go |
 | `0x012E` | C->S | referenced | `0x012e` | `2` | `clif_parse_CloseVending` | vending_packets.go |
 | `0x012F` | C->S | referenced | `0x012f` | `-1` | `clif_parse_OpenVending` | vending_packets.go |
 | `0x0130` | C->S | referenced | `0x0130` | `6` | `clif_parse_VendingListReq` | vending_packets.go |
