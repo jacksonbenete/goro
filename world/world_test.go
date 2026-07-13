@@ -128,6 +128,32 @@ func TestUpsertActorPreservesVendingState(t *testing.T) {
 	}
 }
 
+func TestUpsertActorPreservesChatRoomState(t *testing.T) {
+	w := New()
+	w.UpsertActor(Actor{
+		ID:             2000001,
+		ChatRoom:       true,
+		ChatRoomID:     77,
+		ChatRoomTitle:  "Chat",
+		ChatRoomCount:  1,
+		ChatRoomLimit:  20,
+		ChatRoomPublic: true,
+	})
+
+	w.UpsertActor(Actor{
+		ID:         2000001,
+		X:          10,
+		Y:          20,
+		Job:        5,
+		Appearance: true,
+	})
+
+	actor := w.Actors[2000001]
+	if !actor.ChatRoom || actor.ChatRoomID != 77 || actor.ChatRoomTitle != "Chat" || actor.ChatRoomCount != 1 || actor.ChatRoomLimit != 20 || !actor.ChatRoomPublic {
+		t.Fatalf("chat room state not preserved: %+v", actor)
+	}
+}
+
 func TestUpsertActorMoveUsesActorSpeed(t *testing.T) {
 	w := New()
 	w.UpsertActor(Actor{

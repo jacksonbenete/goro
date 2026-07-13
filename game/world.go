@@ -123,6 +123,9 @@ type WorldMode struct {
 	friendsWindow     gameui.FriendsWindow
 	friendSettings    gameui.FriendSettingsWindow
 	whisperWindow     gameui.WhisperWindow
+	chatRoomCreate    gameui.ChatRoomCreateWindow
+	chatRoom          gameui.ChatRoomWindow
+	pendingChatRoom   network.ChatRoomCreate
 	partySettings     gameui.PartySettingsWindow
 	partyCreate       gameui.PartyCreateWindow
 	partyInvite       gameui.PartyInviteWindow
@@ -365,6 +368,8 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.partySettings.Rebind(ctx)
 	m.partyCreate.Rebind(ctx)
 	m.partyInvite.Rebind(ctx)
+	m.chatRoomCreate.Rebind(ctx)
+	m.chatRoom.Rebind(ctx)
 	m.skillTextPrompt.Rebind(ctx)
 	m.settingsWindow.Rebind(ctx)
 	m.whisperWindow.Rebind(ctx)
@@ -426,6 +431,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		} else if ok {
 			m.applySpeechBubble(ctx, chat, now)
 			addConsoleMessage(&m.console, ctx.Resources, chat)
+			m.addChatRoomMessage(ctx, chat)
 			continue
 		}
 		if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {
@@ -446,6 +452,54 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("parse whisper ignore ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			addWhisperIgnoreAck(&m.console, ack)
+			continue
+		}
+		if ack, ok, err := network.ParseChatRoomCreateAck(pkt); err != nil {
+			log.Printf("parse chat room create ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleChatRoomCreateAck(ctx, ack)
+			continue
+		}
+		if board, ok, err := network.ParseChatRoomBoard(pkt); err != nil {
+			log.Printf("parse chat room board 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyChatRoomBoard(ctx, board)
+			continue
+		}
+		if destroy, ok, err := network.ParseChatRoomDestroy(pkt); err != nil {
+			log.Printf("parse chat room destroy 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyChatRoomDestroy(ctx, destroy)
+			continue
+		}
+		if enter, ok, err := network.ParseChatRoomEnter(pkt); err != nil {
+			log.Printf("parse chat room enter 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleChatRoomEnter(ctx, enter)
+			continue
+		}
+		if joined, ok, err := network.ParseChatRoomMemberJoin(pkt); err != nil {
+			log.Printf("parse chat room member join 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleChatRoomMemberJoin(ctx, joined)
+			continue
+		}
+		if left, ok, err := network.ParseChatRoomMemberLeave(pkt); err != nil {
+			log.Printf("parse chat room member leave 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleChatRoomMemberLeave(ctx, left)
+			continue
+		}
+		if change, ok, err := network.ParseChatRoomChange(pkt); err != nil {
+			log.Printf("parse chat room change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleChatRoomChange(ctx, change)
+			continue
+		}
+		if role, ok, err := network.ParseChatRoomRoleChange(pkt); err != nil {
+			log.Printf("parse chat room role change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleChatRoomRoleChange(ctx, role)
 			continue
 		}
 		if emotion, ok, err := network.ParseEmotionNotify(pkt); err != nil {
@@ -1224,6 +1278,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.updateWhisperWindow(ctx) {
 		return nil, nil
 	}
+	if m.updateChatRoomWindows(ctx) {
+		return nil, nil
+	}
 	if m.updatePartyHelperWindows(ctx) {
 		return nil, nil
 	}
@@ -1366,6 +1423,11 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.requestVendingList(ctx, actor, "click")
 			return nil, nil
 		}
+		if actor, ok := m.hoveredChatRoomBoard(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
+			log.Printf("click chat room target mouse=%d,%d id=%d name=%q room=%d title=%q player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.ChatRoomID, actor.ChatRoomTitle, playerX, playerY, actor.X, actor.Y)
+			m.requestChatRoomEnter(ctx, actor)
+			return nil, nil
+		}
 		if item, ok := clickedGroundItem(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now); ok {
 			log.Printf("click pickup target mouse=%d,%d id=%d item_id=%d amount=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, item.ID, item.ItemID, item.Amount, playerX, playerY, item.X, item.Y)
 			m.clearLockedAttack()
@@ -1445,6 +1507,7 @@ func (m *WorldMode) basicMenuCallbacks(ctx client.Context) gameui.BasicMenuCallb
 		OnEquip:  func() { m.equipmentWindow.Toggle(ctx) },
 		OnSkill:  func() { m.skillWindow.Toggle(ctx) },
 		OnMap:    func() { m.minimap.Toggle(ctx) },
+		OnComm:   func() { m.chatRoomCreate.Open(ctx) },
 		OnFriend: func() { m.friendsWindow.Toggle(ctx) },
 	}
 }
@@ -1517,6 +1580,9 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.friendsWindow = m.friendsWindow
 	next.friendSettings = m.friendSettings
 	next.whisperWindow = m.whisperWindow
+	next.chatRoomCreate = m.chatRoomCreate
+	next.chatRoom = m.chatRoom
+	next.pendingChatRoom = m.pendingChatRoom
 	next.partySettings = m.partySettings
 	next.settingsWindow = m.settingsWindow
 	next.partyCreate = m.partyCreate

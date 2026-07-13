@@ -376,6 +376,20 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("login vending board removed actor=%d", board.OwnerAID)
 			continue
 		}
+		if board, ok, err := network.ParseChatRoomBoard(pkt); err != nil {
+			m.packets = append(m.packets, "parse chat room board: "+err.Error())
+		} else if ok {
+			applyChatRoomBoardToWorld(ctx, board)
+			log.Printf("login chat room board actor=%d room=%d title=%q", board.OwnerID, board.RoomID, board.Title)
+			continue
+		}
+		if destroy, ok, err := network.ParseChatRoomDestroy(pkt); err != nil {
+			m.packets = append(m.packets, "parse chat room destroy: "+err.Error())
+		} else if ok {
+			applyChatRoomDestroyToWorld(ctx, destroy)
+			log.Printf("login chat room board removed room=%d", destroy.RoomID)
+			continue
+		}
 		if entry, ok, err := network.ParseActorEntry(pkt); err != nil {
 			m.packets = append(m.packets, "parse actor entry: "+err.Error())
 		} else if ok {

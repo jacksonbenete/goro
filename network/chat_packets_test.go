@@ -85,6 +85,69 @@ func TestBuildWhisperIgnorePackets(t *testing.T) {
 	}
 }
 
+func TestBuildCreateChatRoomPacket(t *testing.T) {
+	packet := BuildCreateChatRoomPacket(ChatRoomCreate{
+		Title:    "Potion shop",
+		Password: "secret",
+		Limit:    12,
+		Public:   true,
+	})
+	if got := ID(packet); got != PacketCZCreateChatRoom {
+		t.Fatalf("opcode = 0x%04X, want 0x%04X", got, PacketCZCreateChatRoom)
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); int(got) != len(packet) {
+		t.Fatalf("length = %d, want %d", got, len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[4:6]); got != 12 {
+		t.Fatalf("limit = %d, want 12", got)
+	}
+	if packet[6] != 1 {
+		t.Fatalf("type = %d, want public 1", packet[6])
+	}
+	if got := string(packet[7:13]); got != "secret" || packet[13] != 0 {
+		t.Fatalf("password field = %x", packet[7:15])
+	}
+	if got := string(packet[15:]); got != "Potion shop" {
+		t.Fatalf("title = %q", got)
+	}
+}
+
+func TestBuildCreatePrivateChatRoomPacket(t *testing.T) {
+	packet := BuildCreateChatRoomPacket(ChatRoomCreate{Title: "room", Password: "123456789", Limit: 2})
+	if packet[6] != 0 {
+		t.Fatalf("type = %d, want private 0", packet[6])
+	}
+	if got := string(packet[7:15]); got != "12345678" {
+		t.Fatalf("password field = %q", got)
+	}
+}
+
+func TestBuildExitChatRoomPacket(t *testing.T) {
+	packet := BuildExitChatRoomPacket()
+	if got := ID(packet); got != PacketCZExitChatRoom {
+		t.Fatalf("opcode = 0x%04X, want 0x%04X", got, PacketCZExitChatRoom)
+	}
+	if len(packet) != 2 {
+		t.Fatalf("len = %d, want 2", len(packet))
+	}
+}
+
+func TestBuildEnterChatRoomPacket(t *testing.T) {
+	packet := BuildEnterChatRoomPacket(0x11223344, "secret")
+	if got := ID(packet); got != PacketCZEnterChatRoom {
+		t.Fatalf("opcode = 0x%04X, want 0x%04X", got, PacketCZEnterChatRoom)
+	}
+	if len(packet) != 14 {
+		t.Fatalf("len = %d, want 14", len(packet))
+	}
+	if got := binary.LittleEndian.Uint32(packet[2:6]); got != 0x11223344 {
+		t.Fatalf("room id = 0x%08X", got)
+	}
+	if got := string(packet[6:12]); got != "secret" || packet[12] != 0 {
+		t.Fatalf("password field = %x", packet[6:14])
+	}
+}
+
 func TestParseNotifyChat(t *testing.T) {
 	packet := Packet{ID: PacketZCNotifyChat, Data: []byte{0x8d, 0x00, 0x11, 0x00, 0x44, 0x33, 0x22, 0x11, 'h', 'i', 0}}
 	chat, ok, err := ParseChatMessage(packet)
@@ -151,6 +214,131 @@ func TestParseWhisperIgnoreAck(t *testing.T) {
 	}
 	if !ack.TargetAll || !ack.Allow || ack.Result != 0 {
 		t.Fatalf("ack = %+v", ack)
+	}
+}
+
+func TestParseChatRoomCreateAck(t *testing.T) {
+	ack, ok, err := ParseChatRoomCreateAck(Packet{ID: PacketZCAckCreateChatRoom, Data: []byte{0xd6, 0x00, 0x02}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("chat room ack not recognized")
+	}
+	if ack.Result != 2 {
+		t.Fatalf("result = %d, want 2", ack.Result)
+	}
+}
+
+func TestParseChatRoomBoardPackets(t *testing.T) {
+	boardData := make([]byte, 17+10)
+	binary.LittleEndian.PutUint16(boardData[0:2], PacketZCChatRoomBoard)
+	binary.LittleEndian.PutUint16(boardData[2:4], uint16(len(boardData)))
+	binary.LittleEndian.PutUint32(boardData[4:8], 100)
+	binary.LittleEndian.PutUint32(boardData[8:12], 200)
+	binary.LittleEndian.PutUint16(boardData[12:14], 12)
+	binary.LittleEndian.PutUint16(boardData[14:16], 4)
+	boardData[16] = 1
+	copy(boardData[17:], []byte("Room title"))
+	board, ok, err := ParseChatRoomBoard(Packet{ID: PacketZCChatRoomBoard, Data: boardData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("chat room board not recognized")
+	}
+	if board.OwnerID != 100 || board.RoomID != 200 || board.Limit != 12 || board.Count != 4 || !board.Public || board.Title != "Room title" {
+		t.Fatalf("board = %+v", board)
+	}
+
+	destroy, ok, err := ParseChatRoomDestroy(Packet{ID: PacketZCDestroyChatRoom, Data: []byte{0xd8, 0x00, 0xc8, 0x00, 0x00, 0x00}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || destroy.RoomID != 200 {
+		t.Fatalf("destroy = %+v ok=%t", destroy, ok)
+	}
+}
+
+func TestParseChatRoomEnter(t *testing.T) {
+	data := make([]byte, 8+28*2)
+	binary.LittleEndian.PutUint16(data[0:2], PacketZCChatRoomEnter)
+	binary.LittleEndian.PutUint16(data[2:4], uint16(len(data)))
+	binary.LittleEndian.PutUint32(data[4:8], 0x10203040)
+	binary.LittleEndian.PutUint32(data[8:12], 0)
+	copy(data[12:36], []byte("Owner"))
+	binary.LittleEndian.PutUint32(data[36:40], 1)
+	copy(data[40:64], []byte("Guest"))
+	enter, ok, err := ParseChatRoomEnter(Packet{ID: PacketZCChatRoomEnter, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("chat room enter not recognized")
+	}
+	if enter.RoomID != 0x10203040 || len(enter.Members) != 2 {
+		t.Fatalf("enter = %+v", enter)
+	}
+	if !enter.Members[0].Owner || enter.Members[0].Name != "Owner" || enter.Members[1].Owner || enter.Members[1].Name != "Guest" {
+		t.Fatalf("members = %+v", enter.Members)
+	}
+}
+
+func TestParseChatRoomMemberUpdates(t *testing.T) {
+	joinData := make([]byte, 28)
+	binary.LittleEndian.PutUint16(joinData[0:2], PacketZCChatRoomJoin)
+	binary.LittleEndian.PutUint16(joinData[2:4], 3)
+	copy(joinData[4:28], []byte("Alice"))
+	join, ok, err := ParseChatRoomMemberJoin(Packet{ID: PacketZCChatRoomJoin, Data: joinData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || join.Count != 3 || join.Name != "Alice" {
+		t.Fatalf("join = %+v ok=%t", join, ok)
+	}
+
+	leaveData := make([]byte, 29)
+	binary.LittleEndian.PutUint16(leaveData[0:2], PacketZCChatRoomLeave)
+	binary.LittleEndian.PutUint16(leaveData[2:4], 2)
+	copy(leaveData[4:28], []byte("Alice"))
+	leaveData[28] = 1
+	leave, ok, err := ParseChatRoomMemberLeave(Packet{ID: PacketZCChatRoomLeave, Data: leaveData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || leave.Count != 2 || leave.Name != "Alice" || !leave.Kicked {
+		t.Fatalf("leave = %+v ok=%t", leave, ok)
+	}
+}
+
+func TestParseChatRoomChangeAndRole(t *testing.T) {
+	changeData := make([]byte, 17+4)
+	binary.LittleEndian.PutUint16(changeData[0:2], PacketZCChatRoomChanged)
+	binary.LittleEndian.PutUint16(changeData[2:4], uint16(len(changeData)))
+	binary.LittleEndian.PutUint32(changeData[4:8], 100)
+	binary.LittleEndian.PutUint32(changeData[8:12], 200)
+	binary.LittleEndian.PutUint16(changeData[12:14], 12)
+	binary.LittleEndian.PutUint16(changeData[14:16], 4)
+	changeData[16] = 1
+	copy(changeData[17:], []byte("Room"))
+	change, ok, err := ParseChatRoomChange(Packet{ID: PacketZCChatRoomChanged, Data: changeData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || change.OwnerID != 100 || change.RoomID != 200 || change.Limit != 12 || change.Count != 4 || !change.Public || change.Title != "Room" {
+		t.Fatalf("change = %+v ok=%t", change, ok)
+	}
+
+	roleData := make([]byte, 30)
+	binary.LittleEndian.PutUint16(roleData[0:2], PacketZCChatRoomRole)
+	binary.LittleEndian.PutUint32(roleData[2:6], 0)
+	copy(roleData[6:30], []byte("Owner"))
+	role, ok, err := ParseChatRoomRoleChange(Packet{ID: PacketZCChatRoomRole, Data: roleData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !role.Owner || role.Name != "Owner" {
+		t.Fatalf("role = %+v ok=%t", role, ok)
 	}
 }
 

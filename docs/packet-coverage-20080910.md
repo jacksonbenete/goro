@@ -30,7 +30,6 @@ Status meaning:
 | Opcode | Direction | rAthena symbol | Length | Handler | Priority |
 |---:|---|---|---:|---|---|
 | `0x007E` | C->S | `0x007e` | `102` | `clif_parse_UseSkillToPosMoreInfo` | P0/P1 |
-| `0x00D5` | C->S | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | P2 |
 | `0x0149` | C->S | `0x0149` | `9` | `clif_parse_GMReqNoChat` | P2 |
 | `0x0161` | C->S | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | P2 |
 | `0x0165` | C->S | `0x0165` | `30` | `clif_parse_CreateGuild` | P2 |
@@ -198,12 +197,12 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x00CF` | C->S | implemented | `0x00cf` | `27` | `clif_parse_PMIgnore` | chat_packets.go |
 | `0x00D0` | C->S | implemented | `HEADER_CZ_SETTING_WHISPER_STATE` | `sizeof( PACKET_CZ_SETTING_WHISPER_STATE )` | `clif_parse_PMIgnoreAll` | chat_packets.go |
 | `0x00D3` | C->S | referenced | `0x00d3` | `2` | `clif_parse_PMIgnoreList` | packet.go |
-| `0x00D5` | C->S | missing | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | - |
-| `0x00D9` | C->S | referenced | `HEADER_CZ_REQ_ENTER_ROOM` | `sizeof( PACKET_CZ_REQ_ENTER_ROOM )` | `clif_parse_ChatAddMember` | packet.go |
+| `0x00D5` | C->S | implemented | `HEADER_CZ_CREATE_CHATROOM` | `-1` | `clif_parse_CreateChatRoom` | chat_packets.go |
+| `0x00D9` | C->S | implemented | `HEADER_CZ_REQ_ENTER_ROOM` | `sizeof( PACKET_CZ_REQ_ENTER_ROOM )` | `clif_parse_ChatAddMember` | chat_packets.go |
 | `0x00DE` | C->S | referenced | `HEADER_CZ_CHANGE_CHATROOM` | `-1` | `clif_parse_ChatRoomStatusChange` | packet.go |
 | `0x00E0` | C->S | referenced | `0x00e0` | `30` | `clif_parse_ChangeChatOwner` | packet.go |
 | `0x00E2` | C->S | referenced | `0x00e2` | `26` | `clif_parse_KickFromChat` | packet.go |
-| `0x00E3` | C->S | referenced | `0x00e3` | `2` | `clif_parse_ChatLeave` | packet.go |
+| `0x00E3` | C->S | implemented | `0x00e3` | `2` | `clif_parse_ChatLeave` | chat_packets.go |
 | `0x00E4` | C->S | referenced | `0x00e4` | `6` | `clif_parse_TradeRequest` | trade_packets.go |
 | `0x00E5` | S->C | referenced | `0x00e5` | `26` | `-` | trade_packets.go |
 | `0x00E6` | C->S | referenced | `0x00e6` | `3` | `clif_parse_TradeAck` | trade_packets.go |

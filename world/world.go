@@ -36,48 +36,54 @@ type FloorItem struct {
 }
 
 type Actor struct {
-	ID            uint32
-	Name          string
-	X             int
-	Y             int
-	Dir           int
-	Job           int16
-	Head          int16
-	Weapon        int16
-	Shield        int16
-	HeadTop       int16
-	HeadMid       int16
-	HeadLow       int16
-	HeadPal       int16
-	BodyPal       int16
-	Sex           byte
-	HeadDir       uint8
-	Appearance    bool
-	Moving        bool
-	FromX         int
-	FromY         int
-	ToX           int
-	ToY           int
-	MoveStarted   time.Time
-	MoveDuration  time.Duration
-	MovePath      []WalkStep
-	MoveStartX    float64
-	MoveStartY    float64
-	HasMoveStart  bool
-	WalkDistance  float64
-	ObjectType    uint8
-	HasObjectType bool
-	Speed         int
-	Sitting       bool
-	BodyState     uint16
-	HealthState   uint16
-	EffectState   uint32
-	HasState      bool
-	HasCart       bool
-	CartNum       int
-	HasCartState  bool
-	Vending       bool
-	VendingName   string
+	ID             uint32
+	Name           string
+	X              int
+	Y              int
+	Dir            int
+	Job            int16
+	Head           int16
+	Weapon         int16
+	Shield         int16
+	HeadTop        int16
+	HeadMid        int16
+	HeadLow        int16
+	HeadPal        int16
+	BodyPal        int16
+	Sex            byte
+	HeadDir        uint8
+	Appearance     bool
+	Moving         bool
+	FromX          int
+	FromY          int
+	ToX            int
+	ToY            int
+	MoveStarted    time.Time
+	MoveDuration   time.Duration
+	MovePath       []WalkStep
+	MoveStartX     float64
+	MoveStartY     float64
+	HasMoveStart   bool
+	WalkDistance   float64
+	ObjectType     uint8
+	HasObjectType  bool
+	Speed          int
+	Sitting        bool
+	BodyState      uint16
+	HealthState    uint16
+	EffectState    uint32
+	HasState       bool
+	HasCart        bool
+	CartNum        int
+	HasCartState   bool
+	Vending        bool
+	VendingName    string
+	ChatRoom       bool
+	ChatRoomID     uint32
+	ChatRoomTitle  string
+	ChatRoomCount  uint16
+	ChatRoomLimit  uint16
+	ChatRoomPublic bool
 }
 
 type WalkStep struct {
@@ -275,6 +281,14 @@ func (w *World) UpsertActor(actor Actor) {
 		if !actor.Vending && existing.Vending {
 			actor.Vending = existing.Vending
 			actor.VendingName = existing.VendingName
+		}
+		if !actor.ChatRoom && existing.ChatRoom {
+			actor.ChatRoom = existing.ChatRoom
+			actor.ChatRoomID = existing.ChatRoomID
+			actor.ChatRoomTitle = existing.ChatRoomTitle
+			actor.ChatRoomCount = existing.ChatRoomCount
+			actor.ChatRoomLimit = existing.ChatRoomLimit
+			actor.ChatRoomPublic = existing.ChatRoomPublic
 		}
 		if actor.Moving && actor.FromX == 0 && actor.FromY == 0 {
 			actor.FromX = existing.X

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 	"time"
@@ -21,6 +22,32 @@ func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, ctx client.Cont
 		labelY := actorSpriteTopY(entry.screenY, entry.scale) - vendingBoardGap - vendingBoardLabelHeight(label, icon)
 		drawVendingBoardLabel(screen, entry.actor.VendingName, entry.screenX, labelY, icon)
 	}
+}
+
+func (m *WorldMode) drawChatRoomBoardLabels(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {
+	for _, entry := range entries {
+		if !actorHasChatRoom(entry.actor) {
+			continue
+		}
+		label := chatRoomBoardLabel(entry.actor)
+		labelY := actorSpriteTopY(entry.screenY, entry.scale) - vendingBoardGap - vendingBoardLabelHeight(label, nil)
+		if actorHasVending(entry.actor) {
+			vendingLabel := sanitizeActorName(entry.actor.VendingName)
+			labelY -= vendingBoardLabelHeight(vendingLabel, m.vendingShopIcon(ctx.Resources)) + vendingBoardGap
+		}
+		drawVendingBoardLabel(screen, label, entry.screenX, labelY, nil)
+	}
+}
+
+func chatRoomBoardLabel(actor worldstate.Actor) string {
+	title := sanitizeActorName(actor.ChatRoomTitle)
+	if title == "" {
+		return ""
+	}
+	if actor.ChatRoomLimit == 0 {
+		return title
+	}
+	return fmt.Sprintf("%s (%d/%d)", title, actor.ChatRoomCount, actor.ChatRoomLimit)
 }
 
 const (
@@ -99,6 +126,34 @@ func (m *WorldMode) hoveredVendingBoard(ctx client.Context, projection sceneProj
 	return best, bestDistance < math.Inf(1)
 }
 
+func (m *WorldMode) hoveredChatRoomBoard(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time) (worldstate.Actor, bool) {
+	if ctx.World == nil {
+		return worldstate.Actor{}, false
+	}
+	bestDistance := math.Inf(1)
+	var best worldstate.Actor
+	for _, actor := range ctx.World.Actors {
+		if _, dead := m.actorDeaths[actor.ID]; dead {
+			continue
+		}
+		if actor.ID == 0 || isLocalActor(ctx, actor.ID) || !actorHasChatRoom(actor) {
+			continue
+		}
+		bounds, ok := m.chatRoomBoardActorBounds(ctx, projection, actor, now)
+		if !ok || !bounds.contains(float64(mouseX), float64(mouseY)) {
+			continue
+		}
+		dx := bounds.x + bounds.w/2 - float64(mouseX)
+		dy := bounds.y + bounds.h/2 - float64(mouseY)
+		distance := dx*dx + dy*dy
+		if distance < bestDistance {
+			bestDistance = distance
+			best = actor
+		}
+	}
+	return best, bestDistance < math.Inf(1)
+}
+
 func vendingBoardActorBounds(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time, icon *render.Image) (vendingBoardBounds, bool) {
 	label := sanitizeActorName(actor.VendingName)
 	if label == "" || ctx.World == nil {
@@ -110,6 +165,22 @@ func vendingBoardActorBounds(ctx client.Context, projection sceneProjection, act
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
 	topY := actorSpriteTopY(float64(point.y), scale) - vendingBoardGap - vendingBoardLabelHeight(label, icon)
 	return vendingBoardLabelBounds(label, float64(point.x), topY, icon)
+}
+
+func (m *WorldMode) chatRoomBoardActorBounds(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time) (vendingBoardBounds, bool) {
+	label := chatRoomBoardLabel(actor)
+	if label == "" || ctx.World == nil {
+		return vendingBoardBounds{}, false
+	}
+	actorX, actorY := actor.RenderPosition(now)
+	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
+	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
+	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
+	topY := actorSpriteTopY(float64(point.y), scale) - vendingBoardGap - vendingBoardLabelHeight(label, nil)
+	if actorHasVending(actor) {
+		topY -= vendingBoardLabelHeight(actor.VendingName, m.vendingShopIcon(ctx.Resources)) + vendingBoardGap
+	}
+	return vendingBoardLabelBounds(label, float64(point.x), topY, nil)
 }
 
 func vendingBoardLabelBounds(label string, centerX, topY float64, icon *render.Image) (vendingBoardBounds, bool) {

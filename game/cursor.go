@@ -156,6 +156,9 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 	if _, ok := m.hoveredVendingBoard(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionClick
 	}
+	if _, ok := m.hoveredChatRoomBoard(ctx, projection, mouseX, mouseY, now); ok {
+		return cursorActionClick
+	}
 	if _, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionPick
 	}

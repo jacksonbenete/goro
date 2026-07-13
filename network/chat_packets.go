@@ -14,12 +14,23 @@ const (
 	PacketCZWhisper           uint16 = 0x0096
 	PacketCZWhisperIgnore     uint16 = 0x00CF
 	PacketCZWhisperIgnoreAll  uint16 = 0x00D0
+	PacketCZCreateChatRoom    uint16 = 0x00D5
+	PacketCZEnterChatRoom     uint16 = 0x00D9
+	PacketCZExitChatRoom      uint16 = 0x00E3
 	PacketZCNotifyChat        uint16 = 0x008D
 	PacketZCNotifyPlayerChat  uint16 = 0x008E
 	PacketZCWhisper           uint16 = 0x0097
 	PacketZCAckWhisper        uint16 = 0x0098
 	PacketZCWhisperIgnoreAck  uint16 = 0x00D1
 	PacketZCWhisperAllAck     uint16 = 0x00D2
+	PacketZCAckCreateChatRoom uint16 = 0x00D6
+	PacketZCChatRoomBoard     uint16 = 0x00D7
+	PacketZCDestroyChatRoom   uint16 = 0x00D8
+	PacketZCChatRoomChanged   uint16 = 0x00DF
+	PacketZCChatRoomEnter     uint16 = 0x00DB
+	PacketZCChatRoomJoin      uint16 = 0x00DC
+	PacketZCChatRoomLeave     uint16 = 0x00DD
+	PacketZCChatRoomRole      uint16 = 0x00E1
 	PacketZCBroadcast         uint16 = 0x009A
 	PacketZCMsg               uint16 = 0x0291
 	PacketZCMsgValue          uint16 = 0x07E2
@@ -49,6 +60,65 @@ type WhisperIgnoreAck struct {
 	TargetAll bool
 	Allow     bool
 	Result    uint8
+}
+
+type ChatRoomCreate struct {
+	Title    string
+	Password string
+	Limit    uint16
+	Public   bool
+}
+
+type ChatRoomCreateAck struct {
+	Result uint8
+}
+
+type ChatRoomBoard struct {
+	OwnerID uint32
+	RoomID  uint32
+	Limit   uint16
+	Count   uint16
+	Public  bool
+	Title   string
+}
+
+type ChatRoomDestroy struct {
+	RoomID uint32
+}
+
+type ChatRoomMember struct {
+	Owner bool
+	Name  string
+}
+
+type ChatRoomEnter struct {
+	RoomID  uint32
+	Members []ChatRoomMember
+}
+
+type ChatRoomMemberJoin struct {
+	Count uint16
+	Name  string
+}
+
+type ChatRoomMemberLeave struct {
+	Count  uint16
+	Name   string
+	Kicked bool
+}
+
+type ChatRoomChange struct {
+	OwnerID uint32
+	RoomID  uint32
+	Limit   uint16
+	Count   uint16
+	Public  bool
+	Title   string
+}
+
+type ChatRoomRoleChange struct {
+	Owner bool
+	Name  string
 }
 
 func BuildGlobalChatPacket(name, message string) []byte {
@@ -107,6 +177,43 @@ func BuildWhisperIgnorePacket(name string, allow bool) []byte {
 
 func BuildWhisperIgnoreAllPacket(allow bool) []byte {
 	return []byte{byte(PacketCZWhisperIgnoreAll), byte(PacketCZWhisperIgnoreAll >> 8), whisperAllowByte(allow)}
+}
+
+func BuildCreateChatRoomPacket(room ChatRoomCreate) []byte {
+	title := strings.TrimSpace(room.Title)
+	if title == "" || room.Limit == 0 {
+		return nil
+	}
+	titleBytes := []byte(title)
+	size := 2 + 2 + 2 + 1 + 8 + len(titleBytes)
+	if size > 0xffff {
+		return nil
+	}
+	packet := make([]byte, size)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZCreateChatRoom)
+	binary.LittleEndian.PutUint16(packet[2:4], uint16(size))
+	binary.LittleEndian.PutUint16(packet[4:6], room.Limit)
+	if room.Public {
+		packet[6] = 1
+	}
+	writeFixedCString(packet[7:15], strings.TrimSpace(room.Password))
+	copy(packet[15:], titleBytes)
+	return packet
+}
+
+func BuildExitChatRoomPacket() []byte {
+	return []byte{byte(PacketCZExitChatRoom), byte(PacketCZExitChatRoom >> 8)}
+}
+
+func BuildEnterChatRoomPacket(roomID uint32, password string) []byte {
+	if roomID == 0 {
+		return nil
+	}
+	packet := make([]byte, 14)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZEnterChatRoom)
+	binary.LittleEndian.PutUint32(packet[2:6], roomID)
+	writeFixedCString(packet[6:14], strings.TrimSpace(password))
+	return packet
 }
 
 func whisperAllowByte(allow bool) byte {
@@ -218,6 +325,125 @@ func ParseWhisperIgnoreAck(packet Packet) (WhisperIgnoreAck, bool, error) {
 	}
 }
 
+func ParseChatRoomCreateAck(packet Packet) (ChatRoomCreateAck, bool, error) {
+	if packet.ID != PacketZCAckCreateChatRoom {
+		return ChatRoomCreateAck{}, false, nil
+	}
+	if len(packet.Data) < 3 {
+		return ChatRoomCreateAck{}, false, fmt.Errorf("ZC_ACK_CREATE_CHATROOM too short: %d", len(packet.Data))
+	}
+	return ChatRoomCreateAck{Result: packet.Data[2]}, true, nil
+}
+
+func ParseChatRoomBoard(packet Packet) (ChatRoomBoard, bool, error) {
+	if packet.ID != PacketZCChatRoomBoard {
+		return ChatRoomBoard{}, false, nil
+	}
+	if len(packet.Data) < 17 {
+		return ChatRoomBoard{}, false, fmt.Errorf("ZC_ROOM_NEWENTRY too short: %d", len(packet.Data))
+	}
+	return ChatRoomBoard{
+		OwnerID: binary.LittleEndian.Uint32(packet.Data[4:8]),
+		RoomID:  binary.LittleEndian.Uint32(packet.Data[8:12]),
+		Limit:   binary.LittleEndian.Uint16(packet.Data[12:14]),
+		Count:   binary.LittleEndian.Uint16(packet.Data[14:16]),
+		Public:  packet.Data[16] != 0,
+		Title:   packetCString(packet.Data[17:]),
+	}, true, nil
+}
+
+func ParseChatRoomDestroy(packet Packet) (ChatRoomDestroy, bool, error) {
+	if packet.ID != PacketZCDestroyChatRoom {
+		return ChatRoomDestroy{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return ChatRoomDestroy{}, false, fmt.Errorf("ZC_DESTROY_ROOM too short: %d", len(packet.Data))
+	}
+	return ChatRoomDestroy{RoomID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
+}
+
+func ParseChatRoomEnter(packet Packet) (ChatRoomEnter, bool, error) {
+	if packet.ID != PacketZCChatRoomEnter {
+		return ChatRoomEnter{}, false, nil
+	}
+	if len(packet.Data) < 8 {
+		return ChatRoomEnter{}, false, fmt.Errorf("ZC_ENTER_ROOM too short: %d", len(packet.Data))
+	}
+	remaining := len(packet.Data) - 8
+	if remaining%28 != 0 {
+		return ChatRoomEnter{}, false, fmt.Errorf("ZC_ENTER_ROOM malformed members len=%d", remaining)
+	}
+	enter := ChatRoomEnter{
+		RoomID:  binary.LittleEndian.Uint32(packet.Data[4:8]),
+		Members: make([]ChatRoomMember, 0, remaining/28),
+	}
+	for offset := 8; offset < len(packet.Data); offset += 28 {
+		role := binary.LittleEndian.Uint32(packet.Data[offset : offset+4])
+		enter.Members = append(enter.Members, ChatRoomMember{
+			Owner: role == 0,
+			Name:  packetCString(packet.Data[offset+4 : offset+28]),
+		})
+	}
+	return enter, true, nil
+}
+
+func ParseChatRoomMemberJoin(packet Packet) (ChatRoomMemberJoin, bool, error) {
+	if packet.ID != PacketZCChatRoomJoin {
+		return ChatRoomMemberJoin{}, false, nil
+	}
+	if len(packet.Data) < 28 {
+		return ChatRoomMemberJoin{}, false, fmt.Errorf("ZC_MEMBER_NEWENTRY too short: %d", len(packet.Data))
+	}
+	return ChatRoomMemberJoin{
+		Count: binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Name:  packetCString(packet.Data[4:28]),
+	}, true, nil
+}
+
+func ParseChatRoomMemberLeave(packet Packet) (ChatRoomMemberLeave, bool, error) {
+	if packet.ID != PacketZCChatRoomLeave {
+		return ChatRoomMemberLeave{}, false, nil
+	}
+	if len(packet.Data) < 29 {
+		return ChatRoomMemberLeave{}, false, fmt.Errorf("ZC_MEMBER_EXIT too short: %d", len(packet.Data))
+	}
+	return ChatRoomMemberLeave{
+		Count:  binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Name:   packetCString(packet.Data[4:28]),
+		Kicked: packet.Data[28] != 0,
+	}, true, nil
+}
+
+func ParseChatRoomChange(packet Packet) (ChatRoomChange, bool, error) {
+	if packet.ID != PacketZCChatRoomChanged {
+		return ChatRoomChange{}, false, nil
+	}
+	if len(packet.Data) < 17 {
+		return ChatRoomChange{}, false, fmt.Errorf("ZC_CHANGE_CHATROOM too short: %d", len(packet.Data))
+	}
+	return ChatRoomChange{
+		OwnerID: binary.LittleEndian.Uint32(packet.Data[4:8]),
+		RoomID:  binary.LittleEndian.Uint32(packet.Data[8:12]),
+		Limit:   binary.LittleEndian.Uint16(packet.Data[12:14]),
+		Count:   binary.LittleEndian.Uint16(packet.Data[14:16]),
+		Public:  packet.Data[16] != 0,
+		Title:   packetCString(packet.Data[17:]),
+	}, true, nil
+}
+
+func ParseChatRoomRoleChange(packet Packet) (ChatRoomRoleChange, bool, error) {
+	if packet.ID != PacketZCChatRoomRole {
+		return ChatRoomRoleChange{}, false, nil
+	}
+	if len(packet.Data) < 30 {
+		return ChatRoomRoleChange{}, false, fmt.Errorf("ZC_ROLE_CHANGE too short: %d", len(packet.Data))
+	}
+	return ChatRoomRoleChange{
+		Owner: binary.LittleEndian.Uint32(packet.Data[2:6]) == 0,
+		Name:  packetCString(packet.Data[6:30]),
+	}, true, nil
+}
+
 func packetCString(data []byte) string {
 	if i := bytes.IndexByte(data, 0); i >= 0 {
 		data = data[:i]
@@ -294,6 +520,45 @@ func (c *Client) SendWhisperIgnoreAll(allow bool) error {
 		log.Printf("sent CZ_SETTING_WHISPER_STATE opcode=0x%04X allow=%t client_date=%d", ID(packet), allow, c.clientDate)
 	} else {
 		log.Printf("send CZ_SETTING_WHISPER_STATE failed opcode=0x%04X allow=%t client_date=%d: %v", ID(packet), allow, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendCreateChatRoom(room ChatRoomCreate) error {
+	packet := BuildCreateChatRoomPacket(room)
+	if len(packet) == 0 {
+		return fmt.Errorf("empty chat room")
+	}
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_CREATE_CHATROOM opcode=0x%04X len=%d title=%q limit=%d public=%t client_date=%d", ID(packet), len(packet), room.Title, room.Limit, room.Public, c.clientDate)
+	} else {
+		log.Printf("send CZ_CREATE_CHATROOM failed opcode=0x%04X len=%d title=%q limit=%d public=%t client_date=%d: %v", ID(packet), len(packet), room.Title, room.Limit, room.Public, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendExitChatRoom() error {
+	packet := BuildExitChatRoomPacket()
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_EXIT_ROOM opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
+	} else {
+		log.Printf("send CZ_EXIT_ROOM failed opcode=0x%04X client_date=%d: %v", ID(packet), c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendEnterChatRoom(roomID uint32, password string) error {
+	packet := BuildEnterChatRoomPacket(roomID, password)
+	if len(packet) == 0 {
+		return fmt.Errorf("empty chat room id")
+	}
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_ENTER_ROOM opcode=0x%04X room=%d client_date=%d", ID(packet), roomID, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_ENTER_ROOM failed opcode=0x%04X room=%d client_date=%d: %v", ID(packet), roomID, c.clientDate, err)
 	}
 	return err
 }
