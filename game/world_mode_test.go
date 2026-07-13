@@ -817,7 +817,7 @@ func TestCursorActionClickOverVendingBoard(t *testing.T) {
 		VendingName:   "Fresh Fish",
 	}
 	ctx, projection := cursorHoverTestContext(actor)
-	bounds, ok := vendingBoardActorBounds(ctx, projection, actor, now, nil)
+	bounds, ok := vendingBoardActorBounds(ctx, projection, actor, now)
 	if !ok {
 		t.Fatal("expected vending board bounds")
 	}

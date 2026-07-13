@@ -20,8 +20,8 @@ func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, ctx client.Cont
 			continue
 		}
 		label := sanitizeActorName(entry.actor.VendingName)
-		labelY := actorSpriteTopY(entry.screenY, entry.scale) - boardLabelGap - vendingBoardLabelHeight(label, icon)
-		drawVendingBoardLabel(screen, entry.actor.VendingName, entry.screenX, labelY, icon)
+		labelY := actorSpriteTopY(entry.screenY, entry.scale) - boardLabelGap - boardLabelHeight(label)
+		drawBoardLabel(screen, entry.actor.VendingName, entry.screenX, labelY, icon)
 	}
 }
 
@@ -32,12 +32,12 @@ func (m *WorldMode) drawChatRoomBoardLabels(screen *render.Image, ctx client.Con
 		}
 		label := chatRoomBoardLabel(entry.actor)
 		icon := m.chatRoomBoardIcon(ctx.Resources, entry.actor.ChatRoomPublic)
-		labelY := actorSpriteTopY(entry.screenY, entry.scale) - boardLabelGap - chatRoomBoardLabelHeight(label, icon)
+		labelY := actorSpriteTopY(entry.screenY, entry.scale) - boardLabelGap - boardLabelHeight(label)
 		if actorHasVending(entry.actor) {
 			vendingLabel := sanitizeActorName(entry.actor.VendingName)
-			labelY -= vendingBoardLabelHeight(vendingLabel, m.vendingShopIcon(ctx.Resources)) + boardLabelGap
+			labelY -= boardLabelHeight(vendingLabel) + boardLabelGap
 		}
-		drawChatRoomBoardLabel(screen, label, entry.screenX, labelY, icon)
+		drawBoardLabel(screen, label, entry.screenX, labelY, icon)
 	}
 }
 
@@ -65,33 +65,14 @@ const (
 	boardLabelBorderW  = 1
 )
 
-type boardLabelStyle struct {
-	width        int
-	height       int
-	padX         int
-	iconGap      int
-	iconSize     int
-	outlineWidth int
-	borderWidth  int
-	radius       int
-	fill         color.RGBA
-	outline      color.RGBA
-	border       color.RGBA
-	text         color.RGBA
-}
+var (
+	boardLabelFillColor    = color.RGBA{R: 255, G: 255, B: 255, A: 245}
+	boardLabelOutlineColor = color.RGBA{R: 255, G: 255, B: 255, A: 245}
+	boardLabelBorderColor  = color.RGBA{R: 74, G: 138, B: 202, A: 245}
+	boardLabelTextColor    = color.RGBA{R: 30, G: 34, B: 40, A: 255}
+)
 
-type boardSurfaceKey struct {
-	width        int
-	height       int
-	outlineWidth int
-	borderWidth  int
-	radius       int
-	fill         color.RGBA
-	outline      color.RGBA
-	border       color.RGBA
-}
-
-var boardSurfaceCache = map[boardSurfaceKey]*render.Image{}
+var boardSurfaceCache *render.Image
 
 type vendingBoardBounds struct {
 	x float64
@@ -104,44 +85,36 @@ func (b vendingBoardBounds) contains(x, y float64) bool {
 	return x >= b.x && x < b.x+b.w && y >= b.y && y < b.y+b.h
 }
 
-func drawVendingBoardLabel(screen *render.Image, label string, centerX, topY float64, icon *render.Image) {
-	drawBoardLabel(screen, label, centerX, topY, icon, vendingBoardLabelStyle())
-}
-
-func drawChatRoomBoardLabel(screen *render.Image, label string, centerX, topY float64, icon *render.Image) {
-	drawBoardLabel(screen, label, centerX, topY, icon, chatRoomBoardLabelStyle())
-}
-
-func drawBoardLabel(screen *render.Image, label string, centerX, topY float64, icon *render.Image, style boardLabelStyle) {
+func drawBoardLabel(screen *render.Image, label string, centerX, topY float64, icon *render.Image) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return
 	}
-	bounds, ok := boardLabelBounds(label, centerX, topY, icon, style)
+	bounds, ok := boardLabelBounds(label, centerX, topY)
 	if !ok {
 		return
 	}
 	bounds.x, bounds.y = render.SnapScreenPoint(screen, bounds.x, bounds.y)
-	drawBoardSurface(screen, bounds, style)
+	drawBoardSurface(screen, bounds)
 
-	contentInset := style.outlineWidth + style.borderWidth
-	contentX := bounds.x + float64(contentInset+style.padX)
+	contentInset := boardLabelOutlineW + boardLabelBorderW
+	contentX := bounds.x + float64(contentInset+boardLabelPadX)
 	textX := contentX
 	if icon != nil && !icon.Bounds().Empty() {
-		drawBoardIcon(screen, icon, contentX, bounds.y+float64(style.height-style.iconSize)/2, style.iconSize)
-		textX += float64(style.iconSize + style.iconGap)
+		drawBoardIcon(screen, icon, contentX, bounds.y+float64(boardLabelH-boardLabelIcon)/2, boardLabelIcon)
+		textX += float64(boardLabelIcon + boardLabelIconGap)
 	}
-	maxTextWidth := int(bounds.x+bounds.w) - int(math.Round(textX)) - contentInset - style.padX
+	maxTextWidth := int(bounds.x+bounds.w) - int(math.Round(textX)) - contentInset - boardLabelPadX
 	text := trimBoardLabel(label, maxTextWidth)
-	textY := bounds.y + float64(style.height-boardLabelTextH)/2 - 2
-	render.DrawUITextAt(screen, text, textX, textY, style.text)
+	textY := bounds.y + float64(boardLabelH-boardLabelTextH)/2 - 2
+	render.DrawUITextAt(screen, text, textX, textY, boardLabelTextColor)
 }
 
-func drawBoardSurface(screen *render.Image, bounds vendingBoardBounds, style boardLabelStyle) {
+func drawBoardSurface(screen *render.Image, bounds vendingBoardBounds) {
 	if screen == nil || bounds.w <= 0 || bounds.h <= 0 {
 		return
 	}
-	surface := cachedBoardSurface(style)
+	surface := cachedBoardSurface()
 	if surface == nil {
 		return
 	}
@@ -151,52 +124,36 @@ func drawBoardSurface(screen *render.Image, bounds vendingBoardBounds, style boa
 	screen.DrawImage(surface, &opts)
 }
 
-func cachedBoardSurface(style boardLabelStyle) *render.Image {
-	if style.width <= 0 || style.height <= 0 {
-		return nil
+func cachedBoardSurface() *render.Image {
+	if boardSurfaceCache != nil {
+		return boardSurfaceCache
 	}
-	key := boardSurfaceKey{
-		width:        style.width,
-		height:       style.height,
-		outlineWidth: style.outlineWidth,
-		borderWidth:  style.borderWidth,
-		radius:       style.radius,
-		fill:         style.fill,
-		outline:      style.outline,
-		border:       style.border,
-	}
-	if img, ok := boardSurfaceCache[key]; ok {
-		return img
-	}
-	img := render.NewImage(style.width, style.height)
-	gameui.DrawRoundedSurface(img, 0, 0, style.width, style.height, style.outline, color.RGBA{}, float32(style.radius))
-	blueInset := style.outlineWidth
+	img := render.NewImage(boardLabelW, boardLabelH)
+	gameui.DrawRoundedSurface(img, 0, 0, boardLabelW, boardLabelH, boardLabelOutlineColor, color.RGBA{}, boardLabelRadius)
+	blueInset := boardLabelOutlineW
 	gameui.DrawRoundedSurface(
 		img,
 		blueInset,
 		blueInset,
-		style.width-blueInset*2,
-		style.height-blueInset*2,
-		style.border,
+		boardLabelW-blueInset*2,
+		boardLabelH-blueInset*2,
+		boardLabelBorderColor,
 		color.RGBA{},
-		float32(maxInt(0, style.radius-blueInset)),
+		float32(maxInt(0, int(boardLabelRadius)-blueInset)),
 	)
-	fillInset := style.outlineWidth + style.borderWidth
+	fillInset := boardLabelOutlineW + boardLabelBorderW
 	gameui.DrawRoundedSurface(
 		img,
 		fillInset,
 		fillInset,
-		style.width-fillInset*2,
-		style.height-fillInset*2,
-		style.fill,
+		boardLabelW-fillInset*2,
+		boardLabelH-fillInset*2,
+		boardLabelFillColor,
 		color.RGBA{},
-		float32(maxInt(0, style.radius-fillInset)),
+		float32(maxInt(0, int(boardLabelRadius)-fillInset)),
 	)
-	if len(boardSurfaceCache) > 32 {
-		boardSurfaceCache = map[boardSurfaceKey]*render.Image{}
-	}
-	boardSurfaceCache[key] = img
-	return img
+	boardSurfaceCache = img
+	return boardSurfaceCache
 }
 
 func drawBoardIcon(screen *render.Image, icon *render.Image, x, y float64, size int) {
@@ -231,7 +188,6 @@ func (m *WorldMode) hoveredVendingBoard(ctx client.Context, projection sceneProj
 	if ctx.World == nil {
 		return worldstate.Actor{}, false
 	}
-	icon := m.vendingShopIcon(ctx.Resources)
 	bestDistance := math.Inf(1)
 	var best worldstate.Actor
 	for _, actor := range ctx.World.Actors {
@@ -241,7 +197,7 @@ func (m *WorldMode) hoveredVendingBoard(ctx client.Context, projection sceneProj
 		if actor.ID == 0 || isLocalActor(ctx, actor.ID) || !actorHasVending(actor) {
 			continue
 		}
-		bounds, ok := vendingBoardActorBounds(ctx, projection, actor, now, icon)
+		bounds, ok := vendingBoardActorBounds(ctx, projection, actor, now)
 		if !ok || !bounds.contains(float64(mouseX), float64(mouseY)) {
 			continue
 		}
@@ -284,7 +240,7 @@ func (m *WorldMode) hoveredChatRoomBoard(ctx client.Context, projection scenePro
 	return best, bestDistance < math.Inf(1)
 }
 
-func vendingBoardActorBounds(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time, icon *render.Image) (vendingBoardBounds, bool) {
+func vendingBoardActorBounds(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time) (vendingBoardBounds, bool) {
 	label := sanitizeActorName(actor.VendingName)
 	if label == "" || ctx.World == nil {
 		return vendingBoardBounds{}, false
@@ -293,8 +249,8 @@ func vendingBoardActorBounds(ctx client.Context, projection sceneProjection, act
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
-	topY := actorSpriteTopY(float64(point.y), scale) - boardLabelGap - vendingBoardLabelHeight(label, icon)
-	return vendingBoardLabelBounds(label, float64(point.x), topY, icon)
+	topY := actorSpriteTopY(float64(point.y), scale) - boardLabelGap - boardLabelHeight(label)
+	return boardLabelBounds(label, float64(point.x), topY)
 }
 
 func (m *WorldMode) chatRoomBoardActorBounds(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time) (vendingBoardBounds, bool) {
@@ -302,78 +258,35 @@ func (m *WorldMode) chatRoomBoardActorBounds(ctx client.Context, projection scen
 	if label == "" || ctx.World == nil {
 		return vendingBoardBounds{}, false
 	}
-	icon := m.chatRoomBoardIcon(ctx.Resources, actor.ChatRoomPublic)
 	actorX, actorY := actor.RenderPosition(now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
-	topY := actorSpriteTopY(float64(point.y), scale) - boardLabelGap - chatRoomBoardLabelHeight(label, icon)
+	topY := actorSpriteTopY(float64(point.y), scale) - boardLabelGap - boardLabelHeight(label)
 	if actorHasVending(actor) {
-		topY -= vendingBoardLabelHeight(actor.VendingName, m.vendingShopIcon(ctx.Resources)) + boardLabelGap
+		topY -= boardLabelHeight(actor.VendingName) + boardLabelGap
 	}
-	return chatRoomBoardLabelBounds(label, float64(point.x), topY, icon)
+	return boardLabelBounds(label, float64(point.x), topY)
 }
 
-func vendingBoardLabelBounds(label string, centerX, topY float64, icon *render.Image) (vendingBoardBounds, bool) {
-	return boardLabelBounds(label, centerX, topY, icon, vendingBoardLabelStyle())
-}
-
-func chatRoomBoardLabelBounds(label string, centerX, topY float64, icon *render.Image) (vendingBoardBounds, bool) {
-	return boardLabelBounds(label, centerX, topY, icon, chatRoomBoardLabelStyle())
-}
-
-func boardLabelBounds(label string, centerX, topY float64, _ *render.Image, style boardLabelStyle) (vendingBoardBounds, bool) {
+func boardLabelBounds(label string, centerX, topY float64) (vendingBoardBounds, bool) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return vendingBoardBounds{}, false
 	}
 	return vendingBoardBounds{
-		x: math.Round(centerX - float64(style.width)/2),
+		x: math.Round(centerX - float64(boardLabelW)/2),
 		y: math.Round(topY),
-		w: float64(style.width),
-		h: float64(style.height),
+		w: boardLabelW,
+		h: boardLabelH,
 	}, true
 }
 
-func vendingBoardLabelHeight(label string, icon *render.Image) float64 {
-	bounds, ok := vendingBoardLabelBounds(label, 0, 0, icon)
-	if !ok {
+func boardLabelHeight(label string) float64 {
+	if sanitizeActorName(label) == "" {
 		return 0
 	}
-	return bounds.h
-}
-
-func chatRoomBoardLabelHeight(label string, icon *render.Image) float64 {
-	bounds, ok := chatRoomBoardLabelBounds(label, 0, 0, icon)
-	if !ok {
-		return 0
-	}
-	return bounds.h
-}
-
-func vendingBoardLabelStyle() boardLabelStyle {
-	return defaultBoardLabelStyle()
-}
-
-func chatRoomBoardLabelStyle() boardLabelStyle {
-	return defaultBoardLabelStyle()
-}
-
-func defaultBoardLabelStyle() boardLabelStyle {
-	return boardLabelStyle{
-		width:        boardLabelW,
-		height:       boardLabelH,
-		padX:         boardLabelPadX,
-		iconGap:      boardLabelIconGap,
-		iconSize:     boardLabelIcon,
-		outlineWidth: boardLabelOutlineW,
-		borderWidth:  boardLabelBorderW,
-		radius:       boardLabelRadius,
-		fill:         color.RGBA{R: 255, G: 255, B: 255, A: 245},
-		outline:      color.RGBA{R: 255, G: 255, B: 255, A: 245},
-		border:       color.RGBA{R: 74, G: 138, B: 202, A: 245},
-		text:         color.RGBA{R: 30, G: 34, B: 40, A: 255},
-	}
+	return boardLabelH
 }
 
 func trimBoardLabel(label string, maxWidth int) string {
