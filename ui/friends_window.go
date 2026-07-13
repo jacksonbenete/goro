@@ -115,9 +115,9 @@ func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {
 		Content(
 			primitives.Box(
 				w.friendsTabs(),
-				content,
+				primitives.Expanded(content),
 			).
-				Gap(-1),
+				CrossAlign(primitives.CrossAxisStretch),
 		),
 		Footer(footer),
 		FooterHeight(footerHeight),
@@ -177,15 +177,7 @@ func (w *FriendsWindow) partyFooter(party session.Party) widget.Widget {
 func friendsList(friends []session.Friend) widget.Widget {
 	rows := make([]widget.Widget, 0, maxInt(1, len(friends)))
 	if len(friends) == 0 {
-		rows = append(rows,
-			primitives.Box(
-				rotheme.Text("No friends").
-					Color(rotheme.Default.Colors.MutedText).
-					Align(primitives.TextAlignCenter),
-			).
-				Height(friendsRowHeight).
-				CrossAlign(primitives.CrossAxisStretch),
-		)
+		rows = append(rows, emptyFriendsList("No friends"))
 	} else {
 		for i, friend := range friends {
 			rows = append(rows, friendRow(friend, i))
@@ -194,6 +186,19 @@ func friendsList(friends []session.Friend) widget.Widget {
 	return primitives.Box(rows...).
 		BorderStyle(1, rotheme.Default.Colors.WindowBorder).
 		CrossAlign(primitives.CrossAxisStretch)
+}
+
+func emptyFriendsList(label string) widget.Widget {
+	return primitives.Expanded(
+		primitives.Box(
+			primitives.Expanded(primitives.Box()),
+			rotheme.Text(label).
+				Color(rotheme.Default.Colors.MutedText).
+				Align(primitives.TextAlignCenter),
+			primitives.Expanded(primitives.Box()),
+		).
+			CrossAlign(primitives.CrossAxisStretch),
+	)
 }
 
 func friendRow(friend session.Friend, index int) widget.Widget {
@@ -240,15 +245,7 @@ func partyList(party session.Party) widget.Widget {
 	members := party.Members
 	rows := make([]widget.Widget, 0, maxInt(1, len(members)))
 	if len(members) == 0 {
-		rows = append(rows,
-			primitives.Box(
-				rotheme.Text("No party").
-					Color(rotheme.Default.Colors.MutedText).
-					Align(primitives.TextAlignCenter),
-			).
-				Height(friendsRowHeight).
-				CrossAlign(primitives.CrossAxisStretch),
-		)
+		rows = append(rows, emptyFriendsList("No party"))
 	} else {
 		for i, member := range members {
 			rows = append(rows, partyRow(member, i))
