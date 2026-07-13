@@ -387,6 +387,7 @@ type fakeCursorUIApp struct {
 
 func (fakeCursorUIApp) SetUIRoot(widget.Widget) {}
 func (fakeCursorUIApp) Frame()                  {}
+func (fakeCursorUIApp) Invalidate()             {}
 func (a fakeCursorUIApp) Cursor() widget.CursorType {
 	return a.cursor
 }

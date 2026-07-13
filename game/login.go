@@ -159,6 +159,12 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			continue
 		}
 		m.packets = append(m.packets, pkt.String())
+		if hotkeys, ok, err := network.ParseHotkeyList(pkt); err != nil {
+			m.packets = append(m.packets, "parse hotkey list: "+err.Error())
+		} else if ok {
+			applyHotkeyList(ctx, hotkeys)
+			continue
+		}
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
 			m.packets = append(m.packets, "parse chat message: "+err.Error())
 		} else if ok {

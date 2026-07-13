@@ -529,8 +529,8 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x02B5` | S->C | untracked | `0x02b5` | `-1` | `-` | - |
 | `0x02B6` | C->S | missing | `HEADER_CZ_ACTIVE_QUEST` | `sizeof( PACKET_CZ_ACTIVE_QUEST )` | `clif_parse_questStateAck` | - |
 | `0x02B7` | S->C | untracked | `0x02b7` | `7` | `-` | - |
-| `0x02B9` | S->C | referenced | `0x02b9` | `191` | `-` | packet.go |
-| `0x02BA` | C->S | missing | `0x02ba` | `11` | `clif_parse_Hotkey` | - |
+| `0x02B9` | S->C | implemented | `0x02b9` | `191` | `-` | hotkey_packets.go, packet.go |
+| `0x02BA` | C->S | implemented | `0x02ba` | `11` | `clif_parse_Hotkey` | hotkey_packets.go |
 | `0x02BC` | S->C | untracked | `0x02bc` | `6` | `-` | - |
 | `0x02BF` | S->C | untracked | `0x02bf` | `-1` | `-` | - |
 | `0x02C0` | S->C | untracked | `0x02c0` | `-1` | `-` | - |

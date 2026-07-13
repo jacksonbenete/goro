@@ -2,7 +2,6 @@ package ui
 
 import (
 	"image"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -77,10 +76,7 @@ func TestSkillWindowDoubleClickUsesSharedSkillController(t *testing.T) {
 
 func TestSkillDragReleaseOverShortcutStoresSkill(t *testing.T) {
 	inputState := input.NewState()
-	bar := &ShortcutBar{
-		loaded: true,
-		path:   filepath.Join(t.TempDir(), "shortcuts.json"),
-	}
+	bar := &ShortcutBar{}
 	x, y := bar.slotBounds(Context{ScreenW: 800, ScreenH: 600}, 0)
 	inputState.SetMousePosition(x+shortcutSlot/2, y+shortcutSlot/2)
 	inputState.SetMouseButton(render.MouseButtonLeft, true)

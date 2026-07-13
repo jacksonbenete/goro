@@ -290,7 +290,6 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.actorLife = make(map[uint32]actorLife)
 	m.speechBubbles = make(map[uint32]speechBubble)
 	m.syncCurrentActorEffectStateEffects(ctx)
-	m.shortcutBar.Load(ctx)
 	m.npcDialog.ResetPublished(ctx)
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
@@ -413,6 +412,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 
 	for _, pkt := range ctx.Network.DrainPackets() {
 		if handleDisconnectPacket(ctx, &m.disconnectDialog, pkt) {
+			continue
+		}
+		if hotkeys, ok, err := network.ParseHotkeyList(pkt); err != nil {
+			log.Printf("parse hotkey list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyHotkeyList(ctx, hotkeys)
+			m.shortcutBar.SyncFromSession(ctx)
 			continue
 		}
 		if chat, ok, err := network.ParseChatMessage(pkt); err != nil {

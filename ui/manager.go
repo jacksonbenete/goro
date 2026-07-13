@@ -94,6 +94,9 @@ func (r *overlayRoot) Add(root widget.Widget) {
 		}
 	}
 	r.children = append(r.children, root)
+	if setter, ok := root.(interface{ SetParent(widget.Widget) }); ok {
+		setter.SetParent(r)
+	}
 	r.SetNeedsRedraw(true)
 }
 
@@ -101,6 +104,9 @@ func (r *overlayRoot) Remove(root widget.Widget) {
 	for i, child := range r.children {
 		if child == root {
 			r.children = append(r.children[:i], r.children[i+1:]...)
+			if setter, ok := root.(interface{ SetParent(widget.Widget) }); ok {
+				setter.SetParent(nil)
+			}
 			r.SetNeedsRedraw(true)
 			return
 		}
@@ -110,6 +116,11 @@ func (r *overlayRoot) Remove(root widget.Widget) {
 func (r *overlayRoot) Clear() {
 	if len(r.children) == 0 {
 		return
+	}
+	for _, child := range r.children {
+		if setter, ok := child.(interface{ SetParent(widget.Widget) }); ok {
+			setter.SetParent(nil)
+		}
 	}
 	r.children = nil
 	r.SetNeedsRedraw(true)

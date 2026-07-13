@@ -1,18 +1,15 @@
 package ui
 
 import (
-	"encoding/json"
 	"fmt"
 	"image"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -46,38 +43,23 @@ type shortcutSlotState struct {
 }
 
 type ShortcutBar struct {
-	slots     [shortcutSlots]shortcutSlotState
-	loaded    bool
-	path      string
-	content   widget.Widget
-	root      widget.Widget
-	published bool
-	rootX     int
-	ctx       Context
-	actions   GameActions
-	assets    AssetProvider
-	icons     map[shortcutItemIconKey]image.Image
-	iconMiss  map[shortcutItemIconKey]struct{}
-	tooltip   tooltipState
+	slots         [shortcutSlots]shortcutSlotState
+	hotkeyVersion int
+	content       widget.Widget
+	root          widget.Widget
+	published     bool
+	rootX         int
+	ctx           Context
+	actions       GameActions
+	assets        AssetProvider
+	icons         map[shortcutItemIconKey]image.Image
+	iconMiss      map[shortcutItemIconKey]struct{}
+	tooltip       tooltipState
 }
 
 type shortcutItemIconKey struct {
 	itemID     uint16
 	identified bool
-}
-
-type shortcutPersistFile struct {
-	Version int                   `json:"version"`
-	Slots   []shortcutPersistSlot `json:"slots"`
-}
-
-type shortcutPersistSlot struct {
-	Kind       string `json:"kind,omitempty"`
-	ItemIndex  uint16 `json:"item_index,omitempty"`
-	ItemID     uint16 `json:"item_id,omitempty"`
-	Identified bool   `json:"identified,omitempty"`
-	SkillID    uint16 `json:"skill_id,omitempty"`
-	SkillLevel int    `json:"skill_level,omitempty"`
 }
 
 func (b *ShortcutBar) Update(ctx Context, actions GameActions) bool {
@@ -100,6 +82,7 @@ func (b *ShortcutBar) Publish(ctx Context, actions GameActions, assets AssetProv
 	if ctx.UIManager == nil {
 		return
 	}
+	b.SyncFromSession(ctx)
 	b.ctx = ctx
 	b.actions = actions
 	b.assets = assets
@@ -118,7 +101,6 @@ func (b *ShortcutBar) Publish(ctx Context, actions GameActions, assets AssetProv
 		ctx.UIManager.AddOverlay(b.root)
 		b.published = true
 	}
-	b.redraw()
 }
 
 func (b *ShortcutBar) ResetOverlay(ctx Context) {
@@ -140,14 +122,16 @@ func (b *ShortcutBar) AcceptItemDrop(ctx Context, item session.InventoryItem, mx
 	if !ok {
 		return false
 	}
+	b.ctx = ctx
 	b.slots[slot] = shortcutSlotState{
 		kind:       shortcutItem,
 		itemIndex:  item.Index,
 		itemID:     item.ItemID,
 		identified: item.Identified,
 	}
-	b.save(ctx)
+	b.sendSlotChange(ctx, slot)
 	b.redraw()
+	b.invalidate(ctx)
 	return true
 }
 
@@ -159,43 +143,21 @@ func (b *ShortcutBar) AcceptSkillDrop(ctx Context, skill session.Skill, mx, my i
 	if skill.ID == 0 || skill.Level <= 0 {
 		return true
 	}
+	b.ctx = ctx
 	b.slots[slot] = shortcutSlotState{
 		kind:       shortcutSkill,
 		skillID:    skill.ID,
 		skillLevel: skill.Level,
 	}
-	b.save(ctx)
+	b.sendSlotChange(ctx, slot)
 	b.redraw()
+	b.invalidate(ctx)
 	return true
 }
 
 func (b *ShortcutBar) ClearDepletedItem(ctx Context, index, itemID uint16) bool {
-	changed := b.clearDepletedItemSlots(index, itemID)
-	if changed {
-		b.save(ctx)
-	}
-	return changed
-}
-
-func (b *ShortcutBar) clearDepletedItemSlots(index, itemID uint16) bool {
-	if index == 0 {
-		return false
-	}
-	changed := false
-	for slot, entry := range b.slots {
-		if entry.kind != shortcutItem || entry.itemIndex != index {
-			continue
-		}
-		if itemID != 0 && entry.itemID != itemID {
-			continue
-		}
-		b.slots[slot] = shortcutSlotState{}
-		changed = true
-	}
-	if changed {
-		b.redraw()
-	}
-	return changed
+	b.redraw()
+	return false
 }
 
 func (b *ShortcutBar) activate(ctx Context, actions GameActions, slot int) {
@@ -396,12 +358,18 @@ func (w *shortcutSlotButton) Event(ctx widget.Context, e event.Event) bool {
 	}
 	switch mouse.MouseType {
 	case event.MouseEnter, event.MouseMove:
-		w.hovered = true
+		if !w.hovered {
+			w.hovered = true
+			w.bar.redraw()
+		}
 		ctx.SetCursor(widget.CursorPointer)
 		w.bar.showTooltip(w.slot)
 		return true
 	case event.MouseLeave:
-		w.hovered = false
+		if w.hovered {
+			w.hovered = false
+			w.bar.redraw()
+		}
 		ctx.SetCursor(widget.CursorDefault)
 		w.bar.hideTooltip()
 	case event.MousePress:
@@ -411,9 +379,10 @@ func (w *shortcutSlotButton) Event(ctx widget.Context, e event.Event) bool {
 			return true
 		case event.ButtonRight:
 			w.bar.slots[w.slot] = shortcutSlotState{}
-			w.bar.save(w.bar.ctx)
+			w.bar.sendSlotChange(w.bar.ctx, w.slot)
 			w.bar.hideTooltip()
 			w.bar.redraw()
+			w.bar.invalidate(w.bar.ctx)
 			return true
 		}
 	}
@@ -468,6 +437,13 @@ func (b *ShortcutBar) redraw() {
 	}
 }
 
+func (b *ShortcutBar) invalidate(ctx Context) {
+	if ctx.UIApp == nil {
+		return
+	}
+	ctx.UIApp.Invalidate()
+}
+
 func (b *ShortcutBar) itemIconImage(manager *res.Manager, item session.InventoryItem) image.Image {
 	if manager == nil || item.ItemID == 0 {
 		return nil
@@ -505,172 +481,84 @@ func (b *ShortcutBar) markIconMiss(key shortcutItemIconKey) {
 	b.iconMiss[key] = struct{}{}
 }
 
-func (b *ShortcutBar) Load(ctx Context) {
-	if b.loaded {
+func (b *ShortcutBar) SyncFromSession(ctx Context) {
+	if ctx.Session == nil || !ctx.Session.Hotkeys.Loaded || b.hotkeyVersion == ctx.Session.Hotkeys.Version {
 		return
 	}
-	b.loaded = true
-	path, legacyPath, err := shortcutStatePath(ctx.Session)
-	if err != nil {
-		log.Printf("shortcut load skipped: %v", err)
-		return
-	}
-	b.path = path
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) && legacyPath != "" && legacyPath != path {
-			data, err = os.ReadFile(legacyPath)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					log.Printf("shortcut legacy load failed path=%s: %v", legacyPath, err)
-				}
-				return
-			}
-			log.Printf("shortcut bar migrating legacy path=%s target=%s", legacyPath, path)
-		} else {
-			if !os.IsNotExist(err) {
-				log.Printf("shortcut load failed path=%s: %v", path, err)
-			}
-			return
+	for i := range b.slots {
+		b.slots[i] = shortcutSlotState{}
+		if i < len(ctx.Session.Hotkeys.Slots) {
+			b.slots[i] = shortcutSlotFromHotkey(ctx.Session.Hotkeys.Slots[i])
 		}
 	}
-	var saved shortcutPersistFile
-	if err := json.Unmarshal(data, &saved); err != nil {
-		log.Printf("shortcut load parse failed path=%s: %v", path, err)
-		return
-	}
-	for i := 0; i < len(saved.Slots) && i < shortcutSlots; i++ {
-		b.slots[i] = shortcutSlotFromPersist(saved.Slots[i])
-	}
-	log.Printf("shortcut bar loaded path=%s slots=%d", path, len(saved.Slots))
+	b.hotkeyVersion = ctx.Session.Hotkeys.Version
+	b.redraw()
+	b.invalidate(ctx)
 }
 
-func (b *ShortcutBar) save(ctx Context) {
-	if !b.loaded {
-		b.Load(ctx)
-	}
-	path := b.path
-	if path == "" {
-		var err error
-		path, _, err = shortcutStatePath(ctx.Session)
-		if err != nil {
-			log.Printf("shortcut save skipped: %v", err)
-			return
+func shortcutSlotFromHotkey(h session.HotkeySlot) shortcutSlotState {
+	switch h.Type {
+	case network.HotkeyTypeItem:
+		if h.ID == 0 {
+			return shortcutSlotState{}
 		}
-		b.path = path
-		b.loaded = true
-	}
-	if path == "" {
-		log.Printf("shortcut save skipped: no character selected")
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		log.Printf("shortcut save mkdir failed path=%s: %v", path, err)
-		return
-	}
-	saved := shortcutPersistFile{
-		Version: 1,
-		Slots:   make([]shortcutPersistSlot, shortcutSlots),
-	}
-	for i := 0; i < shortcutSlots; i++ {
-		saved.Slots[i] = b.slots[i].persist()
-	}
-	data, err := json.MarshalIndent(saved, "", "  ")
-	if err != nil {
-		log.Printf("shortcut save marshal failed: %v", err)
-		return
-	}
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-		log.Printf("shortcut save failed path=%s: %v", path, err)
-	}
-}
-
-func shortcutStatePath(s *session.Session) (string, string, error) {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return "", "", err
-	}
-	legacy := filepath.Join(dir, "goro", "shortcuts.json")
-	key := shortcutCharacterKey(s)
-	if key == "" {
-		return legacy, legacy, nil
-	}
-	return filepath.Join(dir, "goro", "shortcuts", key+".json"), legacy, nil
-}
-
-func shortcutCharacterKey(s *session.Session) string {
-	if s == nil {
-		return ""
-	}
-	if s.Selected.ID != 0 {
-		return fmt.Sprintf("char-%d", s.Selected.ID)
-	}
-	if s.CharID != 0 {
-		return fmt.Sprintf("char-%d", s.CharID)
-	}
-	name := strings.TrimSpace(s.Selected.Name)
-	if name == "" {
-		return ""
-	}
-	sanitized := sanitizeShortcutPathPart(name)
-	if sanitized == "" {
-		return ""
-	}
-	return "name-" + sanitized
-}
-
-func sanitizeShortcutPathPart(value string) string {
-	var out strings.Builder
-	for _, r := range value {
-		switch {
-		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
-			out.WriteRune(r)
-		case r == '-' || r == '_':
-			out.WriteRune(r)
-		default:
-			out.WriteByte('_')
-		}
-	}
-	return strings.Trim(out.String(), "_")
-}
-
-func shortcutSlotFromPersist(saved shortcutPersistSlot) shortcutSlotState {
-	switch saved.Kind {
-	case "item":
 		return shortcutSlotState{
 			kind:       shortcutItem,
-			itemIndex:  saved.ItemIndex,
-			itemID:     saved.ItemID,
-			identified: saved.Identified,
+			itemID:     uint16(h.ID),
+			identified: true,
 		}
-	case "skill":
+	case network.HotkeyTypeSkill:
+		if h.ID == 0 {
+			return shortcutSlotState{}
+		}
 		return shortcutSlotState{
 			kind:       shortcutSkill,
-			skillID:    saved.SkillID,
-			skillLevel: saved.SkillLevel,
+			skillID:    uint16(h.ID),
+			skillLevel: int(h.Level),
 		}
 	default:
 		return shortcutSlotState{}
 	}
 }
 
-func (s shortcutSlotState) persist() shortcutPersistSlot {
+func (b *ShortcutBar) sendSlotChange(ctx Context, slot int) {
+	if slot < 0 || slot >= shortcutSlots {
+		return
+	}
+	hotkey := b.slots[slot].hotkey()
+	if ctx.Network != nil {
+		if err := ctx.Network.SendHotkey(uint16(slot), hotkey); err != nil {
+			log.Printf("shortcut hotkey save failed slot=%d: %v", slot+1, err)
+		}
+	}
+	if ctx.Session != nil {
+		setSessionHotkey(ctx.Session, slot, hotkey)
+		b.hotkeyVersion = ctx.Session.Hotkeys.Version
+	}
+}
+
+func setSessionHotkey(s *session.Session, slot int, hotkey network.HotkeySlot) {
+	if s == nil || slot < 0 {
+		return
+	}
+	if len(s.Hotkeys.Slots) <= slot {
+		next := make([]session.HotkeySlot, slot+1)
+		copy(next, s.Hotkeys.Slots)
+		s.Hotkeys.Slots = next
+	}
+	s.Hotkeys.Slots[slot] = session.HotkeySlot{Type: hotkey.Type, ID: hotkey.ID, Level: hotkey.Level}
+	s.Hotkeys.Loaded = true
+	s.Hotkeys.Version++
+}
+
+func (s shortcutSlotState) hotkey() network.HotkeySlot {
 	switch s.kind {
 	case shortcutItem:
-		return shortcutPersistSlot{
-			Kind:       "item",
-			ItemIndex:  s.itemIndex,
-			ItemID:     s.itemID,
-			Identified: s.identified,
-		}
+		return network.HotkeySlot{Type: network.HotkeyTypeItem, ID: uint32(s.itemID)}
 	case shortcutSkill:
-		return shortcutPersistSlot{
-			Kind:       "skill",
-			SkillID:    s.skillID,
-			SkillLevel: s.skillLevel,
-		}
+		return network.HotkeySlot{Type: network.HotkeyTypeSkill, ID: uint32(s.skillID), Level: uint16(maxInt(0, s.skillLevel))}
 	default:
-		return shortcutPersistSlot{}
+		return network.HotkeySlot{}
 	}
 }
 

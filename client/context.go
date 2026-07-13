@@ -33,6 +33,7 @@ type Context struct {
 type UIApp interface {
 	SetUIRoot(widget.Widget)
 	Frame()
+	Invalidate()
 	Cursor() widget.CursorType
 	HoveredWidget() widget.Widget
 }

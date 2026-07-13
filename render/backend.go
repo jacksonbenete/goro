@@ -54,6 +54,22 @@ func (b uiAppBridge) SetUIRoot(root widget.Widget) {
 	}
 }
 
+func (b uiAppBridge) Invalidate() {
+	if b.App == nil || b.App.Window() == nil || b.App.Window().Context() == nil {
+		return
+	}
+	root := b.App.Window().Root()
+	if root != nil {
+		if bounder, ok := root.(interface{ Bounds() geometry.Rect }); ok {
+			if bounds := bounder.Bounds(); !bounds.IsEmpty() {
+				b.App.Window().Context().InvalidateRect(bounds)
+				return
+			}
+		}
+	}
+	b.App.Window().Context().Invalidate()
+}
+
 func (b uiAppBridge) Cursor() widget.CursorType {
 	if b.App == nil || b.App.Window() == nil || b.App.Window().Context() == nil {
 		return widget.CursorDefault

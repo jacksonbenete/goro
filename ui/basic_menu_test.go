@@ -52,6 +52,12 @@ func (a basicMenuTestApp) Frame() {
 	a.app.Frame()
 }
 
+func (a basicMenuTestApp) Invalidate() {
+	if a.app.Window() != nil && a.app.Window().Context() != nil {
+		a.app.Window().Context().Invalidate()
+	}
+}
+
 func (a basicMenuTestApp) Cursor() widget.CursorType {
 	return a.app.Window().Context().Cursor()
 }

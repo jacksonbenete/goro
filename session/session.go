@@ -32,6 +32,7 @@ type Session struct {
 	Cart         Cart
 	Stats        Stats
 	Skills       Skills
+	Hotkeys      Hotkeys
 	Statuses     Statuses
 	Friends      Friends
 	Whisper      WhisperSettings
@@ -215,6 +216,18 @@ type Skill struct {
 	Range      int
 	Name       string
 	Upgradable bool
+}
+
+type HotkeySlot struct {
+	Type  uint8
+	ID    uint32
+	Level uint16
+}
+
+type Hotkeys struct {
+	Loaded  bool
+	Version int
+	Slots   []HotkeySlot
 }
 
 type Movement struct {

@@ -1,94 +1,146 @@
 package ui
 
 import (
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
+	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
 )
 
-func TestShortcutSlotPersistRoundTrip(t *testing.T) {
-	item := shortcutSlotState{
-		kind:       shortcutItem,
-		itemIndex:  12,
-		itemID:     601,
-		identified: true,
+func TestShortcutSlotHotkeyRoundTrip(t *testing.T) {
+	item := shortcutSlotState{kind: shortcutItem, itemID: 601, identified: true}
+	itemHotkey := item.hotkey()
+	if itemHotkey.Type != network.HotkeyTypeItem || itemHotkey.ID != 601 || itemHotkey.Level != 0 {
+		t.Fatalf("item hotkey = %+v", itemHotkey)
 	}
-	if got := shortcutSlotFromPersist(item.persist()); got != item {
-		t.Fatalf("item slot = %+v, want %+v", got, item)
+	if got := shortcutSlotFromHotkey(session.HotkeySlot{Type: itemHotkey.Type, ID: itemHotkey.ID, Level: itemHotkey.Level}); got.kind != shortcutItem || got.itemID != 601 || !got.identified {
+		t.Fatalf("item slot = %+v", got)
 	}
 
-	skill := shortcutSlotState{
-		kind:       shortcutSkill,
-		skillID:    6,
-		skillLevel: 2,
+	skill := shortcutSlotState{kind: shortcutSkill, skillID: 6, skillLevel: 2}
+	skillHotkey := skill.hotkey()
+	if skillHotkey.Type != network.HotkeyTypeSkill || skillHotkey.ID != 6 || skillHotkey.Level != 2 {
+		t.Fatalf("skill hotkey = %+v", skillHotkey)
 	}
-	if got := shortcutSlotFromPersist(skill.persist()); got != skill {
+	if got := shortcutSlotFromHotkey(session.HotkeySlot{Type: skillHotkey.Type, ID: skillHotkey.ID, Level: skillHotkey.Level}); got != skill {
 		t.Fatalf("skill slot = %+v, want %+v", got, skill)
 	}
 }
 
-func TestShortcutStatePathUsesSelectedCharacter(t *testing.T) {
-	config := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", config)
-	s := &session.Session{
-		AccountID: 2000000,
-		CharID:    150001,
-		Selected:  session.Character{ID: 150001, Name: "Osmotar"},
-	}
-
-	path, legacy, err := shortcutStatePath(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := filepath.Join(config, "goro", "shortcuts", "char-150001.json")
-	if path != want {
-		t.Fatalf("shortcut path = %q, want %q", path, want)
-	}
-	if legacy != filepath.Join(config, "goro", "shortcuts.json") {
-		t.Fatalf("legacy path = %q", legacy)
-	}
-}
-
-func TestShortcutStatePathFallsBackToSanitizedCharacterName(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	s := &session.Session{Selected: session.Character{Name: "A/B C"}}
-
-	path, _, err := shortcutStatePath(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasSuffix(path, filepath.Join("goro", "shortcuts", "name-A_B_C.json")) {
-		t.Fatalf("shortcut path = %q", path)
-	}
-}
-
-func TestShortcutLoadMigratesLegacyFileToCharacterPath(t *testing.T) {
-	config := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", config)
-	legacy := filepath.Join(config, "goro", "shortcuts.json")
-	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(legacy, []byte(`{"version":1,"slots":[{"kind":"skill","skill_id":6,"skill_level":2}]}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	ctx := Context{Session: &session.Session{Selected: session.Character{ID: 150001}}}
+func TestShortcutBarSyncsFromSessionHotkeys(t *testing.T) {
+	ctx := Context{Session: &session.Session{Hotkeys: session.Hotkeys{
+		Loaded:  true,
+		Version: 3,
+		Slots: []session.HotkeySlot{
+			{Type: network.HotkeyTypeSkill, ID: 6, Level: 2},
+			{Type: network.HotkeyTypeItem, ID: 501},
+		},
+	}}}
 
 	bar := &ShortcutBar{}
-	bar.Load(ctx)
-	if bar.slots[0].kind != shortcutSkill || bar.slots[0].skillID != 6 || bar.slots[0].skillLevel != 2 {
-		t.Fatalf("migrated slot = %+v", bar.slots[0])
+	bar.SyncFromSession(ctx)
+	if bar.slots[0] != (shortcutSlotState{kind: shortcutSkill, skillID: 6, skillLevel: 2}) {
+		t.Fatalf("slot 1 = %+v", bar.slots[0])
 	}
-	if !strings.HasSuffix(bar.path, filepath.Join("goro", "shortcuts", "char-150001.json")) {
-		t.Fatalf("bar path = %q", bar.path)
+	if bar.slots[1].kind != shortcutItem || bar.slots[1].itemID != 501 {
+		t.Fatalf("slot 2 = %+v", bar.slots[1])
+	}
+	if bar.hotkeyVersion != 3 {
+		t.Fatalf("hotkey version = %d, want 3", bar.hotkeyVersion)
+	}
+}
+
+func TestShortcutDropMarksShortcutOverlayDirty(t *testing.T) {
+	app := &shortcutInvalidatingApp{}
+	ctx := Context{
+		ScreenW:   800,
+		ScreenH:   600,
+		UIApp:     app,
+		UIManager: &shortcutInvalidatingManager{},
+		Session:   &session.Session{},
+	}
+	bar := &ShortcutBar{}
+	bar.Publish(ctx, nil, nil)
+	if bar.root == nil {
+		t.Fatal("shortcut bar root was not published")
+	}
+	x, y := bar.slotBounds(ctx, 0)
+
+	if !bar.AcceptSkillDrop(ctx, session.Skill{ID: 6, Level: 2}, x+1, y+1) {
+		t.Fatal("skill drop was not accepted")
+	}
+	if app.invalidates != 1 {
+		t.Fatalf("shortcut drop invalidates = %d, want 1", app.invalidates)
+	}
+	if got := bar.slots[0]; got.kind != shortcutSkill || got.skillID != 6 || got.skillLevel != 2 {
+		t.Fatalf("slot = %+v", got)
+	}
+}
+
+type shortcutInvalidatingManager struct {
+	overlays []widget.Widget
+}
+
+func (m *shortcutInvalidatingManager) AddOverlay(root widget.Widget) {
+	m.overlays = append(m.overlays, root)
+}
+
+func (m *shortcutInvalidatingManager) RemoveOverlay(root widget.Widget) {
+	for i, overlay := range m.overlays {
+		if overlay == root {
+			m.overlays = append(m.overlays[:i], m.overlays[i+1:]...)
+			return
+		}
+	}
+}
+
+func (m *shortcutInvalidatingManager) Clear() {
+	m.overlays = nil
+}
+
+type shortcutInvalidatingApp struct {
+	invalidates int
+}
+
+func (a *shortcutInvalidatingApp) SetUIRoot(widget.Widget) {}
+
+func (a *shortcutInvalidatingApp) Frame() {}
+
+func (a *shortcutInvalidatingApp) Invalidate() {
+	a.invalidates++
+}
+
+func (a *shortcutInvalidatingApp) Cursor() widget.CursorType {
+	return widget.CursorDefault
+}
+
+func (a *shortcutInvalidatingApp) HoveredWidget() widget.Widget {
+	return nil
+}
+
+func TestShortcutPublishDoesNotKeepOverlayDirty(t *testing.T) {
+	ctx := Context{
+		ScreenW:   800,
+		ScreenH:   600,
+		UIManager: NewManager(),
+		Session:   &session.Session{},
+	}
+	bar := &ShortcutBar{}
+	bar.Publish(ctx, nil, nil)
+	if clear, ok := bar.root.(interface {
+		ClearRedraw()
+		ClearSceneDirty()
+	}); ok {
+		clear.ClearRedraw()
+		clear.ClearSceneDirty()
+	} else {
+		t.Fatal("shortcut overlay cannot simulate clean boundary")
 	}
 
-	bar.save(ctx)
-	if _, err := os.Stat(bar.path); err != nil {
-		t.Fatalf("character shortcut file not written: %v", err)
+	bar.Publish(ctx, nil, nil)
+	if redraw, ok := bar.root.(interface{ NeedsRedraw() bool }); !ok || redraw.NeedsRedraw() {
+		t.Fatal("shortcut publish dirtied an unchanged overlay")
 	}
 }
 
@@ -126,20 +178,17 @@ func TestInventoryItemForShortcutRejectsReusedIndexWithDifferentItem(t *testing.
 	}
 }
 
-func TestShortcutBarClearsDepletedItem(t *testing.T) {
+func TestShortcutBarKeepsDepletedItemShortcut(t *testing.T) {
 	bar := &ShortcutBar{}
 	bar.slots[2] = shortcutSlotState{kind: shortcutItem, itemIndex: 12, itemID: 501}
 	bar.slots[3] = shortcutSlotState{kind: shortcutItem, itemIndex: 12, itemID: 602}
 	bar.slots[4] = shortcutSlotState{kind: shortcutItem, itemIndex: 14, itemID: 501}
 
-	if !bar.clearDepletedItemSlots(12, 501) {
-		t.Fatal("depleted shortcut was not cleared")
+	if bar.ClearDepletedItem(Context{}, 12, 501) {
+		t.Fatal("depleted shortcut should not be cleared locally")
 	}
-	if bar.slots[2].kind != shortcutEmpty {
-		t.Fatalf("slot 3 kind = %d, want empty", bar.slots[2].kind)
-	}
-	if bar.slots[3].kind != shortcutItem || bar.slots[4].kind != shortcutItem {
-		t.Fatalf("unrelated shortcuts were cleared: slot4=%+v slot5=%+v", bar.slots[3], bar.slots[4])
+	if bar.slots[2].kind != shortcutItem || bar.slots[3].kind != shortcutItem || bar.slots[4].kind != shortcutItem {
+		t.Fatalf("shortcut slots changed: slot3=%+v slot4=%+v slot5=%+v", bar.slots[2], bar.slots[3], bar.slots[4])
 	}
 }
 
