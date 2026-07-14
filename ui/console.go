@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image/color"
 	"strings"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -68,11 +68,11 @@ func (c *ChatConsole) Update(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) && c.active {
+	if ctx.Input.JustPressed(input.KeyEscape) && c.active {
 		c.setActive(false)
 		return true
 	}
-	if ctx.Input.JustPressed(render.KeyEnter) && !c.active {
+	if ctx.Input.JustPressed(input.KeyEnter) && !c.active {
 		c.setActive(true)
 		return true
 	}
@@ -80,11 +80,11 @@ func (c *ChatConsole) Update(ctx client.Context) bool {
 		c.setActive(false)
 		return false
 	}
-	if c.active && ctx.Input.JustPressed(render.KeyArrowUp) {
+	if c.active && ctx.Input.JustPressed(input.KeyArrowUp) {
 		c.previousInput()
 		return true
 	}
-	if c.active && ctx.Input.JustPressed(render.KeyArrowDown) {
+	if c.active && ctx.Input.JustPressed(input.KeyArrowDown) {
 		c.nextInput()
 		return true
 	}
@@ -99,7 +99,7 @@ func (c *ChatConsole) Publish(ctx client.Context) {
 }
 
 func (c *ChatConsole) clickedOutside(ctx client.Context) bool {
-	if ctx.Input == nil || !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+	if ctx.Input == nil || !ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
 		return false
 	}
 	x, y, width, height := consoleBounds(ctx.ScreenSize())

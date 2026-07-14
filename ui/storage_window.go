@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"log"
 	"sort"
@@ -89,7 +90,7 @@ func (w *StorageWindow) Update(ctx Context, inventory *InventoryBagWindow, cart 
 	if w.UpdateDrag(ctx, inventory, cart) {
 		return true
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input.JustPressed(input.KeyEscape) {
 		w.close(ctx)
 		w.Publish(ctx)
 		return true
@@ -117,7 +118,7 @@ func (w *StorageWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow, c
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
-	if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
+	if ctx.Input.MouseJustReleased(input.MouseButtonLeft) || !ctx.Input.MousePressed(input.MouseButtonLeft) {
 		item := w.dragItem
 		w.dragActive = false
 		w.dragItem = session.InventoryItem{}
@@ -259,7 +260,7 @@ func (w *StorageWindow) Refresh(ctx Context, itemInfo *ItemInfoWindow) {
 }
 
 func (w *StorageWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) bool {
-	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonRight) {
 		item, _, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)
 		if !ok {
 			return false
@@ -269,7 +270,7 @@ func (w *StorageWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) boo
 		}
 		return true
 	}
-	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+	if !ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
 		return false
 	}
 	item, row, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)

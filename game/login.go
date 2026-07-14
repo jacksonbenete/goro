@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"image/color"
 	"log"
@@ -456,7 +457,7 @@ func (m *LoginMode) cursorAction(ctx client.Context) int {
 }
 
 func (m *LoginMode) updatePhaseEscape(ctx client.Context, now time.Time) bool {
-	if ctx.Input == nil || !ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input == nil || !ctx.Input.JustPressed(input.KeyEscape) {
 		return false
 	}
 	switch m.phase {
@@ -623,7 +624,7 @@ func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 }
 
 func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Image) {
-	screen.Fill(render.ColorBackground)
+	screen.Fill(debugColorBackground)
 	width, height := ctx.ScreenSize()
 	if width <= 0 || height <= 0 {
 		return

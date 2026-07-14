@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"hash/fnv"
 	"image"
 	"image/color"
@@ -1421,7 +1422,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		m.updateCameraZoom(ctx)
 	}
 
-	if !pointerBlocked && ctx.Input.MouseJustPressed(render.MouseButtonLeft) && m.walkReady(now) {
+	if !pointerBlocked && ctx.Input.MouseJustPressed(input.MouseButtonLeft) && m.walkReady(now) {
 		m.nextHeldWalkAt = now.Add(heldWalkRepeatInterval)
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
@@ -1501,7 +1502,7 @@ func (m *WorldMode) applyQuitGameAck(ctx client.Context, ack network.QuitGameAck
 }
 
 func (m *WorldMode) openEscapeMenuFromInput(ctx client.Context) bool {
-	if ctx.Input == nil || m.escapeMenu.IsOpen() || !ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input == nil || m.escapeMenu.IsOpen() || !ctx.Input.JustPressed(input.KeyEscape) {
 		return false
 	}
 	if m.deathModal.IsOpen() || m.teleportModal.IsOpen() || m.friendRequest.IsOpen() || m.friendConfirm.IsOpen() || m.partyRequest.IsOpen() || m.tradeRequest.IsOpen() {
@@ -1703,10 +1704,10 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 	} else {
 		const tile = 32
 		for x := 0; x < width; x += tile {
-			render.DrawLine(screen, float64(x), 0, float64(x), float64(height), render.ColorGrid)
+			render.DrawLine(screen, float64(x), 0, float64(x), float64(height), debugColorGrid)
 		}
 		for y := 0; y < height; y += tile {
-			render.DrawLine(screen, 0, float64(y), float64(width), float64(y), render.ColorGrid)
+			render.DrawLine(screen, 0, float64(y), float64(width), float64(y), debugColorGrid)
 		}
 	}
 

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"log"
 	"sort"
@@ -119,7 +120,7 @@ func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, sto
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
-	if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
+	if ctx.Input.MouseJustReleased(input.MouseButtonLeft) || !ctx.Input.MousePressed(input.MouseButtonLeft) {
 		item := w.dragItem
 		w.dragActive = false
 		w.dragItem = session.InventoryItem{}

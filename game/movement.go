@@ -1,13 +1,13 @@
 package game
 
 import (
+	"github.com/kivutar/goro/input"
 	"log"
 	"math"
 	"time"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	worldstate "github.com/kivutar/goro/world"
 )
@@ -65,11 +65,11 @@ type scheduledWalkResume struct {
 }
 
 func (m *WorldMode) updateHeldWalk(ctx client.Context, pointerBlocked bool, now time.Time) bool {
-	if ctx.Input == nil || !ctx.Input.MousePressed(render.MouseButtonLeft) || pointerBlocked {
+	if ctx.Input == nil || !ctx.Input.MousePressed(input.MouseButtonLeft) || pointerBlocked {
 		m.nextHeldWalkAt = time.Time{}
 		return false
 	}
-	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) || m.pendingSkill.skill.ID != 0 || shouldUseTurnOnlyGroundClick(ctx) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonLeft) || m.pendingSkill.skill.ID != 0 || shouldUseTurnOnlyGroundClick(ctx) {
 		return false
 	}
 	if !m.walkReady(now) || (!m.nextHeldWalkAt.IsZero() && now.Before(m.nextHeldWalkAt)) {
@@ -121,7 +121,7 @@ func shouldUseTurnOnlyGroundClick(ctx client.Context) bool {
 	if ctx.World == nil || ctx.Input == nil {
 		return false
 	}
-	return ctx.World.Player.Sitting || ctx.Input.Pressed(render.KeyShift)
+	return ctx.World.Player.Sitting || ctx.Input.Pressed(input.KeyShift)
 }
 
 func (m *WorldMode) requestChangeDirection(ctx client.Context, targetX, targetY int, source string) {

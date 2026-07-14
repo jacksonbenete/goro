@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image/color"
 	"log"
 	"math"
@@ -390,7 +391,7 @@ func attackRetryDue(last time.Time, now time.Time) bool {
 }
 
 func normalAttackLockActive(ctx client.Context) bool {
-	return (ctx.Input != nil && ctx.Input.Pressed(render.KeyCtrl)) || (ctx.Session != nil && ctx.Session.NoCtrl)
+	return (ctx.Input != nil && ctx.Input.Pressed(input.KeyCtrl)) || (ctx.Session != nil && ctx.Session.NoCtrl)
 }
 
 func pendingAttackReadyAt(player worldstate.Actor, now time.Time) time.Time {

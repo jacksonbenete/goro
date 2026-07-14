@@ -1351,7 +1351,7 @@ func TestNormalAttackLockActiveUsesNoCtrlOrHeldCtrl(t *testing.T) {
 	}
 
 	ctx.Session.NoCtrl = false
-	inputState.SetKey(render.KeyCtrl, true)
+	inputState.SetKey(input.KeyCtrl, true)
 	if !normalAttackLockActive(ctx) {
 		t.Fatal("attack lock should be active while ctrl is held")
 	}

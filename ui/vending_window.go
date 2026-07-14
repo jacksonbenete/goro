@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"log"
 	"strconv"
@@ -561,13 +562,13 @@ func (w *VendingWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) boo
 	if ctx.Input == nil {
 		return false
 	}
-	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonRight) {
 		if item, ok := w.itemAt(ctx, ctx.Input.MouseX, ctx.Input.MouseY); ok && itemInfo != nil {
 			itemInfo.openItem(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY)
 			return true
 		}
 	}
-	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
 		w.pressX, w.pressY = ctx.Input.MouseX, ctx.Input.MouseY
 		w.pressRow = -1
 		w.pressRight = false
@@ -582,13 +583,13 @@ func (w *VendingWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) boo
 			return true
 		}
 	}
-	if ctx.Input.MousePressed(render.MouseButtonLeft) && w.pressRow >= 0 {
+	if ctx.Input.MousePressed(input.MouseButtonLeft) && w.pressRow >= 0 {
 		if absShopWindowInt(ctx.Input.MouseX-w.pressX) > 4 || absShopWindowInt(ctx.Input.MouseY-w.pressY) > 4 {
 			w.draggingItem = true
 			return true
 		}
 	}
-	if ctx.Input.MouseJustReleased(render.MouseButtonLeft) && w.pressRow >= 0 {
+	if ctx.Input.MouseJustReleased(input.MouseButtonLeft) && w.pressRow >= 0 {
 		row, right, dragging := w.pressRow, w.pressRight, w.draggingItem
 		w.pressRow = -1
 		w.draggingItem = false

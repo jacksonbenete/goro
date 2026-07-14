@@ -1,11 +1,11 @@
 package ui
 
 import (
+	"github.com/kivutar/goro/input"
 	"strings"
 
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -52,7 +52,7 @@ func (m *PartyContextMenu) Update(ctx Context) bool {
 	}
 	if ctx.Input != nil {
 		inside := pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, m.x, m.y, partyContextMenuWidth, m.height())
-		if ctx.Input.JustPressed(render.KeyEscape) || (!inside && (ctx.Input.MouseJustPressed(render.MouseButtonLeft) || ctx.Input.MouseJustPressed(render.MouseButtonRight))) {
+		if ctx.Input.JustPressed(input.KeyEscape) || (!inside && (ctx.Input.MouseJustPressed(input.MouseButtonLeft) || ctx.Input.MouseJustPressed(input.MouseButtonRight))) {
 			m.Close()
 			return true
 		}

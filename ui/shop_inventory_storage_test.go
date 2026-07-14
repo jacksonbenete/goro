@@ -9,7 +9,6 @@ import (
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	worldstate "github.com/kivutar/goro/world"
@@ -193,9 +192,9 @@ func TestInventoryBagTooltipTracksHoveredItem(t *testing.T) {
 func TestStorageDragReleaseOverInventoryWithdraws(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetMousePosition(40, 40)
-	inputState.SetMouseButton(render.MouseButtonLeft, true)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
 	inputState.EndFrame()
-	inputState.SetMouseButton(render.MouseButtonLeft, false)
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
 
 	inventory := InventoryBagWindow{}
 	inventory.EnsureWindow(inventoryBagWidth, inventoryBagHeight)

@@ -536,8 +536,8 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context
 			}
 			return
 		}
-		render.DrawRect(screen, entry.screenX-6, entry.screenY-6, 24, 24, render.ColorPanel)
-		render.DrawRect(screen, entry.screenX-6, entry.screenY-6, 24, 2, render.ColorAccent)
+		render.DrawRect(screen, entry.screenX-6, entry.screenY-6, 24, 24, debugColorPanel)
+		render.DrawRect(screen, entry.screenX-6, entry.screenY-6, 24, 2, debugColorAccent)
 		return
 	}
 	if visual := specialNPCVisualForActor(ctx, entry.actor); visual != specialNPCVisualNone {

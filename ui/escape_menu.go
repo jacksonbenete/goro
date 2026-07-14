@@ -1,13 +1,13 @@
 package ui
 
 import (
+	"github.com/kivutar/goro/input"
 	"log"
 
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -60,7 +60,7 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 	if ctx.Input == nil {
 		return false
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input.JustPressed(input.KeyEscape) {
 		m.Toggle(ctx)
 		return true
 	}

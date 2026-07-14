@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image/color"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -184,7 +184,7 @@ func (d *NPCDialog) Update(ctx Context) bool {
 	if d.openWindows(ctx) {
 		return true
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input.JustPressed(input.KeyEscape) {
 		if d.action == npcDialogActionMenu {
 			d.choose(ctx, 255)
 		} else {
@@ -193,7 +193,7 @@ func (d *NPCDialog) Update(ctx Context) bool {
 		d.publish(ctx)
 		return true
 	}
-	if ctx.Input.JustPressed(render.KeyEnter) {
+	if ctx.Input.JustPressed(input.KeyEnter) {
 		switch d.action {
 		case npcDialogActionNext:
 			d.next(ctx)

@@ -5,7 +5,6 @@ import (
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/session"
 )
 
@@ -95,7 +94,7 @@ func TestConsoleInputHistoryUsesArrowKeys(t *testing.T) {
 	console.rememberInput("hello")
 
 	inputState := input.NewState()
-	inputState.SetKey(render.KeyArrowUp, true)
+	inputState.SetKey(input.KeyArrowUp, true)
 	if !console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}) {
 		t.Fatal("up key was not handled")
 	}
@@ -104,28 +103,28 @@ func TestConsoleInputHistoryUsesArrowKeys(t *testing.T) {
 	}
 
 	inputState = input.NewState()
-	inputState.SetKey(render.KeyArrowUp, true)
+	inputState.SetKey(input.KeyArrowUp, true)
 	console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600})
 	if console.input != "/sit" {
 		t.Fatalf("second history input = %q, want /sit", console.input)
 	}
 
 	inputState = input.NewState()
-	inputState.SetKey(render.KeyArrowUp, true)
+	inputState.SetKey(input.KeyArrowUp, true)
 	console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600})
 	if console.input != "/sit" {
 		t.Fatalf("oldest history input = %q, want /sit", console.input)
 	}
 
 	inputState = input.NewState()
-	inputState.SetKey(render.KeyArrowDown, true)
+	inputState.SetKey(input.KeyArrowDown, true)
 	console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600})
 	if console.input != "hello" {
 		t.Fatalf("newer history input = %q, want hello", console.input)
 	}
 
 	inputState = input.NewState()
-	inputState.SetKey(render.KeyArrowDown, true)
+	inputState.SetKey(input.KeyArrowDown, true)
 	console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600})
 	if console.input != "draft" {
 		t.Fatalf("restored draft input = %q, want draft", console.input)
@@ -137,7 +136,7 @@ func TestConsoleOutsideClickBlursAndPassesThrough(t *testing.T) {
 	inputState := input.NewState()
 	inputState.MouseX = 700
 	inputState.MouseY = 100
-	inputState.SetMouseButton(render.MouseButtonLeft, true)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
 
 	if console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}) {
 		t.Fatal("outside click was consumed")

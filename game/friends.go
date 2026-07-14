@@ -2,13 +2,13 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/session"
 )
 
@@ -57,7 +57,7 @@ func (m *WorldMode) addFriendResultMessage(result network.FriendAddResult) {
 }
 
 func (m *WorldMode) openPlayerContextFromInput(ctx client.Context, now time.Time) bool {
-	if ctx.Input == nil || !ctx.Input.MouseJustPressed(render.MouseButtonRight) || uiPointerBlocked(ctx) {
+	if ctx.Input == nil || !ctx.Input.MouseJustPressed(input.MouseButtonRight) || uiPointerBlocked(ctx) {
 		return false
 	}
 	screenW, screenH := ctx.ScreenSize()

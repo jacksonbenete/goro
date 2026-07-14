@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"log"
 	"sort"
@@ -110,7 +111,7 @@ func (w *CartWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow, stor
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
-	if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
+	if ctx.Input.MouseJustReleased(input.MouseButtonLeft) || !ctx.Input.MousePressed(input.MouseButtonLeft) {
 		item := w.dragItem
 		w.dragActive = false
 		w.dragItem = session.InventoryItem{}
@@ -237,7 +238,7 @@ func (w *CartWindow) cartTableWidget(ctx Context) *datatable.Widget {
 }
 
 func (w *CartWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) bool {
-	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonRight) {
 		item, _, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)
 		if !ok {
 			return false
@@ -247,7 +248,7 @@ func (w *CartWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) bool {
 		}
 		return true
 	}
-	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+	if !ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
 		return false
 	}
 	item, row, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)

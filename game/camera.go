@@ -1,11 +1,11 @@
 package game
 
 import (
+	"github.com/kivutar/goro/input"
 	"math"
 	"time"
 
 	"github.com/kivutar/goro/client"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	worldstate "github.com/kivutar/goro/world"
 )
@@ -171,7 +171,7 @@ func (m *WorldMode) updateCameraRotation(ctx client.Context) {
 		return
 	}
 	delta := 0.0
-	if ctx.Input.MousePressed(render.MouseButtonRight) {
+	if ctx.Input.MousePressed(input.MouseButtonRight) {
 		screenW, _ := ctx.ScreenSize()
 		delta += cameraDragYawDelta(ctx.Input.MouseDX, screenW)
 	}

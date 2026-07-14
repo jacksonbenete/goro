@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"log"
 	"math"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
@@ -201,7 +201,7 @@ func (c skillController) CancelFromInput(ctx client.Context) bool {
 	if c.mode.pendingSkill.skill.ID == 0 || ctx.Input == nil {
 		return false
 	}
-	if !ctx.Input.JustPressed(render.KeyEscape) && !ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+	if !ctx.Input.JustPressed(input.KeyEscape) && !ctx.Input.MouseJustPressed(input.MouseButtonRight) {
 		return false
 	}
 	c.Cancel("input")
@@ -411,7 +411,7 @@ func (c skillController) ApplyAutoRun(ctx client.Context, auto network.AutoRunSk
 }
 
 func skillTargetOverrideActive(ctx client.Context) bool {
-	return (ctx.Input != nil && ctx.Input.Pressed(render.KeyShift)) || (ctx.Session != nil && ctx.Session.NoShift)
+	return (ctx.Input != nil && ctx.Input.Pressed(input.KeyShift)) || (ctx.Session != nil && ctx.Session.NoShift)
 }
 
 func targetSkillRange(skill session.Skill) int {

@@ -150,9 +150,9 @@ func TestSkillDragReleaseOverShortcutStoresSkill(t *testing.T) {
 	bar := &ShortcutBar{}
 	x, y := bar.slotBounds(Context{ScreenW: 800, ScreenH: 600}, 0)
 	inputState.SetMousePosition(x+shortcutSlot/2, y+shortcutSlot/2)
-	inputState.SetMouseButton(render.MouseButtonLeft, true)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
 	inputState.EndFrame()
-	inputState.SetMouseButton(render.MouseButtonLeft, false)
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
 
 	window := &SkillWindow{
 		dragSkill:  session.Skill{ID: 46, Level: 10},

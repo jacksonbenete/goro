@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"log"
 
@@ -562,26 +563,26 @@ func (s shortcutSlotState) hotkey() network.HotkeySlot {
 	}
 }
 
-func shortcutKey(slot int) render.Key {
+func shortcutKey(slot int) input.Key {
 	switch slot {
 	case 0:
-		return render.KeyF1
+		return input.KeyF1
 	case 1:
-		return render.KeyF2
+		return input.KeyF2
 	case 2:
-		return render.KeyF3
+		return input.KeyF3
 	case 3:
-		return render.KeyF4
+		return input.KeyF4
 	case 4:
-		return render.KeyF5
+		return input.KeyF5
 	case 5:
-		return render.KeyF6
+		return input.KeyF6
 	case 6:
-		return render.KeyF7
+		return input.KeyF7
 	case 7:
-		return render.KeyF8
+		return input.KeyF8
 	default:
-		return render.KeyF9
+		return input.KeyF9
 	}
 }
 

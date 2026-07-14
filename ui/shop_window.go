@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"log"
 	"time"
@@ -167,7 +168,7 @@ func (w *ShopWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 		return false
 	}
 	if w.dealWindow.IsOpen() {
-		if ctx.Input.JustPressed(render.KeyEscape) {
+		if ctx.Input.JustPressed(input.KeyEscape) {
 			w.closeDealWindow(ctx)
 			return true
 		}
@@ -532,7 +533,7 @@ func (w *ShopWindow) updateBuyWindow(ctx Context, itemInfo *ItemInfoWindow) bool
 		w.openBuyWindow(ctx)
 	}
 	w.x, w.y = w.buyWindow.x, w.buyWindow.y
-	if ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input.JustPressed(input.KeyEscape) {
 		w.cancel(ctx)
 		return true
 	}
@@ -556,7 +557,7 @@ func (w *ShopWindow) updateBuyWindow(ctx Context, itemInfo *ItemInfoWindow) bool
 }
 
 func (w *ShopWindow) handleBuyPointer(ctx Context, itemInfo *ItemInfoWindow) bool {
-	if ctx.Input.MouseJustPressed(render.MouseButtonRight) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonRight) {
 		if item, ok := w.shopItemAt(ctx, ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			if itemInfo != nil {
 				itemInfo.openItem(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY)
@@ -567,7 +568,7 @@ func (w *ShopWindow) handleBuyPointer(ctx Context, itemInfo *ItemInfoWindow) boo
 			return true
 		}
 	}
-	if ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
 		if row, ok := w.buyShopRowAt(ctx, ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			if w.isDoubleClick(row, false) {
 				w.transferShopRowToCart(ctx, row)
@@ -602,13 +603,13 @@ func (w *ShopWindow) handleBuyPointer(ctx Context, itemInfo *ItemInfoWindow) boo
 			return true
 		}
 	}
-	if w.buyPressRow >= 0 && ctx.Input.MousePressed(render.MouseButtonLeft) {
+	if w.buyPressRow >= 0 && ctx.Input.MousePressed(input.MouseButtonLeft) {
 		if absShopWindowInt(ctx.Input.MouseX-w.buyPressX) > 4 || absShopWindowInt(ctx.Input.MouseY-w.buyPressY) > 4 {
 			w.buyDraggingItem = true
 			return true
 		}
 	}
-	if w.buyPressRow >= 0 && ctx.Input.MouseJustReleased(render.MouseButtonLeft) {
+	if w.buyPressRow >= 0 && ctx.Input.MouseJustReleased(input.MouseButtonLeft) {
 		row := w.buyPressRow
 		fromCart := w.buyPressCart
 		dragging := w.buyDraggingItem

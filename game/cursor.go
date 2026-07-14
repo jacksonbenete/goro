@@ -1,6 +1,7 @@
 package game
 
 import (
+	"github.com/kivutar/goro/input"
 	"image"
 	"image/color"
 	"log"
@@ -155,7 +156,7 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 	if action, ok := uiCursorAction(ctx); ok {
 		return action
 	}
-	if ctx.Input.MousePressed(render.MouseButtonRight) {
+	if ctx.Input.MousePressed(input.MouseButtonRight) {
 		return cursorActionRotate
 	}
 	if m.pendingSkill.skill.ID != 0 {
@@ -183,7 +184,7 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 			return cursorActionTalk
 		}
 	}
-	if ctx.Input.MousePressed(render.MouseButtonLeft) {
+	if ctx.Input.MousePressed(input.MouseButtonLeft) {
 		return cursorActionClick
 	}
 	if ctx.World != nil && ctx.World.GAT != nil {

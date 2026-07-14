@@ -1,13 +1,13 @@
 package ui
 
 import (
+	"github.com/kivutar/goro/input"
 	"strings"
 
 	"github.com/gogpu/ui/core/radio"
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -160,7 +160,7 @@ func (w *PartyCreateWindow) submitFromFocusedEnter(ctx Context) bool {
 	if ctx.Input == nil || w.nameField == nil || !w.nameField.IsFocused() {
 		return false
 	}
-	if !ctx.Input.JustPressed(render.KeyEnter) {
+	if !ctx.Input.JustPressed(input.KeyEnter) {
 		return false
 	}
 	w.submit(ctx)

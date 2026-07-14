@@ -2,13 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 
 	"github.com/gogpu/ui/core/listview"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/network"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -91,11 +91,11 @@ func (m *TeleportModal) Update(ctx Context, actions GameActions) bool {
 		m.closeWindow()
 		return false
 	}
-	if ctx.Input != nil && (ctx.Input.JustPressed(render.KeyEscape) || ctx.Input.MouseJustPressed(render.MouseButtonRight)) {
+	if ctx.Input != nil && (ctx.Input.JustPressed(input.KeyEscape) || ctx.Input.MouseJustPressed(input.MouseButtonRight)) {
 		m.cancel(ctx)
 		return true
 	}
-	if ctx.Input != nil && ctx.Input.JustPressed(render.KeyEnter) {
+	if ctx.Input != nil && ctx.Input.JustPressed(input.KeyEnter) {
 		m.selectCurrent(ctx, actions)
 		return true
 	}

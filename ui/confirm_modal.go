@@ -1,12 +1,12 @@
 package ui
 
 import (
+	"github.com/kivutar/goro/input"
 	"strings"
 
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -63,7 +63,7 @@ func (m *ConfirmModal) Update(ctx client.Context) bool {
 		return false
 	}
 	if ctx.Input != nil {
-		if ctx.Input.JustPressed(render.KeyEscape) {
+		if ctx.Input.JustPressed(input.KeyEscape) {
 			if m.okOnly {
 				m.Confirm(ctx)
 			} else {
@@ -71,7 +71,7 @@ func (m *ConfirmModal) Update(ctx client.Context) bool {
 			}
 			return true
 		}
-		if ctx.Input.JustPressed(render.KeyEnter) {
+		if ctx.Input.JustPressed(input.KeyEnter) {
 			m.Confirm(ctx)
 			return true
 		}

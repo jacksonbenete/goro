@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"image/color"
 	"log"
@@ -21,18 +22,18 @@ const (
 )
 
 func (m *LoginMode) updateCharacterSelectInput(ctx client.Context) {
-	if ctx.Input != nil && ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input != nil && ctx.Input.JustPressed(input.KeyEscape) {
 		m.cancelCharacterSelect(ctx)
 		return
 	}
 	if ctx.Input != nil {
-		if ctx.Input.JustPressed(render.KeyArrowLeft) {
+		if ctx.Input.JustPressed(input.KeyArrowLeft) {
 			m.moveSelectedSlot(-1)
 		}
-		if ctx.Input.JustPressed(render.KeyArrowRight) {
+		if ctx.Input.JustPressed(input.KeyArrowRight) {
 			m.moveSelectedSlot(1)
 		}
-		if ctx.Input.JustPressed(render.KeyEnter) {
+		if ctx.Input.JustPressed(input.KeyEnter) {
 			m.submitSelectedCharacter(ctx)
 		}
 	}

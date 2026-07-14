@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/kivutar/goro/input"
 	"image"
 	"log"
 	"strings"
@@ -104,7 +105,7 @@ func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameAc
 	if w.UpdateDrag(ctx, shortcuts) {
 		return true
 	}
-	if ctx.Input.JustPressed(render.KeyEscape) {
+	if ctx.Input.JustPressed(input.KeyEscape) {
 		w.close(ctx)
 		w.Publish(ctx)
 		return true
@@ -133,7 +134,7 @@ func (w *SkillWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar) bool {
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
-	if ctx.Input.MouseJustReleased(render.MouseButtonLeft) || !ctx.Input.MousePressed(render.MouseButtonLeft) {
+	if ctx.Input.MouseJustReleased(input.MouseButtonLeft) || !ctx.Input.MousePressed(input.MouseButtonLeft) {
 		skill := w.dragSkill
 		w.dragActive = false
 		w.dragSkill = session.Skill{}

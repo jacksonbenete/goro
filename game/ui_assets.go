@@ -112,8 +112,8 @@ func (m *WorldMode) drawHumanoidPreview(screen *render.Image, view *humanoidSpri
 	}
 	billboard, ok := humanoidBillboardForState(view, state, time.Now())
 	if !ok || billboard == nil || billboard.image == nil {
-		render.DrawRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 48, render.ColorPanel)
-		render.DrawRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 2, render.ColorAccent)
+		render.DrawRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 48, debugColorPanel)
+		render.DrawRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 2, debugColorAccent)
 		return
 	}
 	bounds := visibleImageBounds(billboard.image)

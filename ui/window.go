@@ -6,7 +6,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
-	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -345,7 +345,7 @@ func (w *Window) Update(ctx client.Context) bool {
 	w.ensurePosition(ctx)
 	screenW, screenH := ctx.ScreenSize()
 	if w.dragging {
-		if ctx.Input.MousePressed(render.MouseButtonLeft) {
+		if ctx.Input.MousePressed(input.MouseButtonLeft) {
 			w.x = clampWindowInt(ctx.Input.MouseX-w.dragDX, 8, maxInt(8, screenW-w.width-8))
 			w.y = clampWindowInt(ctx.Input.MouseY-w.dragDY, 8, maxInt(8, screenH-w.height-8))
 			w.placed = nil
@@ -355,12 +355,12 @@ func (w *Window) Update(ctx client.Context) bool {
 		w.setOpacity(1)
 		return true
 	}
-	if w.CloseOnEsc && ctx.Input.JustPressed(render.KeyEscape) {
+	if w.CloseOnEsc && ctx.Input.JustPressed(input.KeyEscape) {
 		w.Close()
 		return true
 	}
 	inside := pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, w.width, w.height)
-	if !ctx.Input.MouseJustPressed(render.MouseButtonLeft) {
+	if !ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
 		return inside
 	}
 	if !inside {

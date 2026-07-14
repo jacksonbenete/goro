@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/kivutar/goro/input"
 	"strconv"
 	"strings"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
-	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -226,7 +226,7 @@ func (w *ChatRoomCreateWindow) submitFromFocusedEnter(ctx Context) bool {
 	focused := w.titleField != nil && w.titleField.IsFocused() ||
 		w.passwordField != nil && w.passwordField.IsFocused() ||
 		w.limitField != nil && w.limitField.IsFocused()
-	if !focused || !ctx.Input.JustPressed(render.KeyEnter) {
+	if !focused || !ctx.Input.JustPressed(input.KeyEnter) {
 		return false
 	}
 	w.submit(ctx)
