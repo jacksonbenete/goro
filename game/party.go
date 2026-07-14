@@ -239,6 +239,14 @@ func applyPartyOption(ctx client.Context, option network.PartyOption) {
 	log.Printf("party option exp=%d", option.ExpOption)
 }
 
+func applyPartyInviteConfig(ctx client.Context, config network.PartyInviteConfig) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Party.RefuseInvites = config.RefuseInvites
+	log.Printf("party invite config refuse_invites=%t", config.RefuseInvites)
+}
+
 func applyPartyMemberHP(ctx client.Context, hp network.PartyMemberHP) {
 	if ctx.Session == nil || !ctx.Session.Party.Active() {
 		return

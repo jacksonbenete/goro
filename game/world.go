@@ -781,6 +781,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			applyPartyOption(ctx, partyOption)
 			continue
 		}
+		if partyConfig, ok, err := network.ParsePartyInviteConfig(pkt); err != nil {
+			log.Printf("parse party invite config 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyPartyInviteConfig(ctx, partyConfig)
+			m.partySettings.Rebind(ctx)
+			continue
+		}
 		if partyMember, ok, err := network.ParsePartyMemberJoin(pkt); err != nil {
 			log.Printf("parse party member join 0x%04X: %v", pkt.ID, err)
 		} else if ok {

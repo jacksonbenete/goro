@@ -580,7 +580,7 @@ func friendsWindowSnapshot(s *session.Session) string {
 	for _, friend := range friends {
 		fmt.Fprintf(&b, ";%d:%d:%s:%d", friend.AccountID, friend.CharID, friend.Name, friend.State)
 	}
-	fmt.Fprintf(&b, ";party=%s:%d:%d", party.Name, party.ExpShare, len(party.Members))
+	fmt.Fprintf(&b, ";party=%s:%d:%t:%d", party.Name, party.ExpShare, party.RefuseInvites, len(party.Members))
 	for _, member := range party.Members {
 		fmt.Fprintf(&b, ";%d:%s:%s:%d:%d:%d:%d:%d:%t", member.AccountID, member.Name, member.MapName, member.Role, member.State, member.HP, member.MaxHP, member.X, member.Dead)
 	}

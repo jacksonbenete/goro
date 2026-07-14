@@ -36,6 +36,11 @@ func TestBuildPartyPackets(t *testing.T) {
 		t.Fatalf("BuildPartyOptionPacket = len %d id 0x%04x data %x", len(opt), ID(opt), opt)
 	}
 
+	config := BuildPartyInviteConfigPacket(true)
+	if len(config) != 3 || ID(config) != PacketCZPartyConfig || config[2] != 1 {
+		t.Fatalf("BuildPartyInviteConfigPacket = len %d id 0x%04x data %x", len(config), ID(config), config)
+	}
+
 	expel := BuildExpelPartyMemberPacket(0x11223344, "Alice")
 	if len(expel) != 30 || ID(expel) != PacketCZReqExpelGroupMember || binary.LittleEndian.Uint32(expel[2:6]) != 0x11223344 || string(expel[6:11]) != "Alice" {
 		t.Fatalf("BuildExpelPartyMemberPacket = len %d id 0x%04x data %x", len(expel), ID(expel), expel)
@@ -104,5 +109,11 @@ func TestParsePartyPackets(t *testing.T) {
 	parsedHP, ok, err := ParsePartyMemberHP(Packet{ID: PacketZCNotifyHPToGroup, Data: hp})
 	if !ok || err != nil || parsedHP.HP != 123 || parsedHP.MaxHP != 456 {
 		t.Fatalf("ParsePartyMemberHP ok=%t err=%v hp=%+v", ok, err, parsedHP)
+	}
+
+	config := []byte{0xc9, 0x02, 0x01}
+	parsedConfig, ok, err := ParsePartyInviteConfig(Packet{ID: PacketZCPartyConfig, Data: config})
+	if !ok || err != nil || !parsedConfig.RefuseInvites {
+		t.Fatalf("ParsePartyInviteConfig ok=%t err=%v config=%+v", ok, err, parsedConfig)
 	}
 }

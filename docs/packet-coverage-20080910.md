@@ -53,7 +53,6 @@ Status meaning:
 | `0x023B` | C->S | `0x023b` | `36` | `clif_parse_StoragePassword` | P0/P1 |
 | `0x02C4` | C->S | `HEADER_CZ_PARTY_JOIN_REQ` | `sizeof( PACKET_CZ_PARTY_JOIN_REQ )` | `clif_parse_PartyInvite2` | P2 |
 | `0x02C7` | C->S | `HEADER_CZ_PARTY_JOIN_REQ_ACK` | `sizeof( PACKET_CZ_PARTY_JOIN_REQ_ACK )` | `clif_parse_ReplyPartyInvite2` | P2 |
-| `0x02C8` | C->S | `HEADER_CZ_PARTY_CONFIG` | `sizeof( PACKET_CZ_PARTY_CONFIG )` | `clif_parse_PartyTick` | P2 |
 | `0x02CF` | C->S | `0x02cf` | `6` | `clif_parse_MemorialDungeonCommand` | P2 |
 | `0x02DB` | C->S | `0x02db` | `-1` | `clif_parse_BattleChat` | P2 |
 | `0x0802` | C->S | `0x0802` | `18` | `clif_parse_PartyBookingRegisterReq` | P2 |
@@ -535,7 +534,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x02C5` | S->C | implemented | `0x02c5` | `30` | `-` | party_packets.go |
 | `0x02C6` | S->C | implemented | `0x02c6` | `30` | `-` | party_packets.go |
 | `0x02C7` | C->S | implemented | `HEADER_CZ_PARTY_JOIN_REQ_ACK` | `sizeof( PACKET_CZ_PARTY_JOIN_REQ_ACK )` | `clif_parse_ReplyPartyInvite2` | party_packets.go |
-| `0x02C8` | C->S | missing | `HEADER_CZ_PARTY_CONFIG` | `sizeof( PACKET_CZ_PARTY_CONFIG )` | `clif_parse_PartyTick` | - |
+| `0x02C8` | C->S | implemented | `HEADER_CZ_PARTY_CONFIG` | `sizeof( PACKET_CZ_PARTY_CONFIG )` | `clif_parse_PartyTick` | party_packets.go |
 | `0x02CA` | S->C | untracked | `0x02ca` | `3` | `-` | - |
 | `0x02CB` | S->C | untracked | `0x02cb` | `65` | `-` | - |
 | `0x02CC` | S->C | untracked | `0x02cc` | `4` | `-` | - |

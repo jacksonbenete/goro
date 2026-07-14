@@ -25,7 +25,7 @@
 
   - [x] Create/invite/reply/leave/settings/chat: 0x00F9, 0x00FC, 0x00FF, 0x0100, 0x0102, 0x0108
   - [x] Newer invite/reply packets: 0x02C4, 0x02C7
-  - [ ] Party config/tick: 0x02C8 PartyTick
+  - [x] Party invite accept/refuse config: 0x02C8, 0x02C9
   - [ ] Party booking register: 0x0802
   - [ ] Party booking delete: 0x0806
 

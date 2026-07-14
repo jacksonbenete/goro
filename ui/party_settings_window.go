@@ -4,6 +4,7 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/radio"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
@@ -12,13 +13,14 @@ import (
 
 const (
 	partySettingsW       = 286
-	partySettingsContent = 100
+	partySettingsContent = 132
 	partySettingsFooterH = 42
 )
 
 type PartySettingsWindow struct {
 	Window
-	expShare uint32
+	expShare      uint32
+	refuseInvites bool
 }
 
 func (w *PartySettingsWindow) Open(ctx Context) {
@@ -26,6 +28,7 @@ func (w *PartySettingsWindow) Open(ctx Context) {
 	w.ctx = ctx
 	party := sessionParty(ctx.Session)
 	w.expShare = party.ExpShare
+	w.refuseInvites = party.RefuseInvites
 	w.Window.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
 }
@@ -69,6 +72,13 @@ func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {
 						w.expShare = parsePartySettingUint32(value)
 					}),
 				),
+				rotheme.Checkbox(
+					checkbox.Checked(w.refuseInvites),
+					checkbox.LabelOpt("Refuse party invites"),
+					checkbox.OnToggle(func(enabled bool) {
+						w.refuseInvites = enabled
+					}),
+				),
 			).
 				Padding(14).
 				Gap(8),
@@ -90,10 +100,14 @@ func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {
 func (w *PartySettingsWindow) apply(ctx Context) {
 	if ctx.Session != nil {
 		ctx.Session.Party.ExpShare = w.expShare
+		ctx.Session.Party.RefuseInvites = w.refuseInvites
 	}
 	if ctx.Network != nil {
 		if err := ctx.Network.SendPartyOption(w.expShare); err != nil {
 			log.Printf("party settings failed: %v", err)
+		}
+		if err := ctx.Network.SendPartyInviteConfig(w.refuseInvites); err != nil {
+			log.Printf("party invite settings failed: %v", err)
 		}
 	}
 	w.Window.Close()

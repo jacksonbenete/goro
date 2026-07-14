@@ -271,6 +271,12 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/invite":
 		c.submitInviteParty(ctx, text)
 		return true
+	case "/accept":
+		c.submitPartyInviteConfig(ctx, false)
+		return true
+	case "/refuse":
+		c.submitPartyInviteConfig(ctx, true)
+		return true
 	case "/w", "/whisper":
 		c.submitWhisper(ctx, text)
 		return true
@@ -403,6 +409,31 @@ func (c *ChatConsole) submitInviteParty(ctx client.Context, text string) {
 		return
 	}
 	c.AddErrorMessage("invite failed: character is not visible")
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitPartyInviteConfig(ctx client.Context, refuseInvites bool) {
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendPartyInviteConfig(refuseInvites); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Session != nil {
+		ctx.Session.Party.RefuseInvites = refuseInvites
+	}
+	if refuseInvites {
+		c.AddSystemMessage("Party invites: Refused")
+	} else {
+		c.AddSystemMessage("Party invites: Accepted")
+	}
 	c.setInput("")
 	c.setActive(false)
 }

@@ -18,6 +18,7 @@ const (
 	PacketCZMakeGroup2          uint16 = 0x01E8
 	PacketCZPartyJoinReq        uint16 = 0x02C4
 	PacketCZPartyJoinReqAck     uint16 = 0x02C7
+	PacketCZPartyConfig         uint16 = 0x02C8
 
 	PacketZCAckMakeGroup        uint16 = 0x00FA
 	PacketZCGroupList           uint16 = 0x00FB
@@ -31,6 +32,7 @@ const (
 	PacketZCNotifyChatParty     uint16 = 0x0109
 	PacketZCPartyJoinReqAck     uint16 = 0x02C5
 	PacketZCPartyJoinReq        uint16 = 0x02C6
+	PacketZCPartyConfig         uint16 = 0x02C9
 	PacketZCNotifyHPToGroupR2   uint16 = 0x080E
 )
 
@@ -68,6 +70,10 @@ type PartyInviteAnswer struct {
 
 type PartyOption struct {
 	ExpOption uint32
+}
+
+type PartyInviteConfig struct {
+	RefuseInvites bool
 }
 
 type PartyMemberLeave struct {
@@ -177,6 +183,16 @@ func ParsePartyOption(packet Packet) (PartyOption, bool, error) {
 		return PartyOption{}, true, fmt.Errorf("ZC_GROUPINFO_CHANGE too short: %d", len(packet.Data))
 	}
 	return PartyOption{ExpOption: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
+}
+
+func ParsePartyInviteConfig(packet Packet) (PartyInviteConfig, bool, error) {
+	if packet.ID != PacketZCPartyConfig {
+		return PartyInviteConfig{}, false, nil
+	}
+	if len(packet.Data) < 3 {
+		return PartyInviteConfig{}, true, fmt.Errorf("ZC_PARTY_CONFIG too short: %d", len(packet.Data))
+	}
+	return PartyInviteConfig{RefuseInvites: packet.Data[2] != 0}, true, nil
 }
 
 func ParsePartyMemberJoin(packet Packet) (PartyMember, bool, error) {
@@ -318,6 +334,17 @@ func BuildPartyOptionPacket(expOption uint32) []byte {
 	return w.Bytes()
 }
 
+func BuildPartyInviteConfigPacket(refuseInvites bool) []byte {
+	var w Writer
+	w.Uint16(PacketCZPartyConfig)
+	if refuseInvites {
+		w.Uint8(1)
+	} else {
+		w.Uint8(0)
+	}
+	return w.Bytes()
+}
+
 func BuildExpelPartyMemberPacket(accountID uint32, name string) []byte {
 	var w Writer
 	w.Uint16(PacketCZReqExpelGroupMember)
@@ -398,6 +425,17 @@ func (c *Client) SendPartyOption(expOption uint32) error {
 		log.Printf("sent CZ_CHANGE_GROUPEXPOPTION opcode=0x%04X exp=%d client_date=%d", ID(packet), expOption, c.clientDate)
 	} else {
 		log.Printf("send CZ_CHANGE_GROUPEXPOPTION failed opcode=0x%04X len=%d exp=%d client_date=%d: %v", ID(packet), len(packet), expOption, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendPartyInviteConfig(refuseInvites bool) error {
+	packet := BuildPartyInviteConfigPacket(refuseInvites)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_PARTY_CONFIG opcode=0x%04X refuse_invites=%t client_date=%d", ID(packet), refuseInvites, c.clientDate)
+	} else {
+		log.Printf("send CZ_PARTY_CONFIG failed opcode=0x%04X len=%d refuse_invites=%t client_date=%d: %v", ID(packet), len(packet), refuseInvites, c.clientDate, err)
 	}
 	return err
 }

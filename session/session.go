@@ -277,6 +277,7 @@ type Party struct {
 	ExpShare         uint32
 	ItemPickupRule   uint8
 	ItemDivisionRule uint8
+	RefuseInvites    bool
 }
 
 func (p Party) Active() bool {
