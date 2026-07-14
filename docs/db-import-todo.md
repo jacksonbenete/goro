@@ -3,6 +3,7 @@
 Imported:
 
 - `Status/StatusConst.js`, `Status/StatusState.js`
+- `Status/StatusInfo.js`
 - `Skills/SkillConst.js`, `Skills/SkillEffect.js`, `Skills/SkillAction.js`
 - `Items/WeaponType.js`, `Items/WeaponTypeExpansion.js`
 - `Items/WeaponHitSoundTable.js`, `Jobs/JobHitSoundTable.js`
@@ -15,3 +16,8 @@ Still useful:
 
 - `Effects/EffectConst.js`, `Effects/EffectTable.js`, `Effects/WeatherEffect.js`
 - `Map/MapTable.js`, `Map/MapState.js`, `Map/WorldMap.js`
+
+Notes:
+
+- Status icon metadata is now roBrowser-sourced in `db/status_icons.go` and
+  feeds the HUD status icon widget/tooltips.

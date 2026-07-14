@@ -115,8 +115,11 @@ Mostly done:
  * Battle and Gameplay
    * Enemies
    * Path finding
+   * Continuous held-click walking
+   * Smooth camera following and zoom
    * Drops
    * Playable characters animation chain
+   * Attack-ready stance
    * Jobs
      * Novice
      * 1-1
@@ -132,6 +135,15 @@ Mostly done:
    * Cursor snap
    * Noshift
    * Noctrl
+   * Item drops
+   * Item identification
+   * Card composition
+   * Trading
+   * Vending
+   * Show equipment
+   * Friends
+   * Parties
+   * Whispers
  * UI
    * Basic information
    * Button bar
@@ -151,4 +163,14 @@ Mostly done:
    * Teleport skill modal
    * Warp skill modal
    * Cart appearance modal
+   * Trade window
+   * Vending windows
+   * Card composition window
+   * Show-equipment window
+   * Item and skill tooltips
+   * Status icons with roBrowser-sourced metadata
  * Emotes
+ * Overlay text
+   * FPS meter
+   * Character names and HP/SP bars
+   * Speech bubbles

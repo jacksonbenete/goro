@@ -46,6 +46,16 @@ Goal: migrate the remaining RO windows and dialogs to the gogpu/ui tree style:
 - [x] Status/buff icons
   - HUD elements rather than dialogs.
   - Published as a small gogpu/ui overlay under the minimap.
+  - Uses roBrowser-sourced status icon metadata from `db/status_icons.go`.
+- [x] Trade window
+- [x] Vending setup and buyer shop windows
+- [x] Card composition window
+- [x] Friend/party window
+  - Friends tab, party tab, party settings, invitations, and party HP rows.
+- [x] Show-equipment window
+- [x] Unified overlay text widgets
+  - FPS meter, character names, speech bubbles, and item/skill tooltips share
+    the same overlay text rendering path and console-style background.
 
 ## Remaining
 

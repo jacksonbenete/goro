@@ -282,9 +282,9 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x0176` | S->C | untracked | `0x0176` | `106` | `-` | - |
 | `0x0177` | S->C | referenced | `0x0177` | `-1` | `-` | item_packets.go, packet.go |
 | `0x0178` | C->S | referenced | `HEADER_CZ_REQ_ITEMIDENTIFY` | `sizeof( PACKET_CZ_REQ_ITEMIDENTIFY )` | `clif_parse_ItemIdentify` | item_packets.go |
-| `0x017A` | C->S | missing | `HEADER_CZ_REQ_ITEMCOMPOSITION_LIST` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION_LIST )` | `clif_parse_UseCard` | - |
+| `0x017A` | C->S | referenced | `HEADER_CZ_REQ_ITEMCOMPOSITION_LIST` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION_LIST )` | `clif_parse_UseCard` | item_packets.go |
 | `0x017B` | S->C | referenced | `0x017b` | `-1` | `-` | packet.go |
-| `0x017C` | C->S | missing | `HEADER_CZ_REQ_ITEMCOMPOSITION` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION )` | `clif_parse_InsertCard` | - |
+| `0x017C` | C->S | referenced | `HEADER_CZ_REQ_ITEMCOMPOSITION` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION )` | `clif_parse_InsertCard` | item_packets.go |
 | `0x017E` | C->S | missing | `0x017e` | `-1` | `clif_parse_GuildMessage` | - |
 | `0x0180` | C->S | missing | `0x0180` | `6` | `clif_parse_GuildOpposition` | - |
 | `0x0182` | S->C | untracked | `0x0182` | `106` | `-` | - |

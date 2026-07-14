@@ -16,10 +16,15 @@
   - [x] Ignore whisper from player: 0x00CF PMIgnore
   - [x] Ignore all whispers: 0x00D0 PMIgnoreAll
   - [x] Create chat room: 0x00D5 CreateChatRoom
+  - [x] Whisper send/receive: 0x0096, 0x0097
+  - [x] Friend list/invite/reply/remove: 0x0201, 0x0202, 0x0203, 0x0207, 0x0208, 0x0209, 0x020A
+  - [x] Player emotes: 0x00BF, 0x00C0
   - [ ] Battle chat: 0x02DB BattleChat
 
   Party
 
+  - [x] Create/invite/reply/leave/settings/chat: 0x00F9, 0x00FC, 0x00FF, 0x0100, 0x0102, 0x0108
+  - [x] Newer invite/reply packets: 0x02C4, 0x02C7
   - [ ] Party config/tick: 0x02C8 PartyTick
   - [ ] Party booking register: 0x0802
   - [ ] Party booking delete: 0x0806
@@ -35,7 +40,9 @@
 
   Items / Crafting / Equipment
 
-  - [ ] Card composition list/insert: 0x017A, 0x017C
+  - [x] Cart/body/storage transfers: 0x0126, 0x0127, 0x0128, 0x0129
+  - [x] Card composition list/insert: 0x017A, 0x017C
+  - [x] Show equipment/view equipment: 0x02D6, 0x02D7, 0x02D8
   - [ ] Blacksmith/alchemist crafting: 0x018E
   - [ ] Making arrow: 0x01AE
   - [ ] Item repair: 0x01FD

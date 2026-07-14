@@ -324,8 +324,9 @@ the relevant `EffectTable.js` entries.
   implement the packet/UI and cart appearance handling.
 - [ ] Implement the old roBrowser `effect/ice` FUNC primitive used by Frost
   Diver travelling effect `27`, then remove the remaining local approximation.
-- [ ] Run one manual first-class regression route per class on rAthena:
-  targeting, cast bars, action stance, effect timing, status icon, sound,
-  inventory/cart/shop side effects, and map transition cleanup.
+- [ ] Run one final manual first-class regression route per class on rAthena:
+  targeting, cast bars, action stance, effect timing, roBrowser-sourced status
+  icons/tooltips, sound, inventory/cart/shop side effects, and map transition
+  cleanup.
 - [ ] Add targeted tests for every remaining unchecked skill after implementing
   or explicitly dropping it from the v1 scope.
