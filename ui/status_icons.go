@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	xdraw "golang.org/x/image/draw"
@@ -20,35 +22,6 @@ const (
 	statusIconGap            = 8
 	statusIconRedrawInterval = 250 * time.Millisecond
 )
-
-type statusIconInfo struct {
-	icon  string
-	label string
-}
-
-var statusIconInfos = map[uint16]statusIconInfo{
-	0:  {icon: "\xc7\xc1\xb7\xce\xba\xb8\xc5\xa9.tga", label: "Provoke"},
-	1:  {icon: "\xc0\xce\xb5\xe0\xbe\xee.tga", label: "Endure"},
-	2:  {icon: "\xc5\xf5\xc7\xda\xb5\xe5\xc4\xfb\xc5\xab.tga", label: "Two Hand Quicken"},
-	3:  {icon: "\xc1\xfd\xc1\xdf\xb7\xc2\xc7\xe2\xbb\xf3.tga", label: "Attention Concentration"},
-	9:  {icon: "\xbe\xc8\xc1\xa9\xb7\xe7\xbd\xba.tga", label: "Angelus"},
-	10: {icon: "\xba\xed\xb7\xb9\xbd\xcc.tga", label: "Blessing"},
-	11: {icon: "\xbd\xc3\xb1\xd7\xb3\xd1\xc5\xa9\xb7\xe7\xbd\xc3\xbd\xba.tga", label: "Signum Crucis"},
-	12: {icon: "\xb9\xce\xc3\xb8\xbc\xba\xc1\xf5\xb0\xa1.tga", label: "Increase Agility"},
-	13: {icon: "\xb9\xce\xc3\xb8\xbc\xba\xb0\xa8\xbc\xd2.tga", label: "Decrease Agility"},
-	15: {icon: "\xc0\xd3\xc6\xf7\xbd\xc3\xc6\xbc\xbf\xc0\xb8\xb6\xb4\xa9\xbd\xba.tga", label: "Impositio Manus"},
-	16: {icon: "\xbc\xf6\xc1\xdd\xc0\xba\xc7\xcf\xb7\xe7\xc0\xc7\xbf\xec\xbf\xef.tga", label: "Suffragium"},
-	19: {icon: "\xb1\xe2\xb8\xae\xbf\xa1\xbf\xa4\xb7\xb9\xc0\xcc\xbc\xd5.tga", label: "Kyrie Eleison"},
-	20: {icon: "\xb8\xb6\xb4\xcf\xc7\xc7\xc4\xb1.tga", label: "Magnificat"},
-	21: {icon: "\xb1\xdb\xb7\xce\xb8\xae\xbe\xc6.tga", label: "Gloria"},
-	23: {icon: "\xbe\xc6\xb5\xe5\xb7\xb9\xb3\xaf\xb8\xb0\xb7\xaf\xbd\xac.tga", label: "Adrenaline Rush"},
-	25: {icon: "\xbf\xc0\xb9\xf6\xc6\xae\xb7\xaf\xbd\xba\xc6\xae.tga", label: "Over Thrust"},
-	26: {icon: "\xb8\xc6\xbd\xc3\xb8\xb6\xc0\xcc\xc1\xee\xc6\xc4\xbf\xf6.tga", label: "Maximize Power"},
-	37: {icon: "\xb0\xf8\xbc\xd3\xb9\xb0\xbe\xe0.tga", label: "Attack Speed Potion"},
-	38: {icon: "\xb0\xf8\xbc\xd3\xb9\xb0\xbe\xe0.tga", label: "Attack Speed Potion"},
-	39: {icon: "\xb0\xf8\xbc\xd3\xb9\xb0\xbe\xe0.tga", label: "Attack Speed Potion"},
-	41: {icon: "\xb9\xce\xc3\xb8\xbc\xba\xc1\xf5\xb0\xa1.tga", label: "Movement Speed Potion"},
-}
 
 type StatusIcons struct {
 	widget     *statusIconsWidget
@@ -137,8 +110,8 @@ func (s *StatusIcons) statusIconImages(manager *res.Manager, ids []uint16) map[u
 }
 
 func (s *StatusIcons) statusIconImage(manager *res.Manager, id uint16) image.Image {
-	info, ok := statusIconInfos[id]
-	if !ok || manager == nil {
+	info, ok := db.StatusIconInfoByID(id)
+	if !ok || info.Icon == "" || manager == nil {
 		return nil
 	}
 	if s.icons == nil {
@@ -153,7 +126,7 @@ func (s *StatusIcons) statusIconImage(manager *res.Manager, id uint16) image.Ima
 	if _, ok := s.miss[id]; ok {
 		return nil
 	}
-	img, _, err := res.LoadImage(manager, res.EffectTextureCandidates(info.icon))
+	img, _, err := res.LoadImage(manager, res.EffectTextureCandidates(info.Icon))
 	if err != nil {
 		s.miss[id] = struct{}{}
 		return nil
@@ -175,7 +148,8 @@ func (s *StatusIcons) statusIconImage(manager *res.Manager, id uint16) image.Ima
 func VisibleStatusIconIDs(active map[uint16]session.StatusEffect) []uint16 {
 	ids := make([]uint16, 0, len(active))
 	for id := range active {
-		if _, ok := statusIconInfos[id]; ok {
+		info, ok := db.StatusIconInfoByID(id)
+		if ok && info.Icon != "" {
 			ids = append(ids, id)
 		}
 	}
@@ -245,7 +219,7 @@ func (w *statusIconsWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 		}
 	}
 	if hovered >= 0 && w.ctx.Input != nil {
-		w.drawTooltip(canvas, hovered, w.ctx.Input.MouseX, w.ctx.Input.MouseY)
+		w.drawTooltip(canvas, uint16(hovered), w.ctx.Session.Statuses.Active[uint16(hovered)], w.ctx.Input.MouseX, w.ctx.Input.MouseY)
 	}
 }
 
@@ -276,21 +250,71 @@ func (w *statusIconsWidget) drawStatusIcon(canvas widget.Canvas, id uint16, effe
 	}
 }
 
-func (w *statusIconsWidget) drawTooltip(canvas widget.Canvas, statusID int, mouseX, mouseY int) {
-	info, ok := statusIconInfos[uint16(statusID)]
-	if !ok || info.label == "" {
+func (w *statusIconsWidget) drawTooltip(canvas widget.Canvas, statusID uint16, effect session.StatusEffect, mouseX, mouseY int) {
+	info, ok := db.StatusIconInfoByID(statusID)
+	if !ok || len(info.Lines) == 0 {
 		return
 	}
-	text := info.label
+	lines := statusIconTooltipLines(info, effect, w.now)
+	if len(lines) == 0 {
+		return
+	}
 	width, height := w.ctx.ScreenSize()
-	tipW := len(text)*7 + 12
-	tipH := 20
+	tipW := statusIconTooltipWidth(lines)
+	tipH := len(lines)*16 + 6
 	x := clampWindowInt(mouseX+12, 4, maxInt(4, width-tipW-4))
 	y := clampWindowInt(mouseY+12, 4, maxInt(4, height-tipH-4))
 	rect := geometry.NewRect(float32(x), float32(y), float32(tipW), float32(tipH))
-	canvas.DrawRect(rect, Color(color.RGBA{R: 32, G: 36, B: 44, A: 230}))
-	canvas.StrokeRect(rect, Color(WindowBorderColor), 1)
-	canvas.DrawText(text, geometry.NewRect(float32(x+6), float32(y+3), float32(tipW-12), 14), 11, Color(color.RGBA{R: 246, G: 246, B: 246, A: 255}), false, widget.TextAlignLeft)
+	canvas.DrawRect(rect, Color(color.RGBA{R: 0, G: 0, B: 0, A: 128}))
+	canvas.StrokeRect(rect, Color(color.RGBA{R: 198, G: 198, B: 198, A: 255}), 1)
+	for i, line := range lines {
+		canvas.DrawText(line.text, geometry.NewRect(float32(x+5), float32(y+3+i*16), float32(tipW-10), 14), 11, Color(line.color), false, widget.TextAlignLeft)
+	}
+}
+
+type statusIconTooltipLine struct {
+	text  string
+	color color.RGBA
+}
+
+func statusIconTooltipLines(info db.StatusIconInfo, effect session.StatusEffect, now time.Time) []statusIconTooltipLine {
+	out := make([]statusIconTooltipLine, 0, len(info.Lines))
+	for _, line := range info.Lines {
+		text := line.Text
+		if text == "%s" {
+			text = statusIconRemainingTime(effect, now)
+			if text == "" {
+				continue
+			}
+		}
+		c := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+		if line.HasColor {
+			c = line.Color
+		}
+		out = append(out, statusIconTooltipLine{text: text, color: c})
+	}
+	return out
+}
+
+func statusIconRemainingTime(effect session.StatusEffect, now time.Time) string {
+	if !effect.HasDuration || effect.ExpiresAt.IsZero() || !effect.ExpiresAt.After(now) {
+		return ""
+	}
+	remaining := int(effect.ExpiresAt.Sub(now).Seconds())
+	minutes := remaining / 60
+	seconds := remaining % 60
+	if minutes > 0 {
+		return fmt.Sprintf("%d minute %d second", minutes, seconds)
+	}
+	return fmt.Sprintf("%d second", seconds)
+}
+
+func statusIconTooltipWidth(lines []statusIconTooltipLine) int {
+	width := 0
+	for _, line := range lines {
+		width = maxInt(width, len([]rune(line.text))*7+10)
+	}
+	return clampWindowInt(width, 42, 300)
 }
 
 func minFloat64(a, b float64) float64 {

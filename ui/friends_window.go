@@ -426,11 +426,6 @@ func (w *FriendsWindow) partyList(ctx Context, party session.Party) widget.Widge
 		CrossAlign(primitives.CrossAxisStretch)
 }
 
-func partyRow(member session.PartyMember, index int) widget.Widget {
-	var window FriendsWindow
-	return window.partyRow(Context{}, member, index)
-}
-
 func (w *FriendsWindow) partyRow(ctx Context, member session.PartyMember, index int) widget.Widget {
 	bg := rotheme.Default.Colors.WindowBody
 	if index%2 == 0 {
@@ -545,49 +540,6 @@ func (w *partyRowWidget) Event(ctx widget.Context, e event.Event) bool {
 }
 
 func (w *partyRowWidget) Children() []widget.Widget {
-	return nil
-}
-
-type partyHPBar struct {
-	widget.WidgetBase
-	hp    int
-	maxHP int
-}
-
-func newPartyHPBar(hp, maxHP int) *partyHPBar {
-	w := &partyHPBar{hp: hp, maxHP: maxHP}
-	w.SetVisible(true)
-	w.SetEnabled(false)
-	return w
-}
-
-func (w *partyHPBar) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
-	size := constraints.Constrain(geometry.Sz(120, 5))
-	w.SetBounds(geometry.FromPointSize(w.Position(), size))
-	return size
-}
-
-func (w *partyHPBar) Draw(_ widget.Context, canvas widget.Canvas) {
-	bounds := w.Bounds()
-	canvas.DrawRect(bounds, widget.RGBA8(224, 232, 242, 255))
-	fillW := float32(0)
-	if w.maxHP > 0 && w.hp > 0 {
-		fillW = bounds.Width() * float32(w.hp) / float32(w.maxHP)
-		if fillW > bounds.Width() {
-			fillW = bounds.Width()
-		}
-	}
-	if fillW > 0 {
-		canvas.DrawRect(geometry.NewRect(bounds.Min.X, bounds.Min.Y, fillW, bounds.Height()), Color(PlayerHPBarColor))
-	}
-	canvas.StrokeRect(bounds, rotheme.Default.Colors.WindowBorder, 1)
-}
-
-func (w *partyHPBar) Event(_ widget.Context, _ event.Event) bool {
-	return false
-}
-
-func (w *partyHPBar) Children() []widget.Widget {
 	return nil
 }
 
