@@ -287,6 +287,36 @@ func TestWalkBodyMotionUsesDistancePhase(t *testing.T) {
 	}
 }
 
+func TestWalkingSpriteStateIgnoresReadyFightAnimation(t *testing.T) {
+	state := spriteState{
+		actionFamily: spriteActionWalk,
+		moving:       true,
+		loop:         true,
+	}
+
+	if applyActorAnimationToSpriteState(&state, actorAnimation{actionFamily: spriteActionPCReadyFight, loop: true}, true) {
+		t.Fatal("ready fight should not override walking state")
+	}
+	if state.actionFamily != spriteActionWalk || !state.moving {
+		t.Fatalf("state = %+v, want still walking", state)
+	}
+
+	if !applyActorAnimationToSpriteState(&state, actorAnimation{actionFamily: spriteActionPCDeath}, true) {
+		t.Fatal("death should override walking state")
+	}
+	if state.actionFamily != spriteActionPCDeath || state.moving {
+		t.Fatalf("death state = %+v", state)
+	}
+
+	nonPC := spriteState{actionFamily: spriteActionWalk, moving: true, loop: true}
+	if !applyActorAnimationToSpriteState(&nonPC, actorAnimation{actionFamily: spriteActionNonPCDeath}, false) {
+		t.Fatal("non-pc death should override walking state")
+	}
+	if nonPC.actionFamily != spriteActionNonPCDeath || nonPC.moving {
+		t.Fatalf("non-pc death state = %+v", nonPC)
+	}
+}
+
 func TestTransientBodyMotionPlaysOnceFromStateStart(t *testing.T) {
 	action := res.ACTAction{
 		Animations: []res.ACTAnimation{{}, {}, {}},

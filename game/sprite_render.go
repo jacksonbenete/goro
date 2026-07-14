@@ -168,35 +168,9 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 	}
 	if ctx.Session != nil {
 		if anim, ok := m.actorAnimation(ctx.Session.CharID, now); ok {
-			state.actionFamily = anim.actionFamily
-			state.started = anim.started
-			state.loop = anim.loop
-			state.play = anim.play
-			state.hasPlay = anim.hasPlay
-			state.length = anim.length
-			state.hasLength = anim.hasLength
-			state.frameOffset = anim.frameOffset
-			state.hasFrameOffset = anim.hasFrameOffset
-			state.moving = false
-			state.fixedMotion = anim.fixedMotion
-			state.hasFixedMotion = anim.hasFixedMotion
-			state.speed = anim.speed
-			state.hasSpeed = anim.hasSpeed
+			applyActorAnimationToSpriteState(&state, anim, true)
 		} else if anim, ok := m.actorAnimation(ctx.Session.AccountID, now); ok {
-			state.actionFamily = anim.actionFamily
-			state.started = anim.started
-			state.loop = anim.loop
-			state.play = anim.play
-			state.hasPlay = anim.hasPlay
-			state.length = anim.length
-			state.hasLength = anim.hasLength
-			state.frameOffset = anim.frameOffset
-			state.hasFrameOffset = anim.hasFrameOffset
-			state.moving = false
-			state.fixedMotion = anim.fixedMotion
-			state.hasFixedMotion = anim.hasFixedMotion
-			state.speed = anim.speed
-			state.hasSpeed = anim.hasSpeed
+			applyActorAnimationToSpriteState(&state, anim, true)
 		}
 	}
 	if !isDeathActionFamily(state.actionFamily) {
@@ -208,6 +182,37 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 	}
 	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, alpha, shadow, actorStateTint(actor))
 	return true
+}
+
+func applyActorAnimationToSpriteState(state *spriteState, anim actorAnimation, playerLike bool) bool {
+	if state == nil {
+		return false
+	}
+	if state.moving && !actorAnimationOverridesWalk(anim, playerLike) {
+		return false
+	}
+	state.actionFamily = anim.actionFamily
+	state.started = anim.started
+	state.loop = anim.loop
+	state.play = anim.play
+	state.hasPlay = anim.hasPlay
+	state.length = anim.length
+	state.hasLength = anim.hasLength
+	state.frameOffset = anim.frameOffset
+	state.hasFrameOffset = anim.hasFrameOffset
+	state.moving = false
+	state.fixedMotion = anim.fixedMotion
+	state.hasFixedMotion = anim.hasFixedMotion
+	state.speed = anim.speed
+	state.hasSpeed = anim.hasSpeed
+	return true
+}
+
+func actorAnimationOverridesWalk(anim actorAnimation, playerLike bool) bool {
+	if playerLike {
+		return anim.actionFamily == spriteActionPCDeath
+	}
+	return anim.actionFamily == spriteActionNonPCDeath
 }
 
 func drawActorSpriteBillboardTintAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {

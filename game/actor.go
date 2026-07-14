@@ -1156,20 +1156,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 		state.actionFamily = spriteActionSit
 	}
 	if anim, ok := m.actorAnimation(actor.ID, now); ok {
-		state.actionFamily = anim.actionFamily
-		state.started = anim.started
-		state.loop = anim.loop
-		state.play = anim.play
-		state.hasPlay = anim.hasPlay
-		state.length = anim.length
-		state.hasLength = anim.hasLength
-		state.frameOffset = anim.frameOffset
-		state.hasFrameOffset = anim.hasFrameOffset
-		state.moving = false
-		state.fixedMotion = anim.fixedMotion
-		state.hasFixedMotion = anim.hasFixedMotion
-		state.speed = anim.speed
-		state.hasSpeed = anim.hasSpeed
+		applyActorAnimationToSpriteState(&state, anim, true)
 	}
 	if !isDeathActionFamily(state.actionFamily) {
 		applyActorBodyState(actor, &state)
@@ -1213,21 +1200,9 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 		state.walkDistance = actor.RenderWalkDistance(now)
 	}
 	if anim, ok := m.actorAnimation(actor.ID, now); ok {
-		state.actionFamily = anim.actionFamily
-		state.started = anim.started
-		state.loop = anim.loop
-		state.play = anim.play
-		state.hasPlay = anim.hasPlay
-		state.length = anim.length
-		state.hasLength = anim.hasLength
-		state.frameOffset = anim.frameOffset
-		state.hasFrameOffset = anim.hasFrameOffset
-		state.moving = false
-		state.loopIdle = false
-		state.fixedMotion = anim.fixedMotion
-		state.hasFixedMotion = anim.hasFixedMotion
-		state.speed = anim.speed
-		state.hasSpeed = anim.hasSpeed
+		if applyActorAnimationToSpriteState(&state, anim, false) {
+			state.loopIdle = false
+		}
 	}
 	if !isDeathActionFamily(state.actionFamily) {
 		applyActorBodyState(actor, &state)
