@@ -33,7 +33,7 @@ func loadGND(manager *res.Manager, mapName string) (*res.GND, string, error) {
 	return nil, "", fmt.Errorf("gnd not found for map %s", mapName)
 }
 
-func (m *WorldMode) drawGNDWater(screen *render.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time, fog sceneFog) {
+func (m *WorldMode) drawGNDWater(screen *render.Frame, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection, now time.Time, fog sceneFog) {
 	water, ok := mapWater(gnd, rsw)
 	if !ok {
 		return
@@ -391,7 +391,7 @@ func mapWater(gnd *res.GND, rsw *res.RSW) (res.RSWWater, bool) {
 	return res.RSWWater{}, false
 }
 
-func (m *WorldMode) drawWaterSurface(screen *render.Image, texture *render.Image, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
+func (m *WorldMode) drawWaterSurface(screen *render.Frame, texture *render.Image, draw gndSurfaceDraw, projection sceneProjection, fog sceneFog) {
 	tints := fog.mixVertexTints(projection, draw.verts, [4]color.RGBA{draw.tint, draw.tint, draw.tint, draw.tint})
 	if texture == nil {
 		drawColoredSurfaceTints3DAlpha(screen, m.whitePixel, draw.verts, draw.indices, tints)

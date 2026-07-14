@@ -7,7 +7,7 @@ import (
 	"github.com/kivutar/goro/render"
 )
 
-func clearWorldScene(screen *render.Image, mapName string) {
+func clearWorldScene(screen *render.Frame, mapName string) {
 	screen.Fill(worldSceneClearColor(mapName))
 }
 

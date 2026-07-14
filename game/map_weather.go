@@ -59,7 +59,7 @@ func normalizeMapNameForWeather(name string) string {
 	return name
 }
 
-func (m *WorldMode) drawMapWeatherEffects(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawMapWeatherEffects(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	if screen == nil || ctx.World == nil || ctx.World.GND == nil {
 		return
 	}
@@ -71,7 +71,7 @@ func (m *WorldMode) drawMapWeatherEffects(screen *render.Image, ctx client.Conte
 	}
 }
 
-func (m *WorldMode) drawLoopingMapWeatherEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effectID int, now time.Time) {
+func (m *WorldMode) drawLoopingMapWeatherEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effectID int, now time.Time) {
 	spec, ok := worldEffectSpecForID(effectID)
 	if !ok {
 		return
@@ -101,7 +101,7 @@ func (m *WorldMode) drawLoopingMapWeatherEffect(screen *render.Image, ctx client
 	}
 }
 
-func (m *WorldMode) drawFireworksWeather(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawFireworksWeather(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	spec, ok := worldEffectSpecForID(effectPokJuk)
 	if !ok {
 		return

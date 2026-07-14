@@ -43,7 +43,7 @@ func (t *tooltipState) Hide() {
 	t.open = false
 }
 
-func (t *tooltipState) Draw(screen *render.Image) {
+func (t *tooltipState) Draw(screen *render.Frame) {
 	if t == nil || !t.open {
 		return
 	}

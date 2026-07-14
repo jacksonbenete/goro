@@ -146,7 +146,7 @@ type spriteState struct {
 	walkDistance   float64
 }
 
-func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64, alpha float64) bool {
+func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Frame, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64, alpha float64) bool {
 	now := time.Now()
 	actor := entry.actor
 	moving := actorIsMovingAt(actor, now)
@@ -215,7 +215,7 @@ func actorAnimationOverridesWalk(anim actorAnimation, playerLike bool) bool {
 	return anim.actionFamily == spriteActionNonPCDeath
 }
 
-func drawActorSpriteBillboardTintAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
+func drawActorSpriteBillboardTintAlpha3D(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
 	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, actorSpriteWorldZ(worldZ), scale, alpha, shadow, tintColor)
 }
 
@@ -223,7 +223,7 @@ func actorSpriteWorldZ(terrainZ float64) float64 {
 	return terrainZ + actorSpriteTerrainLift
 }
 
-func drawFixedSpriteShadowBillboard3D(screen *render.Image, projection sceneProjection, view *spriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
+func drawFixedSpriteShadowBillboard3D(screen *render.Frame, projection sceneProjection, view *spriteView, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) bool {
 	billboard, ok := fixedSpriteBillboard(view)
 	if !ok {
 		return false
@@ -234,22 +234,22 @@ func drawFixedSpriteShadowBillboard3D(screen *render.Image, projection sceneProj
 	return true
 }
 
-func drawSpriteBillboardAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
+func drawSpriteBillboardAlpha3D(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64) {
 	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 }
 
-func drawSpriteBillboardTintAlpha3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
+func drawSpriteBillboardTintAlpha3D(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
 	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
 }
 
-func drawSpriteBillboardTintAlphaOverlay3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
+func drawSpriteBillboardTintAlphaOverlay3D(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA) {
 	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, shadow, tintColor, &render.DrawTrianglesOptions{
 		Filter:  spriteDrawFilter(),
 		Address: render.AddressClampToZero,
 	})
 }
 
-func drawSpriteBillboardTintAlphaRotated3DWithOptions(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
+func drawSpriteBillboardTintAlphaRotated3DWithOptions(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
@@ -301,7 +301,7 @@ func drawSpriteBillboardTintAlphaRotated3DWithOptions(screen *render.Image, proj
 	})
 }
 
-func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
+func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
 	}
@@ -350,11 +350,11 @@ func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Image, projection 
 	})
 }
 
-func drawSpriteBillboardTintAlphaWorld3D(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA) {
+func drawSpriteBillboardTintAlphaWorld3D(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA) {
 	drawSpriteBillboardTintAlphaWorld3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, pixelScale, angle, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
 }
 
-func drawSpriteBillboardTintAlphaWorld3DWithOptions(screen *render.Image, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
+func drawSpriteBillboardTintAlphaWorld3DWithOptions(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
 	if screen == nil || billboard == nil || billboard.image == nil {
 		return
 	}

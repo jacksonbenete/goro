@@ -14,11 +14,34 @@ import (
 	"github.com/kivutar/goro/session"
 )
 
-func (m *WorldMode) DrawInventoryItemIcon(screen *render.Image, manager *res.Manager, item session.InventoryItem, x, y int) {
+type previewRenderTarget interface {
+	DrawImage(*render.Image, *render.DrawImageOptions)
+	DrawTrianglesOwned([]render.Vertex, []uint16, *render.Image, *render.DrawTrianglesOptions)
+}
+
+func drawRenderTargetRect(target any, x, y, w, h float64, c color.RGBA) {
+	switch target := target.(type) {
+	case *render.Frame:
+		render.DrawRect(target, x, y, w, h, c)
+	case *render.Image:
+		render.DrawImageRect(target, x, y, w, h, c)
+	}
+}
+
+func drawRenderTargetDebugText(target any, text string, x, y int, c color.RGBA) {
+	switch target := target.(type) {
+	case *render.Frame:
+		render.DebugPrintAtColor(target, text, x, y, c)
+	case *render.Image:
+		render.DrawImageDebugTextAtColor(target, text, x, y, c)
+	}
+}
+
+func (m *WorldMode) DrawInventoryItemIcon(screen *render.Frame, manager *res.Manager, item session.InventoryItem, x, y int) {
 	m.drawInventoryItemIcon(screen, manager, item, x, y)
 }
 
-func (m *WorldMode) DrawSkillIcon(screen *render.Image, manager *res.Manager, skill session.Skill, x, y, size int) {
+func (m *WorldMode) DrawSkillIcon(screen *render.Frame, manager *res.Manager, skill session.Skill, x, y, size int) {
 	m.drawSkillIcon(screen, manager, skill, x, y, size)
 }
 
@@ -52,7 +75,7 @@ func (m *WorldMode) SkillIconImage(manager *res.Manager, skill session.Skill, si
 	return img
 }
 
-func (m *WorldMode) drawItemInfoIllustration(screen *render.Image, manager *res.Manager, item session.InventoryItem, x, y, width, height int) {
+func (m *WorldMode) drawItemInfoIllustration(screen previewRenderTarget, manager *res.Manager, item session.InventoryItem, x, y, width, height int) {
 	if screen == nil || width <= 0 || height <= 0 {
 		return
 	}
@@ -70,7 +93,7 @@ func (m *WorldMode) drawItemInfoIllustration(screen *render.Image, manager *res.
 			return
 		}
 	}
-	render.DebugPrintAtColor(screen, "No image", x+width/2-24, y+height/2-7, color.RGBA{R: 98, G: 112, B: 126, A: 255})
+	drawRenderTargetDebugText(screen, "No image", x+width/2-24, y+height/2-7, color.RGBA{R: 98, G: 112, B: 126, A: 255})
 }
 
 func (m *WorldMode) ItemInfoIllustrationImage(manager *res.Manager, item session.InventoryItem, width, height int) image.Image {
@@ -82,7 +105,7 @@ func (m *WorldMode) ItemInfoIllustrationImage(manager *res.Manager, item session
 	return img.RGBA()
 }
 
-func (m *WorldMode) drawEquipmentPreview(screen *render.Image, ctx client.Context, x, y, width, height int) {
+func (m *WorldMode) drawEquipmentPreview(screen previewRenderTarget, ctx client.Context, x, y, width, height int) {
 	if screen == nil || width <= 0 || height <= 0 {
 		return
 	}
@@ -97,7 +120,7 @@ func (m *WorldMode) drawEquipmentPreview(screen *render.Image, ctx client.Contex
 	m.drawHumanoidPreview(screen, view, x, y, width, height)
 }
 
-func (m *WorldMode) drawEquipmentPreviewForCharacter(screen *render.Image, ctx client.Context, character session.Character, sex byte, x, y, width, height int) {
+func (m *WorldMode) drawEquipmentPreviewForCharacter(screen previewRenderTarget, ctx client.Context, character session.Character, sex byte, x, y, width, height int) {
 	if screen == nil || width <= 0 || height <= 0 || ctx.Resources == nil {
 		return
 	}
@@ -105,15 +128,15 @@ func (m *WorldMode) drawEquipmentPreviewForCharacter(screen *render.Image, ctx c
 	m.drawHumanoidPreview(screen, view, x, y, width, height)
 }
 
-func (m *WorldMode) drawHumanoidPreview(screen *render.Image, view *humanoidSpriteView, x, y, width, height int) {
+func (m *WorldMode) drawHumanoidPreview(screen previewRenderTarget, view *humanoidSpriteView, x, y, width, height int) {
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    4,
 	}
 	billboard, ok := humanoidBillboardForState(view, state, time.Now())
 	if !ok || billboard == nil || billboard.image == nil {
-		render.DrawRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 48, debugColorPanel)
-		render.DrawRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 2, debugColorAccent)
+		drawRenderTargetRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 48, debugColorPanel)
+		drawRenderTargetRect(screen, float64(x+width/2-14), float64(y+height/2-24), 28, 2, debugColorAccent)
 		return
 	}
 	bounds := visibleImageBounds(billboard.image)

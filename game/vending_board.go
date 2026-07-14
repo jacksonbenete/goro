@@ -13,7 +13,7 @@ import (
 	worldstate "github.com/kivutar/goro/world"
 )
 
-func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawVendingBoardLabels(screen *render.Frame, ctx client.Context, entries []sceneActorDrawEntry) {
 	icon := m.vendingShopIcon(ctx.Resources)
 	for _, entry := range entries {
 		if !actorHasVending(entry.actor) {
@@ -25,7 +25,7 @@ func (m *WorldMode) drawVendingBoardLabels(screen *render.Image, ctx client.Cont
 	}
 }
 
-func (m *WorldMode) drawChatRoomBoardLabels(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawChatRoomBoardLabels(screen *render.Frame, ctx client.Context, entries []sceneActorDrawEntry) {
 	for _, entry := range entries {
 		if !actorHasChatRoom(entry.actor) {
 			continue
@@ -85,7 +85,7 @@ func (b vendingBoardBounds) contains(x, y float64) bool {
 	return x >= b.x && x < b.x+b.w && y >= b.y && y < b.y+b.h
 }
 
-func drawBoardLabel(screen *render.Image, label string, centerX, topY float64, icon *render.Image) {
+func drawBoardLabel(screen *render.Frame, label string, centerX, topY float64, icon *render.Image) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return
@@ -110,7 +110,7 @@ func drawBoardLabel(screen *render.Image, label string, centerX, topY float64, i
 	render.DrawUITextAt(screen, text, textX, textY, boardLabelTextColor)
 }
 
-func drawBoardSurface(screen *render.Image, bounds vendingBoardBounds) {
+func drawBoardSurface(screen *render.Frame, bounds vendingBoardBounds) {
 	if screen == nil || bounds.w <= 0 || bounds.h <= 0 {
 		return
 	}
@@ -156,7 +156,7 @@ func cachedBoardSurface() *render.Image {
 	return boardSurfaceCache
 }
 
-func drawBoardIcon(screen *render.Image, icon *render.Image, x, y float64, size int) {
+func drawBoardIcon(screen *render.Frame, icon *render.Image, x, y float64, size int) {
 	if screen == nil || icon == nil {
 		return
 	}

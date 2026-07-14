@@ -10,7 +10,7 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func (m *WorldMode) draw3DEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
+func (m *WorldMode) draw3DEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ float64, now time.Time) {
 	if component.textureFile == "" && len(component.textureFiles) == 0 && component.spriteFile == "" {
 		return
 	}
@@ -297,7 +297,7 @@ func effectAxisSize(progress, start, end float64, smooth bool) float64 {
 	return start + (end-start)*progress
 }
 
-func drawTexturedEffectBillboardRotatedXY(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, sizeX, sizeY, angle float64, tint color.RGBA, additive bool) {
+func drawTexturedEffectBillboardRotatedXY(screen *render.Frame, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, sizeX, sizeY, angle float64, tint color.RGBA, additive bool) {
 	if screen == nil || texture == nil || tint.A == 0 {
 		return
 	}

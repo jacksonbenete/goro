@@ -1291,7 +1291,7 @@ func approachSign(value int) int {
 	}
 }
 
-func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawDamageFloaters(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	if len(m.damageFloaters) == 0 {
 		return
 	}
@@ -1437,7 +1437,7 @@ func (m *WorldMode) actorDeathAlpha(id uint32, now time.Time) float64 {
 	return alpha
 }
 
-func (m *WorldMode) drawAttackFocusMarker(screen *render.Image, ctx client.Context, now time.Time, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawAttackFocusMarker(screen *render.Frame, ctx client.Context, now time.Time, entries []sceneActorDrawEntry) {
 	if m.attackFocusID == 0 || screen == nil {
 		return
 	}
@@ -1488,7 +1488,7 @@ func actorNameBelowLifeBarY(baseY, scale float64, life actorLife) float64 {
 	return actorLifeBarY(baseY, scale) + actorLifeBarHeight(life) + 3
 }
 
-func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx client.Context, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawActorLifeBar(screen *render.Frame, ctx client.Context, entry sceneActorDrawEntry) {
 	life, ok := m.actorLifeForDisplay(ctx, entry.actor)
 	if !ok {
 		return
@@ -1532,7 +1532,7 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Image, ctx client.Context, e
 	}
 }
 
-func (m *WorldMode) drawActorCastBar(screen *render.Image, entry sceneActorDrawEntry, now time.Time) {
+func (m *WorldMode) drawActorCastBar(screen *render.Frame, entry sceneActorDrawEntry, now time.Time) {
 	if entry.actor.ID == 0 || m.actorCastBars == nil {
 		return
 	}

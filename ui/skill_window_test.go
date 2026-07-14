@@ -191,10 +191,10 @@ type skillWindowTestRenderer struct {
 	used session.Skill
 }
 
-func (r *skillWindowTestRenderer) DrawInventoryItemIcon(*render.Image, *res.Manager, session.InventoryItem, int, int) {
+func (r *skillWindowTestRenderer) DrawInventoryItemIcon(*render.Frame, *res.Manager, session.InventoryItem, int, int) {
 }
 
-func (r *skillWindowTestRenderer) DrawSkillIcon(*render.Image, *res.Manager, session.Skill, int, int, int) {
+func (r *skillWindowTestRenderer) DrawSkillIcon(*render.Frame, *res.Manager, session.Skill, int, int, int) {
 }
 
 func (r *skillWindowTestRenderer) SkillIconImage(*res.Manager, session.Skill, int) image.Image {

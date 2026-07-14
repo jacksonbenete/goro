@@ -295,7 +295,7 @@ func (w *EquipmentWindow) hideTooltip() {
 	w.tooltip.Hide()
 }
 
-func (w *EquipmentWindow) DrawTooltip(screen *render.Image) {
+func (w *EquipmentWindow) DrawTooltip(screen *render.Frame) {
 	w.tooltip.Draw(screen)
 }
 

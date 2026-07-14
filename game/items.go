@@ -286,13 +286,13 @@ func pickupApproachCell(ctx client.Context, item worldstate.FloorItem) (int, int
 	return bestX, bestY, found
 }
 
-func (m *WorldMode) drawGroundItems(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawGroundItems(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	for _, entry := range m.collectSceneItemEntries(screen, ctx, projection, now) {
 		m.drawGroundItemEntry3D(screen, projection, entry)
 	}
 }
 
-func (m *WorldMode) collectSceneItemEntries(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) []sceneItemDrawEntry {
+func (m *WorldMode) collectSceneItemEntries(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) []sceneItemDrawEntry {
 	if ctx.World == nil || len(ctx.World.Items) == 0 {
 		return nil
 	}
@@ -321,7 +321,7 @@ func (m *WorldMode) collectSceneItemEntries(screen *render.Image, ctx client.Con
 	return entries
 }
 
-func (m *WorldMode) drawGroundItemEntry3D(screen *render.Image, projection sceneProjection, entry sceneItemDrawEntry) {
+func (m *WorldMode) drawGroundItemEntry3D(screen *render.Frame, projection sceneProjection, entry sceneItemDrawEntry) {
 	if entry.billboard != nil {
 		drawSpriteBillboardAlpha3D(screen, projection, entry.billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, 1)
 		return
@@ -329,7 +329,7 @@ func (m *WorldMode) drawGroundItemEntry3D(screen *render.Image, projection scene
 	m.drawFallbackGroundItemMarker(screen, entry)
 }
 
-func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawHoveredGroundItemLabel(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
@@ -409,7 +409,7 @@ func (m *WorldMode) groundItemLabel(ctx client.Context, item worldstate.FloorIte
 	return res.FormatGroundItemLabel(name, int(item.Amount))
 }
 
-func drawGroundItemNameLabel(screen *render.Image, label string, centerX, baseY, scale float64) {
+func drawGroundItemNameLabel(screen *render.Frame, label string, centerX, baseY, scale float64) {
 	label = strings.TrimSpace(label)
 	if label == "" {
 		return
@@ -440,7 +440,7 @@ func (m *WorldMode) itemSpriteBillboard(manager *res.Manager, item worldstate.Fl
 	return billboard
 }
 
-func (m *WorldMode) drawInventoryItemIcon(screen *render.Image, manager *res.Manager, item session.InventoryItem, x, y int) {
+func (m *WorldMode) drawInventoryItemIcon(screen *render.Frame, manager *res.Manager, item session.InventoryItem, x, y int) {
 	if screen == nil {
 		return
 	}
@@ -554,7 +554,7 @@ func (m *WorldMode) itemCollectionTexture(manager *res.Manager, itemID uint16, i
 	return texture
 }
 
-func (m *WorldMode) drawSkillIcon(screen *render.Image, manager *res.Manager, skill session.Skill, x, y, size int) {
+func (m *WorldMode) drawSkillIcon(screen *render.Frame, manager *res.Manager, skill session.Skill, x, y, size int) {
 	if screen == nil || size <= 0 {
 		return
 	}
@@ -608,7 +608,7 @@ func (m *WorldMode) skillIconTexture(manager *res.Manager, skill session.Skill) 
 	return texture
 }
 
-func (m *WorldMode) drawFallbackInventoryItemIcon(screen *render.Image, x, y int) {
+func (m *WorldMode) drawFallbackInventoryItemIcon(screen *render.Frame, x, y int) {
 	img := m.itemMarkerTexture()
 	if img == nil {
 		return
@@ -706,7 +706,7 @@ func composeGroundItemBillboard(view *spriteView, anim res.ACTAnimation) (*sprit
 	}, true
 }
 
-func (m *WorldMode) drawFallbackGroundItemMarker(screen *render.Image, entry sceneItemDrawEntry) {
+func (m *WorldMode) drawFallbackGroundItemMarker(screen *render.Frame, entry sceneItemDrawEntry) {
 	img := m.itemMarkerTexture()
 	if img == nil {
 		return

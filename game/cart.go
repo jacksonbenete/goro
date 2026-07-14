@@ -208,7 +208,7 @@ func (m *WorldMode) cartSpriteView(ctx client.Context, cartNum int) *spriteView 
 	return view
 }
 
-func (m *WorldMode) drawActorCart3D(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64, alpha float64) bool {
+func (m *WorldMode) drawActorCart3D(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64, alpha float64) bool {
 	actor := entry.actor
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return false

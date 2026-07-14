@@ -83,7 +83,7 @@ func (b *retainedMeshBuilder) flush() {
 	b.indices = nil
 }
 
-func (m *WorldMode) drawGNDMeshes(screen *render.Image, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection) {
+func (m *WorldMode) drawGNDMeshes(screen *render.Frame, manager *res.Manager, gnd *res.GND, rsw *res.RSW, projection sceneProjection) {
 	if gnd == nil {
 		return
 	}

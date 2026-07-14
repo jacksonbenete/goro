@@ -148,7 +148,7 @@ func (w *SkillWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar) bool {
 	return true
 }
 
-func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *SkillWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvider) {
 	w.EnsureWindow(skillWindowWidth, skillWindowHeight)
 	if !w.IsOpen() {
 		w.Unpublish(ctx)
@@ -158,7 +158,7 @@ func (w *SkillWindow) Draw(screen *render.Image, ctx Context, assets AssetProvid
 	w.Publish(ctx)
 }
 
-func (w *SkillWindow) DrawDragGhost(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *SkillWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if w.dragActive && screen != nil && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && assets != nil {
 		assets.DrawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-skillIconSize/2, ctx.Input.MouseY-skillIconSize/2, skillIconSize)
 	}
@@ -391,7 +391,7 @@ func (w *SkillWindow) hideTooltip() {
 	w.tooltip.Hide()
 }
 
-func (w *SkillWindow) DrawTooltip(screen *render.Image) {
+func (w *SkillWindow) DrawTooltip(screen *render.Frame) {
 	w.tooltip.Draw(screen)
 }
 

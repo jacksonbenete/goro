@@ -8,7 +8,7 @@ import (
 	"github.com/kivutar/goro/session"
 )
 
-func DrawPendingSkillCursorLevel(screen *render.Image, ctx client.Context, skill session.Skill) {
+func DrawPendingSkillCursorLevel(screen *render.Frame, ctx client.Context, skill session.Skill) {
 	if screen == nil || ctx.Input == nil {
 		return
 	}

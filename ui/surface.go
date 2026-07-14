@@ -53,20 +53,20 @@ var (
 	SelectionBorder   = color.RGBA{R: 82, G: 138, B: 200, A: 255}
 )
 
-func DrawWindowFrame(screen *render.Image, x, y, w, h int) {
+func DrawWindowFrame(screen *render.Frame, x, y, w, h int) {
 	DrawRoundedSurface(screen, x, y, w, h, WindowBodyColor, WindowBorderColor, WindowRadius)
 }
 
-func DrawTitledWindowFrame(screen *render.Image, x, y, w, h, titleH int) {
+func DrawTitledWindowFrame(screen *render.Frame, x, y, w, h, titleH int) {
 	DrawWindowFrame(screen, x, y, w, h)
 	DrawTitleBar(screen, x, y, w, titleH)
 }
 
-func DrawWindowTitle(screen *render.Image, x, y, titleH, pad int, title string, text color.RGBA) {
+func DrawWindowTitle(screen *render.Frame, x, y, titleH, pad int, title string, text color.RGBA) {
 	DrawTitleTextAt(screen, x+pad, y, titleH, title, text)
 }
 
-func DrawTitleTextAt(screen *render.Image, x, y, titleH int, title string, text color.RGBA) {
+func DrawTitleTextAt(screen *render.Frame, x, y, titleH int, title string, text color.RGBA) {
 	ty := y + render.DebugTextTopForCenter(titleH)
 	if titleH > 1 {
 		ty = y + 1 + render.DebugTextTopForCenter(titleH-1)
@@ -74,7 +74,7 @@ func DrawTitleTextAt(screen *render.Image, x, y, titleH int, title string, text 
 	render.DebugPrintAtColor(screen, title, x, ty, text)
 }
 
-func DrawTitleBar(screen *render.Image, x, y, w, titleH int) {
+func DrawTitleBar(screen *render.Frame, x, y, w, titleH int) {
 	if titleH <= 1 {
 		return
 	}
@@ -94,7 +94,7 @@ func DrawTitleBar(screen *render.Image, x, y, w, titleH int) {
 	render.DrawRect(screen, float64(x+1), float64(y+titleH), float64(w-2), 1, SeparatorColor)
 }
 
-func DrawWindowFooter(screen *render.Image, x, y, w, h, footerH int) {
+func DrawWindowFooter(screen *render.Frame, x, y, w, h, footerH int) {
 	if screen == nil || w <= 2 || h <= 2 || footerH <= 0 {
 		return
 	}
@@ -109,7 +109,7 @@ func DrawWindowFooter(screen *render.Image, x, y, w, h, footerH int) {
 	drawFooterRows(screen, x, y, w, h, footerY, bottom)
 }
 
-func drawFooterRows(screen *render.Image, x, y, w, h, footerY, bottom int) {
+func drawFooterRows(screen *render.Frame, x, y, w, h, footerY, bottom int) {
 	for row := footerY; row < bottom; row++ {
 		inset := footerInnerRowInset(w, h, row-y)
 		width := w - inset*2
@@ -165,15 +165,15 @@ func LerpColor(a, b color.RGBA, t float64) color.RGBA {
 	}
 }
 
-func DrawPanelSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
+func DrawPanelSurface(screen *render.Frame, x, y, w, h int, bg color.RGBA) {
 	DrawSurface(screen, x, y, w, h, bg, WindowBorderColor)
 }
 
-func DrawButtonSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
+func DrawButtonSurface(screen *render.Frame, x, y, w, h int, bg color.RGBA) {
 	DrawRoundedGradientSurface(screen, x, y, w, h, Lighten(bg, 0.42), bg, ButtonBorderColor, ButtonRadius)
 }
 
-func DrawButtonLabel(screen *render.Image, x, y, w, h int, label string, bg, text color.RGBA) {
+func DrawButtonLabel(screen *render.Frame, x, y, w, h int, label string, bg, text color.RGBA) {
 	DrawButtonSurface(screen, x, y, w, h, bg)
 	DrawCenteredText(screen, x, y, w, h, label, text)
 }
@@ -183,12 +183,12 @@ func ButtonLabelWidth(label string) int {
 	return textW + ButtonPaddingX*2
 }
 
-func DrawCloseButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA) {
+func DrawCloseButton(screen *render.Frame, x, y, w, h int, bg, line color.RGBA) {
 	DrawButtonSurface(screen, x, y, w, h, bg)
 	DrawCloseGlyph(screen, x, y, w, h, line)
 }
 
-func DrawCloseGlyph(screen *render.Image, x, y, w, h int, line color.RGBA) {
+func DrawCloseGlyph(screen *render.Frame, x, y, w, h int, line color.RGBA) {
 	icon := minInt(w, h) / 2
 	if icon < 6 {
 		icon = minInt(w, h) - 6
@@ -210,15 +210,15 @@ func DrawCloseGlyph(screen *render.Image, x, y, w, h int, line color.RGBA) {
 	render.DrawLine(screen, float64(right), float64(top), float64(left), float64(bottom), line)
 }
 
-func DrawPlusButton(screen *render.Image, x, y int, bg, line color.RGBA) {
+func DrawPlusButton(screen *render.Frame, x, y int, bg, line color.RGBA) {
 	DrawIconButton(screen, x, y, IconButtonSize, IconButtonSize, bg, line, true)
 }
 
-func DrawMinusButton(screen *render.Image, x, y int, bg, line color.RGBA) {
+func DrawMinusButton(screen *render.Frame, x, y int, bg, line color.RGBA) {
 	DrawIconButton(screen, x, y, IconButtonSize, IconButtonSize, bg, line, false)
 }
 
-func DrawCheckboxButton(screen *render.Image, x, y int, bg, line color.RGBA, checked bool) {
+func DrawCheckboxButton(screen *render.Frame, x, y int, bg, line color.RGBA, checked bool) {
 	DrawButtonSurface(screen, x, y, IconButtonSize, IconButtonSize, bg)
 	if !checked {
 		return
@@ -233,7 +233,7 @@ func DrawCheckboxButton(screen *render.Image, x, y int, bg, line color.RGBA, che
 	render.DrawLine(screen, float64(midX), float64(bottom), float64(right), float64(top), line)
 }
 
-func DrawIconButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA, vertical bool) {
+func DrawIconButton(screen *render.Frame, x, y, w, h int, bg, line color.RGBA, vertical bool) {
 	DrawButtonSurface(screen, x, y, w, h, bg)
 	icon := minInt(w, h) / 2
 	if icon < 6 {
@@ -258,18 +258,18 @@ func DrawIconButton(screen *render.Image, x, y, w, h int, bg, line color.RGBA, v
 	}
 }
 
-func DrawCenteredText(screen *render.Image, x, y, w, h int, label string, text color.RGBA) {
+func DrawCenteredText(screen *render.Frame, x, y, w, h int, label string, text color.RGBA) {
 	textW, textH := render.DebugTextSize(label)
 	tx := x + (w-textW)/2
 	ty := y + (h-textH)/2
 	render.DebugPrintAtColor(screen, label, tx, ty, text)
 }
 
-func DrawRowSurface(screen *render.Image, x, y, w, h int, bg color.RGBA) {
+func DrawRowSurface(screen *render.Frame, x, y, w, h int, bg color.RGBA) {
 	DrawSurface(screen, x, y, w, h, bg, color.RGBA{})
 }
 
-func DrawTextBoxSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) {
+func DrawTextBoxSurface(screen *render.Frame, x, y, w, h int, bg, border color.RGBA) {
 	DrawSurface(screen, x, y, w, h, bg, border)
 	shadowRows := minInt(4, h-2)
 	for row := 0; row < shadowRows; row++ {
@@ -278,7 +278,7 @@ func DrawTextBoxSurface(screen *render.Image, x, y, w, h int, bg, border color.R
 	}
 }
 
-func DrawBlinkingCaret(screen *render.Image, x, y, h int, c color.RGBA) {
+func DrawBlinkingCaret(screen *render.Frame, x, y, h int, c color.RGBA) {
 	if screen == nil || h <= 0 || time.Now().UnixMilli()/500%2 != 0 {
 		return
 	}
@@ -291,15 +291,19 @@ func DrawBlinkingCaret(screen *render.Image, x, y, h int, c color.RGBA) {
 	render.DrawRect(screen, float64(x), float64(top), 1, float64(caretH), c)
 }
 
-func DrawSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA) {
+type imageDrawTarget interface {
+	DrawImage(*render.Image, *render.DrawImageOptions)
+}
+
+func DrawSurface(screen imageDrawTarget, x, y, w, h int, bg, border color.RGBA) {
 	DrawRoundedSurface(screen, x, y, w, h, bg, border, 0)
 }
 
-func DrawRoundedSurface(screen *render.Image, x, y, w, h int, bg, border color.RGBA, radius float32) {
+func DrawRoundedSurface(screen imageDrawTarget, x, y, w, h int, bg, border color.RGBA, radius float32) {
 	DrawRoundedGradientSurface(screen, x, y, w, h, bg, bg, border, radius)
 }
 
-func DrawRoundedGradientSurface(screen *render.Image, x, y, w, h int, top, bottom, border color.RGBA, radius float32) {
+func DrawRoundedGradientSurface(screen imageDrawTarget, x, y, w, h int, top, bottom, border color.RGBA, radius float32) {
 	if screen == nil || w <= 0 || h <= 0 {
 		return
 	}

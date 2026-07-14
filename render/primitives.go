@@ -82,22 +82,25 @@ func SetUIFont(regular, bold []byte) error {
 	return nil
 }
 
-func DrawRect(dst *Image, x, y, w, h float64, c color.Color) {
+func DrawRect(dst *Frame, x, y, w, h float64, c color.Color) {
+	if dst == nil || w <= 0 || h <= 0 {
+		return
+	}
+	rgba := color.RGBAModel.Convert(c).(color.RGBA)
+	x0, y0 := snapScreenPoint(dst, x, y)
+	x1, y1 := snapScreenPoint(dst, x+w, y+h)
+	w, h = x1-x0, y1-y0
+	if w <= 0 || h <= 0 {
+		return
+	}
+	drawSolidQuad(dst, x0, y0, w, h, rgba)
+}
+
+func DrawImageRect(dst *Image, x, y, w, h float64, c color.Color) {
 	if dst == nil || dst.pix == nil || w <= 0 || h <= 0 {
 		return
 	}
 	rgba := color.RGBAModel.Convert(c).(color.RGBA)
-	if dst.screen {
-		x0, y0 := snapScreenPoint(dst, x, y)
-		x1, y1 := snapScreenPoint(dst, x+w, y+h)
-		w, h = x1-x0, y1-y0
-		if w <= 0 || h <= 0 {
-			return
-		}
-		x, y = x0, y0
-		drawSolidQuad(dst, x, y, w, h, rgba)
-		return
-	}
 	x0 := clampInt(int(math.Floor(x)), 0, dst.pix.Bounds().Dx())
 	y0 := clampInt(int(math.Floor(y)), 0, dst.pix.Bounds().Dy())
 	x1 := clampInt(int(math.Ceil(x+w)), 0, dst.pix.Bounds().Dx())
@@ -109,12 +112,8 @@ func DrawRect(dst *Image, x, y, w, h float64, c color.Color) {
 	}
 }
 
-func DrawUIRect(dst *Image, x, y, w, h float64, c color.RGBA) {
+func DrawUIRect(dst *Frame, x, y, w, h float64, c color.RGBA) {
 	if dst == nil || w <= 0 || h <= 0 {
-		return
-	}
-	if !dst.screen {
-		DrawRect(dst, x, y, w, h, c)
 		return
 	}
 	dst.uiRects = append(dst.uiRects, UIRectCommand{
@@ -126,15 +125,12 @@ func DrawUIRect(dst *Image, x, y, w, h float64, c color.RGBA) {
 	})
 }
 
-func DrawUISpeechBubble(dst *Image, text string, centerX, bottomY, maxWidth float64) {
+func DrawUISpeechBubble(dst *Frame, text string, centerX, bottomY, maxWidth float64) {
 	if dst == nil || text == "" {
 		return
 	}
 	if maxWidth <= 0 {
 		maxWidth = 220
-	}
-	if !dst.screen {
-		return
 	}
 	dst.uiTextBoxes = append(dst.uiTextBoxes, UITextBoxCommand{
 		Text:     text,
@@ -146,12 +142,12 @@ func DrawUISpeechBubble(dst *Image, text string, centerX, bottomY, maxWidth floa
 	})
 }
 
-func DrawUITooltip(dst *Image, text string, centerX, belowY, aboveY float64) {
+func DrawUITooltip(dst *Frame, text string, centerX, belowY, aboveY float64) {
 	DrawUITooltipBox(dst, text, centerX, belowY, aboveY, 0, 1)
 }
 
-func DrawUITooltipBox(dst *Image, text string, centerX, belowY, aboveY, maxWidth float64, maxLines int) {
-	if dst == nil || text == "" || !dst.screen {
+func DrawUITooltipBox(dst *Frame, text string, centerX, belowY, aboveY, maxWidth float64, maxLines int) {
+	if dst == nil || text == "" {
 		return
 	}
 	dst.uiTextBoxes = append(dst.uiTextBoxes, UITextBoxCommand{
@@ -165,55 +161,40 @@ func DrawUITooltipBox(dst *Image, text string, centerX, belowY, aboveY, maxWidth
 	})
 }
 
-func DrawLine(dst *Image, x0, y0, x1, y1 float64, c color.Color) {
-	if dst == nil || dst.pix == nil {
+func DrawLine(dst *Frame, x0, y0, x1, y1 float64, c color.Color) {
+	if dst == nil {
 		return
 	}
 	rgba := color.RGBAModel.Convert(c).(color.RGBA)
-	if dst.screen {
-		steps := int(math.Max(math.Abs(x1-x0), math.Abs(y1-y0)))
-		if steps <= 0 {
-			drawSolidQuad(dst, math.Round(x0), math.Round(y0), 1, 1, rgba)
-			return
-		}
-		for i := 0; i <= steps; i++ {
-			t := float64(i) / float64(steps)
-			drawSolidQuad(dst, math.Round(x0+(x1-x0)*t), math.Round(y0+(y1-y0)*t), 1, 1, rgba)
-		}
-		return
-	}
-	dx := x1 - x0
-	dy := y1 - y0
-	steps := int(math.Max(math.Abs(dx), math.Abs(dy)))
+	steps := int(math.Max(math.Abs(x1-x0), math.Abs(y1-y0)))
 	if steps <= 0 {
-		dst.blendPixel(clampInt(int(math.Round(x0)), 0, dst.pix.Bounds().Dx()-1), clampInt(int(math.Round(y0)), 0, dst.pix.Bounds().Dy()-1), rgba, BlendSourceOver)
+		drawSolidQuad(dst, math.Round(x0), math.Round(y0), 1, 1, rgba)
 		return
 	}
 	for i := 0; i <= steps; i++ {
 		t := float64(i) / float64(steps)
-		x := int(math.Round(x0 + dx*t))
-		y := int(math.Round(y0 + dy*t))
-		if imageContains(dst, x, y) {
-			dst.blendPixel(x, y, rgba, BlendSourceOver)
-		}
+		drawSolidQuad(dst, math.Round(x0+(x1-x0)*t), math.Round(y0+(y1-y0)*t), 1, 1, rgba)
 	}
 }
 
-func DebugPrintAt(dst *Image, text string, x, y int) {
+func DebugPrintAt(dst *Frame, text string, x, y int) {
 	DebugPrintAtColor(dst, text, x, y, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 }
 
-func DebugPrintAtColor(dst *Image, text string, x, y int, c color.RGBA) {
-	if dst == nil || dst.pix == nil || text == "" {
+func DebugPrintAtColor(dst *Frame, text string, x, y int, c color.RGBA) {
+	if dst == nil || text == "" {
 		return
 	}
-	if dst.screen {
-		img := cachedDebugTextColor(text, c)
-		var opts DrawImageOptions
-		x, y := snapScreenPoint(dst, float64(x), float64(y))
-		opts.GeoM.Translate(x, y)
-		opts.Filter = FilterNearest
-		dst.DrawImage(img, &opts)
+	img := cachedDebugTextColor(text, c)
+	var opts DrawImageOptions
+	sx, sy := snapScreenPoint(dst, float64(x), float64(y))
+	opts.GeoM.Translate(sx, sy)
+	opts.Filter = FilterNearest
+	dst.DrawImage(img, &opts)
+}
+
+func DrawImageDebugTextAtColor(dst *Image, text string, x, y int, c color.RGBA) {
+	if dst == nil || dst.pix == nil || text == "" {
 		return
 	}
 	face, _, baseline, _ := debugTextFont()
@@ -241,7 +222,7 @@ func cachedDebugTextColor(text string, c color.RGBA) *Image {
 	if fixedWidth > 0 {
 		y = -1
 	}
-	DebugPrintAtColor(img, text, 0, y, c)
+	DrawImageDebugTextAtColor(img, text, 0, y, c)
 	debugTextCache[key] = img
 	if len(debugTextCache) > 512 {
 		for key := range debugTextCache {
@@ -366,7 +347,7 @@ func textFaceLineMetrics(face font.Face) (int, int) {
 	return lineHeight, baseline
 }
 
-func DrawOutlinedTextAt(dst *Image, text string, x, y int, foreground, outline color.RGBA) {
+func DrawOutlinedTextAt(dst *Frame, text string, x, y int, foreground, outline color.RGBA) {
 	if dst == nil || text == "" {
 		return
 	}
@@ -377,70 +358,46 @@ func DrawOutlinedTextAt(dst *Image, text string, x, y int, foreground, outline c
 	dst.DrawImage(img, &opts)
 }
 
-func DrawUIOutlinedTextAt(dst *Image, text string, x, y float64, foreground, outline color.RGBA) {
+func DrawUIOutlinedTextAt(dst *Frame, text string, x, y float64, foreground, outline color.RGBA) {
 	drawOrQueueUITextLabel(dst, text, x, y, foreground, outline, false, true, 12)
 }
 
-func DrawCenteredUIOutlinedTextAt(dst *Image, text string, centerX, y float64, foreground, outline color.RGBA) {
+func DrawCenteredUIOutlinedTextAt(dst *Frame, text string, centerX, y float64, foreground, outline color.RGBA) {
 	drawOrQueueUITextLabel(dst, text, centerX, y, foreground, outline, true, true, 12)
 }
 
-func DrawUITextAt(dst *Image, text string, x, y float64, foreground color.RGBA) {
+func DrawUITextAt(dst *Frame, text string, x, y float64, foreground color.RGBA) {
 	drawOrQueueUITextLabel(dst, text, x, y, foreground, color.RGBA{}, false, false, 12)
 }
 
-func DrawCenteredUITextAt(dst *Image, text string, centerX, y float64, foreground color.RGBA) {
+func DrawCenteredUITextAt(dst *Frame, text string, centerX, y float64, foreground color.RGBA) {
 	drawOrQueueUITextLabel(dst, text, centerX, y, foreground, color.RGBA{}, true, false, 12)
 }
 
-func drawOrQueueUITextLabel(dst *Image, text string, x, y float64, foreground, outline color.RGBA, centered, bold bool, size float32) {
+func drawOrQueueUITextLabel(dst *Frame, text string, x, y float64, foreground, outline color.RGBA, centered, bold bool, size float32) {
 	if dst == nil || text == "" {
 		return
 	}
-	if dst.screen {
-		dst.uiTextLabels = append(dst.uiTextLabels, UITextLabelCommand{
-			Text:       text,
-			X:          x,
-			Y:          y,
-			Foreground: foreground,
-			Outline:    outline,
-			Centered:   centered,
-			Bold:       bold,
-			Size:       size,
-		})
-		return
-	}
-	if outline.A == 0 && !bold {
-		if centered {
-			width, _ := DebugTextSize(text)
-			x -= float64(width) / 2
-		}
-		x, y = snapScreenPoint(dst, x, y)
-		DebugPrintAtColor(dst, text, int(x), int(y), foreground)
-		return
-	}
-	img := OutlinedTextImage(text, foreground, outline)
-	if img == nil {
-		return
-	}
-	if centered {
-		x -= float64(img.Bounds().Dx()) / 2
-	}
-	x, y = snapScreenPoint(dst, x, y)
-	var opts DrawImageOptions
-	opts.GeoM.Translate(x, y)
-	opts.Filter = FilterNearest
-	dst.DrawImage(img, &opts)
+	dst.uiTextLabels = append(dst.uiTextLabels, UITextLabelCommand{
+		Text:       text,
+		X:          x,
+		Y:          y,
+		Foreground: foreground,
+		Outline:    outline,
+		Centered:   centered,
+		Bold:       bold,
+		Size:       size,
+	})
 }
 
-func snapScreenPoint(dst *Image, x, y float64) (float64, float64) {
-	if dst == nil || !dst.screen {
+func snapScreenPoint(dst *Frame, x, y float64) (float64, float64) {
+	if dst == nil {
 		return x, y
 	}
 	return snapScreenValue(x, float64(dst.screenScaleX)), snapScreenValue(y, float64(dst.screenScaleY))
 }
 
-func SnapScreenPoint(dst *Image, x, y float64) (float64, float64) {
+func SnapScreenPoint(dst *Frame, x, y float64) (float64, float64) {
 	return snapScreenPoint(dst, x, y)
 }
 
@@ -469,7 +426,10 @@ func imageContains(dst *Image, x, y int) bool {
 	return x >= b.Min.X && y >= b.Min.Y && x < b.Max.X && y < b.Max.Y
 }
 
-func drawSolidQuad(dst *Image, x, y, w, h float64, c color.RGBA) {
+func drawSolidQuad(dst *Frame, x, y, w, h float64, c color.RGBA) {
+	if dst == nil {
+		return
+	}
 	white := WhiteImage()
 	r := float32(c.R) / 255
 	g := float32(c.G) / 255

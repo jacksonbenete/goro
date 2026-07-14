@@ -440,7 +440,7 @@ const (
 	actorObjectTypeNPCBionic      = 14
 )
 
-func (m *WorldMode) drawSceneActors(screen *render.Image, ctx client.Context, projection sceneProjection) []sceneActorDrawEntry {
+func (m *WorldMode) drawSceneActors(screen *render.Frame, ctx client.Context, projection sceneProjection) []sceneActorDrawEntry {
 	entries := m.collectSceneActorEntries(screen, ctx, projection)
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
@@ -454,7 +454,7 @@ func (m *WorldMode) drawSceneActors(screen *render.Image, ctx client.Context, pr
 	return entries
 }
 
-func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawSceneActorOverlays(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time, entries []sceneActorDrawEntry) {
 	for _, entry := range entries {
 		m.drawActorCastBar(screen, entry, now)
 		m.drawActorLifeBar(screen, ctx, entry)
@@ -467,7 +467,7 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Cont
 	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
-func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {
+func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Frame, ctx client.Context, entries []sceneActorDrawEntry) {
 	if ctx.Input == nil {
 		return
 	}
@@ -487,7 +487,7 @@ func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx cl
 	}
 }
 
-func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx client.Context, projection sceneProjection) []sceneActorDrawEntry {
+func (m *WorldMode) collectSceneActorEntries(screen *render.Frame, ctx client.Context, projection sceneProjection) []sceneActorDrawEntry {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	entries := make([]sceneActorDrawEntry, 0, len(ctx.World.Actors)+1)
@@ -520,7 +520,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Image, ctx client.Co
 	return entries
 }
 
-func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawSceneActorEntry(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	cameraYaw := projection.cameraYaw
 	alpha := 1.0
 	if entry.hidden {
@@ -568,7 +568,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Image, ctx client.Context
 	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
 }
 
-func drawActorMarker(screen *render.Image, x, y float64, actor worldstate.Actor, now time.Time) {
+func drawActorMarker(screen *render.Frame, x, y float64, actor worldstate.Actor, now time.Time) {
 	col := color.RGBA{R: 82, G: 166, B: 255, A: 230}
 	if actor.Job >= 1000 {
 		col = color.RGBA{R: 229, G: 102, B: 72, A: 230}
@@ -581,7 +581,7 @@ func drawActorMarker(screen *render.Image, x, y float64, actor worldstate.Actor,
 	render.DebugPrintAt(screen, fmt.Sprintf("%d", actor.Job), int(x-12), int(y-16))
 }
 
-func (m *WorldMode) drawActorShadowEntry(screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, projection sceneProjection, entry sceneActorDrawEntry) {
 	if !entry.castShadow || m.shadowView == nil || m.shadowViewMiss {
 		return
 	}
@@ -775,7 +775,7 @@ func actorIsPartyMember(s *session.Session, actor worldstate.Actor, actorName st
 	return false
 }
 
-func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil || ctx.World == nil {
 		return
 	}
@@ -926,11 +926,11 @@ func actorNameLabelColor(actor worldstate.Actor, isPlayer bool) color.RGBA {
 	}
 }
 
-func drawActorNameLabel(screen *render.Image, label string, centerX, baseY, scale float64, foreground color.RGBA) {
+func drawActorNameLabel(screen *render.Frame, label string, centerX, baseY, scale float64, foreground color.RGBA) {
 	drawActorNameLabelAtY(screen, label, centerX, actorNameLabelY(baseY, scale), foreground)
 }
 
-func drawActorNameLabelAtY(screen *render.Image, label string, centerX, labelY float64, foreground color.RGBA) {
+func drawActorNameLabelAtY(screen *render.Frame, label string, centerX, labelY float64, foreground color.RGBA) {
 	label = sanitizeActorName(label)
 	if label == "" {
 		return
@@ -961,7 +961,7 @@ func actorCastBarY(baseY, scale float64) float64 {
 	return actorSpriteTopY(baseY, scale) - 10
 }
 
-func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
 	actor := entry.actor
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return m.drawNonPCSprite3D(screen, ctx, projection, entry, cameraYaw, shadow)
@@ -1025,7 +1025,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 	return true
 }
 
-func (m *WorldMode) drawNonPCSprite3D(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
+func (m *WorldMode) drawNonPCSprite3D(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {
 	actor := entry.actor
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {

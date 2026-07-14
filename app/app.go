@@ -76,15 +76,15 @@ func (g *Game) Update() error {
 	return g.modes.Update()
 }
 
-func (g *Game) Draw(screen *render.Image) {
+func (g *Game) Draw(screen *render.Frame) {
 	g.modes.Draw(screen)
 }
 
-func (g *Game) DrawOverlay(screen *render.Image) {
+func (g *Game) DrawOverlay(screen *render.Frame) {
 	g.modes.DrawOverlay(screen)
 }
 
-func (g *Game) DrawUIOverlay(screen *render.Image) {
+func (g *Game) DrawUIOverlay(screen *render.Frame) {
 	g.modes.DrawUIOverlay(screen)
 }
 

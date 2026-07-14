@@ -50,7 +50,7 @@ type rsmBoundsCacheKey struct {
 
 type mat4 [16]float64
 
-func (m *WorldMode) drawRSMModels(screen *render.Image, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog, now time.Time) {
+func (m *WorldMode) drawRSMModels(screen *render.Frame, manager *res.Manager, rsw *res.RSW, models map[string]*res.RSM, gnd *res.GND, projection sceneProjection, fog sceneFog, now time.Time) {
 	for _, placement := range m.visibleRSMPlacements(rsw, gnd, projection) {
 		rsm := m.rsmModelForPlacement(manager, models, placement.model)
 		if rsm == nil {
@@ -289,7 +289,7 @@ func (m *WorldMode) rsmPlacementContext(rsm *res.RSM, rsw *res.RSW, visible visi
 }
 
 type animatedRSMDrawBatch struct {
-	screen  *render.Image
+	screen  *render.Frame
 	texture *render.Image
 	options render.DrawTrianglesOptions
 	verts   []render.Vertex3D
@@ -319,7 +319,7 @@ func (b *animatedRSMDrawBatch) flush() {
 	b.indices = nil
 }
 
-func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Image, manager *res.Manager, rsw *res.RSW, rsm *res.RSM, visible visibleRSMPlacement, frame int) {
+func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Frame, manager *res.Manager, rsw *res.RSW, rsm *res.RSM, visible visibleRSMPlacement, frame int) {
 	context, ok := m.rsmPlacementContext(rsm, rsw, visible)
 	if !ok {
 		return

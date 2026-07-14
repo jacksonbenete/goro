@@ -1675,7 +1675,7 @@ func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor worldst
 	return m.actorViews[key]
 }
 
-func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
+func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	projection := m.sceneProjection(ctx, width, height, now)
@@ -1731,7 +1731,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Image) {
 	}
 }
 
-func (m *WorldMode) DrawOverlay(ctx client.Context, screen *render.Image) {
+func (m *WorldMode) DrawOverlay(ctx client.Context, screen *render.Frame) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
 	projection := m.sceneProjection(ctx, width, height, now)
@@ -1742,7 +1742,7 @@ func (m *WorldMode) DrawOverlay(ctx client.Context, screen *render.Image) {
 	}
 }
 
-func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Image) {
+func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Frame) {
 	if ctx.Config.Render.NoUI {
 		return
 	}
@@ -1753,7 +1753,7 @@ func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Image) {
 	m.shortcutBar.DrawTooltip(screen)
 }
 
-func (m *WorldMode) drawUIDragGhosts(screen *render.Image, ctx client.Context) {
+func (m *WorldMode) drawUIDragGhosts(screen *render.Frame, ctx client.Context) {
 	m.inventoryBag.DrawDragGhost(screen, ctx, m)
 	m.storageWindow.DrawDragGhost(screen, ctx, m)
 	m.cartWindow.DrawDragGhost(screen, ctx, m)
@@ -1913,7 +1913,7 @@ type sceneDrawEntry struct {
 	itemIndex   int
 }
 
-func (m *WorldMode) drawSceneModelsAndActors(screen *render.Image, ctx client.Context, projection sceneProjection, fog sceneFog, now time.Time) []sceneActorDrawEntry {
+func (m *WorldMode) drawSceneModelsAndActors(screen *render.Frame, ctx client.Context, projection sceneProjection, fog sceneFog, now time.Time) []sceneActorDrawEntry {
 	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog, now)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, now)
@@ -2148,11 +2148,11 @@ func clampColor(value float64) uint8 {
 	return uint8(min(255, max(0, int(value))))
 }
 
-func drawColoredSurfaceTints3DAlpha(screen, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA) {
+func drawColoredSurfaceTints3DAlpha(screen *render.Frame, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA) {
 	drawColoredSurfaceTints3DWithOptions(screen, white, verts, indices, colors, triangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
 }
 
-func drawColoredSurfaceTints3DWithOptions(screen, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA, options *render.DrawTrianglesOptions) {
+func drawColoredSurfaceTints3DWithOptions(screen *render.Frame, white *render.Image, verts [4]modelPoint3, indices []uint16, colors [4]color.RGBA, options *render.DrawTrianglesOptions) {
 	vertices := []render.Vertex3D{
 		coloredSurfaceVertex3D(verts[0], 0, 0, colors[0]),
 		coloredSurfaceVertex3D(verts[1], 1, 0, colors[1]),
@@ -2162,11 +2162,11 @@ func drawColoredSurfaceTints3DWithOptions(screen, white *render.Image, verts [4]
 	screen.DrawTriangles3DOwned(vertices, indices, white, options)
 }
 
-func drawTexturedSurface3DAlpha(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
+func drawTexturedSurface3DAlpha(screen *render.Frame, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA) {
 	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, indices, tints, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func drawTexturedSurface3DWithOptions(screen, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA, options *render.DrawTrianglesOptions) {
+func drawTexturedSurface3DWithOptions(screen *render.Frame, texture *render.Image, verts [4]modelPoint3, uvs [4]texturePoint, indices []uint16, tints [4]color.RGBA, options *render.DrawTrianglesOptions) {
 	bounds := texture.Bounds()
 	w := float32(bounds.Dx())
 	h := float32(bounds.Dy())
@@ -2213,7 +2213,7 @@ func texturedSurfaceVertex3D(point modelPoint3, uv texturePoint, tint color.RGBA
 	}
 }
 
-func drawGAT(screen *render.Image, gat *res.GAT, playerX, playerY int) {
+func drawGAT(screen *render.Frame, gat *res.GAT, playerX, playerY int) {
 	const tile = 10
 	width := screen.Bounds().Dx()
 	height := screen.Bounds().Dy()

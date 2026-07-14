@@ -9,15 +9,15 @@ type Mode interface {
 	Name() string
 	Enter(client.Context)
 	Update(client.Context) (Mode, error)
-	Draw(client.Context, *render.Image)
+	Draw(client.Context, *render.Frame)
 }
 
 type overlayMode interface {
-	DrawOverlay(client.Context, *render.Image)
+	DrawOverlay(client.Context, *render.Frame)
 }
 
 type uiOverlayMode interface {
-	DrawUIOverlay(client.Context, *render.Image)
+	DrawUIOverlay(client.Context, *render.Frame)
 }
 
 type Manager struct {
@@ -53,19 +53,19 @@ func (m *Manager) Update() error {
 	return nil
 }
 
-func (m *Manager) Draw(screen *render.Image) {
+func (m *Manager) Draw(screen *render.Frame) {
 	if m.mode != nil {
 		m.mode.Draw(m.ctx, screen)
 	}
 }
 
-func (m *Manager) DrawOverlay(screen *render.Image) {
+func (m *Manager) DrawOverlay(screen *render.Frame) {
 	if mode, ok := m.mode.(overlayMode); ok {
 		mode.DrawOverlay(m.ctx, screen)
 	}
 }
 
-func (m *Manager) DrawUIOverlay(screen *render.Image) {
+func (m *Manager) DrawUIOverlay(screen *render.Frame) {
 	if mode, ok := m.mode.(uiOverlayMode); ok {
 		mode.DrawUIOverlay(m.ctx, screen)
 	}

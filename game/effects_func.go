@@ -17,7 +17,7 @@ const (
 	effectFuncCastRing
 )
 
-func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.funcAdapter {
 	case effectFuncGroundSample:
 		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
@@ -27,7 +27,7 @@ func (m *WorldMode) drawFuncEffect(screen *render.Image, ctx client.Context, pro
 	}
 }
 
-func (m *WorldMode) drawCastRingEffect(screen *render.Image, ctx client.Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z, progress float64) {
+func (m *WorldMode) drawCastRingEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z, progress float64) {
 	alpha := effectComponentAlpha(progress, component)
 	if alpha <= 0 {
 		return
@@ -48,7 +48,7 @@ func (m *WorldMode) drawCastRingEffect(screen *render.Image, ctx client.Context,
 	drawWorldCylinderBandRotated(screen, m.whitePixel, nil, x, y, z+0.035, component.bottomSize, component.topSize, component.height, tint, maxInt(component.circleSides, component.totalCircleSides), angleOffset)
 }
 
-func drawWorldCylinderBandRotated(screen, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, angleOffset float64) {
+func drawWorldCylinderBandRotated(screen *render.Frame, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, angleOffset float64) {
 	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
 		return
 	}
@@ -86,7 +86,7 @@ func drawWorldCylinderBandRotated(screen, white, texture *render.Image, x, y, z,
 	screen.DrawTriangles3D(vertices, indices, source, options)
 }
 
-func (m *WorldMode) drawGroundPlaneEffect(screen *render.Image, ctx client.Context, component worldEffectComponent, effect worldEffect, worldX, worldY, progress float64, now time.Time) {
+func (m *WorldMode) drawGroundPlaneEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, worldX, worldY, progress float64, now time.Time) {
 	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
 	if texture == nil || ctx.World == nil {
 		return
@@ -155,7 +155,7 @@ func warpEffectVertex3D(x, y, z float64, c color.RGBA) render.Vertex3D {
 	return warpEffectTexturedVertex3D(x, y, z, 0, 0, c)
 }
 
-func drawWarpZoneEffect(screen, white, ringTexture *render.Image, x, y, z float64, now time.Time) {
+func drawWarpZoneEffect(screen *render.Frame, white, ringTexture *render.Image, x, y, z float64, now time.Time) {
 	const (
 		segments       = 64
 		ringCount      = 4
@@ -206,11 +206,11 @@ func warpCycleFade(phase float64) float64 {
 	}
 }
 
-func drawWorldRadialGradient(screen, white *render.Image, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
+func drawWorldRadialGradient(screen *render.Frame, white *render.Image, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
 	drawWorldRingBand(screen, white, x, y, z, innerRadius, outerRadius, c.A, 0, c, segments)
 }
 
-func drawWorldSoftRing(screen, white *render.Image, x, y, z, radius, width float64, c color.RGBA, segments int) {
+func drawWorldSoftRing(screen *render.Frame, white *render.Image, x, y, z, radius, width float64, c color.RGBA, segments int) {
 	inner := math.Max(0, radius-width*0.5)
 	mid := math.Max(inner+0.01, radius)
 	outer := math.Max(mid+0.01, radius+width*0.5)
@@ -218,7 +218,7 @@ func drawWorldSoftRing(screen, white *render.Image, x, y, z, radius, width float
 	drawWorldRingBand(screen, white, x, y, z, mid, outer, c.A, 0, c, segments)
 }
 
-func drawWorldRingBand(screen, white *render.Image, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
+func drawWorldRingBand(screen *render.Frame, white *render.Image, x, y, z, innerRadius, outerRadius float64, innerAlpha, outerAlpha uint8, c color.RGBA, segments int) {
 	if segments < 3 || outerRadius <= innerRadius {
 		return
 	}

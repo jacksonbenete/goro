@@ -1458,7 +1458,7 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 	}
 }
 
-func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawWorldEffects(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	if len(m.worldEffects) == 0 || screen == nil || ctx.World == nil {
 		return
 	}
@@ -1576,7 +1576,7 @@ func worldEffectComponentProgressForDraw(starts time.Time, component worldEffect
 	return clampFloat(float64(cycleElapsed)/float64(duration), 0, 1)
 }
 
-func (m *WorldMode) drawWorldEffectComponent(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+func (m *WorldMode) drawWorldEffectComponent(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.kind {
 	case effectComponentSTR:
 		m.drawSTREffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)

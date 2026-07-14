@@ -186,7 +186,7 @@ func (w *ShopWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	return false
 }
 
-func (w *ShopWindow) Draw(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *ShopWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if screen == nil {
 		return
 	}
@@ -203,7 +203,7 @@ func (w *ShopWindow) Draw(screen *render.Image, ctx Context, assets AssetProvide
 	}
 }
 
-func (w *ShopWindow) DrawDragGhost(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *ShopWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if !w.buyDraggingItem || screen == nil || ctx.Input == nil || assets == nil {
 		return
 	}

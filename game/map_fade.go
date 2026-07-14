@@ -48,7 +48,7 @@ func (m *WorldMode) mapFadeAlpha(now time.Time) uint8 {
 	}
 }
 
-func (m *WorldMode) drawMapFade(screen *render.Image, now time.Time) {
+func (m *WorldMode) drawMapFade(screen *render.Frame, now time.Time) {
 	alpha := m.mapFadeAlpha(now)
 	if alpha == 0 {
 		return

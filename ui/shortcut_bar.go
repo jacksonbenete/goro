@@ -114,7 +114,7 @@ func (b *ShortcutBar) ResetOverlay(ctx Context) {
 	b.content = nil
 }
 
-func (b *ShortcutBar) DrawTooltip(screen *render.Image) {
+func (b *ShortcutBar) DrawTooltip(screen *render.Frame) {
 	b.tooltip.Draw(screen)
 }
 

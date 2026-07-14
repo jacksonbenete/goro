@@ -418,7 +418,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 	return nil, nil
 }
 
-func (m *LoginMode) Draw(ctx client.Context, screen *render.Image) {
+func (m *LoginMode) Draw(ctx client.Context, screen *render.Frame) {
 	m.drawBackground(ctx, screen)
 	if m.phase == loginPhaseCreate {
 		m.drawCharacterCreate(ctx)
@@ -429,7 +429,7 @@ func (m *LoginMode) Draw(ctx client.Context, screen *render.Image) {
 	}
 }
 
-func (m *LoginMode) DrawOverlay(ctx client.Context, screen *render.Image) {
+func (m *LoginMode) DrawOverlay(ctx client.Context, screen *render.Frame) {
 	now := time.Now()
 	m.drawFade(ctx, screen, now)
 	if ctx.Config.Render.NoUI {
@@ -438,7 +438,7 @@ func (m *LoginMode) DrawOverlay(ctx client.Context, screen *render.Image) {
 	m.drawROCursor(screen, ctx, now)
 }
 
-func (m *LoginMode) drawROCursor(screen *render.Image, ctx client.Context, now time.Time) {
+func (m *LoginMode) drawROCursor(screen *render.Frame, ctx client.Context, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
@@ -581,7 +581,7 @@ func (m *LoginMode) fadeAlpha(now time.Time) uint8 {
 	}
 }
 
-func (m *LoginMode) drawFade(ctx client.Context, screen *render.Image, now time.Time) {
+func (m *LoginMode) drawFade(ctx client.Context, screen *render.Frame, now time.Time) {
 	alpha := m.fadeAlpha(now)
 	if alpha == 0 {
 		return
@@ -623,7 +623,7 @@ func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 	m.status = fmt.Sprintf("selected character %s", character.Name)
 }
 
-func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Image) {
+func (m *LoginMode) drawBackground(ctx client.Context, screen *render.Frame) {
 	screen.Fill(debugColorBackground)
 	width, height := ctx.ScreenSize()
 	if width <= 0 || height <= 0 {

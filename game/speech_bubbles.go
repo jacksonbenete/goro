@@ -91,7 +91,7 @@ func speechBubbleText(text string) string {
 	return text
 }
 
-func (m *WorldMode) drawSpeechBubbles(screen *render.Image, entries []sceneActorDrawEntry, now time.Time) {
+func (m *WorldMode) drawSpeechBubbles(screen *render.Frame, entries []sceneActorDrawEntry, now time.Time) {
 	if len(m.speechBubbles) == 0 {
 		return
 	}

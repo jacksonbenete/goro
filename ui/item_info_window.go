@@ -222,7 +222,7 @@ func (w *ItemInfoWindow) cardSlotsFooter(ctx Context) widget.Widget {
 		CrossAlign(primitives.CrossAxisCenter)
 }
 
-func (w *ItemInfoWindow) DrawTooltip(screen *render.Image) {
+func (w *ItemInfoWindow) DrawTooltip(screen *render.Frame) {
 	w.tooltip.Draw(screen)
 }
 

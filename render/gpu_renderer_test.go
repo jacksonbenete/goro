@@ -51,7 +51,7 @@ func TestRendererShadersGenerateSPIRV(t *testing.T) {
 }
 
 func TestWorldMeshSubmissionDoesNotCreateDynamicWorldCommand(t *testing.T) {
-	screen := NewScreenImage(320, 240)
+	screen := NewFrame(320, 240)
 	texture := WhiteImage()
 	mesh := NewWorldMesh([]Vertex3D{
 		{X: 0, Y: 0, Z: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
@@ -71,7 +71,7 @@ func TestWorldMeshSubmissionDoesNotCreateDynamicWorldCommand(t *testing.T) {
 }
 
 func TestWorldBillboardSubmissionDoesNotCreateDynamicWorldCommand(t *testing.T) {
-	screen := NewScreenImage(320, 240)
+	screen := NewFrame(320, 240)
 	screen.BeginFrame()
 	screen.DrawWorldBillboard(WorldBillboardCommand{
 		Texture: WhiteImage(),
@@ -92,7 +92,7 @@ func TestWorldBillboardSubmissionDoesNotCreateDynamicWorldCommand(t *testing.T) 
 }
 
 func TestWorldBillboardCommandsKeepSeparateInstanceData(t *testing.T) {
-	screen := NewScreenImage(320, 240)
+	screen := NewFrame(320, 240)
 	texture := WhiteImage()
 	screen.BeginFrame()
 	screen.DrawWorldBillboard(WorldBillboardCommand{
@@ -122,7 +122,7 @@ func TestWorldBillboardCommandsKeepSeparateInstanceData(t *testing.T) {
 }
 
 func TestBuildFrameAppliesScreenScaleTo2DVertices(t *testing.T) {
-	screen := NewScreenImage(320, 240)
+	screen := NewFrame(320, 240)
 	screen.BeginFrame()
 	screen.SetScreenScale(2, 3)
 	var opts DrawImageOptions

@@ -44,7 +44,7 @@ type gpuRenderer struct {
 	uniform          *wgpu.Buffer
 	worldUniform     *wgpu.Buffer
 	samplers         map[samplerKey]*wgpu.Sampler
-	textures         map[*Image]*gpuTexture
+	textures         map[*Image]*gpuImageTexture
 	bindGroups       map[bindGroupKey]*wgpu.BindGroup
 	worldMeshes      map[*WorldMesh]*gpuWorldMesh
 	depthTex         *wgpu.Texture
@@ -67,7 +67,7 @@ type gpuRenderer struct {
 	worldFrameScratch worldFrameScratch
 }
 
-type gpuTexture struct {
+type gpuImageTexture struct {
 	tex     *gogpu.Texture
 	version uint64
 	width   int
@@ -147,7 +147,7 @@ func newGPURenderer(ctx *gogpu.Context, app *gogpu.App, cfg config.RenderConfig)
 		queue:        provider.Queue(),
 		format:       provider.SurfaceFormat(),
 		samplers:     make(map[samplerKey]*wgpu.Sampler),
-		textures:     make(map[*Image]*gpuTexture),
+		textures:     make(map[*Image]*gpuImageTexture),
 		bindGroups:   make(map[bindGroupKey]*wgpu.BindGroup),
 		worldMeshes:  make(map[*WorldMesh]*gpuWorldMesh),
 		statsEnabled: cfg.Stats,
@@ -413,7 +413,7 @@ func (r *gpuRenderer) createWorldBillboardPipeline(shader *wgpu.ShaderModule, bl
 	})
 }
 
-func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
+func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 	if screen == nil {
 		return nil
 	}
@@ -597,7 +597,7 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Image) error {
 	return err
 }
 
-func (r *gpuRenderer) logWorldDebug(screen *Image) {
+func (r *gpuRenderer) logWorldDebug(screen *Frame) {
 	if screen == nil {
 		log.Printf("world debug empty camera=false commands=0")
 		return
@@ -660,7 +660,7 @@ func maxFloat32(a, b float32) float32 {
 	return b
 }
 
-func (r *gpuRenderer) ensureTexture(ctx *gogpu.Context, img *Image, opts DrawTrianglesOptions) (*gpuTexture, error) {
+func (r *gpuRenderer) ensureTexture(ctx *gogpu.Context, img *Image, opts DrawTrianglesOptions) (*gpuImageTexture, error) {
 	if img == nil || img.pix == nil {
 		return nil, fmt.Errorf("nil render texture")
 	}
@@ -690,19 +690,19 @@ func (r *gpuRenderer) ensureTexture(ctx *gogpu.Context, img *Image, opts DrawTri
 	if err != nil {
 		return nil, fmt.Errorf("create render texture: %w", err)
 	}
-	out := &gpuTexture{tex: tex, version: img.version, width: w, height: h}
+	out := &gpuImageTexture{tex: tex, version: img.version, width: w, height: h}
 	r.textures[img] = out
 	return out, nil
 }
 
-func (r *gpuRenderer) ensureBatchLightTexture(ctx *gogpu.Context, key drawBatchKey) (*gpuTexture, error) {
+func (r *gpuRenderer) ensureBatchLightTexture(ctx *gogpu.Context, key drawBatchKey) (*gpuImageTexture, error) {
 	if key.lightTexture != nil && key.lightTexture.pix != nil {
 		return r.ensureTexture(ctx, key.lightTexture, DrawTrianglesOptions{Filter: FilterLinear, Address: AddressClampToZero})
 	}
 	return r.ensureTexture(ctx, r.neutralLightmapImage(), DrawTrianglesOptions{Filter: FilterLinear, Address: AddressClampToZero})
 }
 
-func (r *gpuRenderer) ensureMeshLightTexture(ctx *gogpu.Context, mesh *WorldMesh) (*gpuTexture, error) {
+func (r *gpuRenderer) ensureMeshLightTexture(ctx *gogpu.Context, mesh *WorldMesh) (*gpuImageTexture, error) {
 	if mesh != nil && mesh.lightTexture != nil && mesh.lightTexture.pix != nil {
 		return r.ensureTexture(ctx, mesh.lightTexture, DrawTrianglesOptions{Filter: FilterLinear, Address: AddressClampToZero})
 	}

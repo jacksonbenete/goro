@@ -12,7 +12,7 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func (m *WorldMode) draw3DSpriteEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
+func (m *WorldMode) draw3DSpriteEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
 	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
 	if view == nil || len(view.act.Actions) == 0 {
 		return
@@ -169,7 +169,7 @@ func worldEffectSpriteAngle(component worldEffectComponent) float64 {
 	return angle + 90 - math.Atan2(endY-startY, endX-startX)*180/math.Pi
 }
 
-func (m *WorldMode) drawSPREffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, now time.Time) {
+func (m *WorldMode) drawSPREffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, now time.Time) {
 	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
 	if view == nil || len(view.act.Actions) == 0 {
 		return

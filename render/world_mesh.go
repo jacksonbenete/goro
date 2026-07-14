@@ -45,14 +45,3 @@ func (m *WorldMesh) IndexCount() int {
 	}
 	return len(m.indices)
 }
-
-func (i *Image) DrawWorldMesh(mesh *WorldMesh) {
-	if i == nil || i.pix == nil || mesh == nil || mesh.texture == nil || mesh.texture.pix == nil || len(mesh.vertices) == 0 || len(mesh.indices) == 0 {
-		return
-	}
-	if i.screen {
-		i.worldMeshes = append(i.worldMeshes, WorldMeshCommand{Mesh: mesh})
-		return
-	}
-	i.DrawTriangles3D(mesh.vertices, mesh.indices, mesh.texture, &mesh.options)
-}

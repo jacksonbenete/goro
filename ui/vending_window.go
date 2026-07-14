@@ -178,7 +178,7 @@ func (w *VendingWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	return inside
 }
 
-func (w *VendingWindow) Draw(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *VendingWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if w.mode == vendingModeNone {
 		return
 	}
@@ -186,7 +186,7 @@ func (w *VendingWindow) Draw(screen *render.Image, ctx Context, assets AssetProv
 	w.rightWindow.Publish(ctx)
 }
 
-func (w *VendingWindow) DrawDragGhost(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *VendingWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if !w.draggingItem || screen == nil || ctx.Input == nil || assets == nil {
 		return
 	}

@@ -345,7 +345,7 @@ func TestCollectSceneActorEntriesUsesSelectedCharacterCartOption(t *testing.T) {
 		World: world,
 	}
 	mode := &WorldMode{}
-	screen := render.NewImage(800, 600)
+	screen := render.NewFrame(800, 600)
 	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
 
 	entries := mode.collectSceneActorEntries(screen, ctx, projection)
@@ -572,7 +572,7 @@ func TestCollectSceneActorEntriesPreservesLocalEnergyCoatEffectState(t *testing.
 		CharID:    150000,
 		Selected:  session.Character{ID: 150000, Job: 2, Option: db.EffectStateCart1},
 	}
-	screen := render.NewImage(800, 600)
+	screen := render.NewFrame(800, 600)
 	ctx := client.Context{Session: sessionState, World: world}
 	projection := newSceneProjectionForTarget(800, 600, 10, 20, 0)
 	mode := &WorldMode{}

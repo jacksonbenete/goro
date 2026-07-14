@@ -201,7 +201,7 @@ func (m *LoginMode) characterCreatePreviewImage(ctx client.Context) image.Image 
 	img := render.NewImage(previewW, previewH)
 	view := m.characterCreatePreviewView(ctx)
 	if view == nil {
-		render.DebugPrintAtColor(img, "?", previewW/2-3, previewH/2, gameui.MutedTextColor)
+		render.DrawImageDebugTextAtColor(img, "?", previewW/2-3, previewH/2, gameui.MutedTextColor)
 		m.create.previewImage = img.RGBA()
 		m.create.previewImageKey = key
 		return m.create.previewImage

@@ -149,18 +149,18 @@ func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, sto
 	return true
 }
 
-func (w *InventoryBagWindow) Draw(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *InventoryBagWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvider) {
 	w.Publish(ctx)
 }
 
-func (w *InventoryBagWindow) DrawTooltip(screen *render.Image) {
+func (w *InventoryBagWindow) DrawTooltip(screen *render.Frame) {
 	if w.dragActive {
 		return
 	}
 	w.tooltip.Draw(screen)
 }
 
-func (w *InventoryBagWindow) DrawDragGhost(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *InventoryBagWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if !w.dragActive || screen == nil || ctx.Input == nil || assets == nil {
 		return
 	}

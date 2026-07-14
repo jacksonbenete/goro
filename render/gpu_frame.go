@@ -38,7 +38,7 @@ type pendingWorldBatch struct {
 	commands []WorldCommand
 }
 
-func (r *gpuRenderer) buildWorldFrame(screen *Image) worldFrame {
+func (r *gpuRenderer) buildWorldFrame(screen *Frame) worldFrame {
 	commandCount, vertexCount, indexCount := worldFrameCounts(screen.worldCommands)
 	scratch := &r.worldFrameScratch
 	scratch.floats = reserveSlice(scratch.floats, vertexCount*worldVertexFloatCount)
@@ -213,7 +213,7 @@ func worldFrameCounts(commands []WorldCommand) (commandsOut, vertices, indices i
 	return commandsOut, vertices, indices
 }
 
-func (r *gpuRenderer) buildFrame(screen *Image) drawFrame {
+func (r *gpuRenderer) buildFrame(screen *Frame) drawFrame {
 	commandCount, vertexCount, indexCount := frameCounts(screen.commands)
 	frame := drawFrame{
 		floats:  make([]float32, 0, vertexCount*screenVertexFloatCount),

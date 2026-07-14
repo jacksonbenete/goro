@@ -7,20 +7,8 @@ import (
 )
 
 type Image struct {
-	pix             *image.RGBA
-	screen          bool
-	screenScaleX    float32
-	screenScaleY    float32
-	version         uint64
-	commands        []DrawCommand
-	worldCommands   []WorldCommand
-	worldMeshes     []WorldMeshCommand
-	worldBillboards []WorldBillboardCommand
-	uiRects         []UIRectCommand
-	uiTextBoxes     []UITextBoxCommand
-	uiTextLabels    []UITextLabelCommand
-	clear           color.RGBA
-	camera          Camera3D
+	pix     *image.RGBA
+	version uint64
 }
 
 var whiteImage *Image
@@ -66,10 +54,6 @@ func (i *Image) RGBA() *image.RGBA {
 
 func (i *Image) Fill(c color.Color) {
 	if i == nil || i.pix == nil {
-		return
-	}
-	if i.screen {
-		i.clear = color.RGBAModel.Convert(c).(color.RGBA)
 		return
 	}
 	draw.Draw(i.pix, i.pix.Bounds(), &image.Uniform{C: c}, image.Point{}, draw.Src)

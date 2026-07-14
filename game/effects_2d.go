@@ -7,7 +7,7 @@ import (
 	"github.com/kivutar/goro/render"
 )
 
-func (m *WorldMode) draw2DEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
+func (m *WorldMode) draw2DEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
 	if texture == nil {
 		return

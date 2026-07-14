@@ -56,7 +56,7 @@ var cursorActionInfos = map[int]cursorActionInfo{
 	cursorActionNoWalk:  {drawX: 13, drawY: 25, delayMult: 1.0},
 }
 
-func (m *WorldMode) drawROCursor(screen *render.Image, ctx client.Context, projection sceneProjection, now time.Time) {
+func (m *WorldMode) drawROCursor(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
 	if ctx.Input == nil {
 		return
 	}
@@ -110,7 +110,7 @@ func (s *roCursorState) ensureLoaded(ctx client.Context) {
 	}
 }
 
-func (s *roCursorState) draw(screen *render.Image, ctx client.Context, action int, now time.Time, magnetX, magnetY float64) {
+func (s *roCursorState) draw(screen *render.Frame, ctx client.Context, action int, now time.Time, magnetX, magnetY float64) {
 	if s == nil || screen == nil || ctx.Input == nil {
 		return
 	}
@@ -420,7 +420,7 @@ func (s *roCursorState) fallbackTexture() *render.Image {
 	return s.fallback
 }
 
-func drawFallbackROCursor(screen, img *render.Image, mouseX, mouseY int) {
+func drawFallbackROCursor(screen *render.Frame, img *render.Image, mouseX, mouseY int) {
 	if img == nil {
 		return
 	}

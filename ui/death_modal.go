@@ -140,7 +140,7 @@ func (m *DeathModal) ExitToWindows(ctx client.Context) {
 	m.refresh(ctx)
 }
 
-func (m *DeathModal) Draw(screen *render.Image, ctx client.Context, width, height int) {
+func (m *DeathModal) Draw(screen *render.Frame, ctx client.Context, width, height int) {
 	if !m.IsOpen() || screen == nil {
 		return
 	}

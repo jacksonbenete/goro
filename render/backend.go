@@ -28,7 +28,7 @@ const BackendName = "gogpu-wgpu"
 
 type Game interface {
 	Update() error
-	Draw(*Image)
+	Draw(*Frame)
 	Resize(width, height int)
 	InputState() *input.State
 }
@@ -85,11 +85,11 @@ func (b uiAppBridge) HoveredWidget() widget.Widget {
 }
 
 type overlayDrawer interface {
-	DrawOverlay(*Image)
+	DrawOverlay(*Frame)
 }
 
 type uiOverlayDrawer interface {
-	DrawUIOverlay(*Image)
+	DrawUIOverlay(*Frame)
 }
 
 type runtimeSettingsProvider interface {
@@ -113,7 +113,7 @@ type runner struct {
 	uiTextCache     map[string]cachedOverlayImage
 	uiBubbleCache   map[string]cachedOverlayImage
 	game            Game
-	screen          *Image
+	screen          *Frame
 	gpu             *gpuRenderer
 	width           int
 	height          int
@@ -588,7 +588,7 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 		return nil
 	}
 	if r.screen == nil || r.screen.Bounds().Dx() != width || r.screen.Bounds().Dy() != height {
-		r.screen = NewScreenImage(width, height)
+		r.screen = NewFrame(width, height)
 		r.width, r.height = width, height
 		r.game.Resize(width, height)
 	}
@@ -649,7 +649,7 @@ func framebufferScale(width, height, framebufferW, framebufferH int) (float32, f
 	return scaleX, scaleY
 }
 
-func (r *runner) drawUI(screen *Image, width, height int, deviceScale float64) error {
+func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) error {
 	if r.renderCfg.NoUI {
 		return nil
 	}
@@ -750,7 +750,7 @@ func updateCanvasImage(canvas *ggcanvas.Canvas, dstImage *Image) *Image {
 	return dstImage
 }
 
-func (r *runner) drawUIOverlay(screen *Image, deviceScale float64) error {
+func (r *runner) drawUIOverlay(screen *Frame, deviceScale float64) error {
 	if screen == nil || (len(screen.uiRects) == 0 && len(screen.uiTextBoxes) == 0 && len(screen.uiTextLabels) == 0) {
 		return nil
 	}
@@ -792,7 +792,7 @@ func (r *runner) drawUIOverlay(screen *Image, deviceScale float64) error {
 	return nil
 }
 
-func uiTextBoxPosition(screen *Image, box UITextBoxCommand, cached cachedOverlayImage) (float64, float64) {
+func uiTextBoxPosition(screen *Frame, box UITextBoxCommand, cached cachedOverlayImage) (float64, float64) {
 	switch box.Anchor {
 	case UITextBoxAnchorBottomCenter:
 		return box.X - float64(cached.width)/2, box.Y - float64(cached.height)
@@ -828,7 +828,7 @@ func maxOverlayFloat64(a, b float64) float64 {
 	return b
 }
 
-func drawCachedOverlayImage(screen *Image, cached cachedOverlayImage, x, y float64) {
+func drawCachedOverlayImage(screen *Frame, cached cachedOverlayImage, x, y float64) {
 	if cached.image == nil || cached.width <= 0 || cached.height <= 0 {
 		return
 	}
@@ -1171,7 +1171,7 @@ func (r *runner) updateFPSCounter(now time.Time) {
 	r.fpsText = fmt.Sprintf("FPS %.1f  %.2f ms", r.fpsDisplay, r.frameMSDisplay)
 }
 
-func (r *runner) drawFPSMeter(screen *Image, deviceScale float64) error {
+func (r *runner) drawFPSMeter(screen *Frame, deviceScale float64) error {
 	if !r.renderCfg.FPS || r.fpsText == "" || screen == nil {
 		return nil
 	}

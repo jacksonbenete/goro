@@ -127,11 +127,11 @@ func (w *CartWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow, stor
 	return true
 }
 
-func (w *CartWindow) Draw(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *CartWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvider) {
 	w.Publish(ctx)
 }
 
-func (w *CartWindow) DrawDragGhost(screen *render.Image, ctx Context, assets AssetProvider) {
+func (w *CartWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if w.dragActive && screen != nil && ctx.Input != nil && assets != nil && time.Since(w.dragFrom) > 80*time.Millisecond {
 		assets.DrawInventoryItemIcon(screen, ctx.Resources, w.dragItem, ctx.Input.MouseX-inventoryIconSize/2, ctx.Input.MouseY-inventoryIconSize/2)
 	}

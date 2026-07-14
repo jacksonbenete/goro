@@ -179,10 +179,14 @@ func (m *LoginMode) drawCharacterSelect(ctx client.Context) {
 	m.showCharacterSelectWindow(ctx)
 }
 
-func (m *LoginMode) drawCharacterPreview(screen *render.Image, ctx client.Context, character session.Character, centerX, feetY int) {
+type characterPreviewTarget interface {
+	DrawImage(*render.Image, *render.DrawImageOptions)
+}
+
+func (m *LoginMode) drawCharacterPreview(screen characterPreviewTarget, ctx client.Context, character session.Character, centerX, feetY int) {
 	view := m.characterPreviewView(ctx, character)
 	if view == nil {
-		render.DebugPrintAtColor(screen, "?", centerX-3, feetY-72, color.RGBA{R: 220, G: 220, B: 220, A: 255})
+		drawRenderTargetDebugText(screen, "?", centerX-3, feetY-72, color.RGBA{R: 220, G: 220, B: 220, A: 255})
 		return
 	}
 	billboard, ok := humanoidBillboardForState(view, spriteState{

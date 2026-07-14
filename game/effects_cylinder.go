@@ -8,7 +8,7 @@ import (
 	"github.com/kivutar/goro/render"
 )
 
-func (m *WorldMode) drawCylinderEffect(screen *render.Image, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64) {
+func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64) {
 	texture := m.effectTexture(ctx.Resources, component.textureName)
 	if texture == nil {
 		return
@@ -61,7 +61,7 @@ type effectCylinderDraw struct {
 	angle            float64
 }
 
-func drawTexturedEffectCylinder(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ float64, draw effectCylinderDraw) {
+func drawTexturedEffectCylinder(screen *render.Frame, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ float64, draw effectCylinderDraw) {
 	if screen == nil || texture == nil || draw.alpha <= 0 || draw.topSize <= 0 || draw.totalCircleSides <= 0 || draw.circleSides <= 0 {
 		return
 	}
@@ -94,7 +94,7 @@ func drawTexturedEffectCylinder(screen *render.Image, projection sceneProjection
 	screen.DrawTriangles3DOwned(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func drawWorldCylinderBand(screen, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
+func drawWorldCylinderBand(screen *render.Frame, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
 	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
 		return
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func (m *WorldMode) drawSTREffect(screen *render.Image, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
+func (m *WorldMode) drawSTREffect(screen *render.Frame, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
 	str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, effect, lessEffectsEnabled(ctx)), component.texturePath)
 	if str == nil {
 		return false
@@ -229,7 +229,7 @@ func strAnimFrame(from, to res.STRAnimation, delta float32, texCount int) float3
 	}
 }
 
-func drawSTRAnimation(screen *render.Image, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ float64, anim res.STRAnimation, attached bool) {
+func drawSTRAnimation(screen *render.Frame, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ float64, anim res.STRAnimation, attached bool) {
 	right, up, _, ok := projection.BillboardBasis(worldX, worldY, worldZ)
 	if !ok {
 		return

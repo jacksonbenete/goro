@@ -64,7 +64,7 @@ func actorJobHasSpecialNoShadow(job int) bool {
 	}
 }
 
-func (m *WorldMode) drawSpecialNPCVisual(screen *render.Image, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, visual specialNPCVisual, now time.Time) bool {
+func (m *WorldMode) drawSpecialNPCVisual(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, visual specialNPCVisual, now time.Time) bool {
 	switch visual {
 	case specialNPCVisualTorch:
 		m.drawPersistentWorldEffectAt(screen, ctx, projection, effectTorch, entry, now)
@@ -74,7 +74,7 @@ func (m *WorldMode) drawSpecialNPCVisual(screen *render.Image, ctx client.Contex
 	}
 }
 
-func (m *WorldMode) drawPersistentWorldEffectAt(screen *render.Image, ctx client.Context, projection sceneProjection, effectID int, entry sceneActorDrawEntry, now time.Time) {
+func (m *WorldMode) drawPersistentWorldEffectAt(screen *render.Frame, ctx client.Context, projection sceneProjection, effectID int, entry sceneActorDrawEntry, now time.Time) {
 	spec, ok := worldEffectSpecForID(effectID)
 	if !ok {
 		return

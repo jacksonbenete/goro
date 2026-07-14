@@ -12,7 +12,7 @@ import (
 
 const tileCursorDepthBias = 0.001
 
-func (m *WorldMode) drawTileCursor(screen *render.Image, ctx client.Context, projection sceneProjection) {
+func (m *WorldMode) drawTileCursor(screen *render.Frame, ctx client.Context, projection sceneProjection) {
 	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
 		return
 	}
@@ -143,7 +143,7 @@ func maxUint8(a, b uint8) uint8 {
 	return b
 }
 
-func drawTileCursorSurface3D(screen, texture *render.Image, verts [4]modelPoint3) {
+func drawTileCursorSurface3D(screen *render.Frame, texture *render.Image, verts [4]modelPoint3) {
 	if texture == nil {
 		return
 	}
