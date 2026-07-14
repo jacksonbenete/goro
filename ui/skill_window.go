@@ -13,6 +13,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -47,6 +48,7 @@ type SkillWindow struct {
 	tooltip        tooltipState
 	pending        map[uint16]int
 	pendingOrder   []uint16
+	dirty          bool
 	icons          map[uint16]image.Image
 	iconMiss       map[uint16]struct{}
 	lastIconAssets bool
@@ -107,13 +109,18 @@ func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameAc
 		w.Publish(ctx)
 		return true
 	}
-	w.clampScroll(ctx.Session)
+	w.clampScroll(ctx)
 	snapshot := w.skillSnapshot(ctx.Session)
 	if snapshot != w.snapshot {
 		w.snapshot = snapshot
 		w.SetContent(w.widgetTree(ctx, actions))
 	}
 	consumed := w.Window.Update(ctx)
+	if w.dirty {
+		w.dirty = false
+		w.refresh(ctx, actions)
+		return true
+	}
 	if !w.IsOpen() {
 		w.Publish(ctx)
 		return consumed
@@ -232,11 +239,11 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 				primitives.Expanded(primitives.Box()),
 				rotheme.Button("Reset", func() {
 					w.clearPending()
-					w.refresh(ctx, actions)
+					w.dirty = true
 				}).Width(skillFooterButtonW),
 				rotheme.Button("Confirm", func() {
 					w.confirmPending(ctx)
-					w.refresh(ctx, actions)
+					w.dirty = true
 				}).Width(skillFooterButtonW),
 			).
 				Gap(8).
@@ -256,7 +263,7 @@ func (w *SkillWindow) skillHeader() widget.Widget {
 }
 
 func (w *SkillWindow) skillList(ctx Context, assets AssetProvider, actions GameActions) widget.Widget {
-	skills := sessionSkills(ctx.Session)
+	skills := w.visibleSkills(ctx)
 	if len(skills) == 0 {
 		return primitives.Box(
 			rotheme.Text("No skills received from server yet.").
@@ -279,7 +286,7 @@ func (w *SkillWindow) skillList(ctx Context, assets AssetProvider, actions GameA
 					return
 				}
 				w.stageSkill(skill.ID)
-				w.refresh(ctx, actions)
+				w.dirty = true
 			},
 			onPress: func(skill session.Skill, mx, my int) {
 				w.pressSkill(ctx, actions, skill, mx, my)
@@ -307,7 +314,7 @@ func (w *SkillWindow) refresh(ctx Context, actions GameActions) {
 	if actions != nil {
 		w.actions = actions
 	}
-	w.clampScroll(ctx.Session)
+	w.clampScroll(ctx)
 	w.snapshot = w.skillSnapshot(ctx.Session)
 	w.SetContent(w.widgetTreeWithAssets(ctx, w.assets, w.actions))
 	w.Publish(ctx)
@@ -368,7 +375,7 @@ func (w *SkillWindow) skillAtMouse(ctx Context, mouseX, mouseY int) (session.Ski
 		return session.Skill{}, false
 	}
 	row := int((float32(mouseY-y) + w.ensureScrollSignal().Get()) / skillRowH)
-	skills := sessionSkills(ctx.Session)
+	skills := w.visibleSkills(ctx)
 	if row < 0 || row >= len(skills) {
 		return session.Skill{}, false
 	}
@@ -454,8 +461,8 @@ func (w *SkillWindow) canStageSkill(s *session.Session, skill session.Skill) boo
 		return false
 	}
 	pending := w.pendingFor(skill.ID)
-	if skill.MaxLevel > 0 {
-		return skill.Level+pending < skill.MaxLevel && w.pendingCount() < sessionSkillPoints(s)
+	if maxLevel := skillMaxLevel(skill); maxLevel > 0 {
+		return skill.Level+pending < maxLevel && w.pendingCount() < sessionSkillPoints(s)
 	}
 	return w.pendingCount() < sessionSkillPoints(s)
 }
@@ -479,8 +486,12 @@ func (w *SkillWindow) confirmPending(ctx Context) {
 	w.clearPending()
 }
 
-func (w *SkillWindow) clampScroll(s *session.Session) {
-	maxScroll := float32(maxInt(0, len(sessionSkills(s))*skillRowH-skillListH))
+func (w *SkillWindow) clampScroll(ctx Context) {
+	w.clampScrollCount(len(w.visibleSkills(ctx)))
+}
+
+func (w *SkillWindow) clampScrollCount(skillCount int) {
+	maxScroll := float32(maxInt(0, skillCount*skillRowH-skillListH))
 	scroll := w.ensureScrollSignal()
 	switch value := scroll.Get(); {
 	case value < 0:
@@ -491,7 +502,7 @@ func (w *SkillWindow) clampScroll(s *session.Session) {
 }
 
 func (w *SkillWindow) ClampScroll(s *session.Session) {
-	w.clampScroll(s)
+	w.clampScrollCount(len(sessionSkills(s)))
 }
 
 func (w *SkillWindow) ensureScrollSignal() state.Signal[float32] {
@@ -506,6 +517,69 @@ func (w *SkillWindow) skillSnapshot(s *session.Session) string {
 		return ""
 	}
 	return fmt.Sprintf("points=%d;pending=%v;skills=%v", s.Skills.Points, w.pending, s.Skills.List)
+}
+
+func (w *SkillWindow) visibleSkills(ctx Context) []session.Skill {
+	sessionList := sessionSkills(ctx.Session)
+	skills := append([]session.Skill(nil), sessionList...)
+	if ctx.Session == nil {
+		return skills
+	}
+	levels := make(map[uint16]int, len(sessionList))
+	byID := make(map[uint16]session.Skill, len(sessionList))
+	for _, skill := range sessionList {
+		byID[skill.ID] = skill
+		levels[skill.ID] = skill.Level + w.pendingFor(skill.ID)
+	}
+
+	ordered := make([]session.Skill, 0, len(sessionList))
+	seen := make(map[uint16]bool, len(sessionList))
+	for _, skillID := range db.SkillTreeSkillIDs(int(ctx.Session.Selected.Job)) {
+		if seen[skillID] {
+			continue
+		}
+		if skill, ok := byID[skillID]; ok {
+			ordered = append(ordered, skill)
+			seen[skillID] = true
+			continue
+		}
+		if !w.skillRequirementsMet(levels, skillID) {
+			continue
+		}
+		skill := w.lockedSkill(ctx, skillID)
+		ordered = append(ordered, skill)
+		seen[skillID] = true
+		levels[skillID] = w.pendingFor(skillID)
+	}
+	for _, skill := range sessionList {
+		if !seen[skill.ID] {
+			ordered = append(ordered, skill)
+		}
+	}
+	return ordered
+}
+
+func (w *SkillWindow) lockedSkill(ctx Context, skillID uint16) session.Skill {
+	skill := session.Skill{ID: skillID, Upgradable: true}
+	if ctx.Resources != nil {
+		if maxLevel, ok := ctx.Resources.SkillMaxLevel(int(skillID)); ok {
+			skill.MaxLevel = maxLevel
+		}
+	}
+	return skill
+}
+
+func (w *SkillWindow) skillRequirementsMet(levels map[uint16]int, skillID uint16) bool {
+	requirements := db.SkillRequirements[skillID]
+	if len(requirements) == 0 {
+		return false
+	}
+	for _, requirement := range requirements {
+		if levels[requirement.SkillID] < requirement.Level {
+			return false
+		}
+	}
+	return true
 }
 
 func skillDefaultPosition(ctx Context) (int, int) {
@@ -687,5 +761,16 @@ func skillTooltipLines(ctx Context, skill session.Skill) []string {
 }
 
 func canIncreaseSkill(s *session.Session, skill session.Skill) bool {
-	return s != nil && s.Skills.Points > 0 && skill.Upgradable && (skill.MaxLevel <= 0 || skill.Level < skill.MaxLevel)
+	maxLevel := skillMaxLevel(skill)
+	return s != nil && s.Skills.Points > 0 && skill.Upgradable && (maxLevel <= 0 || skill.Level < maxLevel)
+}
+
+func skillMaxLevel(skill session.Skill) int {
+	if skill.MaxLevel > 0 {
+		return skill.MaxLevel
+	}
+	if maxLevel, ok := db.SkillMaxLevel(skill.ID); ok {
+		return maxLevel
+	}
+	return 0
 }
