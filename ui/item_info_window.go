@@ -10,6 +10,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -18,13 +19,15 @@ const (
 	itemInfoWindowWidth       = 468
 	itemInfoWindowHeight      = 304
 	itemInfoWindowPad         = 10
-	itemInfoIllustrationWidth = 132
+	itemInfoFooterH           = 38
+	itemInfoIllustrationWidth = 75
+	itemInfoIllustrationH     = 100
+	itemInfoSlotIcon          = 24
 	itemInfoLineH             = 14
 	itemInfoDetailsH          = 72
-	itemInfoCardSlotsH        = 52
 	itemInfoDescriptionW      = itemInfoWindowWidth - itemInfoWindowPad*2 - itemInfoIllustrationWidth - 12
 	itemInfoDescriptionFullH  = itemInfoWindowHeight - ROWindowTitleHeight - itemInfoWindowPad*2 - itemInfoDetailsH - 10
-	itemInfoDescriptionSlotH  = itemInfoDescriptionFullH - itemInfoCardSlotsH - 8
+	itemInfoDescriptionSlotH  = itemInfoDescriptionFullH - itemInfoFooterH
 )
 
 type ItemInfoWindow struct {
@@ -34,6 +37,8 @@ type ItemInfoWindow struct {
 	details      []string
 	lines        []string
 	illustration image.Image
+	slotIcons    map[string]image.Image
+	slotIconMiss map[string]struct{}
 }
 
 func (w *ItemInfoWindow) openItem(ctx Context, item session.InventoryItem, mouseX, mouseY int) {
@@ -60,7 +65,7 @@ func (w *ItemInfoWindow) Update(ctx Context, assets AssetProvider) bool {
 		return false
 	}
 	if w.illustration == nil && assets != nil {
-		w.illustration = assets.ItemInfoIllustrationImage(ctx.Resources, w.item, itemInfoIllustrationWidth-14, itemInfoWindowHeight-ROWindowTitleHeight-itemInfoWindowPad*2-14)
+		w.illustration = assets.ItemInfoIllustrationImage(ctx.Resources, w.item, itemInfoIllustrationWidth, itemInfoIllustrationH)
 		w.SetContent(w.widgetTree(ctx))
 	}
 	consumed := w.Window.Update(ctx)
@@ -78,14 +83,14 @@ func (w *ItemInfoWindow) Rebind(ctx Context, assets AssetProvider) {
 		return
 	}
 	if assets != nil {
-		w.illustration = assets.ItemInfoIllustrationImage(ctx.Resources, w.item, itemInfoIllustrationWidth-14, itemInfoWindowHeight-ROWindowTitleHeight-itemInfoWindowPad*2-14)
+		w.illustration = assets.ItemInfoIllustrationImage(ctx.Resources, w.item, itemInfoIllustrationWidth, itemInfoIllustrationH)
 	}
 	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
 }
 
 func (w *ItemInfoWindow) widgetTree(ctx Context) widget.Widget {
-	return Win(
+	options := []WindowOption{
 		Title(w.title),
 		CloseButton(true),
 		OnClose(func() {
@@ -101,16 +106,22 @@ func (w *ItemInfoWindow) widgetTree(ctx Context) widget.Widget {
 				Padding(itemInfoWindowPad).
 				Gap(12),
 		),
-	)
+	}
+	if itemInfoShowsCardSlots(ctx, w.item) {
+		options = append(options,
+			FooterHeight(itemInfoFooterH),
+			FooterPadding(6),
+			Footer(w.cardSlotsFooter(ctx)),
+		)
+	}
+	return Win(options...)
 }
 
 func (w *ItemInfoWindow) illustrationPanel() widget.Widget {
 	return primitives.Box(
-		primitives.Box(
-			newStaticImageWidget(w.illustration, itemInfoIllustrationWidth-14, itemInfoWindowHeight-ROWindowTitleHeight-itemInfoWindowPad*2-14),
-		).
-			Padding(7),
+		newStaticImageWidget(w.illustration, itemInfoIllustrationWidth, itemInfoIllustrationH),
 	).
+		Height(itemInfoIllustrationH).
 		Width(itemInfoIllustrationWidth).
 		Background(rotheme.Default.Colors.PanelBody).
 		BorderStyle(1, rotheme.Default.Colors.WindowBorder)
@@ -120,9 +131,6 @@ func (w *ItemInfoWindow) infoPanel(ctx Context) widget.Widget {
 	children := []widget.Widget{
 		w.detailPanel(ctx),
 		w.descriptionPanel(ctx),
-	}
-	if itemInfoShowsCardSlots(ctx, w.item) {
-		children = append(children, w.cardSlotsPanel(ctx))
 	}
 	return primitives.Box(children...).
 		Width(itemInfoDescriptionW).
@@ -176,36 +184,73 @@ func (w *ItemInfoWindow) descriptionPanel(ctx Context) widget.Widget {
 		BorderStyle(1, rotheme.Default.Colors.WindowBorder)
 }
 
-func (w *ItemInfoWindow) cardSlotsPanel(ctx Context) widget.Widget {
-	rows := make([]widget.Widget, 0, 4)
+func (w *ItemInfoWindow) cardSlotsFooter(ctx Context) widget.Widget {
+	slots := make([]widget.Widget, 0, 4)
 	slotCount, _ := ctx.Resources.ItemSlotCount(int(w.item.ItemID))
 	for i := 0; i < 4; i++ {
-		label := "Disabled"
-		color := inventoryMutedColor
-		if i < slotCount {
-			label = "Empty"
-		}
-		if cardID := w.item.Cards[i]; cardID != 0 {
-			if name, ok := ctx.Resources.ItemDisplayName(int(cardID), true); ok && strings.TrimSpace(name) != "" {
-				label = name
-				color = inventoryTextColor
-			} else {
-				label = fmt.Sprintf("Card %d", cardID)
-				color = inventoryTextColor
-			}
-		}
-		rows = append(rows,
-			rotheme.Text(fmt.Sprintf("Slot %d: %s", i+1, label)).
-				Color(itemInfoWidgetColor(color)).
-				LineHeight(itemInfoLineH/rotheme.Default.Typography.TextSize),
+		slots = append(slots,
+			newStaticImageWidget(w.cardSlotIcon(ctx, i, slotCount), itemInfoSlotIcon, itemInfoSlotIcon),
 		)
 	}
-	return primitives.Box(rows...).
-		Height(itemInfoCardSlotsH).
-		Padding(6).
-		Gap(0).
-		Background(rotheme.Default.Colors.PanelBody).
-		BorderStyle(1, rotheme.Default.Colors.WindowBorder)
+	return primitives.HBox(slots...).
+		Gap(4).
+		CrossAlign(primitives.CrossAxisCenter)
+}
+
+func (w *ItemInfoWindow) cardSlotIcon(ctx Context, index, slotCount int) image.Image {
+	if index >= 0 && index < len(w.item.Cards) {
+		if cardID := w.item.Cards[index]; cardID != 0 {
+			return w.loadItemIcon(ctx.Resources, cardID)
+		}
+	}
+	if index < slotCount {
+		return w.loadInterfaceIcon(ctx.Resources, "empty_card_slot")
+	}
+	return w.loadInterfaceIcon(ctx.Resources, "basic_interface\\coparison_disable_card_slot", "basic_interface\\comparison_disable_card_slot", "coparison_disable_card_slot", "comparison_disable_card_slot")
+}
+
+func (w *ItemInfoWindow) loadInterfaceIcon(manager *res.Manager, resources ...string) image.Image {
+	var candidates []string
+	for _, resource := range resources {
+		candidates = append(candidates, res.InterfaceTextureCandidates(resource)...)
+	}
+	return w.loadSlotIcon(manager, "interface:"+strings.Join(resources, "|"), candidates)
+}
+
+func (w *ItemInfoWindow) loadItemIcon(manager *res.Manager, itemID uint16) image.Image {
+	if manager == nil || itemID == 0 {
+		return nil
+	}
+	resourceName, ok := manager.ItemResourceName(int(itemID), true)
+	if !ok {
+		return nil
+	}
+	return w.loadSlotIcon(manager, "item:"+resourceName, res.ItemIconTextureCandidates(resourceName))
+}
+
+func (w *ItemInfoWindow) loadSlotIcon(manager *res.Manager, key string, candidates []string) image.Image {
+	if manager == nil || key == "" {
+		return nil
+	}
+	if w.slotIcons == nil {
+		w.slotIcons = make(map[string]image.Image)
+	}
+	if w.slotIconMiss == nil {
+		w.slotIconMiss = make(map[string]struct{})
+	}
+	if img := w.slotIcons[key]; img != nil {
+		return img
+	}
+	if _, ok := w.slotIconMiss[key]; ok {
+		return nil
+	}
+	img, _, err := res.LoadImage(manager, candidates)
+	if err != nil {
+		w.slotIconMiss[key] = struct{}{}
+		return nil
+	}
+	w.slotIcons[key] = img
+	return img
 }
 
 func itemInfoDescriptionHeight(ctx Context, item session.InventoryItem) int {
