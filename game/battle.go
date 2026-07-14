@@ -1440,22 +1440,12 @@ func (m *WorldMode) drawAttackFocusMarker(screen *render.Image, ctx client.Conte
 	if m.attackFocusID == 0 || screen == nil {
 		return
 	}
-	view := m.cursorSpriteView(ctx)
-	if view == nil || view.act == nil {
-		return
-	}
-	info := cursorInfo(cursorActionLock)
 	if m.attackFocusStart.IsZero() {
 		m.attackFocusStart = now
 	}
 	action := cursorActionLock
-	if action < 0 || action >= len(view.act.Actions) || len(view.act.Actions[action].Animations) == 0 {
-		return
-	}
-	actionDef := view.act.Actions[action]
-	delay := float64(actionDef.DelayMS) * info.delayMult
-	motion := spriteMotionIndexWithDelay(actionDef, m.attackFocusStart, now, true, delay)
-	frame, ok := cursorFrameBillboard(view, action, motion, info.drawX, info.drawY)
+	state := m.loadedCursorState(ctx)
+	frame, ok := state.frameAt(action, cursorInfo(action), m.attackFocusStart, now)
 	if !ok {
 		return
 	}

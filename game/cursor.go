@@ -89,6 +89,13 @@ func (m *WorldMode) storeCursorState(state *roCursorState) {
 	m.cursorStarted = state.started
 }
 
+func (m *WorldMode) loadedCursorState(ctx client.Context) *roCursorState {
+	state := m.cursorState()
+	state.ensureLoaded(ctx)
+	m.storeCursorState(state)
+	return state
+}
+
 func (s *roCursorState) ensureLoaded(ctx client.Context) {
 	if s == nil || s.loadTried || s.view != nil || s.viewMiss {
 		return
@@ -126,6 +133,10 @@ func (s *roCursorState) draw(screen *render.Image, ctx client.Context, action in
 }
 
 func (s *roCursorState) frame(action int, info cursorActionInfo, now time.Time) (*spriteBillboard, bool) {
+	return s.frameAt(action, info, s.started, now)
+}
+
+func (s *roCursorState) frameAt(action int, info cursorActionInfo, start, now time.Time) (*spriteBillboard, bool) {
 	if s == nil || s.view == nil || s.viewMiss || s.view.act == nil {
 		return nil, false
 	}
@@ -135,7 +146,7 @@ func (s *roCursorState) frame(action int, info cursorActionInfo, now time.Time) 
 	}
 	actionDef := s.view.act.Actions[action]
 	delay := float64(actionDef.DelayMS) * info.delayMult
-	motion := spriteMotionIndexWithDelay(actionDef, s.started, now, true, delay)
+	motion := spriteMotionIndexWithDelay(actionDef, start, now, true, delay)
 	return cursorFrameBillboard(s.view, action, motion, info.drawX, info.drawY)
 }
 

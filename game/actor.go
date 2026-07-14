@@ -543,19 +543,6 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Image, ctx client.Cont
 	m.drawHoveredActorNameLabel(screen, ctx, projection, now)
 }
 
-func (m *WorldMode) cursorSpriteView(ctx client.Context) *spriteView {
-	if m.cursorView != nil || m.cursorViewMiss {
-		return m.cursorView
-	}
-	if view, status := loadCursorSpriteView(ctx.Resources); view != nil {
-		m.cursorView = view
-	} else {
-		m.cursorViewMiss = true
-		log.Printf("cursor resources unavailable: %s", status)
-	}
-	return m.cursorView
-}
-
 func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Image, ctx client.Context, entries []sceneActorDrawEntry) {
 	if ctx.Input == nil {
 		return
