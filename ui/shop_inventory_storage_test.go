@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
@@ -84,6 +85,12 @@ func TestInventoryItemDisplayNameAddsSlotCountForIdentifiedItems(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dataDir, "itemslotcounttable.txt"), []byte("2607#1#\n2608#1#\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(dataDir, "cardprefixnametable.txt"), []byte("4001#Poring#\n4002#Fabre#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "cardpostfixnametable.txt"), []byte("4002#\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manager, err := res.NewManager(root)
 	if err != nil {
 		t.Fatal(err)
@@ -97,6 +104,9 @@ func TestInventoryItemDisplayNameAddsSlotCountForIdentifiedItems(t *testing.T) {
 	}
 	if got := inventoryItemDisplayName(manager, session.InventoryItem{ItemID: 2608, Identified: true}); got != "Ring [1]" {
 		t.Fatalf("pre-suffixed slotted name = %q, want Ring [1]", got)
+	}
+	if got := inventoryItemDisplayName(manager, session.InventoryItem{ItemID: 2607, Type: db.ItemTypeArmor, Identified: true, Cards: [4]uint16{4001, 4001, 4002}}); got != "Double Poring Clip Fabre [1]" {
+		t.Fatalf("carded name = %q, want Double Poring Clip Fabre [1]", got)
 	}
 }
 

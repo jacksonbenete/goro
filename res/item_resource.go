@@ -19,6 +19,8 @@ type ItemMetadata struct {
 	SlotCount               int
 	ClassNum                int
 	ClassNumSet             bool
+	CardPrefixName          string
+	CardPostfix             bool
 }
 
 var itemInfoLuaCandidates = []string{
@@ -58,6 +60,14 @@ var itemDescriptionTableFiles = []struct {
 
 var itemSlotCountTableFiles = []string{
 	"itemslotcounttable.txt",
+}
+
+var itemCardPrefixTableFiles = []string{
+	"cardprefixnametable.txt",
+}
+
+var itemCardPostfixTableFiles = []string{
+	"cardpostfixnametable.txt",
 }
 
 func (m *Manager) ItemDisplayName(itemID int, identified bool) (string, bool) {
@@ -165,6 +175,27 @@ func (m *Manager) ItemClassNum(itemID int) (int, bool) {
 	return metadata.ClassNum, true
 }
 
+func (m *Manager) ItemCardPrefixName(itemID int) (string, bool) {
+	if itemID <= 0 {
+		return "", false
+	}
+	m.loadItemMetadata()
+	metadata, ok := m.itemMetadata[itemID]
+	if !ok || metadata.CardPrefixName == "" {
+		return "", false
+	}
+	return metadata.CardPrefixName, true
+}
+
+func (m *Manager) ItemCardPostfix(itemID int) bool {
+	if itemID <= 0 {
+		return false
+	}
+	m.loadItemMetadata()
+	metadata, ok := m.itemMetadata[itemID]
+	return ok && metadata.CardPostfix
+}
+
 func (m *Manager) loadItemMetadata() {
 	if m.itemMetadataLoaded {
 		return
@@ -219,6 +250,20 @@ func (m *Manager) loadItemMetadata() {
 			}
 			metadata := m.itemMetadata[id]
 			metadata.SlotCount = slotCount
+			m.itemMetadata[id] = metadata
+		}
+	}
+	for _, table := range itemCardPrefixTableFiles {
+		for id, value := range m.readItemPairTable(table) {
+			metadata := m.itemMetadata[id]
+			metadata.CardPrefixName = normalizeItemDisplayToken(value)
+			m.itemMetadata[id] = metadata
+		}
+	}
+	for _, table := range itemCardPostfixTableFiles {
+		for id := range m.readItemIDSetTable(table) {
+			metadata := m.itemMetadata[id]
+			metadata.CardPostfix = true
 			m.itemMetadata[id] = metadata
 		}
 	}
@@ -304,6 +349,17 @@ func (m *Manager) readItemDescriptionTable(fileName string) map[int][]string {
 	return nil
 }
 
+func (m *Manager) readItemIDSetTable(fileName string) map[int]struct{} {
+	for _, candidate := range itemTableCandidates(fileName) {
+		data, err := m.ReadFile(candidate)
+		if err != nil {
+			continue
+		}
+		return parseItemIDSetTable(data)
+	}
+	return nil
+}
+
 func itemTableCandidates(fileName string) []string {
 	return []string{
 		fileName,
@@ -382,6 +438,26 @@ func parseItemPairTable(data []byte) map[int]string {
 			continue
 		}
 		out[int(id)] = line[firstHash+1 : secondHash]
+	}
+	return out
+}
+
+func parseItemIDSetTable(data []byte) map[int]struct{} {
+	out := make(map[int]struct{})
+	for _, rawLine := range strings.Split(string(data), "\n") {
+		line := strings.TrimRight(rawLine, "\r\n")
+		if line == "" || strings.HasPrefix(line, "/") || strings.HasPrefix(line, "#") {
+			continue
+		}
+		firstHash := strings.IndexByte(line, '#')
+		if firstHash <= 0 {
+			continue
+		}
+		id, err := strconv.ParseUint(line[:firstHash], 10, 32)
+		if err != nil || id == 0 {
+			continue
+		}
+		out[int(id)] = struct{}{}
 	}
 	return out
 }

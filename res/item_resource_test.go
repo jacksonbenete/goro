@@ -18,6 +18,19 @@ func TestParseItemPairTable(t *testing.T) {
 	}
 }
 
+func TestParseItemIDSetTable(t *testing.T) {
+	got := parseItemIDSetTable([]byte("// comment\n4001#\n0#\n4002#ignored\n"))
+	if _, ok := got[4001]; !ok {
+		t.Fatal("missing id 4001")
+	}
+	if _, ok := got[4002]; !ok {
+		t.Fatal("missing id 4002")
+	}
+	if _, ok := got[0]; ok {
+		t.Fatal("zero id should be ignored")
+	}
+}
+
 func TestParseItemDescriptionTable(t *testing.T) {
 	got := parseItemDescriptionTable([]byte("// comment\n909#\r\nSmall_Jellopy.\n^0000FFColor^000000 text.\n#\n# comment\n1002# trailing text ignored\n1003#\nSingle line.\n#\n"))
 	if lines := got[909]; len(lines) != 2 || lines[0] != "Small_Jellopy." || lines[1] != "^0000FFColor^000000 text." {
@@ -102,6 +115,14 @@ func TestItemMetadataLookupFallbacks(t *testing.T) {
 	}
 	if got, ok := manager.ItemSlotCount(909); !ok || got != 1 {
 		t.Fatalf("slot count = %d ok=%v, want 1/true", got, ok)
+	}
+	manager.itemMetadata[4001] = ItemMetadata{CardPrefixName: "Poring"}
+	if got, ok := manager.ItemCardPrefixName(4001); !ok || got != "Poring" {
+		t.Fatalf("card prefix = %q ok=%v", got, ok)
+	}
+	manager.itemMetadata[4002] = ItemMetadata{CardPrefixName: "Fabre", CardPostfix: true}
+	if !manager.ItemCardPostfix(4002) {
+		t.Fatal("card postfix not set")
 	}
 }
 

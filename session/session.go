@@ -161,6 +161,7 @@ type InventoryItem struct {
 	Equipped   bool
 	Damaged    bool
 	Refine     uint8
+	Cards      [4]uint16
 }
 
 type Stats struct {

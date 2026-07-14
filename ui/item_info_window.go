@@ -9,6 +9,7 @@ import (
 	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -20,8 +21,10 @@ const (
 	itemInfoIllustrationWidth = 132
 	itemInfoLineH             = 14
 	itemInfoDetailsH          = 72
+	itemInfoCardSlotsH        = 52
 	itemInfoDescriptionW      = itemInfoWindowWidth - itemInfoWindowPad*2 - itemInfoIllustrationWidth - 12
-	itemInfoDescriptionH      = itemInfoWindowHeight - ROWindowTitleHeight - itemInfoWindowPad*2 - itemInfoDetailsH - 10
+	itemInfoDescriptionFullH  = itemInfoWindowHeight - ROWindowTitleHeight - itemInfoWindowPad*2 - itemInfoDetailsH - 10
+	itemInfoDescriptionSlotH  = itemInfoDescriptionFullH - itemInfoCardSlotsH - 8
 )
 
 type ItemInfoWindow struct {
@@ -114,12 +117,16 @@ func (w *ItemInfoWindow) illustrationPanel() widget.Widget {
 }
 
 func (w *ItemInfoWindow) infoPanel(ctx Context) widget.Widget {
-	return primitives.Box(
+	children := []widget.Widget{
 		w.detailPanel(ctx),
-		w.descriptionPanel(),
-	).
+		w.descriptionPanel(ctx),
+	}
+	if itemInfoShowsCardSlots(ctx, w.item) {
+		children = append(children, w.cardSlotsPanel(ctx))
+	}
+	return primitives.Box(children...).
 		Width(itemInfoDescriptionW).
-		Gap(10)
+		Gap(8)
 }
 
 func (w *ItemInfoWindow) detailPanel(ctx Context) widget.Widget {
@@ -141,7 +148,7 @@ func (w *ItemInfoWindow) detailPanel(ctx Context) widget.Widget {
 		Gap(1)
 }
 
-func (w *ItemInfoWindow) descriptionPanel() widget.Widget {
+func (w *ItemInfoWindow) descriptionPanel(ctx Context) widget.Widget {
 	lines := w.wrappedLines(itemInfoDescriptionRunes())
 	if len(lines) == 0 {
 		lines = []string{"No description available."}
@@ -164,9 +171,48 @@ func (w *ItemInfoWindow) descriptionPanel() widget.Widget {
 			scrollview.ScrollStep(itemInfoLineH),
 		),
 	).
-		Height(itemInfoDescriptionH).
+		Height(float32(itemInfoDescriptionHeight(ctx, w.item))).
 		Background(rotheme.Default.Colors.PanelBody).
 		BorderStyle(1, rotheme.Default.Colors.WindowBorder)
+}
+
+func (w *ItemInfoWindow) cardSlotsPanel(ctx Context) widget.Widget {
+	rows := make([]widget.Widget, 0, 4)
+	slotCount, _ := ctx.Resources.ItemSlotCount(int(w.item.ItemID))
+	for i := 0; i < 4; i++ {
+		label := "Disabled"
+		color := inventoryMutedColor
+		if i < slotCount {
+			label = "Empty"
+		}
+		if cardID := w.item.Cards[i]; cardID != 0 {
+			if name, ok := ctx.Resources.ItemDisplayName(int(cardID), true); ok && strings.TrimSpace(name) != "" {
+				label = name
+				color = inventoryTextColor
+			} else {
+				label = fmt.Sprintf("Card %d", cardID)
+				color = inventoryTextColor
+			}
+		}
+		rows = append(rows,
+			rotheme.Text(fmt.Sprintf("Slot %d: %s", i+1, label)).
+				Color(itemInfoWidgetColor(color)).
+				LineHeight(itemInfoLineH/rotheme.Default.Typography.TextSize),
+		)
+	}
+	return primitives.Box(rows...).
+		Height(itemInfoCardSlotsH).
+		Padding(6).
+		Gap(0).
+		Background(rotheme.Default.Colors.PanelBody).
+		BorderStyle(1, rotheme.Default.Colors.WindowBorder)
+}
+
+func itemInfoDescriptionHeight(ctx Context, item session.InventoryItem) int {
+	if itemInfoShowsCardSlots(ctx, item) {
+		return itemInfoDescriptionSlotH
+	}
+	return itemInfoDescriptionFullH
 }
 
 func (w *ItemInfoWindow) wrappedLines(maxRunes int) []string {
@@ -192,6 +238,27 @@ func itemInfoDetailLines(item session.InventoryItem) []string {
 		lines = append(lines, "Unidentified")
 	}
 	return lines
+}
+
+func itemInfoShowsCardSlots(ctx Context, item session.InventoryItem) bool {
+	if ctx.Resources == nil || !item.Identified || !inventoryItemCanShowCards(item) {
+		return false
+	}
+	if item.Type == db.ItemTypeArmor && item.Location == 0 {
+		return false
+	}
+	if !inventoryItemCanShowSlots(item) {
+		return false
+	}
+	if slotCount, ok := ctx.Resources.ItemSlotCount(int(item.ItemID)); ok && slotCount > 0 {
+		return true
+	}
+	for _, cardID := range item.Cards {
+		if cardID != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func itemInfoDescriptionLines(ctx Context, item session.InventoryItem) []string {

@@ -117,6 +117,30 @@ func applyItemIdentifyAck(ctx client.Context, ack network.ItemIdentifyAck) {
 	}
 }
 
+func applyItemCompositionAck(ctx client.Context, ack network.ItemCompositionAck) {
+	if ctx.Session == nil || !ack.Success {
+		return
+	}
+	cardItem, ok := findSessionInventoryItem(ctx.Session, ack.CardIndex)
+	if !ok {
+		return
+	}
+	removeSessionInventoryItem(ctx.Session, ack.CardIndex, 1)
+	for i := range ctx.Session.Inventory.Items {
+		if ctx.Session.Inventory.Items[i].Index != ack.EquipIndex {
+			continue
+		}
+		for slot := range ctx.Session.Inventory.Items[i].Cards {
+			if ctx.Session.Inventory.Items[i].Cards[slot] == 0 {
+				ctx.Session.Inventory.Items[i].Cards[slot] = cardItem.ItemID
+				break
+			}
+		}
+		normalizeSessionInventoryItem(&ctx.Session.Inventory.Items[i])
+		return
+	}
+}
+
 func applyUseItemAck(ctx client.Context, ack network.UseItemAck) {
 	if ack.Result == 0 {
 		return
@@ -140,6 +164,7 @@ func sessionItemFromNetwork(item network.InventoryItem) session.InventoryItem {
 		Equipped:   item.Equipped,
 		Damaged:    item.Damaged,
 		Refine:     item.Refine,
+		Cards:      item.Cards,
 	}
 	normalizeSessionInventoryItem(&sessionItem)
 	return sessionItem
@@ -390,6 +415,18 @@ func removeSessionInventoryItem(s *session.Session, index uint16, amount int) {
 		s.Inventory.Items = append(s.Inventory.Items[:i], s.Inventory.Items[i+1:]...)
 		return
 	}
+}
+
+func findSessionInventoryItem(s *session.Session, index uint16) (session.InventoryItem, bool) {
+	if s == nil || index == 0 {
+		return session.InventoryItem{}, false
+	}
+	for _, item := range s.Inventory.Items {
+		if item.Index == index {
+			return item, true
+		}
+	}
+	return session.InventoryItem{}, false
 }
 
 func removeSessionStorageItem(s *session.Session, index uint16, amount int) {

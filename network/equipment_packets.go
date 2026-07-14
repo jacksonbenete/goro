@@ -71,6 +71,7 @@ func ParseViewedEquipment(packet Packet) (ViewedEquipment, bool, error) {
 			Equipped:   wearState != 0,
 			Damaged:    packet.Data[offset+10] != 0,
 			Refine:     packet.Data[offset+11],
+			Cards:      readItemCards(packet.Data, offset+12),
 		})
 	}
 	return view, true, nil

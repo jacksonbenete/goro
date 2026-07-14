@@ -60,6 +60,7 @@ type InventoryBagWindow struct {
 	dragItem      session.InventoryItem
 	dragActive    bool
 	dragFrom      time.Time
+	pendingCard   uint16
 	tooltip       tooltipState
 	icons         map[inventoryBagIconKey]image.Image
 	iconMiss      map[inventoryBagIconKey]struct{}
@@ -175,6 +176,10 @@ func (w *InventoryBagWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart 
 	}
 	w.cart = cart
 	w.refresh(ctx, itemInfo)
+}
+
+func (w *InventoryBagWindow) PendingCardIndex() uint16 {
+	return w.pendingCard
 }
 
 func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
@@ -365,6 +370,26 @@ func (w *InventoryBagWindow) markIconMiss(key inventoryBagIconKey) {
 }
 
 func (w *InventoryBagWindow) activateItem(ctx Context, item session.InventoryItem) {
+	if item.Type == db.ItemTypeCard {
+		if ctx.Network == nil {
+			log.Printf("card composition failed: not connected")
+			return
+		}
+		candidates := cardCompositionCandidateItems(ctx, item)
+		if len(candidates) == 0 {
+			log.Printf("card composition has no local compatible equipment card_index=%d item=%d location=0x%04X", item.Index, item.ItemID, item.Location)
+			logCardCompositionRejectedItems(ctx, item)
+		} else {
+			log.Printf("card composition local compatible equipment card_index=%d item=%d indexes=%v", item.Index, item.ItemID, inventoryItemIndexes(candidates))
+		}
+		w.pendingCard = item.Index
+		if err := ctx.Network.SendItemCompositionList(item.Index); err != nil {
+			log.Printf("card composition list failed: %v", err)
+			return
+		}
+		log.Printf("card composition list requested index=%d item=%d", item.Index, item.ItemID)
+		return
+	}
 	if inventoryItemIsEquipment(item) {
 		if ctx.Network == nil {
 			log.Printf("inventory equip failed: not connected")
@@ -730,6 +755,74 @@ func inventoryItemTypeIsEquipment(itemType uint8) bool {
 	default:
 		return false
 	}
+}
+
+func cardCompositionCandidateItems(ctx Context, card session.InventoryItem) []session.InventoryItem {
+	if ctx.Session == nil || ctx.Resources == nil || card.Type != db.ItemTypeCard || card.Location == 0 {
+		return nil
+	}
+	candidates := make([]session.InventoryItem, 0, len(ctx.Session.Inventory.Items))
+	for _, item := range ctx.Session.Inventory.Items {
+		if ok, _ := cardCompositionCanTarget(ctx, card, item); !ok {
+			continue
+		}
+		candidates = append(candidates, item)
+	}
+	return candidates
+}
+
+func cardCompositionCanTarget(ctx Context, card, item session.InventoryItem) (bool, string) {
+	switch item.Type {
+	case db.ItemTypeWeapon, db.ItemTypeArmor:
+	default:
+		return false, "not weapon or armor"
+	}
+	if !inventoryItemCanShowSlots(item) {
+		return false, "special card slots"
+	}
+	if !item.Identified {
+		return false, "unidentified"
+	}
+	if item.Location&card.Location == 0 {
+		return false, "incompatible location"
+	}
+	slotCount, ok := ctx.Resources.ItemSlotCount(int(item.ItemID))
+	if !ok || slotCount <= 0 {
+		return false, "no slots in resource db"
+	}
+	for i := 0; i < slotCount && i < len(item.Cards); i++ {
+		if item.Cards[i] == 0 {
+			if item.Equipped {
+				return false, "equipped"
+			}
+			return true, ""
+		}
+	}
+	return false, "no empty slot"
+}
+
+func logCardCompositionRejectedItems(ctx Context, card session.InventoryItem) {
+	if ctx.Session == nil || ctx.Resources == nil {
+		return
+	}
+	for _, item := range ctx.Session.Inventory.Items {
+		switch item.Type {
+		case db.ItemTypeWeapon, db.ItemTypeArmor:
+		default:
+			continue
+		}
+		if ok, reason := cardCompositionCanTarget(ctx, card, item); !ok {
+			log.Printf("card composition rejected equipment index=%d item=%d type=%d location=0x%04X identified=%v equipped=%v cards=%v reason=%q", item.Index, item.ItemID, item.Type, item.Location, item.Identified, item.Equipped, item.Cards, reason)
+		}
+	}
+}
+
+func inventoryItemIndexes(items []session.InventoryItem) []uint16 {
+	indexes := make([]uint16, len(items))
+	for i, item := range items {
+		indexes[i] = item.Index
+	}
+	return indexes
 }
 
 func inventoryItemEquipLocation(item session.InventoryItem) uint16 {

@@ -9,22 +9,24 @@ import (
 const PacketCZItemPickup uint16 = 0x009F
 
 const (
-	PacketCZACKSelectDealType  uint16 = 0x00C5
-	PacketCZItemThrow          uint16 = 0x00A2
-	PacketCZReqItemIdentify    uint16 = 0x0178
-	PacketCZUseItem2           uint16 = 0x0439
-	PacketCZUseItemLegacy      uint16 = 0x00A7
-	PacketCZReqWearEquip       uint16 = 0x00A9
-	PacketCZReqTakeoffEquip    uint16 = 0x00AB
-	PacketCZPCPurchaseItemList uint16 = 0x00C8
-	PacketCZPCSellItemList     uint16 = 0x00C9
-	PacketCZMoveToStorage      uint16 = 0x0094
-	PacketCZMoveFromStorage    uint16 = 0x00F7
-	PacketCZCloseStorage       uint16 = 0x0193
-	PacketCZMoveToCart         uint16 = 0x0126
-	PacketCZMoveFromCart       uint16 = 0x0127
-	PacketCZMoveStorageToCart  uint16 = 0x0128
-	PacketCZMoveCartToStorage  uint16 = 0x0129
+	PacketCZACKSelectDealType      uint16 = 0x00C5
+	PacketCZItemThrow              uint16 = 0x00A2
+	PacketCZReqItemIdentify        uint16 = 0x0178
+	PacketCZReqItemCompositionList uint16 = 0x017A
+	PacketCZReqItemComposition     uint16 = 0x017C
+	PacketCZUseItem2               uint16 = 0x0439
+	PacketCZUseItemLegacy          uint16 = 0x00A7
+	PacketCZReqWearEquip           uint16 = 0x00A9
+	PacketCZReqTakeoffEquip        uint16 = 0x00AB
+	PacketCZPCPurchaseItemList     uint16 = 0x00C8
+	PacketCZPCSellItemList         uint16 = 0x00C9
+	PacketCZMoveToStorage          uint16 = 0x0094
+	PacketCZMoveFromStorage        uint16 = 0x00F7
+	PacketCZCloseStorage           uint16 = 0x0193
+	PacketCZMoveToCart             uint16 = 0x0126
+	PacketCZMoveFromCart           uint16 = 0x0127
+	PacketCZMoveStorageToCart      uint16 = 0x0128
+	PacketCZMoveCartToStorage      uint16 = 0x0129
 )
 
 type itemPickupPacketLayout struct {
@@ -160,6 +162,7 @@ type InventoryItem struct {
 	Equipped   bool
 	Damaged    bool
 	Refine     uint8
+	Cards      [4]uint16
 }
 
 type InventoryItemDelete struct {
@@ -175,6 +178,16 @@ type ItemIdentifyList struct {
 type ItemIdentifyAck struct {
 	Index   uint16
 	Success bool
+}
+
+type ItemCompositionList struct {
+	Indexes []uint16
+}
+
+type ItemCompositionAck struct {
+	EquipIndex uint16
+	CardIndex  uint16
+	Success    bool
 }
 
 type InventoryEquipAck struct {
@@ -442,6 +455,10 @@ func parseNormalInventoryItems(packet Packet, entrySize int) ([]InventoryItem, b
 	}
 	items := make([]InventoryItem, 0, (len(packet.Data)-4)/entrySize)
 	for offset := 4; offset+entrySize <= len(packet.Data); offset += entrySize {
+		var cards [4]uint16
+		if entrySize >= 18 {
+			cards = readItemCards(packet.Data, offset+10)
+		}
 		items = append(items, InventoryItem{
 			Index:      binary.LittleEndian.Uint16(packet.Data[offset : offset+2]),
 			ItemID:     binary.LittleEndian.Uint16(packet.Data[offset+2 : offset+4]),
@@ -449,6 +466,7 @@ func parseNormalInventoryItems(packet Packet, entrySize int) ([]InventoryItem, b
 			Identified: packet.Data[offset+5] != 0,
 			Amount:     binary.LittleEndian.Uint16(packet.Data[offset+6 : offset+8]),
 			Location:   binary.LittleEndian.Uint16(packet.Data[offset+8 : offset+10]),
+			Cards:      cards,
 		})
 	}
 	return items, true, nil
@@ -472,6 +490,7 @@ func parseNormalInventoryItems4(packet Packet) ([]InventoryItem, bool, error) {
 			Identified: flag&1 != 0,
 			Amount:     binary.LittleEndian.Uint16(packet.Data[offset+5 : offset+7]),
 			Location:   uint16(binary.LittleEndian.Uint32(packet.Data[offset+7 : offset+11])),
+			Cards:      readItemCards(packet.Data, offset+11),
 		})
 	}
 	return items, true, nil
@@ -498,6 +517,7 @@ func parseEquipInventoryItems(packet Packet, entrySize int) ([]InventoryItem, bo
 			Equipped:   wearState != 0,
 			Damaged:    packet.Data[offset+10] != 0,
 			Refine:     packet.Data[offset+11],
+			Cards:      readItemCards(packet.Data, offset+12),
 		})
 	}
 	return items, true, nil
@@ -524,9 +544,22 @@ func parseEquipInventoryItems4(packet Packet, entrySize int) ([]InventoryItem, b
 			Equipped:   binary.LittleEndian.Uint32(packet.Data[offset+9:offset+13]) != 0,
 			Damaged:    flag&2 != 0,
 			Refine:     packet.Data[offset+13],
+			Cards:      readItemCards(packet.Data, offset+14),
 		})
 	}
 	return items, true, nil
+}
+
+func readItemCards(data []byte, offset int) [4]uint16 {
+	var cards [4]uint16
+	for i := range cards {
+		start := offset + i*2
+		if start+2 > len(data) {
+			break
+		}
+		cards[i] = binary.LittleEndian.Uint16(data[start : start+2])
+	}
+	return cards
 }
 
 func ParseInventoryItemDelete(packet Packet) (InventoryItemDelete, bool, error) {
@@ -587,6 +620,37 @@ func ParseItemIdentifyAck(packet Packet) (ItemIdentifyAck, bool, error) {
 	return ItemIdentifyAck{
 		Index:   binary.LittleEndian.Uint16(packet.Data[2:4]),
 		Success: packet.Data[4] == 0,
+	}, true, nil
+}
+
+func ParseItemCompositionList(packet Packet) (ItemCompositionList, bool, error) {
+	if packet.ID != 0x017B {
+		return ItemCompositionList{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return ItemCompositionList{}, false, fmt.Errorf("ZC_ITEMCOMPOSITION_LIST too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%2 != 0 {
+		return ItemCompositionList{}, false, fmt.Errorf("ZC_ITEMCOMPOSITION_LIST invalid length: %d", len(packet.Data))
+	}
+	indexes := make([]uint16, 0, (len(packet.Data)-4)/2)
+	for offset := 4; offset+2 <= len(packet.Data); offset += 2 {
+		indexes = append(indexes, binary.LittleEndian.Uint16(packet.Data[offset:offset+2]))
+	}
+	return ItemCompositionList{Indexes: indexes}, true, nil
+}
+
+func ParseItemCompositionAck(packet Packet) (ItemCompositionAck, bool, error) {
+	if packet.ID != 0x017D {
+		return ItemCompositionAck{}, false, nil
+	}
+	if len(packet.Data) < 7 {
+		return ItemCompositionAck{}, false, fmt.Errorf("ZC_ACK_ITEMCOMPOSITION too short: %d", len(packet.Data))
+	}
+	return ItemCompositionAck{
+		EquipIndex: binary.LittleEndian.Uint16(packet.Data[2:4]),
+		CardIndex:  binary.LittleEndian.Uint16(packet.Data[4:6]),
+		Success:    packet.Data[6] == 0,
 	}, true, nil
 }
 
@@ -924,6 +988,21 @@ func BuildItemIdentifyPacket(index uint16) []byte {
 	return packet
 }
 
+func BuildItemCompositionListPacket(cardIndex uint16) []byte {
+	packet := make([]byte, 4)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqItemCompositionList)
+	binary.LittleEndian.PutUint16(packet[2:4], cardIndex)
+	return packet
+}
+
+func BuildItemCompositionPacket(cardIndex, equipIndex uint16) []byte {
+	packet := make([]byte, 6)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqItemComposition)
+	binary.LittleEndian.PutUint16(packet[2:4], cardIndex)
+	binary.LittleEndian.PutUint16(packet[4:6], equipIndex)
+	return packet
+}
+
 func BuildWearEquipPacket(index, location uint16) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWearEquip)
@@ -1087,6 +1166,28 @@ func (c *Client) SendItemIdentify(index uint16) error {
 		log.Printf("sent CZ_REQ_ITEMIDENTIFY opcode=0x%04X index=%d client_date=%d", ID(packet), index, c.clientDate)
 	} else {
 		log.Printf("send CZ_REQ_ITEMIDENTIFY failed opcode=0x%04X len=%d index=%d client_date=%d: %v", ID(packet), len(packet), index, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendItemCompositionList(cardIndex uint16) error {
+	packet := BuildItemCompositionListPacket(cardIndex)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_ITEMCOMPOSITION_LIST opcode=0x%04X card_index=%d client_date=%d", ID(packet), cardIndex, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_ITEMCOMPOSITION_LIST failed opcode=0x%04X len=%d card_index=%d client_date=%d: %v", ID(packet), len(packet), cardIndex, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendItemComposition(cardIndex, equipIndex uint16) error {
+	packet := BuildItemCompositionPacket(cardIndex, equipIndex)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_ITEMCOMPOSITION opcode=0x%04X card_index=%d equip_index=%d client_date=%d", ID(packet), cardIndex, equipIndex, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_ITEMCOMPOSITION failed opcode=0x%04X len=%d card_index=%d equip_index=%d client_date=%d: %v", ID(packet), len(packet), cardIndex, equipIndex, c.clientDate, err)
 	}
 	return err
 }

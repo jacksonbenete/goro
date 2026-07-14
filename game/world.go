@@ -118,6 +118,7 @@ type WorldMode struct {
 	vendingWindow     gameui.VendingWindow
 	itemInfoWindow    gameui.ItemInfoWindow
 	identifyWindow    gameui.IdentifyWindow
+	cardWindow        gameui.CardCompositionWindow
 	statsWindow       gameui.StatsWindow
 	skillWindow       gameui.SkillWindow
 	friendsWindow     gameui.FriendsWindow
@@ -635,6 +636,22 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			log.Printf("item identify ack index=%d success=%v", identifyAck.Index, identifyAck.Success)
 			applyItemIdentifyAck(ctx, identifyAck)
 			m.identifyWindow.ApplyAck(ctx, identifyAck)
+			m.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
+		if compositionList, ok, err := network.ParseItemCompositionList(pkt); err != nil {
+			log.Printf("parse item composition list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("item composition list indexes=%v", compositionList.Indexes)
+			m.cardWindow.OpenList(ctx, m.inventoryBag.PendingCardIndex(), compositionList)
+			continue
+		}
+		if compositionAck, ok, err := network.ParseItemCompositionAck(pkt); err != nil {
+			log.Printf("parse item composition ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("item composition ack equip_index=%d card_index=%d success=%v", compositionAck.EquipIndex, compositionAck.CardIndex, compositionAck.Success)
+			applyItemCompositionAck(ctx, compositionAck)
+			m.cardWindow.ApplyAck(ctx, compositionAck)
 			m.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
@@ -1305,6 +1322,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.identifyWindow.Update(ctx) {
 		return nil, nil
 	}
+	if m.cardWindow.Update(ctx) {
+		return nil, nil
+	}
 	if m.inventoryBag.UpdateDrag(ctx, &m.shortcutBar, &m.storageWindow, &m.cartWindow, &m.tradeWindow) {
 		return nil, nil
 	}
@@ -1576,6 +1596,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.equipmentWindow = m.equipmentWindow
 	next.cartWindow = m.cartWindow
 	next.itemInfoWindow = m.itemInfoWindow
+	next.cardWindow = m.cardWindow
 	next.statsWindow = m.statsWindow
 	next.skillWindow = m.skillWindow
 	next.friendsWindow = m.friendsWindow
