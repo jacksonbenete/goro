@@ -27,6 +27,7 @@ type followCamera struct {
 	lastUpdate  time.Time
 	yawOffset   float64
 	zoom        float64
+	zoomTarget  float64
 }
 
 func (c *followCamera) Reset() {
@@ -39,16 +40,20 @@ func (c *followCamera) Update(ctx client.Context, now time.Time) {
 		c.x = targetX
 		c.y = targetY
 		c.z = targetZ
+		c.zoom = c.targetZoom()
 		c.lastUpdate = now
 		c.initialized = true
 		c.store(ctx)
 		return
 	}
-	lerp := cameraFollowLerp(now.Sub(c.lastUpdate))
+	delta := now.Sub(c.lastUpdate)
+	lerp := cameraFollowLerp(delta)
 	c.lastUpdate = now
 	c.x += (targetX - c.x) * lerp
 	c.y += (targetY - c.y) * lerp
 	c.z += (targetZ - c.z) * lerp
+	zoomLerp := cameraZoomLerp(lerp)
+	c.zoom += (c.targetZoom() - c.currentZoom()) * zoomLerp
 	c.store(ctx)
 }
 
@@ -67,21 +72,38 @@ func (c *followCamera) ZoomBy(factor float64) {
 	if factor <= 0 || !isFinite(factor) {
 		return
 	}
-	c.zoom = clampCameraZoom(c.currentZoom() * factor)
+	c.zoomTarget = clampCameraZoom(c.targetZoom() * factor)
 }
 
 func (c *followCamera) ZoomByDelta(delta float64) {
 	if delta == 0 || !isFinite(delta) {
 		return
 	}
-	c.zoom = clampCameraZoom(c.currentZoom() + delta)
+	c.zoomTarget = clampCameraZoom(c.targetZoom() + delta)
 }
 
 func (c *followCamera) currentZoom() float64 {
 	if c.zoom <= 0 || !isFinite(c.zoom) {
-		return sceneCameraZoom()
+		return c.targetZoom()
 	}
 	return clampCameraZoom(c.zoom)
+}
+
+func (c *followCamera) targetZoom() float64 {
+	if c.zoomTarget <= 0 || !isFinite(c.zoomTarget) {
+		if c.zoom > 0 && isFinite(c.zoom) {
+			return clampCameraZoom(c.zoom)
+		}
+		return sceneCameraZoom()
+	}
+	return clampCameraZoom(c.zoomTarget)
+}
+
+func cameraZoomLerp(followLerp float64) float64 {
+	if followLerp <= 0 {
+		return 0
+	}
+	return math.Min(followLerp*2, 1.0)
 }
 
 func (c *followCamera) ResetRotation() {
@@ -102,7 +124,9 @@ func (c *followCamera) ProjectionWithOffset(ctx client.Context, width, height in
 		c.ResetRotation()
 		yawOffset = 0
 	}
-	return newSceneProjectionForTargetYawZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, cameraZoomForMap(ctx, c.currentZoom()))
+	outdoorZoom := c.currentZoom()
+	projectedZoom := cameraZoomForMap(ctx, outdoorZoom)
+	return newSceneProjectionForTargetYawZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, projectedZoom)
 }
 
 func (c *followCamera) store(ctx client.Context) {
@@ -259,7 +283,7 @@ func cameraWheelZoomDelta(wheelY float64) float64 {
 	if wheelY == 0 || !isFinite(wheelY) {
 		return 0
 	}
-	return -wheelY * cameraZoomWheelUnits()
+	return -math.Copysign(cameraZoomWheelUnits(), wheelY)
 }
 
 func cameraPinchZoomFactor(delta float64) float64 {

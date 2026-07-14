@@ -4671,6 +4671,37 @@ func TestCameraFollowLerpClampsLikeReferenceView(t *testing.T) {
 	}
 }
 
+func TestCameraZoomLerpMatchesRobrowserZoomCurve(t *testing.T) {
+	if got := cameraZoomLerp(cameraFollowLerp(time.Second / 60)); math.Abs(got-0.2) > 0.001 {
+		t.Fatalf("zoom lerp = %.3f, want 0.200", got)
+	}
+	if got := cameraZoomLerp(cameraFollowLerp(100 * time.Millisecond)); got != 1 {
+		t.Fatalf("large zoom lerp = %.2f, want clamped 1.00", got)
+	}
+}
+
+func TestFollowCameraZoomEasesTowardTargetLikeRobrowser(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{X: 10, Y: 20}
+	ctx := client.Context{World: world}
+
+	now := time.Now()
+	camera := followCamera{initialized: true, x: 10.5, y: 20.5, zoom: 125, zoomTarget: 125, lastUpdate: now}
+	camera.ZoomByDelta(-15)
+
+	if got := camera.currentZoom(); got != 125 {
+		t.Fatalf("current zoom before update = %.1f, want unchanged 125.0", got)
+	}
+	if got := camera.targetZoom(); got != 110 {
+		t.Fatalf("target zoom = %.1f, want 110.0", got)
+	}
+
+	camera.Update(ctx, now.Add(time.Second/60))
+	if math.Abs(camera.currentZoom()-122) > 0.01 {
+		t.Fatalf("smoothed zoom = %.2f, want 122.00", camera.currentZoom())
+	}
+}
+
 func TestAppendActorDrawEntryUsesPathRenderDirection(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()
@@ -4914,8 +4945,11 @@ func TestCameraWheelZoomDeltaMatchesRobrowserStep(t *testing.T) {
 	if got := cameraWheelZoomDelta(1); got != -15 {
 		t.Fatalf("wheel up delta = %.1f, want -15", got)
 	}
-	if got := cameraWheelZoomDelta(-2); got != 30 {
-		t.Fatalf("wheel down delta = %.1f, want 30", got)
+	if got := cameraWheelZoomDelta(-2); got != 15 {
+		t.Fatalf("wheel down delta = %.1f, want 15", got)
+	}
+	if got := cameraWheelZoomDelta(0.25); got != -15 {
+		t.Fatalf("trackpad wheel delta = %.1f, want one notch", got)
 	}
 }
 
