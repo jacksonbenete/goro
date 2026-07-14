@@ -168,7 +168,7 @@ func (m *WorldMode) applyPushCartStatus(ctx client.Context, change network.Statu
 		return true
 	}
 	setActorPushCartStatus(&actor, change.Active, cartNum)
-	ctx.World.UpsertActor(actor)
+	upsertActor(ctx, actor)
 	log.Printf("actor cart status actor=%d active=%t cart=%d", change.ActorID, change.Active, actor.CartNum)
 	return true
 }
@@ -226,7 +226,7 @@ func (m *WorldMode) drawActorCart3D(screen *render.Image, ctx client.Context, pr
 		actionFamily:   spriteActionIdle,
 		direction:      actor.Dir,
 		cameraYaw:      cameraYaw,
-		moving:         actor.IsMovingAt(now),
+		moving:         actorIsMovingAt(actor, now),
 		moveSpeedMS:    actor.Speed,
 		hasPlay:        true,
 		play:           false,
@@ -238,7 +238,7 @@ func (m *WorldMode) drawActorCart3D(screen *render.Image, ctx client.Context, pr
 		state.loop = true
 		state.hasPlay = false
 		state.hasFixedMotion = false
-		state.walkDistance = actor.RenderWalkDistance(now)
+		state.walkDistance = actorRenderWalkDistance(actor, now)
 	}
 	billboard, ok := singleSpriteBillboardForState(view, state, now)
 	if !ok {

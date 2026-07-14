@@ -65,7 +65,7 @@ func (m *WorldMode) processMapSounds(ctx client.Context, now time.Time) {
 	if ctx.World == nil || ctx.World.RSW == nil || ctx.World.GND == nil || len(ctx.World.RSW.Sounds) == 0 {
 		return
 	}
-	playerX, playerY := ctx.World.Player.RenderPosition(now)
+	playerX, playerY := actorRenderPosition(ctx.World.Player, now)
 	width := float64(ctx.World.GND.Width)
 	height := float64(ctx.World.GND.Height)
 	if m.mapSoundNext == nil {
@@ -147,8 +147,8 @@ func actorWithinSoundRange(ctx client.Context, actor worldstate.Actor, now time.
 	if ctx.World == nil {
 		return false
 	}
-	actorX, actorY := actor.RenderPosition(now)
-	playerX, playerY := ctx.World.Player.RenderPosition(now)
+	actorX, actorY := actorRenderPosition(actor, now)
+	playerX, playerY := actorRenderPosition(ctx.World.Player, now)
 	const soundRangeCells = 25
 	return math.Hypot(actorX-playerX, actorY-playerY) <= soundRangeCells
 }

@@ -75,7 +75,7 @@ func (m *WorldMode) applyActorEffectStateStatus(ctx client.Context, change netwo
 		ctx.World.Player.HasState = true
 		return
 	}
-	ctx.World.UpsertActor(actor)
+	upsertActor(ctx, actor)
 }
 
 func actorEffectStateBitForStatus(statusID uint16) (uint32, bool) {

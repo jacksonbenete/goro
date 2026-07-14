@@ -173,7 +173,7 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 		HasState:      entry.HasState,
 	}
 	applyActorCartStateFromEffect(&actor)
-	ctx.World.UpsertActor(actor)
+	upsertActor(ctx, actor)
 }
 
 func (m *WorldMode) upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
@@ -241,7 +241,7 @@ func (m *WorldMode) addActorVanishTeleportEffect(ctx client.Context, vanish netw
 	}
 	now := time.Now()
 	if isLocalActor(ctx, vanish.ID) {
-		x, y := ctx.World.Player.RenderPosition(now)
+		x, y := actorRenderPosition(ctx.World.Player, now)
 		m.addWorldEffectAtCellDurationSize(ctx, effectTeleportation, 0, int(math.Round(x)), int(math.Round(y)), now, 0, 0)
 		return
 	}
@@ -249,7 +249,7 @@ func (m *WorldMode) addActorVanishTeleportEffect(ctx client.Context, vanish netw
 	if !ok {
 		return
 	}
-	x, y := actor.RenderPosition(now)
+	x, y := actorRenderPosition(actor, now)
 	m.addWorldEffectAtCellDurationSize(ctx, effectTeleportation, 0, int(math.Round(x)), int(math.Round(y)), now, 0, 0)
 }
 
@@ -295,7 +295,7 @@ func applyActorLookChange(ctx client.Context, look network.ActorLookChange) bool
 		actor = worldstate.Actor{ID: look.ID, Appearance: true}
 	}
 	applyWorldActorLookChange(&actor, look)
-	ctx.World.UpsertActor(actor)
+	upsertActor(ctx, actor)
 	return false
 }
 
@@ -373,46 +373,8 @@ func actorHasMobObjectType(actor worldstate.Actor) bool {
 	}
 }
 
-func applyActorDirectionChange(ctx client.Context, direction network.ActorDirectionChange) {
-	if ctx.World == nil || direction.ID == 0 {
-		return
-	}
-	dir := int(direction.Dir & 7)
-	headDir := uint8(normalizeHeadDir(int(direction.HeadDir)))
-	if isLocalActor(ctx, direction.ID) {
-		ctx.World.Player.Dir = dir
-		ctx.World.Player.HeadDir = headDir
-		ctx.World.Dir = dir
-		if ctx.Session != nil {
-			ctx.Session.PlayerDir = dir
-		}
-		return
-	}
-	actor, ok := ctx.World.Actors[direction.ID]
-	if !ok {
-		return
-	}
-	actor.Dir = dir
-	actor.HeadDir = headDir
-	ctx.World.Actors[direction.ID] = actor
-}
-
 func isLocalActor(ctx client.Context, id uint32) bool {
 	return ctx.Session != nil && id != 0 && (id == ctx.Session.AccountID || id == ctx.Session.CharID)
-}
-
-func applySelfMoveAck(ctx client.Context, ack network.SelfMoveAck) {
-	now := time.Now()
-	fastForward := time.Duration(0)
-	if ctx.Session != nil {
-		if elapsed, ok := ctx.Session.ElapsedSinceServerTick(ack.ServerTick, now); ok {
-			fastForward = elapsed
-		}
-	}
-	dir := directionFromDelta(ack.FromX, ack.FromY, ack.ToX, ack.ToY, ctx.World.Dir)
-	ctx.World.SetPlayerMovementAt(ack.FromX, ack.FromY, ack.ToX, ack.ToY, dir, now, fastForward)
-	ctx.Session.PlayerX = ack.ToX
-	ctx.Session.PlayerY = ack.ToY
 }
 
 func applyMapAcceptEnter(ctx client.Context, enter network.MapAcceptEnter) {
@@ -424,44 +386,6 @@ func applyMapAcceptEnter(ctx client.Context, enter network.MapAcceptEnter) {
 	ctx.Session.PlayerDir = enter.Dir
 	ctx.Session.Playing = true
 	ctx.World.SetPlayerPosition(enter.X, enter.Y, enter.Dir)
-}
-
-func applyWarpPosition(ctx client.Context, x, y int) {
-	dir := ctx.World.Dir
-	if ctx.Session.PlayerDir != 0 {
-		dir = ctx.Session.PlayerDir
-	}
-	ctx.Session.PlayerX = x
-	ctx.Session.PlayerY = y
-	ctx.World.SetPlayerPosition(x, y, dir)
-}
-
-func applyActorSetPosition(ctx client.Context, position network.ActorSetPosition) {
-	if isLocalActor(ctx, position.ID) {
-		ctx.World.SetPlayerPosition(position.X, position.Y, ctx.World.Dir)
-		ctx.Session.PlayerX = position.X
-		ctx.Session.PlayerY = position.Y
-		return
-	}
-	ctx.World.UpsertActor(worldstate.Actor{
-		ID: position.ID,
-		X:  position.X,
-		Y:  position.Y,
-	})
-}
-
-func applyActorJumpPosition(ctx client.Context, position network.ActorJumpPosition) {
-	if isLocalActor(ctx, position.ID) {
-		ctx.World.SetPlayerPosition(position.X, position.Y, ctx.World.Dir)
-		ctx.Session.PlayerX = position.X
-		ctx.Session.PlayerY = position.Y
-		return
-	}
-	ctx.World.UpsertActor(worldstate.Actor{
-		ID: position.ID,
-		X:  position.X,
-		Y:  position.Y,
-	})
 }
 
 func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
@@ -649,7 +573,7 @@ func drawActorMarker(screen *render.Image, x, y float64, actor worldstate.Actor,
 	if actor.Job >= 1000 {
 		col = color.RGBA{R: 229, G: 102, B: 72, A: 230}
 	}
-	if actor.IsMovingAt(now) {
+	if actorIsMovingAt(actor, now) {
 		col = color.RGBA{R: 235, G: 190, B: 80, A: 230}
 	}
 	render.DrawRect(screen, x, y, 12, 18, col)
@@ -676,8 +600,8 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Image, projection sceneP
 }
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
-	actorX, actorY := actor.RenderPosition(now)
-	actor.Dir = actor.RenderDirection(now)
+	actorX, actorY := actorRenderPosition(actor, now)
+	actor.Dir = actorRenderDirection(actor, now)
 	terrainZ := terrainHeightAt(world, actorX, actorY)
 	worldX, worldY := actorWorldAnchor(actor, actorX, actorY)
 	point := projection.Project(worldX, worldY, terrainZ)
@@ -866,7 +790,7 @@ func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Image, ctx client.C
 	if label == "" {
 		return
 	}
-	actorX, actorY := actor.RenderPosition(now)
+	actorX, actorY := actorRenderPosition(actor, now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
@@ -1077,13 +1001,13 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Image, ctx client.Context, 
 		headDir:      actor.HeadDir,
 		headTurn:     true,
 		cameraYaw:    cameraYaw,
-		moving:       actor.IsMovingAt(now),
+		moving:       actorIsMovingAt(actor, now),
 		moveSpeedMS:  actor.Speed,
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk
 		state.loop = true
-		state.walkDistance = actor.RenderWalkDistance(now)
+		state.walkDistance = actorRenderWalkDistance(actor, now)
 	} else if actor.Sitting {
 		state.actionFamily = spriteActionSit
 	}
@@ -1122,14 +1046,14 @@ func (m *WorldMode) nonPCSpriteState(actor worldstate.Actor, now time.Time) spri
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    actor.Dir,
-		moving:       actor.IsMovingAt(now),
+		moving:       actorIsMovingAt(actor, now),
 		loopIdle:     true,
 		moveSpeedMS:  actor.Speed,
 	}
 	if state.moving {
 		state.actionFamily = spriteActionWalk
 		state.loop = true
-		state.walkDistance = actor.RenderWalkDistance(now)
+		state.walkDistance = actorRenderWalkDistance(actor, now)
 	}
 	if anim, ok := m.actorAnimation(actor.ID, now); ok {
 		if applyActorAnimationToSpriteState(&state, anim, false) {

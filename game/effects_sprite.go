@@ -180,9 +180,9 @@ func (m *WorldMode) drawSPREffect(screen *render.Image, ctx client.Context, proj
 	}
 	if component.spriteDirection {
 		if actor, ok := ctx.World.Actors[effect.actorID]; ok {
-			actionIndex = actor.RenderDirection(now) % len(view.act.Actions)
+			actionIndex = actorRenderDirection(actor, now) % len(view.act.Actions)
 		} else if isLocalActor(ctx, effect.actorID) {
-			actionIndex = ctx.World.Player.RenderDirection(now) % len(view.act.Actions)
+			actionIndex = actorRenderDirection(ctx.World.Player, now) % len(view.act.Actions)
 		}
 	}
 	if actionIndex < 0 || actionIndex >= len(view.act.Actions) {

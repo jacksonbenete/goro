@@ -240,7 +240,7 @@ func (m *WorldMode) cursorActorMagnetOffset(ctx client.Context, projection scene
 	if ctx.Input == nil || ctx.World == nil {
 		return 0, 0
 	}
-	actorX, actorY := actor.RenderPosition(now)
+	actorX, actorY := actorRenderPosition(actor, now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
@@ -341,7 +341,7 @@ func hoveredCursorActor(ctx client.Context, projection sceneProjection, mouseX, 
 		if int(actor.Job) == actorJobClearNPC {
 			continue
 		}
-		actorX, actorY := actor.RenderPosition(now)
+		actorX, actorY := actorRenderPosition(actor, now)
 		terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 		point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 		scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)

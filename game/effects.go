@@ -483,7 +483,7 @@ func (m *WorldMode) faceSkillSource(ctx client.Context, sourceID, targetID uint3
 		return
 	}
 	source.Dir = dir
-	ctx.World.UpsertActor(source)
+	upsertActor(ctx, source)
 }
 
 func (m *WorldMode) applyGroundSkillNotify(ctx client.Context, notify network.GroundSkillNotify) {
@@ -1481,9 +1481,9 @@ func (m *WorldMode) drawWorldEffects(screen *render.Image, ctx client.Context, p
 		}
 		x, y := float64(effect.x), float64(effect.y)
 		if actor, ok := ctx.World.Actors[effect.actorID]; ok {
-			x, y = actor.RenderPosition(now)
+			x, y = actorRenderPosition(actor, now)
 		} else if isLocalActor(ctx, effect.actorID) {
-			x, y = ctx.World.Player.RenderPosition(now)
+			x, y = actorRenderPosition(ctx.World.Player, now)
 		}
 		worldX := cellCenter(x)
 		worldY := cellCenter(y)

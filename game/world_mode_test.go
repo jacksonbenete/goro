@@ -1661,7 +1661,7 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	if targetAnim.started.Sub(sourceAnim.started) != 580*time.Millisecond {
 		t.Fatalf("hit delay = %s, want 580ms", targetAnim.started.Sub(sourceAnim.started))
 	}
-	if world.Dir != worldstate.DirectionFromDelta(10, 20, 11, 20, 4) {
+	if world.Dir != directionFromDelta(10, 20, 11, 20, 4) {
 		t.Fatalf("player dir = %d", world.Dir)
 	}
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
@@ -2595,7 +2595,7 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 	if anim.actionFamily != spriteActionPCReadyFight || anim.duration != 2500*time.Millisecond || anim.hasFixedMotion {
 		t.Fatalf("cast animation = %+v", anim)
 	}
-	if world.Dir != worldstate.DirectionFromDelta(10, 20, 12, 20, 4) {
+	if world.Dir != directionFromDelta(10, 20, 12, 20, 4) {
 		t.Fatalf("cast dir = %d", world.Dir)
 	}
 }
@@ -3712,7 +3712,7 @@ func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testi
 	if mode.pickupReqItemID != 0 {
 		t.Fatalf("pickup request item id = %d, want cleared", mode.pickupReqItemID)
 	}
-	if world.Dir != worldstate.DirectionFromDelta(10, 20, 11, 20, 4) {
+	if world.Dir != directionFromDelta(10, 20, 11, 20, 4) {
 		t.Fatalf("player dir = %d", world.Dir)
 	}
 }
@@ -3755,7 +3755,7 @@ func TestApplyActorPickupActionNotifyStartsPickupInsteadOfAttack(t *testing.T) {
 	if len(mode.damageFloaters) != 0 {
 		t.Fatalf("pickup notify should not create damage floaters: %+v", mode.damageFloaters)
 	}
-	if world.Dir != worldstate.DirectionFromDelta(10, 20, 11, 20, 4) {
+	if world.Dir != directionFromDelta(10, 20, 11, 20, 4) {
 		t.Fatalf("player dir = %d", world.Dir)
 	}
 }
@@ -4729,7 +4729,7 @@ func TestAppendActorDrawEntryUsesPathRenderDirection(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("entries = %d, want 1", len(entries))
 	}
-	if got, want := entries[0].actor.Dir, worldstate.DirectionFromDelta(0, 1, 1, 1, 4); got != want {
+	if got, want := entries[0].actor.Dir, directionFromDelta(0, 1, 1, 1, 4); got != want {
 		t.Fatalf("entry direction = %d, want %d", got, want)
 	}
 }

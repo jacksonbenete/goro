@@ -149,7 +149,7 @@ type spriteState struct {
 func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image, projection sceneProjection, entry sceneActorDrawEntry, direction int, cameraYaw float64, shadow float64, alpha float64) bool {
 	now := time.Now()
 	actor := entry.actor
-	moving := actor.IsMovingAt(now)
+	moving := actorIsMovingAt(actor, now)
 	state := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    direction,
@@ -162,7 +162,7 @@ func (m *WorldMode) drawPlayerSprite3D(ctx client.Context, screen *render.Image,
 	if moving {
 		state.actionFamily = spriteActionWalk
 		state.loop = true
-		state.walkDistance = actor.RenderWalkDistance(now)
+		state.walkDistance = actorRenderWalkDistance(actor, now)
 	} else if actor.Sitting {
 		state.actionFamily = spriteActionSit
 	}

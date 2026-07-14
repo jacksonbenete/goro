@@ -353,7 +353,7 @@ func (m *WorldMode) processLockedAttack(ctx client.Context) {
 		return
 	}
 	now := time.Now()
-	if ctx.World.Player.IsMovingAt(now) {
+	if actorIsMovingAt(ctx.World.Player, now) {
 		return
 	}
 	actor, ok := ctx.World.Actors[m.lockedAttackID]
@@ -395,7 +395,7 @@ func normalAttackLockActive(ctx client.Context) bool {
 
 func pendingAttackReadyAt(player worldstate.Actor, now time.Time) time.Time {
 	readyAt := now.Add(60 * time.Millisecond)
-	if player.IsMovingAt(now) && player.MoveDuration > 0 {
+	if actorIsMovingAt(player, now) && player.MoveDuration > 0 {
 		walkReadyAt := player.MoveStarted.Add(player.MoveDuration).Add(60 * time.Millisecond)
 		if walkReadyAt.After(readyAt) {
 			readyAt = walkReadyAt
@@ -639,7 +639,7 @@ func (m *WorldMode) applyActorPickupActionNotify(ctx client.Context, action netw
 				}
 			} else {
 				source.Dir = dir
-				ctx.World.UpsertActor(source)
+				upsertActor(ctx, source)
 			}
 		}
 	}
@@ -670,7 +670,7 @@ func (m *WorldMode) applyActorSitStandActionNotify(ctx client.Context, action ne
 	if sitting {
 		actor.Moving = false
 	}
-	ctx.World.UpsertActor(actor)
+	upsertActor(ctx, actor)
 	if !sitting {
 		actor = ctx.World.Actors[id]
 		actor.Sitting = false
@@ -731,7 +731,7 @@ func (m *WorldMode) faceCombatSource(ctx client.Context, source worldstate.Actor
 		return
 	}
 	source.Dir = dir
-	ctx.World.UpsertActor(source)
+	upsertActor(ctx, source)
 }
 
 func (m *WorldMode) startActorAnimation(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {
@@ -1089,7 +1089,7 @@ func (m *WorldMode) applyAttackFailureForDistance(ctx client.Context, failure ne
 		actor.ToX = failure.TargetX
 		actor.ToY = failure.TargetY
 		actor.MovePath = nil
-		ctx.World.UpsertActor(actor)
+		upsertActor(ctx, actor)
 	}
 	if m.lockedAttackID != failure.TargetID && m.pendingAttack.targetID != failure.TargetID {
 		return
@@ -1305,9 +1305,9 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Image, ctx client.Context,
 		}
 		x, y := float64(floater.x), float64(floater.y)
 		if actor, ok := ctx.World.Actors[floater.actorID]; ok {
-			x, y = actor.RenderPosition(now)
+			x, y = actorRenderPosition(actor, now)
 		} else if isLocalActor(ctx, floater.actorID) {
-			x, y = ctx.World.Player.RenderPosition(now)
+			x, y = actorRenderPosition(ctx.World.Player, now)
 		}
 		progress := damageFloaterProgress(floater, now)
 		dx, dy, zLift, scale, alpha := damageFloaterPlacement(floater.kind, progress)
@@ -1346,7 +1346,7 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 		return
 	}
 	now := time.Now()
-	deathX, deathY := actor.RenderPosition(now)
+	deathX, deathY := actorRenderPosition(actor, now)
 	actor.X = int(math.Round(deathX))
 	actor.Y = int(math.Round(deathY))
 	actor.Moving = false
@@ -1374,7 +1374,7 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 		ctx.World.Player.WalkDistance = 0
 		m.deathModal.OpenDeath()
 	} else {
-		ctx.World.UpsertActor(actor)
+		upsertActor(ctx, actor)
 	}
 	actionFamily := deathActionFamilyForActor(actor)
 	deathDuration := m.actorActionDuration(ctx, actor, actionFamily, defaultDeathAnimationDuration)

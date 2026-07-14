@@ -200,7 +200,7 @@ func playerCameraTarget(world *worldstate.World, now time.Time) (float64, float6
 	if world == nil {
 		return 0.5, 0.5, 0
 	}
-	playerX, playerY := world.Player.RenderPosition(now)
+	playerX, playerY := actorRenderPosition(world.Player, now)
 	return cellCenter(playerX), cellCenter(playerY), cameraTargetHeightAt(world, playerX, playerY)
 }
 

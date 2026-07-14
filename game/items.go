@@ -197,7 +197,7 @@ func (m *WorldMode) processPendingPickup(ctx client.Context) {
 
 func pendingPickupReadyAt(player worldstate.Actor, now time.Time) time.Time {
 	readyAt := now.Add(60 * time.Millisecond)
-	if player.IsMovingAt(now) && player.MoveDuration > 0 {
+	if actorIsMovingAt(player, now) && player.MoveDuration > 0 {
 		walkReadyAt := player.MoveStarted.Add(player.MoveDuration).Add(60 * time.Millisecond)
 		if walkReadyAt.After(readyAt) {
 			readyAt = walkReadyAt

@@ -181,11 +181,11 @@ func effectOtherEndpoint(ctx client.Context, effect worldEffect, fallbackX, fall
 		return fallbackX, fallbackY, fallbackZ, false
 	}
 	if actor, ok := ctx.World.Actors[effect.targetID]; ok {
-		x, y := actor.RenderPosition(time.Now())
+		x, y := actorRenderPosition(actor, time.Now())
 		return cellCenter(x), cellCenter(y), terrainHeightAt(ctx.World, x, y) + 0.07, true
 	}
 	if isLocalActor(ctx, effect.targetID) {
-		x, y := ctx.World.Player.RenderPosition(time.Now())
+		x, y := actorRenderPosition(ctx.World.Player, time.Now())
 		return cellCenter(x), cellCenter(y), terrainHeightAt(ctx.World, x, y) + 0.07, true
 	}
 	return fallbackX, fallbackY, fallbackZ, false

@@ -30,7 +30,7 @@ func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.Act
 	oldState := actor.EffectState
 	setActorRenderState(&actor, change.BodyState, change.HealthState, change.EffectState)
 	m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
-	ctx.World.UpsertActor(actor)
+	upsertActor(ctx, actor)
 	log.Printf("actor state id=%d body=%d health=0x%04X effect=0x%08X", change.ID, change.BodyState, change.HealthState, change.EffectState)
 }
 
@@ -55,7 +55,7 @@ func (m *WorldMode) applyActorBladeStopSide(ctx client.Context, actorID, lookID 
 			ctx.World.Player.Dir = actor.Dir
 			ctx.World.Dir = actor.Dir
 		} else {
-			ctx.World.UpsertActor(actor)
+			upsertActor(ctx, actor)
 		}
 	}
 	action := spriteActionIdle

@@ -245,7 +245,7 @@ func vendingBoardActorBounds(ctx client.Context, projection sceneProjection, act
 	if label == "" || ctx.World == nil {
 		return vendingBoardBounds{}, false
 	}
-	actorX, actorY := actor.RenderPosition(now)
+	actorX, actorY := actorRenderPosition(actor, now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
@@ -258,7 +258,7 @@ func (m *WorldMode) chatRoomBoardActorBounds(ctx client.Context, projection scen
 	if label == "" || ctx.World == nil {
 		return vendingBoardBounds{}, false
 	}
-	actorX, actorY := actor.RenderPosition(now)
+	actorX, actorY := actorRenderPosition(actor, now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)

@@ -177,20 +177,6 @@ type pendingSkillTextTarget struct {
 	source string
 }
 
-type scheduledActorStop struct {
-	id         uint32
-	at         time.Time
-	resumeWalk bool
-	resumeAt   time.Time
-}
-
-type scheduledWalkResume struct {
-	id  uint32
-	at  time.Time
-	toX int
-	toY int
-}
-
 type mapFadePhase int
 
 const (
@@ -1788,7 +1774,7 @@ func clickedAttackTarget(ctx client.Context, projection sceneProjection, mouseX,
 		if !actorCanBeAttackClicked(ctx, actor) {
 			continue
 		}
-		actorX, actorY := actor.RenderPosition(now)
+		actorX, actorY := actorRenderPosition(actor, now)
 		terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 		point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 		scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
@@ -1819,7 +1805,7 @@ func clickedSkillTarget(ctx client.Context, projection sceneProjection, skill se
 		if !actorCanBeSkillTargeted(ctx, skill, actor) {
 			continue
 		}
-		actorX, actorY := actor.RenderPosition(now)
+		actorX, actorY := actorRenderPosition(actor, now)
 		terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 		point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 		scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
@@ -1850,7 +1836,7 @@ func clickedPlayerTarget(ctx client.Context, projection sceneProjection, mouseX,
 		if !actorCanOpenPlayerContext(ctx, actor) {
 			continue
 		}
-		actorX, actorY := actor.RenderPosition(now)
+		actorX, actorY := actorRenderPosition(actor, now)
 		terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 		point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 		scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
