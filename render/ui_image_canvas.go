@@ -40,6 +40,12 @@ func (c scaledImageCanvas) DrawImage(img image.Image, at geometry.Point) {
 	c.Canvas.ReplayScene(s)
 }
 
+func (c scaledImageCanvas) FillSVGPath(svgData string, viewBox float32, bounds geometry.Rect, color widget.Color) {
+	if filler, ok := c.Canvas.(widget.SVGFiller); ok {
+		filler.FillSVGPath(svgData, viewBox, bounds, color)
+	}
+}
+
 type scaledCanvasImageKey struct {
 	ptr                          uintptr
 	srcMinX, srcMinY, srcW, srcH int
