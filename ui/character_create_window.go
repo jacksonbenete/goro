@@ -171,14 +171,7 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 					}).
 						Width(characterCreateGraphW).
 						Height(characterCreatePanelH),
-					primitives.Box(
-						characterCreateStatListRow(0, w.opts.Stats[0], true),
-						characterCreateStatListRow(1, w.opts.Stats[1], false),
-						characterCreateStatListRow(2, w.opts.Stats[2], true),
-						characterCreateStatListRow(3, w.opts.Stats[3], false),
-						characterCreateStatListRow(4, w.opts.Stats[4], true),
-						characterCreateStatListRow(5, w.opts.Stats[5], false),
-					).
+					primitives.Box(characterCreateStatList(w.opts.Stats)).
 						Width(characterCreateListW).
 						Height(characterCreatePanelH).
 						Background(rotheme.Default.Colors.PanelBody).
@@ -214,21 +207,19 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 	)
 }
 
-func characterCreateStatListRow(stat int, value uint8, shaded bool) widget.Widget {
-	bg := rotheme.Default.Colors.PanelBody
-	if shaded {
-		bg = rotheme.Default.Colors.WindowFooter
+func characterCreateStatList(stats [CharacterCreateStatCount]uint8) widget.Widget {
+	rows := make([]rotheme.TableRow, 0, CharacterCreateStatCount)
+	for stat, value := range stats {
+		rows = append(rows, rotheme.TableRow{
+			{Text: CharacterCreateStatLabels()[stat], Width: 84, Align: widget.TextAlignLeft, Head: stat%2 == 0},
+			{Text: fmt.Sprintf("%d", value), Width: 43, Align: widget.TextAlignLeft, Head: stat%2 == 0},
+		})
 	}
-	return primitives.HBox(
-		primitives.Box(rotheme.Text(CharacterCreateStatLabels()[stat])).
-			Width(72),
-		primitives.Box(rotheme.Text(fmt.Sprintf("%d", value))).
-			Width(32),
-	).
-		Height(22).
-		PaddingXY(12, 0).
-		CrossAlign(primitives.CrossAxisCenter).
-		Background(bg)
+	return rotheme.Table(
+		rows,
+		rotheme.TableRowHeightOpt(22),
+		rotheme.TableColors(rotheme.Default.Colors.WindowFooter, rotheme.Default.Colors.PanelBody),
+	)
 }
 
 func CharacterCreateGraphDrawOrder() [CharacterCreateStatCount]int {

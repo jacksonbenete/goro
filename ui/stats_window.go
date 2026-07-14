@@ -170,35 +170,40 @@ func statsTextCell(text string, width float32, color widget.Color) widget.Widget
 }
 
 func statsDerivedWidget(stats session.Stats) widget.Widget {
-	return primitives.HBox(
-		primitives.Box(
-			statsDerivedRow("ATK", fmt.Sprintf("%d + %d", stats.Attack, stats.AttackBonus)),
-			statsDerivedRow("MATK", fmt.Sprintf("%d - %d", stats.MatkMin, stats.MatkMax)),
-			statsDerivedRow("HIT", fmt.Sprintf("%d", stats.Hit)),
-			statsDerivedRow("CRIT", fmt.Sprintf("%d", stats.Critical)),
-		).
-			Width(118).
-			Gap(2),
-		primitives.Box(
-			statsDerivedRow("DEF", fmt.Sprintf("%d + %d", stats.Defense, stats.DefenseBonus)),
-			statsDerivedRow("MDEF", fmt.Sprintf("%d + %d", stats.MDefense, stats.MDefenseBonus)),
-			statsDerivedRow("FLEE", fmt.Sprintf("%d + %d", stats.Flee, stats.FleeBonus)),
-			statsDerivedRow("ASPD", fmt.Sprintf("%d", displayASPD(stats.ASPD+stats.ASPDBonus))),
-		).
-			Width(118).
-			Gap(2),
+	rows := []rotheme.TableRow{
+		{
+			{Text: "ATK", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.Attack, stats.AttackBonus), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "DEF", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.Defense, stats.DefenseBonus), Width: 62, Align: widget.TextAlignLeft},
+		},
+		{
+			{Text: "MATK", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d - %d", stats.MatkMin, stats.MatkMax), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "MDEF", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.MDefense, stats.MDefenseBonus), Width: 62, Align: widget.TextAlignLeft},
+		},
+		{
+			{Text: "HIT", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d", stats.Hit), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "FLEE", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.Flee, stats.FleeBonus), Width: 62, Align: widget.TextAlignLeft},
+		},
+		{
+			{Text: "CRIT", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d", stats.Critical), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "ASPD", Width: 46, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d", displayASPD(stats.ASPD+stats.ASPDBonus)), Width: 62, Align: widget.TextAlignLeft},
+		},
+	}
+	return primitives.Box(
+		rotheme.Table(
+			rows,
+			rotheme.TableRowHeightOpt(18),
+			rotheme.TableColors(rotheme.Default.Colors.ButtonHover, rotheme.Default.Colors.WindowFooter),
+		),
 	).
-		PaddingTop(8).
-		Gap(12)
-}
-
-func statsDerivedRow(label, value string) widget.Widget {
-	return primitives.HBox(
-		statsTextCell(label, 46, rotheme.Default.Colors.MutedText),
-		statsTextCell(value, 62, rotheme.Default.Colors.Text),
-	).
-		Height(18).
-		CrossAlign(primitives.CrossAxisCenter)
+		PaddingTop(8)
 }
 
 func statsWindowSnapshot(s *session.Session) string {
