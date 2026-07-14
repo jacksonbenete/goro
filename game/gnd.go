@@ -9,6 +9,7 @@ import (
 
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
+	worldstate "github.com/kivutar/goro/world"
 )
 
 func loadGND(manager *res.Manager, mapName string) (*res.GND, string, error) {
@@ -95,6 +96,64 @@ func clampGNDRange(gnd *res.GND, startX, endX, startY, endY int) (int, int, int,
 	startY = maxInt(0, startY)
 	endY = minInt(gnd.Height-1, endY)
 	return startX, endX, startY, endY, startX <= endX && startY <= endY
+}
+
+func worldGNDHeightAt(world *worldstate.World, x, y float64) (float64, bool) {
+	if world == nil || world.GND == nil {
+		return 0, false
+	}
+	gridX := (x + 0.5) * 0.5
+	gridY := (y + 0.5) * 0.5
+	cellX := int(math.Floor(gridX))
+	cellY := int(math.Floor(gridY))
+	cell, ok := world.GND.Cell(cellX, cellY)
+	if !ok {
+		return 0, false
+	}
+	return bilinearHeight(cell.Heights, gridX-float64(cellX), gridY-float64(cellY)), true
+}
+
+func gndShadowMapPoint(x, y float64) (int, int) {
+	x += 0.5
+	y += 0.5
+	shadowX := int(math.Floor(x/2)) * 8
+	shadowY := int(math.Floor(y/2)) * 8
+	localX := 0
+	if int(x)&1 != 0 {
+		localX = 4
+	}
+	localY := 0
+	if int(y)&1 != 0 {
+		localY = 4
+	}
+	localX += int(math.Floor((x - math.Floor(x)) * 4))
+	localY += int(math.Floor((y - math.Floor(y)) * 4))
+	shadowX += minInt(localX, 6)
+	shadowY += minInt(localY, 6)
+	return shadowX, shadowY
+}
+
+func gndShadowMapAlpha(gnd *res.GND, shadowX, shadowY int) uint8 {
+	if gnd == nil || shadowX < 0 || shadowY < 0 || shadowX >= gnd.Width*8 || shadowY >= gnd.Height*8 {
+		return 255
+	}
+	cellX := shadowX / 8
+	cellY := shadowY / 8
+	localX := shadowX % 8
+	localY := shadowY % 8
+	cell, ok := gnd.Cell(cellX, cellY)
+	if !ok || cell.Top < 0 {
+		return 255
+	}
+	surface, ok := gnd.Surface(cell.Top)
+	if !ok {
+		return 255
+	}
+	lightmap, ok := gnd.Lightmap(surface.LightmapID)
+	if !ok {
+		return 255
+	}
+	return lightmap.Alpha[localY][localX]
 }
 
 func cameraGroundFootprint(projection sceneProjection, screenWidth, screenHeight int) (float64, float64, float64, float64, bool) {
