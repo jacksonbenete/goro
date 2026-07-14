@@ -213,6 +213,7 @@ func (w *ItemInfoWindow) cardSlotsFooter(ctx Context) widget.Widget {
 				cardID,
 				func(cardID uint16) { w.showCardTooltip(ctx, cardID) },
 				func() { w.tooltip.Hide() },
+				func(cardID uint16, x, y int) { w.openCard(ctx, cardID, x, y) },
 			),
 		)
 	}
@@ -232,6 +233,13 @@ func (w *ItemInfoWindow) showCardTooltip(ctx Context, cardID uint16) {
 	}
 	card := session.InventoryItem{ItemID: cardID, Type: db.ItemTypeCard, Identified: true}
 	w.tooltip.Show(ctx, inventoryItemDisplayName(ctx.Resources, card), ctx.Input.MouseX, ctx.Input.MouseY+18, ctx.Input.MouseY-6)
+}
+
+func (w *ItemInfoWindow) openCard(ctx Context, cardID uint16, mouseX, mouseY int) {
+	if cardID == 0 {
+		return
+	}
+	w.openItem(ctx, session.InventoryItem{ItemID: cardID, Type: db.ItemTypeCard, Identified: true}, mouseX, mouseY)
 }
 
 func (w *ItemInfoWindow) cardSlotCardID(index int) uint16 {
@@ -570,9 +578,10 @@ type itemInfoCardSlotWidget struct {
 	cardID  uint16
 	onHover func(uint16)
 	onLeave func()
+	onOpen  func(uint16, int, int)
 }
 
-func newItemInfoCardSlotWidget(img image.Image, width, height int, cardID uint16, onHover func(uint16), onLeave func()) *itemInfoCardSlotWidget {
+func newItemInfoCardSlotWidget(img image.Image, width, height int, cardID uint16, onHover func(uint16), onLeave func(), onOpen func(uint16, int, int)) *itemInfoCardSlotWidget {
 	w := &itemInfoCardSlotWidget{
 		image:   img,
 		width:   width,
@@ -580,6 +589,7 @@ func newItemInfoCardSlotWidget(img image.Image, width, height int, cardID uint16
 		cardID:  cardID,
 		onHover: onHover,
 		onLeave: onLeave,
+		onOpen:  onOpen,
 	}
 	w.SetVisible(true)
 	w.SetEnabled(true)
@@ -625,6 +635,13 @@ func (w *itemInfoCardSlotWidget) Event(ctx widget.Context, e event.Event) bool {
 			w.onLeave()
 		}
 		ctx.SetCursor(widget.CursorDefault)
+	case event.MousePress:
+		if w.cardID != 0 && mouse.Button == event.ButtonRight {
+			if w.onOpen != nil {
+				w.onOpen(w.cardID, int(mouse.GlobalPosition.X), int(mouse.GlobalPosition.Y))
+			}
+			return true
+		}
 	}
 	return false
 }
