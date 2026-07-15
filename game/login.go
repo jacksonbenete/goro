@@ -618,8 +618,7 @@ func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 		return
 	}
 	m.playConfirmSFX(ctx)
-	ctx.Session.CharID = character.ID
-	setSelectedCharacter(ctx.Session, character)
+	ctx.Session.SelectCharacter(character)
 	m.status = fmt.Sprintf("selected character %s", character.Name)
 }
 
@@ -903,11 +902,4 @@ func convertCharacter(character network.Character) session.Character {
 		HeadLow:   character.HeadLow,
 		Option:    character.Option,
 	}
-}
-
-func setSelectedCharacter(sessionState *session.Session, character session.Character) {
-	sessionState.Selected = character
-	sessionState.Vitals = sessionVitalsFromCharacter(character)
-	sessionState.Progress = sessionProgressFromCharacter(character)
-	sessionState.Inventory.Zeny = character.Money
 }

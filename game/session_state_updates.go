@@ -158,7 +158,7 @@ func localPlayerHasCart(ctx client.Context) bool {
 	if ctx.Session == nil {
 		return false
 	}
-	if selectedCharacter(ctx.Session).Option&actorEffectCartMask != 0 {
+	if ctx.Session.SelectedCharacter().Option&actorEffectCartMask != 0 {
 		return true
 	}
 	return ctx.Session.Cart.MaxAmount > 0 || len(ctx.Session.Cart.Items) > 0

@@ -382,7 +382,7 @@ func localPartyHP(s *session.Session) (int, int) {
 	hp := s.Vitals.HP
 	maxHP := s.Vitals.MaxHP
 	if maxHP <= 0 {
-		character := selectedCharacter(s)
+		character := s.SelectedCharacter()
 		if character.MaxHP <= 0 && s.Selected.MaxHP > 0 {
 			character = s.Selected
 		}

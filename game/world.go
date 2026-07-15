@@ -289,7 +289,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.ui.npcDialog.ResetPublished(ctx)
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
-	character := selectedCharacter(ctx.Session)
+	character := ctx.Session.SelectedCharacter()
 	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
 		m.playerView = view
 		playerStatus = status
@@ -1029,7 +1029,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 				continue
 			}
 			if applyActorLookChange(ctx, look) {
-				if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, selectedCharacter(ctx.Session), ctx.Session.Sex); view != nil {
+				if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, ctx.Session.SelectedCharacter(), ctx.Session.Sex); view != nil {
 					m.playerView = view
 					log.Printf("player sprite changed type=%d value=%d %s", look.Type, look.Value, status)
 				} else {

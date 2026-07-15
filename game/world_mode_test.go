@@ -1563,10 +1563,10 @@ func TestApplyParameterChangeUpdatesInventory(t *testing.T) {
 	}
 }
 
-func TestSetSelectedCharacterSeedsInventoryZeny(t *testing.T) {
+func TestSelectCharacterSeedsInventoryZeny(t *testing.T) {
 	sessionState := &session.Session{}
 
-	setSelectedCharacter(sessionState, session.Character{ID: 1234, Money: 95000})
+	sessionState.SelectCharacter(session.Character{ID: 1234, Money: 95000})
 
 	if sessionState.Inventory.Zeny != 95000 {
 		t.Fatalf("zeny = %d, want 95000", sessionState.Inventory.Zeny)
@@ -1580,7 +1580,7 @@ func TestFormatHUDNumberGroupsThousands(t *testing.T) {
 }
 
 func TestSessionProgressFromCharacterUsesBaseLevel(t *testing.T) {
-	progress := sessionProgressFromCharacter(session.Character{Level: 12, JobLevel: 7})
+	progress := session.ProgressFromCharacter(session.Character{Level: 12, JobLevel: 7})
 	if progress.BaseLevel != 12 || progress.JobLevel != 7 {
 		t.Fatalf("progress = %+v", progress)
 	}

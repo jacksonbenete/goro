@@ -44,6 +44,79 @@ func New() *Session {
 	return &Session{Whisper: DefaultWhisperSettings()}
 }
 
+func (s *Session) SelectCharacter(character Character) {
+	if s == nil {
+		return
+	}
+	s.CharID = character.ID
+	s.Selected = character
+	s.AttackRange = 0
+	s.ShowEquip = false
+	s.Zone = ZoneServer{}
+	s.ServerTick = 0
+	s.ServerTickAt = time.Time{}
+	s.PlayerX = 0
+	s.PlayerY = 0
+	s.PlayerDir = 0
+	s.Vitals = VitalsFromCharacter(character)
+	s.Progress = ProgressFromCharacter(character)
+	s.Inventory = Inventory{Zeny: character.Money}
+	s.Storage = Storage{}
+	s.Cart = Cart{}
+	s.Stats = StatsFromCharacter(character)
+	s.Skills = Skills{}
+	s.Hotkeys = Hotkeys{}
+	s.Statuses = Statuses{}
+	s.Friends = Friends{}
+	s.Party = Party{}
+	s.Movement = Movement{}
+}
+
+func (s *Session) SelectedCharacter() Character {
+	if s == nil {
+		return Character{Name: "Player"}
+	}
+	if s.Selected.ID != 0 {
+		return s.Selected
+	}
+	for _, character := range s.Characters {
+		if character.ID == s.CharID {
+			return character
+		}
+	}
+	if len(s.Characters) > 0 {
+		return s.Characters[0]
+	}
+	return Character{ID: s.CharID, Name: "Player", Job: 0}
+}
+
+func VitalsFromCharacter(character Character) Vitals {
+	return Vitals{
+		HP:    int(character.HP),
+		MaxHP: int(character.MaxHP),
+		SP:    int(character.SP),
+		MaxSP: int(character.MaxSP),
+	}
+}
+
+func ProgressFromCharacter(character Character) Progress {
+	return Progress{
+		BaseLevel: int(character.Level),
+		JobLevel:  int(character.JobLevel),
+	}
+}
+
+func StatsFromCharacter(character Character) Stats {
+	return Stats{
+		Str: int(character.Str),
+		Agi: int(character.Agi),
+		Vit: int(character.Vit),
+		Int: int(character.Int),
+		Dex: int(character.Dex),
+		Luk: int(character.Luk),
+	}
+}
+
 func (s *Session) SyncServerTick(tick uint32, at time.Time) {
 	if s == nil {
 		return

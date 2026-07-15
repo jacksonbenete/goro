@@ -707,7 +707,7 @@ func actorForCombatID(ctx client.Context, id uint32) (worldstate.Actor, bool, bo
 	}
 	if isLocalActor(ctx, id) {
 		actor := ctx.World.Player
-		character := selectedCharacter(ctx.Session)
+		character := ctx.Session.SelectedCharacter()
 		actor.ID = id
 		actor.Job = character.Job
 		actor.Head = character.Hair
@@ -1600,12 +1600,12 @@ func localPlayerLifeForDisplay(ctx client.Context) (actorLife, bool) {
 	sp := ctx.Session.Vitals.SP
 	maxSP := ctx.Session.Vitals.MaxSP
 	if maxHP <= 0 {
-		character := selectedCharacter(ctx.Session)
+		character := ctx.Session.SelectedCharacter()
 		hp = int(character.HP)
 		maxHP = int(character.MaxHP)
 	}
 	if maxSP <= 0 {
-		character := selectedCharacter(ctx.Session)
+		character := ctx.Session.SelectedCharacter()
 		sp = int(character.SP)
 		maxSP = int(character.MaxSP)
 	}

@@ -493,7 +493,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Frame, ctx client.Co
 	entries := make([]sceneActorDrawEntry, 0, len(ctx.World.Actors)+1)
 	player := ctx.World.Player
 	player.ID = ctx.Session.CharID
-	character := selectedCharacter(ctx.Session)
+	character := ctx.Session.SelectedCharacter()
 	player.Job = character.Job
 	player.Head = character.Hair
 	player.Sex = ctx.Session.Sex
@@ -872,7 +872,7 @@ func selectedCharacterName(s *session.Session) string {
 	if s == nil {
 		return ""
 	}
-	return selectedCharacter(s).Name
+	return s.SelectedCharacter().Name
 }
 
 func sanitizeActorName(name string) string {
