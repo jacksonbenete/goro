@@ -15,8 +15,8 @@ import (
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
-	gameui "github.com/kivutar/goro/ui"
-	worldstate "github.com/kivutar/goro/world"
+	"github.com/kivutar/goro/ui"
+	"github.com/kivutar/goro/world"
 )
 
 type attackIntent struct {
@@ -85,7 +85,27 @@ func firstActionSoundMotion(action res.ACTAction) int {
 	return -1
 }
 
-func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
+func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor world.Actor) *humanoidSpriteView {
+	if isLocalActor(ctx, actor.ID) {
+		return m.playerView
+	}
+	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
+	key := actorSpriteKey{
+		job:         int(actor.Job),
+		head:        int(actor.Head),
+		sex:         actor.Sex,
+		bodyPalette: int(actor.BodyPal),
+		headPalette: int(actor.HeadPal),
+		weapon:      weapon,
+		shield:      shield,
+		headTop:     int(actor.HeadTop),
+		headMid:     int(actor.HeadMid),
+		headLow:     int(actor.HeadLow),
+	}
+	return m.actorViews[key]
+}
+
+func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor world.Actor, actionFamily int) (res.ACTAction, bool) {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return res.ACTAction{}, false
@@ -94,7 +114,7 @@ func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor worldstate.Act
 	return action, ok
 }
 
-func (m *WorldMode) actorResolvedAction(ctx client.Context, actor worldstate.Actor, actionFamily int) (res.ACTAction, bool) {
+func (m *WorldMode) actorResolvedAction(ctx client.Context, actor world.Actor, actionFamily int) (res.ACTAction, bool) {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		view := m.humanoidSpriteViewForActor(ctx, actor)
 		if view == nil || view.body == nil {
@@ -106,7 +126,7 @@ func (m *WorldMode) actorResolvedAction(ctx client.Context, actor worldstate.Act
 	return m.nonPCResolvedAction(ctx, actor, actionFamily)
 }
 
-func (m *WorldMode) actorActionFrameDelay(ctx client.Context, actor worldstate.Actor, actionFamily int, duration time.Duration) time.Duration {
+func (m *WorldMode) actorActionFrameDelay(ctx client.Context, actor world.Actor, actionFamily int, duration time.Duration) time.Duration {
 	if duration <= 0 {
 		return 0
 	}
@@ -117,7 +137,7 @@ func (m *WorldMode) actorActionFrameDelay(ctx client.Context, actor worldstate.A
 	return duration / time.Duration(len(action.Animations))
 }
 
-func (m *WorldMode) nonPCActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
+func (m *WorldMode) nonPCActionACT(ctx client.Context, actor world.Actor) *res.ACT {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return nil
@@ -125,7 +145,7 @@ func (m *WorldMode) nonPCActionACT(ctx client.Context, actor worldstate.Actor) *
 	return view.act
 }
 
-func (m *WorldMode) actorActionACT(ctx client.Context, actor worldstate.Actor) *res.ACT {
+func (m *WorldMode) actorActionACT(ctx client.Context, actor world.Actor) *res.ACT {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		view := m.humanoidSpriteViewForActor(ctx, actor)
 		if view == nil || view.body == nil {
@@ -136,7 +156,7 @@ func (m *WorldMode) actorActionACT(ctx client.Context, actor worldstate.Actor) *
 	return m.nonPCActionACT(ctx, actor)
 }
 
-func (m *WorldMode) actorActionDuration(ctx client.Context, actor worldstate.Actor, actionFamily int, fallback time.Duration) time.Duration {
+func (m *WorldMode) actorActionDuration(ctx client.Context, actor world.Actor, actionFamily int, fallback time.Duration) time.Duration {
 	if action, ok := m.actorResolvedAction(ctx, actor, actionFamily); ok {
 		return actionAnimationDuration(action, fallback)
 	}
@@ -208,7 +228,7 @@ func maxDuration(a, b time.Duration) time.Duration {
 	return b
 }
 
-func (m *WorldMode) requestAttack(ctx client.Context, actor worldstate.Actor, source string) {
+func (m *WorldMode) requestAttack(ctx client.Context, actor world.Actor, source string) {
 	if ctx.Network == nil {
 		m.setWalkCooldown(walkErrorCooldown)
 		return
@@ -394,7 +414,7 @@ func normalAttackLockActive(ctx client.Context) bool {
 	return (ctx.Input != nil && ctx.Input.Pressed(input.KeyCtrl)) || (ctx.Session != nil && ctx.Session.NoCtrl)
 }
 
-func pendingAttackReadyAt(player worldstate.Actor, now time.Time) time.Time {
+func pendingAttackReadyAt(player world.Actor, now time.Time) time.Time {
 	readyAt := now.Add(60 * time.Millisecond)
 	if actorIsMovingAt(player, now) && player.MoveDuration > 0 {
 		walkReadyAt := player.MoveStarted.Add(player.MoveDuration).Add(60 * time.Millisecond)
@@ -405,7 +425,7 @@ func pendingAttackReadyAt(player worldstate.Actor, now time.Time) time.Time {
 	return readyAt
 }
 
-func (m *WorldMode) sendAttackAction(ctx client.Context, actor worldstate.Actor, source string) {
+func (m *WorldMode) sendAttackAction(ctx client.Context, actor world.Actor, source string) {
 	if err := ctx.Network.SendActionRequest(actor.ID, network.ActionAttack); err == nil {
 		m.lastAttackAt = time.Now()
 		m.setWalkCooldown(walkRequestCooldown)
@@ -494,7 +514,7 @@ func (m *WorldMode) addSkillBeginEffect(ctx client.Context, action network.Actor
 	}
 }
 
-func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action network.ActorActionNotify, source worldstate.Actor, sourceOK bool, starts time.Time) {
+func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action network.ActorActionNotify, source world.Actor, sourceOK bool, starts time.Time) {
 	if action.SkillID != 0 || !sourceOK || !actorUsesBow(ctx.Resources, source) {
 		return
 	}
@@ -503,7 +523,7 @@ func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action ne
 	}
 }
 
-func actorUsesBow(manager *res.Manager, actor worldstate.Actor) bool {
+func actorUsesBow(manager *res.Manager, actor world.Actor) bool {
 	if actor.Weapon <= 0 {
 		return false
 	}
@@ -701,9 +721,9 @@ func (m *WorldMode) applyActorHPUpdate(update network.ActorHPUpdate) {
 	log.Printf("actor hp id=%d hp=%d max_hp=%d tiny=%t", update.ID, hp, update.MaxHP, update.Tiny)
 }
 
-func actorForCombatID(ctx client.Context, id uint32) (worldstate.Actor, bool, bool) {
+func actorForCombatID(ctx client.Context, id uint32) (world.Actor, bool, bool) {
 	if ctx.World == nil || id == 0 {
-		return worldstate.Actor{}, false, false
+		return world.Actor{}, false, false
 	}
 	if isLocalActor(ctx, id) {
 		actor := ctx.World.Player
@@ -724,7 +744,7 @@ func actorForCombatID(ctx client.Context, id uint32) (worldstate.Actor, bool, bo
 	return actor, ok, false
 }
 
-func (m *WorldMode) faceCombatSource(ctx client.Context, source worldstate.Actor, sourceLocal bool, target worldstate.Actor) {
+func (m *WorldMode) faceCombatSource(ctx client.Context, source world.Actor, sourceLocal bool, target world.Actor) {
 	dir := directionFromDelta(source.X, source.Y, target.X, target.Y, source.Dir)
 	if sourceLocal {
 		ctx.World.Player.Dir = dir
@@ -830,7 +850,7 @@ func readyFightAnimation(started time.Time) *actorAnimation {
 	}
 }
 
-func postHurtAnimation(actor worldstate.Actor, started time.Time) *actorAnimation {
+func postHurtAnimation(actor world.Actor, started time.Time) *actorAnimation {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		return readyFightAnimation(started)
 	}
@@ -864,7 +884,7 @@ func (m *WorldMode) startCombatAnimation(ctx client.Context, id uint32, actionFa
 	m.startActorAnimation(ctx, ctx.Session.CharID, actionFamily, started, duration)
 }
 
-func (m *WorldMode) startCombatAnimationWithTiming(ctx client.Context, id uint32, actor worldstate.Actor, actionFamily int, started time.Time, duration time.Duration) {
+func (m *WorldMode) startCombatAnimationWithTiming(ctx client.Context, id uint32, actor world.Actor, actionFamily int, started time.Time, duration time.Duration) {
 	anim := timedCombatAnimation(m.actorActionFrameDelay(ctx, actor, actionFamily, duration), actionFamily, started, duration, nil)
 	m.setCombatActorAction(ctx, id, anim)
 }
@@ -878,7 +898,7 @@ func (m *WorldMode) startCombatAnimationWithNext(ctx client.Context, id uint32, 
 	m.startActorAnimationWithNext(ctx, ctx.Session.CharID, actionFamily, started, duration, next)
 }
 
-func (m *WorldMode) startCombatAnimationWithTimingAndNext(ctx client.Context, id uint32, actor worldstate.Actor, actionFamily int, started time.Time, duration time.Duration, next *actorAnimation) {
+func (m *WorldMode) startCombatAnimationWithTimingAndNext(ctx client.Context, id uint32, actor world.Actor, actionFamily int, started time.Time, duration time.Duration, next *actorAnimation) {
 	anim := timedCombatAnimation(m.actorActionFrameDelay(ctx, actor, actionFamily, duration), actionFamily, started, duration, next)
 	m.setCombatActorAction(ctx, id, anim)
 }
@@ -986,7 +1006,7 @@ func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bo
 	return anim, true
 }
 
-func attackActionFamilyForActor(actor worldstate.Actor) int {
+func attackActionFamilyForActor(actor world.Actor) int {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		if isSecondPCAttack(int(actor.Job), actor.Sex, int(actor.Weapon)) {
 			return spriteActionPCAttack3
@@ -996,14 +1016,14 @@ func attackActionFamilyForActor(actor worldstate.Actor) int {
 	return spriteActionNonPCAttack
 }
 
-func skillActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
+func skillActionFamilyForActor(actor world.Actor, skillID uint16) int {
 	if skillID == 0 {
 		return attackActionFamilyForActor(actor)
 	}
 	return skillAction(skillID).actionFamilyForActor(actor)
 }
 
-func skillCastActionFamilyForActor(actor worldstate.Actor, skillID uint16) int {
+func skillCastActionFamilyForActor(actor world.Actor, skillID uint16) int {
 	if !res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionNonPCAttack
 	}
@@ -1017,14 +1037,14 @@ func skillTargetUsesHitReaction(action network.ActorActionNotify, sourceLocal, t
 	return true
 }
 
-func hurtActionFamilyForActor(actor worldstate.Actor) int {
+func hurtActionFamilyForActor(actor world.Actor) int {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionPCHurt
 	}
 	return spriteActionNonPCHurt
 }
 
-func deathActionFamilyForActor(actor worldstate.Actor) int {
+func deathActionFamilyForActor(actor world.Actor) int {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionPCDeath
 	}
@@ -1188,7 +1208,7 @@ func attackTargetWithinRange(playerX, playerY, targetX, targetY, attackRange int
 	return maxInt(absInt(playerX-targetX), absInt(playerY-targetY)) <= maxInt(1, attackRange)
 }
 
-func attackApproachCell(ctx client.Context, actor worldstate.Actor, attackRange int) (int, int, bool) {
+func attackApproachCell(ctx client.Context, actor world.Actor, attackRange int) (int, int, bool) {
 	attackRange = maxInt(1, attackRange)
 	if attackRange > 1 {
 		if x, y, ok := rangedAttackApproachCell(ctx, actor, attackRange); ok {
@@ -1222,7 +1242,7 @@ func attackApproachCell(ctx client.Context, actor worldstate.Actor, attackRange 
 	return bestX, bestY, bestDistance < math.Inf(1)
 }
 
-func rangedAttackApproachCell(ctx client.Context, actor worldstate.Actor, attackRange int) (int, int, bool) {
+func rangedAttackApproachCell(ctx client.Context, actor world.Actor, attackRange int) (int, int, bool) {
 	if ctx.World == nil {
 		return 0, 0, false
 	}
@@ -1420,6 +1440,8 @@ func (m *WorldMode) actorDeathAlpha(id uint32, now time.Time) float64 {
 		started = anim.started
 	}
 	total := removeAt.Sub(started)
+
+
 	if total <= 0 {
 		return 0
 	}
@@ -1506,7 +1528,7 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Frame, ctx client.Context, e
 	fillWidth := math.Round((width - 2) * ratio)
 	fill := color.RGBA{R: 255, G: 0, B: 231, A: 255}
 	if life.player {
-		fill = gameui.PlayerHPBarColor
+		fill = ui.PlayerHPBarColor
 		if ratio < 0.25 {
 			fill = color.RGBA{R: 255, G: 0, B: 0, A: 255}
 		}
@@ -1527,7 +1549,7 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Frame, ctx client.Context, e
 		}
 		render.DrawRect(screen, x, y+4, width, 1, color.RGBA{R: 16, G: 24, B: 156, A: 255})
 		if spWidth := math.Round((width - 2) * spRatio); spWidth > 0 {
-			render.DrawRect(screen, x+1, y+5, spWidth, 3, gameui.PlayerSPBarColor)
+			render.DrawRect(screen, x+1, y+5, spWidth, 3, ui.PlayerSPBarColor)
 		}
 	}
 }
@@ -1561,7 +1583,7 @@ func (m *WorldMode) drawActorCastBar(screen *render.Frame, entry sceneActorDrawE
 	}
 }
 
-func (m *WorldMode) actorLifeForDisplay(ctx client.Context, actor worldstate.Actor) (actorLife, bool) {
+func (m *WorldMode) actorLifeForDisplay(ctx client.Context, actor world.Actor) (actorLife, bool) {
 	if actor.ID == 0 {
 		return actorLife{}, false
 	}

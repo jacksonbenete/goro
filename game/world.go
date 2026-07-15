@@ -1659,26 +1659,6 @@ func (m *WorldMode) requestNPCTalk(ctx client.Context, actor worldstate.Actor, s
 	}
 }
 
-func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor worldstate.Actor) *humanoidSpriteView {
-	if isLocalActor(ctx, actor.ID) {
-		return m.playerView
-	}
-	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
-	key := actorSpriteKey{
-		job:         int(actor.Job),
-		head:        int(actor.Head),
-		sex:         actor.Sex,
-		bodyPalette: int(actor.BodyPal),
-		headPalette: int(actor.HeadPal),
-		weapon:      weapon,
-		shield:      shield,
-		headTop:     int(actor.HeadTop),
-		headMid:     int(actor.HeadMid),
-		headLow:     int(actor.HeadLow),
-	}
-	return m.actorViews[key]
-}
-
 func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 	width, height := screen.Bounds().Dx(), screen.Bounds().Dy()
 	now := time.Now()
