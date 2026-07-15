@@ -572,9 +572,6 @@ func (m *WorldMode) drawSkillIcon(screen *render.Frame, manager *res.Manager, sk
 			return
 		}
 	}
-	render.DrawRect(screen, float64(x), float64(y), float64(size), float64(size), color.RGBA{R: 54, G: 62, B: 80, A: 235})
-	render.DrawRect(screen, float64(x+2), float64(y+2), float64(size-4), float64(size-4), color.RGBA{R: 92, G: 110, B: 150, A: 220})
-	render.DebugPrintAtColor(screen, "S", x+size/2-3, y+size/2-7, color.RGBA{R: 238, G: 238, B: 245, A: 255})
 }
 
 func (m *WorldMode) skillIconTexture(manager *res.Manager, skill session.Skill) *render.Image {

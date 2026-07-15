@@ -622,11 +622,6 @@ func (w *skillRowWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		iconW := float32(iconBounds.Dx())
 		iconH := float32(iconBounds.Dy())
 		canvas.DrawImage(w.cfg.icon, geometry.Pt(bounds.Min.X+4+(skillIconSize-iconW)/2, bounds.Min.Y+4+(skillIconSize-iconH)/2))
-	} else {
-		icon := geometry.NewRect(bounds.Min.X+4, bounds.Min.Y+4, skillIconSize, skillIconSize)
-		canvas.DrawRect(icon, widget.RGBA8(54, 62, 80, 235))
-		canvas.DrawRect(geometry.NewRect(icon.Min.X+2, icon.Min.Y+2, icon.Width()-4, icon.Height()-4), widget.RGBA8(92, 110, 150, 220))
-		rotheme.DrawText(canvas, "S", icon, rotheme.Default.Typography.TextSize, widget.RGBA8(238, 238, 245, 255), false, widget.TextAlignCenter)
 	}
 	typeColor := widget.RGBA8(34, 142, 158, 255)
 	typeLabel := "P"

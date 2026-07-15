@@ -1693,7 +1693,6 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 			actorOverlays = m.drawSceneActors(screen, ctx, projection)
 		}
 	} else if ctx.World.GAT != nil {
-		drawGAT(screen, ctx.World.GAT, ctx.World.Player.X, ctx.World.Player.Y)
 		m.drawGroundItems(screen, ctx, projection, now)
 		actorOverlays = m.drawSceneActors(screen, ctx, projection)
 	}
@@ -2197,37 +2196,5 @@ func texturedSurfaceVertex3D(point modelPoint3, uv texturePoint, tint color.RGBA
 		DepthX: float32(point.x),
 		DepthY: float32(point.y),
 		DepthZ: float32(point.z),
-	}
-}
-
-func drawGAT(screen *render.Frame, gat *res.GAT, playerX, playerY int) {
-	const tile = 10
-	width := screen.Bounds().Dx()
-	height := screen.Bounds().Dy()
-	tilesX := width/tile + 2
-	tilesY := height/tile + 2
-	startX := playerX - tilesX/2
-	startY := playerY - tilesY/2
-
-	for sy := 0; sy < tilesY; sy++ {
-		mapY := startY + sy
-		for sx := 0; sx < tilesX; sx++ {
-			mapX := startX + sx
-			cell, ok := gat.Cell(mapX, mapY)
-			c := color.RGBA{R: 22, G: 25, B: 32, A: 255}
-			if ok {
-				switch {
-				case cell.Type&res.GATTypeWater != 0:
-					c = color.RGBA{R: 38, G: 84, B: 112, A: 255}
-				case cell.Type&res.GATTypeWalkable != 0:
-					c = color.RGBA{R: 54, G: 75, B: 54, A: 255}
-				case cell.Type&res.GATTypeSnipable != 0:
-					c = color.RGBA{R: 87, G: 77, B: 42, A: 255}
-				default:
-					c = color.RGBA{R: 54, G: 45, B: 48, A: 255}
-				}
-			}
-			render.DrawRect(screen, float64(sx*tile), float64(sy*tile), tile-1, tile-1, c)
-		}
 	}
 }
