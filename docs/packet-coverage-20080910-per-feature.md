@@ -42,9 +42,9 @@
 
   - [x] Cart/body/storage transfers: 0x0126, 0x0127, 0x0128, 0x0129
   - [x] Card composition list/insert: 0x017A, 0x017C
+  - [x] Arrow Crafting material list/selection: 0x01AD, 0x01AE
   - [x] Show equipment/view equipment: 0x02D6, 0x02D7, 0x02D8
   - [ ] Blacksmith/alchemist crafting: 0x018E
-  - [ ] Making arrow: 0x01AE
   - [ ] Item repair: 0x01FD
   - [ ] Weapon refine: 0x0222
   - [ ] Cooking: 0x025B

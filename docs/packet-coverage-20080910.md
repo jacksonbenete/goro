@@ -21,8 +21,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `187`
-- Client-to-map accepted packets referenced by Goro: `87` / `177`
+- Effective map opcodes referenced by Goro: `189`
+- Client-to-map accepted packets referenced by Goro: `88` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## High Priority Gaps
@@ -44,7 +44,6 @@ Status meaning:
 | `0x01A1` | C->S | `0x01a1` | `3` | `clif_parse_PetMenu` | P2 |
 | `0x01A5` | C->S | `0x01a5` | `26` | `clif_parse_ChangePetName` | P2 |
 | `0x01A9` | C->S | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | P2 |
-| `0x01AE` | C->S | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | P2 |
 | `0x022D` | C->S | `0x022d` | `5` | `clif_parse_HomMenu` | P2 |
 | `0x0231` | C->S | `0x0231` | `26` | `clif_parse_ChangeHomunculusName` | P2 |
 | `0x0232` | C->S | `HEADER_CZ_REQUEST_MOVENPC` | `sizeof( PACKET_CZ_REQUEST_MOVENPC )` | `clif_parse_HomMoveTo` | P2 |
@@ -311,8 +310,8 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x01A8` | S->C | referenced | `0x01a8` | `4` | `-` | packet.go |
 | `0x01A9` | C->S | missing | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | - |
 | `0x01AC` | S->C | untracked | `0x01ac` | `6` | `-` | - |
-| `0x01AD` | S->C | untracked | `0x01ad` | `-1` | `-` | - |
-| `0x01AE` | C->S | missing | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | - |
+| `0x01AD` | S->C | referenced | `0x01ad` | `-1` | `-` | item_packets.go, packet.go |
+| `0x01AE` | C->S | implemented | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | item_packets.go |
 | `0x01AF` | C->S | referenced | `0x01af` | `4` | `clif_parse_ChangeCart` | skill_packets.go |
 | `0x01B0` | S->C | untracked | `0x01b0` | `11` | `-` | - |
 | `0x01B1` | S->C | untracked | `0x01b1` | `7` | `-` | - |

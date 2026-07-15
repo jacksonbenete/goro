@@ -361,6 +361,22 @@ func TestParseItemCompositionListAndAck(t *testing.T) {
 	}
 }
 
+func TestParseMakingArrowList(t *testing.T) {
+	listData := make([]byte, 8)
+	binary.LittleEndian.PutUint16(listData[0:2], 0x01AD)
+	binary.LittleEndian.PutUint16(listData[2:4], uint16(len(listData)))
+	binary.LittleEndian.PutUint16(listData[4:6], 909)
+	binary.LittleEndian.PutUint16(listData[6:8], 914)
+
+	list, ok, err := ParseMakingArrowList(Packet{ID: 0x01AD, Data: listData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(list.ItemIDs) != 2 || list.ItemIDs[0] != 909 || list.ItemIDs[1] != 914 {
+		t.Fatalf("making arrow list ok=%v value=%+v", ok, list)
+	}
+}
+
 func TestBuildItemCompositionPackets(t *testing.T) {
 	list := BuildItemCompositionListPacket(7)
 	if got := binary.LittleEndian.Uint16(list[0:2]); got != 0x017A {
@@ -378,6 +394,16 @@ func TestBuildItemCompositionPackets(t *testing.T) {
 	}
 	if got := binary.LittleEndian.Uint16(compose[4:6]); got != 11 {
 		t.Fatalf("compose equip index = %d", got)
+	}
+}
+
+func TestBuildMakingArrowPacket(t *testing.T) {
+	packet := BuildMakingArrowPacket(909)
+	if len(packet) != 4 || ID(packet) != PacketCZReqMakingArrow {
+		t.Fatalf("unexpected making arrow packet header: % X", packet)
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 909 {
+		t.Fatalf("making arrow item id = %d, want 909", got)
 	}
 }
 

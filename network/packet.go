@@ -292,6 +292,7 @@ func PacketLengths2008() LengthTable {
 		0x01A8: 7,
 		0x01AA: 10,
 		0x01AB: 12,
+		0x01AD: -1,
 		0x01B3: 67,
 		0x01B4: 12,
 		0x01B5: 18,

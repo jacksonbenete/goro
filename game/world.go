@@ -128,6 +128,7 @@ type worldUI struct {
 	itemInfoWindow   gameui.ItemInfoWindow
 	identifyWindow   gameui.IdentifyWindow
 	cardWindow       gameui.CardCompositionWindow
+	makingArrow      gameui.MakingArrowWindow
 	statsWindow      gameui.StatsWindow
 	skillWindow      gameui.SkillWindow
 	friendsWindow    gameui.FriendsWindow
@@ -628,6 +629,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			applyItemIdentifyAck(ctx, identifyAck)
 			m.ui.identifyWindow.ApplyAck(ctx, identifyAck)
 			m.ui.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
+		if arrowList, ok, err := network.ParseMakingArrowList(pkt); err != nil {
+			log.Printf("parse making arrow list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			log.Printf("making arrow list items=%v", arrowList.ItemIDs)
+			m.ui.makingArrow.OpenList(ctx, arrowList)
 			continue
 		}
 		if compositionList, ok, err := network.ParseItemCompositionList(pkt); err != nil {
@@ -1321,6 +1329,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.cardWindow.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.makingArrow.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.inventoryBag.UpdateDrag(ctx, &m.ui.shortcutBar, &m.ui.storageWindow, &m.ui.cartWindow, &m.ui.tradeWindow) {

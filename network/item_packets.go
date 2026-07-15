@@ -14,6 +14,7 @@ const (
 	PacketCZReqItemIdentify        uint16 = 0x0178
 	PacketCZReqItemCompositionList uint16 = 0x017A
 	PacketCZReqItemComposition     uint16 = 0x017C
+	PacketCZReqMakingArrow         uint16 = 0x01AE
 	PacketCZUseItem2               uint16 = 0x0439
 	PacketCZUseItemLegacy          uint16 = 0x00A7
 	PacketCZReqWearEquip           uint16 = 0x00A9
@@ -125,6 +126,10 @@ type FloorItemEntry struct {
 	SubY       uint8
 	Amount     uint16
 	Falling    bool
+}
+
+type MakingArrowList struct {
+	ItemIDs []uint16
 }
 
 type FloorItemDisappear struct {
@@ -623,6 +628,30 @@ func ParseItemIdentifyAck(packet Packet) (ItemIdentifyAck, bool, error) {
 	}, true, nil
 }
 
+func ParseMakingArrowList(packet Packet) (MakingArrowList, bool, error) {
+	if packet.ID != 0x01AD {
+		return MakingArrowList{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return MakingArrowList{}, false, fmt.Errorf("ZC_MAKINGARROW_LIST too short: %d", len(packet.Data))
+	}
+	size := int(binary.LittleEndian.Uint16(packet.Data[2:4]))
+	if size > len(packet.Data) {
+		return MakingArrowList{}, false, fmt.Errorf("ZC_MAKINGARROW_LIST invalid length: header=%d data=%d", size, len(packet.Data))
+	}
+	if size < 4 {
+		return MakingArrowList{}, false, fmt.Errorf("ZC_MAKINGARROW_LIST invalid length: %d", size)
+	}
+	if (size-4)%2 != 0 {
+		return MakingArrowList{}, false, fmt.Errorf("ZC_MAKINGARROW_LIST odd item payload: %d", size)
+	}
+	itemIDs := make([]uint16, 0, (size-4)/2)
+	for offset := 4; offset+2 <= size; offset += 2 {
+		itemIDs = append(itemIDs, binary.LittleEndian.Uint16(packet.Data[offset:offset+2]))
+	}
+	return MakingArrowList{ItemIDs: itemIDs}, true, nil
+}
+
 func ParseItemCompositionList(packet Packet) (ItemCompositionList, bool, error) {
 	if packet.ID != 0x017B {
 		return ItemCompositionList{}, false, nil
@@ -1003,6 +1032,13 @@ func BuildItemCompositionPacket(cardIndex, equipIndex uint16) []byte {
 	return packet
 }
 
+func BuildMakingArrowPacket(itemID uint16) []byte {
+	packet := make([]byte, 4)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqMakingArrow)
+	binary.LittleEndian.PutUint16(packet[2:4], itemID)
+	return packet
+}
+
 func BuildWearEquipPacket(index, location uint16) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWearEquip)
@@ -1188,6 +1224,17 @@ func (c *Client) SendItemComposition(cardIndex, equipIndex uint16) error {
 		log.Printf("sent CZ_REQ_ITEMCOMPOSITION opcode=0x%04X card_index=%d equip_index=%d client_date=%d", ID(packet), cardIndex, equipIndex, c.clientDate)
 	} else {
 		log.Printf("send CZ_REQ_ITEMCOMPOSITION failed opcode=0x%04X len=%d card_index=%d equip_index=%d client_date=%d: %v", ID(packet), len(packet), cardIndex, equipIndex, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMakingArrow(itemID uint16) error {
+	packet := BuildMakingArrowPacket(itemID)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_REQ_MAKINGARROW opcode=0x%04X item=%d client_date=%d", ID(packet), itemID, c.clientDate)
+	} else {
+		log.Printf("send CZ_REQ_MAKINGARROW failed opcode=0x%04X len=%d item=%d client_date=%d: %v", ID(packet), len(packet), itemID, c.clientDate, err)
 	}
 	return err
 }

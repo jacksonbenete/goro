@@ -150,7 +150,7 @@ and string-key `EffectTable.js` projectile entries.
 | `AC_CONCENTRATION` | Matched by source | Effect `153`: STR `concentration` plus `effect/ac_concentration`; server owns status/stat updates. |
 | `AC_DOUBLE` | Matched by source | roBrowser action `ATTACK3`, begin effect `16`, projectile `ef_arrow_projectile`, and hit effect `1`. |
 | `AC_SHOWER` | Matched by source | Projectile `ef_arrow_shower_projectile`, hit effect `1`, and roBrowser action timing `ATTACK` speed 50ms followed by `READYFIGHT`. |
-| `AC_MAKINGARROW` | Missing behavior | roBrowser declares no visual effect; goro still needs the Arrow Crafting item-selection flow. |
+| `AC_MAKINGARROW` | Behavior/UI | roBrowser declares no visual effect; goro handles the server-driven Arrow Crafting material list and selection packet flow. |
 | `AC_CHARGEARROW` | Matched by source | roBrowser action `ATTACK`, hidden cast aura, and before-hit `ef_arrow_projectile`. |
 
 ### Acolyte
@@ -262,8 +262,8 @@ the relevant `EffectTable.js` entries.
 - [x] `AC_CONCENTRATION` - roBrowser effect/status routing.
 - [x] `AC_DOUBLE` - roBrowser attack action/effect and arrow projectile path.
 - [x] `AC_SHOWER` - roBrowser attack action/effect.
-- [ ] `AC_MAKINGARROW` - Platinum Arrow Crafting item-selection flow is not
-  implemented yet.
+- [x] `AC_MAKINGARROW` - Platinum Arrow Crafting material list, selection UI,
+  and packet flow.
 - [x] `AC_CHARGEARROW` - Platinum attack action, hidden cast aura, and arrow
   projectile effect routing.
 
@@ -318,8 +318,6 @@ the relevant `EffectTable.js` entries.
 
 ## Remaining V1 Work
 
-- [ ] Implement `AC_MAKINGARROW`: parse the server item list, show the selection
-  UI, send the selected item, and verify inventory/equipped arrow updates.
 - [ ] Decide whether `MC_CARTDECORATE` belongs in the 2008 v1 target. If yes,
   implement the packet/UI and cart appearance handling.
 - [ ] Implement the old roBrowser `effect/ice` FUNC primitive used by Frost
