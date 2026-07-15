@@ -127,7 +127,12 @@ func (w *IdentifyWindow) widgetTree(ctx Context) widget.Widget {
 					w.cancel(ctx)
 					w.Publish(ctx)
 				}).Width(68),
+				rotheme.Button("OK", func() {
+					w.identifySelected(ctx)
+					w.Publish(ctx)
+				}).Width(56),
 			).
+				Gap(8).
 				CrossAlign(primitives.CrossAxisCenter),
 		),
 	)
@@ -155,7 +160,6 @@ func (w *IdentifyWindow) identifyTableWidget(ctx Context) *datatable.Widget {
 		datatable.OnRowSelect(func(row int) {
 			if row >= 0 && row < len(rows) {
 				w.selectedRow = row
-				w.identify(ctx, items[row])
 			}
 		}),
 	)
@@ -247,6 +251,14 @@ func (w *IdentifyWindow) items(s *session.Session) []session.InventoryItem {
 		return items[i].Index < items[j].Index
 	})
 	return items
+}
+
+func (w *IdentifyWindow) identifySelected(ctx Context) {
+	items := w.items(ctx.Session)
+	if w.selectedRow < 0 || w.selectedRow >= len(items) {
+		return
+	}
+	w.identify(ctx, items[w.selectedRow])
 }
 
 func (w *IdentifyWindow) identify(ctx Context, item session.InventoryItem) {
