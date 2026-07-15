@@ -8,11 +8,11 @@ import (
 	"math"
 	"time"
 
-	uiwidget "github.com/gogpu/ui/widget"
+	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
-	gameui "github.com/kivutar/goro/ui"
-	worldstate "github.com/kivutar/goro/world"
+	"github.com/kivutar/goro/ui"
+	"github.com/kivutar/goro/world"
 )
 
 const (
@@ -66,7 +66,7 @@ func (m *WorldMode) drawROCursor(screen *render.Frame, ctx client.Context, proje
 	state := m.cursorState()
 	state.draw(screen, ctx, action, now, magnetX, magnetY)
 	m.storeCursorState(state)
-	gameui.DrawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
+	ui.DrawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
 }
 
 func (m *WorldMode) cursorState() *roCursorState {
@@ -237,7 +237,7 @@ func (m *WorldMode) cursorMagnetOffset(ctx client.Context, projection sceneProje
 	}
 }
 
-func (m *WorldMode) cursorActorMagnetOffset(ctx client.Context, projection sceneProjection, actor worldstate.Actor, now time.Time) (float64, float64) {
+func (m *WorldMode) cursorActorMagnetOffset(ctx client.Context, projection sceneProjection, actor world.Actor, now time.Time) (float64, float64) {
 	if ctx.Input == nil || ctx.World == nil {
 		return 0, 0
 	}
@@ -252,7 +252,7 @@ func (m *WorldMode) cursorActorMagnetOffset(ctx client.Context, projection scene
 	return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
 }
 
-func (m *WorldMode) cursorActorSpriteCenter(ctx client.Context, projection sceneProjection, actor worldstate.Actor, point screenPoint, scale float64, now time.Time) (float64, float64, bool) {
+func (m *WorldMode) cursorActorSpriteCenter(ctx client.Context, projection sceneProjection, actor world.Actor, point screenPoint, scale float64, now time.Time) (float64, float64, bool) {
 	view := m.nonPCSpriteView(ctx, actor)
 	if view == nil {
 		return 0, 0, false
@@ -280,7 +280,7 @@ func spriteBillboardScreenCenter(billboard *spriteBillboard, point screenPoint, 
 	return x, y, true
 }
 
-func cursorActorCanSnap(actor worldstate.Actor) bool {
+func cursorActorCanSnap(actor world.Actor) bool {
 	if !actor.HasObjectType {
 		return false
 	}
@@ -307,7 +307,7 @@ func cursorSnapItems(ctx client.Context) bool {
 }
 
 func uiCursorAction(ctx client.Context) (int, bool) {
-	if ctx.UIApp != nil && ctx.UIApp.Cursor() == uiwidget.CursorPointer {
+	if ctx.UIApp != nil && ctx.UIApp.Cursor() == widget.CursorPointer {
 		return cursorActionClick, true
 	}
 	if uiPointerBlocked(ctx) {
@@ -326,12 +326,12 @@ func uiPointerBlocked(ctx client.Context) bool {
 	return ok && blocker.PointerBlocked(ctx.Input.MouseX, ctx.Input.MouseY)
 }
 
-func hoveredCursorActor(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
+func hoveredCursorActor(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (world.Actor, bool) {
 	if ctx.World == nil {
-		return worldstate.Actor{}, false
+		return world.Actor{}, false
 	}
 	bestDistance := math.Inf(1)
-	var best worldstate.Actor
+	var best world.Actor
 	for _, actor := range ctx.World.Actors {
 		if _, dead := deadActors[actor.ID]; dead {
 			continue
@@ -360,7 +360,7 @@ func hoveredCursorActor(ctx client.Context, projection sceneProjection, mouseX, 
 	return best, bestDistance < math.Inf(1)
 }
 
-func cursorActorCanTalk(actor worldstate.Actor) bool {
+func cursorActorCanTalk(actor world.Actor) bool {
 	if actor.ID == 0 || !actor.HasObjectType {
 		return false
 	}
