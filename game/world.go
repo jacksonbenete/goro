@@ -1696,14 +1696,6 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 		drawGAT(screen, ctx.World.GAT, ctx.World.Player.X, ctx.World.Player.Y)
 		m.drawGroundItems(screen, ctx, projection, now)
 		actorOverlays = m.drawSceneActors(screen, ctx, projection)
-	} else {
-		const tile = 32
-		for x := 0; x < width; x += tile {
-			render.DrawLine(screen, float64(x), 0, float64(x), float64(height), debugColorGrid)
-		}
-		for y := 0; y < height; y += tile {
-			render.DrawLine(screen, 0, float64(y), float64(width), float64(y), debugColorGrid)
-		}
 	}
 
 	if !ctx.Config.Render.NoUI {
