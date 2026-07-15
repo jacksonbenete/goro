@@ -88,7 +88,7 @@ func (w *InventoryBagWindow) Toggle(ctx Context) {
 	w.Publish(ctx)
 }
 
-func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow, itemInfo *ItemInfoWindow) bool {
+func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow, equipment *EquipmentWindow, itemInfo *ItemInfoWindow) bool {
 	w.EnsureWindow(inventoryBagWidth, inventoryBagHeight)
 	if !w.IsOpen() || ctx.Input == nil {
 		w.hideTooltip()
@@ -96,7 +96,7 @@ func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage
 	}
 	cartChanged := cart != w.cart
 	w.cart = cart
-	if w.UpdateDrag(ctx, shortcuts, storage, cart, trade) {
+	if w.UpdateDrag(ctx, shortcuts, storage, cart, trade, equipment) {
 		return true
 	}
 	w.ClampScroll(ctx.Session)
@@ -116,7 +116,7 @@ func (w *InventoryBagWindow) Update(ctx Context, shortcuts *ShortcutBar, storage
 	return consumed
 }
 
-func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow) bool {
+func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, storage *StorageWindow, cart *CartWindow, trade *TradeWindow, equipment *EquipmentWindow) bool {
 	if !w.dragActive || ctx.Input == nil {
 		return false
 	}
@@ -131,6 +131,9 @@ func (w *InventoryBagWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar, sto
 			return true
 		}
 		if trade != nil && trade.AcceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
+			return true
+		}
+		if equipment != nil && equipment.AcceptInventoryDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
 			return true
 		}
 		if shortcuts != nil && shortcuts.AcceptItemDrop(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY) {
@@ -392,24 +395,7 @@ func (w *InventoryBagWindow) activateItem(ctx Context, item session.InventoryIte
 		return
 	}
 	if inventoryItemIsEquipment(item) {
-		if ctx.Network == nil {
-			log.Printf("inventory equip failed: not connected")
-			return
-		}
-		if item.Equipped {
-			if err := ctx.Network.SendTakeoffEquip(item.Index); err != nil {
-				log.Printf("inventory unequip failed: %v", err)
-			}
-			return
-		}
-		location := inventoryItemEquipLocation(item)
-		if location == 0 {
-			log.Printf("inventory equip failed: missing equip location item=%d index=%d", item.ItemID, item.Index)
-			return
-		}
-		if err := ctx.Network.SendWearEquip(item.Index, location); err != nil {
-			log.Printf("inventory equip failed: %v", err)
-		}
+		equipInventoryItem(ctx, item)
 		return
 	}
 	if !inventoryItemIsUsable(item) {

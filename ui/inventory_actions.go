@@ -2,7 +2,9 @@ package ui
 
 import (
 	"fmt"
+	"log"
 
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/session"
 )
 
@@ -31,6 +33,41 @@ func dropInventoryItem(ctx Context, item session.InventoryItem) error {
 		return fmt.Errorf("not connected")
 	}
 	return ctx.Network.SendDropInventoryItem(item.Index, inventoryDropAmount(item))
+}
+
+func equipInventoryItem(ctx Context, item session.InventoryItem) {
+	if ctx.Network == nil {
+		log.Printf("inventory equip failed: not connected")
+		return
+	}
+	if item.Equipped {
+		if err := ctx.Network.SendTakeoffEquip(item.Index); err != nil {
+			log.Printf("inventory unequip failed: %v", err)
+		}
+		return
+	}
+	location := inventoryItemEquipLocationForSession(ctx.Session, item)
+	if location == 0 {
+		log.Printf("inventory equip failed: missing equip location item=%d index=%d", item.ItemID, item.Index)
+		return
+	}
+	if err := ctx.Network.SendWearEquip(item.Index, location); err != nil {
+		log.Printf("inventory equip failed: %v", err)
+	}
+}
+
+func inventoryItemEquipLocationForSession(s *session.Session, item session.InventoryItem) uint16 {
+	location := inventoryItemEquipLocation(item)
+	if location&(db.EquipAccessory1|db.EquipAccessory2) != db.EquipAccessory1|db.EquipAccessory2 {
+		return location
+	}
+	if _, ok := equippedItemForSlot(s, db.EquipAccessory1); !ok {
+		return db.EquipAccessory1
+	}
+	if _, ok := equippedItemForSlot(s, db.EquipAccessory2); !ok {
+		return db.EquipAccessory2
+	}
+	return db.EquipAccessory1
 }
 
 func inventoryDropAmount(_ session.InventoryItem) uint16 {

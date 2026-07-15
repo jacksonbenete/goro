@@ -1334,7 +1334,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.makingArrow.Update(ctx) {
 		return nil, nil
 	}
-	if m.ui.inventoryBag.UpdateDrag(ctx, &m.ui.shortcutBar, &m.ui.storageWindow, &m.ui.cartWindow, &m.ui.tradeWindow) {
+	if m.ui.inventoryBag.UpdateDrag(ctx, &m.ui.shortcutBar, &m.ui.storageWindow, &m.ui.cartWindow, &m.ui.tradeWindow, &m.ui.equipmentWindow) {
 		return nil, nil
 	}
 	if m.ui.storageWindow.UpdateDrag(ctx, &m.ui.inventoryBag, &m.ui.cartWindow) {
@@ -1349,7 +1349,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.shortcutBar.Update(ctx, m) {
 		return nil, nil
 	}
-	if m.ui.inventoryBag.Update(ctx, &m.ui.shortcutBar, &m.ui.storageWindow, &m.ui.cartWindow, &m.ui.tradeWindow, &m.ui.itemInfoWindow) {
+	if m.ui.inventoryBag.Update(ctx, &m.ui.shortcutBar, &m.ui.storageWindow, &m.ui.cartWindow, &m.ui.tradeWindow, &m.ui.equipmentWindow, &m.ui.itemInfoWindow) {
 		return nil, nil
 	}
 	if m.ui.tradeWindow.Update(ctx, &m.ui.itemInfoWindow) {

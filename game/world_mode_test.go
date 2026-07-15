@@ -5562,7 +5562,7 @@ func TestNextWorldModeCarriesOpenInventoryWindow(t *testing.T) {
 	if len(manager.overlays) != 1 {
 		t.Fatalf("inventory overlays after mode replacement = %d, want carried overlay", len(manager.overlays))
 	}
-	next.ui.inventoryBag.Update(ctx, &next.ui.shortcutBar, &next.ui.storageWindow, &next.ui.cartWindow, nil, &next.ui.itemInfoWindow)
+	next.ui.inventoryBag.Update(ctx, &next.ui.shortcutBar, &next.ui.storageWindow, &next.ui.cartWindow, nil, &next.ui.equipmentWindow, &next.ui.itemInfoWindow)
 	if len(manager.overlays) != 1 {
 		t.Fatalf("inventory overlays after next mode update = %d, want 1", len(manager.overlays))
 	}

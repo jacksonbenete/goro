@@ -299,6 +299,17 @@ func (w *EquipmentWindow) DrawTooltip(screen *render.Frame) {
 	w.tooltip.Draw(screen)
 }
 
+func (w *EquipmentWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {
+	w.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
+	if !w.IsOpen() || !pointInRect(mx, my, w.x, w.y, equipmentWindowWidth, equipmentWindowHeight) {
+		return false
+	}
+	if inventoryItemIsEquipment(item) {
+		equipInventoryItem(ctx, item)
+	}
+	return true
+}
+
 func (w *EquipmentWindow) itemIconImage(manager *res.Manager, item session.InventoryItem) image.Image {
 	if manager == nil || item.ItemID == 0 {
 		return nil

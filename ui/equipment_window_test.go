@@ -82,3 +82,45 @@ func TestEquipmentWindowTooltipTracksHoveredItem(t *testing.T) {
 		t.Fatal("tooltip not cleared")
 	}
 }
+
+func TestInventoryEquipLocationChoosesFreeAccessorySlot(t *testing.T) {
+	item := session.InventoryItem{Index: 7, ItemID: 2601, Type: db.ItemTypeArmor, Location: db.EquipAccessory1 | db.EquipAccessory2, Equip: true}
+	s := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 3, ItemID: 2601, Type: db.ItemTypeArmor, Location: db.EquipAccessory1, Equip: true, Equipped: true},
+			},
+		},
+	}
+
+	if got := inventoryItemEquipLocationForSession(s, item); got != db.EquipAccessory2 {
+		t.Fatalf("location = 0x%04X, want second accessory slot 0x%04X", got, db.EquipAccessory2)
+	}
+}
+
+func TestInventoryEquipLocationKeepsAccessoryMaskWhenBothSlotsFull(t *testing.T) {
+	item := session.InventoryItem{Index: 7, ItemID: 2601, Type: db.ItemTypeArmor, Location: db.EquipAccessory1 | db.EquipAccessory2, Equip: true}
+	s := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{
+				{Index: 3, ItemID: 2601, Type: db.ItemTypeArmor, Location: db.EquipAccessory1, Equip: true, Equipped: true},
+				{Index: 4, ItemID: 2602, Type: db.ItemTypeArmor, Location: db.EquipAccessory2, Equip: true, Equipped: true},
+			},
+		},
+	}
+
+	if got := inventoryItemEquipLocationForSession(s, item); got != db.EquipAccessory1 {
+		t.Fatalf("location = 0x%04X, want first accessory replacement 0x%04X", got, db.EquipAccessory1)
+	}
+}
+
+func TestEquipmentWindowConsumesInventoryDrop(t *testing.T) {
+	window := EquipmentWindow{}
+	window.EnsureWindow(equipmentWindowWidth, equipmentWindowHeight)
+	window.Window.OpenAt(32, 32, nil)
+
+	ok := window.AcceptInventoryDrop(Context{}, session.InventoryItem{Index: 7, ItemID: 2601, Type: db.ItemTypeArmor, Equip: true}, 40, 40)
+	if !ok {
+		t.Fatal("drop over equipment window was not consumed")
+	}
+}
