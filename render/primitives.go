@@ -177,15 +177,15 @@ func DrawLine(dst *Frame, x0, y0, x1, y1 float64, c color.Color) {
 	}
 }
 
-func DebugPrintAt(dst *Frame, text string, x, y int) {
-	DebugPrintAtColor(dst, text, x, y, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+func DrawBitmapTextAt(dst *Frame, text string, x, y int) {
+	DrawBitmapTextAtColor(dst, text, x, y, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 }
 
-func DebugPrintAtColor(dst *Frame, text string, x, y int, c color.RGBA) {
+func DrawBitmapTextAtColor(dst *Frame, text string, x, y int, c color.RGBA) {
 	if dst == nil || text == "" {
 		return
 	}
-	img := cachedDebugTextColor(text, c)
+	img := cachedBitmapTextColor(text, c)
 	var opts DrawImageOptions
 	sx, sy := snapScreenPoint(dst, float64(x), float64(y))
 	opts.GeoM.Translate(sx, sy)
@@ -193,7 +193,7 @@ func DebugPrintAtColor(dst *Frame, text string, x, y int, c color.RGBA) {
 	dst.DrawImage(img, &opts)
 }
 
-func DrawImageDebugTextAtColor(dst *Image, text string, x, y int, c color.RGBA) {
+func DrawImageBitmapTextAtColor(dst *Image, text string, x, y int, c color.RGBA) {
 	if dst == nil || dst.pix == nil || text == "" {
 		return
 	}
@@ -207,7 +207,7 @@ func DrawImageDebugTextAtColor(dst *Image, text string, x, y int, c color.RGBA) 
 	d.DrawString(text)
 }
 
-func cachedDebugTextColor(text string, c color.RGBA) *Image {
+func cachedBitmapTextColor(text string, c color.RGBA) *Image {
 	key := fmt.Sprintf("%02x%02x%02x%02x:%s", c.R, c.G, c.B, c.A, text)
 	if img := debugTextCache[key]; img != nil {
 		return img
@@ -222,7 +222,7 @@ func cachedDebugTextColor(text string, c color.RGBA) *Image {
 	if fixedWidth > 0 {
 		y = -1
 	}
-	DrawImageDebugTextAtColor(img, text, 0, y, c)
+	DrawImageBitmapTextAtColor(img, text, 0, y, c)
 	debugTextCache[key] = img
 	if len(debugTextCache) > 512 {
 		for key := range debugTextCache {
@@ -247,11 +247,11 @@ func debugTextSize(text string) (int, int) {
 	return width, lineHeight
 }
 
-func DebugTextSize(text string) (int, int) {
+func BitmapTextSize(text string) (int, int) {
 	return debugTextSize(text)
 }
 
-func DebugTextTopForCenter(containerH int) int {
+func BitmapTextTopForCenter(containerH int) int {
 	face, lineHeight, baseline, _ := debugTextFont()
 	metrics := face.Metrics()
 	textH := (metrics.Ascent + metrics.Descent).Ceil()

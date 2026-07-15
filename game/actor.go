@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"image/color"
 	"log"
 	"math"
@@ -563,20 +562,6 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Frame, ctx client.Context
 	if actorJobHasNoSprite(int(entry.actor.Job)) {
 		return
 	}
-	drawActorMarker(screen, entry.screenX-6, entry.screenY-20, entry.actor, time.Now())
-}
-
-func drawActorMarker(screen *render.Frame, x, y float64, actor worldstate.Actor, now time.Time) {
-	col := color.RGBA{R: 82, G: 166, B: 255, A: 230}
-	if actor.Job >= 1000 {
-		col = color.RGBA{R: 229, G: 102, B: 72, A: 230}
-	}
-	if actorIsMovingAt(actor, now) {
-		col = color.RGBA{R: 235, G: 190, B: 80, A: 230}
-	}
-	render.DrawRect(screen, x, y, 12, 18, col)
-	render.DrawRect(screen, x+3, y-4, 6, 6, col)
-	render.DebugPrintAt(screen, fmt.Sprintf("%d", actor.Job), int(x-12), int(y-16))
 }
 
 func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, projection sceneProjection, entry sceneActorDrawEntry) {

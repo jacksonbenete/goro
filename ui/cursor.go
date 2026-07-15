@@ -20,5 +20,5 @@ func DrawPendingSkillCursorLevel(screen *render.Frame, ctx client.Context, skill
 	y := ctx.Input.MouseY + 16
 	width := len([]rune(label))*7 + 8
 	DrawSurface(screen, x, y, width, 15, PanelBodyColor, WindowBorderColor)
-	render.DebugPrintAtColor(screen, label, x+4, y+1, TitleTextColor)
+	render.DrawBitmapTextAtColor(screen, label, x+4, y+1, TitleTextColor)
 }

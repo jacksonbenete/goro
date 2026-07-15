@@ -298,14 +298,14 @@ func trimBoardLabel(label string, maxWidth int) string {
 	if maxWidth <= 0 {
 		return "..."
 	}
-	if w, _ := render.DebugTextSize(label); w <= maxWidth {
+	if w, _ := render.BitmapTextSize(label); w <= maxWidth {
 		return label
 	}
 	runes := []rune(label)
 	for len(runes) > 1 {
 		runes = runes[:len(runes)-1]
 		candidate := string(runes) + "..."
-		if w, _ := render.DebugTextSize(candidate); w <= maxWidth {
+		if w, _ := render.BitmapTextSize(candidate); w <= maxWidth {
 			return candidate
 		}
 	}

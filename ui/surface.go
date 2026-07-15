@@ -67,11 +67,11 @@ func DrawWindowTitle(screen *render.Frame, x, y, titleH, pad int, title string, 
 }
 
 func DrawTitleTextAt(screen *render.Frame, x, y, titleH int, title string, text color.RGBA) {
-	ty := y + render.DebugTextTopForCenter(titleH)
+	ty := y + render.BitmapTextTopForCenter(titleH)
 	if titleH > 1 {
-		ty = y + 1 + render.DebugTextTopForCenter(titleH-1)
+		ty = y + 1 + render.BitmapTextTopForCenter(titleH-1)
 	}
-	render.DebugPrintAtColor(screen, title, x, ty, text)
+	render.DrawBitmapTextAtColor(screen, title, x, ty, text)
 }
 
 func DrawTitleBar(screen *render.Frame, x, y, w, titleH int) {
@@ -179,7 +179,7 @@ func DrawButtonLabel(screen *render.Frame, x, y, w, h int, label string, bg, tex
 }
 
 func ButtonLabelWidth(label string) int {
-	textW, _ := render.DebugTextSize(label)
+	textW, _ := render.BitmapTextSize(label)
 	return textW + ButtonPaddingX*2
 }
 
@@ -259,10 +259,10 @@ func DrawIconButton(screen *render.Frame, x, y, w, h int, bg, line color.RGBA, v
 }
 
 func DrawCenteredText(screen *render.Frame, x, y, w, h int, label string, text color.RGBA) {
-	textW, textH := render.DebugTextSize(label)
+	textW, textH := render.BitmapTextSize(label)
 	tx := x + (w-textW)/2
 	ty := y + (h-textH)/2
-	render.DebugPrintAtColor(screen, label, tx, ty, text)
+	render.DrawBitmapTextAtColor(screen, label, tx, ty, text)
 }
 
 func DrawRowSurface(screen *render.Frame, x, y, w, h int, bg color.RGBA) {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/kivutar/goro/input"
 	"image"
-	"image/color"
 	"log"
 	"time"
 
@@ -186,7 +185,6 @@ type characterPreviewTarget interface {
 func (m *LoginMode) drawCharacterPreview(screen characterPreviewTarget, ctx client.Context, character session.Character, centerX, feetY int) {
 	view := m.characterPreviewView(ctx, character)
 	if view == nil {
-		drawRenderTargetDebugText(screen, "?", centerX-3, feetY-72, color.RGBA{R: 220, G: 220, B: 220, A: 255})
 		return
 	}
 	billboard, ok := humanoidBillboardForState(view, spriteState{

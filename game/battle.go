@@ -1353,7 +1353,7 @@ func (m *WorldMode) drawDamageFloaters(screen *render.Frame, ctx client.Context,
 			continue
 		}
 		point := projection.Project(worldX, worldY, terrainZ+zLift)
-		render.DebugPrintAtColor(screen, floater.text, int(point.x)-8, int(point.y)-40, withAlpha(floaterColor, alpha))
+		render.DrawBitmapTextAtColor(screen, floater.text, int(point.x)-8, int(point.y)-40, withAlpha(floaterColor, alpha))
 	}
 	m.damageFloaters = active
 }
@@ -1440,7 +1440,6 @@ func (m *WorldMode) actorDeathAlpha(id uint32, now time.Time) float64 {
 		started = anim.started
 	}
 	total := removeAt.Sub(started)
-
 
 	if total <= 0 {
 		return 0

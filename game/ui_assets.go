@@ -28,15 +28,6 @@ func drawRenderTargetRect(target any, x, y, w, h float64, c color.RGBA) {
 	}
 }
 
-func drawRenderTargetDebugText(target any, text string, x, y int, c color.RGBA) {
-	switch target := target.(type) {
-	case *render.Frame:
-		render.DebugPrintAtColor(target, text, x, y, c)
-	case *render.Image:
-		render.DrawImageDebugTextAtColor(target, text, x, y, c)
-	}
-}
-
 func (m *WorldMode) DrawInventoryItemIcon(screen *render.Frame, manager *res.Manager, item session.InventoryItem, x, y int) {
 	m.drawInventoryItemIcon(screen, manager, item, x, y)
 }
@@ -93,7 +84,6 @@ func (m *WorldMode) drawItemInfoIllustration(screen previewRenderTarget, manager
 			return
 		}
 	}
-	drawRenderTargetDebugText(screen, "No image", x+width/2-24, y+height/2-7, color.RGBA{R: 98, G: 112, B: 126, A: 255})
 }
 
 func (m *WorldMode) ItemInfoIllustrationImage(manager *res.Manager, item session.InventoryItem, width, height int) image.Image {
