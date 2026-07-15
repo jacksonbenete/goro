@@ -19,22 +19,23 @@ import (
 )
 
 type Game struct {
-	cfg      config.Config
-	input    *input.State
-	resource *res.Manager
-	session  *session.Session
-	world    *world.World
-	network  *network.Client
-	audio    *gameaudio.BGM
-	modes    *game.Manager
-	runtime  *runtimeSettings
-	uiApp    client.UIApp
-	ui       *gameui.Manager
-	started  time.Time
-	screenW  int
-	screenH  int
-	quit     func()
-	quitting bool
+	cfg               config.Config
+	input             *input.State
+	resource          *res.Manager
+	session           *session.Session
+	world             *world.World
+	network           *network.Client
+	audio             *gameaudio.BGM
+	modes             *game.Manager
+	runtime           *runtimeSettings
+	uiApp             client.UIApp
+	ui                *gameui.Manager
+	started           time.Time
+	screenW           int
+	screenH           int
+	quit              func()
+	quitting          bool
+	pendingScreenshot string
 }
 
 func New(cfg config.Config) (*Game, error) {
@@ -129,6 +130,32 @@ func (g *Game) RequestQuit() {
 	}
 }
 
+func (g *Game) RequestScreenshot() (string, error) {
+	path, err := config.NextScreenshotPath(time.Now())
+	if err != nil {
+		return "", err
+	}
+	g.pendingScreenshot = path
+	return path, nil
+}
+
+func (g *Game) ConsumeScreenshotRequest() (string, bool) {
+	if g.pendingScreenshot == "" {
+		return "", false
+	}
+	path := g.pendingScreenshot
+	g.pendingScreenshot = ""
+	return path, true
+}
+
+func (g *Game) CompleteScreenshot(path string, err error) {
+	if err != nil {
+		log.Printf("screenshot failed path=%s error=%v", path, err)
+		return
+	}
+	log.Printf("screenshot saved path=%s", path)
+}
+
 func (g *Game) RuntimeFullscreen() bool {
 	return g.runtime.Fullscreen()
 }
@@ -163,19 +190,20 @@ func loadClientUIFont(resource *res.Manager) {
 
 func (g *Game) modeContext() client.Context {
 	return client.Context{
-		Config:      g.cfg,
-		Input:       g.input,
-		Resources:   g.resource,
-		Session:     g.session,
-		World:       g.world,
-		Network:     g.network,
-		Audio:       g.audio,
-		Started:     g.started,
-		ScreenW:     g.screenW,
-		ScreenH:     g.screenH,
-		Runtime:     g.runtime,
-		RequestQuit: g.RequestQuit,
-		UIApp:       g.uiApp,
-		UIManager:   g.ui,
+		Config:            g.cfg,
+		Input:             g.input,
+		Resources:         g.resource,
+		Session:           g.session,
+		World:             g.world,
+		Network:           g.network,
+		Audio:             g.audio,
+		Started:           g.started,
+		ScreenW:           g.screenW,
+		ScreenH:           g.screenH,
+		Runtime:           g.runtime,
+		RequestQuit:       g.RequestQuit,
+		RequestScreenshot: g.RequestScreenshot,
+		UIApp:             g.uiApp,
+		UIManager:         g.ui,
 	}
 }

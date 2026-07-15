@@ -3,6 +3,7 @@ package render
 import (
 	"fmt"
 	"image/color"
+	"image/png"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -96,6 +97,11 @@ type runtimeSettingsProvider interface {
 	RuntimeFullscreen() bool
 	RuntimeVSync() bool
 	RuntimeFPS() bool
+}
+
+type screenshotRequester interface {
+	ConsumeScreenshotRequest() (string, bool)
+	CompleteScreenshot(path string, err error)
 }
 
 type cachedOverlayImage struct {
@@ -627,6 +633,9 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	if err := r.drawFPSMeter(r.screen, deviceScale); err != nil {
 		return err
 	}
+	if err := r.savePendingScreenshot(ctx); err != nil {
+		return err
+	}
 	if err := r.gpu.Draw(ctx, r.screen); err != nil {
 		return err
 	}
@@ -635,6 +644,57 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 		r.measuredFrames++
 	}
 	r.updateFPSCounter(time.Now())
+	return nil
+}
+
+func (r *runner) savePendingScreenshot(ctx *gogpu.Context) error {
+	requester, ok := r.game.(screenshotRequester)
+	if !ok {
+		return nil
+	}
+	path, ok := requester.ConsumeScreenshotRequest()
+	if !ok {
+		return nil
+	}
+	err := r.saveScreenshot(ctx, path)
+	requester.CompleteScreenshot(path, err)
+	return nil
+}
+
+func (r *runner) saveScreenshot(ctx *gogpu.Context, path string) error {
+	if r.gpu == nil || r.screen == nil {
+		return fmt.Errorf("renderer is not ready")
+	}
+	width, height := ctx.FramebufferSize()
+	if width <= 0 || height <= 0 {
+		bounds := r.screen.Bounds()
+		width, height = bounds.Dx(), bounds.Dy()
+	}
+	if width <= 0 || height <= 0 {
+		return fmt.Errorf("invalid screenshot size %dx%d", width, height)
+	}
+	var renderErr error
+	img, err := ctx.Renderer().RenderToImage(width, height, func(target *gogpu.Context) {
+		renderErr = r.gpu.Draw(target, r.screen)
+	})
+	if err != nil {
+		return err
+	}
+	if renderErr != nil {
+		return renderErr
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("screenshot close failed path=%s error=%v", path, err)
+		}
+	}()
+	if err := png.Encode(file, img); err != nil {
+		return err
+	}
 	return nil
 }
 

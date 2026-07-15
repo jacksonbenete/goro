@@ -262,6 +262,9 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/memo":
 		c.submitMemo(ctx)
 		return true
+	case "/screenshot":
+		c.submitScreenshot(ctx)
+		return true
 	case "/organize":
 		c.submitOrganizeParty(ctx, text)
 		return true
@@ -299,6 +302,25 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 		}
 		return false
 	}
+}
+
+func (c *ChatConsole) submitScreenshot(ctx client.Context) {
+	if ctx.RequestScreenshot == nil {
+		c.AddErrorMessage("screenshot failed: unavailable")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	path, err := ctx.RequestScreenshot()
+	if err != nil {
+		c.AddErrorMessage("screenshot failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	c.AddSystemMessage("Screenshot: %s", path)
+	c.setInput("")
+	c.setActive(false)
 }
 
 func (c *ChatConsole) submitLessEffects(ctx client.Context) {

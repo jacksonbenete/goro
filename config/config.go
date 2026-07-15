@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -116,6 +117,36 @@ func UserConfigPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "goro", "goro.ini"), nil
+}
+
+func UserDataDir() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "goro"), nil
+}
+
+func NextScreenshotPath(now time.Time) (string, error) {
+	dir, err := UserDataDir()
+	if err != nil {
+		return "", err
+	}
+	dir = filepath.Join(dir, "screenshots")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	name := fmt.Sprintf("goro-%s.png", now.Format("20060102-150405"))
+	path := filepath.Join(dir, name)
+	for i := 2; ; i++ {
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return path, nil
+		} else if err != nil {
+			return "", err
+		}
+		name = fmt.Sprintf("goro-%s-%02d.png", now.Format("20060102-150405"), i)
+		path = filepath.Join(dir, name)
+	}
 }
 
 func SaveUserSettings(settings UserSettings) (string, error) {

@@ -88,6 +88,30 @@ func TestConsoleMemoCommandWithoutNetwork(t *testing.T) {
 	}
 }
 
+func TestConsoleScreenshotCommandRequestsCapture(t *testing.T) {
+	console := &ChatConsole{input: "/screenshot", active: true}
+	requested := false
+	ctx := client.Context{
+		RequestScreenshot: func() (string, error) {
+			requested = true
+			return "/tmp/goro-test.png", nil
+		},
+	}
+
+	if !console.SubmitCommand(ctx, "/screenshot") {
+		t.Fatal("screenshot command was not handled")
+	}
+	if !requested {
+		t.Fatal("screenshot was not requested")
+	}
+	if console.active || console.input != "" {
+		t.Fatalf("console active=%t input=%q, want closed empty input", console.active, console.input)
+	}
+	if len(console.messages) != 1 || console.messages[0].Text != "Screenshot: /tmp/goro-test.png" {
+		t.Fatalf("console messages = %+v", console.messages)
+	}
+}
+
 func TestConsoleInputHistoryUsesArrowKeys(t *testing.T) {
 	console := &ChatConsole{input: "draft", active: true}
 	console.rememberInput("/sit")

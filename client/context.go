@@ -14,20 +14,21 @@ import (
 )
 
 type Context struct {
-	Config      config.Config
-	Input       *input.State
-	Resources   *res.Manager
-	Session     *session.Session
-	World       *world.World
-	Network     *network.Client
-	Audio       *audio.BGM
-	Started     time.Time
-	ScreenW     int
-	ScreenH     int
-	Runtime     RuntimeSettings
-	RequestQuit func()
-	UIApp       UIApp
-	UIManager   UIManager
+	Config            config.Config
+	Input             *input.State
+	Resources         *res.Manager
+	Session           *session.Session
+	World             *world.World
+	Network           *network.Client
+	Audio             *audio.BGM
+	Started           time.Time
+	ScreenW           int
+	ScreenH           int
+	Runtime           RuntimeSettings
+	RequestQuit       func()
+	RequestScreenshot func() (string, error)
+	UIApp             UIApp
+	UIManager         UIManager
 }
 
 type UIApp interface {
