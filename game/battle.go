@@ -928,7 +928,7 @@ func (m *WorldMode) clearLocalDeathStateIfAlive(ctx client.Context) {
 }
 
 func (m *WorldMode) clearLocalDeathState(ctx client.Context) {
-	m.deathModal.Reset()
+	m.ui.deathModal.Reset()
 	if ctx.Session == nil || m.actorAnims == nil {
 		return
 	}
@@ -1373,7 +1373,7 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 		ctx.World.Player.MoveStartX = 0
 		ctx.World.Player.MoveStartY = 0
 		ctx.World.Player.WalkDistance = 0
-		m.deathModal.OpenDeath()
+		m.ui.deathModal.OpenDeath()
 	} else {
 		upsertActor(ctx, actor)
 	}

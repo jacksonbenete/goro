@@ -117,7 +117,7 @@ func (c skillController) Use(ctx client.Context, skill session.Skill, source str
 				return err
 			}
 		}
-		c.mode.changeCartWindow.Open(ctx)
+		c.mode.ui.changeCartWindow.Open(ctx)
 		log.Printf("%s skill opens change cart selector skill=%d", source, skill.ID)
 		return nil
 	}

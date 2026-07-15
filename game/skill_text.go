@@ -10,17 +10,17 @@ import (
 
 func (m *WorldMode) openSkillTextPrompt(ctx client.Context, skill session.Skill, x, y int, source string) {
 	m.pendingSkillText = pendingSkillTextTarget{skill: skill, x: x, y: y, source: source}
-	m.skillTextPrompt.Open(ctx, skillTextPromptTitle(skill), "Message", "Message", skillGroundTextMaxBytes)
+	m.ui.skillTextPrompt.Open(ctx, skillTextPromptTitle(skill), "Message", "Message", skillGroundTextMaxBytes)
 }
 
 func (m *WorldMode) updateSkillTextPrompt(ctx client.Context) bool {
-	consumed := m.skillTextPrompt.Update(ctx)
-	action := m.skillTextPrompt.PopAction()
+	consumed := m.ui.skillTextPrompt.Update(ctx)
+	action := m.ui.skillTextPrompt.PopAction()
 	if action.Submitted {
 		m.sendPendingSkillText(ctx, action.Text)
 		return true
 	}
-	if m.pendingSkillText.skill.ID != 0 && !m.skillTextPrompt.IsOpen() {
+	if m.pendingSkillText.skill.ID != 0 && !m.ui.skillTextPrompt.IsOpen() {
 		log.Printf("skill text prompt canceled skill=%d target=%d,%d", m.pendingSkillText.skill.ID, m.pendingSkillText.x, m.pendingSkillText.y)
 		m.pendingSkillText = pendingSkillTextTarget{}
 	}
@@ -34,7 +34,7 @@ func (m *WorldMode) sendPendingSkillText(ctx client.Context, text string) {
 		return
 	}
 	if err := m.skills().SendToGroundWithText(ctx, pending.skill, pending.x, pending.y, text, pending.source); err != nil {
-		m.console.AddErrorMessage("%s failed.", skillLabel(pending.skill))
+		m.ui.console.AddErrorMessage("%s failed.", skillLabel(pending.skill))
 		log.Printf("skill text send failed skill=%d target=%d,%d: %v", pending.skill.ID, pending.x, pending.y, err)
 		return
 	}

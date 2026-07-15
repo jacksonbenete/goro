@@ -594,7 +594,7 @@ func (m *LoginMode) nextWorldMode(ctx client.Context, now time.Time) *WorldMode 
 	m.clearLoginWindows(ctx)
 	m.quitConfirm = gameui.ConfirmModal{}
 	next := NewWorldMode()
-	next.console = m.console
+	next.ui.console = m.console
 	next.startMapFadeIn(now)
 	return next
 }

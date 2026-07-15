@@ -18,7 +18,7 @@ func (m *WorldMode) openFriendRequest(ctx client.Context, request network.Friend
 		name = "Someone"
 	}
 	log.Printf("friend request aid=%d gid=%d name=%q", request.AccountID, request.CharID, request.Name)
-	m.friendRequest.Open(ctx, "Friend Request", fmt.Sprintf("%s wants to be friends with you.", name), func() {
+	m.ui.friendRequest.Open(ctx, "Friend Request", fmt.Sprintf("%s wants to be friends with you.", name), func() {
 		if ctx.Network == nil {
 			log.Printf("friend request accept failed: not connected")
 			return
@@ -44,15 +44,15 @@ func (m *WorldMode) addFriendResultMessage(result network.FriendAddResult) {
 	}
 	switch result.Result {
 	case 0:
-		m.console.AddBlueMessage("You have become friends with %s.", name)
+		m.ui.console.AddBlueMessage("You have become friends with %s.", name)
 	case 1:
-		m.console.AddErrorMessage("%s does not want to be friends with you.", name)
+		m.ui.console.AddErrorMessage("%s does not want to be friends with you.", name)
 	case 2:
-		m.console.AddErrorMessage("Your Friend List is full.")
+		m.ui.console.AddErrorMessage("Your Friend List is full.")
 	case 3:
-		m.console.AddErrorMessage("%s's Friend List is full.", name)
+		m.ui.console.AddErrorMessage("%s's Friend List is full.", name)
 	default:
-		m.console.AddErrorMessage("Friend request failed.")
+		m.ui.console.AddErrorMessage("Friend request failed.")
 	}
 }
 
@@ -66,7 +66,7 @@ func (m *WorldMode) openPlayerContextFromInput(ctx client.Context, now time.Time
 	if !ok {
 		return false
 	}
-	m.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name), partyCanInvite(ctx.Session))
+	m.ui.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name), partyCanInvite(ctx.Session))
 	return true
 }
 
@@ -89,17 +89,17 @@ func (m *WorldMode) openDeleteFriendConfirm(ctx client.Context, friend session.F
 	if name == "" {
 		name = "this friend"
 	}
-	m.friendConfirm.Open(ctx, "Delete Friend", fmt.Sprintf("Delete %s from your friend list?", name), func() {
+	m.ui.friendConfirm.Open(ctx, "Delete Friend", fmt.Sprintf("Delete %s from your friend list?", name), func() {
 		if ctx.Network == nil {
-			m.console.AddErrorMessage("Delete friend failed: not connected.")
+			m.ui.console.AddErrorMessage("Delete friend failed: not connected.")
 			return
 		}
 		if err := ctx.Network.SendDeleteFriend(friend.AccountID, friend.CharID); err != nil {
-			m.console.AddErrorMessage("Delete friend failed.")
+			m.ui.console.AddErrorMessage("Delete friend failed.")
 			log.Printf("delete friend failed aid=%d gid=%d name=%q: %v", friend.AccountID, friend.CharID, friend.Name, err)
 			return
 		}
-		m.console.AddSystemMessage("Delete friend request sent for %s.", name)
+		m.ui.console.AddSystemMessage("Delete friend request sent for %s.", name)
 	}, nil)
 }
 

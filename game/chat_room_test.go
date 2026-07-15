@@ -14,7 +14,7 @@ func TestHandleChatMessageRoutesToOpenChatRoomOnly(t *testing.T) {
 	ctx := client.Context{
 		UIManager: &worldModeTestUIManager{},
 	}
-	mode.chatRoom.Open(ctx, "Room", 20, true, []string{"Kivutar"})
+	mode.ui.chatRoom.Open(ctx, "Room", 20, true, []string{"Kivutar"})
 
 	mode.handleChatMessage(ctx, network.ChatMessage{
 		Text: "Kivutar : hello",
@@ -34,7 +34,7 @@ func TestHandleChatMessageRoutesToOpenChatRoomOnly(t *testing.T) {
 
 func chatRoomLineTexts(t *testing.T, mode *WorldMode) []string {
 	t.Helper()
-	lines := reflect.ValueOf(&mode.chatRoom).Elem().FieldByName("lines")
+	lines := reflect.ValueOf(&mode.ui.chatRoom).Elem().FieldByName("lines")
 	out := make([]string, 0, lines.Len())
 	for i := 0; i < lines.Len(); i++ {
 		out = append(out, lines.Index(i).FieldByName("text").String())

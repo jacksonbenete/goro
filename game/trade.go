@@ -33,7 +33,7 @@ func (m *WorldMode) openTradeRequest(ctx client.Context, request network.TradeRe
 	if request.TargetID != 0 || request.Level != 0 {
 		message = fmt.Sprintf("%s\nLv.%d", message, request.Level)
 	}
-	m.tradeRequest.Open(ctx, "Trade Request", message, func() {
+	m.ui.tradeRequest.Open(ctx, "Trade Request", message, func() {
 		if ctx.Network == nil {
 			log.Printf("trade request accept failed: not connected")
 			return
@@ -42,7 +42,7 @@ func (m *WorldMode) openTradeRequest(ctx client.Context, request network.TradeRe
 			log.Printf("trade request accept failed name=%q: %v", request.Name, err)
 			return
 		}
-		m.tradeWindow.Open(ctx, name)
+		m.ui.tradeWindow.Open(ctx, name)
 	}, func() {
 		if ctx.Network == nil {
 			log.Printf("trade request reject failed: not connected")
@@ -59,36 +59,36 @@ func (m *WorldMode) handleTradeResponse(ctx client.Context, response network.Tra
 	m.pendingTradeName = ""
 	switch response.Result {
 	case 0:
-		m.tradeWindow.Close(ctx)
-		m.console.AddErrorMessage("That character is too far away.")
+		m.ui.tradeWindow.Close(ctx)
+		m.ui.console.AddErrorMessage("That character is too far away.")
 	case 1:
-		m.tradeWindow.Close(ctx)
-		m.console.AddErrorMessage("Character does not exist.")
+		m.ui.tradeWindow.Close(ctx)
+		m.ui.console.AddErrorMessage("Character does not exist.")
 	case 2:
-		m.tradeWindow.Close(ctx)
-		m.console.AddErrorMessage("Trade failed.")
+		m.ui.tradeWindow.Close(ctx)
+		m.ui.console.AddErrorMessage("Trade failed.")
 	case 3:
 		if name == "" {
 			name = "Player"
 		}
-		m.tradeWindow.Open(ctx, name)
+		m.ui.tradeWindow.Open(ctx, name)
 	case 4:
-		m.tradeWindow.Close(ctx)
-		m.console.AddErrorMessage("Trade canceled.")
+		m.ui.tradeWindow.Close(ctx)
+		m.ui.console.AddErrorMessage("Trade canceled.")
 	case 5:
-		m.tradeWindow.Close(ctx)
-		m.console.AddErrorMessage("That character is busy.")
+		m.ui.tradeWindow.Close(ctx)
+		m.ui.console.AddErrorMessage("That character is busy.")
 	default:
-		m.tradeWindow.Close(ctx)
-		m.console.AddErrorMessage("Trade failed.")
+		m.ui.tradeWindow.Close(ctx)
+		m.ui.console.AddErrorMessage("Trade failed.")
 	}
 }
 
 func (m *WorldMode) handleTradeExec(ctx client.Context, exec network.TradeExec) {
-	m.tradeWindow.Close(ctx)
+	m.ui.tradeWindow.Close(ctx)
 	if exec.Result == 0 {
-		m.console.AddBlueMessage("Trade completed.")
+		m.ui.console.AddBlueMessage("Trade completed.")
 		return
 	}
-	m.console.AddErrorMessage("Trade failed.")
+	m.ui.console.AddErrorMessage("Trade failed.")
 }

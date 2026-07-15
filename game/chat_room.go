@@ -13,16 +13,16 @@ import (
 )
 
 func (m *WorldMode) updateChatRoomWindows(ctx client.Context) bool {
-	createConsumed := m.chatRoomCreate.Update(ctx)
-	if action := m.chatRoomCreate.PopAction(); action.Title != "" {
+	createConsumed := m.ui.chatRoomCreate.Update(ctx)
+	if action := m.ui.chatRoomCreate.PopAction(); action.Title != "" {
 		m.createChatRoomFromWindow(ctx, action)
 		return true
 	}
 	if createConsumed {
 		return true
 	}
-	roomConsumed := m.chatRoom.Update(ctx)
-	if action := m.chatRoom.PopAction(); action.Leave || action.Message != "" {
+	roomConsumed := m.ui.chatRoom.Update(ctx)
+	if action := m.ui.chatRoom.PopAction(); action.Leave || action.Message != "" {
 		m.handleChatRoomAction(ctx, action)
 		return true
 	}
@@ -40,11 +40,11 @@ func (m *WorldMode) createChatRoomFromWindow(ctx client.Context, action gameui.C
 		return
 	}
 	if ctx.Network == nil {
-		m.console.AddErrorMessage("Create chat room failed: not connected.")
+		m.ui.console.AddErrorMessage("Create chat room failed: not connected.")
 		return
 	}
 	if err := ctx.Network.SendCreateChatRoom(room); err != nil {
-		m.console.AddErrorMessage("Create chat room failed.")
+		m.ui.console.AddErrorMessage("Create chat room failed.")
 		log.Printf("chat room create failed title=%q limit=%d public=%t: %v", room.Title, room.Limit, room.Public, err)
 		return
 	}
@@ -60,15 +60,15 @@ func (m *WorldMode) handleChatRoomCreateAck(ctx client.Context, ack network.Chat
 		}
 		m.pendingChatRoom = network.ChatRoomCreate{}
 		member := selectedCharacterName(ctx.Session)
-		m.chatRoom.Open(ctx, room.Title, room.Limit, room.Public, []string{member})
-		m.chatRoom.AddSystem(ctx, chatRoomCreateAckMessage(ctx, ack))
-		m.console.AddBlueMessage("%s", chatRoomCreateAckMessage(ctx, ack))
+		m.ui.chatRoom.Open(ctx, room.Title, room.Limit, room.Public, []string{member})
+		m.ui.chatRoom.AddSystem(ctx, chatRoomCreateAckMessage(ctx, ack))
+		m.ui.console.AddBlueMessage("%s", chatRoomCreateAckMessage(ctx, ack))
 	case 1, 2:
 		m.pendingChatRoom = network.ChatRoomCreate{}
-		m.console.AddErrorMessage("%s", chatRoomCreateAckMessage(ctx, ack))
+		m.ui.console.AddErrorMessage("%s", chatRoomCreateAckMessage(ctx, ack))
 	default:
 		m.pendingChatRoom = network.ChatRoomCreate{}
-		m.console.AddErrorMessage("Create chat room failed.")
+		m.ui.console.AddErrorMessage("Create chat room failed.")
 	}
 }
 
@@ -141,11 +141,11 @@ func actorHasChatRoom(actor worldstate.Actor) bool {
 func (m *WorldMode) handleChatRoomAction(ctx client.Context, action gameui.ChatRoomWindowAction) {
 	if action.Leave {
 		if ctx.Network == nil {
-			m.console.AddErrorMessage("Leave chat room failed: not connected.")
+			m.ui.console.AddErrorMessage("Leave chat room failed: not connected.")
 			return
 		}
 		if err := ctx.Network.SendExitChatRoom(); err != nil {
-			m.console.AddErrorMessage("Leave chat room failed.")
+			m.ui.console.AddErrorMessage("Leave chat room failed.")
 			log.Printf("chat room leave failed: %v", err)
 		}
 		return
@@ -156,18 +156,18 @@ func (m *WorldMode) handleChatRoomAction(ctx client.Context, action gameui.ChatR
 	}
 	name := selectedCharacterName(ctx.Session)
 	if name == "" {
-		m.chatRoom.AddError(ctx, "send failed: missing character name")
-		m.console.AddErrorMessage("Chat room send failed: missing character name.")
+		m.ui.chatRoom.AddError(ctx, "send failed: missing character name")
+		m.ui.console.AddErrorMessage("Chat room send failed: missing character name.")
 		return
 	}
 	if ctx.Network == nil {
-		m.chatRoom.AddError(ctx, "send failed: not connected")
-		m.console.AddErrorMessage("Chat room send failed: not connected.")
+		m.ui.chatRoom.AddError(ctx, "send failed: not connected")
+		m.ui.console.AddErrorMessage("Chat room send failed: not connected.")
 		return
 	}
 	if err := ctx.Network.SendGlobalChat(name, message); err != nil {
-		m.chatRoom.AddError(ctx, "send failed: "+err.Error())
-		m.console.AddErrorMessage("Chat room send failed.")
+		m.ui.chatRoom.AddError(ctx, "send failed: "+err.Error())
+		m.ui.console.AddErrorMessage("Chat room send failed.")
 		log.Printf("chat room send failed: %v", err)
 	}
 }
@@ -177,15 +177,15 @@ func (m *WorldMode) requestChatRoomEnter(ctx client.Context, actor worldstate.Ac
 		return
 	}
 	if !actor.ChatRoomPublic {
-		m.console.AddErrorMessage("Private chat rooms need a password.")
+		m.ui.console.AddErrorMessage("Private chat rooms need a password.")
 		return
 	}
 	if ctx.Network == nil {
-		m.console.AddErrorMessage("Enter chat room failed: not connected.")
+		m.ui.console.AddErrorMessage("Enter chat room failed: not connected.")
 		return
 	}
 	if err := ctx.Network.SendEnterChatRoom(actor.ChatRoomID, ""); err != nil {
-		m.console.AddErrorMessage("Enter chat room failed.")
+		m.ui.console.AddErrorMessage("Enter chat room failed.")
 		log.Printf("chat room enter failed room=%d title=%q: %v", actor.ChatRoomID, actor.ChatRoomTitle, err)
 		return
 	}
@@ -209,73 +209,73 @@ func (m *WorldMode) handleChatRoomEnter(ctx client.Context, enter network.ChatRo
 			owner = name
 		}
 	}
-	if !m.chatRoom.IsOpen() {
+	if !m.ui.chatRoom.IsOpen() {
 		room := m.pendingChatRoom
 		if room.Title == "" {
 			room = network.ChatRoomCreate{Title: "Chat Room", Limit: uint16(len(members)), Public: true}
 		}
-		m.chatRoom.Open(ctx, room.Title, room.Limit, room.Public, members)
+		m.ui.chatRoom.Open(ctx, room.Title, room.Limit, room.Public, members)
 	}
-	m.chatRoom.SetMembers(ctx, members, owner)
+	m.ui.chatRoom.SetMembers(ctx, members, owner)
 	m.pendingChatRoom = network.ChatRoomCreate{}
 }
 
 func (m *WorldMode) handleChatRoomMemberJoin(ctx client.Context, join network.ChatRoomMemberJoin) {
-	if !m.chatRoom.IsOpen() {
+	if !m.ui.chatRoom.IsOpen() {
 		return
 	}
 	name := strings.TrimSpace(join.Name)
-	m.chatRoom.AddMember(ctx, name, join.Count)
-	m.chatRoom.AddSystem(ctx, chatRoomMemberMessage(ctx, 179, "%s entered the chat room.", name))
+	m.ui.chatRoom.AddMember(ctx, name, join.Count)
+	m.ui.chatRoom.AddSystem(ctx, chatRoomMemberMessage(ctx, 179, "%s entered the chat room.", name))
 }
 
 func (m *WorldMode) handleChatRoomMemberLeave(ctx client.Context, leave network.ChatRoomMemberLeave) {
-	if !m.chatRoom.IsOpen() {
+	if !m.ui.chatRoom.IsOpen() {
 		return
 	}
 	name := strings.TrimSpace(leave.Name)
-	m.chatRoom.RemoveMember(ctx, name, leave.Count)
+	m.ui.chatRoom.RemoveMember(ctx, name, leave.Count)
 	messageID := 180
 	fallback := "%s left the chat room."
 	if leave.Kicked {
 		messageID = 181
 		fallback = "%s has been kicked out of the chat room."
 	}
-	m.chatRoom.AddSystem(ctx, chatRoomMemberMessage(ctx, messageID, fallback, name))
+	m.ui.chatRoom.AddSystem(ctx, chatRoomMemberMessage(ctx, messageID, fallback, name))
 }
 
 func (m *WorldMode) handleChatRoomChange(ctx client.Context, change network.ChatRoomChange) {
-	if !m.chatRoom.IsOpen() {
+	if !m.ui.chatRoom.IsOpen() {
 		return
 	}
-	m.chatRoom.UpdateRoom(ctx, change.Title, change.Limit, change.Count, change.Public)
+	m.ui.chatRoom.UpdateRoom(ctx, change.Title, change.Limit, change.Count, change.Public)
 }
 
 func (m *WorldMode) handleChatRoomRoleChange(ctx client.Context, role network.ChatRoomRoleChange) {
-	if !m.chatRoom.IsOpen() || !role.Owner {
+	if !m.ui.chatRoom.IsOpen() || !role.Owner {
 		return
 	}
-	m.chatRoom.SetOwner(ctx, role.Name)
+	m.ui.chatRoom.SetOwner(ctx, role.Name)
 }
 
 func (m *WorldMode) addChatRoomMessage(ctx client.Context, chat network.ChatMessage) {
-	if !m.chatRoom.IsOpen() {
+	if !m.ui.chatRoom.IsOpen() {
 		return
 	}
 	text := formatConsoleMessage(ctx.Resources, chat)
 	if text == "" {
 		return
 	}
-	m.chatRoom.AddMessage(ctx, text)
+	m.ui.chatRoom.AddMessage(ctx, text)
 }
 
 func (m *WorldMode) handleChatMessage(ctx client.Context, chat network.ChatMessage, now time.Time) {
-	if m.chatRoom.IsOpen() {
+	if m.ui.chatRoom.IsOpen() {
 		m.addChatRoomMessage(ctx, chat)
 		return
 	}
 	m.applySpeechBubble(ctx, chat, now)
-	addConsoleMessage(&m.console, ctx.Resources, chat)
+	addConsoleMessage(&m.ui.console, ctx.Resources, chat)
 }
 
 func chatRoomMemberMessage(ctx client.Context, messageID int, fallback string, name string) string {

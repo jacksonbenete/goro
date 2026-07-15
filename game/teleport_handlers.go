@@ -25,20 +25,20 @@ func (m *WorldMode) applyWarpPointList(ctx client.Context, list network.WarpPoin
 		m.autoSelectTeleportRandom(ctx, list)
 		return
 	}
-	m.teleportModal.OpenWarpPointList(list, skill)
+	m.ui.teleportModal.OpenWarpPointList(list, skill)
 	log.Printf("warp point destination list skill=%d maps=%v", list.SkillID, list.MapNames)
 }
 
 func (m *WorldMode) applyRememberWarpPointAck(_ client.Context, ack network.RememberWarpPointAck) {
 	switch ack.Result {
 	case 0:
-		m.console.AddBlueMessage("Saved location as a Memo Point for Warp skill.")
+		m.ui.console.AddBlueMessage("Saved location as a Memo Point for Warp skill.")
 	case 1:
-		m.console.AddErrorMessage("Skill Level is not high enough.")
+		m.ui.console.AddErrorMessage("Skill Level is not high enough.")
 	case 2:
-		m.console.AddErrorMessage("You haven't learned Warp.")
+		m.ui.console.AddErrorMessage("You haven't learned Warp.")
 	default:
-		m.console.AddErrorMessage("Memo failed.")
+		m.ui.console.AddErrorMessage("Memo failed.")
 	}
 	log.Printf("remember warp point ack result=%d", ack.Result)
 }
@@ -57,6 +57,6 @@ func (m *WorldMode) autoSelectTeleportRandom(ctx client.Context, list network.Wa
 	if err := ctx.Network.SendSelectWarpPoint(list.SkillID, mapName); err != nil {
 		return
 	}
-	m.teleportModal.Reset()
+	m.ui.teleportModal.Reset()
 	log.Printf("teleport random selected automatically skill=%d maps=%v", list.SkillID, list.MapNames)
 }

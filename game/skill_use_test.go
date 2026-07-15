@@ -32,7 +32,7 @@ func TestChangeCartSkillOpensSelector(t *testing.T) {
 	if err := controller.Use(ctx, session.Skill{ID: skillChangeCart, Level: 1, Type: skillTargetSelf}, "test"); err != nil {
 		t.Fatalf("change cart use failed: %v", err)
 	}
-	if !mode.changeCartWindow.IsOpen() {
+	if !mode.ui.changeCartWindow.IsOpen() {
 		t.Fatal("change cart window was not opened")
 	}
 	if mode.pendingSkill.skill.ID != 0 {
@@ -69,7 +69,7 @@ func TestTextGroundSkillClickOpensPrompt(t *testing.T) {
 	if mode.pendingSkillText.skill.ID != db.SkillHTTalkiebox || mode.pendingSkillText.x != 12 || mode.pendingSkillText.y != 20 {
 		t.Fatalf("pending text skill = %+v", mode.pendingSkillText)
 	}
-	if !mode.skillTextPrompt.IsOpen() {
+	if !mode.ui.skillTextPrompt.IsOpen() {
 		t.Fatal("skill text prompt was not opened")
 	}
 }

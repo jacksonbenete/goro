@@ -588,7 +588,7 @@ func (m *WorldMode) applySkillFailAck(ctx client.Context, ack network.SkillFailA
 	}
 	message := skillFailMessage(ack)
 	log.Printf("skill fail ack skill=%d num=%d item=%d result=%d cause=%d msg=%q", ack.SkillID, ack.Number, ack.ItemID, ack.Result, ack.Cause, message)
-	m.console.AddErrorMessage("%s", message)
+	m.ui.console.AddErrorMessage("%s", message)
 }
 
 func specialEffectID(effectID uint32) int {

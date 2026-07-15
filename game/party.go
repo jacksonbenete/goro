@@ -19,28 +19,28 @@ func (m *WorldMode) sendPartyInvite(ctx client.Context, actorID uint32, name str
 	}
 	if ctx.Network == nil {
 		log.Printf("party invite failed target=%d name=%q: not connected", actorID, name)
-		m.console.AddErrorMessage("Party invitation failed: not connected.")
+		m.ui.console.AddErrorMessage("Party invitation failed: not connected.")
 		return
 	}
 	if err := ctx.Network.SendPartyInvite(actorID, name); err != nil {
 		log.Printf("party invite failed target=%d name=%q: %v", actorID, name, err)
-		m.console.AddErrorMessage("Party invitation failed.")
+		m.ui.console.AddErrorMessage("Party invitation failed.")
 		return
 	}
-	m.console.AddBlueMessage("%s has received an invitation to join your party.", partyDisplayName(name))
+	m.ui.console.AddBlueMessage("%s has received an invitation to join your party.", partyDisplayName(name))
 }
 
 func (m *WorldMode) updatePartyHelperWindows(ctx client.Context) bool {
-	createConsumed := m.partyCreate.Update(ctx)
-	if action := m.partyCreate.PopAction(); action.Name != "" {
+	createConsumed := m.ui.partyCreate.Update(ctx)
+	if action := m.ui.partyCreate.PopAction(); action.Name != "" {
 		m.createPartyFromWindow(ctx, action)
 		return true
 	}
 	if createConsumed {
 		return true
 	}
-	inviteConsumed := m.partyInvite.Update(ctx)
-	if name := m.partyInvite.PopAction(); name != "" {
+	inviteConsumed := m.ui.partyInvite.Update(ctx)
+	if name := m.ui.partyInvite.PopAction(); name != "" {
 		m.sendPartyInvite(ctx, 0, name)
 		return true
 	}
@@ -53,15 +53,15 @@ func (m *WorldMode) createPartyFromWindow(ctx client.Context, action gameui.Part
 		return
 	}
 	if ctx.Session != nil && ctx.Session.Party.Active() {
-		m.console.AddErrorMessage("You are already in a party.")
+		m.ui.console.AddErrorMessage("You are already in a party.")
 		return
 	}
 	if ctx.Network == nil {
-		m.console.AddErrorMessage("Create party failed: not connected.")
+		m.ui.console.AddErrorMessage("Create party failed: not connected.")
 		return
 	}
 	if err := ctx.Network.SendMakeParty2(name, action.ItemPickup, action.ItemDivision); err != nil {
-		m.console.AddErrorMessage("Create party failed.")
+		m.ui.console.AddErrorMessage("Create party failed.")
 		log.Printf("party create failed name=%q pickup=%d division=%d: %v", name, action.ItemPickup, action.ItemDivision, err)
 		return
 	}
@@ -82,28 +82,28 @@ func (m *WorldMode) openPartyMemberInfo(ctx client.Context, member session.Party
 	if member.Online() {
 		state = "Online"
 	}
-	m.partyInfo.OpenAlert(ctx, "Party Member", fmt.Sprintf("%s\n%s, %s", name, mapName, state), nil)
+	m.ui.partyInfo.OpenAlert(ctx, "Party Member", fmt.Sprintf("%s\n%s, %s", name, mapName, state), nil)
 }
 
 func (m *WorldMode) openExpelPartyMemberConfirm(ctx client.Context, member session.PartyMember) {
 	name := partyDisplayName(member.Name)
-	m.partyInfo.Open(ctx, "Expel Party Member", fmt.Sprintf("Expel %s from the party?", name), func() {
+	m.ui.partyInfo.Open(ctx, "Expel Party Member", fmt.Sprintf("Expel %s from the party?", name), func() {
 		if ctx.Network == nil {
-			m.console.AddErrorMessage("Expel party member failed: not connected.")
+			m.ui.console.AddErrorMessage("Expel party member failed: not connected.")
 			return
 		}
 		if err := ctx.Network.SendExpelPartyMember(member.AccountID, member.Name); err != nil {
-			m.console.AddErrorMessage("Expel party member failed.")
+			m.ui.console.AddErrorMessage("Expel party member failed.")
 			log.Printf("party expel failed aid=%d name=%q: %v", member.AccountID, member.Name, err)
 			return
 		}
-		m.console.AddSystemMessage("Expel request sent for %s.", name)
+		m.ui.console.AddSystemMessage("Expel request sent for %s.", name)
 	}, nil)
 }
 
 func (m *WorldMode) openPartyInviteRequest(ctx client.Context, request network.PartyInviteRequest) {
 	name := partyDisplayName(request.Name)
-	m.partyRequest.Open(ctx, "Party Invitation", fmt.Sprintf("%s has invited you to join a party.", name), func() {
+	m.ui.partyRequest.Open(ctx, "Party Invitation", fmt.Sprintf("%s has invited you to join a party.", name), func() {
 		if ctx.Network == nil {
 			log.Printf("party invite accept failed: not connected")
 			return
@@ -125,20 +125,20 @@ func (m *WorldMode) openPartyInviteRequest(ctx client.Context, request network.P
 func (m *WorldMode) handlePartyCreateResult(ctx client.Context, result network.PartyCreateResult) {
 	switch result.Result {
 	case 0:
-		m.console.AddBlueMessage("Party created.")
+		m.ui.console.AddBlueMessage("Party created.")
 		syncLocalPartyVitals(ctx)
 	case 1:
 		clearPendingParty(ctx)
-		m.console.AddErrorMessage("Party name already exists.")
+		m.ui.console.AddErrorMessage("Party name already exists.")
 	case 2:
 		clearPendingParty(ctx)
-		m.console.AddErrorMessage("You are already in a party.")
+		m.ui.console.AddErrorMessage("You are already in a party.")
 	case 3:
 		clearPendingParty(ctx)
-		m.console.AddErrorMessage("Cannot organize a party on this map.")
+		m.ui.console.AddErrorMessage("Cannot organize a party on this map.")
 	default:
 		clearPendingParty(ctx)
-		m.console.AddErrorMessage("Cannot form a party.")
+		m.ui.console.AddErrorMessage("Cannot form a party.")
 	}
 }
 
@@ -146,25 +146,25 @@ func (m *WorldMode) handlePartyInviteAnswer(answer network.PartyInviteAnswer) {
 	name := partyDisplayName(answer.Name)
 	switch answer.Answer {
 	case 0:
-		m.console.AddErrorMessage("%s is already in a party.", name)
+		m.ui.console.AddErrorMessage("%s is already in a party.", name)
 	case 1:
-		m.console.AddErrorMessage("%s denied your party invitation.", name)
+		m.ui.console.AddErrorMessage("%s denied your party invitation.", name)
 	case 2:
-		m.console.AddBlueMessage("%s joined your party.", name)
+		m.ui.console.AddBlueMessage("%s joined your party.", name)
 	case 3:
-		m.console.AddErrorMessage("The party is full.")
+		m.ui.console.AddErrorMessage("The party is full.")
 	case 4:
-		m.console.AddErrorMessage("A character from the same account is already in the party.")
+		m.ui.console.AddErrorMessage("A character from the same account is already in the party.")
 	case 5:
-		m.console.AddErrorMessage("%s blocked party invitations.", name)
+		m.ui.console.AddErrorMessage("%s blocked party invitations.", name)
 	case 7:
-		m.console.AddErrorMessage("%s is not online.", name)
+		m.ui.console.AddErrorMessage("%s is not online.", name)
 	case 8:
-		m.console.AddErrorMessage("Cannot invite players on this map.")
+		m.ui.console.AddErrorMessage("Cannot invite players on this map.")
 	case 9:
-		m.console.AddErrorMessage("Cannot join a party on this map.")
+		m.ui.console.AddErrorMessage("Cannot join a party on this map.")
 	default:
-		m.console.AddErrorMessage("Party invitation failed.")
+		m.ui.console.AddErrorMessage("Party invitation failed.")
 	}
 }
 

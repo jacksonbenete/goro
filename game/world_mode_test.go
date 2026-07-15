@@ -2886,11 +2886,11 @@ func TestWarpPortalListOpensDestinationModal(t *testing.T) {
 		{ID: 27, Level: 4, Type: skillTargetPlace, Range: 9},
 	}}}}
 	mode.applyWarpPointList(ctx, network.WarpPointList{SkillID: 27, MapNames: []string{"prontera", "geffen", "payon"}})
-	if !mode.teleportModal.IsOpen() {
+	if !mode.ui.teleportModal.IsOpen() {
 		t.Fatal("warp portal list should open the destination modal")
 	}
-	if mode.teleportModal.Title() != "Warp Portal" {
-		t.Fatalf("modal title = %q", mode.teleportModal.Title())
+	if mode.ui.teleportModal.Title() != "Warp Portal" {
+		t.Fatalf("modal title = %q", mode.ui.teleportModal.Title())
 	}
 }
 
@@ -4280,19 +4280,19 @@ func TestBasicMenuOptionTogglesEscapeMenu(t *testing.T) {
 
 	mode.basicMenuCallbacks(client.Context{}).OnOption()
 
-	if !mode.escapeMenu.IsOpen() {
+	if !mode.ui.escapeMenu.IsOpen() {
 		t.Fatal("escape menu did not open")
 	}
-	if mode.escapeMenu.Action() != gameui.EscapeMenuActionNone {
-		t.Fatalf("escape menu action = %d, want none", mode.escapeMenu.Action())
+	if mode.ui.escapeMenu.Action() != gameui.EscapeMenuActionNone {
+		t.Fatalf("escape menu action = %d, want none", mode.ui.escapeMenu.Action())
 	}
-	if mode.escapeMenu.Pending() {
+	if mode.ui.escapeMenu.Pending() {
 		t.Fatal("escape menu kept stale pending state")
 	}
 
 	mode.basicMenuCallbacks(client.Context{}).OnOption()
 
-	if mode.escapeMenu.IsOpen() {
+	if mode.ui.escapeMenu.IsOpen() {
 		t.Fatal("escape menu stayed open after second option click")
 	}
 }
@@ -4306,7 +4306,7 @@ func TestEscapeKeyOpensEscapeMenuGlobally(t *testing.T) {
 	if !mode.openEscapeMenuFromInput(client.Context{Input: inputState, UIManager: manager, ScreenW: 800, ScreenH: 600}) {
 		t.Fatal("escape key did not open escape menu")
 	}
-	if !mode.escapeMenu.IsOpen() {
+	if !mode.ui.escapeMenu.IsOpen() {
 		t.Fatal("escape menu is not open")
 	}
 	if len(manager.overlays) != 1 {
@@ -4458,7 +4458,7 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 
 	mode.startActorDeath(ctx, 150000)
 
-	if !mode.deathModal.IsOpen() {
+	if !mode.ui.deathModal.IsOpen() {
 		t.Fatal("death modal should open for local death")
 	}
 	anim, ok := mode.actorAnims[150000]
@@ -4482,7 +4482,7 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	ctx.Session.Vitals.HP = 1
 	mode.clearLocalDeathStateIfAlive(ctx)
 
-	if mode.deathModal.IsOpen() {
+	if mode.ui.deathModal.IsOpen() {
 		t.Fatal("death modal should clear when player is alive")
 	}
 	if _, ok := mode.actorAnims[150000]; ok {
@@ -5482,8 +5482,8 @@ func TestHandleMapChangeSameServerUpdatesMapAndResetsActors(t *testing.T) {
 		ScreenH:   720,
 	}
 	mode := &WorldMode{}
-	mode.npcDialog.Apply(network.NPCDialog{Kind: network.NPCDialogSay, NPCID: 10, Message: "Warping..."})
-	if !mode.npcDialog.Update(ctx) {
+	mode.ui.npcDialog.Apply(network.NPCDialog{Kind: network.NPCDialogSay, NPCID: 10, Message: "Warping..."})
+	if !mode.ui.npcDialog.Update(ctx) {
 		t.Fatal("npc dialog did not publish before map change")
 	}
 	if len(uiManager.overlays) == 0 {
@@ -5521,7 +5521,7 @@ func TestNextWorldModeReusesMinimapOverlay(t *testing.T) {
 		ScreenH:   720,
 	}
 	mode := &WorldMode{}
-	mode.minimap.Update(ctx)
+	mode.ui.minimap.Update(ctx)
 	manager := ctx.UIManager.(*worldModeTestUIManager)
 	if len(manager.overlays) != 1 {
 		t.Fatalf("minimap overlays before map change = %d, want 1", len(manager.overlays))
@@ -5530,7 +5530,7 @@ func TestNextWorldModeReusesMinimapOverlay(t *testing.T) {
 	next := mode.nextWorldMode()
 	world.MapName = "geffen"
 	world.SetPlayerPosition(120, 80, 4)
-	next.minimap.Update(ctx)
+	next.ui.minimap.Update(ctx)
 
 	if len(manager.overlays) != 1 {
 		t.Fatalf("minimap overlays after map change = %d, want 1", len(manager.overlays))
@@ -5552,7 +5552,7 @@ func TestNextWorldModeCarriesOpenInventoryWindow(t *testing.T) {
 		ScreenH:   720,
 	}
 	mode := &WorldMode{}
-	mode.inventoryBag.Toggle(ctx)
+	mode.ui.inventoryBag.Toggle(ctx)
 	manager := ctx.UIManager.(*worldModeTestUIManager)
 	if len(manager.overlays) == 0 {
 		t.Fatal("inventory overlay was not published before map change")
@@ -5562,7 +5562,7 @@ func TestNextWorldModeCarriesOpenInventoryWindow(t *testing.T) {
 	if len(manager.overlays) != 1 {
 		t.Fatalf("inventory overlays after mode replacement = %d, want carried overlay", len(manager.overlays))
 	}
-	next.inventoryBag.Update(ctx, &next.shortcutBar, &next.storageWindow, &next.cartWindow, nil, &next.itemInfoWindow)
+	next.ui.inventoryBag.Update(ctx, &next.ui.shortcutBar, &next.ui.storageWindow, &next.ui.cartWindow, nil, &next.ui.itemInfoWindow)
 	if len(manager.overlays) != 1 {
 		t.Fatalf("inventory overlays after next mode update = %d, want 1", len(manager.overlays))
 	}
@@ -5576,7 +5576,7 @@ func TestNextWorldModeCarriesAndRebindsWhisperWindow(t *testing.T) {
 		ScreenH:   720,
 	}
 	mode := &WorldMode{}
-	mode.whisperWindow.Open(ctx, "Alice")
+	mode.ui.whisperWindow.Open(ctx, "Alice")
 	manager := ctx.UIManager.(*worldModeTestUIManager)
 	if len(manager.overlays) != 1 {
 		t.Fatalf("whisper overlays before map change = %d, want 1", len(manager.overlays))
@@ -5584,7 +5584,7 @@ func TestNextWorldModeCarriesAndRebindsWhisperWindow(t *testing.T) {
 	previousOverlay := manager.overlays[0]
 
 	next := mode.nextWorldMode()
-	if !next.whisperWindow.IsOpen() {
+	if !next.ui.whisperWindow.IsOpen() {
 		t.Fatal("next world mode did not carry open whisper window")
 	}
 	next.rebindPersistentUI(ctx)
@@ -5596,7 +5596,7 @@ func TestNextWorldModeCarriesAndRebindsWhisperWindow(t *testing.T) {
 		t.Fatal("whisper overlay was not rebound")
 	}
 
-	next.whisperWindow.AddError(ctx, "send failed")
+	next.ui.whisperWindow.AddError(ctx, "send failed")
 	if len(manager.overlays) != 1 {
 		t.Fatalf("whisper overlays after refresh = %d, want 1", len(manager.overlays))
 	}
@@ -5611,7 +5611,7 @@ func TestNextWorldModeCarriesAndRebindsFriendSettingsWindow(t *testing.T) {
 		ScreenH:   720,
 	}
 	mode := &WorldMode{}
-	mode.friendSettings.Open(ctx)
+	mode.ui.friendSettings.Open(ctx)
 	manager := ctx.UIManager.(*worldModeTestUIManager)
 	if len(manager.overlays) != 1 {
 		t.Fatalf("friend settings overlays before map change = %d, want 1", len(manager.overlays))
@@ -5619,7 +5619,7 @@ func TestNextWorldModeCarriesAndRebindsFriendSettingsWindow(t *testing.T) {
 	previousOverlay := manager.overlays[0]
 
 	next := mode.nextWorldMode()
-	if !next.friendSettings.IsOpen() {
+	if !next.ui.friendSettings.IsOpen() {
 		t.Fatal("next world mode did not carry open friend settings window")
 	}
 	next.rebindPersistentUI(ctx)
@@ -5644,7 +5644,7 @@ func TestNextWorldModeCarriesAndRebindsPartySettingsWindow(t *testing.T) {
 		ScreenH:   720,
 	}
 	mode := &WorldMode{}
-	mode.partySettings.Open(ctx)
+	mode.ui.partySettings.Open(ctx)
 	manager := ctx.UIManager.(*worldModeTestUIManager)
 	if len(manager.overlays) != 1 {
 		t.Fatalf("party settings overlays before map change = %d, want 1", len(manager.overlays))
@@ -5652,7 +5652,7 @@ func TestNextWorldModeCarriesAndRebindsPartySettingsWindow(t *testing.T) {
 	previousOverlay := manager.overlays[0]
 
 	next := mode.nextWorldMode()
-	if !next.partySettings.IsOpen() {
+	if !next.ui.partySettings.IsOpen() {
 		t.Fatal("next world mode did not carry open party settings window")
 	}
 	next.rebindPersistentUI(ctx)
@@ -5673,8 +5673,8 @@ func TestNextWorldModeCarriesAndRebindsPartyHelperWindows(t *testing.T) {
 		ScreenH:   720,
 	}
 	mode := &WorldMode{}
-	mode.partyCreate.Open(ctx)
-	mode.partyInvite.Open(ctx)
+	mode.ui.partyCreate.Open(ctx)
+	mode.ui.partyInvite.Open(ctx)
 	manager := ctx.UIManager.(*worldModeTestUIManager)
 	if len(manager.overlays) != 2 {
 		t.Fatalf("party helper overlays before map change = %d, want 2", len(manager.overlays))
@@ -5683,8 +5683,8 @@ func TestNextWorldModeCarriesAndRebindsPartyHelperWindows(t *testing.T) {
 	previousInvite := manager.overlays[1]
 
 	next := mode.nextWorldMode()
-	if !next.partyCreate.IsOpen() || !next.partyInvite.IsOpen() {
-		t.Fatalf("next world mode did not carry helper windows create=%t invite=%t", next.partyCreate.IsOpen(), next.partyInvite.IsOpen())
+	if !next.ui.partyCreate.IsOpen() || !next.ui.partyInvite.IsOpen() {
+		t.Fatalf("next world mode did not carry helper windows create=%t invite=%t", next.ui.partyCreate.IsOpen(), next.ui.partyInvite.IsOpen())
 	}
 	next.rebindPersistentUI(ctx)
 
@@ -6471,7 +6471,7 @@ func TestSkillFailAckAddsConsoleErrorWithoutEffect(t *testing.T) {
 	if len(mode.worldEffects) != 0 {
 		t.Fatalf("world effects = %d, want 0", len(mode.worldEffects))
 	}
-	messages := mode.console.Messages()
+	messages := mode.ui.console.Messages()
 	if len(messages) != 1 || messages[0].Text != "Action failed." {
 		t.Fatalf("console messages = %+v", messages)
 	}
@@ -6483,7 +6483,7 @@ func TestStealFailAckUsesSkillSpecificMessage(t *testing.T) {
 
 	mode.applySkillFailAck(ctx, network.SkillFailAck{SkillID: 50, Result: 0, Cause: 0})
 
-	messages := mode.console.Messages()
+	messages := mode.ui.console.Messages()
 	if len(messages) != 1 || messages[0].Text != "Steal failed." {
 		t.Fatalf("console messages = %+v", messages)
 	}

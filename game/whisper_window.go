@@ -11,8 +11,8 @@ import (
 )
 
 func (m *WorldMode) updateWhisperWindow(ctx client.Context) bool {
-	consumed := m.whisperWindow.Update(ctx)
-	if action := m.whisperWindow.PopAction(); action.Target != "" && action.Message != "" {
+	consumed := m.ui.whisperWindow.Update(ctx)
+	if action := m.ui.whisperWindow.PopAction(); action.Target != "" && action.Message != "" {
 		m.sendWhisperWindowMessage(ctx, action)
 		return true
 	}
@@ -26,18 +26,18 @@ func (m *WorldMode) sendWhisperWindowMessage(ctx client.Context, action gameui.W
 		return
 	}
 	if ctx.Network == nil {
-		m.whisperWindow.AddError(ctx, "send failed: not connected")
-		m.console.AddErrorMessage("send failed: not connected")
+		m.ui.whisperWindow.AddError(ctx, "send failed: not connected")
+		m.ui.console.AddErrorMessage("send failed: not connected")
 		return
 	}
 	if err := ctx.Network.SendWhisper(target, message); err != nil {
-		m.whisperWindow.AddError(ctx, "send failed: "+err.Error())
-		m.console.AddErrorMessage("send failed: %s", err)
+		m.ui.whisperWindow.AddError(ctx, "send failed: "+err.Error())
+		m.ui.console.AddErrorMessage("send failed: %s", err)
 		log.Printf("whisper window send failed target=%q: %v", target, err)
 		return
 	}
-	m.whisperWindow.AddOutgoing(ctx, message)
-	m.console.AddBlueMessage("[ To %s ] : %s", target, message)
+	m.ui.whisperWindow.AddOutgoing(ctx, message)
+	m.ui.console.AddBlueMessage("[ To %s ] : %s", target, message)
 }
 
 func (m *WorldMode) addWhisperWindowIncoming(ctx client.Context, whisper network.WhisperMessage) {
@@ -46,18 +46,18 @@ func (m *WorldMode) addWhisperWindowIncoming(ctx client.Context, whisper network
 	if sender == "" || message == "" {
 		return
 	}
-	if !m.whisperWindow.IsOpen() && !shouldOpenWhisperWindow(ctx.Session, sender) {
+	if !m.ui.whisperWindow.IsOpen() && !shouldOpenWhisperWindow(ctx.Session, sender) {
 		return
 	}
-	m.whisperWindow.Open(ctx, sender)
-	m.whisperWindow.AddIncoming(ctx, sender, message)
+	m.ui.whisperWindow.Open(ctx, sender)
+	m.ui.whisperWindow.AddIncoming(ctx, sender, message)
 }
 
 func (m *WorldMode) addWhisperWindowAck(ctx client.Context, ack network.WhisperAck) {
-	if ack.Result == 0 || !m.whisperWindow.IsOpen() {
+	if ack.Result == 0 || !m.ui.whisperWindow.IsOpen() {
 		return
 	}
-	m.whisperWindow.AddError(ctx, whisperAckMessage(ctx.Resources, ack))
+	m.ui.whisperWindow.AddError(ctx, whisperAckMessage(ctx.Resources, ack))
 }
 
 func shouldOpenWhisperWindow(s *session.Session, sender string) bool {
