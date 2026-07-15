@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"strings"
+	"time"
 
 	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/event"
@@ -31,14 +32,16 @@ const (
 
 type EquipmentWindow struct {
 	Window
-	snapshot string
-	itemInfo *ItemInfoWindow
-	cart     *CartWindow
-	hasCart  bool
-	preview  image.Image
-	tooltip  tooltipState
-	icons    map[equipmentItemIconKey]image.Image
-	iconMiss map[equipmentItemIconKey]struct{}
+	snapshot      string
+	itemInfo      *ItemInfoWindow
+	cart          *CartWindow
+	hasCart       bool
+	preview       image.Image
+	tooltip       tooltipState
+	lastClickItem uint16
+	lastClickAt   time.Time
+	icons         map[equipmentItemIconKey]image.Image
+	iconMiss      map[equipmentItemIconKey]struct{}
 }
 
 type equipmentItemIconKey struct {
@@ -383,6 +386,14 @@ func (w *staticImageWidget) Event(ctx widget.Context, e event.Event) bool {
 }
 
 func (w *EquipmentWindow) activateItem(ctx Context, item session.InventoryItem) {
+	now := time.Now()
+	if w.lastClickItem != item.Index || now.Sub(w.lastClickAt) > 360*time.Millisecond {
+		w.lastClickItem = item.Index
+		w.lastClickAt = now
+		return
+	}
+	w.lastClickItem = 0
+	w.lastClickAt = time.Time{}
 	if ctx.Network == nil {
 		return
 	}

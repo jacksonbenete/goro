@@ -124,3 +124,18 @@ func TestEquipmentWindowConsumesInventoryDrop(t *testing.T) {
 		t.Fatal("drop over equipment window was not consumed")
 	}
 }
+
+func TestEquipmentWindowSingleClickDoesNotUnequip(t *testing.T) {
+	window := EquipmentWindow{}
+	item := session.InventoryItem{Index: 7, ItemID: 2601, Type: db.ItemTypeArmor, Equip: true, Equipped: true}
+
+	window.activateItem(Context{}, item)
+	if window.lastClickItem != item.Index {
+		t.Fatalf("first click lastClickItem = %d, want %d", window.lastClickItem, item.Index)
+	}
+
+	window.activateItem(Context{}, item)
+	if window.lastClickItem != 0 {
+		t.Fatalf("second click lastClickItem = %d, want reset after double click", window.lastClickItem)
+	}
+}
