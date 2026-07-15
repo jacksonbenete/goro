@@ -10,25 +10,13 @@ import (
 	gameui "github.com/kivutar/goro/ui"
 )
 
-const (
-	disconnectDialogTitle       = "Disconnected"
-	disconnectConnectFailedMsg  = "Failed to Connect to Server."
-	disconnectTransportMessage  = "Disconnected from Server."
-	disconnectGenericMessage    = "Disconnected from Server!"
-	disconnectConnectFailedID   = 1
-	disconnectInterServerMsgID  = 3
-	disconnectTransportMsgID    = 2
-	disconnectGenericBanMsgID   = 3
-	disconnectMalformedBanMsgID = 3
-)
-
 type disconnectMessage struct {
 	msgID    int
 	fallback string
 }
 
 var disconnectBanMessages = map[uint8]disconnectMessage{
-	0:  {disconnectGenericBanMsgID, disconnectGenericMessage},
+	0:  {3, "Disconnected from Server!"},
 	1:  {4, "Server Closed."},
 	2:  {5, "Someone has Logged in with this ID."},
 	3:  {241, "You've been disconnected due to a time gap between you and the server."},
@@ -42,10 +30,9 @@ var disconnectBanMessages = map[uint8]disconnectMessage{
 	12: {576, "Your connection is terminated due to change in the billing policy. Please connect again."},
 	13: {577, "Your connection is terminated because your IP doesn't match the authorized IP from the account server."},
 	14: {578, "Your connection is terminated to prevent charging from your account's play time."},
-	// rAthena also uses code 15 for non-GM forced disconnects, including some shutdown/session-change paths.
-	15:  {disconnectGenericBanMsgID, disconnectGenericMessage},
-	16:  {606, disconnectGenericMessage},
-	17:  {607, disconnectGenericMessage},
+	15:  {3, "Disconnected from Server!"}, // rAthena also uses code 15 for non-GM forced disconnects, including some shutdown/session-change paths.
+	16:  {606, "Disconnected from Server!"},
+	17:  {607, "Disconnected from Server!"},
 	18:  {678, "Your account is already connected to account server."},
 	100: {1123, "Please check the connection, more than 2 accounts are connected with Internet Cafe Time Plan."},
 	101: {1178, "More than 30 players sharing the same IP have logged into the game for an hour. Please check this matter."},
@@ -78,7 +65,7 @@ func disconnectMessageText(resources *res.Manager, message disconnectMessage) st
 }
 
 func openConnectionFailedDialog(ctx client.Context, modal *gameui.ConfirmModal) {
-	message := disconnectMessageText(ctx.Resources, disconnectMessage{disconnectConnectFailedID, disconnectConnectFailedMsg})
+	message := disconnectMessageText(ctx.Resources, disconnectMessage{1, "Failed to Connect to Server."})
 	openDisconnectDialog(ctx, modal, message)
 }
 
@@ -89,7 +76,7 @@ func openDisconnectDialog(ctx client.Context, modal *gameui.ConfirmModal, messag
 	if ctx.Network != nil {
 		ctx.Network.Close()
 	}
-	modal.OpenAlert(ctx, disconnectDialogTitle, message, func() {
+	modal.OpenAlert(ctx, "Disconnected", message, func() {
 		if ctx.RequestQuit != nil {
 			ctx.RequestQuit()
 		}
@@ -99,7 +86,7 @@ func openDisconnectDialog(ctx client.Context, modal *gameui.ConfirmModal, messag
 func handleDisconnectPacket(ctx client.Context, modal *gameui.ConfirmModal, pkt network.Packet) bool {
 	if ban, ok, err := network.ParseNotifyBan(pkt); err != nil {
 		log.Printf("parse SC_NOTIFY_BAN 0x%04X: %v", pkt.ID, err)
-		message := disconnectMessageText(ctx.Resources, disconnectMessage{disconnectMalformedBanMsgID, disconnectGenericMessage})
+		message := disconnectMessageText(ctx.Resources, disconnectMessage{3, "Disconnected from Server!"})
 		openDisconnectDialog(ctx, modal, message)
 		return true
 	} else if ok {
@@ -107,7 +94,7 @@ func handleDisconnectPacket(ctx client.Context, modal *gameui.ConfirmModal, pkt 
 		return true
 	}
 	if network.IsInterServerDisconnect(pkt) {
-		message := disconnectMessageText(ctx.Resources, disconnectMessage{disconnectInterServerMsgID, disconnectGenericMessage})
+		message := disconnectMessageText(ctx.Resources, disconnectMessage{3, "Disconnected from Server!"})
 		openDisconnectDialog(ctx, modal, message)
 		return true
 	}
@@ -132,7 +119,7 @@ func handleNetworkDisconnectErrors(ctx client.Context, modal *gameui.ConfirmModa
 	if disconnectErr == nil {
 		return false
 	}
-	message := disconnectMessageText(ctx.Resources, disconnectMessage{disconnectTransportMsgID, disconnectTransportMessage})
+	message := disconnectMessageText(ctx.Resources, disconnectMessage{2, "Disconnected from Server."})
 	openDisconnectDialog(ctx, modal, message)
 	return true
 }
