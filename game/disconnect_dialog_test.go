@@ -11,7 +11,7 @@ import (
 
 func TestDisconnectMessageForBanCode15UsesNeutralMessage(t *testing.T) {
 	got := disconnectMessageForBanCode(nil, 15)
-	want := disconnectGenericMessage
+	want := "Disconnected from Server!"
 	if got != want {
 		t.Fatalf("message = %q, want %q", got, want)
 	}
@@ -19,15 +19,15 @@ func TestDisconnectMessageForBanCode15UsesNeutralMessage(t *testing.T) {
 
 func TestDisconnectMessageForUnknownBanCodeUsesGeneric(t *testing.T) {
 	got := disconnectMessageForBanCode(nil, 250)
-	if got != disconnectGenericMessage {
-		t.Fatalf("message = %q, want %q", got, disconnectGenericMessage)
+	if got != "Disconnected from Server!" {
+		t.Fatalf("message = %q, want %q", got, "Disconnected from Server!")
 	}
 }
 
 func TestConnectionFailedMessageFallback(t *testing.T) {
-	got := disconnectMessageText(nil, disconnectMessage{disconnectConnectFailedID, disconnectConnectFailedMsg})
-	if got != disconnectConnectFailedMsg {
-		t.Fatalf("message = %q, want %q", got, disconnectConnectFailedMsg)
+	got := disconnectMessageText(nil, disconnectMessage{1, "Failed to Connect to Server."})
+	if got != "Failed to Connect to Server." {
+		t.Fatalf("message = %q, want %q", got, "Failed to Connect to Server.")
 	}
 }
 
