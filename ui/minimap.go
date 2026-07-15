@@ -243,7 +243,7 @@ func (w *minimapWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 		return
 	}
 	rect := minimapContentMapRect(bounds)
-	drawMinimapFallback(canvas, rect)
+	canvas.DrawRect(geometry.NewRect(float32(rect.x), float32(rect.y), float32(rect.w), float32(rect.h)), Color(WindowBodyColor))
 	if w.image != nil {
 		canvas.DrawImage(w.image, geometry.Pt(float32(rect.x), float32(rect.y)))
 	}
@@ -276,16 +276,6 @@ func minimapContentMapRect(bounds geometry.Rect) minimapRect {
 		y: int(bounds.Min.Y) + 4,
 		w: size,
 		h: size,
-	}
-}
-
-func drawMinimapFallback(canvas widget.Canvas, rect minimapRect) {
-	canvas.DrawRect(geometry.NewRect(float32(rect.x), float32(rect.y), float32(rect.w), float32(rect.h)), Color(color.RGBA{R: 212, G: 228, B: 202, A: 255}))
-	for i := 1; i < 8; i++ {
-		x := rect.x + rect.w*i/8
-		y := rect.y + rect.h*i/8
-		canvas.DrawRect(geometry.NewRect(float32(x), float32(rect.y), 1, float32(rect.h)), Color(color.RGBA{R: 132, G: 164, B: 118, A: 105}))
-		canvas.DrawRect(geometry.NewRect(float32(rect.x), float32(y), float32(rect.w), 1), Color(color.RGBA{R: 132, G: 164, B: 118, A: 105}))
 	}
 }
 
