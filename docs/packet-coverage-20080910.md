@@ -310,13 +310,16 @@ email check.
 | `0x019E` | S->C | implemented | `0x019e` | `2` | `-` | pet_packets.go |
 | `0x019F` | C->S | implemented | `0x019f` | `6` | `clif_parse_CatchPet` | pet_packets.go |
 | `0x01A0` | S->C | implemented | `0x01a0` | `3` | `-` | pet_packets.go |
-| `0x01A1` | C->S | missing | `0x01a1` | `3` | `clif_parse_PetMenu` | - |
-| `0x01A3` | S->C | referenced | `0x01a3` | `5` | `-` | packet.go |
+| `0x01A1` | C->S | implemented | `0x01a1` | `3` | `clif_parse_PetMenu` | pet_packets.go |
+| `0x01A2` | S->C | implemented | `0x01a2` | `37` | `-` | pet_packets.go |
+| `0x01A3` | S->C | implemented | `0x01a3` | `5` | `-` | pet_packets.go |
+| `0x01A4` | S->C | implemented | `0x01a4` | `11` | `-` | pet_packets.go |
 | `0x01A5` | C->S | missing | `0x01a5` | `26` | `clif_parse_ChangePetName` | - |
 | `0x01A6` | S->C | implemented | `0x01a6` | `-1` | `-` | pet_packets.go |
 | `0x01A7` | C->S | implemented | `0x01a7` | `4` | `clif_parse_SelectEgg` | pet_packets.go |
 | `0x01A8` | S->C | referenced | `0x01a8` | `4` | `-` | packet.go |
-| `0x01A9` | C->S | missing | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | - |
+| `0x01A9` | C->S | implemented | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | pet_packets.go |
+| `0x01AA` | S->C | implemented | `0x01aa` | `10` | `-` | pet_packets.go |
 | `0x01AC` | S->C | untracked | `0x01ac` | `6` | `-` | - |
 | `0x01AD` | S->C | referenced | `0x01ad` | `-1` | `-` | item_packets.go, packet.go |
 | `0x01AE` | C->S | implemented | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | item_packets.go |

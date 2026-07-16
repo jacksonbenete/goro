@@ -232,6 +232,7 @@ func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVan
 	delete(m.actorSoundFrames, vanish.ID)
 	delete(m.actorLife, vanish.ID)
 	delete(m.speechBubbles, vanish.ID)
+	delete(m.petAccessoryIDs, vanish.ID)
 }
 
 func (m *WorldMode) addActorVanishTeleportEffect(ctx client.Context, vanish network.ActorVanish) {
@@ -270,6 +271,7 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 		delete(m.actorSoundFrames, id)
 		delete(m.actorLife, id)
 		delete(m.speechBubbles, id)
+		delete(m.petAccessoryIDs, id)
 		if m.pendingAttack.targetID == id {
 			m.pendingAttack = attackIntent{}
 		}
@@ -1066,7 +1068,7 @@ func (m *WorldMode) nonPCSpriteView(ctx client.Context, actor worldstate.Actor) 
 	}
 	view, ok := m.nonPCViews[job]
 	if ok {
-		return view
+		return m.petAccessorySpriteView(ctx, actor, view)
 	}
 	if ctx.Resources == nil {
 		return nil
@@ -1082,5 +1084,34 @@ func (m *WorldMode) nonPCSpriteView(ctx client.Context, actor worldstate.Actor) 
 	}
 	m.nonPCViews[job] = loaded
 	log.Printf("nonpc sprite resources id=%d job=%d %s", actor.ID, job, status)
-	return loaded
+	return m.petAccessorySpriteView(ctx, actor, loaded)
+}
+
+func (m *WorldMode) petAccessorySpriteView(ctx client.Context, actor worldstate.Actor, base *spriteView) *spriteView {
+	accessoryID := m.petAccessoryIDs[actor.ID]
+	if accessoryID == 0 {
+		return base
+	}
+	key := petAccessorySpriteKey{job: int(actor.Job), accessoryID: accessoryID}
+	if view, ok := m.petAccessoryViews[key]; ok {
+		return view
+	}
+	if _, miss := m.petAccessoryMiss[key]; miss {
+		return base
+	}
+	view, status := loadPetAccessorySpriteView(ctx.Resources, base, accessoryID, "pet accessory")
+	if view == nil {
+		if m.petAccessoryMiss == nil {
+			m.petAccessoryMiss = make(map[petAccessorySpriteKey]struct{})
+		}
+		m.petAccessoryMiss[key] = struct{}{}
+		log.Printf("pet accessory sprite unavailable id=%d job=%d accessory=%d: %s", actor.ID, actor.Job, accessoryID, status)
+		return base
+	}
+	if m.petAccessoryViews == nil {
+		m.petAccessoryViews = make(map[petAccessorySpriteKey]*spriteView)
+	}
+	m.petAccessoryViews[key] = view
+	log.Printf("pet accessory sprite resources id=%d job=%d accessory=%d %s", actor.ID, actor.Job, accessoryID, status)
+	return view
 }

@@ -63,6 +63,9 @@ type WorldMode struct {
 	actorViewMiss     map[actorSpriteKey]struct{}
 	nonPCViews        map[int]*spriteView
 	nonPCViewMiss     map[int]struct{}
+	petAccessoryIDs   map[uint32]uint32
+	petAccessoryViews map[petAccessorySpriteKey]*spriteView
+	petAccessoryMiss  map[petAccessorySpriteKey]struct{}
 	rsmMeshCache      map[int][]retainedWorldMesh
 	rsmNodeMatrices   map[*res.RSM]map[string]mat4
 	rsmAnimNodes      map[animatedRSMNodeKey]map[string]mat4
@@ -76,6 +79,7 @@ type WorldMode struct {
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
 	pendingPetCapture petCaptureState
+	petID             uint32
 	petSlotMachine    petSlotMachineState
 	pickupReqItemID   uint32
 	lockedAttackID    uint32
@@ -134,6 +138,8 @@ type worldUI struct {
 	cardWindow       gameui.CardCompositionWindow
 	makingArrow      gameui.MakingArrowWindow
 	petEggWindow     gameui.PetEggWindow
+	petContext       gameui.PetContextMenu
+	petConfirm       gameui.ConfirmModal
 	statsWindow      gameui.StatsWindow
 	skillWindow      gameui.SkillWindow
 	friendsWindow    gameui.FriendsWindow
@@ -264,6 +270,9 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.actorViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*spriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
+	m.petAccessoryIDs = make(map[uint32]uint32)
+	m.petAccessoryViews = make(map[petAccessorySpriteKey]*spriteView)
+	m.petAccessoryMiss = make(map[petAccessorySpriteKey]struct{})
 	m.rsmMeshCache = make(map[int][]retainedWorldMesh)
 	m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
 	m.rsmAnimNodes = make(map[animatedRSMNodeKey]map[string]mat4)
@@ -632,10 +641,34 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.applyPetCaptureResult(ctx, petCapture)
 			continue
 		}
+		if petProperty, ok, err := network.ParsePetProperty(pkt); err != nil {
+			log.Printf("parse pet property 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyPetProperty(ctx, petProperty)
+			continue
+		}
+		if petFeed, ok, err := network.ParsePetFeedResult(pkt); err != nil {
+			log.Printf("parse pet feed 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyPetFeedResult(ctx, petFeed)
+			continue
+		}
+		if petState, ok, err := network.ParsePetStateChange(pkt); err != nil {
+			log.Printf("parse pet state 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyPetStateChange(ctx, petState)
+			continue
+		}
 		if petEggs, ok, err := network.ParsePetEggList(pkt); err != nil {
 			log.Printf("parse pet egg list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.applyPetEggList(ctx, petEggs)
+			continue
+		}
+		if petAction, ok, err := network.ParsePetAction(pkt); err != nil {
+			log.Printf("parse pet action 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyPetAction(ctx, petAction)
 			continue
 		}
 		if identifyList, ok, err := network.ParseItemIdentifyList(pkt); err != nil {
@@ -1269,6 +1302,17 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	m.skills().AdjustPendingLevelFromWheel(ctx)
+	petContextConsumed := m.ui.petContext.Update(ctx)
+	if action := m.ui.petContext.PopAction(); action.Kind != gameui.PetContextActionNone {
+		m.handlePetContextAction(ctx, action)
+		return nil, nil
+	}
+	if petContextConsumed {
+		return nil, nil
+	}
+	if m.openPetContextFromInput(ctx, now) {
+		return nil, nil
+	}
 	playerContextConsumed := m.ui.playerContext.Update(ctx)
 	switch action := m.ui.playerContext.PopAction(); action.Kind {
 	case gameui.PlayerContextActionAddFriend:
@@ -1290,7 +1334,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() {
+	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petConfirm.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.updatePetSlotMachine(ctx) {
@@ -1315,6 +1359,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.tradeRequest.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.petConfirm.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.deathModal.Update(ctx) {

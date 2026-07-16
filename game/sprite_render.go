@@ -21,6 +21,10 @@ const (
 	spriteActionNonPCAttack  = 2
 	spriteActionNonPCHurt    = 3
 	spriteActionNonPCDeath   = 4
+	spriteActionNonPCPerf1   = 5
+	spriteActionNonPCPerf2   = 6
+	spriteActionNonPCPerf3   = 7
+	spriteActionNonPCSpecial = 8
 	spriteActionPCReadyFight = 4
 	spriteActionPCAttack1    = 5
 	spriteActionPCHurt       = 6
@@ -71,6 +75,11 @@ type spriteView struct {
 type spriteFrameKey struct {
 	index   int32
 	sprType int32
+}
+
+type petAccessorySpriteKey struct {
+	job         int
+	accessoryID uint32
 }
 
 type humanoidSpriteView struct {

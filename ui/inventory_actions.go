@@ -46,6 +46,12 @@ func equipInventoryItem(ctx Context, item session.InventoryItem) {
 		}
 		return
 	}
+	if item.Type == db.ItemTypePetArmor {
+		if err := ctx.Network.SendWearEquip(item.Index, 0); err != nil {
+			log.Printf("inventory pet armor equip failed: %v", err)
+		}
+		return
+	}
 	location := inventoryItemEquipLocationForSession(ctx.Session, item)
 	if location == 0 {
 		log.Printf("inventory equip failed: missing equip location item=%d index=%d", item.ItemID, item.Index)

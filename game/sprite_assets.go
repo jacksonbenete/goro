@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -229,6 +230,54 @@ func loadSpriteView(manager *res.Manager, actCandidates []string, sprCandidates 
 		billboards:    make(map[singleSpriteBillboardKey]*spriteBillboard),
 		started:       time.Now(),
 	}, fmt.Sprintf("%s: %s actions=%d frames=%d%s", label, sprSource, len(act.Actions), len(spr.Frames), paletteStatus)
+}
+
+func loadPetAccessorySpriteView(manager *res.Manager, base *spriteView, accessoryID uint32, label string) (*spriteView, string) {
+	if manager == nil || base == nil {
+		return nil, fmt.Sprintf("%s skipped: missing base sprite", label)
+	}
+	path, ok := db.PetActionPath(int(accessoryID))
+	if !ok {
+		return nil, fmt.Sprintf("%s skipped: missing pet action path accessory=%d", label, accessoryID)
+	}
+	candidates := petActionResourceCandidates(path)
+	actData, actSource, err := readFirstResource(manager, candidates)
+	if err != nil {
+		return nil, fmt.Sprintf("%s act: %v", label, err)
+	}
+	act, err := res.ParseACT(actData)
+	if err != nil {
+		return nil, fmt.Sprintf("%s act parse %s: %v", label, actSource, err)
+	}
+	if !actFitsSPR(act, base.spr) {
+		return nil, fmt.Sprintf("%s act %s incompatible with %s", label, actSource, base.source)
+	}
+	return &spriteView{
+		spr:           base.spr,
+		act:           act,
+		actSource:     actSource,
+		source:        base.source,
+		palette:       base.palette,
+		paletteSource: base.paletteSource,
+		images:        base.images,
+		billboards:    make(map[singleSpriteBillboardKey]*spriteBillboard),
+		started:       time.Now(),
+	}, fmt.Sprintf("%s: %s actions=%d frames=%d base=%s", label, actSource, len(act.Actions), len(base.spr.Frames), base.source)
+}
+
+func petActionResourceCandidates(path string) []string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return nil
+	}
+	path = strings.TrimPrefix(path, "data/sprite/")
+	path = strings.TrimPrefix(path, "data\\sprite\\")
+	backslash := strings.ReplaceAll(path, "/", "\\")
+	slash := strings.ReplaceAll(path, "\\", "/")
+	return []string{
+		"data\\sprite\\" + backslash,
+		"data/sprite/" + slash,
+	}
 }
 
 type nonPCSpritePairUpgrade struct {
