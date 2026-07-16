@@ -18,6 +18,7 @@ const (
 	charSelectPreviewDirection = 4
 	charSelectPreviewScale     = 0.92
 	charSelectPreviewFeetLift  = 10
+	charDeleteKeyMaxBytes      = 40
 )
 
 func (m *LoginMode) updateCharacterSelectInput(ctx client.Context) {
@@ -85,7 +86,7 @@ func (m *LoginMode) updateCharacterSelectWindow(ctx client.Context) {
 			m.cancelCharacterSelect(ctx)
 		},
 		OnDelete: func() {
-			m.status = "character deletion is not implemented yet"
+			m.openCharacterDeleteConfirm(ctx)
 		},
 	}
 	if m.charSelectWindow == nil {
@@ -116,6 +117,92 @@ func (m *LoginMode) showCharacterSelectWindow(ctx client.Context) {
 	if m.charSelectWindow != nil {
 		m.charSelectWindow.Publish(ctx)
 	}
+}
+
+func (m *LoginMode) updateCharacterDelete(ctx client.Context) bool {
+	if m.charDeleteConfirm.Update(ctx) {
+		return true
+	}
+	consumed := m.charDeletePrompt.Update(ctx)
+	action := m.charDeletePrompt.PopAction()
+	if action.Submitted {
+		m.submitCharacterDelete(ctx, action.Text)
+		return true
+	}
+	return consumed
+}
+
+func (m *LoginMode) openCharacterDeleteConfirm(ctx client.Context) {
+	if ctx.Session == nil {
+		m.status = "delete character failed: no session"
+		return
+	}
+	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
+	if !ok {
+		m.status = "empty character slot"
+		return
+	}
+	m.deleteCharID = character.ID
+	m.charDeleteConfirm.Open(ctx, "Delete Character", fmt.Sprintf("Delete %s?", character.Name), func() {
+		m.charDeletePrompt.Open(ctx, "Delete Character", "Email", "Email", charDeleteKeyMaxBytes)
+	}, nil)
+}
+
+func (m *LoginMode) submitCharacterDelete(ctx client.Context, key string) {
+	if m.deleteCharID == 0 {
+		m.status = "delete character failed: no character selected"
+		return
+	}
+	if ctx.Network == nil {
+		m.status = "delete character failed: not connected"
+		return
+	}
+	if err := ctx.Network.SendDeleteCharacter(m.deleteCharID, key); err != nil {
+		m.status = "delete character failed: " + err.Error()
+		return
+	}
+	m.status = "delete character request sent"
+}
+
+func (m *LoginMode) applyDeleteCharacterAccept(ctx client.Context) {
+	if m.deleteCharID == 0 {
+		m.status = "deleted character"
+		return
+	}
+	if ctx.Session == nil {
+		m.deleteCharID = 0
+		m.status = "deleted character"
+		return
+	}
+	var deletedName string
+	if character, ok := characterByID(ctx.Session.Characters, m.deleteCharID); ok {
+		deletedName = character.Name
+	}
+	ctx.Session.Characters = removeCharacterByID(ctx.Session.Characters, m.deleteCharID)
+	m.charViews = nil
+	m.charViewFailed = nil
+	m.charPreviewImages = nil
+	m.maxSlots = charSelectMaxSlots(ctx.Session.Characters)
+	if _, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot); !ok {
+		if len(ctx.Session.Characters) > 0 {
+			m.selectedSlot = firstOccupiedCharacterSlot(ctx.Session.Characters)
+		} else {
+			m.selectedSlot = 0
+		}
+	}
+	m.deleteCharID = 0
+	if deletedName != "" {
+		m.status = fmt.Sprintf("deleted character %s", deletedName)
+	} else {
+		m.status = "deleted character"
+	}
+	m.showCharacterSelectWindow(ctx)
+}
+
+func (m *LoginMode) applyDeleteCharacterRefuse(ctx client.Context, code uint8) {
+	m.deleteCharID = 0
+	m.status = describeDeleteCharacterRefuse(code)
+	m.charDeleteConfirm.OpenAlert(ctx, "Delete Character", m.status, nil)
 }
 
 func (m *LoginMode) cancelCharacterSelect(ctx client.Context) {
@@ -323,6 +410,15 @@ func characterBySlot(characters []session.Character, slot int) (session.Characte
 	return session.Character{}, false
 }
 
+func characterByID(characters []session.Character, id uint32) (session.Character, bool) {
+	for _, character := range characters {
+		if character.ID == id {
+			return character, true
+		}
+	}
+	return session.Character{}, false
+}
+
 func upsertCharacter(characters []session.Character, character session.Character) []session.Character {
 	for i := range characters {
 		if characters[i].ID == character.ID || characters[i].Slot == character.Slot {
@@ -331,4 +427,23 @@ func upsertCharacter(characters []session.Character, character session.Character
 		}
 	}
 	return append(characters, character)
+}
+
+func removeCharacterByID(characters []session.Character, id uint32) []session.Character {
+	out := characters[:0]
+	for _, character := range characters {
+		if character.ID != id {
+			out = append(out, character)
+		}
+	}
+	return out
+}
+
+func describeDeleteCharacterRefuse(code uint8) string {
+	switch code {
+	case 0:
+		return "Character deletion refused."
+	default:
+		return fmt.Sprintf("Character deletion refused (%d).", code)
+	}
 }

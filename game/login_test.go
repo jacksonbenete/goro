@@ -495,6 +495,35 @@ func TestCharacterSelectPublishesUIRootDuringFadeIn(t *testing.T) {
 	}
 }
 
+func TestDeleteCharacterAcceptRemovesSelectedCharacter(t *testing.T) {
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCharacter
+	mode.selectedSlot = 1
+	mode.deleteCharID = 20
+	ctx := client.Context{
+		Resources: &res.Manager{},
+		Session: &session.Session{Characters: []session.Character{
+			{ID: 10, Slot: 0, Name: "Kivutar"},
+			{ID: 20, Slot: 1, Name: "DeleteMe"},
+		}},
+		UIManager: &loginTestUIManager{},
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+
+	mode.applyDeleteCharacterAccept(ctx)
+
+	if len(ctx.Session.Characters) != 1 || ctx.Session.Characters[0].ID != 10 {
+		t.Fatalf("characters = %+v", ctx.Session.Characters)
+	}
+	if mode.selectedSlot != 0 {
+		t.Fatalf("selectedSlot = %d, want 0", mode.selectedSlot)
+	}
+	if mode.deleteCharID != 0 {
+		t.Fatalf("deleteCharID = %d, want 0", mode.deleteCharID)
+	}
+}
+
 func TestLoginToWorldClearsPublishedUIRoot(t *testing.T) {
 	manager := &loginTestUIManager{overlays: []widget.Widget{primitives.Box()}}
 	mode := NewLoginMode()

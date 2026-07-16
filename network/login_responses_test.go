@@ -115,6 +115,19 @@ func TestParseMakeCharacterRefuse(t *testing.T) {
 	}
 }
 
+func TestParseDeleteCharacterResponses(t *testing.T) {
+	if err := ParseDeleteCharacterAccept(Packet{ID: 0x006F, Data: []byte{0x6f, 0x00}}); err != nil {
+		t.Fatalf("accept err = %v", err)
+	}
+	code, err := ParseDeleteCharacterRefuse(Packet{ID: 0x0070, Data: []byte{0x70, 0x00, 4}})
+	if err != nil {
+		t.Fatalf("refuse err = %v", err)
+	}
+	if code != 4 {
+		t.Fatalf("code = %d, want 4", code)
+	}
+}
+
 func TestParseZoneServerNotify(t *testing.T) {
 	data := make([]byte, 28)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0071)

@@ -44,6 +44,9 @@ type LoginMode struct {
 	loginWindow       *gameui.LoginWindow
 	charSelectWindow  *gameui.CharacterSelectWindow
 	charCreateWindow  *gameui.CharacterCreateWindow
+	charDeleteConfirm gameui.ConfirmModal
+	charDeletePrompt  gameui.TextPromptWindow
+	deleteCharID      uint32
 	create            charCreateState
 	cursor            roCursorState
 	quitConfirm       gameui.ConfirmModal
@@ -131,6 +134,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			// The confirmation modal is modal: no keyboard or mouse input should
 			// leak into the login form, character list, or creation controls.
 		} else if m.updateDisconnectDialog(ctx) {
+		} else if m.updateCharacterDelete(ctx) {
 		} else if m.updatePhaseEscape(ctx, now) {
 		} else if m.phase == loginPhaseCreate {
 			m.updateCharacterCreateInput(ctx)
@@ -288,6 +292,23 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			} else {
 				m.status = describeMakeCharacterRefuse(code)
 				log.Printf("character creation refused code=%d", code)
+			}
+			continue
+		}
+		if pkt.ID == 0x006F {
+			if err := network.ParseDeleteCharacterAccept(pkt); err != nil {
+				m.packets = append(m.packets, "parse HC_ACCEPT_DELETECHAR: "+err.Error())
+			} else {
+				m.applyDeleteCharacterAccept(ctx)
+			}
+			continue
+		}
+		if pkt.ID == 0x0070 {
+			code, err := network.ParseDeleteCharacterRefuse(pkt)
+			if err != nil {
+				m.packets = append(m.packets, "parse HC_REFUSE_DELETECHAR: "+err.Error())
+			} else {
+				m.applyDeleteCharacterRefuse(ctx, code)
 			}
 			continue
 		}

@@ -172,6 +172,26 @@ func ParseMakeCharacterRefuse(packet Packet) (uint8, error) {
 	return packet.Data[2], nil
 }
 
+func ParseDeleteCharacterAccept(packet Packet) error {
+	if packet.ID != 0x006F {
+		return fmt.Errorf("unexpected packet 0x%04X", packet.ID)
+	}
+	if len(packet.Data) < 2 {
+		return fmt.Errorf("HC_ACCEPT_DELETECHAR too short: %d", len(packet.Data))
+	}
+	return nil
+}
+
+func ParseDeleteCharacterRefuse(packet Packet) (uint8, error) {
+	if packet.ID != 0x0070 {
+		return 0, fmt.Errorf("unexpected packet 0x%04X", packet.ID)
+	}
+	if len(packet.Data) < 3 {
+		return 0, fmt.Errorf("HC_REFUSE_DELETECHAR too short: %d", len(packet.Data))
+	}
+	return packet.Data[2], nil
+}
+
 func ParseZoneServerNotify(packet Packet) (ZoneServerNotify, error) {
 	if packet.ID != 0x0071 {
 		return ZoneServerNotify{}, fmt.Errorf("unexpected packet 0x%04X", packet.ID)

@@ -81,6 +81,11 @@ Useful options:
 --graphics-api gles # fallback if Vulkan is unavailable
 ```
 
+When using the default 2008 packet profile with local rAthena, set
+`char_del_delay: 0` in `conf/char_athena.conf`. The delayed character deletion
+flow is for 2010-08-03+ clients; the 2008 flow deletes directly after the email
+check.
+
 Runtime data is discovered from, in order:
 
 - `--data-dir`

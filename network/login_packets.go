@@ -11,6 +11,8 @@ const (
 	PacketCAEnter          uint16 = 0x0065
 	PacketCZSelectChar     uint16 = 0x0066
 	PacketCHMakeChar       uint16 = 0x0067
+	PacketCHDeleteCharOld  uint16 = 0x0068
+	PacketCHDeleteChar     uint16 = 0x01FB
 	PacketCZLoadEndAck     uint16 = 0x007D
 	PacketCZTickSend       uint16 = 0x0089
 	PacketCZTickSendRE     uint16 = 0x0360
@@ -141,6 +143,20 @@ func BuildMakeCharacterPacket(character MakeCharacter) []byte {
 	w.Uint8(character.Slot)
 	w.Uint16(character.HairColor)
 	w.Uint16(character.HairStyle)
+	return w.Bytes()
+}
+
+func BuildDeleteCharacterPacket(clientDate int, charID uint32, key string) []byte {
+	var w Writer
+	if clientDate >= 20040419 {
+		w.Uint16(PacketCHDeleteChar)
+		w.Uint32(charID)
+		w.CString(key, 50)
+		return w.Bytes()
+	}
+	w.Uint16(PacketCHDeleteCharOld)
+	w.Uint32(charID)
+	w.CString(key, 40)
 	return w.Bytes()
 }
 

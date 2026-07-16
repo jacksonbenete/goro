@@ -79,6 +79,38 @@ func TestBuildMakeCharacterPacket(t *testing.T) {
 	}
 }
 
+func TestBuildDeleteCharacterPacket(t *testing.T) {
+	packet := BuildDeleteCharacterPacket(20080910, 0x11223344, "mail@example.com")
+	if len(packet) != 56 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if binary.LittleEndian.Uint16(packet[0:2]) != PacketCHDeleteChar {
+		t.Fatalf("opcode = % x", packet[:2])
+	}
+	if binary.LittleEndian.Uint32(packet[2:6]) != 0x11223344 {
+		t.Fatalf("char id = 0x%08x", binary.LittleEndian.Uint32(packet[2:6]))
+	}
+	if got := string(packet[6 : 6+16]); got != "mail@example.com" {
+		t.Fatalf("key = %q", got)
+	}
+}
+
+func TestBuildOldDeleteCharacterPacket(t *testing.T) {
+	packet := BuildDeleteCharacterPacket(20030401, 0x11223344, "mail@example.com")
+	if len(packet) != 46 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if binary.LittleEndian.Uint16(packet[0:2]) != PacketCHDeleteCharOld {
+		t.Fatalf("opcode = % x", packet[:2])
+	}
+	if binary.LittleEndian.Uint32(packet[2:6]) != 0x11223344 {
+		t.Fatalf("char id = 0x%08x", binary.LittleEndian.Uint32(packet[2:6]))
+	}
+	if got := string(packet[6 : 6+16]); got != "mail@example.com" {
+		t.Fatalf("key = %q", got)
+	}
+}
+
 func TestBuildLoadEndAckPacket(t *testing.T) {
 	packet := BuildLoadEndAckPacket()
 	if len(packet) != 2 {

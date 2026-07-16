@@ -61,20 +61,27 @@ Status meaning:
 
 This section is from rAthena common packet headers. It is not a parser DB, but it is useful for login/char coverage.
 
+For rAthena `PACKETVER=20080910`, character deletion uses `0x01FB`
+(`CH_DELETE_CHAR`) with a 50-byte email/key field. The older `0x0068` shape is
+kept only for pre-20040419 compatibility. When testing this against local
+rAthena, `conf/char_athena.conf` must use `char_del_delay: 0`; delayed deletion
+is a 2010-08-03+ client flow and direct 2008 deletion otherwise fails after the
+email check.
+
 | Opcode | Header | Goro refs |
 |---:|---|---|
 | `0x0064` | `CA_LOGIN` | login_packets.go |
 | `0x0066` | `CH_SELECT_CHAR` | login_packets.go |
 | `0x0067` | `CH_MAKE_CHAR` | login_packets.go |
-| `0x0068` | `CH_DELETE_CHAR` | - |
+| `0x0068` | `CH_DELETE_CHAR` | login_packets.go (pre-20040419 only) |
 | `0x0069` | `AC_ACCEPT_LOGIN` | login_responses.go, packet.go |
 | `0x006A` | `AC_REFUSE_LOGIN` | packet.go |
 | `0x006B` | `HC_ACCEPT_ENTER` | login_responses.go, packet.go |
 | `0x006C` | `HC_REFUSE_ENTER` | packet.go |
 | `0x006D` | `HC_ACCEPT_MAKECHAR` | login_responses.go, packet.go |
 | `0x006E` | `HC_REFUSE_MAKECHAR` | login_responses.go, packet.go |
-| `0x006F` | `HC_ACCEPT_DELETECHAR` | packet.go |
-| `0x0070` | `HC_REFUSE_DELETECHAR` | packet.go |
+| `0x006F` | `HC_ACCEPT_DELETECHAR` | login_responses.go, packet.go |
+| `0x0070` | `HC_REFUSE_DELETECHAR` | login_responses.go, packet.go |
 | `0x0071` | `HC_NOTIFY_ZONESVR` | login_responses.go, packet.go |
 | `0x0081` | `SC_NOTIFY_BAN` | disconnect_packets.go, packet.go |
 | `0x0187` | `PING` | packet.go |
@@ -82,7 +89,7 @@ This section is from rAthena common packet headers. It is not a parser DB, but i
 | `0x01DC` | `AC_ACK_HASH` | packet.go |
 | `0x01DD` | `CA_LOGIN2` | - |
 | `0x01FA` | `CA_LOGIN3` | - |
-| `0x01FB` | `CH_DELETE_CHAR` | - |
+| `0x01FB` | `CH_DELETE_CHAR` | login_packets.go |
 | `0x0200` | `CA_CONNECT_INFO_CHANGED` | - |
 | `0x0204` | `CA_EXE_HASHCHECK` | - |
 | `0x020D` | `HC_BLOCK_CHARACTER` | - |

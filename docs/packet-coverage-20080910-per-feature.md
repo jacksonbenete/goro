@@ -1,6 +1,7 @@
   Core Gameplay / UI
 
   - [x] Skill targeting: 0x007E UseSkillToPosMoreInfo
+  - [x] Character deletion: 0x01FB CH_DELETE_CHAR for rAthena 20080910, with 0x006F/0x0070 replies
   - [x] Remove cart option: 0x012A RemoveOption
   - [x] Quit game: 0x018A QuitGame
   - [x] Less effects toggle: 0x021D LessEffect

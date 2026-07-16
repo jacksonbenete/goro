@@ -160,6 +160,18 @@ func (c *Client) SendMakeCharacter(character MakeCharacter) error {
 	return err
 }
 
+func (c *Client) SendDeleteCharacter(charID uint32, key string) error {
+	packet := BuildDeleteCharacterPacket(c.clientDate, charID, key)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CH_DELETE_CHAR opcode=0x%04X char_id=%d client_date=%d", ID(packet), charID, c.clientDate)
+	} else {
+		log.Printf("send CH_DELETE_CHAR failed opcode=0x%04X len=%d char_id=%d client_date=%d: %v",
+			ID(packet), len(packet), charID, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendLoadEndAck() error {
 	return c.Send(BuildLoadEndAckPacket())
 }
