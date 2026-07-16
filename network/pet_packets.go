@@ -89,18 +89,21 @@ func ParsePetProperty(packet Packet) (PetProperty, bool, error) {
 	if packet.ID != PacketZCPropertyPet {
 		return PetProperty{}, false, nil
 	}
-	if len(packet.Data) < 37 {
+	if len(packet.Data) < 35 {
 		return PetProperty{}, false, fmt.Errorf("ZC_PROPERTY_PET too short: %d", len(packet.Data))
 	}
-	return PetProperty{
+	property := PetProperty{
 		Name:         decodeROFixedString(packet.Data[2:26]),
 		Modified:     packet.Data[26] != 0,
 		Level:        binary.LittleEndian.Uint16(packet.Data[27:29]),
 		Fullness:     binary.LittleEndian.Uint16(packet.Data[29:31]),
 		Relationship: binary.LittleEndian.Uint16(packet.Data[31:33]),
 		AccessoryID:  binary.LittleEndian.Uint16(packet.Data[33:35]),
-		Job:          binary.LittleEndian.Uint16(packet.Data[35:37]),
-	}, true, nil
+	}
+	if len(packet.Data) >= 37 {
+		property.Job = binary.LittleEndian.Uint16(packet.Data[35:37])
+	}
+	return property, true, nil
 }
 
 func ParsePetFeedResult(packet Packet) (PetFeedResult, bool, error) {

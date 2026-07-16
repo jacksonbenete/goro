@@ -71,6 +71,22 @@ func TestPetCommandPackets(t *testing.T) {
 }
 
 func TestPetStatusPackets(t *testing.T) {
+	propertyData2008 := make([]byte, 35)
+	binary.LittleEndian.PutUint16(propertyData2008[0:2], PacketZCPropertyPet)
+	copy(propertyData2008[2:26], []byte("Luna"))
+	propertyData2008[26] = 1
+	binary.LittleEndian.PutUint16(propertyData2008[27:29], 12)
+	binary.LittleEndian.PutUint16(propertyData2008[29:31], 4)
+	binary.LittleEndian.PutUint16(propertyData2008[31:33], 900)
+	binary.LittleEndian.PutUint16(propertyData2008[33:35], 10007)
+	property2008, ok, err := ParsePetProperty(Packet{ID: PacketZCPropertyPet, Data: propertyData2008})
+	if !ok || err != nil {
+		t.Fatalf("ParsePetProperty 2008 ok=%t err=%v", ok, err)
+	}
+	if property2008.Name != "Luna" || property2008.Level != 12 || property2008.Fullness != 4 || property2008.Relationship != 900 || property2008.AccessoryID != 10007 || property2008.Job != 0 {
+		t.Fatalf("property2008 = %+v", property2008)
+	}
+
 	propertyData := make([]byte, 37)
 	binary.LittleEndian.PutUint16(propertyData[0:2], PacketZCPropertyPet)
 	copy(propertyData[2:26], []byte("Luna"))

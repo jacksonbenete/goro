@@ -1,6 +1,9 @@
 package network
 
-import "testing"
+import (
+	"encoding/binary"
+	"testing"
+)
 
 func TestFramerFixedPacket(t *testing.T) {
 	framer := NewFramer(LengthTable{0x0073: 3})
@@ -70,6 +73,69 @@ func TestFramerWaitsBeforeResyncingUnknownShortPrefix(t *testing.T) {
 func TestPacketLengths2008DoesNotContainAccountIDPreamble(t *testing.T) {
 	if _, ok := PacketLengths2008()[0x8480]; ok {
 		t.Fatal("char-server account id preamble must not be modeled as packet 0x8480")
+	}
+}
+
+func TestPacketLengths2008DoesNotContainClientOnlyPartyPackets(t *testing.T) {
+	lengths := PacketLengths2008()
+	for _, id := range []uint16{
+		PacketCZMakeGroup,
+		PacketCZReqJoinGroup,
+		PacketCZJoinGroup,
+		PacketCZReqLeaveGroup,
+		PacketCZChangeGroupExp,
+		PacketCZReqExpelGroupMember,
+	} {
+		if _, ok := lengths[id]; ok {
+			t.Fatalf("client-only party packet 0x%04X must not be in the receive length table", id)
+		}
+	}
+}
+
+func TestPacketLengths2008ResyncsThroughPartyPayloadToSkillList(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := []byte{
+		0x00, 0x01,
+		0x00, 0x01,
+		0x0f, 0x01, 0x04, 0x00,
+	}
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 1 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x010F || len(packets[0].Data) != 4 {
+		t.Fatalf("packet = %s", packets[0])
+	}
+}
+
+func TestPacketLengths2008FramesPetPropertyBeforeSkillList(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := make([]byte, 35+4)
+	binary.LittleEndian.PutUint16(data[0:2], PacketZCPropertyPet)
+	copy(data[2:26], []byte("Sakurai"))
+	data[26] = 1
+	binary.LittleEndian.PutUint16(data[27:29], 3)
+	binary.LittleEndian.PutUint16(data[29:31], 28)
+	binary.LittleEndian.PutUint16(data[31:33], 170)
+	binary.LittleEndian.PutUint16(data[33:35], 10007)
+	binary.LittleEndian.PutUint16(data[35:37], 0x010F)
+	binary.LittleEndian.PutUint16(data[37:39], 4)
+
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != PacketZCPropertyPet || len(packets[0].Data) != 35 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x010F || len(packets[1].Data) != 4 {
+		t.Fatalf("second packet = %s", packets[1])
 	}
 }
 
