@@ -48,6 +48,16 @@ type UITextLabelCommand struct {
 	Size       float32
 }
 
+type UIActorLabelCommand struct {
+	Labels     []string
+	Emblem     *Image
+	CenterX    float64
+	Y          float64
+	Foreground color.RGBA
+	Outline    color.RGBA
+	Size       float32
+}
+
 type UIRectCommand struct {
 	X, Y, W, H float64
 	Color      color.RGBA

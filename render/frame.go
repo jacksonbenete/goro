@@ -22,6 +22,7 @@ type Frame struct {
 	uiRects         []UIRectCommand
 	uiTextBoxes     []UITextBoxCommand
 	uiTextLabels    []UITextLabelCommand
+	uiActorLabels   []UIActorLabelCommand
 
 	clear  color.RGBA
 	camera Camera3D
@@ -60,6 +61,7 @@ func (f *Frame) BeginFrame() {
 	f.uiRects = f.uiRects[:0]
 	f.uiTextBoxes = f.uiTextBoxes[:0]
 	f.uiTextLabels = f.uiTextLabels[:0]
+	f.uiActorLabels = f.uiActorLabels[:0]
 	f.camera = Camera3D{}
 }
 
@@ -70,6 +72,7 @@ func (f *Frame) clearUIOverlayCommands() {
 	f.uiRects = f.uiRects[:0]
 	f.uiTextBoxes = f.uiTextBoxes[:0]
 	f.uiTextLabels = f.uiTextLabels[:0]
+	f.uiActorLabels = f.uiActorLabels[:0]
 }
 
 func (f *Frame) SetScreenScale(x, y float32) {

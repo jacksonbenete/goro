@@ -993,41 +993,26 @@ func drawActorNameLabelsAtY(screen *render.Frame, labels []string, emblem *rende
 	if len(labels) == 0 {
 		return
 	}
-	outline := color.RGBA{A: 196}
+	labels = actorVisibleNameLabels(labels)
+	if len(labels) == 0 {
+		return
+	}
+	render.DrawActorUILabels(screen, labels, emblem, centerX, labelY, foreground, color.RGBA{A: 196})
+}
+
+func actorVisibleNameLabels(labels []string) []string {
+	out := make([]string, 0, len(labels))
 	for i, label := range labels {
 		if i == 0 {
 			label = sanitizeActorName(label)
 		} else {
 			label = strings.TrimSpace(label)
 		}
-		if label == "" {
-			continue
+		if label != "" {
+			out = append(out, label)
 		}
-		if i == 0 && emblem != nil {
-			drawActorGuildEmblem(screen, emblem, label, centerX, labelY)
-		}
-		render.DrawCenteredUIOutlinedTextAt(screen, label, centerX, labelY, foreground, outline)
-		labelY += 14
 	}
-}
-
-func drawActorGuildEmblem(screen *render.Frame, emblem *render.Image, label string, centerX, labelY float64) {
-	if screen == nil || emblem == nil {
-		return
-	}
-	labelW, _ := render.BitmapTextSize(label)
-	const emblemSize = 24
-	x := math.Round(centerX - float64(labelW)/2 - emblemSize - 4)
-	y := math.Round(labelY - 5)
-	bounds := emblem.Bounds()
-	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
-		return
-	}
-	var opts render.DrawImageOptions
-	opts.GeoM.Scale(float64(emblemSize)/float64(bounds.Dx()), float64(emblemSize)/float64(bounds.Dy()))
-	opts.GeoM.Translate(x, y)
-	opts.Filter = spriteDrawFilter()
-	screen.DrawImage(emblem, &opts)
+	return out
 }
 
 func actorSpriteTopY(baseY, scale float64) float64 {

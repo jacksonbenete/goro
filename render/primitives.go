@@ -366,6 +366,30 @@ func DrawCenteredUIOutlinedTextAt(dst *Frame, text string, centerX, y float64, f
 	drawOrQueueUITextLabel(dst, text, centerX, y, foreground, outline, true, true, 12)
 }
 
+func DrawActorUILabels(dst *Frame, labels []string, emblem *Image, centerX, y float64, foreground, outline color.RGBA) {
+	if dst == nil || len(labels) == 0 {
+		return
+	}
+	copied := make([]string, 0, len(labels))
+	for _, label := range labels {
+		if label != "" {
+			copied = append(copied, label)
+		}
+	}
+	if len(copied) == 0 {
+		return
+	}
+	dst.uiActorLabels = append(dst.uiActorLabels, UIActorLabelCommand{
+		Labels:     copied,
+		Emblem:     emblem,
+		CenterX:    centerX,
+		Y:          y,
+		Foreground: foreground,
+		Outline:    outline,
+		Size:       12,
+	})
+}
+
 func DrawUITextAt(dst *Frame, text string, x, y float64, foreground color.RGBA) {
 	drawOrQueueUITextLabel(dst, text, x, y, foreground, color.RGBA{}, false, false, 12)
 }

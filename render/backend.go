@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"image/png"
 	"log"
+	"math"
 	"os"
 	"runtime/pprof"
 	"strings"
@@ -811,7 +812,7 @@ func updateCanvasImage(canvas *ggcanvas.Canvas, dstImage *Image) *Image {
 }
 
 func (r *runner) drawUIOverlay(screen *Frame, deviceScale float64) error {
-	if screen == nil || (len(screen.uiRects) == 0 && len(screen.uiTextBoxes) == 0 && len(screen.uiTextLabels) == 0) {
+	if screen == nil || (len(screen.uiRects) == 0 && len(screen.uiTextBoxes) == 0 && len(screen.uiTextLabels) == 0 && len(screen.uiActorLabels) == 0) {
 		return nil
 	}
 	defer screen.clearUIOverlayCommands()
@@ -848,6 +849,19 @@ func (r *runner) drawUIOverlay(screen *Frame, deviceScale float64) error {
 			x -= float64(cached.width) / 2
 		}
 		drawCachedOverlayImage(screen, cached, x, label.Y)
+	}
+	for _, label := range screen.uiActorLabels {
+		cached, err := r.cachedActorLabelImage(provider, label, deviceScale)
+		if err != nil {
+			return err
+		}
+		emblemWidth := 0
+		if label.Emblem != nil {
+			emblemWidth = actorLabelEmblemSize + actorLabelEmblemGap
+		}
+		x := label.CenterX - float64(cached.width+emblemWidth)/2 + float64(emblemWidth)
+		drawCachedOverlayImage(screen, cached, x, label.Y)
+		drawActorLabelEmblem(screen, label.Emblem, x+2, label.Y, cached.height)
 	}
 	return nil
 }
@@ -900,6 +914,30 @@ func drawCachedOverlayImage(screen *Frame, cached cachedOverlayImage, x, y float
 	opts.GeoM.Translate(x, y)
 	opts.Filter = FilterNearest
 	screen.DrawImage(cached.image, &opts)
+}
+
+const (
+	actorLabelEmblemSize = 24
+	actorLabelEmblemGap  = 8
+)
+
+func drawActorLabelEmblem(screen *Frame, emblem *Image, textLeft, labelY float64, labelHeight int) {
+	if screen == nil || emblem == nil {
+		return
+	}
+	bounds := emblem.Bounds()
+	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return
+	}
+	y := labelY + float64(labelHeight-actorLabelEmblemSize)/2
+	if labelHeight < actorLabelEmblemSize {
+		y = labelY
+	}
+	var opts DrawImageOptions
+	opts.GeoM.Scale(float64(actorLabelEmblemSize)/float64(bounds.Dx()), float64(actorLabelEmblemSize)/float64(bounds.Dy()))
+	opts.GeoM.Translate(math.Round(textLeft-actorLabelEmblemSize-actorLabelEmblemGap), math.Round(y))
+	opts.Filter = FilterLinear
+	screen.DrawImage(emblem, &opts)
 }
 
 func (r *runner) cachedTextLabelImage(provider gpucontext.DeviceProvider, label UITextLabelCommand, deviceScale float64) (cachedOverlayImage, error) {
@@ -955,6 +993,76 @@ func (r *runner) cachedTextLabelImage(provider gpucontext.DeviceProvider, label 
 	}
 	if _, err := canvas.Flush(); err != nil {
 		return cachedOverlayImage{}, fmt.Errorf("flush ui text overlay: %w", err)
+	}
+	cached := cachedOverlayImage{image: updateCanvasImage(canvas, nil), width: width, height: height}
+	if r.uiTextCache == nil {
+		r.uiTextCache = make(map[string]cachedOverlayImage)
+	}
+	r.uiTextCache[key] = cached
+	trimOverlayImageCache(r.uiTextCache)
+	return cached, nil
+}
+
+func (r *runner) cachedActorLabelImage(provider gpucontext.DeviceProvider, label UIActorLabelCommand, deviceScale float64) (cachedOverlayImage, error) {
+	size := label.Size
+	if size <= 0 {
+		size = 12
+	}
+	key := fmt.Sprintf("actorlabel|%.3f|%s|%.1f|%08x|%08x", deviceScale, strings.Join(label.Labels, "\x00"), size, rgbaKey(label.Foreground), rgbaKey(label.Outline))
+	if cached, ok := r.uiTextCache[key]; ok {
+		return cached, nil
+	}
+	measure, err := r.ensureOverlayCanvas(provider, 1, 1, deviceScale)
+	if err != nil {
+		return cachedOverlayImage{}, err
+	}
+	var maxTextW float32
+	if err := measure.Draw(func(cc *gg.Context) {
+		canvas := uirender.NewCanvas(cc, 1, 1)
+		for _, line := range label.Labels {
+			if w := rotheme.MeasureText(canvas, line, size, true); w > maxTextW {
+				maxTextW = w
+			}
+		}
+	}); err != nil {
+		return cachedOverlayImage{}, fmt.Errorf("measure actor label overlay: %w", err)
+	}
+	width := int(maxTextW + 4.999)
+	if width < 4 {
+		width = 4
+	}
+	const lineAdvance = 14
+	height := 16 + (len(label.Labels)-1)*lineAdvance + 4
+	if height < 16 {
+		height = 16
+	}
+	canvas, err := r.ensureOverlayCanvas(provider, width, height, deviceScale)
+	if err != nil {
+		return cachedOverlayImage{}, err
+	}
+	fg := widget.RGBA8(label.Foreground.R, label.Foreground.G, label.Foreground.B, label.Foreground.A)
+	outline := widget.RGBA8(label.Outline.R, label.Outline.G, label.Outline.B, label.Outline.A)
+	if err := canvas.Draw(func(cc *gg.Context) {
+		uiCanvas := uirender.NewCanvas(cc, width, height)
+		uiCanvas.Clear(widget.RGBA8(0, 0, 0, 0))
+		if textMode, ok := uiCanvas.(widget.TextModeController); ok {
+			textMode.SetTextMode(widget.TextModeVector)
+			defer textMode.SetTextMode(widget.TextModeAuto)
+		}
+		for i, line := range label.Labels {
+			bounds := geometry.NewRect(2, float32(2+i*lineAdvance), float32(width-4), 16)
+			if label.Outline.A != 0 {
+				for _, offset := range [][2]float32{{0, -1}, {0, 1}, {-1, 0}, {1, 0}} {
+					rotheme.DrawText(uiCanvas, line, bounds.TranslateXY(offset[0], offset[1]), size, outline, true, widget.TextAlignLeft)
+				}
+			}
+			rotheme.DrawText(uiCanvas, line, bounds, size, fg, true, widget.TextAlignLeft)
+		}
+	}); err != nil {
+		return cachedOverlayImage{}, fmt.Errorf("draw actor label overlay: %w", err)
+	}
+	if _, err := canvas.Flush(); err != nil {
+		return cachedOverlayImage{}, fmt.Errorf("flush actor label overlay: %w", err)
 	}
 	cached := cachedOverlayImage{image: updateCanvasImage(canvas, nil), width: width, height: height}
 	if r.uiTextCache == nil {
