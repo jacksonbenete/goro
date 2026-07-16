@@ -268,6 +268,9 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/organize":
 		c.submitOrganizeParty(ctx, text)
 		return true
+	case "/guild":
+		c.submitCreateGuild(ctx, text)
+		return true
 	case "/leave":
 		c.submitLeaveParty(ctx)
 		return true
@@ -372,6 +375,37 @@ func (c *ChatConsole) submitOrganizeParty(ctx client.Context, text string) {
 	}
 	if ctx.Session != nil {
 		ctx.Session.Party.Name = name
+	}
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitCreateGuild(ctx client.Context, text string) {
+	name := consoleCommandArgs(text)
+	name = strings.Trim(name, `"`)
+	if name == "" {
+		c.AddErrorMessage("usage: /guild guild_name")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Session == nil {
+		c.AddErrorMessage("guild creation failed: no session")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendCreateGuild(ctx.Session.CharID, name); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
 	}
 	c.setInput("")
 	c.setActive(false)

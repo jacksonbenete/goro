@@ -3,7 +3,6 @@ package game
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"math"
 	"strings"
 	"time"
@@ -17,15 +16,6 @@ import (
 type previewRenderTarget interface {
 	DrawImage(*render.Image, *render.DrawImageOptions)
 	DrawTrianglesOwned([]render.Vertex, []uint16, *render.Image, *render.DrawTrianglesOptions)
-}
-
-func drawRenderTargetRect(target any, x, y, w, h float64, c color.RGBA) {
-	switch target := target.(type) {
-	case *render.Frame:
-		render.DrawRect(target, x, y, w, h, c)
-	case *render.Image:
-		render.DrawImageRect(target, x, y, w, h, c)
-	}
 }
 
 func (m *WorldMode) DrawInventoryItemIcon(screen *render.Frame, manager *res.Manager, item session.InventoryItem, x, y int) {

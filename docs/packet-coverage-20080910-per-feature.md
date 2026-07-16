@@ -33,8 +33,8 @@
   Guild
 
   - [ ] Change member position info: 0x0161
-  - [ ] Create guild: 0x0165
-  - [ ] Invite to guild: 0x0168
+  - [x] Create guild/result: 0x0165, 0x0167
+  - [x] Invite/reply to guild: 0x0168, 0x0169, 0x016A, 0x016B
   - [ ] Change guild notice: 0x016E
   - [ ] Guild alliance request/reply/delete/opposition: 0x0170, 0x0172, 0x0180, 0x0183
   - [ ] Guild message: 0x017E

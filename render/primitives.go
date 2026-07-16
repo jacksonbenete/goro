@@ -421,11 +421,6 @@ func drawTextWithFace(dst *Image, text string, x, y int, face font.Face, c color
 	d.DrawString(text)
 }
 
-func imageContains(dst *Image, x, y int) bool {
-	b := dst.pix.Bounds()
-	return x >= b.Min.X && y >= b.Min.Y && x < b.Max.X && y < b.Max.Y
-}
-
 func drawSolidQuad(dst *Frame, x, y, w, h float64, c color.RGBA) {
 	if dst == nil {
 		return

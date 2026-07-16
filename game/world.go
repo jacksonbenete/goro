@@ -125,6 +125,7 @@ type worldUI struct {
 	friendRequest    gameui.ConfirmModal
 	friendConfirm    gameui.ConfirmModal
 	partyRequest     gameui.ConfirmModal
+	guildRequest     gameui.ConfirmModal
 	tradeRequest     gameui.ConfirmModal
 	characterWindow  gameui.CharacterWindow
 	basicMenu        gameui.BasicMenu
@@ -847,6 +848,24 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.ui.partySettings.Rebind(ctx)
 			continue
 		}
+		if guildCreate, ok, err := network.ParseGuildCreationResult(pkt); err != nil {
+			log.Printf("parse guild create result 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleGuildCreationResult(guildCreate)
+			continue
+		}
+		if guildInvite, ok, err := network.ParseGuildInviteRequest(pkt); err != nil {
+			log.Printf("parse guild invite request 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.openGuildInviteRequest(ctx, guildInvite)
+			continue
+		}
+		if guildInviteAck, ok, err := network.ParseGuildInviteAck(pkt); err != nil {
+			log.Printf("parse guild invite ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.handleGuildInviteAck(guildInviteAck)
+			continue
+		}
 		if partyMember, ok, err := network.ParsePartyMemberJoin(pkt); err != nil {
 			log.Printf("parse party member join 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1325,6 +1344,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	case gameui.PlayerContextActionInviteParty:
 		m.sendPartyInvite(ctx, action.ActorID, action.Name)
 		return nil, nil
+	case gameui.PlayerContextActionInviteGuild:
+		m.sendGuildInvite(ctx, action.ActorID, action.Name)
+		return nil, nil
 	case gameui.PlayerContextActionTrade:
 		m.sendTradeRequest(ctx, action.ActorID, action.Name)
 		return nil, nil
@@ -1338,7 +1360,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() {
+	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.guildRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.updatePetSlotMachine(ctx) {
@@ -1357,6 +1379,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.partyRequest.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.guildRequest.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.partyInfo.Update(ctx) {
@@ -1609,7 +1634,7 @@ func (m *WorldMode) openEscapeMenuFromInput(ctx client.Context) bool {
 	if ctx.Input == nil || m.ui.escapeMenu.IsOpen() || !ctx.Input.JustPressed(input.KeyEscape) {
 		return false
 	}
-	if m.ui.deathModal.IsOpen() || m.ui.teleportModal.IsOpen() || m.ui.friendRequest.IsOpen() || m.ui.friendConfirm.IsOpen() || m.ui.partyRequest.IsOpen() || m.ui.tradeRequest.IsOpen() {
+	if m.ui.deathModal.IsOpen() || m.ui.teleportModal.IsOpen() || m.ui.friendRequest.IsOpen() || m.ui.friendConfirm.IsOpen() || m.ui.partyRequest.IsOpen() || m.ui.guildRequest.IsOpen() || m.ui.tradeRequest.IsOpen() {
 		return false
 	}
 	m.ui.escapeMenu.Toggle(ctx)

@@ -564,9 +564,6 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Frame, ctx client.Context
 		}
 		return
 	}
-	if actorJobHasNoSprite(int(entry.actor.Job)) {
-		return
-	}
 }
 
 func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, projection sceneProjection, entry sceneActorDrawEntry) {

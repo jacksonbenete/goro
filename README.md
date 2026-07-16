@@ -146,6 +146,7 @@ Mostly done:
    * Trading
    * Vending
    * Show equipment
+   * Guild creation and invitations
    * Pets
      * Capture slot machine
      * Egg hatching

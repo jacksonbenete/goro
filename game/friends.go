@@ -66,7 +66,7 @@ func (m *WorldMode) openPlayerContextFromInput(ctx client.Context, now time.Time
 	if !ok {
 		return false
 	}
-	m.ui.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name), partyCanInvite(ctx.Session))
+	m.ui.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name), partyCanInvite(ctx.Session), true)
 	return true
 }
 

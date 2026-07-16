@@ -20,6 +20,7 @@ const (
 	PlayerContextActionNone PlayerContextActionKind = iota
 	PlayerContextActionAddFriend
 	PlayerContextActionInviteParty
+	PlayerContextActionInviteGuild
 	PlayerContextActionTrade
 	PlayerContextActionSeeEquipment
 )
@@ -35,11 +36,12 @@ type PlayerContextMenu struct {
 	actorID      uint32
 	name         string
 	canAddFriend bool
-	canInvite    bool
+	canParty     bool
+	canGuild     bool
 	action       PlayerContextAction
 }
 
-func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name string, canAddFriend bool, canInvite bool) {
+func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name string, canAddFriend bool, canParty bool, canGuild bool) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return
@@ -50,7 +52,8 @@ func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name str
 	m.actorID = actorID
 	m.name = name
 	m.canAddFriend = canAddFriend
-	m.canInvite = canInvite
+	m.canParty = canParty
+	m.canGuild = canGuild
 	screenW, screenH := ctx.ScreenSize()
 	height := m.height()
 	m.SetSize(playerContextMenuWidth, height)
@@ -110,10 +113,20 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 				Height(playerContextMenuRowH),
 		)
 	}
-	if m.canInvite {
+	if m.canParty {
 		rows = append(rows,
 			rotheme.Button("Invite", func() {
 				m.action = PlayerContextAction{Kind: PlayerContextActionInviteParty, ActorID: m.actorID, Name: m.name}
+				m.Close()
+			}).
+				Width(playerContextMenuWidth).
+				Height(playerContextMenuRowH),
+		)
+	}
+	if m.canGuild {
+		rows = append(rows,
+			rotheme.Button("Invite Guild", func() {
+				m.action = PlayerContextAction{Kind: PlayerContextActionInviteGuild, ActorID: m.actorID, Name: m.name}
 				m.Close()
 			}).
 				Width(playerContextMenuWidth).
@@ -135,7 +148,10 @@ func (m *PlayerContextMenu) height() int {
 	if m.canAddFriend {
 		rows++
 	}
-	if m.canInvite {
+	if m.canParty {
+		rows++
+	}
+	if m.canGuild {
 		rows++
 	}
 	return playerContextMenuRowH * rows

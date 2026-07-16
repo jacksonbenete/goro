@@ -4,10 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
-	"strings"
-
-	"golang.org/x/text/encoding/korean"
-	"golang.org/x/text/transform"
 )
 
 const (
@@ -257,21 +253,4 @@ func (c *Client) SendSelectPetEgg(index uint16) error {
 		log.Printf("send CZ_SELECT_PETEGG failed opcode=0x%04X len=%d index=%d client_date=%d: %v", ID(packet), len(packet), index, c.clientDate, err)
 	}
 	return err
-}
-
-func encodeROFixedString(value string, length int) []byte {
-	out := make([]byte, length)
-	value = strings.TrimSpace(value)
-	if value == "" || length <= 0 {
-		return out
-	}
-	encoded, _, err := transform.Bytes(korean.EUCKR.NewEncoder(), []byte(value))
-	if err != nil {
-		encoded = []byte(value)
-	}
-	if len(encoded) >= length {
-		encoded = encoded[:length-1]
-	}
-	copy(out, encoded)
-	return out
 }

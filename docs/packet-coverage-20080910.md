@@ -32,8 +32,6 @@ Status meaning:
 | `0x007E` | C->S | `0x007e` | `102` | `clif_parse_UseSkillToPosMoreInfo` | P0/P1 |
 | `0x0149` | C->S | `0x0149` | `9` | `clif_parse_GMReqNoChat` | P2 |
 | `0x0161` | C->S | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | P2 |
-| `0x0165` | C->S | `0x0165` | `30` | `clif_parse_CreateGuild` | P2 |
-| `0x0168` | C->S | `HEADER_CZ_REQ_JOIN_GUILD` | `sizeof( PACKET_CZ_REQ_JOIN_GUILD )` | `clif_parse_GuildInvite` | P2 |
 | `0x016E` | C->S | `0x016e` | `186` | `clif_parse_GuildChangeNotice` | P2 |
 | `0x0170` | C->S | `0x0170` | `14` | `clif_parse_GuildRequestAlliance` | P2 |
 | `0x0172` | C->S | `0x0172` | `10` | `clif_parse_GuildReplyAlliance` | P2 |
@@ -274,10 +272,13 @@ email check.
 | `0x015F` | S->C | untracked | `0x015f` | `42` | `-` | - |
 | `0x0161` | C->S | missing | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | - |
 | `0x0164` | S->C | untracked | `0x0164` | `-1` | `-` | - |
-| `0x0165` | C->S | missing | `0x0165` | `30` | `clif_parse_CreateGuild` | - |
+| `0x0165` | C->S | referenced | `0x0165` | `30` | `clif_parse_CreateGuild` | guild_packets.go |
 | `0x0166` | S->C | referenced | `0x0166` | `-1` | `-` | packet.go |
-| `0x0168` | C->S | missing | `HEADER_CZ_REQ_JOIN_GUILD` | `sizeof( PACKET_CZ_REQ_JOIN_GUILD )` | `clif_parse_GuildInvite` | - |
-| `0x016B` | C->S | referenced | `HEADER_CZ_JOIN_GUILD` | `sizeof( PACKET_CZ_JOIN_GUILD )` | `clif_parse_GuildReplyInvite` | packet.go |
+| `0x0167` | S->C | referenced | `0x0167` | `3` | `-` | guild_packets.go |
+| `0x0168` | C->S | referenced | `HEADER_CZ_REQ_JOIN_GUILD` | `sizeof( PACKET_CZ_REQ_JOIN_GUILD )` | `clif_parse_GuildInvite` | guild_packets.go |
+| `0x0169` | S->C | referenced | `0x0169` | `3` | `-` | guild_packets.go |
+| `0x016A` | S->C | referenced | `0x016a` | `30` | `-` | guild_packets.go |
+| `0x016B` | C->S | referenced | `HEADER_CZ_JOIN_GUILD` | `sizeof( PACKET_CZ_JOIN_GUILD )` | `clif_parse_GuildReplyInvite` | guild_packets.go |
 | `0x016C` | S->C | referenced | `0x016c` | `43` | `-` | packet.go |
 | `0x016E` | C->S | missing | `0x016e` | `186` | `clif_parse_GuildChangeNotice` | - |
 | `0x0170` | C->S | missing | `0x0170` | `14` | `clif_parse_GuildRequestAlliance` | - |
