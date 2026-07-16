@@ -44,6 +44,8 @@ type WorldMode struct {
 	cartViewMiss      map[int]struct{}
 	cursorView        *spriteView
 	cursorViewMiss    bool
+	slotMachineView   *spriteView
+	slotMachineMiss   bool
 	cursorFallback    *render.Image
 	cursorAction      int
 	cursorStarted     time.Time
@@ -74,6 +76,7 @@ type WorldMode struct {
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
 	pendingPetCapture petCaptureState
+	petSlotMachine    petSlotMachineState
 	pickupReqItemID   uint32
 	lockedAttackID    uint32
 	attackFocusID     uint32
@@ -1290,6 +1293,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
+	if m.updatePetSlotMachine(ctx) {
+		return nil, nil
+	}
 	if m.ui.escapeMenu.IsOpen() {
 		if m.ui.escapeMenu.Update(ctx) {
 			m.handleEscapeMenuAction(ctx)
@@ -1754,6 +1760,7 @@ func (m *WorldMode) DrawOverlay(ctx client.Context, screen *render.Frame) {
 	m.drawMapFade(screen, now)
 	if !ctx.Config.Render.NoUI {
 		m.drawUIDragGhosts(screen, ctx)
+		m.drawPetSlotMachine(screen, ctx, now)
 		m.drawROCursor(screen, ctx, projection, now)
 	}
 }

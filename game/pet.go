@@ -72,18 +72,16 @@ func (m *WorldMode) handlePetCaptureClick(ctx client.Context, projection scenePr
 		m.ui.console.AddErrorMessage("Capture failed: not connected.")
 		return true
 	}
-	if err := ctx.Network.SendTryCaptureMonster(actor.ID); err != nil {
-		m.ui.console.AddErrorMessage("Capture failed.")
-		log.Printf("pet capture send failed target=%d: %v", actor.ID, err)
-		return true
-	}
 	m.pendingPetCapture = petCaptureState{}
-	log.Printf("pet capture target sent target=%d name=%q job=%d object_type=%d", actor.ID, actor.Name, actor.Job, actor.ObjectType)
+	m.openPetSlotMachine(ctx, actor.ID)
+	log.Printf("pet capture target selected target=%d name=%q job=%d object_type=%d", actor.ID, actor.Name, actor.Job, actor.ObjectType)
 	return true
 }
 
 func (m *WorldMode) applyPetCaptureResult(ctx client.Context, result network.PetCaptureResult) {
-	if result.Success {
+	if m.petSlotMachine.active {
+		m.petSlotMachine.setResult(result.Success)
+	} else if result.Success {
 		m.ui.console.AddBlueMessage("Pet capture succeeded.")
 	} else {
 		m.ui.console.AddErrorMessage("Pet capture failed.")
