@@ -70,6 +70,9 @@ no_ctrl = false
 mineffect = true
 snap = true
 itemsnap = false
+
+[script]
+path = ./ignored.lua
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -90,6 +93,7 @@ itemsnap = false
 		"--mineffect=false",
 		"--snap=false",
 		"--itemsnap=true",
+		"--script", filepath.Join(root, "bot.lua"),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -120,6 +124,9 @@ itemsnap = false
 	}
 	if cfg.Gameplay.NoShift || !cfg.Gameplay.NoCtrl || cfg.Gameplay.LessEffects || cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
 		t.Fatalf("unexpected gameplay config: %#v", cfg.Gameplay)
+	}
+	if cfg.Script.Path != filepath.Join(root, "bot.lua") {
+		t.Fatalf("script path = %q", cfg.Script.Path)
 	}
 }
 

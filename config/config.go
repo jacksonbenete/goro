@@ -22,6 +22,7 @@ type Config struct {
 	Network  NetworkConfig
 	Fog      FogConfig
 	Gameplay GameplayConfig
+	Script   ScriptConfig
 }
 
 type WindowConfig struct {
@@ -75,6 +76,10 @@ type GameplayConfig struct {
 	LessEffects bool
 	SnapTargets bool
 	SnapItems   bool
+}
+
+type ScriptConfig struct {
+	Path string
 }
 
 func LoadConfig(args []string) (Config, error) {
@@ -299,6 +304,7 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.BoolVar(&cfg.Gameplay.SnapTargets, "snap", cfg.Gameplay.SnapTargets, "magnetize attack and enemy skill cursors to targets")
 	fs.BoolVar(&cfg.Gameplay.SnapItems, "itemsnap", cfg.Gameplay.SnapItems, "magnetize pickup cursor to floor items")
 	fs.BoolVar(&cfg.Gameplay.SnapItems, "item-snap", cfg.Gameplay.SnapItems, "magnetize pickup cursor to floor items")
+	fs.StringVar(&cfg.Script.Path, "script", cfg.Script.Path, "Lua script to run while in game")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -399,6 +405,8 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		return setBool(value, &cfg.Gameplay.SnapTargets)
 	case "gameplay.itemsnap", "gameplay.snapitems", "gameplay.itemsnapping":
 		return setBool(value, &cfg.Gameplay.SnapItems)
+	case ".script", "script.path":
+		cfg.Script.Path = value
 	default:
 		return fmt.Errorf("unknown key %q in section %q", key, section)
 	}
