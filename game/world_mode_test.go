@@ -5472,6 +5472,24 @@ func TestApplyActorNameAckUpdatesLocalPlayer(t *testing.T) {
 	}
 }
 
+func TestApplyActorNameAckPreservesLocalGuildOnEmptyNameAck(t *testing.T) {
+	world := worldstate.New()
+	world.Player.GuildName = "Goro"
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 100, CharID: 200, GuildName: "Goro"},
+		World:   world,
+	}
+
+	applyActorNameAck(ctx, network.ActorNameAck{ID: 200, Name: "Kivutar"})
+
+	if got := world.Player.GuildName; got != "Goro" {
+		t.Fatalf("player guild = %q, want Goro", got)
+	}
+	if got := ctx.Session.GuildName; got != "Goro" {
+		t.Fatalf("session guild = %q, want Goro", got)
+	}
+}
+
 func TestHandleMapChangeSameServerUpdatesMapAndResetsActors(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "prontera"

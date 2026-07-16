@@ -35,6 +35,27 @@ func TestBuildGuildPackets(t *testing.T) {
 }
 
 func TestParseGuildPackets(t *testing.T) {
+	info := make([]byte, 110)
+	binary.LittleEndian.PutUint16(info[0:2], PacketZCGuildInfo)
+	binary.LittleEndian.PutUint32(info[2:6], 0x01020304)
+	copy(info[42:66], []byte("Mandala"))
+	parsedInfo, ok, err := ParseGuildInfo(Packet{ID: PacketZCGuildInfo, Data: info})
+	if !ok || err != nil || parsedInfo.GuildID != 0x01020304 || parsedInfo.GuildName != "Mandala" {
+		t.Fatalf("ParseGuildInfo ok=%t err=%v info=%+v", ok, err, parsedInfo)
+	}
+
+	belonging := make([]byte, 43)
+	binary.LittleEndian.PutUint16(belonging[0:2], PacketZCUpdateGuildID)
+	binary.LittleEndian.PutUint32(belonging[2:6], 0x01020304)
+	binary.LittleEndian.PutUint32(belonging[6:10], 7)
+	binary.LittleEndian.PutUint32(belonging[10:14], 0x11)
+	belonging[14] = 1
+	copy(belonging[19:43], []byte("Mandala"))
+	parsedBelonging, ok, err := ParseGuildBelonging(Packet{ID: PacketZCUpdateGuildID, Data: belonging})
+	if !ok || err != nil || parsedBelonging.GuildID != 0x01020304 || parsedBelonging.EmblemVersion != 7 || parsedBelonging.Mode != 0x11 || !parsedBelonging.IsMaster || parsedBelonging.GuildName != "Mandala" {
+		t.Fatalf("ParseGuildBelonging ok=%t err=%v belonging=%+v", ok, err, parsedBelonging)
+	}
+
 	createResult := []byte{0x67, 0x01, 2}
 	parsedCreate, ok, err := ParseGuildCreationResult(Packet{ID: PacketZCResultMakeGuild, Data: createResult})
 	if !ok || err != nil || parsedCreate.Result != 2 {
@@ -65,9 +86,12 @@ func TestGuildPacketDirections(t *testing.T) {
 		}
 	}
 	for id, want := range map[uint16]int{
+		PacketZCGuildInfo:       110,
+		PacketZCGuildInfo2:      114,
 		PacketZCResultMakeGuild: 3,
 		PacketZCAckReqJoinGuild: 3,
 		PacketZCReqJoinGuild:    30,
+		PacketZCUpdateGuildID:   43,
 	} {
 		if got := lengths[id]; got != want {
 			t.Fatalf("0x%04X receive length = %d, want %d", id, got, want)

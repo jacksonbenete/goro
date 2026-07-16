@@ -400,8 +400,10 @@ func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
 	guildName := strings.TrimSpace(ack.GuildName)
 	if isLocalActor(ctx, ack.ID) {
 		ctx.World.Player.Name = name
-		ctx.World.Player.GuildName = guildName
-		if ctx.Session != nil {
+		if guildName != "" {
+			ctx.World.Player.GuildName = guildName
+		}
+		if ctx.Session != nil && guildName != "" {
 			ctx.Session.GuildName = guildName
 			ctx.Session.PendingGuildName = ""
 		}

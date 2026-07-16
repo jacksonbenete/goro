@@ -848,6 +848,18 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.ui.partySettings.Rebind(ctx)
 			continue
 		}
+		if guildBelonging, ok, err := network.ParseGuildBelonging(pkt); err != nil {
+			log.Printf("parse guild belonging 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyLocalGuildName(ctx, guildBelonging.GuildName)
+			continue
+		}
+		if guildInfo, ok, err := network.ParseGuildInfo(pkt); err != nil {
+			log.Printf("parse guild info 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyLocalGuildName(ctx, guildInfo.GuildName)
+			continue
+		}
 		if guildCreate, ok, err := network.ParseGuildCreationResult(pkt); err != nil {
 			log.Printf("parse guild create result 0x%04X: %v", pkt.ID, err)
 		} else if ok {

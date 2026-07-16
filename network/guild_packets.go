@@ -13,6 +13,9 @@ const (
 	PacketZCAckReqJoinGuild uint16 = 0x0169
 	PacketZCReqJoinGuild    uint16 = 0x016A
 	PacketCZJoinGuild       uint16 = 0x016B
+	PacketZCGuildInfo       uint16 = 0x0150
+	PacketZCGuildInfo2      uint16 = 0x01B6
+	PacketZCUpdateGuildID   uint16 = 0x016C
 )
 
 const guildNameLength = 24
@@ -28,6 +31,50 @@ type GuildInviteAck struct {
 type GuildInviteRequest struct {
 	GuildID   uint32
 	GuildName string
+}
+
+type GuildBelonging struct {
+	GuildID       uint32
+	EmblemVersion uint32
+	Mode          uint32
+	IsMaster      bool
+	GuildName     string
+}
+
+type GuildInfo struct {
+	GuildID   uint32
+	GuildName string
+}
+
+func ParseGuildInfo(packet Packet) (GuildInfo, bool, error) {
+	switch packet.ID {
+	case PacketZCGuildInfo, PacketZCGuildInfo2:
+	default:
+		return GuildInfo{}, false, nil
+	}
+	if len(packet.Data) < 66 {
+		return GuildInfo{}, true, fmt.Errorf("ZC_GUILD_INFO 0x%04X too short: %d", packet.ID, len(packet.Data))
+	}
+	return GuildInfo{
+		GuildID:   binary.LittleEndian.Uint32(packet.Data[2:6]),
+		GuildName: decodeROFixedString(packet.Data[42:66]),
+	}, true, nil
+}
+
+func ParseGuildBelonging(packet Packet) (GuildBelonging, bool, error) {
+	if packet.ID != PacketZCUpdateGuildID {
+		return GuildBelonging{}, false, nil
+	}
+	if len(packet.Data) < 43 {
+		return GuildBelonging{}, true, fmt.Errorf("ZC_UPDATE_GDID too short: %d", len(packet.Data))
+	}
+	return GuildBelonging{
+		GuildID:       binary.LittleEndian.Uint32(packet.Data[2:6]),
+		EmblemVersion: binary.LittleEndian.Uint32(packet.Data[6:10]),
+		Mode:          binary.LittleEndian.Uint32(packet.Data[10:14]),
+		IsMaster:      packet.Data[14] != 0,
+		GuildName:     decodeROFixedString(packet.Data[19:43]),
+	}, true, nil
 }
 
 func ParseGuildCreationResult(packet Packet) (GuildCreationResult, bool, error) {
