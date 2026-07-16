@@ -103,6 +103,7 @@ type WorldMode struct {
 	actorSoundFrames  map[uint32]actorSoundFrame
 	actorLife         map[uint32]actorLife
 	actorNameReqAt    map[uint32]time.Time
+	guildEmblems      map[uint32]guildEmblem
 	speechBubbles     map[uint32]speechBubble
 	gndNormalSource   *res.GND
 	gndTopNormals     [][4]modelPoint3
@@ -851,13 +852,27 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if guildBelonging, ok, err := network.ParseGuildBelonging(pkt); err != nil {
 			log.Printf("parse guild belonging 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			applyLocalGuildName(ctx, guildBelonging.GuildName)
+			applyLocalGuildInfo(ctx, guildBelonging.GuildID, guildBelonging.EmblemVersion, guildBelonging.GuildName)
+			m.requestActorGuildEmblem(ctx, guildBelonging.GuildID, guildBelonging.EmblemVersion)
 			continue
 		}
 		if guildInfo, ok, err := network.ParseGuildInfo(pkt); err != nil {
 			log.Printf("parse guild info 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			applyLocalGuildName(ctx, guildInfo.GuildName)
+			applyLocalGuildInfo(ctx, guildInfo.GuildID, guildInfo.EmblemVersion, guildInfo.GuildName)
+			m.requestActorGuildEmblem(ctx, guildInfo.GuildID, guildInfo.EmblemVersion)
+			continue
+		}
+		if guildEmblem, ok, err := network.ParseGuildEmblemImage(pkt); err != nil {
+			log.Printf("parse guild emblem 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyGuildEmblemImage(ctx, guildEmblem)
+			continue
+		}
+		if guildEmblemChange, ok, err := network.ParseGuildEmblemChange(pkt); err != nil {
+			log.Printf("parse guild emblem change 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyGuildEmblemChange(ctx, guildEmblemChange)
 			continue
 		}
 		if guildCreate, ok, err := network.ParseGuildCreationResult(pkt); err != nil {

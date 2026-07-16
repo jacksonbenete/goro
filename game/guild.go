@@ -115,16 +115,36 @@ func clearPendingGuildName(ctx client.Context) {
 }
 
 func applyLocalGuildName(ctx client.Context, name string) {
+	applyLocalGuildInfo(ctx, 0, 0, name)
+}
+
+func applyLocalGuildInfo(ctx client.Context, guildID, emblemVersion uint32, name string) {
 	name = strings.TrimSpace(name)
-	if name == "" {
+	if name == "" && guildID == 0 && emblemVersion == 0 {
 		clearPendingGuildName(ctx)
 		return
 	}
 	if ctx.Session != nil {
-		ctx.Session.GuildName = name
+		if guildID != 0 {
+			ctx.Session.GuildID = guildID
+		}
+		if emblemVersion != 0 {
+			ctx.Session.EmblemVersion = emblemVersion
+		}
+		if name != "" {
+			ctx.Session.GuildName = name
+		}
 		ctx.Session.PendingGuildName = ""
 	}
 	if ctx.World != nil {
-		ctx.World.Player.GuildName = name
+		if guildID != 0 {
+			ctx.World.Player.GuildID = guildID
+		}
+		if emblemVersion != 0 {
+			ctx.World.Player.EmblemVersion = emblemVersion
+		}
+		if name != "" {
+			ctx.World.Player.GuildName = name
+		}
 	}
 }

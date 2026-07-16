@@ -103,6 +103,8 @@ func TestParseActorStandEntry2008(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[30:32], 8)
 	binary.LittleEndian.PutUint16(data[32:34], 6)
 	binary.LittleEndian.PutUint16(data[34:36], 4)
+	binary.LittleEndian.PutUint32(data[36:40], 0x01020304)
+	binary.LittleEndian.PutUint16(data[40:42], 7)
 	data[49] = 1
 	data[50], data[51], data[52] = packPosition(120, 140, 5)
 
@@ -118,6 +120,9 @@ func TestParseActorStandEntry2008(t *testing.T) {
 	}
 	if !entry.HasState || entry.BodyState != 1 || entry.HealthState != 2 || entry.EffectState != 0x00000408 {
 		t.Fatalf("unexpected state: %+v", entry)
+	}
+	if entry.GuildID != 0x01020304 || entry.EmblemVersion != 7 {
+		t.Fatalf("unexpected guild emblem fields: %+v", entry)
 	}
 }
 
@@ -136,6 +141,8 @@ func TestParseActorMoveEntry2008Palettes(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[35:37], 9)
 	binary.LittleEndian.PutUint16(data[37:39], 7)
 	binary.LittleEndian.PutUint16(data[39:41], 3)
+	binary.LittleEndian.PutUint32(data[41:45], 0x01020304)
+	binary.LittleEndian.PutUint16(data[45:47], 8)
 	data[54] = 1
 	data[55], data[56], data[57], data[58], data[59], data[60] = packMovePosition(10, 20, 30, 40)
 
@@ -148,6 +155,9 @@ func TestParseActorMoveEntry2008Palettes(t *testing.T) {
 	}
 	if entry.ID != 2000006 || entry.HeadPal != 9 || entry.BodyPal != 7 || entry.HeadDir != 3 || entry.FromX != 10 || entry.FromY != 20 || entry.ToX != 30 || entry.ToY != 40 {
 		t.Fatalf("unexpected entry: %+v", entry)
+	}
+	if entry.GuildID != 0x01020304 || entry.EmblemVersion != 8 {
+		t.Fatalf("unexpected guild emblem fields: %+v", entry)
 	}
 }
 

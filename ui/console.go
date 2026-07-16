@@ -2,8 +2,8 @@ package ui
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/input"
 	"image/color"
+	"os"
 	"strings"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -271,6 +272,9 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/guild":
 		c.submitCreateGuild(ctx, text)
 		return true
+	case "/emblem", "/guildemblem":
+		c.submitGuildEmblem(ctx, text)
+		return true
 	case "/leave":
 		c.submitLeaveParty(ctx)
 		return true
@@ -408,6 +412,50 @@ func (c *ChatConsole) submitCreateGuild(ctx client.Context, text string) {
 		return
 	}
 	ctx.Session.PendingGuildName = name
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitGuildEmblem(ctx client.Context, text string) {
+	path := strings.Trim(consoleCommandArgs(text), `"`)
+	if path == "" {
+		c.AddErrorMessage("usage: /emblem path/to/emblem.bmp")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		c.AddErrorMessage("emblem failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if len(data) < 2 || data[0] != 'B' || data[1] != 'M' {
+		c.AddErrorMessage("emblem failed: expected BMP file")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if len(data) > 1783 {
+		c.AddErrorMessage("emblem failed: BMP is too large")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendGuildEmblem(data); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	c.AddSystemMessage("Guild emblem uploaded.")
 	c.setInput("")
 	c.setActive(false)
 }

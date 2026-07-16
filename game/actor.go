@@ -146,6 +146,8 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 	}
 	actor := worldstate.Actor{
 		ID:            entry.ID,
+		GuildID:       entry.GuildID,
+		EmblemVersion: entry.EmblemVersion,
 		X:             entry.X,
 		Y:             entry.Y,
 		Dir:           dir,
@@ -187,6 +189,7 @@ func (m *WorldMode) upsertNetworkActor(ctx client.Context, entry network.ActorEn
 		oldState = existing.EffectState
 	}
 	upsertNetworkActor(ctx, entry)
+	m.requestActorGuildEmblem(ctx, entry.GuildID, entry.EmblemVersion)
 	if !entry.HasState {
 		return
 	}
@@ -495,7 +498,7 @@ func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Frame, ctx cl
 		if life, ok := m.actorLifeForDisplay(ctx, entry.actor); ok {
 			labelY = actorNameBelowLifeBarY(entry.screenY, entry.scale, life)
 		}
-		drawActorNameLabelsAtY(screen, actorDisplayLabels(ctx, entry.actor, true), entry.screenX, labelY, actorNameLabelColor(entry.actor, true))
+		drawActorNameLabelsAtY(screen, actorDisplayLabels(ctx, entry.actor, true), m.actorGuildEmblem(ctx, entry.actor, true), entry.screenX, labelY, actorNameLabelColor(entry.actor, true))
 		return
 	}
 }
@@ -520,6 +523,14 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Frame, ctx client.Co
 	}
 	if character.Name != "" {
 		player.Name = character.Name
+	}
+	if ctx.Session != nil {
+		if player.GuildID == 0 {
+			player.GuildID = ctx.Session.GuildID
+		}
+		if player.EmblemVersion == 0 {
+			player.EmblemVersion = ctx.Session.EmblemVersion
+		}
 	}
 	player.Dir = ctx.World.Dir
 	entries = appendActorDrawEntry(entries, ctx.World, projection, player, true, now, width, height)
@@ -833,7 +844,8 @@ func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Frame, ctx client.C
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
-	drawActorNameLabels(screen, labels, float64(point.x), float64(point.y), scale, actorNameLabelColor(actor, isLocalActor(ctx, actor.ID)))
+	isPlayer := isLocalActor(ctx, actor.ID)
+	drawActorNameLabels(screen, labels, m.actorGuildEmblem(ctx, actor, isPlayer), float64(point.x), float64(point.y), scale, actorNameLabelColor(actor, isPlayer))
 }
 
 func (m *WorldMode) hoveredActorDisplayName(ctx client.Context, actor worldstate.Actor, now time.Time) string {
@@ -973,11 +985,11 @@ func actorNameLabelColor(actor worldstate.Actor, isPlayer bool) color.RGBA {
 	}
 }
 
-func drawActorNameLabels(screen *render.Frame, labels []string, centerX, baseY, scale float64, foreground color.RGBA) {
-	drawActorNameLabelsAtY(screen, labels, centerX, actorNameLabelY(baseY, scale), foreground)
+func drawActorNameLabels(screen *render.Frame, labels []string, emblem *render.Image, centerX, baseY, scale float64, foreground color.RGBA) {
+	drawActorNameLabelsAtY(screen, labels, emblem, centerX, actorNameLabelY(baseY, scale), foreground)
 }
 
-func drawActorNameLabelsAtY(screen *render.Frame, labels []string, centerX, labelY float64, foreground color.RGBA) {
+func drawActorNameLabelsAtY(screen *render.Frame, labels []string, emblem *render.Image, centerX, labelY float64, foreground color.RGBA) {
 	if len(labels) == 0 {
 		return
 	}
@@ -991,9 +1003,31 @@ func drawActorNameLabelsAtY(screen *render.Frame, labels []string, centerX, labe
 		if label == "" {
 			continue
 		}
+		if i == 0 && emblem != nil {
+			drawActorGuildEmblem(screen, emblem, label, centerX, labelY)
+		}
 		render.DrawCenteredUIOutlinedTextAt(screen, label, centerX, labelY, foreground, outline)
 		labelY += 14
 	}
+}
+
+func drawActorGuildEmblem(screen *render.Frame, emblem *render.Image, label string, centerX, labelY float64) {
+	if screen == nil || emblem == nil {
+		return
+	}
+	labelW, _ := render.BitmapTextSize(label)
+	const emblemSize = 24
+	x := math.Round(centerX - float64(labelW)/2 - emblemSize - 4)
+	y := math.Round(labelY - 5)
+	bounds := emblem.Bounds()
+	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return
+	}
+	var opts render.DrawImageOptions
+	opts.GeoM.Scale(float64(emblemSize)/float64(bounds.Dx()), float64(emblemSize)/float64(bounds.Dy()))
+	opts.GeoM.Translate(x, y)
+	opts.Filter = spriteDrawFilter()
+	screen.DrawImage(emblem, &opts)
 }
 
 func actorSpriteTopY(baseY, scale float64) float64 {

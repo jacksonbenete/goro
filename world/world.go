@@ -36,6 +36,8 @@ type FloorItem struct {
 type Actor struct {
 	ID             uint32
 	Name           string
+	GuildID        uint32
+	EmblemVersion  uint32
 	GuildName      string
 	X              int
 	Y              int
@@ -126,6 +128,15 @@ func (w *World) UpsertActor(actor Actor) {
 	if existing, ok := w.Actors[actor.ID]; ok {
 		if actor.Name == "" {
 			actor.Name = existing.Name
+		}
+		if actor.GuildID == 0 {
+			actor.GuildID = existing.GuildID
+		}
+		if actor.EmblemVersion == 0 {
+			actor.EmblemVersion = existing.EmblemVersion
+		}
+		if actor.GuildName == "" {
+			actor.GuildName = existing.GuildName
 		}
 		if !actor.Appearance {
 			actor.Job = existing.Job

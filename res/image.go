@@ -48,6 +48,17 @@ func LoadImageExact(manager *Manager, candidates []string) (image.Image, string,
 	return nil, "", fmt.Errorf("image not found: %s", strings.Join(candidates, ", "))
 }
 
+func DecodeImageData(data []byte) (image.Image, error) {
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		img, err = decodeTGA(data)
+		if err != nil {
+			return nil, fmt.Errorf("decode image: %w", err)
+		}
+	}
+	return applyROTransparency(img), nil
+}
+
 func applyROTransparency(img image.Image) *image.NRGBA {
 	bounds := img.Bounds()
 	out := image.NewNRGBA(bounds)
