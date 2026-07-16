@@ -851,7 +851,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if guildCreate, ok, err := network.ParseGuildCreationResult(pkt); err != nil {
 			log.Printf("parse guild create result 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.handleGuildCreationResult(guildCreate)
+			m.handleGuildCreationResult(ctx, guildCreate)
 			continue
 		}
 		if guildInvite, ok, err := network.ParseGuildInviteRequest(pkt); err != nil {

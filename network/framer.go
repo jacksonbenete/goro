@@ -26,6 +26,9 @@ func (f *Framer) Push(data []byte) ([]Packet, error) {
 		id := ID(f.buffer)
 		length, ok := f.lengths[id]
 		if !ok {
+			if len(f.buffer) < 6 {
+				return packets, nil
+			}
 			if f.resyncToKnownPacket() {
 				continue
 			}

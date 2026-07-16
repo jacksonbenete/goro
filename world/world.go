@@ -36,6 +36,7 @@ type FloorItem struct {
 type Actor struct {
 	ID             uint32
 	Name           string
+	GuildName      string
 	X              int
 	Y              int
 	Dir            int

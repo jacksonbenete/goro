@@ -397,8 +397,14 @@ func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
 	if name == "" || ctx.World == nil {
 		return
 	}
+	guildName := strings.TrimSpace(ack.GuildName)
 	if isLocalActor(ctx, ack.ID) {
 		ctx.World.Player.Name = name
+		ctx.World.Player.GuildName = guildName
+		if ctx.Session != nil {
+			ctx.Session.GuildName = guildName
+			ctx.Session.PendingGuildName = ""
+		}
 		return
 	}
 	actor, ok := ctx.World.Actors[ack.ID]
@@ -406,6 +412,7 @@ func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
 		return
 	}
 	actor.Name = name
+	actor.GuildName = guildName
 	ctx.World.Actors[ack.ID] = actor
 }
 
@@ -486,7 +493,7 @@ func (m *WorldMode) drawHoveredLocalPlayerNameLabel(screen *render.Frame, ctx cl
 		if life, ok := m.actorLifeForDisplay(ctx, entry.actor); ok {
 			labelY = actorNameBelowLifeBarY(entry.screenY, entry.scale, life)
 		}
-		drawActorNameLabelAtY(screen, actorDisplayName(ctx, entry.actor, true), entry.screenX, labelY, actorNameLabelColor(entry.actor, true))
+		drawActorNameLabelsAtY(screen, actorDisplayLabels(ctx, entry.actor, true), entry.screenX, labelY, actorNameLabelColor(entry.actor, true))
 		return
 	}
 }
@@ -685,6 +692,25 @@ func actorBillboardSortDepth(projection sceneProjection, x, y, z float64) float6
 }
 
 func actorDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool) string {
+	labels := actorDisplayLabels(ctx, actor, isPlayer)
+	if len(labels) == 0 {
+		return ""
+	}
+	return labels[0]
+}
+
+func actorDisplayLabels(ctx client.Context, actor worldstate.Actor, isPlayer bool) []string {
+	name := actorDisplayPrimaryName(ctx, actor, isPlayer)
+	if name == "" {
+		return nil
+	}
+	if guildName := actorGuildDisplayName(ctx, actor, isPlayer); guildName != "" {
+		return []string{name, guildName}
+	}
+	return []string{name}
+}
+
+func actorDisplayPrimaryName(ctx client.Context, actor worldstate.Actor, isPlayer bool) string {
 	if isPlayer {
 		if name := sanitizeActorName(selectedCharacterName(ctx.Session)); name != "" {
 			return actorDisplayNameWithParty(ctx, actor, name, true)
@@ -707,6 +733,32 @@ func actorDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool)
 		return name
 	}
 	return ""
+}
+
+func actorGuildDisplayName(ctx client.Context, actor worldstate.Actor, isPlayer bool) string {
+	if !actorCanDisplayGuildName(actor, isPlayer) {
+		return ""
+	}
+	if guildName := strings.TrimSpace(actor.GuildName); guildName != "" {
+		return guildName
+	}
+	if isPlayer && ctx.Session != nil {
+		return strings.TrimSpace(ctx.Session.GuildName)
+	}
+	return ""
+}
+
+func actorCanDisplayGuildName(actor worldstate.Actor, isPlayer bool) bool {
+	if strings.TrimSpace(actor.GuildName) == "" && !isPlayer {
+		return false
+	}
+	if isPlayer {
+		return true
+	}
+	if actor.HasObjectType {
+		return actor.ObjectType == actorObjectTypePC
+	}
+	return res.HasPlayerJobToken(int(actor.Job))
 }
 
 func actorDisplayNameWithParty(ctx client.Context, actor worldstate.Actor, name string, isPlayer bool) string {
@@ -771,41 +823,49 @@ func (m *WorldMode) drawHoveredActorNameLabel(screen *render.Frame, ctx client.C
 	if !ok || isWarpActor(actor) {
 		return
 	}
-	label := m.hoveredActorDisplayName(ctx, actor, now)
-	if label == "" {
+	labels := m.hoveredActorDisplayLabels(ctx, actor, now)
+	if len(labels) == 0 {
 		return
 	}
 	actorX, actorY := actorRenderPosition(actor, now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
-	drawActorNameLabel(screen, label, float64(point.x), float64(point.y), scale, actorNameLabelColor(actor, isLocalActor(ctx, actor.ID)))
+	drawActorNameLabels(screen, labels, float64(point.x), float64(point.y), scale, actorNameLabelColor(actor, isLocalActor(ctx, actor.ID)))
 }
 
 func (m *WorldMode) hoveredActorDisplayName(ctx client.Context, actor worldstate.Actor, now time.Time) string {
+	labels := m.hoveredActorDisplayLabels(ctx, actor, now)
+	if len(labels) == 0 {
+		return ""
+	}
+	return labels[0]
+}
+
+func (m *WorldMode) hoveredActorDisplayLabels(ctx client.Context, actor worldstate.Actor, now time.Time) []string {
 	if isLocalActor(ctx, actor.ID) {
-		return actorDisplayName(ctx, actor, true)
+		return actorDisplayLabels(ctx, actor, true)
 	}
 	if name := sanitizeActorName(actor.Name); name != "" {
-		return actorDisplayNameWithParty(ctx, actor, name, false)
+		return actorDisplayLabels(ctx, actor, false)
 	}
 	if shouldUseServerNameForHoverActor(actor) {
 		m.requestActorName(ctx, actor.ID, now)
 		if name := actorResourceDisplayName(ctx, actor); name != "" {
-			return name
+			return []string{name}
 		}
 		if res.HasPlayerJobToken(int(actor.Job)) {
-			return "Player"
+			return []string{"Player"}
 		}
 		if isMonsterLikeHoverActor(actor) {
-			return "Monster"
+			return []string{"Monster"}
 		}
-		return "NPC"
+		return []string{"NPC"}
 	}
 	if name := actorResourceDisplayName(ctx, actor); name != "" {
-		return name
+		return []string{name}
 	}
-	return "Entity"
+	return []string{"Entity"}
 }
 
 func actorResourceDisplayName(ctx client.Context, actor worldstate.Actor) string {
@@ -911,17 +971,27 @@ func actorNameLabelColor(actor worldstate.Actor, isPlayer bool) color.RGBA {
 	}
 }
 
-func drawActorNameLabel(screen *render.Frame, label string, centerX, baseY, scale float64, foreground color.RGBA) {
-	drawActorNameLabelAtY(screen, label, centerX, actorNameLabelY(baseY, scale), foreground)
+func drawActorNameLabels(screen *render.Frame, labels []string, centerX, baseY, scale float64, foreground color.RGBA) {
+	drawActorNameLabelsAtY(screen, labels, centerX, actorNameLabelY(baseY, scale), foreground)
 }
 
-func drawActorNameLabelAtY(screen *render.Frame, label string, centerX, labelY float64, foreground color.RGBA) {
-	label = sanitizeActorName(label)
-	if label == "" {
+func drawActorNameLabelsAtY(screen *render.Frame, labels []string, centerX, labelY float64, foreground color.RGBA) {
+	if len(labels) == 0 {
 		return
 	}
 	outline := color.RGBA{A: 196}
-	render.DrawCenteredUIOutlinedTextAt(screen, label, centerX, labelY, foreground, outline)
+	for i, label := range labels {
+		if i == 0 {
+			label = sanitizeActorName(label)
+		} else {
+			label = strings.TrimSpace(label)
+		}
+		if label == "" {
+			continue
+		}
+		render.DrawCenteredUIOutlinedTextAt(screen, label, centerX, labelY, foreground, outline)
+		labelY += 14
+	}
 }
 
 func actorSpriteTopY(baseY, scale float64) float64 {

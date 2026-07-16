@@ -5445,10 +5445,13 @@ func TestApplyActorNameAckUpdatesWorldActor(t *testing.T) {
 		World:   world,
 	}
 
-	applyActorNameAck(ctx, network.ActorNameAck{ID: 300, Name: "Guide#prontera"})
+	applyActorNameAck(ctx, network.ActorNameAck{ID: 300, Name: "Guide#prontera", GuildName: "Knights"})
 
 	if got := world.Actors[300].Name; got != "Guide" {
 		t.Fatalf("actor name = %q, want Guide", got)
+	}
+	if got := world.Actors[300].GuildName; got != "Knights" {
+		t.Fatalf("actor guild = %q, want Knights", got)
 	}
 }
 
@@ -5459,10 +5462,13 @@ func TestApplyActorNameAckUpdatesLocalPlayer(t *testing.T) {
 		World:   world,
 	}
 
-	applyActorNameAck(ctx, network.ActorNameAck{ID: 200, Name: "Kivutar"})
+	applyActorNameAck(ctx, network.ActorNameAck{ID: 200, Name: "Kivutar", GuildName: "Goro"})
 
 	if got := world.Player.Name; got != "Kivutar" {
 		t.Fatalf("player name = %q, want Kivutar", got)
+	}
+	if got := world.Player.GuildName; got != "Goro" {
+		t.Fatalf("player guild = %q, want Goro", got)
 	}
 }
 
@@ -5751,6 +5757,46 @@ func TestActorDisplayNameIncludesPartyName(t *testing.T) {
 	}
 	if got := actorDisplayName(ctx, worldstate.Actor{ID: 400, Name: "Bob"}, false); got != "Bob" {
 		t.Fatalf("non-party display name = %q, want Bob", got)
+	}
+}
+
+func TestActorDisplayLabelsIncludeGuildNameOnSecondLine(t *testing.T) {
+	ctx := client.Context{Session: &session.Session{CharID: 200, Selected: session.Character{ID: 200, Name: "Kivutar"}}}
+
+	labels := actorDisplayLabels(ctx, worldstate.Actor{Name: "Player", GuildName: "Knights"}, true)
+	if len(labels) != 2 || labels[0] != "Kivutar" || labels[1] != "Knights" {
+		t.Fatalf("local labels = %#v, want Kivutar / Knights", labels)
+	}
+
+	labels = actorDisplayLabels(ctx, worldstate.Actor{ID: 300, Name: "Alice", GuildName: "Knights", HasObjectType: true, ObjectType: actorObjectTypePC}, false)
+	if len(labels) != 2 || labels[0] != "Alice" || labels[1] != "Knights" {
+		t.Fatalf("actor labels = %#v, want Alice / Knights", labels)
+	}
+
+	labels = actorDisplayLabels(ctx, worldstate.Actor{Name: "Poring", GuildName: "Knights", HasObjectType: true, ObjectType: actorObjectTypeMob}, false)
+	if len(labels) != 1 || labels[0] != "Poring" {
+		t.Fatalf("mob labels = %#v, want Poring only", labels)
+	}
+}
+
+func TestGuildCreationResultAppliesPendingLocalGuildName(t *testing.T) {
+	world := worldstate.New()
+	ctx := client.Context{
+		Session: &session.Session{PendingGuildName: "Knights"},
+		World:   world,
+	}
+	var mode WorldMode
+
+	mode.handleGuildCreationResult(ctx, network.GuildCreationResult{Result: 0})
+
+	if got := ctx.Session.GuildName; got != "Knights" {
+		t.Fatalf("session guild = %q, want Knights", got)
+	}
+	if got := world.Player.GuildName; got != "Knights" {
+		t.Fatalf("player guild = %q, want Knights", got)
+	}
+	if got := ctx.Session.PendingGuildName; got != "" {
+		t.Fatalf("pending guild = %q, want empty", got)
 	}
 }
 

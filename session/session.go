@@ -3,41 +3,43 @@ package session
 import "time"
 
 type Session struct {
-	AccountID    uint32
-	CharID       uint32
-	AuthCode     uint32
-	UserLevel    uint32
-	Sex          byte
-	Playing      bool
-	NoShift      bool
-	NoCtrl       bool
-	LessEffects  bool
-	ShowEquip    bool
-	SnapTargets  bool
-	SnapItems    bool
-	AttackRange  int
-	CharServers  []CharServer
-	Characters   []Character
-	Selected     Character
-	Zone         ZoneServer
-	ServerTick   uint32
-	ServerTickAt time.Time
-	PlayerX      int
-	PlayerY      int
-	PlayerDir    int
-	Vitals       Vitals
-	Progress     Progress
-	Inventory    Inventory
-	Storage      Storage
-	Cart         Cart
-	Stats        Stats
-	Skills       Skills
-	Hotkeys      Hotkeys
-	Statuses     Statuses
-	Friends      Friends
-	Whisper      WhisperSettings
-	Party        Party
-	Movement     Movement
+	AccountID        uint32
+	CharID           uint32
+	AuthCode         uint32
+	UserLevel        uint32
+	Sex              byte
+	Playing          bool
+	NoShift          bool
+	NoCtrl           bool
+	LessEffects      bool
+	ShowEquip        bool
+	GuildName        string
+	PendingGuildName string
+	SnapTargets      bool
+	SnapItems        bool
+	AttackRange      int
+	CharServers      []CharServer
+	Characters       []Character
+	Selected         Character
+	Zone             ZoneServer
+	ServerTick       uint32
+	ServerTickAt     time.Time
+	PlayerX          int
+	PlayerY          int
+	PlayerDir        int
+	Vitals           Vitals
+	Progress         Progress
+	Inventory        Inventory
+	Storage          Storage
+	Cart             Cart
+	Stats            Stats
+	Skills           Skills
+	Hotkeys          Hotkeys
+	Statuses         Statuses
+	Friends          Friends
+	Whisper          WhisperSettings
+	Party            Party
+	Movement         Movement
 }
 
 func New() *Session {
@@ -52,6 +54,8 @@ func (s *Session) SelectCharacter(character Character) {
 	s.Selected = character
 	s.AttackRange = 0
 	s.ShowEquip = false
+	s.GuildName = ""
+	s.PendingGuildName = ""
 	s.Zone = ZoneServer{}
 	s.ServerTick = 0
 	s.ServerTickAt = time.Time{}

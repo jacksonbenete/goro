@@ -137,8 +137,7 @@ func (m *WorldMode) handlePartyCreateResult(ctx client.Context, result network.P
 		clearPendingParty(ctx)
 		m.ui.console.AddErrorMessage("Cannot organize a party on this map.")
 	default:
-		clearPendingParty(ctx)
-		m.ui.console.AddErrorMessage("Cannot form a party.")
+		// rAthena documents unknown ZC_ACK_MAKE_GROUP results as "nothing".
 	}
 }
 

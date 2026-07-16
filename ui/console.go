@@ -407,6 +407,7 @@ func (c *ChatConsole) submitCreateGuild(ctx client.Context, text string) {
 		c.setActive(false)
 		return
 	}
+	ctx.Session.PendingGuildName = name
 	c.setInput("")
 	c.setActive(false)
 }

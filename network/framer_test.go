@@ -48,6 +48,51 @@ func TestFramerWaitsForFullPacket(t *testing.T) {
 	}
 }
 
+func TestFramerWaitsBeforeResyncingUnknownShortPrefix(t *testing.T) {
+	framer := NewFramer(LengthTable{0x006B: -1})
+	packets, err := framer.Push([]byte{0x81, 0x84, 0x1e, 0x00})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 0 {
+		t.Fatalf("packets before char list = %d", len(packets))
+	}
+
+	packets, err = framer.Push([]byte{0x6b, 0x00, 0x04, 0x00})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 1 || packets[0].ID != 0x006B || len(packets[0].Data) != 4 {
+		t.Fatalf("packets after char list = %+v", packets)
+	}
+}
+
+func TestPacketLengths2008DoesNotContainAccountIDPreamble(t *testing.T) {
+	if _, ok := PacketLengths2008()[0x8480]; ok {
+		t.Fatal("char-server account id preamble must not be modeled as packet 0x8480")
+	}
+}
+
+func TestPacketLengths2008FramesGuildPositionBeforePartyList(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	packets, err := framer.Push([]byte{
+		0xeb, 0x01, 0x80, 0x84, 0x1e, 0x00, 0xf6, 0x00, 0x68, 0x00,
+		0xfb, 0x00, 0x06, 0x00, 0xaa, 0xbb,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != 0x01EB || len(packets[0].Data) != 10 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00FB || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
 func TestPacketLengths2008FramesNotifyEffectDirect(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	data := []byte{

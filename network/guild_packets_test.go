@@ -56,3 +56,21 @@ func TestParseGuildPackets(t *testing.T) {
 		t.Fatalf("ParseGuildInviteRequest ok=%t err=%v request=%+v", ok, err, parsedRequest)
 	}
 }
+
+func TestGuildPacketDirections(t *testing.T) {
+	lengths := PacketLengths2008()
+	for _, id := range []uint16{PacketCZReqMakeGuild, PacketCZReqJoinGuild, PacketCZJoinGuild} {
+		if _, ok := lengths[id]; ok {
+			t.Fatalf("0x%04X is client-to-server and must not be in the receive framer", id)
+		}
+	}
+	for id, want := range map[uint16]int{
+		PacketZCResultMakeGuild: 3,
+		PacketZCAckReqJoinGuild: 3,
+		PacketZCReqJoinGuild:    30,
+	} {
+		if got := lengths[id]; got != want {
+			t.Fatalf("0x%04X receive length = %d, want %d", id, got, want)
+		}
+	}
+}
