@@ -97,5 +97,5 @@ func (m *WorldMode) applyPetEggList(ctx client.Context, list network.PetEggList)
 		m.ui.console.AddErrorMessage("No pet eggs available.")
 		return
 	}
-	m.ui.console.AddSystemMessage("Pet egg selection is not implemented yet.")
+	m.ui.petEggWindow.OpenList(ctx, list)
 }

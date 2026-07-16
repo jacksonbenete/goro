@@ -130,6 +130,7 @@ type worldUI struct {
 	identifyWindow   gameui.IdentifyWindow
 	cardWindow       gameui.CardCompositionWindow
 	makingArrow      gameui.MakingArrowWindow
+	petEggWindow     gameui.PetEggWindow
 	statsWindow      gameui.StatsWindow
 	skillWindow      gameui.SkillWindow
 	friendsWindow    gameui.FriendsWindow
@@ -1286,7 +1287,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() {
+	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.ui.escapeMenu.IsOpen() {
@@ -1354,6 +1355,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.makingArrow.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.petEggWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.inventoryBag.UpdateDrag(ctx, &m.ui.shortcutBar, &m.ui.storageWindow, &m.ui.cartWindow, &m.ui.tradeWindow, &m.ui.equipmentWindow) {
@@ -1631,6 +1635,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.cartWindow = m.ui.cartWindow
 	next.ui.itemInfoWindow = m.ui.itemInfoWindow
 	next.ui.cardWindow = m.ui.cardWindow
+	next.ui.petEggWindow = m.ui.petEggWindow
 	next.ui.statsWindow = m.ui.statsWindow
 	next.ui.skillWindow = m.ui.skillWindow
 	next.ui.friendsWindow = m.ui.friendsWindow
