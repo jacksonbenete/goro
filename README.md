@@ -81,7 +81,7 @@ Useful options:
 --graphics-api gles # fallback if Vulkan is unavailable
 ```
 
-Setup notes:
+## Getting Started
 
 - [Client data setup](docs/client-setup.md)
 - [rAthena setup and required patches](docs/rathena-setup.md)
