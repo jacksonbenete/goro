@@ -11,6 +11,7 @@ import (
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
+	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui"
 	"github.com/kivutar/goro/world"
 )
@@ -165,6 +166,12 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		}
 		return cursorActionTarget
 	}
+	if m.pendingPetCapture.active {
+		if _, ok := clickedSkillTarget(ctx, projection, petCaptureTargetSkill(), mouseX, mouseY, now, m.actorDeaths); ok {
+			return cursorActionTarget2
+		}
+		return cursorActionTarget
+	}
 	if _, ok := m.hoveredVendingBoard(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionClick
 	}
@@ -224,10 +231,14 @@ func (m *WorldMode) cursorMagnetOffset(ctx client.Context, projection sceneProje
 		}
 		return m.cursorActorMagnetOffset(ctx, projection, actor, now)
 	case cursorActionTarget2:
-		if !cursorSnapTargets(ctx) || m.pendingSkill.skill.ID == 0 {
+		if !cursorSnapTargets(ctx) {
 			return 0, 0
 		}
-		actor, ok := clickedSkillTarget(ctx, projection, m.pendingSkill.skill, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
+		skill, ok := m.pendingTargetCursorSkill()
+		if !ok {
+			return 0, 0
+		}
+		actor, ok := clickedSkillTarget(ctx, projection, skill, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
 		if !ok || !cursorActorCanSnap(actor) {
 			return 0, 0
 		}
@@ -235,6 +246,16 @@ func (m *WorldMode) cursorMagnetOffset(ctx client.Context, projection sceneProje
 	default:
 		return 0, 0
 	}
+}
+
+func (m *WorldMode) pendingTargetCursorSkill() (session.Skill, bool) {
+	if m.pendingSkill.skill.ID != 0 {
+		return m.pendingSkill.skill, true
+	}
+	if m.pendingPetCapture.active {
+		return petCaptureTargetSkill(), true
+	}
+	return session.Skill{}, false
 }
 
 func (m *WorldMode) cursorActorMagnetOffset(ctx client.Context, projection sceneProjection, actor world.Actor, now time.Time) (float64, float64) {

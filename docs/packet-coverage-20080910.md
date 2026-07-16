@@ -40,7 +40,6 @@ Status meaning:
 | `0x017E` | C->S | `0x017e` | `-1` | `clif_parse_GuildMessage` | P2 |
 | `0x0180` | C->S | `0x0180` | `6` | `clif_parse_GuildOpposition` | P2 |
 | `0x0183` | C->S | `0x0183` | `10` | `clif_parse_GuildDelAlliance` | P2 |
-| `0x019F` | C->S | `0x019f` | `6` | `clif_parse_CatchPet` | P2 |
 | `0x01A1` | C->S | `0x01a1` | `3` | `clif_parse_PetMenu` | P2 |
 | `0x01A5` | C->S | `0x01a5` | `26` | `clif_parse_ChangePetName` | P2 |
 | `0x01A9` | C->S | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | P2 |
@@ -308,12 +307,14 @@ email check.
 | `0x019A` | S->C | referenced | `0x019a` | `14` | `-` | packet.go |
 | `0x019C` | C->S | referenced | `HEADER_CZ_LOCALBROADCAST` | `-1` | `clif_parse_LocalBroadcast` | packet.go |
 | `0x019D` | C->S | referenced | `0x019d` | `6` | `clif_parse_GMHide` | packet.go |
-| `0x019F` | C->S | missing | `0x019f` | `6` | `clif_parse_CatchPet` | - |
+| `0x019E` | S->C | implemented | `0x019e` | `2` | `-` | pet_packets.go |
+| `0x019F` | C->S | implemented | `0x019f` | `6` | `clif_parse_CatchPet` | pet_packets.go |
+| `0x01A0` | S->C | implemented | `0x01a0` | `3` | `-` | pet_packets.go |
 | `0x01A1` | C->S | missing | `0x01a1` | `3` | `clif_parse_PetMenu` | - |
 | `0x01A3` | S->C | referenced | `0x01a3` | `5` | `-` | packet.go |
 | `0x01A5` | C->S | missing | `0x01a5` | `26` | `clif_parse_ChangePetName` | - |
-| `0x01A6` | S->C | referenced | `0x01a6` | `-1` | `-` | packet.go |
-| `0x01A7` | C->S | missing | `0x01a7` | `4` | `clif_parse_SelectEgg` | - |
+| `0x01A6` | S->C | implemented | `0x01a6` | `-1` | `-` | pet_packets.go |
+| `0x01A7` | C->S | referenced | `0x01a7` | `4` | `clif_parse_SelectEgg` | pet_packets.go |
 | `0x01A8` | S->C | referenced | `0x01a8` | `4` | `-` | packet.go |
 | `0x01A9` | C->S | missing | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | - |
 | `0x01AC` | S->C | untracked | `0x01ac` | `6` | `-` | - |

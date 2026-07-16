@@ -69,7 +69,7 @@ func (m *WorldMode) updateHeldWalk(ctx client.Context, pointerBlocked bool, now 
 		m.nextHeldWalkAt = time.Time{}
 		return false
 	}
-	if ctx.Input.MouseJustPressed(input.MouseButtonLeft) || m.pendingSkill.skill.ID != 0 || shouldUseTurnOnlyGroundClick(ctx) {
+	if ctx.Input.MouseJustPressed(input.MouseButtonLeft) || m.pendingSkill.skill.ID != 0 || m.pendingPetCapture.active || shouldUseTurnOnlyGroundClick(ctx) {
 		return false
 	}
 	if !m.walkReady(now) || (!m.nextHeldWalkAt.IsZero() && now.Before(m.nextHeldWalkAt)) {

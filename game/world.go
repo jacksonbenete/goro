@@ -73,6 +73,7 @@ type WorldMode struct {
 	pendingPickup     pickupIntent
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
+	pendingPetCapture petCaptureState
 	pickupReqItemID   uint32
 	lockedAttackID    uint32
 	attackFocusID     uint32
@@ -613,6 +614,24 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 				log.Printf("shortcut item depleted index=%d item=%d", useAck.Index, useAck.ItemID)
 			}
 			m.ui.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
+		if _, ok, err := network.ParsePetCaptureStart(pkt); err != nil {
+			log.Printf("parse pet capture start 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.startPetCapture(ctx)
+			continue
+		}
+		if petCapture, ok, err := network.ParsePetCaptureResult(pkt); err != nil {
+			log.Printf("parse pet capture result 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyPetCaptureResult(ctx, petCapture)
+			continue
+		}
+		if petEggs, ok, err := network.ParsePetEggList(pkt); err != nil {
+			log.Printf("parse pet egg list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyPetEggList(ctx, petEggs)
 			continue
 		}
 		if identifyList, ok, err := network.ParseItemIdentifyList(pkt); err != nil {
@@ -1239,6 +1258,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.skills().CancelFromInput(ctx) {
 		return nil, nil
 	}
+	if m.cancelPetCaptureFromInput(ctx) {
+		return nil, nil
+	}
 	if m.openEscapeMenuFromInput(ctx) {
 		return nil, nil
 	}
@@ -1441,6 +1463,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		m.nextHeldWalkAt = now.Add(heldWalkRepeatInterval)
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
+		if m.handlePetCaptureClick(ctx, projection, now) {
+			return nil, nil
+		}
 		if m.pendingSkill.skill.ID != 0 {
 			m.skills().HandleClick(ctx, projection, now)
 			return nil, nil

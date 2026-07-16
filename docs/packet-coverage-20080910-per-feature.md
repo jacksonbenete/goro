@@ -62,10 +62,10 @@
 
   Pets
 
-  - [ ] Catch pet: 0x019F
+  - [x] Catch pet: 0x019E, 0x019F, 0x01A0
   - [ ] Pet menu: 0x01A1
   - [ ] Change pet name: 0x01A5
-  - [ ] Select egg: 0x01A7
+  - [ ] Select egg UI / hatch pet: 0x01A6, 0x01A7
   - [ ] Pet emotion: 0x01A9
 
   Homunculus / Mercenary

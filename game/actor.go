@@ -62,6 +62,9 @@ func actorCanBeSkillTargeted(ctx client.Context, skill session.Skill, actor worl
 	if !ok {
 		return false
 	}
+	if skill.Type == skillTargetPet {
+		return targetFlags&skillTargetPet != 0
+	}
 	if skill.Type&targetFlags != 0 {
 		if isLocalActor(ctx, actor.ID) && skill.Type&skillTargetEnemy != 0 {
 			return false
