@@ -26,6 +26,7 @@ const (
 	PacketZCReqJoinGroup        uint16 = 0x00FE
 	PacketZCGroupInfoChange     uint16 = 0x0101
 	PacketZCAddMemberToGroup    uint16 = 0x0104
+	PacketZCAddMemberToGroup2   uint16 = 0x01E9
 	PacketZCDeleteMemberFromGrp uint16 = 0x0105
 	PacketZCNotifyHPToGroup     uint16 = 0x0106
 	PacketZCNotifyPositionToGrp uint16 = 0x0107
@@ -139,14 +140,6 @@ func ParsePartyList(packet Packet) (PartyList, bool, error) {
 
 func ParsePartyInviteAnswer(packet Packet) (PartyInviteAnswer, bool, error) {
 	switch packet.ID {
-	case PacketZCAckReqJoinGroup:
-		if len(packet.Data) < 27 {
-			return PartyInviteAnswer{}, true, fmt.Errorf("ZC_ACK_REQ_JOIN_GROUP too short: %d", len(packet.Data))
-		}
-		return PartyInviteAnswer{
-			Name:   fixedPacketString(packet.Data[2:26]),
-			Answer: packet.Data[26],
-		}, true, nil
 	case PacketZCPartyJoinReqAck:
 		if len(packet.Data) < 30 {
 			return PartyInviteAnswer{}, true, fmt.Errorf("ZC_PARTY_JOIN_REQ_ACK too short: %d", len(packet.Data))
@@ -161,9 +154,7 @@ func ParsePartyInviteAnswer(packet Packet) (PartyInviteAnswer, bool, error) {
 }
 
 func ParsePartyInviteRequest(packet Packet) (PartyInviteRequest, bool, error) {
-	switch packet.ID {
-	case PacketZCReqJoinGroup, PacketZCPartyJoinReq:
-	default:
+	if packet.ID != PacketZCPartyJoinReq {
 		return PartyInviteRequest{}, false, nil
 	}
 	if len(packet.Data) < 30 {
@@ -196,11 +187,13 @@ func ParsePartyInviteConfig(packet Packet) (PartyInviteConfig, bool, error) {
 }
 
 func ParsePartyMemberJoin(packet Packet) (PartyMember, bool, error) {
-	if packet.ID != PacketZCAddMemberToGroup {
+	switch packet.ID {
+	case PacketZCAddMemberToGroup, PacketZCAddMemberToGroup2:
+	default:
 		return PartyMember{}, false, nil
 	}
 	if len(packet.Data) < 79 {
-		return PartyMember{}, true, fmt.Errorf("ZC_ADD_MEMBER_TO_GROUP too short: %d", len(packet.Data))
+		return PartyMember{}, true, fmt.Errorf("ZC_ADD_MEMBER_TO_GROUP 0x%04X too short: %d", packet.ID, len(packet.Data))
 	}
 	return PartyMember{
 		AccountID: binary.LittleEndian.Uint32(packet.Data[2:6]),

@@ -77,6 +77,10 @@ func TestParsePartyPackets(t *testing.T) {
 		t.Fatalf("ParsePartyInviteRequest ok=%t err=%v request=%+v", ok, err, parsedInviteRequest)
 	}
 
+	if _, ok, err := ParsePartyInviteRequest(Packet{ID: PacketZCReqJoinGroup, Data: inviteRequest}); ok || err != nil {
+		t.Fatalf("legacy 0x00FE parsed as 2008 party invite ok=%t err=%v", ok, err)
+	}
+
 	inviteAnswer := make([]byte, 30)
 	binary.LittleEndian.PutUint16(inviteAnswer[0:2], PacketZCPartyJoinReqAck)
 	copy(inviteAnswer[2:26], []byte("Alice"))
@@ -84,6 +88,10 @@ func TestParsePartyPackets(t *testing.T) {
 	parsedInviteAnswer, ok, err := ParsePartyInviteAnswer(Packet{ID: PacketZCPartyJoinReqAck, Data: inviteAnswer})
 	if !ok || err != nil || parsedInviteAnswer.Name != "Alice" || parsedInviteAnswer.Answer != 2 {
 		t.Fatalf("ParsePartyInviteAnswer ok=%t err=%v answer=%+v", ok, err, parsedInviteAnswer)
+	}
+
+	if _, ok, err := ParsePartyInviteAnswer(Packet{ID: PacketZCAckReqJoinGroup, Data: inviteAnswer}); ok || err != nil {
+		t.Fatalf("legacy 0x00FD parsed as 2008 party invite ack ok=%t err=%v", ok, err)
 	}
 
 	join := make([]byte, 79)

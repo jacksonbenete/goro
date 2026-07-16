@@ -159,6 +159,52 @@ func TestPacketLengths2008FramesGuildPositionBeforePartyList(t *testing.T) {
 	}
 }
 
+func TestPacketLengths2008FramesPartyMemberInfoBeforeSkillList(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := make([]byte, 6+81+4+4)
+	binary.LittleEndian.PutUint16(data[0:2], PacketZCGroupList)
+	binary.LittleEndian.PutUint16(data[2:4], 6)
+	binary.LittleEndian.PutUint16(data[6:8], PacketZCAddMemberToGroup2)
+	binary.LittleEndian.PutUint32(data[8:12], 2000000)
+	binary.LittleEndian.PutUint32(data[12:16], 1)
+	binary.LittleEndian.PutUint16(data[16:18], 254)
+	binary.LittleEndian.PutUint16(data[18:20], 138)
+	data[20] = 1
+	copy(data[21:28], []byte("Mandala"))
+	copy(data[45:52], []byte("Kivutar"))
+	copy(data[69:79], []byte("amatsu.gat"))
+	binary.LittleEndian.PutUint16(data[87:89], 0x0199)
+	binary.LittleEndian.PutUint16(data[91:93], 0x010F)
+	binary.LittleEndian.PutUint16(data[93:95], 4)
+
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 4 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != PacketZCGroupList || len(packets[0].Data) != 6 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != PacketZCAddMemberToGroup2 || len(packets[1].Data) != 81 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+	member, ok, err := ParsePartyMemberJoin(packets[1])
+	if !ok || err != nil {
+		t.Fatalf("ParsePartyMemberJoin ok=%t err=%v member=%+v", ok, err, member)
+	}
+	if member.Name != "Kivutar" || member.GroupName != "Mandala" || member.MapName != "amatsu.gat" || member.X != 254 || member.Y != 138 {
+		t.Fatalf("member = %+v", member)
+	}
+	if packets[2].ID != 0x0199 || len(packets[2].Data) != 4 {
+		t.Fatalf("third packet = %s", packets[2])
+	}
+	if packets[3].ID != 0x010F || len(packets[3].Data) != 4 {
+		t.Fatalf("fourth packet = %s", packets[3])
+	}
+}
+
 func TestPacketLengths2008FramesNotifyEffectDirect(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	data := []byte{
