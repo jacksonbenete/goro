@@ -110,6 +110,12 @@ func (m *WorldMode) applyPetEggList(ctx client.Context, list network.PetEggList)
 
 func (m *WorldMode) applyPetProperty(ctx client.Context, property network.PetProperty) {
 	log.Printf("pet property name=%q level=%d fullness=%d relationship=%d accessory=%d job=%d modified=%t", property.Name, property.Level, property.Fullness, property.Relationship, property.AccessoryID, property.Job, property.Modified)
+	m.petProperty = property
+	m.hasPetProperty = true
+	if m.petInfoRequested || m.ui.petInfoWindow.IsOpen() {
+		m.petInfoRequested = false
+		m.ui.petInfoWindow.OpenInfo(ctx, property)
+	}
 	if strings.TrimSpace(property.Name) != "" {
 		m.ui.console.AddSystemMessage("Pet: %s", property.Name)
 	}
@@ -207,6 +213,8 @@ func (m *WorldMode) openPetContextFromInput(ctx client.Context, now time.Time) b
 
 func (m *WorldMode) handlePetContextAction(ctx client.Context, action gameui.PetContextAction) {
 	switch action.Kind {
+	case gameui.PetContextActionInfo:
+		m.openPetInfo(ctx)
 	case gameui.PetContextActionFeed:
 		m.openPetFeedConfirm(ctx)
 	case gameui.PetContextActionPerformance:
@@ -216,6 +224,15 @@ func (m *WorldMode) handlePetContextAction(ctx client.Context, action gameui.Pet
 	case gameui.PetContextActionUnequipAccessory:
 		m.sendPetCommand(ctx, network.PetCommandUnequipAccessory)
 	}
+}
+
+func (m *WorldMode) openPetInfo(ctx client.Context) {
+	if m.hasPetProperty {
+		m.ui.petInfoWindow.OpenInfo(ctx, m.petProperty)
+		return
+	}
+	m.petInfoRequested = true
+	m.sendPetCommand(ctx, network.PetCommandInfo)
 }
 
 func (m *WorldMode) openPetFeedConfirm(ctx client.Context) {

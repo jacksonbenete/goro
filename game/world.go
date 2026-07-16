@@ -79,6 +79,9 @@ type WorldMode struct {
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
 	pendingPetCapture petCaptureState
+	petProperty       network.PetProperty
+	hasPetProperty    bool
+	petInfoRequested  bool
 	petID             uint32
 	petSlotMachine    petSlotMachineState
 	pickupReqItemID   uint32
@@ -138,6 +141,7 @@ type worldUI struct {
 	cardWindow       gameui.CardCompositionWindow
 	makingArrow      gameui.MakingArrowWindow
 	petEggWindow     gameui.PetEggWindow
+	petInfoWindow    gameui.PetInfoWindow
 	petContext       gameui.PetContextMenu
 	petConfirm       gameui.ConfirmModal
 	statsWindow      gameui.StatsWindow
@@ -1334,7 +1338,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petConfirm.IsOpen() {
+	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.updatePetSlotMachine(ctx) {
@@ -1362,6 +1366,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.petConfirm.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.petInfoWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.deathModal.Update(ctx) {
@@ -1689,6 +1696,9 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.itemInfoWindow = m.ui.itemInfoWindow
 	next.ui.cardWindow = m.ui.cardWindow
 	next.ui.petEggWindow = m.ui.petEggWindow
+	next.ui.petInfoWindow = m.ui.petInfoWindow
+	next.petProperty = m.petProperty
+	next.hasPetProperty = m.hasPetProperty
 	next.ui.statsWindow = m.ui.statsWindow
 	next.ui.skillWindow = m.ui.skillWindow
 	next.ui.friendsWindow = m.ui.friendsWindow

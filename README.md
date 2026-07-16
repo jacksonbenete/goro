@@ -146,6 +146,13 @@ Mostly done:
    * Trading
    * Vending
    * Show equipment
+   * Pets
+     * Capture slot machine
+     * Egg hatching
+     * Feeding
+     * Status window and rename
+     * Accessory equip/unequip
+     * Performance actions
    * Friends
    * Parties
    * Whispers

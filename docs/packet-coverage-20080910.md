@@ -314,7 +314,7 @@ email check.
 | `0x01A2` | S->C | implemented | `0x01a2` | `37` | `-` | pet_packets.go |
 | `0x01A3` | S->C | implemented | `0x01a3` | `5` | `-` | pet_packets.go |
 | `0x01A4` | S->C | implemented | `0x01a4` | `11` | `-` | pet_packets.go |
-| `0x01A5` | C->S | missing | `0x01a5` | `26` | `clif_parse_ChangePetName` | - |
+| `0x01A5` | C->S | implemented | `0x01a5` | `26` | `clif_parse_ChangePetName` | pet_packets.go |
 | `0x01A6` | S->C | implemented | `0x01a6` | `-1` | `-` | pet_packets.go |
 | `0x01A7` | C->S | implemented | `0x01a7` | `4` | `clif_parse_SelectEgg` | pet_packets.go |
 | `0x01A8` | S->C | referenced | `0x01a8` | `4` | `-` | packet.go |

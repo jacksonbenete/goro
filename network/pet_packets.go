@@ -4,6 +4,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"strings"
+
+	"golang.org/x/text/encoding/korean"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -14,6 +18,7 @@ const (
 	PacketZCPropertyPet       uint16 = 0x01A2
 	PacketZCFeedPet           uint16 = 0x01A3
 	PacketZCChangeStatePet    uint16 = 0x01A4
+	PacketCZRenamePet         uint16 = 0x01A5
 	PacketZCPetEggList        uint16 = 0x01A6
 	PacketCZSelectPetEgg      uint16 = 0x01A7
 	PacketCZPetAct            uint16 = 0x01A9
@@ -192,6 +197,13 @@ func BuildPetActPacket(data uint32) []byte {
 	return packet
 }
 
+func BuildRenamePetPacket(name string) []byte {
+	packet := make([]byte, 26)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZRenamePet)
+	copy(packet[2:26], encodeROFixedString(name, 24))
+	return packet
+}
+
 func (c *Client) SendTryCaptureMonster(targetID uint32) error {
 	packet := BuildTryCaptureMonsterPacket(targetID)
 	err := c.Send(packet)
@@ -225,6 +237,17 @@ func (c *Client) SendPetAct(data uint32) error {
 	return err
 }
 
+func (c *Client) SendRenamePet(name string) error {
+	packet := BuildRenamePetPacket(name)
+	err := c.Send(packet)
+	if err == nil {
+		log.Printf("sent CZ_RENAME_PET opcode=0x%04X name=%q client_date=%d", ID(packet), name, c.clientDate)
+	} else {
+		log.Printf("send CZ_RENAME_PET failed opcode=0x%04X len=%d name=%q client_date=%d: %v", ID(packet), len(packet), name, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendSelectPetEgg(index uint16) error {
 	packet := BuildSelectPetEggPacket(index)
 	err := c.Send(packet)
@@ -234,4 +257,21 @@ func (c *Client) SendSelectPetEgg(index uint16) error {
 		log.Printf("send CZ_SELECT_PETEGG failed opcode=0x%04X len=%d index=%d client_date=%d: %v", ID(packet), len(packet), index, c.clientDate, err)
 	}
 	return err
+}
+
+func encodeROFixedString(value string, length int) []byte {
+	out := make([]byte, length)
+	value = strings.TrimSpace(value)
+	if value == "" || length <= 0 {
+		return out
+	}
+	encoded, _, err := transform.Bytes(korean.EUCKR.NewEncoder(), []byte(value))
+	if err != nil {
+		encoded = []byte(value)
+	}
+	if len(encoded) >= length {
+		encoded = encoded[:length-1]
+	}
+	copy(out, encoded)
+	return out
 }

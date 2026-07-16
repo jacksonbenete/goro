@@ -57,6 +57,17 @@ func TestPetCommandPackets(t *testing.T) {
 	if got := binary.LittleEndian.Uint32(packet[2:6]); got != 112 {
 		t.Fatalf("data = %d", got)
 	}
+
+	packet = BuildRenamePetPacket("Luna")
+	if got := binary.LittleEndian.Uint16(packet[0:2]); got != PacketCZRenamePet {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if got := string(packet[2:6]); got != "Luna" {
+		t.Fatalf("name = %q", got)
+	}
+	if len(packet) != 26 {
+		t.Fatalf("len = %d", len(packet))
+	}
 }
 
 func TestPetStatusPackets(t *testing.T) {
