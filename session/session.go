@@ -215,6 +215,8 @@ type Guild struct {
 	SkillPoints      int
 	Skills           []Skill
 	ExpelHistory     []GuildExpelHistory
+	NoticeSubject    string
+	Notice           string
 }
 
 type GuildMember struct {

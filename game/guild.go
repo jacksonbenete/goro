@@ -127,6 +127,8 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 		skillPoints := ctx.Session.Guild.SkillPoints
 		skills := ctx.Session.Guild.Skills
 		expelHistory := ctx.Session.Guild.ExpelHistory
+		noticeSubject := ctx.Session.Guild.NoticeSubject
+		notice := ctx.Session.Guild.Notice
 		ctx.Session.Guild = session.Guild{
 			ID:               info.GuildID,
 			Level:            info.Level,
@@ -148,6 +150,8 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 			SkillPoints:      skillPoints,
 			Skills:           skills,
 			ExpelHistory:     expelHistory,
+			NoticeSubject:    noticeSubject,
+			Notice:           notice,
 		}
 	}
 }
@@ -246,6 +250,15 @@ func applyLocalGuildExpelHistory(ctx client.Context, history []network.GuildExpe
 		})
 	}
 	glog.Debugf("guild expel history received entries=%d", len(history))
+}
+
+func applyLocalGuildNotice(ctx client.Context, notice network.GuildNotice) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Guild.NoticeSubject = strings.TrimSpace(notice.Subject)
+	ctx.Session.Guild.Notice = strings.TrimSpace(notice.Notice)
+	glog.Debugf("guild notice received subject=%q", ctx.Session.Guild.NoticeSubject)
 }
 
 func guildPositionIndex(positions []session.GuildPosition, id uint32) int {

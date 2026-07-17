@@ -172,7 +172,7 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	case guildWindowTabHistory:
 		return w.historyTab(ctx)
 	case guildWindowTabNotice:
-		return guildWindowPlaceholder("Guild notice is not loaded yet.")
+		return w.noticeTab(ctx)
 	default:
 		return guildWindowPlaceholder("")
 	}
@@ -515,6 +515,33 @@ func guildHistoryRow(entry session.GuildExpelHistory, dark bool) widget.Widget {
 	).Height(20)
 }
 
+func (w *GuildWindow) noticeTab(ctx Context) widget.Widget {
+	guild := guildSessionInfo(ctx.Session)
+	return primitives.Box(
+		rotheme.Text("Title"),
+		guildNoticeBox(guildText(guild.NoticeSubject), 28, 1),
+		rotheme.Text("Contents"),
+		guildNoticeBox(guildText(guild.Notice), 140, 8),
+	).
+		PaddingXY(9, 10).
+		Gap(5).
+		Background(rotheme.Default.Colors.WindowBody)
+}
+
+func guildNoticeBox(text string, height float32, maxLines int) widget.Widget {
+	return primitives.Box(
+		rotheme.Text(text).
+			Align(widget.TextAlignLeft).
+			MaxLines(maxLines).
+			LineHeight(16/rotheme.Default.Typography.TextSize),
+	).
+		Height(height).
+		PaddingXY(5, 4).
+		CrossAlign(primitives.CrossAxisStretch).
+		Background(rotheme.Default.Colors.WindowFooter).
+		BorderStyle(1, rotheme.Default.Colors.FooterLine)
+}
+
 func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
 	guild := guildSessionInfo(ctx.Session)
 	leftRows := []widget.Widget{
@@ -709,7 +736,7 @@ func guildWindowSnapshot(s *session.Session) string {
 			entry.Reason,
 		)
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d%s%s%s%s",
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d|%s|%s%s%s%s%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
@@ -727,6 +754,8 @@ func guildWindowSnapshot(s *session.Session) string {
 		s.Guild.Name,
 		s.Guild.Zeny,
 		s.Guild.SkillPoints,
+		s.Guild.NoticeSubject,
+		s.Guild.Notice,
 		memberSnapshot.String(),
 		positionSnapshot.String(),
 		skillSnapshot.String(),

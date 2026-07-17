@@ -22,6 +22,7 @@ const (
 	PacketZCGuildSkillInfo  uint16 = 0x0162
 	PacketZCGuildBanList    uint16 = 0x0163
 	PacketZCGuildPosNames   uint16 = 0x0166
+	PacketZCGuildNotice     uint16 = 0x016F
 	PacketZCUpdateGuildID   uint16 = 0x016C
 	PacketCZReqGuildMenu    uint16 = 0x014F
 	PacketCZReqGuildEmblem  uint16 = 0x0151
@@ -105,6 +106,11 @@ type GuildExpelHistory struct {
 	Reason   string
 }
 
+type GuildNotice struct {
+	Subject string
+	Notice  string
+}
+
 type GuildEmblemImage struct {
 	GuildID       uint32
 	EmblemVersion uint32
@@ -115,6 +121,19 @@ type GuildEmblemChange struct {
 	ActorID       uint32
 	GuildID       uint32
 	EmblemVersion uint32
+}
+
+func ParseGuildNotice(packet Packet) (GuildNotice, bool, error) {
+	if packet.ID != PacketZCGuildNotice {
+		return GuildNotice{}, false, nil
+	}
+	if len(packet.Data) < 182 {
+		return GuildNotice{}, true, fmt.Errorf("ZC_GUILD_NOTICE too short: %d", len(packet.Data))
+	}
+	return GuildNotice{
+		Subject: decodeROFixedString(packet.Data[2:62]),
+		Notice:  decodeROFixedString(packet.Data[62:182]),
+	}, true, nil
 }
 
 func ParseGuildExpelHistory(packet Packet) ([]GuildExpelHistory, bool, error) {

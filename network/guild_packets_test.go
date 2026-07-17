@@ -138,6 +138,15 @@ func TestParseGuildPackets(t *testing.T) {
 		t.Fatalf("ParseGuildExpelHistory ok=%t err=%v history=%+v", ok, err, parsedExpelHistory)
 	}
 
+	notice := make([]byte, 182)
+	binary.LittleEndian.PutUint16(notice[0:2], PacketZCGuildNotice)
+	copyFixedName(notice[2:62], "Maintenance")
+	copyFixedName(notice[62:182], "Gather in Prontera.")
+	parsedNotice, ok, err := ParseGuildNotice(Packet{ID: PacketZCGuildNotice, Data: notice})
+	if !ok || err != nil || parsedNotice.Subject != "Maintenance" || parsedNotice.Notice != "Gather in Prontera." {
+		t.Fatalf("ParseGuildNotice ok=%t err=%v notice=%+v", ok, err, parsedNotice)
+	}
+
 	belonging := make([]byte, 43)
 	binary.LittleEndian.PutUint16(belonging[0:2], PacketZCUpdateGuildID)
 	binary.LittleEndian.PutUint32(belonging[2:6], 0x01020304)
@@ -211,6 +220,7 @@ func TestGuildPacketDirections(t *testing.T) {
 		PacketZCGuildSkillInfo:  -1,
 		PacketZCGuildBanList:    -1,
 		PacketZCGuildPosNames:   -1,
+		PacketZCGuildNotice:     182,
 		PacketZCUpdateGuildID:   43,
 		PacketZCGuildEmblem:     -1,
 		PacketZCChangeGuild:     12,
