@@ -103,6 +103,42 @@ func TestGRFReadKoreanEntryWithUTF8Path(t *testing.T) {
 	}
 }
 
+func TestPackGRFRoundTripWithKoreanPath(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "tree")
+	if err := os.MkdirAll(filepath.Join(root, "data", "sprite", "몬스터"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "data", "sprite", "몬스터", "poring.spr"), []byte("poring"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "packed.grf")
+	stats, err := PackGRF(path, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Files != 1 || stats.Bytes != int64(len("poring")) {
+		t.Fatalf("stats = %+v", stats)
+	}
+
+	grf, err := OpenGRF(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer grf.Close()
+
+	if !grf.Has("data/sprite/몬스터/poring.spr") {
+		t.Fatal("packed UTF-8 Korean path not found")
+	}
+	data, err := grf.ReadFile("data/sprite/몬스터/poring.spr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "poring" {
+		t.Fatalf("data = %q", data)
+	}
+}
+
 func TestGRFRealArchiveWhenConfigured(t *testing.T) {
 	grf := realDataArchive(t)
 	name := "prontera.gat"
