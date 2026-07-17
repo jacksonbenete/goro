@@ -32,17 +32,45 @@ func TestBuildGuildPackets(t *testing.T) {
 	if got := binary.LittleEndian.Uint32(reply[6:10]); got != 1 {
 		t.Fatalf("reply accept = %d", got)
 	}
+
+	menu := BuildGuildMenuRequestPacket(3)
+	if len(menu) != 6 || ID(menu) != PacketCZReqGuildMenu {
+		t.Fatalf("BuildGuildMenuRequestPacket len=%d id=0x%04x", len(menu), ID(menu))
+	}
+	if got := binary.LittleEndian.Uint32(menu[2:6]); got != 3 {
+		t.Fatalf("menu tab = %d", got)
+	}
 }
 
 func TestParseGuildPackets(t *testing.T) {
 	info := make([]byte, 110)
 	binary.LittleEndian.PutUint16(info[0:2], PacketZCGuildInfo)
 	binary.LittleEndian.PutUint32(info[2:6], 0x01020304)
+	binary.LittleEndian.PutUint32(info[6:10], 5)
+	binary.LittleEndian.PutUint32(info[10:14], 7)
+	binary.LittleEndian.PutUint32(info[14:18], 16)
+	binary.LittleEndian.PutUint32(info[18:22], 42)
+	binary.LittleEndian.PutUint32(info[22:26], 1234)
+	binary.LittleEndian.PutUint32(info[26:30], 9000)
+	binary.LittleEndian.PutUint32(info[30:34], 11)
+	binary.LittleEndian.PutUint32(info[34:38], 12)
+	binary.LittleEndian.PutUint32(info[38:42], 13)
 	binary.LittleEndian.PutUint32(info[42:46], 7)
 	copy(info[46:70], []byte("Mandala"))
+	copy(info[70:94], []byte("Arcer"))
+	copy(info[94:110], []byte("Prontera"))
 	parsedInfo, ok, err := ParseGuildInfo(Packet{ID: PacketZCGuildInfo, Data: info})
-	if !ok || err != nil || parsedInfo.GuildID != 0x01020304 || parsedInfo.EmblemVersion != 7 || parsedInfo.GuildName != "Mandala" {
+	if !ok || err != nil || parsedInfo.GuildID != 0x01020304 || parsedInfo.Level != 5 || parsedInfo.UserNum != 7 || parsedInfo.MaxUserNum != 16 || parsedInfo.UserAverageLevel != 42 || parsedInfo.Exp != 1234 || parsedInfo.MaxExp != 9000 || parsedInfo.Point != 11 || parsedInfo.Honor != 12 || parsedInfo.Virtue != 13 || parsedInfo.EmblemVersion != 7 || parsedInfo.GuildName != "Mandala" || parsedInfo.MasterName != "Arcer" || parsedInfo.ManageLand != "Prontera" {
 		t.Fatalf("ParseGuildInfo ok=%t err=%v info=%+v", ok, err, parsedInfo)
+	}
+
+	info2 := append([]byte(nil), info...)
+	info2 = append(info2, 0, 0, 0, 0)
+	binary.LittleEndian.PutUint16(info2[0:2], PacketZCGuildInfo2)
+	binary.LittleEndian.PutUint32(info2[110:114], 765)
+	parsedInfo2, ok, err := ParseGuildInfo(Packet{ID: PacketZCGuildInfo2, Data: info2})
+	if !ok || err != nil || parsedInfo2.Zeny != 765 || parsedInfo2.GuildName != "Mandala" {
+		t.Fatalf("ParseGuildInfo2 ok=%t err=%v info=%+v", ok, err, parsedInfo2)
 	}
 
 	belonging := make([]byte, 43)

@@ -22,6 +22,10 @@ type guildEmblem struct {
 }
 
 func (m *WorldMode) requestActorGuildEmblem(ctx client.Context, guildID, version uint32) {
+	m.requestGuildEmblem(ctx, guildID, version, false)
+}
+
+func (m *WorldMode) requestGuildEmblem(ctx client.Context, guildID, version uint32, force bool) {
 	if guildID == 0 || version == 0 || ctx.Network == nil {
 		return
 	}
@@ -32,7 +36,7 @@ func (m *WorldMode) requestActorGuildEmblem(ctx client.Context, guildID, version
 	if emblem.image != nil && emblem.version >= version {
 		return
 	}
-	if emblem.requestedVersion >= version {
+	if !force && emblem.requestedVersion >= version {
 		return
 	}
 	if err := ctx.Network.SendGuildEmblemRequest(guildID); err != nil {
@@ -57,6 +61,7 @@ func (m *WorldMode) applyGuildEmblemImage(ctx client.Context, packet network.Gui
 		requestedVersion: packet.EmblemVersion,
 		image:            render.NewImageFromImage(image),
 	}
+	m.ui.guildWindow.Refresh(ctx)
 	glog.Debugf("guild emblem loaded guild=%d version=%d size=%dx%d", packet.GuildID, packet.EmblemVersion, image.Bounds().Dx(), image.Bounds().Dy())
 }
 

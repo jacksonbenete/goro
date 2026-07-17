@@ -53,12 +53,18 @@ type ChatConsole struct {
 	lastMessage   string
 	lastMessageAt time.Time
 
+	OnGuildWindow func()
+
 	ctx        client.Context
 	window     Window
 	inputField *textfield.Widget
 	scrollY    state.Signal[float32]
 	cacheKey   string
 	messageH   int
+}
+
+func (c *ChatConsole) Active() bool {
+	return c != nil && c.active
 }
 
 func (c *ChatConsole) Update(ctx client.Context) bool {
@@ -271,6 +277,13 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 		return true
 	case "/guild":
 		c.submitCreateGuild(ctx, text)
+		return true
+	case "/guildwindow", "/guildinfo":
+		if c.OnGuildWindow != nil {
+			c.OnGuildWindow()
+		}
+		c.setInput("")
+		c.setActive(false)
 		return true
 	case "/emblem", "/guildemblem":
 		c.submitGuildEmblem(ctx, text)

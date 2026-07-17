@@ -18,6 +18,7 @@ const (
 	PacketZCGuildInfo       uint16 = 0x0150
 	PacketZCGuildInfo2      uint16 = 0x01B6
 	PacketZCUpdateGuildID   uint16 = 0x016C
+	PacketCZReqGuildMenu    uint16 = 0x014F
 	PacketCZReqGuildEmblem  uint16 = 0x0151
 	PacketZCGuildEmblem     uint16 = 0x0152
 	PacketCZRegGuildEmblem  uint16 = 0x0153
@@ -48,9 +49,21 @@ type GuildBelonging struct {
 }
 
 type GuildInfo struct {
-	GuildID       uint32
-	EmblemVersion uint32
-	GuildName     string
+	GuildID          uint32
+	Level            uint32
+	UserNum          uint32
+	MaxUserNum       uint32
+	UserAverageLevel uint32
+	Exp              uint32
+	MaxExp           uint32
+	Point            uint32
+	Honor            uint32
+	Virtue           uint32
+	EmblemVersion    uint32
+	GuildName        string
+	MasterName       string
+	ManageLand       string
+	Zeny             uint32
 }
 
 type GuildEmblemImage struct {
@@ -71,19 +84,34 @@ func ParseGuildInfo(packet Packet) (GuildInfo, bool, error) {
 	default:
 		return GuildInfo{}, false, nil
 	}
-	if len(packet.Data) < 66 {
+	minLen := 110
+	if packet.ID == PacketZCGuildInfo2 {
+		minLen = 114
+	}
+	if len(packet.Data) < minLen {
 		return GuildInfo{}, true, fmt.Errorf("ZC_GUILD_INFO 0x%04X too short: %d", packet.ID, len(packet.Data))
 	}
-	nameOffset := 42
-	var emblemVersion uint32
-	if len(packet.Data) >= 70 {
-		emblemVersion = binary.LittleEndian.Uint32(packet.Data[42:46])
-		nameOffset = 46
+	emblemVersion := binary.LittleEndian.Uint32(packet.Data[42:46])
+	var zeny uint32
+	if packet.ID == PacketZCGuildInfo2 {
+		zeny = binary.LittleEndian.Uint32(packet.Data[110:114])
 	}
 	return GuildInfo{
-		GuildID:       binary.LittleEndian.Uint32(packet.Data[2:6]),
-		EmblemVersion: emblemVersion,
-		GuildName:     decodeROFixedString(packet.Data[nameOffset : nameOffset+guildNameLength]),
+		GuildID:          binary.LittleEndian.Uint32(packet.Data[2:6]),
+		Level:            binary.LittleEndian.Uint32(packet.Data[6:10]),
+		UserNum:          binary.LittleEndian.Uint32(packet.Data[10:14]),
+		MaxUserNum:       binary.LittleEndian.Uint32(packet.Data[14:18]),
+		UserAverageLevel: binary.LittleEndian.Uint32(packet.Data[18:22]),
+		Exp:              binary.LittleEndian.Uint32(packet.Data[22:26]),
+		MaxExp:           binary.LittleEndian.Uint32(packet.Data[26:30]),
+		Point:            binary.LittleEndian.Uint32(packet.Data[30:34]),
+		Honor:            binary.LittleEndian.Uint32(packet.Data[34:38]),
+		Virtue:           binary.LittleEndian.Uint32(packet.Data[38:42]),
+		EmblemVersion:    emblemVersion,
+		GuildName:        decodeROFixedString(packet.Data[46:70]),
+		MasterName:       decodeROFixedString(packet.Data[70:94]),
+		ManageLand:       decodeROFixedString(packet.Data[94:110]),
+		Zeny:             zeny,
 	}, true, nil
 }
 
@@ -198,6 +226,13 @@ func BuildGuildEmblemRequestPacket(guildID uint32) []byte {
 	return packet
 }
 
+func BuildGuildMenuRequestPacket(tab uint32) []byte {
+	packet := make([]byte, 6)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqGuildMenu)
+	binary.LittleEndian.PutUint32(packet[2:6], tab)
+	return packet
+}
+
 func BuildRegisterGuildEmblemPacket(bmp []byte) ([]byte, error) {
 	var compressed bytes.Buffer
 	zw := zlib.NewWriter(&compressed)
@@ -259,6 +294,17 @@ func (c *Client) SendGuildEmblemRequest(guildID uint32) error {
 		glog.Debugf("sent CZ_REQ_GUILD_EMBLEM_IMG opcode=0x%04X guild_id=%d client_date=%d", ID(packet), guildID, c.clientDate)
 	} else {
 		glog.Warnf("send CZ_REQ_GUILD_EMBLEM_IMG failed opcode=0x%04X len=%d guild_id=%d client_date=%d: %v", ID(packet), len(packet), guildID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendGuildMenuRequest(tab uint32) error {
+	packet := BuildGuildMenuRequestPacket(tab)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_GUILD_MENU opcode=0x%04X tab=%d client_date=%d", ID(packet), tab, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_GUILD_MENU failed opcode=0x%04X len=%d tab=%d client_date=%d: %v", ID(packet), len(packet), tab, c.clientDate, err)
 	}
 	return err
 }

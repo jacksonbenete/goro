@@ -16,6 +16,7 @@ type Session struct {
 	GuildID          uint32
 	EmblemVersion    uint32
 	GuildName        string
+	Guild            Guild
 	PendingGuildName string
 	SnapTargets      bool
 	SnapItems        bool
@@ -59,6 +60,7 @@ func (s *Session) SelectCharacter(character Character) {
 	s.GuildID = 0
 	s.EmblemVersion = 0
 	s.GuildName = ""
+	s.Guild = Guild{}
 	s.PendingGuildName = ""
 	s.Zone = ZoneServer{}
 	s.ServerTick = 0
@@ -190,6 +192,24 @@ type Character struct {
 	HeadMid   int16
 	HeadLow   int16
 	Option    uint32
+}
+
+type Guild struct {
+	ID               uint32
+	Level            uint32
+	UserNum          uint32
+	MaxUserNum       uint32
+	UserAverageLevel uint32
+	Exp              uint32
+	MaxExp           uint32
+	Point            uint32
+	Honor            uint32
+	Virtue           uint32
+	EmblemVersion    uint32
+	Name             string
+	MasterName       string
+	ManageLand       string
+	Zeny             uint32
 }
 
 type Vitals struct {

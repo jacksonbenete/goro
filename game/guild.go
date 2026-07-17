@@ -7,6 +7,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/session"
 )
 
 func (m *WorldMode) sendGuildInvite(ctx client.Context, actorID uint32, name string) {
@@ -118,6 +119,29 @@ func applyLocalGuildName(ctx client.Context, name string) {
 	applyLocalGuildInfo(ctx, 0, 0, name)
 }
 
+func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
+	applyLocalGuildInfo(ctx, info.GuildID, info.EmblemVersion, info.GuildName)
+	if ctx.Session != nil {
+		ctx.Session.Guild = session.Guild{
+			ID:               info.GuildID,
+			Level:            info.Level,
+			UserNum:          info.UserNum,
+			MaxUserNum:       info.MaxUserNum,
+			UserAverageLevel: info.UserAverageLevel,
+			Exp:              info.Exp,
+			MaxExp:           info.MaxExp,
+			Point:            info.Point,
+			Honor:            info.Honor,
+			Virtue:           info.Virtue,
+			EmblemVersion:    info.EmblemVersion,
+			Name:             strings.TrimSpace(info.GuildName),
+			MasterName:       strings.TrimSpace(info.MasterName),
+			ManageLand:       strings.TrimSpace(info.ManageLand),
+			Zeny:             info.Zeny,
+		}
+	}
+}
+
 func applyLocalGuildInfo(ctx client.Context, guildID, emblemVersion uint32, name string) {
 	name = strings.TrimSpace(name)
 	if name == "" && guildID == 0 && emblemVersion == 0 {
@@ -133,6 +157,15 @@ func applyLocalGuildInfo(ctx client.Context, guildID, emblemVersion uint32, name
 		}
 		if name != "" {
 			ctx.Session.GuildName = name
+		}
+		if guildID != 0 {
+			ctx.Session.Guild.ID = guildID
+		}
+		if emblemVersion != 0 {
+			ctx.Session.Guild.EmblemVersion = emblemVersion
+		}
+		if name != "" {
+			ctx.Session.Guild.Name = name
 		}
 		ctx.Session.PendingGuildName = ""
 	}

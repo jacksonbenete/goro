@@ -152,6 +152,7 @@ type worldUI struct {
 	statsWindow      gameui.StatsWindow
 	skillWindow      gameui.SkillWindow
 	friendsWindow    gameui.FriendsWindow
+	guildWindow      gameui.GuildWindow
 	friendSettings   gameui.FriendSettingsWindow
 	whisperWindow    gameui.WhisperWindow
 	chatRoomCreate   gameui.ChatRoomCreateWindow
@@ -373,6 +374,28 @@ func (m *WorldMode) Enter(ctx client.Context) {
 }
 
 func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
+	m.ui.console.OnGuildWindow = func() { m.toggleGuildWindow(ctx) }
+	m.ui.guildWindow.EmblemImage = func(ctx client.Context) image.Image {
+		if ctx.Session == nil || m.guildEmblems == nil {
+			return nil
+		}
+		guildID := ctx.Session.GuildID
+		version := ctx.Session.EmblemVersion
+		if guildID == 0 {
+			guildID = ctx.Session.Guild.ID
+		}
+		if version == 0 {
+			version = ctx.Session.Guild.EmblemVersion
+		}
+		if guildID == 0 || version == 0 {
+			return nil
+		}
+		emblem := m.guildEmblems[guildID]
+		if emblem.image == nil || emblem.version < version {
+			return nil
+		}
+		return emblem.image.RGBA()
+	}
 	m.ui.basicMenu.Rebind(ctx, m.basicMenuCallbacks(ctx))
 	m.ui.inventoryBag.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow)
 	m.ui.equipmentWindow.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow, m)
@@ -381,6 +404,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.ui.statsWindow.Rebind(ctx)
 	m.ui.skillWindow.Rebind(ctx, m)
 	m.ui.friendsWindow.Rebind(ctx)
+	m.ui.guildWindow.Rebind(ctx)
 	m.ui.friendSettings.Rebind(ctx)
 	m.ui.partySettings.Rebind(ctx)
 	m.ui.partyCreate.Rebind(ctx)
@@ -862,7 +886,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if guildInfo, ok, err := network.ParseGuildInfo(pkt); err != nil {
 			glog.Errorf("parse guild info 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			applyLocalGuildInfo(ctx, guildInfo.GuildID, guildInfo.EmblemVersion, guildInfo.GuildName)
+			applyLocalGuildDetails(ctx, guildInfo)
 			m.requestActorGuildEmblem(ctx, guildInfo.GuildID, guildInfo.EmblemVersion)
 			continue
 		}
@@ -1520,6 +1544,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.skillWindow.Update(ctx, &m.ui.shortcutBar, m) {
 		return nil, nil
 	}
+	if m.toggleGuildWindowFromInput(ctx) {
+		return nil, nil
+	}
 	if m.ui.friendsWindow.Update(ctx) {
 		switch action := m.ui.friendsWindow.PopAction(); action.Kind {
 		case gameui.FriendsWindowActionPartySettings:
@@ -1556,6 +1583,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		case gameui.FriendsWindowActionPartyMemberExpel:
 			m.openExpelPartyMemberConfirm(ctx, action.PartyMember)
 		}
+		return nil, nil
+	}
+	if m.ui.guildWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.friendSettings.Update(ctx) {
@@ -1685,6 +1715,44 @@ func (m *WorldMode) basicMenuCallbacks(ctx client.Context) gameui.BasicMenuCallb
 	}
 }
 
+func (m *WorldMode) toggleGuildWindowFromInput(ctx client.Context) bool {
+	if ctx.Input == nil || m.ui.console.Active() {
+		return false
+	}
+	if !ctx.Input.Pressed(input.KeyAlt) || !ctx.Input.JustPressed(input.KeyG) {
+		return false
+	}
+	m.toggleGuildWindow(ctx)
+	return true
+}
+
+func (m *WorldMode) toggleGuildWindow(ctx client.Context) {
+	wasOpen := m.ui.guildWindow.IsOpen()
+	m.ui.guildWindow.Toggle(ctx)
+	if wasOpen || !m.ui.guildWindow.IsOpen() || ctx.Network == nil {
+		return
+	}
+	if err := ctx.Network.SendGuildMenuRequest(0); err != nil {
+		m.ui.console.AddErrorMessage("Guild info request failed.")
+	}
+	m.requestSessionGuildEmblem(ctx)
+}
+
+func (m *WorldMode) requestSessionGuildEmblem(ctx client.Context) {
+	if ctx.Session == nil {
+		return
+	}
+	guildID := ctx.Session.GuildID
+	version := ctx.Session.EmblemVersion
+	if guildID == 0 {
+		guildID = ctx.Session.Guild.ID
+	}
+	if version == 0 {
+		version = ctx.Session.Guild.EmblemVersion
+	}
+	m.requestGuildEmblem(ctx, guildID, version, true)
+}
+
 func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange) Mode {
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
@@ -1760,6 +1828,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.statsWindow = m.ui.statsWindow
 	next.ui.skillWindow = m.ui.skillWindow
 	next.ui.friendsWindow = m.ui.friendsWindow
+	next.ui.guildWindow = m.ui.guildWindow
 	next.ui.friendSettings = m.ui.friendSettings
 	next.ui.whisperWindow = m.ui.whisperWindow
 	next.ui.chatRoomCreate = m.ui.chatRoomCreate

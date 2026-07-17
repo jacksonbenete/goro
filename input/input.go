@@ -18,6 +18,8 @@ const (
 	KeyBackspace
 	KeyShift
 	KeyCtrl
+	KeyAlt
+	KeyG
 	KeyF1
 	KeyF2
 	KeyF3
