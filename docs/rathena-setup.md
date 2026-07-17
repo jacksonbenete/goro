@@ -4,6 +4,17 @@ Goro currently targets the classic pre-renewal `2008-09-10aSakexe` flow.
 Stock rAthena is close, but it needs a few compatibility patches for this
 client profile.
 
+## Pre-Patched Fork
+
+The simplest option is to use the Goro-compatible rAthena fork:
+
+```sh
+git clone https://github.com/kivutar/rathena.git
+```
+
+This fork already has the compatibility patches below applied. Use the manual
+patch section only when starting from upstream rAthena.
+
 ## Required Patches
 
 Save this as `goro-rathena.patch` at the rAthena root and apply it with
