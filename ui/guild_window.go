@@ -11,6 +11,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -29,6 +30,8 @@ type GuildWindow struct {
 	snapshot    string
 	action      GuildWindowAction
 	EmblemImage func(Context) image.Image
+	skillIcons  map[uint16]image.Image
+	skillMiss   map[uint16]struct{}
 }
 
 type GuildWindowAction struct {
@@ -165,7 +168,7 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	case guildWindowTabPositions:
 		return w.positionsTab(ctx)
 	case guildWindowTabSkills:
-		return guildWindowPlaceholder("Guild skills are not loaded yet.")
+		return w.skillsTab(ctx)
 	case guildWindowTabHistory:
 		return guildWindowPlaceholder("Expel history is not loaded yet.")
 	case guildWindowTabNotice:
@@ -335,6 +338,140 @@ func guildRightLabel(enabled bool) string {
 		return "Yes"
 	}
 	return "-"
+}
+
+func (w *GuildWindow) skillsTab(ctx Context) widget.Widget {
+	guild := guildSessionInfo(ctx.Session)
+	rows := make([]widget.Widget, 0, len(guild.Skills))
+	if len(guild.Skills) == 0 {
+		rows = append(rows,
+			primitives.Box(rotheme.Text("No guild skills loaded.").Color(rotheme.Default.Colors.MutedText)).
+				Height(32).
+				PaddingXY(6, 6).
+				Background(rotheme.Default.Colors.WindowBody),
+		)
+	}
+	for i, skill := range guild.Skills {
+		rows = append(rows, w.guildSkillRow(ctx, skill, i%2 == 0))
+	}
+	return primitives.Box(
+		primitives.Expanded(
+			primitives.Box(
+				scrollview.New(
+					primitives.Box(rows...),
+					scrollview.DirectionOpt(scrollview.Vertical),
+					scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
+					scrollview.ScrollStep(32),
+				),
+			).
+				PaddingXY(7, 7),
+		),
+		primitives.HBox(
+			rotheme.Text(fmt.Sprintf("Skill Points: %d", guild.SkillPoints)),
+			primitives.Expanded(primitives.Box()),
+		).
+			Height(28).
+			PaddingXY(9, 6).
+			CrossAlign(primitives.CrossAxisCenter).
+			Background(rotheme.Default.Colors.WindowFooter),
+	).
+		CrossAlign(primitives.CrossAxisStretch).
+		Background(rotheme.Default.Colors.WindowBody)
+}
+
+func (w *GuildWindow) guildSkillRow(ctx Context, skill session.Skill, dark bool) widget.Widget {
+	bg := rotheme.Default.Colors.WindowBody
+	if dark {
+		bg = rotheme.Default.Colors.PanelBody
+	}
+	return primitives.HBox(
+		primitives.Box(w.guildSkillIcon(ctx, skill)).
+			Width(32).
+			Height(32).
+			CrossAlign(primitives.CrossAxisCenter),
+		primitives.Box(
+			rotheme.Text(trimRunes(skillDisplayName(ctx.Resources, skill), 28)).
+				Align(widget.TextAlignLeft),
+			rotheme.Text(guildSkillLevelText(skill)).
+				Color(rotheme.Default.Colors.MutedText).
+				Align(widget.TextAlignLeft),
+		).
+			Width(160).
+			Height(32).
+			CrossAlign(primitives.CrossAxisStretch),
+		guildMemberCell(guildSkillKind(skill), 62, false, dark),
+		guildMemberCell(guildSkillSP(skill), 54, false, dark),
+		guildMemberCell(guildSkillRange(skill), 52, false, dark),
+	).
+		Height(32).
+		CrossAlign(primitives.CrossAxisCenter).
+		Background(bg)
+}
+
+func (w *GuildWindow) guildSkillIcon(ctx Context, skill session.Skill) widget.Widget {
+	if img := w.guildSkillIconImage(ctx, skill); img != nil {
+		return newStaticImageWidget(img, 24, 24)
+	}
+	return primitives.Box()
+}
+
+func (w *GuildWindow) guildSkillIconImage(ctx Context, skill session.Skill) image.Image {
+	if ctx.Resources == nil || skill.ID == 0 {
+		return nil
+	}
+	if w.skillIcons == nil {
+		w.skillIcons = make(map[uint16]image.Image)
+	}
+	if img := w.skillIcons[skill.ID]; img != nil {
+		return img
+	}
+	if w.skillMiss != nil {
+		if _, ok := w.skillMiss[skill.ID]; ok {
+			return nil
+		}
+	}
+	resourceName, ok := ctx.Resources.SkillResourceName(int(skill.ID))
+	if !ok {
+		resourceName = strings.ToUpper(strings.ReplaceAll(skillLabel(skill), " ", "_"))
+	}
+	img, _, err := res.LoadImage(ctx.Resources, res.SkillIconTextureCandidates(resourceName, int(skill.ID)))
+	if err != nil {
+		if w.skillMiss == nil {
+			w.skillMiss = make(map[uint16]struct{})
+		}
+		w.skillMiss[skill.ID] = struct{}{}
+		return nil
+	}
+	w.skillIcons[skill.ID] = img
+	return img
+}
+
+func guildSkillLevelText(skill session.Skill) string {
+	if skill.MaxLevel > 0 {
+		return fmt.Sprintf("Lv : %d / %d", skill.Level, skill.MaxLevel)
+	}
+	return fmt.Sprintf("Lv : %d", skill.Level)
+}
+
+func guildSkillKind(skill session.Skill) string {
+	if skill.Type == 0 {
+		return "Passive"
+	}
+	return "Active"
+}
+
+func guildSkillSP(skill session.Skill) string {
+	if skill.Type == 0 {
+		return ""
+	}
+	return fmt.Sprintf("SP : %d", skill.SPCost)
+}
+
+func guildSkillRange(skill session.Skill) string {
+	if skill.Range <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("Range : %d", skill.Range)
 }
 
 func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
@@ -512,7 +649,18 @@ func guildWindowSnapshot(s *session.Session) string {
 			position.PosName,
 		)
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d%s%s",
+	skillSnapshot := strings.Builder{}
+	for _, skill := range s.Guild.Skills {
+		fmt.Fprintf(&skillSnapshot, "|%d:%d:%d:%d:%d:%s",
+			skill.ID,
+			skill.Type,
+			skill.Level,
+			skill.SPCost,
+			skill.Range,
+			skill.Name,
+		)
+	}
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d%s%s%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
@@ -529,8 +677,10 @@ func guildWindowSnapshot(s *session.Session) string {
 		s.Guild.ManageLand,
 		s.Guild.Name,
 		s.Guild.Zeny,
+		s.Guild.SkillPoints,
 		memberSnapshot.String(),
 		positionSnapshot.String(),
+		skillSnapshot.String(),
 	)
 }
 

@@ -117,6 +117,16 @@ func TestParseGuildPackets(t *testing.T) {
 		t.Fatalf("ParseGuildPositionNames ok=%t err=%v positions=%+v", ok, err, parsedPositionNames)
 	}
 
+	guildSkills := make([]byte, 6+37)
+	binary.LittleEndian.PutUint16(guildSkills[0:2], PacketZCGuildSkillInfo)
+	binary.LittleEndian.PutUint16(guildSkills[2:4], uint16(len(guildSkills)))
+	binary.LittleEndian.PutUint16(guildSkills[4:6], 3)
+	writeSkillInfoEntry(guildSkills[6:], 1, 10000, 1, 0, 1, "Official Guild Approval", true)
+	parsedGuildSkills, ok, err := ParseGuildSkillInfo(Packet{ID: PacketZCGuildSkillInfo, Data: guildSkills})
+	if !ok || err != nil || parsedGuildSkills.SkillPoints != 3 || len(parsedGuildSkills.Skills) != 1 || parsedGuildSkills.Skills[0].ID != 10000 || parsedGuildSkills.Skills[0].Name != "Official Guild Approval" {
+		t.Fatalf("ParseGuildSkillInfo ok=%t err=%v info=%+v", ok, err, parsedGuildSkills)
+	}
+
 	belonging := make([]byte, 43)
 	binary.LittleEndian.PutUint16(belonging[0:2], PacketZCUpdateGuildID)
 	binary.LittleEndian.PutUint32(belonging[2:6], 0x01020304)
@@ -187,6 +197,7 @@ func TestGuildPacketDirections(t *testing.T) {
 		PacketZCReqJoinGuild:    30,
 		PacketZCGuildMembers:    -1,
 		PacketZCGuildPositions:  -1,
+		PacketZCGuildSkillInfo:  -1,
 		PacketZCGuildPosNames:   -1,
 		PacketZCUpdateGuildID:   43,
 		PacketZCGuildEmblem:     -1,

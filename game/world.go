@@ -908,6 +908,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			applyLocalGuildPositionNames(ctx, guildPositionNames)
 			continue
 		}
+		if guildSkills, ok, err := network.ParseGuildSkillInfo(pkt); err != nil {
+			glog.Errorf("parse guild skills 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyLocalGuildSkills(ctx, guildSkills)
+			continue
+		}
 		if guildEmblem, ok, err := network.ParseGuildEmblemImage(pkt); err != nil {
 			glog.Errorf("parse guild emblem 0x%04X: %v", pkt.ID, err)
 		} else if ok {

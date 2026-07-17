@@ -19,6 +19,7 @@ const (
 	PacketZCGuildInfo2      uint16 = 0x01B6
 	PacketZCGuildMembers    uint16 = 0x0154
 	PacketZCGuildPositions  uint16 = 0x0160
+	PacketZCGuildSkillInfo  uint16 = 0x0162
 	PacketZCGuildPosNames   uint16 = 0x0166
 	PacketZCUpdateGuildID   uint16 = 0x016C
 	PacketCZReqGuildMenu    uint16 = 0x014F
@@ -92,6 +93,11 @@ type GuildPosition struct {
 	PosName    string
 }
 
+type GuildSkillInfo struct {
+	SkillPoints int
+	Skills      []SkillInfo
+}
+
 type GuildEmblemImage struct {
 	GuildID       uint32
 	EmblemVersion uint32
@@ -102,6 +108,27 @@ type GuildEmblemChange struct {
 	ActorID       uint32
 	GuildID       uint32
 	EmblemVersion uint32
+}
+
+func ParseGuildSkillInfo(packet Packet) (GuildSkillInfo, bool, error) {
+	if packet.ID != PacketZCGuildSkillInfo {
+		return GuildSkillInfo{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return GuildSkillInfo{}, true, fmt.Errorf("ZC_GUILD_SKILLINFO too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-6)%skillInfoEntryLen != 0 {
+		return GuildSkillInfo{}, true, fmt.Errorf("ZC_GUILD_SKILLINFO invalid length: %d", len(packet.Data))
+	}
+	body := packet.Data[6:]
+	skills := make([]SkillInfo, 0, len(body)/skillInfoEntryLen)
+	for offset := 0; offset < len(body); offset += skillInfoEntryLen {
+		skills = append(skills, parseSkillInfoEntry(body[offset:offset+skillInfoEntryLen], 0))
+	}
+	return GuildSkillInfo{
+		SkillPoints: int(binary.LittleEndian.Uint16(packet.Data[4:6])),
+		Skills:      skills,
+	}, true, nil
 }
 
 func ParseGuildPositions(packet Packet) ([]GuildPosition, bool, error) {

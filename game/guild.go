@@ -124,6 +124,8 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 	if ctx.Session != nil {
 		members := ctx.Session.Guild.Members
 		positions := ctx.Session.Guild.Positions
+		skillPoints := ctx.Session.Guild.SkillPoints
+		skills := ctx.Session.Guild.Skills
 		ctx.Session.Guild = session.Guild{
 			ID:               info.GuildID,
 			Level:            info.Level,
@@ -142,6 +144,8 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 			Zeny:             info.Zeny,
 			Members:          members,
 			Positions:        positions,
+			SkillPoints:      skillPoints,
+			Skills:           skills,
 		}
 	}
 }
@@ -213,6 +217,18 @@ func applyLocalGuildPositionNames(ctx client.Context, positions []network.GuildP
 		ctx.Session.Guild.Positions[index].PosName = strings.TrimSpace(position.PosName)
 	}
 	glog.Debugf("guild position names received positions=%d", len(positions))
+}
+
+func applyLocalGuildSkills(ctx client.Context, info network.GuildSkillInfo) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Guild.SkillPoints = info.SkillPoints
+	ctx.Session.Guild.Skills = make([]session.Skill, 0, len(info.Skills))
+	for _, skill := range info.Skills {
+		ctx.Session.Guild.Skills = append(ctx.Session.Guild.Skills, sessionSkillFromNetworkWithResources(ctx.Resources, skill))
+	}
+	glog.Debugf("guild skill list received count=%d points=%d", len(info.Skills), info.SkillPoints)
 }
 
 func guildPositionIndex(positions []session.GuildPosition, id uint32) int {

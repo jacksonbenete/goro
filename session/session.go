@@ -212,6 +212,8 @@ type Guild struct {
 	Zeny             uint32
 	Members          []GuildMember
 	Positions        []GuildPosition
+	SkillPoints      int
+	Skills           []Skill
 }
 
 type GuildMember struct {
