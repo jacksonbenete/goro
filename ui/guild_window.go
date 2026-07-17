@@ -26,17 +26,25 @@ const (
 
 type GuildWindow struct {
 	Window
-	tab         guildWindowTab
-	snapshot    string
-	action      GuildWindowAction
-	EmblemImage func(Context) image.Image
-	skillIcons  map[uint16]image.Image
-	skillMiss   map[uint16]struct{}
+	tab                guildWindowTab
+	snapshot           string
+	action             GuildWindowAction
+	EmblemImage        func(Context) image.Image
+	emblemOptions      []GuildEmblemOption
+	emblemDropdownOpen bool
+	skillIcons         map[uint16]image.Image
+	skillMiss          map[uint16]struct{}
 }
 
 type GuildWindowAction struct {
-	RequestMenu bool
-	MenuTab     uint32
+	RequestMenu        bool
+	MenuTab            uint32
+	SelectedEmblemPath string
+}
+
+type GuildEmblemOption struct {
+	Label string
+	Path  string
 }
 
 type guildWindowTab int
@@ -103,6 +111,13 @@ func (w *GuildWindow) PopAction() GuildWindowAction {
 	action := w.action
 	w.action = GuildWindowAction{}
 	return action
+}
+
+func (w *GuildWindow) SetEmblemOptions(ctx Context, options []GuildEmblemOption) {
+	w.emblemOptions = append(w.emblemOptions[:0], options...)
+	if w.IsOpen() {
+		w.refresh(ctx)
+	}
 }
 
 func (w *GuildWindow) Rebind(ctx Context) {
@@ -558,7 +573,7 @@ func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
 	rightRows := []widget.Widget{
 		guildInfoRow("EXP", guildExp(guild.Exp, guild.MaxExp)),
 		guildInfoSection("Emblem"),
-		w.guildEmblemBox(ctx, guild.EmblemVersion),
+		w.guildEmblemEditor(ctx, guild.EmblemVersion),
 		guildInfoRow("Tax Point", guildNumberAllowZero(guild.Point)),
 		guildInfoSection("Alliance"),
 		guildListBox(""),
@@ -576,6 +591,52 @@ func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
 		PaddingXY(9, 10).
 		Gap(10).
 		CrossAlign(primitives.CrossAxisStart)
+}
+
+func (w *GuildWindow) guildEmblemEditor(ctx Context, version uint32) widget.Widget {
+	rows := []widget.Widget{
+		primitives.HBox(
+			w.guildEmblemBox(ctx, version),
+			rotheme.Button("Edit", func() {
+				w.emblemDropdownOpen = !w.emblemDropdownOpen
+				w.refresh(ctx)
+			}).Width(float32(ButtonLabelWidth("Edit"))),
+		).
+			Gap(6).
+			CrossAlign(primitives.CrossAxisCenter),
+	}
+	if w.emblemDropdownOpen {
+		rows = append(rows, w.guildEmblemDropdown(ctx))
+	}
+	return primitives.Box(rows...).Gap(3)
+}
+
+func (w *GuildWindow) guildEmblemDropdown(ctx Context) widget.Widget {
+	if len(w.emblemOptions) == 0 {
+		return guildDropdownRow("No emblems found", func() {})
+	}
+	rows := make([]widget.Widget, 0, minInt(len(w.emblemOptions), 5))
+	for i, option := range w.emblemOptions {
+		if i >= 5 {
+			break
+		}
+		option := option
+		rows = append(rows, guildDropdownRow(trimRunes(option.Label, 20), func() {
+			w.action.SelectedEmblemPath = option.Path
+			w.emblemDropdownOpen = false
+			w.refresh(ctx)
+		}))
+	}
+	return primitives.Box(rows...).
+		Width(132).
+		Background(rotheme.Default.Colors.WindowBody).
+		BorderStyle(1, rotheme.Default.Colors.FooterLine)
+}
+
+func guildDropdownRow(label string, onClick func()) widget.Widget {
+	return rotheme.Button(label, onClick).
+		Height(20).
+		Width(130)
 }
 
 func guildInfoRow(label, value string) widget.Widget {

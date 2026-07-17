@@ -396,6 +396,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 		}
 		return emblem.image.RGBA()
 	}
+	m.setGuildEmblemOptions(ctx)
 	m.ui.basicMenu.Rebind(ctx, m.basicMenuCallbacks(ctx))
 	m.ui.inventoryBag.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow)
 	m.ui.equipmentWindow.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow, m)
@@ -1624,6 +1625,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.guildWindow.Update(ctx) {
 		if action := m.ui.guildWindow.PopAction(); action.RequestMenu {
 			m.requestGuildWindowTab(ctx, action.MenuTab)
+		} else if action.SelectedEmblemPath != "" {
+			m.uploadGuildEmblem(ctx, action.SelectedEmblemPath)
 		}
 		return nil, nil
 	}
@@ -1767,6 +1770,7 @@ func (m *WorldMode) toggleGuildWindowFromInput(ctx client.Context) bool {
 
 func (m *WorldMode) toggleGuildWindow(ctx client.Context) {
 	wasOpen := m.ui.guildWindow.IsOpen()
+	m.setGuildEmblemOptions(ctx)
 	m.ui.guildWindow.Toggle(ctx)
 	if wasOpen || !m.ui.guildWindow.IsOpen() || ctx.Network == nil {
 		return

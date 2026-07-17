@@ -2,12 +2,16 @@ package game
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 )
 
 func (m *WorldMode) sendGuildInvite(ctx client.Context, actorID uint32, name string) {
@@ -92,6 +96,76 @@ func (m *WorldMode) handleGuildInviteAck(ack network.GuildInviteAck) {
 	default:
 		m.ui.console.AddErrorMessage("Guild invitation failed.")
 	}
+}
+
+func (m *WorldMode) setGuildEmblemOptions(ctx client.Context) {
+	m.ui.guildWindow.SetEmblemOptions(ctx, localGuildEmblemOptions(ctx.Config.DataDir))
+}
+
+func (m *WorldMode) uploadGuildEmblem(ctx client.Context, path string) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return
+	}
+	if ctx.Network == nil {
+		m.ui.console.AddErrorMessage("Guild emblem upload failed: not connected.")
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		m.ui.console.AddErrorMessage("Guild emblem upload failed: %s", err)
+		return
+	}
+	if len(data) < 2 || data[0] != 'B' || data[1] != 'M' {
+		m.ui.console.AddErrorMessage("Guild emblem upload failed: expected BMP file.")
+		return
+	}
+	if len(data) > 1783 {
+		m.ui.console.AddErrorMessage("Guild emblem upload failed: BMP is too large.")
+		return
+	}
+	if err := ctx.Network.SendGuildEmblem(data); err != nil {
+		m.ui.console.AddErrorMessage("Guild emblem upload failed.")
+		glog.Warnf("guild emblem upload failed path=%q: %v", path, err)
+		return
+	}
+	m.ui.console.AddSystemMessage("Guild emblem uploaded.")
+}
+
+func localGuildEmblemOptions(dataDir string) []gameui.GuildEmblemOption {
+	if strings.TrimSpace(dataDir) == "" {
+		return nil
+	}
+	dirs := []string{
+		filepath.Join(dataDir, "Emblem"),
+		filepath.Join(dataDir, "emblem"),
+	}
+	seen := make(map[string]struct{})
+	var options []gameui.GuildEmblemOption
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".bmp") {
+				continue
+			}
+			path := filepath.Join(dir, entry.Name())
+			if _, ok := seen[path]; ok {
+				continue
+			}
+			seen[path] = struct{}{}
+			options = append(options, gameui.GuildEmblemOption{
+				Label: strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())),
+				Path:  path,
+			})
+		}
+	}
+	sort.Slice(options, func(i, j int) bool {
+		return strings.ToLower(options[i].Label) < strings.ToLower(options[j].Label)
+	})
+	return options
 }
 
 func guildDisplayName(name string) string {
