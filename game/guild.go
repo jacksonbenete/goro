@@ -126,6 +126,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 		positions := ctx.Session.Guild.Positions
 		skillPoints := ctx.Session.Guild.SkillPoints
 		skills := ctx.Session.Guild.Skills
+		expelHistory := ctx.Session.Guild.ExpelHistory
 		ctx.Session.Guild = session.Guild{
 			ID:               info.GuildID,
 			Level:            info.Level,
@@ -146,6 +147,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 			Positions:        positions,
 			SkillPoints:      skillPoints,
 			Skills:           skills,
+			ExpelHistory:     expelHistory,
 		}
 	}
 }
@@ -229,6 +231,21 @@ func applyLocalGuildSkills(ctx client.Context, info network.GuildSkillInfo) {
 		ctx.Session.Guild.Skills = append(ctx.Session.Guild.Skills, sessionSkillFromNetworkWithResources(ctx.Resources, skill))
 	}
 	glog.Debugf("guild skill list received count=%d points=%d", len(info.Skills), info.SkillPoints)
+}
+
+func applyLocalGuildExpelHistory(ctx client.Context, history []network.GuildExpelHistory) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Guild.ExpelHistory = make([]session.GuildExpelHistory, 0, len(history))
+	for _, entry := range history {
+		ctx.Session.Guild.ExpelHistory = append(ctx.Session.Guild.ExpelHistory, session.GuildExpelHistory{
+			CharName: strings.TrimSpace(entry.CharName),
+			Account:  strings.TrimSpace(entry.Account),
+			Reason:   strings.TrimSpace(entry.Reason),
+		})
+	}
+	glog.Debugf("guild expel history received entries=%d", len(history))
 }
 
 func guildPositionIndex(positions []session.GuildPosition, id uint32) int {

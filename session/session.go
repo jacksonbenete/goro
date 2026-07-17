@@ -214,6 +214,7 @@ type Guild struct {
 	Positions        []GuildPosition
 	SkillPoints      int
 	Skills           []Skill
+	ExpelHistory     []GuildExpelHistory
 }
 
 type GuildMember struct {
@@ -237,6 +238,12 @@ type GuildPosition struct {
 	Ranking    uint32
 	PayRate    uint32
 	PosName    string
+}
+
+type GuildExpelHistory struct {
+	CharName string
+	Account  string
+	Reason   string
 }
 
 type Vitals struct {

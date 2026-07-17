@@ -20,6 +20,7 @@ const (
 	PacketZCGuildMembers    uint16 = 0x0154
 	PacketZCGuildPositions  uint16 = 0x0160
 	PacketZCGuildSkillInfo  uint16 = 0x0162
+	PacketZCGuildBanList    uint16 = 0x0163
 	PacketZCGuildPosNames   uint16 = 0x0166
 	PacketZCUpdateGuildID   uint16 = 0x016C
 	PacketCZReqGuildMenu    uint16 = 0x014F
@@ -98,6 +99,12 @@ type GuildSkillInfo struct {
 	Skills      []SkillInfo
 }
 
+type GuildExpelHistory struct {
+	CharName string
+	Account  string
+	Reason   string
+}
+
 type GuildEmblemImage struct {
 	GuildID       uint32
 	EmblemVersion uint32
@@ -108,6 +115,30 @@ type GuildEmblemChange struct {
 	ActorID       uint32
 	GuildID       uint32
 	EmblemVersion uint32
+}
+
+func ParseGuildExpelHistory(packet Packet) ([]GuildExpelHistory, bool, error) {
+	if packet.ID != PacketZCGuildBanList {
+		return nil, false, nil
+	}
+	const entrySize = 88
+	if len(packet.Data) < 4 {
+		return nil, true, fmt.Errorf("ZC_BAN_LIST too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, true, fmt.Errorf("ZC_BAN_LIST invalid length: %d", len(packet.Data))
+	}
+	body := packet.Data[4:]
+	history := make([]GuildExpelHistory, 0, len(body)/entrySize)
+	for offset := 0; offset < len(body); offset += entrySize {
+		entry := body[offset : offset+entrySize]
+		history = append(history, GuildExpelHistory{
+			CharName: decodeROFixedString(entry[0:24]),
+			Account:  decodeROFixedString(entry[24:48]),
+			Reason:   decodeROFixedString(entry[48:88]),
+		})
+	}
+	return history, true, nil
 }
 
 func ParseGuildSkillInfo(packet Packet) (GuildSkillInfo, bool, error) {

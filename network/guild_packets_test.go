@@ -127,6 +127,17 @@ func TestParseGuildPackets(t *testing.T) {
 		t.Fatalf("ParseGuildSkillInfo ok=%t err=%v info=%+v", ok, err, parsedGuildSkills)
 	}
 
+	expelHistory := make([]byte, 4+88)
+	binary.LittleEndian.PutUint16(expelHistory[0:2], PacketZCGuildBanList)
+	binary.LittleEndian.PutUint16(expelHistory[2:4], uint16(len(expelHistory)))
+	copyFixedName(expelHistory[4:28], "Chjara")
+	copyFixedName(expelHistory[28:52], "Kivutar")
+	copyFixedName(expelHistory[52:92], "Testing")
+	parsedExpelHistory, ok, err := ParseGuildExpelHistory(Packet{ID: PacketZCGuildBanList, Data: expelHistory})
+	if !ok || err != nil || len(parsedExpelHistory) != 1 || parsedExpelHistory[0].CharName != "Chjara" || parsedExpelHistory[0].Account != "Kivutar" || parsedExpelHistory[0].Reason != "Testing" {
+		t.Fatalf("ParseGuildExpelHistory ok=%t err=%v history=%+v", ok, err, parsedExpelHistory)
+	}
+
 	belonging := make([]byte, 43)
 	binary.LittleEndian.PutUint16(belonging[0:2], PacketZCUpdateGuildID)
 	binary.LittleEndian.PutUint32(belonging[2:6], 0x01020304)
@@ -198,6 +209,7 @@ func TestGuildPacketDirections(t *testing.T) {
 		PacketZCGuildMembers:    -1,
 		PacketZCGuildPositions:  -1,
 		PacketZCGuildSkillInfo:  -1,
+		PacketZCGuildBanList:    -1,
 		PacketZCGuildPosNames:   -1,
 		PacketZCUpdateGuildID:   43,
 		PacketZCGuildEmblem:     -1,

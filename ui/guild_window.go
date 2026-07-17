@@ -170,7 +170,7 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	case guildWindowTabSkills:
 		return w.skillsTab(ctx)
 	case guildWindowTabHistory:
-		return guildWindowPlaceholder("Expel history is not loaded yet.")
+		return w.historyTab(ctx)
 	case guildWindowTabNotice:
 		return guildWindowPlaceholder("Guild notice is not loaded yet.")
 	default:
@@ -474,6 +474,47 @@ func guildSkillRange(skill session.Skill) string {
 	return fmt.Sprintf("Range : %d", skill.Range)
 }
 
+func (w *GuildWindow) historyTab(ctx Context) widget.Widget {
+	history := guildSessionInfo(ctx.Session).ExpelHistory
+	rows := make([]widget.Widget, 0, len(history)+1)
+	rows = append(rows, guildHistoryHeaderRow())
+	if len(history) == 0 {
+		rows = append(rows,
+			primitives.Box(rotheme.Text("No expel history loaded.").Color(rotheme.Default.Colors.MutedText)).
+				Height(24).
+				PaddingXY(4, 4).
+				Background(rotheme.Default.Colors.WindowBody),
+		)
+	}
+	for i, entry := range history {
+		rows = append(rows, guildHistoryRow(entry, i%2 == 0))
+	}
+	return primitives.Box(
+		scrollview.New(
+			primitives.Box(rows...),
+			scrollview.DirectionOpt(scrollview.Vertical),
+			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
+			scrollview.ScrollStep(20),
+		),
+	).
+		PaddingXY(7, 7).
+		Background(rotheme.Default.Colors.WindowBody)
+}
+
+func guildHistoryHeaderRow() widget.Widget {
+	return primitives.HBox(
+		guildMemberCell("Name", 116, true, false),
+		guildMemberCell("The Reason of Expulsion", 244, true, false),
+	).Height(20)
+}
+
+func guildHistoryRow(entry session.GuildExpelHistory, dark bool) widget.Widget {
+	return primitives.HBox(
+		guildMemberCell(guildText(entry.CharName), 116, false, dark),
+		guildMemberCell(guildText(entry.Reason), 244, false, dark),
+	).Height(20)
+}
+
 func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
 	guild := guildSessionInfo(ctx.Session)
 	leftRows := []widget.Widget{
@@ -660,7 +701,15 @@ func guildWindowSnapshot(s *session.Session) string {
 			skill.Name,
 		)
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d%s%s%s",
+	historySnapshot := strings.Builder{}
+	for _, entry := range s.Guild.ExpelHistory {
+		fmt.Fprintf(&historySnapshot, "|%s:%s:%s",
+			entry.CharName,
+			entry.Account,
+			entry.Reason,
+		)
+	}
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d%s%s%s%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
@@ -681,6 +730,7 @@ func guildWindowSnapshot(s *session.Session) string {
 		memberSnapshot.String(),
 		positionSnapshot.String(),
 		skillSnapshot.String(),
+		historySnapshot.String(),
 	)
 }
 

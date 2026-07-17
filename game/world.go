@@ -914,6 +914,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			applyLocalGuildSkills(ctx, guildSkills)
 			continue
 		}
+		if guildExpelHistory, ok, err := network.ParseGuildExpelHistory(pkt); err != nil {
+			glog.Errorf("parse guild expel history 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyLocalGuildExpelHistory(ctx, guildExpelHistory)
+			continue
+		}
 		if guildEmblem, ok, err := network.ParseGuildEmblemImage(pkt); err != nil {
 			glog.Errorf("parse guild emblem 0x%04X: %v", pkt.ID, err)
 		} else if ok {
