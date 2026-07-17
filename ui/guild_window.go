@@ -525,6 +525,7 @@ func (w *GuildWindow) noticeTab(ctx Context) widget.Widget {
 	).
 		PaddingXY(9, 10).
 		Gap(5).
+		CrossAlign(primitives.CrossAxisStretch).
 		Background(rotheme.Default.Colors.WindowBody)
 }
 
