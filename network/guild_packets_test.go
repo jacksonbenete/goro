@@ -94,6 +94,29 @@ func TestParseGuildPackets(t *testing.T) {
 		t.Fatalf("ParseGuildMembers ok=%t err=%v members=%+v", ok, err, parsedMembers)
 	}
 
+	positions := make([]byte, 4+16)
+	binary.LittleEndian.PutUint16(positions[0:2], PacketZCGuildPositions)
+	binary.LittleEndian.PutUint16(positions[2:4], uint16(len(positions)))
+	position := positions[4:]
+	binary.LittleEndian.PutUint32(position[0:4], 2)
+	binary.LittleEndian.PutUint32(position[4:8], 0x11)
+	binary.LittleEndian.PutUint32(position[8:12], 3)
+	binary.LittleEndian.PutUint32(position[12:16], 50)
+	parsedPositions, ok, err := ParseGuildPositions(Packet{ID: PacketZCGuildPositions, Data: positions})
+	if !ok || err != nil || len(parsedPositions) != 1 || parsedPositions[0].PositionID != 2 || parsedPositions[0].Right != 0x11 || parsedPositions[0].Ranking != 3 || parsedPositions[0].PayRate != 50 {
+		t.Fatalf("ParseGuildPositions ok=%t err=%v positions=%+v", ok, err, parsedPositions)
+	}
+
+	positionNames := make([]byte, 4+28)
+	binary.LittleEndian.PutUint16(positionNames[0:2], PacketZCGuildPosNames)
+	binary.LittleEndian.PutUint16(positionNames[2:4], uint16(len(positionNames)))
+	binary.LittleEndian.PutUint32(positionNames[4:8], 2)
+	copyFixedName(positionNames[8:32], "Leader")
+	parsedPositionNames, ok, err := ParseGuildPositionNames(Packet{ID: PacketZCGuildPosNames, Data: positionNames})
+	if !ok || err != nil || len(parsedPositionNames) != 1 || parsedPositionNames[0].PositionID != 2 || parsedPositionNames[0].PosName != "Leader" {
+		t.Fatalf("ParseGuildPositionNames ok=%t err=%v positions=%+v", ok, err, parsedPositionNames)
+	}
+
 	belonging := make([]byte, 43)
 	binary.LittleEndian.PutUint16(belonging[0:2], PacketZCUpdateGuildID)
 	binary.LittleEndian.PutUint32(belonging[2:6], 0x01020304)
@@ -163,6 +186,8 @@ func TestGuildPacketDirections(t *testing.T) {
 		PacketZCAckReqJoinGuild: 3,
 		PacketZCReqJoinGuild:    30,
 		PacketZCGuildMembers:    -1,
+		PacketZCGuildPositions:  -1,
+		PacketZCGuildPosNames:   -1,
 		PacketZCUpdateGuildID:   43,
 		PacketZCGuildEmblem:     -1,
 		PacketZCChangeGuild:     12,

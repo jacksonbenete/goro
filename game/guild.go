@@ -123,6 +123,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 	applyLocalGuildInfo(ctx, info.GuildID, info.EmblemVersion, info.GuildName)
 	if ctx.Session != nil {
 		members := ctx.Session.Guild.Members
+		positions := ctx.Session.Guild.Positions
 		ctx.Session.Guild = session.Guild{
 			ID:               info.GuildID,
 			Level:            info.Level,
@@ -140,6 +141,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 			ManageLand:       strings.TrimSpace(info.ManageLand),
 			Zeny:             info.Zeny,
 			Members:          members,
+			Positions:        positions,
 		}
 	}
 }
@@ -171,6 +173,55 @@ func applyLocalGuildMembers(ctx client.Context, members []network.GuildMember) {
 	}
 	ctx.Session.Guild.UserNum = uint32(len(members))
 	glog.Debugf("guild member list received members=%d online=%d", len(members), online)
+}
+
+func applyLocalGuildPositions(ctx client.Context, positions []network.GuildPosition) {
+	if ctx.Session == nil {
+		return
+	}
+	for _, position := range positions {
+		index := guildPositionIndex(ctx.Session.Guild.Positions, position.PositionID)
+		if index < 0 {
+			ctx.Session.Guild.Positions = append(ctx.Session.Guild.Positions, session.GuildPosition{
+				PositionID: position.PositionID,
+				Right:      position.Right,
+				Ranking:    position.Ranking,
+				PayRate:    position.PayRate,
+			})
+			continue
+		}
+		ctx.Session.Guild.Positions[index].Right = position.Right
+		ctx.Session.Guild.Positions[index].Ranking = position.Ranking
+		ctx.Session.Guild.Positions[index].PayRate = position.PayRate
+	}
+	glog.Debugf("guild positions received positions=%d", len(positions))
+}
+
+func applyLocalGuildPositionNames(ctx client.Context, positions []network.GuildPosition) {
+	if ctx.Session == nil {
+		return
+	}
+	for _, position := range positions {
+		index := guildPositionIndex(ctx.Session.Guild.Positions, position.PositionID)
+		if index < 0 {
+			ctx.Session.Guild.Positions = append(ctx.Session.Guild.Positions, session.GuildPosition{
+				PositionID: position.PositionID,
+				PosName:    strings.TrimSpace(position.PosName),
+			})
+			continue
+		}
+		ctx.Session.Guild.Positions[index].PosName = strings.TrimSpace(position.PosName)
+	}
+	glog.Debugf("guild position names received positions=%d", len(positions))
+}
+
+func guildPositionIndex(positions []session.GuildPosition, id uint32) int {
+	for i, position := range positions {
+		if position.PositionID == id {
+			return i
+		}
+	}
+	return -1
 }
 
 func applyLocalGuildInfo(ctx client.Context, guildID, emblemVersion uint32, name string) {

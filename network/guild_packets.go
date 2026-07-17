@@ -18,6 +18,8 @@ const (
 	PacketZCGuildInfo       uint16 = 0x0150
 	PacketZCGuildInfo2      uint16 = 0x01B6
 	PacketZCGuildMembers    uint16 = 0x0154
+	PacketZCGuildPositions  uint16 = 0x0160
+	PacketZCGuildPosNames   uint16 = 0x0166
 	PacketZCUpdateGuildID   uint16 = 0x016C
 	PacketCZReqGuildMenu    uint16 = 0x014F
 	PacketCZReqGuildEmblem  uint16 = 0x0151
@@ -82,6 +84,14 @@ type GuildMember struct {
 	CharName     string
 }
 
+type GuildPosition struct {
+	PositionID uint32
+	Right      uint32
+	Ranking    uint32
+	PayRate    uint32
+	PosName    string
+}
+
 type GuildEmblemImage struct {
 	GuildID       uint32
 	EmblemVersion uint32
@@ -92,6 +102,54 @@ type GuildEmblemChange struct {
 	ActorID       uint32
 	GuildID       uint32
 	EmblemVersion uint32
+}
+
+func ParseGuildPositions(packet Packet) ([]GuildPosition, bool, error) {
+	if packet.ID != PacketZCGuildPositions {
+		return nil, false, nil
+	}
+	const entrySize = 16
+	if len(packet.Data) < 4 {
+		return nil, true, fmt.Errorf("ZC_POSITION_INFO too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, true, fmt.Errorf("ZC_POSITION_INFO invalid length: %d", len(packet.Data))
+	}
+	body := packet.Data[4:]
+	positions := make([]GuildPosition, 0, len(body)/entrySize)
+	for offset := 0; offset < len(body); offset += entrySize {
+		entry := body[offset : offset+entrySize]
+		positions = append(positions, GuildPosition{
+			PositionID: binary.LittleEndian.Uint32(entry[0:4]),
+			Right:      binary.LittleEndian.Uint32(entry[4:8]),
+			Ranking:    binary.LittleEndian.Uint32(entry[8:12]),
+			PayRate:    binary.LittleEndian.Uint32(entry[12:16]),
+		})
+	}
+	return positions, true, nil
+}
+
+func ParseGuildPositionNames(packet Packet) ([]GuildPosition, bool, error) {
+	if packet.ID != PacketZCGuildPosNames {
+		return nil, false, nil
+	}
+	const entrySize = 28
+	if len(packet.Data) < 4 {
+		return nil, true, fmt.Errorf("ZC_POSITION_ID_NAME_INFO too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, true, fmt.Errorf("ZC_POSITION_ID_NAME_INFO invalid length: %d", len(packet.Data))
+	}
+	body := packet.Data[4:]
+	positions := make([]GuildPosition, 0, len(body)/entrySize)
+	for offset := 0; offset < len(body); offset += entrySize {
+		entry := body[offset : offset+entrySize]
+		positions = append(positions, GuildPosition{
+			PositionID: binary.LittleEndian.Uint32(entry[0:4]),
+			PosName:    decodeROFixedString(entry[4:28]),
+		})
+	}
+	return positions, true, nil
 }
 
 func ParseGuildMembers(packet Packet) ([]GuildMember, bool, error) {

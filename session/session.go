@@ -211,6 +211,7 @@ type Guild struct {
 	ManageLand       string
 	Zeny             uint32
 	Members          []GuildMember
+	Positions        []GuildPosition
 }
 
 type GuildMember struct {
@@ -226,6 +227,14 @@ type GuildMember struct {
 	PositionID   uint32
 	Memo         string
 	CharName     string
+}
+
+type GuildPosition struct {
+	PositionID uint32
+	Right      uint32
+	Ranking    uint32
+	PayRate    uint32
+	PosName    string
 }
 
 type Vitals struct {

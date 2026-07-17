@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"math"
+	"sort"
 	"strings"
 
 	"github.com/gogpu/ui/core/scrollview"
@@ -162,7 +163,7 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	case guildWindowTabMembers:
 		return w.membersTab(ctx)
 	case guildWindowTabPositions:
-		return guildWindowPlaceholder("Guild positions are not loaded yet.")
+		return w.positionsTab(ctx)
 	case guildWindowTabSkills:
 		return guildWindowPlaceholder("Guild skills are not loaded yet.")
 	case guildWindowTabHistory:
@@ -175,7 +176,8 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 }
 
 func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
-	members := guildSessionInfo(ctx.Session).Members
+	guild := guildSessionInfo(ctx.Session)
+	members := guild.Members
 	rows := make([]widget.Widget, 0, len(members)+1)
 	rows = append(rows, guildMemberHeaderRow())
 	totalExp := guildMembersTotalExp(members)
@@ -188,7 +190,7 @@ func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
 		)
 	}
 	for i, member := range members {
-		rows = append(rows, guildMemberRow(member, totalExp, i%2 == 0))
+		rows = append(rows, guildMemberRow(member, guild.Positions, totalExp, i%2 == 0))
 	}
 	return primitives.Box(
 		scrollview.New(
@@ -214,10 +216,10 @@ func guildMemberHeaderRow() widget.Widget {
 	).Height(20)
 }
 
-func guildMemberRow(member session.GuildMember, totalExp uint32, dark bool) widget.Widget {
+func guildMemberRow(member session.GuildMember, positions []session.GuildPosition, totalExp uint32, dark bool) widget.Widget {
 	return primitives.HBox(
 		guildMemberCell(guildText(member.CharName), 78, false, dark),
-		guildMemberCell(guildMemberPosition(member.PositionID), 62, false, dark),
+		guildMemberCell(guildPositionName(positions, member.PositionID), 62, false, dark),
 		guildMemberCell(db.JobDisplayName(int(member.Job)), 52, false, dark),
 		guildMemberCell(fmt.Sprintf("%d", member.Level), 26, false, dark),
 		guildMemberCell(member.Memo, 62, false, dark),
@@ -234,7 +236,7 @@ func guildMemberCell(text string, width float32, header, dark bool) widget.Widge
 	} else if dark {
 		bg = rotheme.Default.Colors.PanelBody
 	}
-	return primitives.Box(rotheme.Text(text)).
+	return primitives.HBox(rotheme.Text(text).Align(widget.TextAlignLeft)).
 		Width(width).
 		Height(20).
 		PaddingLeft(4).
@@ -250,15 +252,89 @@ func guildMembersTotalExp(members []session.GuildMember) uint32 {
 	return total
 }
 
-func guildMemberPosition(id uint32) string {
-	return fmt.Sprintf("Position %d", id)
-}
-
 func guildMemberDevotion(memberExp, totalExp uint32) string {
 	if memberExp == 0 || totalExp == 0 {
 		return "0 %"
 	}
 	return fmt.Sprintf("%d %%", int(math.Round(float64(memberExp)/float64(totalExp)*100)))
+}
+
+func (w *GuildWindow) positionsTab(ctx Context) widget.Widget {
+	positions := guildSortedPositions(guildSessionInfo(ctx.Session).Positions)
+	rows := make([]widget.Widget, 0, len(positions)+1)
+	rows = append(rows, guildPositionHeaderRow())
+	if len(positions) == 0 {
+		rows = append(rows,
+			primitives.Box(rotheme.Text("No guild positions loaded.")).
+				Height(24).
+				PaddingXY(4, 4).
+				Background(rotheme.Default.Colors.WindowBody),
+		)
+	}
+	for i, position := range positions {
+		rows = append(rows, guildPositionRow(position, i%2 == 0))
+	}
+	return primitives.Box(
+		scrollview.New(
+			primitives.Box(rows...),
+			scrollview.DirectionOpt(scrollview.Vertical),
+			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
+			scrollview.ScrollStep(20),
+		),
+	).
+		PaddingXY(7, 7).
+		Background(rotheme.Default.Colors.WindowBody)
+}
+
+func guildPositionHeaderRow() widget.Widget {
+	return primitives.HBox(
+		guildMemberCell("Rank", 44, true, false),
+		guildMemberCell("Position Title", 164, true, false),
+		guildMemberCell("Invitation", 58, true, false),
+		guildMemberCell("Punish", 48, true, false),
+		guildMemberCell("Tax", 46, true, false),
+	).Height(20)
+}
+
+func guildPositionRow(position session.GuildPosition, dark bool) widget.Widget {
+	return primitives.HBox(
+		guildMemberCell(fmt.Sprintf("%d", position.PositionID), 44, false, dark),
+		guildMemberCell(guildPositionTitle(position), 164, false, dark),
+		guildMemberCell(guildRightLabel(position.Right&0x01 != 0), 58, false, dark),
+		guildMemberCell(guildRightLabel(position.Right&0x10 != 0), 48, false, dark),
+		guildMemberCell(fmt.Sprintf("%d %%", position.PayRate), 46, false, dark),
+	).Height(20)
+}
+
+func guildSortedPositions(positions []session.GuildPosition) []session.GuildPosition {
+	out := append([]session.GuildPosition(nil), positions...)
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].PositionID < out[j].PositionID
+	})
+	return out
+}
+
+func guildPositionName(positions []session.GuildPosition, id uint32) string {
+	for _, position := range positions {
+		if position.PositionID == id {
+			return guildPositionTitle(position)
+		}
+	}
+	return fmt.Sprintf("Position %d", id)
+}
+
+func guildPositionTitle(position session.GuildPosition) string {
+	if title := strings.TrimSpace(position.PosName); title != "" {
+		return title
+	}
+	return fmt.Sprintf("Position %d", position.PositionID)
+}
+
+func guildRightLabel(enabled bool) string {
+	if enabled {
+		return "Yes"
+	}
+	return "-"
 }
 
 func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
@@ -426,7 +502,17 @@ func guildWindowSnapshot(s *session.Session) string {
 			member.Memo,
 		)
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d%s",
+	positionSnapshot := strings.Builder{}
+	for _, position := range s.Guild.Positions {
+		fmt.Fprintf(&positionSnapshot, "|%d:%d:%d:%d:%s",
+			position.PositionID,
+			position.Right,
+			position.Ranking,
+			position.PayRate,
+			position.PosName,
+		)
+	}
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d%s%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
@@ -444,6 +530,7 @@ func guildWindowSnapshot(s *session.Session) string {
 		s.Guild.Name,
 		s.Guild.Zeny,
 		memberSnapshot.String(),
+		positionSnapshot.String(),
 	)
 }
 
