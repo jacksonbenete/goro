@@ -164,6 +164,7 @@ Mostly done:
      * Accessory equip/unequip
      * Performance actions
      * Emotes and talk bubbles
+     * Feeding emotion reactions
      * Familiarity-gated client-side talk triggers
    * Friends
    * Parties

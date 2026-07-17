@@ -67,6 +67,7 @@
   - [x] Pet status window and rename: 0x01A5
   - [x] Select egg UI / hatch pet: 0x01A6, 0x01A7
   - [x] Pet emotion and pettalktable-backed talk: 0x01A9, 0x01AA
+  - [x] Feeding emotion reactions using roBrowser's pet emotion table
   - [x] Familiarity-gated client-side talk triggers for feeding, hunting, danger, death, and level-up
 
   Homunculus / Mercenary

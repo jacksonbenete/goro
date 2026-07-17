@@ -37,6 +37,41 @@ func TestPetHungryStateMatchesROBrowserBuckets(t *testing.T) {
 	}
 }
 
+func TestPetFriendlyStateMatchesROBrowserBuckets(t *testing.T) {
+	cases := []struct {
+		relationship int
+		want         int
+	}{
+		{0, 0},
+		{100, 0},
+		{101, 1},
+		{250, 1},
+		{251, 2},
+		{750, 2},
+		{751, 3},
+		{900, 3},
+		{901, 4},
+		{1000, 4},
+	}
+	for _, tc := range cases {
+		if got := petFriendlyState(tc.relationship); got != tc.want {
+			t.Fatalf("petFriendlyState(%d) = %d, want %d", tc.relationship, got, tc.want)
+		}
+	}
+}
+
+func TestPetEmotionTableMatchesROBrowserFeedingEntries(t *testing.T) {
+	if got := petEmotion(0, 0, petTalkFeeding); got != 32 {
+		t.Fatalf("hungry ashamed feeding emotion = %d, want 32", got)
+	}
+	if got := petEmotion(4, 4, petTalkFeeding); got != 20 {
+		t.Fatalf("full familiar feeding emotion = %d, want 20", got)
+	}
+	if got := petEmotion(0, 0, 99); got != -1 {
+		t.Fatalf("out of range emotion = %d, want -1", got)
+	}
+}
+
 func TestPetTalkJobUsesActorJobBeforePropertyJob(t *testing.T) {
 	mode := NewWorldMode()
 	mode.petID = 123

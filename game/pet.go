@@ -44,6 +44,44 @@ const (
 	petTalkCooldown          = 10 * time.Second
 )
 
+var petEmotionTable = [5][5][7]int{
+	{
+		{32, 32, 29, 29, 7, 23, 28},
+		{32, 32, 29, 29, 7, 7, 5},
+		{20, 32, -1, 32, 5, 20, 10},
+		{33, -1, -1, 10, 20, 10, 6},
+		{18, -1, -1, 20, 33, 2, 6},
+	},
+	{
+		{20, 32, 29, 29, 32, 32, 5},
+		{20, 32, -1, 32, 29, 32, 32},
+		{33, -1, -1, 10, 20, 10, 6},
+		{18, -1, -1, 20, 33, 2, 6},
+		{15, -1, -1, 19, 3, 2, 21},
+	},
+	{
+		{32, 32, -1, 32, 29, 5, 32},
+		{20, -1, -1, 10, 10, 10, 20},
+		{33, -1, -1, 20, 33, 2, 6},
+		{18, -1, -1, 19, 18, 2, 21},
+		{15, 21, -1, 23, 4, 33, 21},
+	},
+	{
+		{32, -1, -1, 10, 10, 10, 20},
+		{32, -1, -1, 20, 20, 20, 10},
+		{20, -1, -1, 19, 21, 2, 6},
+		{33, 21, 19, 23, 3, 33, 21},
+		{18, 21, 26, 28, 30, 22, 18},
+	},
+	{
+		{23, -1, -1, 20, 20, 20, 9},
+		{32, -1, -1, 19, 20, 0, 0},
+		{32, 21, 19, 23, 18, 33, 21},
+		{20, 21, 26, 28, 3, 18, 18},
+		{20, 21, 26, 28, 30, 18, 30},
+	},
+}
+
 type petCaptureState struct {
 	active  bool
 	started time.Time
@@ -154,6 +192,7 @@ func (m *WorldMode) applyPetFeedResult(ctx client.Context, result network.PetFee
 	}
 	if result.Success {
 		m.ui.console.AddBlueMessage("Fed pet with %s.", name)
+		m.sendPetFeedEmotion(ctx)
 		m.sendPetTalk(ctx, petTalkFeeding)
 	} else {
 		m.ui.console.AddErrorMessage("Failed to feed pet with %s.", name)
@@ -273,6 +312,23 @@ func (m *WorldMode) sendPetTalk(ctx client.Context, action int) bool {
 	return true
 }
 
+func (m *WorldMode) sendPetFeedEmotion(ctx client.Context) bool {
+	if ctx.Network == nil || !m.hasPetProperty {
+		return false
+	}
+	emotion := petEmotion(petHungryState(int(m.petOldFullness)), petFriendlyState(int(m.petProperty.Relationship)), petTalkFeeding)
+	if emotion < 0 {
+		return false
+	}
+	data := uint32(emotion*10 + 2)
+	if err := ctx.Network.SendPetAct(data); err != nil {
+		log.Printf("send pet feed emotion failed emotion=%d data=%d: %v", emotion, data, err)
+		return false
+	}
+	log.Printf("pet feed emotion requested emotion=%d data=%d", emotion, data)
+	return true
+}
+
 func (m *WorldMode) applyPetTalkParameterChange(ctx client.Context, change network.ParameterChange, previousHP int, previousBaseLevel int) {
 	if ctx.Session == nil {
 		return
@@ -341,6 +397,34 @@ func petHungryState(fullness int) int {
 	default:
 		return 0
 	}
+}
+
+func petFriendlyState(relationship int) int {
+	switch {
+	case relationship > 900 && relationship <= 1000:
+		return 4
+	case relationship > 750 && relationship <= 900:
+		return 3
+	case relationship > 250 && relationship <= 750:
+		return 2
+	case relationship > 100 && relationship <= 250:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func petEmotion(hunger int, friendly int, action int) int {
+	if hunger < 0 || hunger >= len(petEmotionTable) {
+		return -1
+	}
+	if friendly < 0 || friendly >= len(petEmotionTable[hunger]) {
+		return -1
+	}
+	if action < 0 || action >= len(petEmotionTable[hunger][friendly]) {
+		return -1
+	}
+	return petEmotionTable[hunger][friendly][action]
 }
 
 func (m *WorldMode) startPetPerformance(ctx client.Context, id uint32, data uint32) {
