@@ -90,7 +90,7 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 	api := b.state.NewTable()
 	b.state.SetFuncs(api, map[string]lua.LGFunction{
 		"enemies": func(L *lua.LState) int {
-			L.Push(luaEnemyList(L, ctx))
+			L.Push(luaEnemyList(L, ctx, mode.actorDeaths))
 			return 1
 		},
 		"items": func(L *lua.LState) int {
@@ -158,7 +158,7 @@ func (m *WorldMode) scriptLoot(ctx client.Context, id uint32) bool {
 	return true
 }
 
-func luaEnemyList(L *lua.LState, ctx client.Context) *lua.LTable {
+func luaEnemyList(L *lua.LState, ctx client.Context, actorDeaths map[uint32]time.Time) *lua.LTable {
 	result := L.NewTable()
 	if ctx.World == nil {
 		return result
@@ -167,6 +167,9 @@ func luaEnemyList(L *lua.LState, ctx client.Context) *lua.LTable {
 	playerX, playerY := currentPlayerCell(ctx, now)
 	ids := make([]int, 0, len(ctx.World.Actors))
 	for id, actor := range ctx.World.Actors {
+		if _, dead := actorDeaths[id]; dead {
+			continue
+		}
 		if actorCanBeAttackClicked(ctx, actor) {
 			ids = append(ids, int(id))
 		}

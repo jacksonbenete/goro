@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/session"
@@ -69,6 +70,21 @@ end
 	assertLuaNumber(t, seen, "enemy_id", 300)
 	assertLuaNumber(t, seen, "items", 1)
 	assertLuaNumber(t, seen, "item_id", 501)
+}
+
+func TestLuaBotDoesNotExposeDyingEnemies(t *testing.T) {
+	sess := session.New()
+	sess.CharID = 2000000
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: sess.CharID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "Poring", X: 12, Y: 21, ObjectType: actorObjectTypeMob, HasObjectType: true}
+
+	enemies := luaEnemyList(lua.NewState(), client.Context{Session: sess, World: world}, map[uint32]time.Time{
+		300: time.Now().Add(time.Second),
+	})
+	if enemies.Len() != 0 {
+		t.Fatalf("enemies len = %d, want 0", enemies.Len())
+	}
 }
 
 func assertLuaNumber(t *testing.T, table *lua.LTable, key string, want float64) {
