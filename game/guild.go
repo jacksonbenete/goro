@@ -122,6 +122,7 @@ func applyLocalGuildName(ctx client.Context, name string) {
 func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 	applyLocalGuildInfo(ctx, info.GuildID, info.EmblemVersion, info.GuildName)
 	if ctx.Session != nil {
+		members := ctx.Session.Guild.Members
 		ctx.Session.Guild = session.Guild{
 			ID:               info.GuildID,
 			Level:            info.Level,
@@ -138,8 +139,38 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 			MasterName:       strings.TrimSpace(info.MasterName),
 			ManageLand:       strings.TrimSpace(info.ManageLand),
 			Zeny:             info.Zeny,
+			Members:          members,
 		}
 	}
+}
+
+func applyLocalGuildMembers(ctx client.Context, members []network.GuildMember) {
+	if ctx.Session == nil {
+		return
+	}
+	ctx.Session.Guild.Members = make([]session.GuildMember, 0, len(members))
+	var online uint32
+	for _, member := range members {
+		if member.CurrentState != 0 {
+			online++
+		}
+		ctx.Session.Guild.Members = append(ctx.Session.Guild.Members, session.GuildMember{
+			AccountID:    member.AccountID,
+			CharID:       member.CharID,
+			HeadType:     member.HeadType,
+			HeadPalette:  member.HeadPalette,
+			Sex:          member.Sex,
+			Job:          member.Job,
+			Level:        member.Level,
+			MemberExp:    member.MemberExp,
+			CurrentState: member.CurrentState,
+			PositionID:   member.PositionID,
+			Memo:         strings.TrimSpace(member.Memo),
+			CharName:     strings.TrimSpace(member.CharName),
+		})
+	}
+	ctx.Session.Guild.UserNum = uint32(len(members))
+	glog.Debugf("guild member list received members=%d online=%d", len(members), online)
 }
 
 func applyLocalGuildInfo(ctx client.Context, guildID, emblemVersion uint32, name string) {

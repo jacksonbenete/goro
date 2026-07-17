@@ -210,6 +210,22 @@ type Guild struct {
 	MasterName       string
 	ManageLand       string
 	Zeny             uint32
+	Members          []GuildMember
+}
+
+type GuildMember struct {
+	AccountID    uint32
+	CharID       uint32
+	HeadType     uint16
+	HeadPalette  uint16
+	Sex          uint16
+	Job          uint16
+	Level        uint16
+	MemberExp    uint32
+	CurrentState uint32
+	PositionID   uint32
+	Memo         string
+	CharName     string
 }
 
 type Vitals struct {

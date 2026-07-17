@@ -73,6 +73,27 @@ func TestParseGuildPackets(t *testing.T) {
 		t.Fatalf("ParseGuildInfo2 ok=%t err=%v info=%+v", ok, err, parsedInfo2)
 	}
 
+	members := make([]byte, 4+104)
+	binary.LittleEndian.PutUint16(members[0:2], PacketZCGuildMembers)
+	binary.LittleEndian.PutUint16(members[2:4], uint16(len(members)))
+	member := members[4:]
+	binary.LittleEndian.PutUint32(member[0:4], 0x01020304)
+	binary.LittleEndian.PutUint32(member[4:8], 0x05060708)
+	binary.LittleEndian.PutUint16(member[8:10], 3)
+	binary.LittleEndian.PutUint16(member[10:12], 4)
+	binary.LittleEndian.PutUint16(member[12:14], 1)
+	binary.LittleEndian.PutUint16(member[14:16], 4)
+	binary.LittleEndian.PutUint16(member[16:18], 55)
+	binary.LittleEndian.PutUint32(member[18:22], 12345)
+	binary.LittleEndian.PutUint32(member[22:26], 1)
+	binary.LittleEndian.PutUint32(member[26:30], 2)
+	copyFixedName(member[30:80], "Memo")
+	copyFixedName(member[80:104], "Arcer")
+	parsedMembers, ok, err := ParseGuildMembers(Packet{ID: PacketZCGuildMembers, Data: members})
+	if !ok || err != nil || len(parsedMembers) != 1 || parsedMembers[0].CharName != "Arcer" || parsedMembers[0].Memo != "Memo" || parsedMembers[0].Level != 55 || parsedMembers[0].PositionID != 2 {
+		t.Fatalf("ParseGuildMembers ok=%t err=%v members=%+v", ok, err, parsedMembers)
+	}
+
 	belonging := make([]byte, 43)
 	binary.LittleEndian.PutUint16(belonging[0:2], PacketZCUpdateGuildID)
 	binary.LittleEndian.PutUint32(belonging[2:6], 0x01020304)
@@ -141,6 +162,7 @@ func TestGuildPacketDirections(t *testing.T) {
 		PacketZCResultMakeGuild: 3,
 		PacketZCAckReqJoinGuild: 3,
 		PacketZCReqJoinGuild:    30,
+		PacketZCGuildMembers:    -1,
 		PacketZCUpdateGuildID:   43,
 		PacketZCGuildEmblem:     -1,
 		PacketZCChangeGuild:     12,

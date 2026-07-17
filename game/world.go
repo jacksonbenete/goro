@@ -890,6 +890,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.requestActorGuildEmblem(ctx, guildInfo.GuildID, guildInfo.EmblemVersion)
 			continue
 		}
+		if guildMembers, ok, err := network.ParseGuildMembers(pkt); err != nil {
+			glog.Errorf("parse guild members 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyLocalGuildMembers(ctx, guildMembers)
+			continue
+		}
 		if guildEmblem, ok, err := network.ParseGuildEmblemImage(pkt); err != nil {
 			glog.Errorf("parse guild emblem 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1586,6 +1592,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.guildWindow.Update(ctx) {
+		if action := m.ui.guildWindow.PopAction(); action.RequestMenu {
+			m.requestGuildWindowTab(ctx, action.MenuTab)
+		}
 		return nil, nil
 	}
 	if m.ui.friendSettings.Update(ctx) {
@@ -1732,10 +1741,21 @@ func (m *WorldMode) toggleGuildWindow(ctx client.Context) {
 	if wasOpen || !m.ui.guildWindow.IsOpen() || ctx.Network == nil {
 		return
 	}
-	if err := ctx.Network.SendGuildMenuRequest(0); err != nil {
+	m.requestGuildWindowTab(ctx, 0)
+}
+
+func (m *WorldMode) requestGuildWindowTab(ctx client.Context, tab uint32) {
+	if ctx.Network == nil {
 		m.ui.console.AddErrorMessage("Guild info request failed.")
+		return
 	}
-	m.requestSessionGuildEmblem(ctx)
+	if err := ctx.Network.SendGuildMenuRequest(tab); err != nil {
+		m.ui.console.AddErrorMessage("Guild info request failed.")
+		glog.Warnf("guild menu request failed tab=%d: %v", tab, err)
+	}
+	if tab == 0 {
+		m.requestSessionGuildEmblem(ctx)
+	}
 }
 
 func (m *WorldMode) requestSessionGuildEmblem(ctx client.Context) {

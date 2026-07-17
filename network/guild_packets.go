@@ -17,6 +17,7 @@ const (
 	PacketCZJoinGuild       uint16 = 0x016B
 	PacketZCGuildInfo       uint16 = 0x0150
 	PacketZCGuildInfo2      uint16 = 0x01B6
+	PacketZCGuildMembers    uint16 = 0x0154
 	PacketZCUpdateGuildID   uint16 = 0x016C
 	PacketCZReqGuildMenu    uint16 = 0x014F
 	PacketCZReqGuildEmblem  uint16 = 0x0151
@@ -66,6 +67,21 @@ type GuildInfo struct {
 	Zeny             uint32
 }
 
+type GuildMember struct {
+	AccountID    uint32
+	CharID       uint32
+	HeadType     uint16
+	HeadPalette  uint16
+	Sex          uint16
+	Job          uint16
+	Level        uint16
+	MemberExp    uint32
+	CurrentState uint32
+	PositionID   uint32
+	Memo         string
+	CharName     string
+}
+
 type GuildEmblemImage struct {
 	GuildID       uint32
 	EmblemVersion uint32
@@ -76,6 +92,39 @@ type GuildEmblemChange struct {
 	ActorID       uint32
 	GuildID       uint32
 	EmblemVersion uint32
+}
+
+func ParseGuildMembers(packet Packet) ([]GuildMember, bool, error) {
+	if packet.ID != PacketZCGuildMembers {
+		return nil, false, nil
+	}
+	const entrySize = 104
+	if len(packet.Data) < 4 {
+		return nil, true, fmt.Errorf("ZC_MEMBERMGR_INFO too short: %d", len(packet.Data))
+	}
+	if (len(packet.Data)-4)%entrySize != 0 {
+		return nil, true, fmt.Errorf("ZC_MEMBERMGR_INFO invalid length: %d", len(packet.Data))
+	}
+	body := packet.Data[4:]
+	members := make([]GuildMember, 0, len(body)/entrySize)
+	for offset := 0; offset < len(body); offset += entrySize {
+		entry := body[offset : offset+entrySize]
+		members = append(members, GuildMember{
+			AccountID:    binary.LittleEndian.Uint32(entry[0:4]),
+			CharID:       binary.LittleEndian.Uint32(entry[4:8]),
+			HeadType:     binary.LittleEndian.Uint16(entry[8:10]),
+			HeadPalette:  binary.LittleEndian.Uint16(entry[10:12]),
+			Sex:          binary.LittleEndian.Uint16(entry[12:14]),
+			Job:          binary.LittleEndian.Uint16(entry[14:16]),
+			Level:        binary.LittleEndian.Uint16(entry[16:18]),
+			MemberExp:    binary.LittleEndian.Uint32(entry[18:22]),
+			CurrentState: binary.LittleEndian.Uint32(entry[22:26]),
+			PositionID:   binary.LittleEndian.Uint32(entry[26:30]),
+			Memo:         decodeROFixedString(entry[30:80]),
+			CharName:     decodeROFixedString(entry[80:104]),
+		})
+	}
+	return members, true, nil
 }
 
 func ParseGuildInfo(packet Packet) (GuildInfo, bool, error) {

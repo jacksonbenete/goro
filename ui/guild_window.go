@@ -3,10 +3,13 @@ package ui
 import (
 	"fmt"
 	"image"
+	"math"
 	"strings"
 
+	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
@@ -23,7 +26,13 @@ type GuildWindow struct {
 	Window
 	tab         guildWindowTab
 	snapshot    string
+	action      GuildWindowAction
 	EmblemImage func(Context) image.Image
+}
+
+type GuildWindowAction struct {
+	RequestMenu bool
+	MenuTab     uint32
 }
 
 type guildWindowTab int
@@ -86,6 +95,12 @@ func (w *GuildWindow) Update(ctx Context) bool {
 	return consumed
 }
 
+func (w *GuildWindow) PopAction() GuildWindowAction {
+	action := w.action
+	w.action = GuildWindowAction{}
+	return action
+}
+
 func (w *GuildWindow) Rebind(ctx Context) {
 	w.EnsureWindow(guildWindowWidth, guildWindowHeight)
 	if !w.IsOpen() {
@@ -127,6 +142,7 @@ func (w *GuildWindow) tabStrip() widget.Widget {
 				blendInset: 1,
 				onClick: func() {
 					w.tab = def.tab
+					w.action = GuildWindowAction{RequestMenu: true, MenuTab: uint32(def.tab)}
 					w.refresh(w.ctx)
 				},
 			}),
@@ -144,7 +160,7 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	case guildWindowTabInfo:
 		return w.infoTab(ctx)
 	case guildWindowTabMembers:
-		return guildWindowPlaceholder("Guild member information is not loaded yet.")
+		return w.membersTab(ctx)
 	case guildWindowTabPositions:
 		return guildWindowPlaceholder("Guild positions are not loaded yet.")
 	case guildWindowTabSkills:
@@ -156,6 +172,93 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	default:
 		return guildWindowPlaceholder("")
 	}
+}
+
+func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
+	members := guildSessionInfo(ctx.Session).Members
+	rows := make([]widget.Widget, 0, len(members)+1)
+	rows = append(rows, guildMemberHeaderRow())
+	totalExp := guildMembersTotalExp(members)
+	if len(members) == 0 {
+		rows = append(rows,
+			primitives.Box(rotheme.Text("No guild members loaded.")).
+				Height(24).
+				PaddingXY(4, 4).
+				Background(rotheme.Default.Colors.WindowBody),
+		)
+	}
+	for i, member := range members {
+		rows = append(rows, guildMemberRow(member, totalExp, i%2 == 0))
+	}
+	return primitives.Box(
+		scrollview.New(
+			primitives.Box(rows...),
+			scrollview.DirectionOpt(scrollview.Vertical),
+			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
+			scrollview.ScrollStep(20),
+		),
+	).
+		PaddingXY(7, 7).
+		Background(rotheme.Default.Colors.WindowBody)
+}
+
+func guildMemberHeaderRow() widget.Widget {
+	return primitives.HBox(
+		guildMemberCell("Name", 78, true, false),
+		guildMemberCell("Position", 62, true, false),
+		guildMemberCell("Job", 52, true, false),
+		guildMemberCell("Lv", 26, true, false),
+		guildMemberCell("Note", 62, true, false),
+		guildMemberCell("Dev.", 38, true, false),
+		guildMemberCell("Tax", 42, true, false),
+	).Height(20)
+}
+
+func guildMemberRow(member session.GuildMember, totalExp uint32, dark bool) widget.Widget {
+	return primitives.HBox(
+		guildMemberCell(guildText(member.CharName), 78, false, dark),
+		guildMemberCell(guildMemberPosition(member.PositionID), 62, false, dark),
+		guildMemberCell(db.JobDisplayName(int(member.Job)), 52, false, dark),
+		guildMemberCell(fmt.Sprintf("%d", member.Level), 26, false, dark),
+		guildMemberCell(member.Memo, 62, false, dark),
+		guildMemberCell(guildMemberDevotion(member.MemberExp, totalExp), 38, false, dark),
+		guildMemberCell(fmt.Sprintf("%d", member.MemberExp), 42, false, dark),
+	).Height(20)
+}
+
+func guildMemberCell(text string, width float32, header, dark bool) widget.Widget {
+	text = trimRunes(strings.TrimSpace(text), int(width/7))
+	bg := rotheme.Default.Colors.WindowBody
+	if header {
+		bg = rotheme.Default.Colors.WindowTitle
+	} else if dark {
+		bg = rotheme.Default.Colors.PanelBody
+	}
+	return primitives.Box(rotheme.Text(text)).
+		Width(width).
+		Height(20).
+		PaddingLeft(4).
+		CrossAlign(primitives.CrossAxisCenter).
+		Background(bg)
+}
+
+func guildMembersTotalExp(members []session.GuildMember) uint32 {
+	var total uint32
+	for _, member := range members {
+		total += member.MemberExp
+	}
+	return total
+}
+
+func guildMemberPosition(id uint32) string {
+	return fmt.Sprintf("Position %d", id)
+}
+
+func guildMemberDevotion(memberExp, totalExp uint32) string {
+	if memberExp == 0 || totalExp == 0 {
+		return "0 %"
+	}
+	return fmt.Sprintf("%d %%", int(math.Round(float64(memberExp)/float64(totalExp)*100)))
 }
 
 func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
@@ -309,7 +412,21 @@ func guildWindowSnapshot(s *session.Session) string {
 	if s == nil {
 		return ""
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d",
+	memberSnapshot := strings.Builder{}
+	for _, member := range s.Guild.Members {
+		fmt.Fprintf(&memberSnapshot, "|%d:%d:%d:%d:%d:%d:%d:%s:%s",
+			member.AccountID,
+			member.CharID,
+			member.Job,
+			member.Level,
+			member.MemberExp,
+			member.CurrentState,
+			member.PositionID,
+			member.CharName,
+			member.Memo,
+		)
+	}
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
@@ -326,6 +443,7 @@ func guildWindowSnapshot(s *session.Session) string {
 		s.Guild.ManageLand,
 		s.Guild.Name,
 		s.Guild.Zeny,
+		memberSnapshot.String(),
 	)
 }
 
