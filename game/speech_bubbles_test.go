@@ -30,3 +30,12 @@ func TestApplySpeechBubbleUsesLocalActorIDsForLocalEcho(t *testing.T) {
 		t.Fatalf("account bubble = %+v, want hello", mode.speechBubbles[2000000])
 	}
 }
+
+func TestPetTalkUsesPetNameAsSpeaker(t *testing.T) {
+	mode := NewWorldMode()
+	mode.petProperty = network.PetProperty{Name: "Sakurai"}
+	mode.applyPetTalk(client.Context{}, 123, "foo", time.Now())
+	if mode.speechBubbles[123].text != "foo" {
+		t.Fatalf("pet bubble = %+v, want foo", mode.speechBubbles[123])
+	}
+}

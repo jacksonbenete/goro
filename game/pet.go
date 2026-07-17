@@ -116,9 +116,6 @@ func (m *WorldMode) applyPetProperty(ctx client.Context, property network.PetPro
 		m.petInfoRequested = false
 		m.ui.petInfoWindow.OpenInfo(ctx, property)
 	}
-	if strings.TrimSpace(property.Name) != "" {
-		m.ui.console.AddSystemMessage("Pet: %s", property.Name)
-	}
 }
 
 func (m *WorldMode) applyPetFeedResult(ctx client.Context, result network.PetFeedResult) {
@@ -171,7 +168,36 @@ func (m *WorldMode) applyPetAction(ctx client.Context, action network.PetAction)
 		log.Printf("pet emotion actor=%d data=%d type=%d", action.ID, action.Data, emotionType)
 		return
 	}
-	log.Printf("pet talk actor=%d data=%d ignored=no_pet_talk_table", action.ID, action.Data)
+	if ctx.Resources == nil {
+		log.Printf("pet talk actor=%d data=%d ignored=no_resources", action.ID, action.Data)
+		return
+	}
+	text, ok := ctx.Resources.PetTalk(action.Data)
+	if !ok {
+		log.Printf("pet talk actor=%d data=%d ignored=missing_text", action.ID, action.Data)
+		return
+	}
+	m.applyPetTalk(ctx, action.ID, text, time.Now())
+	log.Printf("pet talk actor=%d data=%d text=%q", action.ID, action.Data, text)
+}
+
+func (m *WorldMode) applyPetTalk(ctx client.Context, id uint32, text string, now time.Time) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
+	name := strings.TrimSpace(m.petProperty.Name)
+	if ctx.World != nil {
+		if actor, ok := ctx.World.Actors[id]; ok && strings.TrimSpace(actor.Name) != "" {
+			name = strings.TrimSpace(actor.Name)
+		}
+	}
+	if name == "" {
+		name = "Pet"
+	}
+	chat := network.ChatMessage{GID: id, Text: fmt.Sprintf("%s : %s", name, text)}
+	m.applySpeechBubble(ctx, chat, now)
+	addConsoleMessage(&m.ui.console, ctx.Resources, chat)
 }
 
 func (m *WorldMode) startPetPerformance(ctx client.Context, id uint32, data uint32) {

@@ -38,6 +38,8 @@ type Manager struct {
 	skillDisplayNames        map[int]string
 	skillDescriptions        map[int][]string
 	skillMetadataLoaded      bool
+	petTalks                 map[string]map[string]map[string][]string
+	petTalksLoaded           bool
 }
 
 type CameraViewPoint struct {
