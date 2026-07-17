@@ -30,10 +30,11 @@ like ROBrowser Legacy and Open Midgard and their reverse engineering efforts.
 - Support more Ragnarok Online client versions.
 - Support optional anti-cheat and security features.
 
-## Run
+## Build and Run
 
 ```sh
-CGO_ENABLED=0 go run -tags nofakecgo .
+CGO_ENABLED=0 go build -tags nofakecgo .
+./goro
 ```
 
 Configuration is loaded from `goro.ini` in the current directory when the file
@@ -79,12 +80,18 @@ Useful options:
 --bgm=false
 --bgm-volume 0.35
 --graphics-api gles # fallback if Vulkan is unavailable
+--vsync=false # unlock fps
+--username <username> # prefill the username in login window
+--password <password> # same for password
+--autologin=true # perform server connection and login on startup
 ```
 
 ## Getting Started
 
-- [Client data setup](docs/client-setup.md)
-- [rAthena setup and required patches](docs/rathena-setup.md)
+These are tutorials on how to setup a development environment.
+
+- [Server setup](docs/rathena-setup.md)
+- [Client setup](docs/client-setup.md)
 
 Runtime data is discovered from, in order:
 
