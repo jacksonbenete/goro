@@ -132,6 +132,47 @@ func (m *WorldMode) uploadGuildEmblem(ctx client.Context, path string) {
 	m.ui.console.AddSystemMessage("Guild emblem uploaded.")
 }
 
+func (m *WorldMode) changeGuildMemberPosition(ctx client.Context, accountID, charID, positionID uint32) {
+	if ctx.Network == nil {
+		m.ui.console.AddErrorMessage("Guild member position update failed: not connected.")
+		return
+	}
+	if ctx.Session == nil {
+		m.ui.console.AddErrorMessage("Guild member position update failed.")
+		return
+	}
+	members := make([]network.GuildMemberPosition, 0, len(ctx.Session.Guild.Members))
+	found := false
+	for _, member := range ctx.Session.Guild.Members {
+		nextPositionID := member.PositionID
+		if member.AccountID == accountID && member.CharID == charID {
+			nextPositionID = positionID
+			found = true
+		}
+		members = append(members, network.GuildMemberPosition{
+			AccountID:  member.AccountID,
+			CharID:     member.CharID,
+			PositionID: nextPositionID,
+		})
+	}
+	if !found {
+		m.ui.console.AddErrorMessage("Guild member position update failed: member not found.")
+		return
+	}
+	if err := ctx.Network.SendGuildMemberPositions(members); err != nil {
+		m.ui.console.AddErrorMessage("Guild member position update failed.")
+		glog.Warnf("guild member position update failed account=%d char=%d position=%d: %v", accountID, charID, positionID, err)
+		return
+	}
+	for i := range ctx.Session.Guild.Members {
+		if ctx.Session.Guild.Members[i].AccountID == accountID && ctx.Session.Guild.Members[i].CharID == charID {
+			ctx.Session.Guild.Members[i].PositionID = positionID
+			break
+		}
+	}
+	m.ui.guildWindow.Refresh(ctx)
+}
+
 func localGuildEmblemOptions(dataDir string) []gameui.GuildEmblemOption {
 	if strings.TrimSpace(dataDir) == "" {
 		return nil
@@ -193,9 +234,17 @@ func applyLocalGuildName(ctx client.Context, name string) {
 	applyLocalGuildInfo(ctx, 0, 0, name)
 }
 
+func applyLocalGuildBelonging(ctx client.Context, belonging network.GuildBelonging) {
+	applyLocalGuildInfo(ctx, belonging.GuildID, belonging.EmblemVersion, belonging.GuildName)
+	if ctx.Session != nil {
+		ctx.Session.Guild.IsMaster = belonging.IsMaster
+	}
+}
+
 func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 	applyLocalGuildInfo(ctx, info.GuildID, info.EmblemVersion, info.GuildName)
 	if ctx.Session != nil {
+		isMaster := ctx.Session.Guild.IsMaster
 		members := ctx.Session.Guild.Members
 		positions := ctx.Session.Guild.Positions
 		skillPoints := ctx.Session.Guild.SkillPoints
@@ -205,6 +254,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 		notice := ctx.Session.Guild.Notice
 		ctx.Session.Guild = session.Guild{
 			ID:               info.GuildID,
+			IsMaster:         isMaster,
 			Level:            info.Level,
 			UserNum:          info.UserNum,
 			MaxUserNum:       info.MaxUserNum,
@@ -240,23 +290,44 @@ func applyLocalGuildMembers(ctx client.Context, members []network.GuildMember) {
 		if member.CurrentState != 0 {
 			online++
 		}
-		ctx.Session.Guild.Members = append(ctx.Session.Guild.Members, session.GuildMember{
-			AccountID:    member.AccountID,
-			CharID:       member.CharID,
-			HeadType:     member.HeadType,
-			HeadPalette:  member.HeadPalette,
-			Sex:          member.Sex,
-			Job:          member.Job,
-			Level:        member.Level,
-			MemberExp:    member.MemberExp,
-			CurrentState: member.CurrentState,
-			PositionID:   member.PositionID,
-			Memo:         strings.TrimSpace(member.Memo),
-			CharName:     strings.TrimSpace(member.CharName),
-		})
+		ctx.Session.Guild.Members = append(ctx.Session.Guild.Members, sessionGuildMemberFromNetwork(member))
 	}
 	ctx.Session.Guild.UserNum = uint32(len(members))
 	glog.Debugf("guild member list received members=%d online=%d", len(members), online)
+}
+
+func applyLocalGuildMember(ctx client.Context, member network.GuildMember) {
+	if ctx.Session == nil {
+		return
+	}
+	sessionMember := sessionGuildMemberFromNetwork(member)
+	for i := range ctx.Session.Guild.Members {
+		if ctx.Session.Guild.Members[i].AccountID == sessionMember.AccountID && ctx.Session.Guild.Members[i].CharID == sessionMember.CharID {
+			ctx.Session.Guild.Members[i] = sessionMember
+			glog.Debugf("guild member updated account=%d char=%d position=%d", sessionMember.AccountID, sessionMember.CharID, sessionMember.PositionID)
+			return
+		}
+	}
+	ctx.Session.Guild.Members = append(ctx.Session.Guild.Members, sessionMember)
+	ctx.Session.Guild.UserNum = uint32(len(ctx.Session.Guild.Members))
+	glog.Debugf("guild member added account=%d char=%d position=%d", sessionMember.AccountID, sessionMember.CharID, sessionMember.PositionID)
+}
+
+func sessionGuildMemberFromNetwork(member network.GuildMember) session.GuildMember {
+	return session.GuildMember{
+		AccountID:    member.AccountID,
+		CharID:       member.CharID,
+		HeadType:     member.HeadType,
+		HeadPalette:  member.HeadPalette,
+		Sex:          member.Sex,
+		Job:          member.Job,
+		Level:        member.Level,
+		MemberExp:    member.MemberExp,
+		CurrentState: member.CurrentState,
+		PositionID:   member.PositionID,
+		Memo:         strings.TrimSpace(member.Memo),
+		CharName:     strings.TrimSpace(member.CharName),
+	}
 }
 
 func applyLocalGuildPositions(ctx client.Context, positions []network.GuildPosition) {

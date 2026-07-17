@@ -5,6 +5,7 @@ import (
 	"image"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/gogpu/ui/core/dropdown"
@@ -37,9 +38,13 @@ type GuildWindow struct {
 }
 
 type GuildWindowAction struct {
-	RequestMenu        bool
-	MenuTab            uint32
-	SelectedEmblemPath string
+	RequestMenu          bool
+	MenuTab              uint32
+	SelectedEmblemPath   string
+	ChangeMemberPosition bool
+	MemberAccountID      uint32
+	MemberCharID         uint32
+	MemberPositionID     uint32
 }
 
 type GuildEmblemOption struct {
@@ -208,7 +213,7 @@ func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
 		)
 	}
 	for i, member := range members {
-		rows = append(rows, guildMemberRow(member, guild.Positions, totalExp, i%2 == 0))
+		rows = append(rows, w.guildMemberRow(member, guild.Positions, guild.IsMaster, totalExp, i%2 == 0))
 	}
 	return primitives.Box(
 		scrollview.New(
@@ -234,10 +239,10 @@ func guildMemberHeaderRow() widget.Widget {
 	).Height(20)
 }
 
-func guildMemberRow(member session.GuildMember, positions []session.GuildPosition, totalExp uint32, dark bool) widget.Widget {
+func (w *GuildWindow) guildMemberRow(member session.GuildMember, positions []session.GuildPosition, isMaster bool, totalExp uint32, dark bool) widget.Widget {
 	return primitives.HBox(
 		guildMemberCell(guildText(member.CharName), 78, false, dark),
-		guildMemberCell(guildPositionName(positions, member.PositionID), 62, false, dark),
+		w.guildMemberPositionCell(member, positions, isMaster, dark),
 		guildMemberCell(db.JobDisplayName(int(member.Job)), 52, false, dark),
 		guildMemberCell(fmt.Sprintf("%d", member.Level), 26, false, dark),
 		guildMemberCell(member.Memo, 62, false, dark),
@@ -246,13 +251,55 @@ func guildMemberRow(member session.GuildMember, positions []session.GuildPositio
 	).Height(20)
 }
 
+func (w *GuildWindow) guildMemberPositionCell(member session.GuildMember, positions []session.GuildPosition, isMaster, dark bool) widget.Widget {
+	if !isMaster || member.PositionID == 0 {
+		return guildMemberCell(guildPositionName(positions, member.PositionID), 62, false, dark)
+	}
+	sortedPositions := guildSortedPositions(positions)
+	items := make([]dropdown.ItemDef, 0, len(sortedPositions))
+	selected := -1
+	for i, position := range sortedPositions {
+		if position.PositionID == member.PositionID {
+			selected = i
+		}
+		items = append(items, dropdown.ItemDef{
+			Value: strconv.FormatUint(uint64(position.PositionID), 10),
+			Label: trimRunes(guildPositionTitle(position), 12),
+		})
+	}
+	if len(items) == 0 {
+		return guildMemberCell(guildPositionName(positions, member.PositionID), 62, false, dark)
+	}
+	return primitives.Box(
+		dropdown.New(
+			dropdown.ItemDefs(items),
+			dropdown.Selected(selected),
+			dropdown.MaxVisibleItems(5),
+			dropdown.PainterOpt(rotheme.DropdownPainter{}),
+			dropdown.OnChange(func(_ int, value string) {
+				positionID, err := strconv.ParseUint(value, 10, 32)
+				if err != nil {
+					return
+				}
+				w.action = GuildWindowAction{
+					ChangeMemberPosition: true,
+					MemberAccountID:      member.AccountID,
+					MemberCharID:         member.CharID,
+					MemberPositionID:     uint32(positionID),
+				}
+			}),
+		),
+	).
+		Width(62).
+		Height(20).
+		Background(guildRowBackground(dark))
+}
+
 func guildMemberCell(text string, width float32, header, dark bool) widget.Widget {
 	text = trimRunes(strings.TrimSpace(text), int(width/7))
-	bg := rotheme.Default.Colors.WindowBody
+	bg := guildRowBackground(dark)
 	if header {
 		bg = rotheme.Default.Colors.WindowTitle
-	} else if dark {
-		bg = rotheme.Default.Colors.PanelBody
 	}
 	return primitives.HBox(rotheme.Text(text).Align(widget.TextAlignLeft)).
 		Width(width).
@@ -260,6 +307,13 @@ func guildMemberCell(text string, width float32, header, dark bool) widget.Widge
 		PaddingLeft(4).
 		CrossAlign(primitives.CrossAxisCenter).
 		Background(bg)
+}
+
+func guildRowBackground(dark bool) widget.Color {
+	if dark {
+		return rotheme.Default.Colors.PanelBody
+	}
+	return rotheme.Default.Colors.WindowBody
 }
 
 func guildMembersTotalExp(members []session.GuildMember) uint32 {

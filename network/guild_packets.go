@@ -18,11 +18,16 @@ const (
 	PacketZCGuildInfo       uint16 = 0x0150
 	PacketZCGuildInfo2      uint16 = 0x01B6
 	PacketZCGuildMembers    uint16 = 0x0154
+	PacketCZReqChangeMember uint16 = 0x0155
+	PacketCZReqOpenMember   uint16 = 0x0157
+	PacketZCAckOpenMember   uint16 = 0x0158
 	PacketZCGuildPositions  uint16 = 0x0160
 	PacketZCGuildSkillInfo  uint16 = 0x0162
 	PacketZCGuildBanList    uint16 = 0x0163
 	PacketZCGuildPosNames   uint16 = 0x0166
 	PacketZCGuildNotice     uint16 = 0x016F
+	PacketCZReqGuildMember  uint16 = 0x0175
+	PacketZCGuildMemberInfo uint16 = 0x0176
 	PacketZCUpdateGuildID   uint16 = 0x016C
 	PacketCZReqGuildMenu    uint16 = 0x014F
 	PacketCZReqGuildEmblem  uint16 = 0x0151
@@ -85,6 +90,12 @@ type GuildMember struct {
 	PositionID   uint32
 	Memo         string
 	CharName     string
+}
+
+type GuildMemberPosition struct {
+	AccountID  uint32
+	CharID     uint32
+	PositionID uint32
 }
 
 type GuildPosition struct {
@@ -243,23 +254,37 @@ func ParseGuildMembers(packet Packet) ([]GuildMember, bool, error) {
 	body := packet.Data[4:]
 	members := make([]GuildMember, 0, len(body)/entrySize)
 	for offset := 0; offset < len(body); offset += entrySize {
-		entry := body[offset : offset+entrySize]
-		members = append(members, GuildMember{
-			AccountID:    binary.LittleEndian.Uint32(entry[0:4]),
-			CharID:       binary.LittleEndian.Uint32(entry[4:8]),
-			HeadType:     binary.LittleEndian.Uint16(entry[8:10]),
-			HeadPalette:  binary.LittleEndian.Uint16(entry[10:12]),
-			Sex:          binary.LittleEndian.Uint16(entry[12:14]),
-			Job:          binary.LittleEndian.Uint16(entry[14:16]),
-			Level:        binary.LittleEndian.Uint16(entry[16:18]),
-			MemberExp:    binary.LittleEndian.Uint32(entry[18:22]),
-			CurrentState: binary.LittleEndian.Uint32(entry[22:26]),
-			PositionID:   binary.LittleEndian.Uint32(entry[26:30]),
-			Memo:         decodeROFixedString(entry[30:80]),
-			CharName:     decodeROFixedString(entry[80:104]),
-		})
+		members = append(members, parseGuildMemberEntry(body[offset:offset+entrySize]))
 	}
 	return members, true, nil
+}
+
+func ParseGuildMemberInfo(packet Packet) (GuildMember, bool, error) {
+	if packet.ID != PacketZCGuildMemberInfo {
+		return GuildMember{}, false, nil
+	}
+	if len(packet.Data) < 106 {
+		return GuildMember{}, true, fmt.Errorf("ZC_ACK_GUILD_MEMBER_INFO too short: %d", len(packet.Data))
+	}
+	member := parseGuildMemberEntry(packet.Data[2:106])
+	return member, true, nil
+}
+
+func parseGuildMemberEntry(entry []byte) GuildMember {
+	return GuildMember{
+		AccountID:    binary.LittleEndian.Uint32(entry[0:4]),
+		CharID:       binary.LittleEndian.Uint32(entry[4:8]),
+		HeadType:     binary.LittleEndian.Uint16(entry[8:10]),
+		HeadPalette:  binary.LittleEndian.Uint16(entry[10:12]),
+		Sex:          binary.LittleEndian.Uint16(entry[12:14]),
+		Job:          binary.LittleEndian.Uint16(entry[14:16]),
+		Level:        binary.LittleEndian.Uint16(entry[16:18]),
+		MemberExp:    binary.LittleEndian.Uint32(entry[18:22]),
+		CurrentState: binary.LittleEndian.Uint32(entry[22:26]),
+		PositionID:   binary.LittleEndian.Uint32(entry[26:30]),
+		Memo:         decodeROFixedString(entry[30:80]),
+		CharName:     decodeROFixedString(entry[80:104]),
+	}
 }
 
 func ParseGuildInfo(packet Packet) (GuildInfo, bool, error) {
@@ -403,6 +428,19 @@ func BuildGuildInviteReplyPacket(guildID uint32, accept bool) []byte {
 	return packet
 }
 
+func BuildChangeGuildMemberPositionPacket(members []GuildMemberPosition) []byte {
+	packet := make([]byte, 4+len(members)*12)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqChangeMember)
+	binary.LittleEndian.PutUint16(packet[2:4], uint16(len(packet)))
+	for i, member := range members {
+		offset := 4 + i*12
+		binary.LittleEndian.PutUint32(packet[offset:offset+4], member.AccountID)
+		binary.LittleEndian.PutUint32(packet[offset+4:offset+8], member.CharID)
+		binary.LittleEndian.PutUint32(packet[offset+8:offset+12], member.PositionID)
+	}
+	return packet
+}
+
 func BuildGuildEmblemRequestPacket(guildID uint32) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqGuildEmblem)
@@ -467,6 +505,17 @@ func (c *Client) SendGuildInviteReply(guildID uint32, accept bool) error {
 		glog.Debugf("sent CZ_JOIN_GUILD opcode=0x%04X guild_id=%d accept=%t client_date=%d", ID(packet), guildID, accept, c.clientDate)
 	} else {
 		glog.Warnf("send CZ_JOIN_GUILD failed opcode=0x%04X len=%d guild_id=%d accept=%t client_date=%d: %v", ID(packet), len(packet), guildID, accept, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendGuildMemberPositions(members []GuildMemberPosition) error {
+	packet := BuildChangeGuildMemberPositionPacket(members)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_CHANGE_MEMBERPOS opcode=0x%04X members=%d client_date=%d", ID(packet), len(members), c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_CHANGE_MEMBERPOS failed opcode=0x%04X len=%d members=%d client_date=%d: %v", ID(packet), len(packet), len(members), c.clientDate, err)
 	}
 	return err
 }

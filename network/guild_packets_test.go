@@ -40,6 +40,19 @@ func TestBuildGuildPackets(t *testing.T) {
 	if got := binary.LittleEndian.Uint32(menu[2:6]); got != 3 {
 		t.Fatalf("menu tab = %d", got)
 	}
+
+	changeMember := BuildChangeGuildMemberPositionPacket([]GuildMemberPosition{
+		{AccountID: 0x01020304, CharID: 0x05060708, PositionID: 7},
+	})
+	if len(changeMember) != 16 || ID(changeMember) != PacketCZReqChangeMember {
+		t.Fatalf("BuildChangeGuildMemberPositionPacket len=%d id=0x%04x", len(changeMember), ID(changeMember))
+	}
+	if got := binary.LittleEndian.Uint32(changeMember[4:8]); got != 0x01020304 {
+		t.Fatalf("member account id = 0x%08x", got)
+	}
+	if got := binary.LittleEndian.Uint32(changeMember[12:16]); got != 7 {
+		t.Fatalf("member position id = %d", got)
+	}
 }
 
 func TestParseGuildPackets(t *testing.T) {
@@ -92,6 +105,14 @@ func TestParseGuildPackets(t *testing.T) {
 	parsedMembers, ok, err := ParseGuildMembers(Packet{ID: PacketZCGuildMembers, Data: members})
 	if !ok || err != nil || len(parsedMembers) != 1 || parsedMembers[0].CharName != "Arcer" || parsedMembers[0].Memo != "Memo" || parsedMembers[0].Level != 55 || parsedMembers[0].PositionID != 2 {
 		t.Fatalf("ParseGuildMembers ok=%t err=%v members=%+v", ok, err, parsedMembers)
+	}
+
+	memberInfo := make([]byte, 106)
+	binary.LittleEndian.PutUint16(memberInfo[0:2], PacketZCGuildMemberInfo)
+	copy(memberInfo[2:], member)
+	parsedMemberInfo, ok, err := ParseGuildMemberInfo(Packet{ID: PacketZCGuildMemberInfo, Data: memberInfo})
+	if !ok || err != nil || parsedMemberInfo.CharName != "Arcer" || parsedMemberInfo.PositionID != 2 || parsedMemberInfo.Level != 55 {
+		t.Fatalf("ParseGuildMemberInfo ok=%t err=%v member=%+v", ok, err, parsedMemberInfo)
 	}
 
 	positions := make([]byte, 4+16)
@@ -204,7 +225,7 @@ func TestParseGuildPackets(t *testing.T) {
 
 func TestGuildPacketDirections(t *testing.T) {
 	lengths := PacketLengths2008()
-	for _, id := range []uint16{PacketCZReqMakeGuild, PacketCZReqJoinGuild, PacketCZJoinGuild, PacketCZReqGuildEmblem, PacketCZRegGuildEmblem} {
+	for _, id := range []uint16{PacketCZReqMakeGuild, PacketCZReqJoinGuild, PacketCZJoinGuild, PacketCZReqGuildMenu, PacketCZReqChangeMember, PacketCZReqOpenMember, PacketCZReqGuildMember, PacketCZReqGuildEmblem, PacketCZRegGuildEmblem} {
 		if _, ok := lengths[id]; ok {
 			t.Fatalf("0x%04X is client-to-server and must not be in the receive framer", id)
 		}
@@ -216,12 +237,14 @@ func TestGuildPacketDirections(t *testing.T) {
 		PacketZCAckReqJoinGuild: 3,
 		PacketZCReqJoinGuild:    30,
 		PacketZCGuildMembers:    -1,
+		PacketZCAckOpenMember:   2,
 		PacketZCGuildPositions:  -1,
 		PacketZCGuildSkillInfo:  -1,
 		PacketZCGuildBanList:    -1,
 		PacketZCGuildPosNames:   -1,
 		PacketZCGuildNotice:     182,
 		PacketZCUpdateGuildID:   43,
+		PacketZCGuildMemberInfo: 106,
 		PacketZCGuildEmblem:     -1,
 		PacketZCChangeGuild:     12,
 	} {

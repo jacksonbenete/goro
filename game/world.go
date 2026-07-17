@@ -880,7 +880,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if guildBelonging, ok, err := network.ParseGuildBelonging(pkt); err != nil {
 			glog.Errorf("parse guild belonging 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			applyLocalGuildInfo(ctx, guildBelonging.GuildID, guildBelonging.EmblemVersion, guildBelonging.GuildName)
+			applyLocalGuildBelonging(ctx, guildBelonging)
 			m.requestActorGuildEmblem(ctx, guildBelonging.GuildID, guildBelonging.EmblemVersion)
 			continue
 		}
@@ -895,6 +895,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			glog.Errorf("parse guild members 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			applyLocalGuildMembers(ctx, guildMembers)
+			continue
+		}
+		if guildMember, ok, err := network.ParseGuildMemberInfo(pkt); err != nil {
+			glog.Errorf("parse guild member info 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyLocalGuildMember(ctx, guildMember)
 			continue
 		}
 		if guildPositions, ok, err := network.ParseGuildPositions(pkt); err != nil {
@@ -1627,6 +1633,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.requestGuildWindowTab(ctx, action.MenuTab)
 		} else if action.SelectedEmblemPath != "" {
 			m.uploadGuildEmblem(ctx, action.SelectedEmblemPath)
+		} else if action.ChangeMemberPosition {
+			m.changeGuildMemberPosition(ctx, action.MemberAccountID, action.MemberCharID, action.MemberPositionID)
 		}
 		return nil, nil
 	}
