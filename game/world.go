@@ -81,6 +81,8 @@ type WorldMode struct {
 	pendingPetCapture petCaptureState
 	petProperty       network.PetProperty
 	hasPetProperty    bool
+	petOldFullness    uint16
+	petLastTalk       time.Time
 	petInfoRequested  bool
 	petID             uint32
 	petSlotMachine    petSlotMachineState
@@ -1753,6 +1755,8 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.petInfoWindow = m.ui.petInfoWindow
 	next.petProperty = m.petProperty
 	next.hasPetProperty = m.hasPetProperty
+	next.petOldFullness = m.petOldFullness
+	next.petLastTalk = m.petLastTalk
 	next.ui.statsWindow = m.ui.statsWindow
 	next.ui.skillWindow = m.ui.skillWindow
 	next.ui.friendsWindow = m.ui.friendsWindow

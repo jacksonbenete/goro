@@ -497,6 +497,9 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		x, y = ctx.World.Player.X, ctx.World.Player.Y
 	}
 	m.addActionDamageFloaters(action, targetLocal, sourceLocal, x, y, hitAt)
+	if sourceLocal {
+		m.maybeSendPetHuntingTalk(ctx, now)
+	}
 }
 
 func (m *WorldMode) addSkillBeginEffect(ctx client.Context, action network.ActorActionNotify, starts time.Time) {

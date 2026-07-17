@@ -96,6 +96,7 @@ func (m *WorldMode) applyParameterChange(ctx client.Context, change network.Para
 	previousBaseLevel := ctx.Session.Progress.BaseLevel
 	previousJobLevel := ctx.Session.Progress.JobLevel
 	applyParameterChange(ctx, change)
+	m.applyPetTalkParameterChange(ctx, change, previousHP, previousBaseLevel)
 	if change.Value <= 0 {
 		return
 	}

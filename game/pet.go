@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -18,8 +19,29 @@ const petCaptureSkillID = 0xFFFF
 
 const (
 	petStateInit        uint8 = 0
+	petStateFriendly    uint8 = 1
+	petStateHunger      uint8 = 2
 	petStateAccessory   uint8 = 3
 	petStatePerformance uint8 = 4
+)
+
+const (
+	petTalkFeeding = iota
+	petTalkHunting
+	petTalkDanger
+	petTalkDead
+	petTalkNormal
+	petTalkPerformanceSpecial
+	petTalkLevelUp
+	petTalkPerformance1
+	petTalkPerformance2
+	petTalkPerformance3
+	petTalkConnect
+)
+
+const (
+	petTalkFriendlyThreshold = 900
+	petTalkCooldown          = 10 * time.Second
 )
 
 type petCaptureState struct {
@@ -110,6 +132,11 @@ func (m *WorldMode) applyPetEggList(ctx client.Context, list network.PetEggList)
 
 func (m *WorldMode) applyPetProperty(ctx client.Context, property network.PetProperty) {
 	log.Printf("pet property name=%q level=%d fullness=%d relationship=%d accessory=%d job=%d modified=%t", property.Name, property.Level, property.Fullness, property.Relationship, property.AccessoryID, property.Job, property.Modified)
+	if !m.hasPetProperty {
+		m.petOldFullness = property.Fullness
+	} else {
+		m.petOldFullness = m.petProperty.Fullness
+	}
 	m.petProperty = property
 	m.hasPetProperty = true
 	if m.petInfoRequested || m.ui.petInfoWindow.IsOpen() {
@@ -127,6 +154,7 @@ func (m *WorldMode) applyPetFeedResult(ctx client.Context, result network.PetFee
 	}
 	if result.Success {
 		m.ui.console.AddBlueMessage("Fed pet with %s.", name)
+		m.sendPetTalk(ctx, petTalkFeeding)
 	} else {
 		m.ui.console.AddErrorMessage("Failed to feed pet with %s.", name)
 	}
@@ -138,10 +166,18 @@ func (m *WorldMode) applyPetStateChange(ctx client.Context, change network.PetSt
 	switch change.Type {
 	case petStateInit:
 		m.petID = change.ID
+	case petStateFriendly:
+		m.petProperty.Relationship = uint16(change.Data)
+	case petStateHunger:
+		m.petOldFullness = m.petProperty.Fullness
+		m.petProperty.Fullness = uint16(change.Data)
 	case petStateAccessory:
 		m.applyPetAccessoryChange(ctx, change.ID, change.Data)
 	case petStatePerformance:
 		m.startPetPerformance(ctx, change.ID, change.Data)
+	}
+	if m.hasPetProperty && m.ui.petInfoWindow.IsOpen() {
+		m.ui.petInfoWindow.OpenInfo(ctx, m.petProperty)
 	}
 }
 
@@ -198,6 +234,113 @@ func (m *WorldMode) applyPetTalk(ctx client.Context, id uint32, text string, now
 	chat := network.ChatMessage{GID: id, Text: fmt.Sprintf("%s : %s", name, text)}
 	m.applySpeechBubble(ctx, chat, now)
 	addConsoleMessage(&m.ui.console, ctx.Resources, chat)
+}
+
+func (m *WorldMode) maybeSendPetHuntingTalk(ctx client.Context, now time.Time) {
+	if rand.IntN(10) >= 3 {
+		return
+	}
+	m.sendPetTalkThrottled(ctx, petTalkHunting, now)
+}
+
+func (m *WorldMode) maybeSendPetDangerTalk(ctx client.Context, now time.Time) {
+	m.sendPetTalkThrottled(ctx, petTalkDanger, now)
+}
+
+func (m *WorldMode) sendPetTalkThrottled(ctx client.Context, action int, now time.Time) {
+	if !m.petLastTalk.IsZero() && m.petLastTalk.Add(petTalkCooldown).After(now) {
+		return
+	}
+	if m.sendPetTalk(ctx, action) {
+		m.petLastTalk = now
+	}
+}
+
+func (m *WorldMode) sendPetTalk(ctx client.Context, action int) bool {
+	if ctx.Network == nil || !m.hasPetProperty || m.petProperty.Relationship <= petTalkFriendlyThreshold {
+		return false
+	}
+	job := m.petTalkJob(ctx)
+	if job == 0 {
+		return false
+	}
+	data := petTalkNumber(job, action, petHungryState(int(m.petOldFullness)))
+	if err := ctx.Network.SendPetAct(data); err != nil {
+		log.Printf("send pet talk failed action=%d data=%d: %v", action, data, err)
+		return false
+	}
+	log.Printf("pet talk requested action=%d data=%d", action, data)
+	return true
+}
+
+func (m *WorldMode) applyPetTalkParameterChange(ctx client.Context, change network.ParameterChange, previousHP int, previousBaseLevel int) {
+	if ctx.Session == nil {
+		return
+	}
+	now := time.Now()
+	switch change.VarID {
+	case network.StatusHP:
+		hp := ctx.Session.Vitals.HP
+		maxHP := ctx.Session.Vitals.MaxHP
+		if maxHP <= 0 {
+			maxHP = int(ctx.Session.Selected.MaxHP)
+		}
+		if hp <= 1 && previousHP > 1 {
+			if m.sendPetTalk(ctx, petTalkDead) {
+				m.petLastTalk = now
+			}
+			return
+		}
+		if maxHP > 0 && hp <= maxHP/4 {
+			m.maybeSendPetDangerTalk(ctx, now)
+		}
+	case network.StatusBaseLevel:
+		if ctx.Session.Progress.BaseLevel > previousBaseLevel {
+			if m.sendPetTalk(ctx, petTalkLevelUp) {
+				m.petLastTalk = now
+			}
+		}
+	}
+}
+
+func (m *WorldMode) petTalkJob(ctx client.Context) int {
+	if ctx.World != nil && m.petID != 0 {
+		if actor, ok := ctx.World.Actors[m.petID]; ok && actor.Job >= 1000 {
+			return int(actor.Job)
+		}
+	}
+	if m.petProperty.Job >= 1000 {
+		return int(m.petProperty.Job)
+	}
+	return 0
+}
+
+func petTalkNumber(job int, action int, hunger int) uint32 {
+	if hunger < 0 {
+		hunger = 0
+	}
+	if hunger > 99 {
+		hunger = 99
+	}
+	if action < 0 {
+		action = 0
+	}
+	return uint32(job*1000 + hunger*10 + action)
+}
+
+func petHungryState(fullness int) int {
+	switch {
+	case fullness > 90 && fullness <= 100:
+		return 4
+	case fullness > 75 && fullness <= 90:
+		return 3
+	case fullness > 25 && fullness <= 75:
+		return 2
+	case fullness > 10 && fullness <= 25:
+		return 1
+	default:
+		return 0
+	}
 }
 
 func (m *WorldMode) startPetPerformance(ctx client.Context, id uint32, data uint32) {

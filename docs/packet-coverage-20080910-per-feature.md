@@ -66,7 +66,8 @@
   - [x] Pet menu / status / feed / performance / back to egg / accessory: 0x01A1, 0x01A2, 0x01A3, 0x01A4
   - [x] Pet status window and rename: 0x01A5
   - [x] Select egg UI / hatch pet: 0x01A6, 0x01A7
-  - [x] Pet emotion: 0x01A9, 0x01AA
+  - [x] Pet emotion and pettalktable-backed talk: 0x01A9, 0x01AA
+  - [x] Familiarity-gated client-side talk triggers for feeding, hunting, danger, death, and level-up
 
   Homunculus / Mercenary
 

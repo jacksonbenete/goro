@@ -163,6 +163,8 @@ Mostly done:
      * Status window and rename
      * Accessory equip/unequip
      * Performance actions
+     * Emotes and talk bubbles
+     * Familiarity-gated client-side talk triggers
    * Friends
    * Parties
    * Whispers
