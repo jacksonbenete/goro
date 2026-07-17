@@ -9,6 +9,8 @@ compiled and can be easily deployed.
 This project wouldn't be possible without the existence of other open source clients
 like ROBrowser Legacy and Open Midgard and their reverse engineering efforts.
 
+![goro screenshot](https://github.com/kivutar/goro/releases/download/v0.0.1/goro-20260716-164507.png)
+
 ## Project Goals
 
 - Faithfully reimplement the original Ragnarok Online client.
