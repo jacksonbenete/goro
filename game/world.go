@@ -903,6 +903,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			applyLocalGuildMember(ctx, guildMember)
 			continue
 		}
+		if memberPositions, ok, err := network.ParseGuildMemberPositions(pkt); err != nil {
+			glog.Errorf("parse guild member positions 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			applyLocalGuildMemberPositions(ctx, memberPositions)
+			m.ui.guildWindow.Refresh(ctx)
+			continue
+		}
 		if guildPositions, ok, err := network.ParseGuildPositions(pkt); err != nil {
 			glog.Errorf("parse guild positions 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -1635,6 +1642,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.uploadGuildEmblem(ctx, action.SelectedEmblemPath)
 		} else if action.ChangeMemberPosition {
 			m.changeGuildMemberPosition(ctx, action.MemberAccountID, action.MemberCharID, action.MemberPositionID)
+		} else if action.UpdatePositions {
+			m.updateGuildPositions(ctx, action.Positions)
 		}
 		return nil, nil
 	}

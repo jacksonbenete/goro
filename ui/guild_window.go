@@ -8,8 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/dropdown"
 	"github.com/gogpu/ui/core/scrollview"
+	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
@@ -28,13 +30,15 @@ const (
 
 type GuildWindow struct {
 	Window
-	tab           guildWindowTab
-	snapshot      string
-	action        GuildWindowAction
-	EmblemImage   func(Context) image.Image
-	emblemOptions []GuildEmblemOption
-	skillIcons    map[uint16]image.Image
-	skillMiss     map[uint16]struct{}
+	tab            guildWindowTab
+	snapshot       string
+	action         GuildWindowAction
+	EmblemImage    func(Context) image.Image
+	emblemOptions  []GuildEmblemOption
+	positionDraft  map[uint32]guildPositionDraft
+	positionSource string
+	skillIcons     map[uint16]image.Image
+	skillMiss      map[uint16]struct{}
 }
 
 type GuildWindowAction struct {
@@ -45,11 +49,27 @@ type GuildWindowAction struct {
 	MemberAccountID      uint32
 	MemberCharID         uint32
 	MemberPositionID     uint32
+	UpdatePositions      bool
+	Positions            []GuildPositionUpdate
+}
+
+type GuildPositionUpdate struct {
+	PositionID uint32
+	Right      uint32
+	Ranking    uint32
+	PayRate    uint32
+	PosName    string
 }
 
 type GuildEmblemOption struct {
 	Label string
 	Path  string
+}
+
+type guildPositionDraft struct {
+	posName string
+	right   uint32
+	payRate string
 }
 
 type guildWindowTab int
@@ -108,14 +128,22 @@ func (w *GuildWindow) Update(ctx Context) bool {
 		w.SetContent(w.widgetTree(ctx))
 	}
 	consumed := w.Window.Update(ctx)
+	hasAction := w.action.hasAction()
 	w.Publish(ctx)
-	return consumed
+	return consumed || hasAction
 }
 
 func (w *GuildWindow) PopAction() GuildWindowAction {
 	action := w.action
 	w.action = GuildWindowAction{}
 	return action
+}
+
+func (a GuildWindowAction) hasAction() bool {
+	return a.RequestMenu ||
+		a.SelectedEmblemPath != "" ||
+		a.ChangeMemberPosition ||
+		a.UpdatePositions
 }
 
 func (w *GuildWindow) SetEmblemOptions(ctx Context, options []GuildEmblemOption) {
@@ -137,7 +165,7 @@ func (w *GuildWindow) Rebind(ctx Context) {
 }
 
 func (w *GuildWindow) widgetTree(ctx Context) widget.Widget {
-	return Win(
+	options := []WindowOption{
 		Title("Guild"),
 		CloseButton(true),
 		OnClose(w.Close),
@@ -149,7 +177,11 @@ func (w *GuildWindow) widgetTree(ctx Context) widget.Widget {
 			).
 				CrossAlign(primitives.CrossAxisStretch),
 		),
-	)
+	}
+	if footer := w.tabFooter(ctx); footer != nil {
+		options = append(options, Footer(footer), FooterPadding(6), FooterHeight(34))
+	}
+	return Win(options...)
 }
 
 func (w *GuildWindow) tabStrip() widget.Widget {
@@ -196,6 +228,31 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	default:
 		return guildWindowPlaceholder("")
 	}
+}
+
+func (w *GuildWindow) tabFooter(ctx Context) widget.Widget {
+	if w.tab != guildWindowTabPositions || !guildSessionInfo(ctx.Session).IsMaster {
+		return nil
+	}
+	return primitives.HBox(
+		primitives.Expanded(primitives.Box()),
+		rotheme.Button("Reset", func() {
+			w.resetPositionDraft(ctx)
+			w.refresh(ctx)
+		}).Width(float32(ButtonLabelWidth("Reset"))),
+		rotheme.Button("Confirm", func() {
+			changes := w.positionChanges(ctx)
+			if len(changes) == 0 {
+				return
+			}
+			w.action = GuildWindowAction{
+				UpdatePositions: true,
+				Positions:       changes,
+			}
+		}).Width(float32(ButtonLabelWidth("Confirm"))),
+	).
+		Gap(6).
+		CrossAlign(primitives.CrossAxisCenter)
 }
 
 func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
@@ -332,7 +389,9 @@ func guildMemberDevotion(memberExp, totalExp uint32) string {
 }
 
 func (w *GuildWindow) positionsTab(ctx Context) widget.Widget {
-	positions := guildSortedPositions(guildSessionInfo(ctx.Session).Positions)
+	guild := guildSessionInfo(ctx.Session)
+	w.ensurePositionDraft(ctx, guild.Positions)
+	positions := guildSortedPositions(guild.Positions)
 	rows := make([]widget.Widget, 0, len(positions)+1)
 	rows = append(rows, guildPositionHeaderRow())
 	if len(positions) == 0 {
@@ -344,7 +403,7 @@ func (w *GuildWindow) positionsTab(ctx Context) widget.Widget {
 		)
 	}
 	for i, position := range positions {
-		rows = append(rows, guildPositionRow(position, i%2 == 0))
+		rows = append(rows, w.guildPositionRow(ctx, position, guild.IsMaster, i%2 == 0))
 	}
 	return primitives.Box(
 		scrollview.New(
@@ -368,14 +427,156 @@ func guildPositionHeaderRow() widget.Widget {
 	).Height(20)
 }
 
-func guildPositionRow(position session.GuildPosition, dark bool) widget.Widget {
+func (w *GuildWindow) guildPositionRow(ctx Context, position session.GuildPosition, isMaster, dark bool) widget.Widget {
 	return primitives.HBox(
 		guildMemberCell(fmt.Sprintf("%d", position.PositionID), 44, false, dark),
-		guildMemberCell(guildPositionTitle(position), 164, false, dark),
-		guildMemberCell(guildRightLabel(position.Right&0x01 != 0), 58, false, dark),
-		guildMemberCell(guildRightLabel(position.Right&0x10 != 0), 48, false, dark),
-		guildMemberCell(fmt.Sprintf("%d %%", position.PayRate), 46, false, dark),
+		w.guildPositionTitleCell(position, isMaster, dark),
+		w.guildPositionRightCell(ctx, position.PositionID, 0x01, isMaster, dark),
+		w.guildPositionRightCell(ctx, position.PositionID, 0x10, isMaster, dark),
+		w.guildPositionTaxCell(position, isMaster, dark),
 	).Height(20)
+}
+
+func (w *GuildWindow) guildPositionTitleCell(position session.GuildPosition, isMaster, dark bool) widget.Widget {
+	if !isMaster {
+		return guildMemberCell(guildPositionTitle(position), 164, false, dark)
+	}
+	return primitives.Box(
+		rotheme.TextField(
+			w.positionDraft[position.PositionID].posName,
+			textfield.TypeText,
+			func(value string) {
+				draft := w.positionDraft[position.PositionID]
+				draft.posName = value
+				w.positionDraft[position.PositionID] = draft
+			},
+			nil,
+			textfield.MaxLength(24),
+		),
+	).
+		Width(164).
+		Height(20).
+		Background(guildRowBackground(dark))
+}
+
+func (w *GuildWindow) guildPositionRightCell(ctx Context, positionID, flag uint32, isMaster, dark bool) widget.Widget {
+	enabled := w.positionDraft[positionID].right&flag != 0
+	if !isMaster {
+		return guildMemberCell(guildRightLabel(enabled), guildPositionRightWidth(flag), false, dark)
+	}
+	return primitives.HBox(
+		rotheme.Checkbox(
+			checkbox.Checked(enabled),
+			checkbox.OnToggle(func(checked bool) {
+				draft := w.positionDraft[positionID]
+				if checked {
+					draft.right |= flag
+				} else {
+					draft.right &^= flag
+				}
+				w.positionDraft[positionID] = draft
+				w.refresh(ctx)
+			}),
+		),
+	).
+		Width(guildPositionRightWidth(flag)).
+		Height(20).
+		CrossAlign(primitives.CrossAxisCenter).
+		Background(guildRowBackground(dark))
+}
+
+func (w *GuildWindow) guildPositionTaxCell(position session.GuildPosition, isMaster, dark bool) widget.Widget {
+	if !isMaster {
+		return guildMemberCell(fmt.Sprintf("%d %%", position.PayRate), 46, false, dark)
+	}
+	return primitives.Box(
+		rotheme.TextField(
+			w.positionDraft[position.PositionID].payRate,
+			textfield.TypeNumber,
+			func(value string) {
+				draft := w.positionDraft[position.PositionID]
+				draft.payRate = value
+				w.positionDraft[position.PositionID] = draft
+			},
+			nil,
+			textfield.MaxLength(3),
+		),
+	).
+		Width(46).
+		Height(20).
+		Background(guildRowBackground(dark))
+}
+
+func guildPositionRightWidth(flag uint32) float32 {
+	if flag == 0x10 {
+		return 48
+	}
+	return 58
+}
+
+func (w *GuildWindow) ensurePositionDraft(ctx Context, positions []session.GuildPosition) {
+	source := guildPositionDraftSource(positions)
+	if w.positionDraft != nil && w.positionSource == source {
+		return
+	}
+	w.resetPositionDraft(ctx)
+}
+
+func (w *GuildWindow) resetPositionDraft(ctx Context) {
+	guild := guildSessionInfo(ctx.Session)
+	w.positionSource = guildPositionDraftSource(guild.Positions)
+	w.positionDraft = make(map[uint32]guildPositionDraft, len(guild.Positions))
+	for _, position := range guild.Positions {
+		w.positionDraft[position.PositionID] = guildPositionDraft{
+			posName: guildPositionTitle(position),
+			right:   position.Right,
+			payRate: strconv.FormatUint(uint64(position.PayRate), 10),
+		}
+	}
+}
+
+func (w *GuildWindow) positionChanges(ctx Context) []GuildPositionUpdate {
+	guild := guildSessionInfo(ctx.Session)
+	changes := make([]GuildPositionUpdate, 0)
+	for _, position := range guildSortedPositions(guild.Positions) {
+		draft, ok := w.positionDraft[position.PositionID]
+		if !ok {
+			continue
+		}
+		payRate, err := strconv.ParseUint(strings.TrimSpace(draft.payRate), 10, 32)
+		if err != nil {
+			payRate = uint64(position.PayRate)
+		}
+		posName := trimRunes(strings.TrimSpace(draft.posName), 24)
+		if posName == "" {
+			posName = guildPositionTitle(position)
+		}
+		update := GuildPositionUpdate{
+			PositionID: position.PositionID,
+			Right:      draft.right,
+			Ranking:    position.Ranking,
+			PayRate:    uint32(payRate),
+			PosName:    posName,
+		}
+		if update.Right != position.Right || update.PayRate != position.PayRate || update.PosName != guildPositionTitle(position) {
+			changes = append(changes, update)
+		}
+	}
+	return changes
+}
+
+func guildPositionDraftSource(positions []session.GuildPosition) string {
+	var out strings.Builder
+	for _, position := range guildSortedPositions(positions) {
+		fmt.Fprintf(&out, "|%d:%d:%d:%d:%s",
+			position.PositionID,
+			position.Right,
+			position.Ranking,
+			position.PayRate,
+			guildPositionTitle(position),
+		)
+	}
+	return out.String()
 }
 
 func guildSortedPositions(positions []session.GuildPosition) []session.GuildPosition {
@@ -850,10 +1051,11 @@ func guildWindowSnapshot(s *session.Session) string {
 			entry.Reason,
 		)
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d|%s|%s%s%s%s%s",
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d|%s|%s%s%s%s%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
+		boolSnapshot(s.Guild.IsMaster),
 		s.Guild.Level,
 		s.Guild.UserNum,
 		s.Guild.MaxUserNum,
@@ -875,6 +1077,13 @@ func guildWindowSnapshot(s *session.Session) string {
 		skillSnapshot.String(),
 		historySnapshot.String(),
 	)
+}
+
+func boolSnapshot(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }
 
 func guildSessionInfo(s *session.Session) session.Guild {

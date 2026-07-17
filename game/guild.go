@@ -141,34 +141,55 @@ func (m *WorldMode) changeGuildMemberPosition(ctx client.Context, accountID, cha
 		m.ui.console.AddErrorMessage("Guild member position update failed.")
 		return
 	}
-	members := make([]network.GuildMemberPosition, 0, len(ctx.Session.Guild.Members))
 	found := false
 	for _, member := range ctx.Session.Guild.Members {
-		nextPositionID := member.PositionID
 		if member.AccountID == accountID && member.CharID == charID {
-			nextPositionID = positionID
 			found = true
+			break
 		}
-		members = append(members, network.GuildMemberPosition{
-			AccountID:  member.AccountID,
-			CharID:     member.CharID,
-			PositionID: nextPositionID,
-		})
 	}
 	if !found {
 		m.ui.console.AddErrorMessage("Guild member position update failed: member not found.")
 		return
 	}
+	members := []network.GuildMemberPosition{{
+		AccountID:  accountID,
+		CharID:     charID,
+		PositionID: positionID,
+	}}
 	if err := ctx.Network.SendGuildMemberPositions(members); err != nil {
 		m.ui.console.AddErrorMessage("Guild member position update failed.")
 		glog.Warnf("guild member position update failed account=%d char=%d position=%d: %v", accountID, charID, positionID, err)
 		return
 	}
-	for i := range ctx.Session.Guild.Members {
-		if ctx.Session.Guild.Members[i].AccountID == accountID && ctx.Session.Guild.Members[i].CharID == charID {
-			ctx.Session.Guild.Members[i].PositionID = positionID
-			break
-		}
+}
+
+func (m *WorldMode) updateGuildPositions(ctx client.Context, updates []gameui.GuildPositionUpdate) {
+	if len(updates) == 0 {
+		return
+	}
+	if ctx.Network == nil {
+		m.ui.console.AddErrorMessage("Guild position update failed: not connected.")
+		return
+	}
+	positions := make([]network.GuildPosition, 0, len(updates))
+	for _, update := range updates {
+		positions = append(positions, network.GuildPosition{
+			PositionID: update.PositionID,
+			Right:      update.Right,
+			Ranking:    update.Ranking,
+			PayRate:    update.PayRate,
+			PosName:    update.PosName,
+		})
+	}
+	if err := ctx.Network.SendGuildPositions(positions); err != nil {
+		m.ui.console.AddErrorMessage("Guild position update failed.")
+		glog.Warnf("guild position update failed positions=%d: %v", len(positions), err)
+		return
+	}
+	if ctx.Session != nil {
+		applyLocalGuildPositions(ctx, positions)
+		applyLocalGuildPositionNames(ctx, positions)
 	}
 	m.ui.guildWindow.Refresh(ctx)
 }
@@ -311,6 +332,22 @@ func applyLocalGuildMember(ctx client.Context, member network.GuildMember) {
 	ctx.Session.Guild.Members = append(ctx.Session.Guild.Members, sessionMember)
 	ctx.Session.Guild.UserNum = uint32(len(ctx.Session.Guild.Members))
 	glog.Debugf("guild member added account=%d char=%d position=%d", sessionMember.AccountID, sessionMember.CharID, sessionMember.PositionID)
+}
+
+func applyLocalGuildMemberPositions(ctx client.Context, positions []network.GuildMemberPosition) {
+	if ctx.Session == nil {
+		return
+	}
+	for _, position := range positions {
+		for i := range ctx.Session.Guild.Members {
+			member := &ctx.Session.Guild.Members[i]
+			if member.AccountID == position.AccountID && member.CharID == position.CharID {
+				member.PositionID = position.PositionID
+				glog.Debugf("guild member position accepted account=%d char=%d position=%d", position.AccountID, position.CharID, position.PositionID)
+				break
+			}
+		}
+	}
 }
 
 func sessionGuildMemberFromNetwork(member network.GuildMember) session.GuildMember {
