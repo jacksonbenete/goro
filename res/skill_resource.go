@@ -289,10 +289,10 @@ func SkillIconTextureCandidates(resource string, skillID int) []string {
 		stem = strings.ReplaceAll(stem, "/", "\\")
 		lower := strings.ToLower(stem)
 		for _, candidateStem := range []string{lower, stem} {
-			const uiKorPrefix = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\"
+			const uiKorPrefix = "data\\texture\\유저인터페이스\\item\\"
 			add(uiKorPrefix + candidateStem + ".bmp")
 			add(strings.ReplaceAll(uiKorPrefix, "\\", "/") + candidateStem + ".bmp")
-			add("texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\" + candidateStem + ".bmp")
+			add("texture\\유저인터페이스\\item\\" + candidateStem + ".bmp")
 			add("texture/item/" + candidateStem + ".bmp")
 			add("data/texture/item/" + candidateStem + ".bmp")
 			add(candidateStem + ".bmp")

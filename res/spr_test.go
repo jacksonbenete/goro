@@ -189,11 +189,11 @@ func TestParseACTLayer(t *testing.T) {
 
 func TestPlayerPaletteResourceCandidates(t *testing.T) {
 	body := PlayerBodyPaletteResourceCandidates(0, 1, 3, "pal")
-	if len(body) != 1 || body[0] != "data\\palette\\\xB8\xF6\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_3.pal" {
+	if len(body) != 1 || body[0] != "data\\palette\\몸\\초보자_남_3.pal" {
 		t.Fatalf("body palette candidates = %#v", body)
 	}
 	head := PlayerHeadPaletteResourceCandidates(0, 2, 0, 4, "pal")
-	if len(head) != 1 || head[0] != "data\\palette\\\xB8\xD3\xB8\xAE\\\xB8\xD3\xB8\xAE2_\xBF\xA9_4.pal" {
+	if len(head) != 1 || head[0] != "data\\palette\\머리\\머리2_여_4.pal" {
 		t.Fatalf("head palette candidates = %#v", head)
 	}
 }

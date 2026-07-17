@@ -18,6 +18,13 @@ func TestParseItemPairTable(t *testing.T) {
 	}
 }
 
+func TestParseItemPairTableDecodesEUC(t *testing.T) {
+	got := parseItemPairTable([]byte{0x32, 0x32, 0x32, 0x36, 0x23, 0xc4, 0xb8, 0x23, 0x0a})
+	if got[2226] != "캡" {
+		t.Fatalf("item 2226 = %q, want 캡", got[2226])
+	}
+}
+
 func TestParseItemIDSetTable(t *testing.T) {
 	got := parseItemIDSetTable([]byte("// comment\n4001#\n0#\n4002#ignored\n"))
 	if _, ok := got[4001]; !ok {
@@ -52,7 +59,7 @@ func TestNormalizeItemDisplayToken(t *testing.T) {
 
 func TestItemSpriteResourceCandidates(t *testing.T) {
 	got := ItemSpriteResourceCandidates("apple", "spr")
-	want := "data\\sprite\\\xBE\xC6\xC0\xCC\xC5\xDB\\apple.spr"
+	want := "data\\sprite\\아이템\\apple.spr"
 	if len(got) == 0 || got[0] != want {
 		t.Fatalf("leading candidates = %#v", got[:minIntForTest(len(got), 2)])
 	}
@@ -70,7 +77,7 @@ func TestItemSpriteResourceCandidates(t *testing.T) {
 
 func TestItemCollectionTextureCandidates(t *testing.T) {
 	got := ItemCollectionTextureCandidates("apple")
-	want := "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\collection\\apple.bmp"
+	want := "data\\texture\\유저인터페이스\\collection\\apple.bmp"
 	found := false
 	for _, candidate := range got {
 		if candidate == want {

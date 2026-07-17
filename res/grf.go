@@ -11,6 +11,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode/utf8"
+
+	"golang.org/x/text/encoding/korean"
+	"golang.org/x/text/transform"
 )
 
 const (
@@ -107,7 +111,7 @@ func grfPathSuffixMatch(name, suffix string) bool {
 	if name == suffix {
 		return true
 	}
-	return strings.HasSuffix(name, "\\"+suffix)
+	return strings.HasSuffix(name, "/"+suffix)
 }
 
 func (g *GRF) ReadFile(name string) ([]byte, error) {
@@ -233,7 +237,7 @@ func (g *GRF) parseEntries(table []byte, count int, wideOffset bool) error {
 		if pos >= len(table) {
 			return fmt.Errorf("unterminated grf filename at entry %d", i)
 		}
-		name := string(table[start:pos])
+		name := normalizeGRFName(decodeGRFName(table[start:pos]))
 		pos++
 
 		metaSize := 17
@@ -258,23 +262,27 @@ func (g *GRF) parseEntries(table []byte, count int, wideOffset bool) error {
 		}
 		pos += metaSize
 
-		g.entries[normalizeGRFName(name)] = entry
+		g.entries[name] = entry
 	}
 	return nil
 }
 
 func normalizeGRFName(name string) string {
-	data := []byte(name)
-	for len(data) > 0 && data[0] == '\\' {
-		data = data[1:]
+	if !utf8.ValidString(name) {
+		name = decodeGRFName([]byte(name))
 	}
-	for i, c := range data {
-		switch {
-		case c == '/':
-			data[i] = '\\'
-		case c >= 'A' && c <= 'Z':
-			data[i] = c + ('a' - 'A')
-		}
+	name = strings.TrimLeft(name, `\/`)
+	name = strings.ReplaceAll(name, "\\", "/")
+	return strings.ToLower(name)
+}
+
+func decodeGRFName(data []byte) string {
+	if utf8.Valid(data) {
+		return string(data)
 	}
-	return string(data)
+	decoded, _, err := transform.Bytes(korean.EUCKR.NewDecoder(), data)
+	if err != nil {
+		return string(data)
+	}
+	return string(decoded)
 }

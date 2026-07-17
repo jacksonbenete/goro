@@ -9,6 +9,8 @@ import (
 	"unsafe"
 
 	glua "github.com/yuin/gopher-lua"
+	"golang.org/x/text/encoding/korean"
+	"golang.org/x/text/transform"
 )
 
 type luaValue struct {
@@ -428,7 +430,11 @@ func (r *luaReader) string() string {
 	if len(data) > 0 && data[len(data)-1] == 0 {
 		data = data[:len(data)-1]
 	}
-	return string(data)
+	decoded, _, err := transform.Bytes(korean.EUCKR.NewDecoder(), data)
+	if err != nil {
+		return string(data)
+	}
+	return string(decoded)
 }
 
 func (r *luaReader) sizeT() uint64 {

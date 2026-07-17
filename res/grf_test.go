@@ -40,28 +40,25 @@ func TestGRFReadPlainCompressedEntry(t *testing.T) {
 	}
 }
 
-func TestNormalizeGRFNamePreservesNonUTF8Bytes(t *testing.T) {
-	input := string([]byte{'D', 'A', 'T', 'A', '/', 0xc7, 0xca, '/', 'T', 'E', 'X', 0xf8, '.', 'B', 'M', 'P'})
+func TestNormalizeGRFNameDecodesEUCToUTF8(t *testing.T) {
+	input := "DATA/" + string([]byte{0xb8, 0xf3, 0xbd, 0xba, 0xc5, 0xcd}) + "/PORING.SPR"
 	got := normalizeGRFName(input)
-	want := string([]byte{'d', 'a', 't', 'a', '\\', 0xc7, 0xca, '\\', 't', 'e', 'x', 0xf8, '.', 'b', 'm', 'p'})
+	want := "data/몬스터/poring.spr"
 	if got != want {
-		t.Fatalf("normalizeGRFName bytes = % x, want % x", []byte(got), []byte(want))
-	}
-	if bytes.Contains([]byte(got), []byte{0xef, 0xbf, 0xbd}) {
-		t.Fatalf("normalizeGRFName introduced UTF-8 replacement bytes: % x", []byte(got))
+		t.Fatalf("normalizeGRFName = %q, want %q", got, want)
 	}
 }
 
 func TestGRFNamesWithSuffixRequiresPathBoundary(t *testing.T) {
 	grf := &GRF{
 		entries: map[string]GRFEntry{
-			normalizeGRFName(`data\sprite\monster\orc_zombie.spr`): {Name: `data\sprite\monster\orc_zombie.spr`},
-			normalizeGRFName(`data\sprite\monster\zombie.spr`):     {Name: `data\sprite\monster\zombie.spr`},
+			normalizeGRFName(`data\sprite\monster\orc_zombie.spr`): {Name: `data/sprite/monster/orc_zombie.spr`},
+			normalizeGRFName(`data\sprite\monster\zombie.spr`):     {Name: `data/sprite/monster/zombie.spr`},
 		},
 	}
 
 	matches := grf.NamesWithSuffix("zombie.spr")
-	if len(matches) != 1 || matches[0] != `data\sprite\monster\zombie.spr` {
+	if len(matches) != 1 || matches[0] != `data/sprite/monster/zombie.spr` {
 		t.Fatalf("matches = %#v, want only zombie.spr", matches)
 	}
 }
@@ -69,13 +66,40 @@ func TestGRFNamesWithSuffixRequiresPathBoundary(t *testing.T) {
 func TestGRFNamesWithSuffixFindsFileUnderDifferentRoot(t *testing.T) {
 	grf := &GRF{
 		entries: map[string]GRFEntry{
-			normalizeGRFName(`data\prontera.gat`): {Name: `data\prontera.gat`},
+			normalizeGRFName(`data\prontera.gat`): {Name: `data/prontera.gat`},
 		},
 	}
 
 	matches := grf.NamesWithSuffix("prontera.gat")
-	if len(matches) != 1 || matches[0] != `data\prontera.gat` {
+	if len(matches) != 1 || matches[0] != `data/prontera.gat` {
 		t.Fatalf("matches = %#v, want data prontera", matches)
+	}
+}
+
+func TestGRFReadKoreanEntryWithUTF8Path(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "data.grf")
+	rawName := "data\\sprite\\" + string([]byte{0xb8, 0xf3, 0xbd, 0xba, 0xc5, 0xcd}) + "\\poring.spr"
+
+	if err := writeTestGRF(path, rawName, []byte("sprite")); err != nil {
+		t.Fatal(err)
+	}
+
+	grf, err := OpenGRF(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer grf.Close()
+
+	if !grf.Has("data/sprite/몬스터/poring.spr") {
+		t.Fatal("UTF-8 Korean path was not indexed")
+	}
+	data, err := grf.ReadFile("data/sprite/몬스터/poring.spr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "sprite" {
+		t.Fatalf("data = %q", data)
 	}
 }
 

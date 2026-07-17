@@ -1,6 +1,9 @@
 package res
 
-import "testing"
+import (
+	"encoding/binary"
+	"testing"
+)
 
 func TestExecuteLuaFunctionWithGopherLuaSupportsArithmetic(t *testing.T) {
 	fn := luaFunction{
@@ -24,6 +27,17 @@ func TestExecuteLuaFunctionWithGopherLuaSupportsArithmetic(t *testing.T) {
 	}
 	if got := globals["Answer"]; got.kind != luaNumber || got.num != 42 {
 		t.Fatalf("Answer = %#v, want Lua number 42", got)
+	}
+}
+
+func TestLuaReaderStringDecodesEUC(t *testing.T) {
+	var data [7]byte
+	binary.LittleEndian.PutUint32(data[:4], 3)
+	copy(data[4:], []byte{0xc4, 0xb8, 0x00})
+	reader := &luaReader{data: data[:], sizeTSize: 4}
+
+	if got := reader.string(); got != "캡" {
+		t.Fatalf("string = %q, want 캡", got)
 	}
 }
 

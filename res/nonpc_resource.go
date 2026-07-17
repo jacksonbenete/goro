@@ -7,7 +7,7 @@ import (
 	"github.com/kivutar/goro/db"
 )
 
-const legacyMonsterSpriteRoot = "data\\sprite\\\xB8\xF3\xBD\xBA\xC5\xCD\\"
+const legacyMonsterSpriteRoot = "data\\sprite\\몬스터\\"
 
 var npcIdentityLuaCandidates = []string{
 	"data\\luafiles514\\lua files\\datainfo\\npcidentity.lub",

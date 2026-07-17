@@ -676,8 +676,8 @@ func weatherCloudEffectSpec(textures []string, tint color.RGBA, alpha, radius, z
 var EffectSpecs = map[int]EffectSpec{
 	effectRain:        weatherRainEffectSpec(),
 	effectSnow:        weatherSnowEffectSpec(),
-	effectSakura:      weatherLeafEffectSpec("data/sprite/\xc0\xcc\xc6\xd1\xc6\xae/sakura01", color.RGBA{R: 255, G: 210, B: 225, A: 255}),
-	effectMaple:       weatherLeafEffectSpec("data/sprite/\xc0\xcc\xc6\xd1\xc6\xae/\xb4\xdc\xc7\xb3", color.RGBA{R: 255, G: 170, B: 80, A: 255}),
+	effectSakura:      weatherLeafEffectSpec("data/sprite/이팩트/sakura01", color.RGBA{R: 255, G: 210, B: 225, A: 255}),
+	effectMaple:       weatherLeafEffectSpec("data/sprite/이팩트/단풍", color.RGBA{R: 255, G: 170, B: 80, A: 255}),
 	effectCloud:       weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.18, 35, -10, 20*time.Second),
 	effectCloud2:      weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.58, 35, 4, 20*time.Second),
 	effectCloud3:      weatherCloudEffectSpec([]string{"effect/fog1.tga", "effect/fog2.tga", "effect/fog3.tga"}, color.RGBA{R: 120, G: 110, B: 100, A: 255}, 0.78, 45, -10, 34*time.Second),
@@ -697,7 +697,7 @@ var EffectSpecs = map[int]EffectSpec{
 		Duration: 10 * time.Second,
 		Components: []EffectComponent{{
 			Kind:             EffectComponent3D,
-			SpriteFile:       "\xb1\xbc\xb6\xd2\xbf\xac\xb1\xe2",
+			SpriteFile:       "굴뚝연기",
 			SpriteRepeat:     true,
 			Duration:         10 * time.Second,
 			Duplicate:        10,
@@ -723,7 +723,7 @@ var EffectSpecs = map[int]EffectSpec{
 		Duration: 3 * time.Second,
 		Components: []EffectComponent{{
 			Kind:           EffectComponent3D,
-			SpriteFile:     "data/sprite/\xC0\xCC\xC6\xD1\xC6\xAE/particle1",
+			SpriteFile:     "data/sprite/이팩트/particle1",
 			SpriteRepeat:   true,
 			Duration:       3 * time.Second,
 			Duplicate:      3,
@@ -795,7 +795,7 @@ var EffectSpecs = map[int]EffectSpec{
 		Duration: time.Second,
 		Components: []EffectComponent{{
 			Kind:          EffectComponent3D,
-			SpriteFile:    "\xc5\xa9\xb8\xae\xbd\xba\xb8\xb6\xbd\xba",
+			SpriteFile:    "크리스마스",
 			SpriteRepeat:  true,
 			Duration:      time.Second,
 			AlphaMax:      1,
@@ -1001,7 +1001,7 @@ var EffectSpecs = map[int]EffectSpec{
 	},
 	effectMammonite:      strEffectSpecAttachedMin("maemor", "memor_min", "effect\\ef_coin2.wav", false),
 	effectCartRevolution: strEffectSpecAttached("cartrevolution", "effect\\ef_magnumbreak.wav", false),
-	effectLoud:           strEffectSpecAttached("loud", "effect\\\xb0\xed\xbc\xba\xb9\xe6\xb0\xa1.wav", false),
+	effectLoud:           strEffectSpecAttached("loud", "effect\\고성방가.wav", false),
 	effectSight: {
 		Duration: 12200 * time.Millisecond,
 		SFX:      []string{"effect\\ef_sight.wav"},
@@ -1152,7 +1152,7 @@ var EffectSpecs = map[int]EffectSpec{
 			},
 			{
 				Kind:           EffectComponent3D,
-				SpriteFile:     "data/sprite/\xC0\xCC\xC6\xD1\xC6\xAE/particle1",
+				SpriteFile:     "data/sprite/이팩트/particle1",
 				SpriteRepeat:   true,
 				Duration:       250 * time.Millisecond,
 				Duplicate:      5,
@@ -1267,7 +1267,7 @@ var EffectSpecs = map[int]EffectSpec{
 			},
 			{
 				Kind:             EffectComponentCylinder,
-				TextureName:      "\xb4\xeb\xc6\xf8\xb9\xdf",
+				TextureName:      "대폭발",
 				Duration:         300 * time.Millisecond,
 				AlphaMax:         0.6,
 				Fade:             true,
@@ -1308,7 +1308,7 @@ var EffectSpecs = map[int]EffectSpec{
 		Duration: 200 * time.Millisecond,
 		Components: []EffectComponent{{
 			Kind:             EffectComponent3D,
-			TextureFile:      "\xc0\xaf\xc0\xfa\xc0\xce\xc5\xcd\xc6\xe4\xc0\xcc\xbd\xba/item/\xb5\xb9.bmp",
+			TextureFile:      "유저인터페이스/item/돌.bmp",
 			Duration:         200 * time.Millisecond,
 			AlphaMax:         1,
 			FadeIn:           true,
@@ -1420,12 +1420,12 @@ var EffectSpecs = map[int]EffectSpec{
 		Components: []EffectComponent{{
 			Kind: EffectComponent3D,
 			TextureFiles: []string{
-				"effect/\xba\xd2\xc8\xad\xbb\xec1.tga",
-				"effect/\xba\xd2\xc8\xad\xbb\xec2.tga",
-				"effect/\xba\xd2\xc8\xad\xbb\xec3.tga",
-				"effect/\xba\xd2\xc8\xad\xbb\xec4.tga",
-				"effect/\xba\xd2\xc8\xad\xbb\xec5.tga",
-				"effect/\xba\xd2\xc8\xad\xbb\xec6.tga",
+				"effect/불화살1.tga",
+				"effect/불화살2.tga",
+				"effect/불화살3.tga",
+				"effect/불화살4.tga",
+				"effect/불화살5.tga",
+				"effect/불화살6.tga",
 			},
 			Duration:        500 * time.Millisecond,
 			AlphaMax:        1,
@@ -1599,7 +1599,7 @@ var EffectSpecs = map[int]EffectSpec{
 		SFX: []string{"effect\\ef_aqua.wav"},
 		Components: []EffectComponent{{
 			Kind:             EffectComponentSPR,
-			SpriteFile:       "\xBC\xBA\xBC\xF6\xB6\xDF\xB1\xE2",
+			SpriteFile:       "성수뜨기",
 			SpriteHead:       true,
 			WorldSizedSprite: true,
 		}},
@@ -1613,7 +1613,7 @@ var EffectSpecs = map[int]EffectSpec{
 		Components: []EffectComponent{
 			{
 				Kind:             EffectComponentSPR,
-				SpriteFile:       "\xC3\xE0\xBA\xB9",
+				SpriteFile:       "축복",
 				Duration:         1500 * time.Millisecond,
 				SpriteDelay:      30 * time.Millisecond,
 				SpriteRepeat:     true,
@@ -1802,12 +1802,12 @@ var EffectSpecs = map[int]EffectSpec{
 			AttachedEntity: true,
 		}},
 	},
-	effectPotionRed:    potionEffectSpec("\xbb\xa1\xb0\xa3\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 82, B: 70, A: 255}),
-	effectPotionOrange: potionEffectSpec("\xc1\xd6\xc8\xab\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 145, B: 58, A: 255}),
-	effectPotionYellow: potionEffectSpec("\xb3\xeb\xb6\xf5\xc6\xf7\xbc\xc7", color.RGBA{R: 255, G: 226, B: 76, A: 255}),
-	effectPotionWhite:  potionEffectSpec("\xc7\xcf\xbe\xe1\xc6\xf7\xbc\xc7", color.RGBA{R: 245, G: 245, B: 255, A: 255}),
+	effectPotionRed:    potionEffectSpec("빨간포션", color.RGBA{R: 255, G: 82, B: 70, A: 255}),
+	effectPotionOrange: potionEffectSpec("주홍포션", color.RGBA{R: 255, G: 145, B: 58, A: 255}),
+	effectPotionYellow: potionEffectSpec("노란포션", color.RGBA{R: 255, G: 226, B: 76, A: 255}),
+	effectPotionWhite:  potionEffectSpec("하얀포션", color.RGBA{R: 245, G: 245, B: 255, A: 255}),
 	effectPotionBlue:   bluePotionEffectSpec(),
-	effectPotionGreen:  potionEffectSpec("\xc3\xca\xb7\xcf\xc6\xf7\xbc\xc7", color.RGBA{R: 78, G: 225, B: 98, A: 255}),
+	effectPotionGreen:  potionEffectSpec("초록포션", color.RGBA{R: 78, G: 225, B: 98, A: 255}),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		Components: []EffectComponent{{
@@ -1944,8 +1944,8 @@ func elementalCastAuraEffectSpec(texture string, tint color.RGBA, alphaMax float
 }
 
 func bluePotionEffectSpec() EffectSpec {
-	spec := potionEffectSpec("\xc6\xc4\xb6\xf5\xc6\xf7\xbc\xc7", color.RGBA{R: 92, G: 150, B: 255, A: 255})
-	spec.SFX = []string{"effect\\\xc8\xed\xb1\xe2.wav"}
+	spec := potionEffectSpec("파란포션", color.RGBA{R: 92, G: 150, B: 255, A: 255})
+	spec.SFX = []string{"effect\\흡기.wav"}
 	return spec
 }
 

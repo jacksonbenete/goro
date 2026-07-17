@@ -241,7 +241,7 @@ func (m *WorldMode) drawSPREffect(screen *render.Frame, ctx client.Context, proj
 	drawSpriteBillboardTintAlpha3D(screen, projection, billboard, worldX, worldY, z, scale, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 }
 
-const effectSpriteRoot = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\"
+const effectSpriteRoot = "data\\sprite\\이팩트\\"
 
 func (m *WorldMode) effectSpriteView(manager *res.Manager, file string) *spriteView {
 	file = strings.TrimSpace(file)

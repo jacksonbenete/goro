@@ -118,7 +118,7 @@ var (
 
 const (
 	recoveryHPSFX = "_heal_effect.wav"
-	recoverySPSFX = "effect\\\xC8\xED\xB1\xE2.wav"
+	recoverySPSFX = "effect\\흡기.wav"
 )
 
 type statusVisualEffect struct {

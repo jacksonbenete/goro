@@ -51,7 +51,7 @@ func TestSmokeEffectSpecMatchesReferenceMapEffect(t *testing.T) {
 		t.Fatalf("smoke spec = %+v", spec)
 	}
 	component := spec.components[0]
-	if component.kind != effectComponent3D || component.spriteFile != "\xb1\xbc\xb6\xd2\xbf\xac\xb1\xe2" {
+	if component.kind != effectComponent3D || component.spriteFile != "굴뚝연기" {
 		t.Fatalf("smoke component sprite = %+v", component)
 	}
 	if component.duplicate != 10 || component.duplicateDelay != time.Second || component.duration != 10*time.Second {

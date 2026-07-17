@@ -78,7 +78,7 @@ type loginFadeState struct {
 }
 
 const loginTransitionDuration = 500 * time.Millisecond
-const loginConfirmSFX = "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav"
+const loginConfirmSFX = "버튼소리.wav"
 
 func NewLoginMode() *LoginMode {
 	return &LoginMode{status: "select a server", maxSlots: 9}
@@ -750,9 +750,9 @@ func loadLoginBackgroundImage(manager *res.Manager, name string) (*render.Image,
 
 func loginBackgroundSets(clientDate int) [][]string {
 	tiles2018 := []string{
-		"t_\xB9\xE8\xB0\xE61-1.bmp", "t_\xB9\xE8\xB0\xE61-2.bmp", "t_\xB9\xE8\xB0\xE61-3.bmp", "t_\xB9\xE8\xB0\xE61-4.bmp",
-		"t_\xB9\xE8\xB0\xE62-1.bmp", "t_\xB9\xE8\xB0\xE62-2.bmp", "t_\xB9\xE8\xB0\xE62-3.bmp", "t_\xB9\xE8\xB0\xE62-4.bmp",
-		"t_\xB9\xE8\xB0\xE63-1.bmp", "t_\xB9\xE8\xB0\xE63-2.bmp", "t_\xB9\xE8\xB0\xE63-3.bmp", "t_\xB9\xE8\xB0\xE63-4.bmp",
+		"t_배경1-1.bmp", "t_배경1-2.bmp", "t_배경1-3.bmp", "t_배경1-4.bmp",
+		"t_배경2-1.bmp", "t_배경2-2.bmp", "t_배경2-3.bmp", "t_배경2-4.bmp",
+		"t_배경3-1.bmp", "t_배경3-2.bmp", "t_배경3-3.bmp", "t_배경3-4.bmp",
 	}
 	sets := make([][]string, 0, 3)
 	if clientDate >= 20221207 {
@@ -770,11 +770,11 @@ func loginInterfaceCandidates(name string) []string {
 	if name == "" {
 		return nil
 	}
-	const ui = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\"
+	const ui = "data\\texture\\유저인터페이스\\"
 	candidates := []string{
 		ui + name,
 		strings.ReplaceAll(ui, "\\", "/") + name,
-		"texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\" + name,
+		"texture\\유저인터페이스\\" + name,
 		"data\\texture\\interface\\" + name,
 		"data/texture/interface/" + name,
 		name,

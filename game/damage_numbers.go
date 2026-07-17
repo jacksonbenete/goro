@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	damageNumberSPR = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\\xBC\xFD\xC0\xDA.spr"
-	damageNumberACT = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\\xBC\xFD\xC0\xDA.act"
-	damageMsgSPR    = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\msg.spr"
-	damageMsgACT    = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\msg.act"
+	damageNumberSPR = "data\\sprite\\이팩트\\숫자.spr"
+	damageNumberACT = "data\\sprite\\이팩트\\숫자.act"
+	damageMsgSPR    = "data\\sprite\\이팩트\\msg.spr"
+	damageMsgACT    = "data\\sprite\\이팩트\\msg.act"
 )
 
 var (

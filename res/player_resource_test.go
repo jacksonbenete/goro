@@ -22,23 +22,23 @@ func TestHasPlayerJobToken(t *testing.T) {
 
 func TestPlayerIMFResourceCandidates(t *testing.T) {
 	got := PlayerIMFResourceCandidates(1, 1)
-	want := "data\\imf\\\xB0\xCB\xBB\xE7_\xB3\xB2.imf"
+	want := "data\\imf\\검사_남.imf"
 	if len(got) == 0 || got[0] != want {
 		t.Fatalf("first imf candidate = %q, want %q", got, want)
 	}
-	if got[len(got)-1] != "data\\imf\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2.imf" {
+	if got[len(got)-1] != "data\\imf\\초보자_남.imf" {
 		t.Fatalf("fallback imf candidate = %q", got[len(got)-1])
 	}
 }
 
 func TestPlayerCartResourceCandidates(t *testing.T) {
 	got := PlayerCartResourceCandidates(1, "spr")
-	want := "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\\xBC\xD5\xBC\xF6\xB7\xB9.spr"
+	want := "data\\sprite\\이팩트\\손수레.spr"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("cart 1 candidate = %q, want %q", got, want)
 	}
 	got = PlayerCartResourceCandidates(13, "act")
-	want = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\\xB8\xB6\xB5\xB5\xC4\xAB\xC6\xAE.act"
+	want = "data\\sprite\\이팩트\\마도카트.act"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("cart 13 candidate = %q, want %q", got, want)
 	}
@@ -47,8 +47,8 @@ func TestPlayerCartResourceCandidates(t *testing.T) {
 func TestPlayerWeaponOverlayResourceCandidates(t *testing.T) {
 	got := PlayerWeaponOverlayResourceCandidates(0, 1, 1201, false, "act")
 	want := []string{
-		"data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_1201.act",
-		"data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_\xB4\xDC\xB0\xCB.act",
+		"data\\sprite\\인간족\\초보자\\초보자_남_1201.act",
+		"data\\sprite\\인간족\\초보자\\초보자_남_단검.act",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("weapon overlay = %q, want %q", got, want)
@@ -92,7 +92,7 @@ func TestPlayerWeaponOverlayTypeForJobMatchesReferenceJobRules(t *testing.T) {
 }
 
 func TestPlayerWeaponOverlayTokenUsesClientRodSpelling(t *testing.T) {
-	if got := PlayerWeaponOverlayToken(10); got != "\xB7\xD4\xB5\xE5" {
+	if got := PlayerWeaponOverlayToken(10); got != "롯드" {
 		t.Fatalf("rod token = %q, want client spelling", got)
 	}
 }
@@ -110,7 +110,7 @@ func TestNormalizePlayerWeaponShieldMovesLeftHandWeapon(t *testing.T) {
 
 func TestPlayerShieldOverlayResourceCandidates(t *testing.T) {
 	got := PlayerShieldOverlayResourceCandidates(0, 1, 2101, "spr")
-	want := "data\\sprite\\\xB9\xE6\xC6\xD0\\\xC3\xCA\xBA\xB8\xC0\xDA\\\xC3\xCA\xBA\xB8\xC0\xDA_\xB3\xB2_\xB0\xA1\xB5\xE5.spr"
+	want := "data\\sprite\\방패\\초보자\\초보자_남_가드.spr"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("shield overlay = %q, want %q", got, want)
 	}
@@ -118,7 +118,7 @@ func TestPlayerShieldOverlayResourceCandidates(t *testing.T) {
 
 func TestPlayerAccessoryResourceCandidates(t *testing.T) {
 	got := PlayerAccessoryResourceCandidates(0, 3, 0, 100, "sample", "act")
-	want := "data\\sprite\\\xBE\xC7\xBC\xBC\xBB\xE7\xB8\xAE\\\xBF\xA9\\\xBF\xA9_sample.act"
+	want := "data\\sprite\\악세사리\\여\\여_sample.act"
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("accessory overlay = %q, want %q", got, want)
 	}

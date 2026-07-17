@@ -2800,7 +2800,7 @@ func TestThiefThrowStoneEffectFollowsRoBrowserTable(t *testing.T) {
 		t.Fatalf("throw stone spec = %#v ok=%t, want one component", spec, ok)
 	}
 	component := spec.components[0]
-	if component.kind != effectComponent3D || component.textureFile != "\xc0\xaf\xc0\xfa\xc0\xce\xc5\xcd\xc6\xe4\xc0\xcc\xbd\xba/item/\xb5\xb9.bmp" {
+	if component.kind != effectComponent3D || component.textureFile != "유저인터페이스/item/돌.bmp" {
 		t.Fatalf("throw stone component = %#v, want stone texture 3D component", component)
 	}
 	if !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || !component.rotate || component.posZ != 1 {
@@ -3314,7 +3314,7 @@ func TestBlessingEffectSpecUsesRobrowserSpritesAndParticles(t *testing.T) {
 		t.Fatalf("components = %d, want 4", len(spec.components))
 	}
 	sprite := spec.components[0]
-	if sprite.kind != effectComponentSPR || sprite.spriteFile != "\xC3\xE0\xBA\xB9" {
+	if sprite.kind != effectComponentSPR || sprite.spriteFile != "축복" {
 		t.Fatalf("sprite component = %+v", sprite)
 	}
 	if sprite.duration != 1500*time.Millisecond || sprite.spriteDelay != 30*time.Millisecond || !sprite.spriteRepeat || !sprite.spriteHead || sprite.spriteYOffset != -120 || !sprite.worldSizedSprite {

@@ -122,7 +122,7 @@ func WaterTextureCandidates(waterType, frame int) []string {
 	}
 	frame %= 32
 	name := fmt.Sprintf("water%d%02d.jpg", waterType, frame)
-	koreanFolder := "data\\texture\\\xbf\xf6\xc5\xcd\\"
+	koreanFolder := "data\\texture\\워터\\"
 	return []string{
 		koreanFolder + name,
 		strings.ReplaceAll(koreanFolder, "\\", "/") + name,
@@ -172,11 +172,11 @@ func ItemIconTextureCandidates(resource string) []string {
 		filenameOnly = filenameOnly[pos+1:]
 	}
 
-	const uiKorPrefix = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\"
+	const uiKorPrefix = "data\\texture\\유저인터페이스\\item\\"
 	prefixes := []string{
 		uiKorPrefix,
 		strings.ReplaceAll(uiKorPrefix, "\\", "/"),
-		"texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\item\\",
+		"texture\\유저인터페이스\\item\\",
 		"data\\texture\\item\\",
 		"data/texture/item/",
 		"texture\\item\\",
@@ -220,11 +220,11 @@ func InterfaceTextureCandidates(resource string) []string {
 		filenameOnly = filenameOnly[pos+1:]
 	}
 
-	const uiKorPrefix = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\"
+	const uiKorPrefix = "data\\texture\\유저인터페이스\\"
 	prefixes := []string{
 		uiKorPrefix,
 		strings.ReplaceAll(uiKorPrefix, "\\", "/"),
-		"texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\",
+		"texture\\유저인터페이스\\",
 		"data\\texture\\interface\\",
 		"data/texture/interface/",
 		"texture\\interface\\",
@@ -266,11 +266,11 @@ func ItemCollectionTextureCandidates(resource string) []string {
 		filenameOnly = filenameOnly[pos+1:]
 	}
 
-	const uiKorPrefix = "data\\texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\collection\\"
+	const uiKorPrefix = "data\\texture\\유저인터페이스\\collection\\"
 	prefixes := []string{
 		uiKorPrefix,
 		strings.ReplaceAll(uiKorPrefix, "\\", "/"),
-		"texture\\\xC0\xAF\xC0\xFA\xC0\xCE\xC5\xCD\xC6\xE4\xC0\xCC\xBD\xBA\\collection\\",
+		"texture\\유저인터페이스\\collection\\",
 		"collection\\",
 		"texture\\collection\\",
 		"texture\\interface\\collection\\",

@@ -7,37 +7,37 @@ import (
 )
 
 const (
-	playerHumanSpriteRoot = "data\\sprite\\\xC0\xCE\xB0\xA3\xC1\xB7\\"
-	playerAccessoryRoot   = "data\\sprite\\\xBE\xC7\xBC\xBC\xBB\xE7\xB8\xAE\\"
-	playerShieldRoot      = "data\\sprite\\\xB9\xE6\xC6\xD0\\"
-	playerCartRoot        = "data\\sprite\\\xC0\xCC\xC6\xD1\xC6\xAE\\"
+	playerHumanSpriteRoot = "data\\sprite\\인간족\\"
+	playerAccessoryRoot   = "data\\sprite\\악세사리\\"
+	playerShieldRoot      = "data\\sprite\\방패\\"
+	playerCartRoot        = "data\\sprite\\이팩트\\"
 	playerPaletteRoot     = "data\\palette\\"
 	playerIMFRoot         = "data\\imf\\"
-	playerBodyDir         = "\xB8\xF6\xC5\xEB"
-	playerHeadDir         = "\xB8\xD3\xB8\xAE\xC5\xEB"
-	playerPaletteBodyDir  = "\xB8\xF6"
-	playerPaletteHeadDir  = "\xB8\xD3\xB8\xAE"
-	playerPaletteHeadFile = "\xB8\xD3\xB8\xAE"
-	playerFemaleSex       = "\xBF\xA9"
-	playerMaleSex         = "\xB3\xB2"
-	weaponLightSuffix     = "\xB0\xCB\xB1\xA4"
+	playerBodyDir         = "몸통"
+	playerHeadDir         = "머리통"
+	playerPaletteBodyDir  = "몸"
+	playerPaletteHeadDir  = "머리"
+	playerPaletteHeadFile = "머리"
+	playerFemaleSex       = "여"
+	playerMaleSex         = "남"
+	weaponLightSuffix     = "검광"
 )
 
 var playerCartTokens = []string{
-	"\xBD\xB4\xB3\xEB\xBC\xD5\xBC\xF6\xB7\xB9",
-	"\xBC\xD5\xBC\xF6\xB7\xB9",
-	"\xBC\xD5\xBC\xF6\xB7\xB91",
-	"\xBC\xD5\xBC\xF6\xB7\xB92",
-	"\xBC\xD5\xBC\xF6\xB7\xB93",
-	"\xBC\xD5\xBC\xF6\xB7\xB94",
-	"\xBC\xD5\xBC\xF6\xB7\xB95",
-	"\xBC\xD5\xBC\xF6\xB7\xB96",
-	"\xBC\xD5\xBC\xF6\xB7\xB97",
-	"\xBC\xD5\xBC\xF6\xB7\xB98",
-	"\xBC\xB1\xB9\xB0\xBB\xF3\xC0\xDA\xC4\xAB\xC6\xAE",
-	"\xC6\xF7\xB8\xB5\xBD\xC6\xC0\xBA\xC4\xAB\xC6\xAE",
-	"\xC6\xF7\xB8\xB5\xC4\xAB\xC6\xAE",
-	"\xB8\xB6\xB5\xB5\xC4\xAB\xC6\xAE",
+	"슈노손수레",
+	"손수레",
+	"손수레1",
+	"손수레2",
+	"손수레3",
+	"손수레4",
+	"손수레5",
+	"손수레6",
+	"손수레7",
+	"손수레8",
+	"선물상자카트",
+	"포링싣은카트",
+	"포링카트",
+	"마도카트",
 }
 
 var accessoryLuaCandidates = []string{

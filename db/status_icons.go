@@ -28,7 +28,7 @@ type StatusIconInfo struct {
 
 var statusIconInfos = map[uint16]StatusIconInfo{
 	0: {
-		Icon:         "\xc7\xc1\xb7\xce\xba\xb8\xc5\xa9.tga",
+		Icon:         "프로보크.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -40,7 +40,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	1: {
-		Icon:         "\xc0\xce\xb5\xe0\xbe\xee.tga",
+		Icon:         "인듀어.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -52,7 +52,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	2: {
-		Icon:         "\xc5\xf5\xc7\xda\xb5\xe5\xc4\xfb\xc5\xab.tga",
+		Icon:         "투핸드퀴큰.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -64,7 +64,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	3: {
-		Icon:         "\xc1\xfd\xc1\xdf\xb7\xc2\xc7\xe2\xbb\xf3.tga",
+		Icon:         "집중력향상.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -76,7 +76,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	4: {
-		Icon:         "\xc7\xcf\xc0\xcc\xb5\xf9.tga",
+		Icon:         "하이딩.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -88,7 +88,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	5: {
-		Icon:         "\xc5\xac\xb7\xce\xc5\xb7.tga",
+		Icon:         "클로킹.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -99,7 +99,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	6: {
-		Icon:         "\xc0\xce\xc2\xf9\xc6\xae\xc6\xf7\xc0\xcc\xc1\xf0.tga",
+		Icon:         "인찬트포이즌.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -110,7 +110,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	7: {
-		Icon:         "\xc6\xf7\xc0\xcc\xc1\xf0\xb8\xae\xbe\xd7\xc6\xae.tga",
+		Icon:         "포이즌리액트.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -123,7 +123,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	8: {
-		Icon:         "\xc4\xe2\xb1\xd7\xb8\xb6\xc0\xcc\xbe\xee.tga",
+		Icon:         "콰그마이어.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -135,7 +135,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	9: {
-		Icon:         "\xbe\xc8\xc1\xa9\xb7\xe7\xbd\xba.tga",
+		Icon:         "안젤루스.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -146,7 +146,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	10: {
-		Icon:         "\xba\xed\xb7\xb9\xbd\xcc.tga",
+		Icon:         "블레싱.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -158,7 +158,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	11: {
-		Icon:         "\xbd\xc3\xb1\xd7\xb3\xd1\xc5\xa9\xb7\xe7\xbd\xc3\xbd\xba.tga",
+		Icon:         "시그넘크루시스.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -169,7 +169,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	12: {
-		Icon:         "\xb9\xce\xc3\xb8\xbc\xba\xc1\xf5\xb0\xa1.tga",
+		Icon:         "민첩성증가.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -181,7 +181,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	13: {
-		Icon:         "\xb9\xce\xc3\xb8\xbc\xba\xb0\xa8\xbc\xd2.tga",
+		Icon:         "민첩성감소.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -193,7 +193,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	14: {
-		Icon:         "\xbd\xbd\xb7\xce\xbf\xec\xc6\xf7\xc0\xcc\xc1\xf0.tga",
+		Icon:         "슬로우포이즌.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -204,7 +204,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	15: {
-		Icon:         "\xc0\xd3\xc6\xf7\xbd\xc3\xc6\xbc\xbf\xc0\xb8\xb6\xb4\xa9\xbd\xba.tga",
+		Icon:         "임포시티오마누스.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -215,7 +215,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	16: {
-		Icon:         "\xbc\xf6\xc1\xdd\xc0\xba\xc7\xcf\xb7\xe7\xc0\xc7\xbf\xec\xbf\xef.tga",
+		Icon:         "수줍은하루의우울.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -226,7 +226,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	17: {
-		Icon:         "\xbe\xc6\xbd\xba\xc6\xe4\xb8\xa3\xbd\xc3\xbf\xc0.tga",
+		Icon:         "아스페르시오.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -237,7 +237,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	18: {
-		Icon:         "\xbc\xba\xc3\xbc\xb0\xad\xba\xb9.tga",
+		Icon:         "성체강복.tga",
 		Category:     StatusIconUnknown,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -247,7 +247,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	19: {
-		Icon:         "\xb1\xe2\xb8\xae\xbf\xa1\xbf\xa4\xb7\xb9\xc0\xcc\xbc\xd5.tga",
+		Icon:         "기리에엘레이손.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -258,7 +258,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	20: {
-		Icon:         "\xb8\xb6\xb4\xcf\xc7\xc7\xc4\xb1.tga",
+		Icon:         "마니피캇.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -269,7 +269,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	21: {
-		Icon:         "\xb1\xdb\xb7\xce\xb8\xae\xbe\xc6.tga",
+		Icon:         "글로리아.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -280,7 +280,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	22: {
-		Icon:         "\xb7\xba\xbd\xba\xbf\xa1\xc5\xd7\xb8\xa3\xb3\xaa.tga",
+		Icon:         "렉스에테르나.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -291,7 +291,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	23: {
-		Icon:         "\xbe\xc6\xb5\xe5\xb7\xb9\xb3\xaf\xb8\xb0\xb7\xaf\xbd\xac.tga",
+		Icon:         "아드레날린러쉬.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -303,7 +303,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	24: {
-		Icon:         "\xbf\xfe\xc6\xf9\xc6\xdb\xc6\xe5\xbc\xc7.tga",
+		Icon:         "웨폰퍼펙션.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -315,7 +315,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	25: {
-		Icon:         "\xbf\xc0\xb9\xf6\xc6\xae\xb7\xaf\xbd\xba\xc6\xae.tga",
+		Icon:         "오버트러스트.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -327,7 +327,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	26: {
-		Icon:         "\xb8\xc6\xbd\xc3\xb8\xb6\xc0\xcc\xc1\xee\xc6\xc4\xbf\xf6.tga",
+		Icon:         "맥시마이즈파워.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -339,14 +339,14 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	27: {
-		Icon:     "\xb6\xf3\xc0\xcc\xb5\xf9.tga",
+		Icon:     "라이딩.tga",
 		Category: StatusIconToggle,
 		Lines: []StatusIconLine{
 			{Text: "Riding Vehicle", Color: color.RGBA{R: 190, G: 190, B: 250, A: 255}, HasColor: true},
 		},
 	},
 	28: {
-		Icon:     "\xc6\xc8\xc4\xdc.tga",
+		Icon:     "팔콘.tga",
 		Category: StatusIconToggle,
 		Lines: []StatusIconLine{
 			{Text: "Falconry Mastery", Color: color.RGBA{R: 190, G: 190, B: 250, A: 255}, HasColor: true},
@@ -354,7 +354,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	29: {
-		Icon:     "\xc1\xd7\xc0\xba\xc3\xb4\xc7\xcf\xb1\xe2.tga",
+		Icon:     "죽은척하기.tga",
 		Category: StatusIconToggle,
 		Lines: []StatusIconLine{
 			{Text: "Trick Dead (Play Dead)", Color: color.RGBA{R: 190, G: 190, B: 250, A: 255}, HasColor: true},
@@ -362,7 +362,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	30: {
-		Icon:         "\xb0\xed\xbc\xba\xc1\xf6\xb8\xa3\xb1\xe2.tga",
+		Icon:         "고성지르기.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -373,7 +373,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	31: {
-		Icon:         "\xbf\xa1\xb3\xca\xc1\xf6\xc4\xda\xc6\xae.tga",
+		Icon:         "에너지코트.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -385,21 +385,21 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	32: {
-		Icon:     "\xb0\xa9\xbf\xca\xc6\xc4\xb1\xab.tga",
+		Icon:     "갑옷파괴.tga",
 		Category: StatusIconDebuff,
 		Lines: []StatusIconLine{
 			{Text: "Armor is damaged", Color: color.RGBA{R: 250, G: 100, B: 100, A: 255}, HasColor: true},
 		},
 	},
 	33: {
-		Icon:     "\xb9\xab\xb1\xe2\xc6\xc4\xb1\xab.tga",
+		Icon:     "무기파괴.tga",
 		Category: StatusIconDebuff,
 		Lines: []StatusIconLine{
 			{Text: "Weapon is damaged.", Color: color.RGBA{R: 250, G: 100, B: 100, A: 255}, HasColor: true},
 		},
 	},
 	34: {
-		Icon:         "\xc8\xaf\xb0\xa2.tga",
+		Icon:         "환각.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -412,7 +412,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	35: {
-		Icon:     "\xb9\xab\xb0\xd450\xc0\xcc\xbb\xf3.tga",
+		Icon:     "무게50이상.tga",
 		Category: StatusIconDebuff,
 		Lines: []StatusIconLine{
 			{Text: "Overweight 50%", Color: color.RGBA{R: 250, G: 100, B: 100, A: 255}, HasColor: true},
@@ -420,7 +420,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	36: {
-		Icon:     "\xb9\xab\xb0\xd490\xc0\xcc\xbb\xf3.tga",
+		Icon:     "무게90이상.tga",
 		Category: StatusIconDebuff,
 		Lines: []StatusIconLine{
 			{Text: "Overweight 90%", Color: color.RGBA{R: 250, G: 100, B: 100, A: 255}, HasColor: true},
@@ -429,7 +429,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	37: {
-		Icon:         "\xb0\xf8\xbc\xd3\xb9\xb0\xbe\xe0.tga",
+		Icon:         "공속물약.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -440,7 +440,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	38: {
-		Icon:         "\xb0\xf8\xbc\xd3\xb9\xb0\xbe\xe0.tga",
+		Icon:         "공속물약.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -451,7 +451,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	39: {
-		Icon:         "\xb0\xf8\xbc\xd3\xb9\xb0\xbe\xe0.tga",
+		Icon:         "공속물약.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -462,7 +462,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	41: {
-		Icon:         "\xb9\xce\xc3\xb8\xbc\xba\xc1\xf5\xb0\xa1.tga",
+		Icon:         "민첩성증가.tga",
 		Category:     StatusIconUnknown,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -472,14 +472,14 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	42: {
-		Icon:     "\xb9\xce\xc3\xb8\xbc\xba\xc1\xf5\xb0\xa1.tga",
+		Icon:     "민첩성증가.tga",
 		Category: StatusIconUnknown,
 		Lines: []StatusIconLine{
 			{Text: "Increases Movement Speed"},
 		},
 	},
 	50: {
-		Icon:         "\xbd\xba\xc6\xae\xb8\xb3\xbf\xfe\xc6\xf9.tga",
+		Icon:         "스트립웨폰.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -490,7 +490,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	51: {
-		Icon:         "\xbd\xba\xc6\xae\xb8\xb3\xbd\xaf\xb5\xe5.tga",
+		Icon:         "스트립쉴드.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -501,7 +501,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	52: {
-		Icon:         "\xbd\xba\xc6\xae\xb8\xb3\xbe\xc6\xb8\xd3.tga",
+		Icon:         "스트립아머.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -512,7 +512,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	53: {
-		Icon:         "\xbd\xba\xc6\xae\xb8\xb3\xc7\xef\xb8\xa7.tga",
+		Icon:         "스트립헬름.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -523,7 +523,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	54: {
-		Icon:         "\xc4\xc9\xb9\xcc\xc4\xc3\xc7\xc1\xb7\xce\xc5\xd8\xbc\xc7[\xbf\xfe\xc6\xf9].tga",
+		Icon:         "케미컬프로텍션[웨폰].tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -534,7 +534,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	55: {
-		Icon:         "\xc4\xc9\xb9\xcc\xc4\xc3\xc7\xc1\xb7\xce\xc5\xd8\xbc\xc7[\xbd\xaf\xb5\xe5].tga",
+		Icon:         "케미컬프로텍션[쉴드].tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -545,7 +545,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	56: {
-		Icon:         "\xc4\xc9\xb9\xcc\xc4\xc3\xc7\xc1\xb7\xce\xc5\xd8\xbc\xc7[\xbe\xc6\xb8\xd3].tga",
+		Icon:         "케미컬프로텍션[아머].tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -556,7 +556,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	57: {
-		Icon:         "\xc4\xc9\xb9\xcc\xc4\xc3\xc7\xc1\xb7\xce\xc5\xd8\xbc\xc7[\xc7\xef\xb8\xa7].tga",
+		Icon:         "케미컬프로텍션[헬름].tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -567,7 +567,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	58: {
-		Icon:         "\xbf\xc0\xc5\xe4\xb0\xa1\xb5\xe5.tga",
+		Icon:         "오토가드.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -578,7 +578,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	59: {
-		Icon:         "\xb8\xae\xc7\xc3\xb7\xba\xc6\xae\xbd\xaf\xb5\xe5.tga",
+		Icon:         "리플렉트쉴드.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -590,7 +590,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	60: {
-		Icon:         "\xc7\xe5\xbd\xc5.tga",
+		Icon:         "헌신.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -601,7 +601,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	61: {
-		Icon:         "\xbd\xc5\xc0\xc7\xb6\xe6.tga",
+		Icon:         "신의뜻.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -613,7 +613,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	62: {
-		Icon:         "\xb5\xf0\xc6\xe6\xb4\xf5.tga",
+		Icon:         "디펜더.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -625,14 +625,14 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	64: {
-		Icon:     "\xbf\xac\xb8\xb6\xc1\xa6.tga",
+		Icon:     "연마제.tga",
 		Category: StatusIconUnknown,
 		Lines: []StatusIconLine{
 			{Text: "Granted a weapon property"},
 		},
 	},
 	65: {
-		Icon:         "\xbf\xc0\xc5\xe4\xbd\xba\xc6\xe7.tga",
+		Icon:         "오토스펠.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -646,7 +646,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	68: {
-		Icon:         "\xbd\xba\xc7\xc7\xbe\xee\xc4\xfb\xc5\xab.tga",
+		Icon:         "스피어퀴큰.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -659,7 +659,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	69: {
-		Icon:     "\xb9\xd9\xb5\xe5\xb3\xeb\xb7\xa1.tga",
+		Icon:     "바드노래.tga",
 		Category: StatusIconUnknown,
 	},
 	87: {
@@ -687,7 +687,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	90: {
-		Icon:         "\xc7\xc1\xb7\xb9\xc0\xd3\xb7\xb1\xc3\xc4.tga",
+		Icon:         "프레임런쳐.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -698,7 +698,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	91: {
-		Icon:         "\xc7\xc1\xb7\xce\xbd\xba\xc6\xae\xbf\xfe\xc6\xf9.tga",
+		Icon:         "프로스트웨폰.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -709,7 +709,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	92: {
-		Icon:         "\xb6\xf3\xc0\xcc\xc6\xae\xb4\xd7\xb7\xce\xb4\xf5.tga",
+		Icon:         "라이트닝로더.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -720,7 +720,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	93: {
-		Icon:         "\xbb\xe7\xc0\xcc\xc1\xee\xb9\xcd\xbf\xfe\xc6\xf9.tga",
+		Icon:         "사이즈믹웨폰.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -772,7 +772,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	112: {
-		Icon:         "i_\xc0\xe5\xc6\xc7.tga",
+		Icon:         "i_장판.tga",
 		Category:     StatusIconUnknown,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -782,7 +782,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	114: {
-		Icon:         "i_\xc4\xa1\xb5\xb6.tga",
+		Icon:         "i_치독.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -877,7 +877,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	124: {
-		Icon:         "\xc3\xe2\xc7\xf7\xbb\xf3\xc5\xc2.tga",
+		Icon:         "출혈상태.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -889,7 +889,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	125: {
-		Icon:         "\xb0\xfc\xc0\xfd\xb0\xf8\xb0\xdd.tga",
+		Icon:         "관절공격.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -901,7 +901,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	130: {
-		Icon:         "\xbe\xf6\xb8\xb6\xbe\xc6\xba\xfc\xbb\xe7\xb6\xfb\xc7\xd8\xbf\xe4.tga",
+		Icon:         "엄마아빠사랑해요.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -912,7 +912,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	132: {
-		Icon:     "\xb1\xdd\xb0\xad\xba\xd2\xb1\xab.tga",
+		Icon:     "금강불괴.tga",
 		Category: StatusIconBuff,
 		Lines: []StatusIconLine{
 			{Text: "Auto Berserk", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
@@ -985,7 +985,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	146: {
-		Icon:         "\xc4\xb3\xbd\xc3\xb0\xa9\xbf\xca\xbc\xd3\xbc\xba\xba\xce\xbf\xa9.tga",
+		Icon:         "캐시갑옷속성부여.tga",
 		Category:     StatusIconUnknown,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -995,7 +995,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	147: {
-		Icon:         "\xbe\xc6\xb5\xe5\xb7\xb9\xb3\xaf\xb8\xb0\xb7\xaf\xbd\xac.tga",
+		Icon:         "아드레날린러쉬.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1117,7 +1117,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	181: {
-		Icon:         "i_\xc7\xc1\xb8\xae\xc0\xfa\xba\xea.tga",
+		Icon:         "i_프리저브.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1128,7 +1128,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	182: {
-		Icon:         "i_\xc3\xbc\xc0\xcc\xbd\xba\xc8\xfb.tga",
+		Icon:         "i_체이스힘.tga",
 		Category:     StatusIconUnknown,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -1138,7 +1138,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	186: {
-		Icon:         "i_\xb4\xf5\xba\xed\xc4\xb3\xbd\xba\xc6\xc3.tga",
+		Icon:         "i_더블캐스팅.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1150,7 +1150,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	188: {
-		Icon:         "i_\xbf\xc0\xb9\xf6\xb8\xc6\xbd\xba.tga",
+		Icon:         "i_오버맥스.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1162,7 +1162,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	191: {
-		Icon:         "i_\xc5\xb8\xb7\xce\xc4\xab\xb5\xe5.tga",
+		Icon:         "i_타로카드.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1248,7 +1248,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	205: {
-		Icon:         "\xb1\xdb\xb7\xce\xb8\xae\xbe\xc6.tga",
+		Icon:         "글로리아.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1322,7 +1322,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	217: {
-		Icon:     "\xb6\xf3\xc0\xcc\xb5\xf9.tga",
+		Icon:     "라이딩.tga",
 		Category: StatusIconToggle,
 		Lines: []StatusIconLine{
 			{Text: "Riding Griffon", Color: color.RGBA{R: 190, G: 190, B: 250, A: 255}, HasColor: true},
@@ -1533,7 +1533,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	289: {
-		Icon:         "\xb9\xce\xc3\xb8\xbc\xba\xc1\xf5\xb0\xa1.tga",
+		Icon:         "민첩성증가.tga",
 		Category:     StatusIconUnknown,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -1554,7 +1554,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	291: {
-		Icon:         "\xb8\xb6\xb9\xfd\xb9\xe6\xbe\xee\xc6\xf7\xbc\xc7.tga",
+		Icon:         "마법방어포션.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1565,7 +1565,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	292: {
-		Icon:         "\xc1\xdf\xc7\xfc\xbb\xfd\xb8\xed\xbc\xf6.tga",
+		Icon:         "중형생명수.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1577,7 +1577,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	293: {
-		Icon:         "\xbc\xd2\xc7\xfc\xbb\xfd\xb8\xed\xbc\xf6.tga",
+		Icon:         "소형생명수.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1589,7 +1589,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	294: {
-		Icon:         "\xc1\xdf\xc7\xfc\xbb\xfd\xb8\xed\xbc\xf6.tga",
+		Icon:         "중형생명수.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1601,7 +1601,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	295: {
-		Icon:         "\xbd\xba\xc6\xae\xb6\xf3\xc0\xcc\xc5\xb7.tga",
+		Icon:         "스트라이킹.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1647,7 +1647,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		HasTimeLimit: true,
 		TimeLine:     2,
 		Lines: []StatusIconLine{
-			{Text: "\xc5\xc2\xc3\xbb\xb4\xdc", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
+			{Text: "태청단", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
 			{Text: "%s", Color: color.RGBA{R: 255, G: 176, B: 98, A: 255}, HasColor: true},
 			{Text: "Increases Max SP"},
 			{Text: "Increases SP recovery"},
@@ -1664,7 +1664,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	301: {
-		Icon:         "\xbc\xd2\xc7\xfc\xbb\xfd\xb8\xed\xbc\xf6.tga",
+		Icon:         "소형생명수.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1677,7 +1677,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	302: {
-		Icon:         "\xc4\xb3\xbd\xc3\xb0\xa9\xbf\xca\xbc\xd3\xbc\xba\xba\xce\xbf\xa9.tga",
+		Icon:         "캐시갑옷속성부여.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1821,7 +1821,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	333: {
-		Icon:     "\xc6\xf7\xc0\xcc\xc1\xee\xb4\xd7\xbf\xfe\xc6\xf9.tga",
+		Icon:     "포이즈닝웨폰.tga",
 		Category: StatusIconBuff,
 		Lines: []StatusIconLine{
 			{Text: "Cloaking Exceed", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
@@ -1831,7 +1831,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	334: {
-		Icon:         "\xc7\xd2\xb7\xe7\xbd\xc3\xb3\xd7\xc0\xcc\xbc\xc7\xbf\xf6\xc5\xa9.tga",
+		Icon:         "할루시네이션워크.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1843,7 +1843,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	336: {
-		Icon:         "\xb7\xb9\xb3\xeb\xb9\xd9\xc6\xbc\xbf\xc0.tga",
+		Icon:         "레노바티오.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1856,7 +1856,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	337: {
-		Icon:         "\xbf\xfe\xc6\xf9\xba\xed\xb7\xce\xc5\xb7.tga",
+		Icon:         "웨폰블로킹.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1868,7 +1868,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	341: {
-		Icon:         "\xc6\xf7\xc0\xcc\xc1\xee\xb4\xd7\xbf\xfe\xc6\xf9.tga",
+		Icon:         "포이즈닝웨폰.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1879,7 +1879,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	342: {
-		Icon:         "\xbd\xc5\xb0\xe6\xb8\xb6\xba\xf1\xb5\xb6.tga",
+		Icon:         "신경마비독.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1892,7 +1892,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	343: {
-		Icon:         "\xb0\xa8\xb0\xa2\xb8\xb6\xba\xf1\xb5\xb6.tga",
+		Icon:         "감각마비독.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1905,7 +1905,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	344: {
-		Icon:         "\xbc\xe8\xbe\xe0\xb5\xb6.tga",
+		Icon:         "쇠약독.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1916,7 +1916,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	345: {
-		Icon:         "\xbf\xf4\xc0\xbd\xb9\xf6\xbc\xb8.tga",
+		Icon:         "웃음버섯.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1929,7 +1929,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	346: {
-		Icon:         "\xbb\xf3\xc3\xb3\xbf\xc0\xbf\xb0\xb5\xb6.tga",
+		Icon:         "상처오염독.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1940,7 +1940,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	347: {
-		Icon:         "\xbf\xad\xba\xb4\xb5\xb6.tga",
+		Icon:         "열병독.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1951,7 +1951,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	348: {
-		Icon:         "\xb8\xc1\xb0\xa2\xc0\xc7\xc0\xe7.tga",
+		Icon:         "망각의재.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -1962,7 +1962,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	349: {
-		Icon:         "\xb0\xc5\xb8\xd3\xb8\xae.tga",
+		Icon:         "거머리.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2033,7 +2033,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	361: {
-		Icon:         "\xbf\xa2\xbc\xbf\xb7\xb9\xc0\xcc\xbc\xc7.tga",
+		Icon:         "엑셀레이션.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2044,7 +2044,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	362: {
-		Icon:         "\xc8\xa3\xb9\xf6\xb8\xb5.tga",
+		Icon:         "호버링.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2101,7 +2101,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	373: {
-		Icon:         "\xbf\xc0\xb9\xf6\xc8\xf7\xc6\xae.tga",
+		Icon:         "오버히트.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -2112,7 +2112,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	374: {
-		Icon:         "\xbc\xce\xc0\xcc\xc7\xc1\xbd\xac\xc7\xc1\xc6\xae.tga",
+		Icon:         "셰이프쉬프트.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2123,7 +2123,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	375: {
-		Icon:         "\xc0\xce\xc7\xc1\xb6\xf3\xb7\xb9\xb5\xe5\xbd\xba\xc4\xb5.tga",
+		Icon:         "인프라레드스캔.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2135,7 +2135,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	377: {
-		Icon:         "\xb4\xba\xc6\xae\xb7\xb2\xb9\xe8\xb8\xae\xbe\xee.tga",
+		Icon:         "뉴트럴배리어.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2147,7 +2147,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	379: {
-		Icon:         "\xbd\xba\xc5\xda\xbd\xba\xc7\xca\xb5\xe5.tga",
+		Icon:         "스텔스필드.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2208,7 +2208,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	385: {
-		Icon:     "\xb8\xae\xc7\xc1\xb7\xce\xb5\xe0\xbd\xba.tga",
+		Icon:     "리프로듀스.tga",
 		Category: StatusIconBuff,
 		Lines: []StatusIconLine{
 			{Text: "Reproduce", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
@@ -2273,7 +2273,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	391: {
-		Icon:         "\xc6\xf7\xbd\xba\xbf\xc0\xba\xea\xb9\xf0\xb0\xa1\xb5\xe5.tga",
+		Icon:         "포스오브뱅가드.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2286,7 +2286,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	393: {
-		Icon:         "\xbf\xc0\xc5\xe4\xbd\xa6\xb5\xb5\xbf\xec\xbd\xba\xc6\xe7.tga",
+		Icon:         "오토쉐도우스펠.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2298,7 +2298,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	394: {
-		Icon:         "\xbd\xa6\xb5\xb5\xbf\xec\xc6\xfb.tga",
+		Icon:         "쉐도우폼.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2310,7 +2310,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	396: {
-		Icon:         "lg_shieldspell_\xb9\xe6.tga",
+		Icon:         "lg_shieldspell_방.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2321,7 +2321,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	397: {
-		Icon:         "lg_shieldspell_\xb8\xb6.tga",
+		Icon:         "lg_shieldspell_마.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2332,7 +2332,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	398: {
-		Icon:         "lg_shieldspell_\xbf\xac.tga",
+		Icon:         "lg_shieldspell_연.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2355,7 +2355,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	401: {
-		Icon:         "\xb9\xce\xc3\xb8\xbc\xba\xb0\xa8\xbc\xd2.tga",
+		Icon:         "민첩성감소.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2378,7 +2378,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	403: {
-		Icon:         "\xc0\xce\xba\xf1\xc1\xf6\xba\xf4\xb8\xae\xc6\xbc.tga",
+		Icon:         "인비지빌리티.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2392,7 +2392,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	404: {
-		Icon:         "\xb5\xa5\xb5\xe9\xb8\xae\xc0\xce\xc6\xe5\xc6\xae.tga",
+		Icon:         "데들리인펙트.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2456,7 +2456,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	410: {
-		Icon:     "\xc0\xe1\xb7\xe6\xbd\xc2\xc3\xb5.tga",
+		Icon:     "잠룡승천.tga",
 		Category: StatusIconBuff,
 		Lines: []StatusIconLine{
 			{Text: "Rising Dragon", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
@@ -2506,7 +2506,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	414: {
-		Icon:         "\xb0\xf8\xbc\xd3\xb9\xb0\xbe\xe0.tga",
+		Icon:         "공속물약.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2544,7 +2544,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	419: {
-		Icon:         "\xb1\xe2\xb8\xae\xbf\xa1\xbf\xa4\xb7\xb9\xc0\xcc\xbc\xd5.tga",
+		Icon:         "기리에엘레이손.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2558,7 +2558,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	421: {
-		Icon:         "\xbd\xba\xc6\xae\xb8\xb3\xbe\xd7\xbc\xbc\xbc\xad\xb8\xae.tga",
+		Icon:         "스트립액세서리.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2581,7 +2581,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	425: {
-		Icon:         "\xc1\xa1\xc7\xf7\xb1\xb8.tga",
+		Icon:         "점혈구.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2593,7 +2593,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	426: {
-		Icon:         "\xc1\xa1\xc7\xf7\xb9\xdd.tga",
+		Icon:         "점혈반.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2605,7 +2605,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	427: {
-		Icon:         "\xc1\xa1\xc7\xf7\xc8\xb0.tga",
+		Icon:         "점혈활.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2619,7 +2619,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	429: {
-		Icon:         "\xbd\xba\xc0\xae\xb4\xed\xbd\xba.tga",
+		Icon:         "스윙댄스.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2631,7 +2631,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	430: {
-		Icon:         "\xbf\xac\xc0\xce\xb5\xe9\xc0\xbb\xc0\xa7\xc7\xd1\xbd\xc9\xc6\xf7\xb4\xcf.tga",
+		Icon:         "연인들을위한심포니.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2642,7 +2642,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	435: {
-		Icon:         "\xbe\xc8\xbd\xc4\xc0\xc7\xc0\xda\xc0\xe5\xb0\xa1.tga",
+		Icon:         "안식의자장가.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2654,7 +2654,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	436: {
-		Icon:         "\xbc\xf8\xc8\xaf\xc7\xcf\xb4\xc2\xc0\xda\xbf\xac\xc0\xc7\xbc\xd2\xb8\xae.tga",
+		Icon:         "순환하는자연의소리.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2665,7 +2665,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	437: {
-		Icon:         "\xb4\xd9\xc0\xcc\xbe\xc6\xb8\xf3\xb5\xe5\xb4\xf5\xbd\xba\xc6\xae.tga",
+		Icon:         "다이아몬드더스트.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2680,7 +2680,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	438: {
-		Icon:         "\xbc\xf6\xc1\xdd\xc0\xba\xc7\xcf\xb7\xe7\xc0\xc7\xbf\xec\xbf\xef.tga",
+		Icon:         "수줍은하루의우울.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2692,7 +2692,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	439: {
-		Icon:         "\xb8\xb6\xb3\xaa\xc0\xc7\xb3\xeb\xb7\xa1.tga",
+		Icon:         "마나의노래.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2703,7 +2703,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	441: {
-		Icon:         "\xbf\xf6\xb1\xd7\xbf\xcd\xc7\xd4\xb2\xb2\xc3\xe3\xc0\xbb.tga",
+		Icon:         "워그와함께춤을.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2715,7 +2715,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	442: {
-		Icon:         "\xc7\xb3\xc2\xf7\xb8\xa6\xc7\xe2\xc7\xd8\xb5\xb9\xb0\xdd.tga",
+		Icon:         "풍차를향해돌격.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2726,7 +2726,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	443: {
-		Icon:         "\xb8\xb6\xbd\xba\xc4\xbf\xb7\xb9\xc0\xcc\xb5\xe5.tga",
+		Icon:         "마스커레이드.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2737,7 +2737,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	444: {
-		Icon:         "\xc7\xcf\xb8\xf0\xb3\xaa\xc0\xcc\xc1\xee.tga",
+		Icon:         "하모나이즈.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2748,7 +2748,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	445: {
-		Icon:         "\xbd\xba\xc6\xae\xb6\xf3\xc0\xcc\xc5\xb7.tga",
+		Icon:         "스트라이킹.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2759,7 +2759,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	446: {
-		Icon:         "\xbf\xf6\xb8\xd3.tga",
+		Icon:         "워머.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2772,7 +2772,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	447: {
-		Icon:         "\xb4\xde\xba\xfb\xc0\xc7\xbc\xbc\xb7\xb9\xb3\xaa\xb5\xa5.tga",
+		Icon:         "달빛의세레나데.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2783,7 +2783,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	448: {
-		Icon:         "\xbb\xf5\xc5\xcd\xb5\xa5\xc0\xcc\xb3\xaa\xc0\xcc\xc6\xae\xc7\xc7\xb9\xf6.tga",
+		Icon:         "새터데이나이트피버.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     1,
@@ -2796,7 +2796,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	450: {
-		Icon:         "\xbe\xd6\xb3\xce\xb6\xf3\xc0\xcc\xc1\xee.tga",
+		Icon:         "애널라이즈.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2807,7 +2807,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	451: {
-		Icon:         "\xb7\xb9\xb6\xf3\xb5\xe5\xc0\xc7\xc0\xcc\xbd\xbd.tga",
+		Icon:         "레라드의이슬.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2818,7 +2818,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	452: {
-		Icon:         "\xb8\xe1\xb7\xce\xb5\xf0\xbf\xc0\xba\xea\xbd\xcc\xc5\xa9.tga",
+		Icon:         "멜로디오브싱크.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2841,7 +2841,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	454: {
-		Icon:         "\xbe\xf0\xb8\xae\xb9\xcc\xc6\xbc\xb5\xe5\xc7\xe3\xb9\xd6\xba\xb8\xc0\xcc\xbd\xba.tga",
+		Icon:         "언리미티드허밍보이스.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2864,7 +2864,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	463: {
-		Icon:         "\xb0\xa1\xbd\xc3\xb3\xaa\xb9\xab\xb5\xa3.tga",
+		Icon:         "가시나무덫.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2875,7 +2875,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	472: {
-		Icon:         "\xbc\xbc\xc5\xa9\xb6\xf3\xb8\xe0\xc6\xae.tga",
+		Icon:         "세크라멘트.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2897,7 +2897,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	476: {
-		Icon:         "\xbe\xc8\xc6\xbc\xb8\xc5\xc5\xcd\xb8\xae\xbe\xf3.tga",
+		Icon:         "안티매터리얼.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -2989,7 +2989,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	577: {
-		Icon:         "\xbc\xbc\xb6\xf34.tga",
+		Icon:         "세라4.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3001,7 +3001,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	578: {
-		Icon:         "\xc1\xdf\xc7\xfc\xbb\xfd\xb8\xed\xbc\xf6.tga",
+		Icon:         "중형생명수.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3013,7 +3013,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	579: {
-		Icon:         "\xbf\xa1\xc0\xcc\xb6\xf31.tga",
+		Icon:         "에이라1.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3025,7 +3025,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	580: {
-		Icon:         "\xbf\xa1\xc0\xcc\xb6\xf31.tga",
+		Icon:         "에이라1.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3037,7 +3037,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	581: {
-		Icon:         "\xbf\xa1\xc0\xcc\xb6\xf32.tga",
+		Icon:         "에이라2.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3069,7 +3069,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	605: {
-		Icon:         "\xb5\xf0\xc0\xcc\xc5\xcd1.tga",
+		Icon:         "디이터1.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3081,7 +3081,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	606: {
-		Icon:         "\xb5\xf0\xc0\xcc\xc5\xcd2.tga",
+		Icon:         "디이터2.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3093,7 +3093,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	607: {
-		Icon:         "\xb5\xf0\xc0\xcc\xc5\xcd4.tga",
+		Icon:         "디이터4.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3106,7 +3106,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	608: {
-		Icon:         "\xb5\xf0\xc0\xcc\xc5\xcd5.tga",
+		Icon:         "디이터5.tga",
 		Category:     StatusIconDebuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3133,7 +3133,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	613: {
-		Icon:     "\xb6\xf3\xc0\xcc\xb5\xf9.tga",
+		Icon:     "라이딩.tga",
 		Category: StatusIconToggle,
 		Lines: []StatusIconLine{
 			{Text: "Riding", Color: color.RGBA{R: 190, G: 190, B: 250, A: 255}, HasColor: true},
@@ -3163,7 +3163,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	621: {
-		Icon:         "\xba\xaf\xbd\xc5.tga",
+		Icon:         "변신.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3174,7 +3174,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	622: {
-		Icon:     "\xbe\xc9\xb1\xe2.tga",
+		Icon:     "앉기.tga",
 		Category: StatusIconToggle,
 		Lines: []StatusIconLine{
 			{Text: "Sit", Color: color.RGBA{R: 190, G: 190, B: 250, A: 255}, HasColor: true},
@@ -3418,7 +3418,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		HasTimeLimit: true,
 		TimeLine:     2,
 		Lines: []StatusIconLine{
-			{Text: "\xc0\xfc\xc5\xf5\xbe\xe0", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
+			{Text: "전투약", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
 			{Text: "%s", Color: color.RGBA{R: 255, G: 176, B: 98, A: 255}, HasColor: true},
 			{Text: "Increases ATK and MATK"},
 			{Text: "Reduced MHP and MSP"},
@@ -3429,7 +3429,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		HasTimeLimit: true,
 		TimeLine:     2,
 		Lines: []StatusIconLine{
-			{Text: "\xb0\xed\xb1\xde\xc0\xfc\xc5\xf5\xbe\xe0", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
+			{Text: "고급전투약", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
 			{Text: "%s", Color: color.RGBA{R: 255, G: 176, B: 98, A: 255}, HasColor: true},
 			{Text: "Increases ATK and MATK"},
 			{Text: "Reduces MHP and MSP"},
@@ -3446,7 +3446,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		},
 	},
 	670: {
-		Icon:         "\xc1\xdf\xc7\xfc\xbb\xfd\xb8\xed\xbc\xf6.tga",
+		Icon:         "중형생명수.tga",
 		Category:     StatusIconBuff,
 		HasTimeLimit: true,
 		TimeLine:     2,
@@ -3463,7 +3463,7 @@ var statusIconInfos = map[uint16]StatusIconInfo{
 		HasTimeLimit: true,
 		TimeLine:     2,
 		Lines: []StatusIconLine{
-			{Text: "\xc7\xb3\xbc\xba\xc7\xd1 \xb2\xc9\xb0\xa1\xc1\xf6", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
+			{Text: "풍성한 꽃가지", Color: color.RGBA{R: 155, G: 202, B: 155, A: 255}, HasColor: true},
 			{Text: "%s", Color: color.RGBA{R: 255, G: 176, B: 98, A: 255}, HasColor: true},
 			{Text: "Increases FLEE"},
 			{Text: "Increases perfect dodge"},

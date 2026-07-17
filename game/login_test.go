@@ -605,7 +605,7 @@ func TestCharacterSelectBackToLoginPublishesLoginRootAtFadeSwitch(t *testing.T) 
 }
 
 func TestLoginConfirmSFXUsesClassicButtonSound(t *testing.T) {
-	if loginConfirmSFX != "\xB9\xF6\xC6\xB0\xBC\xD2\xB8\xAE.wav" {
+	if loginConfirmSFX != "버튼소리.wav" {
 		t.Fatalf("confirm sfx = %q", loginConfirmSFX)
 	}
 }

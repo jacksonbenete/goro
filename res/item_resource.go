@@ -7,6 +7,8 @@ import (
 
 	"github.com/kivutar/goro/db"
 	glua "github.com/yuin/gopher-lua"
+	"golang.org/x/text/encoding/korean"
+	"golang.org/x/text/transform"
 )
 
 type ItemMetadata struct {
@@ -379,7 +381,7 @@ func parseItemDescriptionTable(data []byte) map[int][]string {
 		currentID = 0
 		lines = nil
 	}
-	for _, rawLine := range strings.Split(string(data), "\n") {
+	for _, rawLine := range strings.Split(decodeItemTableText(data), "\n") {
 		line := strings.TrimRight(rawLine, "\r\n")
 		if currentID == 0 {
 			id, ok := parseItemDescriptionHeader(line)
@@ -419,7 +421,7 @@ func parseItemDescriptionHeader(line string) (int, bool) {
 
 func parseItemPairTable(data []byte) map[int]string {
 	out := make(map[int]string)
-	for _, rawLine := range strings.Split(string(data), "\n") {
+	for _, rawLine := range strings.Split(decodeItemTableText(data), "\n") {
 		line := strings.TrimRight(rawLine, "\r\n")
 		if line == "" || strings.HasPrefix(line, "/") || strings.HasPrefix(line, "#") {
 			continue
@@ -444,7 +446,7 @@ func parseItemPairTable(data []byte) map[int]string {
 
 func parseItemIDSetTable(data []byte) map[int]struct{} {
 	out := make(map[int]struct{})
-	for _, rawLine := range strings.Split(string(data), "\n") {
+	for _, rawLine := range strings.Split(decodeItemTableText(data), "\n") {
 		line := strings.TrimRight(rawLine, "\r\n")
 		if line == "" || strings.HasPrefix(line, "/") || strings.HasPrefix(line, "#") {
 			continue
@@ -460,6 +462,14 @@ func parseItemIDSetTable(data []byte) map[int]struct{} {
 		out[int(id)] = struct{}{}
 	}
 	return out
+}
+
+func decodeItemTableText(data []byte) string {
+	decoded, _, err := transform.Bytes(korean.EUCKR.NewDecoder(), data)
+	if err != nil {
+		return string(data)
+	}
+	return string(decoded)
 }
 
 func normalizeItemDisplayToken(value string) string {
@@ -515,10 +525,10 @@ func normalizeItemResourceSlash(resource string) string {
 }
 
 func itemSpritePrefixes() []string {
-	const itemKorPrefix = "data\\sprite\\\xBE\xC6\xC0\xCC\xC5\xDB\\"
+	const itemKorPrefix = "data\\sprite\\아이템\\"
 	return []string{
 		itemKorPrefix,
-		"sprite\\\xBE\xC6\xC0\xCC\xC5\xDB\\",
+		"sprite\\아이템\\",
 		"data\\sprite\\item\\",
 		"sprite\\item\\",
 		"data\\sprite\\items\\",

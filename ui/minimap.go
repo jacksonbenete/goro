@@ -322,7 +322,7 @@ func minimapImageCandidates(mapName string) []string {
 		return nil
 	}
 	file := base + ".bmp"
-	koreanInterface := "\xc0\xaf\xc0\xfa\xc0\xce\xc5\xcd\xc6\xe4\xc0\xcc\xbd\xba"
+	koreanInterface := "유저인터페이스"
 	return []string{
 		"data\\texture\\" + koreanInterface + "\\map\\" + file,
 		"data\\texture\\" + koreanInterface + "\\minimap\\" + file,

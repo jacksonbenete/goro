@@ -18,7 +18,7 @@ const (
 )
 
 const (
-	pokJukLaunchSFX        = "effect\\\xc6\xf8\xc1\xd7.wav"
+	pokJukLaunchSFX        = "effect\\폭죽.wav"
 	pokJukExplosionSFX     = "effect\\itempokjuk.wav"
 	pokJukExplosionDelay   = 900 * time.Millisecond
 	pokJukWeatherFireworks = 2
