@@ -1642,6 +1642,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.uploadGuildEmblem(ctx, action.SelectedEmblemPath)
 		} else if action.ChangeMemberPosition {
 			m.changeGuildMemberPosition(ctx, action.MemberAccountID, action.MemberCharID, action.MemberPositionID)
+		} else if action.LevelUpSkillID != 0 {
+			m.levelUpGuildSkill(ctx, action.LevelUpSkillID)
 		} else if action.UpdatePositions {
 			m.updateGuildPositions(ctx, action.Positions)
 		}
