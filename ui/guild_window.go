@@ -12,9 +12,12 @@ import (
 	"github.com/gogpu/ui/core/dropdown"
 	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/core/textfield"
+	"github.com/gogpu/ui/event"
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
@@ -31,6 +34,7 @@ const (
 	guildTableWidth      = guildWindowWidth - guildTablePadding*2 - guildScrollbarGutter
 	guildSkillRowHeight  = 32
 	guildSkillIconSize   = 24
+	guildWindowFooterH   = 34
 )
 
 type GuildWindow struct {
@@ -44,6 +48,9 @@ type GuildWindow struct {
 	positionSource string
 	skillIcons     map[uint16]image.Image
 	skillMiss      map[uint16]struct{}
+	skillPending   map[uint16]int
+	skillOrder     []uint16
+	tooltip        tooltipState
 }
 
 type GuildWindowAction struct {
@@ -54,7 +61,7 @@ type GuildWindowAction struct {
 	MemberAccountID      uint32
 	MemberCharID         uint32
 	MemberPositionID     uint32
-	LevelUpSkillID       uint16
+	LevelUpSkillIDs      []uint16
 	UpdatePositions      bool
 	Positions            []GuildPositionUpdate
 }
@@ -126,8 +133,10 @@ func (w *GuildWindow) Update(ctx Context) bool {
 	w.EnsureWindow(guildWindowWidth, guildWindowHeight)
 	w.ctx = ctx
 	if !w.IsOpen() {
+		w.hideTooltip()
 		return false
 	}
+	w.updateSkillTooltipHover(ctx)
 	nextSnapshot := guildWindowSnapshot(ctx.Session)
 	if nextSnapshot != w.snapshot {
 		w.snapshot = nextSnapshot
@@ -149,7 +158,7 @@ func (a GuildWindowAction) hasAction() bool {
 	return a.RequestMenu ||
 		a.SelectedEmblemPath != "" ||
 		a.ChangeMemberPosition ||
-		a.LevelUpSkillID != 0 ||
+		len(a.LevelUpSkillIDs) > 0 ||
 		a.UpdatePositions
 }
 
@@ -186,7 +195,7 @@ func (w *GuildWindow) widgetTree(ctx Context) widget.Widget {
 		),
 	}
 	if footer := w.tabFooter(ctx); footer != nil {
-		options = append(options, Footer(footer), FooterPadding(6), FooterHeight(34))
+		options = append(options, Footer(footer), FooterPadding(6), FooterHeight(guildWindowFooterH))
 	}
 	return Win(options...)
 }
@@ -205,6 +214,7 @@ func (w *GuildWindow) tabStrip() widget.Widget {
 				blendInset: 1,
 				onClick: func() {
 					w.tab = def.tab
+					w.hideTooltip()
 					w.action = GuildWindowAction{RequestMenu: true, MenuTab: uint32(def.tab)}
 					w.refresh(w.ctx)
 				},
@@ -265,13 +275,29 @@ func (w *GuildWindow) tabFooter(ctx Context) widget.Widget {
 			CrossAlign(primitives.CrossAxisCenter)
 	case guildWindowTabSkills:
 		return primitives.HBox(
-			rotheme.Text(fmt.Sprintf("Skill Points: %d", guild.SkillPoints)),
+			guildSkillFooterLabel(fmt.Sprintf("Skill Points: %d", maxInt(0, guild.SkillPoints-w.skillPendingCount()))),
 			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Reset", func() {
+				w.clearGuildSkillPending()
+				w.refresh(ctx)
+			}).Width(float32(ButtonLabelWidth("Reset"))),
+			rotheme.Button("Confirm", func() {
+				w.confirmGuildSkillPending(ctx)
+			}).Width(float32(ButtonLabelWidth("Confirm"))),
 		).
+			Gap(6).
 			CrossAlign(primitives.CrossAxisCenter)
 	default:
 		return nil
 	}
+}
+
+func guildSkillFooterLabel(text string) widget.Widget {
+	return primitives.Box(
+		rotheme.Text(text),
+	).
+		Height(rotheme.Default.Typography.TextSize + rotheme.ButtonPaddingY*2).
+		PaddingTop(rotheme.ButtonPaddingY)
 }
 
 func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
@@ -676,7 +702,8 @@ func (w *GuildWindow) skillsTab(ctx Context) widget.Widget {
 		)
 	}
 	for i, skill := range guild.Skills {
-		rows = append(rows, w.guildSkillRow(ctx, skill, guild, i%2 == 0))
+		display := w.guildSkillWithPending(skill)
+		rows = append(rows, w.guildSkillRow(ctx, display, guild, i%2 == 0))
 	}
 	return primitives.Box(
 		scrollview.New(
@@ -696,24 +723,47 @@ func (w *GuildWindow) guildSkillRow(ctx Context, skill session.Skill, guild sess
 		bg = rotheme.Default.Colors.PanelBody
 	}
 	return primitives.HBox(
-		guildSkillIconCell(w.guildSkillIcon(ctx, skill)),
-		primitives.HBox(
-			rotheme.Text(guildSkillTypeLabel(skill)).
-				Color(guildSkillTypeColor(skill)).
-				Align(widget.TextAlignLeft),
-		).
-			Width(16).
-			Height(guildSkillRowHeight).
-			CrossAlign(primitives.CrossAxisCenter),
-		guildSkillTextCell(trimRunes(skillDisplayName(ctx.Resources, skill), 28), 234),
-		guildSkillTextCell(guildSkillLevelText(skill), 40),
-		primitives.Expanded(primitives.Box()),
+		primitives.Expanded(
+			w.guildSkillTooltipArea(ctx, skill,
+				primitives.HBox(
+					guildSkillIconCell(w.guildSkillIcon(ctx, skill)),
+					primitives.HBox(
+						rotheme.Text(guildSkillTypeLabel(skill)).
+							Color(guildSkillTypeColor(skill)).
+							Align(widget.TextAlignLeft),
+					).
+						Width(16).
+						Height(guildSkillRowHeight).
+						CrossAlign(primitives.CrossAxisCenter),
+					guildSkillTextCell(trimRunes(skillDisplayName(ctx.Resources, skill), 28), 234),
+					guildSkillTextCell(guildSkillLevelText(skill), 40),
+					primitives.Expanded(primitives.Box()),
+				).
+					Height(guildSkillRowHeight).
+					CrossAlign(primitives.CrossAxisCenter),
+			),
+		),
 		w.guildSkillLevelUpCell(skill, guild),
 	).
 		Width(guildTableWidth).
 		Height(guildSkillRowHeight).
 		CrossAlign(primitives.CrossAxisCenter).
 		Background(bg)
+}
+
+func (w *GuildWindow) guildSkillTooltipArea(ctx Context, skill session.Skill, content widget.Widget) widget.Widget {
+	return &guildSkillTooltipWidget{
+		child: content,
+		onHover: func(mx, my int) {
+			if ctx.Input != nil {
+				mx, my = ctx.Input.MouseX, ctx.Input.MouseY
+			}
+			w.showSkillTooltip(ctx, skill, mx, my)
+		},
+		onLeave: func() {
+			w.hideTooltip()
+		},
+	}
 }
 
 func guildSkillHeaderRow() widget.Widget {
@@ -748,17 +798,22 @@ func guildSkillIconCell(icon widget.Widget) widget.Widget {
 }
 
 func (w *GuildWindow) guildSkillLevelUpCell(skill session.Skill, guild session.Guild) widget.Widget {
-	canLevelUp := guild.IsMaster && guild.SkillPoints > 0 && skill.Upgradable && guildSkillCanLevelUp(skill)
+	canLevelUp := w.canStageGuildSkill(skill, guild)
 	var child widget.Widget = primitives.Box()
 	if canLevelUp {
 		child = rotheme.IconButton(rotheme.IconButtonPlus, func() {
-			w.action = GuildWindowAction{LevelUpSkillID: skill.ID}
+			w.stageGuildSkill(skill.ID)
+			w.refresh(w.ctx)
 		})
 	}
 	return primitives.Box(child).
 		Width(22).
 		Height(guildSkillRowHeight).
 		PaddingTop((guildSkillRowHeight - rotheme.IconButtonSize) / 2)
+}
+
+func (w *GuildWindow) canStageGuildSkill(skill session.Skill, guild session.Guild) bool {
+	return guild.IsMaster && guild.SkillPoints > w.skillPendingCount() && skill.Upgradable && guildSkillCanLevelUp(skill)
 }
 
 func (w *GuildWindow) guildSkillIcon(ctx Context, skill session.Skill) widget.Widget {
@@ -805,6 +860,141 @@ func guildSkillLevelText(skill session.Skill) string {
 
 func guildSkillCanLevelUp(skill session.Skill) bool {
 	return skill.ID != 0 && (skill.MaxLevel <= 0 || skill.Level < skill.MaxLevel)
+}
+
+func (w *GuildWindow) clearGuildSkillPending() {
+	w.skillPending = nil
+	w.skillOrder = nil
+}
+
+func (w *GuildWindow) skillPendingCount() int {
+	total := 0
+	for _, count := range w.skillPending {
+		total += count
+	}
+	return total
+}
+
+func (w *GuildWindow) guildSkillWithPending(skill session.Skill) session.Skill {
+	if w.skillPending != nil {
+		skill.Level += w.skillPending[skill.ID]
+	}
+	return skill
+}
+
+func (w *GuildWindow) stageGuildSkill(skillID uint16) {
+	if skillID == 0 {
+		return
+	}
+	if w.skillPending == nil {
+		w.skillPending = make(map[uint16]int)
+	}
+	if w.skillPending[skillID] == 0 {
+		w.skillOrder = append(w.skillOrder, skillID)
+	}
+	w.skillPending[skillID]++
+}
+
+func (w *GuildWindow) confirmGuildSkillPending(ctx Context) {
+	if len(w.skillOrder) == 0 {
+		return
+	}
+	skillIDs := make([]uint16, 0, w.skillPendingCount())
+	for _, skillID := range w.skillOrder {
+		for i := 0; i < w.skillPending[skillID]; i++ {
+			skillIDs = append(skillIDs, skillID)
+		}
+	}
+	w.action = GuildWindowAction{LevelUpSkillIDs: skillIDs}
+	w.clearGuildSkillPending()
+	w.refresh(ctx)
+}
+
+func (w *GuildWindow) showSkillTooltip(ctx Context, skill session.Skill, mx, my int) {
+	if skill.ID == 0 {
+		w.hideTooltip()
+		return
+	}
+	const tooltipW = 292
+	w.tooltip.ShowBox(ctx, skillTooltipText(ctx, skill), mx+16+tooltipW/2, my+18, my-6, tooltipW, 24)
+}
+
+func (w *GuildWindow) hideTooltip() {
+	w.tooltip.Hide()
+}
+
+func (w *GuildWindow) DrawTooltip(screen *render.Frame) {
+	w.tooltip.Draw(screen)
+}
+
+func (w *GuildWindow) updateSkillTooltipHover(ctx Context) {
+	if !w.tooltip.Open() {
+		return
+	}
+	if w.tab != guildWindowTabSkills || ctx.Input == nil {
+		w.hideTooltip()
+		return
+	}
+	x, y, width, height := w.guildSkillTableBounds()
+	if !pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, x, y, width, height) {
+		w.hideTooltip()
+	}
+}
+
+func (w *GuildWindow) guildSkillTableBounds() (int, int, int, int) {
+	x := w.x + guildTablePadding
+	y := w.y + ROWindowTitleHeight + guildWindowTabHeight + guildTablePadding
+	height := w.height - ROWindowTitleHeight - guildWindowTabHeight - guildWindowFooterH - guildTablePadding*2
+	if height < 0 {
+		height = 0
+	}
+	return x, y, guildTableWidth, height
+}
+
+type guildSkillTooltipWidget struct {
+	widget.WidgetBase
+	child   widget.Widget
+	onHover func(mx, my int)
+	onLeave func()
+}
+
+func (w *guildSkillTooltipWidget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
+	size := w.child.Layout(ctx, constraints)
+	w.child.(interface{ SetBounds(geometry.Rect) }).SetBounds(geometry.FromPointSize(geometry.Pt(0, 0), size))
+	w.SetBounds(geometry.FromPointSize(w.Position(), size))
+	return size
+}
+
+func (w *guildSkillTooltipWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
+	bounds := w.Bounds()
+	canvas.PushTransform(bounds.Min)
+	widget.DrawChild(w.child, ctx, canvas)
+	canvas.PopTransform()
+}
+
+func (w *guildSkillTooltipWidget) Event(ctx widget.Context, e event.Event) bool {
+	mouse, ok := e.(*event.MouseEvent)
+	if !ok {
+		return w.child.Event(ctx, e)
+	}
+	local := *mouse
+	local.Position = mouse.Position.Sub(w.Bounds().Min)
+	consumed := w.child.Event(ctx, &local)
+	switch mouse.MouseType {
+	case event.MouseEnter, event.MouseMove, event.MouseDrag:
+		if w.onHover != nil {
+			w.onHover(int(mouse.GlobalPosition.X), int(mouse.GlobalPosition.Y))
+		}
+	case event.MouseLeave:
+		if w.onLeave != nil {
+			w.onLeave()
+		}
+	}
+	return consumed
+}
+
+func (w *guildSkillTooltipWidget) Children() []widget.Widget {
+	return []widget.Widget{w.child}
 }
 
 func guildSkillTypeLabel(skill session.Skill) string {

@@ -194,17 +194,23 @@ func (m *WorldMode) updateGuildPositions(ctx client.Context, updates []gameui.Gu
 	m.ui.guildWindow.Refresh(ctx)
 }
 
-func (m *WorldMode) levelUpGuildSkill(ctx client.Context, skillID uint16) {
-	if skillID == 0 {
+func (m *WorldMode) levelUpGuildSkills(ctx client.Context, skillIDs []uint16) {
+	if len(skillIDs) == 0 {
 		return
 	}
 	if ctx.Network == nil {
 		m.ui.console.AddErrorMessage("Guild skill level up failed: not connected.")
 		return
 	}
-	if err := ctx.Network.SendSkillLevelUp(skillID); err != nil {
-		m.ui.console.AddErrorMessage("Guild skill level up failed.")
-		glog.Warnf("guild skill level up failed skill=%d: %v", skillID, err)
+	for _, skillID := range skillIDs {
+		if skillID == 0 {
+			continue
+		}
+		if err := ctx.Network.SendSkillLevelUp(skillID); err != nil {
+			m.ui.console.AddErrorMessage("Guild skill level up failed.")
+			glog.Warnf("guild skill level up failed skill=%d: %v", skillID, err)
+			return
+		}
 	}
 }
 
