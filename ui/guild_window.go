@@ -238,28 +238,40 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 }
 
 func (w *GuildWindow) tabFooter(ctx Context) widget.Widget {
-	if w.tab != guildWindowTabPositions || !guildSessionInfo(ctx.Session).IsMaster {
+	guild := guildSessionInfo(ctx.Session)
+	switch w.tab {
+	case guildWindowTabPositions:
+		if !guild.IsMaster {
+			return nil
+		}
+		return primitives.HBox(
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Reset", func() {
+				w.resetPositionDraft(ctx)
+				w.refresh(ctx)
+			}).Width(float32(ButtonLabelWidth("Reset"))),
+			rotheme.Button("Confirm", func() {
+				changes := w.positionChanges(ctx)
+				if len(changes) == 0 {
+					return
+				}
+				w.action = GuildWindowAction{
+					UpdatePositions: true,
+					Positions:       changes,
+				}
+			}).Width(float32(ButtonLabelWidth("Confirm"))),
+		).
+			Gap(6).
+			CrossAlign(primitives.CrossAxisCenter)
+	case guildWindowTabSkills:
+		return primitives.HBox(
+			rotheme.Text(fmt.Sprintf("Skill Points: %d", guild.SkillPoints)),
+			primitives.Expanded(primitives.Box()),
+		).
+			CrossAlign(primitives.CrossAxisCenter)
+	default:
 		return nil
 	}
-	return primitives.HBox(
-		primitives.Expanded(primitives.Box()),
-		rotheme.Button("Reset", func() {
-			w.resetPositionDraft(ctx)
-			w.refresh(ctx)
-		}).Width(float32(ButtonLabelWidth("Reset"))),
-		rotheme.Button("Confirm", func() {
-			changes := w.positionChanges(ctx)
-			if len(changes) == 0 {
-				return
-			}
-			w.action = GuildWindowAction{
-				UpdatePositions: true,
-				Positions:       changes,
-			}
-		}).Width(float32(ButtonLabelWidth("Confirm"))),
-	).
-		Gap(6).
-		CrossAlign(primitives.CrossAxisCenter)
 }
 
 func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
@@ -667,27 +679,14 @@ func (w *GuildWindow) skillsTab(ctx Context) widget.Widget {
 		rows = append(rows, w.guildSkillRow(ctx, skill, guild, i%2 == 0))
 	}
 	return primitives.Box(
-		primitives.Expanded(
-			primitives.Box(
-				scrollview.New(
-					primitives.Box(rows...),
-					scrollview.DirectionOpt(scrollview.Vertical),
-					scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
-					scrollview.ScrollStep(guildSkillRowHeight),
-				),
-			).
-				PaddingXY(guildTablePadding, guildTablePadding),
+		scrollview.New(
+			primitives.Box(rows...),
+			scrollview.DirectionOpt(scrollview.Vertical),
+			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
+			scrollview.ScrollStep(guildSkillRowHeight),
 		),
-		primitives.HBox(
-			rotheme.Text(fmt.Sprintf("Skill Points: %d", guild.SkillPoints)),
-			primitives.Expanded(primitives.Box()),
-		).
-			Height(28).
-			PaddingXY(9, 6).
-			CrossAlign(primitives.CrossAxisCenter).
-			Background(rotheme.Default.Colors.WindowFooter),
 	).
-		CrossAlign(primitives.CrossAxisStretch).
+		PaddingXY(guildTablePadding, guildTablePadding).
 		Background(rotheme.Default.Colors.WindowBody)
 }
 
