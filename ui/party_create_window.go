@@ -14,7 +14,6 @@ import (
 const (
 	partyCreateW        = 306
 	partyCreateContentH = 158
-	partyCreateFooterH  = 42
 )
 
 type PartyCreateWindowAction struct {
@@ -33,7 +32,7 @@ type PartyCreateWindow struct {
 }
 
 func (w *PartyCreateWindow) Open(ctx Context) {
-	w.EnsureWindow(partyCreateW, ROWindowTitleHeight+partyCreateContentH+partyCreateFooterH)
+	w.EnsureWindow(partyCreateW, ROWindowTitleHeight+partyCreateContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	w.name = ""
 	w.itemPickup = 0
@@ -45,7 +44,7 @@ func (w *PartyCreateWindow) Open(ctx Context) {
 }
 
 func (w *PartyCreateWindow) Update(ctx Context) bool {
-	w.EnsureWindow(partyCreateW, ROWindowTitleHeight+partyCreateContentH+partyCreateFooterH)
+	w.EnsureWindow(partyCreateW, ROWindowTitleHeight+partyCreateContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	if !w.IsOpen() {
 		return false
@@ -81,7 +80,7 @@ func (w *PartyCreateWindow) widgetTree(ctx Context) widget.Widget {
 		Title("Create Party"),
 		CloseButton(true),
 		OnClose(w.Close),
-		Size(partyCreateW, ROWindowTitleHeight+partyCreateContentH+partyCreateFooterH),
+		Size(partyCreateW, ROWindowTitleHeight+partyCreateContentH+ROWindowFooterHeight),
 		Content(
 			primitives.Box(
 				rotheme.SectionLabel("Party Name"),
@@ -114,15 +113,12 @@ func (w *PartyCreateWindow) widgetTree(ctx Context) widget.Widget {
 				Padding(14).
 				Gap(6),
 		),
-		FooterHeight(partyCreateFooterH),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("OK", func() {
-					w.submit(ctx)
-				}).Width(float32(ButtonLabelWidth("OK"))),
-				rotheme.Button("Cancel", w.Close).Width(float32(ButtonLabelWidth("Cancel"))),
-			).Gap(8),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("OK", func() {
+				w.submit(ctx)
+			}),
+			rotheme.Button("Cancel", w.Close),
 		),
 	)
 }

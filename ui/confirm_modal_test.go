@@ -36,7 +36,7 @@ func TestConfirmModalUsesCompactHeightForOneLinePrompt(t *testing.T) {
 	var modal ConfirmModal
 	modal.Open(client.Context{ScreenW: 800, ScreenH: 600}, "Expel Party Member", "Expel Alice from the party?", nil, nil)
 
-	want := ROWindowTitleHeight + smallPromptContentH + smallPromptFooterH
+	want := ROWindowTitleHeight + smallPromptContentH + ROWindowFooterHeight
 	if modal.height != want {
 		t.Fatalf("modal height = %d, want %d", modal.height, want)
 	}

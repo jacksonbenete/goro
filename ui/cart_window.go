@@ -19,10 +19,9 @@ import (
 )
 
 const (
-	cartWindowWidth   = storageWindowWidth
-	cartWindowFooterH = storageWindowFooterH
-	cartRows          = storageRows
-	cartWindowHeight  = ROWindowTitleHeight + storageTableHeaderH + cartRows*storageRowH + cartWindowFooterH
+	cartWindowWidth  = storageWindowWidth
+	cartRows         = storageRows
+	cartWindowHeight = ROWindowTitleHeight + storageTableHeaderH + cartRows*storageRowH + ROWindowFooterHeight
 )
 
 type CartWindow struct {
@@ -188,20 +187,15 @@ func (w *CartWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Wi
 			w.Publish(ctx)
 		}),
 		Size(cartWindowWidth, cartWindowHeight),
-		FooterHeight(cartWindowFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(w.cartTableWidget(ctx)).
 				Height(storageTableHeight()).
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			primitives.HBox(
-				rotheme.Text(w.cartCountText(ctx.Session)),
-				primitives.Expanded(primitives.Box()),
-				rotheme.Text(w.cartWeightText(ctx.Session)),
-			).
-				CrossAlign(primitives.CrossAxisCenter),
+			rotheme.Text(w.cartCountText(ctx.Session)),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Text(w.cartWeightText(ctx.Session)),
 		),
 	)
 }

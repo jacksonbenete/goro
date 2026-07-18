@@ -25,7 +25,7 @@ import (
 
 const (
 	guildWindowWidth     = 400
-	guildWindowHeight    = 317
+	guildWindowHeight    = 325
 	guildWindowTabHeight = 23
 	guildWindowTabWidth  = 64
 	guildEmblemSize      = 24
@@ -34,7 +34,6 @@ const (
 	guildTableWidth      = guildWindowWidth - guildTablePadding*2 - guildScrollbarGutter
 	guildSkillRowHeight  = 32
 	guildSkillIconSize   = 24
-	guildWindowFooterH   = 34
 )
 
 type GuildWindow struct {
@@ -195,7 +194,7 @@ func (w *GuildWindow) widgetTree(ctx Context) widget.Widget {
 		),
 	}
 	if footer := w.tabFooter(ctx); footer != nil {
-		options = append(options, Footer(footer), FooterPadding(6), FooterHeight(guildWindowFooterH))
+		options = append(options, Footer(footer...))
 	}
 	return Win(options...)
 }
@@ -247,19 +246,19 @@ func (w *GuildWindow) tabContent(ctx Context) widget.Widget {
 	}
 }
 
-func (w *GuildWindow) tabFooter(ctx Context) widget.Widget {
+func (w *GuildWindow) tabFooter(ctx Context) []widget.Widget {
 	guild := guildSessionInfo(ctx.Session)
 	switch w.tab {
 	case guildWindowTabPositions:
 		if !guild.IsMaster {
 			return nil
 		}
-		return primitives.HBox(
+		return []widget.Widget{
 			primitives.Expanded(primitives.Box()),
 			rotheme.Button("Reset", func() {
 				w.resetPositionDraft(ctx)
 				w.refresh(ctx)
-			}).Width(float32(ButtonLabelWidth("Reset"))),
+			}),
 			rotheme.Button("Confirm", func() {
 				changes := w.positionChanges(ctx)
 				if len(changes) == 0 {
@@ -269,24 +268,20 @@ func (w *GuildWindow) tabFooter(ctx Context) widget.Widget {
 					UpdatePositions: true,
 					Positions:       changes,
 				}
-			}).Width(float32(ButtonLabelWidth("Confirm"))),
-		).
-			Gap(6).
-			CrossAlign(primitives.CrossAxisCenter)
+			}),
+		}
 	case guildWindowTabSkills:
-		return primitives.HBox(
+		return []widget.Widget{
 			guildSkillFooterLabel(fmt.Sprintf("Skill Points: %d", maxInt(0, guild.SkillPoints-w.skillPendingCount()))),
 			primitives.Expanded(primitives.Box()),
 			rotheme.Button("Reset", func() {
 				w.clearGuildSkillPending()
 				w.refresh(ctx)
-			}).Width(float32(ButtonLabelWidth("Reset"))),
+			}),
 			rotheme.Button("Confirm", func() {
 				w.confirmGuildSkillPending(ctx)
-			}).Width(float32(ButtonLabelWidth("Confirm"))),
-		).
-			Gap(6).
-			CrossAlign(primitives.CrossAxisCenter)
+			}),
+		}
 	default:
 		return nil
 	}
@@ -944,7 +939,7 @@ func (w *GuildWindow) updateSkillTooltipHover(ctx Context) {
 func (w *GuildWindow) guildSkillTableBounds() (int, int, int, int) {
 	x := w.x + guildTablePadding
 	y := w.y + ROWindowTitleHeight + guildWindowTabHeight + guildTablePadding
-	height := w.height - ROWindowTitleHeight - guildWindowTabHeight - guildWindowFooterH - guildTablePadding*2
+	height := w.height - ROWindowTitleHeight - guildWindowTabHeight - ROWindowFooterHeight - guildTablePadding*2
 	if height < 0 {
 		height = 0
 	}

@@ -11,7 +11,6 @@ import (
 const (
 	friendSettingsW        = 286
 	friendSettingsContentH = 112
-	friendSettingsFooterH  = 42
 )
 
 type FriendSettingsWindow struct {
@@ -20,7 +19,7 @@ type FriendSettingsWindow struct {
 }
 
 func (w *FriendSettingsWindow) Open(ctx Context) {
-	w.EnsureWindow(friendSettingsW, ROWindowTitleHeight+friendSettingsContentH+friendSettingsFooterH)
+	w.EnsureWindow(friendSettingsW, ROWindowTitleHeight+friendSettingsContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	w.settings = friendSettings(ctx.Session)
 	w.Window.Open(ctx, w.widgetTree(ctx))
@@ -28,7 +27,7 @@ func (w *FriendSettingsWindow) Open(ctx Context) {
 }
 
 func (w *FriendSettingsWindow) Update(ctx Context) bool {
-	w.EnsureWindow(friendSettingsW, ROWindowTitleHeight+friendSettingsContentH+friendSettingsFooterH)
+	w.EnsureWindow(friendSettingsW, ROWindowTitleHeight+friendSettingsContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	if !w.IsOpen() {
 		return false
@@ -52,7 +51,7 @@ func (w *FriendSettingsWindow) widgetTree(ctx Context) widget.Widget {
 		Title("Friend Setup"),
 		CloseButton(true),
 		OnClose(w.Close),
-		Size(friendSettingsW, ROWindowTitleHeight+friendSettingsContentH+friendSettingsFooterH),
+		Size(friendSettingsW, ROWindowTitleHeight+friendSettingsContentH+ROWindowFooterHeight),
 		Content(
 			primitives.Box(
 				rotheme.Checkbox(
@@ -83,16 +82,12 @@ func (w *FriendSettingsWindow) widgetTree(ctx Context) widget.Widget {
 				Padding(14).
 				Gap(8),
 		),
-		FooterHeight(friendSettingsFooterH),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("OK", func() {
-					w.apply(ctx)
-				}).Width(float32(ButtonLabelWidth("OK"))),
-				rotheme.Button("Cancel", w.Close).Width(float32(ButtonLabelWidth("Cancel"))),
-			).
-				Gap(8),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("OK", func() {
+				w.apply(ctx)
+			}),
+			rotheme.Button("Cancel", w.Close),
 		),
 	)
 }

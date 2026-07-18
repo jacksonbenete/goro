@@ -20,8 +20,7 @@ import (
 
 const (
 	equipmentWindowWidth   = 300
-	equipmentWindowHeight  = 236
-	equipmentFooterH       = 36
+	equipmentWindowHeight  = 242
 	equipmentWindowPad     = 10
 	equipmentLeftColW      = 112
 	equipmentCenterColW    = 56
@@ -162,7 +161,6 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 			w.Publish(ctx)
 		}),
 		Size(equipmentWindowWidth, equipmentWindowHeight),
-		FooterHeight(equipmentFooterH),
 		Content(
 			primitives.Box(
 				primitives.HBox(
@@ -200,29 +198,26 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 				Padding(equipmentWindowPad),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Box(
-					rotheme.Checkbox(
-						checkbox.Checked(ctx.Session != nil && ctx.Session.ShowEquip),
-						checkbox.LabelOpt("Show Equip"),
-						checkbox.OnToggle(func(enabled bool) {
-							if ctx.Session != nil {
-								ctx.Session.ShowEquip = enabled
-							}
-							if ctx.Network != nil {
-								_ = ctx.Network.SendShowEquipConfig(enabled)
-							}
-							w.SetContent(w.widgetTree(ctx, itemInfo, cart))
-							w.Publish(ctx)
-						}),
-					),
-				).
-					Width(120).
-					Height(20),
-				primitives.Expanded(primitives.Box()),
-				w.removeCartOptionButton(ctx),
+			primitives.Box(
+				rotheme.Checkbox(
+					checkbox.Checked(ctx.Session != nil && ctx.Session.ShowEquip),
+					checkbox.LabelOpt("Show Equip"),
+					checkbox.OnToggle(func(enabled bool) {
+						if ctx.Session != nil {
+							ctx.Session.ShowEquip = enabled
+						}
+						if ctx.Network != nil {
+							_ = ctx.Network.SendShowEquipConfig(enabled)
+						}
+						w.SetContent(w.widgetTree(ctx, itemInfo, cart))
+						w.Publish(ctx)
+					}),
+				),
 			).
-				CrossAlign(primitives.CrossAxisCenter),
+				Width(120).
+				Height(20),
+			primitives.Expanded(primitives.Box()),
+			w.removeCartOptionButton(ctx),
 		),
 	)
 }
@@ -248,8 +243,7 @@ func (w *EquipmentWindow) removeCartOptionButton(ctx Context) widget.Widget {
 	}
 	return rotheme.Button("Cart Off", func() {
 		w.removeCartOption(ctx)
-	}).
-		Width(float32(ButtonLabelWidth("Cart Off")))
+	})
 }
 
 func (w *EquipmentWindow) slotWidget(ctx Context, itemInfo *ItemInfoWindow, slot equipmentSlotDef, width int) widget.Widget {

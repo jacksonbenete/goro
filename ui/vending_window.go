@@ -26,7 +26,6 @@ const (
 	vendingSetupRows    = 7
 	vendingBuyRows      = 7
 	vendingCartRows     = 4
-	vendingFooterH      = 42
 	vendingNameH        = 30
 	vendingWindowGap    = 20
 	vendingDefaultPrice = 1
@@ -256,8 +255,8 @@ func (w *VendingWindow) availableCartTree(ctx Context) widget.Widget {
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
 		Size(vendingWindowW, float32(w.leftHeight())),
-		FooterHeight(vendingFooterH),
 		Content(primitives.Box(w.cartItemsTable(ctx)).Height(float32(shopTableHeight(vendingSetupRows)))),
+		Footer(primitives.Box()),
 	)
 }
 
@@ -281,7 +280,6 @@ func (w *VendingWindow) setupTree(ctx Context) widget.Widget {
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
 		Size(vendingWindowW, float32(w.rightHeight())),
-		FooterHeight(vendingFooterH),
 		Content(
 			primitives.Box(
 				primitives.HBox(
@@ -292,15 +290,13 @@ func (w *VendingWindow) setupTree(ctx Context) widget.Widget {
 			).PaddingXY(8, 4).Gap(4),
 		),
 		Footer(
-			primitives.HBox(
-				rotheme.Text("Price"),
-				primitives.Box(price).Width(90).Height(22),
-				primitives.Expanded(primitives.Box()),
-				rotheme.ButtonDisabledFn("OK", func() bool {
-					return len(w.setupItems) == 0 || w.currentShopName() == ""
-				}, func() { w.submitOpen(ctx) }),
-				rotheme.Button("Cancel", func() { w.cancel(ctx) }),
-			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
+			rotheme.Text("Price"),
+			primitives.Box(price).Width(90).Height(22),
+			primitives.Expanded(primitives.Box()),
+			rotheme.ButtonDisabledFn("OK", func() bool {
+				return len(w.setupItems) == 0 || w.currentShopName() == ""
+			}, func() { w.submitOpen(ctx) }),
+			rotheme.Button("Cancel", func() { w.cancel(ctx) }),
 		),
 	)
 }
@@ -311,8 +307,8 @@ func (w *VendingWindow) vendorItemsTree(ctx Context) widget.Widget {
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
 		Size(vendingWindowW, float32(w.leftHeight())),
-		FooterHeight(vendingFooterH),
 		Content(primitives.Box(w.vendorItemsTable(ctx)).Height(float32(shopTableHeight(vendingBuyRows)))),
+		Footer(primitives.Box()),
 	)
 }
 
@@ -322,15 +318,12 @@ func (w *VendingWindow) buyCartTree(ctx Context) widget.Widget {
 		CloseButton(true),
 		OnClose(func() { w.cancel(ctx) }),
 		Size(vendingWindowW, float32(w.rightHeight())),
-		FooterHeight(vendingFooterH),
 		Content(primitives.Box(w.buyCartTable(ctx)).Height(float32(shopTableHeight(vendingCartRows)))),
 		Footer(
-			primitives.HBox(
-				rotheme.Text(fmt.Sprintf("Total: %s Zeny", formatHUDNumber(w.buyTotal()))),
-				primitives.Expanded(primitives.Box()),
-				rotheme.ButtonDisabled("Buy", len(w.buyCart) == 0, func() { w.submitBuy(ctx) }),
-				rotheme.Button("Cancel", func() { w.cancel(ctx) }),
-			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
+			rotheme.Text(fmt.Sprintf("Total: %s Zeny", formatHUDNumber(w.buyTotal()))),
+			primitives.Expanded(primitives.Box()),
+			rotheme.ButtonDisabled("Buy", len(w.buyCart) == 0, func() { w.submitBuy(ctx) }),
+			rotheme.Button("Cancel", func() { w.cancel(ctx) }),
 		),
 	)
 }
@@ -341,14 +334,11 @@ func (w *VendingWindow) ownShopTree(ctx Context) widget.Widget {
 		CloseButton(true),
 		OnClose(func() { w.closeOwnStore(ctx) }),
 		Size(vendingWindowW, float32(w.leftHeight())),
-		FooterHeight(vendingFooterH),
 		Content(primitives.Box(w.ownItemsTable(ctx)).Height(float32(shopTableHeight(vendingBuyRows)))),
 		Footer(
-			primitives.HBox(
-				rotheme.Text(fmt.Sprintf("Items: %d", len(w.ownItems))),
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Close", func() { w.closeOwnStore(ctx) }),
-			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
+			rotheme.Text(fmt.Sprintf("Items: %d", len(w.ownItems))),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Close", func() { w.closeOwnStore(ctx) }),
 		),
 	)
 }
@@ -769,11 +759,11 @@ func (w *VendingWindow) rightTableBounds() (int, int, int, int) {
 }
 
 func (w *VendingWindow) leftHeight() int {
-	return ROWindowTitleHeight + shopTableHeight(vendingSetupRows) + vendingFooterH
+	return ROWindowTitleHeight + shopTableHeight(vendingSetupRows) + ROWindowFooterHeight
 }
 
 func (w *VendingWindow) rightHeight() int {
-	return ROWindowTitleHeight + w.setupContentHeight() + vendingFooterH
+	return ROWindowTitleHeight + w.setupContentHeight() + ROWindowFooterHeight
 }
 
 func (w *VendingWindow) setupContentHeight() int {

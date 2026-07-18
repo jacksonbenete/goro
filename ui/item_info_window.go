@@ -22,7 +22,6 @@ const (
 	itemInfoWindowWidth       = 340
 	itemInfoWindowMaxHeight   = 304
 	itemInfoWindowPad         = 10
-	itemInfoFooterH           = 38
 	itemInfoIllustrationWidth = 75
 	itemInfoIllustrationH     = 100
 	itemInfoSlotIcon          = 24
@@ -117,9 +116,7 @@ func (w *ItemInfoWindow) widgetTree(ctx Context) widget.Widget {
 	}
 	if itemInfoShowsCardSlots(ctx, w.item) {
 		options = append(options,
-			FooterHeight(itemInfoFooterH),
-			FooterPadding(6),
-			Footer(w.cardSlotsFooter(ctx)),
+			Footer(w.cardSlotsFooter(ctx)...),
 		)
 	}
 	return Win(options...)
@@ -200,7 +197,7 @@ func itemInfoTextLineWidget(line itemInfoTextLine) widget.Widget {
 		Height(itemInfoLineH)
 }
 
-func (w *ItemInfoWindow) cardSlotsFooter(ctx Context) widget.Widget {
+func (w *ItemInfoWindow) cardSlotsFooter(ctx Context) []widget.Widget {
 	slots := make([]widget.Widget, 0, 4)
 	slotCount, _ := ctx.Resources.ItemSlotCount(int(w.item.ItemID))
 	for i := 0; i < 4; i++ {
@@ -217,9 +214,7 @@ func (w *ItemInfoWindow) cardSlotsFooter(ctx Context) widget.Widget {
 			),
 		)
 	}
-	return primitives.HBox(slots...).
-		Gap(4).
-		CrossAlign(primitives.CrossAxisCenter)
+	return slots
 }
 
 func (w *ItemInfoWindow) DrawTooltip(screen *render.Frame) {
@@ -324,7 +319,7 @@ func (w *ItemInfoWindow) bodyHeight(ctx Context) int {
 
 func (w *ItemInfoWindow) footerHeight(ctx Context) int {
 	if itemInfoShowsCardSlots(ctx, w.item) {
-		return itemInfoFooterH
+		return ROWindowFooterHeight
 	}
 	return 0
 }

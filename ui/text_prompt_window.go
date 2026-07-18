@@ -13,7 +13,6 @@ import (
 const (
 	textPromptW        = 306
 	textPromptContentH = 70
-	textPromptFooterH  = 42
 )
 
 type TextPromptAction struct {
@@ -33,7 +32,7 @@ type TextPromptWindow struct {
 }
 
 func (w *TextPromptWindow) Open(ctx Context, title, label, placeholder string, maxLength int) {
-	w.EnsureWindow(textPromptW, ROWindowTitleHeight+textPromptContentH+textPromptFooterH)
+	w.EnsureWindow(textPromptW, ROWindowTitleHeight+textPromptContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	w.title = title
 	w.label = label
@@ -48,7 +47,7 @@ func (w *TextPromptWindow) Open(ctx Context, title, label, placeholder string, m
 }
 
 func (w *TextPromptWindow) Update(ctx Context) bool {
-	w.EnsureWindow(textPromptW, ROWindowTitleHeight+textPromptContentH+textPromptFooterH)
+	w.EnsureWindow(textPromptW, ROWindowTitleHeight+textPromptContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	if !w.IsOpen() {
 		return false
@@ -84,7 +83,7 @@ func (w *TextPromptWindow) widgetTree(ctx Context) widget.Widget {
 		Title(w.title),
 		CloseButton(true),
 		OnClose(w.Close),
-		Size(textPromptW, ROWindowTitleHeight+textPromptContentH+textPromptFooterH),
+		Size(textPromptW, ROWindowTitleHeight+textPromptContentH+ROWindowFooterHeight),
 		Content(
 			primitives.Box(
 				rotheme.SectionLabel(w.label),
@@ -95,15 +94,12 @@ func (w *TextPromptWindow) widgetTree(ctx Context) widget.Widget {
 				Padding(14).
 				Gap(8),
 		),
-		FooterHeight(textPromptFooterH),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
+			primitives.Expanded(primitives.Box()),
 				rotheme.Button("OK", func() {
 					w.submit(ctx)
-				}).Width(float32(ButtonLabelWidth("OK"))),
-				rotheme.Button("Cancel", w.Close).Width(float32(ButtonLabelWidth("Cancel"))),
-			).Gap(8),
+				}),
+				rotheme.Button("Cancel", w.Close),
 		),
 	)
 }

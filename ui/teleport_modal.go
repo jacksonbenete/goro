@@ -23,7 +23,6 @@ const (
 	teleportModalWidth   = 260
 	teleportModalMinH    = 168
 	teleportModalMaxRows = 6
-	teleportModalFooterH = 42
 	teleportModalPad     = 14
 	teleportModalGap     = 8
 	teleportModalRowH    = 20
@@ -239,7 +238,6 @@ func (m *TeleportModal) widgetTree(ctx Context, actions GameActions) widget.Widg
 		Title(m.Title()),
 		CloseButton(false),
 		Size(teleportModalWidth, float32(m.windowHeight())),
-		FooterHeight(teleportModalFooterH),
 		Content(
 			primitives.Box(
 				rotheme.Text("Choose destination."),
@@ -250,18 +248,16 @@ func (m *TeleportModal) widgetTree(ctx Context, actions GameActions) widget.Widg
 				Gap(teleportModalGap),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.ButtonDisabledFn("OK", func() bool {
-					destinations := m.destinations()
-					return m.row < 0 || m.row >= len(destinations) || !destinations[m.row].enabled
-				}, func() {
-					m.selectCurrent(m.ctx, actions)
-				}).Width(54),
-				rotheme.Button("Cancel", func() {
-					m.cancel(m.ctx)
-				}).Width(float32(ButtonLabelWidth("Cancel"))),
-			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
+			primitives.Expanded(primitives.Box()),
+			rotheme.ButtonDisabledFn("OK", func() bool {
+				destinations := m.destinations()
+				return m.row < 0 || m.row >= len(destinations) || !destinations[m.row].enabled
+			}, func() {
+				m.selectCurrent(m.ctx, actions)
+			}),
+			rotheme.Button("Cancel", func() {
+				m.cancel(m.ctx)
+			}),
 		),
 	)
 }
@@ -337,7 +333,7 @@ func (m *TeleportModal) destinationListHeight() int {
 }
 
 func (m *TeleportModal) windowHeight() int {
-	height := ROWindowTitleHeight + teleportModalPad*2 + int(rotheme.Default.Typography.TextSize) + teleportModalGap + m.destinationListHeight() + teleportModalFooterH
+	height := ROWindowTitleHeight + teleportModalPad*2 + int(rotheme.Default.Typography.TextSize) + teleportModalGap + m.destinationListHeight() + ROWindowFooterHeight
 	if m.status != "" {
 		height += teleportModalGap + int(rotheme.Default.Typography.TextSize)
 	}

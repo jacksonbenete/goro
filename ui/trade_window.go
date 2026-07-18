@@ -26,7 +26,6 @@ const (
 	tradePanelGap    = 12
 	tradeZenyFieldW  = 96
 	tradeZenyFieldH  = 24
-	tradeFooterH     = 44
 	tradeVisibleRows = 7
 )
 
@@ -200,23 +199,17 @@ func (w *TradeWindow) widgetTree(ctx Context) widget.Widget {
 			).
 				Padding(tradePanelPad),
 		),
-		FooterHeight(tradeFooterH),
 		Footer(
-			primitives.HBox(
-				rotheme.ButtonDisabledFn("OK", func() bool { return w.selfOK }, func() {
-					w.conclude(ctx)
-				}).
-					Width(86),
-				rotheme.ButtonDisabledFn("Trade", func() bool { return !w.selfOK || !w.otherOK }, func() {
-					w.commit(ctx)
-				}).
-					Width(86),
-				rotheme.Button("Cancel", func() {
-					w.cancel(ctx)
-				}).
-					Width(86),
-			).
-				Gap(8),
+			primitives.Expanded(primitives.Box()),
+			rotheme.ButtonDisabledFn("OK", func() bool { return w.selfOK }, func() {
+				w.conclude(ctx)
+			}),
+			rotheme.ButtonDisabledFn("Trade", func() bool { return !w.selfOK || !w.otherOK }, func() {
+				w.commit(ctx)
+			}),
+			rotheme.Button("Cancel", func() {
+				w.cancel(ctx)
+			}),
 		),
 	)
 }

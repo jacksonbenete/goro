@@ -19,8 +19,6 @@ const (
 	friendsTabWidth     = 72
 	friendsTabHeight    = 24
 	friendsListMax      = 40
-	friendsFooterH      = 42
-	partyFooterH        = 42
 )
 
 type FriendsWindow struct {
@@ -160,12 +158,10 @@ func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {
 	title := fmt.Sprintf("Friends (%d/%d)", len(friends), friendsListMax)
 	content := w.friendsList(friends)
 	footer := w.friendsFooter()
-	footerHeight := float32(friendsFooterH)
 	if w.tab == friendsWindowTabParty {
 		title = partyWindowTitle(party)
 		content = w.partyList(ctx, party)
 		footer = w.partyFooter(party)
-		footerHeight = partyFooterH
 	}
 	return Win(
 		Title(title),
@@ -179,8 +175,7 @@ func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {
 			).
 				CrossAlign(primitives.CrossAxisStretch),
 		),
-		Footer(footer),
-		FooterHeight(footerHeight),
+		Footer(footer...),
 	)
 }
 
@@ -220,15 +215,14 @@ func (w *FriendsWindow) refresh(ctx Context) {
 	w.Publish(ctx)
 }
 
-func (w *FriendsWindow) partyFooter(party session.Party) widget.Widget {
+func (w *FriendsWindow) partyFooter(party session.Party) []widget.Widget {
 	if !party.Active() {
-		return primitives.HBox(
+		return []widget.Widget{
 			primitives.Expanded(primitives.Box()),
 			rotheme.Button("Create", func() {
 				w.action = FriendsWindowAction{Kind: FriendsWindowActionPartyCreate}
-			}).Width(74),
-		).
-			CrossAlign(primitives.CrossAxisCenter)
+			}),
+		}
 	}
 	children := []widget.Widget{
 		primitives.Expanded(primitives.Box()),
@@ -236,29 +230,26 @@ func (w *FriendsWindow) partyFooter(party session.Party) widget.Widget {
 	if partyCanManageSession(w.ctx.Session) {
 		children = append(children, rotheme.Button("Invite", func() {
 			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartyInvite}
-		}).Width(66))
+		}))
 	}
 	children = append(children,
 		rotheme.ButtonDisabled("Settings", !party.Active(), func() {
 			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartySettings}
-		}).Width(82),
+		}),
 		rotheme.ButtonDisabled("Leave", !party.Active(), func() {
 			w.action = FriendsWindowAction{Kind: FriendsWindowActionPartyLeave}
-		}).Width(66),
+		}),
 	)
-	return primitives.HBox(children...).
-		Gap(8).
-		CrossAlign(primitives.CrossAxisCenter)
+	return children
 }
 
-func (w *FriendsWindow) friendsFooter() widget.Widget {
-	return primitives.HBox(
+func (w *FriendsWindow) friendsFooter() []widget.Widget {
+	return []widget.Widget{
 		primitives.Expanded(primitives.Box()),
 		rotheme.Button("Setup", func() {
 			w.action = FriendsWindowAction{Kind: FriendsWindowActionFriendSettings}
-		}).Width(74),
-	).
-		CrossAlign(primitives.CrossAxisCenter)
+		}),
+	}
 }
 
 func (w *FriendsWindow) friendsList(friends []session.Friend) widget.Widget {

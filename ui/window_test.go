@@ -9,7 +9,7 @@ import (
 	"github.com/kivutar/goro/client"
 )
 
-func TestFixedHeightFooterStretchesContent(t *testing.T) {
+func TestFooterStretchesContent(t *testing.T) {
 	button := primitives.Box().Width(30).Height(10)
 	row := primitives.HBox(
 		primitives.Expanded(primitives.Box()),
@@ -18,8 +18,6 @@ func TestFixedHeightFooterStretchesContent(t *testing.T) {
 	window := Win(
 		TitleBar(false),
 		Size(200, 80),
-		FooterHeight(24),
-		FooterPadding(10),
 		Footer(row),
 	)
 
@@ -33,12 +31,11 @@ func TestFixedHeightFooterStretchesContent(t *testing.T) {
 	}
 }
 
-func TestFooterHeightCreatesEmptyFooterBand(t *testing.T) {
+func TestFooterCreatesEmptyFooterBand(t *testing.T) {
 	window := Win(
 		TitleBar(false),
 		Size(200, 80),
-		FooterHeight(24),
-		FooterPadding(10),
+		Footer(primitives.Box()),
 	)
 
 	window.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(200, 80)))

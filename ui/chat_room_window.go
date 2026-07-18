@@ -14,7 +14,6 @@ import (
 const (
 	chatRoomWindowW        = 320
 	chatRoomWindowContentH = 152
-	chatRoomWindowFooterH  = 42
 	chatRoomMessagePadX    = 8
 	chatRoomMessagePadY    = 6
 )
@@ -48,7 +47,7 @@ func (w *ChatRoomWindow) Open(ctx Context, title string, limit uint16, public bo
 	if title == "" {
 		return
 	}
-	w.EnsureWindow(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+chatRoomWindowFooterH)
+	w.EnsureWindow(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+ROWindowFooterHeight)
 	w.SetBackground(widget.RGBA8(0, 0, 0, 0))
 	w.SetFullRedraw(true)
 	w.ctx = ctx
@@ -68,7 +67,7 @@ func (w *ChatRoomWindow) Open(ctx Context, title string, limit uint16, public bo
 }
 
 func (w *ChatRoomWindow) Update(ctx Context) bool {
-	w.EnsureWindow(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+chatRoomWindowFooterH)
+	w.EnsureWindow(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+ROWindowFooterHeight)
 	w.SetFullRedraw(true)
 	w.ctx = ctx
 	if !w.IsOpen() {
@@ -84,7 +83,7 @@ func (w *ChatRoomWindow) Update(ctx Context) bool {
 }
 
 func (w *ChatRoomWindow) Rebind(ctx Context) {
-	w.EnsureWindow(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+chatRoomWindowFooterH)
+	w.EnsureWindow(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+ROWindowFooterHeight)
 	w.SetBackground(widget.RGBA8(0, 0, 0, 0))
 	w.SetFullRedraw(true)
 	if !w.IsOpen() {
@@ -216,11 +215,10 @@ func (w *ChatRoomWindow) widgetTree(ctx Context) widget.Widget {
 		Title(w.windowTitle()),
 		CloseButton(true),
 		OnClose(func() { w.requestLeave(ctx) }),
-		Size(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+chatRoomWindowFooterH),
+		Size(chatRoomWindowW, ROWindowTitleHeight+chatRoomWindowContentH+ROWindowFooterHeight),
 		Background(widget.RGBA8(0, 0, 0, 0)),
 		Content(w.contentTree()),
-		FooterHeight(chatRoomWindowFooterH),
-		Footer(w.footerTree(ctx)),
+		Footer(w.footerTree(ctx)...),
 	)
 }
 
@@ -284,8 +282,8 @@ func (w *ChatRoomWindow) memberSummary() widget.Widget {
 		Ellipsis()
 }
 
-func (w *ChatRoomWindow) footerTree(ctx Context) widget.Widget {
-	return primitives.HBox(
+func (w *ChatRoomWindow) footerTree(ctx Context) []widget.Widget {
+	return []widget.Widget{
 		primitives.Expanded(
 			primitives.Box(w.inputWidget(ctx)).
 				Height(24).
@@ -293,13 +291,11 @@ func (w *ChatRoomWindow) footerTree(ctx Context) widget.Widget {
 		),
 		rotheme.Button("Send", func() {
 			w.submit(ctx)
-		}).Width(58),
+		}),
 		rotheme.Button("Leave", func() {
 			w.requestLeave(ctx)
-		}).Width(float32(ButtonLabelWidth("Leave"))),
-	).
-		Gap(8).
-		CrossAlign(primitives.CrossAxisCenter)
+		}),
+	}
 }
 
 func (w *ChatRoomWindow) inputWidget(ctx Context) *textfield.Widget {

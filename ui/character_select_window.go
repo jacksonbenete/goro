@@ -39,13 +39,10 @@ type CharacterSelectWindow struct {
 }
 
 const (
-	characterSelectWindowW   = 576
-	characterSelectWindowH   = 356
-	characterSelectFooterH   = 42
-	characterSelectFooterPad = 12
-	characterSelectFooterGap = 8
-	characterSelectSlotW     = 139
-	characterSelectSlotH     = 144
+	characterSelectWindowW = 576
+	characterSelectWindowH = 356
+	characterSelectSlotW   = 139
+	characterSelectSlotH   = 144
 )
 
 var characterSelectSelectedBG = widget.RGBA8(222, 237, 252, 255)
@@ -110,15 +107,10 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 	pageCount := maxInt(1, (w.opts.MaxSlots+2)/3)
 	pageStart := page * 3
 	selected, hasSelection := characterBySlot(w.opts.Characters, w.opts.SelectedSlot)
-	buttonW := func(label string) float32 {
-		return float32(ButtonLabelWidth(label))
-	}
 	return Win(
 		Title("Select Character"),
 		CloseButton(false),
 		Size(characterSelectWindowW, characterSelectWindowH),
-		FooterHeight(characterSelectFooterH),
-		FooterPadding(characterSelectFooterPad),
 		Content(
 			primitives.Box(
 				primitives.HBox(
@@ -146,35 +138,27 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 				CrossAlign(primitives.CrossAxisCenter),
 		),
 		Footer(
-			primitives.HBox(
-				rotheme.Button("Delete", func() {
-					if w.callbacks.OnDelete != nil {
-						w.callbacks.OnDelete()
-					}
-				}).
-					Width(buttonW("Delete")),
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Make", func() {
-					if w.callbacks.OnMake != nil {
-						w.callbacks.OnMake()
-					}
-				}).
-					Width(buttonW("Make")),
-				rotheme.Button("OK", func() {
-					if w.callbacks.OnOK != nil {
-						w.callbacks.OnOK()
-					}
-				}).
-					Width(buttonW("OK")),
-				rotheme.Button("Cancel", func() {
-					if w.callbacks.OnCancel != nil {
-						w.callbacks.OnCancel()
-					}
-				}).
-					Width(buttonW("Cancel")),
-			).
-				CrossAlign(primitives.CrossAxisCenter).
-				Gap(characterSelectFooterGap),
+			rotheme.Button("Delete", func() {
+				if w.callbacks.OnDelete != nil {
+					w.callbacks.OnDelete()
+				}
+			}),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Make", func() {
+				if w.callbacks.OnMake != nil {
+					w.callbacks.OnMake()
+				}
+			}),
+			rotheme.Button("OK", func() {
+				if w.callbacks.OnOK != nil {
+					w.callbacks.OnOK()
+				}
+			}),
+			rotheme.Button("Cancel", func() {
+				if w.callbacks.OnCancel != nil {
+					w.callbacks.OnCancel()
+				}
+			}),
 		),
 	)
 }

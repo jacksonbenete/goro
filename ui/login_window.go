@@ -28,7 +28,6 @@ type LoginWindow struct {
 }
 
 const (
-	loginWindowFooterH       = 42
 	loginWindowFormTopPad    = 18
 	loginWindowFieldGap      = 11
 	loginWindowFieldLeft     = 92
@@ -117,8 +116,6 @@ func (w *LoginWindow) widgetTree() widget.Widget {
 		Title("Login"),
 		CloseButton(false),
 		Size(float32(w.layout.W), float32(w.layout.H)),
-		FooterHeight(loginWindowFooterH),
-		FooterPadding(loginWindowFieldRightPad),
 		Content(
 			primitives.Box(
 				primitives.HBox(
@@ -154,10 +151,8 @@ func (w *LoginWindow) widgetTree() widget.Widget {
 				Gap(loginWindowFieldGap),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Login", submit),
-			),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Login", submit),
 		),
 	)
 }
@@ -210,5 +205,5 @@ func loginWindowLayoutForContext(ctx client.Context) loginWindowLayout {
 }
 
 func loginWindowSize() (int, int) {
-	return 304, ROWindowTitleHeight + loginWindowFormTopPad + loginWindowFieldH*2 + loginWindowFieldGap + 16 + loginWindowFooterH
+	return 304, ROWindowTitleHeight + loginWindowFormTopPad + loginWindowFieldH*2 + loginWindowFieldGap + 16 + ROWindowFooterHeight
 }

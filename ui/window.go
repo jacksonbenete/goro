@@ -13,29 +13,31 @@ import (
 type WindowOption func(*windowConfig)
 
 type windowConfig struct {
-	title         string
-	closeButton   bool
-	content       widget.Widget
-	footer        widget.Widget
-	onClose       func()
-	width         float32
-	height        float32
-	footerPadding float32
-	footerHeight  float32
-	titleBar      bool
-	radius        float32
-	background    *widget.Color
+	title       string
+	closeButton bool
+	content     widget.Widget
+	footer      widget.Widget
+	onClose     func()
+	width       float32
+	height      float32
+	titleBar    bool
+	radius      float32
+	background  *widget.Color
 }
 
-const ROWindowTitleHeight = 28
+const (
+	ROWindowTitleHeight   = 28
+	ROWindowFooterHeight  = 42
+	ROWindowFooterPadding = 10
+	ROWindowFooterGap     = 8
+)
 
 func Win(options ...WindowOption) widget.Widget {
 	cfg := windowConfig{
-		width:         300,
-		height:        240,
-		footerPadding: 8,
-		titleBar:      true,
-		radius:        WindowRadius,
+		width:    300,
+		height:   240,
+		titleBar: true,
+		radius:   WindowRadius,
 	}
 	for _, option := range options {
 		option(&cfg)
@@ -57,26 +59,16 @@ func Win(options ...WindowOption) widget.Widget {
 	if cfg.content != nil {
 		children = append(children, primitives.Expanded(cfg.content))
 	}
-	if cfg.footer != nil || cfg.footerHeight > 0 {
-		footerContent := cfg.footer
-		if footerContent == nil {
-			footerContent = primitives.Box()
-		}
-		footerBody := primitives.Box(footerContent).
+	if cfg.footer != nil {
+		footerBody := primitives.Box(
+			primitives.Expanded(primitives.Box()),
+			cfg.footer,
+			primitives.Expanded(primitives.Box()),
+		).
 			CrossAlign(primitives.CrossAxisStretch).
-			Padding(cfg.footerPadding).
+			PaddingXY(ROWindowFooterPadding, 0).
+			Height(ROWindowFooterHeight - 1).
 			Background(rotheme.Default.Colors.WindowFooter)
-		if cfg.footerHeight > 0 {
-			footerBody = primitives.Box(
-				primitives.Expanded(primitives.Box()),
-				footerContent,
-				primitives.Expanded(primitives.Box()),
-			).
-				CrossAlign(primitives.CrossAxisStretch).
-				PaddingXY(cfg.footerPadding, 0).
-				Height(cfg.footerHeight - 1).
-				Background(rotheme.Default.Colors.WindowFooter)
-		}
 		footer := primitives.Box(
 			primitives.HBox(
 				primitives.Expanded(
@@ -137,21 +129,15 @@ func Content(content widget.Widget) WindowOption {
 	}
 }
 
-func Footer(footer widget.Widget) WindowOption {
+func Footer(children ...widget.Widget) WindowOption {
 	return func(cfg *windowConfig) {
-		cfg.footer = footer
-	}
-}
-
-func FooterPadding(padding float32) WindowOption {
-	return func(cfg *windowConfig) {
-		cfg.footerPadding = padding
-	}
-}
-
-func FooterHeight(height float32) WindowOption {
-	return func(cfg *windowConfig) {
-		cfg.footerHeight = height
+		if len(children) == 0 {
+			cfg.footer = primitives.Box()
+			return
+		}
+		cfg.footer = primitives.HBox(children...).
+			Gap(ROWindowFooterGap).
+			CrossAlign(primitives.CrossAxisCenter)
 	}
 }
 

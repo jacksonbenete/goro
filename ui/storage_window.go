@@ -20,13 +20,12 @@ import (
 )
 
 const (
-	storageWindowWidth   = 312
-	storageWindowTitleH  = ROWindowTitleHeight
-	storageWindowFooterH = 38
-	storageTableHeaderH  = 36
-	storageRowH          = 32
-	storageRows          = 9
-	storageWindowHeight  = storageWindowTitleH + storageTableHeaderH + storageRows*storageRowH + storageWindowFooterH
+	storageWindowWidth  = 312
+	storageWindowTitleH = ROWindowTitleHeight
+	storageTableHeaderH = 36
+	storageRowH         = 32
+	storageRows         = 9
+	storageWindowHeight = storageWindowTitleH + storageTableHeaderH + storageRows*storageRowH + ROWindowFooterHeight
 )
 
 type StorageWindow struct {
@@ -195,19 +194,14 @@ func (w *StorageWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget
 			w.Publish(ctx)
 		}),
 		Size(storageWindowWidth, storageWindowHeight),
-		FooterHeight(storageWindowFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(w.storageTableWidget(ctx)).
 				Height(storageTableHeight()).
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			primitives.HBox(
-				rotheme.Text(w.storageCountText(ctx.Session)),
-				primitives.Expanded(primitives.Box()),
-			).
-				CrossAlign(primitives.CrossAxisCenter),
+			rotheme.Text(w.storageCountText(ctx.Session)),
+			primitives.Expanded(primitives.Box()),
 		),
 	)
 }

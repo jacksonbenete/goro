@@ -18,12 +18,11 @@ import (
 )
 
 const (
-	makingArrowWindowWidth   = 312
-	makingArrowWindowFooterH = 38
-	makingArrowTableHeaderH  = 24
-	makingArrowRowH          = 32
-	makingArrowRows          = 6
-	makingArrowWindowHeight  = ROWindowTitleHeight + makingArrowTableHeaderH + makingArrowRows*makingArrowRowH + makingArrowWindowFooterH
+	makingArrowWindowWidth  = 312
+	makingArrowTableHeaderH = 24
+	makingArrowRowH         = 32
+	makingArrowRows         = 6
+	makingArrowWindowHeight = ROWindowTitleHeight + makingArrowTableHeaderH + makingArrowRows*makingArrowRowH + ROWindowFooterHeight
 )
 
 type MakingArrowWindow struct {
@@ -77,27 +76,21 @@ func (w *MakingArrowWindow) widgetTree(ctx Context) widget.Widget {
 			w.Publish(ctx)
 		}),
 		Size(makingArrowWindowWidth, makingArrowWindowHeight),
-		FooterHeight(makingArrowWindowFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(w.tableWidget(ctx)).
 				Height(makingArrowTableHeight()).
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Cancel", func() {
-					w.cancel(ctx)
-					w.Publish(ctx)
-				}).Width(68),
-				rotheme.Button("OK", func() {
-					w.confirm(ctx)
-					w.Publish(ctx)
-				}).Width(56),
-			).
-				Gap(8).
-				CrossAlign(primitives.CrossAxisCenter),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Cancel", func() {
+				w.cancel(ctx)
+				w.Publish(ctx)
+			}),
+			rotheme.Button("OK", func() {
+				w.confirm(ctx)
+				w.Publish(ctx)
+			}),
 		),
 	)
 }

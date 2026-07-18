@@ -15,7 +15,6 @@ import (
 const (
 	chatRoomCreateW        = 306
 	chatRoomCreateContentH = 180
-	chatRoomCreateFooterH  = 42
 )
 
 type ChatRoomCreateWindowAction struct {
@@ -38,7 +37,7 @@ type ChatRoomCreateWindow struct {
 }
 
 func (w *ChatRoomCreateWindow) Open(ctx Context) {
-	w.EnsureWindow(chatRoomCreateW, ROWindowTitleHeight+chatRoomCreateContentH+chatRoomCreateFooterH)
+	w.EnsureWindow(chatRoomCreateW, ROWindowTitleHeight+chatRoomCreateContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	w.title = ""
 	w.password = ""
@@ -54,7 +53,7 @@ func (w *ChatRoomCreateWindow) Open(ctx Context) {
 }
 
 func (w *ChatRoomCreateWindow) Update(ctx Context) bool {
-	w.EnsureWindow(chatRoomCreateW, ROWindowTitleHeight+chatRoomCreateContentH+chatRoomCreateFooterH)
+	w.EnsureWindow(chatRoomCreateW, ROWindowTitleHeight+chatRoomCreateContentH+ROWindowFooterHeight)
 	w.ctx = ctx
 	if !w.IsOpen() {
 		return false
@@ -92,7 +91,7 @@ func (w *ChatRoomCreateWindow) widgetTree(ctx Context) widget.Widget {
 		Title("Make a Room"),
 		CloseButton(true),
 		OnClose(w.Close),
-		Size(chatRoomCreateW, ROWindowTitleHeight+chatRoomCreateContentH+chatRoomCreateFooterH),
+		Size(chatRoomCreateW, ROWindowTitleHeight+chatRoomCreateContentH+ROWindowFooterHeight),
 		Content(
 			primitives.Box(
 				rotheme.SectionLabel("Title"),
@@ -135,15 +134,12 @@ func (w *ChatRoomCreateWindow) widgetTree(ctx Context) widget.Widget {
 				Padding(14).
 				Gap(6),
 		),
-		FooterHeight(chatRoomCreateFooterH),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("OK", func() {
-					w.submit(ctx)
-				}).Width(float32(ButtonLabelWidth("OK"))),
-				rotheme.Button("Cancel", w.Close).Width(float32(ButtonLabelWidth("Cancel"))),
-			).Gap(8),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("OK", func() {
+				w.submit(ctx)
+			}),
+			rotheme.Button("Cancel", w.Close),
 		),
 	)
 }

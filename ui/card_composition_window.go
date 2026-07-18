@@ -19,12 +19,11 @@ import (
 )
 
 const (
-	cardCompositionWindowWidth   = 328
-	cardCompositionWindowFooterH = 38
-	cardCompositionTableHeaderH  = 24
-	cardCompositionRowH          = 32
-	cardCompositionRows          = 6
-	cardCompositionWindowHeight  = ROWindowTitleHeight + cardCompositionTableHeaderH + cardCompositionRows*cardCompositionRowH + cardCompositionWindowFooterH
+	cardCompositionWindowWidth  = 328
+	cardCompositionTableHeaderH = 24
+	cardCompositionRowH         = 32
+	cardCompositionRows         = 6
+	cardCompositionWindowHeight = ROWindowTitleHeight + cardCompositionTableHeaderH + cardCompositionRows*cardCompositionRowH + ROWindowFooterHeight
 )
 
 type CardCompositionWindow struct {
@@ -97,26 +96,20 @@ func (w *CardCompositionWindow) widgetTree(ctx Context) widget.Widget {
 			w.Publish(ctx)
 		}),
 		Size(cardCompositionWindowWidth, cardCompositionWindowHeight),
-		FooterHeight(cardCompositionWindowFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(w.tableWidget(ctx)).
 				Height(cardCompositionTableHeight()).
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Cancel", func() {
-					w.Close()
-					w.Publish(ctx)
-				}).Width(68),
-				rotheme.Button("OK", func() {
-					w.composeSelected(ctx)
-				}).Width(56),
-			).
-				Gap(8).
-				CrossAlign(primitives.CrossAxisCenter),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Cancel", func() {
+				w.Close()
+				w.Publish(ctx)
+			}),
+			rotheme.Button("OK", func() {
+				w.composeSelected(ctx)
+			}),
 		),
 	)
 }

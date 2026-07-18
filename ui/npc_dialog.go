@@ -31,8 +31,7 @@ const (
 	npcMenuMaxRows       = 5
 	npcMenuRowH          = 20
 	npcMenuPad           = 8
-	npcMenuFooterH       = 32
-	npcMenuMinHeight     = ROWindowTitleHeight + npcMenuPad*2 + npcMenuMinRows*npcMenuRowH + npcMenuFooterH
+	npcMenuMinHeight     = ROWindowTitleHeight + npcMenuPad*2 + npcMenuMinRows*npcMenuRowH + ROWindowFooterHeight
 	npcInputNumberWidth  = 174
 	npcInputTextWidth    = 274
 	npcInputHeight       = 52
@@ -479,21 +478,21 @@ func (d *NPCDialog) publish(ctx Context) {
 
 func (d *NPCDialog) dialogTree(ctx Context, width, height int) widget.Widget {
 	contentHeight := height - ROWindowTitleHeight
-	footer := widget.Widget(nil)
+	var footer []widget.Widget
 	if d.action == npcDialogActionNext || d.action == npcDialogActionClose {
-		contentHeight -= 40
+		contentHeight -= ROWindowFooterHeight
 		label := "Next"
 		action := d.next
 		if d.action == npcDialogActionClose {
 			label = "Close"
 			action = d.close
 		}
-		footer = primitives.HBox(
+		footer = []widget.Widget{
 			primitives.Expanded(primitives.Box()),
 			rotheme.Button(label, func() {
 				action(ctx)
 			}).Width(npcDialogButtonW),
-		).CrossAlign(primitives.CrossAxisCenter)
+		}
 	}
 	lines := d.dialogLineWidgets(width, contentHeight)
 	if len(lines) == 0 {
@@ -521,8 +520,7 @@ func (d *NPCDialog) dialogTree(ctx Context, width, height int) widget.Widget {
 	}
 	if footer != nil {
 		options = append(options,
-			FooterHeight(40),
-			Footer(footer),
+			Footer(footer...),
 		)
 	}
 	return Win(options...)
@@ -620,19 +618,16 @@ func (d *NPCDialog) menuTree(ctx Context, width, height int) widget.Widget {
 			primitives.Box(d.menuList()).
 				Padding(npcMenuPad),
 		),
-		FooterHeight(32),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.ButtonDisabledFn("OK", func() bool {
-					return d.menuRow < 0 || d.menuRow >= len(d.options)
-				}, func() {
-					d.chooseSelected(ctx)
-				}).Width(54),
-				rotheme.Button("Cancel", func() {
-					d.choose(ctx, 255)
-				}).Width(68),
-			).Gap(8).CrossAlign(primitives.CrossAxisCenter),
+			primitives.Expanded(primitives.Box()),
+			rotheme.ButtonDisabledFn("OK", func() bool {
+				return d.menuRow < 0 || d.menuRow >= len(d.options)
+			}, func() {
+				d.chooseSelected(ctx)
+			}),
+			rotheme.Button("Cancel", func() {
+				d.choose(ctx, 255)
+			}),
 		),
 	)
 }
@@ -776,7 +771,7 @@ func npcDialogBounds(width, height int) (int, int, int, int) {
 func (d *NPCDialog) menuBounds(width, height, dialogX, dialogY, dialogW, dialogH int) (int, int, int, int) {
 	w := minInt(npcMenuWidth, maxInt(220, width-40))
 	rows := maxInt(npcMenuMinRows, minInt(len(d.options), npcMenuMaxRows))
-	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+rows*npcMenuRowH+npcMenuFooterH)
+	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+rows*npcMenuRowH+ROWindowFooterHeight)
 	x := dialogX + (dialogW-w)/2
 	y := dialogY + dialogH + 8
 	x = clampWindowInt(x, 8, maxInt(8, width-w-8))

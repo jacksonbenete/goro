@@ -21,7 +21,7 @@ const (
 	minimapHeight                  = 206
 	minimapMargin                  = 16
 	minimapPad                     = 10
-	minimapFooterH                 = 22
+	minimapInfoBandH               = 22
 	minimapMarkerRedrawDelayFrames = 4
 )
 
@@ -172,7 +172,7 @@ func MinimapBounds(width, height int) (int, int, int, int) {
 }
 
 func minimapMapRect(x, y, w, h int) minimapRect {
-	available := h - ROWindowTitleHeight - minimapFooterH - minimapPad
+	available := h - ROWindowTitleHeight - minimapInfoBandH - minimapPad
 	size := minInt(w-2*minimapPad, available)
 	if size < 32 {
 		size = 32
@@ -266,7 +266,7 @@ func (w *minimapWidget) Event(_ widget.Context, _ event.Event) bool {
 }
 
 func minimapContentMapRect(bounds geometry.Rect) minimapRect {
-	available := int(bounds.Height()) - minimapFooterH - minimapPad
+	available := int(bounds.Height()) - minimapInfoBandH - minimapPad
 	size := minInt(int(bounds.Width())-2*minimapPad, available)
 	if size < 32 {
 		size = 32

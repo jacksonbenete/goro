@@ -14,7 +14,9 @@ import (
 
 func TestPartyFooterAlignsButtonsRight(t *testing.T) {
 	var window FriendsWindow
-	footer := window.partyFooter(session.Party{Name: "Party"})
+	footer := primitives.HBox(window.partyFooter(session.Party{Name: "Party"})...).
+		Gap(ROWindowFooterGap).
+		CrossAlign(primitives.CrossAxisCenter)
 
 	footer.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(180, 24)))
 
@@ -32,9 +34,8 @@ func TestPartyFooterShowsCreateWhenNoParty(t *testing.T) {
 	var window FriendsWindow
 	footer := window.partyFooter(session.Party{})
 
-	children := footer.Children()
-	if len(children) != 2 {
-		t.Fatalf("empty party footer children = %d, want spacer and create button", len(children))
+	if len(footer) != 2 {
+		t.Fatalf("empty party footer children = %d, want spacer and create button", len(footer))
 	}
 }
 
@@ -49,9 +50,8 @@ func TestPartyFooterShowsInviteForLeader(t *testing.T) {
 	}}
 	footer := window.partyFooter(window.ctx.Session.Party)
 
-	children := footer.Children()
-	if len(children) != 4 {
-		t.Fatalf("leader party footer children = %d, want spacer, invite, settings, leave", len(children))
+	if len(footer) != 4 {
+		t.Fatalf("leader party footer children = %d, want spacer, invite, settings, leave", len(footer))
 	}
 }
 

@@ -22,8 +22,6 @@ import (
 const (
 	shopBuyListWindowW   = 420
 	shopBuyCartWindowW   = 420
-	shopBuyListFooterH   = 42
-	shopBuyCartFooterH   = 42
 	shopDataTableHeaderH = 36
 	shopRowH             = 32
 	shopListRows         = 7
@@ -242,24 +240,18 @@ func (w *ShopWindow) dealWidgetTree(ctx Context) widget.Widget {
 		Title("Shop"),
 		CloseButton(false),
 		Size(shopDealWidth, shopDealHeight),
-		FooterHeight(smallPromptFooterH),
-		FooterPadding(10),
 		Content(smallPromptContent("Select a transaction type", smallPromptDefaultLines)),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Buy", func() {
-					w.sendDealSelection(ctx, 0)
-				}).Width(60),
-				rotheme.Button("Sell", func() {
-					w.sendDealSelection(ctx, 1)
-				}).Width(60),
-				rotheme.Button("Cancel", func() {
-					w.closeDealWindow(ctx)
-				}).Width(62),
-			).
-				CrossAlign(primitives.CrossAxisCenter).
-				Gap(8),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Buy", func() {
+				w.sendDealSelection(ctx, 0)
+			}),
+			rotheme.Button("Sell", func() {
+				w.sendDealSelection(ctx, 1)
+			}),
+			rotheme.Button("Cancel", func() {
+				w.closeDealWindow(ctx)
+			}),
 		),
 	)
 }
@@ -324,8 +316,6 @@ func (w *ShopWindow) buyListWidgetTree(ctx Context) widget.Widget {
 			w.cancel(ctx)
 		}),
 		Size(shopBuyListWindowW, float32(shopListWindowHeight())),
-		FooterHeight(shopBuyListFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(
 				primitives.Box(w.buyTableWidget(ctx)).
@@ -333,9 +323,7 @@ func (w *ShopWindow) buyListWidgetTree(ctx Context) widget.Widget {
 					Background(rotheme.Default.Colors.PanelBody),
 			).Gap(0),
 		),
-		Footer(
-			primitives.Box(),
-		),
+		Footer(primitives.Box()),
 	)
 }
 
@@ -355,27 +343,21 @@ func (w *ShopWindow) buyCartWidgetTree(ctx Context) widget.Widget {
 			w.cancel(ctx)
 		}),
 		Size(shopBuyCartWindowW, float32(w.cartWindowHeight())),
-		FooterHeight(shopBuyCartFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(w.buyCartTableWidget(ctx)).
 				Height(float32(w.cartTableHeight())).
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			primitives.HBox(
-				rotheme.Text(fmt.Sprintf("Total: %s Z", formatHUDNumber(w.total()))),
-				primitives.Expanded(primitives.Box()),
-				rotheme.ButtonDisabled(action, disabled, func() {
-					w.submit(ctx)
-					w.refreshBuyWindow(ctx)
-				}).Width(58),
-				rotheme.Button("Cancel", func() {
-					w.cancel(ctx)
-				}).Width(62),
-			).
-				CrossAlign(primitives.CrossAxisCenter).
-				Gap(8),
+			rotheme.Text(fmt.Sprintf("Total: %s Z", formatHUDNumber(w.total()))),
+			primitives.Expanded(primitives.Box()),
+			rotheme.ButtonDisabled(action, disabled, func() {
+				w.submit(ctx)
+				w.refreshBuyWindow(ctx)
+			}),
+			rotheme.Button("Cancel", func() {
+				w.cancel(ctx)
+			}),
 		),
 	)
 }
@@ -763,11 +745,11 @@ func (w *ShopWindow) isDoubleClick(row int, cart bool) bool {
 }
 
 func shopListWindowHeight() int {
-	return ROWindowTitleHeight + shopTableHeight(shopListRows) + shopBuyListFooterH
+	return ROWindowTitleHeight + shopTableHeight(shopListRows) + ROWindowFooterHeight
 }
 
 func (w *ShopWindow) cartWindowHeight() int {
-	return ROWindowTitleHeight + w.cartTableHeight() + shopBuyCartFooterH
+	return ROWindowTitleHeight + w.cartTableHeight() + ROWindowFooterHeight
 }
 
 func (w *ShopWindow) cartTableHeight() int {

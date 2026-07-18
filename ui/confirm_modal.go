@@ -15,7 +15,6 @@ const (
 	smallPromptHeight       = 128
 	alertPromptHeight       = 156
 	smallPromptContentH     = 42
-	smallPromptFooterH      = 42
 	smallPromptSidePad      = 12
 	smallPromptLineH        = 14
 	smallPromptDefaultLines = 2
@@ -115,7 +114,7 @@ func (m *ConfirmModal) promptHeight() int {
 	if m.okOnly {
 		return alertPromptHeight
 	}
-	return ROWindowTitleHeight + smallPromptContentH + smallPromptLineH*(m.messageMaxLines()-1) + smallPromptFooterH
+	return ROWindowTitleHeight + smallPromptContentH + smallPromptLineH*(m.messageMaxLines()-1) + ROWindowFooterHeight
 }
 
 func (m *ConfirmModal) messageMaxLines() int {
@@ -126,36 +125,29 @@ func (m *ConfirmModal) messageMaxLines() int {
 }
 
 func (m *ConfirmModal) widgetTree(ctx client.Context) widget.Widget {
-	okW := float32(ButtonLabelWidth("OK"))
-	cancelW := float32(ButtonLabelWidth("Cancel"))
-	var footer widget.Widget = primitives.HBox(
+	footer := []widget.Widget{
 		primitives.Expanded(primitives.Box()),
 		rotheme.Button("OK", func() {
 			m.Confirm(ctx)
-		}).
-			Width(okW),
+		}),
 		rotheme.Button("Cancel", func() {
 			m.Cancel(ctx)
-		}).
-			Width(cancelW),
-	).Gap(8)
+		}),
+	}
 	if m.okOnly {
-		footer = primitives.HBox(
+		footer = []widget.Widget{
 			primitives.Expanded(primitives.Box()),
 			rotheme.Button("OK", func() {
 				m.Confirm(ctx)
-			}).
-				Width(okW),
-		)
+			}),
+		}
 	}
 	return Win(
 		Title(m.title),
 		CloseButton(false),
 		Size(smallPromptWidth, float32(m.promptHeight())),
-		FooterHeight(smallPromptFooterH),
-		FooterPadding(18),
 		Content(smallPromptContent(m.message, m.messageMaxLines())),
-		Footer(footer),
+		Footer(footer...),
 	)
 }
 

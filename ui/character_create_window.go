@@ -57,11 +57,8 @@ type CharacterCreateWindow struct {
 }
 
 const (
-	characterCreateWindowW   = 576
-	characterCreateWindowH   = 342
-	characterCreateFooterH   = 42
-	characterCreateFooterPad = 12
-	characterCreateFooterGap = 8
+	characterCreateWindowW = 576
+	characterCreateWindowH = 342
 )
 
 func NewCharacterCreateWindow(ctx client.Context, opts CharacterCreateWindowOptions, callbacks CharacterCreateWindowCallbacks) *CharacterCreateWindow {
@@ -133,15 +130,10 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 	}
 	w.name = name
 
-	buttonW := func(label string) float32 {
-		return float32(ButtonLabelWidth(label))
-	}
 	return Win(
 		Title("Make Character"),
 		CloseButton(false),
 		Size(characterCreateWindowW, characterCreateWindowH),
-		FooterHeight(characterCreateFooterH),
-		FooterPadding(characterCreateFooterPad),
 		Content(
 			primitives.Box(
 				primitives.HBox(
@@ -186,23 +178,17 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 				PaddingRight(32),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Make", func() {
-					if w.callbacks.OnSubmit != nil {
-						w.callbacks.OnSubmit()
-					}
-				}).
-					Width(buttonW("Make")),
-				rotheme.Button("Cancel", func() {
-					if w.callbacks.OnCancel != nil {
-						w.callbacks.OnCancel()
-					}
-				}).
-					Width(buttonW("Cancel")),
-			).
-				CrossAlign(primitives.CrossAxisCenter).
-				Gap(characterCreateFooterGap),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Make", func() {
+				if w.callbacks.OnSubmit != nil {
+					w.callbacks.OnSubmit()
+				}
+			}),
+			rotheme.Button("Cancel", func() {
+				if w.callbacks.OnCancel != nil {
+					w.callbacks.OnCancel()
+				}
+			}),
 		),
 	)
 }

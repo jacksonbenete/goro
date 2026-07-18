@@ -22,15 +22,13 @@ import (
 )
 
 const (
-	skillWindowWidth   = 360
-	skillWindowHeight  = 382
-	skillWindowPad     = 12
-	skillRowH          = 32
-	skillIconSize      = 24
-	skillHeaderH       = 52
-	skillFooterH       = 36
-	skillFooterButtonW = 70
-	skillListH         = skillWindowHeight - ROWindowTitleHeight - skillHeaderH - skillFooterH
+	skillWindowWidth  = 360
+	skillWindowHeight = 388
+	skillWindowPad    = 12
+	skillRowH         = 32
+	skillIconSize     = 24
+	skillHeaderH      = 52
+	skillListH        = skillWindowHeight - ROWindowTitleHeight - skillHeaderH - ROWindowFooterHeight
 )
 
 type SkillWindow struct {
@@ -215,8 +213,6 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 			w.close(ctx)
 		}),
 		Size(skillWindowWidth, skillWindowHeight),
-		FooterHeight(skillFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(
 				rotheme.Text(fmt.Sprintf("Skill Points : %d", maxInt(0, sessionSkillPoints(ctx.Session)-w.pendingCount()))),
@@ -236,19 +232,15 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 				Gap(5),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Reset", func() {
-					w.clearPending()
-					w.dirty = true
-				}).Width(skillFooterButtonW),
-				rotheme.Button("Confirm", func() {
-					w.confirmPending(ctx)
-					w.dirty = true
-				}).Width(skillFooterButtonW),
-			).
-				Gap(8).
-				CrossAlign(primitives.CrossAxisCenter),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Reset", func() {
+				w.clearPending()
+				w.dirty = true
+			}),
+			rotheme.Button("Confirm", func() {
+				w.confirmPending(ctx)
+				w.dirty = true
+			}),
 		),
 	)
 }

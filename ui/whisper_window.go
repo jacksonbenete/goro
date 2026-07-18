@@ -16,7 +16,6 @@ import (
 const (
 	whisperWindowW        = 286
 	whisperWindowContentH = 120
-	whisperWindowFooterH  = 42
 	whisperMessagePadX    = 8
 	whisperMessagePadY    = 6
 )
@@ -47,7 +46,7 @@ func (w *WhisperWindow) Open(ctx Context, target string) {
 	if target == "" {
 		return
 	}
-	w.EnsureWindow(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+whisperWindowFooterH)
+	w.EnsureWindow(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+ROWindowFooterHeight)
 	w.SetBackground(widget.RGBA8(0, 0, 0, 0))
 	w.SetFullRedraw(true)
 	w.ctx = ctx
@@ -63,7 +62,7 @@ func (w *WhisperWindow) Open(ctx Context, target string) {
 }
 
 func (w *WhisperWindow) Update(ctx Context) bool {
-	w.EnsureWindow(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+whisperWindowFooterH)
+	w.EnsureWindow(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+ROWindowFooterHeight)
 	w.SetFullRedraw(true)
 	w.ctx = ctx
 	if !w.IsOpen() {
@@ -79,7 +78,7 @@ func (w *WhisperWindow) Update(ctx Context) bool {
 }
 
 func (w *WhisperWindow) Rebind(ctx Context) {
-	w.EnsureWindow(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+whisperWindowFooterH)
+	w.EnsureWindow(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+ROWindowFooterHeight)
 	w.SetBackground(widget.RGBA8(0, 0, 0, 0))
 	w.SetFullRedraw(true)
 	if !w.IsOpen() {
@@ -128,11 +127,10 @@ func (w *WhisperWindow) widgetTree(ctx Context) widget.Widget {
 		Title(w.title()),
 		CloseButton(true),
 		OnClose(w.Close),
-		Size(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+whisperWindowFooterH),
+		Size(whisperWindowW, ROWindowTitleHeight+whisperWindowContentH+ROWindowFooterHeight),
 		Background(widget.RGBA8(0, 0, 0, 0)),
 		Content(w.contentTree()),
-		FooterHeight(whisperWindowFooterH),
-		Footer(w.footerTree(ctx)),
+		Footer(w.footerTree(ctx)...),
 	)
 }
 
@@ -173,8 +171,8 @@ func (w *WhisperWindow) contentTree() widget.Widget {
 		CrossAlign(primitives.CrossAxisStretch)
 }
 
-func (w *WhisperWindow) footerTree(ctx Context) widget.Widget {
-	return primitives.HBox(
+func (w *WhisperWindow) footerTree(ctx Context) []widget.Widget {
+	return []widget.Widget{
 		primitives.Expanded(
 			primitives.Box(w.inputWidget(ctx)).
 				Height(24).
@@ -182,10 +180,8 @@ func (w *WhisperWindow) footerTree(ctx Context) widget.Widget {
 		),
 		rotheme.Button("Send", func() {
 			w.submit(ctx)
-		}).Width(58),
-	).
-		Gap(8).
-		CrossAlign(primitives.CrossAxisCenter)
+		}),
+	}
 }
 
 func (w *WhisperWindow) inputWidget(ctx Context) *textfield.Widget {

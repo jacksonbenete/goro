@@ -17,12 +17,11 @@ import (
 )
 
 const (
-	petEggWindowWidth   = 312
-	petEggWindowFooterH = 38
-	petEggTableHeaderH  = 24
-	petEggRowH          = 32
-	petEggRows          = 6
-	petEggWindowHeight  = ROWindowTitleHeight + petEggTableHeaderH + petEggRows*petEggRowH + petEggWindowFooterH
+	petEggWindowWidth  = 312
+	petEggTableHeaderH = 24
+	petEggRowH         = 32
+	petEggRows         = 6
+	petEggWindowHeight = ROWindowTitleHeight + petEggTableHeaderH + petEggRows*petEggRowH + ROWindowFooterHeight
 )
 
 type PetEggWindow struct {
@@ -81,27 +80,21 @@ func (w *PetEggWindow) widgetTree(ctx Context) widget.Widget {
 			w.Publish(ctx)
 		}),
 		Size(petEggWindowWidth, petEggWindowHeight),
-		FooterHeight(petEggWindowFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(w.tableWidget(ctx)).
 				Height(petEggTableHeight()).
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Cancel", func() {
-					w.Close()
-					w.Publish(ctx)
-				}).Width(68),
-				rotheme.Button("OK", func() {
-					w.hatchSelected(ctx)
-					w.Publish(ctx)
-				}).Width(56),
-			).
-				Gap(8).
-				CrossAlign(primitives.CrossAxisCenter),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Cancel", func() {
+				w.Close()
+				w.Publish(ctx)
+			}),
+			rotheme.Button("OK", func() {
+				w.hatchSelected(ctx)
+				w.Publish(ctx)
+			}),
 		),
 	)
 }

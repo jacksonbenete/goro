@@ -14,7 +14,6 @@ import (
 const (
 	partySettingsW       = 286
 	partySettingsContent = 132
-	partySettingsFooterH = 42
 )
 
 type PartySettingsWindow struct {
@@ -24,7 +23,7 @@ type PartySettingsWindow struct {
 }
 
 func (w *PartySettingsWindow) Open(ctx Context) {
-	w.EnsureWindow(partySettingsW, ROWindowTitleHeight+partySettingsContent+partySettingsFooterH)
+	w.EnsureWindow(partySettingsW, ROWindowTitleHeight+partySettingsContent+ROWindowFooterHeight)
 	w.ctx = ctx
 	party := sessionParty(ctx.Session)
 	w.expShare = party.ExpShare
@@ -34,7 +33,7 @@ func (w *PartySettingsWindow) Open(ctx Context) {
 }
 
 func (w *PartySettingsWindow) Update(ctx Context) bool {
-	w.EnsureWindow(partySettingsW, ROWindowTitleHeight+partySettingsContent+partySettingsFooterH)
+	w.EnsureWindow(partySettingsW, ROWindowTitleHeight+partySettingsContent+ROWindowFooterHeight)
 	w.ctx = ctx
 	if !w.IsOpen() {
 		return false
@@ -58,7 +57,7 @@ func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {
 		Title("Party Settings"),
 		CloseButton(true),
 		OnClose(w.Close),
-		Size(partySettingsW, ROWindowTitleHeight+partySettingsContent+partySettingsFooterH),
+		Size(partySettingsW, ROWindowTitleHeight+partySettingsContent+ROWindowFooterHeight),
 		Content(
 			primitives.Box(
 				rotheme.SectionLabel("EXP"),
@@ -83,16 +82,12 @@ func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {
 				Padding(14).
 				Gap(8),
 		),
-		FooterHeight(partySettingsFooterH),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
+			primitives.Expanded(primitives.Box()),
 				rotheme.Button("OK", func() {
 					w.apply(ctx)
-				}).Width(float32(ButtonLabelWidth("OK"))),
-				rotheme.Button("Cancel", w.Close).Width(float32(ButtonLabelWidth("Cancel"))),
-			).
-				Gap(8),
+				}),
+				rotheme.Button("Cancel", w.Close),
 		),
 	)
 }

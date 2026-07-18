@@ -18,13 +18,12 @@ import (
 )
 
 const (
-	identifyWindowWidth   = 312
-	identifyWindowFooterH = 38
-	identifyTableHeaderH  = 36
-	identifyRowH          = 32
-	identifyRows          = 6
-	identifyWindowHeight  = ROWindowTitleHeight + identifyTableHeaderH + identifyRows*identifyRowH + identifyWindowFooterH
-	identifyCancelIndex   = uint16(0xFFFF)
+	identifyWindowWidth  = 312
+	identifyTableHeaderH = 36
+	identifyRowH         = 32
+	identifyRows         = 6
+	identifyWindowHeight = ROWindowTitleHeight + identifyTableHeaderH + identifyRows*identifyRowH + ROWindowFooterHeight
+	identifyCancelIndex  = uint16(0xFFFF)
 )
 
 type IdentifyWindow struct {
@@ -113,27 +112,21 @@ func (w *IdentifyWindow) widgetTree(ctx Context) widget.Widget {
 			w.Publish(ctx)
 		}),
 		Size(identifyWindowWidth, identifyWindowHeight),
-		FooterHeight(identifyWindowFooterH),
-		FooterPadding(10),
 		Content(
 			primitives.Box(w.identifyTableWidget(ctx)).
 				Height(identifyTableHeight()).
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			primitives.HBox(
-				primitives.Expanded(primitives.Box()),
-				rotheme.Button("Cancel", func() {
-					w.cancel(ctx)
-					w.Publish(ctx)
-				}).Width(68),
-				rotheme.Button("OK", func() {
-					w.identifySelected(ctx)
-					w.Publish(ctx)
-				}).Width(56),
-			).
-				Gap(8).
-				CrossAlign(primitives.CrossAxisCenter),
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Cancel", func() {
+				w.cancel(ctx)
+				w.Publish(ctx)
+			}),
+			rotheme.Button("OK", func() {
+				w.identifySelected(ctx)
+				w.Publish(ctx)
+			}),
 		),
 	)
 }
