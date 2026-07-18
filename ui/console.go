@@ -793,7 +793,8 @@ func (c *ChatConsole) widgetTree(width, height int) widget.Widget {
 	c.ensureScrollSignal().Set(scrollY)
 	messages := primitives.Box(
 		scrollview.New(
-			messageList,
+			primitives.Box(messageList).
+				PaddingRight(ROScrollbarGutter),
 			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
 			scrollview.ScrollYSignal(c.ensureScrollSignal()),
 			scrollview.ScrollStep(float32(consoleLineH*3)),

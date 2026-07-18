@@ -118,7 +118,7 @@ func (w *CardCompositionWindow) tableWidget(ctx Context) *datatable.Widget {
 	items := w.items(ctx.Session)
 	return datatable.New(
 		datatable.Columns([]datatable.Column{
-			{Key: "item", Title: "Item", Width: cardCompositionWindowWidth},
+			{Key: "item", Title: "Item", Width: scrollbarSafeWidth(cardCompositionWindowWidth)},
 		}),
 		datatable.RowCount(len(items)),
 		datatable.RowHeight(cardCompositionRowH),
@@ -277,7 +277,7 @@ func (p cardCompositionTablePainter) PaintRow(canvas widget.Canvas, s datatable.
 	if s.Selected {
 		fill = rotheme.Default.Colors.ButtonDown
 	}
-	canvas.DrawRect(s.Bounds, fill)
+	canvas.DrawRect(scrollbarSafeRect(s.Bounds), fill)
 }
 
 func (p cardCompositionTablePainter) PaintCell(canvas widget.Canvas, s datatable.CellPaintState) {

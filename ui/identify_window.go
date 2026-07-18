@@ -136,7 +136,7 @@ func (w *IdentifyWindow) identifyTableWidget(ctx Context) *datatable.Widget {
 	rows := w.identifyRows(ctx, items)
 	return datatable.New(
 		datatable.Columns([]datatable.Column{
-			{Key: "item", Title: "Item", Width: identifyWindowWidth},
+			{Key: "item", Title: "Item", Width: scrollbarSafeWidth(identifyWindowWidth)},
 		}),
 		datatable.RowCount(len(rows)),
 		datatable.RowHeight(identifyRowH),
@@ -338,7 +338,7 @@ func (p identifyTablePainter) PaintRow(canvas widget.Canvas, s datatable.RowPain
 	if s.Selected {
 		fill = rotheme.Default.Colors.ButtonDown
 	}
-	canvas.DrawRect(s.Bounds, fill)
+	canvas.DrawRect(scrollbarSafeRect(s.Bounds), fill)
 }
 
 func (p identifyTablePainter) PaintCell(canvas widget.Canvas, s datatable.CellPaintState) {

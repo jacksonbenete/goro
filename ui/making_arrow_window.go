@@ -99,7 +99,7 @@ func (w *MakingArrowWindow) tableWidget(ctx Context) *datatable.Widget {
 	ids := append([]uint16(nil), w.itemIDs...)
 	return datatable.New(
 		datatable.Columns([]datatable.Column{
-			{Key: "item", Title: "Item", Width: makingArrowWindowWidth},
+			{Key: "item", Title: "Item", Width: scrollbarSafeWidth(makingArrowWindowWidth)},
 		}),
 		datatable.RowCount(len(ids)),
 		datatable.RowHeight(makingArrowRowH),
@@ -152,7 +152,7 @@ func (w *MakingArrowWindow) rowAtMouse(mouseX, mouseY int) (int, bool) {
 	tableX := w.x
 	tableY := w.y + ROWindowTitleHeight
 	rowY := tableY + makingArrowTableHeaderH
-	if !pointInRect(mouseX, mouseY, tableX, rowY, makingArrowWindowWidth, makingArrowRows*makingArrowRowH) {
+	if !pointInRect(mouseX, mouseY, tableX, rowY, scrollbarSafeIntWidth(makingArrowWindowWidth), makingArrowRows*makingArrowRowH) {
 		return 0, false
 	}
 	row := int((float32(mouseY-rowY) + w.ensureScrollSignal().Get()) / makingArrowRowH)
@@ -280,7 +280,7 @@ func (p makingArrowTablePainter) PaintRow(canvas widget.Canvas, s datatable.RowP
 	if s.Selected {
 		fill = rotheme.Default.Colors.ButtonDown
 	}
-	canvas.DrawRect(s.Bounds, fill)
+	canvas.DrawRect(scrollbarSafeRect(s.Bounds), fill)
 }
 
 func (p makingArrowTablePainter) PaintCell(canvas widget.Canvas, s datatable.CellPaintState) {

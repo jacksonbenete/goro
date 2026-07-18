@@ -366,7 +366,7 @@ func (w *VendingWindow) ownItemsTable(ctx Context) *datatable.Widget {
 func (w *VendingWindow) table(rows []shopTableRow, scroll state.Signal[float32], selectedRow int) *datatable.Widget {
 	return datatable.New(
 		datatable.Columns([]datatable.Column{
-			{Key: "item", Title: "Item", Width: 250},
+			{Key: "item", Title: "Item", Width: scrollbarSafeWidth(250)},
 			{Key: "price", Title: "Price", Width: 104, Align: widget.TextAlignRight},
 			{Key: "amount", Title: "Qty", Width: 66, Align: widget.TextAlignCenter},
 		}),

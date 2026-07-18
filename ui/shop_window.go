@@ -385,12 +385,12 @@ func (w *ShopWindow) buyCartTableWidget(ctx Context) *datatable.Widget {
 
 func (w *ShopWindow) shopTableWidget(rows []shopTableRow, amountColumn bool, scroll state.Signal[float32], selectable bool, onSelect func(int)) *datatable.Widget {
 	columns := []datatable.Column{
-		{Key: "item", Title: "Item", Width: 296},
+		{Key: "item", Title: "Item", Width: scrollbarSafeWidth(296)},
 		{Key: "price", Title: "Price", Width: 124, Align: widget.TextAlignRight},
 	}
 	if amountColumn {
 		columns = []datatable.Column{
-			{Key: "item", Title: "Item", Width: 250},
+			{Key: "item", Title: "Item", Width: scrollbarSafeWidth(250)},
 			{Key: "price", Title: "Price", Width: 104, Align: widget.TextAlignRight},
 			{Key: "amount", Title: "Qty", Width: 66, Align: widget.TextAlignCenter},
 		}
@@ -765,7 +765,7 @@ func shopTableHeight(rows int) int {
 }
 
 func tableRowAt(mx, my, tableX, tableY, tableW, tableH, rowCount, rowHeight int, scrollY float32) (int, bool) {
-	if !pointInRect(mx, my, tableX, tableY+shopDataTableHeaderH, tableW, tableH-shopDataTableHeaderH) {
+	if !pointInRect(mx, my, tableX, tableY+shopDataTableHeaderH, scrollbarSafeIntWidth(tableW), tableH-shopDataTableHeaderH) {
 		return 0, false
 	}
 	localY := float32(my-tableY) - shopDataTableHeaderH + scrollY
@@ -866,7 +866,7 @@ func (p shopBuyTablePainter) PaintRow(canvas widget.Canvas, s datatable.RowPaint
 	if s.Selected {
 		fill = rotheme.Default.Colors.ButtonDown
 	}
-	canvas.DrawRect(s.Bounds, fill)
+	canvas.DrawRect(scrollbarSafeRect(s.Bounds), fill)
 }
 
 func (p shopBuyTablePainter) PaintCell(canvas widget.Canvas, s datatable.CellPaintState) {

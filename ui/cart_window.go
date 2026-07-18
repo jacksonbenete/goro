@@ -205,7 +205,7 @@ func (w *CartWindow) cartTableWidget(ctx Context) *datatable.Widget {
 	rows := w.cartRows(ctx, items)
 	return datatable.New(
 		datatable.Columns([]datatable.Column{
-			{Key: "item", Title: "Item", Width: 236},
+			{Key: "item", Title: "Item", Width: scrollbarSafeWidth(236)},
 			{Key: "amount", Title: "Qty", Width: 76, Align: widget.TextAlignRight},
 		}),
 		datatable.RowCount(len(rows)),

@@ -103,7 +103,7 @@ func (w *PetEggWindow) tableWidget(ctx Context) *datatable.Widget {
 	items := w.items(ctx.Session)
 	return datatable.New(
 		datatable.Columns([]datatable.Column{
-			{Key: "item", Title: "Pet Egg", Width: petEggWindowWidth},
+			{Key: "item", Title: "Pet Egg", Width: scrollbarSafeWidth(petEggWindowWidth)},
 		}),
 		datatable.RowCount(len(items)),
 		datatable.RowHeight(petEggRowH),

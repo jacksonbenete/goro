@@ -30,8 +30,7 @@ const (
 	guildWindowTabWidth  = 64
 	guildEmblemSize      = 24
 	guildTablePadding    = 7
-	guildScrollbarGutter = 12
-	guildTableWidth      = guildWindowWidth - guildTablePadding*2 - guildScrollbarGutter
+	guildTableWidth      = guildWindowWidth - guildTablePadding*2 - ROScrollbarGutter
 	guildSkillRowHeight  = 32
 	guildSkillIconSize   = 24
 )

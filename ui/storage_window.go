@@ -211,7 +211,7 @@ func (w *StorageWindow) storageTableWidget(ctx Context) *datatable.Widget {
 	rows := w.storageRows(ctx, items)
 	return datatable.New(
 		datatable.Columns([]datatable.Column{
-			{Key: "item", Title: "Item", Width: 236},
+			{Key: "item", Title: "Item", Width: scrollbarSafeWidth(236)},
 			{Key: "amount", Title: "Qty", Width: 76, Align: widget.TextAlignRight},
 		}),
 		datatable.RowCount(len(rows)),
@@ -438,7 +438,7 @@ func storageTableHeight() float32 {
 }
 
 func storageTableRowAt(mx, my, tableX, tableY, tableW, tableH, rowCount int, scrollY float32) (int, bool) {
-	if !pointInRect(mx, my, tableX, tableY+storageTableHeaderH, tableW, tableH-storageTableHeaderH) {
+	if !pointInRect(mx, my, tableX, tableY+storageTableHeaderH, scrollbarSafeIntWidth(tableW), tableH-storageTableHeaderH) {
 		return 0, false
 	}
 	localY := float32(my-tableY) - storageTableHeaderH + scrollY
@@ -486,7 +486,7 @@ func (p storageTablePainter) PaintRow(canvas widget.Canvas, s datatable.RowPaint
 	if s.Selected {
 		fill = rotheme.Default.Colors.ButtonDown
 	}
-	canvas.DrawRect(s.Bounds, fill)
+	canvas.DrawRect(scrollbarSafeRect(s.Bounds), fill)
 }
 
 func (p storageTablePainter) PaintCell(canvas widget.Canvas, s datatable.CellPaintState) {

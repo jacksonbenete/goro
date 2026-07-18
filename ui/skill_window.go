@@ -219,7 +219,8 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 				w.skillHeader(),
 				primitives.Box(
 					scrollview.New(
-						w.skillList(ctx, assets, actions),
+						primitives.Box(w.skillList(ctx, assets, actions)).
+							PaddingRight(ROScrollbarGutter),
 						scrollview.DirectionOpt(scrollview.Vertical),
 						scrollview.ScrollYSignal(w.ensureScrollSignal()),
 						scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
@@ -364,7 +365,7 @@ func (w *SkillWindow) updateTooltipHover(ctx Context) {
 
 func (w *SkillWindow) skillAtMouse(ctx Context, mouseX, mouseY int) (session.Skill, bool) {
 	x, y := w.skillListOrigin()
-	if !pointInRect(mouseX, mouseY, x, y, skillWindowWidth-skillWindowPad*2, skillListH) {
+	if !pointInRect(mouseX, mouseY, x, y, scrollbarSafeIntWidth(skillWindowWidth-skillWindowPad*2), skillListH) {
 		return session.Skill{}, false
 	}
 	row := int((float32(mouseY-y) + w.ensureScrollSignal().Get()) / skillRowH)

@@ -159,7 +159,8 @@ func (w *WhisperWindow) contentTree() widget.Widget {
 	w.ensureScrollSignal().Set(consoleBottomScrollY(len(lines), messageHeight))
 	return primitives.Box(
 		scrollview.New(
-			messageList,
+			primitives.Box(messageList).
+				PaddingRight(ROScrollbarGutter),
 			scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
 			scrollview.ScrollYSignal(w.ensureScrollSignal()),
 			scrollview.ScrollStep(float32(consoleLineH*3)),
