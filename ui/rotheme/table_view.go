@@ -516,12 +516,12 @@ func (b *tableViewBody) Event(ctx widget.Context, e event.Event) bool {
 	if b.table == nil {
 		return false
 	}
-	mouse, ok := e.(*event.MouseEvent)
-	if !ok {
-		return false
-	}
 	table := b.table
 	table.setContentWidth(table.safeBodyWidth())
+	mouse, ok := e.(*event.MouseEvent)
+	if !ok {
+		return b.dispatchNonMouseEvent(ctx, e)
+	}
 	hoverEvent := isTableViewHoverEvent(mouse)
 
 	outsideContentX := mouse.Position.X < 0 || mouse.Position.X >= table.contentW
@@ -692,6 +692,23 @@ func (b *tableViewBody) dispatchRowEvent(ctx widget.Context, row int, e *event.M
 		return false
 	}
 	return child.Event(ctx, e)
+}
+
+func (b *tableViewBody) dispatchNonMouseEvent(ctx widget.Context, e event.Event) bool {
+	if len(b.table.bodyVisible) > 0 {
+		for i := len(b.table.bodyVisible) - 1; i >= 0; i-- {
+			if b.table.bodyVisible[i].Event(ctx, e) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, child := range b.rows {
+		if child.Event(ctx, e) {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *tableViewBody) layoutRow(ctx widget.Context, row int) *tableViewRowWidget {

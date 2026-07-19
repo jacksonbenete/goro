@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gogpu/gg/scene"
+	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
@@ -694,6 +695,55 @@ func TestTableViewInternalSelectionDoesNotDirtyScheduler(t *testing.T) {
 	}
 	if len(invalidated) != 1 {
 		t.Fatalf("invalidated rect count = %d, want 1", len(invalidated))
+	}
+	widget.UnmountTree(table)
+}
+
+func TestTableViewFocusedCellTextFieldReceivesKeyEvents(t *testing.T) {
+	changed := ""
+	field := TextField("", textfield.TypeText, func(value string) {
+		changed = value
+	}, nil)
+	table := TableView(
+		TableViewColumns([]TableViewColumn{{Key: "field", Width: 100}}),
+		TableViewRowCount(1),
+		TableViewRowHeight(48),
+		TableViewShowHeader(false),
+		TableViewBuildCell(func(TableViewCellContext) widget.Widget {
+			return field
+		}),
+	)
+	ctx := widget.NewContext()
+	widget.MountTree(table, ctx)
+	table.Layout(ctx, geometry.Tight(geometry.Sz(120, 60)))
+	table.SetBounds(geometry.NewRect(0, 0, 120, 60))
+
+	clicked := table.Event(ctx, event.NewMouseEvent(
+		event.MousePress,
+		event.ButtonLeft,
+		event.ButtonStateLeft,
+		geometry.Pt(8, 8),
+		geometry.Pt(8, 8),
+		0,
+	))
+
+	if !clicked {
+		t.Fatal("textbox click should be consumed")
+	}
+	if ctx.FocusedWidget() != field {
+		t.Fatalf("focused widget = %T, want textfield", ctx.FocusedWidget())
+	}
+
+	typed := table.Event(ctx, event.NewKeyEvent(event.KeyPress, event.KeyUnknown, 'x', event.ModNone))
+
+	if !typed {
+		t.Fatal("focused textbox key event should be consumed")
+	}
+	if field.Text() != "x" {
+		t.Fatalf("field text = %q, want %q", field.Text(), "x")
+	}
+	if changed != "x" {
+		t.Fatalf("onChange value = %q, want %q", changed, "x")
 	}
 	widget.UnmountTree(table)
 }
