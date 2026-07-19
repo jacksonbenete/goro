@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 122 {
-		t.Fatalf("implemented effects = %d, want 122", coverage.Implemented)
+	if coverage.Implemented != 123 {
+		t.Fatalf("implemented effects = %d, want 123", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 20.0 || coverage.ActivePercent > 20.2 {
-		t.Fatalf("active coverage = %.3f, want about 20.1", coverage.ActivePercent)
+	if coverage.ActivePercent < 20.2 || coverage.ActivePercent > 20.4 {
+		t.Fatalf("active coverage = %.3f, want about 20.3", coverage.ActivePercent)
 	}
 }
 
@@ -3043,6 +3043,23 @@ func TestRobrowserMiniSTREffectSpecs(t *testing.T) {
 	}
 }
 
+func TestMVPEffectSpecMatchesRoBrowserSTR(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectMvp)
+	if !ok {
+		t.Fatal("MVP effect spec missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("MVP components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectComponentSTR || component.strFile != "mvp" || !component.attachedEntity {
+		t.Fatalf("MVP component = %+v, want attached STR mvp", component)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\st_mvp.wav" {
+		t.Fatalf("MVP sfx = %#v", spec.sfx)
+	}
+}
+
 func TestImportedSkillActionFallback(t *testing.T) {
 	archer := worldstate.Actor{Job: 3}
 	if action := skillAction(db.SkillACDouble).actionFamilyForActor(archer); action != spriteActionPCAttack3 {
@@ -3919,6 +3936,25 @@ func TestSpecialEffectNotifyAddsLevelUpEffects(t *testing.T) {
 	}
 	if mode.scheduledSounds[0].paths[0] != "levelup.wav" {
 		t.Fatalf("base level-up sound = %+v", mode.scheduledSounds[0])
+	}
+}
+
+func TestMVPNotifyAddsMVPBannerEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applyMVPNotify(ctx, network.MVPNotify{AID: 2000000})
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.effectID != effectMvp || effect.actorID != 2000000 {
+		t.Fatalf("world effect = %+v", effect)
+	}
+	if len(mode.scheduledSounds) != 1 || mode.scheduledSounds[0].paths[0] != "effect\\st_mvp.wav" {
+		t.Fatalf("scheduled sounds = %+v", mode.scheduledSounds)
 	}
 }
 

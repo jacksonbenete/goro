@@ -1346,6 +1346,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.applySpecialEffectNotify(ctx, effect)
 			continue
 		}
+		if mvp, ok, err := network.ParseMVPNotify(pkt); err != nil {
+			glog.Errorf("parse mvp effect 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applyMVPNotify(ctx, mvp)
+			continue
+		}
 		if skill, ok, err := network.ParseSkillNoDamageNotify(pkt); err != nil {
 			glog.Errorf("parse skill nodamage 0x%04X: %v", pkt.ID, err)
 		} else if ok {

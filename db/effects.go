@@ -16,6 +16,7 @@ const (
 	effectGroundSample   = 513
 	effectCastRing       = 10021
 	effectProvoke        = 67
+	effectMvp            = 68
 	effectEndure         = 11
 	effectBeginSpell     = 12
 	effectSafetyWall     = 315
@@ -1776,6 +1777,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectColdHit:       soundOnlyEffectSpec("_hit_fist3.wav", "_hit_fist4.wav"),
 	effectWindHit:       strEffectSpecRandomAttached("windhit%d", "_hit_fist%d.wav", 1, 3, true, false),
 	effectCure:          strEffectSpecAttachedMin("cure", "cure_min", "effect\\acolyte_cure.wav", false),
+	effectMvp:           strEffectSpecAttached("mvp", "effect\\st_mvp.wav", false),
 	effectMagnificat:    strEffectSpecAttachedMin("magnificat", "magnificat_min", "effect\\priest_magnificat.wav", false),
 	effectResurrection:  strEffectSpecAttachedMin("resurrection", "resurrection_min", "effect\\priest_resurrection.wav", false),
 	effectLexAeterna:    strEffectSpecAttachedMin("lexaeterna", "lexaeterna_min", "effect\\priest_lexaeterna.wav", false),

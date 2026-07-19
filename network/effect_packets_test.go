@@ -23,6 +23,23 @@ func TestParseSpecialEffectNotify(t *testing.T) {
 	}
 }
 
+func TestParseMVPNotify(t *testing.T) {
+	data := make([]byte, 6)
+	binary.LittleEndian.PutUint16(data[0:2], PacketZCMVP)
+	binary.LittleEndian.PutUint32(data[2:6], 0x11223344)
+
+	notify, ok, err := ParseMVPNotify(Packet{ID: PacketZCMVP, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("mvp notify not parsed")
+	}
+	if notify.AID != 0x11223344 {
+		t.Fatalf("notify = %+v", notify)
+	}
+}
+
 func TestBuildLessEffectPacket(t *testing.T) {
 	packet := BuildLessEffectPacket(true)
 	if len(packet) != 6 || ID(packet) != PacketCZLessEffect {
@@ -56,6 +73,9 @@ func TestLessEffectPacketDirections(t *testing.T) {
 	if got := PacketLengths2008()[PacketZCLessEffect]; got != 6 {
 		t.Fatalf("0x021E receive length = %d, want 6", got)
 	}
+	if got := PacketLengths2008()[PacketZCMVP]; got != 6 {
+		t.Fatalf("0x010C receive length = %d, want 6", got)
+	}
 }
 
 func TestParseSpecialEffectNotifyIgnoresOtherPackets(t *testing.T) {
@@ -65,5 +85,15 @@ func TestParseSpecialEffectNotifyIgnoresOtherPackets(t *testing.T) {
 	}
 	if ok {
 		t.Fatal("unexpected special effect notify")
+	}
+}
+
+func TestParseMVPNotifyIgnoresOtherPackets(t *testing.T) {
+	_, ok, err := ParseMVPNotify(Packet{ID: 0x010B, Data: make([]byte, 6)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("unexpected mvp notify")
 	}
 }

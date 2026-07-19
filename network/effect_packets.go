@@ -9,6 +9,7 @@ import (
 const (
 	PacketCZLessEffect uint16 = 0x021D
 	PacketZCLessEffect uint16 = 0x021E
+	PacketZCMVP        uint16 = 0x010C
 
 	SpecialEffectBaseLevelUp = 0
 	SpecialEffectJobLevelUp  = 1
@@ -17,6 +18,10 @@ const (
 type SpecialEffectNotify struct {
 	AID      uint32
 	EffectID uint32
+}
+
+type MVPNotify struct {
+	AID uint32
 }
 
 func BuildLessEffectPacket(enabled bool) []byte {
@@ -50,6 +55,18 @@ func ParseSpecialEffectNotify(packet Packet) (SpecialEffectNotify, bool, error) 
 	return SpecialEffectNotify{
 		AID:      binary.LittleEndian.Uint32(packet.Data[2:6]),
 		EffectID: binary.LittleEndian.Uint32(packet.Data[6:10]),
+	}, true, nil
+}
+
+func ParseMVPNotify(packet Packet) (MVPNotify, bool, error) {
+	if packet.ID != PacketZCMVP {
+		return MVPNotify{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return MVPNotify{}, false, fmt.Errorf("ZC_MVP too short: %d", len(packet.Data))
+	}
+	return MVPNotify{
+		AID: binary.LittleEndian.Uint32(packet.Data[2:6]),
 	}, true, nil
 }
 

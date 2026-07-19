@@ -24,6 +24,7 @@ const (
 	effectGroundSample   = 513
 	effectCastRing       = 10021
 	effectProvoke        = 67
+	effectMvp            = 68
 	effectEndure         = 11
 	effectBeginSpell     = 12
 	effectSafetyWall     = 315
@@ -593,6 +594,12 @@ func (m *WorldMode) applySpecialEffectNotify(ctx client.Context, notify network.
 	}
 	if m.addWorldEffectIfMissing(ctx, effectID, notify.AID) {
 		glog.Debugf("special effect actor=%d special=%d effect=%d", notify.AID, notify.EffectID, effectID)
+	}
+}
+
+func (m *WorldMode) applyMVPNotify(ctx client.Context, notify network.MVPNotify) {
+	if m.addWorldEffect(ctx, effectMvp, notify.AID) {
+		glog.Debugf("mvp effect actor=%d effect=%d", notify.AID, effectMvp)
 	}
 }
 
