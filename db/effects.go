@@ -169,6 +169,7 @@ const (
 type EffectSpec struct {
 	Duration         time.Duration
 	CameraShake      time.Duration
+	CameraShakeDelay time.Duration
 	DetachLocalActor bool
 	SFX              []string
 	SFXRandMin       int
@@ -351,6 +352,13 @@ func potionEffectSpec(file string, c color.RGBA) EffectSpec {
 			STRFile: file,
 		}},
 	}
+}
+
+func berserkPotionEffectSpec() EffectSpec {
+	spec := strEffectSpecAttached("버서크", "effect\\ac_concentration.wav", false)
+	spec.CameraShake = 200 * time.Millisecond
+	spec.CameraShakeDelay = 200 * time.Millisecond
+	return spec
 }
 
 func teleportCylinderComponent(bottomSize, topSize, height float64) EffectComponent {
@@ -1823,6 +1831,9 @@ var EffectSpecs = map[int]EffectSpec{
 	effectPotionWhite:  potionEffectSpec("하얀포션", color.RGBA{R: 245, G: 245, B: 255, A: 255}),
 	effectPotionBlue:   bluePotionEffectSpec(),
 	effectPotionGreen:  potionEffectSpec("초록포션", color.RGBA{R: 78, G: 225, B: 98, A: 255}),
+	effectItemFast:     strEffectSpecAttached("집중", "effect\\ac_concentration.wav", false),
+	effectItemFast2:    strEffectSpecAttached("각성", "effect\\ac_concentration.wav", false),
+	effectItemFast3:    berserkPotionEffectSpec(),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		Components: []EffectComponent{{

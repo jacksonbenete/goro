@@ -151,7 +151,7 @@ func (m *WorldMode) startCameraShake(starts time.Time, duration time.Duration) {
 }
 
 func (m *WorldMode) cameraShakeOffset(now time.Time) (float64, float64) {
-	if m.cameraShakeStart.IsZero() || !now.Before(m.cameraShakeEnd) {
+	if m.cameraShakeStart.IsZero() || now.Before(m.cameraShakeStart) || !now.Before(m.cameraShakeEnd) {
 		return 0, 0
 	}
 	duration := m.cameraShakeEnd.Sub(m.cameraShakeStart)

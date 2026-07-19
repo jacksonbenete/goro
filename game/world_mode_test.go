@@ -2057,14 +2057,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 114 {
-		t.Fatalf("implemented effects = %d, want 114", coverage.Implemented)
+	if coverage.Implemented != 117 {
+		t.Fatalf("implemented effects = %d, want 117", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 18.7 || coverage.ActivePercent > 18.8 {
-		t.Fatalf("active coverage = %.3f, want about 18.8", coverage.ActivePercent)
+	if coverage.ActivePercent < 19.2 || coverage.ActivePercent > 19.3 {
+		t.Fatalf("active coverage = %.3f, want about 19.3", coverage.ActivePercent)
 	}
 }
 
@@ -3018,6 +3018,12 @@ func TestWarpEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "Fly Wing item", itemUseEffectIDs(601))
 }
 
+func TestSpeedPotionItemEffectMappingsMatchRobrowser(t *testing.T) {
+	expectEffectIDs(t, "Concentration Potion item", itemUseEffectIDs(645), effectItemFast)
+	expectEffectIDs(t, "Awakening Potion item", itemUseEffectIDs(656), effectItemFast2)
+	expectEffectIDs(t, "Berserk Potion item", itemUseEffectIDs(657), effectItemFast3)
+}
+
 func TestTeleportModalRules(t *testing.T) {
 	lv1 := session.Skill{ID: 26, Level: 1, Type: skillTargetEnemy, Range: 9}
 	lv2 := session.Skill{ID: 26, Level: 2, Type: skillTargetEnemy, Range: 9}
@@ -3100,6 +3106,60 @@ func TestQuakeMagnumEffectStartsCameraShake(t *testing.T) {
 	}
 	if x, y := mode.cameraShakeOffset(starts.Add(60 * time.Millisecond)); x != 0 || y != 0 {
 		t.Fatalf("expired camera shake offset = %.3f, %.3f, want zero", x, y)
+	}
+}
+
+func TestSpeedPotionEffectSpecsMatchRobrowserSTRRows(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		effectID int
+		file     string
+	}{
+		{"Concentration Potion", effectItemFast, "집중"},
+		{"Awakening Potion", effectItemFast2, "각성"},
+		{"Berserk Potion", effectItemFast3, "버서크"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.effectID)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || !component.attachedEntity {
+			t.Fatalf("%s component = %+v, want attached STR %q", tc.name, component, tc.file)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ac_concentration.wav" {
+			t.Fatalf("%s sfx = %v, want ac_concentration", tc.name, spec.sfx)
+		}
+	}
+}
+
+func TestBerserkPotionEffectStartsDelayedCameraShake(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectItemFast3)
+	if !ok {
+		t.Fatal("berserk potion effect spec missing")
+	}
+	if spec.cameraShake != 200*time.Millisecond || spec.cameraShakeDelay != 200*time.Millisecond {
+		t.Fatalf("berserk potion shake = delay %s duration %s, want 200ms/200ms", spec.cameraShakeDelay, spec.cameraShake)
+	}
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	starts := time.Unix(100, 0)
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	if !mode.addWorldEffectAt(ctx, effectItemFast3, 2000000, starts) {
+		t.Fatal("add berserk potion effect failed")
+	}
+	shakeStart := starts.Add(200 * time.Millisecond)
+	shakeEnd := starts.Add(400 * time.Millisecond)
+	if !mode.cameraShakeStart.Equal(shakeStart) || !mode.cameraShakeEnd.Equal(shakeEnd) {
+		t.Fatalf("camera shake = %s..%s, want %s..%s", mode.cameraShakeStart, mode.cameraShakeEnd, shakeStart, shakeEnd)
+	}
+	if x, y := mode.cameraShakeOffset(starts.Add(100 * time.Millisecond)); x != 0 || y != 0 {
+		t.Fatalf("early camera shake offset = %.3f, %.3f, want zero", x, y)
+	}
+	if x, y := mode.cameraShakeOffset(starts.Add(250 * time.Millisecond)); x == 0 && y == 0 {
+		t.Fatalf("active camera shake offset = %.3f, %.3f, want non-zero", x, y)
 	}
 }
 

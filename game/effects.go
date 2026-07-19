@@ -192,6 +192,7 @@ type worldEffect struct {
 type worldEffectSpec struct {
 	duration         time.Duration
 	cameraShake      time.Duration
+	cameraShakeDelay time.Duration
 	detachLocalActor bool
 	sfx              []string
 	sfxRandMin       int
@@ -729,9 +730,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID
 	}
 	m.worldEffects = append(m.worldEffects, effect)
 	m.scheduleWorldEffectSound(starts, spec, effect)
-	if spec.cameraShake > 0 {
-		m.startCameraShake(starts, spec.cameraShake)
-	}
+	m.startWorldEffectCameraShake(starts, spec)
 	return true
 }
 
@@ -766,6 +765,7 @@ func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID in
 	}
 	m.worldEffects = append(m.worldEffects, effect)
 	m.scheduleWorldEffectSound(starts, spec, effect)
+	m.startWorldEffectCameraShake(starts, spec)
 	return true
 }
 
@@ -802,7 +802,15 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectI
 	}
 	m.worldEffects = append(m.worldEffects, effect)
 	m.scheduleWorldEffectSound(starts, spec, effect)
+	m.startWorldEffectCameraShake(starts, spec)
 	return true
+}
+
+func (m *WorldMode) startWorldEffectCameraShake(starts time.Time, spec worldEffectSpec) {
+	if spec.cameraShake <= 0 {
+		return
+	}
+	m.startCameraShake(starts.Add(spec.cameraShakeDelay), spec.cameraShake)
 }
 
 func (m *WorldMode) scheduleWorldEffectSound(starts time.Time, spec worldEffectSpec, effect worldEffect) {
@@ -1324,6 +1332,7 @@ func convertDBWorldEffectSpec(spec db.EffectSpec) worldEffectSpec {
 	out := worldEffectSpec{
 		duration:         spec.Duration,
 		cameraShake:      spec.CameraShake,
+		cameraShakeDelay: spec.CameraShakeDelay,
 		detachLocalActor: spec.DetachLocalActor,
 		sfxRandMin:       spec.SFXRandMin,
 		sfxRandMax:       spec.SFXRandMax,

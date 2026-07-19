@@ -68,6 +68,9 @@ func TestRealPotionAndProvokeSTRExactResources(t *testing.T) {
 		`data\texture\effect\angel.str`,
 		`data\texture\effect\joblvup.str`,
 		"data\\texture\\effect\\빨간포션.str",
+		"data\\texture\\effect\\집중.str",
+		"data\\texture\\effect\\각성.str",
+		"data\\texture\\effect\\버서크.str",
 	} {
 		data, err := manager.ReadFileExact(path)
 		if err != nil {
@@ -115,13 +118,17 @@ func TestRealCylinderEffectTextures(t *testing.T) {
 
 func TestRealLevelUpSFXResources(t *testing.T) {
 	manager := realDataManager(t)
-	const path = `data\wav\levelup.wav`
-	data, err := manager.ReadFileExact(path)
-	if err != nil {
-		t.Fatalf("load exact level-up sfx %s: %v", path, err)
-	}
-	if len(data) == 0 {
-		t.Fatalf("level-up sfx %s is empty", path)
+	for _, path := range []string{
+		`data\wav\levelup.wav`,
+		`data\wav\effect\ac_concentration.wav`,
+	} {
+		data, err := manager.ReadFileExact(path)
+		if err != nil {
+			t.Fatalf("load exact sfx %s: %v", path, err)
+		}
+		if len(data) == 0 {
+			t.Fatalf("sfx %s is empty", path)
+		}
 	}
 }
 
