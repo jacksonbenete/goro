@@ -116,6 +116,48 @@ func TestGuildMemberPositionChangeStaysPendingUntilConfirm(t *testing.T) {
 	}
 }
 
+func TestGuildNoticeChangeStaysPendingUntilConfirm(t *testing.T) {
+	s := &session.Session{GuildID: 99, Guild: session.Guild{
+		IsMaster:      true,
+		NoticeSubject: "Old title",
+		Notice:        "Old contents",
+	}}
+	ctx := Context{Session: s}
+	window := &GuildWindow{}
+	window.ensureNoticeDraft(ctx)
+
+	window.noticeDraft.subject = "New title"
+	window.noticeDraft.notice = "New contents"
+	if action := window.PopAction(); action.hasAction() {
+		t.Fatalf("staging should not publish action: %+v", action)
+	}
+
+	window.confirmGuildNoticeDraft(ctx)
+	action := window.PopAction()
+	if !action.UpdateNotice || action.NoticeSubject != "New title" || action.Notice != "New contents" {
+		t.Fatalf("notice action = %+v", action)
+	}
+}
+
+func TestGuildNoticeResetRestoresSessionNotice(t *testing.T) {
+	s := &session.Session{Guild: session.Guild{
+		IsMaster:      true,
+		NoticeSubject: "Original title",
+		Notice:        "Original contents",
+	}}
+	ctx := Context{Session: s}
+	window := &GuildWindow{}
+	window.ensureNoticeDraft(ctx)
+	window.noticeDraft.subject = "Changed title"
+	window.noticeDraft.notice = "Changed contents"
+
+	window.resetNoticeDraft(ctx)
+
+	if window.noticeDraft.subject != "Original title" || window.noticeDraft.notice != "Original contents" {
+		t.Fatalf("notice draft = %+v", window.noticeDraft)
+	}
+}
+
 func TestGuildMemberPositionTransferSendsOnlyMasterChange(t *testing.T) {
 	s := &session.Session{Guild: session.Guild{
 		IsMaster: true,

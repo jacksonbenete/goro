@@ -2,6 +2,7 @@ package network
 
 import (
 	"encoding/binary"
+	"strings"
 	"testing"
 )
 
@@ -39,6 +40,28 @@ func TestBuildGuildPackets(t *testing.T) {
 	}
 	if got := binary.LittleEndian.Uint32(menu[2:6]); got != 3 {
 		t.Fatalf("menu tab = %d", got)
+	}
+
+	notice := BuildGuildNoticePacket(0x01020304, "Maintenance", "Gather in Prontera.")
+	if len(notice) != 186 || ID(notice) != PacketCZGuildNotice {
+		t.Fatalf("BuildGuildNoticePacket len=%d id=0x%04x", len(notice), ID(notice))
+	}
+	if got := binary.LittleEndian.Uint32(notice[2:6]); got != 0x01020304 {
+		t.Fatalf("notice guild id = 0x%08x", got)
+	}
+	if got := string(notice[6 : 6+len("Maintenance")]); got != "Maintenance" {
+		t.Fatalf("notice subject = %q", got)
+	}
+	if got := string(notice[66 : 66+len("Gather in Prontera.")]); got != "Gather in Prontera." {
+		t.Fatalf("notice body = %q", got)
+	}
+	if notice[6+len("Maintenance")] != 0 || notice[66+len("Gather in Prontera.")] != 0 {
+		t.Fatal("notice strings should be null padded")
+	}
+
+	longNotice := BuildGuildNoticePacket(1, strings.Repeat("s", 80), strings.Repeat("n", 140))
+	if longNotice[65] != 0 || longNotice[185] != 0 {
+		t.Fatal("notice strings should reserve a trailing null byte when truncated")
 	}
 
 	changeMember := BuildChangeGuildMemberPositionPacket([]GuildMemberPosition{
@@ -261,7 +284,7 @@ func TestParseGuildPackets(t *testing.T) {
 
 func TestGuildPacketDirections(t *testing.T) {
 	lengths := PacketLengths2008()
-	for _, id := range []uint16{PacketCZReqMakeGuild, PacketCZReqJoinGuild, PacketCZJoinGuild, PacketCZReqGuildMenu, PacketCZReqChangeMember, PacketCZReqOpenMember, PacketCZRegGuildPosInfo, PacketCZReqGuildMember, PacketCZReqGuildEmblem, PacketCZRegGuildEmblem} {
+	for _, id := range []uint16{PacketCZReqMakeGuild, PacketCZReqJoinGuild, PacketCZJoinGuild, PacketCZReqGuildMenu, PacketCZReqChangeMember, PacketCZReqOpenMember, PacketCZRegGuildPosInfo, PacketCZGuildNotice, PacketCZReqGuildMember, PacketCZReqGuildEmblem, PacketCZRegGuildEmblem} {
 		if _, ok := lengths[id]; ok {
 			t.Fatalf("0x%04X is client-to-server and must not be in the receive framer", id)
 		}

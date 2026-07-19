@@ -15,6 +15,7 @@ const (
 	PacketZCAckReqJoinGuild uint16 = 0x0169
 	PacketZCReqJoinGuild    uint16 = 0x016A
 	PacketCZJoinGuild       uint16 = 0x016B
+	PacketCZGuildNotice     uint16 = 0x016E
 	PacketZCGuildInfo       uint16 = 0x0150
 	PacketZCGuildInfo2      uint16 = 0x01B6
 	PacketZCGuildMembers    uint16 = 0x0154
@@ -39,7 +40,12 @@ const (
 	PacketZCChangeGuild     uint16 = 0x01B4
 )
 
-const guildNameLength = 24
+const (
+	guildNameLength          = 24
+	guildNoticeHeaderLength  = 6
+	guildNoticeSubjectLength = 60
+	guildNoticeBodyLength    = 120
+)
 
 type GuildCreationResult struct {
 	Result uint8
@@ -524,6 +530,17 @@ func BuildGuildMenuRequestPacket(tab uint32) []byte {
 	return packet
 }
 
+func BuildGuildNoticePacket(guildID uint32, subject, notice string) []byte {
+	packet := make([]byte, guildNoticeHeaderLength+guildNoticeSubjectLength+guildNoticeBodyLength)
+	subjectOffset := guildNoticeHeaderLength
+	noticeOffset := subjectOffset + guildNoticeSubjectLength
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZGuildNotice)
+	binary.LittleEndian.PutUint32(packet[2:6], guildID)
+	copy(packet[subjectOffset:noticeOffset], encodeROFixedString(subject, guildNoticeSubjectLength))
+	copy(packet[noticeOffset:], encodeROFixedString(notice, guildNoticeBodyLength))
+	return packet
+}
+
 func BuildRegisterGuildEmblemPacket(bmp []byte) ([]byte, error) {
 	var compressed bytes.Buffer
 	zw := zlib.NewWriter(&compressed)
@@ -618,6 +635,17 @@ func (c *Client) SendGuildMenuRequest(tab uint32) error {
 		glog.Debugf("sent CZ_REQ_GUILD_MENU opcode=0x%04X tab=%d client_date=%d", ID(packet), tab, c.clientDate)
 	} else {
 		glog.Warnf("send CZ_REQ_GUILD_MENU failed opcode=0x%04X len=%d tab=%d client_date=%d: %v", ID(packet), len(packet), tab, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendGuildNotice(guildID uint32, subject, notice string) error {
+	packet := BuildGuildNoticePacket(guildID, subject, notice)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_GUILD_NOTICE opcode=0x%04X guild_id=%d subject=%q notice_len=%d client_date=%d", ID(packet), guildID, subject, len([]rune(notice)), c.clientDate)
+	} else {
+		glog.Warnf("send CZ_GUILD_NOTICE failed opcode=0x%04X len=%d guild_id=%d subject=%q notice_len=%d client_date=%d: %v", ID(packet), len(packet), guildID, subject, len([]rune(notice)), c.clientDate, err)
 	}
 	return err
 }

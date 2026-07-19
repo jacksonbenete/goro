@@ -937,7 +937,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if guildNotice, ok, err := network.ParseGuildNotice(pkt); err != nil {
 			glog.Errorf("parse guild notice 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			applyLocalGuildNotice(ctx, guildNotice)
+			m.handleGuildNotice(ctx, guildNotice)
 			continue
 		}
 		if guildEmblem, ok, err := network.ParseGuildEmblemImage(pkt); err != nil {
@@ -1646,6 +1646,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.levelUpGuildSkills(ctx, action.LevelUpSkillIDs)
 		} else if action.UpdatePositions {
 			m.updateGuildPositions(ctx, action.Positions)
+		} else if action.UpdateNotice {
+			m.updateGuildNotice(ctx, action.NoticeSubject, action.Notice)
 		}
 		return nil, nil
 	}

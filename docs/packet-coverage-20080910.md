@@ -280,7 +280,7 @@ email check.
 | `0x016A` | S->C | referenced | `0x016a` | `30` | `-` | guild_packets.go |
 | `0x016B` | C->S | referenced | `HEADER_CZ_JOIN_GUILD` | `sizeof( PACKET_CZ_JOIN_GUILD )` | `clif_parse_GuildReplyInvite` | guild_packets.go |
 | `0x016C` | S->C | referenced | `0x016c` | `43` | `-` | packet.go |
-| `0x016E` | C->S | missing | `0x016e` | `186` | `clif_parse_GuildChangeNotice` | - |
+| `0x016E` | C->S | referenced | `0x016e` | `186` | `clif_parse_GuildChangeNotice` | guild_packets.go |
 | `0x0170` | C->S | missing | `0x0170` | `14` | `clif_parse_GuildRequestAlliance` | - |
 | `0x0172` | C->S | missing | `0x0172` | `10` | `clif_parse_GuildReplyAlliance` | - |
 | `0x0175` | S->C | referenced | `0x0175` | `6` | `-` | packet.go |

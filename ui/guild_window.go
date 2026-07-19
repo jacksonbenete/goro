@@ -34,6 +34,9 @@ const (
 	guildTableRowH       = 32
 	guildTableHeaderH    = 24
 	guildTableControlH   = 22
+	guildNoticeFieldH    = 24
+	guildNoticeSubjectN  = 59
+	guildNoticeBodyN     = 119
 )
 
 type GuildWindow struct {
@@ -49,6 +52,8 @@ type GuildWindow struct {
 	positionDraft   map[uint32]guildPositionDraft
 	positionSource  string
 	positionScrollY state.Signal[float32]
+	noticeDraft     guildNoticeDraft
+	noticeSource    string
 	skillIcons      map[uint16]image.Image
 	skillMiss       map[uint16]struct{}
 	skillPending    map[uint16]int
@@ -66,6 +71,9 @@ type GuildWindowAction struct {
 	LevelUpSkillIDs    []uint16
 	UpdatePositions    bool
 	Positions          []GuildPositionUpdate
+	UpdateNotice       bool
+	NoticeSubject      string
+	Notice             string
 }
 
 type GuildMemberPositionUpdate struct {
@@ -91,6 +99,11 @@ type guildPositionDraft struct {
 	posName string
 	right   uint32
 	payRate string
+}
+
+type guildNoticeDraft struct {
+	subject string
+	notice  string
 }
 
 type guildMemberKey struct {
@@ -172,7 +185,8 @@ func (a GuildWindowAction) hasAction() bool {
 		a.SelectedEmblemPath != "" ||
 		len(a.MemberPositions) > 0 ||
 		len(a.LevelUpSkillIDs) > 0 ||
-		a.UpdatePositions
+		a.UpdatePositions ||
+		a.UpdateNotice
 }
 
 func (w *GuildWindow) SetEmblemOptions(ctx Context, options []GuildEmblemOption) {
@@ -308,6 +322,20 @@ func (w *GuildWindow) tabFooter(ctx Context) []widget.Widget {
 			}),
 			rotheme.Button("Confirm", func() {
 				w.confirmGuildSkillPending(ctx)
+			}),
+		}
+	case guildWindowTabNotice:
+		if !guild.IsMaster {
+			return nil
+		}
+		return []widget.Widget{
+			primitives.Expanded(primitives.Box()),
+			rotheme.Button("Reset", func() {
+				w.resetNoticeDraft(ctx)
+				w.refresh(ctx)
+			}),
+			rotheme.Button("Confirm", func() {
+				w.confirmGuildNoticeDraft(ctx)
 			}),
 		}
 	default:
@@ -1046,16 +1074,55 @@ func (w *GuildWindow) ensureGuildHistoryScrollSignal() state.Signal[float32] {
 
 func (w *GuildWindow) noticeTab(ctx Context) widget.Widget {
 	guild := guildSessionInfo(ctx.Session)
+	if !guild.IsMaster {
+		return primitives.Box(
+			rotheme.Text("Title"),
+			guildNoticeBox(guildText(guild.NoticeSubject), 28, 1),
+			rotheme.Text("Contents"),
+			guildNoticeBox(guildText(guild.Notice), 140, 8),
+		).
+			PaddingXY(9, 10).
+			Gap(5).
+			CrossAlign(primitives.CrossAxisStretch).
+			Background(rotheme.Default.Colors.WindowBody)
+	}
+	w.ensureNoticeDraft(ctx)
 	return primitives.Box(
 		rotheme.Text("Title"),
-		guildNoticeBox(guildText(guild.NoticeSubject), 28, 1),
+		guildNoticeInput(
+			w.noticeDraft.subject,
+			guildNoticeSubjectN,
+			func(value string) {
+				w.noticeDraft.subject = value
+			},
+		),
 		rotheme.Text("Contents"),
-		guildNoticeBox(guildText(guild.Notice), 140, 8),
+		guildNoticeInput(
+			w.noticeDraft.notice,
+			guildNoticeBodyN,
+			func(value string) {
+				w.noticeDraft.notice = value
+			},
+		),
 	).
 		PaddingXY(9, 10).
 		Gap(5).
 		CrossAlign(primitives.CrossAxisStretch).
 		Background(rotheme.Default.Colors.WindowBody)
+}
+
+func guildNoticeInput(value string, maxLength int, onChange func(string)) widget.Widget {
+	return primitives.Box(
+		rotheme.TextField(
+			value,
+			textfield.TypeText,
+			onChange,
+			nil,
+			textfield.MaxLength(maxLength),
+		),
+	).
+		Height(guildNoticeFieldH).
+		CrossAlign(primitives.CrossAxisStretch)
 }
 
 func guildNoticeBox(text string, height float32, maxLines int) widget.Widget {
@@ -1070,6 +1137,54 @@ func guildNoticeBox(text string, height float32, maxLines int) widget.Widget {
 		CrossAlign(primitives.CrossAxisStretch).
 		Background(rotheme.Default.Colors.WindowFooter).
 		BorderStyle(1, rotheme.Default.Colors.FooterLine)
+}
+
+func (w *GuildWindow) ensureNoticeDraft(ctx Context) {
+	guild := guildSessionInfo(ctx.Session)
+	source := guildNoticeDraftSource(guild)
+	if w.noticeSource == source {
+		return
+	}
+	w.resetNoticeDraft(ctx)
+}
+
+func (w *GuildWindow) resetNoticeDraft(ctx Context) {
+	guild := guildSessionInfo(ctx.Session)
+	w.noticeSource = guildNoticeDraftSource(guild)
+	w.noticeDraft = guildNoticeDraft{
+		subject: strings.TrimSpace(guild.NoticeSubject),
+		notice:  strings.TrimSpace(guild.Notice),
+	}
+}
+
+func (w *GuildWindow) confirmGuildNoticeDraft(ctx Context) {
+	w.ensureNoticeDraft(ctx)
+	guild := guildSessionInfo(ctx.Session)
+	subject := truncateRunes(strings.TrimSpace(w.noticeDraft.subject), guildNoticeSubjectN)
+	notice := truncateRunes(strings.TrimSpace(w.noticeDraft.notice), guildNoticeBodyN)
+	if subject == strings.TrimSpace(guild.NoticeSubject) && notice == strings.TrimSpace(guild.Notice) {
+		return
+	}
+	w.action = GuildWindowAction{
+		UpdateNotice:  true,
+		NoticeSubject: subject,
+		Notice:        notice,
+	}
+}
+
+func guildNoticeDraftSource(guild session.Guild) string {
+	return strings.TrimSpace(guild.NoticeSubject) + "\x00" + strings.TrimSpace(guild.Notice)
+}
+
+func truncateRunes(text string, maxRunes int) string {
+	runes := []rune(text)
+	if len(runes) <= maxRunes {
+		return text
+	}
+	if maxRunes <= 0 {
+		return ""
+	}
+	return string(runes[:maxRunes])
 }
 
 func (w *GuildWindow) infoTab(ctx Context) widget.Widget {

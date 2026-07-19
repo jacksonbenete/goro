@@ -5818,6 +5818,50 @@ func TestGuildCreationResultAppliesPendingLocalGuildName(t *testing.T) {
 	}
 }
 
+func TestHandleGuildNoticeUpdatesSessionAndAddsGuildConsoleMessages(t *testing.T) {
+	sessionState := &session.Session{}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: sessionState}
+
+	mode.handleGuildNotice(ctx, network.GuildNotice{
+		Subject: " Maintenance ",
+		Notice:  " Gather in Prontera. ",
+	})
+
+	if got := sessionState.Guild.NoticeSubject; got != "Maintenance" {
+		t.Fatalf("notice subject = %q, want Maintenance", got)
+	}
+	if got := sessionState.Guild.Notice; got != "Gather in Prontera." {
+		t.Fatalf("notice = %q, want Gather in Prontera.", got)
+	}
+	messages := mode.ui.console.Messages()
+	if len(messages) != 2 {
+		t.Fatalf("console messages = %+v, want 2 notice lines", messages)
+	}
+	if messages[0].Text != "[ Maintenance ]" || messages[1].Text != "[ Gather in Prontera. ]" {
+		t.Fatalf("console messages = %+v", messages)
+	}
+	wantColor := color.RGBA{R: 255, G: 255, B: 99, A: 255}
+	if messages[0].Color != wantColor || messages[1].Color != wantColor {
+		t.Fatalf("console message colors = %+v, want %+v", messages, wantColor)
+	}
+}
+
+func TestHandleGuildNoticeSkipsEmptyConsoleLines(t *testing.T) {
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{}}
+
+	mode.handleGuildNotice(ctx, network.GuildNotice{
+		Subject: " ",
+		Notice:  " Guild event tonight.\nMeet in Prontera. ",
+	})
+
+	messages := mode.ui.console.Messages()
+	if len(messages) != 2 || messages[0].Text != "[ Guild event tonight. ]" || messages[1].Text != "[ Meet in Prontera. ]" {
+		t.Fatalf("console messages = %+v", messages)
+	}
+}
+
 func TestActorDisplayNameUsesServerNameBeforeFallback(t *testing.T) {
 	ctx := client.Context{Resources: &res.Manager{}}
 	actor := worldstate.Actor{Name: "Kafra Employee#izlude", Job: 1002}

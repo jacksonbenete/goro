@@ -197,6 +197,50 @@ func (m *WorldMode) updateGuildPositions(ctx client.Context, updates []gameui.Gu
 	m.ui.guildWindow.Refresh(ctx)
 }
 
+func (m *WorldMode) updateGuildNotice(ctx client.Context, subject, notice string) {
+	subject = strings.TrimSpace(subject)
+	notice = strings.TrimSpace(notice)
+	if ctx.Network == nil {
+		m.ui.console.AddErrorMessage("Guild notice update failed: not connected.")
+		return
+	}
+	if ctx.Session == nil {
+		m.ui.console.AddErrorMessage("Guild notice update failed.")
+		return
+	}
+	guildID := ctx.Session.Guild.ID
+	if guildID == 0 {
+		guildID = ctx.Session.GuildID
+	}
+	if guildID == 0 {
+		m.ui.console.AddErrorMessage("Guild notice update failed.")
+		return
+	}
+	if err := ctx.Network.SendGuildNotice(guildID, subject, notice); err != nil {
+		m.ui.console.AddErrorMessage("Guild notice update failed.")
+		glog.Warnf("guild notice update failed guild=%d subject=%q: %v", guildID, subject, err)
+		return
+	}
+	applyLocalGuildNotice(ctx, network.GuildNotice{Subject: subject, Notice: notice})
+	m.ui.guildWindow.Refresh(ctx)
+}
+
+func (m *WorldMode) handleGuildNotice(ctx client.Context, notice network.GuildNotice) {
+	applyLocalGuildNotice(ctx, notice)
+	m.addGuildNoticeMessage(notice.Subject)
+	m.addGuildNoticeMessage(notice.Notice)
+}
+
+func (m *WorldMode) addGuildNoticeMessage(text string) {
+	for _, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		m.ui.console.AddGuildMessage("[ %s ]", line)
+	}
+}
+
 func (m *WorldMode) levelUpGuildSkills(ctx client.Context, skillIDs []uint16) {
 	if len(skillIDs) == 0 {
 		return

@@ -34,6 +34,7 @@ var (
 	consoleColorChat        = color.RGBA{R: 235, G: 242, B: 250, A: 255}
 	consoleColorSystem      = color.RGBA{R: 252, G: 221, B: 128, A: 255}
 	consoleColorBlue        = color.RGBA{R: 0, G: 255, B: 255, A: 255}
+	consoleColorGuild       = color.RGBA{R: 255, G: 255, B: 99, A: 255}
 	consoleColorError       = color.RGBA{R: 255, G: 132, B: 132, A: 255}
 	consoleColorPlaceholder = color.RGBA{R: 150, G: 165, B: 182, A: 255}
 )
@@ -145,6 +146,10 @@ func (c *ChatConsole) AddSystemMessage(format string, args ...any) {
 
 func (c *ChatConsole) AddBlueMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorBlue, format, args...)
+}
+
+func (c *ChatConsole) AddGuildMessage(format string, args ...any) {
+	c.addMessageColor(consoleColorGuild, format, args...)
 }
 
 func (c *ChatConsole) AddErrorMessage(format string, args ...any) {
