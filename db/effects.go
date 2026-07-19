@@ -68,6 +68,7 @@ const (
 	effectBeginSpell5    = 57
 	effectBeginSpell6    = 58
 	effectBeginSpell7    = 59
+	effectLockOnTarget   = 60
 	effectRain           = 161
 	effectSnow           = 162
 	effectSakura         = 163
@@ -698,6 +699,14 @@ var EffectSpecs = map[int]EffectSpec{
 	effectBeginSpell5: elementalCastAuraEffectSpec("ring_yellow", color.RGBA{R: 255, G: 245, B: 120, A: 255}, 0.8),
 	effectBeginSpell6: castAuraEffectSpec("ring_white", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.8, 4, 5, true),
 	effectBeginSpell7: elementalCastAuraEffectSpec("ring_purple", color.RGBA{R: 200, G: 160, B: 255, A: 255}, 0.7),
+	effectLockOnTarget: {
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "LockOnTarget",
+			TextureFile:    "effect/lockon128.tga",
+			AttachedEntity: true,
+		}},
+	},
 	effectSmoke: {
 		Duration: 10 * time.Second,
 		Components: []EffectComponent{{

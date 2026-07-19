@@ -15,6 +15,7 @@ const (
 	effectFuncUnknown effectFuncAdapter = iota
 	effectFuncGroundSample
 	effectFuncCastRing
+	effectFuncLockOnTarget
 )
 
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
@@ -23,6 +24,8 @@ func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, pro
 		m.drawGroundPlaneEffect(screen, ctx, component, effect, worldX, worldY, progress, now)
 	case effectFuncCastRing:
 		m.drawCastRingEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, progress)
+	case effectFuncLockOnTarget:
+		m.drawLockOnTargetEffect(screen, ctx, component, effect, worldX, worldY, worldZ, progress, now)
 	default:
 	}
 }
@@ -131,6 +134,58 @@ func (m *WorldMode) drawGroundPlaneEffect(screen *render.Frame, ctx client.Conte
 	}
 	tint := effectComponentTint(component, alpha)
 	drawTexturedSurface3DAlpha(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint})
+}
+
+func (m *WorldMode) drawLockOnTargetEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, progress float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	alpha := effectComponentAlpha(progress, component)
+	if alpha <= 0 {
+		return
+	}
+	size := lockOnTargetSize(effect.starts, now)
+	half := size * 0.5
+	angle := float64(now.UnixMilli())*math.Pi/720 + math.Pi/4
+	sinA, cosA := math.Sin(angle), math.Cos(angle)
+	point := func(dx, dy float64) modelPoint3 {
+		x := dx*cosA - dy*sinA
+		y := dx*sinA + dy*cosA
+		return modelPoint3{x: worldX + x, y: worldZ + component.posZ, z: worldY + y}
+	}
+	verts := [4]modelPoint3{
+		point(-half, -half),
+		point(half, -half),
+		point(half, half),
+		point(-half, half),
+	}
+	uvs := [4]texturePoint{
+		{u: 0, v: 0},
+		{u: 1, v: 0},
+		{u: 1, v: 1},
+		{u: 0, v: 1},
+	}
+	tint := lockOnTargetTint(effect.starts, now)
+	tint.A = uint8(clampFloat(alpha, 0, 1) * 255)
+	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint}, options)
+}
+
+func lockOnTargetSize(starts, now time.Time) float64 {
+	elapsed := now.Sub(starts).Seconds() * 1000 / 50
+	elapsed = clampFloat(elapsed, 1, 5)
+	return (6 - elapsed) * 3
+}
+
+func lockOnTargetTint(starts, now time.Time) color.RGBA {
+	elapsed := int(now.Sub(starts) / (20 * time.Millisecond))
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	factor := float64(20-(elapsed%20)) / 20
+	gb := uint8(clampFloat(factor, 0, 1) * 255)
+	return color.RGBA{R: 255, G: gb, B: gb, A: 255}
 }
 
 func warpEffectTexturedVertex3D(x, y, z float64, srcX, srcY float32, c color.RGBA) render.Vertex3D {

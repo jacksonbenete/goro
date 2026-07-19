@@ -95,7 +95,7 @@ func effectSpriteScreenRotation(ctx client.Context, projection sceneProjection, 
 			dx := float64(end.x - start.x)
 			dy := float64(end.y - start.y)
 			if math.Hypot(dx, dy) > 0.001 {
-				return math.Atan2(dy, dx) - math.Pi/2, true
+				return math.Atan2(dy, dx) + math.Pi/2, true
 			}
 		}
 	}

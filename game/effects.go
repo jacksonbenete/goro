@@ -76,6 +76,7 @@ const (
 	effectBeginSpell5    = 57
 	effectBeginSpell6    = 58
 	effectBeginSpell7    = 59
+	effectLockOnTarget   = 60
 	effectRain           = 161
 	effectSnow           = 162
 	effectSakura         = 163
@@ -713,7 +714,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID
 	if duration <= 0 {
 		duration = 500 * time.Millisecond
 	}
-	if durationOverride > duration {
+	if durationOverride > 0 {
 		duration = durationOverride
 	}
 	effect := worldEffect{
@@ -786,7 +787,7 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectI
 	if duration <= 0 {
 		duration = 500 * time.Millisecond
 	}
-	if durationOverride > duration {
+	if durationOverride > 0 {
 		duration = durationOverride
 	}
 	effect := worldEffect{
@@ -863,6 +864,11 @@ func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, prop
 	}
 	if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectCastRing, sourceID, 0, starts, duration) {
 		glog.Debugf("skill cast circle source=%s skill=%d src=%d target=%d delay_ms=%d", source, skillID, sourceID, targetID, duration.Milliseconds())
+	}
+	if targetID != 0 && targetID != sourceID {
+		if m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectLockOnTarget, targetID, 0, starts, duration) {
+			glog.Debugf("skill cast target lockon source=%s skill=%d src=%d target=%d delay_ms=%d", source, skillID, sourceID, targetID, duration.Milliseconds())
+		}
 	}
 	if skillHidesCastAura(skillID) {
 		return
@@ -1480,6 +1486,8 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncGroundSample
 	case "CastRing":
 		return effectFuncCastRing
+	case "LockOnTarget":
+		return effectFuncLockOnTarget
 	default:
 		return effectFuncUnknown
 	}
@@ -1517,7 +1525,7 @@ func (m *WorldMode) drawWorldEffects(screen *render.Frame, ctx client.Context, p
 		worldZ := terrainHeightAt(ctx.World, x, y) + 0.07
 		for index, component := range spec.components {
 			componentDuration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
-			if effect.duration > componentDuration && !component.repeat {
+			if effect.duration > 0 && !component.repeat {
 				componentDuration = effect.duration
 			}
 			progress := worldEffectComponentProgressForDraw(effect.starts, component, componentDuration, now)

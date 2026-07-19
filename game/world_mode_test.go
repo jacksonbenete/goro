@@ -2057,14 +2057,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 113 {
-		t.Fatalf("implemented effects = %d, want 113", coverage.Implemented)
+	if coverage.Implemented != 114 {
+		t.Fatalf("implemented effects = %d, want 114", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 18.6 || coverage.ActivePercent > 18.7 {
-		t.Fatalf("active coverage = %.3f, want about 18.6", coverage.ActivePercent)
+	if coverage.ActivePercent < 18.7 || coverage.ActivePercent > 18.8 {
+		t.Fatalf("active coverage = %.3f, want about 18.8", coverage.ActivePercent)
 	}
 }
 
@@ -2446,7 +2446,7 @@ func TestFireBallSpriteRotationUsesProjectedTrajectory(t *testing.T) {
 	}
 	start := projection.Project(startX, 20.5, terrainHeightAt(world, 10, 20)+0.07+component.posZ)
 	end := projection.Project(endX, 20.5, terrainHeightAt(world, 12, 20)+0.07+component.posZ)
-	want := math.Atan2(float64(end.y-start.y), float64(end.x-start.x)) - math.Pi/2
+	want := math.Atan2(float64(end.y-start.y), float64(end.x-start.x)) + math.Pi/2
 	if math.Abs(angle-want) > 0.001 {
 		t.Fatalf("angle = %.3f, want %.3f", angle, want)
 	}
@@ -2486,6 +2486,33 @@ func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
 	}
 	if component.duration != 0 {
 		t.Fatalf("cast ring component duration = %s, want inherited cast duration", component.duration)
+	}
+}
+
+func TestLockOnTargetEffectSpecMatchesRobrowserCastTargetCircle(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectLockOnTarget)
+	if !ok {
+		t.Fatal("lock-on target effect missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectComponentFUNC || component.funcAdapter != effectFuncLockOnTarget || component.funcName != "LockOnTarget" || component.textureFile != "effect/lockon128.tga" || !component.attachedEntity {
+		t.Fatalf("component = %+v", component)
+	}
+	start := time.Unix(10, 0)
+	if got := lockOnTargetSize(start, start); got != 15 {
+		t.Fatalf("initial lock-on size = %.1f, want 15", got)
+	}
+	if got := lockOnTargetSize(start, start.Add(250*time.Millisecond)); got != 3 {
+		t.Fatalf("settled lock-on size = %.1f, want 3", got)
+	}
+	if got := lockOnTargetTint(start, start); got != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) {
+		t.Fatalf("initial lock-on tint = %+v", got)
+	}
+	if got := lockOnTargetTint(start, start.Add(380*time.Millisecond)); got != (color.RGBA{R: 255, G: 12, B: 12, A: 255}) {
+		t.Fatalf("low lock-on tint = %+v", got)
 	}
 }
 
@@ -2652,14 +2679,18 @@ func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
 
 	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: 20, Property: 4, DelayTime: 2500})
 
-	if len(mode.worldEffects) != 2 {
-		t.Fatalf("world effects = %d, want 2", len(mode.worldEffects))
+	if len(mode.worldEffects) != 3 {
+		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
 	}
 	circle := mode.worldEffects[0]
 	if circle.effectID != effectCastRing || circle.actorID != 2000000 || circle.targetID != 0 || circle.duration != 2500*time.Millisecond {
 		t.Fatalf("circle = %+v", circle)
 	}
-	aura := mode.worldEffects[1]
+	lockon := mode.worldEffects[1]
+	if lockon.effectID != effectLockOnTarget || lockon.actorID != 1100 || lockon.targetID != 0 || lockon.duration != 2500*time.Millisecond {
+		t.Fatalf("lockon = %+v", lockon)
+	}
+	aura := mode.worldEffects[2]
 	if aura.effectID != effectBeginSpell4 || aura.actorID != 2000000 || aura.targetID != 1100 || aura.duration != 2500*time.Millisecond {
 		t.Fatalf("aura = %+v", aura)
 	}
@@ -2691,14 +2722,33 @@ func TestSkillCastNotifyHonorsHideCastAura(t *testing.T) {
 
 	mode.applySkillCastNotify(ctx, network.SkillCastNotify{SourceID: 2000000, TargetID: 1100, SkillID: db.SkillACChargearrow, Property: 4, DelayTime: 1200})
 
-	if len(mode.worldEffects) != 1 {
-		t.Fatalf("world effects = %+v, want only cast ring", mode.worldEffects)
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %+v, want cast ring and target lock-on", mode.worldEffects)
 	}
 	if mode.worldEffects[0].effectID != effectCastRing {
 		t.Fatalf("effect = %+v, want cast ring", mode.worldEffects[0])
 	}
+	if mode.worldEffects[1].effectID != effectLockOnTarget || mode.worldEffects[1].actorID != 1100 {
+		t.Fatalf("effect = %+v, want target lock-on", mode.worldEffects[1])
+	}
 	if _, ok := mode.actorCastBars[150000]; !ok {
 		t.Fatal("cast bar should remain visible when only hideCastAura is set")
+	}
+}
+
+func TestSelfTargetSkillCastDoesNotAddLockOnTarget(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.addSkillCastEffects(ctx, db.SkillMGFireball, 3, 2000000, 2000000, 0, 0, 900*time.Millisecond, time.Now(), "self")
+
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %+v, want cast ring and aura", mode.worldEffects)
+	}
+	if mode.worldEffects[0].effectID != effectCastRing || mode.worldEffects[1].effectID != effectBeginSpell3 {
+		t.Fatalf("effects = %+v", mode.worldEffects)
 	}
 }
 
