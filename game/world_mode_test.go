@@ -1685,6 +1685,56 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	}
 }
 
+func TestApplyActorActionNotifyAddsCriticalNormalHitEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+			Sex:       0,
+			Selected:  session.Character{ID: 150000, Job: 0, Hair: 1, Weapon: 1201},
+		},
+		World: world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    2000000,
+		TargetID:    300,
+		SkillID:     0,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		Damage:      42,
+		Action:      10,
+	})
+
+	targetAnim, ok := mode.actorAnims[300]
+	if !ok {
+		t.Fatal("target animation missing")
+	}
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %+v, want regular and critical hit effects", mode.worldEffects)
+	}
+	if effect := mode.worldEffects[0]; effect.effectID != effectHit1 || effect.actorID != 300 || !effect.starts.Equal(targetAnim.started) {
+		t.Fatalf("regular hit effect = %+v targetStarted=%s", effect, targetAnim.started)
+	}
+	if effect := mode.worldEffects[1]; effect.effectID != effectBashHit || effect.actorID != 300 || !effect.starts.Equal(targetAnim.started) {
+		t.Fatalf("critical hit effect = %+v targetStarted=%s", effect, targetAnim.started)
+	}
+	if len(mode.damageFloaters) != 1 || mode.damageFloaters[0].kind != damageFloaterCritical {
+		t.Fatalf("damage floaters = %+v, want critical", mode.damageFloaters)
+	}
+}
+
 func TestApplyActorActionNotifyAddsBashHitEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
@@ -2955,6 +3005,10 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "WZ_STORMGUST imported", skillEffectIDs(db.SkillWZStormgust), effectStormGust)
 	expectEffectIDs(t, "BS_WEAPONPERFECT imported", skillEffectIDs(db.SkillBSWeaponperfect), effectWeaponPerfect)
 	expectEffectIDs(t, "BS_MAXIMIZE imported", skillEffectIDs(db.SkillBSMaximize), effectMaximizePower)
+	expectEffectIDs(t, "KN_SPEARBOOMERANG imported caster", skillEffectOnCasterIDs(db.SkillKNSpearboomerang), 151)
+	expectEffectIDs(t, "KN_SPEARBOOMERANG imported hit", skillHitEffectIDs(db.SkillKNSpearboomerang), 80, effectHit4)
+	expectEffectIDs(t, "MO_BALKYOUNG imported", skillEffectIDs(db.SkillMOBalkyoung), 514)
+	expectEffectIDs(t, "MO_BALKYOUNG imported hit", skillHitEffectIDs(db.SkillMOBalkyoung), effectHit3)
 }
 
 func TestRobrowserMiniSTREffectSpecs(t *testing.T) {

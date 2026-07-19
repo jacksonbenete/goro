@@ -537,7 +537,16 @@ func (m *WorldMode) addNormalAttackHitEffect(ctx client.Context, action network.
 		if m.addWorldEffectAt(ctx, effectHit1, action.TargetID, effectStarts) {
 			glog.Debugf("normal hit effect src=%d target=%d effect=%d hit=%d/%d", action.SourceID, action.TargetID, effectHit1, i+1, count)
 		}
+		if actionUsesReferenceCriticalHitEffect(action) {
+			if m.addWorldEffectAt(ctx, effectBashHit, action.TargetID, effectStarts) {
+				glog.Debugf("critical hit effect src=%d target=%d effect=%d hit=%d/%d", action.SourceID, action.TargetID, effectBashHit, i+1, count)
+			}
+		}
 	}
+}
+
+func actionUsesReferenceCriticalHitEffect(action network.ActorActionNotify) bool {
+	return action.Action == 10 || action.Action == 13
 }
 
 func actorUsesReferenceNormalHitEffect(actor world.Actor) bool {
