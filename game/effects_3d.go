@@ -40,7 +40,7 @@ func (m *WorldMode) draw3DEffect(screen *render.Frame, ctx client.Context, proje
 			if texture == nil {
 				continue
 			}
-			angle := worldEffectBillboardAngle(component, projection, progress)
+			angle := worldEffectBillboardAngleForEffect(component, projection, effect, salt, progress)
 			drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), component.blendAdditive)
 			continue
 		}

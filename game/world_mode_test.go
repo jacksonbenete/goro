@@ -1667,6 +1667,13 @@ func TestApplyActorActionNotifySchedulesAttackAndHitAnimations(t *testing.T) {
 	if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(targetAnim.started) {
 		t.Fatalf("damage floater = %+v targetStarted=%s", mode.damageFloaters, targetAnim.started)
 	}
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want regular hit effect", len(mode.worldEffects))
+	}
+	hitEffect := mode.worldEffects[0]
+	if hitEffect.effectID != effectHit1 || hitEffect.actorID != 300 || !hitEffect.starts.Equal(targetAnim.started) {
+		t.Fatalf("regular hit effect = %+v targetStarted=%s", hitEffect, targetAnim.started)
+	}
 	if _, ok := mode.actorLife[300]; ok {
 		t.Fatal("target life should not be estimated from damage")
 	}
@@ -2057,14 +2064,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 117 {
-		t.Fatalf("implemented effects = %d, want 117", coverage.Implemented)
+	if coverage.Implemented != 122 {
+		t.Fatalf("implemented effects = %d, want 122", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 19.2 || coverage.ActivePercent > 19.3 {
-		t.Fatalf("active coverage = %.3f, want about 19.3", coverage.ActivePercent)
+	if coverage.ActivePercent < 20.0 || coverage.ActivePercent > 20.2 {
+		t.Fatalf("active coverage = %.3f, want about 20.1", coverage.ActivePercent)
 	}
 }
 
@@ -2353,6 +2360,94 @@ func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
 	endX, endY, _ := mode.effect3DOffset(client.Context{}, spec.components[0], effect, 0, 0, 1, 0, 0, 0)
 	if math.Hypot(endX, endY) <= math.Hypot(startX, startY) {
 		t.Fatalf("circle pattern does not move outward: start=(%.2f,%.2f) end=(%.2f,%.2f)", startX, startY, endX, endY)
+	}
+}
+
+func TestRegularHitEffectSpecMatchesRobrowserParticleBurst(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectHit1)
+	if !ok || len(spec.components) != 1 {
+		t.Fatalf("regular hit spec = %+v ok=%t, want one component", spec, ok)
+	}
+	if spec.duration != 300*time.Millisecond {
+		t.Fatalf("duration = %s, want 300ms", spec.duration)
+	}
+	component := spec.components[0]
+	if component.kind != effectComponent3D || component.textureFile != "effect/pok3.tga" || component.duration != 300*time.Millisecond {
+		t.Fatalf("component resource/timing = %+v", component)
+	}
+	if component.duplicate != 4 || component.alphaMax != 0.8 || !component.fadeIn || !component.fadeOut || !component.sparkling {
+		t.Fatalf("component duplicate/fade = %+v", component)
+	}
+	if component.posZ != 1 || component.posXEndRand != 2 || component.posYEndRand != 2 || component.posZEndRand != 2 {
+		t.Fatalf("component position = %+v", component)
+	}
+	if component.sizeStart != effectTableSize(10) || component.sizeEnd != effectTableSize(10) || component.sizeRand != effectTableSize(20) || !component.sizeSmooth {
+		t.Fatalf("component size = %+v", component)
+	}
+}
+
+func TestSkillHitEffectSpecsMatchRobrowserCylindersAndSlashes(t *testing.T) {
+	hit3, ok := worldEffectSpecForID(effectHit3)
+	if !ok || len(hit3.components) != 2 {
+		t.Fatalf("hit3 spec = %+v ok=%t, want two cylinders", hit3, ok)
+	}
+	if len(hit3.sfx) != 1 || hit3.sfx[0] != "effect\\ef_hit3.wav" {
+		t.Fatalf("hit3 sfx = %v", hit3.sfx)
+	}
+	if first, second := hit3.components[0], hit3.components[1]; first.kind != effectComponentCylinder || second.kind != effectComponentCylinder || first.textureName != "lens2" || second.textureName != "lens2" {
+		t.Fatalf("hit3 cylinder resources = %+v %+v", first, second)
+	}
+	if hit3.components[0].bottomSize != 0.37 || hit3.components[0].topSize != 1 || hit3.components[1].bottomSize != 0.37 || hit3.components[1].topSize != 0.37 {
+		t.Fatalf("hit3 cylinder sizes = %+v %+v", hit3.components[0], hit3.components[1])
+	}
+	for i, component := range hit3.components {
+		if component.duration != 150*time.Millisecond || component.alphaMax != 0.8 || !component.fade || component.animation != 1 || component.posZ != 1 || component.height != 4 || component.angleX != -90 || !component.rotateWithCamera || !component.attachedEntity {
+			t.Fatalf("hit3 component %d = %+v", i, component)
+		}
+	}
+
+	hit4, ok := worldEffectSpecForID(effectHit4)
+	if !ok || len(hit4.components) != 1 {
+		t.Fatalf("hit4 spec = %+v ok=%t, want one cylinder", hit4, ok)
+	}
+	component := hit4.components[0]
+	if component.kind != effectComponentCylinder || component.textureName != "lens2" || component.bottomSize != 0.15 || component.topSize != 1 || component.duration != 150*time.Millisecond || component.angleX != -90 || !component.attachedEntity {
+		t.Fatalf("hit4 component = %+v", component)
+	}
+	if len(hit4.sfx) != 1 || hit4.sfx[0] != "effect\\ef_hit4.wav" {
+		t.Fatalf("hit4 sfx = %v", hit4.sfx)
+	}
+
+	for _, tc := range []struct {
+		name     string
+		effectID int
+		kind     effectComponentKind
+		width    float64
+		height   float64
+		sfx      string
+		overlay  bool
+	}{
+		{"hit5", effectHit5, effectComponent3D, effectTableSize(15), effectTableSize(200), "effect\\ef_hit5.wav", false},
+		{"hit6", effectHit6, effectComponent2D, effectTableSize(10), effectTableSize(150), "effect\\ef_hit6.wav", true},
+	} {
+		spec, ok := worldEffectSpecForID(tc.effectID)
+		if !ok || len(spec.components) != 2 {
+			t.Fatalf("%s spec = %+v ok=%t, want two slash components", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.sfx {
+			t.Fatalf("%s sfx = %v", tc.name, spec.sfx)
+		}
+		for i, component := range spec.components {
+			if component.kind != tc.kind || component.textureFile != "effect/lens2.tga" || component.duration != 400*time.Millisecond || component.alphaMax != 1 || !component.fadeOut || !component.rotate || component.overlay != tc.overlay {
+				t.Fatalf("%s component %d = %+v", tc.name, i, component)
+			}
+			if component.posZ != 1 || component.sizeStartX != tc.width || component.sizeEndX != tc.width || component.sizeStartY != effectTableSize(10) || component.sizeEndY != tc.height {
+				t.Fatalf("%s component %d size/position = %+v", tc.name, i, component)
+			}
+		}
+		if spec.components[0].angleStart != 90 || spec.components[0].angleEnd != 0 || spec.components[1].angleStart != 180 || spec.components[1].angleEnd != 90 {
+			t.Fatalf("%s slash angles = %+v %+v", tc.name, spec.components[0], spec.components[1])
+		}
 	}
 }
 
@@ -2983,7 +3078,7 @@ func TestArcherProjectileEffectsFollowRoBrowserTable(t *testing.T) {
 func TestBowNormalAttackAddsArrowProjectileEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{X: 10, Y: 20}
-	world.Actors[300] = worldstate.Actor{ID: 300, X: 15, Y: 20, Job: 1002, ObjectType: 5}
+	world.Actors[300] = worldstate.Actor{ID: 300, X: 15, Y: 20, Job: 1002, ObjectType: actorObjectTypeMob, HasObjectType: true}
 	ctx := client.Context{
 		Session: &session.Session{
 			AccountID: 200,
@@ -3003,12 +3098,16 @@ func TestBowNormalAttackAddsArrowProjectileEffect(t *testing.T) {
 		TargetSpeed: 500,
 	})
 
-	if len(mode.worldEffects) != 1 {
-		t.Fatalf("world effects = %d, want arrow projectile", len(mode.worldEffects))
+	if len(mode.worldEffects) != 2 {
+		t.Fatalf("world effects = %d, want arrow projectile and regular hit", len(mode.worldEffects))
 	}
-	effect := mode.worldEffects[0]
-	if effect.effectID != effectArrowShot || effect.actorID != 300 || effect.targetID != 200 {
-		t.Fatalf("normal bow projectile = %+v", effect)
+	projectile := mode.worldEffects[0]
+	if projectile.effectID != effectArrowShot || projectile.actorID != 300 || projectile.targetID != 200 {
+		t.Fatalf("normal bow projectile = %+v", projectile)
+	}
+	hit := mode.worldEffects[1]
+	if hit.effectID != effectHit1 || hit.actorID != 300 || !hit.starts.After(projectile.starts) {
+		t.Fatalf("normal bow hit = %+v projectile=%+v", hit, projectile)
 	}
 }
 
@@ -3679,6 +3778,14 @@ func TestWorldEffectBillboardAngleCanRotateWithCamera(t *testing.T) {
 	want := degreesToRadians(180)
 	if math.Abs(got-want) > 0.001 {
 		t.Fatalf("angle = %.3f, want %.3f", got, want)
+	}
+}
+
+func TestEffectCylinderAngleXRotatesHeightAxisLikeRobrowser(t *testing.T) {
+	got := rotateEffectCylinderVector(modelPoint3{y: 1}, -90, 0, 0)
+	want := modelPoint3{z: -1}
+	if !modelPointNear(got, want, 0.001) {
+		t.Fatalf("rotated height axis = %+v, want %+v", got, want)
 	}
 }
 

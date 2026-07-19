@@ -23,12 +23,15 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context,
 	}
 	bottomSize := component.bottomSize
 	height := component.height
+	if component.animation == 1 {
+		height *= progress
+	}
 	if component.animation == 4 {
 		bottomSize *= progress
 		topSize *= progress
 	}
 	if !component.fixedPerspective {
-		drawWorldCylinderBand(screen, m.whitePixel, texture, x, y, z+component.posZ, bottomSize, topSize, height, effectComponentTint(component, alpha), maxInt(component.circleSides, component.totalCircleSides))
+		drawWorldCylinderBandOriented(screen, m.whitePixel, texture, projection, component, x, y, z+component.posZ, bottomSize, topSize, height, effectComponentTint(component, alpha), maxInt(component.circleSides, component.totalCircleSides))
 		return
 	}
 	duplicates := maxInt(component.duplicate, 1)
@@ -95,6 +98,57 @@ func drawTexturedEffectCylinder(screen *render.Frame, projection sceneProjection
 }
 
 func drawWorldCylinderBand(screen *render.Frame, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
+	drawWorldCylinderBandWithBasis(screen, white, texture, x, y, z, bottomRadius, topRadius, height, c, segments, modelPoint3{x: 1}, modelPoint3{z: 1}, modelPoint3{y: 1})
+}
+
+func drawWorldCylinderBandOriented(screen *render.Frame, white, texture *render.Image, projection sceneProjection, component worldEffectComponent, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
+	right := modelPoint3{x: 1}
+	depth := modelPoint3{z: 1}
+	up := modelPoint3{y: 1}
+	if component.angleX != 0 || component.angleY != 0 || component.angleZ != 0 || component.rotateWithCamera {
+		angleY := component.angleY
+		if component.rotateWithCamera {
+			angleY += projection.cameraYaw
+		}
+		right = rotateEffectCylinderVector(right, component.angleX, angleY, component.angleZ)
+		depth = rotateEffectCylinderVector(depth, component.angleX, angleY, component.angleZ)
+		up = rotateEffectCylinderVector(up, component.angleX, angleY, component.angleZ)
+	}
+	drawWorldCylinderBandWithBasis(screen, white, texture, x, y, z, bottomRadius, topRadius, height, c, segments, right, depth, up)
+}
+
+func rotateEffectCylinderVector(v modelPoint3, angleX, angleY, angleZ float64) modelPoint3 {
+	v = rotateModelPointX(v, degreesToRadians(angleX))
+	v = rotateModelPointY(v, degreesToRadians(angleY))
+	v = rotateModelPointZ(v, degreesToRadians(angleZ))
+	return v
+}
+
+func rotateModelPointX(v modelPoint3, angle float64) modelPoint3 {
+	if angle == 0 {
+		return v
+	}
+	sinA, cosA := math.Sin(angle), math.Cos(angle)
+	return modelPoint3{x: v.x, y: v.y*cosA - v.z*sinA, z: v.y*sinA + v.z*cosA}
+}
+
+func rotateModelPointY(v modelPoint3, angle float64) modelPoint3 {
+	if angle == 0 {
+		return v
+	}
+	sinA, cosA := math.Sin(angle), math.Cos(angle)
+	return modelPoint3{x: v.x*cosA + v.z*sinA, y: v.y, z: -v.x*sinA + v.z*cosA}
+}
+
+func rotateModelPointZ(v modelPoint3, angle float64) modelPoint3 {
+	if angle == 0 {
+		return v
+	}
+	sinA, cosA := math.Sin(angle), math.Cos(angle)
+	return modelPoint3{x: v.x*cosA - v.y*sinA, y: v.x*sinA + v.y*cosA, z: v.z}
+}
+
+func drawWorldCylinderBandWithBasis(screen *render.Frame, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, right, depth, up modelPoint3) {
 	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
 		return
 	}
@@ -114,9 +168,12 @@ func drawWorldCylinderBand(screen *render.Frame, white, texture *render.Image, x
 		angle := float64(i) * 2 * math.Pi / float64(segments)
 		cosine := math.Cos(angle)
 		sine := math.Sin(angle)
+		center := modelPoint3{x: x, y: z, z: y}
+		bottom := add3(center, add3(mul3(right, cosine*bottomRadius), mul3(depth, sine*bottomRadius)))
+		top := add3(center, add3(add3(mul3(right, cosine*topRadius), mul3(depth, sine*topRadius)), mul3(up, height)))
 		vertices = append(vertices,
-			warpEffectTexturedVertex3D(x+cosine*bottomRadius, y+sine*bottomRadius, z, u*srcW, srcH, tint),
-			warpEffectTexturedVertex3D(x+cosine*topRadius, y+sine*topRadius, z+height, u*srcW, 0, tint),
+			texturedSurfaceVertex3D(bottom, texturePoint{u: u, v: 1}, tint, srcW, srcH),
+			texturedSurfaceVertex3D(top, texturePoint{u: u, v: 0}, tint, srcW, srcH),
 		)
 		if i == segments {
 			continue

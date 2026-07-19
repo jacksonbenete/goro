@@ -104,7 +104,7 @@ func TestRealPotionAndProvokeSTRExactResources(t *testing.T) {
 
 func TestRealCylinderEffectTextures(t *testing.T) {
 	manager := realDataManager(t)
-	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "ring_blue", "alpha1", "대폭발"} {
+	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "ring_blue", "alpha1", "대폭발", "pok3", "lens1", "lens2"} {
 		if _, source, err := LoadImageExact(manager, EffectTextureCandidates(name)); err != nil {
 			t.Fatalf("load exact effect texture %s: %v", name, err)
 		} else if source == "" {
@@ -121,6 +121,11 @@ func TestRealLevelUpSFXResources(t *testing.T) {
 	for _, path := range []string{
 		`data\wav\levelup.wav`,
 		`data\wav\effect\ac_concentration.wav`,
+		`data\wav\effect\ef_hit2.wav`,
+		`data\wav\effect\ef_hit3.wav`,
+		`data\wav\effect\ef_hit4.wav`,
+		`data\wav\effect\ef_hit5.wav`,
+		`data\wav\effect\ef_hit6.wav`,
 	} {
 		data, err := manager.ReadFileExact(path)
 		if err != nil {

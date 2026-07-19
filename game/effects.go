@@ -29,7 +29,12 @@ const (
 	effectSafetyWall     = 315
 	effectColdBolt       = 10014
 	effectBashBegin      = 16
+	effectHit1           = 0
 	effectBashHit        = 1
+	effectHit3           = 2
+	effectHit4           = 3
+	effectHit5           = 4
+	effectHit6           = 5
 	effectArrowShot      = 10060
 	effectArrowShower    = 10061
 	effectMammonite      = 10
@@ -298,6 +303,9 @@ type worldEffectComponent struct {
 	sizeSmooth         bool
 	angleStart         float64
 	angleEnd           float64
+	angleX             float64
+	angleY             float64
+	angleZ             float64
 	angleRandMin       float64
 	angleRandMax       float64
 	circlePattern      bool
@@ -1448,6 +1456,9 @@ func convertDBWorldEffectComponent(component db.EffectComponent) worldEffectComp
 		sizeSmooth:         component.SizeSmooth,
 		angleStart:         component.AngleStart,
 		angleEnd:           component.AngleEnd,
+		angleX:             component.AngleX,
+		angleY:             component.AngleY,
+		angleZ:             component.AngleZ,
 		angleRandMin:       component.AngleRandMin,
 		angleRandMax:       component.AngleRandMax,
 		circlePattern:      component.CirclePattern,

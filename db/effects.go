@@ -21,7 +21,12 @@ const (
 	effectSafetyWall     = 315
 	effectColdBolt       = 10014
 	effectBashBegin      = 16
+	effectHit1           = 0
 	effectBashHit        = 1
+	effectHit3           = 2
+	effectHit4           = 3
+	effectHit5           = 4
+	effectHit6           = 5
 	effectArrowShot      = 10060
 	effectArrowShower    = 10061
 	effectMammonite      = 10
@@ -274,6 +279,9 @@ type EffectComponent struct {
 	SizeSmooth         bool
 	AngleStart         float64
 	AngleEnd           float64
+	AngleX             float64
+	AngleY             float64
+	AngleZ             float64
 	AngleRandMin       float64
 	AngleRandMax       float64
 	CirclePattern      bool
@@ -919,10 +927,62 @@ var EffectSpecs = map[int]EffectSpec{
 			SizeEnd:     1,
 		}},
 	},
+	effectHit1: {
+		Duration: 300 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:        EffectComponent3D,
+			TextureFile: "effect/pok3.tga",
+			Duration:    300 * time.Millisecond,
+			Duplicate:   4,
+			AlphaMax:    0.8,
+			FadeIn:      true,
+			FadeOut:     true,
+			Sparkling:   true,
+			PosZ:        1,
+			PosXEndRand: 2,
+			PosYEndRand: 2,
+			PosZEndRand: 2,
+			SizeStart:   effectTableSize(10),
+			SizeEnd:     effectTableSize(10),
+			SizeRand:    effectTableSize(20),
+			SizeSmooth:  true,
+		}},
+	},
 	effectBashHit: {
 		Duration:   350 * time.Millisecond,
 		SFX:        []string{"effect\\ef_hit2.wav"},
 		Components: bashHitComponents(),
+	},
+	effectHit3: {
+		Duration: 150 * time.Millisecond,
+		SFX:      []string{"effect\\ef_hit3.wav"},
+		Components: []EffectComponent{
+			hitCylinderComponent(0.37, 1),
+			hitCylinderComponent(0.37, 0.37),
+		},
+	},
+	effectHit4: {
+		Duration: 150 * time.Millisecond,
+		SFX:      []string{"effect\\ef_hit4.wav"},
+		Components: []EffectComponent{
+			hitCylinderComponent(0.15, 1),
+		},
+	},
+	effectHit5: {
+		Duration: 400 * time.Millisecond,
+		SFX:      []string{"effect\\ef_hit5.wav"},
+		Components: []EffectComponent{
+			hitSlashComponent(EffectComponent3D, effectTableSize(15), effectTableSize(200), 90, 0, false),
+			hitSlashComponent(EffectComponent3D, effectTableSize(15), effectTableSize(200), 180, 90, false),
+		},
+	},
+	effectHit6: {
+		Duration: 400 * time.Millisecond,
+		SFX:      []string{"effect\\ef_hit6.wav"},
+		Components: []EffectComponent{
+			hitSlashComponent(EffectComponent2D, effectTableSize(10), effectTableSize(150), 90, 0, true),
+			hitSlashComponent(EffectComponent2D, effectTableSize(10), effectTableSize(150), 180, 90, true),
+		},
 	},
 	effectArrowShot: {
 		Duration: 140 * time.Millisecond,
@@ -1895,6 +1955,45 @@ func bashHitComponents() []EffectComponent {
 		})
 	}
 	return components
+}
+
+func hitCylinderComponent(bottomSize, topSize float64) EffectComponent {
+	return EffectComponent{
+		Kind:             EffectComponentCylinder,
+		TextureName:      "lens2",
+		Duration:         150 * time.Millisecond,
+		AlphaMax:         0.8,
+		Fade:             true,
+		RotateWithCamera: true,
+		Animation:        1,
+		BottomSize:       bottomSize,
+		TopSize:          topSize,
+		Height:           4,
+		PosZ:             1,
+		AngleX:           -90,
+		AttachedEntity:   true,
+		TotalCircleSides: 24,
+		CircleSides:      24,
+	}
+}
+
+func hitSlashComponent(kind EffectComponentKind, sizeX, sizeEndY, angleStart, angleEnd float64, overlay bool) EffectComponent {
+	return EffectComponent{
+		Kind:        kind,
+		TextureFile: "effect/lens2.tga",
+		Duration:    400 * time.Millisecond,
+		AlphaMax:    1,
+		FadeOut:     true,
+		Rotate:      true,
+		PosZ:        1,
+		SizeStartX:  sizeX,
+		SizeEndX:    sizeX,
+		SizeStartY:  effectTableSize(10),
+		SizeEndY:    sizeEndY,
+		AngleStart:  angleStart,
+		AngleEnd:    angleEnd,
+		Overlay:     overlay,
+	}
 }
 
 func castAuraEffectSpec(texture string, tint color.RGBA, alphaMax, height, topSize float64, rotate bool) EffectSpec {

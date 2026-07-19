@@ -481,6 +481,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		m.clearActorCastBar(ctx, action.TargetID)
 		m.addSkillBeginEffect(ctx, action, now)
 		m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, now)
+		m.addNormalAttackHitEffect(ctx, action, target, targetOK, hitAt)
 		m.addSkillBeforeHitEffect(ctx, action, now)
 		if skillTargetUsesHitReaction(action, sourceLocal, targetLocal) {
 			hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
@@ -523,6 +524,31 @@ func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action ne
 	}
 	if m.addWorldEffectBetweenAt(ctx, effectArrowShot, action.TargetID, action.SourceID, starts) {
 		glog.Debugf("normal attack before-hit effect src=%d target=%d effect=%d", action.SourceID, action.TargetID, effectArrowShot)
+	}
+}
+
+func (m *WorldMode) addNormalAttackHitEffect(ctx client.Context, action network.ActorActionNotify, target world.Actor, targetOK bool, starts time.Time) {
+	if action.SkillID != 0 || action.Damage <= 0 || !targetOK || !actorUsesReferenceNormalHitEffect(target) {
+		return
+	}
+	count := actionVisualHitCount(action)
+	for i := 0; i < count; i++ {
+		effectStarts := starts.Add(multiHitDelay * time.Duration(i))
+		if m.addWorldEffectAt(ctx, effectHit1, action.TargetID, effectStarts) {
+			glog.Debugf("normal hit effect src=%d target=%d effect=%d hit=%d/%d", action.SourceID, action.TargetID, effectHit1, i+1, count)
+		}
+	}
+}
+
+func actorUsesReferenceNormalHitEffect(actor world.Actor) bool {
+	if !actor.HasObjectType {
+		return false
+	}
+	switch actor.ObjectType {
+	case actorObjectTypeMob, actorObjectTypeNPCABR, actorObjectTypeNPCBionic:
+		return true
+	default:
+		return false
 	}
 }
 
