@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	consoleMargin     = 16
+	consoleMargin     = windowScreenMargin
 	consoleWidth      = 480
 	consoleHeight     = 176
 	consoleMaxLines   = 9

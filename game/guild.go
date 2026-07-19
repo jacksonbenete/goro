@@ -107,6 +107,10 @@ func (m *WorldMode) uploadGuildEmblem(ctx client.Context, path string) {
 	if path == "" {
 		return
 	}
+	if ctx.Session == nil || !ctx.Session.Guild.IsMaster {
+		m.ui.console.AddErrorMessage("Guild emblem upload failed: guild master only.")
+		return
+	}
 	if ctx.Network == nil {
 		m.ui.console.AddErrorMessage("Guild emblem upload failed: not connected.")
 		return

@@ -19,7 +19,7 @@ import (
 const (
 	minimapWidth                   = 188
 	minimapHeight                  = 206
-	minimapMargin                  = 16
+	minimapMargin                  = windowScreenMargin
 	minimapPad                     = 10
 	minimapInfoBandH               = 22
 	minimapMarkerRedrawDelayFrames = 4

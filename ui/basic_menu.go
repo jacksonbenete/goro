@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	basicMenuX       = 16
-	basicMenuY       = 16 + 158 + 6
+	basicMenuX       = windowScreenMargin
+	basicMenuY       = characterWindowY + characterWindowHeight + 6
 	basicMenuCols    = 4
 	basicMenuRows    = 2
 	basicMenuButtonW = 72

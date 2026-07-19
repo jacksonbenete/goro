@@ -57,8 +57,8 @@ func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name str
 	screenW, screenH := ctx.ScreenSize()
 	height := m.height()
 	m.SetSize(playerContextMenuWidth, height)
-	x = clampWindowInt(x, 8, maxInt(8, screenW-playerContextMenuWidth-8))
-	y = clampWindowInt(y, 8, maxInt(8, screenH-height-8))
+	x = clampWindowInt(x, windowScreenMargin, maxInt(windowScreenMargin, screenW-playerContextMenuWidth-windowScreenMargin))
+	y = clampWindowInt(y, windowScreenMargin, maxInt(windowScreenMargin, screenH-height-windowScreenMargin))
 	m.OpenAt(x, y, m.widgetTree(ctx))
 	m.Publish(ctx)
 }

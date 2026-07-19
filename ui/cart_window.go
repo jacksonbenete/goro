@@ -468,7 +468,7 @@ func cartTableRowAt(mx, my, tableX, tableY, tableW, tableH, rowCount int, scroll
 
 func cartDefaultPosition(ctx Context) (int, int) {
 	width, _ := ctx.ScreenSize()
-	return maxInt(8, width-cartWindowWidth-24), 118
+	return maxInt(windowScreenMargin, width-cartWindowWidth-windowScreenMargin), 118
 }
 
 func sortedCartItems(s *session.Session) []session.InventoryItem {

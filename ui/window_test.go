@@ -100,3 +100,26 @@ func TestWindowFullRedrawPublishIsIdempotent(t *testing.T) {
 		t.Fatal("full redraw content replacement did not dirty the new root")
 	}
 }
+
+func TestScreenEdgeAnchorsUseWindowMargin(t *testing.T) {
+	ctx := client.Context{ScreenW: 800, ScreenH: 600}
+
+	if characterWindowX != windowScreenMargin || characterWindowY != windowScreenMargin {
+		t.Fatalf("character window position = %d,%d; want %d,%d", characterWindowX, characterWindowY, windowScreenMargin, windowScreenMargin)
+	}
+	if x, y, _, _ := basicMenuBounds(); x != windowScreenMargin || y != windowScreenMargin+characterWindowHeight+6 {
+		t.Fatalf("basic menu position = %d,%d; want x=%d y=%d", x, y, windowScreenMargin, windowScreenMargin+characterWindowHeight+6)
+	}
+	if x, y, _, _ := MinimapBounds(ctx.ScreenW, ctx.ScreenH); x != ctx.ScreenW-minimapWidth-windowScreenMargin || y != windowScreenMargin {
+		t.Fatalf("minimap position = %d,%d; want x=%d y=%d", x, y, ctx.ScreenW-minimapWidth-windowScreenMargin, windowScreenMargin)
+	}
+	if x, y, _, _ := consoleBounds(ctx.ScreenW, ctx.ScreenH); x != windowScreenMargin || y != ctx.ScreenH-consoleHeight-windowScreenMargin {
+		t.Fatalf("console position = %d,%d; want x=%d y=%d", x, y, windowScreenMargin, ctx.ScreenH-consoleHeight-windowScreenMargin)
+	}
+	if x, _ := storageDefaultPosition(ctx); x != ctx.ScreenW-storageWindowWidth-windowScreenMargin {
+		t.Fatalf("storage x = %d; want %d", x, ctx.ScreenW-storageWindowWidth-windowScreenMargin)
+	}
+	if x, _ := cartDefaultPosition(ctx); x != ctx.ScreenW-cartWindowWidth-windowScreenMargin {
+		t.Fatalf("cart x = %d; want %d", x, ctx.ScreenW-cartWindowWidth-windowScreenMargin)
+	}
+}

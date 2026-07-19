@@ -27,7 +27,7 @@ const (
 	guildWindowWidth     = 400
 	guildWindowHeight    = 325
 	guildWindowTabHeight = 23
-	guildWindowTabWidth  = 64
+	guildWindowTabWidth  = 68
 	guildEmblemSize      = 24
 	guildTablePadding    = 7
 	guildTableViewportW  = guildWindowWidth
@@ -1231,7 +1231,7 @@ func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
 	rightRows := []widget.Widget{
 		guildInfoRow("EXP", guildExp(guild.Exp, guild.MaxExp)),
 		guildInfoSection("Emblem"),
-		w.guildEmblemEditor(ctx, guild.EmblemVersion),
+		w.guildEmblemControl(ctx, guild),
 		guildInfoRow("Tax Point", guildNumberAllowZero(guild.Point)),
 		guildInfoSection("Alliance"),
 		guildListBox(""),
@@ -1249,6 +1249,13 @@ func (w *GuildWindow) infoTab(ctx Context) widget.Widget {
 		PaddingXY(9, 10).
 		Gap(10).
 		CrossAlign(primitives.CrossAxisStart)
+}
+
+func (w *GuildWindow) guildEmblemControl(ctx Context, guild session.Guild) widget.Widget {
+	if !guild.IsMaster {
+		return w.guildEmblemBox(ctx, guild.EmblemVersion)
+	}
+	return w.guildEmblemEditor(ctx, guild.EmblemVersion)
 }
 
 func (w *GuildWindow) guildEmblemEditor(ctx Context, version uint32) widget.Widget {

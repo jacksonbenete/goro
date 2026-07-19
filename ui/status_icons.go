@@ -172,7 +172,7 @@ func sameStatusIconIDs(a, b []uint16) bool {
 func statusIconOverlayBounds(width, height, count int) (int, int, int, int) {
 	minimapX, minimapY, minimapW, minimapH := MinimapBounds(width, height)
 	startY := minimapY + minimapH + statusIconGap
-	maxRows := maxInt(1, (height-startY-16)/statusIconSpacing)
+	maxRows := maxInt(1, (height-startY-windowScreenMargin)/statusIconSpacing)
 	cols := maxInt(1, (count+maxRows-1)/maxRows)
 	return minimapX + minimapW - statusIconSize - (cols-1)*(statusIconSize+statusIconGap), startY, cols*statusIconSize + (cols-1)*statusIconGap, minInt(count, maxRows) * statusIconSpacing
 }

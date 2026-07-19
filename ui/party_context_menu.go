@@ -37,8 +37,8 @@ func (m *PartyContextMenu) Open(ctx Context, x, y int, member session.PartyMembe
 	screenW, screenH := ctx.ScreenSize()
 	height := m.height()
 	m.SetSize(partyContextMenuWidth, height)
-	x = clampWindowInt(x, 8, maxInt(8, screenW-partyContextMenuWidth-8))
-	y = clampWindowInt(y, 8, maxInt(8, screenH-height-8))
+	x = clampWindowInt(x, windowScreenMargin, maxInt(windowScreenMargin, screenW-partyContextMenuWidth-windowScreenMargin))
+	y = clampWindowInt(y, windowScreenMargin, maxInt(windowScreenMargin, screenH-height-windowScreenMargin))
 	m.OpenAt(x, y, m.widgetTree())
 	m.Publish(ctx)
 }

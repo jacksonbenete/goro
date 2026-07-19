@@ -199,8 +199,8 @@ func (w *VendingWindow) ensurePosition(ctx Context) {
 	w.ensureWindows()
 	screenW, screenH := ctx.ScreenSize()
 	totalW := vendingWindowW*2 + vendingWindowGap
-	leftX := maxInt(8, (screenW-totalW)/2)
-	leftY := maxInt(8, (screenH-w.leftHeight())/2)
+	leftX := maxInt(windowScreenMargin, (screenW-totalW)/2)
+	leftY := maxInt(windowScreenMargin, (screenH-w.leftHeight())/2)
 	w.leftWindow.SetAutoPosition(leftX, leftY)
 	w.rightWindow.SetAutoPosition(leftX+vendingWindowW+vendingWindowGap, leftY)
 }

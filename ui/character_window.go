@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	characterWindowX      = 16
-	characterWindowY      = 16
+	characterWindowX      = windowScreenMargin
+	characterWindowY      = windowScreenMargin
 	characterWindowWidth  = 324
 	characterWindowHeight = 158
 )

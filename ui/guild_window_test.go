@@ -182,6 +182,28 @@ func TestGuildMenuRequestTabsMatchServerTypes(t *testing.T) {
 	}
 }
 
+func TestGuildEmblemControlHidesEditorForMembers(t *testing.T) {
+	window := &GuildWindow{}
+
+	memberControl := window.guildEmblemControl(Context{}, session.Guild{EmblemVersion: 7})
+	memberSize := memberControl.Layout(widget.NewContext(), geometry.Constraints{
+		MaxWidth:  300,
+		MaxHeight: 40,
+	})
+	if memberSize.Width != guildEmblemSize {
+		t.Fatalf("member emblem control width = %.1f, want preview width %.1f", memberSize.Width, float32(guildEmblemSize))
+	}
+
+	masterControl := window.guildEmblemControl(Context{}, session.Guild{IsMaster: true, EmblemVersion: 7})
+	masterSize := masterControl.Layout(widget.NewContext(), geometry.Constraints{
+		MaxWidth:  300,
+		MaxHeight: 40,
+	})
+	if masterSize.Width <= guildEmblemSize {
+		t.Fatalf("master emblem control width = %.1f, want editor wider than preview %.1f", masterSize.Width, float32(guildEmblemSize))
+	}
+}
+
 func TestGuildMemberPositionTransferSendsOnlyMasterChange(t *testing.T) {
 	s := &session.Session{Guild: session.Guild{
 		IsMaster: true,

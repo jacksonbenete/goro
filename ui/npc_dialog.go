@@ -758,24 +758,27 @@ func npcDialogEstimatedTextWidth(text string) float32 {
 }
 
 func npcDialogBounds(width, height int) (int, int, int, int) {
-	w := minInt(npcDialogWidth, maxInt(260, width-40))
-	h := minInt(npcDialogHeight, maxInt(130, height-40))
+	w := minInt(npcDialogWidth, maxInt(260, width-2*windowScreenMargin))
+	h := minInt(npcDialogHeight, maxInt(130, height-2*windowScreenMargin))
 	x := (width - w) / 2
 	y := (height - h) / 2
-	if y < 16 {
-		y = 16
+	if x < windowScreenMargin {
+		x = windowScreenMargin
+	}
+	if y < windowScreenMargin {
+		y = windowScreenMargin
 	}
 	return x, y, w, h
 }
 
 func (d *NPCDialog) menuBounds(width, height, dialogX, dialogY, dialogW, dialogH int) (int, int, int, int) {
-	w := minInt(npcMenuWidth, maxInt(220, width-40))
+	w := minInt(npcMenuWidth, maxInt(220, width-2*windowScreenMargin))
 	rows := maxInt(npcMenuMinRows, minInt(len(d.options), npcMenuMaxRows))
 	h := maxInt(npcMenuMinHeight, ROWindowTitleHeight+npcMenuPad*2+rows*npcMenuRowH+ROWindowFooterHeight)
 	x := dialogX + (dialogW-w)/2
 	y := dialogY + dialogH + 8
-	x = clampWindowInt(x, 8, maxInt(8, width-w-8))
-	y = clampWindowInt(y, 8, maxInt(8, height-h-8))
+	x = clampWindowInt(x, windowScreenMargin, maxInt(windowScreenMargin, width-w-windowScreenMargin))
+	y = clampWindowInt(y, windowScreenMargin, maxInt(windowScreenMargin, height-h-windowScreenMargin))
 	return x, y, w, h
 }
 
@@ -784,12 +787,12 @@ func (d *NPCDialog) inputBounds(width, height, dialogX, dialogY, dialogW, dialog
 	if d.action == npcDialogActionNumberInput {
 		w = npcInputNumberWidth
 	}
-	w = minInt(w, maxInt(140, width-40))
+	w = minInt(w, maxInt(140, width-2*windowScreenMargin))
 	h := npcInputHeight
 	x := dialogX + (dialogW-w)/2
 	y := dialogY + dialogH + 8
-	x = clampWindowInt(x, 8, maxInt(8, width-w-8))
-	y = clampWindowInt(y, 8, maxInt(8, height-h-8))
+	x = clampWindowInt(x, windowScreenMargin, maxInt(windowScreenMargin, width-w-windowScreenMargin))
+	y = clampWindowInt(y, windowScreenMargin, maxInt(windowScreenMargin, height-h-windowScreenMargin))
 	return x, y, w, h
 }
 

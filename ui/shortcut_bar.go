@@ -209,7 +209,7 @@ func (b *ShortcutBar) pointInside(ctx Context, mx, my int) bool {
 
 func (b *ShortcutBar) bounds(ctx Context) (int, int) {
 	width, _ := ctx.ScreenSize()
-	return maxInt(8, (width-shortcutBarWidth())/2), 8
+	return maxInt(windowScreenMargin, (width-shortcutBarWidth())/2), windowScreenMargin
 }
 
 func (b *ShortcutBar) slotBounds(ctx Context, slot int) (int, int) {

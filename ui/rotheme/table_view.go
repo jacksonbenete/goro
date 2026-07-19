@@ -436,9 +436,9 @@ func tableViewColors() struct {
 		Selected widget.Color
 	}{
 		Body:     Default.Colors.WindowBody,
-		Header:   Default.Colors.PanelBody,
+		Header:   Default.Colors.WindowBody,
 		Row:      widget.RGBA8(246, 249, 253, 255),
-		AltRow:   Default.Colors.PanelBody,
+		AltRow:   Default.Colors.WindowBody,
 		Hover:    Default.Colors.ButtonHover,
 		Selected: Default.Colors.ButtonDown,
 	}

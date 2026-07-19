@@ -30,6 +30,7 @@ const (
 	ROWindowFooterHeight  = 42
 	ROWindowFooterPadding = 10
 	ROWindowFooterGap     = 8
+	windowScreenMargin    = 8
 )
 
 func Win(options ...WindowOption) widget.Widget {
@@ -340,8 +341,8 @@ func (w *Window) Update(ctx client.Context) bool {
 	screenW, screenH := ctx.ScreenSize()
 	if w.dragging {
 		if ctx.Input.MousePressed(input.MouseButtonLeft) {
-			w.x = clampWindowInt(ctx.Input.MouseX-w.dragDX, 8, maxInt(8, screenW-w.width-8))
-			w.y = clampWindowInt(ctx.Input.MouseY-w.dragDY, 8, maxInt(8, screenH-w.height-8))
+			w.x = clampWindowInt(ctx.Input.MouseX-w.dragDX, windowScreenMargin, maxInt(windowScreenMargin, screenW-w.width-windowScreenMargin))
+			w.y = clampWindowInt(ctx.Input.MouseY-w.dragDY, windowScreenMargin, maxInt(windowScreenMargin, screenH-w.height-windowScreenMargin))
 			w.placed = nil
 			return true
 		}
@@ -376,8 +377,8 @@ func (w *Window) ensurePosition(ctx client.Context) {
 		return
 	}
 	screenW, screenH := ctx.ScreenSize()
-	w.x = maxInt(8, (screenW-w.width)/2)
-	w.y = maxInt(8, (screenH-w.height)/2)
+	w.x = maxInt(windowScreenMargin, (screenW-w.width)/2)
+	w.y = maxInt(windowScreenMargin, (screenH-w.height)/2)
 	w.positioned = true
 	w.placed = nil
 }
@@ -502,11 +503,11 @@ func centeredWindowRect(ctx client.Context, width, height int) (int, int, int, i
 	screenW, screenH := ctx.ScreenSize()
 	x := (screenW - width) / 2
 	y := (screenH - height) / 2
-	if x < 8 {
-		x = 8
+	if x < windowScreenMargin {
+		x = windowScreenMargin
 	}
-	if y < 8 {
-		y = 8
+	if y < windowScreenMargin {
+		y = windowScreenMargin
 	}
 	return x, y, width, height
 }
