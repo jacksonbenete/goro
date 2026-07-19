@@ -208,6 +208,7 @@ type worldEffectComponent struct {
 	durationRandMax    time.Duration
 	delay              time.Duration
 	duplicateDelay     time.Duration
+	delayOffsetDelta   time.Duration
 	repeat             bool
 	repeatDelay        time.Duration
 	strFile            string
@@ -1344,6 +1345,7 @@ func convertDBWorldEffectComponent(component db.EffectComponent) worldEffectComp
 		durationRandMax:    component.DurationRandMax,
 		delay:              component.Delay,
 		duplicateDelay:     component.DuplicateDelay,
+		delayOffsetDelta:   component.DelayOffsetDelta,
 		repeat:             component.Repeat,
 		repeatDelay:        component.RepeatDelay,
 		strFile:            component.STRFile,
@@ -1565,11 +1567,27 @@ func worldEffectComponentDuration(spec worldEffectSpec, component worldEffectCom
 			duration = component.durationRandMin
 		}
 	}
-	if component.duplicate > 1 && component.duplicateDelay > 0 {
-		duration += time.Duration(component.duplicate-1) * component.duplicateDelay
-	}
-	duration += component.delay
+	duration += worldEffectComponentMaxStartOffset(component)
 	return duration
+}
+
+func worldEffectComponentStartOffset(component worldEffectComponent, duplicateIndex int) time.Duration {
+	if duplicateIndex < 0 {
+		duplicateIndex = 0
+	}
+	return component.delay + time.Duration(duplicateIndex)*(component.duplicateDelay+component.delayOffsetDelta)
+}
+
+func worldEffectComponentMaxStartOffset(component worldEffectComponent) time.Duration {
+	duplicates := maxInt(component.duplicate, 1)
+	maxOffset := time.Duration(0)
+	for i := 0; i < duplicates; i++ {
+		offset := worldEffectComponentStartOffset(component, i)
+		if offset > maxOffset {
+			maxOffset = offset
+		}
+	}
+	return maxOffset
 }
 
 func worldEffectComponentProgress(starts time.Time, duration time.Duration, now time.Time) float64 {

@@ -184,6 +184,7 @@ type EffectComponent struct {
 	DurationRandMax    time.Duration
 	Delay              time.Duration
 	DuplicateDelay     time.Duration
+	DelayOffsetDelta   time.Duration
 	Repeat             bool
 	RepeatDelay        time.Duration
 	STRFile            string
@@ -1461,6 +1462,7 @@ var EffectSpecs = map[int]EffectSpec{
 			RotateToTarget:   true,
 			Duration:         250 * time.Millisecond,
 			Delay:            160 * time.Millisecond,
+			DelayOffsetDelta: -40 * time.Millisecond,
 			AlphaMax:         0.2,
 			AlphaMaxDelta:    0.2,
 			RotateWithCamera: true,

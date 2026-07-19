@@ -20,7 +20,7 @@ func (m *WorldMode) draw3DEffect(screen *render.Frame, ctx client.Context, proje
 		componentDuration = 500 * time.Millisecond
 	}
 	for i := 0; i < duplicates; i++ {
-		starts := effect.starts.Add(component.delay + time.Duration(i)*component.duplicateDelay)
+		starts := effect.starts.Add(worldEffectComponentStartOffset(component, i))
 		progress := worldEffectComponentProgress(starts, componentDuration, now)
 		if now.Before(starts) || progress >= 1 {
 			continue

@@ -2259,6 +2259,53 @@ func TestFireBoltEffectSpecUsesFallingFrameList(t *testing.T) {
 	}
 }
 
+func TestFireBallEffectSpecMatchesRobrowserProjectileAndHit(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectFireBall)
+	if !ok {
+		t.Fatal("fire ball effect missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\ef_fireball.wav" {
+		t.Fatalf("fire ball sfx = %#v", spec.sfx)
+	}
+	component := spec.components[0]
+	if component.kind != effectComponent3D || component.spriteFile != "fireball" || !component.spriteRepeat {
+		t.Fatalf("projectile sprite = %+v", component)
+	}
+	if component.duration != 250*time.Millisecond || component.delay != 160*time.Millisecond || component.delayOffsetDelta != -40*time.Millisecond {
+		t.Fatalf("projectile timing = duration %s delay %s delta %s", component.duration, component.delay, component.delayOffsetDelta)
+	}
+	if component.duplicate != 5 || component.duplicateDelay != 0 {
+		t.Fatalf("projectile duplicates = %d delay %s", component.duplicate, component.duplicateDelay)
+	}
+	if worldEffectComponentStartOffset(component, 0) != 160*time.Millisecond || worldEffectComponentStartOffset(component, 4) != 0 {
+		t.Fatalf("projectile duplicate offsets = first %s last %s", worldEffectComponentStartOffset(component, 0), worldEffectComponentStartOffset(component, 4))
+	}
+	if worldEffectComponentDuration(spec, component) != 410*time.Millisecond {
+		t.Fatalf("projectile resolved duration = %s, want 410ms", worldEffectComponentDuration(spec, component))
+	}
+	if !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || component.alphaMax != 0.2 || component.alphaMaxDelta != 0.2 {
+		t.Fatalf("projectile orientation/alpha = %+v", component)
+	}
+	if component.posZ != 2 || component.sizeStart != 200*effectPixelRatio || component.sizeEnd != 200*effectPixelRatio {
+		t.Fatalf("projectile position/size = %+v", component)
+	}
+
+	hitSpec, ok := worldEffectSpecForID(effectFireHit)
+	if !ok || len(hitSpec.components) != 1 {
+		t.Fatalf("fire hit effect missing or wrong component count: ok=%t components=%d", ok, len(hitSpec.components))
+	}
+	hit := hitSpec.components[0]
+	if hit.kind != effectComponentSTR || hit.strFile != "firehit%d" || hit.strRandMin != 1 || hit.strRandMax != 3 || !hit.attachedEntity {
+		t.Fatalf("fire hit STR = %+v", hit)
+	}
+	if len(hitSpec.sfx) != 1 || hitSpec.sfx[0] != "effect\\ef_firehit.wav" {
+		t.Fatalf("fire hit sfx = %#v", hitSpec.sfx)
+	}
+}
+
 func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectBashHit)
 	if !ok {
