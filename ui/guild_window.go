@@ -213,18 +213,26 @@ func (w *GuildWindow) widgetTree(ctx Context) widget.Widget {
 		CloseButton(true),
 		OnClose(w.Close),
 		Size(guildWindowWidth, guildWindowHeight),
-		Content(
-			primitives.Box(
-				w.tabStrip(),
-				primitives.Expanded(w.tabContent(ctx)),
-			).
-				CrossAlign(primitives.CrossAxisStretch),
-		),
+		Content(w.tabFrame(ctx)),
 	}
 	if footer := w.tabFooter(ctx); footer != nil {
 		options = append(options, Footer(footer...))
 	}
 	return Win(options...)
+}
+
+func (w *GuildWindow) tabFrame(ctx Context) widget.Widget {
+	return primitives.Box(
+		w.tabStrip(),
+		primitives.Expanded(
+			primitives.Box(w.tabContent(ctx)).
+				Background(rotheme.Default.Colors.WindowBody).
+				CrossAlign(primitives.CrossAxisStretch),
+		),
+	).
+		Gap(2).
+		Background(widget.RGBA8(255, 255, 255, 255)).
+		CrossAlign(primitives.CrossAxisStretch)
 }
 
 func (w *GuildWindow) tabStrip() widget.Widget {

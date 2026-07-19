@@ -527,15 +527,6 @@ func (w *tabWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	}
 	canvas.DrawRect(bounds, fill)
 	canvas.StrokeRect(bounds, rotheme.Default.Colors.WindowBorder, 1)
-	if w.cfg.active {
-		inset := float32(w.cfg.blendInset)
-		switch w.cfg.blendEdge {
-		case tabBlendRight:
-			canvas.DrawRect(geometry.NewRect(bounds.Max.X-1, bounds.Min.Y+inset, 1, bounds.Height()-inset*2), rotheme.Default.Colors.WindowBody)
-		case tabBlendBottom:
-			canvas.DrawRect(geometry.NewRect(bounds.Min.X+inset, bounds.Max.Y-1, bounds.Width()-inset*2, 1), rotheme.Default.Colors.WindowBody)
-		}
-	}
 	rotheme.DrawText(canvas, w.cfg.label, bounds, rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignCenter)
 }
 
