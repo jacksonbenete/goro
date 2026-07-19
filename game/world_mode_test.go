@@ -2559,6 +2559,41 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 	if size := skillCastGroundSampleSize(19); size != 1 {
 		t.Fatalf("firebolt marker size = %.1f, want default 1", size)
 	}
+	if size := skillCastGroundSampleSize(db.SkillMGThunderstorm); size != 5 {
+		t.Fatalf("thunderstorm marker size = %.1f, want roBrowser MagicTarget size 5", size)
+	}
+}
+
+func TestWindHitEffectSpecMatchesRobrowserRandomSTRAndSFX(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectWindHit)
+	if !ok {
+		t.Fatal("wind hit effect missing")
+	}
+	if len(spec.components) != 1 {
+		t.Fatalf("components = %d, want 1", len(spec.components))
+	}
+	component := spec.components[0]
+	if component.kind != effectComponentSTR || component.strFile != "windhit%d" || component.strRandMin != 1 || component.strRandMax != 3 || !component.attachedEntity {
+		t.Fatalf("wind hit component = %+v", component)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "_hit_fist%d.wav" || spec.sfxRandMin != 1 || spec.sfxRandMax != 3 {
+		t.Fatalf("wind hit sfx = %+v rand=%d..%d", spec.sfx, spec.sfxRandMin, spec.sfxRandMax)
+	}
+
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	if !mode.addWorldEffectAt(ctx, effectWindHit, 2000000, time.Unix(10, 20)) {
+		t.Fatal("wind hit effect was not added")
+	}
+	if len(mode.scheduledSounds) != 1 || len(mode.scheduledSounds[0].paths) != 1 {
+		t.Fatalf("scheduled sounds = %+v", mode.scheduledSounds)
+	}
+	path := mode.scheduledSounds[0].paths[0]
+	if strings.Contains(path, "%d") || !strings.HasPrefix(path, "_hit_fist") || !strings.HasSuffix(path, ".wav") {
+		t.Fatalf("scheduled wind hit sound path = %q", path)
+	}
 }
 
 func TestSkillCastNotifyAddsDurationAura(t *testing.T) {
@@ -2673,7 +2708,7 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
 	}
 	marker := mode.worldEffects[0]
-	if marker.effectID != effectGroundSample || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond || marker.size != 1 {
+	if marker.effectID != effectGroundSample || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond || marker.size != 5 {
 		t.Fatalf("ground marker = %+v", marker)
 	}
 	if mode.worldEffects[1].effectID != effectCastRing || mode.worldEffects[2].effectID != effectBeginSpell4 {

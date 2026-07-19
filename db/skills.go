@@ -3613,6 +3613,105 @@ type SkillEffectSpec struct {
 	HideCastAura           bool
 }
 
+// SkillGroundCastSizes mirrors roBrowser Renderer/Effects/MagicTarget.js
+// CastSize entries. Values are the MagicTarget plane sizes by skill level.
+// roBrowser falls back to the first entry when the caster level is unknown.
+var SkillGroundCastSizes = map[uint16][]float64{
+	SkillABEpiclesis:          {5},
+	SkillACShower:             {3, 3, 3, 3, 3, 5, 5, 5, 5, 5},
+	SkillALPneuma:             {3},
+	SkillAMDemonstration:      {3},
+	SkillASVenomdust:          {2},
+	SkillCRSlimpitcher:        {7},
+	SkillGCPoisonsmoke:        {5},
+	SkillGNCrazyweed:          {9},
+	SkillGNDemonicFire:        {5},
+	SkillGNFireExpansion:      {5},
+	SkillGNHellsPlant:         {3},
+	SkillHTClaymoretrap:       {5},
+	SkillHTDetecting:          {3},
+	SkillHTFlasher:            {3},
+	SkillHWGanbantein:         {3},
+	SkillHWGravitation:        {5},
+	SkillKOBakuretsu:          {3},
+	SkillKOHuumaranka:         {7},
+	SkillKOMuchanage:          {3, 3, 3, 3, 3, 3, 3, 3, 5},
+	SkillKOZenkai:             {5},
+	SkillLGOverbrand:          {3},
+	SkillLGRayofgenesis:       {11},
+	SkillMGFirewall:           {1},
+	SkillMGThunderstorm:       {5},
+	SkillMhLavaSlide:          {3, 3, 3, 5, 5, 5, 7, 7, 7, 9},
+	SkillMhPoisonMist:         {7},
+	SkillMhVolcanicAsh:        {3},
+	SkillMhXenoSlasher:        {3, 3, 3, 5, 5, 5, 7, 7, 7, 9},
+	SkillNCArmscannon:         {7, 5, 3},
+	SkillNCColdslower:         {5, 7, 9},
+	SkillNCMagmaEruption:      {7},
+	SkillNJRaigekisai:         {3, 3, 5, 5, 7},
+	SkillNJSuiton:             {3, 3, 3, 5, 5, 5, 7, 7, 7, 9},
+	SkillNPCCloudKill:         {7},
+	SkillNPCComet:             {19},
+	SkillNPCEvilland:          {11},
+	SkillNPCMagmaEruption:     {7},
+	SkillNPCPsychicWave:       {7, 7, 9, 9, 11},
+	SkillNPCRayofgenesis:      {11},
+	SkillPFFogwall:            {3},
+	SkillPRBenedictio:         {3},
+	SkillPRMagnus:             {7},
+	SkillPRSanctuary:          {5},
+	SkillRAFiringtrap:         {5},
+	SkillRGGraffiti:           {5},
+	SkillRKDragonbreath:       {3, 3, 3, 5, 5, 5, 7, 7, 9, 9},
+	SkillRKDragonbreathWater:  {3, 3, 3, 5, 5, 5, 7, 7, 9, 9},
+	SkillRLHammerOfGod:        {5},
+	SkillSADeluge:             {7},
+	SkillSALandprotector:      {7, 7, 9, 9, 11},
+	SkillSAViolentgale:        {7},
+	SkillSAVolcano:            {7},
+	SkillSCBloodylust:         {7},
+	SkillSCChaospanic:         {5},
+	SkillSCDimensiondoor:      {1},
+	SkillSCMaelstrom:          {5},
+	SkillSCManhole:            {3},
+	SkillSOArrullo:            {3, 3, 5, 5, 7},
+	SkillSOCloudKill:          {7},
+	SkillSODiamonddust:        {7, 7, 7, 9, 9},
+	SkillSOEarthgrave:         {7, 7, 7, 9, 9},
+	SkillSOEarthInsignia:      {3},
+	SkillSOFireInsignia:       {3},
+	SkillSOPsychicWave:        {7, 7, 9, 9, 11},
+	SkillSOVacuumExtreme:      {3, 3, 5, 5, 7},
+	SkillSOWarmer:             {7},
+	SkillSOWaterInsignia:      {3},
+	SkillSOWindInsignia:       {3},
+	SkillSRRideinlightning:    {3, 3, 5, 5, 7},
+	SkillWLComet:              {19},
+	SkillWLCrimsonrock:        {7},
+	SkillWmPoemofnetherworld:  {3},
+	SkillWmSevereRainstorm:    {11},
+	SkillWmSoundOfDestruction: {9, 9, 11, 13, 15},
+	SkillWZHeavendrive:        {5},
+	SkillWZMeteor:             {7},
+	SkillWZQuagmire:           {5},
+	SkillWZStormgust:          {11},
+	SkillWZVermilion:          {11},
+}
+
+func SkillGroundCastSize(skillID uint16, level int) float64 {
+	sizes := SkillGroundCastSizes[skillID]
+	if len(sizes) == 0 {
+		return 1
+	}
+	if level > 0 && level <= len(sizes) && sizes[level-1] > 0 {
+		return sizes[level-1]
+	}
+	if sizes[0] > 0 {
+		return sizes[0]
+	}
+	return 1
+}
+
 const (
 	// Synthetic numeric aliases for robr EffectTable.js string keys referenced
 	// from SkillEffect.js. These are not Ragnarok packet effect IDs.

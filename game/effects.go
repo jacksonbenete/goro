@@ -3,6 +3,7 @@ package game
 import (
 	"image/color"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,6 +193,8 @@ type worldEffectSpec struct {
 	cameraShake      time.Duration
 	detachLocalActor bool
 	sfx              []string
+	sfxRandMin       int
+	sfxRandMax       int
 	components       []worldEffectComponent
 }
 
@@ -712,7 +715,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID
 	if durationOverride > duration {
 		duration = durationOverride
 	}
-	m.worldEffects = append(m.worldEffects, worldEffect{
+	effect := worldEffect{
 		effectID: effectID,
 		actorID:  actorID,
 		targetID: targetID,
@@ -721,10 +724,9 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID
 		starts:   starts,
 		expires:  starts.Add(duration),
 		duration: durationOverride,
-	})
-	if len(spec.sfx) > 0 {
-		m.scheduleSound(starts, spec.sfx...)
 	}
+	m.worldEffects = append(m.worldEffects, effect)
+	m.scheduleWorldEffectSound(starts, spec, effect)
 	if spec.cameraShake > 0 {
 		m.startCameraShake(starts, spec.cameraShake)
 	}
@@ -752,17 +754,16 @@ func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID in
 	if lifetimeOverride > duration {
 		duration = lifetimeOverride
 	}
-	m.worldEffects = append(m.worldEffects, worldEffect{
+	effect := worldEffect{
 		effectID: effectID,
 		actorID:  actorID,
 		x:        x,
 		y:        y,
 		starts:   starts,
 		expires:  starts.Add(duration),
-	})
-	if len(spec.sfx) > 0 {
-		m.scheduleSound(starts, spec.sfx...)
 	}
+	m.worldEffects = append(m.worldEffects, effect)
+	m.scheduleWorldEffectSound(starts, spec, effect)
 	return true
 }
 
@@ -787,7 +788,7 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectI
 	if durationOverride > duration {
 		duration = durationOverride
 	}
-	m.worldEffects = append(m.worldEffects, worldEffect{
+	effect := worldEffect{
 		effectID: effectID,
 		actorID:  actorID,
 		x:        x,
@@ -796,11 +797,33 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectI
 		expires:  starts.Add(duration),
 		duration: durationOverride,
 		size:     sizeOverride,
-	})
-	if len(spec.sfx) > 0 {
-		m.scheduleSound(starts, spec.sfx...)
 	}
+	m.worldEffects = append(m.worldEffects, effect)
+	m.scheduleWorldEffectSound(starts, spec, effect)
 	return true
+}
+
+func (m *WorldMode) scheduleWorldEffectSound(starts time.Time, spec worldEffectSpec, effect worldEffect) {
+	if len(spec.sfx) == 0 {
+		return
+	}
+	m.scheduleSound(starts, resolveEffectSFX(spec, effect)...)
+}
+
+func resolveEffectSFX(spec worldEffectSpec, effect worldEffect) []string {
+	out := make([]string, 0, len(spec.sfx))
+	for i, path := range spec.sfx {
+		if strings.Contains(path, "%d") && spec.sfxRandMax >= spec.sfxRandMin && spec.sfxRandMin > 0 {
+			span := spec.sfxRandMax - spec.sfxRandMin + 1
+			index := spec.sfxRandMin + int(deterministicUnit(effect, 701+i)*float64(span))
+			if index > spec.sfxRandMax {
+				index = spec.sfxRandMax
+			}
+			path = strings.Replace(path, "%d", strconv.Itoa(index), 1)
+		}
+		out = append(out, path)
+	}
+	return out
 }
 
 func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx client.Context, effectID int, x, y int, starts time.Time) bool {
@@ -853,7 +876,7 @@ func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, prop
 }
 
 func skillCastGroundSampleSize(skillID uint16) float64 {
-	return 1
+	return db.SkillGroundCastSize(skillID, 0)
 }
 
 func effectAnchor(ctx client.Context, actorID uint32) (int, int, bool) {
@@ -1295,6 +1318,8 @@ func convertDBWorldEffectSpec(spec db.EffectSpec) worldEffectSpec {
 		duration:         spec.Duration,
 		cameraShake:      spec.CameraShake,
 		detachLocalActor: spec.DetachLocalActor,
+		sfxRandMin:       spec.SFXRandMin,
+		sfxRandMax:       spec.SFXRandMax,
 	}
 	if len(spec.SFX) > 0 {
 		out.sfx = append([]string(nil), spec.SFX...)
