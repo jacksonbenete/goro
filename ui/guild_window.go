@@ -250,7 +250,11 @@ func (w *GuildWindow) tabStrip() widget.Widget {
 				onClick: func() {
 					w.tab = def.tab
 					w.hideTooltip()
-					w.action = GuildWindowAction{RequestMenu: true, MenuTab: uint32(def.tab)}
+					if menuTab, ok := guildWindowMenuRequestTab(def.tab); ok {
+						w.action = GuildWindowAction{RequestMenu: true, MenuTab: menuTab}
+					} else {
+						w.action = GuildWindowAction{}
+					}
 					w.refresh(w.ctx)
 				},
 			}),
@@ -261,6 +265,23 @@ func (w *GuildWindow) tabStrip() widget.Widget {
 		Gap(-1).
 		CrossAlign(primitives.CrossAxisStretch).
 		Background(rotheme.Default.Colors.FooterLine)
+}
+
+func guildWindowMenuRequestTab(tab guildWindowTab) (uint32, bool) {
+	switch tab {
+	case guildWindowTabInfo:
+		return 0, true
+	case guildWindowTabMembers:
+		return 1, true
+	case guildWindowTabPositions:
+		return 2, true
+	case guildWindowTabSkills:
+		return 3, true
+	case guildWindowTabHistory:
+		return 4, true
+	default:
+		return 0, false
+	}
 }
 
 func (w *GuildWindow) tabContent(ctx Context) widget.Widget {

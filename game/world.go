@@ -1799,7 +1799,12 @@ func (m *WorldMode) toggleGuildWindow(ctx client.Context) {
 	m.requestGuildWindowTab(ctx, 0)
 }
 
+const maxGuildMenuRequestType = 4
+
 func (m *WorldMode) requestGuildWindowTab(ctx client.Context, tab uint32) {
+	if tab > maxGuildMenuRequestType {
+		return
+	}
 	if ctx.Network == nil {
 		m.ui.console.AddErrorMessage("Guild info request failed.")
 		return

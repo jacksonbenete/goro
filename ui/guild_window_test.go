@@ -158,6 +158,30 @@ func TestGuildNoticeResetRestoresSessionNotice(t *testing.T) {
 	}
 }
 
+func TestGuildNoticeTabDoesNotRequestGuildMenu(t *testing.T) {
+	if _, ok := guildWindowMenuRequestTab(guildWindowTabNotice); ok {
+		t.Fatal("notice tab should use cached ZC_GUILD_NOTICE data, not CZ_REQ_GUILD_MENU type 5")
+	}
+}
+
+func TestGuildMenuRequestTabsMatchServerTypes(t *testing.T) {
+	for _, tc := range []struct {
+		tab  guildWindowTab
+		want uint32
+	}{
+		{guildWindowTabInfo, 0},
+		{guildWindowTabMembers, 1},
+		{guildWindowTabPositions, 2},
+		{guildWindowTabSkills, 3},
+		{guildWindowTabHistory, 4},
+	} {
+		got, ok := guildWindowMenuRequestTab(tc.tab)
+		if !ok || got != tc.want {
+			t.Fatalf("menu request tab for %v = %d, %t; want %d, true", tc.tab, got, ok, tc.want)
+		}
+	}
+}
+
 func TestGuildMemberPositionTransferSendsOnlyMasterChange(t *testing.T) {
 	s := &session.Session{Guild: session.Guild{
 		IsMaster: true,
