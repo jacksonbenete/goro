@@ -257,9 +257,16 @@ func drawSTRAnimation(screen *render.Frame, projection sceneProjection, texture 
 		texturedSurfaceVertex3D(vertexPoint(3, 7), texturePoint{u: 0, v: 1}, tint, w, h),
 		texturedSurfaceVertex3D(vertexPoint(2, 6), texturePoint{u: 1, v: 1}, tint, w, h),
 	}
+	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, strAnimationDrawOptions(anim))
+}
+
+func strAnimationDrawOptions(anim res.STRAnimation) *render.DrawTrianglesOptions {
 	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
 	options.Blend = strAnimationBlend(anim)
-	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, options)
+	// robr's StrEffect shader has uFogUse, but StrEffect.beforeRender never sets
+	// it; WebGL initializes uniforms to false, so STR effects render unfogged.
+	options.DisableFog = true
+	return options
 }
 
 func strAnimationBlend(anim res.STRAnimation) render.Blend {

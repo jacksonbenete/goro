@@ -3648,6 +3648,13 @@ func TestSTRAnimationBlendMatchesRobrowserD3DBlend(t *testing.T) {
 	}
 }
 
+func TestSTRAnimationDrawOptionsDisableFogToMatchRobrowser(t *testing.T) {
+	options := strAnimationDrawOptions(res.STRAnimation{SrcAlpha: 5, DestAlpha: 6})
+	if !options.DisableFog {
+		t.Fatal("STR draw options enabled map fog, want disabled")
+	}
+}
+
 func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
 	base, ok := worldEffectSpecForID(effectBaseLevelUp)
 	if !ok {
