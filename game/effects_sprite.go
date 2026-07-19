@@ -12,7 +12,7 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func (m *WorldMode) draw3DSpriteEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, starts time.Time, now time.Time) {
+func (m *WorldMode) draw3DSpriteEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, worldX, worldY, worldZ float64, size float64, alpha float64, progress float64, starts time.Time, now time.Time) {
 	view := m.effectSpriteView(ctx.Resources, component.spriteFile)
 	if view == nil || len(view.act.Actions) == 0 {
 		return
@@ -47,26 +47,16 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Frame, ctx client.Context,
 		view.billboards[key] = billboard
 	}
 	tint := effectComponentTint(component, 1)
-	if component.worldSizedSprite {
-		scale := size / 100
-		angle := -worldEffectSpriteAngle(component) * math.Pi / 180
-		options := spriteBillboardTriangleDrawOptions()
-		if component.blendAdditive {
-			options.Blend = render.BlendLighter
-		}
-		drawSpriteBillboardTintAlphaWorld3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint, options)
-		return
-	}
 	scale := effect3DSpriteScale(size)
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
+		scale = effectPixelRatio
 	}
 	options := effect3DSpriteDrawOptions(component)
-	if angle, ok := effectSpriteScreenRotation(ctx, projection, component, effect); ok {
-		drawSpriteBillboardTintAlphaRotated3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint, options)
-		return
+	angle := 0.0
+	if rotation, ok := effectSpriteRobrowserRotation(ctx, projection, component, effect, progress); ok {
+		angle = rotation
 	}
-	drawSpriteBillboardTintAlpha3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, alpha, 1, tint, options)
+	drawSpriteBillboardTintAlphaWorld3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, scale, angle, alpha, 1, tint, options)
 }
 
 func effect3DSpriteDrawOptions(component worldEffectComponent) *render.DrawTrianglesOptions {
@@ -79,31 +69,37 @@ func effect3DSpriteDrawOptions(component worldEffectComponent) *render.DrawTrian
 
 func effect3DSpriteScale(size float64) float64 {
 	if size <= 0 || math.IsNaN(size) || math.IsInf(size, 0) {
-		return 1
+		return effectPixelRatio
 	}
-	// reference client's SpriteRenderer applies size as (size / 175) * xSize, with
-	// xSize defaulting to 5. effectTableSize already stores that scale.
-	return size
+	// robr's ThreeDEffect multiplies frame pixels by (layer.scale / 100) * size,
+	// then SpriteRenderer converts those pixels to world units through /35.
+	// effectTableSize has already applied /35, and ACT layer composition keeps
+	// the layer scale in the composed bitmap, so the remaining per-pixel scale is
+	// the table size divided by 100.
+	return size / 100
 }
 
-func effectSpriteScreenRotation(ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect) (float64, bool) {
+func effectSpriteRobrowserRotation(ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, progress float64) (float64, bool) {
+	angle := component.angleStart
+	if component.rotate {
+		angle += (component.angleEnd - component.angleStart) * progress
+	}
+	rotated := component.rotate || component.angleStart != 0 || component.angleEnd != 0
 	if component.rotateToTarget {
-		startX, startY, startZ, endX, endY, endZ, ok := effectTrajectoryEndpoints(ctx, component, effect)
+		startX, startY, _, endX, endY, _, ok := effectTrajectoryEndpoints(ctx, component, effect)
 		if ok {
-			start := projection.Project(startX, startY, startZ)
-			end := projection.Project(endX, endY, endZ)
-			dx := float64(end.x - start.x)
-			dy := float64(end.y - start.y)
-			if math.Hypot(dx, dy) > 0.001 {
-				return math.Atan2(dy, dx) + math.Pi/2, true
-			}
+			angle += 90 - math.Atan2(endY-startY, endX-startX)*180/math.Pi
+			rotated = true
 		}
 	}
-	angle := worldEffectBillboardAngle(component, projection, 0)
-	if math.Abs(angle) > 0.0001 {
-		return angle, true
+	if component.rotateWithCamera {
+		angle += projection.cameraYaw
+		rotated = true
 	}
-	return 0, false
+	if !rotated && math.Abs(angle) <= 0.0001 {
+		return 0, false
+	}
+	return -angle * math.Pi / 180, true
 }
 
 func effectTrajectoryEndpoints(ctx client.Context, component worldEffectComponent, effect worldEffect) (float64, float64, float64, float64, float64, float64, bool) {

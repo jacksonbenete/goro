@@ -45,7 +45,7 @@ func (m *WorldMode) draw3DEffect(screen *render.Frame, ctx client.Context, proje
 			continue
 		}
 		size := (sizeX + sizeY) * 0.5
-		m.draw3DSpriteEffect(screen, ctx, projection, effect, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, starts, now)
+		m.draw3DSpriteEffect(screen, ctx, projection, effect, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, progress, starts, now)
 	}
 }
 

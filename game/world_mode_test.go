@@ -2416,39 +2416,56 @@ func TestSightEffectSpecOrbitsAroundActor(t *testing.T) {
 	}
 }
 
-func TestFireBallSpriteRotationUsesProjectedTrajectory(t *testing.T) {
-	world := worldstate.New()
-	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
-	world.UpsertActor(worldstate.Actor{ID: 300, X: 12, Y: 20})
-	ctx := client.Context{
-		Session: &session.Session{AccountID: 2000000, CharID: 150000},
-		World:   world,
-	}
+func TestFireBallSpriteRotationUsesRobrowserWorldTrajectory(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectFireBall)
 	if !ok || len(spec.components) == 0 {
 		t.Fatal("fire ball effect missing")
 	}
 	component := spec.components[0]
-	effect := worldEffect{effectID: effectFireBall, actorID: 300, targetID: 2000000}
-
-	startX, _, _, endX, _, _, ok := effectTrajectoryEndpoints(ctx, component, effect)
-	if !ok {
-		t.Fatal("trajectory endpoints missing")
+	tests := []struct {
+		name      string
+		sourceX   int
+		sourceY   int
+		targetX   int
+		targetY   int
+		cameraYaw float64
+		want      float64
+	}{
+		{name: "same row", sourceX: 10, sourceY: 20, targetX: 12, targetY: 20, want: -math.Pi / 2},
+		{name: "same column", sourceX: 12, sourceY: 18, targetX: 12, targetY: 20, want: 0},
+		{name: "diagonal", sourceX: 10, sourceY: 18, targetX: 12, targetY: 20, want: -math.Pi / 4},
+		{name: "camera yaw", sourceX: 10, sourceY: 20, targetX: 12, targetY: 20, cameraYaw: 45, want: -3 * math.Pi / 4},
 	}
-	if startX >= endX {
-		t.Fatalf("trajectory start/end = %.2f -> %.2f, want caster-to-target direction", startX, endX)
-	}
-
-	projection := newSceneProjectionForTargetYaw(800, 600, 11, 20, 0, 0)
-	angle, ok := effectSpriteScreenRotation(ctx, projection, component, effect)
-	if !ok {
-		t.Fatal("rotation missing")
-	}
-	start := projection.Project(startX, 20.5, terrainHeightAt(world, 10, 20)+0.07+component.posZ)
-	end := projection.Project(endX, 20.5, terrainHeightAt(world, 12, 20)+0.07+component.posZ)
-	want := math.Atan2(float64(end.y-start.y), float64(end.x-start.x)) + math.Pi/2
-	if math.Abs(angle-want) > 0.001 {
-		t.Fatalf("angle = %.3f, want %.3f", angle, want)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			world := worldstate.New()
+			world.Player = worldstate.Actor{ID: 2000000, X: tt.sourceX, Y: tt.sourceY}
+			world.UpsertActor(worldstate.Actor{ID: 300, X: tt.targetX, Y: tt.targetY})
+			ctx := client.Context{
+				Session: &session.Session{AccountID: 2000000, CharID: 150000},
+				World:   world,
+			}
+			effect := worldEffect{effectID: effectFireBall, actorID: 300, targetID: 2000000}
+			startX, startY, _, endX, endY, _, ok := effectTrajectoryEndpoints(ctx, component, effect)
+			if !ok {
+				t.Fatal("trajectory endpoints missing")
+			}
+			if math.Hypot(endX-startX, endY-startY) <= 0.001 {
+				t.Fatalf("trajectory did not span caster and target: %.2f,%.2f -> %.2f,%.2f", startX, startY, endX, endY)
+			}
+			projection := newSceneProjectionForTargetYaw(800, 600, float64(tt.targetX), float64(tt.targetY), 0, tt.cameraYaw)
+			angle, ok := effectSpriteRobrowserRotation(ctx, projection, component, effect, 0)
+			if !ok {
+				t.Fatal("rotation missing")
+			}
+			wantFromFormula := -(90 - math.Atan2(endY-startY, endX-startX)*180/math.Pi + tt.cameraYaw) * math.Pi / 180
+			if math.Abs(angle-wantFromFormula) > 0.001 {
+				t.Fatalf("angle = %.3f, want robr formula %.3f", angle, wantFromFormula)
+			}
+			if math.Abs(angle-tt.want) > 0.001 {
+				t.Fatalf("angle = %.3f, want %.3f", angle, tt.want)
+			}
+		})
 	}
 }
 
@@ -3534,9 +3551,16 @@ func TestWorldEffectDuplicateDeltasMatchRobrowserSemantics(t *testing.T) {
 }
 
 func TestEffect3DSpriteScaleUsesRobrowserSpriteUnits(t *testing.T) {
-	size := effectTableSize(80)
-	if got := effect3DSpriteScale(size); math.Abs(got-size) > 0.001 {
-		t.Fatalf("sprite scale = %.3f, want %.3f", got, size)
+	size := effectTableSize(200)
+	got := effect3DSpriteScale(size)
+	want := size / 100
+	if math.Abs(got-want) > 0.001 {
+		t.Fatalf("sprite pixel scale = %.5f, want %.5f", got, want)
+	}
+	fireballWorldWidth := 64 * got
+	wantWidth := 128 * effectPixelRatio
+	if math.Abs(fireballWorldWidth-wantWidth) > 0.001 {
+		t.Fatalf("64px fireball width = %.3f, want robr 128/35 %.3f", fireballWorldWidth, wantWidth)
 	}
 }
 
