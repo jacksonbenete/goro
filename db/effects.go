@@ -2,6 +2,7 @@ package db
 
 import (
 	"image/color"
+	"strconv"
 	"time"
 )
 
@@ -199,6 +200,9 @@ const (
 	effectSleepAttack    = 197
 	effectPong           = 199
 	effectLevel99        = 200
+	effectLevel99Ground  = 201
+	effectLevel99Bubble  = 202
+	effectGumgang        = 203
 	effectPotionRed      = 204
 	effectPotionOrange   = 205
 	effectPotionYellow   = 206
@@ -207,9 +211,31 @@ const (
 	effectPotionGreen    = 209
 	effectFood           = 210
 	effectFoodBlue       = 211
+	effectDarkBreath     = 212
+	effectDefender       = 213
+	effectKeeping        = 214
+	effectBloodDrain     = 216
+	effectEnergyDrain    = 217
 	effectItemFast       = 218
 	effectItemFast2      = 219
 	effectItemFast3      = 220
+	effectCrusaderDef    = 222
+	effectGrandCross     = 226
+	effectIntimidate     = 227
+	effectChookgi        = 228
+	effectLineLink       = 232
+	effectSpellBreaker   = 234
+	effectDispell        = 235
+	effectBottomVolcano  = 239
+	effectBottomDeluge   = 240
+	effectBottomViolent  = 241
+	effectBottomLand     = 242
+	effectMagicRod       = 244
+	effectHolyCross      = 245
+	effectShieldCharge   = 246
+	effectProvidence     = 248
+	effectShieldBoomer   = 249
+	effectSpearQuicken   = 250
 	effectFoodChocolate  = 363
 	effectResistPotion   = 491
 	effectItemAccel      = 507
@@ -534,6 +560,198 @@ func level99EffectSpec() EffectSpec {
 	return spec
 }
 
+func level99GroundEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 5 * time.Minute,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "GroundAura",
+			TextureFile:    "effect/pikapika2.bmp",
+			AttachedEntity: true,
+			SizeStart:      effectTableSize(115),
+			SizeEnd:        effectTableSize(130),
+			PosZ:           0.05,
+		}},
+	}
+}
+
+func level99BubbleEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 5 * time.Minute,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "Level99Bubble",
+			TextureFile:    "effect/whitelight.tga",
+			AttachedEntity: true,
+			Color:          color.RGBA{R: 80, G: 80, B: 255, A: 250},
+			SizeStart:      effectTableSize(22.2),
+			PosZ:           0.05,
+		}},
+	}
+}
+
+func gumgangEffectSpec() EffectSpec {
+	components := make([]EffectComponent, 0, 5)
+	for i := 1; i <= 5; i++ {
+		components = append(components, EffectComponent{
+			Kind:           EffectComponent3D,
+			TextureFile:    "effect/super" + strconv.Itoa(i) + ".bmp",
+			Duration:       2 * time.Second,
+			Delay:          time.Duration(i-1) * 400 * time.Millisecond,
+			AlphaMax:       1,
+			FadeOut:        true,
+			AttachedEntity: true,
+			SizeStart:      effectTableSize(100),
+			SizeEnd:        effectTableSize(100),
+			BlendAdditive:  true,
+		})
+	}
+	return EffectSpec{
+		Duration:   3600 * time.Millisecond,
+		Components: components,
+	}
+}
+
+func drainEffectSpec(tint color.RGBA, withBodyColor bool) EffectSpec {
+	spec := EffectSpec{
+		Duration: 900 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:             EffectComponent3D,
+			SpriteFile:       "data/sprite/이팩트/particle1",
+			SpriteRepeat:     true,
+			Duration:         600 * time.Millisecond,
+			Duplicate:        5,
+			DuplicateDelay:   0,
+			ToSrc:            true,
+			RotateToTarget:   true,
+			RotateWithCamera: true,
+			AlphaMax:         1,
+			Color:            tint,
+			SizeStart:        effectTableSize(150),
+			SizeEnd:          effectTableSize(180),
+			PosZ:             5,
+			Arc:              3,
+			Retreat:          3,
+		}},
+	}
+	if withBodyColor {
+		spec.Components = append(spec.Components,
+			EffectComponent{Kind: EffectComponentFUNC, FuncName: "EnergyDrainOwnerBodyColor", AttachedEntity: true, Delay: 500 * time.Millisecond, Duration: 400 * time.Millisecond},
+			EffectComponent{Kind: EffectComponentFUNC, FuncName: "EnergyDrainTargetBodyColor", AttachedEntity: true, Duration: 400 * time.Millisecond},
+		)
+	}
+	return spec
+}
+
+func defenderCylinderEffectSpec(texture string) EffectSpec {
+	return EffectSpec{
+		Duration: 3 * time.Second,
+		Components: []EffectComponent{{
+			Kind:             EffectComponentCylinder,
+			TextureName:      texture,
+			Duration:         3 * time.Second,
+			AlphaMax:         0.6,
+			Animation:        1,
+			BlendMode:        8,
+			BottomSize:       1.5,
+			TopSize:          1.5,
+			Height:           10,
+			Fade:             true,
+			Rotate:           true,
+			AttachedEntity:   true,
+			TotalCircleSides: 32,
+			CircleSides:      32,
+		}},
+	}
+}
+
+func grandCrossEffectSpec() EffectSpec {
+	components := make([]EffectComponent, 0, 25)
+	addSquare := func(x, y float64) {
+		components = append(components, grandCrossCylinder(4, 4, 0.7, 45, x, y))
+	}
+	addArc := func(angleY, x, y float64) {
+		components = append(components, grandCrossCylinder(20, 5, 3, angleY, x, y))
+	}
+	addSquare(0, 0)
+	for _, x := range []float64{-1, -2, -3, -4, 1, 2, 3, 4} {
+		addSquare(x, 0)
+	}
+	for _, y := range []float64{1, 2, 3, 4, -1, -2, -3, -4} {
+		addSquare(0, y)
+	}
+	addSquare(1, 1)
+	addSquare(1, -1)
+	addSquare(-1, -1)
+	addSquare(-1, 1)
+	addArc(-180, 3.5, 3.5)
+	addArc(90, 3.5, -3.5)
+	addArc(0, -3.5, -3.5)
+	addArc(-90, -3.5, 3.5)
+	return EffectSpec{
+		Duration:   2 * time.Second,
+		SFX:        []string{"effect\\cru_grand cross.wav"},
+		Components: components,
+	}
+}
+
+func grandCrossCylinder(totalSides, sides int, size, angleY, posX, posY float64) EffectComponent {
+	return EffectComponent{
+		Kind:             EffectComponentCylinder,
+		TextureName:      "ring_red",
+		Duration:         time.Second,
+		Duplicate:        3,
+		DuplicateDelay:   500 * time.Millisecond,
+		AlphaMax:         0.1,
+		Animation:        1,
+		BlendMode:        2,
+		BlendAdditive:    true,
+		BottomSize:       size,
+		TopSize:          size,
+		Height:           5,
+		Fade:             true,
+		AngleY:           angleY,
+		PosX:             posX,
+		PosY:             posY,
+		TotalCircleSides: totalSides,
+		CircleSides:      sides,
+	}
+}
+
+func propertyGroundEffectSpec(name, texture string) EffectSpec {
+	return EffectSpec{
+		Duration: 1500 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:             EffectComponentFUNC,
+			FuncName:         name,
+			TextureName:      texture,
+			Duration:         1500 * time.Millisecond,
+			Repeat:           true,
+			BottomSize:       1,
+			TopSize:          3,
+			Height:           2,
+			TotalCircleSides: 20,
+			CircleSides:      20,
+		}},
+	}
+}
+
+func landProtectorGroundEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1500 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:        EffectComponentFUNC,
+			FuncName:    "LandProtectorGround",
+			TextureFile: "effect/aaa copy.bmp",
+			Duration:    1500 * time.Millisecond,
+			Repeat:      true,
+			SizeStart:   0.8,
+			SizeEnd:     0.85,
+			PosZ:        0.05,
+		}},
+	}
+}
+
 func soundOnlyEffectSpec(paths ...string) EffectSpec {
 	return EffectSpec{
 		Duration: 500 * time.Millisecond,
@@ -553,9 +771,10 @@ func potionEffectSpec(file string, c color.RGBA) EffectSpec {
 	return EffectSpec{
 		Duration: 850 * time.Millisecond,
 		Components: []EffectComponent{{
-			Kind:    EffectComponentSTR,
-			Color:   c,
-			STRFile: file,
+			Kind:           EffectComponentSTR,
+			Color:          c,
+			STRFile:        file,
+			AttachedEntity: true,
 		}},
 	}
 }
@@ -2595,6 +2814,9 @@ var EffectSpecs = map[int]EffectSpec{
 	effectSleepAttack:   strEffectSpecAttached("sleep", "", false),
 	effectPong:          strEffectSpecRandom("pong%d", "", 1, 3),
 	effectLevel99:       level99EffectSpec(),
+	effectLevel99Ground: level99GroundEffectSpec(),
+	effectLevel99Bubble: level99BubbleEffectSpec(),
+	effectGumgang:       gumgangEffectSpec(),
 	effectFirstAid: {
 		Duration: time.Second,
 		SFX:      []string{"_heal_effect.wav"},
@@ -2697,23 +2919,82 @@ var EffectSpecs = map[int]EffectSpec{
 	effectPotionWhite:  potionEffectSpec("하얀포션", color.RGBA{R: 245, G: 245, B: 255, A: 255}),
 	effectPotionBlue:   bluePotionEffectSpec(),
 	effectPotionGreen:  potionEffectSpec("초록포션", color.RGBA{R: 78, G: 225, B: 98, A: 255}),
+	effectDarkBreath:   {Components: []EffectComponent{{Kind: EffectComponentSPR, SpriteFile: "darkbreath", SpriteHead: true, AttachedEntity: true}}},
+	effectDefender:     strEffectSpecAttached("deffender", "", false),
+	effectKeeping:      strEffectSpecAttached("keeping", "", false),
+	effectBloodDrain:   drainEffectSpec(color.RGBA{R: 255, G: 102, B: 102, A: 255}, false),
+	effectEnergyDrain:  drainEffectSpec(color.RGBA{R: 102, G: 102, B: 255, A: 255}, true),
 	effectItemFast:     strEffectSpecAttached("집중", "effect\\ac_concentration.wav", false),
 	effectItemFast2:    strEffectSpecAttached("각성", "effect\\ac_concentration.wav", false),
 	effectItemFast3:    berserkPotionEffectSpec(),
+	effectCrusaderDef:  defenderCylinderEffectSpec("ring_black"),
+	effectGrandCross:   grandCrossEffectSpec(),
+	effectIntimidate:   soundOnlyEffectSpec("effect\\rog_intimidate.wav"),
+	effectChookgi: {
+		Duration: 5 * time.Minute,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "SpiritSphere",
+			TextureFile:    "effect/thunder_center.bmp",
+			AttachedEntity: true,
+			Duplicate:      5,
+		}},
+	},
+	effectLineLink: {
+		Duration: 100 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:             EffectComponent3D,
+			TextureFile:      "effect/alpha_center.tga",
+			Duration:         100 * time.Millisecond,
+			AlphaMax:         0.5,
+			Color:            color.RGBA{R: 26, G: 26, B: 230, A: 255},
+			AttachedEntity:   true,
+			BlendMode:        2,
+			BlendAdditive:    true,
+			FadeIn:           true,
+			FadeOut:          true,
+			FromSrc:          true,
+			RotateToTarget:   true,
+			RotateWithCamera: true,
+			SizeStartX:       effectTableSize(5),
+			SizeStartY:       effectTableSize(50),
+			SizeEndX:         effectTableSize(5),
+			SizeEndY:         effectTableSize(50),
+			PosZ:             1,
+			AngleStart:       180,
+			Overlay:          true,
+		}},
+	},
+	effectSpellBreaker:  strEffectSpecAttached("spell", "effect\\sage_spell breake.wav", false),
+	effectDispell:       strEffectSpecAttached("디스펠", "", false),
+	effectBottomVolcano: propertyGroundEffectSpec("PropertyGround", "ring_red"),
+	effectBottomDeluge:  propertyGroundEffectSpec("PropertyGround", "ring_blue"),
+	effectBottomViolent: propertyGroundEffectSpec("PropertyGround", "ring_yellow"),
+	effectBottomLand:    landProtectorGroundEffectSpec(),
+	effectMagicRod:      strEffectSpecAttached("매직로드", "effect\\sage_magic rod.wav", false),
+	effectHolyCross:     strEffectSpecAttached("holy_cross", "effect\\cru_holy cross.wav", false),
+	effectShieldCharge:  strEffectSpecAttached("shield_charge", "", false),
+	effectProvidence:    strEffectSpecAttached("providence", "", false),
+	effectShieldBoomer:  soundOnlyEffectSpec("effect\\cru_shield boomerang.wav"),
+	effectSpearQuicken:  strEffectSpecAttached("twohand", "effect\\knight_twohandquicken.wav", true),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
+		SFX:      []string{"_heal_effect.wav"},
 		Components: []EffectComponent{{
-			Kind:    EffectComponentSTR,
-			Color:   color.RGBA{R: 255, G: 182, B: 86, A: 255},
-			STRFile: "fruit",
+			Kind:           EffectComponentSTR,
+			Color:          color.RGBA{R: 255, G: 182, B: 86, A: 255},
+			STRFile:        "fruit",
+			AttachedEntity: true,
 		}},
 	},
 	effectFoodBlue: {
 		Duration: 850 * time.Millisecond,
+		SFX:      []string{"effect\\흡기.wav"},
 		Components: []EffectComponent{{
-			Kind:    EffectComponentSTR,
-			Color:   color.RGBA{R: 132, G: 112, B: 255, A: 255},
-			STRFile: "fruit",
+			Kind:           EffectComponentSTR,
+			Color:          color.RGBA{R: 132, G: 112, B: 255, A: 255},
+			STRFile:        "fruit_",
+			AttachedEntity: true,
 		}},
 	},
 	effectChristmasCarol: strEffectSpecAttachedMin("angelus", "jong_mini", "effect\\wewish.wav", false),

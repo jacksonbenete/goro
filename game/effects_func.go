@@ -17,6 +17,11 @@ const (
 	effectFuncCastRing
 	effectFuncLockOnTarget
 	effectFuncLevel99Aura
+	effectFuncGroundAura
+	effectFuncLevel99Bubble
+	effectFuncPropertyGround
+	effectFuncLandProtectorGround
+	effectFuncSpiritSphere
 )
 
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
@@ -29,6 +34,16 @@ func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, pro
 		m.drawLockOnTargetEffect(screen, ctx, component, effect, worldX, worldY, worldZ, progress, now)
 	case effectFuncLevel99Aura:
 		m.drawLevel99AuraEffect(screen, ctx, component, effect, worldX, worldY, worldZ, now)
+	case effectFuncGroundAura:
+		m.drawGroundAuraEffect(screen, ctx, component, effect, worldX, worldY, worldZ, now)
+	case effectFuncLevel99Bubble:
+		m.drawLevel99BubbleEffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
+	case effectFuncPropertyGround:
+		m.drawPropertyGroundEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, now)
+	case effectFuncLandProtectorGround:
+		m.drawLandProtectorGroundEffect(screen, ctx, component, effect, worldX, worldY, worldZ, now)
+	case effectFuncSpiritSphere:
+		m.drawSpiritSphereEffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
 	default:
 	}
 }
@@ -264,6 +279,140 @@ func drawLevel99AuraBand(screen *render.Frame, white, texture *render.Image, x, 
 	options := triangleDrawOptions(render.FilterLinear, render.AddressRepeat)
 	options.Blend = render.BlendLighter
 	screen.DrawTriangles3D(vertices, indices, source, options)
+}
+
+func (m *WorldMode) drawGroundAuraEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	elapsed := now.Sub(effect.starts).Seconds()
+	sizes := []float64{component.sizeStart, component.sizeEnd}
+	for i, size := range sizes {
+		if size <= 0 {
+			continue
+		}
+		phase := elapsed*6 + float64(i)*23*math.Pi/180
+		size += math.Sin(phase) * 0.08
+		drawGroundTextureQuad(screen, texture, x, y, z+component.posZ+0.01*float64(i), size, size, float64(i)*23*math.Pi/180, color.RGBA{R: 255, G: 255, B: 255, A: 204}, true)
+	}
+}
+
+func (m *WorldMode) drawLevel99BubbleEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	const (
+		gameToWorld = 0.1 * 2.2
+		columns     = 4
+		anchors     = 4
+		seedMax     = 99.0
+		resetY      = -30.0
+		fallSpeed   = 0.15
+		driftK      = 0.15
+	)
+	elapsedFrames := math.Max(0, now.Sub(effect.starts).Seconds()*60)
+	cycleSpan := seedMax - resetY
+	size := component.sizeStart
+	if size <= 0 {
+		size = 2.4 * gameToWorld * 0.6 * 2
+	}
+	for column := 0; column < columns; column++ {
+		for anchor := 0; anchor < anchors; anchor++ {
+			salt := column*97 + anchor*31
+			seed := deterministicUnit(effect, salt+501) * seedMax
+			cycle := math.Mod(elapsedFrames*fallSpeed+seed, cycleSpan)
+			localY := seedMax - cycle
+			alpha := clampFloat((250+30*(localY+20))/255, 0, 250.0/255.0)
+			if alpha <= 0 {
+				continue
+			}
+			phaseX := elapsedFrames*0.045 + deterministicUnit(effect, salt+601)*2*math.Pi
+			phaseY := elapsedFrames*0.052 + deterministicUnit(effect, salt+701)*2*math.Pi
+			localX := math.Sin(phaseX) * driftK * gameToWorld
+			localZ := math.Sin(phaseY) * driftK * gameToWorld
+			tint := component.color
+			if tint.A == 0 {
+				tint = color.RGBA{R: 80, G: 80, B: 255, A: 250}
+			}
+			tint.A = uint8(alpha * 255)
+			drawTexturedEffectBillboardRotatedXY(screen, projection, texture, x+localX, y+localZ, z+component.posZ+localY*gameToWorld, size, size, 0, tint, true)
+		}
+	}
+}
+
+func (m *WorldMode) drawPropertyGroundEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z float64, now time.Time) {
+	texture := m.effectTexture(ctx.Resources, component.textureName)
+	if texture == nil {
+		return
+	}
+	elapsed := now.Sub(effect.starts).Seconds()
+	phase := elapsed*2 + deterministicAngle(effect, componentIndex+811)
+	sizeMult := math.Sin(phase)
+	if sizeMult < 0.5 {
+		sizeMult = 0.5
+	}
+	tint := effectComponentTint(component, 1)
+	drawWorldCylinderBandRotated(screen, m.whitePixel, texture, x, y, z+0.05, component.bottomSize*sizeMult, component.topSize*sizeMult, component.height, tint, maxInt(component.circleSides, component.totalCircleSides), phase)
+}
+
+func (m *WorldMode) drawLandProtectorGroundEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	elapsed := now.Sub(effect.starts).Seconds()
+	size := component.sizeStart + (component.sizeEnd-component.sizeStart)*(0.5+0.5*math.Sin(elapsed*4))
+	if size <= 0 {
+		size = 0.8
+	}
+	drawGroundTextureQuad(screen, texture, x, y, z+component.posZ, size, size, 0, color.RGBA{R: 255, G: 255, B: 255, A: 255}, true)
+}
+
+func (m *WorldMode) drawSpiritSphereEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	count := maxInt(component.duplicate, 5)
+	elapsedFrames := math.Max(0, now.Sub(effect.starts).Seconds()*60)
+	alpha := clampFloat(elapsedFrames*0.005, 0, 1)
+	for i := 0; i < count; i++ {
+		angle := elapsedFrames*math.Pi/180 + float64(i)*2*math.Pi/float64(count)
+		radius := 0.55
+		worldX := x + math.Cos(angle)*radius
+		worldY := y + math.Sin(angle)*radius
+		worldZ := z + 1.2 + math.Sin(angle*0.5)*0.12
+		drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX, worldY, worldZ, 0.35, 0.35, angle, color.RGBA{R: 0, G: 0, B: 255, A: uint8(153 * alpha)}, true)
+		drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX, worldY, worldZ+0.02, 0.21, 0.21, -angle, color.RGBA{R: 204, G: 204, B: 255, A: uint8(255 * alpha)}, true)
+	}
+}
+
+func drawGroundTextureQuad(screen *render.Frame, texture *render.Image, x, y, z, sizeX, sizeY, angle float64, tint color.RGBA, additive bool) {
+	if screen == nil || texture == nil || sizeX <= 0 || sizeY <= 0 || tint.A == 0 {
+		return
+	}
+	halfX := sizeX * 0.5
+	halfY := sizeY * 0.5
+	sinA, cosA := math.Sin(angle), math.Cos(angle)
+	point := func(dx, dy float64) modelPoint3 {
+		px := dx*cosA - dy*sinA
+		py := dx*sinA + dy*cosA
+		return modelPoint3{x: x + px, y: z, z: y + py}
+	}
+	verts := [4]modelPoint3{
+		point(-halfX, -halfY),
+		point(halfX, -halfY),
+		point(halfX, halfY),
+		point(-halfX, halfY),
+	}
+	uvs := [4]texturePoint{{u: 0, v: 0}, {u: 1, v: 0}, {u: 1, v: 1}, {u: 0, v: 1}}
+	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
+	if additive {
+		options.Blend = render.BlendLighter
+	}
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint}, options)
 }
 
 func warpEffectTexturedVertex3D(x, y, z float64, srcX, srcY float32, c color.RGBA) render.Vertex3D {

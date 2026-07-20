@@ -207,6 +207,9 @@ const (
 	effectSleepAttack    = 197
 	effectPong           = 199
 	effectLevel99        = 200
+	effectLevel99Ground  = 201
+	effectLevel99Bubble  = 202
+	effectGumgang        = 203
 	effectPotionRed      = 204
 	effectPotionOrange   = 205
 	effectPotionYellow   = 206
@@ -215,9 +218,31 @@ const (
 	effectPotionGreen    = 209
 	effectFood           = 210
 	effectFoodBlue       = 211
+	effectDarkBreath     = 212
+	effectDefender       = 213
+	effectKeeping        = 214
+	effectBloodDrain     = 216
+	effectEnergyDrain    = 217
 	effectItemFast       = 218
 	effectItemFast2      = 219
 	effectItemFast3      = 220
+	effectCrusaderDef    = 222
+	effectGrandCross     = 226
+	effectIntimidate     = 227
+	effectChookgi        = 228
+	effectLineLink       = 232
+	effectSpellBreaker   = 234
+	effectDispell        = 235
+	effectBottomVolcano  = 239
+	effectBottomDeluge   = 240
+	effectBottomViolent  = 241
+	effectBottomLand     = 242
+	effectMagicRod       = 244
+	effectHolyCross      = 245
+	effectShieldCharge   = 246
+	effectProvidence     = 248
+	effectShieldBoomer   = 249
+	effectSpearQuicken   = 250
 	effectFoodChocolate  = 363
 	effectResistPotion   = 491
 	effectItemAccel      = 507
@@ -1671,6 +1696,16 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncLockOnTarget
 	case "Level99Aura":
 		return effectFuncLevel99Aura
+	case "GroundAura":
+		return effectFuncGroundAura
+	case "Level99Bubble":
+		return effectFuncLevel99Bubble
+	case "PropertyGround":
+		return effectFuncPropertyGround
+	case "LandProtectorGround":
+		return effectFuncLandProtectorGround
+	case "SpiritSphere":
+		return effectFuncSpiritSphere
 	default:
 		return effectFuncUnknown
 	}
