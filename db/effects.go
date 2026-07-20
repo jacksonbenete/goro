@@ -521,6 +521,21 @@ const (
 	effectLauagnus         = 748
 	effectMillenniumShield = 749
 	effectConcentration2   = 750
+	effectGlassWall3       = 754
+	effectBerserkPotion2   = 756
+	effectRolling1         = 758
+	effectRolling2         = 759
+	effectRolling3         = 760
+	effectRolling4         = 761
+	effectRolling5         = 762
+	effectRolling6         = 763
+	effectRolling7         = 764
+	effectRolling8         = 765
+	effectRolling9         = 766
+	effectRolling10        = 767
+	effectCastSpin2        = 775
+	effectCrashAxe         = 795
+	effectStasis           = 799
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -1283,6 +1298,76 @@ func judexCylinder(bottom, top, height float64) EffectComponent {
 		TopSize:     top,
 		Height:      height,
 		Rotate:      true,
+	}
+}
+
+func glassWall3EffectSpec() EffectSpec {
+	tint := color.RGBA{R: 153, G: 255, B: 153, A: 255}
+	portalWave := EffectComponent{
+		Kind:             EffectComponentCylinder,
+		TextureName:      "magic_green",
+		Color:            tint,
+		Duration:         500 * time.Millisecond,
+		AlphaMax:         0.4,
+		Animation:        4,
+		BottomSize:       2.4,
+		TopSize:          3.9,
+		Height:           0.1,
+		PosZ:             0.1,
+		FadeOut:          true,
+		Rotate:           true,
+		Duplicate:        150,
+		DuplicateDelay:   200 * time.Millisecond,
+		BlendMode:        2,
+		BlendAdditive:    true,
+		AttachedEntity:   true,
+		TotalCircleSides: 32,
+		CircleSides:      32,
+	}
+	cap := robrCylinderBlendComponent("alpha1", tint, 30*time.Second, 0.5, 0, 1, 1, 1, true, true, true, 2)
+	cap.PosZ = 2
+	cap.TotalCircleSides = 20
+	cap.CircleSides = 10
+	return EffectSpec{
+		Components: []EffectComponent{
+			portalWave,
+			robrCylinderBlendComponent("magic_green", tint, 30*time.Second, 0.4, 0, 0.6, 0.6, 7, true, true, true, 2),
+			robrCylinderBlendComponent("magic_green", tint, 30*time.Second, 0.4, 0, 0.8, 0.8, 6, true, true, true, 2),
+			cap,
+		},
+	}
+}
+
+func rollingCutterCounterEffectSpec(index int) EffectSpec {
+	texture := "effect/회전카운터" + strconv.Itoa(index) + ".tga"
+	return EffectSpec{
+		Duration: time.Second,
+		Components: []EffectComponent{
+			rollingCutterCounterComponent(texture, 1.0, 1.0, 1.0, 1.0, 200, 1),
+			rollingCutterCounterComponent(texture, 0.2, 0.7, 0.7, 1.0, 220, 2),
+			rollingCutterCounterComponent(texture, 0.2, 0.5, 0.5, 1.0, 240, 2),
+			rollingCutterCounterComponent(texture, 0.2, 0.3, 0.3, 1.0, 260, 2),
+			rollingCutterCounterComponent(texture, 0.2, 0.1, 0.1, 1.0, 280, 2),
+		},
+	}
+}
+
+func rollingCutterCounterComponent(texture string, alphaMax, red, green, blue, sizeStart float64, blendMode int) EffectComponent {
+	return EffectComponent{
+		Kind:           EffectComponent3D,
+		TextureFile:    texture,
+		Color:          color.RGBA{R: uint8(red * 255), G: uint8(green * 255), B: uint8(blue * 255), A: 255},
+		Duration:       time.Second,
+		AlphaMax:       alphaMax,
+		FadeIn:         true,
+		FadeOut:        true,
+		PosZ:           4,
+		SizeStart:      effectTableSize(sizeStart),
+		SizeEnd:        effectTableSize(20),
+		SizeSmooth:     true,
+		BlendMode:      blendMode,
+		BlendAdditive:  blendMode == 2,
+		AttachedEntity: true,
 	}
 }
 
@@ -4591,6 +4676,21 @@ var EffectSpecs = map[int]EffectSpec{
 	effectLauagnus:          strEffectSpecAttached("lauagnus", "", false),
 	effectMillenniumShield:  strEffectSpecAttached("mil_shield", "", false),
 	effectConcentration2:    strEffectSpecAttached("concentration", "", false),
+	effectGlassWall3:        glassWall3EffectSpec(),
+	effectBerserkPotion2:    strEffectSpecAttached("버서크", "", false),
+	effectRolling1:          rollingCutterCounterEffectSpec(1),
+	effectRolling2:          rollingCutterCounterEffectSpec(2),
+	effectRolling3:          rollingCutterCounterEffectSpec(3),
+	effectRolling4:          rollingCutterCounterEffectSpec(4),
+	effectRolling5:          rollingCutterCounterEffectSpec(5),
+	effectRolling6:          rollingCutterCounterEffectSpec(6),
+	effectRolling7:          rollingCutterCounterEffectSpec(7),
+	effectRolling8:          rollingCutterCounterEffectSpec(8),
+	effectRolling9:          rollingCutterCounterEffectSpec(9),
+	effectRolling10:         rollingCutterCounterEffectSpec(10),
+	effectCastSpin2:         funcEffectSpec("CastSpin2", 500*time.Millisecond, true),
+	effectCrashAxe:          strEffectSpecAttached("powerswing", "", false),
+	effectStasis:            soundOnlyEffectSpec("effect\\wl_stasis.wav"),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

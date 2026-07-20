@@ -529,6 +529,21 @@ const (
 	effectLauagnus         = 748
 	effectMillenniumShield = 749
 	effectConcentration2   = 750
+	effectGlassWall3       = 754
+	effectBerserkPotion2   = 756
+	effectRolling1         = 758
+	effectRolling2         = 759
+	effectRolling3         = 760
+	effectRolling4         = 761
+	effectRolling5         = 762
+	effectRolling6         = 763
+	effectRolling7         = 764
+	effectRolling8         = 765
+	effectRolling9         = 766
+	effectRolling10        = 767
+	effectCastSpin2        = 775
+	effectCrashAxe         = 795
+	effectStasis           = 799
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1672,6 +1687,7 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	129: {effectIDs: []int{effectPortal}},         // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
 	133: {effectIDs: []int{effectPneuma}},         // UNT_PNEUMA -> EF_PNEUMA
 	199: {effectIDs: []int{effectBottomEvilLand}}, // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
+	202: {effectIDs: []int{effectGlassWall3}},     // UNT_EPICLESIS -> EF_GLASSWALL3
 	203: {effectIDs: []int{effectEarthWall}},      // UNT_EARTHSTRAIN -> EF_EARTHWALL
 }
 
