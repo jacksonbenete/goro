@@ -279,6 +279,25 @@ const (
 	effectTalkScream     = 296
 	effectThrowItem      = 298
 	effectChemicalProt   = 300
+	effectDemonstration  = 302
+	effectChemical2      = 303
+	effectHeal2          = 313
+	effectExit2          = 314
+	effectBottomMagnus   = 318
+	effectBottomSanc     = 319
+	effectWarpZone2      = 321
+	effectHeal4          = 325
+	effectBeginAsura     = 328
+	effectTripleAttack   = 329
+	effectHPTime         = 331
+	effectSPTime         = 332
+	effectBlind          = 334
+	effectPoisonStatus   = 335
+	effectGuard          = 336
+	effectJobLvUp50      = 337
+	effectMagnum2        = 339
+	effectEntry2         = 344
+	effectColorPaper     = 347
 	effectFoodChocolate  = 363
 	effectResistPotion   = 491
 	effectItemAccel      = 507
@@ -887,6 +906,282 @@ func throwItemEffectSpec(texture string, size float64) EffectSpec {
 	}
 }
 
+func chemical2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:         500 * time.Millisecond,
+		CameraShake:      200 * time.Millisecond,
+		CameraShakeDelay: 132 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "CameraQuake",
+			AttachedEntity: true,
+		}},
+	}
+}
+
+func heal2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1890 * time.Millisecond,
+		SFX:      []string{"_heal_effect.wav"},
+		Components: []EffectComponent{
+			heal2CylinderComponent(1.1, 1.1, 15),
+			heal2CylinderComponent(1, 1, 13),
+			heal2CylinderComponent(1.1, 3, 2),
+			healSparkParticle(0.8, 1500*time.Millisecond, 0, 10*time.Millisecond, 4, 1.2, 1.2, 0, 0, 0, 1, 8, 9, 2, 2, true),
+			healSparkParticle(0.8, 1300*time.Millisecond, 400*time.Millisecond, 10*time.Millisecond, 20, 1.5, 1.5, 0, 0, 0, 3, 6, 9, 2, 2, true),
+			healSparkParticle(0.8, 1100*time.Millisecond, 200*time.Millisecond, 50*time.Millisecond, 10, 1, 1, 1, 0, 6, 0, 0, 9, 2, 0, false),
+		},
+	}
+}
+
+func heal4EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 2 * time.Second,
+		SFX:      []string{"_heal_effect.wav"},
+		Components: []EffectComponent{
+			heal2CylinderComponent(1.1, 1.1, 18),
+			heal2CylinderComponent(1, 1, 15),
+			heal2CylinderComponent(1.1, 3, 3),
+			healSparkParticle(0.8, 1500*time.Millisecond, 0, 10*time.Millisecond, 7, 1.2, 1.2, 0, 0, 0, 1, 8, 9, 2, 3, true),
+			healSparkParticle(0.8, 1300*time.Millisecond, 400*time.Millisecond, 10*time.Millisecond, 25, 1.5, 1.5, 0, 0, 0, 3, 6, 10, 5, 3, true),
+			healSparkParticle(0.8, 1100*time.Millisecond, 200*time.Millisecond, 50*time.Millisecond, 15, 1, 1, 1, 0, 6, 0, 0, 11, 2, 0, false),
+		},
+	}
+}
+
+func heal2CylinderComponent(bottomSize, topSize, height float64) EffectComponent {
+	return robrCylinderBlendComponent("ring_white", color.RGBA{R: 178, G: 255, B: 178, A: 255}, 1500*time.Millisecond, 0.3, 1, bottomSize, topSize, height, true, true, true, 2)
+}
+
+func healSparkParticle(alpha float64, duration, delay, duplicateDelay time.Duration, duplicate int, posXRand, posYRand, posZStartRand, posZStartMiddle, posZEnd, posZEndRand, posZEndMiddle, size, sizeRand float64, sparkNumber int, sparkling bool) EffectComponent {
+	component := EffectComponent{
+		Kind:            EffectComponent3D,
+		TextureFile:     "effect/pok3.tga",
+		Color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
+		Duration:        duration,
+		Delay:           delay,
+		Duplicate:       duplicate,
+		DuplicateDelay:  duplicateDelay,
+		AlphaMax:        alpha,
+		FadeIn:          true,
+		FadeOut:         true,
+		PosXRand:        posXRand,
+		PosYRand:        posYRand,
+		PosZStartRand:   posZStartRand,
+		PosZStartMiddle: posZStartMiddle,
+		PosZEnd:         posZEnd,
+		PosZEndRand:     posZEndRand,
+		PosZEndMiddle:   posZEndMiddle,
+		SizeStart:       effectTableSize(size),
+		SizeEnd:         effectTableSize(size),
+		SizeRand:        effectTableSize(sizeRand),
+		BlendMode:       2,
+		BlendAdditive:   true,
+		AttachedEntity:  true,
+		Sparkling:       sparkling,
+		SparkNumber:     sparkNumber,
+	}
+	return component
+}
+
+func exit2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1500 * time.Millisecond,
+		SFX:      []string{"effect\\ef_teleportation.wav"},
+		Components: []EffectComponent{
+			robrCylinderBlendComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 1500*time.Millisecond, 0.3, 1, 0.3, 0.3, 35, true, true, true, 2),
+			robrCylinderBlendComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 1500*time.Millisecond, 0.3, 1, 0.4, 0.6, 23, true, true, true, 2),
+			robrCylinderBlendComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 1500*time.Millisecond, 0.3, 1, 0.5, 0.7, 5, true, true, true, 2),
+		},
+	}
+}
+
+func bottomSquareEffectSpec(texture string, tint color.RGBA, alpha, bottomSize, topSize, height float64, fade bool) EffectSpec {
+	return EffectSpec{
+		Duration: 50 * time.Second,
+		Components: []EffectComponent{
+			bottomSquareCylinder(texture, tint, alpha, bottomSize, topSize, height, 50*time.Second, false, fade),
+			bottomSquareCylinder(texture, tint, 0.1, bottomSize, topSize, height, 2*time.Second, true, true),
+		},
+	}
+}
+
+func bottomSquareCylinder(texture string, tint color.RGBA, alpha, bottomSize, topSize, height float64, duration time.Duration, repeat, fade bool) EffectComponent {
+	component := robrCylinderBlendComponent(texture, tint, duration, alpha, 0, bottomSize, topSize, height, true, false, fade, 2)
+	component.TotalCircleSides = 4
+	component.CircleSides = 4
+	component.AngleY = 45
+	component.Repeat = repeat
+	if repeat {
+		component.Animation = 1
+	}
+	return component
+}
+
+func warpZone2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 7 * time.Second,
+		Components: []EffectComponent{
+			warpZone2Cylinder(2, 3.3),
+			warpZone2Cylinder(1.9, 3.2),
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    "effect/pok1.tga",
+				Color:          color.RGBA{R: 230, G: 255, B: 230, A: 255},
+				Duration:       time.Second,
+				Duplicate:      5,
+				DuplicateDelay: 300 * time.Millisecond,
+				AlphaMax:       1,
+				FadeIn:         true,
+				FadeOut:        true,
+				PosXStartRand:  3,
+				PosYStartRand:  3,
+				PosZEndRand:    2,
+				PosZEndMiddle:  2,
+				SizeStart:      effectTableSize(50),
+				SizeEnd:        effectTableSize(50),
+				BlendMode:      2,
+				BlendAdditive:  true,
+				AttachedEntity: true,
+				Repeat:         true,
+			},
+		},
+	}
+}
+
+func warpZone2Cylinder(bottomSize, topSize float64) EffectComponent {
+	component := robrCylinderBlendComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 4*time.Second, 0.4, 3, bottomSize, topSize, 1.1, true, false, true, 2)
+	component.Duplicate = 4
+	component.DuplicateDelay = time.Second
+	component.Repeat = true
+	return component
+}
+
+func beginAsuraEffectSpec() EffectSpec {
+	components := []EffectComponent{
+		robrCylinderBlendComponent("ring_white", color.RGBA{}, 800*time.Millisecond, 0, 2, 1, 4.5, -4, true, false, true, 2),
+		robrCylinderBlendComponent("ring_white", color.RGBA{}, 800*time.Millisecond, 0, 2, 1, 2.5, -4, true, false, true, 2),
+	}
+	positions := []float64{-6, -3.6, -1.2, 1.2, 3.6, 6}
+	for i, posX := range positions {
+		components = append(components,
+			asuraGlyphComponent(i+1, posX, time.Duration(i)*100*time.Millisecond, 1200*time.Millisecond, 250, 120, true, false),
+			asuraGlyphComponent(i+1, posX, time.Duration(1200+i*100)*time.Millisecond, 400*time.Millisecond, 120, 200, false, true),
+		)
+	}
+	return EffectSpec{
+		Duration:   2100 * time.Millisecond,
+		Components: components,
+	}
+}
+
+func asuraGlyphComponent(index int, posX float64, delay, duration time.Duration, sizeStart, sizeEnd float64, duplicate, fadeOut bool) EffectComponent {
+	component := EffectComponent{
+		Kind:           EffectComponent3D,
+		TextureFile:    "effect/asura" + strconv.Itoa(index) + ".tga",
+		Color:          color.RGBA{R: 26, G: 26, B: 26, A: 255},
+		Duration:       duration,
+		Delay:          delay,
+		AlphaMax:       1,
+		AttachedEntity: true,
+		FadeIn:         !fadeOut,
+		FadeOut:        fadeOut,
+		SizeStart:      effectTableSize(sizeStart),
+		SizeEnd:        effectTableSize(sizeEnd),
+		SizeSmooth:     true,
+		PosX:           posX,
+		PosZ:           4,
+		Overlay:        true,
+	}
+	if duplicate {
+		component.Duplicate = 3
+		component.DuplicateDelay = 150 * time.Millisecond
+		component.AlphaMaxDelta = -0.25
+	}
+	return component
+}
+
+func tripleAttackEffectSpec() EffectSpec {
+	return delayedSoundEffectSpec(
+		[]string{"effect\\ef_hit2.wav", "effect\\ef_hit4.wav", "effect\\ef_hit2.wav"},
+		[]time.Duration{0, 200 * time.Millisecond, 400 * time.Millisecond},
+	)
+}
+
+func naturalRecoveryEffectSpec(tint color.RGBA, wav string) EffectSpec {
+	return EffectSpec{
+		Duration: 1110 * time.Millisecond,
+		SFX:      []string{wav},
+		Components: []EffectComponent{{
+			Kind:            EffectComponent3D,
+			TextureFile:     "effect/pok1.tga",
+			Color:           tint,
+			Duration:        500 * time.Millisecond,
+			Delay:           500 * time.Millisecond,
+			Duplicate:       12,
+			DuplicateDelay:  10 * time.Millisecond,
+			AlphaMax:        0.8,
+			FadeIn:          true,
+			FadeOut:         true,
+			SizeStart:       effectTableSize(30),
+			SizeEnd:         effectTableSize(30),
+			SizeRand:        effectTableSize(20),
+			BlendMode:       2,
+			BlendAdditive:   true,
+			PosXRand:        0.6,
+			PosYRand:        0.6,
+			PosZStartRand:   1.5,
+			PosZStartMiddle: 2,
+			PosZEndRand:     1,
+			PosZEndMiddle:   5,
+			Sparkling:       true,
+			SparkNumber:     3,
+			AttachedEntity:  true,
+		}},
+	}
+}
+
+func guardEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 600 * time.Millisecond,
+		SFX:      []string{"effect\\kyrie_guard.wav"},
+		Components: []EffectComponent{
+			guardCylinderComponent(1.5, 1, 0.7, 2.14),
+			guardCylinderComponent(1.5, 1.5, 1.14, 1),
+			guardCylinderComponent(1, 1.5, 0.7, 0.3),
+		},
+	}
+}
+
+func guardCylinderComponent(bottomSize, topSize, height, posZ float64) EffectComponent {
+	component := robrCylinderBlendComponent("guardk", color.RGBA{R: 232, G: 255, B: 230, A: 255}, 600*time.Millisecond, 0.6, 0, bottomSize, topSize, height, true, false, true, 2)
+	component.TotalCircleSides = 8
+	component.CircleSides = 5
+	component.AngleY = 112.5
+	component.PosZ = posZ
+	return component
+}
+
+func magnum2EffectSpec() EffectSpec {
+	return delayedSoundEffectSpec(
+		[]string{"permeter_attack.wav", "effect\\ef_magnumbreak.wav"},
+		[]time.Duration{0, 300 * time.Millisecond},
+	)
+}
+
+func entry2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1500 * time.Millisecond,
+		SFX:      []string{"effect\\ef_portal.wav"},
+		Components: []EffectComponent{
+			teleportCylinderComponent(0.3, 0.3, 35),
+			teleportCylinderComponent(0.6, 0.8, 25),
+			teleportCylinderComponent(0.8, 1.0, 13),
+			teleportCylinderComponent(1.0, 1.3, 5),
+		},
+	}
+}
+
 func grandCrossEffectSpec() EffectSpec {
 	components := make([]EffectComponent, 0, 25)
 	addSquare := func(x, y float64) {
@@ -1433,8 +1728,10 @@ func teleportCylinderComponent(bottomSize, topSize, height float64) EffectCompon
 		BottomSize:       bottomSize,
 		TopSize:          topSize,
 		Height:           height,
+		AttachedEntity:   true,
 		TotalCircleSides: 32,
 		CircleSides:      32,
+		BlendMode:        2,
 		BlendAdditive:    true,
 	}
 }
@@ -1455,8 +1752,10 @@ func readyPortalCylinderComponent() EffectComponent {
 		TopSize:          3.9,
 		Height:           0.1,
 		PosZ:             0.1,
+		AttachedEntity:   true,
 		TotalCircleSides: 32,
 		CircleSides:      32,
+		BlendMode:        2,
 		BlendAdditive:    true,
 	}
 }
@@ -1475,8 +1774,10 @@ func portalCylinderComponent(bottomSize, topSize, height, posZ float64, textureN
 		TopSize:          topSize,
 		Height:           height,
 		PosZ:             posZ,
+		AttachedEntity:   true,
 		TotalCircleSides: 32,
 		CircleSides:      32,
+		BlendMode:        2,
 		BlendAdditive:    true,
 	}
 }
@@ -3244,6 +3545,39 @@ var EffectSpecs = map[int]EffectSpec{
 	effectTalkScream:    funcEffectSpec("ScreamTalk", 500*time.Millisecond, true),
 	effectThrowItem:     throwItemEffectSpec("유저인터페이스/item/염산병.bmp", 30),
 	effectChemicalProt:  soundOnlyEffectSpec("apocalips_attack.wav"),
+	effectDemonstration: {
+		Components: []EffectComponent{{
+			Kind:           EffectComponentSPR,
+			SpriteFile:     "데몬스트레이션",
+			AttachedEntity: false,
+		}},
+	},
+	effectChemical2:    chemical2EffectSpec(),
+	effectHeal2:        heal2EffectSpec(),
+	effectExit2:        exit2EffectSpec(),
+	effectBottomMagnus: bottomSquareEffectSpec("ring_red", color.RGBA{}, 0.2, 0.7, 0.7, 5, false),
+	effectBottomSanc:   bottomSquareEffectSpec("magic_green", color.RGBA{R: 128, G: 230, B: 128, A: 255}, 0.3, 0.7, 0.7, 2, false),
+	effectWarpZone2:    warpZone2EffectSpec(),
+	effectHeal4:        heal4EffectSpec(),
+	effectBeginAsura:   beginAsuraEffectSpec(),
+	effectTripleAttack: tripleAttackEffectSpec(),
+	effectHPTime:       naturalRecoveryEffectSpec(color.RGBA{R: 230, G: 255, B: 230, A: 255}, "_heal_effect.wav"),
+	effectSPTime:       naturalRecoveryEffectSpec(color.RGBA{R: 230, G: 230, B: 255, A: 255}, "effect\\흡기.wav"),
+	effectBlind: {
+		Duration: 500 * time.Millisecond,
+		SFX:      []string{"_blind.wav"},
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "Blind",
+			AttachedEntity: false,
+		}},
+	},
+	effectPoisonStatus: funcEffectSpec("Poison", 500*time.Millisecond, false),
+	effectGuard:        guardEffectSpec(),
+	effectJobLvUp50:    strEffectSpecAttached("joblvup", "", false),
+	effectMagnum2:      magnum2EffectSpec(),
+	effectEntry2:       entry2EffectSpec(),
+	effectColorPaper:   soundOnlyEffectSpec("effect\\wedding.wav"),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

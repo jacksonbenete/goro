@@ -182,7 +182,7 @@ func rotateModelPointZ(v modelPoint3, angle float64) modelPoint3 {
 }
 
 func drawWorldCylinderBandWithBasis(screen *render.Frame, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, right, depth, up modelPoint3) {
-	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
+	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || math.Abs(height) <= 0.01 || c.A == 0 {
 		return
 	}
 	vertices := make([]render.Vertex3D, 0, (segments+1)*2)

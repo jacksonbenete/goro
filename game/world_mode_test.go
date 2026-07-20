@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 291 {
-		t.Fatalf("implemented effects = %d, want 291", coverage.Implemented)
+	if coverage.Implemented != 310 {
+		t.Fatalf("implemented effects = %d, want 310", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 47.9 || coverage.ActivePercent > 48.0 {
-		t.Fatalf("active coverage = %.3f, want about 47.9", coverage.ActivePercent)
+	if coverage.ActivePercent < 51.0 || coverage.ActivePercent > 51.1 {
+		t.Fatalf("active coverage = %.3f, want about 51.1", coverage.ActivePercent)
 	}
 }
 
@@ -3054,6 +3054,48 @@ func TestRobrowserActiveEffectsTwoFiftyToThreeHundredHaveSpecs(t *testing.T) {
 	}
 }
 
+func TestRobrowserActiveEffectsThreeHundredToThreeFiftyHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectChemicalProt:  "EF_CHEMICALPROTECTION",
+		effectDemonstration: "EF_DEMONSTRATION",
+		effectChemical2:     "EF_CHEMICAL2",
+		effectTeleportation: "EF_TELEPORTATION2",
+		effectPharmacyOK:    "EF_PHARMACY_OK",
+		effectPharmacyFail:  "EF_PHARMACY_FAIL",
+		effectThrowItem3:    "EF_THROWITEM3",
+		effectFirstAid:      "EF_FIRSTAID",
+		effectLoud:          "EF_LOUD",
+		effectHeal:          "EF_HEAL",
+		effectHeal2:         "EF_HEAL2",
+		effectExit2:         "EF_EXIT2",
+		effectSafetyWall:    "EF_GLASSWALL2",
+		effectReadyPortal:   "EF_READYPORTAL2",
+		effectPortal:        "EF_PORTAL2",
+		effectBottomMagnus:  "EF_BOTTOM_MAG",
+		effectBottomSanc:    "EF_BOTTOM_SANC",
+		effectHealOffensive: "EF_HEAL3",
+		effectWarpZone2:     "EF_WARPZONE2",
+		effectHeal4:         "EF_HEAL4",
+		effectBeginAsura:    "EF_BEGINASURA",
+		effectTripleAttack:  "EF_TRIPLEATTACK",
+		effectHPTime:        "EF_HPTIME",
+		effectSPTime:        "EF_SPTIME",
+		effectMaple:         "EF_MAPLE",
+		effectBlind:         "EF_BLIND",
+		effectPoisonStatus:  "EF_POISON",
+		effectGuard:         "EF_GUARD",
+		effectJobLvUp50:     "EF_JOBLVUP50",
+		effectMagnum2:       "EF_MAGNUM2",
+		effectEntry2:        "EF_ENTRY2",
+		effectColorPaper:    "EF_COLORPAPER",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
 func TestRobrowserSimpleEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -3283,6 +3325,300 @@ func TestRobrowserSpecialEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.
 	}
 	if component := throwItem.components[0]; component.kind != effectComponent3D || component.textureFile != "유저인터페이스/item/염산병.bmp" || component.duration != 300*time.Millisecond || component.alphaMax != 1 || !component.fadeIn || !component.fadeOut || !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || !component.rotate || component.angleStart != 180 || component.angleEnd != 360 || component.posZ != 1 || component.sizeStart != effectTableSize(30) || !component.attachedEntity {
 		t.Fatalf("EF_THROWITEM component = %+v", component)
+	}
+}
+
+func TestRobrowserSimpleEffectsThreeHundredToThreeFiftyMatchTableRows(t *testing.T) {
+	demo, ok := worldEffectSpecForID(effectDemonstration)
+	if !ok || len(demo.components) != 1 {
+		t.Fatalf("EF_DEMONSTRATION spec = %+v ok=%t", demo, ok)
+	}
+	if component := demo.components[0]; component.kind != effectComponentSPR || component.spriteFile != "데몬스트레이션" || component.attachedEntity {
+		t.Fatalf("EF_DEMONSTRATION component = %+v", component)
+	}
+
+	job, ok := worldEffectSpecForID(effectJobLvUp50)
+	if !ok || len(job.components) != 1 {
+		t.Fatalf("EF_JOBLVUP50 spec = %+v ok=%t", job, ok)
+	}
+	if component := job.components[0]; component.kind != effectComponentSTR || component.strFile != "joblvup" || !component.attachedEntity {
+		t.Fatalf("EF_JOBLVUP50 component = %+v", component)
+	}
+
+	colorPaper, ok := worldEffectSpecForID(effectColorPaper)
+	if !ok || len(colorPaper.components) != 0 || colorPaper.duration != 500*time.Millisecond {
+		t.Fatalf("EF_COLORPAPER spec = %+v ok=%t", colorPaper, ok)
+	}
+	if len(colorPaper.sfx) != 1 || colorPaper.sfx[0] != "effect\\wedding.wav" {
+		t.Fatalf("EF_COLORPAPER sfx = %#v", colorPaper.sfx)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		id     int
+		sfx    []string
+		delays []time.Duration
+	}{
+		{"EF_TRIPLEATTACK", effectTripleAttack, []string{"effect\\ef_hit2.wav", "effect\\ef_hit4.wav", "effect\\ef_hit2.wav"}, []time.Duration{0, 200 * time.Millisecond, 400 * time.Millisecond}},
+		{"EF_MAGNUM2", effectMagnum2, []string{"permeter_attack.wav", "effect\\ef_magnumbreak.wav"}, []time.Duration{0, 300 * time.Millisecond}},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 0 || spec.duration != 500*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		if !reflect.DeepEqual(spec.sfx, tc.sfx) || !reflect.DeepEqual(spec.sfxDelays, tc.delays) {
+			t.Fatalf("%s sound = %v delays %v", tc.name, spec.sfx, spec.sfxDelays)
+		}
+	}
+
+	chemical, ok := worldEffectSpecForID(effectChemical2)
+	if !ok || len(chemical.components) != 1 || chemical.duration != 500*time.Millisecond {
+		t.Fatalf("EF_CHEMICAL2 spec = %+v ok=%t", chemical, ok)
+	}
+	if chemical.cameraShake != 200*time.Millisecond || chemical.cameraShakeDelay != 132*time.Millisecond {
+		t.Fatalf("EF_CHEMICAL2 camera shake = delay %s duration %s", chemical.cameraShakeDelay, chemical.cameraShake)
+	}
+	if component := chemical.components[0]; component.kind != effectComponentFUNC || component.funcName != "CameraQuake" || component.funcAdapter != effectFuncUnknown || !component.attachedEntity {
+		t.Fatalf("EF_CHEMICAL2 component = %+v", component)
+	}
+
+	blind, ok := worldEffectSpecForID(effectBlind)
+	if !ok || len(blind.components) != 1 || blind.duration != 500*time.Millisecond {
+		t.Fatalf("EF_BLIND spec = %+v ok=%t", blind, ok)
+	}
+	if len(blind.sfx) != 1 || blind.sfx[0] != "_blind.wav" {
+		t.Fatalf("EF_BLIND sfx = %#v", blind.sfx)
+	}
+	if component := blind.components[0]; component.kind != effectComponentFUNC || component.funcName != "Blind" || component.funcAdapter != effectFuncUnknown || component.attachedEntity {
+		t.Fatalf("EF_BLIND component = %+v", component)
+	}
+
+	poison, ok := worldEffectSpecForID(effectPoisonStatus)
+	if !ok || len(poison.components) != 1 || poison.duration != 500*time.Millisecond {
+		t.Fatalf("EF_POISON spec = %+v ok=%t", poison, ok)
+	}
+	if component := poison.components[0]; component.kind != effectComponentFUNC || component.funcName != "Poison" || component.funcAdapter != effectFuncUnknown || component.attachedEntity {
+		t.Fatalf("EF_POISON component = %+v", component)
+	}
+}
+
+func TestRobrowserPortalAndGroundEffectsThreeHundredToThreeFiftyMatchTableRows(t *testing.T) {
+	exit, ok := worldEffectSpecForID(effectExit2)
+	if !ok || len(exit.components) != 3 || exit.duration != 1500*time.Millisecond {
+		t.Fatalf("EF_EXIT2 spec = %+v ok=%t", exit, ok)
+	}
+	if len(exit.sfx) != 1 || exit.sfx[0] != "effect\\ef_teleportation.wav" {
+		t.Fatalf("EF_EXIT2 sfx = %#v", exit.sfx)
+	}
+	for i, want := range []struct {
+		bottom float64
+		top    float64
+		height float64
+	}{
+		{0.3, 0.3, 35},
+		{0.4, 0.6, 23},
+		{0.5, 0.7, 5},
+	} {
+		component := exit.components[i]
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond || component.alphaMax != 0.3 || component.animation != 1 || component.blendMode != 2 || !component.blendAdditive || !component.fade || !component.rotate || !component.attachedEntity {
+			t.Fatalf("EF_EXIT2 component %d = %+v", i, component)
+		}
+		if component.bottomSize != want.bottom || component.topSize != want.top || component.height != want.height {
+			t.Fatalf("EF_EXIT2 component %d size = %+v", i, component)
+		}
+		if component.color != (color.RGBA{R: 128, G: 128, B: 255, A: 255}) {
+			t.Fatalf("EF_EXIT2 component %d color = %+v", i, component.color)
+		}
+	}
+
+	for _, tc := range []struct {
+		name    string
+		id      int
+		texture string
+		color   color.RGBA
+		alpha   float64
+		height  float64
+	}{
+		{"EF_BOTTOM_MAG", effectBottomMagnus, "ring_red", color.RGBA{}, 0.2, 5},
+		{"EF_BOTTOM_SANC", effectBottomSanc, "magic_green", color.RGBA{R: 128, G: 230, B: 128, A: 255}, 0.3, 2},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 2 || spec.duration != 50*time.Second {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		first, second := spec.components[0], spec.components[1]
+		for i, component := range []worldEffectComponent{first, second} {
+			if component.kind != effectComponentCylinder || component.textureName != tc.texture || component.totalCircleSides != 4 || component.circleSides != 4 || component.bottomSize != 0.7 || component.topSize != 0.7 || component.height != tc.height || component.angleY != 45 || component.blendMode != 2 || !component.blendAdditive || component.rotate || !component.attachedEntity {
+				t.Fatalf("%s component %d = %+v", tc.name, i, component)
+			}
+			if component.color != tc.color {
+				t.Fatalf("%s component %d color = %+v", tc.name, i, component.color)
+			}
+		}
+		if first.duration != 50*time.Second || first.alphaMax != tc.alpha || first.fade || first.repeat || first.animation != 0 {
+			t.Fatalf("%s first cylinder = %+v", tc.name, first)
+		}
+		if second.duration != 2*time.Second || second.alphaMax != 0.1 || !second.fade || !second.repeat || second.animation != 1 {
+			t.Fatalf("%s second cylinder = %+v", tc.name, second)
+		}
+	}
+
+	warp, ok := worldEffectSpecForID(effectWarpZone2)
+	if !ok || len(warp.components) != 3 || warp.duration != 7*time.Second {
+		t.Fatalf("EF_WARPZONE2 spec = %+v ok=%t", warp, ok)
+	}
+	for i, component := range warp.components[:2] {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 4*time.Second || component.duplicate != 4 || component.duplicateDelay != time.Second || component.alphaMax != 0.4 || component.animation != 3 || component.bottomSize < 1.9 || component.topSize < 3.2 || component.height != 1.1 || !component.repeat || component.rotate || !component.fade || !component.attachedEntity {
+			t.Fatalf("EF_WARPZONE2 cylinder %d = %+v", i, component)
+		}
+	}
+	particle := warp.components[2]
+	if particle.kind != effectComponent3D || particle.textureFile != "effect/pok1.tga" || particle.duration != time.Second || particle.duplicate != 5 || particle.duplicateDelay != 300*time.Millisecond || particle.sizeStart != effectTableSize(50) || particle.posXStartRand != 3 || particle.posYStartRand != 3 || particle.posZEndRand != 2 || particle.posZEndMiddle != 2 || !particle.repeat || !particle.blendAdditive || !particle.attachedEntity {
+		t.Fatalf("EF_WARPZONE2 particle = %+v", particle)
+	}
+
+	entry, ok := worldEffectSpecForID(effectEntry2)
+	if !ok || len(entry.components) != 4 || entry.duration != 1500*time.Millisecond {
+		t.Fatalf("EF_ENTRY2 spec = %+v ok=%t", entry, ok)
+	}
+	if len(entry.sfx) != 1 || entry.sfx[0] != "effect\\ef_portal.wav" {
+		t.Fatalf("EF_ENTRY2 sfx = %#v", entry.sfx)
+	}
+	if entry.components[0].bottomSize != 0.3 || entry.components[3].topSize != 1.3 {
+		t.Fatalf("EF_ENTRY2 cylinder sizes = %+v", entry.components)
+	}
+	for i, component := range entry.components {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond || component.alphaMax != 0.5 || component.animation != 5 || component.blendMode != 2 || !component.blendAdditive || !component.fade || !component.rotate || !component.attachedEntity {
+			t.Fatalf("EF_ENTRY2 component %d = %+v", i, component)
+		}
+	}
+}
+
+func TestRobrowserHealAndRecoveryEffectsThreeHundredToThreeFiftyMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		id              int
+		duration        time.Duration
+		firstHeight     float64
+		secondHeight    float64
+		thirdHeight     float64
+		firstDuplicate  int
+		secondDuplicate int
+		thirdDuplicate  int
+		secondSize      float64
+		secondSizeRand  float64
+		thirdSize       float64
+		sparkNumber     int
+	}{
+		{"EF_HEAL2", effectHeal2, 1890 * time.Millisecond, 15, 13, 2, 4, 20, 10, 9, 2, 9, 2},
+		{"EF_HEAL4", effectHeal4, 2 * time.Second, 18, 15, 3, 7, 25, 15, 10, 5, 11, 3},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 6 || spec.duration != tc.duration {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != "_heal_effect.wav" {
+			t.Fatalf("%s sfx = %#v", tc.name, spec.sfx)
+		}
+		heights := []float64{tc.firstHeight, tc.secondHeight, tc.thirdHeight}
+		for i, height := range heights {
+			component := spec.components[i]
+			if component.kind != effectComponentCylinder || component.textureName != "ring_white" || component.duration != 1500*time.Millisecond || component.alphaMax != 0.3 || component.animation != 1 || component.blendMode != 2 || !component.blendAdditive || !component.fade || !component.rotate || !component.attachedEntity || component.height != height {
+				t.Fatalf("%s cylinder %d = %+v", tc.name, i, component)
+			}
+			if component.color != (color.RGBA{R: 178, G: 255, B: 178, A: 255}) {
+				t.Fatalf("%s cylinder %d color = %+v", tc.name, i, component.color)
+			}
+		}
+		if spec.components[0].bottomSize != 1.1 || spec.components[0].topSize != 1.1 || spec.components[1].bottomSize != 1 || spec.components[2].topSize != 3 {
+			t.Fatalf("%s cylinder sizes = %+v", tc.name, spec.components[:3])
+		}
+		first, second, third := spec.components[3], spec.components[4], spec.components[5]
+		if first.kind != effectComponent3D || first.textureFile != "effect/pok3.tga" || first.duration != 1500*time.Millisecond || first.duplicate != tc.firstDuplicate || first.duplicateDelay != 10*time.Millisecond || first.posXRand != 1.2 || first.posYRand != 1.2 || first.posZEndRand != 1 || first.posZEndMiddle != 8 || first.sizeStart != effectTableSize(9) || !first.sparkling || first.sparkNumber != tc.sparkNumber {
+			t.Fatalf("%s first particle = %+v", tc.name, first)
+		}
+		if second.duration != 1300*time.Millisecond || second.delay != 400*time.Millisecond || second.duplicate != tc.secondDuplicate || second.posXRand != 1.5 || second.posYRand != 1.5 || second.posZEndRand != 3 || second.posZEndMiddle != 6 || second.sizeStart != effectTableSize(tc.secondSize) || second.sizeRand != effectTableSize(tc.secondSizeRand) || !second.sparkling || second.sparkNumber != tc.sparkNumber {
+			t.Fatalf("%s second particle = %+v", tc.name, second)
+		}
+		if third.duration != 1100*time.Millisecond || third.delay != 200*time.Millisecond || third.duplicate != tc.thirdDuplicate || third.duplicateDelay != 50*time.Millisecond || third.posXRand != 1 || third.posYRand != 1 || third.posZEnd != 6 || third.posZStartRand != 1 || third.sizeStart != effectTableSize(tc.thirdSize) || third.sparkling {
+			t.Fatalf("%s third particle = %+v", tc.name, third)
+		}
+	}
+
+	for _, tc := range []struct {
+		name  string
+		id    int
+		color color.RGBA
+		wav   string
+	}{
+		{"EF_HPTIME", effectHPTime, color.RGBA{R: 230, G: 255, B: 230, A: 255}, "_heal_effect.wav"},
+		{"EF_SPTIME", effectSPTime, color.RGBA{R: 230, G: 230, B: 255, A: 255}, "effect\\흡기.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 || spec.duration != 1110*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v", tc.name, spec.sfx)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponent3D || component.textureFile != "effect/pok1.tga" || component.color != tc.color || component.duration != 500*time.Millisecond || component.delay != 500*time.Millisecond || component.duplicate != 12 || component.duplicateDelay != 10*time.Millisecond || component.alphaMax != 0.8 || component.sizeStart != effectTableSize(30) || component.sizeRand != effectTableSize(20) || component.posXRand != 0.6 || component.posYRand != 0.6 || component.posZStartRand != 1.5 || component.posZStartMiddle != 2 || component.posZEndRand != 1 || component.posZEndMiddle != 5 || !component.sparkling || component.sparkNumber != 3 || !component.blendAdditive || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+}
+
+func TestRobrowserAsuraAndGuardEffectsThreeHundredToThreeFiftyMatchTableRows(t *testing.T) {
+	asura, ok := worldEffectSpecForID(effectBeginAsura)
+	if !ok || len(asura.components) != 14 || asura.duration != 2100*time.Millisecond {
+		t.Fatalf("EF_BEGINASURA spec = %+v ok=%t", asura, ok)
+	}
+	firstRing, secondRing := asura.components[0], asura.components[1]
+	if firstRing.kind != effectComponentCylinder || firstRing.textureName != "ring_white" || firstRing.duration != 800*time.Millisecond || firstRing.animation != 2 || firstRing.bottomSize != 1 || firstRing.topSize != 4.5 || firstRing.height != -4 || !firstRing.fade || !firstRing.attachedEntity || firstRing.blendMode != 2 {
+		t.Fatalf("EF_BEGINASURA first ring = %+v", firstRing)
+	}
+	if secondRing.topSize != 2.5 || secondRing.height != -4 {
+		t.Fatalf("EF_BEGINASURA second ring = %+v", secondRing)
+	}
+	firstGlyph := asura.components[2]
+	if firstGlyph.kind != effectComponent3D || firstGlyph.textureFile != "effect/asura1.tga" || firstGlyph.duration != 1200*time.Millisecond || firstGlyph.delay != 0 || firstGlyph.duplicate != 3 || firstGlyph.duplicateDelay != 150*time.Millisecond || firstGlyph.alphaMax != 1 || firstGlyph.alphaMaxDelta != -0.25 || !firstGlyph.fadeIn || firstGlyph.fadeOut || firstGlyph.sizeStart != effectTableSize(250) || firstGlyph.sizeEnd != effectTableSize(120) || !firstGlyph.sizeSmooth || firstGlyph.posX != -6 || firstGlyph.posZ != 4 || !firstGlyph.overlay || !firstGlyph.attachedEntity {
+		t.Fatalf("EF_BEGINASURA first glyph = %+v", firstGlyph)
+	}
+	if firstGlyph.color != (color.RGBA{R: 26, G: 26, B: 26, A: 255}) {
+		t.Fatalf("EF_BEGINASURA glyph color = %+v", firstGlyph.color)
+	}
+	lastGlyph := asura.components[13]
+	if lastGlyph.textureFile != "effect/asura6.tga" || lastGlyph.duration != 400*time.Millisecond || lastGlyph.delay != 1700*time.Millisecond || lastGlyph.duplicate != 0 || !lastGlyph.fadeOut || lastGlyph.sizeStart != effectTableSize(120) || lastGlyph.sizeEnd != effectTableSize(200) || lastGlyph.posX != 6 || lastGlyph.posZ != 4 {
+		t.Fatalf("EF_BEGINASURA last glyph = %+v", lastGlyph)
+	}
+
+	guard, ok := worldEffectSpecForID(effectGuard)
+	if !ok || len(guard.components) != 3 || guard.duration != 600*time.Millisecond {
+		t.Fatalf("EF_GUARD spec = %+v ok=%t", guard, ok)
+	}
+	if len(guard.sfx) != 1 || guard.sfx[0] != "effect\\kyrie_guard.wav" {
+		t.Fatalf("EF_GUARD sfx = %#v", guard.sfx)
+	}
+	for i, want := range []struct {
+		bottom float64
+		top    float64
+		height float64
+		posZ   float64
+	}{
+		{1.5, 1, 0.7, 2.14},
+		{1.5, 1.5, 1.14, 1},
+		{1, 1.5, 0.7, 0.3},
+	} {
+		component := guard.components[i]
+		if component.kind != effectComponentCylinder || component.textureName != "guardk" || component.duration != 600*time.Millisecond || component.alphaMax != 0.6 || component.blendMode != 2 || !component.blendAdditive || !component.fade || component.totalCircleSides != 8 || component.circleSides != 5 || component.angleY != 112.5 || !component.attachedEntity {
+			t.Fatalf("EF_GUARD component %d = %+v", i, component)
+		}
+		if component.bottomSize != want.bottom || component.topSize != want.top || component.height != want.height || component.posZ != want.posZ {
+			t.Fatalf("EF_GUARD component %d shape = %+v", i, component)
+		}
+		if component.color != (color.RGBA{R: 232, G: 255, B: 230, A: 255}) {
+			t.Fatalf("EF_GUARD component %d color = %+v", i, component.color)
+		}
 	}
 }
 
@@ -4461,6 +4797,8 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "PR_LEXAETERNA imported", skillEffectIDs(db.SkillPRLexaeterna), effectLexAeterna)
 	expectEffectIDs(t, "PR_TURNUNDEAD imported hit", skillHitEffectIDs(db.SkillPRTurnundead), effectHolyLight)
 	expectEffectIDs(t, "PR_MAGNUS imported", skillEffectIDs(db.SkillPRMagnus), effectMagnus)
+	expectEffectIDs(t, "PR_MAGNUS imported ground", skillGroundEffectIDs(db.SkillPRMagnus), effectBottomMagnus)
+	expectEffectIDs(t, "PR_SANCTUARY imported ground", skillGroundEffectIDs(db.SkillPRSanctuary), effectBottomSanc)
 	expectEffectIDs(t, "PR_SLOWPOISON imported", skillEffectIDs(db.SkillPRSlowpoison), effectSlowPoison)
 	expectEffectIDs(t, "PR_STRECOVERY imported", skillEffectIDs(db.SkillPRStrecovery), effectRecovery)
 	expectEffectIDs(t, "WZ_FIREPILLAR imported", skillEffectIDs(db.SkillWZFirepillar), effectFirePillar)
@@ -4528,8 +4866,10 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "RG_STRIPARMOR imported success", skillSuccessEffectIDs(db.SkillRGStriparmor), effectStripArmor)
 	expectEffectIDs(t, "RG_STRIPHELM imported success", skillSuccessEffectIDs(db.SkillRGStriphelm), effectStripHelm)
 	expectEffectIDs(t, "RG_INTIMIDATE imported", skillEffectIDs(db.SkillRGIntimidate), effectIntimidate)
+	expectEffectIDs(t, "AM_DEMONSTRATION imported ground", skillGroundEffectIDs(db.SkillAMDemonstration), effectDemonstration)
 	expectEffectIDs(t, "AM_ACIDTERROR imported before hit", skillBeforeHitEffectIDs(db.SkillAMAcidterror), effectThrowItem)
 	expectEffectIDs(t, "AM_CP_WEAPON imported", skillEffectIDs(db.SkillAMCpWeapon), effectChemicalProt)
+	expectEffectIDs(t, "CR_AUTOGUARD imported", skillEffectIDs(db.SkillCRAutoguard), effectGuard)
 	expectEffectIDs(t, "CR_SHIELDCHARGE imported", skillEffectIDs(db.SkillCRShieldcharge), effectShieldCharge)
 	expectEffectIDs(t, "CR_SHIELDBOOMERANG imported", skillEffectIDs(db.SkillCRShieldboomerang), effectShieldBoomer)
 	expectEffectIDs(t, "CR_REFLECTSHIELD imported", skillEffectIDs(db.SkillCRReflectshield), effectReflectShield)
@@ -4545,6 +4885,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "MO_STEELBODY imported", skillEffectIDs(db.SkillMOSteelbody), effectSteelBody)
 	expectEffectIDs(t, "MO_EXPLOSIONSPIRITS imported caster", skillEffectOnCasterIDs(db.SkillMOExplosionspirits), effectGumgang2)
 	expectEffectIDs(t, "MO_EXTREMITYFIST imported hit", skillHitEffectIDs(db.SkillMOExtremityfist), effectTeiHit1X)
+	expectEffectIDs(t, "MO_TRIPLEATTACK imported", skillEffectIDs(db.SkillMOTripleattack), effectTripleAttack)
 	expectEffectIDs(t, "MO_CHAINCOMBO imported", skillEffectIDs(db.SkillMOChaincombo), effectTeiHit1, effectChainCombo)
 	expectEffectIDs(t, "MO_CHAINCOMBO imported caster", skillEffectOnCasterIDs(db.SkillMOChaincombo), effectGumgang3)
 	expectEffectIDs(t, "SA_MAGICROD imported success", skillSuccessEffectIDs(db.SkillSAMagicrod), effectMagicRod)
@@ -4584,6 +4925,11 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "SA_ELEMENTWIND imported", skillEffectIDs(db.SkillSAElementwind), effectLightningLoad)
 	expectEffectIDs(t, "MO_BALKYOUNG imported", skillEffectIDs(db.SkillMOBalkyoung), 514)
 	expectEffectIDs(t, "MO_BALKYOUNG imported hit", skillHitEffectIDs(db.SkillMOBalkyoung), effectHit3)
+	expectEffectIDs(t, "LK_PARRYING imported", skillEffectIDs(db.SkillLKParrying), effectGuard)
+	expectEffectIDs(t, "LK_SPIRALPIERCE imported", skillEffectIDs(db.SkillLKSpiralpierce), effectMagnum2)
+	expectEffectIDs(t, "AB_CHEAL imported", skillEffectIDs(db.SkillABCheal), effectHeal2)
+	expectEffectIDs(t, "AB_HIGHNESSHEAL imported", skillEffectIDs(db.SkillABHighnessheal), effectHeal4)
+	expectEffectIDs(t, "AB_HIGHNESSHEAL imported hit", skillHitEffectIDs(db.SkillABHighnessheal), effectHealOffensive)
 }
 
 func TestRobrowserMiniSTREffectSpecs(t *testing.T) {
@@ -4957,7 +5303,7 @@ func TestTeleportationEffectSpecUsesRobrowserCylinderStack(t *testing.T) {
 	}
 	for i, want := range expected {
 		component := spec.components[i]
-		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond || component.blendMode != 2 || !component.blendAdditive {
 			t.Fatalf("component %d = %+v", i, component)
 		}
 		if component.bottomSize != want.bottom || component.topSize != want.top || component.height != want.height {
@@ -4965,6 +5311,9 @@ func TestTeleportationEffectSpecUsesRobrowserCylinderStack(t *testing.T) {
 		}
 		if component.fixedPerspective {
 			t.Fatalf("component %d uses fixed perspective, want world-space cylinder", i)
+		}
+		if !component.attachedEntity {
+			t.Fatalf("component %d is not attached to the entity", i)
 		}
 	}
 }
@@ -5432,6 +5781,24 @@ func TestEffectCylinderAngleXRotatesHeightAxisLikeRobrowser(t *testing.T) {
 	want := modelPoint3{z: -1}
 	if !modelPointNear(got, want, 0.001) {
 		t.Fatalf("rotated height axis = %+v, want %+v", got, want)
+	}
+}
+
+func TestWorldCylinderBandAllowsRobrowserNegativeHeight(t *testing.T) {
+	screen := render.NewFrame(320, 240)
+	drawWorldCylinderBandWithBasis(screen, render.WhiteImage(), render.WhiteImage(), 0, 0, 0, 1, 2, -4, color.RGBA{A: 255}, 8, modelPoint3{x: 1}, modelPoint3{z: 1}, modelPoint3{y: 1})
+	commands := reflect.ValueOf(screen).Elem().FieldByName("worldCommands")
+	if commands.Len() != 1 {
+		t.Fatalf("world commands = %d, want one negative-height cylinder", commands.Len())
+	}
+	vertices := commands.Index(0).FieldByName("Vertices")
+	if vertices.Len() < 2 {
+		t.Fatalf("vertices = %d, want cylinder vertices", vertices.Len())
+	}
+	bottomY := vertices.Index(0).FieldByName("Y").Float()
+	topY := vertices.Index(1).FieldByName("Y").Float()
+	if topY >= bottomY {
+		t.Fatalf("top Y = %.1f bottom Y = %.1f, want top below bottom", topY, bottomY)
 	}
 }
 

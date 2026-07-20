@@ -70,7 +70,7 @@ func (m *WorldMode) drawCastRingEffect(screen *render.Frame, ctx client.Context,
 }
 
 func drawWorldCylinderBandRotated(screen *render.Frame, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, angleOffset float64) {
-	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || height <= 0.01 || c.A == 0 {
+	if segments < 3 || bottomRadius <= 0.01 || topRadius <= 0.01 || math.Abs(height) <= 0.01 || c.A == 0 {
 		return
 	}
 	vertices := make([]render.Vertex3D, 0, (segments+1)*2)
