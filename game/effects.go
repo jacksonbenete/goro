@@ -601,6 +601,25 @@ const (
 	effectVolcanicAsh      = 975
 	effectRWC2011          = 987
 	effectRWC2011Two       = 988
+	effectRunMakeOK        = 1015
+	effectRunMakeFailure   = 1016
+	effectMIResultMakeOK   = 1017
+	effectMIResultMakeFail = 1018
+	effectAllRayProtect    = 1019
+	effectVenomFog         = 1020
+	effectDustStorm        = 1021
+	effectDanceBladeAtk    = 1029
+	effectInvincibleOff2   = 1031
+	effectDeathSummon      = 1033
+	effectGCDarkCrow       = 1040
+	effectAllFullThrottle  = 1042
+	effectSRFlashCombo     = 1043
+	effectRKLuxAnima       = 1044
+	effectSOElemShield     = 1046
+	effectABOffertorium    = 1047
+	effectWLTelekinesis    = 1048
+	effectGNIllusionDoping = 1049
+	effectNCMagmaEruption  = 1050
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute

@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 565 {
-		t.Fatalf("implemented effects = %d, want 565", coverage.Implemented)
+	if coverage.Implemented != 584 {
+		t.Fatalf("implemented effects = %d, want 584", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 93.0 || coverage.ActivePercent > 93.2 {
-		t.Fatalf("active coverage = %.3f, want about 93.1", coverage.ActivePercent)
+	if coverage.ActivePercent < 96.1 || coverage.ActivePercent > 96.3 {
+		t.Fatalf("active coverage = %.3f, want about 96.2", coverage.ActivePercent)
 	}
 }
 
@@ -3473,6 +3473,35 @@ func TestRobrowserActiveEffectsNineFiftyToOneThousandHaveSpecs(t *testing.T) {
 		effectVolcanicAsh:    "EF_VOLCANIC_ASH",
 		effectRWC2011:        "EF_2011RWC",
 		effectRWC2011Two:     "EF_2011RWC2",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsOneThousandToTenFiftyHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectRunMakeOK:        "EF_RUN_MAKE_OK",
+		effectRunMakeFailure:   "EF_RUN_MAKE_FAILURE",
+		effectMIResultMakeOK:   "EF_MIRESULT_MAKE_OK",
+		effectMIResultMakeFail: "EF_MIRESULT_MAKE_FAIL",
+		effectAllRayProtect:    "EF_ALL_RAY_OF_PROTECTION",
+		effectVenomFog:         "EF_VENOMFOG",
+		effectDustStorm:        "EF_DUSTSTORM",
+		effectDanceBladeAtk:    "EF_DANCE_BLADE_ATK",
+		effectInvincibleOff2:   "EF_INVINCIBLEOFF2",
+		effectDeathSummon:      "EF_DEATHSUMMON",
+		effectGCDarkCrow:       "EF_GC_DARKCROW",
+		effectAllFullThrottle:  "EF_ALL_FULL_THROTTLE",
+		effectSRFlashCombo:     "EF_SR_FLASHCOMBO",
+		effectRKLuxAnima:       "EF_RK_LUXANIMA",
+		effectSOElemShield:     "EF_SO_ELEMENTAL_SHIELD",
+		effectABOffertorium:    "EF_AB_OFFERTORIUM",
+		effectWLTelekinesis:    "EF_WL_TELEKINESIS_INTENSE",
+		effectGNIllusionDoping: "EF_GN_ILLUSIONDOPING",
+		effectNCMagmaEruption:  "EF_NC_MAGMA_ERUPTION",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -5601,6 +5630,53 @@ func TestRobrowserEffectsNineFiftyToOneThousandMatchTableRows(t *testing.T) {
 	}
 }
 
+func TestRobrowserEffectsOneThousandToTenFiftyMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		id      int
+		file    string
+		wav     string
+		randMin int
+		randMax int
+	}{
+		{"EF_RUN_MAKE_OK", effectRunMakeOK, "rune_success", "", 0, 0},
+		{"EF_RUN_MAKE_FAILURE", effectRunMakeFailure, "rune_fail", "", 0, 0},
+		{"EF_MIRESULT_MAKE_OK", effectMIResultMakeOK, "changematerial_su", "", 0, 0},
+		{"EF_MIRESULT_MAKE_FAIL", effectMIResultMakeFail, "changematerial_fa", "", 0, 0},
+		{"EF_ALL_RAY_OF_PROTECTION", effectAllRayProtect, "guardian", "", 0, 0},
+		{"EF_VENOMFOG", effectVenomFog, "bubble%d_1", "", 1, 4},
+		{"EF_DUSTSTORM", effectDustStorm, "dust", "", 0, 0},
+		{"EF_DANCE_BLADE_ATK", effectDanceBladeAtk, "dancingblade", "", 0, 0},
+		{"EF_INVINCIBLEOFF2", effectInvincibleOff2, "invincibleoff2", "", 0, 0},
+		{"EF_DEATHSUMMON", effectDeathSummon, "devil", "", 0, 0},
+		{"EF_GC_DARKCROW", effectGCDarkCrow, "gc_darkcrow", "", 0, 0},
+		{"EF_ALL_FULL_THROTTLE", effectAllFullThrottle, "all_full_throttle", "effect\\all_full_throttle.wav", 0, 0},
+		{"EF_SR_FLASHCOMBO", effectSRFlashCombo, "sr_flashcombo", "effect\\sr_flashcombo.wav", 0, 0},
+		{"EF_RK_LUXANIMA", effectRKLuxAnima, "rk_luxanima", "", 0, 0},
+		{"EF_SO_ELEMENTAL_SHIELD", effectSOElemShield, "so_elemental_shield", "effect\\so_elemental_shield.wav", 0, 0},
+		{"EF_AB_OFFERTORIUM", effectABOffertorium, "ab_offertorium", "effect\\ab_offertorium.wav", 0, 0},
+		{"EF_WL_TELEKINESIS_INTENSE", effectWLTelekinesis, "wl_telekinesis_intense", "effect\\wl_telekinesis_intense.wav", 0, 0},
+		{"EF_GN_ILLUSIONDOPING", effectGNIllusionDoping, "gn_illusiondoping", "effect\\gn_illusiondoping.wav", 0, 0},
+		{"EF_NC_MAGMA_ERUPTION", effectNCMagmaEruption, "nc_magma_eruption", "effect\\nc_magma_eruption.wav", 0, 0},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+			}
+		} else if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.strRandMin != tc.randMin || component.strRandMax != tc.randMax || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+}
+
 func TestRobrowserRepairWeaponAndShockwaveSpecs(t *testing.T) {
 	repair, ok := worldEffectSpecForID(effectRepairWeapon)
 	if !ok || len(repair.components) != 1 || repair.duration != 1820*time.Millisecond {
@@ -6987,6 +7063,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "NJ_ISSEN imported", skillEffectIDs(db.SkillNJIssen), effectIssen)
 	expectEffectIDs(t, "AS_VENOMKNIFE imported before hit", skillBeforeHitEffectIDs(db.SkillASVenomknife), effectThrowItem6)
 	expectEffectIDs(t, "ALL_WEWISH imported", skillEffectIDs(db.SkillALLWewish), effectChristmasCarol)
+	expectEffectIDs(t, "NPC_VENOMFOG imported", skillEffectIDs(db.SkillNPCVenomfog), effectVenomFog)
 	expectEffectIDs(t, "RK_IGNITIONBREAK imported caster", skillEffectOnCasterIDs(db.SkillRKIgnitionbreak), effectIgnitionBreak)
 	expectEffectIDs(t, "RK_DRAGONBREATH imported hit", skillHitEffectIDs(db.SkillRKDragonbreath), effectM05)
 	expectEffectIDs(t, "RK_DRAGONHOWLING imported", skillEffectIDs(db.SkillRKDragonhowling), effectDragonHowling)
@@ -7016,6 +7093,15 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "RA_DETONATOR imported", skillEffectIDs(db.SkillRADetonator), effectConcentration2)
 	expectEffectIDs(t, "NC_POWERSWING imported", skillEffectIDs(db.SkillNCPowerswing), effectCrashAxe)
 	expectEffectIDs(t, "SR_EARTHSHAKER imported", skillEffectIDs(db.SkillSREarthshaker), effectElectric4)
+	expectEffectIDs(t, "GC_DARKCROW imported", skillEffectIDs(db.SkillGCDarkcrow), effectGCDarkCrow)
+	expectEffectIDs(t, "GN_ILLUSIONDOPING imported", skillEffectIDs(db.SkillGNIllusiondoping), effectGNIllusionDoping)
+	expectEffectIDs(t, "RK_LUXANIMA imported", skillEffectIDs(db.SkillRKLuxanima), effectRKLuxAnima)
+	expectEffectIDs(t, "NC_MAGMA_ERUPTION imported", skillEffectIDs(db.SkillNCMagmaEruption), effectNCMagmaEruption)
+	expectEffectIDs(t, "SO_ELEMENTAL_SHIELD imported", skillEffectIDs(db.SkillSOElementalShield), effectSOElemShield)
+	expectEffectIDs(t, "SR_FLASHCOMBO imported", skillEffectIDs(db.SkillSRFlashcombo), effectSRFlashCombo)
+	expectEffectIDs(t, "AB_OFFERTORIUM imported", skillEffectIDs(db.SkillABOffertorium), effectABOffertorium)
+	expectEffectIDs(t, "WL_TELEKINESIS_INTENSE imported", skillEffectIDs(db.SkillWLTelekinesisIntense), effectWLTelekinesis)
+	expectEffectIDs(t, "ALL_FULL_THROTTLE imported", skillEffectIDs(db.SkillALLFullThrottle), effectAllFullThrottle)
 	expectEffectIDs(t, "SC_BODYPAINT imported", skillEffectIDs(db.SkillSCBodypaint), effectStretch)
 	expectEffectIDs(t, "SC_ENERVATION imported", skillEffectIDs(db.SkillSCEnervation), effectEnervation)
 	expectEffectIDs(t, "SC_GROOMY imported", skillEffectIDs(db.SkillSCGroomy), effectEnervation2)

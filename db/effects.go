@@ -593,6 +593,25 @@ const (
 	effectVolcanicAsh      = 975
 	effectRWC2011          = 987
 	effectRWC2011Two       = 988
+	effectRunMakeOK        = 1015
+	effectRunMakeFailure   = 1016
+	effectMIResultMakeOK   = 1017
+	effectMIResultMakeFail = 1018
+	effectAllRayProtect    = 1019
+	effectVenomFog         = 1020
+	effectDustStorm        = 1021
+	effectDanceBladeAtk    = 1029
+	effectInvincibleOff2   = 1031
+	effectDeathSummon      = 1033
+	effectGCDarkCrow       = 1040
+	effectAllFullThrottle  = 1042
+	effectSRFlashCombo     = 1043
+	effectRKLuxAnima       = 1044
+	effectSOElemShield     = 1046
+	effectABOffertorium    = 1047
+	effectWLTelekinesis    = 1048
+	effectGNIllusionDoping = 1049
+	effectNCMagmaEruption  = 1050
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -5000,6 +5019,25 @@ var EffectSpecs = map[int]EffectSpec{
 	effectVolcanicAsh:       strEffectSpecAttached("vash00", "", false),
 	effectRWC2011:           strEffectSpecAttached("rwc2011", "", false),
 	effectRWC2011Two:        strEffectSpecAttached("rwc2011_2", "", false),
+	effectRunMakeOK:         strEffectSpecAttached("rune_success", "", false),
+	effectRunMakeFailure:    strEffectSpecAttached("rune_fail", "", false),
+	effectMIResultMakeOK:    strEffectSpecAttached("changematerial_su", "", false),
+	effectMIResultMakeFail:  strEffectSpecAttached("changematerial_fa", "", false),
+	effectAllRayProtect:     strEffectSpecAttached("guardian", "", false),
+	effectVenomFog:          strEffectSpecRandomAttached("bubble%d_1", "", 1, 4, true, false),
+	effectDustStorm:         strEffectSpecAttached("dust", "", false),
+	effectDanceBladeAtk:     strEffectSpecAttached("dancingblade", "", false),
+	effectInvincibleOff2:    strEffectSpecAttached("invincibleoff2", "", false),
+	effectDeathSummon:       strEffectSpecAttached("devil", "", false),
+	effectGCDarkCrow:        strEffectSpecAttached("gc_darkcrow", "", false),
+	effectAllFullThrottle:   strEffectSpecAttached("all_full_throttle", "effect\\all_full_throttle.wav", false),
+	effectSRFlashCombo:      strEffectSpecAttached("sr_flashcombo", "effect\\sr_flashcombo.wav", false),
+	effectRKLuxAnima:        strEffectSpecAttached("rk_luxanima", "", false),
+	effectSOElemShield:      strEffectSpecAttached("so_elemental_shield", "effect\\so_elemental_shield.wav", false),
+	effectABOffertorium:     strEffectSpecAttached("ab_offertorium", "effect\\ab_offertorium.wav", false),
+	effectWLTelekinesis:     strEffectSpecAttached("wl_telekinesis_intense", "effect\\wl_telekinesis_intense.wav", false),
+	effectGNIllusionDoping:  strEffectSpecAttached("gn_illusiondoping", "effect\\gn_illusiondoping.wav", false),
+	effectNCMagmaEruption:   strEffectSpecAttached("nc_magma_eruption", "effect\\nc_magma_eruption.wav", false),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},
