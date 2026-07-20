@@ -54,6 +54,14 @@ func (m *WorldMode) effectTextureFrame(manager *res.Manager, component worldEffe
 		return m.effectFileTexture(manager, component.textureFile)
 	}
 	index := int(clampFloat(progress, 0, 0.999999) * float64(len(component.textureFiles)))
+	if component.frameDelay > 0 {
+		duration := component.duration
+		if duration <= 0 {
+			duration = 500 * time.Millisecond
+		}
+		elapsed := time.Duration(clampFloat(progress, 0, 0.999999) * float64(duration))
+		index = int(elapsed/component.frameDelay) % len(component.textureFiles)
+	}
 	return m.effectFileTexture(manager, component.textureFiles[index])
 }
 

@@ -87,6 +87,7 @@ const (
 	effectFireSplashHit  = 50
 	effectColdHit        = 51
 	effectWindHit        = 52
+	effectPoisonHit      = 53
 	effectBeginSpell2    = 54
 	effectBeginSpell3    = 55
 	effectBeginSpell4    = 56
@@ -94,6 +95,33 @@ const (
 	effectBeginSpell6    = 58
 	effectBeginSpell7    = 59
 	effectLockOnTarget   = 60
+	effectWarpZone       = 61
+	effectSightTrasher   = 62
+	effectArrowShotRO    = 64
+	effectInvenom        = 65
+	effectSkidTrap       = 69
+	effectBrandishSpear  = 70
+	effectIceWall        = 74
+	effectRecovery       = 78
+	effectEarthSpike     = 79
+	effectSpearBoomerang = 80
+	effectPierce         = 81
+	effectTurnUndead     = 82
+	effectSanctuary      = 83
+	effectImpositio      = 84
+	effectAspersio       = 86
+	effectLexDivina      = 87
+	effectLordVermilion  = 90
+	effectBenedictio     = 91
+	effectMeteorStorm    = 92
+	effectJupitelThunder = 93
+	effectJupitelHit     = 94
+	effectQuagmire       = 95
+	effectFirePillar     = 96
+	effectFirePillarBomb = 97
+	effectHasteUp        = 98
+	effectFlasher        = 99
+	effectRemoveTrap     = 100
 	effectRain           = 161
 	effectSnow           = 162
 	effectSakura         = 163
@@ -190,6 +218,7 @@ const (
 	effectComponent3D
 	effectComponentSPR
 	effectComponentFUNC
+	effectComponentQuadHorn
 )
 
 type worldEffect struct {
@@ -239,6 +268,7 @@ type worldEffectComponent struct {
 	textureName        string
 	textureFile        string
 	textureFiles       []string
+	frameDelay         time.Duration
 	spriteFile         string
 	shadowTexture      bool
 	spriteHead         bool
@@ -335,8 +365,26 @@ type worldEffectComponent struct {
 	circleSides        int
 	duplicate          int
 	angleZRandom       float64
+	blendMode          int
 	blendAdditive      bool
 	overlay            bool
+	quadHornHeightMin  float64
+	quadHornHeightMax  float64
+	quadHornOffsetXMin float64
+	quadHornOffsetXMax float64
+	quadHornOffsetYMin float64
+	quadHornOffsetYMax float64
+	quadHornOffsetZ    float64
+	quadHornBottomMin  float64
+	quadHornBottomMax  float64
+	quadHornRotateXMin float64
+	quadHornRotateXMax float64
+	quadHornRotateYMin float64
+	quadHornRotateYMax float64
+	quadHornRotateZMin float64
+	quadHornRotateZMax float64
+	quadHornAnimSpeed  time.Duration
+	quadHornAnimOut    bool
 }
 
 func (m *WorldMode) addItemUseEffect(ctx client.Context, ack network.UseItemAck) {
@@ -1398,6 +1446,7 @@ func convertDBWorldEffectComponent(component db.EffectComponent) worldEffectComp
 		textureName:        component.TextureName,
 		textureFile:        component.TextureFile,
 		textureFiles:       append([]string(nil), component.TextureFiles...),
+		frameDelay:         component.FrameDelay,
 		spriteFile:         component.SpriteFile,
 		shadowTexture:      component.ShadowTexture,
 		spriteHead:         component.SpriteHead,
@@ -1494,8 +1543,26 @@ func convertDBWorldEffectComponent(component db.EffectComponent) worldEffectComp
 		circleSides:        component.CircleSides,
 		duplicate:          component.Duplicate,
 		angleZRandom:       component.AngleZRandom,
+		blendMode:          component.BlendMode,
 		blendAdditive:      component.BlendAdditive,
 		overlay:            component.Overlay,
+		quadHornHeightMin:  component.QuadHornHeightMin,
+		quadHornHeightMax:  component.QuadHornHeightMax,
+		quadHornOffsetXMin: component.QuadHornOffsetXMin,
+		quadHornOffsetXMax: component.QuadHornOffsetXMax,
+		quadHornOffsetYMin: component.QuadHornOffsetYMin,
+		quadHornOffsetYMax: component.QuadHornOffsetYMax,
+		quadHornOffsetZ:    component.QuadHornOffsetZ,
+		quadHornBottomMin:  component.QuadHornBottomMin,
+		quadHornBottomMax:  component.QuadHornBottomMax,
+		quadHornRotateXMin: component.QuadHornRotateXMin,
+		quadHornRotateXMax: component.QuadHornRotateXMax,
+		quadHornRotateYMin: component.QuadHornRotateYMin,
+		quadHornRotateYMax: component.QuadHornRotateYMax,
+		quadHornRotateZMin: component.QuadHornRotateZMin,
+		quadHornRotateZMax: component.QuadHornRotateZMax,
+		quadHornAnimSpeed:  component.QuadHornAnimSpeed,
+		quadHornAnimOut:    component.QuadHornAnimOut,
 	}
 }
 
@@ -1513,6 +1580,8 @@ func convertDBEffectComponentKind(kind db.EffectComponentKind) effectComponentKi
 		return effectComponentSPR
 	case db.EffectComponentFUNC:
 		return effectComponentFUNC
+	case db.EffectComponentQuadHorn:
+		return effectComponentQuadHorn
 	default:
 		return 0
 	}
@@ -1679,6 +1748,8 @@ func (m *WorldMode) drawWorldEffectComponent(screen *render.Frame, ctx client.Co
 		m.drawSPREffect(screen, ctx, projection, effect, component, worldX, worldY, worldZ, now)
 	case effectComponentFUNC:
 		m.drawFuncEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
+	case effectComponentQuadHorn:
+		m.drawQuadHornEffect(screen, ctx, effect, component, componentIndex, worldX, worldY, worldZ, progress, componentDuration)
 	default:
 	}
 }

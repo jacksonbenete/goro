@@ -79,6 +79,7 @@ const (
 	effectFireSplashHit  = 50
 	effectColdHit        = 51
 	effectWindHit        = 52
+	effectPoisonHit      = 53
 	effectBeginSpell2    = 54
 	effectBeginSpell3    = 55
 	effectBeginSpell4    = 56
@@ -86,6 +87,33 @@ const (
 	effectBeginSpell6    = 58
 	effectBeginSpell7    = 59
 	effectLockOnTarget   = 60
+	effectWarpZone       = 61
+	effectSightTrasher   = 62
+	effectArrowShotRO    = 64
+	effectInvenom        = 65
+	effectSkidTrap       = 69
+	effectBrandishSpear  = 70
+	effectIceWall        = 74
+	effectRecovery       = 78
+	effectEarthSpike     = 79
+	effectSpearBoomerang = 80
+	effectPierce         = 81
+	effectTurnUndead     = 82
+	effectSanctuary      = 83
+	effectImpositio      = 84
+	effectAspersio       = 86
+	effectLexDivina      = 87
+	effectLordVermilion  = 90
+	effectBenedictio     = 91
+	effectMeteorStorm    = 92
+	effectJupitelThunder = 93
+	effectJupitelHit     = 94
+	effectQuagmire       = 95
+	effectFirePillar     = 96
+	effectFirePillarBomb = 97
+	effectHasteUp        = 98
+	effectFlasher        = 99
+	effectRemoveTrap     = 100
 	effectRain           = 161
 	effectSnow           = 162
 	effectSakura         = 163
@@ -181,6 +209,7 @@ const (
 	EffectComponent3D
 	EffectComponentSPR
 	EffectComponentFUNC
+	EffectComponentQuadHorn
 )
 
 type EffectSpec struct {
@@ -215,6 +244,7 @@ type EffectComponent struct {
 	TextureName        string
 	TextureFile        string
 	TextureFiles       []string
+	FrameDelay         time.Duration
 	SpriteFile         string
 	ShadowTexture      bool
 	SpriteHead         bool
@@ -311,8 +341,26 @@ type EffectComponent struct {
 	CircleSides        int
 	Duplicate          int
 	AngleZRandom       float64
+	BlendMode          int
 	BlendAdditive      bool
 	Overlay            bool
+	QuadHornHeightMin  float64
+	QuadHornHeightMax  float64
+	QuadHornOffsetXMin float64
+	QuadHornOffsetXMax float64
+	QuadHornOffsetYMin float64
+	QuadHornOffsetYMax float64
+	QuadHornOffsetZ    float64
+	QuadHornBottomMin  float64
+	QuadHornBottomMax  float64
+	QuadHornRotateXMin float64
+	QuadHornRotateXMax float64
+	QuadHornRotateYMin float64
+	QuadHornRotateYMax float64
+	QuadHornRotateZMin float64
+	QuadHornRotateZMax float64
+	QuadHornAnimSpeed  time.Duration
+	QuadHornAnimOut    bool
 }
 
 func effectTableSize(value float64) float64 {
@@ -382,6 +430,10 @@ func berserkPotionEffectSpec() EffectSpec {
 }
 
 func robrCylinderComponent(textureName string, tint color.RGBA, duration time.Duration, alphaMax float64, animation int, bottomSize, topSize, height float64, attached, rotate, fade, additive bool) EffectComponent {
+	blendMode := 0
+	if additive {
+		blendMode = 2
+	}
 	return EffectComponent{
 		Kind:             EffectComponentCylinder,
 		Color:            tint,
@@ -397,6 +449,7 @@ func robrCylinderComponent(textureName string, tint color.RGBA, duration time.Du
 		AttachedEntity:   attached,
 		TotalCircleSides: 32,
 		CircleSides:      32,
+		BlendMode:        blendMode,
 		BlendAdditive:    additive,
 	}
 }
@@ -404,6 +457,227 @@ func robrCylinderComponent(textureName string, tint color.RGBA, duration time.Du
 func tintedEffectComponent(component EffectComponent, tint color.RGBA) EffectComponent {
 	component.Color = tint
 	return component
+}
+
+func quadHornEffectComponent(textureFile string, duration time.Duration, height, offsetX, offsetY [2]float64, offsetZ float64, bottomSize, rotateY, rotateZ [2]float64, animation int, animationSpeed time.Duration, animationOut bool, blendMode int) EffectComponent {
+	return EffectComponent{
+		Kind:               EffectComponentQuadHorn,
+		TextureFile:        textureFile,
+		Duration:           duration,
+		AttachedEntity:     false,
+		Color:              color.RGBA{R: 255, G: 255, B: 255, A: 255},
+		BlendMode:          blendMode,
+		BlendAdditive:      blendMode == 2,
+		Animation:          animation,
+		QuadHornHeightMin:  height[0],
+		QuadHornHeightMax:  height[1],
+		QuadHornOffsetXMin: offsetX[0],
+		QuadHornOffsetXMax: offsetX[1],
+		QuadHornOffsetYMin: offsetY[0],
+		QuadHornOffsetYMax: offsetY[1],
+		QuadHornOffsetZ:    offsetZ,
+		QuadHornBottomMin:  bottomSize[0],
+		QuadHornBottomMax:  bottomSize[1],
+		QuadHornRotateYMin: rotateY[0],
+		QuadHornRotateYMax: rotateY[1],
+		QuadHornRotateZMin: rotateZ[0],
+		QuadHornRotateZMax: rotateZ[1],
+		QuadHornAnimSpeed:  animationSpeed,
+		QuadHornAnimOut:    animationOut,
+	}
+}
+
+func iceWallEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 5 * time.Minute,
+		SFX:      []string{"effect\\wizard_icewall.wav"},
+		Components: []EffectComponent{
+			quadHornEffectComponent("effect/ice.tga", 5*time.Minute, [2]float64{2.8, 3.3}, [2]float64{0.25, 0.75}, [2]float64{0.25, 0.75}, -0.1, [2]float64{0.3, 0.5}, [2]float64{1, 360}, [2]float64{}, 1, 50*time.Millisecond, false, 8),
+			quadHornEffectComponent("effect/ice.tga", 5*time.Minute, [2]float64{2.3, 2.8}, [2]float64{0.25, 0.75}, [2]float64{0.25, 0.75}, -0.1, [2]float64{0.3, 0.5}, [2]float64{1, 360}, [2]float64{}, 1, 50*time.Millisecond, false, 8),
+			quadHornEffectComponent("effect/ice.tga", 5*time.Minute, [2]float64{2.5, 2.9}, [2]float64{0.25, 0.75}, [2]float64{0.25, 0.75}, -0.1, [2]float64{0.3, 0.5}, [2]float64{1, 360}, [2]float64{}, 1, 50*time.Millisecond, false, 8),
+		},
+	}
+}
+
+func earthSpikeEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:    5 * time.Second,
+		CameraShake: 200 * time.Millisecond,
+		SFX:         []string{"effect\\wizard_earthspike.wav"},
+		Components: []EffectComponent{
+			quadHornEffectComponent("effect/stone.bmp", 5*time.Second, [2]float64{0.95, 1.5}, [2]float64{0.4, 0.6}, [2]float64{0.4, 0.6}, -0.1, [2]float64{0.5, 0.6}, [2]float64{1, 360}, [2]float64{-8, 8}, 3, 120*time.Millisecond, true, 1),
+			quadHornEffectComponent("effect/stone.bmp", 5*time.Second, [2]float64{0.2, 0.4}, [2]float64{0, 0}, [2]float64{0.5, 0.5}, -0.1, [2]float64{0.1, 0.2}, [2]float64{1, 360}, [2]float64{-15, 15}, 2, 100*time.Millisecond, true, 1),
+			quadHornEffectComponent("effect/stone.bmp", 5*time.Second, [2]float64{0.2, 0.4}, [2]float64{0, 0.5}, [2]float64{0.5, 1.0}, -0.1, [2]float64{0.1, 0.2}, [2]float64{1, 360}, [2]float64{-15, 15}, 2, 100*time.Millisecond, true, 1),
+			quadHornEffectComponent("effect/stone.bmp", 5*time.Second, [2]float64{0.2, 0.4}, [2]float64{1.0, 1.2}, [2]float64{0.5, 0.8}, -0.1, [2]float64{0.1, 0.2}, [2]float64{1, 360}, [2]float64{-15, 15}, 2, 100*time.Millisecond, true, 1),
+			quadHornEffectComponent("effect/stone.bmp", 5*time.Second, [2]float64{0.2, 0.4}, [2]float64{0.5, 0.7}, [2]float64{0.0, -0.2}, -0.1, [2]float64{0.1, 0.2}, [2]float64{1, 360}, [2]float64{-15, 15}, 2, 100*time.Millisecond, true, 1),
+		},
+	}
+}
+
+func warpZoneEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 2800 * time.Millisecond,
+		Components: []EffectComponent{
+			robrCylinderComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 2800*time.Millisecond, 0.3, 3, 2, 3.3, 1.1, true, true, true, true),
+			robrCylinderComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 2800*time.Millisecond, 0.3, 3, 1.9, 3.2, 1.1, true, true, true, true),
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    "effect/pok1.tga",
+				Duration:       time.Second,
+				Duplicate:      3,
+				AlphaMax:       1,
+				FadeIn:         true,
+				FadeOut:        true,
+				PosXStartRand:  3,
+				PosYStartRand:  3,
+				PosZ:           0,
+				PosZEndRand:    2,
+				PosZEndMiddle:  2,
+				SizeStart:      effectTableSize(100),
+				SizeEnd:        effectTableSize(100),
+				SizeRand:       effectTableSize(17),
+				AttachedEntity: true,
+				Color:          color.RGBA{R: 255, G: 255, B: 255, A: 255},
+			},
+		},
+	}
+}
+
+func sightTrasherEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:   800 * time.Millisecond,
+		SFX:        []string{"effect\\wizard_sightrasher.wav"},
+		Components: sightTrasherComponents(),
+	}
+}
+
+func sightTrasherComponents() []EffectComponent {
+	directions := [][2]float64{
+		{0, -8},
+		{5.66, -5.66},
+		{8, 0},
+		{5.66, 5.66},
+		{0, 8},
+		{-5.66, 5.66},
+		{-8, 0},
+		{-5.66, -5.66},
+	}
+	components := make([]EffectComponent, 0, len(directions)*2)
+	for _, direction := range directions {
+		components = append(components, sightTrasherComponent(true, direction[0], direction[1]), sightTrasherComponent(false, direction[0], direction[1]))
+	}
+	return components
+}
+
+func sightTrasherComponent(shadow bool, xEnd, yEnd float64) EffectComponent {
+	component := EffectComponent{
+		Kind:           EffectComponent3D,
+		Duration:       800 * time.Millisecond,
+		Duplicate:      4,
+		DuplicateDelay: 100 * time.Millisecond,
+		AlphaMax:       0.5,
+		PosXEnd:        xEnd,
+		PosYEnd:        yEnd,
+		PosZ:           2,
+		PosZEnd:        2,
+		SizeStart:      effectTableSize(60),
+		SizeEnd:        effectTableSize(160),
+		SizeDelta:      -60,
+		FadeIn:         true,
+		FadeOut:        true,
+		SpriteFile:     "data\\sprite\\shadow",
+		ShadowTexture:  true,
+		SpriteRepeat:   true,
+		BlendMode:      8,
+	}
+	if !shadow {
+		component.SpriteFile = "sight"
+		component.ShadowTexture = false
+		component.AlphaMax = 123.0 / 255.0
+		component.AlphaMaxDelta = 3.0 / 255.0
+		component.SizeStart = effectTableSize(20)
+		component.SizeEnd = effectTableSize(260)
+	}
+	return component
+}
+
+func jupitelThunderEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 200 * time.Millisecond,
+		SFX:      []string{"effect\\hunter_shockwavetrap.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:          EffectComponent3D,
+				TextureFile:   "effect/thunder_center.bmp",
+				Duration:      200 * time.Millisecond,
+				ToSrc:         true,
+				BlendMode:     2,
+				BlendAdditive: true,
+				Overlay:       true,
+				AlphaMax:      0.66,
+				SizeStart:     effectTableSize(35),
+				SizeEnd:       effectTableSize(35),
+			},
+			{
+				Kind: EffectComponent3D,
+				TextureFiles: []string{
+					"effect/thunder_ball_a.bmp",
+					"effect/thunder_ball_b.bmp",
+					"effect/thunder_ball_c.bmp",
+					"effect/thunder_ball_d.bmp",
+					"effect/thunder_ball_e.bmp",
+					"effect/thunder_ball_f.bmp",
+				},
+				FrameDelay:    10 * time.Millisecond,
+				Duration:      200 * time.Millisecond,
+				ToSrc:         true,
+				BlendMode:     2,
+				BlendAdditive: true,
+				Overlay:       true,
+				SizeStart:     effectTableSize(45),
+				SizeEnd:       effectTableSize(45),
+			},
+		},
+	}
+}
+
+func jupitelHitEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 300 * time.Millisecond,
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    "effect/thunder_pang.bmp",
+				Duration:       100 * time.Millisecond,
+				SizeStart:      0,
+				SizeEnd:        effectTableSize(25),
+				BlendMode:      2,
+				BlendAdditive:  true,
+				RotateToTarget: true,
+				FadeOut:        true,
+				Overlay:        true,
+				AttachedEntity: true,
+			},
+			{
+				Kind: EffectComponent3D,
+				TextureFiles: []string{
+					"effect/thunder_plazma_blast_a.bmp",
+					"effect/thunder_plazma_blast_b.bmp",
+					"effect/thunder_ball_d.bmp",
+					"effect/thunder_ball_e.bmp",
+					"effect/thunder_ball_f.bmp",
+				},
+				FrameDelay:     10 * time.Millisecond,
+				Duration:       300 * time.Millisecond,
+				SizeStart:      effectTableSize(75),
+				SizeEnd:        effectTableSize(75),
+				BlendMode:      2,
+				BlendAdditive:  true,
+				Overlay:        true,
+				AttachedEntity: true,
+			},
+		},
+	}
 }
 
 func teleportCylinderComponent(bottomSize, topSize, height float64) EffectComponent {
@@ -1907,23 +2181,70 @@ var EffectSpecs = map[int]EffectSpec{
 			AngleEnd:    -360,
 		}},
 	},
-	effectColdHit:       soundOnlyEffectSpec("_hit_fist3.wav", "_hit_fist4.wav"),
-	effectWindHit:       strEffectSpecRandomAttached("windhit%d", "_hit_fist%d.wav", 1, 3, true, false),
-	effectCure:          strEffectSpecAttachedMin("cure", "cure_min", "effect\\acolyte_cure.wav", false),
-	effectMvp:           strEffectSpecAttached("mvp", "effect\\st_mvp.wav", false),
-	effectMagnificat:    strEffectSpecAttachedMin("magnificat", "magnificat_min", "effect\\priest_magnificat.wav", false),
-	effectResurrection:  strEffectSpecAttachedMin("resurrection", "resurrection_min", "effect\\priest_resurrection.wav", false),
-	effectLexAeterna:    strEffectSpecAttachedMin("lexaeterna", "lexaeterna_min", "effect\\priest_lexaeterna.wav", false),
-	effectSuffragium:    strEffectSpecAttachedMin("suffragium", "suffragium_min", "effect\\priest_suffragium.wav", false),
-	effectStormGust:     strEffectSpecAttachedMin("stormgust", "storm_min", "effect\\wizard_stormgust.wav", false),
-	effectWeaponPerfect: strEffectSpecAttachedMin("weaponperfection", "weaponperfection_min", "effect\\black_weapon_perfection.wav", false),
-	effectMaximizePower: strEffectSpecAttachedMin("maximizepower", "maximize_min", "", false),
-	effectKyrie:         strEffectSpecAttachedMin("kyrie", "kyrie_min", "effect\\priest_kyrie_eleison_a.wav", false),
-	effectHolyLight:     strEffectSpecAttached("holyhit", "", false),
-	effectConcentration: strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
-	effectRefineOK:      strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
-	effectRefineFail:    strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),
-	effectEnergyCoat:    strEffectSpecAttached("energycoat", "", false),
+	effectColdHit: soundOnlyEffectSpec("_hit_fist3.wav", "_hit_fist4.wav"),
+	effectWindHit: strEffectSpecRandomAttached("windhit%d", "_hit_fist%d.wav", 1, 3, true, false),
+	effectPoisonHit: {
+		SFX: []string{"effect\\ef_poisonattack.wav"},
+		Components: []EffectComponent{{
+			Kind:       EffectComponentSPR,
+			SpriteFile: "poisonhit",
+		}},
+	},
+	effectWarpZone:       warpZoneEffectSpec(),
+	effectSightTrasher:   sightTrasherEffectSpec(),
+	effectArrowShotRO:    strEffectSpecAttached("arrowshot", "", false),
+	effectInvenom:        strEffectSpecAttached("invenom", "effect\\thief_invenom.wav", false),
+	effectSkidTrap:       strEffectSpec("skidtrap", "effect\\hunter_skidtrap.wav"),
+	effectBrandishSpear:  strEffectSpec("brandish", "effect\\knight_brandish_spear.wav"),
+	effectCure:           strEffectSpecAttachedMin("cure", "cure_min", "effect\\acolyte_cure.wav", false),
+	effectMvp:            strEffectSpecAttached("mvp", "effect\\st_mvp.wav", false),
+	effectIceWall:        iceWallEffectSpec(),
+	effectMagnificat:     strEffectSpecAttachedMin("magnificat", "magnificat_min", "effect\\priest_magnificat.wav", false),
+	effectResurrection:   strEffectSpecAttachedMin("resurrection", "resurrection_min", "effect\\priest_resurrection.wav", false),
+	effectRecovery:       strEffectSpecAttached("recovery", "effect\\priest_recovery.wav", false),
+	effectEarthSpike:     earthSpikeEffectSpec(),
+	effectSpearBoomerang: soundOnlyEffectSpec("effect\\ef_fireball.wav"),
+	effectPierce:         soundOnlyEffectSpec("effect\\ef_bash.wav"),
+	effectTurnUndead:     soundOnlyEffectSpec("effect\\ef_bash.wav"),
+	effectSanctuary:      strEffectSpecAttached("sanctuary", "effect\\priest_sanctuary.wav", false),
+	effectImpositio:      strEffectSpecAttached("impositio", "effect\\priest_impositio.wav", false),
+	effectLexAeterna:     strEffectSpecAttachedMin("lexaeterna", "lexaeterna_min", "effect\\priest_lexaeterna.wav", false),
+	effectAspersio:       strEffectSpecAttached("aspersio", "effect\\priest_aspersio.wav", false),
+	effectLexDivina:      strEffectSpecAttached("lexdivina", "effect\\priest_lexdivina.wav", false),
+	effectSuffragium:     strEffectSpecAttachedMin("suffragium", "suffragium_min", "effect\\priest_suffragium.wav", false),
+	effectStormGust:      strEffectSpecAttachedMin("stormgust", "storm_min", "effect\\wizard_stormgust.wav", false),
+	effectLordVermilion:  strEffectSpecAttached("lord", "effect\\wizard_fire_ivy.wav", false),
+	effectBenedictio:     strEffectSpecAttached("benedictio", "effect\\priest_benedictio.wav", false),
+	effectMeteorStorm: {
+		CameraShake:      650 * time.Millisecond,
+		CameraShakeDelay: 600 * time.Millisecond,
+		SFX:              []string{"effect\\wizard_meteor.wav"},
+		SFXRandMin:       1,
+		SFXRandMax:       4,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentSTR,
+			STRFile:        "meteor%d",
+			STRRandMin:     1,
+			STRRandMax:     4,
+			AttachedEntity: true,
+		}},
+	},
+	effectJupitelThunder: jupitelThunderEffectSpec(),
+	effectJupitelHit:     jupitelHitEffectSpec(),
+	effectQuagmire:       strEffectSpec("quagmire", "effect\\wizard_quagmire.wav"),
+	effectFirePillar:     strEffectSpec("firepillar", "effect\\wizard_fire_pillar_a.wav"),
+	effectFirePillarBomb: strEffectSpec("firepillarbomb", "effect\\wizard_fire_pillar_b.wav"),
+	effectHasteUp:        soundOnlyEffectSpec("effect\\black_adrenalinerush_b.wav"),
+	effectFlasher:        soundOnlyEffectSpec("effect\\hunter_flasher.wav"),
+	effectRemoveTrap:     soundOnlyEffectSpec("effect\\hunter_removetrap.wav"),
+	effectWeaponPerfect:  strEffectSpecAttachedMin("weaponperfection", "weaponperfection_min", "effect\\black_weapon_perfection.wav", false),
+	effectMaximizePower:  strEffectSpecAttachedMin("maximizepower", "maximize_min", "", false),
+	effectKyrie:          strEffectSpecAttachedMin("kyrie", "kyrie_min", "effect\\priest_kyrie_eleison_a.wav", false),
+	effectHolyLight:      strEffectSpecAttached("holyhit", "", false),
+	effectConcentration:  strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
+	effectRefineOK:       strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
+	effectRefineFail:     strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),
+	effectEnergyCoat:     strEffectSpecAttached("energycoat", "", false),
 	effectFirstAid: {
 		Duration: time.Second,
 		SFX:      []string{"_heal_effect.wav"},
