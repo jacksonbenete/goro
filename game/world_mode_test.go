@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 528 {
-		t.Fatalf("implemented effects = %d, want 528", coverage.Implemented)
+	if coverage.Implemented != 546 {
+		t.Fatalf("implemented effects = %d, want 546", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 86.9 || coverage.ActivePercent > 87.0 {
-		t.Fatalf("active coverage = %.3f, want about 87.0", coverage.ActivePercent)
+	if coverage.ActivePercent < 89.9 || coverage.ActivePercent > 90.0 {
+		t.Fatalf("active coverage = %.3f, want about 90.0", coverage.ActivePercent)
 	}
 }
 
@@ -3406,6 +3406,34 @@ func TestRobrowserActiveEffectsEightHundredToEightFiftyHaveSpecs(t *testing.T) {
 		effectHealN:            "EF_HEAL_N",
 		effectChookgiN:         "EF_CHOOKGI_N",
 		effectDance1:           "EF_DANCE1",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsEightFiftyToNineHundredHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectBotReverb:    "EF_BOT_REVERB",
+		effectRainParticle: "EF_RAIN_PARTICLE",
+		effectChemicalV2:   "EF_CHEMICAL_V2",
+		effectBotReverb2:   "EF_BOT_REVERB2",
+		effectCirclePower2: "EF_CIRCLEPOWER2",
+		effectSecra2:       "EF_SECRA2",
+		effectSprPlant2:    "EF_SPR_PLANT2",
+		effectSprPlant3:    "EF_SPR_PLANT3",
+		effectSprPlant4:    "EF_SPR_PLANT4",
+		effectSprPlant5:    "EF_SPR_PLANT5",
+		effectSprPlant6:    "EF_SPR_PLANT6",
+		effectSprPlant7:    "EF_SPR_PLANT7",
+		effectSprPlant8:    "EF_SPR_PLANT8",
+		effectHeartAsura:   "EF_HEARTASURA",
+		effectGlassWall4:   "EF_GLASSWALL4",
+		effectBash3D6:      "EF_BASH3D6",
+		effectElectric4:    "EF_ELECTRIC4",
+		effectTeiHit1T:     "EF_TEIHIT1T",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -5321,6 +5349,123 @@ func TestRobrowserEffectsEightHundredToEightFiftyMatchTableRows(t *testing.T) {
 	}
 }
 
+func TestRobrowserEffectsEightFiftyToNineHundredMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		id   int
+		wav  string
+	}{
+		{"EF_RAIN_PARTICLE", effectRainParticle, "effect\\rainstorm.wav"},
+		{"EF_CHEMICAL_V2", effectChemicalV2, "effect\\안식의자장가.wav"},
+		{"EF_CIRCLEPOWER2", effectCirclePower2, "effect\\순환하는자연의소리.wav"},
+		{"EF_SPR_PLANT2", effectSprPlant2, "effect\\워그와함께춤을.wav"},
+		{"EF_SPR_PLANT3", effectSprPlant3, "effect\\마나의노래.wav"},
+		{"EF_SPR_PLANT4", effectSprPlant4, "effect\\새터데이나이트피버.wav"},
+		{"EF_SPR_PLANT5", effectSprPlant5, "effect\\레라드의이슬.wav"},
+		{"EF_SPR_PLANT6", effectSprPlant6, "effect\\멜로디오브싱크.wav"},
+		{"EF_SPR_PLANT7", effectSprPlant7, "effect\\비욘드오브워크라이.wav"},
+		{"EF_SPR_PLANT8", effectSprPlant8, "effect\\언리미티드허밍보이스.wav"},
+		{"EF_HEARTASURA", effectHeartAsura, "effect\\세이렌의목소리.wav"},
+		{"EF_ELECTRIC4", effectElectric4, "effect\\sr_earthshaker.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 500*time.Millisecond || len(spec.components) != 0 {
+			t.Fatalf("%s spec = %+v ok=%t, want sound-only 500ms", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	for _, tc := range []struct {
+		name    string
+		id      int
+		texture string
+		wav     string
+		tint    color.RGBA
+	}{
+		{"EF_BOT_REVERB", effectBotReverb, "effect/melody_b.bmp", "effect\\reverberation.wav", color.RGBA{R: 255, G: 153, B: 153, A: 255}},
+		{"EF_BOT_REVERB2", effectBotReverb2, "effect/melody_a.bmp", "effect\\나락의노래.wav", color.RGBA{R: 153, G: 153, B: 255, A: 255}},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 100*time.Millisecond || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponent3D || component.textureFile != tc.texture || component.color != tc.tint || component.duration != 100*time.Millisecond || component.alphaMax != 0.6 || !component.attachedEntity || !component.repeat || component.posZ != 0.5 || component.sizeStart != effectTableSize(50) || component.sizeEnd != effectTableSize(50) {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+
+	secra, ok := worldEffectSpecForID(effectSecra2)
+	if !ok || secra.duration != 1500*time.Millisecond || len(secra.components) != 10 {
+		t.Fatalf("EF_SECRA2 spec = %+v ok=%t", secra, ok)
+	}
+	if len(secra.sfx) != 1 || secra.sfx[0] != "effect\\ab_ancilla.wav" {
+		t.Fatalf("EF_SECRA2 sfx = %#v", secra.sfx)
+	}
+	firstSecra, lastSecra := secra.components[0], secra.components[len(secra.components)-1]
+	if firstSecra.kind != effectComponent3D || firstSecra.textureFile != "effect/priest_spell.bmp" || firstSecra.color != (color.RGBA{R: 255, G: 140, B: 140, A: 255}) || firstSecra.duration != 1500*time.Millisecond || firstSecra.alphaMax != 0.3 || firstSecra.blendMode != 2 || !firstSecra.blendAdditive || !firstSecra.fadeIn || !firstSecra.fadeOut || !firstSecra.attachedEntity || firstSecra.posZ != 7 || firstSecra.sizeStart != effectTableSize(850) || firstSecra.sizeEnd != effectTableSize(100) || !firstSecra.sizeSmooth {
+		t.Fatalf("EF_SECRA2 first component = %+v", firstSecra)
+	}
+	if lastSecra.color != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) || lastSecra.sizeStart != effectTableSize(400) || lastSecra.sizeEnd != effectTableSize(100) {
+		t.Fatalf("EF_SECRA2 last component = %+v", lastSecra)
+	}
+
+	glass, ok := worldEffectSpecForID(effectGlassWall4)
+	if !ok || glass.duration != 30*time.Second || len(glass.components) != 3 {
+		t.Fatalf("EF_GLASSWALL4 spec = %+v ok=%t", glass, ok)
+	}
+	if len(glass.sfx) != 1 || glass.sfx[0] != "effect\\ef_readyportal.wav" {
+		t.Fatalf("EF_GLASSWALL4 sfx = %#v", glass.sfx)
+	}
+	tree, pulseA, pulseB := glass.components[0], glass.components[1], glass.components[2]
+	if tree.kind != effectComponent3D || tree.textureFile != "effect/ef_epitree.tga" || tree.color != (color.RGBA{G: 255, A: 255}) || tree.duration != 30*time.Second || tree.alphaMax != 0.6 || tree.blendMode != 2 || !tree.blendAdditive || !tree.attachedEntity || tree.posZ != 7 || tree.sizeStart != effectTableSize(400) || tree.sizeEnd != effectTableSize(400) {
+		t.Fatalf("EF_GLASSWALL4 tree = %+v", tree)
+	}
+	if pulseA.duration != 990*time.Millisecond || pulseA.duplicate != 15 || pulseA.duplicateDelay != 2*time.Second || pulseA.delay != 0 || pulseA.sizeStart != effectTableSize(380) || pulseA.sizeEnd != effectTableSize(420) {
+		t.Fatalf("EF_GLASSWALL4 first pulse = %+v", pulseA)
+	}
+	if pulseB.delay != time.Second || pulseB.sizeStart != effectTableSize(420) || pulseB.sizeEnd != effectTableSize(380) {
+		t.Fatalf("EF_GLASSWALL4 second pulse = %+v", pulseB)
+	}
+
+	bash, ok := worldEffectSpecForID(effectBash3D6)
+	if !ok || bash.duration != 500*time.Millisecond || len(bash.components) != 3 {
+		t.Fatalf("EF_BASH3D6 spec = %+v ok=%t", bash, ok)
+	}
+	if len(bash.sfx) != 1 || bash.sfx[0] != "effect\\bash3d.wav" {
+		t.Fatalf("EF_BASH3D6 sfx = %#v", bash.sfx)
+	}
+	if body := bash.components[0]; body.kind != effectComponentFUNC || body.funcName != "Bash3D6" || body.funcAdapter != effectFuncUnknown || !body.attachedEntity {
+		t.Fatalf("EF_BASH3D6 body = %+v", body)
+	}
+	for i, component := range bash.components[1:] {
+		wantTop := 4.5
+		if i == 1 {
+			wantTop = 7.2
+		}
+		if component.kind != effectComponentCylinder || component.textureName != "alpha_center" || component.color != (color.RGBA{R: 76, G: 127, B: 255, A: 255}) || component.duration != 175*time.Millisecond || component.delay != 200*time.Millisecond || component.duplicate != 5 || component.alphaMax != 0.6 || !component.fade || component.angleX != -90 || component.angleZRandom != 360 || !component.fixedPerspective || component.posZ != 1.5 || component.bottomSize != 0.01 || component.topSize != wantTop || component.animation != 2 || !component.attachedEntity {
+			t.Fatalf("EF_BASH3D6 cylinder %d = %+v", i, component)
+		}
+	}
+
+	teiHit, ok := worldEffectSpecForID(effectTeiHit1T)
+	if !ok || teiHit.duration != 350*time.Millisecond || len(teiHit.components) != 1 {
+		t.Fatalf("EF_TEIHIT1T spec = %+v ok=%t", teiHit, ok)
+	}
+	if len(teiHit.sfx) != 1 || teiHit.sfx[0] != "effect\\mon_아수라 패황권.wav" {
+		t.Fatalf("EF_TEIHIT1T sfx = %#v", teiHit.sfx)
+	}
+	component := teiHit.components[0]
+	if component.kind != effectComponent3D || component.textureFile != "effect/lens1.tga" || component.color != (color.RGBA{R: 25, G: 25, B: 255, A: 255}) || component.duration != 250*time.Millisecond || component.delay != 100*time.Millisecond || component.duplicate != 24 || component.duplicateDelay != 0 || component.alphaMax != 0.8 || component.blendMode != 2 || !component.blendAdditive || !component.fadeIn || !component.fadeOut || !component.attachedEntity || component.posXEndRand != 40 || component.posYEndRand != 40 || component.sizeStartX != effectTableSize(10) || component.sizeStartY != effectTableSize(150) || component.sizeEndX != effectTableSize(10) || component.sizeEndY != effectTableSize(150) || !component.overlay || !component.rotateToTarget || !component.rotateWithCamera {
+		t.Fatalf("EF_TEIHIT1T component = %+v", component)
+	}
+}
+
 func TestRobrowserRepairWeaponAndShockwaveSpecs(t *testing.T) {
 	repair, ok := worldEffectSpecForID(effectRepairWeapon)
 	if !ok || len(repair.components) != 1 || repair.duration != 1820*time.Millisecond {
@@ -6728,12 +6873,14 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "AB_JUDEX imported", skillEffectIDs(db.SkillABJudex), effectFirePillarOn2)
 	expectEffectIDs(t, "AB_JUDEX imported hit", skillHitEffectIDs(db.SkillABJudex), effectHolyLight)
 	expectEffectIDs(t, "AB_ADORAMUS imported", skillEffectIDs(db.SkillABAdoramus), effectAdoramus)
+	expectEffectIDs(t, "AB_EPICLESIS imported", skillEffectIDs(db.SkillABEpiclesis), effectGlassWall4)
 	expectEffectIDs(t, "AB_EPICLESIS imported ground", skillGroundEffectIDs(db.SkillABEpiclesis), effectGlassWall3)
 	expectEffectIDs(t, "RA_ARROWSTORM imported", skillEffectIDs(db.SkillRAArrowstorm), effectArrowStorm)
 	expectEffectIDs(t, "RA_AIMEDBOLT imported", skillEffectIDs(db.SkillRAAimedbolt), effectAimedBolt)
 	expectEffectIDs(t, "RA_AIMEDBOLT imported before hit", skillBeforeHitEffectIDs(db.SkillRAAimedbolt), effectArrowShot)
 	expectEffectIDs(t, "RA_DETONATOR imported", skillEffectIDs(db.SkillRADetonator), effectConcentration2)
 	expectEffectIDs(t, "NC_POWERSWING imported", skillEffectIDs(db.SkillNCPowerswing), effectCrashAxe)
+	expectEffectIDs(t, "SR_EARTHSHAKER imported", skillEffectIDs(db.SkillSREarthshaker), effectElectric4)
 	expectEffectIDs(t, "SC_BODYPAINT imported", skillEffectIDs(db.SkillSCBodypaint), effectStretch)
 	expectEffectIDs(t, "SC_ENERVATION imported", skillEffectIDs(db.SkillSCEnervation), effectEnervation)
 	expectEffectIDs(t, "SC_GROOMY imported", skillEffectIDs(db.SkillSCGroomy), effectEnervation2)
@@ -6747,7 +6894,22 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "SC_CHAOSPANIC imported ground", skillGroundEffectIDs(db.SkillSCChaospanic), effectBottomAni)
 	expectEffectIDs(t, "SC_MAELSTROM imported ground", skillGroundEffectIDs(db.SkillSCMaelstrom), effectBottomMaelstrom)
 	expectEffectIDs(t, "SC_BLOODYLUST imported ground", skillGroundEffectIDs(db.SkillSCBloodylust), effectBottomBloodyLust)
+	expectEffectIDs(t, "WM_REVERBERATION imported ground", skillGroundEffectIDs(db.SkillWmReverberation), effectBotReverb)
+	expectEffectIDs(t, "WM_REVERBERATION_MELEE imported", skillEffectIDs(db.SkillWmReverberationMelee), effectBotReverb2)
+	expectEffectIDs(t, "WM_SEVERE_RAINSTORM imported", skillEffectIDs(db.SkillWmSevereRainstorm), effectRainParticle)
+	expectEffectIDs(t, "WM_POEMOFNETHERWORLD imported ground", skillGroundEffectIDs(db.SkillWmPoemofnetherworld), effectBotReverb2)
+	expectEffectIDs(t, "WM_VOICEOFSIREN imported ground", skillGroundEffectIDs(db.SkillWmVoiceofsiren), effectHeartAsura)
+	expectEffectIDs(t, "WM_LULLABY_DEEPSLEEP imported", skillEffectIDs(db.SkillWmLullabyDeepsleep), effectChemicalV2)
+	expectEffectIDs(t, "WM_SIRCLEOFNATURE imported", skillEffectIDs(db.SkillWmSircleofnature), effectCirclePower2)
+	expectEffectIDs(t, "WM_RANDOMIZESPELL imported", skillEffectIDs(db.SkillWmRandomizespell), effectSecra2)
 	expectEffectIDs(t, "WM_GLOOMYDAY imported", skillEffectIDs(db.SkillWmGloomyday), effectDance1)
+	expectEffectIDs(t, "WM_SONG_OF_MANA imported ground", skillGroundEffectIDs(db.SkillWmSongOfMana), effectSprPlant3)
+	expectEffectIDs(t, "WM_DANCE_WITH_WUG imported ground", skillGroundEffectIDs(db.SkillWmDanceWithWug), effectSprPlant2)
+	expectEffectIDs(t, "WM_SATURDAY_NIGHT_FEVER imported ground", skillGroundEffectIDs(db.SkillWmSaturdayNightFever), effectSprPlant4)
+	expectEffectIDs(t, "WM_LERADS_DEW imported ground", skillGroundEffectIDs(db.SkillWmLeradsDew), effectSprPlant5)
+	expectEffectIDs(t, "WM_MELODYOFSINK imported ground", skillGroundEffectIDs(db.SkillWmMelodyofsink), effectSprPlant6)
+	expectEffectIDs(t, "WM_BEYOND_OF_WARCRY imported ground", skillGroundEffectIDs(db.SkillWmBeyondOfWarcry), effectSprPlant7)
+	expectEffectIDs(t, "WM_UNLIMITED_HUMMING_VOICE imported ground", skillGroundEffectIDs(db.SkillWmUnlimitedHummingVoice), effectSprPlant8)
 	expectEffectIDs(t, "HAMI_CASTLE imported", skillEffectIDs(db.SkillHamiCastle), effectHamiCastle)
 	expectEffectIDs(t, "HAMI_DEFENCE imported", skillEffectIDs(db.SkillHamiDefence), effectHamiDefence)
 	expectEffectIDs(t, "HAMI_BLOODLUST imported", skillEffectIDs(db.SkillHamiBloodlust), effectHamiBlood)
@@ -6978,6 +7140,8 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_CHAOSPANIC", skillUnitEffectIDs(206), effectBottomAni)
 	expectEffectIDs(t, "UNT_MAELSTROM", skillUnitEffectIDs(207), effectBottomMaelstrom)
 	expectEffectIDs(t, "UNT_BLOODYLUST", skillUnitEffectIDs(208), effectBottomBloodyLust)
+	expectEffectIDs(t, "UNT_REVERBERATION", skillUnitEffectIDs(218), effectBotReverb)
+	expectEffectIDs(t, "UNT_NETHERWORLD", skillUnitEffectIDs(222), effectBotReverb2)
 }
 
 func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {

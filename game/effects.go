@@ -564,6 +564,24 @@ const (
 	effectHealN            = 832
 	effectChookgiN         = 833
 	effectDance1           = 847
+	effectBotReverb        = 856
+	effectRainParticle     = 857
+	effectChemicalV2       = 858
+	effectBotReverb2       = 860
+	effectCirclePower2     = 861
+	effectSecra2           = 862
+	effectSprPlant2        = 866
+	effectSprPlant3        = 868
+	effectSprPlant4        = 870
+	effectSprPlant5        = 872
+	effectSprPlant6        = 874
+	effectSprPlant7        = 876
+	effectSprPlant8        = 878
+	effectHeartAsura       = 879
+	effectGlassWall4       = 883
+	effectBash3D6          = 885
+	effectElectric4        = 888
+	effectTeiHit1T         = 889
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1714,6 +1732,8 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	206: {effectIDs: []int{effectBottomAni}},        // UNT_CHAOSPANIC -> EF_BOTTOM_ANI
 	207: {effectIDs: []int{effectBottomMaelstrom}},  // UNT_MAELSTROM -> EF_BOTTOM_MAELSTROM
 	208: {effectIDs: []int{effectBottomBloodyLust}}, // UNT_BLOODYLUST -> EF_BOTTOM_BLOODYLUST
+	218: {effectIDs: []int{effectBotReverb}},        // UNT_REVERBERATION -> EF_BOT_REVERB
+	222: {effectIDs: []int{effectBotReverb2}},       // UNT_NETHERWORLD -> EF_BOT_REVERB2
 }
 
 func skillUnitEffectIDs(unitID uint16) []int {

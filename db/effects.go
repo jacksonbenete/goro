@@ -556,6 +556,24 @@ const (
 	effectHealN            = 832
 	effectChookgiN         = 833
 	effectDance1           = 847
+	effectBotReverb        = 856
+	effectRainParticle     = 857
+	effectChemicalV2       = 858
+	effectBotReverb2       = 860
+	effectCirclePower2     = 861
+	effectSecra2           = 862
+	effectSprPlant2        = 866
+	effectSprPlant3        = 868
+	effectSprPlant4        = 870
+	effectSprPlant5        = 872
+	effectSprPlant6        = 874
+	effectSprPlant7        = 876
+	effectSprPlant8        = 878
+	effectHeartAsura       = 879
+	effectGlassWall4       = 883
+	effectBash3D6          = 885
+	effectElectric4        = 888
+	effectTeiHit1T         = 889
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -727,6 +745,10 @@ type EffectComponent struct {
 
 func effectTableSize(value float64) float64 {
 	return value * EffectPixelRatio
+}
+
+func effectTableColor(red, green, blue float64) color.RGBA {
+	return color.RGBA{R: uint8(red * 255), G: uint8(green * 255), B: uint8(blue * 255), A: 255}
 }
 
 func strEffectSpec(file, wav string) EffectSpec {
@@ -1883,6 +1905,138 @@ func basilicaCylinderComponent(size, height, alpha, angleY float64) EffectCompon
 	component.RotateWithCamera = true
 	component.AngleY = angleY
 	return component
+}
+
+func melodyBillboardEffectSpec(texture, wav string, tint color.RGBA) EffectSpec {
+	return EffectSpec{
+		Duration: 100 * time.Millisecond,
+		SFX:      []string{wav},
+		Components: []EffectComponent{{
+			Kind:           EffectComponent3D,
+			TextureFile:    texture,
+			Color:          tint,
+			Duration:       100 * time.Millisecond,
+			AlphaMax:       0.6,
+			AttachedEntity: true,
+			SizeStart:      effectTableSize(50),
+			SizeEnd:        effectTableSize(50),
+			PosZ:           0.5,
+			Repeat:         true,
+		}},
+	}
+}
+
+func secra2EffectSpec() EffectSpec {
+	components := make([]EffectComponent, 0, 10)
+	for i := 0; i < 10; i++ {
+		sizeStart := 850 - float64(i)*50
+		tint := effectTableColor(1, 0.55+float64(i)*0.05, 0.55+float64(i)*0.05)
+		components = append(components, EffectComponent{
+			Kind:           EffectComponent3D,
+			TextureFile:    "effect/priest_spell.bmp",
+			Color:          tint,
+			Duration:       1500 * time.Millisecond,
+			AlphaMax:       0.3,
+			BlendMode:      2,
+			BlendAdditive:  true,
+			FadeIn:         true,
+			FadeOut:        true,
+			AttachedEntity: true,
+			PosZ:           7,
+			SizeStart:      effectTableSize(sizeStart),
+			SizeEnd:        effectTableSize(100),
+			SizeSmooth:     true,
+		})
+	}
+	return EffectSpec{
+		Duration:   1500 * time.Millisecond,
+		SFX:        []string{"effect\\ab_ancilla.wav"},
+		Components: components,
+	}
+}
+
+func glassWall4EffectSpec() EffectSpec {
+	tint := effectTableColor(0.0001, 1, 0.0001)
+	return EffectSpec{
+		Duration: 30 * time.Second,
+		SFX:      []string{"effect\\ef_readyportal.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    "effect/ef_epitree.tga",
+				Color:          tint,
+				Duration:       30 * time.Second,
+				AlphaMax:       0.6,
+				BlendMode:      2,
+				BlendAdditive:  true,
+				AttachedEntity: true,
+				PosZ:           7,
+				SizeStart:      effectTableSize(400),
+				SizeEnd:        effectTableSize(400),
+			},
+			epiclesisTreePulseComponent(380, 420, 0),
+			epiclesisTreePulseComponent(420, 380, time.Second),
+		},
+	}
+}
+
+func epiclesisTreePulseComponent(sizeStart, sizeEnd float64, delay time.Duration) EffectComponent {
+	return EffectComponent{
+		Kind:           EffectComponent3D,
+		TextureFile:    "effect/ef_epitree.tga",
+		Color:          effectTableColor(0.0001, 1, 0.0001),
+		Duration:       990 * time.Millisecond,
+		Delay:          delay,
+		Duplicate:      15,
+		DuplicateDelay: 2 * time.Second,
+		AlphaMax:       0.6,
+		BlendMode:      2,
+		BlendAdditive:  true,
+		AttachedEntity: true,
+		PosZ:           7,
+		SizeStart:      effectTableSize(sizeStart),
+		SizeEnd:        effectTableSize(sizeEnd),
+	}
+}
+
+func bash3D6EffectSpec() EffectSpec {
+	spec := bash3DEffectSpec("Bash3D6", "effect\\bash3d.wav", 500*time.Millisecond, 200*time.Millisecond, 5)
+	tint := effectTableColor(0.3, 0.5, 1)
+	for i := 1; i < len(spec.Components); i++ {
+		spec.Components[i].Color = tint
+	}
+	return spec
+}
+
+func teiHit1TEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 350 * time.Millisecond,
+		SFX:      []string{"effect\\mon_아수라 패황권.wav"},
+		Components: []EffectComponent{{
+			Kind:             EffectComponent3D,
+			TextureFile:      "effect/lens1.tga",
+			Color:            effectTableColor(0.1, 0.1, 1),
+			Duration:         250 * time.Millisecond,
+			Delay:            100 * time.Millisecond,
+			Duplicate:        24,
+			DuplicateDelay:   0,
+			AlphaMax:         0.8,
+			BlendMode:        2,
+			BlendAdditive:    true,
+			FadeIn:           true,
+			FadeOut:          true,
+			AttachedEntity:   true,
+			PosXEndRand:      40,
+			PosYEndRand:      40,
+			SizeStartX:       effectTableSize(10),
+			SizeStartY:       effectTableSize(150),
+			SizeEndX:         effectTableSize(10),
+			SizeEndY:         effectTableSize(150),
+			Overlay:          true,
+			RotateToTarget:   true,
+			RotateWithCamera: true,
+		}},
+	}
 }
 
 func energyDrainProjectileEffectSpec(tint color.RGBA, sizeStart, sizeEnd float64) EffectSpec {
@@ -4744,6 +4898,24 @@ var EffectSpecs = map[int]EffectSpec{
 	effectHealN:             soundOnlyEffectSpec("effect\\기공포.wav"),
 	effectChookgiN:          spiritSphereEffectSpec(),
 	effectDance1:            soundOnlyEffectSpec("effect\\수줍은하루의우울.wav"),
+	effectBotReverb:         melodyBillboardEffectSpec("effect/melody_b.bmp", "effect\\reverberation.wav", effectTableColor(1, 0.6, 0.6)),
+	effectRainParticle:      soundOnlyEffectSpec("effect\\rainstorm.wav"),
+	effectChemicalV2:        soundOnlyEffectSpec("effect\\안식의자장가.wav"),
+	effectBotReverb2:        melodyBillboardEffectSpec("effect/melody_a.bmp", "effect\\나락의노래.wav", effectTableColor(0.6, 0.6, 1)),
+	effectCirclePower2:      soundOnlyEffectSpec("effect\\순환하는자연의소리.wav"),
+	effectSecra2:            secra2EffectSpec(),
+	effectSprPlant2:         soundOnlyEffectSpec("effect\\워그와함께춤을.wav"),
+	effectSprPlant3:         soundOnlyEffectSpec("effect\\마나의노래.wav"),
+	effectSprPlant4:         soundOnlyEffectSpec("effect\\새터데이나이트피버.wav"),
+	effectSprPlant5:         soundOnlyEffectSpec("effect\\레라드의이슬.wav"),
+	effectSprPlant6:         soundOnlyEffectSpec("effect\\멜로디오브싱크.wav"),
+	effectSprPlant7:         soundOnlyEffectSpec("effect\\비욘드오브워크라이.wav"),
+	effectSprPlant8:         soundOnlyEffectSpec("effect\\언리미티드허밍보이스.wav"),
+	effectHeartAsura:        soundOnlyEffectSpec("effect\\세이렌의목소리.wav"),
+	effectGlassWall4:        glassWall4EffectSpec(),
+	effectBash3D6:           bash3D6EffectSpec(),
+	effectElectric4:         soundOnlyEffectSpec("effect\\sr_earthshaker.wav"),
+	effectTeiHit1T:          teiHit1TEffectSpec(),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},
