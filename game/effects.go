@@ -434,6 +434,30 @@ const (
 	effectAcidDemon      = 537
 	effectHated          = 543
 	effectStin           = 547
+	effectStin2          = 553
+	effectStin3          = 555
+	effectScreenQuake    = 563
+	effectHfliMoon1      = 565
+	effectHfliMoon2      = 566
+	effectHfliMoon3      = 567
+	effectHoUp           = 568
+	effectHamiDefence    = 569
+	effectHamiCastle     = 570
+	effectHamiBlood      = 571
+	effectItemThunder    = effectBoxThunder
+	effectItemCloud      = effectBoxResentment
+	effectItemCurse      = 578
+	effectItemZZZ        = effectBoxDrowsiness
+	effectItemRain       = effectBoxSunlight
+	effectM01            = 583
+	effectM02            = 584
+	effectM03            = 585
+	effectM04            = 586
+	effectM05            = 587
+	effectM06            = 588
+	effectM07            = 589
+	effectKaizel         = 590
+	effectThrowItem6     = 600
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute

@@ -426,6 +426,30 @@ const (
 	effectAcidDemon      = 537
 	effectHated          = 543
 	effectStin           = 547
+	effectStin2          = 553
+	effectStin3          = 555
+	effectScreenQuake    = 563
+	effectHfliMoon1      = 565
+	effectHfliMoon2      = 566
+	effectHfliMoon3      = 567
+	effectHoUp           = 568
+	effectHamiDefence    = 569
+	effectHamiCastle     = 570
+	effectHamiBlood      = 571
+	effectItemThunder    = effectBoxThunder
+	effectItemCloud      = effectBoxResentment
+	effectItemCurse      = 578
+	effectItemZZZ        = effectBoxDrowsiness
+	effectItemRain       = effectBoxSunlight
+	effectM01            = 583
+	effectM02            = 584
+	effectM03            = 585
+	effectM04            = 586
+	effectM05            = 587
+	effectM06            = 588
+	effectM07            = 589
+	effectKaizel         = 590
+	effectThrowItem6     = 600
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -648,6 +672,12 @@ func sprEffectSpec(file, wav string, attached, head bool) EffectSpec {
 	if wav != "" {
 		spec.SFX = []string{wav}
 	}
+	return spec
+}
+
+func sprDirectionEffectSpec(file, wav string) EffectSpec {
+	spec := sprEffectSpec(file, wav, true, false)
+	spec.Components[0].SpriteDirection = true
 	return spec
 }
 
@@ -979,12 +1009,16 @@ func rogueCoinEffectSpec() EffectSpec {
 }
 
 func throwItemEffectSpec(texture string, size float64) EffectSpec {
+	return throwItemEffectSpecFull(texture, size, 300*time.Millisecond, 0.5)
+}
+
+func throwItemEffectSpecFull(texture string, size float64, duration time.Duration, rotations float64) EffectSpec {
 	return EffectSpec{
-		Duration: 300 * time.Millisecond,
+		Duration: duration,
 		Components: []EffectComponent{{
 			Kind:             EffectComponent3D,
 			TextureFile:      texture,
-			Duration:         300 * time.Millisecond,
+			Duration:         duration,
 			AlphaMax:         1,
 			FadeIn:           true,
 			FadeOut:          true,
@@ -993,11 +1027,24 @@ func throwItemEffectSpec(texture string, size float64) EffectSpec {
 			RotateWithCamera: true,
 			Rotate:           true,
 			AngleStart:       180,
-			AngleEnd:         360,
+			AngleEnd:         180 + 360*rotations,
 			PosZ:             1,
 			SizeStart:        effectTableSize(size),
 			SizeEnd:          effectTableSize(size),
 			AttachedEntity:   true,
+		}},
+	}
+}
+
+func screenQuakeEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:    200 * time.Millisecond,
+		CameraShake: 200 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "CameraQuake",
+			Duration:       200 * time.Millisecond,
+			AttachedEntity: true,
 		}},
 	}
 }
@@ -1797,6 +1844,16 @@ func delayedSoundEffectSpec(paths []string, delays []time.Duration) EffectSpec {
 		SFX:       paths,
 		SFXDelays: delays,
 	}
+}
+
+func repeatedSoundEffectSpec(path string, count int, interval time.Duration) EffectSpec {
+	paths := make([]string, 0, count)
+	delays := make([]time.Duration, 0, count)
+	for i := 0; i < count; i++ {
+		paths = append(paths, path)
+		delays = append(delays, time.Duration(i)*interval)
+	}
+	return delayedSoundEffectSpec(paths, delays)
 }
 
 func potionEffectSpec(file string, c color.RGBA) EffectSpec {
@@ -4147,6 +4204,36 @@ var EffectSpecs = map[int]EffectSpec{
 	effectAcidDemon:         acidDemonEffectSpec(),
 	effectHated:             soundOnlyEffectSpec("effect\\t_보조마법.wav"),
 	effectStin:              soundOnlyEffectSpec("effect\\t_에너지방출.wav"),
+	effectStin2:             repeatedSoundEffectSpec("effect\\t_날라차기.wav", 5, 200*time.Millisecond),
+	effectStin3:             soundOnlyEffectSpec("effect\\t_에너지방출.wav"),
+	effectScreenQuake:       screenQuakeEffectSpec(),
+	effectHfliMoon1:         strEffectSpecAttached("moonlight_1", "effect\\h_moonlight_1.wav", false),
+	effectHfliMoon2:         strEffectSpecAttached("moonlight_2", "effect\\h_moonlight_2.wav", false),
+	effectHfliMoon3:         strEffectSpecAttached("moonlight_3", "effect\\h_moonlight_3.wav", false),
+	effectHoUp:              strEffectSpecAttached("h_levelup", "", false),
+	effectHamiDefence:       strEffectSpecAttached("defense", "", false),
+	effectHamiCastle:        sprEffectSpec("캐슬링", "", true, false),
+	effectHamiBlood:         sprEffectSpec("블러드러스트", "", true, false),
+	effectItemThunder:       sprEffectSpec("item_thunder", "", true, false),
+	effectItemCloud:         sprEffectSpec("item_cloud", "", true, false),
+	effectItemCurse:         sprEffectSpec("item_curse", "", true, false),
+	effectItemZZZ:           sprEffectSpec("item_zzz", "_snore.wav", true, false),
+	effectItemRain:          sprEffectSpec("item_rain", "", true, false),
+	effectM01:               sprEffectSpec("m_ef01", "", true, false),
+	effectM02:               sprDirectionEffectSpec("m_ef02", ""),
+	effectM03:               sprEffectSpec("m_ef03", "", true, false),
+	effectM04:               sprEffectSpec("m_ef04", "", true, false),
+	effectM05:               sprEffectSpec("m_ef05", "dragon_breath.wav", true, false),
+	effectM06:               sprEffectSpec("m_ef06", "", true, false),
+	effectM07:               sprEffectSpec("m_ef07", "effect\\t_보조마법.wav", true, false),
+	effectKaizel:            soundOnlyEffectSpec("effect\\priest_resurrection.wav"),
+	effectStatFoodSTR:       strEffectSpecAttached("food_str", "", false),
+	effectStatFoodINT:       strEffectSpecAttached("food_int", "", false),
+	effectStatFoodVIT:       strEffectSpecAttached("food_vit", "", false),
+	effectStatFoodAGI:       strEffectSpecAttached("food_agi", "", false),
+	effectStatFoodDEX:       strEffectSpecAttached("food_dex", "", false),
+	effectStatFoodLUK:       strEffectSpecAttached("food_luk", "", false),
+	effectThrowItem6:        throwItemEffectSpecFull("유저인터페이스/item/베넘나이프.bmp", 30, 200*time.Millisecond, 1),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},
