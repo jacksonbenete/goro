@@ -28,12 +28,18 @@ const (
 	effectHit4           = 3
 	effectHit5           = 4
 	effectHit6           = 5
+	effectEntry          = 6
+	effectExit           = 7
+	effectWarp           = 8
+	effectEnhance        = 9
 	effectArrowShot      = 10060
 	effectArrowShower    = 10061
 	effectMammonite      = 10
 	effectCartRevolution = 170
 	effectSight          = 22
 	effectSoulStrike     = 15
+	effectGlassWall      = 13
+	effectHealSP         = 14
 	effectMagnumBreak    = 17
 	effectQuakeMagnum    = 10022
 	effectSteal          = 18
@@ -43,12 +49,17 @@ const (
 	effectStoneCurse     = 23
 	effectFireBall       = 24
 	effectFireWall       = 25
+	effectIceArrow       = 26
 	effectFrostDiver     = 27
 	effectFrostDiverHit  = 28
 	effectLightningBolt  = 29
 	effectThunderStorm   = 30
+	effectFireArrow      = 31
+	effectTeleportOld    = 34
+	effectReadyPortalOld = 35
 	effectIncAgility     = 37
 	effectDecAgility     = 38
+	effectIncAgiDex      = 43
 	effectRuwach         = 33
 	effectAqua           = 39
 	effectSignum         = 40
@@ -368,6 +379,31 @@ func berserkPotionEffectSpec() EffectSpec {
 	spec.CameraShake = 200 * time.Millisecond
 	spec.CameraShakeDelay = 200 * time.Millisecond
 	return spec
+}
+
+func robrCylinderComponent(textureName string, tint color.RGBA, duration time.Duration, alphaMax float64, animation int, bottomSize, topSize, height float64, attached, rotate, fade, additive bool) EffectComponent {
+	return EffectComponent{
+		Kind:             EffectComponentCylinder,
+		Color:            tint,
+		TextureName:      textureName,
+		Duration:         duration,
+		AlphaMax:         alphaMax,
+		Fade:             fade,
+		Rotate:           rotate,
+		Animation:        animation,
+		BottomSize:       bottomSize,
+		TopSize:          topSize,
+		Height:           height,
+		AttachedEntity:   attached,
+		TotalCircleSides: 32,
+		CircleSides:      32,
+		BlendAdditive:    additive,
+	}
+}
+
+func tintedEffectComponent(component EffectComponent, tint color.RGBA) EffectComponent {
+	component.Color = tint
+	return component
 }
 
 func teleportCylinderComponent(bottomSize, topSize, height float64) EffectComponent {
@@ -985,6 +1021,51 @@ var EffectSpecs = map[int]EffectSpec{
 			hitSlashComponent(EffectComponent2D, effectTableSize(10), effectTableSize(150), 180, 90, true),
 		},
 	},
+	effectEntry: {
+		Duration: 500 * time.Millisecond,
+		SFX:      []string{"effect\\ef_portal.wav"},
+		Components: []EffectComponent{
+			robrCylinderComponent("ring_blue", color.RGBA{}, 500*time.Millisecond, 0.62, 1, 0.9, 0.9, 7.5, false, true, true, false),
+			robrCylinderComponent("ring_blue", color.RGBA{}, 500*time.Millisecond, 0.62, 1, 0.85, 0.85, 8, true, true, true, false),
+			robrCylinderComponent("ring_blue", color.RGBA{}, 500*time.Millisecond, 0.8, 1, 0.9, 1.5, 1, true, true, true, false),
+		},
+	},
+	effectExit: {
+		Duration: 2000 * time.Millisecond,
+		SFX:      []string{"_heal_effect.wav"},
+		Components: []EffectComponent{
+			robrCylinderComponent("alpha_down", color.RGBA{}, 2000*time.Millisecond, 0.2, 1, 0.95, 0.95, 10, true, false, true, true),
+			healParticleComponent(0.8, 1000*time.Millisecond, 400*time.Millisecond, 80*time.Millisecond, 6, 1.5, 1.5, 0, 0, 0, 3, 6, true),
+			healParticleComponent(0.8, 900*time.Millisecond, 200*time.Millisecond, 200*time.Millisecond, 3, 1, 1, 1, 0, 6, 0, 0, true),
+		},
+	},
+	effectWarp: {
+		Duration: 1000 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:             EffectComponentCylinder,
+			TextureName:      "ring_yellow",
+			Duration:         1000 * time.Millisecond,
+			Duplicate:        4,
+			DuplicateDelay:   300 * time.Millisecond,
+			AlphaMax:         0.8,
+			Fade:             true,
+			Animation:        4,
+			BottomSize:       10,
+			TopSize:          13,
+			PosZ:             0.1,
+			AttachedEntity:   true,
+			TotalCircleSides: 32,
+			CircleSides:      32,
+		}},
+	},
+	effectEnhance: {
+		Duration: 2000 * time.Millisecond,
+		Components: []EffectComponent{
+			robrCylinderComponent("alpha_down", color.RGBA{}, 2000*time.Millisecond, 0.2, 1, 0.95, 0.95, 10, true, false, true, true),
+			incAgilityParticleComponent(0.8, 500*time.Millisecond, 7),
+			incAgilityParticleComponent(0.8, 400*time.Millisecond, 3),
+		},
+	},
 	effectArrowShot: {
 		Duration: 140 * time.Millisecond,
 		Components: []EffectComponent{{
@@ -1085,6 +1166,16 @@ var EffectSpecs = map[int]EffectSpec{
 	effectMammonite:      strEffectSpecAttachedMin("maemor", "memor_min", "effect\\ef_coin2.wav", false),
 	effectCartRevolution: strEffectSpecAttached("cartrevolution", "effect\\ef_magnumbreak.wav", false),
 	effectLoud:           strEffectSpecAttached("loud", "effect\\고성방가.wav", false),
+	effectGlassWall:      strEffectSpec("effect/safetywall", "effect\\ef_glasswall.wav"),
+	effectHealSP: {
+		Duration: 2000 * time.Millisecond,
+		SFX:      []string{"_heal_effect.wav"},
+		Components: []EffectComponent{
+			robrCylinderComponent("ring_blue", color.RGBA{R: 25, G: 128, B: 255, A: 255}, 2000*time.Millisecond, 0.2, 1, 0.95, 0.95, 10, true, true, true, true),
+			tintedEffectComponent(healParticleComponent(0.8, 1000*time.Millisecond, 400*time.Millisecond, 80*time.Millisecond, 6, 1.5, 1.5, 0, 0, 0, 3, 6, true), color.RGBA{R: 25, G: 128, B: 255, A: 255}),
+			tintedEffectComponent(healParticleComponent(0.8, 900*time.Millisecond, 200*time.Millisecond, 200*time.Millisecond, 3, 1, 1, 1, 0, 6, 0, 0, true), color.RGBA{R: 25, G: 128, B: 255, A: 255}),
+		},
+	},
 	effectSight: {
 		Duration: 12200 * time.Millisecond,
 		SFX:      []string{"effect\\ef_sight.wav"},
@@ -1457,6 +1548,12 @@ var EffectSpecs = map[int]EffectSpec{
 		}},
 	},
 	effectStoneCurse: strEffectSpecAttached("stonecurse", "", false),
+	effectIceArrow: {
+		Duration:   500 * time.Millisecond,
+		SFX:        []string{"effect\\ef_icearrow%d.wav"},
+		SFXRandMin: 1,
+		SFXRandMax: 3,
+	},
 	effectColdBolt: {
 		Duration: 1000 * time.Millisecond,
 		SFX:      []string{"effect\\ef_icearrow1.wav", "effect\\ef_icearrow2.wav", "effect\\ef_icearrow3.wav"},
@@ -1586,6 +1683,21 @@ var EffectSpecs = map[int]EffectSpec{
 		},
 	},
 	effectThunderStorm: strEffectSpec("thunderstorm", "effect\\magician_thunderstorm.wav"),
+	effectFireArrow:    soundOnlyEffectSpec("effect\\ef_firearrow1.wav"),
+	effectTeleportOld: {
+		Duration: 1000 * time.Millisecond,
+		SFX:      []string{"effect\\ef_teleportation.wav"},
+		Components: []EffectComponent{
+			robrCylinderComponent("ring_blue", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 1000*time.Millisecond, 0.5, 5, 0.8, 0.7, 35, true, true, true, false),
+		},
+	},
+	effectReadyPortalOld: {
+		Duration: 25000 * time.Millisecond,
+		SFX:      []string{"effect\\ef_readyportal.wav"},
+		Components: []EffectComponent{
+			robrCylinderComponent("alpha_down", color.RGBA{R: 178, G: 178, B: 255, A: 255}, 25000*time.Millisecond, 0.6, 0, 0.6, 0.6, 15, true, true, true, false),
+		},
+	},
 	effectRuwach: {
 		Duration: 12200 * time.Millisecond,
 		SFX:      []string{"effect\\ef_ruwach.wav"},
@@ -1678,6 +1790,27 @@ var EffectSpecs = map[int]EffectSpec{
 				SizeSmooth:  true,
 			},
 		},
+	},
+	effectIncAgiDex: {
+		Duration: 1000 * time.Millisecond,
+		SFX:      []string{"effect\\ef_incagidex.wav"},
+		Components: []EffectComponent{{
+			Kind:           EffectComponent3D,
+			TextureFile:    "effect/dex_agi_up.bmp",
+			Duration:       1000 * time.Millisecond,
+			AlphaMax:       1,
+			FadeIn:         true,
+			FadeOut:        true,
+			PosZ:           0.4,
+			PosZEnd:        3,
+			SizeStart:      100 * EffectPixelRatio,
+			SizeEnd:        100 * EffectPixelRatio,
+			SizeStartY:     45 * EffectPixelRatio,
+			SizeEndY:       45 * EffectPixelRatio,
+			SizeSmooth:     true,
+			AttachedEntity: true,
+			Overlay:        true,
+		}},
 	},
 	effectAqua: {
 		SFX: []string{"effect\\ef_aqua.wav"},

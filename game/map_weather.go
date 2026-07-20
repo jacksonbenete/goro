@@ -97,7 +97,7 @@ func (m *WorldMode) drawLoopingMapWeatherEffect(screen *render.Frame, ctx client
 		componentStarts := loopingMapWeatherEffectStart(effectID+componentIndex*17, duration, now)
 		effect.starts = componentStarts
 		progress := worldEffectComponentProgress(componentStarts, duration, now)
-		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
+		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, duration, now)
 	}
 }
 
@@ -129,7 +129,7 @@ func (m *WorldMode) drawFireworksWeather(screen *render.Frame, ctx client.Contex
 				duration = spec.duration
 			}
 			progress := worldEffectComponentProgress(starts, duration, now)
-			m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
+			m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, duration, now)
 		}
 	}
 }

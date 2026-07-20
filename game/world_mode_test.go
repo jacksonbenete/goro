@@ -2114,14 +2114,236 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 123 {
-		t.Fatalf("implemented effects = %d, want 123", coverage.Implemented)
+	if coverage.Implemented != 134 {
+		t.Fatalf("implemented effects = %d, want 134", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 20.2 || coverage.ActivePercent > 20.4 {
-		t.Fatalf("active coverage = %.3f, want about 20.3", coverage.ActivePercent)
+	if coverage.ActivePercent < 22.0 || coverage.ActivePercent > 22.2 {
+		t.Fatalf("active coverage = %.3f, want about 22.1", coverage.ActivePercent)
+	}
+}
+
+func TestRobrowserActiveEffectsZeroToFiftyHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectHit1:           "EF_HIT1",
+		effectBashHit:        "EF_HIT2",
+		effectHit3:           "EF_HIT3",
+		effectHit4:           "EF_HIT4",
+		effectHit5:           "EF_HIT5",
+		effectHit6:           "EF_HIT6",
+		effectEntry:          "EF_ENTRY",
+		effectExit:           "EF_EXIT",
+		effectWarp:           "EF_WARP",
+		effectEnhance:        "EF_ENHANCE",
+		effectMammonite:      "EF_COIN",
+		effectEndure:         "EF_ENDURE",
+		effectBeginSpell:     "EF_BEGINSPELL",
+		effectGlassWall:      "EF_GLASSWALL",
+		effectHealSP:         "EF_HEALSP",
+		effectSoulStrike:     "EF_SOULSTRIKE",
+		effectBashBegin:      "EF_BASH",
+		effectMagnumBreak:    "EF_MAGNUMBREAK",
+		effectSteal:          "EF_STEAL",
+		effectPoisonAttack:   "EF_PATTACK",
+		effectDetoxication:   "EF_DETOXICATION",
+		effectSight:          "EF_SIGHT",
+		effectStoneCurse:     "EF_STONECURSE",
+		effectFireBall:       "EF_FIREBALL",
+		effectFireWall:       "EF_FIREWALL",
+		effectIceArrow:       "EF_ICEARROW",
+		effectFrostDiver:     "EF_FROSTDIVER",
+		effectFrostDiverHit:  "EF_FROSTDIVER2",
+		effectLightningBolt:  "EF_LIGHTBOLT",
+		effectThunderStorm:   "EF_THUNDERSTORM",
+		effectFireArrow:      "EF_FIREARROW",
+		effectNapalmBeat:     "EF_NAPALMBEAT",
+		effectRuwach:         "EF_RUWACH",
+		effectTeleportOld:    "EF_TELEPORTATION",
+		effectReadyPortalOld: "EF_READYPORTAL",
+		effectIncAgility:     "EF_INCAGILITY",
+		effectDecAgility:     "EF_DECAGILITY",
+		effectAqua:           "EF_AQUA",
+		effectSignum:         "EF_SIGNUM",
+		effectAngelus:        "EF_ANGELUS",
+		effectBlessing:       "EF_BLESSING",
+		effectIncAgiDex:      "EF_INCAGIDEX",
+		effectSmoke:          "EF_SMOKE",
+		effectFirefly:        "EF_FIREFLY",
+		effectTorch:          "EF_TORCH",
+		effectFireHit:        "EF_FIREHIT",
+		effectFireSplashHit:  "EF_FIRESPLASHHIT",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserOldPortalEffectsZeroToFifty(t *testing.T) {
+	entry, ok := worldEffectSpecForID(effectEntry)
+	if !ok {
+		t.Fatal("EF_ENTRY spec missing")
+	}
+	if entry.duration != 500*time.Millisecond || len(entry.sfx) != 1 || entry.sfx[0] != "effect\\ef_portal.wav" {
+		t.Fatalf("EF_ENTRY timing/sfx = duration %s sfx %#v", entry.duration, entry.sfx)
+	}
+	if len(entry.components) != 3 {
+		t.Fatalf("EF_ENTRY components = %d, want 3", len(entry.components))
+	}
+	for i, component := range entry.components {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 500*time.Millisecond || component.animation != 1 || !component.fade || !component.rotate {
+			t.Fatalf("EF_ENTRY component %d = %+v", i, component)
+		}
+	}
+	if entry.components[0].attachedEntity || !entry.components[1].attachedEntity || !entry.components[2].attachedEntity {
+		t.Fatalf("EF_ENTRY attachment flags = %t %t %t", entry.components[0].attachedEntity, entry.components[1].attachedEntity, entry.components[2].attachedEntity)
+	}
+	if entry.components[0].height != 7.5 || entry.components[1].height != 8 || entry.components[2].topSize != 1.5 {
+		t.Fatalf("EF_ENTRY dimensions = %+v", entry.components)
+	}
+
+	warp, ok := worldEffectSpecForID(effectWarp)
+	if !ok || len(warp.components) != 1 {
+		t.Fatalf("EF_WARP spec = %+v ok=%t", warp, ok)
+	}
+	wave := warp.components[0]
+	if wave.kind != effectComponentCylinder || wave.textureName != "ring_yellow" || wave.animation != 4 || wave.duplicate != 4 || wave.duplicateDelay != 300*time.Millisecond {
+		t.Fatalf("EF_WARP wave = %+v", wave)
+	}
+	if wave.bottomSize != 10 || wave.topSize != 13 || wave.posZ != 0.1 || !wave.attachedEntity {
+		t.Fatalf("EF_WARP dimensions = %+v", wave)
+	}
+	if got := worldEffectComponentDuration(warp, wave); got != 1900*time.Millisecond {
+		t.Fatalf("EF_WARP resolved duration = %s, want 1900ms", got)
+	}
+
+	teleport, ok := worldEffectSpecForID(effectTeleportOld)
+	if !ok || len(teleport.components) != 1 {
+		t.Fatalf("EF_TELEPORTATION spec = %+v ok=%t", teleport, ok)
+	}
+	beam := teleport.components[0]
+	if teleport.duration != time.Second || len(teleport.sfx) != 1 || teleport.sfx[0] != "effect\\ef_teleportation.wav" {
+		t.Fatalf("EF_TELEPORTATION timing/sfx = %s %#v", teleport.duration, teleport.sfx)
+	}
+	if beam.kind != effectComponentCylinder || beam.textureName != "ring_blue" || beam.animation != 5 || beam.height != 35 || beam.bottomSize != 0.8 || beam.topSize != 0.7 || !beam.rotate {
+		t.Fatalf("EF_TELEPORTATION beam = %+v", beam)
+	}
+
+	ready, ok := worldEffectSpecForID(effectReadyPortalOld)
+	if !ok || len(ready.components) != 1 {
+		t.Fatalf("EF_READYPORTAL spec = %+v ok=%t", ready, ok)
+	}
+	portal := ready.components[0]
+	if ready.duration != 25*time.Second || len(ready.sfx) != 1 || ready.sfx[0] != "effect\\ef_readyportal.wav" {
+		t.Fatalf("EF_READYPORTAL timing/sfx = %s %#v", ready.duration, ready.sfx)
+	}
+	if portal.kind != effectComponentCylinder || portal.textureName != "alpha_down" || portal.color != (color.RGBA{R: 178, G: 178, B: 255, A: 255}) || portal.height != 15 || portal.alphaMax != 0.6 {
+		t.Fatalf("EF_READYPORTAL cylinder = %+v", portal)
+	}
+}
+
+func TestRobrowserOldRestoreEffectsZeroToFifty(t *testing.T) {
+	exit, ok := worldEffectSpecForID(effectExit)
+	if !ok {
+		t.Fatal("EF_EXIT spec missing")
+	}
+	if exit.duration != 2*time.Second || len(exit.sfx) != 1 || exit.sfx[0] != "_heal_effect.wav" || len(exit.components) != 3 {
+		t.Fatalf("EF_EXIT spec = %+v", exit)
+	}
+	if cylinder := exit.components[0]; cylinder.kind != effectComponentCylinder || cylinder.textureName != "alpha_down" || cylinder.duration != 2*time.Second || cylinder.animation != 1 || cylinder.alphaMax != 0.2 || !cylinder.blendAdditive {
+		t.Fatalf("EF_EXIT cylinder = %+v", cylinder)
+	}
+	if particle := exit.components[1]; particle.kind != effectComponent3D || particle.textureFile != "effect/pok3.tga" || particle.delay != 400*time.Millisecond || particle.duplicate != 6 || particle.duplicateDelay != 80*time.Millisecond || !particle.sparkling {
+		t.Fatalf("EF_EXIT first particle = %+v", particle)
+	}
+	if particle := exit.components[2]; particle.duration != 900*time.Millisecond || particle.delay != 200*time.Millisecond || particle.duplicate != 3 || particle.duplicateDelay != 200*time.Millisecond || particle.posZEnd != 6 {
+		t.Fatalf("EF_EXIT second particle = %+v", particle)
+	}
+
+	enhance, ok := worldEffectSpecForID(effectEnhance)
+	if !ok || len(enhance.components) != 3 {
+		t.Fatalf("EF_ENHANCE spec = %+v ok=%t", enhance, ok)
+	}
+	if enhance.components[0].textureName != "alpha_down" || enhance.components[0].blendAdditive != true || enhance.components[0].duration != 2*time.Second {
+		t.Fatalf("EF_ENHANCE cylinder = %+v", enhance.components[0])
+	}
+	for _, tc := range []struct {
+		index     int
+		delay     time.Duration
+		duplicate int
+	}{
+		{index: 1, delay: 500 * time.Millisecond, duplicate: 7},
+		{index: 2, delay: 400 * time.Millisecond, duplicate: 3},
+	} {
+		component := enhance.components[tc.index]
+		if component.kind != effectComponent3D || component.textureFile != "effect/ac_center2.tga" || component.delay != tc.delay || component.duplicate != tc.duplicate || component.duplicateDelay != 200*time.Millisecond {
+			t.Fatalf("EF_ENHANCE particle %d = %+v", tc.index, component)
+		}
+		if component.sizeStartX != 2.5*effectPixelRatio || component.sizeRandY != 15*effectPixelRatio || component.sizeRandYMiddle != 45*effectPixelRatio {
+			t.Fatalf("EF_ENHANCE particle %d size = %+v", tc.index, component)
+		}
+	}
+
+	healSP, ok := worldEffectSpecForID(effectHealSP)
+	if !ok || len(healSP.components) != 3 {
+		t.Fatalf("EF_HEALSP spec = %+v ok=%t", healSP, ok)
+	}
+	if len(healSP.sfx) != 1 || healSP.sfx[0] != "_heal_effect.wav" {
+		t.Fatalf("EF_HEALSP sfx = %#v", healSP.sfx)
+	}
+	blue := color.RGBA{R: 25, G: 128, B: 255, A: 255}
+	if cylinder := healSP.components[0]; cylinder.textureName != "ring_blue" || cylinder.color != blue || !cylinder.rotate || !cylinder.blendAdditive {
+		t.Fatalf("EF_HEALSP cylinder = %+v", cylinder)
+	}
+	if healSP.components[1].color != blue || healSP.components[2].color != blue {
+		t.Fatalf("EF_HEALSP particle tints = %+v %+v", healSP.components[1].color, healSP.components[2].color)
+	}
+}
+
+func TestRobrowserOldBoltSoundAndStatusEffectsZeroToFifty(t *testing.T) {
+	glass, ok := worldEffectSpecForID(effectGlassWall)
+	if !ok || len(glass.components) != 1 {
+		t.Fatalf("EF_GLASSWALL spec = %+v ok=%t", glass, ok)
+	}
+	if component := glass.components[0]; component.kind != effectComponentSTR || component.strFile != "effect/safetywall" || component.attachedEntity {
+		t.Fatalf("EF_GLASSWALL component = %+v", component)
+	}
+	if len(glass.sfx) != 1 || glass.sfx[0] != "effect\\ef_glasswall.wav" {
+		t.Fatalf("EF_GLASSWALL sfx = %#v", glass.sfx)
+	}
+
+	ice, ok := worldEffectSpecForID(effectIceArrow)
+	if !ok {
+		t.Fatal("EF_ICEARROW spec missing")
+	}
+	if len(ice.components) != 0 || len(ice.sfx) != 1 || ice.sfx[0] != "effect\\ef_icearrow%d.wav" || ice.sfxRandMin != 1 || ice.sfxRandMax != 3 {
+		t.Fatalf("EF_ICEARROW spec = %+v", ice)
+	}
+
+	fire, ok := worldEffectSpecForID(effectFireArrow)
+	if !ok {
+		t.Fatal("EF_FIREARROW spec missing")
+	}
+	if len(fire.components) != 0 || len(fire.sfx) != 1 || fire.sfx[0] != "effect\\ef_firearrow1.wav" {
+		t.Fatalf("EF_FIREARROW spec = %+v", fire)
+	}
+
+	incAgiDex, ok := worldEffectSpecForID(effectIncAgiDex)
+	if !ok || len(incAgiDex.components) != 1 {
+		t.Fatalf("EF_INCAGIDEX spec = %+v ok=%t", incAgiDex, ok)
+	}
+	if len(incAgiDex.sfx) != 1 || incAgiDex.sfx[0] != "effect\\ef_incagidex.wav" {
+		t.Fatalf("EF_INCAGIDEX sfx = %#v", incAgiDex.sfx)
+	}
+	overlay := incAgiDex.components[0]
+	if overlay.kind != effectComponent3D || overlay.textureFile != "effect/dex_agi_up.bmp" || overlay.duration != time.Second || !overlay.fadeIn || !overlay.fadeOut || !overlay.attachedEntity || !overlay.overlay {
+		t.Fatalf("EF_INCAGIDEX overlay = %+v", overlay)
+	}
+	if overlay.posZ != 0.4 || overlay.posZEnd != 3 || overlay.sizeStart != 100*effectPixelRatio || overlay.sizeStartY != 45*effectPixelRatio || !overlay.sizeSmooth {
+		t.Fatalf("EF_INCAGIDEX overlay geometry = %+v", overlay)
 	}
 }
 

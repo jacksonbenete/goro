@@ -101,6 +101,6 @@ func (m *WorldMode) drawPersistentWorldEffectAt(screen *render.Frame, ctx client
 		componentStart := now.Add(-(elapsed % duration))
 		effect.starts = componentStart
 		progress := worldEffectComponentProgress(componentStart, duration, now)
-		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, index, entry.worldX, entry.worldY, entry.worldZ+0.07, progress, now)
+		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, index, entry.worldX, entry.worldY, entry.worldZ+0.07, progress, duration, now)
 	}
 }

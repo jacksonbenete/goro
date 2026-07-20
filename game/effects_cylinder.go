@@ -3,16 +3,42 @@ package game
 import (
 	"image/color"
 	"math"
+	"time"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
 )
 
-func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64) {
+func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64, componentDuration time.Duration, now time.Time) {
 	texture := m.effectTexture(ctx.Resources, component.textureName)
 	if texture == nil {
 		return
 	}
+	duplicates := maxInt(component.duplicate, 1)
+	baseDuration := componentDuration - worldEffectComponentMaxStartOffset(component)
+	if baseDuration <= 0 {
+		baseDuration = component.duration
+	}
+	if baseDuration <= 0 {
+		baseDuration = 500 * time.Millisecond
+	}
+	for i := 0; i < duplicates; i++ {
+		instanceProgress := progress
+		if !component.repeat {
+			starts := effect.starts.Add(worldEffectComponentStartOffset(component, i))
+			if now.Before(starts) {
+				continue
+			}
+			instanceProgress = worldEffectComponentProgress(starts, baseDuration, now)
+		}
+		if instanceProgress >= 1 {
+			continue
+		}
+		m.drawCylinderEffectInstance(screen, projection, texture, effect, component, componentIndex, x, y, z, instanceProgress, i)
+	}
+}
+
+func (m *WorldMode) drawCylinderEffectInstance(screen *render.Frame, projection sceneProjection, texture *render.Image, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64, duplicateIndex int) {
 	alpha := effectComponentAlpha(progress, component)
 	if alpha <= 0 {
 		return
@@ -30,29 +56,33 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context,
 		bottomSize *= progress
 		topSize *= progress
 	}
+	if component.animation == 5 {
+		if progress < 0.5 {
+			height *= progress * 2
+		} else {
+			height *= (1 - progress) * 2
+		}
+	}
 	if !component.fixedPerspective {
-		drawWorldCylinderBandOriented(screen, m.whitePixel, texture, projection, component, x, y, z+component.posZ, bottomSize, topSize, height, effectComponentTint(component, alpha), maxInt(component.circleSides, component.totalCircleSides))
+		drawWorldCylinderBandOriented(screen, m.whitePixel, texture, projection, component, x, y, z+component.posZ, bottomSize, topSize, height, effectComponentTint(component, alpha), maxInt(component.circleSides, component.totalCircleSides), progress)
 		return
 	}
-	duplicates := maxInt(component.duplicate, 1)
-	for i := 0; i < duplicates; i++ {
-		angle := 0.0
-		if component.rotate {
-			angle += progress * 2 * math.Pi
-			angle += deterministicAngle(effect, componentIndex*101+i+31) * 0.08
-		}
-		if component.angleZRandom != 0 {
-			angle += deterministicAngle(effect, componentIndex*101+i) * component.angleZRandom / 360
-		}
-		drawTexturedEffectCylinder(screen, projection, texture, x, y, z+component.posZ, effectCylinderDraw{
-			bottomSize:       bottomSize,
-			topSize:          topSize,
-			totalCircleSides: component.totalCircleSides,
-			circleSides:      component.circleSides,
-			alpha:            alpha,
-			angle:            angle,
-		})
+	angle := 0.0
+	if component.rotate {
+		angle += progress * 2 * math.Pi
+		angle += deterministicAngle(effect, componentIndex*101+duplicateIndex+31) * 0.08
 	}
+	if component.angleZRandom != 0 {
+		angle += deterministicAngle(effect, componentIndex*101+duplicateIndex) * component.angleZRandom / 360
+	}
+	drawTexturedEffectCylinder(screen, projection, texture, x, y, z+component.posZ, effectCylinderDraw{
+		bottomSize:       bottomSize,
+		topSize:          topSize,
+		totalCircleSides: component.totalCircleSides,
+		circleSides:      component.circleSides,
+		alpha:            alpha,
+		angle:            angle,
+	})
 }
 
 type effectCylinderDraw struct {
@@ -101,12 +131,15 @@ func drawWorldCylinderBand(screen *render.Frame, white, texture *render.Image, x
 	drawWorldCylinderBandWithBasis(screen, white, texture, x, y, z, bottomRadius, topRadius, height, c, segments, modelPoint3{x: 1}, modelPoint3{z: 1}, modelPoint3{y: 1})
 }
 
-func drawWorldCylinderBandOriented(screen *render.Frame, white, texture *render.Image, projection sceneProjection, component worldEffectComponent, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
+func drawWorldCylinderBandOriented(screen *render.Frame, white, texture *render.Image, projection sceneProjection, component worldEffectComponent, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, progress float64) {
 	right := modelPoint3{x: 1}
 	depth := modelPoint3{z: 1}
 	up := modelPoint3{y: 1}
-	if component.angleX != 0 || component.angleY != 0 || component.angleZ != 0 || component.rotateWithCamera {
+	if component.angleX != 0 || component.angleY != 0 || component.angleZ != 0 || component.rotateWithCamera || component.rotate {
 		angleY := component.angleY
+		if component.rotate {
+			angleY += progress * 360
+		}
 		if component.rotateWithCamera {
 			angleY += projection.cameraYaw
 		}

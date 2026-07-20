@@ -45,7 +45,7 @@ func (m *WorldMode) drawRSWEffect(screen *render.Frame, ctx client.Context, proj
 		starts := loopingRSWEffectStart(rswEffect, index, duration, now)
 		effect.starts = starts
 		progress := worldEffectComponentProgress(starts, duration, now)
-		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
+		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, duration, now)
 	}
 }
 
