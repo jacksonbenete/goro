@@ -102,6 +102,85 @@ func TestSkillWindowShowsSuperNoviceThunderstorm(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsWizardUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobWizard},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillMGStonecurse, Level: 1, Upgradable: true},
+				{ID: db.SkillMGColdbolt, Level: 1, Upgradable: true},
+				{ID: db.SkillMGLightningbolt, Level: 1, Upgradable: true},
+				{ID: db.SkillMGNapalmbeat, Level: 1, Upgradable: true},
+				{ID: db.SkillMGSight, Level: 1, Upgradable: true},
+				{ID: db.SkillMGThunderstorm, Level: 1, Upgradable: true},
+				{ID: db.SkillMGFrostdiver, Level: 1, Upgradable: true},
+				{ID: db.SkillMGFirewall, Level: 1, Upgradable: true},
+				{ID: db.SkillWZJupitel, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillWZFirepillar,
+		db.SkillWZSightrasher,
+		db.SkillWZJupitel,
+		db.SkillWZWaterball,
+		db.SkillWZIcewall,
+		db.SkillWZEarthspike,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("wizard tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillWZStormgust) {
+		t.Fatal("storm gust should not be visible before jupitel thunder reaches level 3")
+	}
+	window.stageSkill(db.SkillWZJupitel)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillWZStormgust) {
+		t.Fatal("storm gust should be visible after staged jupitel thunder level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsHighWizardUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobWizardH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillMGSrecovery, Level: 5, Upgradable: true},
+				{ID: db.SkillMGSoulstrike, Level: 7, Upgradable: true},
+				{ID: db.SkillMGNapalmbeat, Level: 5, Upgradable: true},
+				{ID: db.SkillWZEstimation, Level: 1, Upgradable: true},
+				{ID: db.SkillWZIcewall, Level: 1, Upgradable: true},
+				{ID: db.SkillWZQuagmire, Level: 1, Upgradable: true},
+				{ID: db.SkillHWMagiccrasher, Level: 1, Upgradable: true},
+				{ID: db.SkillHWMagicpower, Level: 9, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillHWSouldrain,
+		db.SkillHWMagiccrasher,
+		db.SkillHWNapalmvulcan,
+		db.SkillHWGanbantein,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("high wizard tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillHWGravitation) {
+		t.Fatal("gravitation should not be visible before magic power reaches level 10")
+	}
+	window.stageSkill(db.SkillHWMagicpower)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillHWGravitation) {
+		t.Fatal("gravitation should be visible after staged magic power level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowOrdersPendingUnlocksBySkillTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobSuperNovice},

@@ -42,6 +42,8 @@ const (
 	effectEnhance        = 9
 	effectArrowShot      = 10060
 	effectArrowShower    = 10061
+	effectMagicPower     = db.SkillEffectMagicPower
+	effectGravitation    = db.SkillEffectGravitationGround
 	effectMammonite      = 10
 	effectCartRevolution = 170
 	effectSight          = 22
@@ -1802,6 +1804,7 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	128: {effectIDs: []int{effectPortal}},           // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
 	129: {effectIDs: []int{effectPortal}},           // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
 	133: {effectIDs: []int{effectPneuma}},           // UNT_PNEUMA -> EF_PNEUMA
+	184: {effectIDs: []int{effectGravitation}},      // UNT_GRAVITATION -> 522_ground
 	199: {effectIDs: []int{effectBottomEvilLand}},   // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
 	202: {effectIDs: []int{effectGlassWall3}},       // UNT_EPICLESIS -> EF_GLASSWALL3
 	203: {effectIDs: []int{effectEarthWall}},        // UNT_EARTHSTRAIN -> EF_EARTHWALL

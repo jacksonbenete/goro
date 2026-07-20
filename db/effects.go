@@ -35,6 +35,8 @@ const (
 	effectEnhance        = 9
 	effectArrowShot      = 10060
 	effectArrowShower    = 10061
+	effectMagicPower     = SkillEffectMagicPower
+	effectGravitation    = SkillEffectGravitationGround
 	effectMammonite      = 10
 	effectCartRevolution = 170
 	effectSight          = 22
@@ -1414,6 +1416,34 @@ func evilLandEffectSpec() EffectSpec {
 				PosZ:           0.4,
 				BlendAdditive:  true,
 				AttachedEntity: false,
+			},
+		},
+	}
+}
+
+func gravitationEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:    1500 * time.Millisecond,
+		CameraShake: 200 * time.Millisecond,
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "FlatColorTile",
+				Color:          color.RGBA{R: 255, G: 255, B: 255, A: 51},
+				SizeStart:      1,
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "GroundTexture",
+				TextureFile:    "effect/lens_w.bmp",
+				Duration:       1500 * time.Millisecond,
+				SizeStart:      0.5,
+				SizeEnd:        0.5,
+				AlphaMax:       0.7,
+				PosZ:           0.4,
+				BlendAdditive:  true,
+				AttachedEntity: true,
 			},
 		},
 	}
@@ -4965,6 +4995,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectEnergyDrain2:      energyDrainProjectileEffectSpec(color.RGBA{R: 204, G: 204, B: 255, A: 255}, 160, 190),
 	effectTransBlueBody:     transBlueBodyEffectSpec(),
 	effectMagicCrasher:      magicCrasherEffectSpec(),
+	effectMagicPower:        soundOnlyEffectSpec("effect\\마법력 증폭.wav"),
 	effectLightBlade:        sprEffectSpec("한복천사", "", true, true),
 	effectEnergyDrain3:      energyDrainProjectileEffectSpec(color.RGBA{R: 178, G: 255, B: 178, A: 255}, 140, 170),
 	effectLineLink2:         soundOnlyEffectSpec("effect\\소울 체인지.wav"),
@@ -5114,6 +5145,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectBottomRunner:      groundTextureEffectSpec("effect/hanmoon1.tga"),
 	effectBottomTransfer:    groundTextureEffectSpec("effect/hanmoon2.tga"),
 	effectBottomEvilLand:    evilLandEffectSpec(),
+	effectGravitation:       gravitationEffectSpec(),
 	effectGuard3:            soundOnlyEffectSpec("effect\\kyrie_guard.wav"),
 	effectCriticalWound:     strEffectSpecAttached("cwound", "", false),
 	effectFirecracker2:      firecrackerBannerEffectSpec("폭죽_러브"),

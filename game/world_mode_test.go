@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 623 {
-		t.Fatalf("implemented effects = %d, want 623", coverage.Implemented)
+	if coverage.Implemented != 625 {
+		t.Fatalf("implemented effects = %d, want 625", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 102.5 || coverage.ActivePercent > 102.7 {
-		t.Fatalf("active coverage = %.3f, want about 102.6", coverage.ActivePercent)
+	if coverage.ActivePercent < 102.9 || coverage.ActivePercent > 103.1 {
+		t.Fatalf("active coverage = %.3f, want about 103.0", coverage.ActivePercent)
 	}
 }
 
@@ -5204,6 +5204,28 @@ func TestRobrowserEffectsSixFiftyToSevenHundredMatchTableRows(t *testing.T) {
 	}
 }
 
+func TestHighWizardStringKeyEffectsMatchRobrowser(t *testing.T) {
+	magicPower, ok := worldEffectSpecForID(effectMagicPower)
+	if !ok || magicPower.duration != 500*time.Millisecond || len(magicPower.components) != 0 {
+		t.Fatalf("ef_magicpower spec = %+v ok=%t, want sound-only", magicPower, ok)
+	}
+	if len(magicPower.sfx) != 1 || magicPower.sfx[0] != "effect\\마법력 증폭.wav" {
+		t.Fatalf("ef_magicpower sfx = %#v", magicPower.sfx)
+	}
+
+	gravitation, ok := worldEffectSpecForID(effectGravitation)
+	if !ok || gravitation.duration != 1500*time.Millisecond || gravitation.cameraShake != 200*time.Millisecond || len(gravitation.components) != 2 {
+		t.Fatalf("522_ground spec = %+v ok=%t", gravitation, ok)
+	}
+	tile, lens := gravitation.components[0], gravitation.components[1]
+	if tile.kind != effectComponentFUNC || tile.funcName != "FlatColorTile" || tile.funcAdapter != effectFuncFlatColorTile || tile.color != (color.RGBA{R: 255, G: 255, B: 255, A: 51}) || tile.sizeStart != 1 || !tile.attachedEntity {
+		t.Fatalf("522_ground tile = %+v", tile)
+	}
+	if lens.kind != effectComponentFUNC || lens.funcName != "GroundTexture" || lens.funcAdapter != effectFuncGroundTexture || lens.textureFile != "effect/lens_w.bmp" || lens.sizeStart != 0.5 || lens.sizeEnd != 0.5 || lens.alphaMax != 0.7 || lens.posZ != 0.4 || !lens.blendAdditive || !lens.attachedEntity {
+		t.Fatalf("522_ground lens = %+v", lens)
+	}
+}
+
 func TestRobrowserFirecrackerBannersSixFiftyToSevenHundredMatchTableRows(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -7306,18 +7328,28 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "WZ_FIREPILLAR imported ground", skillGroundEffectIDs(db.SkillWZFirepillar), effectFirePillarOn)
 	expectEffectIDs(t, "WZ_FIREPILLAR imported hit", skillHitEffectIDs(db.SkillWZFirepillar), effectFirePillarBomb)
 	expectEffectIDs(t, "WZ_SIGHTRASHER imported", skillEffectIDs(db.SkillWZSightrasher), effectSightTrasher)
+	expectEffectIDs(t, "WZ_SIGHTRASHER imported hit", skillHitEffectIDs(db.SkillWZSightrasher), effectFireHit)
+	expectEffectIDs(t, "WZ_FIREIVY unused", skillEffectIDs(db.SkillWZFireivy))
 	expectEffectIDs(t, "WZ_METEOR imported", skillEffectIDs(db.SkillWZMeteor), effectMeteorStorm)
+	expectEffectIDs(t, "WZ_METEOR imported hit", skillHitEffectIDs(db.SkillWZMeteor), effectFireHit)
 	expectEffectIDs(t, "WZ_JUPITEL imported", skillEffectIDs(db.SkillWZJupitel), effectJupitelThunder)
 	expectEffectIDs(t, "WZ_JUPITEL imported before hit", skillBeforeHitEffectIDs(db.SkillWZJupitel), effectJupitelHit)
 	expectEffectIDs(t, "WZ_WATERBALL imported self before hit", skillBeforeHitEffectSelfIDs(db.SkillWZWaterball), effectWaterBall)
 	expectEffectIDs(t, "WZ_WATERBALL imported caster hit", skillHitEffectOnCasterIDs(db.SkillWZWaterball), effectWaterBall2)
 	expectEffectIDs(t, "WZ_VERMILION imported", skillEffectIDs(db.SkillWZVermilion), effectLordVermilion)
+	expectEffectIDs(t, "WZ_VERMILION imported hit", skillHitEffectIDs(db.SkillWZVermilion), effectWindHit)
 	expectEffectIDs(t, "WZ_ICEWALL imported ground", skillGroundEffectIDs(db.SkillWZIcewall), effectIceWall)
+	expectEffectIDs(t, "WZ_FROSTNOVA imported caster", skillEffectOnCasterIDs(db.SkillWZFrostnova), effectFrostDiverHit)
+	expectEffectIDs(t, "WZ_FROSTNOVA imported hit", skillHitEffectIDs(db.SkillWZFrostnova), effectColdHit)
 	expectEffectIDs(t, "WZ_EARTHSPIKE imported", skillEffectIDs(db.SkillWZEarthspike), effectEarthSpike)
 	expectEffectIDs(t, "WZ_EARTHSPIKE imported hit", skillHitEffectIDs(db.SkillWZEarthspike), effectEarthHit)
 	expectEffectIDs(t, "WZ_HEAVENDRIVE imported", skillEffectIDs(db.SkillWZHeavendrive), effectHeavenDrive)
+	expectEffectIDs(t, "WZ_HEAVENDRIVE imported hit", skillHitEffectIDs(db.SkillWZHeavendrive), effectEarthHit)
 	expectEffectIDs(t, "WZ_QUAGMIRE imported ground", skillGroundEffectIDs(db.SkillWZQuagmire), effectQuagmire)
 	expectEffectIDs(t, "WZ_STORMGUST imported", skillEffectIDs(db.SkillWZStormgust), effectStormGust)
+	expectEffectIDs(t, "WZ_STORMGUST imported hit", skillHitEffectIDs(db.SkillWZStormgust), effectColdHit)
+	expectEffectIDs(t, "WZ_ESTIMATION imported empty", skillEffectIDs(db.SkillWZEstimation))
+	expectEffectIDs(t, "WZ_SIGHTBLASTER imported", skillEffectIDs(db.SkillWZSightblaster), 601)
 	expectEffectIDs(t, "BS_REPAIRWEAPON imported", skillEffectIDs(db.SkillBSRepairweapon), effectRepairWeapon)
 	expectEffectIDs(t, "BS_HAMMERFALL imported", skillEffectIDs(db.SkillBSHammerfall), effectCrashEarth)
 	expectEffectIDs(t, "BS_ADRENALINE imported", skillEffectIDs(db.SkillBSAdrenaline), effectHasteUp)
@@ -7450,6 +7482,16 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "LK_FURY imported", skillEffectIDs(db.SkillLKFury), effectRedBody)
 	expectEffectIDs(t, "HP_BASILICA imported ground", skillGroundEffectIDs(db.SkillHPBasilica), effectBottomBasilica)
 	expectEffectIDs(t, "HW_MAGICCRASHER imported", skillEffectIDs(db.SkillHWMagiccrasher), effectMagicCrasher)
+	expectEffectIDs(t, "HW_MAGICPOWER imported", skillEffectIDs(db.SkillHWMagicpower), effectMagicPower)
+	expectEffectIDs(t, "HW_MAGICPOWER imported begin", skillBeginEffectIDs(db.SkillHWMagicpower), effectBashBegin)
+	if !skillHidesCastAura(db.SkillHWMagicpower) {
+		t.Fatal("HW_MAGICPOWER should hide cast aura like robr")
+	}
+	expectEffectIDs(t, "HW_SOULDRAIN imported caster", skillEffectOnCasterIDs(db.SkillHWSouldrain), effectEnergyDrain)
+	expectEffectIDs(t, "HW_NAPALMVULCAN imported", skillEffectIDs(db.SkillHWNapalmvulcan), 401)
+	expectEffectIDs(t, "HW_GANBANTEIN imported", skillEffectIDs(db.SkillHWGanbantein), 223)
+	expectEffectIDs(t, "HW_GANBANTEIN imported ground", skillGroundEffectIDs(db.SkillHWGanbantein), 224)
+	expectEffectIDs(t, "HW_GRAVITATION imported ground", skillGroundEffectIDs(db.SkillHWGravitation), effectGravitation)
 	expectEffectIDs(t, "PA_PRESSURE imported before hit", skillBeforeHitEffectIDs(db.SkillPaPressure), effectPressure)
 	expectEffectIDs(t, "PA_SACRIFICE imported", skillEffectIDs(db.SkillPaSacrifice), effectBash3D)
 	expectEffectIDs(t, "PA_GOSPEL imported", skillEffectIDs(db.SkillPaGospel), effectBottomGospel)
@@ -7816,6 +7858,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
 	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
+	expectEffectIDs(t, "UNT_GRAVITATION", skillUnitEffectIDs(184), effectGravitation)
 	expectEffectIDs(t, "UNT_EVILLAND", skillUnitEffectIDs(199), effectBottomEvilLand)
 	expectEffectIDs(t, "UNT_EPICLESIS", skillUnitEffectIDs(202), effectGlassWall3)
 	expectEffectIDs(t, "UNT_EARTHSTRAIN", skillUnitEffectIDs(203), effectEarthWall)

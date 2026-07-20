@@ -3715,11 +3715,13 @@ func SkillGroundCastSize(skillID uint16, level int) float64 {
 const (
 	// Synthetic numeric aliases for robr EffectTable.js string keys referenced
 	// from SkillEffect.js. These are not Ragnarok packet effect IDs.
-	SkillEffectColdBolt    = 10014
-	SkillEffectFireBolt    = 10019
-	SkillEffectQuakeMagnum = 10022
-	SkillEffectArrowShot   = 10060
-	SkillEffectArrowShower = 10061
+	SkillEffectColdBolt          = 10014
+	SkillEffectFireBolt          = 10019
+	SkillEffectQuakeMagnum       = 10022
+	SkillEffectArrowShot         = 10060
+	SkillEffectArrowShower       = 10061
+	SkillEffectMagicPower        = 10366
+	SkillEffectGravitationGround = 10484
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -3934,7 +3936,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillHPAssumptio:                {EffectIDs: []int{440}},
 	SkillHPBasilica:                 {GroundEffectIDs: []int{effectBottomBasilica}},
 	SkillHWMagiccrasher:             {EffectIDs: []int{effectMagicCrasher}},
-	SkillHWMagicpower:               {BeginCastEffectIDs: []int{16}, HideCastAura: true},
+	SkillHWMagicpower:               {EffectIDs: []int{SkillEffectMagicPower}, BeginCastEffectIDs: []int{16}, HideCastAura: true},
 	SkillHWSouldrain:                {EffectIDsOnCaster: []int{effectEnergyDrain}},
 	SkillPaPressure:                 {BeforeHitEffectIDs: []int{effectPressure}},
 	SkillPaSacrifice:                {EffectIDs: []int{effectBash3D}},
@@ -4002,6 +4004,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillCRFullprotection:           {EffectIDs: []int{effectChemicalProt, 500}},
 	SkillPFDoublecasting:            {EffectIDs: []int{521}},
 	SkillHWGanbantein:               {EffectIDs: []int{223}, GroundEffectIDs: []int{224}},
+	SkillHWGravitation:              {GroundEffectIDs: []int{SkillEffectGravitationGround}},
 	SkillWSCarttermination:          {EffectIDs: []int{518}},
 	SkillCGLongingfreedom:           {EffectIDs: []int{500}},
 	SkillCGHermode:                  {GroundEffectIDs: []int{effectBottomHermode}},

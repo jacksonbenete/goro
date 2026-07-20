@@ -15,6 +15,23 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 	SkillMGFireball:      {{SkillID: SkillMGFirebolt, Level: 4}},
 	SkillMGFirewall:      {{SkillID: SkillMGSight, Level: 1}, {SkillID: SkillMGFireball, Level: 5}},
 	SkillMGThunderstorm:  {{SkillID: SkillMGLightningbolt, Level: 4}},
+	SkillWZFirepillar:    {{SkillID: SkillMGFirewall, Level: 1}},
+	SkillWZSightrasher:   {{SkillID: SkillMGSight, Level: 1}, {SkillID: SkillMGLightningbolt, Level: 1}},
+	SkillWZMeteor:        {{SkillID: SkillMGThunderstorm, Level: 1}, {SkillID: SkillWZSightrasher, Level: 2}},
+	SkillWZJupitel:       {{SkillID: SkillMGNapalmbeat, Level: 1}, {SkillID: SkillMGLightningbolt, Level: 1}},
+	SkillWZVermilion:     {{SkillID: SkillMGThunderstorm, Level: 1}, {SkillID: SkillWZJupitel, Level: 5}},
+	SkillWZWaterball:     {{SkillID: SkillMGColdbolt, Level: 1}, {SkillID: SkillMGLightningbolt, Level: 1}},
+	SkillWZIcewall:       {{SkillID: SkillMGStonecurse, Level: 1}, {SkillID: SkillMGFrostdiver, Level: 1}},
+	SkillWZFrostnova:     {{SkillID: SkillWZIcewall, Level: 1}},
+	SkillWZStormgust:     {{SkillID: SkillMGFrostdiver, Level: 1}, {SkillID: SkillWZJupitel, Level: 3}},
+	SkillWZEarthspike:    {{SkillID: SkillMGStonecurse, Level: 1}},
+	SkillWZHeavendrive:   {{SkillID: SkillWZEarthspike, Level: 3}},
+	SkillWZQuagmire:      {{SkillID: SkillWZHeavendrive, Level: 1}},
+	SkillHWSouldrain:     {{SkillID: SkillMGSrecovery, Level: 5}, {SkillID: SkillMGSoulstrike, Level: 7}},
+	SkillHWMagiccrasher:  {{SkillID: SkillMGSrecovery, Level: 1}},
+	SkillHWNapalmvulcan:  {{SkillID: SkillMGNapalmbeat, Level: 5}},
+	SkillHWGanbantein:    {{SkillID: SkillWZEstimation, Level: 1}, {SkillID: SkillWZIcewall, Level: 1}},
+	SkillHWGravitation:   {{SkillID: SkillWZQuagmire, Level: 1}, {SkillID: SkillHWMagiccrasher, Level: 1}, {SkillID: SkillHWMagicpower, Level: 10}},
 	SkillALPneuma:        {{SkillID: SkillALWarp, Level: 4}},
 	SkillALTeleport:      {{SkillID: SkillALRuwach, Level: 1}},
 	SkillALWarp:          {{SkillID: SkillALTeleport, Level: 2}},
@@ -64,6 +81,26 @@ var SkillMaxLevels = map[uint16]int{
 	SkillMGLightningbolt:  10,
 	SkillMGThunderstorm:   10,
 	SkillMGEnergycoat:     1,
+	SkillWZFirepillar:     10,
+	SkillWZSightrasher:    10,
+	SkillWZMeteor:         10,
+	SkillWZJupitel:        10,
+	SkillWZVermilion:      10,
+	SkillWZWaterball:      5,
+	SkillWZIcewall:        10,
+	SkillWZFrostnova:      10,
+	SkillWZStormgust:      10,
+	SkillWZEarthspike:     5,
+	SkillWZHeavendrive:    5,
+	SkillWZQuagmire:       5,
+	SkillWZEstimation:     1,
+	SkillWZSightblaster:   1,
+	SkillHWSouldrain:      10,
+	SkillHWMagiccrasher:   1,
+	SkillHWMagicpower:     10,
+	SkillHWNapalmvulcan:   5,
+	SkillHWGanbantein:     1,
+	SkillHWGravitation:    5,
 	SkillALRuwach:         1,
 	SkillALPneuma:         1,
 	SkillALTeleport:       2,
@@ -121,10 +158,57 @@ var superNoviceSkillTree = []uint16{
 	SkillMCPushcart, SkillMCVending,
 }
 
+var magicianSkillTree = []uint16{
+	SkillMGStonecurse, SkillMGColdbolt, SkillMGLightningbolt, SkillMGNapalmbeat, SkillMGFirebolt, SkillMGSight, SkillMGSrecovery, SkillMGFrostdiver, SkillMGThunderstorm, SkillMGSoulstrike, SkillMGFireball, SkillMGEnergycoat, SkillMGSafetywall, SkillMGFirewall,
+}
+
+var wizardSkillTree = []uint16{
+	SkillWZEstimation,
+	SkillWZIcewall,
+	SkillWZJupitel,
+	SkillWZEarthspike,
+	SkillWZSightrasher,
+	SkillWZFirepillar,
+	SkillWZSightblaster,
+	SkillWZFrostnova,
+	SkillWZVermilion,
+	SkillWZHeavendrive,
+	SkillWZMeteor,
+	SkillWZWaterball,
+	SkillWZQuagmire,
+	SkillWZStormgust,
+}
+
+var highWizardSkillTree = []uint16{
+	SkillHWGanbantein,
+	SkillHWMagiccrasher,
+	SkillHWSouldrain,
+	SkillHWNapalmvulcan,
+	SkillHWMagicpower,
+	SkillHWGravitation,
+}
+
+func combinedSkillTree(trees ...[]uint16) []uint16 {
+	total := 0
+	for _, tree := range trees {
+		total += len(tree)
+	}
+	out := make([]uint16, 0, total)
+	for _, tree := range trees {
+		out = append(out, tree...)
+	}
+	return out
+}
+
 var skillTreeByJob = map[int][]uint16{
 	JobNovice:       {SkillNVBasic, SkillNVFirstaid, SkillNVTrickdead},
 	JobSwordman:     {SkillSMSword, SkillSMRecovery, SkillSMBash, SkillSMProvoke, SkillSMAutoberserk, SkillSMMovingrecovery, SkillSMTwohand, SkillSMMagnum, SkillSMEndure, SkillSMFatalblow},
-	JobMagician:     {SkillMGStonecurse, SkillMGColdbolt, SkillMGLightningbolt, SkillMGNapalmbeat, SkillMGFirebolt, SkillMGSight, SkillMGSrecovery, SkillMGFrostdiver, SkillMGThunderstorm, SkillMGSoulstrike, SkillMGFireball, SkillMGEnergycoat, SkillMGSafetywall, SkillMGFirewall},
+	JobMagician:     magicianSkillTree,
+	JobMagicianH:    magicianSkillTree,
+	JobMagicianB:    magicianSkillTree,
+	JobWizard:       combinedSkillTree(magicianSkillTree, wizardSkillTree),
+	JobWizardH:      combinedSkillTree(magicianSkillTree, wizardSkillTree, highWizardSkillTree),
+	JobWizardB:      combinedSkillTree(magicianSkillTree, wizardSkillTree),
 	JobArcher:       {SkillACDouble, SkillACOwl, SkillACChargearrow, SkillACShower, SkillACVulture, SkillACMakingarrow, SkillACConcentration},
 	JobAcolyte:      {SkillALRuwach, SkillALHeal, SkillALHolywater, SkillALDp, SkillALHolylight, SkillALTeleport, SkillALCure, SkillALIncagi, SkillALBlessing, SkillALDemonbane, SkillALAngelus, SkillALWarp, SkillALDecagi, SkillALCrucis, SkillALPneuma},
 	JobMerchant:     {SkillMCInccarry, SkillMCMammonite, SkillMCIdentify, SkillMCLoud, SkillMCDiscount, SkillMCPushcart, SkillMCChangecart, SkillMCCartdecorate, SkillMCOvercharge, SkillMCVending, SkillMCCartrevolution},
