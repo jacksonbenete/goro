@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 416 {
-		t.Fatalf("implemented effects = %d, want 416", coverage.Implemented)
+	if coverage.Implemented != 454 {
+		t.Fatalf("implemented effects = %d, want 454", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 68.5 || coverage.ActivePercent > 68.6 {
-		t.Fatalf("active coverage = %.3f, want about 68.5", coverage.ActivePercent)
+	if coverage.ActivePercent < 74.7 || coverage.ActivePercent > 74.8 {
+		t.Fatalf("active coverage = %.3f, want about 74.8", coverage.ActivePercent)
 	}
 }
 
@@ -3240,6 +3240,55 @@ func TestRobrowserActiveEffectsFiveFiftyToSixHundredHaveSpecs(t *testing.T) {
 		effectStatFoodDEX: "EF_FOOD05",
 		effectStatFoodLUK: "EF_FOOD06",
 		effectThrowItem6:  "EF_THROWITEM6",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsSixHundredToSixFiftyHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectThrowItem6:    "EF_THROWITEM6",
+		effectFireHit2:      "EF_FIREHIT2",
+		effectNPCStop2:      "EF_NPC_STOP2",
+		effectFVoice:        "EF_FVOICE",
+		effectWink:          "EF_WINK",
+		effectCookingOK:     "EF_COOKING_OK",
+		effectCookingFail:   "EF_COOKING_FAIL",
+		effectHapgyeok:      "EF_HAPGYEOK",
+		effectThrowItem7:    "EF_THROWITEM7",
+		effectThrowItem8:    "EF_THROWITEM8",
+		effectThrowItem9:    "EF_THROWITEM9",
+		effectThrowItem10:   "EF_THROWITEM10",
+		effectKouenka:       "EF_KOUENKA",
+		effectHyousensou:    "EF_HYOUSENSOU",
+		effectStin4:         "EF_STIN4",
+		effectThunderStorm2: "EF_THUNDERSTORM2",
+		effectRGCoin3:       "EF_RG_COIN3",
+		effectBash3D5:       "EF_BASH3D5",
+		effectChookgi3:      "EF_CHOOKGI3",
+		effectKirikage:      "EF_KIRIKAGE",
+		effectTatami:        "EF_TATAMI",
+		effectKasumikiri:    "EF_KASUMIKIRI",
+		effectIssen:         "EF_ISSEN",
+		effectKaen:          "EF_KAEN",
+		effectBaku:          "EF_BAKU",
+		effectHyousyouraku:  "EF_HYOUSYOURAKU",
+		effectDesperado:     "EF_DESPERADO",
+		effectLightningS:    "EF_LIGHTNING_S",
+		effectBlindS:        "EF_BLIND_S",
+		effectPoisonS:       "EF_POISON_S",
+		effectFreezingS:     "EF_FREEZING_S",
+		effectFlareS:        "EF_FLARE_S",
+		effectRapidShower:   "EF_RAPIDSHOWER",
+		effectMagicalBullet: "EF_MAGICALBULLET",
+		effectSpreadAttack:  "EF_SPREADATTACK",
+		effectTrackCasting:  "EF_TRACKCASTING",
+		effectTracking:      "EF_TRACKING",
+		effectTripleAction:  "EF_TRIPLEACTION",
+		effectBullseye:      "EF_BULLSEYE",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -4470,6 +4519,187 @@ func TestRobrowserFunctionAndProjectileEffectsFiveFiftyToSixHundredMatchTableRow
 	component := throw.components[0]
 	if component.kind != effectComponent3D || component.textureFile != "유저인터페이스/item/베넘나이프.bmp" || component.duration != 200*time.Millisecond || component.alphaMax != 1 || !component.fadeIn || !component.fadeOut || !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || !component.rotate || component.angleStart != 180 || component.angleEnd != 540 || component.posZ != 1 || component.sizeStart != effectTableSize(30) || component.sizeEnd != effectTableSize(30) || !component.attachedEntity {
 		t.Fatalf("EF_THROWITEM6 component = %+v", component)
+	}
+}
+
+func TestRobrowserSimpleEffectsSixHundredToSixFiftyMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		id       int
+		file     string
+		wav      string
+		attached bool
+		rand     bool
+	}{
+		{"EF_FIREHIT2", effectFireHit2, "firehit%d", "", true, true},
+		{"EF_COOKING_OK", effectCookingOK, "cook_suc", "_heal_effect.wav", true, false},
+		{"EF_COOKING_FAIL", effectCookingFail, "cook_fail", "caramel_die.wav", true, false},
+		{"EF_KOUENKA", effectKouenka, "firehit", "effect\\ef_firearrow%d.wav", true, true},
+		{"EF_HYOUSENSOU", effectHyousensou, "freeze", "effect\\ef_icearrow%d.wav", true, true},
+		{"EF_THUNDERSTORM2", effectThunderStorm2, "setsudan", "effect\\ef_thunderstorm.wav", true, false},
+		{"EF_BAKU", effectBaku, "fire dragon", "effect\\폭염룡.wav", false, false},
+		{"EF_HYOUSYOURAKU", effectHyousyouraku, "icy", "effect\\빙정락.wav", false, false},
+		{"EF_TRACKCASTING", effectTrackCasting, "트랙킹", "", true, false},
+		{"EF_BULLSEYE", effectBullseye, "불스아이", "", true, false},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.attachedEntity != tc.attached {
+			t.Fatalf("%s component = %+v, want STR %q attached=%t", tc.name, component, tc.file, tc.attached)
+		}
+		if tc.rand {
+			if component.strRandMin != 1 || component.strRandMax != 3 {
+				t.Fatalf("%s STR rand = %d..%d", tc.name, component.strRandMin, component.strRandMax)
+			}
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+		if tc.rand && (spec.sfxRandMin != 1 || spec.sfxRandMax != 3) {
+			t.Fatalf("%s sfx rand = %d..%d", tc.name, spec.sfxRandMin, spec.sfxRandMax)
+		}
+	}
+
+	for _, tc := range []struct {
+		name      string
+		id        int
+		file      string
+		wav       string
+		attached  bool
+		stop      bool
+		repeat    bool
+		direction bool
+	}{
+		{"EF_NPC_STOP2", effectNPCStop2, "cconfine", "effect\\ef_hit6.wav", true, true, false, false},
+		{"EF_FVOICE", effectFVoice, "fvoice", "amon_ra_die01.wav", false, false, false, false},
+		{"EF_WINK", effectWink, "wink", "", false, false, false, false},
+		{"EF_KIRIKAGE", effectKirikage, "그림자베기", "effect\\그림자베기.wav", true, false, false, false},
+		{"EF_TATAMI", effectTatami, "다다미 뒤집기", "effect\\다다미뒤집기.wav", true, false, false, false},
+		{"EF_KASUMIKIRI", effectKasumikiri, "안개베기", "effect\\안개베기.wav", true, false, false, false},
+		{"EF_ISSEN", effectIssen, "일섬", "effect\\일섬.wav", true, false, false, false},
+		{"EF_KAEN", effectKaen, "화염진", "effect\\화염진.wav", true, false, true, false},
+		{"EF_DESPERADO", effectDesperado, "데스페라도", "effect\\데스페라도.wav", true, false, false, false},
+		{"EF_LIGHTNING_S", effectLightningS, "라이트닝스피어", "", false, false, false, false},
+		{"EF_BLIND_S", effectBlindS, "블라인드스피어", "", false, false, false, false},
+		{"EF_POISON_S", effectPoisonS, "포이즌스피어", "", false, false, false, false},
+		{"EF_FREEZING_S", effectFreezingS, "프리징스피어", "", false, false, false, false},
+		{"EF_FLARE_S", effectFlareS, "플레어스피어", "", false, false, false, false},
+		{"EF_RAPIDSHOWER", effectRapidShower, "래피드샤워", "effect\\래피드샤워.wav", true, false, false, false},
+		{"EF_MAGICALBULLET", effectMagicalBullet, "매지컬불릿", "effect\\매지컬블릿.wav", true, false, false, false},
+		{"EF_SPREADATTACK", effectSpreadAttack, "스프레드", "", true, false, false, true},
+		{"EF_TRACKING", effectTracking, "트래킹", "", true, false, false, false},
+		{"EF_TRIPLEACTION", effectTripleAction, "트리플액션", "effect\\트리플액션.wav", true, false, false, false},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one SPR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSPR || component.spriteFile != tc.file || component.attachedEntity != tc.attached || component.spriteStopAtEnd != tc.stop || component.repeat != tc.repeat || component.spriteDirection != tc.direction {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	hapgyeok, ok := worldEffectSpecForID(effectHapgyeok)
+	if !ok || len(hapgyeok.components) != 2 {
+		t.Fatalf("EF_HAPGYEOK spec = %+v ok=%t", hapgyeok, ok)
+	}
+	if len(hapgyeok.sfx) != 1 || hapgyeok.sfx[0] != "effect\\itempokjuk.wav" {
+		t.Fatalf("EF_HAPGYEOK sfx = %#v", hapgyeok.sfx)
+	}
+	if spr, str := hapgyeok.components[0], hapgyeok.components[1]; spr.kind != effectComponentSPR || spr.spriteFile != "합격_" || !spr.attachedEntity || str.kind != effectComponentSTR || str.strFile != "itempokjuk" || !str.attachedEntity {
+		t.Fatalf("EF_HAPGYEOK components = %+v", hapgyeok.components)
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		wav  string
+	}{
+		{"EF_STIN4", effectStin4, "effect\\풍인.wav"},
+		{"EF_RG_COIN3", effectRGCoin3, "effect\\디스암.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 0 || spec.duration != 500*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t, want sound-only 500ms", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+}
+
+func TestRobrowserProjectileEffectsSixHundredToSixFiftyMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		id      int
+		texture string
+		size    float64
+	}{
+		{"EF_THROWITEM7", effectThrowItem7, "유저인터페이스/item/수리검.bmp", 30},
+		{"EF_THROWITEM8", effectThrowItem8, "유저인터페이스/item/쿠나이_독.bmp", 30},
+		{"EF_THROWITEM9", effectThrowItem9, "유저인터페이스/item/풍마_뇌우.bmp", 30},
+		{"EF_THROWITEM10", effectThrowItem10, "effect/coin_a.bmp", 20},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 200*time.Millisecond || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\닌자_던지기.wav" {
+			t.Fatalf("%s sfx = %#v", tc.name, spec.sfx)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponent3D || component.textureFile != tc.texture || component.duration != 200*time.Millisecond || component.alphaMax != 1 || !component.fadeIn || !component.fadeOut || !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || !component.rotate || component.angleStart != 180 || component.angleEnd != 540 || component.posZ != 1 || component.sizeStart != effectTableSize(tc.size) || component.sizeEnd != effectTableSize(tc.size) || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+}
+
+func TestRobrowserFuncEffectsSixHundredToSixFiftyMatchTableRows(t *testing.T) {
+	dust, ok := worldEffectSpecForID(effectBash3D5)
+	if !ok || dust.duration != 175*time.Millisecond || len(dust.components) != 3 {
+		t.Fatalf("EF_BASH3D5 spec = %+v ok=%t", dust, ok)
+	}
+	if len(dust.sfx) != 1 || dust.sfx[0] != "effect\\bash3d5.wav" {
+		t.Fatalf("EF_BASH3D5 sfx = %#v", dust.sfx)
+	}
+	body, first, second := dust.components[0], dust.components[1], dust.components[2]
+	if body.kind != effectComponentFUNC || body.funcName != "Bash3D5" || !body.attachedEntity {
+		t.Fatalf("EF_BASH3D5 body = %+v", body)
+	}
+	for i, component := range []worldEffectComponent{first, second} {
+		if component.kind != effectComponentCylinder || component.textureName != "alpha_center" || component.duration != 175*time.Millisecond || component.duplicate != 6 || component.alphaMax != 0.6 || !component.fade || component.angleX != -90 || component.angleZRandom != 360 || !component.fixedPerspective || component.posZ != 1.5 || component.height != 0 || component.bottomSize != 0.01 || component.animation != 2 || !component.attachedEntity || component.totalCircleSides != 30 || component.circleSides != 1 {
+			t.Fatalf("EF_BASH3D5 cylinder %d = %+v", i, component)
+		}
+	}
+	if first.topSize != 4.5 || second.topSize != 7.2 {
+		t.Fatalf("EF_BASH3D5 top sizes = %.1f %.1f", first.topSize, second.topSize)
+	}
+
+	chookgi, ok := worldEffectSpecForID(effectChookgi3)
+	if !ok || chookgi.duration != 5*time.Minute || len(chookgi.components) != 1 {
+		t.Fatalf("EF_CHOOKGI3 spec = %+v ok=%t", chookgi, ok)
+	}
+	if sphere := chookgi.components[0]; sphere.kind != effectComponentFUNC || sphere.funcName != "SpiritSphere" || sphere.funcAdapter != effectFuncSpiritSphere || sphere.textureFile != "effect/thunder_center.bmp" || sphere.duplicate != 5 || !sphere.attachedEntity {
+		t.Fatalf("EF_CHOOKGI3 component = %+v", sphere)
 	}
 }
 
@@ -5721,6 +5951,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "RG_STRIPARMOR imported success", skillSuccessEffectIDs(db.SkillRGStriparmor), effectStripArmor)
 	expectEffectIDs(t, "RG_STRIPHELM imported success", skillSuccessEffectIDs(db.SkillRGStriphelm), effectStripHelm)
 	expectEffectIDs(t, "RG_INTIMIDATE imported", skillEffectIDs(db.SkillRGIntimidate), effectIntimidate)
+	expectEffectIDs(t, "RG_CLOSECONFINE imported ground", skillGroundEffectIDs(db.SkillRGCloseconfine), effectNPCStop2)
 	expectEffectIDs(t, "AM_DEMONSTRATION imported ground", skillGroundEffectIDs(db.SkillAMDemonstration), effectDemonstration)
 	expectEffectIDs(t, "AM_ACIDTERROR imported before hit", skillBeforeHitEffectIDs(db.SkillAMAcidterror), effectThrowItem)
 	expectEffectIDs(t, "AM_CP_WEAPON imported", skillEffectIDs(db.SkillAMCpWeapon), effectChemicalProt)
@@ -5767,11 +5998,13 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "BA_ASSASSINCROSS imported", skillEffectIDs(db.SkillBaAssassincross), effectBottomSinX)
 	expectEffectIDs(t, "BA_POEMBRAGI imported", skillEffectIDs(db.SkillBaPoembragi), effectBottomBragi)
 	expectEffectIDs(t, "BA_APPLEIDUN imported", skillEffectIDs(db.SkillBaAppleidun), effectBottomApple)
+	expectEffectIDs(t, "BA_PANGVOICE imported success", skillSuccessEffectIDs(db.SkillBaPangvoice), effectFVoice)
 	expectEffectIDs(t, "DC_SCREAM imported begin", skillBeginEffectIDs(db.SkillDCScream), effectTalkScream)
 	expectEffectIDs(t, "DC_HUMMING imported", skillEffectIDs(db.SkillDCHumming), effectBottomHumming)
 	expectEffectIDs(t, "DC_DONTFORGETME imported", skillEffectIDs(db.SkillDCDontforgetme), effectBottomForget)
 	expectEffectIDs(t, "DC_FORTUNEKISS imported", skillEffectIDs(db.SkillDCFortunekiss), effectBottomFortune)
 	expectEffectIDs(t, "DC_SERVICEFORYOU imported", skillEffectIDs(db.SkillDCServiceforyou), effectBottomService)
+	expectEffectIDs(t, "DC_WINKCHARM imported success", skillSuccessEffectIDs(db.SkillDCWinkcharm), effectWink)
 	expectEffectIDs(t, "SL_KAIZEL imported", skillEffectIDs(db.SkillSLKaizel), effectKaizel)
 	expectEffectIDs(t, "SL_STUN imported", skillEffectIDs(db.SkillSLStun), effectStin3)
 	expectEffectIDs(t, "SL_SMA imported", skillEffectIDs(db.SkillSLSma), effectStin2)
@@ -5823,7 +6056,32 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "LK_JOINTBEAT imported begin", skillBeginEffectIDs(db.SkillLKJointbeat), effectBash3D4)
 	expectEffectIDs(t, "TK_JUMPKICK imported hit", skillHitEffectIDs(db.SkillTKJumpkick), effectJumpKick)
 	expectEffectIDs(t, "GS_INCREASING imported", skillEffectIDs(db.SkillGSIncreasing), effectNPCPowerUp)
+	expectEffectIDs(t, "GS_TRIPLEACTION imported", skillEffectIDs(db.SkillGSTripleaction), effectTripleAction)
+	expectEffectIDs(t, "GS_BULLSEYE imported", skillEffectIDs(db.SkillGSBullseye), effectBullseye)
+	expectEffectIDs(t, "GS_MAGICALBULLET imported", skillEffectIDs(db.SkillGSMagicalbullet), effectMagicalBullet)
+	expectEffectIDs(t, "GS_TRACKING imported", skillEffectIDs(db.SkillGSTracking), effectTrackCasting)
+	expectEffectIDs(t, "GS_TRACKING imported hit", skillHitEffectIDs(db.SkillGSTracking), effectTracking)
+	expectEffectIDs(t, "GS_DISARM imported", skillEffectIDs(db.SkillGSDisarm), effectRGCoin3)
+	expectEffectIDs(t, "GS_RAPIDSHOWER imported", skillEffectIDs(db.SkillGSRapidshower), effectRapidShower)
+	expectEffectIDs(t, "GS_DESPERADO imported", skillEffectIDs(db.SkillGSDesperado), effectDesperado)
+	expectEffectIDs(t, "GS_DUST imported", skillEffectIDs(db.SkillGSDust), effectBash3D5)
 	expectEffectIDs(t, "GS_FULLBUSTER imported", skillEffectIDs(db.SkillGSFullbuster), effectM02)
+	expectEffectIDs(t, "GS_SPREADATTACK imported", skillEffectIDs(db.SkillGSSpreadattack), effectSpreadAttack)
+	expectEffectIDs(t, "NJ_SYURIKEN imported before hit", skillBeforeHitEffectIDs(db.SkillNJSyuriken), effectThrowItem7)
+	expectEffectIDs(t, "NJ_KUNAI imported before hit", skillBeforeHitEffectIDs(db.SkillNJKunai), effectThrowItem8)
+	expectEffectIDs(t, "NJ_HUUMA imported before hit", skillBeforeHitEffectIDs(db.SkillNJHuuma), effectThrowItem9)
+	expectEffectIDs(t, "NJ_ZENYNAGE imported before hit", skillBeforeHitEffectIDs(db.SkillNJZenynage), effectThrowItem10)
+	expectEffectIDs(t, "NJ_TATAMIGAESHI imported ground", skillGroundEffectIDs(db.SkillNJTatamigaeshi), effectTatami)
+	expectEffectIDs(t, "NJ_KASUMIKIRI imported", skillEffectIDs(db.SkillNJKasumikiri), effectKasumikiri)
+	expectEffectIDs(t, "NJ_KIRIKAGE imported", skillEffectIDs(db.SkillNJKirikage), effectKirikage)
+	expectEffectIDs(t, "NJ_KOUENKA imported", skillEffectIDs(db.SkillNJKouenka), effectKouenka)
+	expectEffectIDs(t, "NJ_KAENSIN imported ground", skillGroundEffectIDs(db.SkillNJKaensin), effectKaen)
+	expectEffectIDs(t, "NJ_BAKUENRYU imported", skillEffectIDs(db.SkillNJBakuenryu), effectBaku)
+	expectEffectIDs(t, "NJ_HYOUSENSOU imported", skillEffectIDs(db.SkillNJHyousensou), effectHyousensou)
+	expectEffectIDs(t, "NJ_HYOUSYOURAKU imported", skillEffectIDs(db.SkillNJHyousyouraku), effectHyousyouraku)
+	expectEffectIDs(t, "NJ_HUUJIN imported", skillEffectIDs(db.SkillNJHuujin), effectStin4)
+	expectEffectIDs(t, "NJ_RAIGEKISAI imported", skillEffectIDs(db.SkillNJRaigekisai), effectThunderStorm2)
+	expectEffectIDs(t, "NJ_ISSEN imported", skillEffectIDs(db.SkillNJIssen), effectIssen)
 	expectEffectIDs(t, "AS_VENOMKNIFE imported before hit", skillBeforeHitEffectIDs(db.SkillASVenomknife), effectThrowItem6)
 	expectEffectIDs(t, "RK_DRAGONBREATH imported hit", skillHitEffectIDs(db.SkillRKDragonbreath), effectM05)
 	expectEffectIDs(t, "HAMI_CASTLE imported", skillEffectIDs(db.SkillHamiCastle), effectHamiCastle)
