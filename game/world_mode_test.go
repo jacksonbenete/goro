@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 454 {
-		t.Fatalf("implemented effects = %d, want 454", coverage.Implemented)
+	if coverage.Implemented != 469 {
+		t.Fatalf("implemented effects = %d, want 469", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 74.7 || coverage.ActivePercent > 74.8 {
-		t.Fatalf("active coverage = %.3f, want about 74.8", coverage.ActivePercent)
+	if coverage.ActivePercent < 77.2 || coverage.ActivePercent > 77.3 {
+		t.Fatalf("active coverage = %.3f, want about 77.3", coverage.ActivePercent)
 	}
 }
 
@@ -3289,6 +3289,33 @@ func TestRobrowserActiveEffectsSixHundredToSixFiftyHaveSpecs(t *testing.T) {
 		effectTracking:      "EF_TRACKING",
 		effectTripleAction:  "EF_TRIPLEACTION",
 		effectBullseye:      "EF_BULLSEYE",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsSixFiftyToSevenHundredHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectNPCEarthquake:  "EF_NPC_EARTHQUAKE",
+		effectDragonFear:     "EF_DRAGONFEAR",
+		effectWideBleeding:   "EF_BLEEDING",
+		effectWideConfuse:    "EF_WIDECONFUSE",
+		effectBottomRunner:   "EF_BOTTOM_RUNNER",
+		effectBottomTransfer: "EF_BOTTOM_TRANSFER",
+		effectBottomEvilLand: "EF_BOTTOM_EVILLAND",
+		effectGuard3:         "EF_GUARD3",
+		effectCriticalWound:  "EF_CRITICALWOUND",
+		effectFirecracker2:   "EF_POK_LOVE",
+		effectFirecracker3:   "EF_POK_WHITE",
+		effectFirecracker4:   "EF_POK_VALEN",
+		effectFirecracker5:   "EF_POK_BIRTH",
+		effectFirecracker6:   "EF_POK_CHRISTMAS",
+		effectCloud7:         "EF_CLOUD7",
+		effectCloud8:         "EF_CLOUD8",
+		effectFlowerLeaf:     "EF_FLOWERLEAF",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -4703,6 +4730,123 @@ func TestRobrowserFuncEffectsSixHundredToSixFiftyMatchTableRows(t *testing.T) {
 	}
 }
 
+func TestRobrowserEffectsSixFiftyToSevenHundredMatchTableRows(t *testing.T) {
+	earthquake, ok := worldEffectSpecForID(effectNPCEarthquake)
+	if !ok || earthquake.cameraShake != 650*time.Millisecond || len(earthquake.components) != 2 {
+		t.Fatalf("EF_NPC_EARTHQUAKE spec = %+v ok=%t", earthquake, ok)
+	}
+	if len(earthquake.sfx) != 1 || earthquake.sfx[0] != "effect\\earth_quake.wav" {
+		t.Fatalf("EF_NPC_EARTHQUAKE sfx = %#v", earthquake.sfx)
+	}
+	if spr, quake := earthquake.components[0], earthquake.components[1]; spr.kind != effectComponentSPR || spr.spriteFile != "어스퀘이크" || !spr.attachedEntity || quake.kind != effectComponentFUNC || quake.funcName != "CameraQuake" || quake.duplicate != 3 || quake.duplicateDelay != 35*time.Millisecond || !quake.attachedEntity {
+		t.Fatalf("EF_NPC_EARTHQUAKE components = %+v", earthquake.components)
+	}
+
+	dragon, ok := worldEffectSpecForID(effectDragonFear)
+	if !ok || dragon.cameraShake != 650*time.Millisecond || len(dragon.components) != 2 {
+		t.Fatalf("EF_DRAGONFEAR spec = %+v ok=%t", dragon, ok)
+	}
+	if len(dragon.sfx) != 1 || dragon.sfx[0] != "effect\\dragonfear.wav" {
+		t.Fatalf("EF_DRAGONFEAR sfx = %#v", dragon.sfx)
+	}
+	if str, quake := dragon.components[0], dragon.components[1]; str.kind != effectComponentSTR || str.strFile != "dragon_h" || !str.attachedEntity || quake.kind != effectComponentFUNC || quake.funcName != "CameraQuake" || !quake.attachedEntity {
+		t.Fatalf("EF_DRAGONFEAR components = %+v", dragon.components)
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		file string
+		wav  string
+	}{
+		{"EF_BLEEDING", effectWideBleeding, "wideb", "effect\\wideb.wav"},
+		{"EF_WIDECONFUSE", effectWideConfuse, "dfear", "effect\\dragonfear.wav"},
+		{"EF_CRITICALWOUND", effectCriticalWound, "cwound", ""},
+		{"EF_FLOWERLEAF", effectFlowerLeaf, "flower_leaf", ""},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || !component.attachedEntity {
+			t.Fatalf("%s component = %+v, want attached STR %q", tc.name, component, tc.file)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	for _, tc := range []struct {
+		name    string
+		id      int
+		texture string
+	}{
+		{"EF_BOTTOM_RUNNER", effectBottomRunner, "effect/hanmoon1.tga"},
+		{"EF_BOTTOM_TRANSFER", effectBottomTransfer, "effect/hanmoon2.tga"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 1500*time.Millisecond || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one ground texture component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentFUNC || component.funcName != "GroundTexture" || component.funcAdapter != effectFuncGroundTexture || component.textureFile != tc.texture || component.sizeStart != 1 || component.sizeEnd != 1 || component.posZ != 0.05 || !component.blendAdditive || component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+
+	evil, ok := worldEffectSpecForID(effectBottomEvilLand)
+	if !ok || evil.duration != 1500*time.Millisecond || len(evil.components) != 2 {
+		t.Fatalf("EF_BOTTOM_EVILLAND spec = %+v ok=%t", evil, ok)
+	}
+	tile, curse := evil.components[0], evil.components[1]
+	if tile.kind != effectComponentFUNC || tile.funcName != "FlatColorTile" || tile.funcAdapter != effectFuncFlatColorTile || tile.color != (color.RGBA{R: 160, G: 160, B: 160, A: 51}) || tile.sizeStart != 1 || tile.attachedEntity {
+		t.Fatalf("EF_BOTTOM_EVILLAND tile = %+v", tile)
+	}
+	if curse.kind != effectComponentFUNC || curse.funcName != "GroundTexture" || curse.funcAdapter != effectFuncGroundTexture || curse.textureFile != "effect/curse.bmp" || curse.sizeStart != 1 || curse.sizeEnd != 1 || curse.alphaMax != 0.7 || curse.posZ != 0.4 || !curse.blendAdditive || curse.attachedEntity {
+		t.Fatalf("EF_BOTTOM_EVILLAND curse = %+v", curse)
+	}
+
+	guard, ok := worldEffectSpecForID(effectGuard3)
+	if !ok || len(guard.components) != 0 || guard.duration != 500*time.Millisecond {
+		t.Fatalf("EF_GUARD3 spec = %+v ok=%t, want sound-only", guard, ok)
+	}
+	if len(guard.sfx) != 1 || guard.sfx[0] != "effect\\kyrie_guard.wav" {
+		t.Fatalf("EF_GUARD3 sfx = %#v", guard.sfx)
+	}
+}
+
+func TestRobrowserFirecrackerBannersSixFiftyToSevenHundredMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		id   int
+		file string
+	}{
+		{"EF_POK_LOVE", effectFirecracker2, "폭죽_러브"},
+		{"EF_POK_WHITE", effectFirecracker3, "폭죽_화이트데이"},
+		{"EF_POK_VALEN", effectFirecracker4, "폭죽_발렌타인"},
+		{"EF_POK_BIRTH", effectFirecracker5, "폭죽_생일"},
+		{"EF_POK_CHRISTMAS", effectFirecracker6, "폭죽_크리스마스"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 2 {
+			t.Fatalf("%s spec = %+v ok=%t, want SPR banner plus STR itempokjuk", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\itempokjuk.wav" {
+			t.Fatalf("%s sfx = %#v", tc.name, spec.sfx)
+		}
+		if spr, str := spec.components[0], spec.components[1]; spr.kind != effectComponentSPR || spr.spriteFile != tc.file || !spr.attachedEntity || str.kind != effectComponentSTR || str.strFile != "itempokjuk" || !str.attachedEntity {
+			t.Fatalf("%s components = %+v", tc.name, spec.components)
+		}
+	}
+}
+
 func TestRobrowserRepairWeaponAndShockwaveSpecs(t *testing.T) {
 	repair, ok := worldEffectSpecForID(effectRepairWeapon)
 	if !ok || len(repair.components) != 1 || repair.duration != 1820*time.Millisecond {
@@ -5943,6 +6087,11 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "NPC_KEEPING imported", skillEffectIDs(db.SkillNPCKeeping), effectKeeping)
 	expectEffectIDs(t, "NPC_BLOODDRAIN imported caster", skillEffectOnCasterIDs(db.SkillNPCBlooddrain), effectBloodDrain)
 	expectEffectIDs(t, "NPC_ENERGYDRAIN imported caster", skillEffectOnCasterIDs(db.SkillNPCEnergydrain), effectEnergyDrain)
+	expectEffectIDs(t, "NPC_EARTHQUAKE imported caster", skillEffectOnCasterIDs(db.SkillNPCEarthquake), effectNPCEarthquake)
+	expectEffectIDs(t, "NPC_DRAGONFEAR imported", skillEffectIDs(db.SkillNPCDragonfear), effectDragonFear)
+	expectEffectIDs(t, "NPC_WIDEBLEEDING imported caster", skillEffectOnCasterIDs(db.SkillNPCWidebleeding), effectWideBleeding)
+	expectEffectIDs(t, "NPC_EVILLAND imported ground", skillGroundEffectIDs(db.SkillNPCEvilland), effectBottomEvilLand)
+	expectEffectIDs(t, "NPC_CRITICALWOUND imported hit", skillHitEffectIDs(db.SkillNPCCriticalwound), effectCriticalWound)
 	expectEffectIDs(t, "RG_STEALCOIN imported success", skillSuccessEffectIDs(db.SkillRGStealcoin), effectStealCoin, effectRogueCoin)
 	expectEffectIDs(t, "RG_BACKSTAP imported hit", skillHitEffectIDs(db.SkillRGBackstap), effectBackStab)
 	expectEffectIDs(t, "RG_RAID imported caster", skillEffectOnCasterIDs(db.SkillRGRaid), effectTeiHit3)
@@ -6306,6 +6455,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
 	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
+	expectEffectIDs(t, "UNT_EVILLAND", skillUnitEffectIDs(199), effectBottomEvilLand)
 }
 
 func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {

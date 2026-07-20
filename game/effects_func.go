@@ -23,6 +23,7 @@ const (
 	effectFuncLandProtectorGround
 	effectFuncSpiritSphere
 	effectFuncFlatColorTile
+	effectFuncGroundTexture
 )
 
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
@@ -47,6 +48,8 @@ func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, pro
 		m.drawSpiritSphereEffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
 	case effectFuncFlatColorTile:
 		m.drawFlatColorTileEffect(screen, component, worldX, worldY, worldZ)
+	case effectFuncGroundTexture:
+		m.drawGroundTextureEffect(screen, ctx, component, worldX, worldY, worldZ, progress)
 	default:
 	}
 }
@@ -383,6 +386,23 @@ func (m *WorldMode) drawFlatColorTileEffect(screen *render.Frame, component worl
 		tint.A = 128
 	}
 	drawGroundTextureQuad(screen, m.whitePixel, x, y, z+component.posZ+0.02, size, size, 0, tint, false)
+}
+
+func (m *WorldMode) drawGroundTextureEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, x, y, z, progress float64) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	if texture == nil {
+		return
+	}
+	size := component.sizeStart
+	if size <= 0 {
+		size = 1
+	}
+	if component.sizeEnd > 0 && component.sizeEnd != size {
+		size += (component.sizeEnd - size) * progress
+	}
+	alpha := effectComponentAlpha(progress, component)
+	tint := effectComponentTint(component, alpha)
+	drawGroundTextureQuad(screen, texture, x, y, z+component.posZ, size, size, component.angleStart, tint, component.blendAdditive)
 }
 
 func (m *WorldMode) drawSpiritSphereEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {

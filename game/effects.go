@@ -496,6 +496,16 @@ const (
 	effectTracking       = 647
 	effectTripleAction   = 648
 	effectBullseye       = 649
+	effectNPCEarthquake  = 666
+	effectDragonFear     = 668
+	effectWideBleeding   = 669
+	effectWideConfuse    = 670
+	effectBottomRunner   = 671
+	effectBottomTransfer = 672
+	effectBottomEvilLand = 674
+	effectGuard3         = 675
+	effectCriticalWound  = 677
+	effectFlowerLeaf     = 699
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1633,11 +1643,12 @@ type skillUnitEffectSpec struct {
 // display the full portal there because a separate UNT_WARPPORTAL entry is not
 // guaranteed before the unit's LOOK_BASE morph.
 var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
-	126: {effectIDs: []int{effectSafetyWall}}, // UNT_SAFETYWALL -> EF_GLASSWALL2
-	127: {effectIDs: []int{effectFireWall}},   // UNT_FIREWALL -> EF_FIREWALL
-	128: {effectIDs: []int{effectPortal}},     // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
-	129: {effectIDs: []int{effectPortal}},     // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
-	133: {effectIDs: []int{effectPneuma}},     // UNT_PNEUMA -> EF_PNEUMA
+	126: {effectIDs: []int{effectSafetyWall}},     // UNT_SAFETYWALL -> EF_GLASSWALL2
+	127: {effectIDs: []int{effectFireWall}},       // UNT_FIREWALL -> EF_FIREWALL
+	128: {effectIDs: []int{effectPortal}},         // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
+	129: {effectIDs: []int{effectPortal}},         // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
+	133: {effectIDs: []int{effectPneuma}},         // UNT_PNEUMA -> EF_PNEUMA
+	199: {effectIDs: []int{effectBottomEvilLand}}, // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
 }
 
 func skillUnitEffectIDs(unitID uint16) []int {
@@ -1913,6 +1924,8 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncSpiritSphere
 	case "FlatColorTile":
 		return effectFuncFlatColorTile
+	case "GroundTexture":
+		return effectFuncGroundTexture
 	default:
 		return effectFuncUnknown
 	}

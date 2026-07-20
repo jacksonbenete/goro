@@ -488,6 +488,16 @@ const (
 	effectTracking       = 647
 	effectTripleAction   = 648
 	effectBullseye       = 649
+	effectNPCEarthquake  = 666
+	effectDragonFear     = 668
+	effectWideBleeding   = 669
+	effectWideConfuse    = 670
+	effectBottomRunner   = 671
+	effectBottomTransfer = 672
+	effectBottomEvilLand = 674
+	effectGuard3         = 675
+	effectCriticalWound  = 677
+	effectFlowerLeaf     = 699
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -1093,18 +1103,105 @@ func throwItemSoundEffectSpec(texture string, size float64, wav string) EffectSp
 }
 
 func hapgyeokEffectSpec() EffectSpec {
+	return firecrackerBannerEffectSpec("합격_")
+}
+
+func firecrackerBannerEffectSpec(sprite string) EffectSpec {
 	return EffectSpec{
 		SFX: []string{"effect\\itempokjuk.wav"},
 		Components: []EffectComponent{
 			{
 				Kind:           EffectComponentSPR,
-				SpriteFile:     "합격_",
+				SpriteFile:     sprite,
 				AttachedEntity: true,
 			},
 			{
 				Kind:           EffectComponentSTR,
 				STRFile:        "itempokjuk",
 				AttachedEntity: true,
+			},
+		},
+	}
+}
+
+func npcEarthquakeEffectSpec() EffectSpec {
+	return EffectSpec{
+		CameraShake: 650 * time.Millisecond,
+		SFX:         []string{"effect\\earth_quake.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponentSPR,
+				SpriteFile:     "어스퀘이크",
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "CameraQuake",
+				AttachedEntity: true,
+				Duplicate:      3,
+				DuplicateDelay: 35 * time.Millisecond,
+			},
+		},
+	}
+}
+
+func dragonFearEffectSpec() EffectSpec {
+	return EffectSpec{
+		CameraShake: 650 * time.Millisecond,
+		SFX:         []string{"effect\\dragonfear.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponentSTR,
+				STRFile:        "dragon_h",
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "CameraQuake",
+				AttachedEntity: true,
+			},
+		},
+	}
+}
+
+func groundTextureEffectSpec(texture string) EffectSpec {
+	return EffectSpec{
+		Duration: 1500 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "GroundTexture",
+			TextureFile:    texture,
+			Duration:       1500 * time.Millisecond,
+			SizeStart:      1,
+			SizeEnd:        1,
+			PosZ:           0.05,
+			BlendAdditive:  true,
+			AttachedEntity: false,
+		}},
+	}
+}
+
+func evilLandEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1500 * time.Millisecond,
+		Components: []EffectComponent{
+			{
+				Kind:      EffectComponentFUNC,
+				FuncName:  "FlatColorTile",
+				Color:     color.RGBA{R: 160, G: 160, B: 160, A: 51},
+				SizeStart: 1,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "GroundTexture",
+				TextureFile:    "effect/curse.bmp",
+				Duration:       1500 * time.Millisecond,
+				SizeStart:      1,
+				SizeEnd:        1,
+				AlphaMax:       0.7,
+				PosZ:           0.4,
+				BlendAdditive:  true,
+				AttachedEntity: false,
 			},
 		},
 	}
@@ -4346,6 +4443,21 @@ var EffectSpecs = map[int]EffectSpec{
 	effectTracking:          sprEffectSpec("트래킹", "", true, false),
 	effectTripleAction:      sprEffectSpec("트리플액션", "effect\\트리플액션.wav", true, false),
 	effectBullseye:          strEffectSpecAttached("불스아이", "", false),
+	effectNPCEarthquake:     npcEarthquakeEffectSpec(),
+	effectDragonFear:        dragonFearEffectSpec(),
+	effectWideBleeding:      strEffectSpecAttached("wideb", "effect\\wideb.wav", false),
+	effectWideConfuse:       strEffectSpecAttached("dfear", "effect\\dragonfear.wav", false),
+	effectBottomRunner:      groundTextureEffectSpec("effect/hanmoon1.tga"),
+	effectBottomTransfer:    groundTextureEffectSpec("effect/hanmoon2.tga"),
+	effectBottomEvilLand:    evilLandEffectSpec(),
+	effectGuard3:            soundOnlyEffectSpec("effect\\kyrie_guard.wav"),
+	effectCriticalWound:     strEffectSpecAttached("cwound", "", false),
+	effectFirecracker2:      firecrackerBannerEffectSpec("폭죽_러브"),
+	effectFirecracker3:      firecrackerBannerEffectSpec("폭죽_화이트데이"),
+	effectFirecracker4:      firecrackerBannerEffectSpec("폭죽_발렌타인"),
+	effectFirecracker5:      firecrackerBannerEffectSpec("폭죽_생일"),
+	effectFirecracker6:      firecrackerBannerEffectSpec("폭죽_크리스마스"),
+	effectFlowerLeaf:        strEffectSpecAttached("flower_leaf", "", false),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},
