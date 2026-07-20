@@ -616,6 +616,27 @@ const (
 	effectOffertoriumRing  = 1057
 	effectHammerOfGod      = 1062
 	effectAchComplete      = 1094
+	effectBodyColor        = 1111
+	effectBakuretsuHadou   = 1130
+	dropEffectPink         = 1186
+	dropEffectYellow       = 1189
+	dropEffectPurple       = 1190
+	effectDigitalSpace     = 1240
+	dropEffectBlue         = 1869
+	dropEffectGreen        = 1870
+	dropEffectRed          = 1871
+	effectNewSuccess       = 1872
+	effectNewFailure       = 1873
+	effectNewIntro         = 1874
+	effectEnchantYellow    = 1875
+	effectEnchantSuccess   = 1876
+	effectEnchantFail      = 1877
+	effectEnchantBlue      = 1878
+	effectEnchantUpSuccess = 1879
+	effectEnchantUpFail    = 1880
+	effectEnchantGreen     = 1881
+	effectEnchantResetOK   = 1882
+	effectEnchantResetFail = 1883
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -661,6 +682,7 @@ type EffectComponent struct {
 	STRRandMin         int
 	STRRandMax         int
 	AttachedEntity     bool
+	RenderBefore       bool // robr renderBeforeEntities
 	TexturePath        string
 	TextureName        string
 	TextureFile        string
@@ -812,7 +834,11 @@ func strEffectSpecAttachedMin(file, minFile, wav string, head bool) EffectSpec {
 }
 
 func strEffectSpecAttachedTexturePath(file, texturePath, wav string, head bool) EffectSpec {
-	spec := strEffectSpecAttached(file, wav, head)
+	return strEffectSpecTexturePath(file, texturePath, wav, true, head)
+}
+
+func strEffectSpecTexturePath(file, texturePath, wav string, attached, head bool) EffectSpec {
+	spec := strEffectSpecRandomAttached(file, wav, 0, 0, attached, head)
 	spec.Components[0].TexturePath = texturePath
 	return spec
 }
@@ -867,6 +893,50 @@ func sprRepeatEffectSpec(file, wav string, attached bool) EffectSpec {
 	spec := sprEffectSpec(file, wav, attached, false)
 	spec.Components[0].Repeat = true
 	return spec
+}
+
+func sprTexturePathEffectSpec(file, texturePath string, attached, repeat, head, renderBefore bool, yOffset float64) EffectSpec {
+	spec := EffectSpec{
+		Components: []EffectComponent{{
+			Kind:           EffectComponentSPR,
+			SpriteFile:     file,
+			TexturePath:    texturePath,
+			AttachedEntity: attached,
+			Repeat:         repeat,
+			SpriteRepeat:   repeat,
+			SpriteHead:     head,
+			SpriteYOffset:  yOffset,
+			RenderBefore:   renderBefore,
+		}},
+	}
+	if repeat {
+		spec.Duration = 5 * time.Minute
+	}
+	return spec
+}
+
+func dropEffectSpec(colorName string, renderBefore bool) EffectSpec {
+	topFile := "new_dropitem/dropitem_" + colorName + "/dropitem_" + colorName + "/dropitem_" + colorName
+	topTexturePath := "new_dropitem/dropitem_" + colorName + "/dropitem_" + colorName + "/"
+	bottomFile := "new_dropitem/dropitem_" + colorName + "/dropitem_" + colorName + "_bottom/dropitem_" + colorName + "_bottom"
+	bottomTexturePath := "new_dropitem/dropitem_" + colorName + "/dropitem_" + colorName + "_bottom/"
+	return EffectSpec{
+		SFX: []string{"effect\\drop_" + colorName + ".wav"},
+		Components: []EffectComponent{
+			{
+				Kind:         EffectComponentSTR,
+				STRFile:      topFile,
+				TexturePath:  topTexturePath,
+				RenderBefore: renderBefore,
+			},
+			{
+				Kind:         EffectComponentSTR,
+				STRFile:      bottomFile,
+				TexturePath:  bottomTexturePath,
+				RenderBefore: renderBefore,
+			},
+		},
+	}
 }
 
 func funcEffectSpec(name string, duration time.Duration, attached bool) EffectSpec {
@@ -5052,6 +5122,27 @@ var EffectSpecs = map[int]EffectSpec{
 	effectOffertoriumRing:   strEffectSpecAttached("ab_offertorium_ring", "", false),
 	effectHammerOfGod:       strEffectSpecAttached("stormgust", "effect\\RL_HAMMER_OF_GOD.wav", false),
 	effectAchComplete:       strEffectSpecAttachedTexturePath("ach_complete/ppring3", "ach_complete/", "", false),
+	effectBodyColor:         funcEffectSpec("EffectBodyColor", 300*time.Millisecond, true),
+	effectBakuretsuHadou:    sprTexturePathEffectSpec("bakuretsu_hadou/bakuretsu_hadou", "bakuretsu_hadou/", true, true, true, false, -50),
+	dropEffectPink:          dropEffectSpec("pink", true),
+	dropEffectYellow:        dropEffectSpec("yellow", false),
+	dropEffectPurple:        dropEffectSpec("purple", false),
+	effectDigitalSpace:      sprTexturePathEffectSpec("digital_space/digital_space", "digital_space/", true, true, false, true, 0),
+	dropEffectBlue:          dropEffectSpec("blue", false),
+	dropEffectGreen:         dropEffectSpec("green", false),
+	dropEffectRed:           dropEffectSpec("red", false),
+	effectNewSuccess:        strEffectSpecTexturePath("grade_enchant/new_success/new_success", "grade_enchant/new_success/", "", false, false),
+	effectNewFailure:        strEffectSpecTexturePath("grade_enchant/new_failed/new_failed", "grade_enchant/new_failed/", "", false, false),
+	effectNewIntro:          strEffectSpecTexturePath("grade_enchant/new_intro/new_intro", "grade_enchant/new_intro/", "", false, false),
+	effectEnchantYellow:     strEffectSpecTexturePath("ui_enchant/ui_intro_yellow/ui_intro_yellow", "ui_enchant/ui_intro_yellow/", "", false, false),
+	effectEnchantSuccess:    strEffectSpecTexturePath("ui_enchant/ui_enchant_success/ui_enchant_success", "ui_enchant/ui_enchant_success/", "", false, false),
+	effectEnchantFail:       strEffectSpecTexturePath("ui_enchant/ui_fail/ui_enchant_fail", "ui_enchant/ui_fail/", "", false, false),
+	effectEnchantBlue:       strEffectSpecTexturePath("ui_enchant/ui_intro_blue/ui_intro_blue", "ui_enchant/ui_intro_blue/", "", false, false),
+	effectEnchantUpSuccess:  strEffectSpecTexturePath("ui_enchant/ui_levelup_success/ui_levelup_success", "ui_enchant/ui_levelup_success/", "", false, false),
+	effectEnchantUpFail:     strEffectSpecTexturePath("ui_enchant/ui_fail/ui_levelup_fail", "ui_enchant/ui_fail/", "", false, false),
+	effectEnchantGreen:      strEffectSpecTexturePath("ui_enchant/ui_intro_green/ui_intro_green", "ui_enchant/ui_intro_green/", "", false, false),
+	effectEnchantResetOK:    strEffectSpecTexturePath("ui_enchant/ui_reset_success/ui_reset_success", "ui_enchant/ui_reset_success/", "", false, false),
+	effectEnchantResetFail:  strEffectSpecTexturePath("ui_enchant/ui_fail/ui_reset_fail", "ui_enchant/ui_fail/", "", false, false),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

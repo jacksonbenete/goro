@@ -624,6 +624,27 @@ const (
 	effectOffertoriumRing  = 1057
 	effectHammerOfGod      = 1062
 	effectAchComplete      = 1094
+	effectBodyColor        = 1111
+	effectBakuretsuHadou   = 1130
+	dropEffectPink         = 1186
+	dropEffectYellow       = 1189
+	dropEffectPurple       = 1190
+	effectDigitalSpace     = 1240
+	dropEffectBlue         = 1869
+	dropEffectGreen        = 1870
+	dropEffectRed          = 1871
+	effectNewSuccess       = 1872
+	effectNewFailure       = 1873
+	effectNewIntro         = 1874
+	effectEnchantYellow    = 1875
+	effectEnchantSuccess   = 1876
+	effectEnchantFail      = 1877
+	effectEnchantBlue      = 1878
+	effectEnchantUpSuccess = 1879
+	effectEnchantUpFail    = 1880
+	effectEnchantGreen     = 1881
+	effectEnchantResetOK   = 1882
+	effectEnchantResetFail = 1883
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -684,6 +705,7 @@ type worldEffectComponent struct {
 	strRandMin         int
 	strRandMax         int
 	attachedEntity     bool
+	renderBefore       bool
 	texturePath        string
 	textureName        string
 	textureFile        string
@@ -1885,6 +1907,7 @@ func convertDBWorldEffectComponent(component db.EffectComponent) worldEffectComp
 		strRandMin:         component.STRRandMin,
 		strRandMax:         component.STRRandMax,
 		attachedEntity:     component.AttachedEntity,
+		renderBefore:       component.RenderBefore,
 		texturePath:        component.TexturePath,
 		textureName:        component.TextureName,
 		textureFile:        component.TextureFile,
@@ -2055,6 +2078,8 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncFlatColorTile
 	case "GroundTexture":
 		return effectFuncGroundTexture
+	case "EffectBodyColor":
+		return effectFuncBodyColor
 	default:
 		return effectFuncUnknown
 	}

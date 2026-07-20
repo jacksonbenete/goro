@@ -1097,7 +1097,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow, actorStateTint(actor))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow, m.actorRenderTint(actor, now))
 	return true
 }
 
@@ -1114,7 +1114,7 @@ func (m *WorldMode) drawNonPCSprite3D(screen *render.Frame, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, m.actorDeathAlpha(actor.ID, now), shadow, actorStateTint(actor))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, m.actorDeathAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
 	return true
 }
 

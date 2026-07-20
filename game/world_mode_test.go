@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 588 {
-		t.Fatalf("implemented effects = %d, want 588", coverage.Implemented)
+	if coverage.Implemented != 609 {
+		t.Fatalf("implemented effects = %d, want 609", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 96.8 || coverage.ActivePercent > 96.9 {
-		t.Fatalf("active coverage = %.3f, want about 96.9", coverage.ActivePercent)
+	if coverage.ActivePercent < 100.2 || coverage.ActivePercent > 100.4 {
+		t.Fatalf("active coverage = %.3f, want about 100.3", coverage.ActivePercent)
 	}
 }
 
@@ -3516,6 +3516,37 @@ func TestRobrowserActiveEffectsTenFiftyToElevenHundredHaveSpecs(t *testing.T) {
 		effectOffertoriumRing: "EF_AB_OFFERTORIUM_RING",
 		effectHammerOfGod:     "EF_HAMMER_OF_GOD",
 		effectAchComplete:     "EF_ACH_COMPLETE",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsPostElevenHundredHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectBodyColor:        "EffectBodyColor",
+		effectBakuretsuHadou:   "EF_BAKURETSU_HADOU",
+		dropEffectPink:         "DROPEFFECT_PINK",
+		dropEffectYellow:       "DROPEFFECT_YELLOW",
+		dropEffectPurple:       "DROPEFFECT_PURPLE",
+		effectDigitalSpace:     "EF_DIGITAL_SPACE",
+		dropEffectBlue:         "DROPEFFECT_BLUE",
+		dropEffectGreen:        "DROPEFFECT_GREEN",
+		dropEffectRed:          "DROPEFFECT_RED",
+		effectNewSuccess:       "EF_NEW_SUCCESS",
+		effectNewFailure:       "EF_NEW_FAILURE",
+		effectNewIntro:         "EF_NEW_INTRO",
+		effectEnchantYellow:    "EF_UI_ENCHANT_INTRO_YELLOW",
+		effectEnchantSuccess:   "EF_UI_ENCHANT_SUCCESS",
+		effectEnchantFail:      "EF_UI_ENCHANT_FAIL",
+		effectEnchantBlue:      "EF_UI_ENCHANT_INTRO_BLUE",
+		effectEnchantUpSuccess: "EF_UI_ENCHANT_UP_SUCCESS",
+		effectEnchantUpFail:    "EF_UI_ENCHANT_UP_FAIL",
+		effectEnchantGreen:     "EF_UI_ENCHANT_INTRO_GREEN",
+		effectEnchantResetOK:   "EF_UI_ENCHANT_RESET_SUCCESS",
+		effectEnchantResetFail: "EF_UI_ENCHANT_RESET_FAIL",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -5719,6 +5750,147 @@ func TestRobrowserEffectsTenFiftyToElevenHundredMatchTableRows(t *testing.T) {
 		if component.kind != effectComponentSTR || component.strFile != tc.file || component.texturePath != tc.texturePath || !component.attachedEntity {
 			t.Fatalf("%s component = %+v", tc.name, component)
 		}
+	}
+}
+
+func TestRobrowserEffectsPostElevenHundredMatchTableRows(t *testing.T) {
+	body, ok := worldEffectSpecForID(effectBodyColor)
+	if !ok || body.duration != 300*time.Millisecond || len(body.components) != 1 {
+		t.Fatalf("EffectBodyColor spec = %+v ok=%t, want 300ms FUNC component", body, ok)
+	}
+	bodyComponent := body.components[0]
+	if bodyComponent.kind != effectComponentFUNC || bodyComponent.funcName != "EffectBodyColor" || bodyComponent.funcAdapter != effectFuncBodyColor || !bodyComponent.attachedEntity {
+		t.Fatalf("EffectBodyColor component = %+v", bodyComponent)
+	}
+
+	for _, tc := range []struct {
+		name         string
+		id           int
+		file         string
+		texturePath  string
+		head         bool
+		yOffset      float64
+		renderBefore bool
+	}{
+		{"EF_BAKURETSU_HADOU", effectBakuretsuHadou, "bakuretsu_hadou/bakuretsu_hadou", "bakuretsu_hadou/", true, -50, false},
+		{"EF_DIGITAL_SPACE", effectDigitalSpace, "digital_space/digital_space", "digital_space/", false, 0, true},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 5*time.Minute || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want 5m SPR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSPR || component.spriteFile != tc.file || component.texturePath != tc.texturePath || !component.attachedEntity {
+			t.Fatalf("%s component = %+v, want SPR %q texturePath %q attached", tc.name, component, tc.file, tc.texturePath)
+		}
+		if !component.repeat || !component.spriteRepeat || component.spriteHead != tc.head || component.spriteYOffset != tc.yOffset || component.renderBefore != tc.renderBefore {
+			t.Fatalf("%s component flags = %+v", tc.name, component)
+		}
+		if len(spec.sfx) != 0 {
+			t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+		}
+	}
+
+	for _, tc := range []struct {
+		name         string
+		id           int
+		colorName    string
+		renderBefore bool
+	}{
+		{"DROPEFFECT_PINK", dropEffectPink, "pink", true},
+		{"DROPEFFECT_YELLOW", dropEffectYellow, "yellow", false},
+		{"DROPEFFECT_PURPLE", dropEffectPurple, "purple", false},
+		{"DROPEFFECT_BLUE", dropEffectBlue, "blue", false},
+		{"DROPEFFECT_GREEN", dropEffectGreen, "green", false},
+		{"DROPEFFECT_RED", dropEffectRed, "red", false},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 2 {
+			t.Fatalf("%s spec = %+v ok=%t, want two STR components", tc.name, spec, ok)
+		}
+		wantSFX := "effect\\drop_" + tc.colorName + ".wav"
+		if len(spec.sfx) != 1 || spec.sfx[0] != wantSFX {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, wantSFX)
+		}
+		wantFiles := []string{
+			"new_dropitem/dropitem_" + tc.colorName + "/dropitem_" + tc.colorName + "/dropitem_" + tc.colorName,
+			"new_dropitem/dropitem_" + tc.colorName + "/dropitem_" + tc.colorName + "_bottom/dropitem_" + tc.colorName + "_bottom",
+		}
+		wantTexturePaths := []string{
+			"new_dropitem/dropitem_" + tc.colorName + "/dropitem_" + tc.colorName + "/",
+			"new_dropitem/dropitem_" + tc.colorName + "/dropitem_" + tc.colorName + "_bottom/",
+		}
+		for i, component := range spec.components {
+			if component.kind != effectComponentSTR || component.strFile != wantFiles[i] || component.texturePath != wantTexturePaths[i] {
+				t.Fatalf("%s component %d = %+v, want STR %q texturePath %q", tc.name, i, component, wantFiles[i], wantTexturePaths[i])
+			}
+			if component.attachedEntity || component.renderBefore != tc.renderBefore {
+				t.Fatalf("%s component %d flags = %+v", tc.name, i, component)
+			}
+		}
+	}
+
+	for _, tc := range []struct {
+		name        string
+		id          int
+		file        string
+		texturePath string
+	}{
+		{"EF_NEW_SUCCESS", effectNewSuccess, "grade_enchant/new_success/new_success", "grade_enchant/new_success/"},
+		{"EF_NEW_FAILURE", effectNewFailure, "grade_enchant/new_failed/new_failed", "grade_enchant/new_failed/"},
+		{"EF_NEW_INTRO", effectNewIntro, "grade_enchant/new_intro/new_intro", "grade_enchant/new_intro/"},
+		{"EF_UI_ENCHANT_INTRO_YELLOW", effectEnchantYellow, "ui_enchant/ui_intro_yellow/ui_intro_yellow", "ui_enchant/ui_intro_yellow/"},
+		{"EF_UI_ENCHANT_SUCCESS", effectEnchantSuccess, "ui_enchant/ui_enchant_success/ui_enchant_success", "ui_enchant/ui_enchant_success/"},
+		{"EF_UI_ENCHANT_FAIL", effectEnchantFail, "ui_enchant/ui_fail/ui_enchant_fail", "ui_enchant/ui_fail/"},
+		{"EF_UI_ENCHANT_INTRO_BLUE", effectEnchantBlue, "ui_enchant/ui_intro_blue/ui_intro_blue", "ui_enchant/ui_intro_blue/"},
+		{"EF_UI_ENCHANT_UP_SUCCESS", effectEnchantUpSuccess, "ui_enchant/ui_levelup_success/ui_levelup_success", "ui_enchant/ui_levelup_success/"},
+		{"EF_UI_ENCHANT_UP_FAIL", effectEnchantUpFail, "ui_enchant/ui_fail/ui_levelup_fail", "ui_enchant/ui_fail/"},
+		{"EF_UI_ENCHANT_INTRO_GREEN", effectEnchantGreen, "ui_enchant/ui_intro_green/ui_intro_green", "ui_enchant/ui_intro_green/"},
+		{"EF_UI_ENCHANT_RESET_SUCCESS", effectEnchantResetOK, "ui_enchant/ui_reset_success/ui_reset_success", "ui_enchant/ui_reset_success/"},
+		{"EF_UI_ENCHANT_RESET_FAIL", effectEnchantResetFail, "ui_enchant/ui_fail/ui_reset_fail", "ui_enchant/ui_fail/"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 0 {
+			t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.texturePath != tc.texturePath || component.attachedEntity || component.renderBefore {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+}
+
+func TestEffectBodyColorTintFollowsRobrowserFlashWindow(t *testing.T) {
+	base := color.RGBA{R: 100, G: 150, B: 200, A: 255}
+	starts := time.Unix(10, 0)
+	mode := WorldMode{
+		worldEffects: []worldEffect{{
+			effectID: effectBodyColor,
+			actorID:  42,
+			starts:   starts,
+			expires:  starts.Add(300 * time.Millisecond),
+		}},
+	}
+	if got := mode.actorBodyColorTint(42, base, starts); got != base {
+		t.Fatalf("initial tint = %+v, want base %+v", got, base)
+	}
+	if got := mode.actorBodyColorTint(42, base, starts.Add(50*time.Millisecond)); got != (color.RGBA{R: 177, G: 75, B: 100, A: 255}) {
+		t.Fatalf("half flash tint = %+v", got)
+	}
+	if got := mode.actorBodyColorTint(42, base, starts.Add(100*time.Millisecond)); got != (color.RGBA{R: 255, G: 0, B: 0, A: 255}) {
+		t.Fatalf("full flash tint = %+v", got)
+	}
+	if got := mode.actorBodyColorTint(42, base, starts.Add(300*time.Millisecond)); got != (color.RGBA{R: 255, G: 0, B: 0, A: 255}) {
+		t.Fatalf("final flash tint = %+v", got)
+	}
+	if got := mode.actorBodyColorTint(42, base, starts.Add(301*time.Millisecond)); got != base {
+		t.Fatalf("expired tint = %+v, want base %+v", got, base)
+	}
+	if got := mode.actorBodyColorTint(99, base, starts.Add(100*time.Millisecond)); got != base {
+		t.Fatalf("other actor tint = %+v, want base %+v", got, base)
 	}
 }
 

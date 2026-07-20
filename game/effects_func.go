@@ -24,6 +24,7 @@ const (
 	effectFuncSpiritSphere
 	effectFuncFlatColorTile
 	effectFuncGroundTexture
+	effectFuncBodyColor
 )
 
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {

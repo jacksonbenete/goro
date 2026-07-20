@@ -138,6 +138,52 @@ func actorStateTint(actor worldstate.Actor) color.RGBA {
 	return color.RGBA{R: byte(clampUnit(r) * 255), G: byte(clampUnit(g) * 255), B: byte(clampUnit(b) * 255), A: 255}
 }
 
+func (m *WorldMode) actorRenderTint(actor worldstate.Actor, now time.Time) color.RGBA {
+	return m.actorBodyColorTint(actor.ID, actorStateTint(actor), now)
+}
+
+func (m *WorldMode) playerRenderTint(ctx client.Context, actor worldstate.Actor, now time.Time) color.RGBA {
+	tint := m.actorRenderTint(actor, now)
+	if ctx.Session == nil {
+		return tint
+	}
+	if ctx.Session.AccountID != actor.ID {
+		tint = m.actorBodyColorTint(ctx.Session.AccountID, tint, now)
+	}
+	if ctx.Session.CharID != actor.ID && ctx.Session.CharID != ctx.Session.AccountID {
+		tint = m.actorBodyColorTint(ctx.Session.CharID, tint, now)
+	}
+	return tint
+}
+
+func (m *WorldMode) actorBodyColorTint(actorID uint32, tint color.RGBA, now time.Time) color.RGBA {
+	if actorID == 0 {
+		return tint
+	}
+	for _, effect := range m.worldEffects {
+		if effect.effectID != effectBodyColor || effect.actorID != actorID || now.Before(effect.starts) || now.After(effect.expires) {
+			continue
+		}
+		return effectBodyColorTint(tint, now.Sub(effect.starts))
+	}
+	return tint
+}
+
+func effectBodyColorTint(tint color.RGBA, elapsed time.Duration) color.RGBA {
+	alpha := clampFloat(float64(elapsed)/float64(100*time.Millisecond), 0, 1)
+	return color.RGBA{
+		R: mixTintChannel(tint.R, 255, alpha),
+		G: mixTintChannel(tint.G, 0, alpha),
+		B: mixTintChannel(tint.B, 0, alpha),
+		A: tint.A,
+	}
+}
+
+func mixTintChannel(from, to uint8, alpha float64) uint8 {
+	value := float64(from)*(1-alpha) + float64(to)*alpha
+	return uint8(clampFloat(value, 0, 255))
+}
+
 func freezeActionFamily(actor worldstate.Actor) int {
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		return spriteActionPCFreeze2
