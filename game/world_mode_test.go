@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 342 {
-		t.Fatalf("implemented effects = %d, want 342", coverage.Implemented)
+	if coverage.Implemented != 360 {
+		t.Fatalf("implemented effects = %d, want 360", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 56.3 || coverage.ActivePercent > 56.4 {
-		t.Fatalf("active coverage = %.3f, want about 56.3", coverage.ActivePercent)
+	if coverage.ActivePercent < 59.3 || coverage.ActivePercent > 59.4 {
+		t.Fatalf("active coverage = %.3f, want about 59.3", coverage.ActivePercent)
 	}
 }
 
@@ -3140,6 +3140,34 @@ func TestRobrowserActiveEffectsThreeFiftyToFourHundredHaveSpecs(t *testing.T) {
 	}
 }
 
+func TestRobrowserActiveEffectsFourFiftyToFiveHundredHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectDarkGrandCross: "EF_GRANDCROSS2",
+		effectDarkSoulStrike: "EF_SOULSTRIKE2",
+		effectDarkJupitelHit: "EF_YUFITEL2",
+		effectNPCStop:        "EF_NPC_STOP",
+		effectDarkCasting:    "EF_DARKCASTING",
+		effectNPCPowerUp:     "EF_AGIUP",
+		effectJumpKick:       "EF_JUMPKICK",
+		effectBeginAsura1:    "EF_BEGINASURA1",
+		effectBeginAsura2:    "EF_BEGINASURA2",
+		effectBeginAsura3:    "EF_BEGINASURA3",
+		effectBeginAsura4:    "EF_BEGINASURA4",
+		effectBeginAsura5:    "EF_BEGINASURA5",
+		effectBeginAsura6:    "EF_BEGINASURA6",
+		effectBeginAsura7:    "EF_BEGINASURA7",
+		effectMochi:          "EF_MOCHI",
+		effectRamadan:        "EF_LAMADAN",
+		effectEDP:            "EF_EDP",
+		effectPreserve:       "EF_GUARD2",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
 func TestRobrowserSimpleEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -3930,6 +3958,142 @@ func TestRobrowserBasilicaDrainAndMagicEffectsThreeFiftyToFourHundredMatchTableR
 	}
 	if component := moonlit.components[0]; component.kind != effectComponentFUNC || component.funcName != "FlatColorTile" || component.funcAdapter != effectFuncFlatColorTile || component.color != (color.RGBA{R: 255, G: 138, B: 187, A: 153}) || component.sizeStart != 1 || component.attachedEntity {
 		t.Fatalf("EF_SPHEREWIND2 component = %+v", component)
+	}
+}
+
+func TestRobrowserSimpleEffectsFourFiftyToFiveHundredMatchTableRows(t *testing.T) {
+	darkCross, ok := worldEffectSpecForID(effectDarkGrandCross)
+	if !ok || len(darkCross.components) != 0 || len(darkCross.sfx) != 0 {
+		t.Fatalf("EF_GRANDCROSS2 spec = %+v ok=%t, want empty robr row", darkCross, ok)
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		file string
+	}{
+		{"EF_NPC_STOP", effectNPCStop, "스톱"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one SPR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSPR || component.spriteFile != tc.file || !component.attachedEntity {
+			t.Fatalf("%s component = %+v, want attached SPR %q", tc.name, component, tc.file)
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		file string
+	}{
+		{"EF_MOCHI", effectMochi, "찹쌀떡"},
+		{"EF_LAMADAN", effectRamadan, "ramadan"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || !component.attachedEntity {
+			t.Fatalf("%s component = %+v, want attached STR %q", tc.name, component, tc.file)
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		wav  string
+	}{
+		{"EF_AGIUP", effectNPCPowerUp, "effect\\mon_폭기.wav"},
+		{"EF_JUMPKICK", effectJumpKick, "effect\\t_날라차기.wav"},
+		{"EF_EDP", effectEDP, "effect\\assasin_cloaking.wav"},
+		{"EF_GUARD2", effectPreserve, "effect\\black_maximize_power_sword_bic.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 0 || spec.duration != 500*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t, want sound-only 500ms", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+}
+
+func TestRobrowserDarkCombatEffectsFourFiftyToFiveHundredMatchTableRows(t *testing.T) {
+	soul, ok := worldEffectSpecForID(effectDarkSoulStrike)
+	if !ok || len(soul.components) != 2 || soul.duration != 450*time.Millisecond {
+		t.Fatalf("EF_SOULSTRIKE2 spec = %+v ok=%t", soul, ok)
+	}
+	if len(soul.sfx) != 1 || soul.sfx[0] != "effect\\ef_soulstrike.wav" {
+		t.Fatalf("EF_SOULSTRIKE2 sfx = %#v", soul.sfx)
+	}
+	spark, particle := soul.components[0], soul.components[1]
+	if spark.kind != effectComponent3D || spark.textureFile != "effect/pok3.tga" || spark.duration != 200*time.Millisecond || spark.delay != 250*time.Millisecond || spark.duplicateDelay != 150*time.Millisecond || !spark.fadeIn || !spark.fadeOut || !spark.toSrc || spark.posZEnd != 1 || !spark.posZSmooth || spark.posZStartRand != 5 || spark.posZStartMiddle != 6 || spark.sizeStart != effectTableSize(50) || !spark.attachedEntity {
+		t.Fatalf("EF_SOULSTRIKE2 spark = %+v", spark)
+	}
+	if particle.kind != effectComponent3D || particle.spriteFile != "data/sprite/이팩트/particle5" || !particle.spriteRepeat || particle.duration != 250*time.Millisecond || particle.duplicate != 5 || particle.duplicateDelay != 20*time.Millisecond || !particle.toSrc || !particle.rotateToTarget || particle.sizeStart != effectTableSize(100) || particle.sizeEnd != effectTableSize(500) || particle.posZ != 3 || particle.arc != 4 || particle.retreat != 4 {
+		t.Fatalf("EF_SOULSTRIKE2 particle = %+v", particle)
+	}
+
+	jupitel, ok := worldEffectSpecForID(effectDarkJupitelHit)
+	if !ok || len(jupitel.components) != 2 || jupitel.duration != 300*time.Millisecond {
+		t.Fatalf("EF_YUFITEL2 spec = %+v ok=%t", jupitel, ok)
+	}
+	pang, blast := jupitel.components[0], jupitel.components[1]
+	if pang.kind != effectComponent3D || pang.textureFile != "effect/pokjuk_d.bmp" || pang.duration != 100*time.Millisecond || pang.sizeStart != 0 || pang.sizeEnd != effectTableSize(25) || pang.blendMode != 2 || !pang.blendAdditive || !pang.rotateToTarget || !pang.fadeOut || !pang.overlay || !pang.attachedEntity {
+		t.Fatalf("EF_YUFITEL2 pang = %+v", pang)
+	}
+	if blast.kind != effectComponent3D || len(blast.textureFiles) != 5 || blast.textureFiles[0] != "effect/twirl_soft.bmp" || blast.textureFiles[1] != "effect/thunder_ball_b.bmp" || blast.textureFiles[3] != "effect/thunder_ball_c.bmp" || blast.frameDelay != 10*time.Millisecond || blast.duration != 300*time.Millisecond || blast.sizeStart != effectTableSize(75) || blast.blendMode != 2 || !blast.blendAdditive || !blast.overlay || !blast.attachedEntity {
+		t.Fatalf("EF_YUFITEL2 blast = %+v", blast)
+	}
+
+	casting, ok := worldEffectSpecForID(effectDarkCasting)
+	if !ok || len(casting.components) != 1 || casting.duration != 900*time.Millisecond {
+		t.Fatalf("EF_DARKCASTING spec = %+v ok=%t", casting, ok)
+	}
+	if len(casting.sfx) != 1 || casting.sfx[0] != "effect\\ef_beginspell.wav" {
+		t.Fatalf("EF_DARKCASTING sfx = %#v", casting.sfx)
+	}
+	ring := casting.components[0]
+	if ring.kind != effectComponentCylinder || ring.textureName != "ring_black" || ring.alphaMax != 0.8 || ring.animation != 2 || ring.blendMode != 2 || !ring.blendAdditive || ring.bottomSize != 1 || ring.topSize != 5 || ring.height != 4 || !ring.fade || !ring.rotate || !ring.attachedEntity {
+		t.Fatalf("EF_DARKCASTING ring = %+v", ring)
+	}
+}
+
+func TestRobrowserMildWindEffectsFourFiftyToFiveHundredMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		id      int
+		texture string
+	}{
+		{"EF_BEGINASURA1", effectBeginAsura1, "effect/hanmoon1.tga"},
+		{"EF_BEGINASURA2", effectBeginAsura2, "effect/hanmoon2.tga"},
+		{"EF_BEGINASURA3", effectBeginAsura3, "effect/hanmoon3.tga"},
+		{"EF_BEGINASURA4", effectBeginAsura4, "effect/hanmoon4.tga"},
+		{"EF_BEGINASURA5", effectBeginAsura5, "effect/hanmoon7.tga"},
+		{"EF_BEGINASURA6", effectBeginAsura6, "effect/hanmoon5.tga"},
+		{"EF_BEGINASURA7", effectBeginAsura7, "effect/hanmoon6.tga"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 5 || spec.duration != time.Second {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\t_바람방출.wav" {
+			t.Fatalf("%s sfx = %#v", tc.name, spec.sfx)
+		}
+		first, second, last := spec.components[0], spec.components[1], spec.components[4]
+		if first.kind != effectComponent3D || first.textureFile != tc.texture || first.color != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) || first.alphaMax != 1 || first.sizeStart != effectTableSize(300) || first.sizeEnd != effectTableSize(100) || !first.sizeSmooth || first.posZ != 4 || first.blendMode != 2 || !first.blendAdditive || !first.fadeIn || !first.fadeOut || !first.attachedEntity {
+			t.Fatalf("%s first glyph = %+v", tc.name, first)
+		}
+		if second.color != (color.RGBA{R: 178, G: 178, B: 255, A: 255}) || second.alphaMax != 0.2 || second.sizeStart != effectTableSize(220) || second.sizeEnd != effectTableSize(20) {
+			t.Fatalf("%s second glyph = %+v", tc.name, second)
+		}
+		if last.color != (color.RGBA{R: 25, G: 25, B: 255, A: 255}) || last.alphaMax != 0.2 || last.sizeStart != effectTableSize(450) || last.sizeEnd != effectTableSize(100) {
+			t.Fatalf("%s last glyph = %+v", tc.name, last)
+		}
 	}
 }
 
@@ -5164,6 +5328,10 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "AS_VENOMDUST imported", skillEffectIDs(db.SkillASVenomdust), effectVenomDust)
 	expectEffectIDs(t, "AS_VENOMDUST imported ground", skillGroundEffectIDs(db.SkillASVenomdust), effectVenomDust2)
 	expectEffectIDs(t, "AS_SPLASHER imported", skillEffectIDs(db.SkillASSplasher), effectVenomSplasher)
+	expectEffectIDs(t, "NPC_DARKCROSS imported", skillEffectIDs(db.SkillNPCDarkcross), effectDarkGrandCross)
+	expectEffectIDs(t, "NPC_DARKSTRIKE imported", skillEffectIDs(db.SkillNPCDarkstrike), effectDarkSoulStrike)
+	expectEffectIDs(t, "NPC_STOP imported", skillEffectIDs(db.SkillNPCStop), effectNPCStop)
+	expectEffectIDs(t, "NPC_POWERUP imported", skillEffectIDs(db.SkillNPCPowerup), effectNPCPowerUp)
 	expectEffectIDs(t, "NPC_DARKBREATH imported", skillEffectIDs(db.SkillNPCDarkbreath), effectDarkBreath)
 	expectEffectIDs(t, "NPC_DEFENDER imported", skillEffectIDs(db.SkillNPCDefender), effectDefender)
 	expectEffectIDs(t, "NPC_KEEPING imported", skillEffectIDs(db.SkillNPCKeeping), effectKeeping)
@@ -5260,11 +5428,15 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "SN_WINDWALK imported", skillEffectIDs(db.SkillSNWindwalk), effectPortal4)
 	expectEffectIDs(t, "WS_MELTDOWN imported", skillEffectIDs(db.SkillWSMeltdown), effectMeltdown)
 	expectEffectIDs(t, "WS_CARTBOOST imported", skillEffectIDs(db.SkillWSCartboost), effectCartBoost)
+	expectEffectIDs(t, "ASC_EDP imported", skillEffectIDs(db.SkillASCEdp), effectEDP)
 	expectEffectIDs(t, "ST_REJECTSWORD imported", skillEffectIDs(db.SkillSTRejectsword), effectRejectSword)
+	expectEffectIDs(t, "ST_PRESERVE imported", skillEffectIDs(db.SkillSTPreserve), effectPreserve)
 	expectEffectIDs(t, "CG_ARROWVULCAN imported", skillEffectIDs(db.SkillCGArrowvulcan), effectTripleAttack3)
 	expectEffectIDs(t, "CG_MOONLIT imported", skillEffectIDs(db.SkillCGMoonlit), effectMoonlit)
 	expectEffectIDs(t, "LK_HEADCRUSH imported begin", skillBeginEffectIDs(db.SkillLKHeadcrush), effectBash3D3)
 	expectEffectIDs(t, "LK_JOINTBEAT imported begin", skillBeginEffectIDs(db.SkillLKJointbeat), effectBash3D4)
+	expectEffectIDs(t, "TK_JUMPKICK imported hit", skillHitEffectIDs(db.SkillTKJumpkick), effectJumpKick)
+	expectEffectIDs(t, "GS_INCREASING imported", skillEffectIDs(db.SkillGSIncreasing), effectNPCPowerUp)
 	expectEffectIDs(t, "AB_CHEAL imported", skillEffectIDs(db.SkillABCheal), effectHeal2)
 	expectEffectIDs(t, "AB_HIGHNESSHEAL imported", skillEffectIDs(db.SkillABHighnessheal), effectHeal4)
 	expectEffectIDs(t, "AB_HIGHNESSHEAL imported hit", skillHitEffectIDs(db.SkillABHighnessheal), effectHealOffensive)

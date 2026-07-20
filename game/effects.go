@@ -389,6 +389,27 @@ const (
 	effectBash3D4           = 400
 )
 
+const (
+	effectDarkGrandCross = 450
+	effectDarkSoulStrike = 451
+	effectDarkJupitelHit = 452
+	effectNPCStop        = 453
+	effectDarkCasting    = 454
+	effectNPCPowerUp     = 456
+	effectJumpKick       = 457
+	effectBeginAsura1    = 467
+	effectBeginAsura2    = 468
+	effectBeginAsura3    = 469
+	effectBeginAsura4    = 470
+	effectBeginAsura5    = 471
+	effectBeginAsura6    = 472
+	effectBeginAsura7    = 473
+	effectMochi          = effectResistPotion
+	effectRamadan        = 492
+	effectEDP            = 493
+	effectPreserve       = 496
+)
+
 const skillUnitEffectFallbackDuration = 5 * time.Minute
 
 type effectComponentKind int

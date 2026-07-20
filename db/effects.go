@@ -381,6 +381,27 @@ const (
 	effectBash3D4           = 400
 )
 
+const (
+	effectDarkGrandCross = 450
+	effectDarkSoulStrike = 451
+	effectDarkJupitelHit = 452
+	effectNPCStop        = 453
+	effectDarkCasting    = 454
+	effectNPCPowerUp     = 456
+	effectJumpKick       = 457
+	effectBeginAsura1    = 467
+	effectBeginAsura2    = 468
+	effectBeginAsura3    = 469
+	effectBeginAsura4    = 470
+	effectBeginAsura5    = 471
+	effectBeginAsura6    = 472
+	effectBeginAsura7    = 473
+	effectMochi          = effectResistPotion
+	effectRamadan        = 492
+	effectEDP            = 493
+	effectPreserve       = 496
+)
+
 const EffectPixelRatio = 1.0 / 35.0
 
 type EffectComponentKind int
@@ -1435,6 +1456,146 @@ func moonlitEffectSpec() EffectSpec {
 			SizeStart:      1,
 			AttachedEntity: false,
 		}},
+	}
+}
+
+func darkSoulStrikeEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 450 * time.Millisecond,
+		SFX:      []string{"effect\\ef_soulstrike.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:            EffectComponent3D,
+				TextureFile:     "effect/pok3.tga",
+				Color:           color.RGBA{R: 255, G: 255, B: 255, A: 255},
+				Duration:        200 * time.Millisecond,
+				Delay:           250 * time.Millisecond,
+				DuplicateDelay:  150 * time.Millisecond,
+				AlphaMax:        1,
+				FadeIn:          true,
+				FadeOut:         true,
+				ToSrc:           true,
+				PosZEnd:         1,
+				PosZSmooth:      true,
+				PosZStartRand:   5,
+				PosZStartMiddle: 6,
+				SizeStart:       effectTableSize(50),
+				SizeEnd:         effectTableSize(50),
+				AttachedEntity:  true,
+			},
+			{
+				Kind:           EffectComponent3D,
+				SpriteFile:     "data/sprite/이팩트/particle5",
+				SpriteRepeat:   true,
+				Duration:       250 * time.Millisecond,
+				Duplicate:      5,
+				DuplicateDelay: 20 * time.Millisecond,
+				ToSrc:          true,
+				RotateToTarget: true,
+				SizeStart:      effectTableSize(100),
+				SizeEnd:        effectTableSize(500),
+				PosZ:           3,
+				Arc:            4,
+				Retreat:        4,
+			},
+		},
+	}
+}
+
+func darkJupitelHitEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 300 * time.Millisecond,
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    "effect/pokjuk_d.bmp",
+				Duration:       100 * time.Millisecond,
+				SizeStart:      0,
+				SizeEnd:        effectTableSize(25),
+				BlendMode:      2,
+				BlendAdditive:  true,
+				RotateToTarget: true,
+				FadeOut:        true,
+				Overlay:        true,
+				AttachedEntity: true,
+			},
+			{
+				Kind: EffectComponent3D,
+				TextureFiles: []string{
+					"effect/twirl_soft.bmp",
+					"effect/thunder_ball_b.bmp",
+					"effect/twirl_soft.bmp",
+					"effect/thunder_ball_c.bmp",
+					"effect/twirl_soft.bmp",
+				},
+				FrameDelay:     10 * time.Millisecond,
+				Duration:       300 * time.Millisecond,
+				SizeStart:      effectTableSize(75),
+				SizeEnd:        effectTableSize(75),
+				BlendMode:      2,
+				BlendAdditive:  true,
+				Overlay:        true,
+				AttachedEntity: true,
+			},
+		},
+	}
+}
+
+func darkCastingEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 900 * time.Millisecond,
+		SFX:      []string{"effect\\ef_beginspell.wav"},
+		Components: []EffectComponent{{
+			Kind:             EffectComponentCylinder,
+			TextureName:      "ring_black",
+			Color:            color.RGBA{R: 255, G: 255, B: 255, A: 255},
+			AlphaMax:         0.8,
+			Animation:        2,
+			AttachedEntity:   true,
+			BlendMode:        2,
+			BlendAdditive:    true,
+			BottomSize:       1,
+			TopSize:          5,
+			Height:           4,
+			Fade:             true,
+			Rotate:           true,
+			TotalCircleSides: 32,
+			CircleSides:      32,
+		}},
+	}
+}
+
+func mildWindEffectSpec(texture string) EffectSpec {
+	components := []EffectComponent{
+		mildWindComponent(texture, 1, 1, 1, 1, 300, 100),
+		mildWindComponent(texture, 0.2, 0.7, 0.7, 1, 220, 20),
+		mildWindComponent(texture, 0.2, 0.5, 0.5, 1, 350, 100),
+		mildWindComponent(texture, 0.2, 0.3, 0.3, 1, 400, 100),
+		mildWindComponent(texture, 0.2, 0.1, 0.1, 1, 450, 100),
+	}
+	return EffectSpec{
+		Duration:   time.Second,
+		SFX:        []string{"effect\\t_바람방출.wav"},
+		Components: components,
+	}
+}
+
+func mildWindComponent(texture string, alphaMax, red, green, blue, sizeStart, sizeEnd float64) EffectComponent {
+	return EffectComponent{
+		Kind:           EffectComponent3D,
+		TextureFile:    texture,
+		Color:          color.RGBA{R: uint8(red * 255), G: uint8(green * 255), B: uint8(blue * 255), A: 255},
+		Duration:       time.Second,
+		AlphaMax:       alphaMax,
+		BlendMode:      2,
+		BlendAdditive:  true,
+		FadeIn:         true,
+		FadeOut:        true,
+		PosZ:           4,
+		SizeStart:      effectTableSize(sizeStart),
+		SizeEnd:        effectTableSize(sizeEnd),
+		SizeSmooth:     true,
+		AttachedEntity: true,
 	}
 }
 
@@ -3853,6 +4014,24 @@ var EffectSpecs = map[int]EffectSpec{
 	effectLevel99AuraBottom: level99GroundEffectSpec(),
 	effectBash3D3:           bash3DEffectSpec("Bash3D3", "effect\\헤드 크러쉬.wav", 675*time.Millisecond, 500*time.Millisecond, 6),
 	effectBash3D4:           bash3DEffectSpec("Bash3D4", "effect\\비트 조인트.wav", 675*time.Millisecond, 500*time.Millisecond, 6),
+	effectDarkGrandCross:    {},
+	effectDarkSoulStrike:    darkSoulStrikeEffectSpec(),
+	effectDarkJupitelHit:    darkJupitelHitEffectSpec(),
+	effectNPCStop:           sprEffectSpec("스톱", "", true, false),
+	effectDarkCasting:       darkCastingEffectSpec(),
+	effectNPCPowerUp:        soundOnlyEffectSpec("effect\\mon_폭기.wav"),
+	effectJumpKick:          soundOnlyEffectSpec("effect\\t_날라차기.wav"),
+	effectBeginAsura1:       mildWindEffectSpec("effect/hanmoon1.tga"),
+	effectBeginAsura2:       mildWindEffectSpec("effect/hanmoon2.tga"),
+	effectBeginAsura3:       mildWindEffectSpec("effect/hanmoon3.tga"),
+	effectBeginAsura4:       mildWindEffectSpec("effect/hanmoon4.tga"),
+	effectBeginAsura5:       mildWindEffectSpec("effect/hanmoon7.tga"),
+	effectBeginAsura6:       mildWindEffectSpec("effect/hanmoon5.tga"),
+	effectBeginAsura7:       mildWindEffectSpec("effect/hanmoon6.tga"),
+	effectMochi:             strEffectSpecAttached("찹쌀떡", "", false),
+	effectRamadan:           strEffectSpecAttached("ramadan", "", false),
+	effectEDP:               soundOnlyEffectSpec("effect\\assasin_cloaking.wav"),
+	effectPreserve:          soundOnlyEffectSpec("effect\\black_maximize_power_sword_bic.wav"),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},
