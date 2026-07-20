@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 469 {
-		t.Fatalf("implemented effects = %d, want 469", coverage.Implemented)
+	if coverage.Implemented != 493 {
+		t.Fatalf("implemented effects = %d, want 493", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 77.2 || coverage.ActivePercent > 77.3 {
-		t.Fatalf("active coverage = %.3f, want about 77.3", coverage.ActivePercent)
+	if coverage.ActivePercent < 81.2 || coverage.ActivePercent > 81.3 {
+		t.Fatalf("active coverage = %.3f, want about 81.2", coverage.ActivePercent)
 	}
 }
 
@@ -3316,6 +3316,41 @@ func TestRobrowserActiveEffectsSixFiftyToSevenHundredHaveSpecs(t *testing.T) {
 		effectCloud7:         "EF_CLOUD7",
 		effectCloud8:         "EF_CLOUD8",
 		effectFlowerLeaf:     "EF_FLOWERLEAF",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsSevenHundredToSevenFiftyHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectItem315:          "EF_ITEM315",
+		effectItem316:          "EF_ITEM316",
+		effectItem317:          "EF_ITEM317",
+		effectStormMin:         "EF_STORM_MIN",
+		effectFirecracker7:     "EF_POK_JAP",
+		effectBottomBlue:       "EF_BOTTOM_BLUE",
+		effectBottomBlue2:      "EF_BOTTOM_BLUE2",
+		effectChristmasCarol:   "EF_WEWISH",
+		effectFirePillarOn2:    "EF_FIREPILLARON2",
+		effectForestLight5:     "EF_FORESTLIGHT5",
+		effectAdoramus:         "EF_ADO_STR",
+		effectIgnitionBreak:    "EF_IGN_STR",
+		effectFrostMisty:       "EF_FROSTMYSTY",
+		effectCrimsonRock:      "EF_CRIMSON_STR",
+		effectHellInferno:      "EF_HELL_STR",
+		effectMarshOfAbyss:     "EF_SPR_MASH",
+		effectDragonHowling:    "EF_DHOWL_STR",
+		effectEarthWall:        "EF_EARTHWALL",
+		effectChainLightning:   "EF_CHAINL_STR",
+		effectAimedBolt:        "EF_AIMED_STR",
+		effectArrowStorm:       "EF_ARROWSTORM_STR",
+		effectLaulamus:         "EF_LAULAMUS_STR",
+		effectLauagnus:         "EF_LAUAGNUS_STR",
+		effectMillenniumShield: "EF_MILSHIELD_STR",
+		effectConcentration2:   "EF_CONCENTRATION2",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -4847,6 +4882,147 @@ func TestRobrowserFirecrackerBannersSixFiftyToSevenHundredMatchTableRows(t *test
 	}
 }
 
+func TestRobrowserSimpleEffectsSevenHundredToSevenFiftyMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		id       int
+		file     string
+		wav      string
+		attached bool
+	}{
+		{"EF_ITEM315", effectItem315, "mobile_ef02", "", true},
+		{"EF_ITEM316", effectItem316, "mobile_ef01", "", true},
+		{"EF_ITEM317", effectItem317, "mobile_ef03", "", true},
+		{"EF_STORM_MIN", effectStormMin, "storm_min", "effect\\wizard_stormgust.wav", true},
+		{"EF_POK_JAP", effectFirecracker7, "pokjuk_jap", "", false},
+		{"EF_ADO_STR", effectAdoramus, "ado", "effect\\ab_adoramus.wav", true},
+		{"EF_IGN_STR", effectIgnitionBreak, "이그니션브레이크", "effect\\wl_jackfrost.wav", true},
+		{"EF_CRIMSON_STR", effectCrimsonRock, "crimson_r", "effect\\crimson_r.wav", true},
+		{"EF_HELL_STR", effectHellInferno, "hell_in", "", true},
+		{"EF_DHOWL_STR", effectDragonHowling, "dragon_h", "dragon_h.wav", true},
+		{"EF_CHAINL_STR", effectChainLightning, "chainlight", "effect\\chainlight.wav", true},
+		{"EF_AIMED_STR", effectAimedBolt, "aimed", "", true},
+		{"EF_ARROWSTORM_STR", effectArrowStorm, "arrowstorm", "", true},
+		{"EF_LAULAMUS_STR", effectLaulamus, "laulamus", "", true},
+		{"EF_LAUAGNUS_STR", effectLauagnus, "lauagnus", "", true},
+		{"EF_MILSHIELD_STR", effectMillenniumShield, "mil_shield", "", true},
+		{"EF_CONCENTRATION2", effectConcentration2, "concentration", "", true},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.attachedEntity != tc.attached {
+			t.Fatalf("%s component = %+v, want STR %q attached=%t", tc.name, component, tc.file, tc.attached)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	wewish, ok := worldEffectSpecForID(effectChristmasCarol)
+	if !ok || len(wewish.sfx) != 1 || wewish.sfx[0] != "effect\\wewish.wav" {
+		t.Fatalf("EF_WEWISH spec = %+v ok=%t", wewish, ok)
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		wav  string
+	}{
+		{"EF_FORESTLIGHT5", effectForestLight5, "effect\\ab_renovation.wav"},
+		{"EF_FROSTMYSTY", effectFrostMisty, "effect\\t_에나지방출.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 0 || spec.duration != 500*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t, want sound-only 500ms", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	marsh, ok := worldEffectSpecForID(effectMarshOfAbyss)
+	if !ok || len(marsh.components) != 1 {
+		t.Fatalf("EF_SPR_MASH spec = %+v ok=%t, want one SPR component", marsh, ok)
+	}
+	if component := marsh.components[0]; component.kind != effectComponentSPR || component.spriteFile != "mashofa" || component.attachedEntity {
+		t.Fatalf("EF_SPR_MASH component = %+v", component)
+	}
+}
+
+func TestRobrowserCylinderEffectsSevenHundredToSevenFiftyMatchTableRows(t *testing.T) {
+	for _, id := range []int{effectBottomBlue, effectBottomBlue2} {
+		spec, ok := worldEffectSpecForID(id)
+		if !ok || spec.duration != 20*time.Second || len(spec.components) != 4 {
+			t.Fatalf("bottom blue effect %d spec = %+v ok=%t", id, spec, ok)
+		}
+		for i, component := range spec.components {
+			if component.kind != effectComponentCylinder || component.textureName != "alpha_down" || component.duration != 20*time.Second || component.totalCircleSides != 4 || component.circleSides != 4 || !component.rotateWithCamera || component.blendMode != 2 || !component.blendAdditive || !component.attachedEntity {
+				t.Fatalf("bottom blue effect %d component %d = %+v", id, i, component)
+			}
+		}
+		if first := spec.components[0]; first.bottomSize != 1.5 || first.topSize != 1.5 || first.height != 2 || first.alphaMax != 40.0/255.0 || first.angleY != 0 || first.color != (color.RGBA{R: 51, G: 153, B: 255, A: 255}) {
+			t.Fatalf("bottom blue first component = %+v", first)
+		}
+		if second := spec.components[1]; second.bottomSize != 1.58 || second.height != 2.1 || second.alphaMax != 32.0/255.0 || second.angleY != 10 {
+			t.Fatalf("bottom blue second component = %+v", second)
+		}
+		if third := spec.components[2]; third.bottomSize != 1.65 || third.alphaMax != 15.0/255.0 || third.angleY != 26.6 || third.color != (color.RGBA{R: 25, G: 102, B: 255, A: 255}) {
+			t.Fatalf("bottom blue third component = %+v", third)
+		}
+		if fourth := spec.components[3]; fourth.bottomSize != 1.65 || fourth.alphaMax != 15.0/255.0 || fourth.angleY != 79.8 {
+			t.Fatalf("bottom blue fourth component = %+v", fourth)
+		}
+	}
+
+	judex, ok := worldEffectSpecForID(effectFirePillarOn2)
+	if !ok || judex.duration != time.Second || len(judex.components) != 3 {
+		t.Fatalf("EF_FIREPILLARON2 spec = %+v ok=%t", judex, ok)
+	}
+	if len(judex.sfx) != 1 || judex.sfx[0] != "effect\\ab_judex.wav" {
+		t.Fatalf("EF_FIREPILLARON2 sfx = %#v", judex.sfx)
+	}
+	want := []struct {
+		bottom float64
+		top    float64
+		height float64
+	}{
+		{0.4, 0.5, 3.5},
+		{0.45, 0.75, 2.5},
+		{0.5, 1, 1.5},
+	}
+	for i, component := range judex.components {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_white" || component.duration != time.Second || component.attachedEntity || !component.rotate || component.bottomSize != want[i].bottom || component.topSize != want[i].top || component.height != want[i].height {
+			t.Fatalf("EF_FIREPILLARON2 component %d = %+v", i, component)
+		}
+	}
+}
+
+func TestRobrowserEarthWallEffectSevenHundredToSevenFiftyMatchesTableRow(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectEarthWall)
+	if !ok || spec.duration != time.Second || spec.cameraShake != 200*time.Millisecond || len(spec.components) != 2 {
+		t.Fatalf("EF_EARTHWALL spec = %+v ok=%t", spec, ok)
+	}
+	if len(spec.sfx) != 1 || spec.sfx[0] != "effect\\wizard_earthspike.wav" {
+		t.Fatalf("EF_EARTHWALL sfx = %#v", spec.sfx)
+	}
+	horn, quake := spec.components[0], spec.components[1]
+	if horn.kind != effectComponentQuadHorn || horn.textureFile != "effect/stone.bmp" || horn.duration != time.Second || horn.quadHornHeightMin != 0.75 || horn.quadHornHeightMax != 1.2 || horn.quadHornOffsetXMin != 0.2 || horn.quadHornOffsetXMax != 0.2 || horn.quadHornOffsetYMin != 0.2 || horn.quadHornOffsetYMax != 0.2 || horn.quadHornOffsetZ != -0.1 || horn.quadHornBottomMin != 0.4 || horn.quadHornBottomMax != 0.9 || horn.blendMode != 1 || horn.quadHornRotateYMin != 1 || horn.quadHornRotateYMax != 360 || horn.quadHornRotateZMin != -8 || horn.quadHornRotateZMax != 8 || horn.animation != 3 || horn.quadHornAnimSpeed != 250*time.Millisecond || !horn.quadHornAnimOut {
+		t.Fatalf("EF_EARTHWALL horn = %+v", horn)
+	}
+	if quake.kind != effectComponentFUNC || quake.funcName != "CameraQuake" || !quake.attachedEntity {
+		t.Fatalf("EF_EARTHWALL quake = %+v", quake)
+	}
+}
+
 func TestRobrowserRepairWeaponAndShockwaveSpecs(t *testing.T) {
 	repair, ok := worldEffectSpecForID(effectRepairWeapon)
 	if !ok || len(repair.components) != 1 || repair.duration != 1820*time.Millisecond {
@@ -6232,7 +6408,24 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "NJ_RAIGEKISAI imported", skillEffectIDs(db.SkillNJRaigekisai), effectThunderStorm2)
 	expectEffectIDs(t, "NJ_ISSEN imported", skillEffectIDs(db.SkillNJIssen), effectIssen)
 	expectEffectIDs(t, "AS_VENOMKNIFE imported before hit", skillBeforeHitEffectIDs(db.SkillASVenomknife), effectThrowItem6)
+	expectEffectIDs(t, "ALL_WEWISH imported", skillEffectIDs(db.SkillALLWewish), effectChristmasCarol)
+	expectEffectIDs(t, "RK_IGNITIONBREAK imported caster", skillEffectOnCasterIDs(db.SkillRKIgnitionbreak), effectIgnitionBreak)
 	expectEffectIDs(t, "RK_DRAGONBREATH imported hit", skillHitEffectIDs(db.SkillRKDragonbreath), effectM05)
+	expectEffectIDs(t, "RK_DRAGONHOWLING imported", skillEffectIDs(db.SkillRKDragonhowling), effectDragonHowling)
+	expectEffectIDs(t, "RK_MILLENNIUMSHIELD imported", skillEffectIDs(db.SkillRKMillenniumshield), effectMillenniumShield)
+	expectEffectIDs(t, "WL_FROSTMISTY imported", skillEffectIDs(db.SkillWLFrostmisty), effectFrostMisty)
+	expectEffectIDs(t, "WL_MARSHOFABYSS imported", skillEffectIDs(db.SkillWLMarshofabyss), effectMarshOfAbyss)
+	expectEffectIDs(t, "WL_CRIMSONROCK imported", skillEffectIDs(db.SkillWLCrimsonrock), effectCrimsonRock)
+	expectEffectIDs(t, "WL_HELLINFERNO imported ground", skillGroundEffectIDs(db.SkillWLHellinferno), effectHellInferno)
+	expectEffectIDs(t, "WL_CHAINLIGHTNING_ATK imported", skillEffectIDs(db.SkillWLChainlightningAtk), effectChainLightning)
+	expectEffectIDs(t, "WL_EARTHSTRAIN imported ground", skillGroundEffectIDs(db.SkillWLEarthstrain), effectEarthWall)
+	expectEffectIDs(t, "AB_JUDEX imported", skillEffectIDs(db.SkillABJudex), effectFirePillarOn2)
+	expectEffectIDs(t, "AB_JUDEX imported hit", skillHitEffectIDs(db.SkillABJudex), effectHolyLight)
+	expectEffectIDs(t, "AB_ADORAMUS imported", skillEffectIDs(db.SkillABAdoramus), effectAdoramus)
+	expectEffectIDs(t, "RA_ARROWSTORM imported", skillEffectIDs(db.SkillRAArrowstorm), effectArrowStorm)
+	expectEffectIDs(t, "RA_AIMEDBOLT imported", skillEffectIDs(db.SkillRAAimedbolt), effectAimedBolt)
+	expectEffectIDs(t, "RA_AIMEDBOLT imported before hit", skillBeforeHitEffectIDs(db.SkillRAAimedbolt), effectArrowShot)
+	expectEffectIDs(t, "RA_DETONATOR imported", skillEffectIDs(db.SkillRADetonator), effectConcentration2)
 	expectEffectIDs(t, "HAMI_CASTLE imported", skillEffectIDs(db.SkillHamiCastle), effectHamiCastle)
 	expectEffectIDs(t, "HAMI_DEFENCE imported", skillEffectIDs(db.SkillHamiDefence), effectHamiDefence)
 	expectEffectIDs(t, "HAMI_BLOODLUST imported", skillEffectIDs(db.SkillHamiBloodlust), effectHamiBlood)
@@ -6456,6 +6649,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
 	expectEffectIDs(t, "UNT_EVILLAND", skillUnitEffectIDs(199), effectBottomEvilLand)
+	expectEffectIDs(t, "UNT_EARTHSTRAIN", skillUnitEffectIDs(203), effectEarthWall)
 }
 
 func TestMagnumBreakEffectSpecUsesWorldCylinders(t *testing.T) {

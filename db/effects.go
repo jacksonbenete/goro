@@ -382,122 +382,145 @@ const (
 )
 
 const (
-	effectDarkGrandCross = 450
-	effectDarkSoulStrike = 451
-	effectDarkJupitelHit = 452
-	effectNPCStop        = 453
-	effectDarkCasting    = 454
-	effectNPCPowerUp     = 456
-	effectJumpKick       = 457
-	effectBeginAsura1    = 467
-	effectBeginAsura2    = 468
-	effectBeginAsura3    = 469
-	effectBeginAsura4    = 470
-	effectBeginAsura5    = 471
-	effectBeginAsura6    = 472
-	effectBeginAsura7    = 473
-	effectMochi          = effectResistPotion
-	effectRamadan        = 492
-	effectEDP            = 493
-	effectPreserve       = 496
-	effectCastSpin       = 501
-	effectChookgi2       = 504
-	effectMapae          = effectItemAccel
-	effectItemPokJuk     = effectFirecracker
-	effectValentine05    = 509
-	effectBeginAsura11   = 510
-	effectChemical2Dash  = 512
-	effectBottomHermode  = 517
-	effectItemFastDown   = effectItemSlow
-	effectTarotCard1     = 523
-	effectTarotCard2     = 524
-	effectTarotCard3     = 525
-	effectTarotCard4     = 526
-	effectTarotCard5     = 527
-	effectTarotCard6     = 528
-	effectTarotCard7     = 529
-	effectTarotCard8     = 530
-	effectTarotCard9     = 531
-	effectTarotCard10    = 532
-	effectTarotCard11    = 533
-	effectTarotCard12    = 534
-	effectTarotCard13    = 535
-	effectTarotCard14    = 536
-	effectAcidDemon      = 537
-	effectHated          = 543
-	effectStin           = 547
-	effectStin2          = 553
-	effectStin3          = 555
-	effectScreenQuake    = 563
-	effectHfliMoon1      = 565
-	effectHfliMoon2      = 566
-	effectHfliMoon3      = 567
-	effectHoUp           = 568
-	effectHamiDefence    = 569
-	effectHamiCastle     = 570
-	effectHamiBlood      = 571
-	effectItemThunder    = effectBoxThunder
-	effectItemCloud      = effectBoxResentment
-	effectItemCurse      = 578
-	effectItemZZZ        = effectBoxDrowsiness
-	effectItemRain       = effectBoxSunlight
-	effectM01            = 583
-	effectM02            = 584
-	effectM03            = 585
-	effectM04            = 586
-	effectM05            = 587
-	effectM06            = 588
-	effectM07            = 589
-	effectKaizel         = 590
-	effectThrowItem6     = 600
-	effectFireHit2       = 603
-	effectNPCStop2       = 604
-	effectFVoice         = 606
-	effectWink           = 607
-	effectCookingOK      = 608
-	effectCookingFail    = 609
-	effectHapgyeok       = 612
-	effectThrowItem7     = 613
-	effectThrowItem8     = 614
-	effectThrowItem9     = 615
-	effectThrowItem10    = 616
-	effectKouenka        = 618
-	effectHyousensou     = 619
-	effectStin4          = 621
-	effectThunderStorm2  = 622
-	effectRGCoin3        = 627
-	effectBash3D5        = 628
-	effectChookgi3       = 629
-	effectKirikage       = 630
-	effectTatami         = 631
-	effectKasumikiri     = 632
-	effectIssen          = 633
-	effectKaen           = 634
-	effectBaku           = 635
-	effectHyousyouraku   = 636
-	effectDesperado      = 637
-	effectLightningS     = 638
-	effectBlindS         = 639
-	effectPoisonS        = 640
-	effectFreezingS      = 641
-	effectFlareS         = 642
-	effectRapidShower    = 643
-	effectMagicalBullet  = 644
-	effectSpreadAttack   = 645
-	effectTrackCasting   = 646
-	effectTracking       = 647
-	effectTripleAction   = 648
-	effectBullseye       = 649
-	effectNPCEarthquake  = 666
-	effectDragonFear     = 668
-	effectWideBleeding   = 669
-	effectWideConfuse    = 670
-	effectBottomRunner   = 671
-	effectBottomTransfer = 672
-	effectBottomEvilLand = 674
-	effectGuard3         = 675
-	effectCriticalWound  = 677
-	effectFlowerLeaf     = 699
+	effectDarkGrandCross   = 450
+	effectDarkSoulStrike   = 451
+	effectDarkJupitelHit   = 452
+	effectNPCStop          = 453
+	effectDarkCasting      = 454
+	effectNPCPowerUp       = 456
+	effectJumpKick         = 457
+	effectBeginAsura1      = 467
+	effectBeginAsura2      = 468
+	effectBeginAsura3      = 469
+	effectBeginAsura4      = 470
+	effectBeginAsura5      = 471
+	effectBeginAsura6      = 472
+	effectBeginAsura7      = 473
+	effectMochi            = effectResistPotion
+	effectRamadan          = 492
+	effectEDP              = 493
+	effectPreserve         = 496
+	effectCastSpin         = 501
+	effectChookgi2         = 504
+	effectMapae            = effectItemAccel
+	effectItemPokJuk       = effectFirecracker
+	effectValentine05      = 509
+	effectBeginAsura11     = 510
+	effectChemical2Dash    = 512
+	effectBottomHermode    = 517
+	effectItemFastDown     = effectItemSlow
+	effectTarotCard1       = 523
+	effectTarotCard2       = 524
+	effectTarotCard3       = 525
+	effectTarotCard4       = 526
+	effectTarotCard5       = 527
+	effectTarotCard6       = 528
+	effectTarotCard7       = 529
+	effectTarotCard8       = 530
+	effectTarotCard9       = 531
+	effectTarotCard10      = 532
+	effectTarotCard11      = 533
+	effectTarotCard12      = 534
+	effectTarotCard13      = 535
+	effectTarotCard14      = 536
+	effectAcidDemon        = 537
+	effectHated            = 543
+	effectStin             = 547
+	effectStin2            = 553
+	effectStin3            = 555
+	effectScreenQuake      = 563
+	effectHfliMoon1        = 565
+	effectHfliMoon2        = 566
+	effectHfliMoon3        = 567
+	effectHoUp             = 568
+	effectHamiDefence      = 569
+	effectHamiCastle       = 570
+	effectHamiBlood        = 571
+	effectItemThunder      = effectBoxThunder
+	effectItemCloud        = effectBoxResentment
+	effectItemCurse        = 578
+	effectItemZZZ          = effectBoxDrowsiness
+	effectItemRain         = effectBoxSunlight
+	effectM01              = 583
+	effectM02              = 584
+	effectM03              = 585
+	effectM04              = 586
+	effectM05              = 587
+	effectM06              = 588
+	effectM07              = 589
+	effectKaizel           = 590
+	effectThrowItem6       = 600
+	effectFireHit2         = 603
+	effectNPCStop2         = 604
+	effectFVoice           = 606
+	effectWink             = 607
+	effectCookingOK        = 608
+	effectCookingFail      = 609
+	effectHapgyeok         = 612
+	effectThrowItem7       = 613
+	effectThrowItem8       = 614
+	effectThrowItem9       = 615
+	effectThrowItem10      = 616
+	effectKouenka          = 618
+	effectHyousensou       = 619
+	effectStin4            = 621
+	effectThunderStorm2    = 622
+	effectRGCoin3          = 627
+	effectBash3D5          = 628
+	effectChookgi3         = 629
+	effectKirikage         = 630
+	effectTatami           = 631
+	effectKasumikiri       = 632
+	effectIssen            = 633
+	effectKaen             = 634
+	effectBaku             = 635
+	effectHyousyouraku     = 636
+	effectDesperado        = 637
+	effectLightningS       = 638
+	effectBlindS           = 639
+	effectPoisonS          = 640
+	effectFreezingS        = 641
+	effectFlareS           = 642
+	effectRapidShower      = 643
+	effectMagicalBullet    = 644
+	effectSpreadAttack     = 645
+	effectTrackCasting     = 646
+	effectTracking         = 647
+	effectTripleAction     = 648
+	effectBullseye         = 649
+	effectNPCEarthquake    = 666
+	effectDragonFear       = 668
+	effectWideBleeding     = 669
+	effectWideConfuse      = 670
+	effectBottomRunner     = 671
+	effectBottomTransfer   = 672
+	effectBottomEvilLand   = 674
+	effectGuard3           = 675
+	effectCriticalWound    = 677
+	effectFlowerLeaf       = 699
+	effectItem315          = 704
+	effectItem316          = 705
+	effectItem317          = 706
+	effectStormMin         = 708
+	effectBottomBlue       = 715
+	effectBottomBlue2      = 716
+	effectFirePillarOn2    = 718
+	effectForestLight5     = 719
+	effectAdoramus         = 721
+	effectIgnitionBreak    = 722
+	effectFrostMisty       = 726
+	effectCrimsonRock      = 727
+	effectHellInferno      = 728
+	effectMarshOfAbyss     = 729
+	effectDragonHowling    = 731
+	effectEarthWall        = 732
+	effectChainLightning   = 734
+	effectAimedBolt        = 745
+	effectArrowStorm       = 746
+	effectLaulamus         = 747
+	effectLauagnus         = 748
+	effectMillenniumShield = 749
+	effectConcentration2   = 750
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -1202,6 +1225,92 @@ func evilLandEffectSpec() EffectSpec {
 				PosZ:           0.4,
 				BlendAdditive:  true,
 				AttachedEntity: false,
+			},
+		},
+	}
+}
+
+func bottomBlueEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 20 * time.Second,
+		Components: []EffectComponent{
+			bottomBlueCylinder(1.5, 2.0, 40.0/255.0, 0, color.RGBA{R: 51, G: 153, B: 255, A: 255}),
+			bottomBlueCylinder(1.58, 2.1, 32.0/255.0, 10, color.RGBA{R: 51, G: 153, B: 255, A: 255}),
+			bottomBlueCylinder(1.65, 2.0, 15.0/255.0, 26.6, color.RGBA{R: 25, G: 102, B: 255, A: 255}),
+			bottomBlueCylinder(1.65, 2.0, 15.0/255.0, 79.8, color.RGBA{R: 25, G: 102, B: 255, A: 255}),
+		},
+	}
+}
+
+func bottomBlueCylinder(size, height, alpha, angleY float64, tint color.RGBA) EffectComponent {
+	return EffectComponent{
+		Kind:             EffectComponentCylinder,
+		TextureName:      "alpha_down",
+		Duration:         20 * time.Second,
+		AlphaMax:         alpha,
+		BottomSize:       size,
+		TopSize:          size,
+		Height:           height,
+		AngleY:           angleY,
+		RotateWithCamera: true,
+		TotalCircleSides: 4,
+		CircleSides:      4,
+		BlendMode:        2,
+		BlendAdditive:    true,
+		AttachedEntity:   true,
+		Color:            tint,
+	}
+}
+
+func judexEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1 * time.Second,
+		SFX:      []string{"effect\\ab_judex.wav"},
+		Components: []EffectComponent{
+			judexCylinder(0.4, 0.5, 3.5),
+			judexCylinder(0.45, 0.75, 2.5),
+			judexCylinder(0.5, 1, 1.5),
+		},
+	}
+}
+
+func judexCylinder(bottom, top, height float64) EffectComponent {
+	return EffectComponent{
+		Kind:        EffectComponentCylinder,
+		TextureName: "ring_white",
+		Duration:    1 * time.Second,
+		BottomSize:  bottom,
+		TopSize:     top,
+		Height:      height,
+		Rotate:      true,
+	}
+}
+
+func earthWallEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:    1 * time.Second,
+		CameraShake: 200 * time.Millisecond,
+		SFX:         []string{"effect\\wizard_earthspike.wav"},
+		Components: []EffectComponent{
+			quadHornEffectComponent(
+				"effect/stone.bmp",
+				time.Second,
+				[2]float64{0.75, 1.2},
+				[2]float64{0.2, 0.2},
+				[2]float64{0.2, 0.2},
+				-0.1,
+				[2]float64{0.4, 0.9},
+				[2]float64{1, 360},
+				[2]float64{-8, 8},
+				3,
+				250*time.Millisecond,
+				true,
+				1,
+			),
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "CameraQuake",
+				AttachedEntity: true,
 			},
 		},
 	}
@@ -4458,6 +4567,30 @@ var EffectSpecs = map[int]EffectSpec{
 	effectFirecracker5:      firecrackerBannerEffectSpec("폭죽_생일"),
 	effectFirecracker6:      firecrackerBannerEffectSpec("폭죽_크리스마스"),
 	effectFlowerLeaf:        strEffectSpecAttached("flower_leaf", "", false),
+	effectItem315:           strEffectSpecAttached("mobile_ef02", "", false),
+	effectItem316:           strEffectSpecAttached("mobile_ef01", "", false),
+	effectItem317:           strEffectSpecAttached("mobile_ef03", "", false),
+	effectStormMin:          strEffectSpecAttached("storm_min", "effect\\wizard_stormgust.wav", false),
+	effectFirecracker7:      strEffectSpec("pokjuk_jap", ""),
+	effectBottomBlue:        bottomBlueEffectSpec(),
+	effectBottomBlue2:       bottomBlueEffectSpec(),
+	effectFirePillarOn2:     judexEffectSpec(),
+	effectForestLight5:      soundOnlyEffectSpec("effect\\ab_renovation.wav"),
+	effectAdoramus:          strEffectSpecAttached("ado", "effect\\ab_adoramus.wav", false),
+	effectIgnitionBreak:     strEffectSpecAttached("이그니션브레이크", "effect\\wl_jackfrost.wav", false),
+	effectFrostMisty:        soundOnlyEffectSpec("effect\\t_에나지방출.wav"),
+	effectCrimsonRock:       strEffectSpecAttached("crimson_r", "effect\\crimson_r.wav", false),
+	effectHellInferno:       strEffectSpecAttached("hell_in", "", false),
+	effectMarshOfAbyss:      sprEffectSpec("mashofa", "", false, false),
+	effectDragonHowling:     strEffectSpecAttached("dragon_h", "dragon_h.wav", false),
+	effectEarthWall:         earthWallEffectSpec(),
+	effectChainLightning:    strEffectSpecAttached("chainlight", "effect\\chainlight.wav", false),
+	effectAimedBolt:         strEffectSpecAttached("aimed", "", false),
+	effectArrowStorm:        strEffectSpecAttached("arrowstorm", "", false),
+	effectLaulamus:          strEffectSpecAttached("laulamus", "", false),
+	effectLauagnus:          strEffectSpecAttached("lauagnus", "", false),
+	effectMillenniumShield:  strEffectSpecAttached("mil_shield", "", false),
+	effectConcentration2:    strEffectSpecAttached("concentration", "", false),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},
