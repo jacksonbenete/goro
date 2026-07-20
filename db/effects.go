@@ -379,6 +379,20 @@ const (
 	effectLevel99AuraBottom = 398
 	effectBash3D3           = 399
 	effectBash3D4           = 400
+	effectPortal5           = 402
+	effectMagicCrasher2     = 403
+	effectBottomSpider      = 404
+	effectSoulBurn          = 406
+	effectSoulChange        = 407
+	effectSoulBreaker2      = 409
+	effectBabyBody          = 420
+	effectBabyBody2         = 421
+	effectGiantBody         = 422
+	effectGiantBody2        = 423
+	effectQuakeBody         = 426
+	effectAssumptio2        = 440
+	effectStopEffect        = 444
+	effectJumpBody          = 445
 )
 
 const (
@@ -1901,6 +1915,97 @@ func soulBreakerEffectSpec() EffectSpec {
 			SizeStart:        effectTableSize(100),
 			SizeEnd:          effectTableSize(200),
 			AttachedEntity:   true,
+		}},
+	}
+}
+
+func portal5EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 800 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "EffectBodyColor",
+			Duration:       800 * time.Millisecond,
+			AttachedEntity: true,
+		}},
+	}
+}
+
+func magicCrasher2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1000 * time.Millisecond,
+		SFX:      []string{"effect\\swordman_provoke.wav"},
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "EffectBodyColor",
+			Duration:       1000 * time.Millisecond,
+			AttachedEntity: true,
+		}},
+	}
+}
+
+func spiderWebEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 5 * time.Second,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "SpiderWeb",
+			TextureFile:    "effect/spiderweb.tga",
+			Duration:       5 * time.Second,
+			AlphaMax:       0.7,
+			SizeStart:      1.5,
+			SizeEnd:        1.5,
+			PosZ:           0.05,
+			RenderBefore:   true,
+			AttachedEntity: false,
+		}},
+	}
+}
+
+func soulBreaker2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 500 * time.Millisecond,
+		SFX:      []string{"effect\\메테오 어썰트.wav"},
+		Components: []EffectComponent{
+			soulBreaker2SlashComponent(-1, 0, -5, 0, 0),
+			soulBreaker2SlashComponent(-0.7, -0.7, -3.53, -3.53, -45),
+			soulBreaker2SlashComponent(0, -1, 0, -5, -90),
+			soulBreaker2SlashComponent(0.7, -0.7, 3.53, -3.53, -135),
+			soulBreaker2SlashComponent(1, 0, 5, 0, -180),
+			soulBreaker2SlashComponent(0.7, 0.7, 3.53, 3.53, -225),
+			soulBreaker2SlashComponent(0, 1, 0, 5, -270),
+			soulBreaker2SlashComponent(-0.7, 0.7, -3.53, 3.53, -315),
+		},
+	}
+}
+
+func soulBreaker2SlashComponent(posX, posY, posXEnd, posYEnd, angle float64) EffectComponent {
+	return EffectComponent{
+		Kind:             EffectComponent3D,
+		TextureFile:      "effect/purpleslash.tga",
+		Duration:         500 * time.Millisecond,
+		AlphaMax:         0.6,
+		FadeOut:          true,
+		RotateWithCamera: true,
+		AngleStart:       angle,
+		PosX:             posX,
+		PosY:             posY,
+		PosXEnd:          posXEnd,
+		PosYEnd:          posYEnd,
+		SizeStart:        effectTableSize(100),
+		SizeEnd:          effectTableSize(200),
+	}
+}
+
+func bodySizeEffectSpec(name string, duration time.Duration, targetSize float64) EffectSpec {
+	return EffectSpec{
+		Duration: duration,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       name,
+			Duration:       duration,
+			SizeEnd:        targetSize,
+			AttachedEntity: true,
 		}},
 	}
 }
@@ -4876,6 +4981,20 @@ var EffectSpecs = map[int]EffectSpec{
 	effectLevel99AuraBottom: level99GroundEffectSpec(),
 	effectBash3D3:           bash3DEffectSpec("Bash3D3", "effect\\헤드 크러쉬.wav", 675*time.Millisecond, 500*time.Millisecond, 6),
 	effectBash3D4:           bash3DEffectSpec("Bash3D4", "effect\\비트 조인트.wav", 675*time.Millisecond, 500*time.Millisecond, 6),
+	effectPortal5:           portal5EffectSpec(),
+	effectMagicCrasher2:     magicCrasher2EffectSpec(),
+	effectBottomSpider:      spiderWebEffectSpec(),
+	effectSoulBurn:          strEffectSpecAttached("소울번", "", false),
+	effectSoulChange:        strEffectSpecAttached("사랑효과", "", false),
+	effectSoulBreaker2:      soulBreaker2EffectSpec(),
+	effectBabyBody:          bodySizeEffectSpec("EffectSmallTransition", 300*time.Millisecond, 2.5),
+	effectBabyBody2:         bodySizeEffectSpec("EffectSmall", 5*time.Minute, 2.5),
+	effectGiantBody:         bodySizeEffectSpec("EffectBigTransition", 300*time.Millisecond, 7.5),
+	effectGiantBody2:        bodySizeEffectSpec("EffectBig", 5*time.Minute, 7.5),
+	effectQuakeBody:         soundOnlyEffectSpec("effect\\복호격.wav"),
+	effectAssumptio2:        strEffectSpecAttached("asum", "effect\\아숨프티오.wav", false),
+	effectStopEffect:        soundOnlyEffectSpec("effect\\t_효과음1.wav"),
+	effectJumpBody:          soundOnlyEffectSpec("effect\\t_회피2.wav"),
 	effectDarkGrandCross:    {},
 	effectDarkSoulStrike:    darkSoulStrikeEffectSpec(),
 	effectDarkJupitelHit:    darkJupitelHitEffectSpec(),

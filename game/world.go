@@ -2226,7 +2226,7 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Frame, ctx client.Co
 	})
 	for _, entry := range entries {
 		if entry.shadowIndex >= 0 {
-			m.drawActorShadowEntry(screen, projection, actors[entry.shadowIndex])
+			m.drawActorShadowEntry(screen, ctx, projection, actors[entry.shadowIndex])
 			continue
 		}
 		if entry.itemIndex >= 0 {

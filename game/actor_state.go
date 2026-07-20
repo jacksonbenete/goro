@@ -161,10 +161,17 @@ func (m *WorldMode) actorBodyColorTint(actorID uint32, tint color.RGBA, now time
 		return tint
 	}
 	for _, effect := range m.worldEffects {
-		if effect.effectID != effectBodyColor || effect.actorID != actorID || now.Before(effect.starts) || now.After(effect.expires) {
+		if effect.actorID != actorID || now.Before(effect.starts) || now.After(effect.expires) {
 			continue
 		}
-		return effectBodyColorTint(tint, now.Sub(effect.starts))
+		switch effect.effectID {
+		case effectBodyColor:
+			tint = effectBodyColorTint(tint, now.Sub(effect.starts))
+		case effectPortal5:
+			tint = portal5BodyColorTint(tint, now.Sub(effect.starts))
+		case effectMagicCrasher2:
+			tint = magicCrasher2BodyColorTint(tint, actorID, effect.starts, now.Sub(effect.starts))
+		}
 	}
 	return tint
 }
@@ -179,9 +186,116 @@ func effectBodyColorTint(tint color.RGBA, elapsed time.Duration) color.RGBA {
 	}
 }
 
+func portal5BodyColorTint(tint color.RGBA, elapsed time.Duration) color.RGBA {
+	if elapsed < 0 || elapsed >= 800*time.Millisecond {
+		return tint
+	}
+	blue := 0.0
+	alpha := 0.1
+	if elapsed >= 200*time.Millisecond {
+		progress := clampFloat(float64(elapsed-200*time.Millisecond)/float64(600*time.Millisecond), 0, 1)
+		blue = progress
+		alpha = 0.1 + 0.9*progress
+	}
+	return multiplyTint(tint, 1, 1, blue, alpha)
+}
+
+func magicCrasher2BodyColorTint(tint color.RGBA, actorID uint32, starts time.Time, elapsed time.Duration) color.RGBA {
+	if elapsed < 0 || elapsed >= time.Second {
+		return tint
+	}
+	bucket := uint64(elapsed / (50 * time.Millisecond))
+	seed := uint64(actorID)*0x9e3779b185ebca87 ^ uint64(starts.UnixNano()) ^ bucket*0xc2b2ae3d27d4eb4f
+	return multiplyTint(tint, randomBodyColorChannel(seed), randomBodyColorChannel(seed+1), randomBodyColorChannel(seed+2), 1)
+}
+
+func randomBodyColorChannel(seed uint64) float64 {
+	seed ^= seed >> 33
+	seed *= 0xff51afd7ed558ccd
+	seed ^= seed >> 33
+	seed *= 0xc4ceb9fe1a85ec53
+	seed ^= seed >> 33
+	return float64(byte(seed>>56)) / 255
+}
+
+func multiplyTint(tint color.RGBA, red, green, blue, alpha float64) color.RGBA {
+	return color.RGBA{
+		R: uint8(clampFloat(float64(tint.R)*red, 0, 255)),
+		G: uint8(clampFloat(float64(tint.G)*green, 0, 255)),
+		B: uint8(clampFloat(float64(tint.B)*blue, 0, 255)),
+		A: uint8(clampFloat(float64(tint.A)*alpha, 0, 255)),
+	}
+}
+
 func mixTintChannel(from, to uint8, alpha float64) uint8 {
 	value := float64(from)*(1-alpha) + float64(to)*alpha
 	return uint8(clampFloat(value, 0, 255))
+}
+
+func (m *WorldMode) actorRenderScale(actorID uint32, baseScale float64, now time.Time) float64 {
+	return baseScale * m.actorBodySizeMultiplier(actorID, now)
+}
+
+func (m *WorldMode) playerRenderScale(ctx client.Context, actor worldstate.Actor, baseScale float64, now time.Time) float64 {
+	multiplier := m.actorBodySizeMultiplier(actor.ID, now)
+	if multiplier != 1 || ctx.Session == nil {
+		return baseScale * multiplier
+	}
+	if ctx.Session.AccountID != actor.ID {
+		if multiplier = m.actorBodySizeMultiplier(ctx.Session.AccountID, now); multiplier != 1 {
+			return baseScale * multiplier
+		}
+	}
+	if ctx.Session.CharID != actor.ID && ctx.Session.CharID != ctx.Session.AccountID {
+		if multiplier = m.actorBodySizeMultiplier(ctx.Session.CharID, now); multiplier != 1 {
+			return baseScale * multiplier
+		}
+	}
+	return baseScale
+}
+
+func (m *WorldMode) actorBodySizeMultiplier(actorID uint32, now time.Time) float64 {
+	if actorID == 0 {
+		return 1
+	}
+	multiplier := 1.0
+	var latest time.Time
+	for _, effect := range m.worldEffects {
+		if effect.actorID != actorID || now.Before(effect.starts) || now.After(effect.expires) {
+			continue
+		}
+		targetSize, transition, ok := actorBodySizeTarget(effect.effectID)
+		if !ok || effect.starts.Before(latest) {
+			continue
+		}
+		targetMultiplier := targetSize / 5
+		if transition {
+			duration := effect.duration
+			if duration <= 0 {
+				duration = 300 * time.Millisecond
+			}
+			progress := clampFloat(float64(now.Sub(effect.starts))/float64(duration), 0, 1)
+			targetMultiplier = 1 + (targetMultiplier-1)*progress
+		}
+		multiplier = targetMultiplier
+		latest = effect.starts
+	}
+	return multiplier
+}
+
+func actorBodySizeTarget(effectID int) (targetSize float64, transition bool, ok bool) {
+	switch effectID {
+	case effectBabyBody:
+		return 2.5, true, true
+	case effectBabyBody2:
+		return 2.5, false, true
+	case effectGiantBody:
+		return 7.5, true, true
+	case effectGiantBody2:
+		return 7.5, false, true
+	default:
+		return 0, false, false
+	}
 }
 
 func freezeActionFamily(actor worldstate.Actor) int {

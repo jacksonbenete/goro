@@ -387,6 +387,20 @@ const (
 	effectLevel99AuraBottom = 398
 	effectBash3D3           = 399
 	effectBash3D4           = 400
+	effectPortal5           = 402
+	effectMagicCrasher2     = 403
+	effectBottomSpider      = 404
+	effectSoulBurn          = 406
+	effectSoulChange        = 407
+	effectSoulBreaker2      = 409
+	effectBabyBody          = 420
+	effectBabyBody2         = 421
+	effectGiantBody         = 422
+	effectGiantBody2        = 423
+	effectQuakeBody         = 426
+	effectAssumptio2        = 440
+	effectStopEffect        = 444
+	effectJumpBody          = 445
 )
 
 const (
@@ -2076,7 +2090,7 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncSpiritSphere
 	case "FlatColorTile":
 		return effectFuncFlatColorTile
-	case "GroundTexture":
+	case "GroundTexture", "SpiderWeb":
 		return effectFuncGroundTexture
 	case "EffectBodyColor":
 		return effectFuncBodyColor

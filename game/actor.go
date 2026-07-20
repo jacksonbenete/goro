@@ -462,7 +462,7 @@ func (m *WorldMode) drawSceneActors(screen *render.Frame, ctx client.Context, pr
 		return entries[i].depth > entries[j].depth
 	})
 	for _, entry := range entries {
-		m.drawActorShadowEntry(screen, projection, entry)
+		m.drawActorShadowEntry(screen, ctx, projection, entry)
 	}
 	for _, entry := range entries {
 		m.drawSceneActorEntry(screen, ctx, projection, entry)
@@ -586,7 +586,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Frame, ctx client.Context
 	}
 }
 
-func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, projection sceneProjection, entry sceneActorDrawEntry) {
+func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry) {
 	if !entry.castShadow || m.shadowView == nil || m.shadowViewMiss {
 		return
 	}
@@ -597,7 +597,11 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, projection sceneP
 	if m.actorShadowSuppressed(entry.actor, now) {
 		return
 	}
-	scale := entry.scale * entry.shadowScale
+	baseScale := m.actorRenderScale(entry.actor.ID, entry.scale, now)
+	if entry.isPlayer {
+		baseScale = m.playerRenderScale(ctx, entry.actor, entry.scale, now)
+	}
+	scale := baseScale * entry.shadowScale
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		return
 	}
@@ -1097,7 +1101,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, 1, shadow, m.actorRenderTint(actor, now))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), 1, shadow, m.actorRenderTint(actor, now))
 	return true
 }
 
@@ -1114,7 +1118,7 @@ func (m *WorldMode) drawNonPCSprite3D(screen *render.Frame, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, m.actorDeathAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), m.actorDeathAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
 	return true
 }
 
