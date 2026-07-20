@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 556 {
-		t.Fatalf("implemented effects = %d, want 556", coverage.Implemented)
+	if coverage.Implemented != 565 {
+		t.Fatalf("implemented effects = %d, want 565", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 91.5 || coverage.ActivePercent > 91.7 {
-		t.Fatalf("active coverage = %.3f, want about 91.6", coverage.ActivePercent)
+	if coverage.ActivePercent < 93.0 || coverage.ActivePercent > 93.2 {
+		t.Fatalf("active coverage = %.3f, want about 93.1", coverage.ActivePercent)
 	}
 }
 
@@ -3454,6 +3454,25 @@ func TestRobrowserActiveEffectsNineHundredToNineFiftyHaveSpecs(t *testing.T) {
 		effectColdThrow2:   "EF_COLDTHROW2",
 		effectDemonicFire4: "EF_DEMONICFIRE4",
 		effectPressure3:    "EF_PRESSURE3",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsNineFiftyToOneThousandHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectPoisonMist:     "EF_POISON_MIST",
+		effectEraserCutter:   "EF_ERASER_CUTTER",
+		effectLavaSlide:      "EF_LAVA_SLIDE",
+		effectSonicClaw:      "EF_SONIC_CLAW",
+		effectTinderBreaker:  "EF_TINDER_BREAKER",
+		effectMidnightFrenzy: "EF_MIDNIGHT_FRENZY",
+		effectVolcanicAsh:    "EF_VOLCANIC_ASH",
+		effectRWC2011:        "EF_2011RWC",
+		effectRWC2011Two:     "EF_2011RWC2",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -5556,6 +5575,32 @@ func TestRobrowserEffectsNineHundredToNineFiftyMatchTableRows(t *testing.T) {
 	}
 }
 
+func TestRobrowserEffectsNineFiftyToOneThousandMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		id   int
+		file string
+	}{
+		{"EF_POISON_MIST", effectPoisonMist, "poison_mist"},
+		{"EF_ERASER_CUTTER", effectEraserCutter, "eraser_cutter"},
+		{"EF_LAVA_SLIDE", effectLavaSlide, "lava_slide"},
+		{"EF_SONIC_CLAW", effectSonicClaw, "sonic_claw"},
+		{"EF_TINDER_BREAKER", effectTinderBreaker, "tinder"},
+		{"EF_MIDNIGHT_FRENZY", effectMidnightFrenzy, "mid_frenzy"},
+		{"EF_VOLCANIC_ASH", effectVolcanicAsh, "vash00"},
+		{"EF_2011RWC", effectRWC2011, "rwc2011"},
+		{"EF_2011RWC2", effectRWC2011Two, "rwc2011_2"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 || len(spec.sfx) != 0 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component and no sound", tc.name, spec, ok)
+		}
+		if component := spec.components[0]; component.kind != effectComponentSTR || component.strFile != tc.file || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+}
+
 func TestRobrowserRepairWeaponAndShockwaveSpecs(t *testing.T) {
 	repair, ok := worldEffectSpecForID(effectRepairWeapon)
 	if !ok || len(repair.components) != 1 || repair.duration != 1820*time.Millisecond {
@@ -7013,6 +7058,13 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "HAMI_CASTLE imported", skillEffectIDs(db.SkillHamiCastle), effectHamiCastle)
 	expectEffectIDs(t, "HAMI_DEFENCE imported", skillEffectIDs(db.SkillHamiDefence), effectHamiDefence)
 	expectEffectIDs(t, "HAMI_BLOODLUST imported", skillEffectIDs(db.SkillHamiBloodlust), effectHamiBlood)
+	expectEffectIDs(t, "MH_POISON_MIST imported", skillEffectIDs(db.SkillMhPoisonMist), effectPoisonMist)
+	expectEffectIDs(t, "MH_ERASER_CUTTER imported", skillEffectIDs(db.SkillMhEraserCutter), effectEraserCutter)
+	expectEffectIDs(t, "MH_SONIC_CRAW imported", skillEffectIDs(db.SkillMhSonicCraw), effectSonicClaw)
+	expectEffectIDs(t, "MH_MIDNIGHT_FRENZY imported", skillEffectIDs(db.SkillMhMidnightFrenzy), effectMidnightFrenzy)
+	expectEffectIDs(t, "MH_TINDER_BREAKER imported", skillEffectIDs(db.SkillMhTinderBreaker), effectTinderBreaker)
+	expectEffectIDs(t, "MH_LAVA_SLIDE imported", skillEffectIDs(db.SkillMhLavaSlide), effectLavaSlide)
+	expectEffectIDs(t, "MH_VOLCANIC_ASH imported", skillEffectIDs(db.SkillMhVolcanicAsh), effectVolcanicAsh)
 	expectEffectIDs(t, "AB_CHEAL imported", skillEffectIDs(db.SkillABCheal), effectHeal2)
 	expectEffectIDs(t, "AB_HIGHNESSHEAL imported", skillEffectIDs(db.SkillABHighnessheal), effectHeal4)
 	expectEffectIDs(t, "AB_HIGHNESSHEAL imported hit", skillHitEffectIDs(db.SkillABHighnessheal), effectHealOffensive)

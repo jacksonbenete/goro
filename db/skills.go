@@ -4175,15 +4175,15 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillHfliFleet:                  {EffectIDs: []int{564}},
 	SkillHfliSpeed:                  {EffectIDs: []int{564}},
 	SkillHvanExplosion:              {EffectIDs: []int{183}},
-	SkillMhPoisonMist:               {EffectIDs: []int{959}},
-	SkillMhEraserCutter:             {EffectIDs: []int{960}},
+	SkillMhPoisonMist:               {EffectIDs: []int{effectPoisonMist}},
+	SkillMhEraserCutter:             {EffectIDs: []int{effectEraserCutter}},
 	SkillMhSilentBreeze:             {EffectIDs: []int{961}},
-	SkillMhSonicCraw:                {EffectIDs: []int{965}},
-	SkillMhMidnightFrenzy:           {EffectIDs: []int{967}},
-	SkillMhTinderBreaker:            {EffectIDs: []int{966}},
+	SkillMhSonicCraw:                {EffectIDs: []int{effectSonicClaw}},
+	SkillMhMidnightFrenzy:           {EffectIDs: []int{effectMidnightFrenzy}},
+	SkillMhTinderBreaker:            {EffectIDs: []int{effectTinderBreaker}},
 	SkillMhMagmaFlow:                {EffectIDs: []int{962}},
-	SkillMhLavaSlide:                {EffectIDs: []int{964}},
-	SkillMhVolcanicAsh:              {EffectIDs: []int{975}},
+	SkillMhLavaSlide:                {EffectIDs: []int{effectLavaSlide}},
+	SkillMhVolcanicAsh:              {EffectIDs: []int{effectVolcanicAsh}},
 }
 
 type SkillActionKind uint8

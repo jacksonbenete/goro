@@ -584,6 +584,15 @@ const (
 	effectColdThrow2       = 928
 	effectDemonicFire4     = 929
 	effectPressure3        = 930
+	effectPoisonMist       = 959
+	effectEraserCutter     = 960
+	effectLavaSlide        = 964
+	effectSonicClaw        = 965
+	effectTinderBreaker    = 966
+	effectMidnightFrenzy   = 967
+	effectVolcanicAsh      = 975
+	effectRWC2011          = 987
+	effectRWC2011Two       = 988
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -4982,6 +4991,15 @@ var EffectSpecs = map[int]EffectSpec{
 	effectColdThrow2:        soundOnlyEffectSpec("effect\\wl_jackfrost.wav"),
 	effectDemonicFire4:      soundOnlyEffectSpec("effect\\s워머.wav"),
 	effectPressure3:         pressureDropEffectSpec("effect/cross1.bmp", ""),
+	effectPoisonMist:        strEffectSpecAttached("poison_mist", "", false),
+	effectEraserCutter:      strEffectSpecAttached("eraser_cutter", "", false),
+	effectLavaSlide:         strEffectSpecAttached("lava_slide", "", false),
+	effectSonicClaw:         strEffectSpecAttached("sonic_claw", "", false),
+	effectTinderBreaker:     strEffectSpecAttached("tinder", "", false),
+	effectMidnightFrenzy:    strEffectSpecAttached("mid_frenzy", "", false),
+	effectVolcanicAsh:       strEffectSpecAttached("vash00", "", false),
+	effectRWC2011:           strEffectSpecAttached("rwc2011", "", false),
+	effectRWC2011Two:        strEffectSpecAttached("rwc2011_2", "", false),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

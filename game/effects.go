@@ -592,6 +592,15 @@ const (
 	effectColdThrow2       = 928
 	effectDemonicFire4     = 929
 	effectPressure3        = 930
+	effectPoisonMist       = 959
+	effectEraserCutter     = 960
+	effectLavaSlide        = 964
+	effectSonicClaw        = 965
+	effectTinderBreaker    = 966
+	effectMidnightFrenzy   = 967
+	effectVolcanicAsh      = 975
+	effectRWC2011          = 987
+	effectRWC2011Two       = 988
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
