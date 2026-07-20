@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 584 {
-		t.Fatalf("implemented effects = %d, want 584", coverage.Implemented)
+	if coverage.Implemented != 588 {
+		t.Fatalf("implemented effects = %d, want 588", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 96.1 || coverage.ActivePercent > 96.3 {
-		t.Fatalf("active coverage = %.3f, want about 96.2", coverage.ActivePercent)
+	if coverage.ActivePercent < 96.8 || coverage.ActivePercent > 96.9 {
+		t.Fatalf("active coverage = %.3f, want about 96.9", coverage.ActivePercent)
 	}
 }
 
@@ -3502,6 +3502,20 @@ func TestRobrowserActiveEffectsOneThousandToTenFiftyHaveSpecs(t *testing.T) {
 		effectWLTelekinesis:    "EF_WL_TELEKINESIS_INTENSE",
 		effectGNIllusionDoping: "EF_GN_ILLUSIONDOPING",
 		effectNCMagmaEruption:  "EF_NC_MAGMA_ERUPTION",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsTenFiftyToElevenHundredHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectNPCChill:        "EF_NPC_CHILL",
+		effectOffertoriumRing: "EF_AB_OFFERTORIUM_RING",
+		effectHammerOfGod:     "EF_HAMMER_OF_GOD",
+		effectAchComplete:     "EF_ACH_COMPLETE",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -5672,6 +5686,37 @@ func TestRobrowserEffectsOneThousandToTenFiftyMatchTableRows(t *testing.T) {
 		}
 		component := spec.components[0]
 		if component.kind != effectComponentSTR || component.strFile != tc.file || component.strRandMin != tc.randMin || component.strRandMax != tc.randMax || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+}
+
+func TestRobrowserEffectsTenFiftyToElevenHundredMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		id          int
+		file        string
+		texturePath string
+		wav         string
+	}{
+		{"EF_NPC_CHILL", effectNPCChill, "chill", "", ""},
+		{"EF_AB_OFFERTORIUM_RING", effectOffertoriumRing, "ab_offertorium_ring", "", ""},
+		{"EF_HAMMER_OF_GOD", effectHammerOfGod, "stormgust", "", "effect\\RL_HAMMER_OF_GOD.wav"},
+		{"EF_ACH_COMPLETE", effectAchComplete, "ach_complete/ppring3", "ach_complete/", ""},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %#v, want none", tc.name, spec.sfx)
+			}
+		} else if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.texturePath != tc.texturePath || !component.attachedEntity {
 			t.Fatalf("%s component = %+v", tc.name, component)
 		}
 	}

@@ -612,6 +612,10 @@ const (
 	effectWLTelekinesis    = 1048
 	effectGNIllusionDoping = 1049
 	effectNCMagmaEruption  = 1050
+	effectNPCChill         = 1055
+	effectOffertoriumRing  = 1057
+	effectHammerOfGod      = 1062
+	effectAchComplete      = 1094
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -804,6 +808,12 @@ func strEffectSpecAttached(file, wav string, head bool) EffectSpec {
 func strEffectSpecAttachedMin(file, minFile, wav string, head bool) EffectSpec {
 	spec := strEffectSpecAttached(file, wav, head)
 	spec.Components[0].STRMinFile = minFile
+	return spec
+}
+
+func strEffectSpecAttachedTexturePath(file, texturePath, wav string, head bool) EffectSpec {
+	spec := strEffectSpecAttached(file, wav, head)
+	spec.Components[0].TexturePath = texturePath
 	return spec
 }
 
@@ -5038,6 +5048,10 @@ var EffectSpecs = map[int]EffectSpec{
 	effectWLTelekinesis:     strEffectSpecAttached("wl_telekinesis_intense", "effect\\wl_telekinesis_intense.wav", false),
 	effectGNIllusionDoping:  strEffectSpecAttached("gn_illusiondoping", "effect\\gn_illusiondoping.wav", false),
 	effectNCMagmaEruption:   strEffectSpecAttached("nc_magma_eruption", "effect\\nc_magma_eruption.wav", false),
+	effectNPCChill:          strEffectSpecAttached("chill", "", false),
+	effectOffertoriumRing:   strEffectSpecAttached("ab_offertorium_ring", "", false),
+	effectHammerOfGod:       strEffectSpecAttached("stormgust", "effect\\RL_HAMMER_OF_GOD.wav", false),
+	effectAchComplete:       strEffectSpecAttachedTexturePath("ach_complete/ppring3", "ach_complete/", "", false),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

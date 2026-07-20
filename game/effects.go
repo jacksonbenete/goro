@@ -620,6 +620,10 @@ const (
 	effectWLTelekinesis    = 1048
 	effectGNIllusionDoping = 1049
 	effectNCMagmaEruption  = 1050
+	effectNPCChill         = 1055
+	effectOffertoriumRing  = 1057
+	effectHammerOfGod      = 1062
+	effectAchComplete      = 1094
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
