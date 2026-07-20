@@ -400,6 +400,32 @@ const (
 	effectRamadan        = 492
 	effectEDP            = 493
 	effectPreserve       = 496
+	effectCastSpin       = 501
+	effectChookgi2       = 504
+	effectMapae          = effectItemAccel
+	effectItemPokJuk     = effectFirecracker
+	effectValentine05    = 509
+	effectBeginAsura11   = 510
+	effectChemical2Dash  = 512
+	effectBottomHermode  = 517
+	effectItemFastDown   = effectItemSlow
+	effectTarotCard1     = 523
+	effectTarotCard2     = 524
+	effectTarotCard3     = 525
+	effectTarotCard4     = 526
+	effectTarotCard5     = 527
+	effectTarotCard6     = 528
+	effectTarotCard7     = 529
+	effectTarotCard8     = 530
+	effectTarotCard9     = 531
+	effectTarotCard10    = 532
+	effectTarotCard11    = 533
+	effectTarotCard12    = 534
+	effectTarotCard13    = 535
+	effectTarotCard14    = 536
+	effectAcidDemon      = 537
+	effectHated          = 543
+	effectStin           = 547
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -989,6 +1015,20 @@ func chemical2EffectSpec() EffectSpec {
 	}
 }
 
+func acidDemonEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:         500 * time.Millisecond,
+		CameraShake:      200 * time.Millisecond,
+		CameraShakeDelay: 200 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "CameraQuake",
+			Delay:          200 * time.Millisecond,
+			AttachedEntity: true,
+		}},
+	}
+}
+
 func heal2EffectSpec() EffectSpec {
 	return EffectSpec{
 		Duration: 1890 * time.Millisecond,
@@ -1137,6 +1177,24 @@ func beginAsuraEffectSpec() EffectSpec {
 		components = append(components,
 			asuraGlyphComponent(i+1, posX, time.Duration(i)*100*time.Millisecond, 1200*time.Millisecond, 250, 120, true, false),
 			asuraGlyphComponent(i+1, posX, time.Duration(1200+i*100)*time.Millisecond, 400*time.Millisecond, 120, 200, false, true),
+		)
+	}
+	return EffectSpec{
+		Duration:   2100 * time.Millisecond,
+		Components: components,
+	}
+}
+
+func beginAsura11EffectSpec() EffectSpec {
+	components := []EffectComponent{
+		robrCylinderBlendComponent("ring_white", color.RGBA{}, 800*time.Millisecond, 0, 2, 1, 4.5, -4, true, false, true, 2),
+		robrCylinderBlendComponent("ring_white", color.RGBA{}, 800*time.Millisecond, 0, 2, 1, 2.5, -4, true, false, true, 2),
+	}
+	positions := []float64{-8, -4.8, -1.6, 1.6, 4.8, 8}
+	for i, posX := range positions {
+		components = append(components,
+			asuraGlyphComponent(i+11, posX, time.Duration(i)*100*time.Millisecond, 1200*time.Millisecond, 300, 150, true, false),
+			asuraGlyphComponent(i+11, posX, time.Duration(1200+i*100)*time.Millisecond, 400*time.Millisecond, 150, 250, false, true),
 		)
 	}
 	return EffectSpec{
@@ -1691,6 +1749,46 @@ func soundOnlyEffectSpec(paths ...string) EffectSpec {
 		Duration: 500 * time.Millisecond,
 		SFX:      paths,
 	}
+}
+
+func spiritSphereEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 5 * time.Minute,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "SpiritSphere",
+			TextureFile:    "effect/thunder_center.bmp",
+			AttachedEntity: true,
+			Duplicate:      5,
+		}},
+	}
+}
+
+func tarotCardEffectSpec(index int) EffectSpec {
+	return EffectSpec{
+		Duration: 3 * time.Second,
+		SFX:      []string{"effect\\priest_slowpoison.wav"},
+		Components: []EffectComponent{{
+			Kind:           EffectComponent3D,
+			TextureFile:    "effect/tarot" + twoDigitString(index) + ".tga",
+			Duration:       3 * time.Second,
+			AlphaMax:       1,
+			AttachedEntity: true,
+			FadeIn:         true,
+			FadeOut:        true,
+			PosZ:           4,
+			SizeStart:      effectTableSize(100),
+			SizeEnd:        effectTableSize(70),
+			SizeSmooth:     true,
+		}},
+	}
+}
+
+func twoDigitString(value int) string {
+	if value < 10 {
+		return "0" + strconv.Itoa(value)
+	}
+	return strconv.Itoa(value)
 }
 
 func delayedSoundEffectSpec(paths []string, delays []time.Duration) EffectSpec {
@@ -3852,16 +3950,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectCrusaderDef:  defenderCylinderEffectSpec("ring_black"),
 	effectGrandCross:   grandCrossEffectSpec(),
 	effectIntimidate:   soundOnlyEffectSpec("effect\\rog_intimidate.wav"),
-	effectChookgi: {
-		Duration: 5 * time.Minute,
-		Components: []EffectComponent{{
-			Kind:           EffectComponentFUNC,
-			FuncName:       "SpiritSphere",
-			TextureFile:    "effect/thunder_center.bmp",
-			AttachedEntity: true,
-			Duplicate:      5,
-		}},
-	},
+	effectChookgi:      spiritSphereEffectSpec(),
 	effectLineLink: {
 		Duration: 100 * time.Millisecond,
 		Components: []EffectComponent{{
@@ -4032,6 +4121,32 @@ var EffectSpecs = map[int]EffectSpec{
 	effectRamadan:           strEffectSpecAttached("ramadan", "", false),
 	effectEDP:               soundOnlyEffectSpec("effect\\assasin_cloaking.wav"),
 	effectPreserve:          soundOnlyEffectSpec("effect\\black_maximize_power_sword_bic.wav"),
+	effectCastSpin:          funcEffectSpec("CastSpin", 500*time.Millisecond, true),
+	effectChookgi2:          spiritSphereEffectSpec(),
+	effectMapae:             strEffectSpecAttached("mapae", "effect\\mapae.wav", false),
+	effectItemPokJuk:        strEffectSpecAttached("itempokjuk", "effect\\itempokjuk.wav", false),
+	effectValentine05:       sprEffectSpec("05vallentine", "", true, false),
+	effectBeginAsura11:      beginAsura11EffectSpec(),
+	effectChemical2Dash:     chemical2EffectSpec(),
+	effectBottomHermode:     {},
+	effectItemFastDown:      sprEffectSpec("fast", "effect\\fast.wav", true, false),
+	effectTarotCard1:        tarotCardEffectSpec(1),
+	effectTarotCard2:        tarotCardEffectSpec(2),
+	effectTarotCard3:        tarotCardEffectSpec(3),
+	effectTarotCard4:        tarotCardEffectSpec(4),
+	effectTarotCard5:        tarotCardEffectSpec(5),
+	effectTarotCard6:        tarotCardEffectSpec(6),
+	effectTarotCard7:        tarotCardEffectSpec(7),
+	effectTarotCard8:        tarotCardEffectSpec(8),
+	effectTarotCard9:        tarotCardEffectSpec(9),
+	effectTarotCard10:       tarotCardEffectSpec(10),
+	effectTarotCard11:       tarotCardEffectSpec(11),
+	effectTarotCard12:       tarotCardEffectSpec(12),
+	effectTarotCard13:       tarotCardEffectSpec(13),
+	effectTarotCard14:       tarotCardEffectSpec(14),
+	effectAcidDemon:         acidDemonEffectSpec(),
+	effectHated:             soundOnlyEffectSpec("effect\\t_보조마법.wav"),
+	effectStin:              soundOnlyEffectSpec("effect\\t_에너지방출.wav"),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

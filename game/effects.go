@@ -408,6 +408,32 @@ const (
 	effectRamadan        = 492
 	effectEDP            = 493
 	effectPreserve       = 496
+	effectCastSpin       = 501
+	effectChookgi2       = 504
+	effectMapae          = effectItemAccel
+	effectItemPokJuk     = effectFirecracker
+	effectValentine05    = 509
+	effectBeginAsura11   = 510
+	effectChemical2Dash  = 512
+	effectBottomHermode  = 517
+	effectItemFastDown   = effectItemSlow
+	effectTarotCard1     = 523
+	effectTarotCard2     = 524
+	effectTarotCard3     = 525
+	effectTarotCard4     = 526
+	effectTarotCard5     = 527
+	effectTarotCard6     = 528
+	effectTarotCard7     = 529
+	effectTarotCard8     = 530
+	effectTarotCard9     = 531
+	effectTarotCard10    = 532
+	effectTarotCard11    = 533
+	effectTarotCard12    = 534
+	effectTarotCard13    = 535
+	effectTarotCard14    = 536
+	effectAcidDemon      = 537
+	effectHated          = 543
+	effectStin           = 547
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
