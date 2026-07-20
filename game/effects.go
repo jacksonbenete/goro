@@ -355,6 +355,40 @@ const (
 	effectEmotion        = 1000000
 )
 
+const (
+	effectSoulBreaker       = 361
+	effectLevel99Aura1      = 362
+	effectPressure          = 365
+	effectBash3D            = 366
+	effectAuraBlade         = 367
+	effectRedBody           = 368
+	effectLKConcentration   = 369
+	effectBottomGospel      = 370
+	effectDeath             = 372
+	effectBottomBasilica    = 374
+	effectHitLine2          = 376
+	effectBash3D2           = 377
+	effectEnergyDrain2      = 378
+	effectTransBlueBody     = 379
+	effectMagicCrasher      = 380
+	effectLightBlade        = 382
+	effectEnergyDrain3      = 383
+	effectLineLink2         = 384
+	effectTrueSight         = 386
+	effectFalconAssault     = 387
+	effectTripleAttack2     = 388
+	effectPortal4           = 389
+	effectMeltdown          = 390
+	effectCartBoost         = 391
+	effectRejectSword       = 392
+	effectTripleAttack3     = 393
+	effectMoonlit           = 394
+	effectLevel99AuraMid    = 397
+	effectLevel99AuraBottom = 398
+	effectBash3D3           = 399
+	effectBash3D4           = 400
+)
+
 const skillUnitEffectFallbackDuration = 5 * time.Minute
 
 type effectComponentKind int
@@ -1768,6 +1802,8 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncLandProtectorGround
 	case "SpiritSphere":
 		return effectFuncSpiritSphere
+	case "FlatColorTile":
+		return effectFuncFlatColorTile
 	default:
 		return effectFuncUnknown
 	}

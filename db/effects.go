@@ -347,6 +347,40 @@ const (
 	effectCloud8         = 698
 )
 
+const (
+	effectSoulBreaker       = 361
+	effectLevel99Aura1      = 362
+	effectPressure          = 365
+	effectBash3D            = 366
+	effectAuraBlade         = 367
+	effectRedBody           = 368
+	effectLKConcentration   = 369
+	effectBottomGospel      = 370
+	effectDeath             = 372
+	effectBottomBasilica    = 374
+	effectHitLine2          = 376
+	effectBash3D2           = 377
+	effectEnergyDrain2      = 378
+	effectTransBlueBody     = 379
+	effectMagicCrasher      = 380
+	effectLightBlade        = 382
+	effectEnergyDrain3      = 383
+	effectLineLink2         = 384
+	effectTrueSight         = 386
+	effectFalconAssault     = 387
+	effectTripleAttack2     = 388
+	effectPortal4           = 389
+	effectMeltdown          = 390
+	effectCartBoost         = 391
+	effectRejectSword       = 392
+	effectTripleAttack3     = 393
+	effectMoonlit           = 394
+	effectLevel99AuraMid    = 397
+	effectLevel99AuraBottom = 398
+	effectBash3D3           = 399
+	effectBash3D4           = 400
+)
+
 const EffectPixelRatio = 1.0 / 35.0
 
 type EffectComponentKind int
@@ -551,6 +585,21 @@ func strEffectSpecRandomAttached(file, wav string, randMin, randMax int, attache
 		spec.SFX = []string{wav}
 		spec.SFXRandMin = randMin
 		spec.SFXRandMax = randMax
+	}
+	return spec
+}
+
+func sprEffectSpec(file, wav string, attached, head bool) EffectSpec {
+	spec := EffectSpec{
+		Components: []EffectComponent{{
+			Kind:           EffectComponentSPR,
+			SpriteFile:     file,
+			AttachedEntity: attached,
+			SpriteHead:     head,
+		}},
+	}
+	if wav != "" {
+		spec.SFX = []string{wav}
 	}
 	return spec
 }
@@ -1179,6 +1228,213 @@ func entry2EffectSpec() EffectSpec {
 			teleportCylinderComponent(0.8, 1.0, 13),
 			teleportCylinderComponent(1.0, 1.3, 5),
 		},
+	}
+}
+
+func soulBreakerEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 500 * time.Millisecond,
+		SFX:      []string{"effect\\기공포.wav"},
+		Components: []EffectComponent{{
+			Kind:             EffectComponent3D,
+			TextureFile:      "effect/purpleslash.tga",
+			Duration:         500 * time.Millisecond,
+			AlphaMax:         0.4,
+			FadeIn:           true,
+			FadeOut:          true,
+			ToSrc:            true,
+			RotateWithCamera: true,
+			RotateToTarget:   true,
+			AngleStart:       90,
+			PosZ:             2,
+			SizeStart:        effectTableSize(100),
+			SizeEnd:          effectTableSize(200),
+			AttachedEntity:   true,
+		}},
+	}
+}
+
+func pressureEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:         1001 * time.Millisecond,
+		CameraShake:      200 * time.Millisecond,
+		CameraShakeDelay: 500 * time.Millisecond,
+		SFX:              []string{"effect\\프레셔.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    "effect/cross_old.bmp",
+				Duration:       500 * time.Millisecond,
+				AlphaMax:       0.6,
+				BlendMode:      2,
+				BlendAdditive:  true,
+				Rotate:         true,
+				AngleStart:     0,
+				AngleEnd:       -611,
+				PosZ:           20,
+				PosZEnd:        5,
+				SizeStart:      effectTableSize(100),
+				SizeEnd:        effectTableSize(100),
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    "effect/cross_old.bmp",
+				Duration:       500 * time.Millisecond,
+				Delay:          501 * time.Millisecond,
+				AlphaMax:       0.6,
+				BlendMode:      2,
+				BlendAdditive:  true,
+				FadeOut:        true,
+				AngleStart:     -611,
+				PosZ:           5,
+				SizeStart:      effectTableSize(100),
+				SizeEnd:        effectTableSize(100),
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "CameraQuake",
+				AttachedEntity: true,
+			},
+		},
+	}
+}
+
+func bash3DEffectSpec(funcName, wav string, duration, delay time.Duration, duplicate int) EffectSpec {
+	return EffectSpec{
+		Duration: duration,
+		SFX:      []string{wav},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       funcName,
+				AttachedEntity: true,
+			},
+			bash3DCylinderComponent(4.5, delay, duplicate),
+			bash3DCylinderComponent(7.2, delay, duplicate),
+		},
+	}
+}
+
+func bash3DCylinderComponent(topSize float64, delay time.Duration, duplicate int) EffectComponent {
+	return EffectComponent{
+		Kind:             EffectComponentCylinder,
+		TextureName:      "alpha_center",
+		Duration:         175 * time.Millisecond,
+		Delay:            delay,
+		Duplicate:        duplicate,
+		AlphaMax:         0.6,
+		Fade:             true,
+		AngleX:           -90,
+		AngleZRandom:     360,
+		FixedPerspective: true,
+		PosZ:             1.5,
+		Height:           0,
+		BottomSize:       0.01,
+		TopSize:          topSize,
+		Animation:        2,
+		AttachedEntity:   true,
+		TotalCircleSides: 30,
+		CircleSides:      1,
+	}
+}
+
+func basilicaEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 20 * time.Second,
+		Components: []EffectComponent{
+			basilicaCylinderComponent(2.45, 2.0, 32.0/255.0, 0),
+			basilicaCylinderComponent(2.52, 2.1, 32.0/255.0, 10),
+			basilicaCylinderComponent(2.6, 2.0, 15.0/255.0, 26.6),
+			basilicaCylinderComponent(2.6, 2.0, 15.0/255.0, 79.8),
+		},
+	}
+}
+
+func basilicaCylinderComponent(size, height, alpha, angleY float64) EffectComponent {
+	component := robrCylinderBlendComponent("alpha_down", color.RGBA{}, 20*time.Second, alpha, 0, size, size, height, true, false, false, 2)
+	component.TotalCircleSides = 4
+	component.CircleSides = 4
+	component.RotateWithCamera = true
+	component.AngleY = angleY
+	return component
+}
+
+func energyDrainProjectileEffectSpec(tint color.RGBA, sizeStart, sizeEnd float64) EffectSpec {
+	return EffectSpec{
+		Duration: 600 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponent3D,
+			SpriteFile:     "data/sprite/이팩트/particle1",
+			SpriteRepeat:   true,
+			Duration:       600 * time.Millisecond,
+			Duplicate:      5,
+			FromSrc:        true,
+			ToSrc:          true,
+			RotateToTarget: true,
+			Color:          tint,
+			SizeStart:      effectTableSize(sizeStart),
+			SizeEnd:        effectTableSize(sizeEnd),
+			PosZ:           5,
+			Arc:            3,
+			Retreat:        3,
+		}},
+	}
+}
+
+func transBlueBodyEffectSpec() EffectSpec {
+	return funcEffectSpec("TransBlueBody", 900*time.Millisecond, true)
+}
+
+func magicCrasherEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:         time.Second,
+		CameraShake:      200 * time.Millisecond,
+		CameraShakeDelay: 300 * time.Millisecond,
+		SFX:              []string{"effect\\매직 크래쉬.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "MagicCrasherBodyColor",
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "CameraQuake",
+				Delay:          300 * time.Millisecond,
+				AttachedEntity: true,
+			},
+		},
+	}
+}
+
+func falconAssaultEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:         500 * time.Millisecond,
+		CameraShake:      200 * time.Millisecond,
+		CameraShakeDelay: 300 * time.Millisecond,
+		SFX:              []string{"effect\\hunter_blitzbeat.wav"},
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "CameraQuake",
+			Delay:          300 * time.Millisecond,
+			AttachedEntity: true,
+		}},
+	}
+}
+
+func moonlitEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 20 * time.Second,
+		SFX:      []string{"effect\\달빛세레나데.wav"},
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "FlatColorTile",
+			Color:          color.RGBA{R: 255, G: 138, B: 187, A: 153},
+			SizeStart:      1,
+			AttachedEntity: false,
+		}},
 	}
 }
 
@@ -2148,29 +2404,10 @@ var EffectSpecs = map[int]EffectSpec{
 	effectTorchPurple: coloredTorchEffectSpec(color.RGBA{R: 190, G: 120, B: 255, A: 255}),
 	effectBubble:      strEffectSpecRandom("bubble%d", "", 1, 4),
 	effectDragonSmoke: {
-		Duration: 10 * time.Second,
 		Components: []EffectComponent{{
-			Kind:           EffectComponent3D,
+			Kind:           EffectComponentSPR,
 			SpriteFile:     "poisonhit",
-			SpriteRepeat:   true,
-			Duration:       1100 * time.Millisecond,
-			Duplicate:      9,
-			DuplicateDelay: 280 * time.Millisecond,
-			AlphaMax:       0.48,
-			FadeIn:         true,
-			FadeOut:        true,
-			PosZ:           0.2,
-			PosZEnd:        2.6,
-			PosXEndRand:    0.8,
-			PosYEndRand:    0.8,
-			PosXSmooth:     true,
-			PosYSmooth:     true,
-			PosZSmooth:     true,
-			SizeStart:      effectTableSize(90),
-			SizeEnd:        effectTableSize(260),
-			SizeSmooth:     true,
-			BlendAdditive:  true,
-			Color:          color.RGBA{R: 210, G: 210, B: 210, A: 255},
+			AttachedEntity: true,
 		}},
 	},
 	effectBanjjakii: banjjakiiEffectSpec(),
@@ -3425,8 +3662,9 @@ var EffectSpecs = map[int]EffectSpec{
 		Duration: 1300 * time.Millisecond,
 		SFX:      []string{"levelup.wav"},
 		Components: []EffectComponent{{
-			Kind:    EffectComponentSTR,
-			STRFile: "angel",
+			Kind:           EffectComponentSTR,
+			STRFile:        "angel",
+			AttachedEntity: true,
 		}},
 	},
 	effectJobLevelUp: {
@@ -3578,6 +3816,43 @@ var EffectSpecs = map[int]EffectSpec{
 	effectMagnum2:      magnum2EffectSpec(),
 	effectEntry2:       entry2EffectSpec(),
 	effectColorPaper:   soundOnlyEffectSpec("effect\\wedding.wav"),
+	effectSoulBreaker:  soulBreakerEffectSpec(),
+	effectLevel99Aura1: level99BubbleEffectSpec(),
+	effectFoodChocolate: sprEffectSpec(
+		"vallentine",
+		"effect\\vallentine.wav",
+		true,
+		false,
+	),
+	effectPressure:          pressureEffectSpec(),
+	effectBash3D:            bash3DEffectSpec("Bash3D", "effect\\bash3d.wav", 500*time.Millisecond, 200*time.Millisecond, 5),
+	effectAuraBlade:         soundOnlyEffectSpec("effect\\오라 블레이드.wav"),
+	effectRedBody:           soundOnlyEffectSpec("effect\\버서크.wav"),
+	effectLKConcentration:   strEffectSpecAttached("twohand", "effect\\knight_twohandquicken.wav", true),
+	effectBottomGospel:      soundOnlyEffectSpec("effect\\가스펠.wav"),
+	effectDeath:             strEffectSpecAttached("devil", "", false),
+	effectBottomBasilica:    basilicaEffectSpec(),
+	effectHitLine2:          soundOnlyEffectSpec("effect\\맹호경파산.wav"),
+	effectBash3D2:           bash3DEffectSpec("Bash3D2", "effect\\mon_폭기.wav", 400*time.Millisecond, 50*time.Millisecond, 8),
+	effectEnergyDrain2:      energyDrainProjectileEffectSpec(color.RGBA{R: 204, G: 204, B: 255, A: 255}, 160, 190),
+	effectTransBlueBody:     transBlueBodyEffectSpec(),
+	effectMagicCrasher:      magicCrasherEffectSpec(),
+	effectLightBlade:        sprEffectSpec("한복천사", "", true, true),
+	effectEnergyDrain3:      energyDrainProjectileEffectSpec(color.RGBA{R: 178, G: 255, B: 178, A: 255}, 140, 170),
+	effectLineLink2:         soundOnlyEffectSpec("effect\\소울 체인지.wav"),
+	effectTrueSight:         soundOnlyEffectSpec("effect\\hunter_detecting.wav"),
+	effectFalconAssault:     falconAssaultEffectSpec(),
+	effectTripleAttack2:     soundOnlyEffectSpec("effect\\샤프슈팅.wav"),
+	effectPortal4:           soundOnlyEffectSpec("effect\\윈드워크.wav"),
+	effectMeltdown:          strEffectSpecAttached("melt", "", false),
+	effectCartBoost:         strEffectSpecAttached("cart", "effect\\ef_incagility.wav", false),
+	effectRejectSword:       strEffectSpecAttached("sword", "effect\\kyrie_guard.wav", false),
+	effectTripleAttack3:     soundOnlyEffectSpec("effect\\애로우 발칸.wav"),
+	effectMoonlit:           moonlitEffectSpec(),
+	effectLevel99AuraMid:    level99EffectSpec(),
+	effectLevel99AuraBottom: level99GroundEffectSpec(),
+	effectBash3D3:           bash3DEffectSpec("Bash3D3", "effect\\헤드 크러쉬.wav", 675*time.Millisecond, 500*time.Millisecond, 6),
+	effectBash3D4:           bash3DEffectSpec("Bash3D4", "effect\\비트 조인트.wav", 675*time.Millisecond, 500*time.Millisecond, 6),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

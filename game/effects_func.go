@@ -22,6 +22,7 @@ const (
 	effectFuncPropertyGround
 	effectFuncLandProtectorGround
 	effectFuncSpiritSphere
+	effectFuncFlatColorTile
 )
 
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
@@ -44,6 +45,8 @@ func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, pro
 		m.drawLandProtectorGroundEffect(screen, ctx, component, effect, worldX, worldY, worldZ, now)
 	case effectFuncSpiritSphere:
 		m.drawSpiritSphereEffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
+	case effectFuncFlatColorTile:
+		m.drawFlatColorTileEffect(screen, component, worldX, worldY, worldZ)
 	default:
 	}
 }
@@ -368,6 +371,18 @@ func (m *WorldMode) drawLandProtectorGroundEffect(screen *render.Frame, ctx clie
 		size = 0.8
 	}
 	drawGroundTextureQuad(screen, texture, x, y, z+component.posZ, size, size, 0, color.RGBA{R: 255, G: 255, B: 255, A: 255}, true)
+}
+
+func (m *WorldMode) drawFlatColorTileEffect(screen *render.Frame, component worldEffectComponent, x, y, z float64) {
+	size := component.sizeStart
+	if size <= 0 {
+		size = 1
+	}
+	tint := component.color
+	if tint.A == 0 {
+		tint.A = 128
+	}
+	drawGroundTextureQuad(screen, m.whitePixel, x, y, z+component.posZ+0.02, size, size, 0, tint, false)
 }
 
 func (m *WorldMode) drawSpiritSphereEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {
