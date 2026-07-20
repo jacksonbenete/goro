@@ -574,6 +574,16 @@ const (
 	effectBash3D6          = 885
 	effectElectric4        = 888
 	effectTeiHit1T         = 889
+	effectPressure2        = 906
+	effectPrimeCharge2     = 908
+	effectPrimeCharge3     = 909
+	effectPrimeCharge4     = 910
+	effectFireWall2        = 920
+	effectSprPlant10       = 922
+	effectShockwave2       = 926
+	effectColdThrow2       = 928
+	effectDemonicFire4     = 929
+	effectPressure3        = 930
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -1832,6 +1842,52 @@ func pressureEffectSpec() EffectSpec {
 			},
 		},
 	}
+}
+
+func pressureDropEffectSpec(textureFile, delayedSFX string) EffectSpec {
+	spec := EffectSpec{
+		Duration: 1001 * time.Millisecond,
+		SFX:      []string{"effect\\프레셔.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    textureFile,
+				Duration:       500 * time.Millisecond,
+				AlphaMax:       0.6,
+				BlendMode:      2,
+				BlendAdditive:  true,
+				Rotate:         true,
+				AngleStart:     0,
+				AngleEnd:       -611,
+				PosZ:           20,
+				PosZEnd:        5,
+				SizeStart:      effectTableSize(100),
+				SizeEnd:        effectTableSize(100),
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponent3D,
+				TextureFile:    textureFile,
+				Duration:       500 * time.Millisecond,
+				Delay:          501 * time.Millisecond,
+				AlphaMax:       0.6,
+				BlendMode:      2,
+				BlendAdditive:  true,
+				FadeOut:        true,
+				AngleStart:     -611,
+				AngleEnd:       -611,
+				PosZ:           5,
+				SizeStart:      effectTableSize(100),
+				SizeEnd:        effectTableSize(100),
+				AttachedEntity: true,
+			},
+		},
+	}
+	if delayedSFX != "" {
+		spec.SFX = append(spec.SFX, delayedSFX)
+		spec.SFXDelays = []time.Duration{0, 500 * time.Millisecond}
+	}
+	return spec
 }
 
 func bash3DEffectSpec(funcName, wav string, duration, delay time.Duration, duplicate int) EffectSpec {
@@ -4916,6 +4972,16 @@ var EffectSpecs = map[int]EffectSpec{
 	effectBash3D6:           bash3D6EffectSpec(),
 	effectElectric4:         soundOnlyEffectSpec("effect\\sr_earthshaker.wav"),
 	effectTeiHit1T:          teiHit1TEffectSpec(),
+	effectPressure2:         pressureDropEffectSpec("effect/shield.bmp", "effect\\lg_shieldpress.wav"),
+	effectPrimeCharge2:      soundOnlyEffectSpec("effect\\lg_prestige.wav"),
+	effectPrimeCharge3:      soundOnlyEffectSpec("effect\\lg_banding.wav"),
+	effectPrimeCharge4:      soundOnlyEffectSpec("effect\\lg_inspiration.wav"),
+	effectFireWall2:         strEffectSpecAttached("firewall_per", "", false),
+	effectSprPlant10:        soundOnlyEffectSpec("effect\\s사이킥웨이브.wav"),
+	effectShockwave2:        strEffectSpecAttached("hunter_shockwave_blue", "", false),
+	effectColdThrow2:        soundOnlyEffectSpec("effect\\wl_jackfrost.wav"),
+	effectDemonicFire4:      soundOnlyEffectSpec("effect\\s워머.wav"),
+	effectPressure3:         pressureDropEffectSpec("effect/cross1.bmp", ""),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

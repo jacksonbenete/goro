@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 546 {
-		t.Fatalf("implemented effects = %d, want 546", coverage.Implemented)
+	if coverage.Implemented != 556 {
+		t.Fatalf("implemented effects = %d, want 556", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 89.9 || coverage.ActivePercent > 90.0 {
-		t.Fatalf("active coverage = %.3f, want about 90.0", coverage.ActivePercent)
+	if coverage.ActivePercent < 91.5 || coverage.ActivePercent > 91.7 {
+		t.Fatalf("active coverage = %.3f, want about 91.6", coverage.ActivePercent)
 	}
 }
 
@@ -3434,6 +3434,26 @@ func TestRobrowserActiveEffectsEightFiftyToNineHundredHaveSpecs(t *testing.T) {
 		effectBash3D6:      "EF_BASH3D6",
 		effectElectric4:    "EF_ELECTRIC4",
 		effectTeiHit1T:     "EF_TEIHIT1T",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserActiveEffectsNineHundredToNineFiftyHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectPressure2:    "EF_PRESSURE2",
+		effectPrimeCharge2: "EF_PRIMECHARGE2",
+		effectPrimeCharge3: "EF_PRIMECHARGE3",
+		effectPrimeCharge4: "EF_PRIMECHARGE4",
+		effectFireWall2:    "EF_FIREWALL2",
+		effectSprPlant10:   "EF_SPR_PLANT10",
+		effectShockwave2:   "EF_SHOCKWAVE2",
+		effectColdThrow2:   "EF_COLDTHROW2",
+		effectDemonicFire4: "EF_DEMONICFIRE4",
+		effectPressure3:    "EF_PRESSURE3",
 	}
 	for id, name := range active {
 		if _, ok := worldEffectSpecForID(id); !ok {
@@ -5466,6 +5486,76 @@ func TestRobrowserEffectsEightFiftyToNineHundredMatchTableRows(t *testing.T) {
 	}
 }
 
+func TestRobrowserEffectsNineHundredToNineFiftyMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		id   int
+		wav  string
+	}{
+		{"EF_PRIMECHARGE2", effectPrimeCharge2, "effect\\lg_prestige.wav"},
+		{"EF_PRIMECHARGE3", effectPrimeCharge3, "effect\\lg_banding.wav"},
+		{"EF_PRIMECHARGE4", effectPrimeCharge4, "effect\\lg_inspiration.wav"},
+		{"EF_SPR_PLANT10", effectSprPlant10, "effect\\s사이킥웨이브.wav"},
+		{"EF_COLDTHROW2", effectColdThrow2, "effect\\wl_jackfrost.wav"},
+		{"EF_DEMONICFIRE4", effectDemonicFire4, "effect\\s워머.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 500*time.Millisecond || len(spec.components) != 0 {
+			t.Fatalf("%s spec = %+v ok=%t, want sound-only 500ms", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %#v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		file string
+	}{
+		{"EF_FIREWALL2", effectFireWall2, "firewall_per"},
+		{"EF_SHOCKWAVE2", effectShockwave2, "hunter_shockwave_blue"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 || len(spec.sfx) != 0 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component and no sound", tc.name, spec, ok)
+		}
+		if component := spec.components[0]; component.kind != effectComponentSTR || component.strFile != tc.file || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+
+	for _, tc := range []struct {
+		name    string
+		id      int
+		texture string
+		sfx     []string
+		delays  []time.Duration
+	}{
+		{"EF_PRESSURE2", effectPressure2, "effect/shield.bmp", []string{"effect\\프레셔.wav", "effect\\lg_shieldpress.wav"}, []time.Duration{0, 500 * time.Millisecond}},
+		{"EF_PRESSURE3", effectPressure3, "effect/cross1.bmp", []string{"effect\\프레셔.wav"}, nil},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 1001*time.Millisecond || len(spec.components) != 2 {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		if spec.cameraShake != 0 || spec.cameraShakeDelay != 0 {
+			t.Fatalf("%s camera shake = %s delay %s, want none", tc.name, spec.cameraShake, spec.cameraShakeDelay)
+		}
+		if !reflect.DeepEqual(spec.sfx, tc.sfx) || !reflect.DeepEqual(spec.sfxDelays, tc.delays) {
+			t.Fatalf("%s sfx = %#v delays %#v", tc.name, spec.sfx, spec.sfxDelays)
+		}
+
+		first, second := spec.components[0], spec.components[1]
+		if first.kind != effectComponent3D || first.textureFile != tc.texture || first.duration != 500*time.Millisecond || first.alphaMax != 0.6 || first.blendMode != 2 || !first.blendAdditive || !first.rotate || first.angleStart != 0 || first.angleEnd != -611 || first.posZ != 20 || first.posZEnd != 5 || first.sizeStart != effectTableSize(100) || first.sizeEnd != effectTableSize(100) || !first.attachedEntity {
+			t.Fatalf("%s first component = %+v", tc.name, first)
+		}
+		if second.kind != effectComponent3D || second.textureFile != tc.texture || second.duration != 500*time.Millisecond || second.delay != 501*time.Millisecond || second.alphaMax != 0.6 || second.blendMode != 2 || !second.blendAdditive || !second.fadeOut || second.angleStart != -611 || second.angleEnd != -611 || second.posZ != 5 || second.sizeStart != effectTableSize(100) || second.sizeEnd != effectTableSize(100) || !second.attachedEntity {
+			t.Fatalf("%s second component = %+v", tc.name, second)
+		}
+	}
+}
+
 func TestRobrowserRepairWeaponAndShockwaveSpecs(t *testing.T) {
 	repair, ok := worldEffectSpecForID(effectRepairWeapon)
 	if !ok || len(repair.components) != 1 || repair.duration != 1820*time.Millisecond {
@@ -6894,6 +6984,16 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "SC_CHAOSPANIC imported ground", skillGroundEffectIDs(db.SkillSCChaospanic), effectBottomAni)
 	expectEffectIDs(t, "SC_MAELSTROM imported ground", skillGroundEffectIDs(db.SkillSCMaelstrom), effectBottomMaelstrom)
 	expectEffectIDs(t, "SC_BLOODYLUST imported ground", skillGroundEffectIDs(db.SkillSCBloodylust), effectBottomBloodyLust)
+	expectEffectIDs(t, "LG_SHIELDPRESS imported before hit", skillBeforeHitEffectIDs(db.SkillLGShieldpress), effectPressure2)
+	expectEffectIDs(t, "LG_PRESTIGE imported", skillEffectIDs(db.SkillLGPrestige), effectPrimeCharge2)
+	expectEffectIDs(t, "LG_BANDING imported", skillEffectIDs(db.SkillLGBanding), effectPrimeCharge3)
+	expectEffectIDs(t, "LG_INSPIRATION imported", skillEffectIDs(db.SkillLGInspiration), effectPrimeCharge4)
+	expectEffectIDs(t, "SO_FIREWALK imported ground", skillGroundEffectIDs(db.SkillSOFirewalk), effectFireWall2)
+	expectEffectIDs(t, "SO_ELECTRICWALK imported ground", skillGroundEffectIDs(db.SkillSOElectricwalk), effectShockwave2)
+	expectEffectIDs(t, "SO_DIAMONDDUST imported", skillEffectIDs(db.SkillSODiamonddust), effectColdThrow2)
+	expectEffectIDs(t, "SO_PSYCHIC_WAVE imported", skillEffectIDs(db.SkillSOPsychicWave), effectSprPlant10)
+	expectEffectIDs(t, "SO_WARMER imported", skillEffectIDs(db.SkillSOWarmer), effectDemonicFire4)
+	expectEffectIDs(t, "SO_VARETYR_SPEAR imported before hit", skillBeforeHitEffectIDs(db.SkillSOVaretyrSpear), effectPressure3)
 	expectEffectIDs(t, "WM_REVERBERATION imported ground", skillGroundEffectIDs(db.SkillWmReverberation), effectBotReverb)
 	expectEffectIDs(t, "WM_REVERBERATION_MELEE imported", skillEffectIDs(db.SkillWmReverberationMelee), effectBotReverb2)
 	expectEffectIDs(t, "WM_SEVERE_RAINSTORM imported", skillEffectIDs(db.SkillWmSevereRainstorm), effectRainParticle)
@@ -7141,6 +7241,8 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_MAELSTROM", skillUnitEffectIDs(207), effectBottomMaelstrom)
 	expectEffectIDs(t, "UNT_BLOODYLUST", skillUnitEffectIDs(208), effectBottomBloodyLust)
 	expectEffectIDs(t, "UNT_REVERBERATION", skillUnitEffectIDs(218), effectBotReverb)
+	expectEffectIDs(t, "UNT_FIREWALK", skillUnitEffectIDs(220), effectFireWall2)
+	expectEffectIDs(t, "UNT_ELECTRICWALK", skillUnitEffectIDs(221), effectShockwave2)
 	expectEffectIDs(t, "UNT_NETHERWORLD", skillUnitEffectIDs(222), effectBotReverb2)
 }
 

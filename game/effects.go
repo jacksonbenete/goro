@@ -582,6 +582,16 @@ const (
 	effectBash3D6          = 885
 	effectElectric4        = 888
 	effectTeiHit1T         = 889
+	effectPressure2        = 906
+	effectPrimeCharge2     = 908
+	effectPrimeCharge3     = 909
+	effectPrimeCharge4     = 910
+	effectFireWall2        = 920
+	effectSprPlant10       = 922
+	effectShockwave2       = 926
+	effectColdThrow2       = 928
+	effectDemonicFire4     = 929
+	effectPressure3        = 930
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1733,6 +1743,8 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	207: {effectIDs: []int{effectBottomMaelstrom}},  // UNT_MAELSTROM -> EF_BOTTOM_MAELSTROM
 	208: {effectIDs: []int{effectBottomBloodyLust}}, // UNT_BLOODYLUST -> EF_BOTTOM_BLOODYLUST
 	218: {effectIDs: []int{effectBotReverb}},        // UNT_REVERBERATION -> EF_BOT_REVERB
+	220: {effectIDs: []int{effectFireWall2}},        // UNT_FIREWALK -> EF_FIREWALL2
+	221: {effectIDs: []int{effectShockwave2}},       // UNT_ELECTRICWALK -> EF_SHOCKWAVE2
 	222: {effectIDs: []int{effectBotReverb2}},       // UNT_NETHERWORLD -> EF_BOT_REVERB2
 }
 
