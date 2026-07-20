@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 248 {
-		t.Fatalf("implemented effects = %d, want 248", coverage.Implemented)
+	if coverage.Implemented != 291 {
+		t.Fatalf("implemented effects = %d, want 291", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 40.8 || coverage.ActivePercent > 40.9 {
-		t.Fatalf("active coverage = %.3f, want about 40.8", coverage.ActivePercent)
+	if coverage.ActivePercent < 47.9 || coverage.ActivePercent > 48.0 {
+		t.Fatalf("active coverage = %.3f, want about 47.9", coverage.ActivePercent)
 	}
 }
 
@@ -2996,6 +2996,293 @@ func TestRobrowserSpecialEffectsTwoHundredToTwoFiftyMatchTableRows(t *testing.T)
 		if component.kind != effectComponentFUNC || component.funcName != "PropertyGround" || component.funcAdapter != effectFuncPropertyGround || component.textureName != tc.texture || component.topSize != 3 || component.bottomSize != 1 || component.height != 2 || !component.repeat {
 			t.Fatalf("%s component = %+v", tc.name, component)
 		}
+	}
+}
+
+func TestRobrowserActiveEffectsTwoFiftyToThreeHundredHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectSpearQuicken:   "EF_SPEARQUICKEN",
+		effectDevotion:       "EF_DEVOTION",
+		effectReflectShield:  "EF_REFLECTSHIELD",
+		effectAbsorbSpirits:  "EF_ABSORBSPIRITS",
+		effectSteelBody:      "EF_STEELBODY",
+		effectFlameLauncher:  "EF_FLAMELAUNCHER",
+		effectFrostWeapon:    "EF_FROSTWEAPON",
+		effectLightningLoad:  "EF_LIGHTNINGLOADER",
+		effectSeismicWeapon:  "EF_SEISMICWEAPON",
+		effectGumgang2:       "EF_GUMGANG2",
+		effectTeiHit1:        "EF_TEIHIT1",
+		effectGumgang3:       "EF_GUMGANG3",
+		effectTanji:          "EF_TANJI",
+		effectTeiHit1X:       "EF_TEIHIT1X",
+		effectChimto:         "EF_CHIMTO",
+		effectStealCoin:      "EF_STEALCOIN",
+		effectStripWeapon:    "EF_STRIPWEAPON",
+		effectStripShield:    "EF_STRIPSHIELD",
+		effectStripArmor:     "EF_STRIPARMOR",
+		effectStripHelm:      "EF_STRIPHELM",
+		effectChainCombo:     "EF_CHAINCOMBO",
+		effectRogueCoin:      "EF_RG_COIN",
+		effectBackStab:       "EF_BACKSTAP",
+		effectTeiHit3:        "EF_TEIHIT3",
+		effectBottomLullaby:  "EF_BOTTOM_LULLABY",
+		effectBottomRichKim:  "EF_BOTTOM_RICHMANKIM",
+		effectBottomChaos:    "EF_BOTTOM_ETERNALCHAOS",
+		effectBottomDrum:     "EF_BOTTOM_DRUMBATTLEFIELD",
+		effectBottomNibelung: "EF_BOTTOM_RINGNIBELUNGEN",
+		effectBottomRoki:     "EF_BOTTOM_ROKISWEIL",
+		effectBottomAbyss:    "EF_BOTTOM_INTOABYSS",
+		effectBottomSieg:     "EF_BOTTOM_SIEGFRIED",
+		effectBottomWhistle:  "EF_BOTTOM_WHISTLE",
+		effectBottomSinX:     "EF_BOTTOM_ASSASSINCROSS",
+		effectBottomBragi:    "EF_BOTTOM_POEMBRAGI",
+		effectBottomApple:    "EF_BOTTOM_APPLEIDUN",
+		effectBottomHumming:  "EF_BOTTOM_HUMMING",
+		effectBottomForget:   "EF_BOTTOM_DONTFORGETME",
+		effectBottomFortune:  "EF_BOTTOM_FORTUNEKISS",
+		effectBottomService:  "EF_BOTTOM_SERVICEFORYOU",
+		effectTalkFrostJoke:  "EF_TALK_FROSTJOKE",
+		effectTalkScream:     "EF_TALK_SCREAM",
+		effectPokJuk:         "EF_POKJUK",
+		effectThrowItem:      "EF_THROWITEM",
+		effectChemicalProt:   "EF_CHEMICALPROTECTION",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserSimpleEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		id       int
+		file     string
+		wav      string
+		attached bool
+		head     bool
+	}{
+		{"EF_DEVOTION", effectDevotion, "devotion", "", true, false},
+		{"EF_FLAMELAUNCHER", effectFlameLauncher, "enc_fire", "_enemy_hit_wind1.wav", true, false},
+		{"EF_FROSTWEAPON", effectFrostWeapon, "enc_ice", "_enemy_hit_wind1.wav", true, false},
+		{"EF_LIGHTNINGLOADER", effectLightningLoad, "enc_wind", "effect\\_enemy_hit_wind1.wav", true, false},
+		{"EF_SEISMICWEAPON", effectSeismicWeapon, "enc_earth", "_enemy_hit_wind1.wav", true, false},
+		{"EF_STEALCOIN", effectStealCoin, "steal_coin", "", true, false},
+		{"EF_STRIPWEAPON", effectStripWeapon, "strip_weapon", "effect\\t_벗김.wav", true, false},
+		{"EF_STRIPSHIELD", effectStripShield, "strip_shield", "effect\\t_벗김.wav", true, false},
+		{"EF_STRIPARMOR", effectStripArmor, "strip_armor", "effect\\t_벗김.wav", true, false},
+		{"EF_STRIPHELM", effectStripHelm, "strip_helm", "effect\\t_벗김.wav", true, false},
+		{"EF_CHAINCOMBO", effectChainCombo, "연환", "effect\\mon_연환.wav", true, false},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.attachedEntity != tc.attached || component.spriteHead != tc.head {
+			t.Fatalf("%s component = %+v, want STR %q attached=%t head=%t", tc.name, component, tc.file, tc.attached, tc.head)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		wav  string
+	}{
+		{"EF_STEELBODY", effectSteelBody, "effect\\mon_금강불괴.wav"},
+		{"EF_CHIMTO", effectChimto, "effect\\mon_침투경.wav"},
+		{"EF_BACKSTAP", effectBackStab, "effect\\rog_back stap.wav"},
+		{"EF_BOTTOM_LULLABY", effectBottomLullaby, "effect\\자장가.wav"},
+		{"EF_BOTTOM_RICHMANKIM", effectBottomRichKim, "effect\\김서방돈.wav"},
+		{"EF_BOTTOM_ETERNALCHAOS", effectBottomChaos, "effect\\영원의 혼돈.wav"},
+		{"EF_BOTTOM_DRUMBATTLEFIELD", effectBottomDrum, "effect\\전장의.wav"},
+		{"EF_BOTTOM_RINGNIBELUNGEN", effectBottomNibelung, "effect\\니벨룽겐의 반지.wav"},
+		{"EF_BOTTOM_ROKISWEIL", effectBottomRoki, "effect\\로키.wav"},
+		{"EF_BOTTOM_INTOABYSS", effectBottomAbyss, "effect\\심연속으로.wav"},
+		{"EF_BOTTOM_SIEGFRIED", effectBottomSieg, "effect\\불사신.wav"},
+		{"EF_BOTTOM_WHISTLE", effectBottomWhistle, "effect\\달빛세레나데.wav"},
+		{"EF_BOTTOM_ASSASSINCROSS", effectBottomSinX, "effect\\석양의 어쌔신.wav"},
+		{"EF_BOTTOM_POEMBRAGI", effectBottomBragi, "effect\\브라기의 시.wav"},
+		{"EF_BOTTOM_APPLEIDUN", effectBottomApple, "effect\\이둔의 사과.wav"},
+		{"EF_BOTTOM_HUMMING", effectBottomHumming, "effect\\흥얼거림.wav"},
+		{"EF_BOTTOM_DONTFORGETME", effectBottomForget, "effect\\나를잊지말아요.wav"},
+		{"EF_BOTTOM_FORTUNEKISS", effectBottomFortune, "effect\\행운의.wav"},
+		{"EF_BOTTOM_SERVICEFORYOU", effectBottomService, "effect\\당신을 위한 서비스.wav"},
+		{"EF_CHEMICALPROTECTION", effectChemicalProt, "apocalips_attack.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 0 || spec.duration != 500*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t, want sound-only 500ms", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+}
+
+func TestRobrowserSpecialEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.T) {
+	reflectShield, ok := worldEffectSpecForID(effectReflectShield)
+	if !ok || len(reflectShield.components) != 1 || reflectShield.duration != 3*time.Second {
+		t.Fatalf("EF_REFLECTSHIELD spec = %+v ok=%t", reflectShield, ok)
+	}
+	if component := reflectShield.components[0]; component.kind != effectComponentCylinder || component.textureName != "ring_yellow" || component.duration != 3*time.Second || component.alphaMax != 0.6 || component.animation != 1 || component.blendMode != 8 || component.bottomSize != 1.5 || component.topSize != 1.5 || component.height != 10 || !component.rotate || !component.fade || !component.attachedEntity {
+		t.Fatalf("EF_REFLECTSHIELD component = %+v", component)
+	}
+
+	absorb, ok := worldEffectSpecForID(effectAbsorbSpirits)
+	if !ok || len(absorb.components) != 6 || absorb.duration != 1890*time.Millisecond {
+		t.Fatalf("EF_ABSORBSPIRITS spec = %+v ok=%t", absorb, ok)
+	}
+	if len(absorb.sfx) != 1 || absorb.sfx[0] != "effect\\흡기.wav" {
+		t.Fatalf("EF_ABSORBSPIRITS sfx = %v", absorb.sfx)
+	}
+	first, second, third := absorb.components[0], absorb.components[1], absorb.components[2]
+	for i, component := range []worldEffectComponent{first, second, third} {
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 1500*time.Millisecond || component.alphaMax != 0.3 || component.animation != 1 || component.blendMode != 2 || !component.blendAdditive || !component.fade || !component.rotate || !component.attachedEntity {
+			t.Fatalf("EF_ABSORBSPIRITS cylinder %d = %+v", i, component)
+		}
+		if component.color.R != 77 || component.color.G != 77 || component.color.B != 255 {
+			t.Fatalf("EF_ABSORBSPIRITS cylinder %d color = %+v", i, component.color)
+		}
+	}
+	if first.bottomSize != 1.1 || first.topSize != 1.1 || first.height != 15 || second.bottomSize != 1 || second.topSize != 1 || second.height != 13 || third.bottomSize != 1.1 || third.topSize != 3 || third.height != 2 {
+		t.Fatalf("EF_ABSORBSPIRITS cylinder sizes = %+v %+v %+v", first, second, third)
+	}
+	sparkA, sparkB, sparkC := absorb.components[3], absorb.components[4], absorb.components[5]
+	if sparkA.kind != effectComponent3D || sparkA.textureFile != "effect/pok3.tga" || sparkA.duration != 1500*time.Millisecond || sparkA.duplicate != 4 || sparkA.duplicateDelay != 10*time.Millisecond || sparkA.posXRand != 1.2 || sparkA.posYRand != 1.2 || sparkA.posZEndRand != 1 || sparkA.posZEndMiddle != 8 || !sparkA.sparkling || sparkA.sparkNumber != 2 {
+		t.Fatalf("EF_ABSORBSPIRITS first particle = %+v", sparkA)
+	}
+	if sparkB.duration != 1300*time.Millisecond || sparkB.delay != 400*time.Millisecond || sparkB.duplicate != 20 || sparkB.posXRand != 1.5 || sparkB.posYRand != 1.5 || sparkB.posZEndRand != 3 || sparkB.posZEndMiddle != 6 || !sparkB.sparkling || sparkB.sparkNumber != 2 {
+		t.Fatalf("EF_ABSORBSPIRITS second particle = %+v", sparkB)
+	}
+	if sparkC.duration != 1100*time.Millisecond || sparkC.delay != 200*time.Millisecond || sparkC.duplicate != 10 || sparkC.duplicateDelay != 50*time.Millisecond || sparkC.posXRand != 1 || sparkC.posYRand != 1 || sparkC.posZEnd != 6 || sparkC.posZStartRand != 1 || sparkC.sparkling {
+		t.Fatalf("EF_ABSORBSPIRITS third particle = %+v", sparkC)
+	}
+
+	for _, tc := range []struct {
+		name     string
+		id       int
+		duration time.Duration
+		alpha    float64
+		bottom   float64
+		top      float64
+		wav      string
+	}{
+		{"EF_GUMGANG2", effectGumgang2, 1500 * time.Millisecond, 0.5, 2, 5, "effect\\mon_폭기.wav"},
+		{"EF_GUMGANG3", effectGumgang3, 1000 * time.Millisecond, 0.3, 3, 6, ""},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 || spec.duration != tc.duration+300*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentCylinder || component.textureName != "ring_yellow" || component.duration != tc.duration || component.alphaMax != tc.alpha || component.animation != 4 || component.blendMode != 8 || component.blendAdditive || component.duplicate != 4 || component.duplicateDelay != 100*time.Millisecond || component.bottomSize != tc.bottom || component.topSize != tc.top || component.height != 2 || !component.fade || !component.rotate || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	for _, tc := range []struct {
+		name      string
+		id        int
+		texture   string
+		wav       string
+		duplicate int
+		delay     time.Duration
+		blueRaid  bool
+	}{
+		{"EF_TEIHIT1", effectTeiHit1, "effect/alpha_center.tga", "effect\\mon_폭기.wav", 12, 250 * time.Millisecond, false},
+		{"EF_TEIHIT1X", effectTeiHit1X, "effect/lens1.tga", "effect\\mon_아수라 패황권.wav", 24, 100 * time.Millisecond, false},
+		{"EF_TEIHIT3", effectTeiHit3, "effect/lens1.tga", "", 20, 100 * time.Millisecond, true},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 || spec.duration != 550*time.Millisecond+tc.delay {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponent3D || component.textureFile != tc.texture || component.duration != 550*time.Millisecond || component.delay != tc.delay || component.duplicate != tc.duplicate || component.alphaMax != 0.8 || !component.fadeIn || !component.fadeOut || component.posXEndRand != 40 || component.posYEndRand != 40 || component.sizeStartX != effectTableSize(10) || component.sizeStartY != effectTableSize(150) || component.sizeEndX != effectTableSize(10) || component.sizeEndY != effectTableSize(150) || component.blendMode != 2 || !component.blendAdditive || !component.attachedEntity || !component.overlay || !component.rotateToTarget || !component.rotateWithCamera {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+		if tc.blueRaid {
+			if component.color.R != 26 || component.color.G != 26 || component.color.B != 255 {
+				t.Fatalf("%s color = %+v", tc.name, component.color)
+			}
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	tanji, ok := worldEffectSpecForID(effectTanji)
+	if !ok || len(tanji.components) != 1 || tanji.duration != 150*time.Millisecond {
+		t.Fatalf("EF_TANJI spec = %+v ok=%t", tanji, ok)
+	}
+	if len(tanji.sfx) != 1 || tanji.sfx[0] != "effect\\mon_탄지신통.wav" {
+		t.Fatalf("EF_TANJI sfx = %v", tanji.sfx)
+	}
+	if component := tanji.components[0]; component.kind != effectComponent3D || component.textureFile != "effect/blue_ivy.bmp" || component.duration != 150*time.Millisecond || component.alphaMax != 1 || component.blendMode != 2 || !component.blendAdditive || !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || component.angleStart != 90 || component.angleEnd != 90 || component.posZ != 1 || component.sizeStart != effectTableSize(50) || !component.attachedEntity {
+		t.Fatalf("EF_TANJI component = %+v", component)
+	}
+
+	coin, ok := worldEffectSpecForID(effectRogueCoin)
+	if !ok || len(coin.components) != 1 || coin.duration != 2950*time.Millisecond {
+		t.Fatalf("EF_RG_COIN spec = %+v ok=%t", coin, ok)
+	}
+	if len(coin.sfx) != 1 || coin.sfx[0] != "effect\\rog_steal coin.wav" {
+		t.Fatalf("EF_RG_COIN sfx = %v", coin.sfx)
+	}
+	if component := coin.components[0]; component.kind != effectComponent2D || component.textureFile != "effect/coin_a.bmp" || component.duration != 1500*time.Millisecond || component.duplicate != 30 || component.duplicateDelay != 50*time.Millisecond || component.alphaMax != 0.8 || !component.fadeOut || component.posXEndRand != 10 || component.posYEndRand != 10 || component.posZ != 2 || component.sizeStart != effectTableSize(20) || component.blendMode != 2 || !component.blendAdditive || !component.overlay || !component.rotateToTarget || !component.attachedEntity {
+		t.Fatalf("EF_RG_COIN component = %+v", component)
+	}
+
+	for _, tc := range []struct {
+		name     string
+		id       int
+		funcName string
+	}{
+		{"EF_TALK_FROSTJOKE", effectTalkFrostJoke, "FrostJokeTalk"},
+		{"EF_TALK_SCREAM", effectTalkScream, "ScreamTalk"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 || spec.duration != 500*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentFUNC || component.funcName != tc.funcName || component.funcAdapter != effectFuncUnknown || !component.attachedEntity {
+			t.Fatalf("%s component = %+v", tc.name, component)
+		}
+	}
+
+	throwItem, ok := worldEffectSpecForID(effectThrowItem)
+	if !ok || len(throwItem.components) != 1 || throwItem.duration != 300*time.Millisecond {
+		t.Fatalf("EF_THROWITEM spec = %+v ok=%t", throwItem, ok)
+	}
+	if component := throwItem.components[0]; component.kind != effectComponent3D || component.textureFile != "유저인터페이스/item/염산병.bmp" || component.duration != 300*time.Millisecond || component.alphaMax != 1 || !component.fadeIn || !component.fadeOut || !component.toSrc || !component.rotateToTarget || !component.rotateWithCamera || !component.rotate || component.angleStart != 180 || component.angleEnd != 360 || component.posZ != 1 || component.sizeStart != effectTableSize(30) || !component.attachedEntity {
+		t.Fatalf("EF_THROWITEM component = %+v", component)
 	}
 }
 
@@ -4233,21 +4520,68 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "NPC_KEEPING imported", skillEffectIDs(db.SkillNPCKeeping), effectKeeping)
 	expectEffectIDs(t, "NPC_BLOODDRAIN imported caster", skillEffectOnCasterIDs(db.SkillNPCBlooddrain), effectBloodDrain)
 	expectEffectIDs(t, "NPC_ENERGYDRAIN imported caster", skillEffectOnCasterIDs(db.SkillNPCEnergydrain), effectEnergyDrain)
+	expectEffectIDs(t, "RG_STEALCOIN imported success", skillSuccessEffectIDs(db.SkillRGStealcoin), effectStealCoin, effectRogueCoin)
+	expectEffectIDs(t, "RG_BACKSTAP imported hit", skillHitEffectIDs(db.SkillRGBackstap), effectBackStab)
+	expectEffectIDs(t, "RG_RAID imported caster", skillEffectOnCasterIDs(db.SkillRGRaid), effectTeiHit3)
+	expectEffectIDs(t, "RG_STRIPWEAPON imported success", skillSuccessEffectIDs(db.SkillRGStripweapon), effectStripWeapon)
+	expectEffectIDs(t, "RG_STRIPSHIELD imported success", skillSuccessEffectIDs(db.SkillRGStripshield), effectStripShield)
+	expectEffectIDs(t, "RG_STRIPARMOR imported success", skillSuccessEffectIDs(db.SkillRGStriparmor), effectStripArmor)
+	expectEffectIDs(t, "RG_STRIPHELM imported success", skillSuccessEffectIDs(db.SkillRGStriphelm), effectStripHelm)
 	expectEffectIDs(t, "RG_INTIMIDATE imported", skillEffectIDs(db.SkillRGIntimidate), effectIntimidate)
+	expectEffectIDs(t, "AM_ACIDTERROR imported before hit", skillBeforeHitEffectIDs(db.SkillAMAcidterror), effectThrowItem)
+	expectEffectIDs(t, "AM_CP_WEAPON imported", skillEffectIDs(db.SkillAMCpWeapon), effectChemicalProt)
 	expectEffectIDs(t, "CR_SHIELDCHARGE imported", skillEffectIDs(db.SkillCRShieldcharge), effectShieldCharge)
 	expectEffectIDs(t, "CR_SHIELDBOOMERANG imported", skillEffectIDs(db.SkillCRShieldboomerang), effectShieldBoomer)
+	expectEffectIDs(t, "CR_REFLECTSHIELD imported", skillEffectIDs(db.SkillCRReflectshield), effectReflectShield)
 	expectEffectIDs(t, "CR_HOLYCROSS imported", skillEffectIDs(db.SkillCRHolycross), effectHolyCross)
 	expectEffectIDs(t, "CR_GRANDCROSS imported", skillEffectIDs(db.SkillCRGrandcross), effectGrandCross)
+	expectEffectIDs(t, "CR_DEVOTION imported", skillEffectIDs(db.SkillCRDevotion), effectDevotion)
 	expectEffectIDs(t, "CR_PROVIDENCE imported", skillEffectIDs(db.SkillCRProvidence), effectProvidence)
 	expectEffectIDs(t, "CR_DEFENDER imported", skillEffectIDs(db.SkillCRDefender), effectCrusaderDef)
 	expectEffectIDs(t, "CR_SPEARQUICKEN imported", skillEffectIDs(db.SkillCRSpearquicken), effectSpearQuicken)
+	expectEffectIDs(t, "MO_ABSORBSPIRITS imported self success", skillSuccessEffectSelfIDs(db.SkillMOAbsorbspirits), effectAbsorbSpirits)
+	expectEffectIDs(t, "MO_INVESTIGATE imported", skillEffectIDs(db.SkillMOInvestigate), effectChimto)
+	expectEffectIDs(t, "MO_FINGEROFFENSIVE imported", skillEffectIDs(db.SkillMOFingeroffensive), effectTanji)
+	expectEffectIDs(t, "MO_STEELBODY imported", skillEffectIDs(db.SkillMOSteelbody), effectSteelBody)
+	expectEffectIDs(t, "MO_EXPLOSIONSPIRITS imported caster", skillEffectOnCasterIDs(db.SkillMOExplosionspirits), effectGumgang2)
+	expectEffectIDs(t, "MO_EXTREMITYFIST imported hit", skillHitEffectIDs(db.SkillMOExtremityfist), effectTeiHit1X)
+	expectEffectIDs(t, "MO_CHAINCOMBO imported", skillEffectIDs(db.SkillMOChaincombo), effectTeiHit1, effectChainCombo)
+	expectEffectIDs(t, "MO_CHAINCOMBO imported caster", skillEffectOnCasterIDs(db.SkillMOChaincombo), effectGumgang3)
 	expectEffectIDs(t, "SA_MAGICROD imported success", skillSuccessEffectIDs(db.SkillSAMagicrod), effectMagicRod)
 	expectEffectIDs(t, "SA_SPELLBREAKER imported success", skillSuccessEffectIDs(db.SkillSASpellbreaker), effectSpellBreaker)
+	expectEffectIDs(t, "SA_FLAMELAUNCHER imported success", skillSuccessEffectIDs(db.SkillSAFlamelauncher), effectFlameLauncher)
+	expectEffectIDs(t, "SA_FROSTWEAPON imported success", skillSuccessEffectIDs(db.SkillSAFrostweapon), effectFrostWeapon)
+	expectEffectIDs(t, "SA_LIGHTNINGLOADER imported success", skillSuccessEffectIDs(db.SkillSALightningloader), effectLightningLoad)
+	expectEffectIDs(t, "SA_SEISMICWEAPON imported success", skillSuccessEffectIDs(db.SkillSASeismicweapon), effectSeismicWeapon)
 	expectEffectIDs(t, "SA_DISPELL imported success", skillSuccessEffectIDs(db.SkillSADispell), effectDispell)
 	expectEffectIDs(t, "SA_VOLCANO imported ground", skillGroundEffectIDs(db.SkillSAVolcano), effectBottomVolcano)
 	expectEffectIDs(t, "SA_DELUGE imported ground", skillGroundEffectIDs(db.SkillSADeluge), effectBottomDeluge)
 	expectEffectIDs(t, "SA_VIOLENTGALE imported ground", skillGroundEffectIDs(db.SkillSAViolentgale), effectBottomViolent)
 	expectEffectIDs(t, "SA_LANDPROTECTOR imported ground", skillGroundEffectIDs(db.SkillSALandprotector), effectBottomLand)
+	expectEffectIDs(t, "BD_LULLABY imported", skillEffectIDs(db.SkillBDLullaby), effectBottomLullaby)
+	expectEffectIDs(t, "BD_RICHMANKIM imported", skillEffectIDs(db.SkillBDRichmankim), effectBottomRichKim)
+	expectEffectIDs(t, "BD_ETERNALCHAOS imported", skillEffectIDs(db.SkillBDEternalchaos), effectBottomChaos)
+	expectEffectIDs(t, "BD_DRUMBATTLEFIELD imported", skillEffectIDs(db.SkillBDDrumbattlefield), effectBottomDrum)
+	expectEffectIDs(t, "BD_RINGNIBELUNGEN imported", skillEffectIDs(db.SkillBDRingnibelungen), effectBottomNibelung)
+	expectEffectIDs(t, "BD_ROKISWEIL imported", skillEffectIDs(db.SkillBDRokisweil), effectBottomRoki)
+	expectEffectIDs(t, "BD_INTOABYSS imported", skillEffectIDs(db.SkillBDIntoabyss), effectBottomAbyss)
+	expectEffectIDs(t, "BD_SIEGFRIED imported", skillEffectIDs(db.SkillBDSiegfried), effectBottomSieg)
+	expectEffectIDs(t, "BA_FROSTJOKE imported begin", skillBeginEffectIDs(db.SkillBaFrostjoke), effectTalkFrostJoke)
+	expectEffectIDs(t, "BA_WHISTLE imported", skillEffectIDs(db.SkillBaWhistle), effectBottomWhistle)
+	expectEffectIDs(t, "BA_ASSASSINCROSS imported", skillEffectIDs(db.SkillBaAssassincross), effectBottomSinX)
+	expectEffectIDs(t, "BA_POEMBRAGI imported", skillEffectIDs(db.SkillBaPoembragi), effectBottomBragi)
+	expectEffectIDs(t, "BA_APPLEIDUN imported", skillEffectIDs(db.SkillBaAppleidun), effectBottomApple)
+	expectEffectIDs(t, "DC_SCREAM imported begin", skillBeginEffectIDs(db.SkillDCScream), effectTalkScream)
+	expectEffectIDs(t, "DC_HUMMING imported", skillEffectIDs(db.SkillDCHumming), effectBottomHumming)
+	expectEffectIDs(t, "DC_DONTFORGETME imported", skillEffectIDs(db.SkillDCDontforgetme), effectBottomForget)
+	expectEffectIDs(t, "DC_FORTUNEKISS imported", skillEffectIDs(db.SkillDCFortunekiss), effectBottomFortune)
+	expectEffectIDs(t, "DC_SERVICEFORYOU imported", skillEffectIDs(db.SkillDCServiceforyou), effectBottomService)
+	expectEffectIDs(t, "SL_SKA imported", skillEffectIDs(db.SkillSLSka), effectSteelBody, effectGumgang2)
+	expectEffectIDs(t, "CR_FULLPROTECTION imported", skillEffectIDs(db.SkillCRFullprotection), effectChemicalProt, 500)
+	expectEffectIDs(t, "SA_ELEMENTWATER imported", skillEffectIDs(db.SkillSAElementwater), effectFrostWeapon)
+	expectEffectIDs(t, "SA_ELEMENTGROUND imported", skillEffectIDs(db.SkillSAElementground), effectSeismicWeapon)
+	expectEffectIDs(t, "SA_ELEMENTFIRE imported", skillEffectIDs(db.SkillSAElementfire), effectFlameLauncher)
+	expectEffectIDs(t, "SA_ELEMENTWIND imported", skillEffectIDs(db.SkillSAElementwind), effectLightningLoad)
 	expectEffectIDs(t, "MO_BALKYOUNG imported", skillEffectIDs(db.SkillMOBalkyoung), 514)
 	expectEffectIDs(t, "MO_BALKYOUNG imported hit", skillHitEffectIDs(db.SkillMOBalkyoung), effectHit3)
 }

@@ -236,6 +236,49 @@ const (
 	effectProvidence     = 248
 	effectShieldBoomer   = 249
 	effectSpearQuicken   = 250
+	effectDevotion       = 251
+	effectReflectShield  = 252
+	effectAbsorbSpirits  = 253
+	effectSteelBody      = 254
+	effectFlameLauncher  = 255
+	effectFrostWeapon    = 256
+	effectLightningLoad  = 257
+	effectSeismicWeapon  = 258
+	effectGumgang2       = 261
+	effectTeiHit1        = 262
+	effectGumgang3       = 263
+	effectTanji          = 265
+	effectTeiHit1X       = 266
+	effectChimto         = 267
+	effectStealCoin      = 268
+	effectStripWeapon    = 269
+	effectStripShield    = 270
+	effectStripArmor     = 271
+	effectStripHelm      = 272
+	effectChainCombo     = 273
+	effectRogueCoin      = 274
+	effectBackStab       = 275
+	effectTeiHit3        = 276
+	effectBottomLullaby  = 278
+	effectBottomRichKim  = 279
+	effectBottomChaos    = 280
+	effectBottomDrum     = 281
+	effectBottomNibelung = 282
+	effectBottomRoki     = 283
+	effectBottomAbyss    = 284
+	effectBottomSieg     = 285
+	effectBottomWhistle  = 286
+	effectBottomSinX     = 287
+	effectBottomBragi    = 288
+	effectBottomApple    = 289
+	effectBottomHumming  = 291
+	effectBottomForget   = 292
+	effectBottomFortune  = 293
+	effectBottomService  = 294
+	effectTalkFrostJoke  = 295
+	effectTalkScream     = 296
+	effectThrowItem      = 298
+	effectChemicalProt   = 300
 	effectFoodChocolate  = 363
 	effectResistPotion   = 491
 	effectItemAccel      = 507
@@ -661,6 +704,185 @@ func defenderCylinderEffectSpec(texture string) EffectSpec {
 			AttachedEntity:   true,
 			TotalCircleSides: 32,
 			CircleSides:      32,
+		}},
+	}
+}
+
+func robrCylinderBlendComponent(textureName string, tint color.RGBA, duration time.Duration, alphaMax float64, animation int, bottomSize, topSize, height float64, attached, rotate, fade bool, blendMode int) EffectComponent {
+	component := robrCylinderComponent(textureName, tint, duration, alphaMax, animation, bottomSize, topSize, height, attached, rotate, fade, blendMode == 2)
+	component.BlendMode = blendMode
+	component.BlendAdditive = blendMode == 2
+	return component
+}
+
+func absorbSpiritsEffectSpec() EffectSpec {
+	tint := color.RGBA{R: 77, G: 77, B: 255, A: 255}
+	return EffectSpec{
+		Duration: 1890 * time.Millisecond,
+		SFX:      []string{"effect\\흡기.wav"},
+		Components: []EffectComponent{
+			robrCylinderBlendComponent("ring_blue", tint, 1500*time.Millisecond, 0.3, 1, 1.1, 1.1, 15, true, true, true, 2),
+			robrCylinderBlendComponent("ring_blue", tint, 1500*time.Millisecond, 0.3, 1, 1, 1, 13, true, true, true, 2),
+			robrCylinderBlendComponent("ring_blue", tint, 1500*time.Millisecond, 0.3, 1, 1.1, 3, 2, true, true, true, 2),
+			absorbSpiritParticle(tint, 1500*time.Millisecond, 0, 10*time.Millisecond, 4, 1.2, 1.2, 0, 0, 0, 1, 8, true),
+			absorbSpiritParticle(tint, 1300*time.Millisecond, 400*time.Millisecond, 10*time.Millisecond, 20, 1.5, 1.5, 0, 0, 0, 3, 6, true),
+			absorbSpiritParticle(tint, 1100*time.Millisecond, 200*time.Millisecond, 50*time.Millisecond, 10, 1, 1, 1, 0, 6, 0, 0, false),
+		},
+	}
+}
+
+func absorbSpiritParticle(tint color.RGBA, duration, delay, duplicateDelay time.Duration, duplicate int, posXRand, posYRand, posZStartRand, posZStartMiddle, posZEnd, posZEndRand, posZEndMiddle float64, sparkling bool) EffectComponent {
+	component := EffectComponent{
+		Kind:             EffectComponent3D,
+		TextureFile:      "effect/pok3.tga",
+		Color:            tint,
+		Duration:         duration,
+		Delay:            delay,
+		Duplicate:        duplicate,
+		DuplicateDelay:   duplicateDelay,
+		AlphaMax:         0.8,
+		FadeIn:           true,
+		FadeOut:          true,
+		PosXRand:         posXRand,
+		PosYRand:         posYRand,
+		PosZStartRand:    posZStartRand,
+		PosZStartMiddle:  posZStartMiddle,
+		PosZEnd:          posZEnd,
+		PosZEndRand:      posZEndRand,
+		PosZEndMiddle:    posZEndMiddle,
+		SizeStart:        effectTableSize(9),
+		SizeEnd:          effectTableSize(9),
+		SizeRand:         effectTableSize(2),
+		BlendMode:        2,
+		BlendAdditive:    true,
+		AttachedEntity:   true,
+		Sparkling:        sparkling,
+		RotateWithCamera: false,
+	}
+	if sparkling {
+		component.SparkNumber = 2
+	}
+	return component
+}
+
+func gumgangRingEffectSpec(duration time.Duration, alphaMax, bottomSize, topSize float64, wav string) EffectSpec {
+	component := robrCylinderBlendComponent("ring_yellow", color.RGBA{}, duration, alphaMax, 4, bottomSize, topSize, 2, true, true, true, 8)
+	component.Duplicate = 4
+	component.DuplicateDelay = 100 * time.Millisecond
+	spec := EffectSpec{
+		Duration:   duration + 300*time.Millisecond,
+		Components: []EffectComponent{component},
+	}
+	if wav != "" {
+		spec.SFX = []string{wav}
+	}
+	return spec
+}
+
+func teiHitEffectSpec(texture, wav string, duplicate int, delay time.Duration, tint color.RGBA) EffectSpec {
+	component := EffectComponent{
+		Kind:             EffectComponent3D,
+		TextureFile:      texture,
+		Color:            tint,
+		Duration:         550 * time.Millisecond,
+		Delay:            delay,
+		Duplicate:        duplicate,
+		AlphaMax:         0.8,
+		FadeIn:           true,
+		FadeOut:          true,
+		PosXEndRand:      40,
+		PosYEndRand:      40,
+		SizeStartX:       effectTableSize(10),
+		SizeStartY:       effectTableSize(150),
+		SizeEndX:         effectTableSize(10),
+		SizeEndY:         effectTableSize(150),
+		BlendMode:        2,
+		BlendAdditive:    true,
+		AttachedEntity:   true,
+		Overlay:          true,
+		RotateToTarget:   true,
+		RotateWithCamera: true,
+	}
+	spec := EffectSpec{
+		Duration:   550*time.Millisecond + delay,
+		Components: []EffectComponent{component},
+	}
+	if wav != "" {
+		spec.SFX = []string{wav}
+	}
+	return spec
+}
+
+func tanjiEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 150 * time.Millisecond,
+		SFX:      []string{"effect\\mon_탄지신통.wav"},
+		Components: []EffectComponent{{
+			Kind:             EffectComponent3D,
+			TextureFile:      "effect/blue_ivy.bmp",
+			Duration:         150 * time.Millisecond,
+			AlphaMax:         1,
+			BlendMode:        2,
+			BlendAdditive:    true,
+			ToSrc:            true,
+			RotateWithCamera: true,
+			RotateToTarget:   true,
+			AngleStart:       90,
+			AngleEnd:         90,
+			PosZ:             1,
+			SizeStart:        effectTableSize(50),
+			SizeEnd:          effectTableSize(50),
+			AttachedEntity:   true,
+		}},
+	}
+}
+
+func rogueCoinEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 2950 * time.Millisecond,
+		SFX:      []string{"effect\\rog_steal coin.wav"},
+		Components: []EffectComponent{{
+			Kind:           EffectComponent2D,
+			TextureFile:    "effect/coin_a.bmp",
+			Duration:       1500 * time.Millisecond,
+			Duplicate:      30,
+			DuplicateDelay: 50 * time.Millisecond,
+			AlphaMax:       0.8,
+			FadeOut:        true,
+			PosXEndRand:    10,
+			PosYEndRand:    10,
+			PosZ:           2,
+			SizeStart:      effectTableSize(20),
+			SizeEnd:        effectTableSize(20),
+			BlendMode:      2,
+			BlendAdditive:  true,
+			Overlay:        true,
+			RotateToTarget: true,
+			AttachedEntity: true,
+		}},
+	}
+}
+
+func throwItemEffectSpec(texture string, size float64) EffectSpec {
+	return EffectSpec{
+		Duration: 300 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:             EffectComponent3D,
+			TextureFile:      texture,
+			Duration:         300 * time.Millisecond,
+			AlphaMax:         1,
+			FadeIn:           true,
+			FadeOut:          true,
+			ToSrc:            true,
+			RotateToTarget:   true,
+			RotateWithCamera: true,
+			Rotate:           true,
+			AngleStart:       180,
+			AngleEnd:         360,
+			PosZ:             1,
+			SizeStart:        effectTableSize(size),
+			SizeEnd:          effectTableSize(size),
+			AttachedEntity:   true,
 		}},
 	}
 }
@@ -2977,6 +3199,51 @@ var EffectSpecs = map[int]EffectSpec{
 	effectProvidence:    strEffectSpecAttached("providence", "", false),
 	effectShieldBoomer:  soundOnlyEffectSpec("effect\\cru_shield boomerang.wav"),
 	effectSpearQuicken:  strEffectSpecAttached("twohand", "effect\\knight_twohandquicken.wav", true),
+	effectDevotion:      strEffectSpecAttached("devotion", "", false),
+	effectReflectShield: defenderCylinderEffectSpec("ring_yellow"),
+	effectAbsorbSpirits: absorbSpiritsEffectSpec(),
+	effectSteelBody:     soundOnlyEffectSpec("effect\\mon_금강불괴.wav"),
+	effectFlameLauncher: strEffectSpecAttached("enc_fire", "_enemy_hit_wind1.wav", false),
+	effectFrostWeapon:   strEffectSpecAttached("enc_ice", "_enemy_hit_wind1.wav", false),
+	effectLightningLoad: strEffectSpecAttached("enc_wind", "effect\\_enemy_hit_wind1.wav", false),
+	effectSeismicWeapon: strEffectSpecAttached("enc_earth", "_enemy_hit_wind1.wav", false),
+	effectGumgang2:      gumgangRingEffectSpec(1500*time.Millisecond, 0.5, 2, 5, "effect\\mon_폭기.wav"),
+	effectTeiHit1:       teiHitEffectSpec("effect/alpha_center.tga", "effect\\mon_폭기.wav", 12, 250*time.Millisecond, color.RGBA{}),
+	effectGumgang3:      gumgangRingEffectSpec(1000*time.Millisecond, 0.3, 3, 6, ""),
+	effectTanji:         tanjiEffectSpec(),
+	effectTeiHit1X:      teiHitEffectSpec("effect/lens1.tga", "effect\\mon_아수라 패황권.wav", 24, 100*time.Millisecond, color.RGBA{}),
+	effectChimto:        soundOnlyEffectSpec("effect\\mon_침투경.wav"),
+	effectStealCoin:     strEffectSpecAttached("steal_coin", "", false),
+	effectStripWeapon:   strEffectSpecAttached("strip_weapon", "effect\\t_벗김.wav", false),
+	effectStripShield:   strEffectSpecAttached("strip_shield", "effect\\t_벗김.wav", false),
+	effectStripArmor:    strEffectSpecAttached("strip_armor", "effect\\t_벗김.wav", false),
+	effectStripHelm:     strEffectSpecAttached("strip_helm", "effect\\t_벗김.wav", false),
+	effectChainCombo:    strEffectSpecAttached("연환", "effect\\mon_연환.wav", false),
+	effectRogueCoin:     rogueCoinEffectSpec(),
+	effectBackStab:      soundOnlyEffectSpec("effect\\rog_back stap.wav"),
+	effectTeiHit3:       teiHitEffectSpec("effect/lens1.tga", "", 20, 100*time.Millisecond, color.RGBA{R: 26, G: 26, B: 255, A: 255}),
+	effectBottomLullaby: soundOnlyEffectSpec("effect\\자장가.wav"),
+	effectBottomRichKim: soundOnlyEffectSpec("effect\\김서방돈.wav"),
+	effectBottomChaos:   soundOnlyEffectSpec("effect\\영원의 혼돈.wav"),
+	effectBottomDrum:    soundOnlyEffectSpec("effect\\전장의.wav"),
+	effectBottomNibelung: soundOnlyEffectSpec(
+		"effect\\니벨룽겐의 반지.wav",
+	),
+	effectBottomRoki:    soundOnlyEffectSpec("effect\\로키.wav"),
+	effectBottomAbyss:   soundOnlyEffectSpec("effect\\심연속으로.wav"),
+	effectBottomSieg:    soundOnlyEffectSpec("effect\\불사신.wav"),
+	effectBottomWhistle: soundOnlyEffectSpec("effect\\달빛세레나데.wav"),
+	effectBottomSinX:    soundOnlyEffectSpec("effect\\석양의 어쌔신.wav"),
+	effectBottomBragi:   soundOnlyEffectSpec("effect\\브라기의 시.wav"),
+	effectBottomApple:   soundOnlyEffectSpec("effect\\이둔의 사과.wav"),
+	effectBottomHumming: soundOnlyEffectSpec("effect\\흥얼거림.wav"),
+	effectBottomForget:  soundOnlyEffectSpec("effect\\나를잊지말아요.wav"),
+	effectBottomFortune: soundOnlyEffectSpec("effect\\행운의.wav"),
+	effectBottomService: soundOnlyEffectSpec("effect\\당신을 위한 서비스.wav"),
+	effectTalkFrostJoke: funcEffectSpec("FrostJokeTalk", 500*time.Millisecond, true),
+	effectTalkScream:    funcEffectSpec("ScreamTalk", 500*time.Millisecond, true),
+	effectThrowItem:     throwItemEffectSpec("유저인터페이스/item/염산병.bmp", 30),
+	effectChemicalProt:  soundOnlyEffectSpec("apocalips_attack.wav"),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},
