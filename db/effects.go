@@ -155,10 +155,12 @@ const (
 	effectPierceSelf     = 148
 	effectBowlingSelf    = 149
 	effectSpearStabSelf  = 150
+	effectSpearBmrSelf   = 151
 	effectRain           = 161
 	effectSnow           = 162
 	effectSakura         = 163
 	effectBanjjakii      = 165
+	effectMakeBlur       = 166
 	effectSmoke          = 44
 	effectFirefly        = 45
 	effectTorch          = 47
@@ -179,6 +181,24 @@ const (
 	effectHealOffensive  = 320
 	effectBaseLevelUp    = 371
 	effectJobLevelUp     = 158
+	effectVenomDust2     = 171
+	effectMentalBreak    = 181
+	effectMagicalAtkHit  = 182
+	effectSuiExplosion   = 183
+	effectSuicide        = 185
+	effectComboAttack1   = 186
+	effectComboAttack2   = 187
+	effectComboAttack3   = 188
+	effectComboAttack4   = 189
+	effectComboAttack5   = 190
+	effectGuidedAttack   = 191
+	effectPoisonAttack2  = 192
+	effectSilenceAttack  = 193
+	effectStunAttack     = 194
+	effectPetrifyAttack  = 195
+	effectSleepAttack    = 197
+	effectPong           = 199
+	effectLevel99        = 200
 	effectPotionRed      = 204
 	effectPotionOrange   = 205
 	effectPotionYellow   = 206
@@ -444,6 +464,73 @@ func strEffectSpecRandomAttached(file, wav string, randMin, randMax int, attache
 		spec.SFXRandMin = randMin
 		spec.SFXRandMax = randMax
 	}
+	return spec
+}
+
+func funcEffectSpec(name string, duration time.Duration, attached bool) EffectSpec {
+	return EffectSpec{
+		Duration: duration,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       name,
+			AttachedEntity: attached,
+		}},
+	}
+}
+
+func banjjakiiEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: time.Second,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentSPR,
+			SpriteFile:     "크리스마스",
+			Duration:       time.Second,
+			AttachedEntity: true,
+		}},
+	}
+}
+
+func venomDust2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 100 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponent3D,
+			SpriteFile:     "particle3",
+			SpriteRepeat:   true,
+			Repeat:         true,
+			Duration:       100 * time.Millisecond,
+			AlphaMax:       1,
+			AttachedEntity: true,
+			SizeStart:      effectTableSize(80),
+			SizeEnd:        effectTableSize(80),
+			PosZ:           0,
+			PosZEnd:        0.5,
+		}},
+	}
+}
+
+func suiExplosionEffectSpec() EffectSpec {
+	return EffectSpec{
+		CameraShake: 200 * time.Millisecond,
+		SFX:         []string{"effect\\ef_hit2.wav"},
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponentSTR,
+				STRFile:        "sui_explosion",
+				AttachedEntity: true,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "CameraQuake",
+				AttachedEntity: true,
+			},
+		},
+	}
+}
+
+func level99EffectSpec() EffectSpec {
+	spec := funcEffectSpec("Level99Aura", 5*time.Minute, true)
+	spec.Components[0].TextureFile = "effect/ring_blue.tga"
 	return spec
 }
 
@@ -1344,24 +1431,7 @@ var EffectSpecs = map[int]EffectSpec{
 			Color:          color.RGBA{R: 210, G: 210, B: 210, A: 255},
 		}},
 	},
-	effectBanjjakii: {
-		Duration: time.Second,
-		Components: []EffectComponent{{
-			Kind:          EffectComponent3D,
-			SpriteFile:    "크리스마스",
-			SpriteRepeat:  true,
-			Duration:      time.Second,
-			AlphaMax:      1,
-			FadeIn:        true,
-			FadeOut:       true,
-			BlendAdditive: true,
-			PosZ:          4,
-			SizeStart:     effectTableSize(140),
-			SizeEnd:       effectTableSize(230),
-			SizeSmooth:    true,
-			Color:         color.RGBA{R: 255, G: 240, B: 180, A: 255},
-		}},
-	},
+	effectBanjjakii: banjjakiiEffectSpec(),
 	effectMapPillar: {
 		Duration: 24 * time.Hour,
 		Components: []EffectComponent{{
@@ -2500,11 +2570,31 @@ var EffectSpecs = map[int]EffectSpec{
 	effectPierceSelf:    strEffectSpecAttached("pierce", "", false),
 	effectBowlingSelf:   strEffectSpecAttached("bowling", "_enemy_hit_normal1.wav", true),
 	effectSpearStabSelf: strEffectSpecAttached("spearstab", "_enemy_hit_normal1.wav", false),
+	effectSpearBmrSelf:  strEffectSpecAttached("spearboomerang", "effect\\knight_spear_boomerang.wav", true),
 	effectHolyLight:     strEffectSpecAttached("holyhit", "", false),
 	effectConcentration: strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
 	effectRefineOK:      strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
 	effectRefineFail:    strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),
+	effectMakeBlur:      funcEffectSpec("MakeBlur", 2*time.Second, false),
 	effectEnergyCoat:    strEffectSpecAttached("energycoat", "", false),
+	effectVenomDust2:    venomDust2EffectSpec(),
+	effectMentalBreak:   strEffectSpecAttached("mentalbreak", "", false),
+	effectMagicalAtkHit: strEffectSpecAttached("magical", "", false),
+	effectSuiExplosion:  suiExplosionEffectSpec(),
+	effectSuicide:       strEffectSpecAttached("suicide", "", false),
+	effectComboAttack1:  strEffectSpecAttached("yunta_1", "", false),
+	effectComboAttack2:  strEffectSpecAttached("yunta_2", "", false),
+	effectComboAttack3:  strEffectSpecAttached("yunta_3", "", false),
+	effectComboAttack4:  strEffectSpecAttached("yunta_4", "", false),
+	effectComboAttack5:  strEffectSpecAttached("yunta_5", "", false),
+	effectGuidedAttack:  strEffectSpecAttached("homing", "", false),
+	effectPoisonAttack2: strEffectSpecAttached("poison", "", false),
+	effectSilenceAttack: strEffectSpecAttached("silence", "", false),
+	effectStunAttack:    strEffectSpecAttached("stun", "", false),
+	effectPetrifyAttack: strEffectSpecAttached("stonecurse", "", false),
+	effectSleepAttack:   strEffectSpecAttached("sleep", "", false),
+	effectPong:          strEffectSpecRandom("pong%d", "", 1, 3),
+	effectLevel99:       level99EffectSpec(),
 	effectFirstAid: {
 		Duration: time.Second,
 		SFX:      []string{"_heal_effect.wav"},

@@ -16,6 +16,7 @@ const (
 	effectFuncGroundSample
 	effectFuncCastRing
 	effectFuncLockOnTarget
+	effectFuncLevel99Aura
 )
 
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
@@ -26,6 +27,8 @@ func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, pro
 		m.drawCastRingEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, progress)
 	case effectFuncLockOnTarget:
 		m.drawLockOnTargetEffect(screen, ctx, component, effect, worldX, worldY, worldZ, progress, now)
+	case effectFuncLevel99Aura:
+		m.drawLevel99AuraEffect(screen, ctx, component, effect, worldX, worldY, worldZ, now)
 	default:
 	}
 }
@@ -186,6 +189,81 @@ func lockOnTargetTint(starts, now time.Time) color.RGBA {
 	factor := float64(20-(elapsed%20)) / 20
 	gb := uint8(clampFloat(factor, 0, 1) * 255)
 	return color.RGBA{R: 255, G: gb, B: gb, A: 255}
+}
+
+func (m *WorldMode) drawLevel99AuraEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {
+	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
+	elapsedFrames := math.Max(0, now.Sub(effect.starts).Seconds()*60)
+	build := math.Sin(math.Min(elapsedFrames, 90) * math.Pi / 180)
+	if build <= 0 {
+		return
+	}
+	tint := color.RGBA{R: 100, G: 100, B: 255, A: 120}
+	for band := 0; band < 3; band++ {
+		drawLevel99AuraBand(screen, m.whitePixel, texture, x, y, z+0.02, band, elapsedFrames, build, tint)
+	}
+}
+
+func drawLevel99AuraBand(screen *render.Frame, white, texture *render.Image, x, y, z float64, band int, elapsedFrames, build float64, tint color.RGBA) {
+	const (
+		divisions        = 21
+		fullDisplayAngle = 315.0
+		gameToWorld      = 0.1 * 2.2
+		innerCircleScale = 0.6
+	)
+	if screen == nil || white == nil {
+		return
+	}
+	source := white
+	srcW, srcH := float32(1), float32(1)
+	if texture != nil {
+		source = texture
+		bounds := texture.Bounds()
+		srcW = float32(bounds.Dx())
+		srcH = float32(bounds.Dy())
+	}
+	maxHeight := float64(15-2*band) * gameToWorld
+	distance := (3.9 + 0.2*float64(band)) * gameToWorld * innerCircleScale
+	riseAngle := float64(55-5*band) * math.Pi / 180
+	rotStart := float64(band)*90 + elapsedFrames*float64(band+3)
+	basicAngle := fullDisplayAngle / float64(divisions-1)
+	cosRise := math.Cos(riseAngle)
+	sinRise := math.Sin(riseAngle)
+	center := modelPoint3{x: x, y: z, z: y}
+	vertices := make([]render.Vertex3D, 0, divisions*2)
+	indices := make([]uint16, 0, (divisions-1)*6)
+	for k := 0; k < divisions; k++ {
+		angle := (rotStart + float64(k)*basicAngle) * math.Pi / 180
+		cosAngle := math.Cos(angle)
+		sinAngle := math.Sin(angle)
+		sinLimit := math.Sin((90 + float64(k-10)*9) * math.Pi / 180)
+		height := math.Max(0, maxHeight*sinLimit*build)
+		radialRise := cosRise * height
+		verticalRise := sinRise * height
+		u := float32(k) / float32(divisions-1)
+		base := modelPoint3{
+			x: center.x + distance*cosAngle,
+			y: center.y,
+			z: center.z + distance*sinAngle,
+		}
+		top := modelPoint3{
+			x: center.x + (distance+radialRise)*cosAngle,
+			y: center.y + verticalRise,
+			z: center.z + (distance+radialRise)*sinAngle,
+		}
+		vertices = append(vertices,
+			texturedSurfaceVertex3D(base, texturePoint{u: u, v: 1}, tint, srcW, srcH),
+			texturedSurfaceVertex3D(top, texturePoint{u: u, v: 0}, tint, srcW, srcH),
+		)
+		if k == divisions-1 {
+			continue
+		}
+		baseIndex := uint16(k * 2)
+		indices = append(indices, baseIndex, baseIndex+1, baseIndex+2, baseIndex+1, baseIndex+3, baseIndex+2)
+	}
+	options := triangleDrawOptions(render.FilterLinear, render.AddressRepeat)
+	options.Blend = render.BlendLighter
+	screen.DrawTriangles3D(vertices, indices, source, options)
 }
 
 func warpEffectTexturedVertex3D(x, y, z float64, srcX, srcY float32, c color.RGBA) render.Vertex3D {

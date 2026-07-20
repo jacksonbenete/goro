@@ -163,10 +163,12 @@ const (
 	effectPierceSelf     = 148
 	effectBowlingSelf    = 149
 	effectSpearStabSelf  = 150
+	effectSpearBmrSelf   = 151
 	effectRain           = 161
 	effectSnow           = 162
 	effectSakura         = 163
 	effectBanjjakii      = 165
+	effectMakeBlur       = 166
 	effectSmoke          = 44
 	effectFirefly        = 45
 	effectTorch          = 47
@@ -187,6 +189,24 @@ const (
 	effectHealOffensive  = 320
 	effectBaseLevelUp    = 371
 	effectJobLevelUp     = 158
+	effectVenomDust2     = 171
+	effectMentalBreak    = 181
+	effectMagicalAtkHit  = 182
+	effectSuiExplosion   = 183
+	effectSuicide        = 185
+	effectComboAttack1   = 186
+	effectComboAttack2   = 187
+	effectComboAttack3   = 188
+	effectComboAttack4   = 189
+	effectComboAttack5   = 190
+	effectGuidedAttack   = 191
+	effectPoisonAttack2  = 192
+	effectSilenceAttack  = 193
+	effectStunAttack     = 194
+	effectPetrifyAttack  = 195
+	effectSleepAttack    = 197
+	effectPong           = 199
+	effectLevel99        = 200
 	effectPotionRed      = 204
 	effectPotionOrange   = 205
 	effectPotionYellow   = 206
@@ -1649,6 +1669,8 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncCastRing
 	case "LockOnTarget":
 		return effectFuncLockOnTarget
+	case "Level99Aura":
+		return effectFuncLevel99Aura
 	default:
 		return effectFuncUnknown
 	}

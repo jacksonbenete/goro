@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 203 {
-		t.Fatalf("implemented effects = %d, want 203", coverage.Implemented)
+	if coverage.Implemented != 223 {
+		t.Fatalf("implemented effects = %d, want 223", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 33.4 || coverage.ActivePercent > 33.5 {
-		t.Fatalf("active coverage = %.3f, want about 33.4", coverage.ActivePercent)
+	if coverage.ActivePercent < 36.7 || coverage.ActivePercent > 36.8 {
+		t.Fatalf("active coverage = %.3f, want about 36.7", coverage.ActivePercent)
 	}
 }
 
@@ -2574,6 +2574,156 @@ func TestRobrowserSimpleEffectsOneHundredToOneFiftyMatchTableRows(t *testing.T) 
 		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
 			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
 		}
+	}
+}
+
+func TestRobrowserActiveEffectsOneFiftyToTwoHundredHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectSpearStabSelf:  "EF_SPEARSTABSELF",
+		effectSpearBmrSelf:   "EF_SPEARBMRSELF",
+		effectHolyLight:      "EF_HOLYHIT",
+		effectConcentration:  "EF_CONCENTRATION",
+		effectRefineOK:       "EF_REFINEOK",
+		effectRefineFail:     "EF_REFINEFAIL",
+		effectJobLevelUp:     "EF_JOBLVUP",
+		effectRain:           "EF_RAIN",
+		effectSnow:           "EF_SNOW",
+		effectSakura:         "EF_SAKURA",
+		effectBanjjakii:      "EF_BANJJAKII",
+		effectMakeBlur:       "EF_MAKEBLUR",
+		effectEnergyCoat:     "EF_ENERGYCOAT",
+		effectCartRevolution: "EF_CARTREVOLUTION",
+		effectVenomDust2:     "EF_VENOMDUST2",
+		effectMentalBreak:    "EF_MENTALBREAK",
+		effectMagicalAtkHit:  "EF_MAGICALATTHIT",
+		effectSuiExplosion:   "EF_SUI_EXPLOSION",
+		effectSuicide:        "EF_SUICIDE",
+		effectComboAttack1:   "EF_COMBOATTACK1",
+		effectComboAttack2:   "EF_COMBOATTACK2",
+		effectComboAttack3:   "EF_COMBOATTACK3",
+		effectComboAttack4:   "EF_COMBOATTACK4",
+		effectComboAttack5:   "EF_COMBOATTACK5",
+		effectGuidedAttack:   "EF_GUIDEDATTACK",
+		effectPoisonAttack2:  "EF_POISONATTACK",
+		effectSilenceAttack:  "EF_SILENCEATTACK",
+		effectStunAttack:     "EF_STUNATTACK",
+		effectPetrifyAttack:  "EF_PETRIFYATTACK",
+		effectSleepAttack:    "EF_SLEEPATTACK",
+		effectPong:           "EF_PONG",
+		effectLevel99:        "EF_LEVEL99",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserSimpleEffectsOneFiftyToTwoHundredMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		id       int
+		file     string
+		wav      string
+		attached bool
+		head     bool
+	}{
+		{"EF_SPEARBMRSELF", effectSpearBmrSelf, "spearboomerang", "effect\\knight_spear_boomerang.wav", true, true},
+		{"EF_HOLYHIT", effectHolyLight, "holyhit", "", true, false},
+		{"EF_CONCENTRATION", effectConcentration, "concentration", "effect\\ac_concentration.wav", true, false},
+		{"EF_REFINEOK", effectRefineOK, "bs_refinesuccess", "effect\\bs_refinesuccess.wav", true, false},
+		{"EF_REFINEFAIL", effectRefineFail, "bs_refinefailed", "effect\\bs_refinefailed.wav", true, false},
+		{"EF_ENERGYCOAT", effectEnergyCoat, "energycoat", "", true, false},
+		{"EF_CARTREVOLUTION", effectCartRevolution, "cartrevolution", "effect\\ef_magnumbreak.wav", true, false},
+		{"EF_MENTALBREAK", effectMentalBreak, "mentalbreak", "", true, false},
+		{"EF_MAGICALATTHIT", effectMagicalAtkHit, "magical", "", true, false},
+		{"EF_SUICIDE", effectSuicide, "suicide", "", true, false},
+		{"EF_COMBOATTACK1", effectComboAttack1, "yunta_1", "", true, false},
+		{"EF_COMBOATTACK2", effectComboAttack2, "yunta_2", "", true, false},
+		{"EF_COMBOATTACK3", effectComboAttack3, "yunta_3", "", true, false},
+		{"EF_COMBOATTACK4", effectComboAttack4, "yunta_4", "", true, false},
+		{"EF_COMBOATTACK5", effectComboAttack5, "yunta_5", "", true, false},
+		{"EF_GUIDEDATTACK", effectGuidedAttack, "homing", "", true, false},
+		{"EF_POISONATTACK", effectPoisonAttack2, "poison", "", true, false},
+		{"EF_SILENCEATTACK", effectSilenceAttack, "silence", "", true, false},
+		{"EF_STUNATTACK", effectStunAttack, "stun", "", true, false},
+		{"EF_PETRIFYATTACK", effectPetrifyAttack, "stonecurse", "", true, false},
+		{"EF_SLEEPATTACK", effectSleepAttack, "sleep", "", true, false},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.attachedEntity != tc.attached || component.spriteHead != tc.head {
+			t.Fatalf("%s component = %+v, want STR %q attached=%t head=%t", tc.name, component, tc.file, tc.attached, tc.head)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+}
+
+func TestRobrowserSpecialEffectsOneFiftyToTwoHundredMatchTableRows(t *testing.T) {
+	banjjakii, ok := worldEffectSpecForID(effectBanjjakii)
+	if !ok || banjjakii.duration != time.Second || len(banjjakii.components) != 1 {
+		t.Fatalf("EF_BANJJAKII spec = %+v ok=%t", banjjakii, ok)
+	}
+	if component := banjjakii.components[0]; component.kind != effectComponentSPR || component.spriteFile != "크리스마스" || component.duration != time.Second || !component.attachedEntity {
+		t.Fatalf("EF_BANJJAKII component = %+v", component)
+	}
+
+	makeBlur, ok := worldEffectSpecForID(effectMakeBlur)
+	if !ok || makeBlur.duration != 2*time.Second || len(makeBlur.components) != 1 {
+		t.Fatalf("EF_MAKEBLUR spec = %+v ok=%t", makeBlur, ok)
+	}
+	if component := makeBlur.components[0]; component.kind != effectComponentFUNC || component.funcName != "MakeBlur" || component.funcAdapter != effectFuncUnknown || component.attachedEntity {
+		t.Fatalf("EF_MAKEBLUR component = %+v", component)
+	}
+
+	venomDust, ok := worldEffectSpecForID(effectVenomDust2)
+	if !ok || venomDust.duration != 100*time.Millisecond || len(venomDust.components) != 1 {
+		t.Fatalf("EF_VENOMDUST2 spec = %+v ok=%t", venomDust, ok)
+	}
+	component := venomDust.components[0]
+	if component.kind != effectComponent3D || component.spriteFile != "particle3" || component.duration != 100*time.Millisecond || !component.repeat || !component.spriteRepeat || !component.attachedEntity {
+		t.Fatalf("EF_VENOMDUST2 component = %+v", component)
+	}
+	if component.alphaMax != 1 || component.sizeStart != effectTableSize(80) || component.sizeEnd != effectTableSize(80) || component.posZ != 0 || component.posZEnd != 0.5 {
+		t.Fatalf("EF_VENOMDUST2 scalar fields = %+v", component)
+	}
+
+	sui, ok := worldEffectSpecForID(effectSuiExplosion)
+	if !ok || len(sui.components) != 2 || sui.cameraShake != 200*time.Millisecond {
+		t.Fatalf("EF_SUI_EXPLOSION spec = %+v ok=%t", sui, ok)
+	}
+	if len(sui.sfx) != 1 || sui.sfx[0] != "effect\\ef_hit2.wav" {
+		t.Fatalf("EF_SUI_EXPLOSION sfx = %v", sui.sfx)
+	}
+	if str, quake := sui.components[0], sui.components[1]; str.kind != effectComponentSTR || str.strFile != "sui_explosion" || !str.attachedEntity || quake.kind != effectComponentFUNC || quake.funcName != "CameraQuake" || !quake.attachedEntity {
+		t.Fatalf("EF_SUI_EXPLOSION components = %+v %+v", str, quake)
+	}
+
+	pong, ok := worldEffectSpecForID(effectPong)
+	if !ok || len(pong.components) != 1 {
+		t.Fatalf("EF_PONG spec = %+v ok=%t", pong, ok)
+	}
+	if component := pong.components[0]; component.kind != effectComponentSTR || component.strFile != "pong%d" || component.strRandMin != 1 || component.strRandMax != 3 || component.attachedEntity {
+		t.Fatalf("EF_PONG component = %+v", component)
+	}
+
+	level99, ok := worldEffectSpecForID(effectLevel99)
+	if !ok || level99.duration != 5*time.Minute || len(level99.components) != 1 {
+		t.Fatalf("EF_LEVEL99 spec = %+v ok=%t", level99, ok)
+	}
+	if component := level99.components[0]; component.kind != effectComponentFUNC || component.funcName != "Level99Aura" || component.funcAdapter != effectFuncLevel99Aura || component.textureFile != "effect/ring_blue.tga" || !component.attachedEntity {
+		t.Fatalf("EF_LEVEL99 component = %+v", component)
 	}
 }
 
@@ -3750,7 +3900,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "PR_MAGNIFICAT imported", skillEffectIDs(db.SkillPRMagnificat), effectMagnificat)
 	expectEffectIDs(t, "PR_GLORIA imported", skillEffectIDs(db.SkillPRGloria), effectGloria)
 	expectEffectIDs(t, "PR_LEXAETERNA imported", skillEffectIDs(db.SkillPRLexaeterna), effectLexAeterna)
-	expectEffectIDs(t, "PR_TURNUNDEAD imported hit", skillHitEffectIDs(db.SkillPRTurnundead), 152)
+	expectEffectIDs(t, "PR_TURNUNDEAD imported hit", skillHitEffectIDs(db.SkillPRTurnundead), effectHolyLight)
 	expectEffectIDs(t, "PR_MAGNUS imported", skillEffectIDs(db.SkillPRMagnus), effectMagnus)
 	expectEffectIDs(t, "PR_SLOWPOISON imported", skillEffectIDs(db.SkillPRSlowpoison), effectSlowPoison)
 	expectEffectIDs(t, "PR_STRECOVERY imported", skillEffectIDs(db.SkillPRStrecovery), effectRecovery)
@@ -3781,7 +3931,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "KN_BRANDISHSPEAR imported", skillEffectIDs(db.SkillKNBrandishspear), effectBrandishSpear)
 	expectEffectIDs(t, "KN_BRANDISHSPEAR imported caster", skillEffectOnCasterIDs(db.SkillKNBrandishspear), effectBrandishSpear2)
 	expectEffectIDs(t, "KN_SPEARSTAB imported caster", skillEffectOnCasterIDs(db.SkillKNSpearstab), effectSpearStabSelf)
-	expectEffectIDs(t, "KN_SPEARBOOMERANG imported caster", skillEffectOnCasterIDs(db.SkillKNSpearboomerang), 151)
+	expectEffectIDs(t, "KN_SPEARBOOMERANG imported caster", skillEffectOnCasterIDs(db.SkillKNSpearboomerang), effectSpearBmrSelf)
 	expectEffectIDs(t, "KN_SPEARBOOMERANG imported hit", skillHitEffectIDs(db.SkillKNSpearboomerang), effectSpearBoomerang, effectHit4)
 	expectEffectIDs(t, "KN_TWOHANDQUICKEN imported", skillEffectIDs(db.SkillKNTwohandquicken), effectTwoHandQuicken)
 	expectEffectIDs(t, "KN_BOWLINGBASH imported caster", skillEffectOnCasterIDs(db.SkillKNBowlingbash), effectBowlingSelf)
@@ -3804,6 +3954,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "AS_POISONREACT imported", skillEffectIDs(db.SkillASPoisonreact), effectPoisonReact)
 	expectEffectIDs(t, "AS_POISONREACT imported hit", skillHitEffectIDs(db.SkillASPoisonreact), effectPoisonReact2)
 	expectEffectIDs(t, "AS_VENOMDUST imported", skillEffectIDs(db.SkillASVenomdust), effectVenomDust)
+	expectEffectIDs(t, "AS_VENOMDUST imported ground", skillGroundEffectIDs(db.SkillASVenomdust), effectVenomDust2)
 	expectEffectIDs(t, "AS_SPLASHER imported", skillEffectIDs(db.SkillASSplasher), effectVenomSplasher)
 	expectEffectIDs(t, "MO_BALKYOUNG imported", skillEffectIDs(db.SkillMOBalkyoung), 514)
 	expectEffectIDs(t, "MO_BALKYOUNG imported hit", skillHitEffectIDs(db.SkillMOBalkyoung), effectHit3)
