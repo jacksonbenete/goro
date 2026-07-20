@@ -36,12 +36,21 @@ func (m *WorldMode) drawQuadHornEffect(screen *render.Frame, ctx client.Context,
 	offsetX := quadHornRange(effect, salt+3, component.quadHornOffsetXMin, component.quadHornOffsetXMax)
 	offsetY := quadHornRange(effect, salt+4, component.quadHornOffsetYMin, component.quadHornOffsetYMax)
 	offsetZ := component.quadHornOffsetZ
+	offsetX = quadHornDefaultOffset(offsetX)
+	offsetY = quadHornDefaultOffset(offsetY)
+	offsetZ = quadHornDefaultOffset(offsetZ)
 	height, offsetZ = quadHornAnimation(component, progress, componentDuration, height, offsetZ)
 
 	rotateX := quadHornRange(effect, salt+5, component.quadHornRotateXMin, component.quadHornRotateXMax)
 	rotateY := quadHornRange(effect, salt+6, component.quadHornRotateYMin, component.quadHornRotateYMax)
 	rotateZ := 180 + quadHornRange(effect, salt+7, component.quadHornRotateZMin, component.quadHornRotateZMax)
-	origin := modelPoint3{x: worldX + offsetX, y: worldZ + height*0.9 + offsetZ, z: worldY + offsetY}
+	x := worldX + component.posX
+	y := worldY + component.posY
+	z := worldZ + component.posZ
+	if ctx.World != nil && (component.posX != 0 || component.posY != 0) {
+		z = terrainHeightAtRenderPoint(ctx.World, x, y) + 0.07 + component.posZ
+	}
+	origin := modelPoint3{x: x + offsetX, y: z + height*0.9 + offsetZ, z: y + offsetY}
 
 	locals := []modelPoint3{
 		{x: 0, y: height, z: 0},
@@ -85,6 +94,13 @@ func quadHornRange(effect worldEffect, salt int, min, max float64) float64 {
 		return max
 	}
 	return deterministicFloatRange(effect, salt, min, max)
+}
+
+func quadHornDefaultOffset(value float64) float64 {
+	if value == 0 {
+		return 0.5
+	}
+	return value
 }
 
 func quadHornAnimation(component worldEffectComponent, progress float64, componentDuration time.Duration, height, offsetZ float64) (float64, float64) {

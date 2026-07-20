@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 162 {
-		t.Fatalf("implemented effects = %d, want 162", coverage.Implemented)
+	if coverage.Implemented != 203 {
+		t.Fatalf("implemented effects = %d, want 203", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 26.6 || coverage.ActivePercent > 26.8 {
-		t.Fatalf("active coverage = %.3f, want about 26.7", coverage.ActivePercent)
+	if coverage.ActivePercent < 33.4 || coverage.ActivePercent > 33.5 {
+		t.Fatalf("active coverage = %.3f, want about 33.4", coverage.ActivePercent)
 	}
 }
 
@@ -2441,6 +2441,271 @@ func TestRobrowserMeteorAndJupitelSpecs(t *testing.T) {
 	}
 	if blast.kind != effectComponent3D || len(blast.textureFiles) != 5 || blast.textureFiles[0] != "effect/thunder_plazma_blast_a.bmp" || blast.textureFiles[4] != "effect/thunder_ball_f.bmp" || blast.frameDelay != 10*time.Millisecond || blast.duration != 300*time.Millisecond || blast.sizeStart != effectTableSize(75) || !blast.overlay || !blast.attachedEntity || !blast.blendAdditive {
 		t.Fatalf("EF_YUFITELHIT blast = %+v", blast)
+	}
+}
+
+func TestRobrowserActiveEffectsOneHundredToOneFiftyHaveSpecs(t *testing.T) {
+	active := map[int]string{
+		effectRemoveTrap:     "EF_REMOVETRAP",
+		effectRepairWeapon:   "EF_REPAIRWEAPON",
+		effectCrashEarth:     "EF_CRASHEARTH",
+		effectWeaponPerfect:  "EF_PERFECTION",
+		effectMaximizePower:  "EF_MAXPOWER",
+		effectBlastMine:      "EF_BLASTMINE",
+		effectBlastMineBomb:  "EF_BLASTMINEBOMB",
+		effectClaymore:       "EF_CLAYMORE",
+		effectFreezingTrap:   "EF_FREEZING",
+		effectBubble:         "EF_BUBBLE",
+		effectGasPush:        "EF_GASPUSH",
+		effectSpringTrap:     "EF_SPRINGTRAP",
+		effectKyrie:          "EF_KYRIE",
+		effectMagnus:         "EF_MAGNUS",
+		effectBlitzBeat:      "EF_BLITZBEAT",
+		effectWaterBall:      "EF_WATERBALL",
+		effectWaterBall2:     "EF_WATERBALL2",
+		effectDetecting:      "EF_DETECTING",
+		effectCloaking:       "EF_CLOAKING",
+		effectSonicBlow:      "EF_SONICBLOW",
+		effectSonicBlowHit:   "EF_SONICBLOWHIT",
+		effectGrimtooth:      "EF_GRIMTOOTH",
+		effectVenomDust:      "EF_VENOMDUST",
+		effectPoisonReact:    "EF_POISONREACT",
+		effectPoisonReact2:   "EF_POISONREACT2",
+		effectOverthrust:     "EF_OVERTHRUST",
+		effectVenomSplasher:  "EF_SPLASHER",
+		effectTwoHandQuicken: "EF_TWOHANDQUICKEN",
+		effectAutoCounter:    "EF_AUTOCOUNTER",
+		effectGrimtoothAtk:   "EF_GRIMTOOTHATK",
+		effectFreeze:         "EF_FREEZE",
+		effectFreezed:        "EF_FREEZED",
+		effectIceCrash:       "EF_ICECRASH",
+		effectSlowPoison:     "EF_SLOWPOISON",
+		effectFirePillarOn:   "EF_FIREPILLARON",
+		effectSandman:        "EF_SANDMAN",
+		effectRevive:         "EF_REVIVE",
+		effectPneuma:         "EF_PNEUMA",
+		effectHeavenDrive:    "EF_HEAVENDRIVE",
+		effectSonicBlow2:     "EF_SONICBLOW2",
+		effectBrandishSpear2: "EF_BRANDISH2",
+		effectShockwave:      "EF_SHOCKWAVE",
+		effectShockwaveHit:   "EF_SHOCKWAVEHIT",
+		effectEarthHit:       "EF_EARTHHIT",
+		effectPierceSelf:     "EF_PIERCESELF",
+		effectBowlingSelf:    "EF_BOWLINGSELF",
+		effectSpearStabSelf:  "EF_SPEARSTABSELF",
+	}
+	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+}
+
+func TestRobrowserSimpleEffectsOneHundredToOneFiftyMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		id       int
+		file     string
+		wav      string
+		attached bool
+		head     bool
+	}{
+		{"EF_BLASTMINEBOMB", effectBlastMineBomb, "blastmine", "effect\\hunter_blastmine.wav", false, false},
+		{"EF_CLAYMORE", effectClaymore, "claymore", "effect\\hunter_claymoretrap.wav", false, false},
+		{"EF_FREEZING", effectFreezingTrap, "freezing", "effect\\hunter_freezingtrap.wav", false, false},
+		{"EF_GASPUSH", effectGasPush, "gaspush", "", false, false},
+		{"EF_SPRINGTRAP", effectSpringTrap, "spring", "effect\\hunter_springtrap.wav", false, false},
+		{"EF_MAGNUS", effectMagnus, "magnus", "effect\\priest_magnus.wav", false, false},
+		{"EF_VENOMDUST", effectVenomDust, "venomdust", "effect\\assasin_poisonreact.wav", false, false},
+		{"EF_POISONREACT", effectPoisonReact, "poisonreact_1st", "effect\\assasin_poisonreact.wav", true, false},
+		{"EF_POISONREACT2", effectPoisonReact2, "poisonreact", "effect\\assasin_poisonreact.wav", true, false},
+		{"EF_SPLASHER", effectVenomSplasher, "venomsplasher", "effect\\assasin_venomsplasher.wav", true, false},
+		{"EF_TWOHANDQUICKEN", effectTwoHandQuicken, "twohand", "effect\\knight_twohandquicken.wav", true, true},
+		{"EF_AUTOCOUNTER", effectAutoCounter, "autocounter", "effect\\knight_autocounter.wav", true, false},
+		{"EF_FREEZE", effectFreeze, "freeze", "", true, false},
+		{"EF_FREEZED", effectFreezed, "freezed", "", true, false},
+		{"EF_ICECRASH", effectIceCrash, "icecrash", "", true, false},
+		{"EF_SLOWPOISON", effectSlowPoison, "slowp", "effect\\priest_slowpoison.wav", false, false},
+		{"EF_SANDMAN", effectSandman, "sandman", "effect\\hunter_sandman.wav", false, false},
+		{"EF_SONICBLOW2", effectSonicBlow2, "sonicblow", "", true, false},
+		{"EF_BRANDISH2", effectBrandishSpear2, "brandish2", "effect\\knight_brandish_spear.wav", true, false},
+		{"EF_SHOCKWAVEHIT", effectShockwaveHit, "shockwavehit", "", true, false},
+		{"EF_EARTHHIT", effectEarthHit, "earthhit", "", true, false},
+		{"EF_PIERCESELF", effectPierceSelf, "pierce", "", true, false},
+		{"EF_BOWLINGSELF", effectBowlingSelf, "bowling", "_enemy_hit_normal1.wav", true, true},
+		{"EF_SPEARSTABSELF", effectSpearStabSelf, "spearstab", "_enemy_hit_normal1.wav", true, false},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t, want one STR component", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentSTR || component.strFile != tc.file || component.attachedEntity != tc.attached || component.spriteHead != tc.head {
+			t.Fatalf("%s component = %+v, want STR %q attached=%t head=%t", tc.name, component, tc.file, tc.attached, tc.head)
+		}
+		if tc.wav == "" {
+			if len(spec.sfx) != 0 {
+				t.Fatalf("%s sfx = %v, want none", tc.name, spec.sfx)
+			}
+			continue
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		id   int
+		wav  string
+	}{
+		{"EF_BLASTMINE", effectBlastMine, "effect\\hun_anklesnare.wav"},
+		{"EF_BLITZBEAT", effectBlitzBeat, "effect\\hunter_blitzbeat.wav"},
+		{"EF_DETECTING", effectDetecting, "effect\\hunter_detecting.wav"},
+		{"EF_CLOAKING", effectCloaking, "effect\\assasin_cloaking.wav"},
+		{"EF_GRIMTOOTH", effectGrimtooth, "effect\\ef_frostdiver.wav"},
+		{"EF_OVERTHRUST", effectOverthrust, "effect\\black_overthrust.wav"},
+		{"EF_REVIVE", effectRevive, "effect\\priest_resurrection.wav"},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || len(spec.components) != 0 || spec.duration != 500*time.Millisecond {
+			t.Fatalf("%s spec = %+v ok=%t, want sound-only 500ms", tc.name, spec, ok)
+		}
+		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
+			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
+		}
+	}
+}
+
+func TestRobrowserRepairWeaponAndShockwaveSpecs(t *testing.T) {
+	repair, ok := worldEffectSpecForID(effectRepairWeapon)
+	if !ok || len(repair.components) != 1 || repair.duration != 1820*time.Millisecond {
+		t.Fatalf("EF_REPAIRWEAPON spec = %+v ok=%t", repair, ok)
+	}
+	if len(repair.sfx) != 2 || repair.sfx[0] != "effect\\black_weapon_repair_a.wav" || repair.sfx[1] != "effect\\black_weapon_repair_a.wav" {
+		t.Fatalf("EF_REPAIRWEAPON sfx = %v", repair.sfx)
+	}
+	if len(repair.sfxDelays) != 2 || repair.sfxDelays[0] != 480*time.Millisecond || repair.sfxDelays[1] != 1320*time.Millisecond {
+		t.Fatalf("EF_REPAIRWEAPON sfx delays = %v", repair.sfxDelays)
+	}
+	if component := repair.components[0]; component.kind != effectComponentSTR || component.strFile != "repairweapon" || !component.attachedEntity {
+		t.Fatalf("EF_REPAIRWEAPON component = %+v", component)
+	}
+
+	shockwave, ok := worldEffectSpecForID(effectShockwave)
+	if !ok || len(shockwave.components) != 1 {
+		t.Fatalf("EF_SHOCKWAVE spec = %+v ok=%t", shockwave, ok)
+	}
+	if len(shockwave.sfx) != 1 || shockwave.sfx[0] != "effect\\hunter_shockwavetrap.wav" {
+		t.Fatalf("EF_SHOCKWAVE sfx = %v", shockwave.sfx)
+	}
+	if component := shockwave.components[0]; component.kind != effectComponentSPR || component.spriteFile != "shockwave" || !component.attachedEntity {
+		t.Fatalf("EF_SHOCKWAVE component = %+v", component)
+	}
+}
+
+func TestRobrowserWaterBallAndSonicBlowSpecs(t *testing.T) {
+	water, ok := worldEffectSpecForID(effectWaterBall)
+	if !ok || len(water.components) != 1 || water.duration != 500*time.Millisecond {
+		t.Fatalf("EF_WATERBALL spec = %+v ok=%t", water, ok)
+	}
+	component := water.components[0]
+	if component.kind != effectComponent3D || len(component.textureFiles) != 3 || component.textureFiles[0] != "effect/water_out_a.bmp" || component.textureFiles[2] != "effect/water_out_c.bmp" {
+		t.Fatalf("EF_WATERBALL texture files = %+v", component)
+	}
+	if component.frameDelay != 10*time.Millisecond || component.duration != 500*time.Millisecond || !component.fadeOut || component.posXRand != 1.5 || component.posZRand != 1.5 || component.posYEnd != 3 || !component.posYSmooth || component.sizeStart != effectTableSize(30.5) || !component.rotateWithCamera || !component.blendAdditive || !component.attachedEntity {
+		t.Fatalf("EF_WATERBALL component = %+v", component)
+	}
+
+	water2, ok := worldEffectSpecForID(effectWaterBall2)
+	if !ok || len(water2.components) != 1 || water2.duration != 1450*time.Millisecond {
+		t.Fatalf("EF_WATERBALL2 spec = %+v ok=%t", water2, ok)
+	}
+	projectile := water2.components[0]
+	if projectile.kind != effectComponent3D || projectile.spriteFile != "data\\sprite\\이팩트\\waterball" || projectile.duration != 500*time.Millisecond || projectile.duplicate != 20 || projectile.duplicateDelay != 50*time.Millisecond {
+		t.Fatalf("EF_WATERBALL2 projectile resource/timing = %+v", projectile)
+	}
+	if !projectile.fromSrc || !projectile.rotateToTarget || !projectile.fadeOut || projectile.sizeStart != effectTableSize(50) || projectile.posZ != 5 || projectile.posZEnd != 0.0001 || projectile.arc != 7.5 || projectile.retreat != 5 {
+		t.Fatalf("EF_WATERBALL2 projectile motion = %+v", projectile)
+	}
+
+	sonic, ok := worldEffectSpecForID(effectSonicBlow)
+	if !ok || len(sonic.components) != 1 || sonic.duration != 400*time.Millisecond {
+		t.Fatalf("EF_SONICBLOW spec = %+v ok=%t", sonic, ok)
+	}
+	ring := sonic.components[0]
+	if ring.kind != effectComponent3D || ring.textureFile != "effect/ring2.bmp" || ring.duration != 400*time.Millisecond || ring.alphaMax != 1 || !ring.fadeOut || ring.sizeStart != effectTableSize(100) || ring.sizeEnd != effectTableSize(300) || !ring.blendAdditive || !ring.attachedEntity {
+		t.Fatalf("EF_SONICBLOW ring = %+v", ring)
+	}
+	spin, ok := worldEffectSpecForID(effectSonicBlowHit)
+	if !ok || len(spin.components) != 1 || spin.components[0].kind != effectComponentFUNC || spin.components[0].funcName != "SonicBlowHitSpin" || !spin.components[0].attachedEntity {
+		t.Fatalf("EF_SONICBLOWHIT spec = %+v ok=%t", spin, ok)
+	}
+}
+
+func TestRobrowserCrashEarthFirePillarAndQuadHornOneHundredSpecs(t *testing.T) {
+	crash, ok := worldEffectSpecForID(effectCrashEarth)
+	if !ok || len(crash.components) != 1 {
+		t.Fatalf("EF_CRASHEARTH spec = %+v ok=%t", crash, ok)
+	}
+	if crash.cameraShakeDelay != 350*time.Millisecond || crash.cameraShake != 650*time.Millisecond {
+		t.Fatalf("EF_CRASHEARTH camera shake = delay %s duration %s", crash.cameraShakeDelay, crash.cameraShake)
+	}
+	if component := crash.components[0]; component.kind != effectComponentSTR || component.strFile != "crashearth" || component.attachedEntity {
+		t.Fatalf("EF_CRASHEARTH component = %+v", component)
+	}
+
+	fire, ok := worldEffectSpecForID(effectFirePillarOn)
+	if !ok || len(fire.components) != 3 || fire.duration != 6*time.Second {
+		t.Fatalf("EF_FIREPILLARON spec = %+v ok=%t", fire, ok)
+	}
+	for i, component := range fire.components {
+		if component.kind != effectComponentCylinder || component.textureName != "magic_red" || component.duration != 5*time.Second || component.delay != time.Second || !component.rotate || component.attachedEntity {
+			t.Fatalf("EF_FIREPILLARON component %d = %+v", i, component)
+		}
+	}
+	if fire.components[0].bottomSize != 1 || fire.components[0].topSize != 2 || fire.components[0].height != 3 || fire.components[2].bottomSize != 0.5 || fire.components[2].topSize != 1 || fire.components[2].height != 7 {
+		t.Fatalf("EF_FIREPILLARON cylinder sizes = %+v", fire.components)
+	}
+
+	grim, ok := worldEffectSpecForID(effectGrimtoothAtk)
+	if !ok || len(grim.components) != 3 || grim.duration != 15*time.Second {
+		t.Fatalf("EF_GRIMTOOTHATK spec = %+v ok=%t", grim, ok)
+	}
+	first := grim.components[0]
+	if first.kind != effectComponentQuadHorn || first.textureFile != "effect/stone.bmp" || first.duration != 15*time.Second || first.quadHornHeightMin != 2.5 || first.quadHornBottomMin != 0.15 || first.quadHornRotateXMin != -15 || first.quadHornOffsetYMin != 0.4 || first.quadHornOffsetZ != -0.2 || first.animation != 3 || first.quadHornAnimSpeed != 120*time.Millisecond || !first.quadHornAnimOut {
+		t.Fatalf("EF_GRIMTOOTHATK first = %+v", first)
+	}
+	if grim.components[1].quadHornRotateYMin != 45 || grim.components[1].quadHornRotateZMin != -15 || grim.components[2].quadHornRotateZMin != 15 {
+		t.Fatalf("EF_GRIMTOOTHATK rotations = %+v %+v", grim.components[1], grim.components[2])
+	}
+
+	heaven, ok := worldEffectSpecForID(effectHeavenDrive)
+	if !ok || len(heaven.components) != 25 || heaven.duration != time.Second || heaven.cameraShake != 200*time.Millisecond {
+		t.Fatalf("EF_HEAVENDRIVE spec = %+v ok=%t", heaven, ok)
+	}
+	if len(heaven.sfx) != 1 || heaven.sfx[0] != "effect\\wizard_earthspike.wav" {
+		t.Fatalf("EF_HEAVENDRIVE sfx = %v", heaven.sfx)
+	}
+	center := heaven.components[12]
+	if center.kind != effectComponentQuadHorn || center.textureFile != "effect/stone.bmp" || center.duration != time.Second || center.posX != 0 || center.posY != 0 || center.quadHornHeightMin != 0.75 || center.quadHornHeightMax != 1.2 || center.quadHornBottomMin != 0.4 || center.quadHornBottomMax != 0.7 || center.quadHornAnimSpeed != 250*time.Millisecond || !center.quadHornAnimOut {
+		t.Fatalf("EF_HEAVENDRIVE center = %+v", center)
+	}
+	if heaven.components[0].posX != -2 || heaven.components[0].posY != -2 || heaven.components[24].posX != 2 || heaven.components[24].posY != 2 {
+		t.Fatalf("EF_HEAVENDRIVE grid edges = %+v %+v", heaven.components[0], heaven.components[24])
+	}
+}
+
+func TestRobrowserQuadHornRuntimeDefaults(t *testing.T) {
+	if got := quadHornDefaultOffset(0); got != 0.5 {
+		t.Fatalf("quadHornDefaultOffset(0) = %v, want robr default 0.5", got)
+	}
+	if got := quadHornDefaultOffset(-0.2); got != -0.2 {
+		t.Fatalf("quadHornDefaultOffset(-0.2) = %v, want -0.2", got)
+	}
+	effect := worldEffect{effectID: effectEarthSpike, actorID: 1, starts: time.Unix(10, 20)}
+	if got := quadHornRange(effect, 1, 0, -0.2); got != -0.2 {
+		t.Fatalf("quadHornRange max<min = %v, want -0.2", got)
 	}
 }
 
@@ -3486,21 +3751,60 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "PR_GLORIA imported", skillEffectIDs(db.SkillPRGloria), effectGloria)
 	expectEffectIDs(t, "PR_LEXAETERNA imported", skillEffectIDs(db.SkillPRLexaeterna), effectLexAeterna)
 	expectEffectIDs(t, "PR_TURNUNDEAD imported hit", skillHitEffectIDs(db.SkillPRTurnundead), 152)
+	expectEffectIDs(t, "PR_MAGNUS imported", skillEffectIDs(db.SkillPRMagnus), effectMagnus)
+	expectEffectIDs(t, "PR_SLOWPOISON imported", skillEffectIDs(db.SkillPRSlowpoison), effectSlowPoison)
+	expectEffectIDs(t, "PR_STRECOVERY imported", skillEffectIDs(db.SkillPRStrecovery), effectRecovery)
 	expectEffectIDs(t, "WZ_FIREPILLAR imported", skillEffectIDs(db.SkillWZFirepillar), effectFirePillar)
+	expectEffectIDs(t, "WZ_FIREPILLAR imported ground", skillGroundEffectIDs(db.SkillWZFirepillar), effectFirePillarOn)
 	expectEffectIDs(t, "WZ_FIREPILLAR imported hit", skillHitEffectIDs(db.SkillWZFirepillar), effectFirePillarBomb)
 	expectEffectIDs(t, "WZ_SIGHTRASHER imported", skillEffectIDs(db.SkillWZSightrasher), effectSightTrasher)
 	expectEffectIDs(t, "WZ_METEOR imported", skillEffectIDs(db.SkillWZMeteor), effectMeteorStorm)
 	expectEffectIDs(t, "WZ_JUPITEL imported", skillEffectIDs(db.SkillWZJupitel), effectJupitelThunder)
 	expectEffectIDs(t, "WZ_JUPITEL imported before hit", skillBeforeHitEffectIDs(db.SkillWZJupitel), effectJupitelHit)
+	expectEffectIDs(t, "WZ_WATERBALL imported self before hit", skillBeforeHitEffectSelfIDs(db.SkillWZWaterball), effectWaterBall)
+	expectEffectIDs(t, "WZ_WATERBALL imported caster hit", skillHitEffectOnCasterIDs(db.SkillWZWaterball), effectWaterBall2)
 	expectEffectIDs(t, "WZ_VERMILION imported", skillEffectIDs(db.SkillWZVermilion), effectLordVermilion)
 	expectEffectIDs(t, "WZ_ICEWALL imported ground", skillGroundEffectIDs(db.SkillWZIcewall), effectIceWall)
 	expectEffectIDs(t, "WZ_EARTHSPIKE imported", skillEffectIDs(db.SkillWZEarthspike), effectEarthSpike)
+	expectEffectIDs(t, "WZ_EARTHSPIKE imported hit", skillHitEffectIDs(db.SkillWZEarthspike), effectEarthHit)
+	expectEffectIDs(t, "WZ_HEAVENDRIVE imported", skillEffectIDs(db.SkillWZHeavendrive), effectHeavenDrive)
 	expectEffectIDs(t, "WZ_QUAGMIRE imported ground", skillGroundEffectIDs(db.SkillWZQuagmire), effectQuagmire)
 	expectEffectIDs(t, "WZ_STORMGUST imported", skillEffectIDs(db.SkillWZStormgust), effectStormGust)
+	expectEffectIDs(t, "BS_REPAIRWEAPON imported", skillEffectIDs(db.SkillBSRepairweapon), effectRepairWeapon)
+	expectEffectIDs(t, "BS_HAMMERFALL imported", skillEffectIDs(db.SkillBSHammerfall), effectCrashEarth)
+	expectEffectIDs(t, "BS_ADRENALINE imported", skillEffectIDs(db.SkillBSAdrenaline), effectHasteUp)
 	expectEffectIDs(t, "BS_WEAPONPERFECT imported", skillEffectIDs(db.SkillBSWeaponperfect), effectWeaponPerfect)
+	expectEffectIDs(t, "BS_OVERTHRUST imported", skillEffectIDs(db.SkillBSOverthrust), effectOverthrust)
 	expectEffectIDs(t, "BS_MAXIMIZE imported", skillEffectIDs(db.SkillBSMaximize), effectMaximizePower)
+	expectEffectIDs(t, "KN_PIERCE imported caster", skillEffectOnCasterIDs(db.SkillKNPierce), effectPierceSelf)
+	expectEffectIDs(t, "KN_PIERCE imported hit", skillHitEffectIDs(db.SkillKNPierce), effectEarthHit)
+	expectEffectIDs(t, "KN_BRANDISHSPEAR imported", skillEffectIDs(db.SkillKNBrandishspear), effectBrandishSpear)
+	expectEffectIDs(t, "KN_BRANDISHSPEAR imported caster", skillEffectOnCasterIDs(db.SkillKNBrandishspear), effectBrandishSpear2)
+	expectEffectIDs(t, "KN_SPEARSTAB imported caster", skillEffectOnCasterIDs(db.SkillKNSpearstab), effectSpearStabSelf)
 	expectEffectIDs(t, "KN_SPEARBOOMERANG imported caster", skillEffectOnCasterIDs(db.SkillKNSpearboomerang), 151)
 	expectEffectIDs(t, "KN_SPEARBOOMERANG imported hit", skillHitEffectIDs(db.SkillKNSpearboomerang), effectSpearBoomerang, effectHit4)
+	expectEffectIDs(t, "KN_TWOHANDQUICKEN imported", skillEffectIDs(db.SkillKNTwohandquicken), effectTwoHandQuicken)
+	expectEffectIDs(t, "KN_BOWLINGBASH imported caster", skillEffectOnCasterIDs(db.SkillKNBowlingbash), effectBowlingSelf)
+	expectEffectIDs(t, "HT_SHOCKWAVE imported", skillEffectIDs(db.SkillHTShockwave), effectShockwave)
+	expectEffectIDs(t, "HT_SHOCKWAVE imported hit", skillHitEffectIDs(db.SkillHTShockwave), effectShockwaveHit)
+	expectEffectIDs(t, "HT_SANDMAN imported hit", skillHitEffectIDs(db.SkillHTSandman), effectSandman)
+	expectEffectIDs(t, "HT_FREEZINGTRAP imported hit", skillHitEffectIDs(db.SkillHTFreezingtrap), effectFreezingTrap)
+	expectEffectIDs(t, "HT_BLASTMINE imported hit", skillHitEffectIDs(db.SkillHTBlastmine), effectBlastMineBomb)
+	expectEffectIDs(t, "HT_CLAYMORE imported hit", skillHitEffectIDs(db.SkillHTClaymoretrap), effectClaymore)
+	expectEffectIDs(t, "HT_REMOVETRAP imported", skillEffectIDs(db.SkillHTRemovetrap), effectRemoveTrap)
+	expectEffectIDs(t, "HT_BLITZBEAT imported", skillEffectIDs(db.SkillHTBlitzbeat), effectBlitzBeat)
+	expectEffectIDs(t, "HT_DETECTING imported", skillEffectIDs(db.SkillHTDetecting), effectDetecting)
+	expectEffectIDs(t, "HT_SPRINGTRAP imported", skillEffectIDs(db.SkillHTSpringtrap), effectSpringTrap)
+	expectEffectIDs(t, "AS_CLOAKING imported", skillEffectIDs(db.SkillASCloaking), effectCloaking)
+	expectEffectIDs(t, "AS_SONICBLOW imported", skillEffectIDs(db.SkillASSonicblow), effectSonicBlow2)
+	expectEffectIDs(t, "AS_SONICBLOW imported caster", skillEffectOnCasterIDs(db.SkillASSonicblow), effectSonicBlow)
+	expectEffectIDs(t, "AS_SONICBLOW imported hit", skillHitEffectIDs(db.SkillASSonicblow), effectSonicBlowHit)
+	expectEffectIDs(t, "AS_GRIMTOOTH imported", skillEffectIDs(db.SkillASGrimtooth), effectGrimtooth)
+	expectEffectIDs(t, "AS_GRIMTOOTH imported hit", skillHitEffectIDs(db.SkillASGrimtooth), effectGrimtoothAtk)
+	expectEffectIDs(t, "AS_POISONREACT imported", skillEffectIDs(db.SkillASPoisonreact), effectPoisonReact)
+	expectEffectIDs(t, "AS_POISONREACT imported hit", skillHitEffectIDs(db.SkillASPoisonreact), effectPoisonReact2)
+	expectEffectIDs(t, "AS_VENOMDUST imported", skillEffectIDs(db.SkillASVenomdust), effectVenomDust)
+	expectEffectIDs(t, "AS_SPLASHER imported", skillEffectIDs(db.SkillASSplasher), effectVenomSplasher)
 	expectEffectIDs(t, "MO_BALKYOUNG imported", skillEffectIDs(db.SkillMOBalkyoung), 514)
 	expectEffectIDs(t, "MO_BALKYOUNG imported hit", skillHitEffectIDs(db.SkillMOBalkyoung), effectHit3)
 }

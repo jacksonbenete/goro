@@ -122,6 +122,47 @@ const (
 	effectHasteUp        = 98
 	effectFlasher        = 99
 	effectRemoveTrap     = 100
+	effectRepairWeapon   = 101
+	effectCrashEarth     = 102
+	effectBlastMine      = 105
+	effectBlastMineBomb  = 106
+	effectClaymore       = 107
+	effectFreezingTrap   = 108
+	effectGasPush        = 110
+	effectSpringTrap     = 111
+	effectMagnus         = 113
+	effectBlitzBeat      = 115
+	effectWaterBall      = 116
+	effectWaterBall2     = 117
+	effectDetecting      = 119
+	effectCloaking       = 120
+	effectSonicBlow      = 121
+	effectSonicBlowHit   = 122
+	effectGrimtooth      = 123
+	effectVenomDust      = 124
+	effectPoisonReact    = 126
+	effectPoisonReact2   = 127
+	effectOverthrust     = 128
+	effectVenomSplasher  = 129
+	effectTwoHandQuicken = 130
+	effectAutoCounter    = 131
+	effectGrimtoothAtk   = 132
+	effectFreeze         = 133
+	effectFreezed        = 134
+	effectIceCrash       = 135
+	effectSlowPoison     = 136
+	effectFirePillarOn   = 138
+	effectSandman        = 139
+	effectRevive         = 140
+	effectHeavenDrive    = 142
+	effectSonicBlow2     = 143
+	effectBrandishSpear2 = 144
+	effectShockwave      = 145
+	effectShockwaveHit   = 146
+	effectEarthHit       = 147
+	effectPierceSelf     = 148
+	effectBowlingSelf    = 149
+	effectSpearStabSelf  = 150
 	effectRain           = 161
 	effectSnow           = 162
 	effectSakura         = 163
@@ -241,6 +282,7 @@ type worldEffectSpec struct {
 	cameraShakeDelay time.Duration
 	detachLocalActor bool
 	sfx              []string
+	sfxDelays        []time.Duration
 	sfxRandMin       int
 	sfxRandMax       int
 	components       []worldEffectComponent
@@ -307,6 +349,7 @@ type worldEffectComponent struct {
 	posZEnd            float64
 	posXRand           float64
 	posYRand           float64
+	posZRand           float64
 	posXStartRand      float64
 	posYStartRand      float64
 	posZStartRand      float64
@@ -891,7 +934,14 @@ func (m *WorldMode) scheduleWorldEffectSound(starts time.Time, spec worldEffectS
 	if len(spec.sfx) == 0 {
 		return
 	}
-	m.scheduleSound(starts, resolveEffectSFX(spec, effect)...)
+	paths := resolveEffectSFX(spec, effect)
+	for i, path := range paths {
+		delay := time.Duration(0)
+		if i < len(spec.sfxDelays) {
+			delay = spec.sfxDelays[i]
+		}
+		m.scheduleSound(starts.Add(delay), path)
+	}
 }
 
 func resolveEffectSFX(spec worldEffectSpec, effect worldEffect) []string {
@@ -1414,6 +1464,9 @@ func convertDBWorldEffectSpec(spec db.EffectSpec) worldEffectSpec {
 	if len(spec.SFX) > 0 {
 		out.sfx = append([]string(nil), spec.SFX...)
 	}
+	if len(spec.SFXDelays) > 0 {
+		out.sfxDelays = append([]time.Duration(nil), spec.SFXDelays...)
+	}
 	if len(spec.Components) > 0 {
 		out.components = make([]worldEffectComponent, 0, len(spec.Components))
 		for _, component := range spec.Components {
@@ -1485,6 +1538,7 @@ func convertDBWorldEffectComponent(component db.EffectComponent) worldEffectComp
 		posZEnd:            component.PosZEnd,
 		posXRand:           component.PosXRand,
 		posYRand:           component.PosYRand,
+		posZRand:           component.PosZRand,
 		posXStartRand:      component.PosXStartRand,
 		posYStartRand:      component.PosYStartRand,
 		posZStartRand:      component.PosZStartRand,

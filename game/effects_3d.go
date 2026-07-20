@@ -111,12 +111,13 @@ func effectBillboardSize(progress float64, component worldEffectComponent) float
 func (m *WorldMode) effect3DOffset(ctx client.Context, component worldEffectComponent, effect worldEffect, salt int, duplicateIndex int, progress float64, worldX, worldY, worldZ float64) (float64, float64, float64) {
 	staticX := deterministicSigned(effect, salt+1) * component.posXRand
 	staticY := deterministicSigned(effect, salt+2) * component.posYRand
+	staticZ := deterministicSigned(effect, salt+10) * component.posZRand
 	startX := component.posX + staticX + component.posXStartMiddle + deterministicSigned(effect, salt+11)*component.posXStartRand
 	startY := component.posY + staticY + component.posYStartMiddle + deterministicSigned(effect, salt+12)*component.posYStartRand
-	startZ := component.posZ + component.posZStartMiddle + deterministicSigned(effect, salt+3)*component.posZStartRand
+	startZ := component.posZ + staticZ + component.posZStartMiddle + deterministicSigned(effect, salt+3)*component.posZStartRand
 	endX := component.posXEnd + staticX + component.posXEndMiddle + deterministicSigned(effect, salt+4)*component.posXEndRand
 	endY := component.posYEnd + staticY + component.posYEndMiddle + deterministicSigned(effect, salt+5)*component.posYEndRand
-	endZ := component.posZEnd + component.posZEndMiddle + deterministicSigned(effect, salt+6)*component.posZEndRand
+	endZ := component.posZEnd + staticZ + component.posZEndMiddle + deterministicSigned(effect, salt+6)*component.posZEndRand
 	if component.circlePattern {
 		angle := effectComponentAngleDegrees(component, effect, salt)
 		radians := angle * math.Pi / 180
