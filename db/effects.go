@@ -536,6 +536,26 @@ const (
 	effectCastSpin2        = 775
 	effectCrashAxe         = 795
 	effectStasis           = 799
+	effectBottomBasilica2  = 802
+	effectRecognized       = 803
+	effectTetra            = 804
+	effectTetraCasting     = 805
+	effectStretch          = 811
+	effectEnervation       = 813
+	effectEnervation2      = 814
+	effectEnervation3      = 815
+	effectEnervation4      = 816
+	effectEnervation5      = 817
+	effectEnervation6      = 818
+	effectBottomManhole    = 822
+	effectManhole          = 823
+	effectForestLight6     = 825
+	effectBottomAni        = 827
+	effectBottomMaelstrom  = 828
+	effectBottomBloodyLust = 829
+	effectHealN            = 832
+	effectChookgiN         = 833
+	effectDance1           = 847
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -1839,6 +1859,19 @@ func basilicaEffectSpec() EffectSpec {
 			basilicaCylinderComponent(2.52, 2.1, 32.0/255.0, 10),
 			basilicaCylinderComponent(2.6, 2.0, 15.0/255.0, 26.6),
 			basilicaCylinderComponent(2.6, 2.0, 15.0/255.0, 79.8),
+		},
+	}
+}
+
+func bottomBasilica2EffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 20 * time.Second,
+		SFX:      []string{"effect\\wl_whiteimprison.wav"},
+		Components: []EffectComponent{
+			basilicaCylinderComponent(2.2, 3.0, 65.0/255.0, 0),
+			basilicaCylinderComponent(2.25, 3.1, 65.0/255.0, 10),
+			basilicaCylinderComponent(2.3, 3.0, 15.0/255.0, 0),
+			basilicaCylinderComponent(2.3, 3.0, 15.0/255.0, 53.2),
 		},
 	}
 }
@@ -4691,6 +4724,26 @@ var EffectSpecs = map[int]EffectSpec{
 	effectCastSpin2:         funcEffectSpec("CastSpin2", 500*time.Millisecond, true),
 	effectCrashAxe:          strEffectSpecAttached("powerswing", "", false),
 	effectStasis:            soundOnlyEffectSpec("effect\\wl_stasis.wav"),
+	effectBottomBasilica2:   bottomBasilica2EffectSpec(),
+	effectRecognized:        soundOnlyEffectSpec("effect\\wl_recognizedspell.wav"),
+	effectTetra:             soundOnlyEffectSpec("effect\\wl_tetravortex.wav"),
+	effectTetraCasting:      funcEffectSpec("TetraCasting", 500*time.Millisecond, true),
+	effectStretch:           soundOnlyEffectSpec("effect\\bodypaint.wav"),
+	effectEnervation:        strEffectSpecAttached("enervation", "", false),
+	effectEnervation2:       strEffectSpecAttached("groomy", "", false),
+	effectEnervation3:       strEffectSpecAttached("ignorance", "", false),
+	effectEnervation4:       strEffectSpecAttached("laziness", "effect\\laziness.wav", false),
+	effectEnervation5:       strEffectSpecAttached("unlucky", "", false),
+	effectEnervation6:       strEffectSpecAttached("weakness", "", false),
+	effectBottomManhole:     soundOnlyEffectSpec("effect\\dimension.wav"),
+	effectManhole:           soundOnlyEffectSpec("effect\\manhole.wav"),
+	effectForestLight6:      soundOnlyEffectSpec("effect\\dimension.wav"),
+	effectBottomAni:         soundOnlyEffectSpec("effect\\chaospanic.wav"),
+	effectBottomMaelstrom:   soundOnlyEffectSpec("effect\\maelstrom.wav"),
+	effectBottomBloodyLust:  soundOnlyEffectSpec("effect\\bloodylust.wav"),
+	effectHealN:             soundOnlyEffectSpec("effect\\기공포.wav"),
+	effectChookgiN:          spiritSphereEffectSpec(),
+	effectDance1:            soundOnlyEffectSpec("effect\\수줍은하루의우울.wav"),
 	effectFood: {
 		Duration: 850 * time.Millisecond,
 		SFX:      []string{"_heal_effect.wav"},

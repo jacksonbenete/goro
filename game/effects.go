@@ -544,6 +544,26 @@ const (
 	effectCastSpin2        = 775
 	effectCrashAxe         = 795
 	effectStasis           = 799
+	effectBottomBasilica2  = 802
+	effectRecognized       = 803
+	effectTetra            = 804
+	effectTetraCasting     = 805
+	effectStretch          = 811
+	effectEnervation       = 813
+	effectEnervation2      = 814
+	effectEnervation3      = 815
+	effectEnervation4      = 816
+	effectEnervation5      = 817
+	effectEnervation6      = 818
+	effectBottomManhole    = 822
+	effectManhole          = 823
+	effectForestLight6     = 825
+	effectBottomAni        = 827
+	effectBottomMaelstrom  = 828
+	effectBottomBloodyLust = 829
+	effectHealN            = 832
+	effectChookgiN         = 833
+	effectDance1           = 847
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1681,14 +1701,19 @@ type skillUnitEffectSpec struct {
 // display the full portal there because a separate UNT_WARPPORTAL entry is not
 // guaranteed before the unit's LOOK_BASE morph.
 var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
-	126: {effectIDs: []int{effectSafetyWall}},     // UNT_SAFETYWALL -> EF_GLASSWALL2
-	127: {effectIDs: []int{effectFireWall}},       // UNT_FIREWALL -> EF_FIREWALL
-	128: {effectIDs: []int{effectPortal}},         // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
-	129: {effectIDs: []int{effectPortal}},         // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
-	133: {effectIDs: []int{effectPneuma}},         // UNT_PNEUMA -> EF_PNEUMA
-	199: {effectIDs: []int{effectBottomEvilLand}}, // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
-	202: {effectIDs: []int{effectGlassWall3}},     // UNT_EPICLESIS -> EF_GLASSWALL3
-	203: {effectIDs: []int{effectEarthWall}},      // UNT_EARTHSTRAIN -> EF_EARTHWALL
+	126: {effectIDs: []int{effectSafetyWall}},       // UNT_SAFETYWALL -> EF_GLASSWALL2
+	127: {effectIDs: []int{effectFireWall}},         // UNT_FIREWALL -> EF_FIREWALL
+	128: {effectIDs: []int{effectPortal}},           // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
+	129: {effectIDs: []int{effectPortal}},           // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
+	133: {effectIDs: []int{effectPneuma}},           // UNT_PNEUMA -> EF_PNEUMA
+	199: {effectIDs: []int{effectBottomEvilLand}},   // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
+	202: {effectIDs: []int{effectGlassWall3}},       // UNT_EPICLESIS -> EF_GLASSWALL3
+	203: {effectIDs: []int{effectEarthWall}},        // UNT_EARTHSTRAIN -> EF_EARTHWALL
+	204: {effectIDs: []int{effectBottomManhole}},    // UNT_MANHOLE -> EF_BOTTOM_MANHOLE
+	205: {effectIDs: []int{effectForestLight6}},     // UNT_DIMENSIONDOOR -> EF_FORESTLIGHT6
+	206: {effectIDs: []int{effectBottomAni}},        // UNT_CHAOSPANIC -> EF_BOTTOM_ANI
+	207: {effectIDs: []int{effectBottomMaelstrom}},  // UNT_MAELSTROM -> EF_BOTTOM_MAELSTROM
+	208: {effectIDs: []int{effectBottomBloodyLust}}, // UNT_BLOODYLUST -> EF_BOTTOM_BLOODYLUST
 }
 
 func skillUnitEffectIDs(unitID uint16) []int {
