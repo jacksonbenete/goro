@@ -220,6 +220,60 @@ func TestHunterSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestBardDancerSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	bard := SkillTreeSkillIDs(JobBard)
+	for _, skillID := range []uint16{
+		SkillACDouble,
+		SkillBDAdaptation,
+		SkillBaMusicallesson,
+		SkillBaPangvoice,
+		SkillBDRingnibelungen,
+	} {
+		if !containsSkillID(bard, skillID) {
+			t.Fatalf("bard tree = %v, missing robr skill %d", bard, skillID)
+		}
+	}
+	if containsSkillID(bard, SkillCGArrowvulcan) || containsSkillID(bard, SkillDCDancinglesson) {
+		t.Fatalf("bard tree = %v, should not include clown or dancer skills", bard)
+	}
+
+	babyBard := SkillTreeSkillIDs(JobBardB)
+	if !containsSkillID(babyBard, SkillBaFrostjoke) || containsSkillID(babyBard, SkillCGSpecialsinger) {
+		t.Fatalf("baby bard tree = %v, want bard duplicate without clown skills", babyBard)
+	}
+
+	clown := SkillTreeSkillIDs(JobBardH)
+	if !containsSkillID(clown, SkillACShower) || !containsSkillID(clown, SkillBaDissonance) || !containsSkillID(clown, SkillCGArrowvulcan) || !containsSkillID(clown, SkillCGSpecialsinger) {
+		t.Fatalf("clown tree = %v, want archer, bard, and clown skills", clown)
+	}
+
+	dancer := SkillTreeSkillIDs(JobDancer)
+	for _, skillID := range []uint16{
+		SkillACDouble,
+		SkillBDAdaptation,
+		SkillDCDancinglesson,
+		SkillDCWinkcharm,
+		SkillBDRingnibelungen,
+	} {
+		if !containsSkillID(dancer, skillID) {
+			t.Fatalf("dancer tree = %v, missing robr skill %d", dancer, skillID)
+		}
+	}
+	if containsSkillID(dancer, SkillCGArrowvulcan) || containsSkillID(dancer, SkillBaMusicallesson) {
+		t.Fatalf("dancer tree = %v, should not include gypsy or bard skills", dancer)
+	}
+
+	babyDancer := SkillTreeSkillIDs(JobDancerB)
+	if !containsSkillID(babyDancer, SkillDCScream) || containsSkillID(babyDancer, SkillCGSpecialsinger) {
+		t.Fatalf("baby dancer tree = %v, want dancer duplicate without gypsy skills", babyDancer)
+	}
+
+	gypsy := SkillTreeSkillIDs(JobDancerH)
+	if !containsSkillID(gypsy, SkillACShower) || !containsSkillID(gypsy, SkillDCUglydance) || !containsSkillID(gypsy, SkillCGArrowvulcan) || !containsSkillID(gypsy, SkillCGSpecialsinger) {
+		t.Fatalf("gypsy tree = %v, want archer, dancer, and gypsy skills", gypsy)
+	}
+}
+
 func TestAssassinSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	thief := SkillTreeSkillIDs(JobThiefH)
 	if !containsSkillID(thief, SkillTFDouble) || !containsSkillID(thief, SkillTFPickstone) || containsSkillID(thief, SkillASSonicblow) {
@@ -579,6 +633,60 @@ func TestHunterSkillRequirementsMirrorRobrowser(t *testing.T) {
 	} {
 		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+}
+
+func TestBardDancerSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		job     int
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{JobBard, SkillBDEncore, []SkillRequirement{{SkillID: SkillBDAdaptation, Level: 1}}},
+		{JobBard, SkillBDRichmankim, []SkillRequirement{{SkillID: SkillBDSiegfried, Level: 3}}},
+		{JobBard, SkillBDEternalchaos, []SkillRequirement{{SkillID: SkillBDRokisweil, Level: 1}}},
+		{JobBard, SkillBDRingnibelungen, []SkillRequirement{{SkillID: SkillBDDrumbattlefield, Level: 3}}},
+		{JobBard, SkillBDIntoabyss, []SkillRequirement{{SkillID: SkillBDLullaby, Level: 1}}},
+		{JobBard, SkillBDLullaby, []SkillRequirement{{SkillID: SkillBaWhistle, Level: 10}}},
+		{JobDancer, SkillBDLullaby, []SkillRequirement{{SkillID: SkillDCHumming, Level: 10}}},
+		{JobBard, SkillBDDrumbattlefield, []SkillRequirement{{SkillID: SkillBaAppleidun, Level: 10}}},
+		{JobDancer, SkillBDDrumbattlefield, []SkillRequirement{{SkillID: SkillDCServiceforyou, Level: 10}}},
+		{JobBard, SkillBDRokisweil, []SkillRequirement{{SkillID: SkillBaAssassincross, Level: 10}}},
+		{JobDancer, SkillBDRokisweil, []SkillRequirement{{SkillID: SkillDCDontforgetme, Level: 10}}},
+		{JobBard, SkillBDSiegfried, []SkillRequirement{{SkillID: SkillBaPoembragi, Level: 10}}},
+		{JobDancer, SkillBDSiegfried, []SkillRequirement{{SkillID: SkillDCFortunekiss, Level: 10}}},
+		{JobBard, SkillBaMusicalstrike, []SkillRequirement{{SkillID: SkillBaMusicallesson, Level: 3}}},
+		{JobBard, SkillBaDissonance, []SkillRequirement{{SkillID: SkillBDAdaptation, Level: 1}, {SkillID: SkillBaMusicallesson, Level: 1}}},
+		{JobBard, SkillBaFrostjoke, []SkillRequirement{{SkillID: SkillBDEncore, Level: 1}}},
+		{JobBard, SkillBaWhistle, []SkillRequirement{{SkillID: SkillBaDissonance, Level: 3}}},
+		{JobBard, SkillBaAssassincross, []SkillRequirement{{SkillID: SkillBaDissonance, Level: 3}}},
+		{JobBard, SkillBaPoembragi, []SkillRequirement{{SkillID: SkillBaDissonance, Level: 3}}},
+		{JobBard, SkillBaAppleidun, []SkillRequirement{{SkillID: SkillBaDissonance, Level: 3}}},
+		{JobDancer, SkillDCThrowarrow, []SkillRequirement{{SkillID: SkillDCDancinglesson, Level: 3}}},
+		{JobDancer, SkillDCUglydance, []SkillRequirement{{SkillID: SkillBDAdaptation, Level: 1}, {SkillID: SkillDCDancinglesson, Level: 1}}},
+		{JobDancer, SkillDCScream, []SkillRequirement{{SkillID: SkillBDEncore, Level: 1}}},
+		{JobDancer, SkillDCHumming, []SkillRequirement{{SkillID: SkillDCUglydance, Level: 3}}},
+		{JobDancer, SkillDCDontforgetme, []SkillRequirement{{SkillID: SkillDCUglydance, Level: 3}}},
+		{JobDancer, SkillDCFortunekiss, []SkillRequirement{{SkillID: SkillDCUglydance, Level: 3}}},
+		{JobDancer, SkillDCServiceforyou, []SkillRequirement{{SkillID: SkillDCUglydance, Level: 3}}},
+		{JobBardH, SkillCGArrowvulcan, []SkillRequirement{{SkillID: SkillACDouble, Level: 5}, {SkillID: SkillACShower, Level: 5}, {SkillID: SkillBaMusicalstrike, Level: 1}}},
+		{JobDancerH, SkillCGArrowvulcan, []SkillRequirement{{SkillID: SkillACDouble, Level: 5}, {SkillID: SkillACShower, Level: 5}, {SkillID: SkillDCThrowarrow, Level: 1}}},
+		{JobBardH, SkillCGMoonlit, []SkillRequirement{{SkillID: SkillACConcentration, Level: 5}, {SkillID: SkillBaMusicallesson, Level: 7}}},
+		{JobDancerH, SkillCGMoonlit, []SkillRequirement{{SkillID: SkillACConcentration, Level: 5}, {SkillID: SkillDCDancinglesson, Level: 7}}},
+		{JobBardH, SkillCGMarionette, []SkillRequirement{{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillBaMusicallesson, Level: 5}}},
+		{JobDancerH, SkillCGMarionette, []SkillRequirement{{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillDCDancinglesson, Level: 5}}},
+		{JobBardH, SkillCGHermode, []SkillRequirement{{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillBaMusicallesson, Level: 10}}},
+		{JobDancerH, SkillCGHermode, []SkillRequirement{{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillDCDancinglesson, Level: 10}}},
+		{JobBardH, SkillCGTarotcard, []SkillRequirement{{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillBaDissonance, Level: 3}}},
+		{JobDancerH, SkillCGTarotcard, []SkillRequirement{{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillDCUglydance, Level: 3}}},
+		{JobBardH, SkillCGLongingfreedom, []SkillRequirement{{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillBaDissonance, Level: 3}, {SkillID: SkillBaMusicallesson, Level: 10}}},
+		{JobDancerH, SkillCGLongingfreedom, []SkillRequirement{{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillDCUglydance, Level: 3}, {SkillID: SkillDCDancinglesson, Level: 10}}},
+		{JobBardH, SkillCGSpecialsinger, []SkillRequirement{{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillBaDissonance, Level: 3}, {SkillID: SkillBaMusicallesson, Level: 10}}},
+		{JobDancerH, SkillCGSpecialsinger, []SkillRequirement{{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillDCUglydance, Level: 3}, {SkillID: SkillDCDancinglesson, Level: 10}}},
+	} {
+		if got := SkillRequirementsForJob(tc.job, tc.skillID); !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for job %d skill %d = %+v, want %+v", tc.job, tc.skillID, got, tc.want)
 		}
 	}
 }
@@ -965,6 +1073,61 @@ func TestHunterSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillSNWindwalk, 10},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestBardDancerSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillBDAdaptation, 1},
+		{SkillBDEncore, 1},
+		{SkillBDLullaby, 1},
+		{SkillBDRichmankim, 5},
+		{SkillBDEternalchaos, 1},
+		{SkillBDDrumbattlefield, 5},
+		{SkillBDRingnibelungen, 5},
+		{SkillBDRokisweil, 1},
+		{SkillBDIntoabyss, 1},
+		{SkillBDSiegfried, 5},
+		{SkillBDRagnarok, 0},
+		{SkillBaMusicallesson, 10},
+		{SkillBaMusicalstrike, 5},
+		{SkillBaDissonance, 5},
+		{SkillBaFrostjoke, 5},
+		{SkillBaWhistle, 10},
+		{SkillBaAssassincross, 10},
+		{SkillBaPoembragi, 10},
+		{SkillBaAppleidun, 10},
+		{SkillDCDancinglesson, 10},
+		{SkillDCThrowarrow, 5},
+		{SkillDCUglydance, 5},
+		{SkillDCScream, 5},
+		{SkillDCHumming, 10},
+		{SkillDCDontforgetme, 10},
+		{SkillDCFortunekiss, 10},
+		{SkillDCServiceforyou, 10},
+		{SkillCGArrowvulcan, 10},
+		{SkillCGMoonlit, 5},
+		{SkillCGMarionette, 1},
+		{SkillCGLongingfreedom, 5},
+		{SkillCGHermode, 5},
+		{SkillCGTarotcard, 5},
+		{SkillBaPangvoice, 1},
+		{SkillDCWinkcharm, 1},
+		{SkillCGSpecialsinger, 1},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if tc.want == 0 {
+			if ok {
+				t.Fatalf("skill %d max level = %d ok=%t, want unavailable", tc.skillID, got, ok)
+			}
+			continue
+		}
 		if !ok || got != tc.want {
 			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
 		}

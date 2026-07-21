@@ -358,6 +358,11 @@ const (
 )
 
 const (
+	effectBottomDissonance = 277
+	effectBottomUglyDance  = 290
+)
+
+const (
 	effectSoulBreaker       = 361
 	effectLevel99Aura1      = 362
 	effectPressure          = 365
@@ -1844,6 +1849,25 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	128: {effectIDs: []int{effectPortal}},           // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
 	129: {effectIDs: []int{effectPortal}},           // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
 	133: {effectIDs: []int{effectPneuma}},           // UNT_PNEUMA -> EF_PNEUMA
+	158: {effectIDs: []int{effectBottomLullaby}},    // UNT_LULLABY -> 278_ground
+	159: {effectIDs: []int{effectBottomRichKim}},    // UNT_RICHMANKIM -> 279_ground
+	160: {effectIDs: []int{effectBottomChaos}},      // UNT_ETERNALCHAOS -> 280_ground
+	161: {effectIDs: []int{effectBottomDrum}},       // UNT_DRUMBATTLEFIELD -> 281_ground
+	162: {effectIDs: []int{effectBottomNibelung}},   // UNT_RINGNIBELUNGEN -> 282_ground
+	163: {effectIDs: []int{effectBottomRoki}},       // UNT_ROKISWEIL -> 283_ground
+	164: {effectIDs: []int{effectBottomAbyss}},      // UNT_INTOABYSS -> 284_ground
+	165: {effectIDs: []int{effectBottomSieg}},       // UNT_SIEGFRIED -> 285_ground
+	166: {effectIDs: []int{effectBottomDissonance}}, // UNT_DISSONANCE -> 277_ground
+	167: {effectIDs: []int{effectBottomWhistle}},    // UNT_WHISTLE -> 286_ground
+	168: {effectIDs: []int{effectBottomSinX}},       // UNT_ASSASSINCROSS -> 287_ground
+	169: {effectIDs: []int{effectBottomBragi}},      // UNT_POEMBRAGI -> 288_ground
+	170: {effectIDs: []int{effectBottomApple}},      // UNT_APPLEIDUN -> 289_ground
+	171: {effectIDs: []int{effectBottomUglyDance}},  // UNT_UGLYDANCE -> 290_ground
+	172: {effectIDs: []int{effectBottomHumming}},    // UNT_HUMMING -> 291_ground
+	173: {effectIDs: []int{effectBottomForget}},     // UNT_DONTFORGETME -> 292_ground
+	174: {effectIDs: []int{effectBottomFortune}},    // UNT_FORTUNEKISS -> 293_ground
+	175: {effectIDs: []int{effectBottomService}},    // UNT_SERVICEFORYOU -> 294_ground
+	181: {effectIDs: []int{effectMoonlit}},          // UNT_MOONLIT -> 394_ground
 	182: {effectIDs: []int{effectFogWallGround}},    // UNT_FOGWALL -> 405_ground
 	184: {effectIDs: []int{effectGravitation}},      // UNT_GRAVITATION -> 522_ground
 	199: {effectIDs: []int{effectBottomEvilLand}},   // UNT_EVILLAND -> EF_BOTTOM_EVILLAND

@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 638 {
-		t.Fatalf("implemented effects = %d, want 638", coverage.Implemented)
+	if coverage.Implemented != 640 {
+		t.Fatalf("implemented effects = %d, want 640", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 105.0 || coverage.ActivePercent > 105.3 {
-		t.Fatalf("active coverage = %.3f, want about 105.1", coverage.ActivePercent)
+	if coverage.ActivePercent < 105.3 || coverage.ActivePercent > 105.6 {
+		t.Fatalf("active coverage = %.3f, want about 105.4", coverage.ActivePercent)
 	}
 }
 
@@ -3048,6 +3048,15 @@ func TestRobrowserActiveEffectsTwoFiftyToThreeHundredHaveSpecs(t *testing.T) {
 		effectChemicalProt:   "EF_CHEMICALPROTECTION",
 	}
 	for id, name := range active {
+		if _, ok := worldEffectSpecForID(id); !ok {
+			t.Fatalf("%s (%d) spec missing", name, id)
+		}
+	}
+
+	for id, name := range map[int]string{
+		effectBottomDissonance: "EF_BOTTOM_DISSONANCE",
+		effectBottomUglyDance:  "EF_BOTTOM_UGLYDANCE",
+	} {
 		if _, ok := worldEffectSpecForID(id); !ok {
 			t.Fatalf("%s (%d) spec missing", name, id)
 		}
@@ -7521,25 +7530,55 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	} {
 		expectEffectIDs(t, "SA_ABRACADABRA result imported empty", skillEffectIDs(skillID))
 	}
+	expectEffectIDs(t, "BD_ADAPTATION imported empty", skillEffectIDs(db.SkillBDAdaptation))
+	expectEffectIDs(t, "BD_ENCORE imported empty", skillEffectIDs(db.SkillBDEncore))
 	expectEffectIDs(t, "BD_LULLABY imported", skillEffectIDs(db.SkillBDLullaby), effectBottomLullaby)
+	expectEffectIDs(t, "BD_LULLABY imported ground", skillGroundEffectIDs(db.SkillBDLullaby), effectBottomLullaby)
 	expectEffectIDs(t, "BD_RICHMANKIM imported", skillEffectIDs(db.SkillBDRichmankim), effectBottomRichKim)
+	expectEffectIDs(t, "BD_RICHMANKIM imported ground", skillGroundEffectIDs(db.SkillBDRichmankim), effectBottomRichKim)
 	expectEffectIDs(t, "BD_ETERNALCHAOS imported", skillEffectIDs(db.SkillBDEternalchaos), effectBottomChaos)
+	expectEffectIDs(t, "BD_ETERNALCHAOS imported ground", skillGroundEffectIDs(db.SkillBDEternalchaos), effectBottomChaos)
 	expectEffectIDs(t, "BD_DRUMBATTLEFIELD imported", skillEffectIDs(db.SkillBDDrumbattlefield), effectBottomDrum)
+	expectEffectIDs(t, "BD_DRUMBATTLEFIELD imported ground", skillGroundEffectIDs(db.SkillBDDrumbattlefield), effectBottomDrum)
 	expectEffectIDs(t, "BD_RINGNIBELUNGEN imported", skillEffectIDs(db.SkillBDRingnibelungen), effectBottomNibelung)
+	expectEffectIDs(t, "BD_RINGNIBELUNGEN imported ground", skillGroundEffectIDs(db.SkillBDRingnibelungen), effectBottomNibelung)
 	expectEffectIDs(t, "BD_ROKISWEIL imported", skillEffectIDs(db.SkillBDRokisweil), effectBottomRoki)
+	expectEffectIDs(t, "BD_ROKISWEIL imported ground", skillGroundEffectIDs(db.SkillBDRokisweil), effectBottomRoki)
 	expectEffectIDs(t, "BD_INTOABYSS imported", skillEffectIDs(db.SkillBDIntoabyss), effectBottomAbyss)
+	expectEffectIDs(t, "BD_INTOABYSS imported ground", skillGroundEffectIDs(db.SkillBDIntoabyss), effectBottomAbyss)
 	expectEffectIDs(t, "BD_SIEGFRIED imported", skillEffectIDs(db.SkillBDSiegfried), effectBottomSieg)
+	expectEffectIDs(t, "BD_SIEGFRIED imported ground", skillGroundEffectIDs(db.SkillBDSiegfried), effectBottomSieg)
+	expectEffectIDs(t, "BA_MUSICALLESSON imported empty", skillEffectIDs(db.SkillBaMusicallesson))
+	expectEffectIDs(t, "BA_MUSICALSTRIKE imported before hit", skillBeforeHitEffectIDs(db.SkillBaMusicalstrike), effectArrowShot)
+	if !skillHidesCastAura(db.SkillBaMusicalstrike) {
+		t.Fatal("BA_MUSICALSTRIKE should hide cast aura like robr")
+	}
+	expectEffectIDs(t, "BA_DISSONANCE imported ground", skillGroundEffectIDs(db.SkillBaDissonance), effectBottomDissonance)
 	expectEffectIDs(t, "BA_FROSTJOKE imported begin", skillBeginEffectIDs(db.SkillBaFrostjoke), effectTalkFrostJoke)
 	expectEffectIDs(t, "BA_WHISTLE imported", skillEffectIDs(db.SkillBaWhistle), effectBottomWhistle)
+	expectEffectIDs(t, "BA_WHISTLE imported ground", skillGroundEffectIDs(db.SkillBaWhistle), effectBottomWhistle)
 	expectEffectIDs(t, "BA_ASSASSINCROSS imported", skillEffectIDs(db.SkillBaAssassincross), effectBottomSinX)
+	expectEffectIDs(t, "BA_ASSASSINCROSS imported ground", skillGroundEffectIDs(db.SkillBaAssassincross), effectBottomSinX)
 	expectEffectIDs(t, "BA_POEMBRAGI imported", skillEffectIDs(db.SkillBaPoembragi), effectBottomBragi)
+	expectEffectIDs(t, "BA_POEMBRAGI imported ground", skillGroundEffectIDs(db.SkillBaPoembragi), effectBottomBragi)
 	expectEffectIDs(t, "BA_APPLEIDUN imported", skillEffectIDs(db.SkillBaAppleidun), effectBottomApple)
+	expectEffectIDs(t, "BA_APPLEIDUN imported ground", skillGroundEffectIDs(db.SkillBaAppleidun), effectBottomApple)
 	expectEffectIDs(t, "BA_PANGVOICE imported success", skillSuccessEffectIDs(db.SkillBaPangvoice), effectFVoice)
+	expectEffectIDs(t, "DC_DANCINGLESSON imported empty", skillEffectIDs(db.SkillDCDancinglesson))
+	expectEffectIDs(t, "DC_THROWARROW imported before hit", skillBeforeHitEffectIDs(db.SkillDCThrowarrow), effectArrowShot)
+	if !skillHidesCastAura(db.SkillDCThrowarrow) {
+		t.Fatal("DC_THROWARROW should hide cast aura like robr")
+	}
+	expectEffectIDs(t, "DC_UGLYDANCE imported ground", skillGroundEffectIDs(db.SkillDCUglydance), effectBottomUglyDance)
 	expectEffectIDs(t, "DC_SCREAM imported begin", skillBeginEffectIDs(db.SkillDCScream), effectTalkScream)
 	expectEffectIDs(t, "DC_HUMMING imported", skillEffectIDs(db.SkillDCHumming), effectBottomHumming)
+	expectEffectIDs(t, "DC_HUMMING imported ground", skillGroundEffectIDs(db.SkillDCHumming), effectBottomHumming)
 	expectEffectIDs(t, "DC_DONTFORGETME imported", skillEffectIDs(db.SkillDCDontforgetme), effectBottomForget)
+	expectEffectIDs(t, "DC_DONTFORGETME imported ground", skillGroundEffectIDs(db.SkillDCDontforgetme), effectBottomForget)
 	expectEffectIDs(t, "DC_FORTUNEKISS imported", skillEffectIDs(db.SkillDCFortunekiss), effectBottomFortune)
+	expectEffectIDs(t, "DC_FORTUNEKISS imported ground", skillGroundEffectIDs(db.SkillDCFortunekiss), effectBottomFortune)
 	expectEffectIDs(t, "DC_SERVICEFORYOU imported", skillEffectIDs(db.SkillDCServiceforyou), effectBottomService)
+	expectEffectIDs(t, "DC_SERVICEFORYOU imported ground", skillGroundEffectIDs(db.SkillDCServiceforyou), effectBottomService)
 	expectEffectIDs(t, "DC_WINKCHARM imported success", skillSuccessEffectIDs(db.SkillDCWinkcharm), effectWink)
 	expectEffectIDs(t, "SL_KAIZEL imported", skillEffectIDs(db.SkillSLKaizel), effectKaizel)
 	expectEffectIDs(t, "SL_STUN imported", skillEffectIDs(db.SkillSLStun), effectStin3)
@@ -7637,8 +7676,14 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "ST_PRESERVE imported begin", skillBeginEffectIDs(db.SkillSTPreserve), effectSharpShootingCast)
 	expectEffectIDs(t, "ST_FULLSTRIP imported success", skillSuccessEffectIDs(db.SkillSTFullstrip), 495)
 	expectEffectIDs(t, "CG_ARROWVULCAN imported", skillEffectIDs(db.SkillCGArrowvulcan), effectTripleAttack3)
+	expectEffectIDs(t, "CG_ARROWVULCAN imported before hit", skillBeforeHitEffectIDs(db.SkillCGArrowvulcan), effectArrowShot)
 	expectEffectIDs(t, "CG_MOONLIT imported", skillEffectIDs(db.SkillCGMoonlit), effectMoonlit)
+	expectEffectIDs(t, "CG_MOONLIT imported ground", skillGroundEffectIDs(db.SkillCGMoonlit), effectMoonlit)
+	expectEffectIDs(t, "CG_MARIONETTE imported", skillEffectIDs(db.SkillCGMarionette), 395)
+	expectEffectIDs(t, "CG_MARIONETTE imported hit", skillHitEffectIDs(db.SkillCGMarionette), 396)
+	expectEffectIDs(t, "CG_LONGINGFREEDOM imported", skillEffectIDs(db.SkillCGLongingfreedom), 500)
 	expectEffectIDs(t, "CG_HERMODE imported ground", skillGroundEffectIDs(db.SkillCGHermode), effectBottomHermode)
+	expectEffectIDs(t, "CG_TAROTCARD imported success", skillSuccessEffectIDs(db.SkillCGTarotcard), 500)
 	expectEffectIDs(t, "CR_ACIDDEMONSTRATION imported", skillEffectIDs(db.SkillCRAciddemonstration), effectAcidDemon)
 	expectEffectIDs(t, "SL_KAAHI imported", skillEffectIDs(db.SkillSLKaahi), effectHated)
 	expectEffectIDs(t, "SL_STIN imported", skillEffectIDs(db.SkillSLStin), effectStin)
@@ -8161,6 +8206,25 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
 	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
+	expectEffectIDs(t, "UNT_LULLABY", skillUnitEffectIDs(158), effectBottomLullaby)
+	expectEffectIDs(t, "UNT_RICHMANKIM", skillUnitEffectIDs(159), effectBottomRichKim)
+	expectEffectIDs(t, "UNT_ETERNALCHAOS", skillUnitEffectIDs(160), effectBottomChaos)
+	expectEffectIDs(t, "UNT_DRUMBATTLEFIELD", skillUnitEffectIDs(161), effectBottomDrum)
+	expectEffectIDs(t, "UNT_RINGNIBELUNGEN", skillUnitEffectIDs(162), effectBottomNibelung)
+	expectEffectIDs(t, "UNT_ROKISWEIL", skillUnitEffectIDs(163), effectBottomRoki)
+	expectEffectIDs(t, "UNT_INTOABYSS", skillUnitEffectIDs(164), effectBottomAbyss)
+	expectEffectIDs(t, "UNT_SIEGFRIED", skillUnitEffectIDs(165), effectBottomSieg)
+	expectEffectIDs(t, "UNT_DISSONANCE", skillUnitEffectIDs(166), effectBottomDissonance)
+	expectEffectIDs(t, "UNT_WHISTLE", skillUnitEffectIDs(167), effectBottomWhistle)
+	expectEffectIDs(t, "UNT_ASSASSINCROSS", skillUnitEffectIDs(168), effectBottomSinX)
+	expectEffectIDs(t, "UNT_POEMBRAGI", skillUnitEffectIDs(169), effectBottomBragi)
+	expectEffectIDs(t, "UNT_APPLEIDUN", skillUnitEffectIDs(170), effectBottomApple)
+	expectEffectIDs(t, "UNT_UGLYDANCE", skillUnitEffectIDs(171), effectBottomUglyDance)
+	expectEffectIDs(t, "UNT_HUMMING", skillUnitEffectIDs(172), effectBottomHumming)
+	expectEffectIDs(t, "UNT_DONTFORGETME", skillUnitEffectIDs(173), effectBottomForget)
+	expectEffectIDs(t, "UNT_FORTUNEKISS", skillUnitEffectIDs(174), effectBottomFortune)
+	expectEffectIDs(t, "UNT_SERVICEFORYOU", skillUnitEffectIDs(175), effectBottomService)
+	expectEffectIDs(t, "UNT_MOONLIT", skillUnitEffectIDs(181), effectMoonlit)
 	expectEffectIDs(t, "UNT_FOGWALL", skillUnitEffectIDs(182), effectFogWallGround)
 	expectEffectIDs(t, "UNT_GRAVITATION", skillUnitEffectIDs(184), effectGravitation)
 	expectEffectIDs(t, "UNT_EVILLAND", skillUnitEffectIDs(199), effectBottomEvilLand)

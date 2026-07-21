@@ -350,6 +350,11 @@ const (
 )
 
 const (
+	effectBottomDissonance = 277
+	effectBottomUglyDance  = 290
+)
+
+const (
 	effectSoulBreaker       = 361
 	effectLevel99Aura1      = 362
 	effectPressure          = 365
@@ -5505,7 +5510,9 @@ var EffectSpecs = map[int]EffectSpec{
 			AttachedEntity: true,
 		}},
 	},
-	effectChristmasCarol: strEffectSpecAttachedMin("angelus", "jong_mini", "effect\\wewish.wav", false),
+	effectBottomDissonance: {},
+	effectBottomUglyDance:  {},
+	effectChristmasCarol:   strEffectSpecAttachedMin("angelus", "jong_mini", "effect\\wewish.wav", false),
 }
 
 func bashHitComponents() []EffectComponent {

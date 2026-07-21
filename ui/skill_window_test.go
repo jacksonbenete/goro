@@ -682,6 +682,204 @@ func TestSkillWindowShowsSniperUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsBardUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobBard},
+		Skills: session.Skills{
+			Points: 3,
+			List: []session.Skill{
+				{ID: db.SkillBDAdaptation, Level: 1, Upgradable: true},
+				{ID: db.SkillBDEncore, Level: 1, Upgradable: true},
+				{ID: db.SkillBaMusicallesson, Level: 2, Upgradable: true},
+				{ID: db.SkillBaDissonance, Level: 2, Upgradable: true},
+				{ID: db.SkillBaWhistle, Level: 9, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillBaFrostjoke) {
+		t.Fatalf("bard tree did not expose frost joke from encore: %v", skills)
+	}
+	for _, skillID := range []uint16{
+		db.SkillBaMusicalstrike,
+		db.SkillBaAssassincross,
+		db.SkillBaPoembragi,
+		db.SkillBaAppleidun,
+		db.SkillBDLullaby,
+	} {
+		if containsSkill(skills, skillID) {
+			t.Fatalf("bard skill %d should not be visible before staged prerequisite: %v", skillID, skills)
+		}
+	}
+	window.stageSkill(db.SkillBaMusicallesson)
+	window.stageSkill(db.SkillBaDissonance)
+	window.stageSkill(db.SkillBaWhistle)
+	skills = window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillBaMusicalstrike,
+		db.SkillBaAssassincross,
+		db.SkillBaPoembragi,
+		db.SkillBaAppleidun,
+		db.SkillBDLullaby,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("bard staged prerequisites did not expose skill %d: %v", skillID, skills)
+		}
+	}
+}
+
+func TestSkillWindowShowsDancerUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobDancer},
+		Skills: session.Skills{
+			Points: 3,
+			List: []session.Skill{
+				{ID: db.SkillBDAdaptation, Level: 1, Upgradable: true},
+				{ID: db.SkillBDEncore, Level: 1, Upgradable: true},
+				{ID: db.SkillDCDancinglesson, Level: 2, Upgradable: true},
+				{ID: db.SkillDCUglydance, Level: 2, Upgradable: true},
+				{ID: db.SkillDCHumming, Level: 9, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillDCScream) {
+		t.Fatalf("dancer tree did not expose scream from encore: %v", skills)
+	}
+	for _, skillID := range []uint16{
+		db.SkillDCThrowarrow,
+		db.SkillDCDontforgetme,
+		db.SkillDCFortunekiss,
+		db.SkillDCServiceforyou,
+		db.SkillBDLullaby,
+	} {
+		if containsSkill(skills, skillID) {
+			t.Fatalf("dancer skill %d should not be visible before staged prerequisite: %v", skillID, skills)
+		}
+	}
+	window.stageSkill(db.SkillDCDancinglesson)
+	window.stageSkill(db.SkillDCUglydance)
+	window.stageSkill(db.SkillDCHumming)
+	skills = window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillDCThrowarrow,
+		db.SkillDCDontforgetme,
+		db.SkillDCFortunekiss,
+		db.SkillDCServiceforyou,
+		db.SkillBDLullaby,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("dancer staged prerequisites did not expose skill %d: %v", skillID, skills)
+		}
+	}
+}
+
+func TestSkillWindowShowsClownUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobBardH},
+		Skills: session.Skills{
+			Points: 3,
+			List: []session.Skill{
+				{ID: db.SkillACDouble, Level: 5, Upgradable: true},
+				{ID: db.SkillACShower, Level: 5, Upgradable: true},
+				{ID: db.SkillACConcentration, Level: 10, Upgradable: true},
+				{ID: db.SkillBaMusicallesson, Level: 9, Upgradable: true},
+				{ID: db.SkillBaMusicalstrike, Level: 1, Upgradable: true},
+				{ID: db.SkillBaDissonance, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillCGArrowvulcan,
+		db.SkillCGMoonlit,
+		db.SkillCGMarionette,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("clown tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	for _, skillID := range []uint16{
+		db.SkillCGHermode,
+		db.SkillCGTarotcard,
+		db.SkillCGLongingfreedom,
+		db.SkillCGSpecialsinger,
+	} {
+		if containsSkill(skills, skillID) {
+			t.Fatalf("clown skill %d should not be visible before staged prerequisite: %v", skillID, skills)
+		}
+	}
+	window.stageSkill(db.SkillBaMusicallesson)
+	window.stageSkill(db.SkillBaDissonance)
+	window.stageSkill(db.SkillCGMarionette)
+	skills = window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillCGHermode,
+		db.SkillCGTarotcard,
+		db.SkillCGLongingfreedom,
+		db.SkillCGSpecialsinger,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("clown staged prerequisites did not expose skill %d: %v", skillID, skills)
+		}
+	}
+}
+
+func TestSkillWindowShowsGypsyUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobDancerH},
+		Skills: session.Skills{
+			Points: 3,
+			List: []session.Skill{
+				{ID: db.SkillACDouble, Level: 5, Upgradable: true},
+				{ID: db.SkillACShower, Level: 5, Upgradable: true},
+				{ID: db.SkillACConcentration, Level: 10, Upgradable: true},
+				{ID: db.SkillDCDancinglesson, Level: 9, Upgradable: true},
+				{ID: db.SkillDCThrowarrow, Level: 1, Upgradable: true},
+				{ID: db.SkillDCUglydance, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillCGArrowvulcan,
+		db.SkillCGMoonlit,
+		db.SkillCGMarionette,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("gypsy tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	for _, skillID := range []uint16{
+		db.SkillCGHermode,
+		db.SkillCGTarotcard,
+		db.SkillCGLongingfreedom,
+		db.SkillCGSpecialsinger,
+	} {
+		if containsSkill(skills, skillID) {
+			t.Fatalf("gypsy skill %d should not be visible before staged prerequisite: %v", skillID, skills)
+		}
+	}
+	window.stageSkill(db.SkillDCDancinglesson)
+	window.stageSkill(db.SkillDCUglydance)
+	window.stageSkill(db.SkillCGMarionette)
+	skills = window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillCGHermode,
+		db.SkillCGTarotcard,
+		db.SkillCGLongingfreedom,
+		db.SkillCGSpecialsinger,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("gypsy staged prerequisites did not expose skill %d: %v", skillID, skills)
+		}
+	}
+}
+
 func TestSkillWindowShowsAssassinUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobAssassin},

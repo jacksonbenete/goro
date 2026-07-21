@@ -294,6 +294,26 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 		{SkillID: SkillAMCpHelm, Level: 5},
 	},
 	SkillCRAciddemonstration: {{SkillID: SkillAMDemonstration, Level: 5}, {SkillID: SkillAMAcidterror, Level: 5}},
+
+	SkillBDEncore:         {{SkillID: SkillBDAdaptation, Level: 1}},
+	SkillBDRichmankim:     {{SkillID: SkillBDSiegfried, Level: 3}},
+	SkillBDEternalchaos:   {{SkillID: SkillBDRokisweil, Level: 1}},
+	SkillBDRingnibelungen: {{SkillID: SkillBDDrumbattlefield, Level: 3}},
+	SkillBDIntoabyss:      {{SkillID: SkillBDLullaby, Level: 1}},
+	SkillBaMusicalstrike:  {{SkillID: SkillBaMusicallesson, Level: 3}},
+	SkillBaDissonance:     {{SkillID: SkillBDAdaptation, Level: 1}, {SkillID: SkillBaMusicallesson, Level: 1}},
+	SkillBaFrostjoke:      {{SkillID: SkillBDEncore, Level: 1}},
+	SkillBaWhistle:        {{SkillID: SkillBaDissonance, Level: 3}},
+	SkillBaAssassincross:  {{SkillID: SkillBaDissonance, Level: 3}},
+	SkillBaPoembragi:      {{SkillID: SkillBaDissonance, Level: 3}},
+	SkillBaAppleidun:      {{SkillID: SkillBaDissonance, Level: 3}},
+	SkillDCThrowarrow:     {{SkillID: SkillDCDancinglesson, Level: 3}},
+	SkillDCUglydance:      {{SkillID: SkillBDAdaptation, Level: 1}, {SkillID: SkillDCDancinglesson, Level: 1}},
+	SkillDCScream:         {{SkillID: SkillBDEncore, Level: 1}},
+	SkillDCHumming:        {{SkillID: SkillDCUglydance, Level: 3}},
+	SkillDCDontforgetme:   {{SkillID: SkillDCUglydance, Level: 3}},
+	SkillDCFortunekiss:    {{SkillID: SkillDCUglydance, Level: 3}},
+	SkillDCServiceforyou:  {{SkillID: SkillDCUglydance, Level: 3}},
 }
 
 var SkillRequirementsByJob = map[int]map[uint16][]SkillRequirement{
@@ -309,6 +329,12 @@ var SkillRequirementsByJob = map[int]map[uint16][]SkillRequirement{
 	JobRogue:      rogueSkillRequirementOverrides,
 	JobRogueH:     rogueSkillRequirementOverrides,
 	JobRogueB:     rogueSkillRequirementOverrides,
+	JobBard:       bardSkillRequirementOverrides,
+	JobBardH:      clownSkillRequirementOverrides,
+	JobBardB:      bardSkillRequirementOverrides,
+	JobDancer:     dancerSkillRequirementOverrides,
+	JobDancerH:    gypsySkillRequirementOverrides,
+	JobDancerB:    dancerSkillRequirementOverrides,
 }
 
 var priestSkillRequirementOverrides = map[uint16][]SkillRequirement{
@@ -325,6 +351,50 @@ var rogueSkillRequirementOverrides = map[uint16][]SkillRequirement{
 	SkillACVulture:    {},
 	SkillACDouble:     {{SkillID: SkillACVulture, Level: 10}},
 	SkillHTRemovetrap: {{SkillID: SkillACDouble, Level: 5}},
+}
+
+var bardSkillRequirementOverrides = map[uint16][]SkillRequirement{
+	SkillBDLullaby:         {{SkillID: SkillBaWhistle, Level: 10}},
+	SkillBDDrumbattlefield: {{SkillID: SkillBaAppleidun, Level: 10}},
+	SkillBDRokisweil:       {{SkillID: SkillBaAssassincross, Level: 10}},
+	SkillBDSiegfried:       {{SkillID: SkillBaPoembragi, Level: 10}},
+}
+
+var dancerSkillRequirementOverrides = map[uint16][]SkillRequirement{
+	SkillBDLullaby:         {{SkillID: SkillDCHumming, Level: 10}},
+	SkillBDDrumbattlefield: {{SkillID: SkillDCServiceforyou, Level: 10}},
+	SkillBDRokisweil:       {{SkillID: SkillDCDontforgetme, Level: 10}},
+	SkillBDSiegfried:       {{SkillID: SkillDCFortunekiss, Level: 10}},
+}
+
+var clownSkillRequirementOverrides = combinedSkillRequirements(bardSkillRequirementOverrides, map[uint16][]SkillRequirement{
+	SkillCGArrowvulcan:    {{SkillID: SkillACDouble, Level: 5}, {SkillID: SkillACShower, Level: 5}, {SkillID: SkillBaMusicalstrike, Level: 1}},
+	SkillCGMoonlit:        {{SkillID: SkillACConcentration, Level: 5}, {SkillID: SkillBaMusicallesson, Level: 7}},
+	SkillCGMarionette:     {{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillBaMusicallesson, Level: 5}},
+	SkillCGHermode:        {{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillBaMusicallesson, Level: 10}},
+	SkillCGTarotcard:      {{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillBaDissonance, Level: 3}},
+	SkillCGLongingfreedom: {{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillBaDissonance, Level: 3}, {SkillID: SkillBaMusicallesson, Level: 10}},
+	SkillCGSpecialsinger:  {{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillBaDissonance, Level: 3}, {SkillID: SkillBaMusicallesson, Level: 10}},
+})
+
+var gypsySkillRequirementOverrides = combinedSkillRequirements(dancerSkillRequirementOverrides, map[uint16][]SkillRequirement{
+	SkillCGArrowvulcan:    {{SkillID: SkillACDouble, Level: 5}, {SkillID: SkillACShower, Level: 5}, {SkillID: SkillDCThrowarrow, Level: 1}},
+	SkillCGMoonlit:        {{SkillID: SkillACConcentration, Level: 5}, {SkillID: SkillDCDancinglesson, Level: 7}},
+	SkillCGMarionette:     {{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillDCDancinglesson, Level: 5}},
+	SkillCGHermode:        {{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillDCDancinglesson, Level: 10}},
+	SkillCGTarotcard:      {{SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillDCUglydance, Level: 3}},
+	SkillCGLongingfreedom: {{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillDCUglydance, Level: 3}, {SkillID: SkillDCDancinglesson, Level: 10}},
+	SkillCGSpecialsinger:  {{SkillID: SkillCGMarionette, Level: 1}, {SkillID: SkillDCUglydance, Level: 3}, {SkillID: SkillDCDancinglesson, Level: 10}},
+})
+
+func combinedSkillRequirements(requirementSets ...map[uint16][]SkillRequirement) map[uint16][]SkillRequirement {
+	out := make(map[uint16][]SkillRequirement)
+	for _, requirements := range requirementSets {
+		for skillID, skillRequirements := range requirements {
+			out[skillID] = skillRequirements
+		}
+	}
+	return out
 }
 
 var SkillMaxLevels = map[uint16]int{
@@ -657,6 +727,42 @@ var SkillMaxLevels = map[uint16]int{
 	SkillAMTwilight1:         1,
 	SkillAMTwilight2:         1,
 	SkillAMTwilight3:         1,
+
+	SkillBDAdaptation:      1,
+	SkillBDEncore:          1,
+	SkillBDLullaby:         1,
+	SkillBDRichmankim:      5,
+	SkillBDEternalchaos:    1,
+	SkillBDDrumbattlefield: 5,
+	SkillBDRingnibelungen:  5,
+	SkillBDRokisweil:       1,
+	SkillBDIntoabyss:       1,
+	SkillBDSiegfried:       5,
+	SkillBaMusicallesson:   10,
+	SkillBaMusicalstrike:   5,
+	SkillBaDissonance:      5,
+	SkillBaFrostjoke:       5,
+	SkillBaWhistle:         10,
+	SkillBaAssassincross:   10,
+	SkillBaPoembragi:       10,
+	SkillBaAppleidun:       10,
+	SkillDCDancinglesson:   10,
+	SkillDCThrowarrow:      5,
+	SkillDCUglydance:       5,
+	SkillDCScream:          5,
+	SkillDCHumming:         10,
+	SkillDCDontforgetme:    10,
+	SkillDCFortunekiss:     10,
+	SkillDCServiceforyou:   10,
+	SkillCGArrowvulcan:     10,
+	SkillCGMoonlit:         5,
+	SkillCGMarionette:      1,
+	SkillCGLongingfreedom:  5,
+	SkillCGHermode:         5,
+	SkillCGTarotcard:       5,
+	SkillBaPangvoice:       1,
+	SkillDCWinkcharm:       1,
+	SkillCGSpecialsinger:   1,
 }
 
 var superNoviceSkillTree = []uint16{
@@ -790,6 +896,60 @@ var sniperSkillTree = []uint16{
 	SkillSNSharpshooting,
 	SkillSNSight,
 	SkillSNWindwalk,
+}
+
+var bardSkillTree = []uint16{
+	SkillBDAdaptation,
+	SkillBaMusicallesson,
+	SkillBaDissonance,
+	SkillBaPangvoice,
+	SkillBDEncore,
+	SkillBaMusicalstrike,
+	SkillBaWhistle,
+	SkillBaAssassincross,
+	SkillBaPoembragi,
+	SkillBaAppleidun,
+	SkillBaFrostjoke,
+	SkillBDLullaby,
+	SkillBDRokisweil,
+	SkillBDSiegfried,
+	SkillBDDrumbattlefield,
+	SkillBDIntoabyss,
+	SkillBDEternalchaos,
+	SkillBDRichmankim,
+	SkillBDRingnibelungen,
+}
+
+var dancerSkillTree = []uint16{
+	SkillBDAdaptation,
+	SkillDCDancinglesson,
+	SkillDCUglydance,
+	SkillDCWinkcharm,
+	SkillBDEncore,
+	SkillDCThrowarrow,
+	SkillDCHumming,
+	SkillDCDontforgetme,
+	SkillDCFortunekiss,
+	SkillDCServiceforyou,
+	SkillDCScream,
+	SkillBDLullaby,
+	SkillBDRokisweil,
+	SkillBDSiegfried,
+	SkillBDDrumbattlefield,
+	SkillBDIntoabyss,
+	SkillBDEternalchaos,
+	SkillBDRichmankim,
+	SkillBDRingnibelungen,
+}
+
+var clownGypsySkillTree = []uint16{
+	SkillCGArrowvulcan,
+	SkillCGMoonlit,
+	SkillCGMarionette,
+	SkillCGHermode,
+	SkillCGLongingfreedom,
+	SkillCGSpecialsinger,
+	SkillCGTarotcard,
 }
 
 var thiefSkillTree = []uint16{
@@ -1110,6 +1270,12 @@ var skillTreeByJob = map[int][]uint16{
 	JobHunter:       combinedSkillTree(archerSkillTree, hunterSkillTree),
 	JobHunterH:      combinedSkillTree(archerSkillTree, hunterSkillTree, sniperSkillTree),
 	JobHunterB:      combinedSkillTree(archerSkillTree, hunterSkillTree),
+	JobBard:         combinedSkillTree(archerSkillTree, bardSkillTree),
+	JobBardH:        combinedSkillTree(archerSkillTree, bardSkillTree, clownGypsySkillTree),
+	JobBardB:        combinedSkillTree(archerSkillTree, bardSkillTree),
+	JobDancer:       combinedSkillTree(archerSkillTree, dancerSkillTree),
+	JobDancerH:      combinedSkillTree(archerSkillTree, dancerSkillTree, clownGypsySkillTree),
+	JobDancerB:      combinedSkillTree(archerSkillTree, dancerSkillTree),
 	JobAcolyte:      acolyteSkillTree,
 	JobAcolyteH:     acolyteSkillTree,
 	JobAcolyteB:     acolyteSkillTree,
