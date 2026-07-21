@@ -156,6 +156,42 @@ func TestAssassinSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestBlacksmithSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	merchant := SkillTreeSkillIDs(JobMerchantH)
+	if !containsSkillID(merchant, SkillMCInccarry) || !containsSkillID(merchant, SkillMCCartdecorate) || containsSkillID(merchant, SkillBSHammerfall) {
+		t.Fatalf("high merchant tree = %v, want merchant skills only", merchant)
+	}
+
+	blacksmith := SkillTreeSkillIDs(JobBlacksmith)
+	for _, skillID := range []uint16{
+		SkillMCInccarry,
+		SkillBSIron,
+		SkillBSHiltbinding,
+		SkillBSAdrenaline,
+		SkillBSMaximize,
+		SkillBSAdrenaline2,
+		SkillBSGreed,
+		SkillBSUnfairlytrick,
+	} {
+		if !containsSkillID(blacksmith, skillID) {
+			t.Fatalf("blacksmith tree = %v, missing robr skill %d", blacksmith, skillID)
+		}
+	}
+	if containsSkillID(blacksmith, SkillWSMeltdown) {
+		t.Fatalf("blacksmith tree = %v, should not include whitesmith skills", blacksmith)
+	}
+
+	babyBlacksmith := SkillTreeSkillIDs(JobBlacksmithB)
+	if !containsSkillID(babyBlacksmith, SkillBSWeaponperfect) || containsSkillID(babyBlacksmith, SkillWSCarttermination) {
+		t.Fatalf("baby blacksmith tree = %v, want blacksmith duplicate without whitesmith skills", babyBlacksmith)
+	}
+
+	whitesmith := SkillTreeSkillIDs(JobBlacksmithH)
+	if !containsSkillID(whitesmith, SkillMCMammonite) || !containsSkillID(whitesmith, SkillBSWeaponresearch) || !containsSkillID(whitesmith, SkillWSMeltdown) || !containsSkillID(whitesmith, SkillWSWeaponrefine) {
+		t.Fatalf("whitesmith tree = %v, want merchant, blacksmith, and whitesmith skills", whitesmith)
+	}
+}
+
 func TestWizardSkillRequirementsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		skillID uint16
@@ -305,6 +341,40 @@ func TestAssassinSkillRequirementsMirrorRobrowser(t *testing.T) {
 		{SkillASCBreaker, []SkillRequirement{{SkillID: SkillTFDouble, Level: 5}, {SkillID: SkillTFPoison, Level: 5}, {SkillID: SkillASCloaking, Level: 3}, {SkillID: SkillASEnchantpoison, Level: 6}}},
 		{SkillASCMeteorassault, []SkillRequirement{{SkillID: SkillASKatar, Level: 5}, {SkillID: SkillASRight, Level: 3}, {SkillID: SkillASSonicblow, Level: 5}, {SkillID: SkillASCBreaker, Level: 1}}},
 		{SkillASCCdp, []SkillRequirement{{SkillID: SkillTFPoison, Level: 10}, {SkillID: SkillTFDetoxify, Level: 1}, {SkillID: SkillASEnchantpoison, Level: 5}}},
+	} {
+		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+}
+
+func TestBlacksmithSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{SkillBSSteel, []SkillRequirement{{SkillID: SkillBSIron, Level: 1}}},
+		{SkillBSEnchantedstone, []SkillRequirement{{SkillID: SkillBSIron, Level: 1}}},
+		{SkillBSOrideocon, []SkillRequirement{{SkillID: SkillBSEnchantedstone, Level: 1}}},
+		{SkillBSSword, []SkillRequirement{{SkillID: SkillBSDagger, Level: 1}}},
+		{SkillBSTwohandsword, []SkillRequirement{{SkillID: SkillBSSword, Level: 1}}},
+		{SkillBSAxe, []SkillRequirement{{SkillID: SkillBSSword, Level: 2}}},
+		{SkillBSMace, []SkillRequirement{{SkillID: SkillBSKnuckle, Level: 1}}},
+		{SkillBSKnuckle, []SkillRequirement{{SkillID: SkillBSDagger, Level: 1}}},
+		{SkillBSSpear, []SkillRequirement{{SkillID: SkillBSDagger, Level: 2}}},
+		{SkillBSFindingore, []SkillRequirement{{SkillID: SkillBSHiltbinding, Level: 1}, {SkillID: SkillBSSteel, Level: 1}}},
+		{SkillBSWeaponresearch, []SkillRequirement{{SkillID: SkillBSHiltbinding, Level: 1}}},
+		{SkillBSRepairweapon, []SkillRequirement{{SkillID: SkillBSWeaponresearch, Level: 1}}},
+		{SkillBSAdrenaline, []SkillRequirement{{SkillID: SkillBSHammerfall, Level: 2}}},
+		{SkillBSWeaponperfect, []SkillRequirement{{SkillID: SkillBSWeaponresearch, Level: 2}, {SkillID: SkillBSAdrenaline, Level: 2}}},
+		{SkillBSOverthrust, []SkillRequirement{{SkillID: SkillBSAdrenaline, Level: 3}}},
+		{SkillBSMaximize, []SkillRequirement{{SkillID: SkillBSWeaponperfect, Level: 3}, {SkillID: SkillBSOverthrust, Level: 2}}},
+		{SkillBSAdrenaline2, []SkillRequirement{{SkillID: SkillBSAdrenaline, Level: 5}}},
+		{SkillWSMeltdown, []SkillRequirement{{SkillID: SkillBSSkintemper, Level: 3}, {SkillID: SkillBSHiltbinding, Level: 1}, {SkillID: SkillBSWeaponresearch, Level: 5}, {SkillID: SkillBSOverthrust, Level: 3}}},
+		{SkillWSCartboost, []SkillRequirement{{SkillID: SkillMCPushcart, Level: 5}, {SkillID: SkillBSHiltbinding, Level: 1}, {SkillID: SkillMCCartrevolution, Level: 1}, {SkillID: SkillMCChangecart, Level: 1}}},
+		{SkillWSWeaponrefine, []SkillRequirement{{SkillID: SkillBSWeaponresearch, Level: 10}}},
+		{SkillWSCarttermination, []SkillRequirement{{SkillID: SkillMCMammonite, Level: 10}, {SkillID: SkillBSHammerfall, Level: 5}, {SkillID: SkillWSCartboost, Level: 1}}},
+		{SkillWSOverthrustmax, []SkillRequirement{{SkillID: SkillBSOverthrust, Level: 5}}},
 	} {
 		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
@@ -477,6 +547,51 @@ func TestAssassinSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillASCBreaker, 10},
 		{SkillASCMeteorassault, 10},
 		{SkillASCCdp, 1},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestBlacksmithSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillBSIron, 5},
+		{SkillBSSteel, 5},
+		{SkillBSEnchantedstone, 5},
+		{SkillBSOrideocon, 5},
+		{SkillBSDagger, 3},
+		{SkillBSSword, 3},
+		{SkillBSTwohandsword, 3},
+		{SkillBSAxe, 3},
+		{SkillBSMace, 3},
+		{SkillBSKnuckle, 3},
+		{SkillBSSpear, 3},
+		{SkillBSHiltbinding, 1},
+		{SkillBSFindingore, 1},
+		{SkillBSWeaponresearch, 10},
+		{SkillBSRepairweapon, 1},
+		{SkillBSSkintemper, 5},
+		{SkillBSHammerfall, 5},
+		{SkillBSAdrenaline, 5},
+		{SkillBSWeaponperfect, 5},
+		{SkillBSOverthrust, 5},
+		{SkillBSMaximize, 5},
+		{SkillBSAdrenaline2, 1},
+		{SkillBSUnfairlytrick, 1},
+		{SkillBSGreed, 1},
+		{SkillWSMeltdown, 10},
+		{SkillWSCreatecoin, 3},
+		{SkillWSCreatenugget, 3},
+		{SkillWSCartboost, 1},
+		{SkillWSSystemcreate, 1},
+		{SkillWSWeaponrefine, 10},
+		{SkillWSCarttermination, 10},
+		{SkillWSOverthrustmax, 5},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
 		if !ok || got != tc.want {

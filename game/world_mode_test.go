@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 632 {
-		t.Fatalf("implemented effects = %d, want 632", coverage.Implemented)
+	if coverage.Implemented != 635 {
+		t.Fatalf("implemented effects = %d, want 635", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 104.0 || coverage.ActivePercent > 104.2 {
-		t.Fatalf("active coverage = %.3f, want about 104.0", coverage.ActivePercent)
+	if coverage.ActivePercent < 104.4 || coverage.ActivePercent > 104.8 {
+		t.Fatalf("active coverage = %.3f, want about 104.6", coverage.ActivePercent)
 	}
 }
 
@@ -7355,12 +7355,21 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "WZ_STORMGUST imported hit", skillHitEffectIDs(db.SkillWZStormgust), effectColdHit)
 	expectEffectIDs(t, "WZ_ESTIMATION imported empty", skillEffectIDs(db.SkillWZEstimation))
 	expectEffectIDs(t, "WZ_SIGHTBLASTER imported", skillEffectIDs(db.SkillWZSightblaster), 601)
+	expectEffectIDs(t, "MC_IDENTIFY imported empty", skillEffectIDs(db.SkillMCIdentify))
+	expectEffectIDs(t, "MC_VENDING imported empty", skillEffectIDs(db.SkillMCVending))
+	expectEffectIDs(t, "MC_CHANGECART imported empty", skillEffectIDs(db.SkillMCChangecart))
+	expectEffectIDs(t, "MC_CARTDECORATE imported empty", skillEffectIDs(db.SkillMCCartdecorate))
 	expectEffectIDs(t, "BS_REPAIRWEAPON imported", skillEffectIDs(db.SkillBSRepairweapon), effectRepairWeapon)
 	expectEffectIDs(t, "BS_HAMMERFALL imported", skillEffectIDs(db.SkillBSHammerfall), effectCrashEarth)
 	expectEffectIDs(t, "BS_ADRENALINE imported", skillEffectIDs(db.SkillBSAdrenaline), effectHasteUp)
+	expectEffectIDs(t, "BS_ADRENALINE imported begin", skillBeginEffectIDs(db.SkillBSAdrenaline), effectAdrenalineCast)
 	expectEffectIDs(t, "BS_WEAPONPERFECT imported", skillEffectIDs(db.SkillBSWeaponperfect), effectWeaponPerfect)
 	expectEffectIDs(t, "BS_OVERTHRUST imported", skillEffectIDs(db.SkillBSOverthrust), effectOverthrust)
 	expectEffectIDs(t, "BS_MAXIMIZE imported", skillEffectIDs(db.SkillBSMaximize), effectMaximizePower)
+	expectEffectIDs(t, "BS_MAXIMIZE imported begin", skillBeginEffectIDs(db.SkillBSMaximize), effectMaximizeSounds)
+	expectEffectIDs(t, "BS_ADRENALINE2 imported", skillEffectIDs(db.SkillBSAdrenaline2), effectHasteUp)
+	expectEffectIDs(t, "BS_ADRENALINE2 imported begin", skillBeginEffectIDs(db.SkillBSAdrenaline2), effectAdrenalineCast)
+	expectEffectIDs(t, "BS_GREED imported", skillEffectIDs(db.SkillBSGreed), effectGreedSound)
 	expectEffectIDs(t, "KN_PIERCE imported caster", skillEffectOnCasterIDs(db.SkillKNPierce), effectPierceSelf)
 	expectEffectIDs(t, "KN_PIERCE imported hit", skillHitEffectIDs(db.SkillKNPierce), effectEarthHit)
 	expectEffectIDs(t, "KN_BRANDISHSPEAR imported", skillEffectIDs(db.SkillKNBrandishspear), effectBrandishSpear)
@@ -7539,7 +7548,13 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "SN_SHARPSHOOTING imported hit", skillHitEffectIDs(db.SkillSNSharpshooting), effectTripleAttack2)
 	expectEffectIDs(t, "SN_WINDWALK imported", skillEffectIDs(db.SkillSNWindwalk), effectPortal4)
 	expectEffectIDs(t, "WS_MELTDOWN imported", skillEffectIDs(db.SkillWSMeltdown), effectMeltdown)
+	expectEffectIDs(t, "WS_CREATECOIN imported empty", skillEffectIDs(db.SkillWSCreatecoin))
+	expectEffectIDs(t, "WS_CREATENUGGET imported empty", skillEffectIDs(db.SkillWSCreatenugget))
 	expectEffectIDs(t, "WS_CARTBOOST imported", skillEffectIDs(db.SkillWSCartboost), effectCartBoost)
+	expectEffectIDs(t, "WS_SYSTEMCREATE imported empty", skillEffectIDs(db.SkillWSSystemcreate))
+	expectEffectIDs(t, "WS_WEAPONREFINE imported empty", skillEffectIDs(db.SkillWSWeaponrefine))
+	expectEffectIDs(t, "WS_CARTTERMINATION imported", skillEffectIDs(db.SkillWSCarttermination), 518)
+	expectEffectIDs(t, "WS_OVERTHRUSTMAX imported", skillEffectIDs(db.SkillWSOverthrustmax), effectOverthrust)
 	expectEffectIDs(t, "ASC_EDP imported", skillEffectIDs(db.SkillASCEdp), effectEDP)
 	expectEffectIDs(t, "ST_CHASEWALK imported begin", skillBeginEffectIDs(db.SkillSTChasewalk), effectCastSpin)
 	expectEffectIDs(t, "ST_REJECTSWORD imported", skillEffectIDs(db.SkillSTRejectsword), effectRejectSword)
@@ -7809,6 +7824,33 @@ func TestHunterStringKeyEffectsMatchRobrowser(t *testing.T) {
 	}
 	if component.totalCircleSides != 20 || component.circleSides != 20 || component.alphaMax != 0.9 || !component.fade || !component.rotate || !component.attachedEntity {
 		t.Fatalf("496_beforecast component flags = %+v", component)
+	}
+}
+
+func TestBlacksmithStringKeyEffectsMatchRobrowser(t *testing.T) {
+	adrenaline, ok := worldEffectSpecForID(effectAdrenalineCast)
+	if !ok || adrenaline.duration != 500*time.Millisecond || len(adrenaline.components) != 0 || len(adrenaline.sfx) != 1 || adrenaline.sfx[0] != "effect\\black_adrenalinerush_a.wav" {
+		t.Fatalf("98_beforecast spec = %+v ok=%t, want robr adrenaline pre-cast sound", adrenaline, ok)
+	}
+
+	maximize, ok := worldEffectSpecForID(effectMaximizeSounds)
+	if !ok || maximize.duration != 950*time.Millisecond || len(maximize.components) != 0 {
+		t.Fatalf("maximize_power_sounds spec = %+v ok=%t, want robr delayed sound row", maximize, ok)
+	}
+	wantSFX := []string{
+		"effect\\black_maximize_power_circle.wav",
+		"effect\\black_maximize_power_sword.wav",
+		"effect\\black_maximize_power_sword.wav",
+		"effect\\black_maximize_power_sword_bic.wav",
+	}
+	wantDelays := []time.Duration{time.Millisecond, 550 * time.Millisecond, 700 * time.Millisecond, 950 * time.Millisecond}
+	if !reflect.DeepEqual(maximize.sfx, wantSFX) || !reflect.DeepEqual(maximize.sfxDelays, wantDelays) {
+		t.Fatalf("maximize_power_sounds sfx = %#v delays %#v", maximize.sfx, maximize.sfxDelays)
+	}
+
+	greed, ok := worldEffectSpecForID(effectGreedSound)
+	if !ok || greed.duration != 500*time.Millisecond || len(greed.components) != 0 || len(greed.sfx) != 1 || greed.sfx[0] != "effect\\ef_entry.wav" {
+		t.Fatalf("ef_greed_sound spec = %+v ok=%t, want robr greed sound", greed, ok)
 	}
 }
 

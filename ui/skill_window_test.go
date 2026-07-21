@@ -508,6 +508,103 @@ func TestSkillWindowShowsAssassinCrossUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsBlacksmithUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobBlacksmith},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillBSIron, Level: 1, Upgradable: true},
+				{ID: db.SkillBSEnchantedstone, Level: 1, Upgradable: true},
+				{ID: db.SkillBSDagger, Level: 2, Upgradable: true},
+				{ID: db.SkillBSSword, Level: 1, Upgradable: true},
+				{ID: db.SkillBSHiltbinding, Level: 1, Upgradable: true},
+				{ID: db.SkillBSSteel, Level: 1, Upgradable: true},
+				{ID: db.SkillBSHammerfall, Level: 2, Upgradable: true},
+				{ID: db.SkillBSWeaponresearch, Level: 1, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillBSSteel,
+		db.SkillBSEnchantedstone,
+		db.SkillBSOrideocon,
+		db.SkillBSSword,
+		db.SkillBSKnuckle,
+		db.SkillBSSpear,
+		db.SkillBSTwohandsword,
+		db.SkillBSFindingore,
+		db.SkillBSWeaponresearch,
+		db.SkillBSRepairweapon,
+		db.SkillBSAdrenaline,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("blacksmith tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillBSAxe) {
+		t.Fatal("smith axe should not be visible before smith sword reaches level 2")
+	}
+	window.stageSkill(db.SkillBSSword)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillBSAxe) {
+		t.Fatal("smith axe should be visible after staged smith sword level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsWhitesmithUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobBlacksmithH},
+		Skills: session.Skills{
+			Points: 3,
+			List: []session.Skill{
+				{ID: db.SkillMCPushcart, Level: 5, Upgradable: true},
+				{ID: db.SkillMCCartrevolution, Level: 1, Upgradable: true},
+				{ID: db.SkillMCChangecart, Level: 1, Upgradable: true},
+				{ID: db.SkillMCMammonite, Level: 10, Upgradable: true},
+				{ID: db.SkillBSHiltbinding, Level: 1, Upgradable: true},
+				{ID: db.SkillBSSkintemper, Level: 3, Upgradable: true},
+				{ID: db.SkillBSHammerfall, Level: 5, Upgradable: true},
+				{ID: db.SkillBSWeaponresearch, Level: 9, Upgradable: true},
+				{ID: db.SkillBSOverthrust, Level: 4, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillWSCartboost,
+		db.SkillWSMeltdown,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("whitesmith tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	for _, skillID := range []uint16{
+		db.SkillWSWeaponrefine,
+		db.SkillWSOverthrustmax,
+		db.SkillWSCarttermination,
+	} {
+		if containsSkill(skills, skillID) {
+			t.Fatalf("whitesmith skill %d should not be visible before staged prerequisite: %v", skillID, skills)
+		}
+	}
+	window.stageSkill(db.SkillBSWeaponresearch)
+	window.stageSkill(db.SkillBSOverthrust)
+	window.stageSkill(db.SkillWSCartboost)
+	skills = window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillWSWeaponrefine,
+		db.SkillWSOverthrustmax,
+		db.SkillWSCarttermination,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("whitesmith staged prerequisites did not expose skill %d: %v", skillID, skills)
+		}
+	}
+}
+
 func TestSkillWindowOrdersPendingUnlocksBySkillTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobSuperNovice},

@@ -3730,6 +3730,9 @@ const (
 	SkillEffectQuake             = 11005
 	SkillEffectAnkleSnareGround  = 11006
 	SkillEffectSharpShootingCast = 11007
+	SkillEffectAdrenalineCast    = 11008
+	SkillEffectMaximizeSounds    = 11009
+	SkillEffectGreedSound        = 11010
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -3757,6 +3760,8 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillALAngelus:                  {EffectIDs: []int{41}},
 	SkillALBlessing:                 {EffectIDs: []int{42}},
 	SkillALCure:                     {EffectIDs: []int{66}},
+	SkillMCIdentify:                 {},
+	SkillMCVending:                  {},
 	SkillMCMammonite:                {EffectIDs: []int{10}},
 	SkillACConcentration:            {EffectIDs: []int{153}},
 	SkillACDouble:                   {HitEffectIDs: []int{1}, BeginCastEffectIDs: []int{16}, BeforeHitEffectIDs: []int{SkillEffectArrowShot}},
@@ -3805,10 +3810,10 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillWZQuagmire:                 {GroundEffectIDs: []int{95}},
 	SkillBSRepairweapon:             {EffectIDs: []int{101}},
 	SkillBSHammerfall:               {EffectIDs: []int{102}},
-	SkillBSAdrenaline:               {EffectIDs: []int{98}},
+	SkillBSAdrenaline:               {EffectIDs: []int{98}, BeginCastEffectIDs: []int{SkillEffectAdrenalineCast}},
 	SkillBSWeaponperfect:            {EffectIDs: []int{103}},
 	SkillBSOverthrust:               {EffectIDs: []int{128}},
-	SkillBSMaximize:                 {EffectIDs: []int{104}},
+	SkillBSMaximize:                 {EffectIDs: []int{104}, BeginCastEffectIDs: []int{SkillEffectMaximizeSounds}},
 	SkillHTSkidtrap:                 {EffectIDs: []int{69}},
 	SkillHTLandmine:                 {},
 	SkillHTAnklesnare:               {GroundEffectIDs: []int{SkillEffectAnkleSnareGround}},
@@ -3838,7 +3843,9 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillTFPickstone:                {HideCastAura: true},
 	SkillTFThrowstone:               {BeforeHitEffectIDs: []int{effectThrowItem3}},
 	SkillMCCartrevolution:           {HitEffectIDs: []int{effectCartRevolution}, BeginCastEffectIDs: []int{effectCartRevolution}},
+	SkillMCChangecart:               {},
 	SkillMCLoud:                     {EffectIDs: []int{effectLoud}},
+	SkillMCCartdecorate:             {},
 	SkillALHolylight:                {EffectIDs: []int{152}},
 	SkillMGEnergycoat:               {EffectIDs: []int{169}},
 	SkillNPCPiercingatt:             {EffectIDsOnCaster: []int{148}},
@@ -3972,7 +3979,10 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillSNSharpshooting:            {HitEffectIDs: []int{effectTripleAttack2}, BeforeHitEffectIDs: []int{SkillEffectArrowShot}, BeginCastEffectIDs: []int{SkillEffectSharpShootingCast}},
 	SkillSNWindwalk:                 {EffectIDs: []int{effectPortal4}},
 	SkillWSMeltdown:                 {EffectIDs: []int{effectMeltdown}},
+	SkillWSCreatecoin:               {},
+	SkillWSCreatenugget:             {},
 	SkillWSCartboost:                {EffectIDs: []int{effectCartBoost}},
+	SkillWSSystemcreate:             {},
 	SkillSTChasewalk:                {BeginCastEffectIDs: []int{effectCastSpin}},
 	SkillSTRejectsword:              {EffectIDs: []int{effectRejectSword}},
 	SkillCGArrowvulcan:              {EffectIDs: []int{effectTripleAttack3}},
@@ -4025,6 +4035,8 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillHWGanbantein:               {EffectIDs: []int{223}, GroundEffectIDs: []int{224}},
 	SkillHWGravitation:              {GroundEffectIDs: []int{SkillEffectGravitationGround}},
 	SkillWSCarttermination:          {EffectIDs: []int{518}},
+	SkillWSWeaponrefine:             {},
+	SkillWSOverthrustmax:            {EffectIDs: []int{128}},
 	SkillCGLongingfreedom:           {EffectIDs: []int{500}},
 	SkillCGHermode:                  {GroundEffectIDs: []int{effectBottomHermode}},
 	SkillCGTarotcard:                {SuccessEffectIDs: []int{500}},
@@ -4087,6 +4099,8 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillSAElementground:            {EffectIDs: []int{effectSeismicWeapon}},
 	SkillSAElementfire:              {EffectIDs: []int{effectFlameLauncher}},
 	SkillSAElementwind:              {EffectIDs: []int{effectLightningLoad}},
+	SkillBSAdrenaline2:              {EffectIDs: []int{98}, BeginCastEffectIDs: []int{SkillEffectAdrenalineCast}},
+	SkillBSGreed:                    {EffectIDs: []int{SkillEffectGreedSound}},
 	SkillRKEnchantblade:             {EffectIDs: []int{effectBerserkPotion2}},
 	SkillRKSonicwave:                {EffectIDs: []int{effectHealN}},
 	SkillRKHundredspear:             {EffectIDs: []int{723}},

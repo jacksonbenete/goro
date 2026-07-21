@@ -672,6 +672,9 @@ const (
 	effectQuake             = db.SkillEffectQuake
 	effectAnkleSnareGround  = db.SkillEffectAnkleSnareGround
 	effectSharpShootingCast = db.SkillEffectSharpShootingCast
+	effectAdrenalineCast    = db.SkillEffectAdrenalineCast
+	effectMaximizeSounds    = db.SkillEffectMaximizeSounds
+	effectGreedSound        = db.SkillEffectGreedSound
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute

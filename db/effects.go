@@ -664,6 +664,9 @@ const (
 	effectQuake             = SkillEffectQuake
 	effectAnkleSnareGround  = SkillEffectAnkleSnareGround
 	effectSharpShootingCast = SkillEffectSharpShootingCast
+	effectAdrenalineCast    = SkillEffectAdrenalineCast
+	effectMaximizeSounds    = SkillEffectMaximizeSounds
+	effectGreedSound        = SkillEffectGreedSound
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -2773,6 +2776,12 @@ func delayedSoundEffectSpec(paths []string, delays []time.Duration) EffectSpec {
 	}
 }
 
+func delayedSoundEffectSpecDuration(duration time.Duration, paths []string, delays []time.Duration) EffectSpec {
+	spec := delayedSoundEffectSpec(paths, delays)
+	spec.Duration = duration
+	return spec
+}
+
 func repeatedSoundEffectSpec(path string, count int, interval time.Duration) EffectSpec {
 	paths := make([]string, 0, count)
 	delays := make([]time.Duration, 0, count)
@@ -4739,6 +4748,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectFirePillar:     strEffectSpec("firepillar", "effect\\wizard_fire_pillar_a.wav"),
 	effectFirePillarBomb: strEffectSpec("firepillarbomb", "effect\\wizard_fire_pillar_b.wav"),
 	effectWhitePulse:     whitePulseEffectSpec(),
+	effectAdrenalineCast: soundOnlyEffectSpec("effect\\black_adrenalinerush_a.wav"),
 	effectHasteUp:        soundOnlyEffectSpec("effect\\black_adrenalinerush_b.wav"),
 	effectFlasher:        soundOnlyEffectSpec("effect\\hunter_flasher.wav"),
 	effectRemoveTrap:     soundOnlyEffectSpec("effect\\hunter_removetrap.wav"),
@@ -4752,6 +4762,16 @@ var EffectSpecs = map[int]EffectSpec{
 	effectSpringTrap:     strEffectSpec("spring", "effect\\hunter_springtrap.wav"),
 	effectWeaponPerfect:  strEffectSpecAttachedMin("weaponperfection", "weaponperfection_min", "effect\\black_weapon_perfection.wav", false),
 	effectMaximizePower:  strEffectSpecAttachedMin("maximizepower", "maximize_min", "", false),
+	effectMaximizeSounds: delayedSoundEffectSpecDuration(950*time.Millisecond,
+		[]string{
+			"effect\\black_maximize_power_circle.wav",
+			"effect\\black_maximize_power_sword.wav",
+			"effect\\black_maximize_power_sword.wav",
+			"effect\\black_maximize_power_sword_bic.wav",
+		},
+		[]time.Duration{time.Millisecond, 550 * time.Millisecond, 700 * time.Millisecond, 950 * time.Millisecond},
+	),
+	effectGreedSound:     soundOnlyEffectSpec("effect\\ef_entry.wav"),
 	effectKyrie:          strEffectSpecAttachedMin("kyrie", "kyrie_min", "effect\\priest_kyrie_eleison_a.wav", false),
 	effectMagnus:         strEffectSpec("magnus", "effect\\priest_magnus.wav"),
 	effectBlitzBeat:      soundOnlyEffectSpec("effect\\hunter_blitzbeat.wav"),
