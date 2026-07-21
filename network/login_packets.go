@@ -23,6 +23,7 @@ const (
 	PacketCZChangeDir      uint16 = 0x009B
 	PacketCZChangeDirRE    uint16 = 0x0361
 	PacketCZRestart        uint16 = 0x00B2
+	PacketPing             uint16 = 0x0187
 	PacketCZQuitGame       uint16 = 0x018A
 	PacketCZRequestAct     uint16 = 0x0190
 	PacketCZRequestAct2    uint16 = 0x0437
@@ -177,6 +178,13 @@ func BuildQuitGamePacket() []byte {
 	var w Writer
 	w.Uint16(PacketCZQuitGame)
 	w.Uint16(0)
+	return w.Bytes()
+}
+
+func BuildPingPacket(accountID uint32) []byte {
+	var w Writer
+	w.Uint16(PacketPing)
+	w.Uint32(accountID)
 	return w.Bytes()
 }
 

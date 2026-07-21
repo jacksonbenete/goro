@@ -47,6 +47,8 @@ type LoginMode struct {
 	charDeleteConfirm gameui.ConfirmModal
 	charDeletePrompt  gameui.TextPromptWindow
 	deleteCharID      uint32
+	charPingActive    bool
+	nextCharPing      time.Time
 	create            charCreateState
 	cursor            roCursorState
 	quitConfirm       gameui.ConfirmModal
@@ -79,6 +81,7 @@ type loginFadeState struct {
 
 const loginTransitionDuration = 500 * time.Millisecond
 const loginConfirmSFX = "버튼소리.wav"
+const charServerPingInterval = 10 * time.Second
 
 func NewLoginMode() *LoginMode {
 	return &LoginMode{status: "select a server", maxSlots: 9}
@@ -148,6 +151,8 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 	if fading && m.phase == loginPhaseCharacter {
 		m.showCharacterSelectWindow(ctx)
 	}
+
+	m.maybeSendCharServerPing(ctx, now)
 
 	if len(conns) == 0 {
 		return nil, nil
@@ -243,6 +248,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 				m.packets = append(m.packets, "parse HC_ACCEPT_ENTER: "+err.Error())
 			} else {
 				ctx.Session.Characters = convertCharacters(list.Characters)
+				m.enableCharServerPing(now)
 				m.status = fmt.Sprintf("char list: %d characters (%s)", len(list.Characters), list.Layout)
 				glog.Debugf("char list characters=%d layout=%s", len(list.Characters), list.Layout)
 				for _, character := range list.Characters {
@@ -614,6 +620,7 @@ func (m *LoginMode) drawFade(ctx client.Context, screen *render.Frame, now time.
 func (m *LoginMode) nextWorldMode(ctx client.Context, now time.Time) *WorldMode {
 	m.clearLoginWindows(ctx)
 	m.quitConfirm = gameui.ConfirmModal{}
+	m.disableCharServerPing()
 	next := NewWorldMode()
 	next.ui.console = m.console
 	next.startMapFadeIn(now)
@@ -800,6 +807,7 @@ func uniqueLoginStrings(values []string) []string {
 }
 
 func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection, userConfirmed bool) {
+	m.disableCharServerPing()
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, conn.Address, conn.Port)
 	cancel()
@@ -832,7 +840,43 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 	glog.Debugf("sent CA_LOGIN user=%s version=%d", m.username, conn.Version)
 }
 
+func (m *LoginMode) enableCharServerPing(now time.Time) {
+	m.charPingActive = true
+	m.nextCharPing = now.Add(charServerPingInterval)
+}
+
+func (m *LoginMode) disableCharServerPing() {
+	m.charPingActive = false
+	m.nextCharPing = time.Time{}
+}
+
+func (m *LoginMode) maybeSendCharServerPing(ctx client.Context, now time.Time) {
+	if !m.charPingActive || m.disconnectDialog.IsOpen() {
+		return
+	}
+	if m.phase != loginPhaseCharacter && m.phase != loginPhaseCreate {
+		return
+	}
+	if ctx.Network == nil || ctx.Session == nil || ctx.Session.AccountID == 0 {
+		return
+	}
+	if m.nextCharPing.IsZero() {
+		m.nextCharPing = now.Add(charServerPingInterval)
+		return
+	}
+	if now.Before(m.nextCharPing) {
+		return
+	}
+	m.nextCharPing = now.Add(charServerPingInterval)
+	if err := ctx.Network.SendPing(ctx.Session.AccountID); err != nil {
+		m.disableCharServerPing()
+		m.status = "char ping failed: " + err.Error()
+		glog.Warnf("char server ping failed account_id=%d: %v", ctx.Session.AccountID, err)
+	}
+}
+
 func (m *LoginMode) connectCharServer(ctx client.Context, server network.CharServer) {
+	m.disableCharServerPing()
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, server.Address, int(server.Port))
 	cancel()
@@ -852,6 +896,7 @@ func (m *LoginMode) connectCharServer(ctx client.Context, server network.CharSer
 }
 
 func (m *LoginMode) connectMapServer(ctx client.Context, zone network.ZoneServerNotify) {
+	m.disableCharServerPing()
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, zone.Address, int(zone.Port))
 	cancel()

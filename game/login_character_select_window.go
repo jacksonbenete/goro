@@ -207,6 +207,7 @@ func (m *LoginMode) applyDeleteCharacterRefuse(ctx client.Context, code uint8) {
 
 func (m *LoginMode) cancelCharacterSelect(ctx client.Context) {
 	m.charSelectWindow = nil
+	m.disableCharServerPing()
 	m.startPhaseFade(loginPhaseAccount, time.Now())
 	if ctx.Network != nil {
 		ctx.Network.Close()

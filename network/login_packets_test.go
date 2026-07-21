@@ -152,6 +152,19 @@ func TestBuildQuitGamePacket(t *testing.T) {
 	}
 }
 
+func TestBuildPingPacket(t *testing.T) {
+	packet := BuildPingPacket(0x11223344)
+	if len(packet) != 6 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if binary.LittleEndian.Uint16(packet[0:2]) != PacketPing {
+		t.Fatalf("opcode = % x", packet[:2])
+	}
+	if binary.LittleEndian.Uint32(packet[2:6]) != 0x11223344 {
+		t.Fatalf("account id = 0x%08x", binary.LittleEndian.Uint32(packet[2:6]))
+	}
+}
+
 func TestBuildMapServerEnterPacket(t *testing.T) {
 	packet := BuildMapServerEnterPacket(MapServerEnter{
 		AccountID:  0x11223344,

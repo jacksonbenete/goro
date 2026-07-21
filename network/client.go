@@ -198,6 +198,17 @@ func (c *Client) SendQuitGame() error {
 	return err
 }
 
+func (c *Client) SendPing(accountID uint32) error {
+	packet := BuildPingPacket(accountID)
+	err := c.Send(packet)
+	if err == nil && c.trace {
+		glog.Debugf("sent PING opcode=0x%04X account_id=%d client_date=%d", ID(packet), accountID, c.clientDate)
+	} else if err != nil {
+		glog.Warnf("send PING failed opcode=0x%04X len=%d account_id=%d client_date=%d: %v", ID(packet), len(packet), accountID, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendTick(clientTick uint32) error {
 	packet := BuildTickSendPacketForClientDate(clientTick, c.clientDate)
 	err := c.Send(packet)

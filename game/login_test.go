@@ -1,6 +1,10 @@
 package game
 
 import (
+	"context"
+	"encoding/binary"
+	"io"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +14,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/input"
+	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
@@ -105,6 +110,68 @@ func TestAutoSelectCharacterRequiresAutologin(t *testing.T) {
 	}
 	if mode.autoCharAttempted {
 		t.Fatal("auto select marked attempted without autologin")
+	}
+}
+
+func TestLoginModeSendsCharServerPingAfterInterval(t *testing.T) {
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	type acceptResult struct {
+		conn net.Conn
+		err  error
+	}
+	accepted := make(chan acceptResult, 1)
+	go func() {
+		conn, err := ln.Accept()
+		accepted <- acceptResult{conn: conn, err: err}
+	}()
+
+	netClient := network.NewClient(20080910, false)
+	defer netClient.Close()
+	addr := ln.Addr().(*net.TCPAddr)
+	if err := netClient.Connect(context.Background(), addr.IP.String(), addr.Port); err != nil {
+		t.Fatal(err)
+	}
+
+	var serverConn net.Conn
+	select {
+	case result := <-accepted:
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		serverConn = result.conn
+	case <-time.After(time.Second):
+		t.Fatal("server did not accept test client")
+	}
+	defer serverConn.Close()
+
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCreate
+	now := time.Unix(100, 0)
+	mode.enableCharServerPing(now.Add(-charServerPingInterval))
+	ctx := client.Context{
+		Network: netClient,
+		Session: &session.Session{AccountID: 0x11223344},
+	}
+
+	mode.maybeSendCharServerPing(ctx, now)
+
+	if err := serverConn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	packet := make([]byte, 6)
+	if _, err := io.ReadFull(serverConn, packet); err != nil {
+		t.Fatalf("reading char ping: %v", err)
+	}
+	if binary.LittleEndian.Uint16(packet[0:2]) != network.PacketPing {
+		t.Fatalf("opcode = % x", packet[:2])
+	}
+	if binary.LittleEndian.Uint32(packet[2:6]) != 0x11223344 {
+		t.Fatalf("account id = 0x%08x", binary.LittleEndian.Uint32(packet[2:6]))
 	}
 }
 
