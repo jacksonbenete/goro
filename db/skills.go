@@ -3728,6 +3728,8 @@ const (
 	SkillEffectSpearHitSound     = 11003
 	SkillEffectEnemyHitNormal1   = 11004
 	SkillEffectQuake             = 11005
+	SkillEffectAnkleSnareGround  = 11006
+	SkillEffectSharpShootingCast = 11007
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -3759,6 +3761,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillACConcentration:            {EffectIDs: []int{153}},
 	SkillACDouble:                   {HitEffectIDs: []int{1}, BeginCastEffectIDs: []int{16}, BeforeHitEffectIDs: []int{SkillEffectArrowShot}},
 	SkillACShower:                   {HitEffectIDs: []int{1}, EffectIDs: []int{SkillEffectArrowShower}},
+	SkillACMakingarrow:              {},
 	SkillTFSteal:                    {SuccessEffectIDs: []int{18}},
 	SkillTFPoison:                   {HitEffectIDs: []int{20}},
 	SkillTFDetoxify:                 {EffectIDs: []int{21}},
@@ -3806,6 +3809,8 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillBSOverthrust:               {EffectIDs: []int{128}},
 	SkillBSMaximize:                 {EffectIDs: []int{104}},
 	SkillHTSkidtrap:                 {EffectIDs: []int{69}},
+	SkillHTLandmine:                 {},
+	SkillHTAnklesnare:               {GroundEffectIDs: []int{SkillEffectAnkleSnareGround}},
 	SkillHTShockwave:                {EffectIDs: []int{145}, HitEffectIDs: []int{146}},
 	SkillHTSandman:                  {HitEffectIDs: []int{139}},
 	SkillHTFlasher:                  {HitEffectIDs: []int{99}},
@@ -3816,6 +3821,8 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillHTBlitzbeat:                {EffectIDs: []int{115}},
 	SkillHTDetecting:                {EffectIDs: []int{119}},
 	SkillHTSpringtrap:               {EffectIDs: []int{111}},
+	SkillHTTalkiebox:                {},
+	SkillHTPower:                    {},
 	SkillASCloaking:                 {EffectIDs: []int{120}},
 	SkillASSonicblow:                {EffectIDs: []int{143}, EffectIDsOnCaster: []int{121}, HitEffectIDs: []int{122}},
 	SkillASGrimtooth:                {EffectIDs: []int{123}, HitEffectIDs: []int{132}},
@@ -3960,7 +3967,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillASCBreaker:                 {BeforeHitEffectIDs: []int{effectSoulBreaker}},
 	SkillSNSight:                    {EffectIDs: []int{effectTrueSight}},
 	SkillSNFalconassault:            {EffectIDs: []int{effectFalconAssault}, HideCastAura: true},
-	SkillSNSharpshooting:            {HitEffectIDs: []int{effectTripleAttack2}},
+	SkillSNSharpshooting:            {HitEffectIDs: []int{effectTripleAttack2}, BeforeHitEffectIDs: []int{SkillEffectArrowShot}, BeginCastEffectIDs: []int{SkillEffectSharpShootingCast}},
 	SkillSNWindwalk:                 {EffectIDs: []int{effectPortal4}},
 	SkillWSMeltdown:                 {EffectIDs: []int{effectMeltdown}},
 	SkillWSCartboost:                {EffectIDs: []int{effectCartBoost}},
@@ -4070,7 +4077,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillRGCloseconfine:             {EffectIDs: []int{602}, GroundEffectIDs: []int{effectNPCStop2}},
 	SkillWZSightblaster:             {EffectIDs: []int{601}},
 	SkillSAElementwater:             {EffectIDs: []int{effectFrostWeapon}},
-	SkillHTPhantasmic:               {HitEffectIDs: []int{1}},
+	SkillHTPhantasmic:               {HitEffectIDs: []int{1}, BeforeHitEffectIDs: []int{SkillEffectArrowShot}},
 	SkillBaPangvoice:                {SuccessEffectIDs: []int{effectFVoice}},
 	SkillDCWinkcharm:                {SuccessEffectIDs: []int{effectWink}},
 	SkillMOBalkyoung:                {EffectIDs: []int{514}, HitEffectIDs: []int{effectHit3}},

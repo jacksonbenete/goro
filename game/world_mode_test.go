@@ -2114,13 +2114,13 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 631 {
-		t.Fatalf("implemented effects = %d, want 631", coverage.Implemented)
+	if coverage.Implemented != 632 {
+		t.Fatalf("implemented effects = %d, want 632", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 103.8 || coverage.ActivePercent > 104.1 {
+	if coverage.ActivePercent < 104.0 || coverage.ActivePercent > 104.2 {
 		t.Fatalf("active coverage = %.3f, want about 104.0", coverage.ActivePercent)
 	}
 }
@@ -7374,9 +7374,13 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "KN_CHARGEATK imported begin", skillBeginEffectIDs(db.SkillKNChargeatk), effectWhitePulse)
 	expectEffectIDs(t, "KN_CHARGEATK imported hit", skillHitEffectIDs(db.SkillKNChargeatk), effectEnemyHitNormal1)
 	expectEffectIDs(t, "KN_BOWLINGBASH imported caster", skillEffectOnCasterIDs(db.SkillKNBowlingbash), effectBowlingSelf)
+	expectEffectIDs(t, "HT_SKIDTRAP imported", skillEffectIDs(db.SkillHTSkidtrap), effectSkidTrap)
+	expectEffectIDs(t, "HT_LANDMINE imported empty", skillEffectIDs(db.SkillHTLandmine))
+	expectEffectIDs(t, "HT_ANKLESNARE imported ground", skillGroundEffectIDs(db.SkillHTAnklesnare), effectAnkleSnareGround)
 	expectEffectIDs(t, "HT_SHOCKWAVE imported", skillEffectIDs(db.SkillHTShockwave), effectShockwave)
 	expectEffectIDs(t, "HT_SHOCKWAVE imported hit", skillHitEffectIDs(db.SkillHTShockwave), effectShockwaveHit)
 	expectEffectIDs(t, "HT_SANDMAN imported hit", skillHitEffectIDs(db.SkillHTSandman), effectSandman)
+	expectEffectIDs(t, "HT_FLASHER imported hit", skillHitEffectIDs(db.SkillHTFlasher), effectFlasher)
 	expectEffectIDs(t, "HT_FREEZINGTRAP imported hit", skillHitEffectIDs(db.SkillHTFreezingtrap), effectFreezingTrap)
 	expectEffectIDs(t, "HT_BLASTMINE imported hit", skillHitEffectIDs(db.SkillHTBlastmine), effectBlastMineBomb)
 	expectEffectIDs(t, "HT_CLAYMORE imported hit", skillHitEffectIDs(db.SkillHTClaymoretrap), effectClaymore)
@@ -7384,6 +7388,8 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "HT_BLITZBEAT imported", skillEffectIDs(db.SkillHTBlitzbeat), effectBlitzBeat)
 	expectEffectIDs(t, "HT_DETECTING imported", skillEffectIDs(db.SkillHTDetecting), effectDetecting)
 	expectEffectIDs(t, "HT_SPRINGTRAP imported", skillEffectIDs(db.SkillHTSpringtrap), effectSpringTrap)
+	expectEffectIDs(t, "HT_TALKIEBOX imported empty", skillEffectIDs(db.SkillHTTalkiebox))
+	expectEffectIDs(t, "HT_POWER imported empty", skillEffectIDs(db.SkillHTPower))
 	expectEffectIDs(t, "AS_CLOAKING imported", skillEffectIDs(db.SkillASCloaking), effectCloaking)
 	expectEffectIDs(t, "AS_SONICBLOW imported", skillEffectIDs(db.SkillASSonicblow), effectSonicBlow2)
 	expectEffectIDs(t, "AS_SONICBLOW imported caster", skillEffectOnCasterIDs(db.SkillASSonicblow), effectSonicBlow)
@@ -7521,6 +7527,10 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "ASC_BREAKER imported before hit", skillBeforeHitEffectIDs(db.SkillASCBreaker), effectSoulBreaker)
 	expectEffectIDs(t, "SN_SIGHT imported", skillEffectIDs(db.SkillSNSight), effectTrueSight)
 	expectEffectIDs(t, "SN_FALCONASSAULT imported", skillEffectIDs(db.SkillSNFalconassault), effectFalconAssault)
+	expectEffectIDs(t, "HT_PHANTASMIC imported before hit", skillBeforeHitEffectIDs(db.SkillHTPhantasmic), effectArrowShot)
+	expectEffectIDs(t, "HT_PHANTASMIC imported hit", skillHitEffectIDs(db.SkillHTPhantasmic), effectBashHit)
+	expectEffectIDs(t, "SN_SHARPSHOOTING imported begin", skillBeginEffectIDs(db.SkillSNSharpshooting), effectSharpShootingCast)
+	expectEffectIDs(t, "SN_SHARPSHOOTING imported before hit", skillBeforeHitEffectIDs(db.SkillSNSharpshooting), effectArrowShot)
 	expectEffectIDs(t, "SN_SHARPSHOOTING imported hit", skillHitEffectIDs(db.SkillSNSharpshooting), effectTripleAttack2)
 	expectEffectIDs(t, "SN_WINDWALK imported", skillEffectIDs(db.SkillSNWindwalk), effectPortal4)
 	expectEffectIDs(t, "WS_MELTDOWN imported", skillEffectIDs(db.SkillWSMeltdown), effectMeltdown)
@@ -7734,6 +7744,35 @@ func TestImportedSkillActionFallback(t *testing.T) {
 	relax := skillAction(db.SkillLKTensionrelax)
 	if !relax.defined || relax.action != skillActorActionNone {
 		t.Fatalf("LK_TENSIONRELAX action = %+v, want robr false action", relax)
+	}
+	trap := skillAction(db.SkillHTLandmine)
+	if !trap.defined || trap.action != skillActorActionPickup || !trap.play || trap.repeat || trap.next == nil || trap.next.action != skillActorActionIdle {
+		t.Fatalf("HT_LANDMINE action = %+v, want robr PICKUP then IDLE", trap)
+	}
+	sight := skillAction(db.SkillSNSight)
+	if !sight.defined || sight.action != skillActorActionSkill || !sight.play || sight.repeat || sight.next == nil || sight.next.action != skillActorActionIdle {
+		t.Fatalf("SN_SIGHT action = %+v, want local skill action for robr ACTION then IDLE", sight)
+	}
+	wink := skillAction(db.SkillDCWinkcharm)
+	if !wink.defined || wink.action != skillActorActionSkill || !wink.play || wink.repeat || wink.next == nil || wink.next.action != skillActorActionIdle {
+		t.Fatalf("DC_WINKCHARM action = %+v, want robr SKILL then IDLE", wink)
+	}
+}
+
+func TestHunterStringKeyEffectsMatchRobrowser(t *testing.T) {
+	cast, ok := worldEffectSpecForID(effectSharpShootingCast)
+	if !ok || cast.duration != 10*time.Second || len(cast.components) != 1 {
+		t.Fatalf("496_beforecast spec = %+v ok=%t, want one 10s CastRing component", cast, ok)
+	}
+	component := cast.components[0]
+	if component.kind != effectComponentFUNC || component.funcName != "CastRing" || component.funcAdapter != effectFuncCastRing || component.textureName != "ring_jadu" {
+		t.Fatalf("496_beforecast component identity = %+v", component)
+	}
+	if component.bottomSize != 0.8 || component.topSize != 2.45 || component.height != 2.8 || component.posZ != 0.08 {
+		t.Fatalf("496_beforecast component shape = %+v", component)
+	}
+	if component.totalCircleSides != 20 || component.circleSides != 20 || component.alphaMax != 0.9 || !component.fade || !component.rotate || !component.attachedEntity {
+		t.Fatalf("496_beforecast component flags = %+v", component)
 	}
 }
 

@@ -656,12 +656,14 @@ const (
 )
 
 const (
-	effectWhitePulse       = SkillEffectWhitePulse
-	effectSpearProjectile  = SkillEffectSpearProjectile
-	effectSpiralBeforeCast = SkillEffectSpiralBeforeCast
-	effectSpearHitSound    = SkillEffectSpearHitSound
-	effectEnemyHitNormal1  = SkillEffectEnemyHitNormal1
-	effectQuake            = SkillEffectQuake
+	effectWhitePulse        = SkillEffectWhitePulse
+	effectSpearProjectile   = SkillEffectSpearProjectile
+	effectSpiralBeforeCast  = SkillEffectSpiralBeforeCast
+	effectSpearHitSound     = SkillEffectSpearHitSound
+	effectEnemyHitNormal1   = SkillEffectEnemyHitNormal1
+	effectQuake             = SkillEffectQuake
+	effectAnkleSnareGround  = SkillEffectAnkleSnareGround
+	effectSharpShootingCast = SkillEffectSharpShootingCast
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -2687,6 +2689,27 @@ func spearProjectileEffectSpec() EffectSpec {
 
 func spiralBeforeCastEffectSpec() EffectSpec {
 	return funcEffectSpec("EffectBodyColor", 500*time.Millisecond, true)
+}
+
+func sharpShootingCastEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 10 * time.Second,
+		Components: []EffectComponent{{
+			Kind:             EffectComponentFUNC,
+			FuncName:         "CastRing",
+			TextureName:      "ring_jadu",
+			AlphaMax:         0.9,
+			Fade:             true,
+			Rotate:           true,
+			BottomSize:       0.8,
+			TopSize:          2.45,
+			Height:           2.8,
+			PosZ:             0.08,
+			TotalCircleSides: 20,
+			CircleSides:      20,
+			AttachedEntity:   true,
+		}},
+	}
 }
 
 func quakeEffectSpec() EffectSpec {
@@ -5060,6 +5083,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectLineLink2:         soundOnlyEffectSpec("effect\\소울 체인지.wav"),
 	effectTrueSight:         soundOnlyEffectSpec("effect\\hunter_detecting.wav"),
 	effectFalconAssault:     falconAssaultEffectSpec(),
+	effectSharpShootingCast: sharpShootingCastEffectSpec(),
 	effectTripleAttack2:     soundOnlyEffectSpec("effect\\샤프슈팅.wav"),
 	effectPortal4:           soundOnlyEffectSpec("effect\\윈드워크.wav"),
 	effectMeltdown:          strEffectSpecAttached("melt", "", false),

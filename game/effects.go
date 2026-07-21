@@ -664,12 +664,14 @@ const (
 )
 
 const (
-	effectWhitePulse       = db.SkillEffectWhitePulse
-	effectSpearProjectile  = db.SkillEffectSpearProjectile
-	effectSpiralBeforeCast = db.SkillEffectSpiralBeforeCast
-	effectSpearHitSound    = db.SkillEffectSpearHitSound
-	effectEnemyHitNormal1  = db.SkillEffectEnemyHitNormal1
-	effectQuake            = db.SkillEffectQuake
+	effectWhitePulse        = db.SkillEffectWhitePulse
+	effectSpearProjectile   = db.SkillEffectSpearProjectile
+	effectSpiralBeforeCast  = db.SkillEffectSpiralBeforeCast
+	effectSpearHitSound     = db.SkillEffectSpearHitSound
+	effectEnemyHitNormal1   = db.SkillEffectEnemyHitNormal1
+	effectQuake             = db.SkillEffectQuake
+	effectAnkleSnareGround  = db.SkillEffectAnkleSnareGround
+	effectSharpShootingCast = db.SkillEffectSharpShootingCast
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1731,6 +1733,8 @@ func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
 		return newSkillActionSpec(skillActorActionAttack2, false, &idleSkillActionSpec), true
 	case db.SkillActionAttack3:
 		return newSkillActionSpec(skillActorActionAttack3, false, &idleSkillActionSpec), true
+	case db.SkillActionSkill, db.SkillActionAction:
+		return defaultSkillActionSpec, true
 	case db.SkillActionAttackFixedFrame:
 		spec := newSkillActionSpec(skillActorActionAttack, false, nil)
 		spec.hasFrame = true

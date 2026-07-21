@@ -337,6 +337,84 @@ func TestSkillWindowShowsHighPriestUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsHunterUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobHunter},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillACConcentration, Level: 1, Upgradable: true},
+				{ID: db.SkillHTSkidtrap, Level: 1, Upgradable: true},
+				{ID: db.SkillHTLandmine, Level: 1, Upgradable: true},
+				{ID: db.SkillHTFalcon, Level: 1, Upgradable: true},
+				{ID: db.SkillHTFlasher, Level: 1, Upgradable: true},
+				{ID: db.SkillHTAnklesnare, Level: 1, Upgradable: true},
+				{ID: db.SkillHTRemovetrap, Level: 1, Upgradable: true},
+				{ID: db.SkillHTSandman, Level: 1, Upgradable: true},
+				{ID: db.SkillHTFreezingtrap, Level: 0, Upgradable: true},
+				{ID: db.SkillHTShockwave, Level: 1, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillHTFlasher,
+		db.SkillHTAnklesnare,
+		db.SkillHTShockwave,
+		db.SkillHTSpringtrap,
+		db.SkillHTDetecting,
+		db.SkillHTTalkiebox,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("hunter tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillHTBlastmine) {
+		t.Fatal("blast mine should not be visible before freezing trap reaches level 1")
+	}
+	window.stageSkill(db.SkillHTFreezingtrap)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillHTBlastmine) {
+		t.Fatal("blast mine should be visible after staged freezing trap level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsSniperUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobHunterH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillACOwl, Level: 10, Upgradable: true},
+				{ID: db.SkillACVulture, Level: 10, Upgradable: true},
+				{ID: db.SkillACConcentration, Level: 10, Upgradable: true},
+				{ID: db.SkillACDouble, Level: 5, Upgradable: true},
+				{ID: db.SkillHTFalcon, Level: 1, Upgradable: true},
+				{ID: db.SkillHTBlitzbeat, Level: 5, Upgradable: true},
+				{ID: db.SkillHTSteelcrow, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillSNSharpshooting,
+		db.SkillSNSight,
+		db.SkillSNWindwalk,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("sniper tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillSNFalconassault) {
+		t.Fatal("falcon assault should not be visible before steel crow reaches level 3")
+	}
+	window.stageSkill(db.SkillHTSteelcrow)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillSNFalconassault) {
+		t.Fatal("falcon assault should be visible after staged steel crow level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowOrdersPendingUnlocksBySkillTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobSuperNovice},

@@ -89,6 +89,39 @@ func TestPriestSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestHunterSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	archer := SkillTreeSkillIDs(JobArcherH)
+	if !containsSkillID(archer, SkillACDouble) || !containsSkillID(archer, SkillACConcentration) || containsSkillID(archer, SkillHTFalcon) {
+		t.Fatalf("high archer tree = %v, want archer skills only", archer)
+	}
+
+	hunter := SkillTreeSkillIDs(JobHunter)
+	for _, skillID := range []uint16{
+		SkillACDouble,
+		SkillHTBeastbane,
+		SkillHTSkidtrap,
+		SkillHTPhantasmic,
+		SkillHTClaymoretrap,
+	} {
+		if !containsSkillID(hunter, skillID) {
+			t.Fatalf("hunter tree = %v, missing robr skill %d", hunter, skillID)
+		}
+	}
+	if containsSkillID(hunter, SkillSNSharpshooting) {
+		t.Fatalf("hunter tree = %v, should not include sniper skills", hunter)
+	}
+
+	babyHunter := SkillTreeSkillIDs(JobHunterB)
+	if !containsSkillID(babyHunter, SkillHTBlitzbeat) || containsSkillID(babyHunter, SkillSNWindwalk) {
+		t.Fatalf("baby hunter tree = %v, want hunter duplicate without sniper skills", babyHunter)
+	}
+
+	sniper := SkillTreeSkillIDs(JobHunterH)
+	if !containsSkillID(sniper, SkillACVulture) || !containsSkillID(sniper, SkillHTSteelcrow) || !containsSkillID(sniper, SkillSNFalconassault) || !containsSkillID(sniper, SkillSNWindwalk) {
+		t.Fatalf("sniper tree = %v, want archer, hunter, and sniper skills", sniper)
+	}
+}
+
 func TestWizardSkillRequirementsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		skillID uint16
@@ -185,6 +218,37 @@ func TestPriestSkillRequirementsMirrorRobrowser(t *testing.T) {
 	} {
 		if got := SkillRequirementsForJob(tc.job, tc.skillID); !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("requirements for job %d skill %d = %+v, want %+v", tc.job, tc.skillID, got, tc.want)
+		}
+	}
+}
+
+func TestHunterSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{SkillHTPower, []SkillRequirement{{SkillID: SkillACDouble, Level: 10}}},
+		{SkillHTAnklesnare, []SkillRequirement{{SkillID: SkillHTSkidtrap, Level: 1}}},
+		{SkillHTShockwave, []SkillRequirement{{SkillID: SkillHTAnklesnare, Level: 1}}},
+		{SkillHTSandman, []SkillRequirement{{SkillID: SkillHTFlasher, Level: 1}}},
+		{SkillHTFlasher, []SkillRequirement{{SkillID: SkillHTSkidtrap, Level: 1}}},
+		{SkillHTFreezingtrap, []SkillRequirement{{SkillID: SkillHTFlasher, Level: 1}}},
+		{SkillHTBlastmine, []SkillRequirement{{SkillID: SkillHTLandmine, Level: 1}, {SkillID: SkillHTSandman, Level: 1}, {SkillID: SkillHTFreezingtrap, Level: 1}}},
+		{SkillHTClaymoretrap, []SkillRequirement{{SkillID: SkillHTShockwave, Level: 1}, {SkillID: SkillHTBlastmine, Level: 1}}},
+		{SkillHTRemovetrap, []SkillRequirement{{SkillID: SkillHTLandmine, Level: 1}}},
+		{SkillHTTalkiebox, []SkillRequirement{{SkillID: SkillHTRemovetrap, Level: 1}, {SkillID: SkillHTShockwave, Level: 1}}},
+		{SkillHTFalcon, []SkillRequirement{{SkillID: SkillHTBeastbane, Level: 1}}},
+		{SkillHTSteelcrow, []SkillRequirement{{SkillID: SkillHTBlitzbeat, Level: 5}}},
+		{SkillHTBlitzbeat, []SkillRequirement{{SkillID: SkillHTFalcon, Level: 1}}},
+		{SkillHTDetecting, []SkillRequirement{{SkillID: SkillACConcentration, Level: 1}, {SkillID: SkillHTFalcon, Level: 1}}},
+		{SkillHTSpringtrap, []SkillRequirement{{SkillID: SkillHTFalcon, Level: 1}, {SkillID: SkillHTRemovetrap, Level: 1}}},
+		{SkillSNSight, []SkillRequirement{{SkillID: SkillACOwl, Level: 10}, {SkillID: SkillACVulture, Level: 10}, {SkillID: SkillACConcentration, Level: 10}, {SkillID: SkillHTFalcon, Level: 1}}},
+		{SkillSNFalconassault, []SkillRequirement{{SkillID: SkillACVulture, Level: 5}, {SkillID: SkillHTFalcon, Level: 1}, {SkillID: SkillHTBlitzbeat, Level: 5}, {SkillID: SkillHTSteelcrow, Level: 3}}},
+		{SkillSNSharpshooting, []SkillRequirement{{SkillID: SkillACDouble, Level: 5}, {SkillID: SkillACConcentration, Level: 10}}},
+		{SkillSNWindwalk, []SkillRequirement{{SkillID: SkillACConcentration, Level: 9}}},
+	} {
+		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
 		}
 	}
 }
@@ -288,6 +352,42 @@ func TestPriestSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillHPBasilica, 5},
 		{SkillHPMeditatio, 10},
 		{SkillHPManarecharge, 5},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestHunterSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillHTPower, 1},
+		{SkillHTPhantasmic, 1},
+		{SkillHTSkidtrap, 5},
+		{SkillHTLandmine, 5},
+		{SkillHTAnklesnare, 5},
+		{SkillHTShockwave, 5},
+		{SkillHTSandman, 5},
+		{SkillHTFlasher, 5},
+		{SkillHTFreezingtrap, 5},
+		{SkillHTBlastmine, 5},
+		{SkillHTClaymoretrap, 5},
+		{SkillHTRemovetrap, 1},
+		{SkillHTTalkiebox, 1},
+		{SkillHTBeastbane, 10},
+		{SkillHTFalcon, 1},
+		{SkillHTSteelcrow, 10},
+		{SkillHTBlitzbeat, 5},
+		{SkillHTDetecting, 4},
+		{SkillHTSpringtrap, 5},
+		{SkillSNSight, 10},
+		{SkillSNFalconassault, 5},
+		{SkillSNSharpshooting, 5},
+		{SkillSNWindwalk, 10},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
 		if !ok || got != tc.want {
