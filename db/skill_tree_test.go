@@ -254,6 +254,36 @@ func TestAssassinSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestRogueSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	rogue := SkillTreeSkillIDs(JobRogue)
+	for _, skillID := range []uint16{
+		SkillTFSteal,
+		SkillACVulture,
+		SkillRGTunneldrive,
+		SkillSMSword,
+		SkillACDouble,
+		SkillHTRemovetrap,
+		SkillRGPlagiarism,
+	} {
+		if !containsSkillID(rogue, skillID) {
+			t.Fatalf("rogue tree = %v, missing robr skill %d", rogue, skillID)
+		}
+	}
+	if containsSkillID(rogue, SkillSTChasewalk) {
+		t.Fatalf("rogue tree = %v, should not include stalker skills", rogue)
+	}
+
+	babyRogue := SkillTreeSkillIDs(JobRogueB)
+	if !containsSkillID(babyRogue, SkillRGCloseconfine) || containsSkillID(babyRogue, SkillSTFullstrip) {
+		t.Fatalf("baby rogue tree = %v, want rogue duplicate without stalker skills", babyRogue)
+	}
+
+	stalker := SkillTreeSkillIDs(JobRogueH)
+	if !containsSkillID(stalker, SkillTFPoison) || !containsSkillID(stalker, SkillRGIntimidate) || !containsSkillID(stalker, SkillSTChasewalk) || !containsSkillID(stalker, SkillSTPreserve) {
+		t.Fatalf("stalker tree = %v, want thief, rogue, and stalker skills", stalker)
+	}
+}
+
 func TestBlacksmithSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	merchant := SkillTreeSkillIDs(JobMerchantH)
 	if !containsSkillID(merchant, SkillMCInccarry) || !containsSkillID(merchant, SkillMCCartdecorate) || containsSkillID(merchant, SkillBSHammerfall) {
@@ -539,6 +569,42 @@ func TestAssassinSkillRequirementsMirrorRobrowser(t *testing.T) {
 	} {
 		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+}
+
+func TestRogueSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		job     int
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{JobArcher, SkillACVulture, []SkillRequirement{{SkillID: SkillACOwl, Level: 3}}},
+		{JobRogue, SkillACVulture, []SkillRequirement{}},
+		{JobRogueH, SkillACDouble, []SkillRequirement{{SkillID: SkillACVulture, Level: 10}}},
+		{JobRogueB, SkillHTRemovetrap, []SkillRequirement{{SkillID: SkillACDouble, Level: 5}}},
+		{JobRogue, SkillRGSnatcher, []SkillRequirement{{SkillID: SkillTFSteal, Level: 1}}},
+		{JobRogue, SkillRGStealcoin, []SkillRequirement{{SkillID: SkillRGSnatcher, Level: 4}}},
+		{JobRogue, SkillRGBackstap, []SkillRequirement{{SkillID: SkillRGStealcoin, Level: 4}}},
+		{JobRogue, SkillRGTunneldrive, []SkillRequirement{{SkillID: SkillTFHiding, Level: 1}}},
+		{JobRogue, SkillRGRaid, []SkillRequirement{{SkillID: SkillRGTunneldrive, Level: 2}, {SkillID: SkillRGBackstap, Level: 2}}},
+		{JobRogue, SkillRGStripweapon, []SkillRequirement{{SkillID: SkillRGStriparmor, Level: 5}}},
+		{JobRogue, SkillRGStripshield, []SkillRequirement{{SkillID: SkillRGStriphelm, Level: 5}}},
+		{JobRogue, SkillRGStriparmor, []SkillRequirement{{SkillID: SkillRGStripshield, Level: 5}}},
+		{JobRogue, SkillRGStriphelm, []SkillRequirement{{SkillID: SkillRGStealcoin, Level: 2}}},
+		{JobRogue, SkillRGIntimidate, []SkillRequirement{{SkillID: SkillRGBackstap, Level: 4}, {SkillID: SkillRGRaid, Level: 5}}},
+		{JobRogue, SkillRGGraffiti, []SkillRequirement{{SkillID: SkillRGFlaggraffiti, Level: 5}}},
+		{JobRogue, SkillRGFlaggraffiti, []SkillRequirement{{SkillID: SkillRGCleaner, Level: 1}}},
+		{JobRogue, SkillRGCleaner, []SkillRequirement{{SkillID: SkillRGGangster, Level: 1}}},
+		{JobRogue, SkillRGGangster, []SkillRequirement{{SkillID: SkillRGStripshield, Level: 3}}},
+		{JobRogue, SkillRGCompulsion, []SkillRequirement{{SkillID: SkillRGGangster, Level: 1}}},
+		{JobRogue, SkillRGPlagiarism, []SkillRequirement{{SkillID: SkillRGIntimidate, Level: 5}}},
+		{JobRogueH, SkillSTChasewalk, []SkillRequirement{{SkillID: SkillTFHiding, Level: 5}, {SkillID: SkillRGTunneldrive, Level: 3}}},
+		{JobRogueH, SkillSTPreserve, []SkillRequirement{{SkillID: SkillRGPlagiarism, Level: 10}}},
+		{JobRogueH, SkillSTFullstrip, []SkillRequirement{{SkillID: SkillRGStripweapon, Level: 5}}},
+	} {
+		if got := SkillRequirementsForJob(tc.job, tc.skillID); !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for job %d skill %d = %+v, want %+v", tc.job, tc.skillID, got, tc.want)
 		}
 	}
 }
@@ -861,6 +927,40 @@ func TestAssassinSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillASCBreaker, 10},
 		{SkillASCMeteorassault, 10},
 		{SkillASCCdp, 1},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestRogueSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillRGSnatcher, 10},
+		{SkillRGStealcoin, 10},
+		{SkillRGBackstap, 10},
+		{SkillRGTunneldrive, 5},
+		{SkillRGRaid, 5},
+		{SkillRGStripweapon, 5},
+		{SkillRGStripshield, 5},
+		{SkillRGStriparmor, 5},
+		{SkillRGStriphelm, 5},
+		{SkillRGIntimidate, 5},
+		{SkillRGGraffiti, 1},
+		{SkillRGFlaggraffiti, 5},
+		{SkillRGCleaner, 1},
+		{SkillRGGangster, 1},
+		{SkillRGCompulsion, 5},
+		{SkillRGPlagiarism, 10},
+		{SkillRGCloseconfine, 1},
+		{SkillSTChasewalk, 5},
+		{SkillSTRejectsword, 5},
+		{SkillSTPreserve, 1},
+		{SkillSTFullstrip, 5},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
 		if !ok || got != tc.want {

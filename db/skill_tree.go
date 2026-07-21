@@ -223,6 +223,25 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 	SkillSNWindwalk:      {{SkillID: SkillACConcentration, Level: 9}},
 	SkillTFHiding:        {{SkillID: SkillTFSteal, Level: 5}},
 	SkillTFDetoxify:      {{SkillID: SkillTFPoison, Level: 3}},
+	SkillRGSnatcher:      {{SkillID: SkillTFSteal, Level: 1}},
+	SkillRGStealcoin:     {{SkillID: SkillRGSnatcher, Level: 4}},
+	SkillRGBackstap:      {{SkillID: SkillRGStealcoin, Level: 4}},
+	SkillRGTunneldrive:   {{SkillID: SkillTFHiding, Level: 1}},
+	SkillRGRaid:          {{SkillID: SkillRGTunneldrive, Level: 2}, {SkillID: SkillRGBackstap, Level: 2}},
+	SkillRGStripweapon:   {{SkillID: SkillRGStriparmor, Level: 5}},
+	SkillRGStripshield:   {{SkillID: SkillRGStriphelm, Level: 5}},
+	SkillRGStriparmor:    {{SkillID: SkillRGStripshield, Level: 5}},
+	SkillRGStriphelm:     {{SkillID: SkillRGStealcoin, Level: 2}},
+	SkillRGIntimidate:    {{SkillID: SkillRGBackstap, Level: 4}, {SkillID: SkillRGRaid, Level: 5}},
+	SkillRGGraffiti:      {{SkillID: SkillRGFlaggraffiti, Level: 5}},
+	SkillRGFlaggraffiti:  {{SkillID: SkillRGCleaner, Level: 1}},
+	SkillRGCleaner:       {{SkillID: SkillRGGangster, Level: 1}},
+	SkillRGGangster:      {{SkillID: SkillRGStripshield, Level: 3}},
+	SkillRGCompulsion:    {{SkillID: SkillRGGangster, Level: 1}},
+	SkillRGPlagiarism:    {{SkillID: SkillRGIntimidate, Level: 5}},
+	SkillSTChasewalk:     {{SkillID: SkillTFHiding, Level: 5}, {SkillID: SkillRGTunneldrive, Level: 3}},
+	SkillSTPreserve:      {{SkillID: SkillRGPlagiarism, Level: 10}},
+	SkillSTFullstrip:     {{SkillID: SkillRGStripweapon, Level: 5}},
 	SkillASLeft:          {{SkillID: SkillASRight, Level: 2}},
 	SkillASCloaking:      {{SkillID: SkillTFHiding, Level: 2}},
 	SkillASSonicblow:     {{SkillID: SkillASKatar, Level: 4}},
@@ -262,6 +281,9 @@ var SkillRequirementsByJob = map[int]map[uint16][]SkillRequirement{
 	JobCrusader2H: crusaderSkillRequirementOverrides,
 	JobCrusaderB:  crusaderSkillRequirementOverrides,
 	JobCrusader2B: crusaderSkillRequirementOverrides,
+	JobRogue:      rogueSkillRequirementOverrides,
+	JobRogueH:     rogueSkillRequirementOverrides,
+	JobRogueB:     rogueSkillRequirementOverrides,
 }
 
 var priestSkillRequirementOverrides = map[uint16][]SkillRequirement{
@@ -272,6 +294,12 @@ var crusaderSkillRequirementOverrides = map[uint16][]SkillRequirement{
 	SkillALCure: {{SkillID: SkillCRTrust, Level: 5}},
 	SkillALDp:   {{SkillID: SkillALCure, Level: 1}},
 	SkillALHeal: {{SkillID: SkillCRTrust, Level: 10}, {SkillID: SkillALDemonbane, Level: 5}},
+}
+
+var rogueSkillRequirementOverrides = map[uint16][]SkillRequirement{
+	SkillACVulture:    {},
+	SkillACDouble:     {{SkillID: SkillACVulture, Level: 10}},
+	SkillHTRemovetrap: {{SkillID: SkillACDouble, Level: 5}},
 }
 
 var SkillMaxLevels = map[uint16]int{
@@ -541,6 +569,27 @@ var SkillMaxLevels = map[uint16]int{
 	SkillTFBacksliding:      1,
 	SkillTFPickstone:        1,
 	SkillTFThrowstone:       1,
+	SkillRGSnatcher:         10,
+	SkillRGStealcoin:        10,
+	SkillRGBackstap:         10,
+	SkillRGTunneldrive:      5,
+	SkillRGRaid:             5,
+	SkillRGStripweapon:      5,
+	SkillRGStripshield:      5,
+	SkillRGStriparmor:       5,
+	SkillRGStriphelm:        5,
+	SkillRGIntimidate:       5,
+	SkillRGGraffiti:         1,
+	SkillRGFlaggraffiti:     5,
+	SkillRGCleaner:          1,
+	SkillRGGangster:         1,
+	SkillRGCompulsion:       5,
+	SkillRGPlagiarism:       10,
+	SkillRGCloseconfine:     1,
+	SkillSTChasewalk:        5,
+	SkillSTRejectsword:      5,
+	SkillSTPreserve:         1,
+	SkillSTFullstrip:        5,
 	SkillASRight:            5,
 	SkillASLeft:             5,
 	SkillASKatar:            10,
@@ -698,6 +747,37 @@ var assassinCrossSkillTree = []uint16{
 	SkillASCEdp,
 	SkillASCKatar,
 	SkillASCMeteorassault,
+}
+
+var rogueSkillTree = []uint16{
+	SkillACVulture,
+	SkillRGTunneldrive,
+	SkillRGSnatcher,
+	SkillRGStriphelm,
+	SkillSMSword,
+	SkillRGCloseconfine,
+	SkillACDouble,
+	SkillRGStealcoin,
+	SkillRGStripshield,
+	SkillRGGangster,
+	SkillHTRemovetrap,
+	SkillRGBackstap,
+	SkillRGStriparmor,
+	SkillRGCleaner,
+	SkillRGCompulsion,
+	SkillRGRaid,
+	SkillRGStripweapon,
+	SkillRGFlaggraffiti,
+	SkillRGIntimidate,
+	SkillRGGraffiti,
+	SkillRGPlagiarism,
+}
+
+var stalkerSkillTree = []uint16{
+	SkillSTChasewalk,
+	SkillSTFullstrip,
+	SkillSTRejectsword,
+	SkillSTPreserve,
 }
 
 var acolyteSkillTree = []uint16{
@@ -972,6 +1052,9 @@ var skillTreeByJob = map[int][]uint16{
 	JobAssassin:     combinedSkillTree(thiefSkillTree, assassinSkillTree),
 	JobAssassinH:    combinedSkillTree(thiefSkillTree, assassinSkillTree, assassinCrossSkillTree),
 	JobAssassinB:    combinedSkillTree(thiefSkillTree, assassinSkillTree),
+	JobRogue:        combinedSkillTree(thiefSkillTree, rogueSkillTree),
+	JobRogueH:       combinedSkillTree(thiefSkillTree, rogueSkillTree, stalkerSkillTree),
+	JobRogueB:       combinedSkillTree(thiefSkillTree, rogueSkillTree),
 	JobSuperNovice:  superNoviceSkillTree,
 	JobSuperNoviceB: superNoviceSkillTree,
 }

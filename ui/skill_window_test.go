@@ -775,6 +775,82 @@ func TestSkillWindowShowsAssassinCrossUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsRogueUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobRogue},
+		Skills: session.Skills{
+			Points: 2,
+			List: []session.Skill{
+				{ID: db.SkillTFSteal, Level: 1, Upgradable: true},
+				{ID: db.SkillTFHiding, Level: 1, Upgradable: true},
+				{ID: db.SkillACVulture, Level: 9, Upgradable: true},
+				{ID: db.SkillRGSnatcher, Level: 4, Upgradable: true},
+				{ID: db.SkillRGStealcoin, Level: 3, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillACVulture,
+		db.SkillRGTunneldrive,
+		db.SkillRGSnatcher,
+		db.SkillRGStealcoin,
+		db.SkillRGStriphelm,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("rogue tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillACDouble) {
+		t.Fatal("double strafe should not be visible before vulture's eye reaches level 10")
+	}
+	if containsSkill(skills, db.SkillRGBackstap) {
+		t.Fatal("back stab should not be visible before mug reaches level 4")
+	}
+	window.stageSkill(db.SkillACVulture)
+	window.stageSkill(db.SkillRGStealcoin)
+	skills = window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillACDouble) {
+		t.Fatal("double strafe should be visible after staged vulture's eye level satisfies robr prerequisite")
+	}
+	if !containsSkill(skills, db.SkillRGBackstap) {
+		t.Fatal("back stab should be visible after staged mug level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsStalkerUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobRogueH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillTFHiding, Level: 5, Upgradable: true},
+				{ID: db.SkillRGTunneldrive, Level: 3, Upgradable: true},
+				{ID: db.SkillRGPlagiarism, Level: 10, Upgradable: true},
+				{ID: db.SkillRGStripweapon, Level: 4, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillSTChasewalk,
+		db.SkillSTPreserve,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("stalker tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillSTFullstrip) {
+		t.Fatal("full divestment should not be visible before divest weapon reaches level 5")
+	}
+	window.stageSkill(db.SkillRGStripweapon)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillSTFullstrip) {
+		t.Fatal("full divestment should be visible after staged divest weapon level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowShowsBlacksmithUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobBlacksmith},
