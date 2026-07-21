@@ -25,6 +25,36 @@ func TestWizardSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestSageSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	sage := SkillTreeSkillIDs(JobSage)
+	for _, skillID := range []uint16{
+		SkillMGFirebolt,
+		SkillSAAdvancedbook,
+		SkillWZEstimation,
+		SkillSACreatecon,
+		SkillWZEarthspike,
+		SkillWZHeavendrive,
+		SkillSAAbracadabra,
+	} {
+		if !containsSkillID(sage, skillID) {
+			t.Fatalf("sage tree = %v, missing robr skill %d", sage, skillID)
+		}
+	}
+	if containsSkillID(sage, SkillPFDoublecasting) {
+		t.Fatalf("sage tree = %v, should not include professor skills", sage)
+	}
+
+	babySage := SkillTreeSkillIDs(JobSageB)
+	if !containsSkillID(babySage, SkillSALandprotector) || containsSkillID(babySage, SkillPFFogwall) {
+		t.Fatalf("baby sage tree = %v, want sage duplicate without professor skills", babySage)
+	}
+
+	professor := SkillTreeSkillIDs(JobSageH)
+	if !containsSkillID(professor, SkillMGLightningbolt) || !containsSkillID(professor, SkillSAAbracadabra) || !containsSkillID(professor, SkillPFSpiderweb) || !containsSkillID(professor, SkillPFMindbreaker) {
+		t.Fatalf("professor tree = %v, want magician, sage, and professor skills", professor)
+	}
+}
+
 func TestKnightSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	knight := SkillTreeSkillIDs(JobKnight)
 	if !containsSkillID(knight, SkillSMBash) || !containsSkillID(knight, SkillKNPierce) || !containsSkillID(knight, SkillKNChargeatk) {
@@ -289,6 +319,42 @@ func TestWizardSkillRequirementsMirrorRobrowser(t *testing.T) {
 	}
 }
 
+func TestSageSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{SkillSACastcancel, []SkillRequirement{{SkillID: SkillSAAdvancedbook, Level: 2}}},
+		{SkillSAMagicrod, []SkillRequirement{{SkillID: SkillSAAdvancedbook, Level: 4}}},
+		{SkillSASpellbreaker, []SkillRequirement{{SkillID: SkillSAMagicrod, Level: 1}}},
+		{SkillSAFreecast, []SkillRequirement{{SkillID: SkillSACastcancel, Level: 1}}},
+		{SkillSAAutospell, []SkillRequirement{{SkillID: SkillSAFreecast, Level: 4}}},
+		{SkillSAFlamelauncher, []SkillRequirement{{SkillID: SkillMGFirebolt, Level: 1}, {SkillID: SkillSAAdvancedbook, Level: 5}}},
+		{SkillSAFrostweapon, []SkillRequirement{{SkillID: SkillMGColdbolt, Level: 1}, {SkillID: SkillSAAdvancedbook, Level: 5}}},
+		{SkillSALightningloader, []SkillRequirement{{SkillID: SkillMGLightningbolt, Level: 1}, {SkillID: SkillSAAdvancedbook, Level: 5}}},
+		{SkillSASeismicweapon, []SkillRequirement{{SkillID: SkillMGStonecurse, Level: 1}, {SkillID: SkillSAAdvancedbook, Level: 5}}},
+		{SkillSADragonology, []SkillRequirement{{SkillID: SkillSAAdvancedbook, Level: 9}}},
+		{SkillSAVolcano, []SkillRequirement{{SkillID: SkillSAFlamelauncher, Level: 2}}},
+		{SkillSADeluge, []SkillRequirement{{SkillID: SkillSAFrostweapon, Level: 2}}},
+		{SkillSAViolentgale, []SkillRequirement{{SkillID: SkillSALightningloader, Level: 2}}},
+		{SkillSALandprotector, []SkillRequirement{{SkillID: SkillSADeluge, Level: 3}, {SkillID: SkillSAViolentgale, Level: 3}, {SkillID: SkillSAVolcano, Level: 3}}},
+		{SkillSADispell, []SkillRequirement{{SkillID: SkillSASpellbreaker, Level: 3}}},
+		{SkillSAAbracadabra, []SkillRequirement{{SkillID: SkillSAAutospell, Level: 5}, {SkillID: SkillSADispell, Level: 1}, {SkillID: SkillSALandprotector, Level: 1}}},
+		{SkillPFHpconversion, []SkillRequirement{{SkillID: SkillMGSrecovery, Level: 1}, {SkillID: SkillSAMagicrod, Level: 1}}},
+		{SkillPFSoulchange, []SkillRequirement{{SkillID: SkillSAMagicrod, Level: 3}, {SkillID: SkillSASpellbreaker, Level: 2}}},
+		{SkillPFSoulburn, []SkillRequirement{{SkillID: SkillSACastcancel, Level: 5}, {SkillID: SkillSAMagicrod, Level: 3}, {SkillID: SkillSADispell, Level: 3}}},
+		{SkillPFMindbreaker, []SkillRequirement{{SkillID: SkillMGSrecovery, Level: 3}, {SkillID: SkillPFSoulburn, Level: 2}}},
+		{SkillPFMemorize, []SkillRequirement{{SkillID: SkillSAAdvancedbook, Level: 5}, {SkillID: SkillSAFreecast, Level: 5}, {SkillID: SkillSAAutospell, Level: 1}}},
+		{SkillPFFogwall, []SkillRequirement{{SkillID: SkillSAViolentgale, Level: 2}, {SkillID: SkillSADeluge, Level: 2}}},
+		{SkillPFSpiderweb, []SkillRequirement{{SkillID: SkillSADragonology, Level: 4}}},
+		{SkillPFDoublecasting, []SkillRequirement{{SkillID: SkillSAAutospell, Level: 1}}},
+	} {
+		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+}
+
 func TestKnightSkillRequirementsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		skillID uint16
@@ -545,6 +611,62 @@ func TestWizardSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 			}
 			continue
 		}
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestSageSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillSAAdvancedbook, 10},
+		{SkillSACastcancel, 5},
+		{SkillSAMagicrod, 5},
+		{SkillSASpellbreaker, 5},
+		{SkillSAFreecast, 10},
+		{SkillSAAutospell, 10},
+		{SkillSAFlamelauncher, 5},
+		{SkillSAFrostweapon, 5},
+		{SkillSALightningloader, 5},
+		{SkillSASeismicweapon, 5},
+		{SkillSADragonology, 5},
+		{SkillSAVolcano, 5},
+		{SkillSADeluge, 5},
+		{SkillSAViolentgale, 5},
+		{SkillSALandprotector, 5},
+		{SkillSADispell, 5},
+		{SkillSAAbracadabra, 10},
+		{SkillSAMonocell, 10},
+		{SkillSAClasschange, 10},
+		{SkillSASummonmonster, 10},
+		{SkillSAReverseorcish, 10},
+		{SkillSADeath, 10},
+		{SkillSAFortune, 10},
+		{SkillSATamingmonster, 10},
+		{SkillSAQuestion, 10},
+		{SkillSAGravity, 10},
+		{SkillSALevelup, 10},
+		{SkillSAInstantdeath, 10},
+		{SkillSAFullrecovery, 10},
+		{SkillSAComa, 10},
+		{SkillPFHpconversion, 5},
+		{SkillPFSoulchange, 1},
+		{SkillPFSoulburn, 5},
+		{SkillPFMindbreaker, 5},
+		{SkillPFMemorize, 1},
+		{SkillPFFogwall, 1},
+		{SkillPFSpiderweb, 1},
+		{SkillPFDoublecasting, 5},
+		{SkillSACreatecon, 1},
+		{SkillSAElementwater, 1},
+		{SkillSAElementground, 1},
+		{SkillSAElementfire, 1},
+		{SkillSAElementwind, 1},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
 		if !ok || got != tc.want {
 			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
 		}

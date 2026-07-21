@@ -669,6 +669,7 @@ const (
 	effectGreedSound        = SkillEffectGreedSound
 	effectGospelGround      = SkillEffectGospelGround
 	effectShieldProjectile  = SkillEffectShieldProjectile
+	effectFogWallGround     = SkillEffectFogWallGround
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -2732,6 +2733,35 @@ func gospelGroundEffectSpec() EffectSpec {
 				Kind:           EffectComponentFUNC,
 				FuncName:       "GroundTexture",
 				TextureFile:    "effect/cross_old.bmp",
+				Duration:       1500 * time.Millisecond,
+				SizeStart:      0.5,
+				SizeEnd:        0.5,
+				AlphaMax:       0.7,
+				PosZ:           0.4,
+				BlendAdditive:  true,
+				RenderBefore:   true,
+				AttachedEntity: false,
+			},
+		},
+	}
+}
+
+func fogWallGroundEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 1500 * time.Millisecond,
+		Components: []EffectComponent{
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "FlatColorTile",
+				Color:          color.RGBA{R: 0xaa, G: 0xaa, B: 0xaa, A: 153},
+				SizeStart:      1,
+				RenderBefore:   true,
+				AttachedEntity: false,
+			},
+			{
+				Kind:           EffectComponentFUNC,
+				FuncName:       "GroundTexture",
+				TextureFile:    "effect/lens_w.bmp",
 				Duration:       1500 * time.Millisecond,
 				SizeStart:      0.5,
 				SizeEnd:        0.5,
@@ -5147,6 +5177,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectLKConcentration:   strEffectSpecAttached("twohand", "effect\\knight_twohandquicken.wav", true),
 	effectBottomGospel:      soundOnlyEffectSpec("effect\\가스펠.wav"),
 	effectGospelGround:      gospelGroundEffectSpec(),
+	effectFogWallGround:     fogWallGroundEffectSpec(),
 	effectDeath:             strEffectSpecAttached("devil", "", false),
 	effectBottomBasilica:    basilicaEffectSpec(),
 	effectHitLine2:          soundOnlyEffectSpec("effect\\맹호경파산.wav"),

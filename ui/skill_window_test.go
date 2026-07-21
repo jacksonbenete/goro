@@ -181,6 +181,100 @@ func TestSkillWindowShowsHighWizardUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsSageUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobSage},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillMGFirebolt, Level: 1, Upgradable: true},
+				{ID: db.SkillMGColdbolt, Level: 1, Upgradable: true},
+				{ID: db.SkillMGLightningbolt, Level: 1, Upgradable: true},
+				{ID: db.SkillMGStonecurse, Level: 1, Upgradable: true},
+				{ID: db.SkillSAAdvancedbook, Level: 5, Upgradable: true},
+				{ID: db.SkillSACastcancel, Level: 1, Upgradable: true},
+				{ID: db.SkillSAMagicrod, Level: 1, Upgradable: true},
+				{ID: db.SkillSAFlamelauncher, Level: 2, Upgradable: true},
+				{ID: db.SkillSAFrostweapon, Level: 2, Upgradable: true},
+				{ID: db.SkillSALightningloader, Level: 2, Upgradable: true},
+				{ID: db.SkillSADeluge, Level: 3, Upgradable: true},
+				{ID: db.SkillSAViolentgale, Level: 3, Upgradable: true},
+				{ID: db.SkillSAVolcano, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillSAFlamelauncher,
+		db.SkillSAFrostweapon,
+		db.SkillSALightningloader,
+		db.SkillSASeismicweapon,
+		db.SkillSAFreecast,
+		db.SkillSASpellbreaker,
+		db.SkillSADeluge,
+		db.SkillSAViolentgale,
+		db.SkillSAVolcano,
+		db.SkillWZEarthspike,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("sage tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillSALandprotector) {
+		t.Fatal("land protector should not be visible before volcano reaches level 3")
+	}
+	window.stageSkill(db.SkillSAVolcano)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillSALandprotector) {
+		t.Fatal("land protector should be visible after staged volcano level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsProfessorUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobSageH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillMGSrecovery, Level: 3, Upgradable: true},
+				{ID: db.SkillSAAdvancedbook, Level: 5, Upgradable: true},
+				{ID: db.SkillSACastcancel, Level: 5, Upgradable: true},
+				{ID: db.SkillSAMagicrod, Level: 3, Upgradable: true},
+				{ID: db.SkillSASpellbreaker, Level: 2, Upgradable: true},
+				{ID: db.SkillSAFreecast, Level: 5, Upgradable: true},
+				{ID: db.SkillSAAutospell, Level: 1, Upgradable: true},
+				{ID: db.SkillSADragonology, Level: 4, Upgradable: true},
+				{ID: db.SkillSADeluge, Level: 2, Upgradable: true},
+				{ID: db.SkillSAViolentgale, Level: 2, Upgradable: true},
+				{ID: db.SkillSADispell, Level: 3, Upgradable: true},
+				{ID: db.SkillPFSoulburn, Level: 1, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillPFSpiderweb,
+		db.SkillPFSoulchange,
+		db.SkillPFFogwall,
+		db.SkillPFHpconversion,
+		db.SkillPFDoublecasting,
+		db.SkillPFMemorize,
+		db.SkillPFSoulburn,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("professor tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillPFMindbreaker) {
+		t.Fatal("mind breaker should not be visible before soul burn reaches level 2")
+	}
+	window.stageSkill(db.SkillPFSoulburn)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillPFMindbreaker) {
+		t.Fatal("mind breaker should be visible after staged soul burn level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowShowsKnightUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobKnight},

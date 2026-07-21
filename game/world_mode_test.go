@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 637 {
-		t.Fatalf("implemented effects = %d, want 637", coverage.Implemented)
+	if coverage.Implemented != 638 {
+		t.Fatalf("implemented effects = %d, want 638", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 104.8 || coverage.ActivePercent > 105.1 {
-		t.Fatalf("active coverage = %.3f, want about 104.9", coverage.ActivePercent)
+	if coverage.ActivePercent < 105.0 || coverage.ActivePercent > 105.3 {
+		t.Fatalf("active coverage = %.3f, want about 105.1", coverage.ActivePercent)
 	}
 }
 
@@ -4398,6 +4398,17 @@ func TestRobrowserEffectsFourHundredToFourFiftyMatchTableRows(t *testing.T) {
 	}
 	if component := spider.components[0]; component.kind != effectComponentFUNC || component.funcName != "SpiderWeb" || component.funcAdapter != effectFuncGroundTexture || component.textureFile != "effect/spiderweb.tga" || component.duration != 5*time.Second || math.Abs(component.alphaMax-0.7) > 0.0001 || component.sizeStart != 1.5 || component.sizeEnd != 1.5 || component.posZ != 0.05 || !component.renderBefore || component.attachedEntity {
 		t.Fatalf("EF_BOTTOM_SPIDER component = %+v", component)
+	}
+
+	fogWall, ok := worldEffectSpecForID(effectFogWallGround)
+	if !ok || len(fogWall.components) != 2 || fogWall.duration != 1500*time.Millisecond {
+		t.Fatalf("PF_FOGWALL ground spec = %+v ok=%t", fogWall, ok)
+	}
+	if component := fogWall.components[0]; component.kind != effectComponentFUNC || component.funcName != "FlatColorTile" || component.funcAdapter != effectFuncFlatColorTile || component.color != (color.RGBA{R: 0xaa, G: 0xaa, B: 0xaa, A: 153}) || component.sizeStart != 1 || !component.renderBefore || component.attachedEntity {
+		t.Fatalf("PF_FOGWALL flat tile component = %+v", component)
+	}
+	if component := fogWall.components[1]; component.kind != effectComponentFUNC || component.funcName != "GroundTexture" || component.funcAdapter != effectFuncGroundTexture || component.textureFile != "effect/lens_w.bmp" || component.duration != 1500*time.Millisecond || component.sizeStart != 0.5 || component.sizeEnd != 0.5 || math.Abs(component.alphaMax-0.7) > 0.0001 || component.posZ != 0.4 || !component.blendAdditive || !component.renderBefore || component.attachedEntity {
+		t.Fatalf("PF_FOGWALL texture component = %+v", component)
 	}
 
 	for _, tc := range []struct {
@@ -7461,17 +7472,41 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "MO_CHAINCOMBO imported", skillEffectIDs(db.SkillMOChaincombo), effectTeiHit1, effectChainCombo)
 	expectEffectIDs(t, "MO_CHAINCOMBO imported caster", skillEffectOnCasterIDs(db.SkillMOChaincombo), effectGumgang3)
 	expectEffectIDs(t, "MO_COMBOFINISH imported", skillEffectIDs(db.SkillMOCombofinish), 330, effectQuake)
+	expectEffectIDs(t, "SA_CASTCANCEL imported empty", skillEffectIDs(db.SkillSACastcancel))
 	expectEffectIDs(t, "SA_MAGICROD imported success", skillSuccessEffectIDs(db.SkillSAMagicrod), effectMagicRod)
 	expectEffectIDs(t, "SA_SPELLBREAKER imported success", skillSuccessEffectIDs(db.SkillSASpellbreaker), effectSpellBreaker)
+	expectEffectIDs(t, "SA_AUTOSPELL imported empty", skillEffectIDs(db.SkillSAAutospell))
 	expectEffectIDs(t, "SA_FLAMELAUNCHER imported success", skillSuccessEffectIDs(db.SkillSAFlamelauncher), effectFlameLauncher)
 	expectEffectIDs(t, "SA_FROSTWEAPON imported success", skillSuccessEffectIDs(db.SkillSAFrostweapon), effectFrostWeapon)
 	expectEffectIDs(t, "SA_LIGHTNINGLOADER imported success", skillSuccessEffectIDs(db.SkillSALightningloader), effectLightningLoad)
 	expectEffectIDs(t, "SA_SEISMICWEAPON imported success", skillSuccessEffectIDs(db.SkillSASeismicweapon), effectSeismicWeapon)
 	expectEffectIDs(t, "SA_DISPELL imported success", skillSuccessEffectIDs(db.SkillSADispell), effectDispell)
+	expectEffectIDs(t, "SA_VOLCANO imported caster", skillEffectOnCasterIDs(db.SkillSAVolcano), 225)
 	expectEffectIDs(t, "SA_VOLCANO imported ground", skillGroundEffectIDs(db.SkillSAVolcano), effectBottomVolcano)
+	expectEffectIDs(t, "SA_DELUGE imported caster", skillEffectOnCasterIDs(db.SkillSADeluge), 236)
 	expectEffectIDs(t, "SA_DELUGE imported ground", skillGroundEffectIDs(db.SkillSADeluge), effectBottomDeluge)
+	expectEffectIDs(t, "SA_VIOLENTGALE imported caster", skillEffectOnCasterIDs(db.SkillSAViolentgale), 237)
 	expectEffectIDs(t, "SA_VIOLENTGALE imported ground", skillGroundEffectIDs(db.SkillSAViolentgale), effectBottomViolent)
+	expectEffectIDs(t, "SA_LANDPROTECTOR imported caster", skillEffectOnCasterIDs(db.SkillSALandprotector), 238)
 	expectEffectIDs(t, "SA_LANDPROTECTOR imported ground", skillGroundEffectIDs(db.SkillSALandprotector), effectBottomLand)
+	expectEffectIDs(t, "SA_ABRACADABRA imported empty", skillEffectIDs(db.SkillSAAbracadabra))
+	for _, skillID := range []uint16{
+		db.SkillSAMonocell,
+		db.SkillSAClasschange,
+		db.SkillSASummonmonster,
+		db.SkillSAReverseorcish,
+		db.SkillSADeath,
+		db.SkillSAFortune,
+		db.SkillSATamingmonster,
+		db.SkillSAQuestion,
+		db.SkillSAGravity,
+		db.SkillSALevelup,
+		db.SkillSAInstantdeath,
+		db.SkillSAFullrecovery,
+		db.SkillSAComa,
+	} {
+		expectEffectIDs(t, "SA_ABRACADABRA result imported empty", skillEffectIDs(skillID))
+	}
 	expectEffectIDs(t, "BD_LULLABY imported", skillEffectIDs(db.SkillBDLullaby), effectBottomLullaby)
 	expectEffectIDs(t, "BD_RICHMANKIM imported", skillEffectIDs(db.SkillBDRichmankim), effectBottomRichKim)
 	expectEffectIDs(t, "BD_ETERNALCHAOS imported", skillEffectIDs(db.SkillBDEternalchaos), effectBottomChaos)
@@ -7498,6 +7533,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "SL_SWOO imported", skillEffectIDs(db.SkillSLSwoo), effectM07)
 	expectEffectIDs(t, "SL_SKA imported", skillEffectIDs(db.SkillSLSka), effectSteelBody, effectGumgang2)
 	expectEffectIDs(t, "CR_FULLPROTECTION imported", skillEffectIDs(db.SkillCRFullprotection), effectChemicalProt, 500)
+	expectEffectIDs(t, "SA_CREATECON imported empty", skillEffectIDs(db.SkillSACreatecon))
 	expectEffectIDs(t, "SA_ELEMENTWATER imported", skillEffectIDs(db.SkillSAElementwater), effectFrostWeapon)
 	expectEffectIDs(t, "SA_ELEMENTGROUND imported", skillEffectIDs(db.SkillSAElementground), effectSeismicWeapon)
 	expectEffectIDs(t, "SA_ELEMENTFIRE imported", skillEffectIDs(db.SkillSAElementfire), effectFlameLauncher)
@@ -7542,6 +7578,13 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "PF_HPCONVERSION imported caster", skillEffectOnCasterIDs(db.SkillPFHpconversion), effectEnergyDrain2)
 	expectEffectIDs(t, "PF_HPCONVERSION imported self success", skillSuccessEffectSelfIDs(db.SkillPFHpconversion), effectTransBlueBody)
 	expectEffectIDs(t, "PF_SOULCHANGE imported", skillEffectIDs(db.SkillPFSoulchange), effectLineLink2)
+	expectEffectIDs(t, "PF_SOULCHANGE imported success", skillSuccessEffectIDs(db.SkillPFSoulchange), 385)
+	expectEffectIDs(t, "PF_SOULBURN imported", skillEffectIDs(db.SkillPFSoulburn), effectSoulBurn)
+	expectEffectIDs(t, "PF_MINDBREAKER imported success", skillSuccessEffectIDs(db.SkillPFMindbreaker), effectMagicCrasher2)
+	expectEffectIDs(t, "PF_MEMORIZE imported", skillEffectIDs(db.SkillPFMemorize), 505)
+	expectEffectIDs(t, "PF_FOGWALL imported ground", skillGroundEffectIDs(db.SkillPFFogwall), effectFogWallGround)
+	expectEffectIDs(t, "PF_SPIDERWEB imported ground", skillGroundEffectIDs(db.SkillPFSpiderweb), effectBottomSpider)
+	expectEffectIDs(t, "PF_DOUBLECASTING imported", skillEffectIDs(db.SkillPFDoublecasting), 521)
 	expectEffectIDs(t, "ASC_BREAKER imported before hit", skillBeforeHitEffectIDs(db.SkillASCBreaker), effectSoulBreaker)
 	expectEffectIDs(t, "ASC_METEORASSAULT imported caster", skillEffectOnCasterIDs(db.SkillASCMeteorassault), effectSoulBreaker2)
 	if !skillHidesCastAura(db.SkillASCMeteorassault) {
@@ -8093,6 +8136,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
 	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
+	expectEffectIDs(t, "UNT_FOGWALL", skillUnitEffectIDs(182), effectFogWallGround)
 	expectEffectIDs(t, "UNT_GRAVITATION", skillUnitEffectIDs(184), effectGravitation)
 	expectEffectIDs(t, "UNT_EVILLAND", skillUnitEffectIDs(199), effectBottomEvilLand)
 	expectEffectIDs(t, "UNT_EPICLESIS", skillUnitEffectIDs(202), effectGlassWall3)

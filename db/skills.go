@@ -3735,6 +3735,7 @@ const (
 	SkillEffectGreedSound        = 11010
 	SkillEffectGospelGround      = 11011
 	SkillEffectShieldProjectile  = 11012
+	SkillEffectFogWallGround     = 11013
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -3921,8 +3922,10 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillMOExtremityfist:            {EffectIDs: []int{effectBeginAsura, effectQuake}, HitEffectIDs: []int{effectTeiHit1X}, BeginCastEffectIDs: []int{12}},
 	SkillMOChaincombo:               {EffectIDs: []int{effectTeiHit1, effectChainCombo}, EffectIDsOnCaster: []int{effectGumgang3}},
 	SkillMOCombofinish:              {EffectIDs: []int{330, effectQuake}},
+	SkillSACastcancel:               {},
 	SkillSAMagicrod:                 {SuccessEffectIDs: []int{effectMagicRod}},
 	SkillSASpellbreaker:             {SuccessEffectIDs: []int{effectSpellBreaker}},
+	SkillSAAutospell:                {},
 	SkillSAFlamelauncher:            {SuccessEffectIDs: []int{effectFlameLauncher}},
 	SkillSAFrostweapon:              {SuccessEffectIDs: []int{effectFrostWeapon}},
 	SkillSALightningloader:          {SuccessEffectIDs: []int{effectLightningLoad}},
@@ -3932,6 +3935,20 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillSAViolentgale:              {EffectIDsOnCaster: []int{237}, GroundEffectIDs: []int{effectBottomViolent}},
 	SkillSALandprotector:            {EffectIDsOnCaster: []int{238}, GroundEffectIDs: []int{effectBottomLand}},
 	SkillSADispell:                  {SuccessEffectIDs: []int{effectDispell}},
+	SkillSAAbracadabra:              {},
+	SkillSAMonocell:                 {},
+	SkillSAClasschange:              {},
+	SkillSASummonmonster:            {},
+	SkillSAReverseorcish:            {},
+	SkillSADeath:                    {},
+	SkillSAFortune:                  {},
+	SkillSATamingmonster:            {},
+	SkillSAQuestion:                 {},
+	SkillSAGravity:                  {},
+	SkillSALevelup:                  {},
+	SkillSAInstantdeath:             {},
+	SkillSAFullrecovery:             {},
+	SkillSAComa:                     {},
 	SkillBDLullaby:                  {EffectIDs: []int{effectBottomLullaby}},
 	SkillBDRichmankim:               {EffectIDs: []int{effectBottomRichKim}},
 	SkillBDEternalchaos:             {EffectIDs: []int{effectBottomChaos}},
@@ -4001,6 +4018,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillChSoulcollect:              {BeginCastEffectIDs: []int{402, 12}},
 	SkillPFMindbreaker:              {SuccessEffectIDs: []int{403}},
 	SkillPFMemorize:                 {EffectIDs: []int{505}},
+	SkillPFFogwall:                  {GroundEffectIDs: []int{SkillEffectFogWallGround}},
 	SkillPFSpiderweb:                {GroundEffectIDs: []int{404}},
 	SkillASCMeteorassault:           {EffectIDsOnCaster: []int{409}, HideCastAura: true},
 	SkillASCCdp:                     {},
@@ -4097,6 +4115,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillASVenomknife:               {BeforeHitEffectIDs: []int{effectThrowItem6}},
 	SkillRGCloseconfine:             {EffectIDs: []int{602}, GroundEffectIDs: []int{effectNPCStop2}},
 	SkillWZSightblaster:             {EffectIDs: []int{601}},
+	SkillSACreatecon:                {},
 	SkillSAElementwater:             {EffectIDs: []int{effectFrostWeapon}},
 	SkillHTPhantasmic:               {HitEffectIDs: []int{1}, BeforeHitEffectIDs: []int{SkillEffectArrowShot}},
 	SkillBaPangvoice:                {SuccessEffectIDs: []int{effectFVoice}},

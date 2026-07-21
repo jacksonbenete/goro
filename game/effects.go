@@ -677,6 +677,7 @@ const (
 	effectGreedSound        = db.SkillEffectGreedSound
 	effectGospelGround      = db.SkillEffectGospelGround
 	effectShieldProjectile  = db.SkillEffectShieldProjectile
+	effectFogWallGround     = db.SkillEffectFogWallGround
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1843,6 +1844,7 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	128: {effectIDs: []int{effectPortal}},           // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
 	129: {effectIDs: []int{effectPortal}},           // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
 	133: {effectIDs: []int{effectPneuma}},           // UNT_PNEUMA -> EF_PNEUMA
+	182: {effectIDs: []int{effectFogWallGround}},    // UNT_FOGWALL -> 405_ground
 	184: {effectIDs: []int{effectGravitation}},      // UNT_GRAVITATION -> 522_ground
 	199: {effectIDs: []int{effectBottomEvilLand}},   // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
 	202: {effectIDs: []int{effectGlassWall3}},       // UNT_EPICLESIS -> EF_GLASSWALL3
