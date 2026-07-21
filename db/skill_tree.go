@@ -31,12 +31,29 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 		{SkillID: SkillKNRiding, Level: 1},
 		{SkillID: SkillKNSpearstab, Level: 5},
 	},
-	SkillLKHeadcrush:      {{SkillID: SkillKNSpearmastery, Level: 9}, {SkillID: SkillKNRiding, Level: 1}},
-	SkillLKJointbeat:      {{SkillID: SkillKNCavaliermastery, Level: 3}, {SkillID: SkillLKHeadcrush, Level: 3}},
-	SkillLKAurablade:      {{SkillID: SkillSMMagnum, Level: 5}, {SkillID: SkillSMTwohand, Level: 5}},
-	SkillLKParrying:       {{SkillID: SkillSMProvoke, Level: 5}, {SkillID: SkillSMTwohand, Level: 10}, {SkillID: SkillKNTwohandquicken, Level: 3}},
-	SkillLKConcentration:  {{SkillID: SkillSMRecovery, Level: 5}, {SkillID: SkillKNSpearmastery, Level: 5}, {SkillID: SkillKNRiding, Level: 1}},
-	SkillLKTensionrelax:   {{SkillID: SkillSMProvoke, Level: 5}, {SkillID: SkillSMRecovery, Level: 10}, {SkillID: SkillSMEndure, Level: 3}},
+	SkillLKHeadcrush:       {{SkillID: SkillKNSpearmastery, Level: 9}, {SkillID: SkillKNRiding, Level: 1}},
+	SkillLKJointbeat:       {{SkillID: SkillKNCavaliermastery, Level: 3}, {SkillID: SkillLKHeadcrush, Level: 3}},
+	SkillLKAurablade:       {{SkillID: SkillSMMagnum, Level: 5}, {SkillID: SkillSMTwohand, Level: 5}},
+	SkillLKParrying:        {{SkillID: SkillSMProvoke, Level: 5}, {SkillID: SkillSMTwohand, Level: 10}, {SkillID: SkillKNTwohandquicken, Level: 3}},
+	SkillLKConcentration:   {{SkillID: SkillSMRecovery, Level: 5}, {SkillID: SkillKNSpearmastery, Level: 5}, {SkillID: SkillKNRiding, Level: 1}},
+	SkillLKTensionrelax:    {{SkillID: SkillSMProvoke, Level: 5}, {SkillID: SkillSMRecovery, Level: 10}, {SkillID: SkillSMEndure, Level: 3}},
+	SkillCRShieldcharge:    {{SkillID: SkillCRAutoguard, Level: 5}},
+	SkillCRShieldboomerang: {{SkillID: SkillCRShieldcharge, Level: 3}},
+	SkillCRReflectshield:   {{SkillID: SkillCRShieldboomerang, Level: 3}},
+	SkillCRHolycross:       {{SkillID: SkillCRTrust, Level: 7}},
+	SkillCRGrandcross:      {{SkillID: SkillCRTrust, Level: 10}, {SkillID: SkillCRHolycross, Level: 6}},
+	SkillCRDevotion:        {{SkillID: SkillCRGrandcross, Level: 4}, {SkillID: SkillCRReflectshield, Level: 5}},
+	SkillCRProvidence:      {{SkillID: SkillALDp, Level: 5}, {SkillID: SkillALHeal, Level: 5}},
+	SkillCRDefender:        {{SkillID: SkillCRShieldboomerang, Level: 1}},
+	SkillCRSpearquicken:    {{SkillID: SkillKNSpearmastery, Level: 10}},
+	SkillPaPressure: {
+		{SkillID: SkillSMEndure, Level: 5},
+		{SkillID: SkillCRTrust, Level: 5},
+		{SkillID: SkillCRShieldcharge, Level: 2},
+	},
+	SkillPaShieldchain:    {{SkillID: SkillCRShieldboomerang, Level: 5}},
+	SkillPaSacrifice:      {{SkillID: SkillSMEndure, Level: 1}, {SkillID: SkillCRDevotion, Level: 3}},
+	SkillPaGospel:         {{SkillID: SkillCRTrust, Level: 8}, {SkillID: SkillALDp, Level: 3}, {SkillID: SkillALDemonbane, Level: 5}},
 	SkillMGSafetywall:     {{SkillID: SkillMGNapalmbeat, Level: 7}, {SkillID: SkillMGSoulstrike, Level: 5}},
 	SkillMGSoulstrike:     {{SkillID: SkillMGNapalmbeat, Level: 4}},
 	SkillMGFrostdiver:     {{SkillID: SkillMGColdbolt, Level: 5}},
@@ -189,13 +206,25 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 }
 
 var SkillRequirementsByJob = map[int]map[uint16][]SkillRequirement{
-	JobPriest:  priestSkillRequirementOverrides,
-	JobPriestH: priestSkillRequirementOverrides,
-	JobPriestB: priestSkillRequirementOverrides,
+	JobPriest:     priestSkillRequirementOverrides,
+	JobPriestH:    priestSkillRequirementOverrides,
+	JobPriestB:    priestSkillRequirementOverrides,
+	JobCrusader:   crusaderSkillRequirementOverrides,
+	JobCrusader2:  crusaderSkillRequirementOverrides,
+	JobCrusaderH:  crusaderSkillRequirementOverrides,
+	JobCrusader2H: crusaderSkillRequirementOverrides,
+	JobCrusaderB:  crusaderSkillRequirementOverrides,
+	JobCrusader2B: crusaderSkillRequirementOverrides,
 }
 
 var priestSkillRequirementOverrides = map[uint16][]SkillRequirement{
 	SkillMGSafetywall: {{SkillID: SkillPRSanctuary, Level: 3}, {SkillID: SkillPRAspersio, Level: 4}},
+}
+
+var crusaderSkillRequirementOverrides = map[uint16][]SkillRequirement{
+	SkillALCure: {{SkillID: SkillCRTrust, Level: 5}},
+	SkillALDp:   {{SkillID: SkillALCure, Level: 1}},
+	SkillALHeal: {{SkillID: SkillCRTrust, Level: 10}, {SkillID: SkillALDemonbane, Level: 5}},
 }
 
 var SkillMaxLevels = map[uint16]int{
@@ -232,6 +261,22 @@ var SkillMaxLevels = map[uint16]int{
 	SkillLKConcentration:   5,
 	SkillLKTensionrelax:    1,
 	SkillLKBerserk:         1,
+	SkillCRTrust:           10,
+	SkillCRAutoguard:       10,
+	SkillCRShieldcharge:    5,
+	SkillCRShieldboomerang: 5,
+	SkillCRReflectshield:   10,
+	SkillCRHolycross:       10,
+	SkillCRGrandcross:      10,
+	SkillCRDevotion:        5,
+	SkillCRProvidence:      5,
+	SkillCRDefender:        5,
+	SkillCRSpearquicken:    10,
+	SkillCRShrink:          1,
+	SkillPaPressure:        5,
+	SkillPaShieldchain:     5,
+	SkillPaSacrifice:       5,
+	SkillPaGospel:          10,
 	SkillMGSrecovery:       10,
 	SkillMGSight:           1,
 	SkillMGNapalmbeat:      10,
@@ -630,6 +675,35 @@ var lordKnightSkillTree = []uint16{
 	SkillLKJointbeat,
 }
 
+var crusaderSkillTree = []uint16{
+	SkillCRTrust,
+	SkillCRAutoguard,
+	SkillKNSpearmastery,
+	SkillKNRiding,
+	SkillCRShrink,
+	SkillALCure,
+	SkillCRHolycross,
+	SkillCRShieldcharge,
+	SkillCRSpearquicken,
+	SkillKNCavaliermastery,
+	SkillALDp,
+	SkillCRGrandcross,
+	SkillCRShieldboomerang,
+	SkillALDemonbane,
+	SkillCRReflectshield,
+	SkillCRDefender,
+	SkillALHeal,
+	SkillCRDevotion,
+	SkillCRProvidence,
+}
+
+var paladinSkillTree = []uint16{
+	SkillPaPressure,
+	SkillPaShieldchain,
+	SkillPaGospel,
+	SkillPaSacrifice,
+}
+
 var wizardSkillTree = []uint16{
 	SkillWZEstimation,
 	SkillWZIcewall,
@@ -679,6 +753,12 @@ var skillTreeByJob = map[int][]uint16{
 	JobKnight2H:     combinedSkillTree(swordmanSkillTree, knightSkillTree, lordKnightSkillTree),
 	JobKnightB:      combinedSkillTree(swordmanSkillTree, knightSkillTree),
 	JobKnight2B:     combinedSkillTree(swordmanSkillTree, knightSkillTree),
+	JobCrusader:     combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
+	JobCrusader2:    combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
+	JobCrusaderH:    combinedSkillTree(swordmanSkillTree, crusaderSkillTree, paladinSkillTree),
+	JobCrusader2H:   combinedSkillTree(swordmanSkillTree, crusaderSkillTree, paladinSkillTree),
+	JobCrusaderB:    combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
+	JobCrusader2B:   combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
 	JobMagician:     magicianSkillTree,
 	JobMagicianH:    magicianSkillTree,
 	JobMagicianB:    magicianSkillTree,

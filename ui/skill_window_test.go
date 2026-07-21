@@ -261,6 +261,91 @@ func TestSkillWindowShowsLordKnightUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsCrusaderUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobCrusader},
+		Skills: session.Skills{
+			Points: 2,
+			List: []session.Skill{
+				{ID: db.SkillCRTrust, Level: 6, Upgradable: true},
+				{ID: db.SkillCRAutoguard, Level: 5, Upgradable: true},
+				{ID: db.SkillCRShieldcharge, Level: 3, Upgradable: true},
+				{ID: db.SkillCRShieldboomerang, Level: 2, Upgradable: true},
+				{ID: db.SkillKNSpearmastery, Level: 10, Upgradable: true},
+				{ID: db.SkillALCure, Level: 1, Upgradable: true},
+				{ID: db.SkillALDp, Level: 5, Upgradable: true},
+				{ID: db.SkillALHeal, Level: 5, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillALCure,
+		db.SkillALDp,
+		db.SkillCRShieldcharge,
+		db.SkillCRShieldboomerang,
+		db.SkillCRDefender,
+		db.SkillCRProvidence,
+		db.SkillCRSpearquicken,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("crusader tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillCRReflectshield) {
+		t.Fatal("reflect shield should not be visible before shield boomerang reaches level 3")
+	}
+	if containsSkill(skills, db.SkillCRHolycross) {
+		t.Fatal("holy cross should not be visible before faith reaches level 7")
+	}
+	window.stageSkill(db.SkillCRShieldboomerang)
+	window.stageSkill(db.SkillCRTrust)
+	skills = window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillCRReflectshield) {
+		t.Fatal("reflect shield should be visible after staged shield boomerang level satisfies robr prerequisite")
+	}
+	if !containsSkill(skills, db.SkillCRHolycross) {
+		t.Fatal("holy cross should be visible after staged faith level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsPaladinUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobCrusaderH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillSMEndure, Level: 5, Upgradable: true},
+				{ID: db.SkillCRTrust, Level: 8, Upgradable: true},
+				{ID: db.SkillCRShieldcharge, Level: 2, Upgradable: true},
+				{ID: db.SkillCRShieldboomerang, Level: 5, Upgradable: true},
+				{ID: db.SkillCRDevotion, Level: 2, Upgradable: true},
+				{ID: db.SkillALDp, Level: 3, Upgradable: true},
+				{ID: db.SkillALDemonbane, Level: 5, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillPaPressure,
+		db.SkillPaShieldchain,
+		db.SkillPaGospel,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("paladin tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillPaSacrifice) {
+		t.Fatal("martyr's reckoning should not be visible before devotion reaches level 3")
+	}
+	window.stageSkill(db.SkillCRDevotion)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillPaSacrifice) {
+		t.Fatal("martyr's reckoning should be visible after staged devotion level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowShowsPriestUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobPriest},

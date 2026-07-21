@@ -3733,6 +3733,8 @@ const (
 	SkillEffectAdrenalineCast    = 11008
 	SkillEffectMaximizeSounds    = 11009
 	SkillEffectGreedSound        = 11010
+	SkillEffectGospelGround      = 11011
+	SkillEffectShieldProjectile  = 11012
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -3899,7 +3901,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillAMCpHelm:                   {EffectIDs: []int{effectChemicalProt}},
 	SkillCRAutoguard:                {EffectIDs: []int{effectGuard}},
 	SkillCRShieldcharge:             {EffectIDs: []int{effectShieldCharge}},
-	SkillCRShieldboomerang:          {EffectIDs: []int{effectShieldBoomer}},
+	SkillCRShieldboomerang:          {EffectIDs: []int{effectShieldBoomer}, BeforeHitEffectIDs: []int{SkillEffectShieldProjectile}},
 	SkillCRReflectshield:            {EffectIDs: []int{effectReflectShield}},
 	SkillCRHolycross:                {EffectIDs: []int{effectHolyCross}},
 	SkillCRGrandcross:               {EffectIDs: []int{effectGrandCross}},
@@ -3965,7 +3967,8 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillHWSouldrain:                {EffectIDsOnCaster: []int{effectEnergyDrain}},
 	SkillPaPressure:                 {BeforeHitEffectIDs: []int{effectPressure}},
 	SkillPaSacrifice:                {EffectIDs: []int{effectBash3D}},
-	SkillPaGospel:                   {EffectIDs: []int{effectBottomGospel}},
+	SkillPaGospel:                   {EffectIDs: []int{effectBottomGospel}, GroundEffectIDs: []int{SkillEffectGospelGround}},
+	SkillPaShieldchain:              {BeforeHitEffectIDs: []int{SkillEffectShieldProjectile}},
 	SkillChPalmstrike:               {HitEffectIDs: []int{effectHitLine2}},
 	SkillChTigerfist:                {EffectIDs: []int{effectBash3D2}, EffectIDsOnCaster: []int{effectGumgang3}},
 	SkillChChaincrush:               {EffectIDs: []int{effectChemical2Dash}},

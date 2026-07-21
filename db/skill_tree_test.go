@@ -55,6 +55,45 @@ func TestKnightSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestCrusaderSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	crusader := SkillTreeSkillIDs(JobCrusader)
+	for _, skillID := range []uint16{
+		SkillSMBash,
+		SkillCRTrust,
+		SkillKNSpearmastery,
+		SkillALCure,
+		SkillCRHolycross,
+		SkillCRProvidence,
+	} {
+		if !containsSkillID(crusader, skillID) {
+			t.Fatalf("crusader tree = %v, missing robr skill %d", crusader, skillID)
+		}
+	}
+	if containsSkillID(crusader, SkillPaGospel) {
+		t.Fatalf("crusader tree = %v, should not include paladin skills", crusader)
+	}
+
+	mountedCrusader := SkillTreeSkillIDs(JobCrusader2)
+	if !containsSkillID(mountedCrusader, SkillKNRiding) || !containsSkillID(mountedCrusader, SkillKNCavaliermastery) {
+		t.Fatalf("mounted crusader tree = %v, want crusader duplicate skills", mountedCrusader)
+	}
+
+	babyCrusader := SkillTreeSkillIDs(JobCrusaderB)
+	if !containsSkillID(babyCrusader, SkillCRDefender) || containsSkillID(babyCrusader, SkillPaSacrifice) {
+		t.Fatalf("baby crusader tree = %v, want crusader duplicate without paladin skills", babyCrusader)
+	}
+
+	paladin := SkillTreeSkillIDs(JobCrusaderH)
+	if !containsSkillID(paladin, SkillCRGrandcross) || !containsSkillID(paladin, SkillPaPressure) || !containsSkillID(paladin, SkillPaShieldchain) || !containsSkillID(paladin, SkillPaGospel) {
+		t.Fatalf("paladin tree = %v, want swordman, crusader, and paladin skills", paladin)
+	}
+
+	mountedPaladin := SkillTreeSkillIDs(JobCrusader2H)
+	if !containsSkillID(mountedPaladin, SkillPaSacrifice) || !containsSkillID(mountedPaladin, SkillCRSpearquicken) {
+		t.Fatalf("mounted paladin tree = %v, want paladin duplicate skills", mountedPaladin)
+	}
+}
+
 func TestPriestSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	acolyte := SkillTreeSkillIDs(JobAcolyteH)
 	if !containsSkillID(acolyte, SkillALHeal) || !containsSkillID(acolyte, SkillALPneuma) || containsSkillID(acolyte, SkillPRKyrie) {
@@ -261,6 +300,36 @@ func TestKnightSkillRequirementsMirrorRobrowser(t *testing.T) {
 	}
 }
 
+func TestCrusaderSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		job     int
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{JobAcolyte, SkillALCure, []SkillRequirement{{SkillID: SkillALHeal, Level: 2}}},
+		{JobCrusader, SkillALCure, []SkillRequirement{{SkillID: SkillCRTrust, Level: 5}}},
+		{JobCrusaderH, SkillALDp, []SkillRequirement{{SkillID: SkillALCure, Level: 1}}},
+		{JobCrusader2B, SkillALHeal, []SkillRequirement{{SkillID: SkillCRTrust, Level: 10}, {SkillID: SkillALDemonbane, Level: 5}}},
+		{JobCrusader, SkillCRShieldcharge, []SkillRequirement{{SkillID: SkillCRAutoguard, Level: 5}}},
+		{JobCrusader, SkillCRShieldboomerang, []SkillRequirement{{SkillID: SkillCRShieldcharge, Level: 3}}},
+		{JobCrusader, SkillCRReflectshield, []SkillRequirement{{SkillID: SkillCRShieldboomerang, Level: 3}}},
+		{JobCrusader, SkillCRHolycross, []SkillRequirement{{SkillID: SkillCRTrust, Level: 7}}},
+		{JobCrusader, SkillCRGrandcross, []SkillRequirement{{SkillID: SkillCRTrust, Level: 10}, {SkillID: SkillCRHolycross, Level: 6}}},
+		{JobCrusader, SkillCRDevotion, []SkillRequirement{{SkillID: SkillCRGrandcross, Level: 4}, {SkillID: SkillCRReflectshield, Level: 5}}},
+		{JobCrusader, SkillCRProvidence, []SkillRequirement{{SkillID: SkillALDp, Level: 5}, {SkillID: SkillALHeal, Level: 5}}},
+		{JobCrusader, SkillCRDefender, []SkillRequirement{{SkillID: SkillCRShieldboomerang, Level: 1}}},
+		{JobCrusader, SkillCRSpearquicken, []SkillRequirement{{SkillID: SkillKNSpearmastery, Level: 10}}},
+		{JobCrusaderH, SkillPaPressure, []SkillRequirement{{SkillID: SkillSMEndure, Level: 5}, {SkillID: SkillCRTrust, Level: 5}, {SkillID: SkillCRShieldcharge, Level: 2}}},
+		{JobCrusaderH, SkillPaShieldchain, []SkillRequirement{{SkillID: SkillCRShieldboomerang, Level: 5}}},
+		{JobCrusaderH, SkillPaSacrifice, []SkillRequirement{{SkillID: SkillSMEndure, Level: 1}, {SkillID: SkillCRDevotion, Level: 3}}},
+		{JobCrusaderH, SkillPaGospel, []SkillRequirement{{SkillID: SkillCRTrust, Level: 8}, {SkillID: SkillALDp, Level: 3}, {SkillID: SkillALDemonbane, Level: 5}}},
+	} {
+		if got := SkillRequirementsForJob(tc.job, tc.skillID); !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for job %d skill %d = %+v, want %+v", tc.job, tc.skillID, got, tc.want)
+		}
+	}
+}
+
 func TestPriestSkillRequirementsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		job     int
@@ -447,6 +516,35 @@ func TestKnightSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillLKConcentration, 5},
 		{SkillLKTensionrelax, 1},
 		{SkillLKBerserk, 1},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestCrusaderSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillCRTrust, 10},
+		{SkillCRAutoguard, 10},
+		{SkillCRShieldcharge, 5},
+		{SkillCRShieldboomerang, 5},
+		{SkillCRReflectshield, 10},
+		{SkillCRHolycross, 10},
+		{SkillCRGrandcross, 10},
+		{SkillCRDevotion, 5},
+		{SkillCRProvidence, 5},
+		{SkillCRDefender, 5},
+		{SkillCRSpearquicken, 10},
+		{SkillCRShrink, 1},
+		{SkillPaPressure, 5},
+		{SkillPaShieldchain, 5},
+		{SkillPaSacrifice, 5},
+		{SkillPaGospel, 10},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
 		if !ok || got != tc.want {

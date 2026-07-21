@@ -675,6 +675,8 @@ const (
 	effectAdrenalineCast    = db.SkillEffectAdrenalineCast
 	effectMaximizeSounds    = db.SkillEffectMaximizeSounds
 	effectGreedSound        = db.SkillEffectGreedSound
+	effectGospelGround      = db.SkillEffectGospelGround
+	effectShieldProjectile  = db.SkillEffectShieldProjectile
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
