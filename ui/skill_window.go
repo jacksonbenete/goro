@@ -551,7 +551,7 @@ func (w *SkillWindow) visibleSkills(ctx Context) []session.Skill {
 			seen[skillID] = true
 			continue
 		}
-		if !w.skillRequirementsMet(levels, skillID) {
+		if !w.skillRequirementsMet(int(ctx.Session.Selected.Job), levels, skillID) {
 			continue
 		}
 		skill := w.lockedSkill(ctx, skillID)
@@ -577,8 +577,8 @@ func (w *SkillWindow) lockedSkill(ctx Context, skillID uint16) session.Skill {
 	return skill
 }
 
-func (w *SkillWindow) skillRequirementsMet(levels map[uint16]int, skillID uint16) bool {
-	requirements := db.SkillRequirements[skillID]
+func (w *SkillWindow) skillRequirementsMet(job int, levels map[uint16]int, skillID uint16) bool {
+	requirements := db.SkillRequirementsForJob(job, skillID)
 	if len(requirements) == 0 {
 		return false
 	}

@@ -663,6 +663,15 @@ const (
 	effectEnchantResetFail = 1883
 )
 
+const (
+	effectWhitePulse       = db.SkillEffectWhitePulse
+	effectSpearProjectile  = db.SkillEffectSpearProjectile
+	effectSpiralBeforeCast = db.SkillEffectSpiralBeforeCast
+	effectSpearHitSound    = db.SkillEffectSpearHitSound
+	effectEnemyHitNormal1  = db.SkillEffectEnemyHitNormal1
+	effectQuake            = db.SkillEffectQuake
+)
+
 const skillUnitEffectFallbackDuration = 5 * time.Minute
 
 type effectComponentKind int
@@ -1722,6 +1731,12 @@ func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
 		return newSkillActionSpec(skillActorActionAttack2, false, &idleSkillActionSpec), true
 	case db.SkillActionAttack3:
 		return newSkillActionSpec(skillActorActionAttack3, false, &idleSkillActionSpec), true
+	case db.SkillActionAttackFixedFrame:
+		spec := newSkillActionSpec(skillActorActionAttack, false, nil)
+		spec.hasFrame = true
+		spec.frame = 0
+		spec.play = false
+		return spec, true
 	case db.SkillActionPickup:
 		return newSkillActionSpec(skillActorActionPickup, false, &idleSkillActionSpec), true
 	case db.SkillActionReadyfight:

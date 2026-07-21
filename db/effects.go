@@ -655,6 +655,15 @@ const (
 	effectEnchantResetFail = 1883
 )
 
+const (
+	effectWhitePulse       = SkillEffectWhitePulse
+	effectSpearProjectile  = SkillEffectSpearProjectile
+	effectSpiralBeforeCast = SkillEffectSpiralBeforeCast
+	effectSpearHitSound    = SkillEffectSpearHitSound
+	effectEnemyHitNormal1  = SkillEffectEnemyHitNormal1
+	effectQuake            = SkillEffectQuake
+)
+
 const EffectPixelRatio = 1.0 / 35.0
 
 type EffectComponentKind int
@@ -2646,6 +2655,50 @@ func soundOnlyEffectSpec(paths ...string) EffectSpec {
 	return EffectSpec{
 		Duration: 500 * time.Millisecond,
 		SFX:      paths,
+	}
+}
+
+func whitePulseEffectSpec() EffectSpec {
+	return EffectSpec{Duration: 500 * time.Millisecond}
+}
+
+func spearProjectileEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration: 140 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:             EffectComponent3D,
+			SpriteFile:       "창",
+			ToSrc:            true,
+			RotateToTarget:   true,
+			RotateWithCamera: true,
+			Duration:         140 * time.Millisecond,
+			AlphaMax:         1,
+			FadeIn:           true,
+			FadeOut:          true,
+			PosZ:             1,
+			SizeStart:        effectTableSize(100),
+			SizeEnd:          effectTableSize(100),
+			AngleStart:       180,
+			AngleEnd:         180,
+			AttachedEntity:   true,
+		}},
+	}
+}
+
+func spiralBeforeCastEffectSpec() EffectSpec {
+	return funcEffectSpec("EffectBodyColor", 500*time.Millisecond, true)
+}
+
+func quakeEffectSpec() EffectSpec {
+	return EffectSpec{
+		Duration:    650 * time.Millisecond,
+		CameraShake: 650 * time.Millisecond,
+		Components: []EffectComponent{{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "CameraQuake",
+			Duration:       650 * time.Millisecond,
+			AttachedEntity: true,
+		}},
 	}
 }
 
@@ -4662,6 +4715,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectQuagmire:       strEffectSpec("quagmire", "effect\\wizard_quagmire.wav"),
 	effectFirePillar:     strEffectSpec("firepillar", "effect\\wizard_fire_pillar_a.wav"),
 	effectFirePillarBomb: strEffectSpec("firepillarbomb", "effect\\wizard_fire_pillar_b.wav"),
+	effectWhitePulse:     whitePulseEffectSpec(),
 	effectHasteUp:        soundOnlyEffectSpec("effect\\black_adrenalinerush_b.wav"),
 	effectFlasher:        soundOnlyEffectSpec("effect\\hunter_flasher.wav"),
 	effectRemoveTrap:     soundOnlyEffectSpec("effect\\hunter_removetrap.wav"),
@@ -4711,39 +4765,42 @@ var EffectSpecs = map[int]EffectSpec{
 			AttachedEntity: true,
 		}},
 	},
-	effectShockwaveHit:  strEffectSpecAttached("shockwavehit", "", false),
-	effectEarthHit:      strEffectSpecAttached("earthhit", "", false),
-	effectPierceSelf:    strEffectSpecAttached("pierce", "", false),
-	effectBowlingSelf:   strEffectSpecAttached("bowling", "_enemy_hit_normal1.wav", true),
-	effectSpearStabSelf: strEffectSpecAttached("spearstab", "_enemy_hit_normal1.wav", false),
-	effectSpearBmrSelf:  strEffectSpecAttached("spearboomerang", "effect\\knight_spear_boomerang.wav", true),
-	effectHolyLight:     strEffectSpecAttached("holyhit", "", false),
-	effectConcentration: strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
-	effectRefineOK:      strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
-	effectRefineFail:    strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),
-	effectMakeBlur:      funcEffectSpec("MakeBlur", 2*time.Second, false),
-	effectEnergyCoat:    strEffectSpecAttached("energycoat", "", false),
-	effectVenomDust2:    venomDust2EffectSpec(),
-	effectMentalBreak:   strEffectSpecAttached("mentalbreak", "", false),
-	effectMagicalAtkHit: strEffectSpecAttached("magical", "", false),
-	effectSuiExplosion:  suiExplosionEffectSpec(),
-	effectSuicide:       strEffectSpecAttached("suicide", "", false),
-	effectComboAttack1:  strEffectSpecAttached("yunta_1", "", false),
-	effectComboAttack2:  strEffectSpecAttached("yunta_2", "", false),
-	effectComboAttack3:  strEffectSpecAttached("yunta_3", "", false),
-	effectComboAttack4:  strEffectSpecAttached("yunta_4", "", false),
-	effectComboAttack5:  strEffectSpecAttached("yunta_5", "", false),
-	effectGuidedAttack:  strEffectSpecAttached("homing", "", false),
-	effectPoisonAttack2: strEffectSpecAttached("poison", "", false),
-	effectSilenceAttack: strEffectSpecAttached("silence", "", false),
-	effectStunAttack:    strEffectSpecAttached("stun", "", false),
-	effectPetrifyAttack: strEffectSpecAttached("stonecurse", "", false),
-	effectSleepAttack:   strEffectSpecAttached("sleep", "", false),
-	effectPong:          strEffectSpecRandom("pong%d", "", 1, 3),
-	effectLevel99:       level99EffectSpec(),
-	effectLevel99Ground: level99GroundEffectSpec(),
-	effectLevel99Bubble: level99BubbleEffectSpec(),
-	effectGumgang:       gumgangEffectSpec(),
+	effectShockwaveHit:    strEffectSpecAttached("shockwavehit", "", false),
+	effectEarthHit:        strEffectSpecAttached("earthhit", "", false),
+	effectPierceSelf:      strEffectSpecAttached("pierce", "", false),
+	effectBowlingSelf:     strEffectSpecAttached("bowling", "_enemy_hit_normal1.wav", true),
+	effectSpearStabSelf:   strEffectSpecAttached("spearstab", "_enemy_hit_normal1.wav", false),
+	effectSpearBmrSelf:    strEffectSpecAttached("spearboomerang", "effect\\knight_spear_boomerang.wav", true),
+	effectSpearProjectile: spearProjectileEffectSpec(),
+	effectSpearHitSound:   soundOnlyEffectSpec("_hit_spear.wav"),
+	effectEnemyHitNormal1: soundOnlyEffectSpec("_enemy_hit_normal1.wav"),
+	effectHolyLight:       strEffectSpecAttached("holyhit", "", false),
+	effectConcentration:   strEffectSpecAttached("concentration", "effect\\ac_concentration.wav", false),
+	effectRefineOK:        strEffectSpecAttached("bs_refinesuccess", "effect\\bs_refinesuccess.wav", false),
+	effectRefineFail:      strEffectSpecAttached("bs_refinefailed", "effect\\bs_refinefailed.wav", false),
+	effectMakeBlur:        funcEffectSpec("MakeBlur", 2*time.Second, false),
+	effectEnergyCoat:      strEffectSpecAttached("energycoat", "", false),
+	effectVenomDust2:      venomDust2EffectSpec(),
+	effectMentalBreak:     strEffectSpecAttached("mentalbreak", "", false),
+	effectMagicalAtkHit:   strEffectSpecAttached("magical", "", false),
+	effectSuiExplosion:    suiExplosionEffectSpec(),
+	effectSuicide:         strEffectSpecAttached("suicide", "", false),
+	effectComboAttack1:    strEffectSpecAttached("yunta_1", "", false),
+	effectComboAttack2:    strEffectSpecAttached("yunta_2", "", false),
+	effectComboAttack3:    strEffectSpecAttached("yunta_3", "", false),
+	effectComboAttack4:    strEffectSpecAttached("yunta_4", "", false),
+	effectComboAttack5:    strEffectSpecAttached("yunta_5", "", false),
+	effectGuidedAttack:    strEffectSpecAttached("homing", "", false),
+	effectPoisonAttack2:   strEffectSpecAttached("poison", "", false),
+	effectSilenceAttack:   strEffectSpecAttached("silence", "", false),
+	effectStunAttack:      strEffectSpecAttached("stun", "", false),
+	effectPetrifyAttack:   strEffectSpecAttached("stonecurse", "", false),
+	effectSleepAttack:     strEffectSpecAttached("sleep", "", false),
+	effectPong:            strEffectSpecRandom("pong%d", "", 1, 3),
+	effectLevel99:         level99EffectSpec(),
+	effectLevel99Ground:   level99GroundEffectSpec(),
+	effectLevel99Bubble:   level99BubbleEffectSpec(),
+	effectGumgang:         gumgangEffectSpec(),
 	effectFirstAid: {
 		Duration: time.Second,
 		SFX:      []string{"_heal_effect.wav"},
@@ -4986,6 +5043,8 @@ var EffectSpecs = map[int]EffectSpec{
 	effectBash3D:            bash3DEffectSpec("Bash3D", "effect\\bash3d.wav", 500*time.Millisecond, 200*time.Millisecond, 5),
 	effectAuraBlade:         soundOnlyEffectSpec("effect\\오라 블레이드.wav"),
 	effectRedBody:           soundOnlyEffectSpec("effect\\버서크.wav"),
+	effectSpiralBeforeCast:  spiralBeforeCastEffectSpec(),
+	effectQuake:             quakeEffectSpec(),
 	effectLKConcentration:   strEffectSpecAttached("twohand", "effect\\knight_twohandquicken.wav", true),
 	effectBottomGospel:      soundOnlyEffectSpec("effect\\가스펠.wav"),
 	effectDeath:             strEffectSpecAttached("devil", "", false),

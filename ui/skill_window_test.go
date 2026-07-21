@@ -181,6 +181,162 @@ func TestSkillWindowShowsHighWizardUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsKnightUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobKnight},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillSMTwohand, Level: 1, Upgradable: true},
+				{ID: db.SkillSMEndure, Level: 1, Upgradable: true},
+				{ID: db.SkillKNSpearmastery, Level: 1, Upgradable: true},
+				{ID: db.SkillKNRiding, Level: 1, Upgradable: true},
+				{ID: db.SkillKNPierce, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillKNTwohandquicken,
+		db.SkillKNAutocounter,
+		db.SkillKNRiding,
+		db.SkillKNPierce,
+		db.SkillKNCavaliermastery,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("knight tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillKNSpearboomerang) {
+		t.Fatal("spear boomerang should not be visible before pierce reaches level 3")
+	}
+	window.stageSkill(db.SkillKNPierce)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillKNSpearboomerang) {
+		t.Fatal("spear boomerang should be visible after staged pierce level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsLordKnightUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobKnightH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillSMMagnum, Level: 5, Upgradable: true},
+				{ID: db.SkillSMTwohand, Level: 10, Upgradable: true},
+				{ID: db.SkillSMProvoke, Level: 5, Upgradable: true},
+				{ID: db.SkillSMRecovery, Level: 10, Upgradable: true},
+				{ID: db.SkillSMEndure, Level: 3, Upgradable: true},
+				{ID: db.SkillKNTwohandquicken, Level: 3, Upgradable: true},
+				{ID: db.SkillKNSpearmastery, Level: 9, Upgradable: true},
+				{ID: db.SkillKNPierce, Level: 5, Upgradable: true},
+				{ID: db.SkillKNRiding, Level: 1, Upgradable: true},
+				{ID: db.SkillKNSpearstab, Level: 5, Upgradable: true},
+				{ID: db.SkillKNCavaliermastery, Level: 3, Upgradable: true},
+				{ID: db.SkillLKHeadcrush, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillLKAurablade,
+		db.SkillLKParrying,
+		db.SkillLKConcentration,
+		db.SkillLKHeadcrush,
+		db.SkillLKSpiralpierce,
+		db.SkillLKTensionrelax,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("lord knight tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillLKJointbeat) {
+		t.Fatal("joint beat should not be visible before head crush reaches level 3")
+	}
+	window.stageSkill(db.SkillLKHeadcrush)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillLKJointbeat) {
+		t.Fatal("joint beat should be visible after staged head crush level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsPriestUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobPriest},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillALHeal, Level: 1, Upgradable: true},
+				{ID: db.SkillALAngelus, Level: 2, Upgradable: true},
+				{ID: db.SkillMGSrecovery, Level: 4, Upgradable: true},
+				{ID: db.SkillPRStrecovery, Level: 1, Upgradable: true},
+				{ID: db.SkillPRMagnificat, Level: 3, Upgradable: true},
+				{ID: db.SkillPRKyrie, Level: 4, Upgradable: true},
+				{ID: db.SkillPRSanctuary, Level: 3, Upgradable: true},
+				{ID: db.SkillPRAspersio, Level: 3, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillPRSanctuary,
+		db.SkillPRKyrie,
+		db.SkillPRGloria,
+		db.SkillALLResurrection,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("priest tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillMGSafetywall) {
+		t.Fatal("priest safety wall should not be visible before aspersio reaches level 4")
+	}
+	window.stageSkill(db.SkillPRAspersio)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillMGSafetywall) {
+		t.Fatal("priest safety wall should be visible after staged aspersio satisfies robr priest prerequisite")
+	}
+}
+
+func TestSkillWindowShowsHighPriestUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobPriestH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillALAngelus, Level: 1, Upgradable: true},
+				{ID: db.SkillALDemonbane, Level: 10, Upgradable: true},
+				{ID: db.SkillMGSrecovery, Level: 5, Upgradable: true},
+				{ID: db.SkillPRImpositio, Level: 3, Upgradable: true},
+				{ID: db.SkillPRGloria, Level: 2, Upgradable: true},
+				{ID: db.SkillPRKyrie, Level: 3, Upgradable: true},
+				{ID: db.SkillPRMacemastery, Level: 10, Upgradable: true},
+				{ID: db.SkillPRLexdivina, Level: 5, Upgradable: true},
+				{ID: db.SkillPRAspersio, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillHPAssumptio,
+		db.SkillHPBasilica,
+		db.SkillHPManarecharge,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("high priest tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillHPMeditatio) {
+		t.Fatal("meditatio should not be visible before aspersio reaches level 3")
+	}
+	window.stageSkill(db.SkillPRAspersio)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillHPMeditatio) {
+		t.Fatal("meditatio should be visible after staged aspersio level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowOrdersPendingUnlocksBySkillTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobSuperNovice},
