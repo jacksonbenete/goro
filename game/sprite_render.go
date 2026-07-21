@@ -406,23 +406,31 @@ func drawSpriteBillboardTintAlphaWorld3DWithOptions(screen *render.Frame, projec
 	w := float64(bounds.Dx())
 	h := float64(bounds.Dy())
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	screen.DrawWorldBillboard(render.WorldBillboardCommand{
-		Texture:     billboard.image,
-		Options:     *options,
+	cmd := worldSpriteBillboardCommand(billboard.image, *options, center, rightAxis, upAxis, float32(w), float32(h), float32(billboard.anchorX), float32(billboard.anchorY), tint)
+	screen.DrawWorldBillboard(cmd)
+}
+
+func worldSpriteBillboardCommand(texture *render.Image, options render.DrawTrianglesOptions, center, rightAxis, upAxis modelPoint3, width, height, anchorX, anchorY float32, tint color.RGBA) render.WorldBillboardCommand {
+	// robr's SpriteRenderer depth correction projects vertical billboards onto a
+	// center-anchored plane, so the lower edge of map effect sprites does not
+	// sink behind the floor.
+	return render.WorldBillboardCommand{
+		Texture:     texture,
+		Options:     options,
 		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
 		RightAxis:   [3]float32{float32(rightAxis.x), float32(rightAxis.y), float32(rightAxis.z)},
 		UpAxis:      [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
-		DepthUpAxis: [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
-		Width:       float32(w),
-		Height:      float32(h),
-		AnchorX:     float32(billboard.anchorX),
-		AnchorY:     float32(billboard.anchorY),
+		DepthUpAxis: [3]float32{},
+		Width:       width,
+		Height:      height,
+		AnchorX:     anchorX,
+		AnchorY:     anchorY,
 		ColorR:      float32(tint.R) / 255,
 		ColorG:      float32(tint.G) / 255,
 		ColorB:      float32(tint.B) / 255,
 		ColorA:      float32(tint.A) / 255,
 		DepthBias:   options.DepthBias,
-	})
+	}
 }
 
 func spriteBillboardTriangleDrawOptions() *render.DrawTrianglesOptions {

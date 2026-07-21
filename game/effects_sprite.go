@@ -61,6 +61,9 @@ func (m *WorldMode) draw3DSpriteEffect(screen *render.Frame, ctx client.Context,
 
 func effect3DSpriteDrawOptions(component worldEffectComponent) *render.DrawTrianglesOptions {
 	options := spriteBillboardTriangleDrawOptions()
+	if component.worldSizedSprite {
+		options.DepthBias = strEffectDepthBias
+	}
 	if component.blendAdditive {
 		options.Blend = render.BlendLighter
 	}
@@ -227,7 +230,8 @@ func (m *WorldMode) drawSPREffect(screen *render.Frame, ctx client.Context, proj
 		z += 2.0
 	}
 	if component.worldSizedSprite {
-		drawSpriteBillboardTintAlphaWorld3D(screen, projection, billboard, worldX, worldY, z, effectPixelRatio, 0, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+		options := effect3DSpriteDrawOptions(component)
+		drawSpriteBillboardTintAlphaWorld3DWithOptions(screen, projection, billboard, worldX, worldY, z, effectPixelRatio, 0, 1, 1, color.RGBA{R: 255, G: 255, B: 255, A: 255}, options)
 		return
 	}
 	scale := 1.0

@@ -8819,11 +8819,44 @@ func TestEffect3DSpriteScaleUsesRobrowserSpriteUnits(t *testing.T) {
 }
 
 func TestEffect3DSpriteDrawOptionsHonorAdditiveBlend(t *testing.T) {
-	if got := effect3DSpriteDrawOptions(worldEffectComponent{}).Blend; got != render.BlendSourceOver {
+	defaultOptions := effect3DSpriteDrawOptions(worldEffectComponent{})
+	if got := defaultOptions.Blend; got != render.BlendSourceOver {
 		t.Fatalf("default sprite effect blend = %v, want source-over", got)
+	}
+	if got := defaultOptions.DepthBias; got != 0 {
+		t.Fatalf("default sprite effect depth bias = %.3f, want 0", got)
 	}
 	if got := effect3DSpriteDrawOptions(worldEffectComponent{blendAdditive: true}).Blend; got != render.BlendLighter {
 		t.Fatalf("additive sprite effect blend = %v, want lighter", got)
+	}
+	if got := effect3DSpriteDrawOptions(worldEffectComponent{worldSizedSprite: true}).DepthBias; got != strEffectDepthBias {
+		t.Fatalf("world-sized sprite effect depth bias = %.3f, want %.3f", got, strEffectDepthBias)
+	}
+}
+
+func TestWorldSizedSpriteBillboardUsesCenterDepthLikeRobrowser(t *testing.T) {
+	options := render.DrawTrianglesOptions{DepthBias: 0.01}
+	cmd := worldSpriteBillboardCommand(
+		render.WhiteImage(),
+		options,
+		modelPoint3{x: 1, y: 2, z: 3},
+		modelPoint3{x: 4, y: 5, z: 6},
+		modelPoint3{x: 7, y: 8, z: 9},
+		10,
+		20,
+		3,
+		4,
+		color.RGBA{R: 51, G: 102, B: 153, A: 204},
+	)
+
+	if cmd.UpAxis != [3]float32{7, 8, 9} {
+		t.Fatalf("visible up axis = %+v, want rendered billboard up axis", cmd.UpAxis)
+	}
+	if cmd.DepthUpAxis != [3]float32{} {
+		t.Fatalf("depth up axis = %+v, want center-depth axis", cmd.DepthUpAxis)
+	}
+	if cmd.DepthBias != options.DepthBias || cmd.Options.DepthBias != options.DepthBias {
+		t.Fatalf("depth bias = command %.3f options %.3f, want %.3f", cmd.DepthBias, cmd.Options.DepthBias, options.DepthBias)
 	}
 }
 
