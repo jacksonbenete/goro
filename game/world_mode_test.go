@@ -7525,6 +7525,11 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "PF_HPCONVERSION imported self success", skillSuccessEffectSelfIDs(db.SkillPFHpconversion), effectTransBlueBody)
 	expectEffectIDs(t, "PF_SOULCHANGE imported", skillEffectIDs(db.SkillPFSoulchange), effectLineLink2)
 	expectEffectIDs(t, "ASC_BREAKER imported before hit", skillBeforeHitEffectIDs(db.SkillASCBreaker), effectSoulBreaker)
+	expectEffectIDs(t, "ASC_METEORASSAULT imported caster", skillEffectOnCasterIDs(db.SkillASCMeteorassault), effectSoulBreaker2)
+	if !skillHidesCastAura(db.SkillASCMeteorassault) {
+		t.Fatal("ASC_METEORASSAULT should hide cast aura like robr")
+	}
+	expectEffectIDs(t, "ASC_CDP imported empty", skillEffectIDs(db.SkillASCCdp))
 	expectEffectIDs(t, "SN_SIGHT imported", skillEffectIDs(db.SkillSNSight), effectTrueSight)
 	expectEffectIDs(t, "SN_FALCONASSAULT imported", skillEffectIDs(db.SkillSNFalconassault), effectFalconAssault)
 	expectEffectIDs(t, "HT_PHANTASMIC imported before hit", skillBeforeHitEffectIDs(db.SkillHTPhantasmic), effectArrowShot)
@@ -7756,6 +7761,37 @@ func TestImportedSkillActionFallback(t *testing.T) {
 	wink := skillAction(db.SkillDCWinkcharm)
 	if !wink.defined || wink.action != skillActorActionSkill || !wink.play || wink.repeat || wink.next == nil || wink.next.action != skillActorActionIdle {
 		t.Fatalf("DC_WINKCHARM action = %+v, want robr SKILL then IDLE", wink)
+	}
+	sonic := skillAction(db.SkillASSonicblow)
+	hits := 0
+	sawReadyFight := false
+	for spec := &sonic; spec != nil; spec = spec.next {
+		if spec.action == skillActorActionReadyFight {
+			if !spec.repeat || !spec.play || spec.next != nil {
+				t.Fatalf("AS_SONICBLOW ready fight tail = %+v, want robr READYFIGHT loop", spec)
+			}
+			sawReadyFight = true
+			break
+		}
+		if spec.action != skillActorActionAttack || spec.repeat || !spec.play {
+			t.Fatalf("AS_SONICBLOW chain node %d = %+v, want robr ATTACK hit", hits+1, spec)
+		}
+		hits++
+		if hits == 1 {
+			if spec.speed != 0 {
+				t.Fatalf("AS_SONICBLOW first hit speed = %s, want default", spec.speed)
+			}
+			continue
+		}
+		if spec.speed != 30*time.Millisecond {
+			t.Fatalf("AS_SONICBLOW hit %d speed = %s, want 30ms", hits, spec.speed)
+		}
+	}
+	if hits != 8 {
+		t.Fatalf("AS_SONICBLOW hits = %d, want robr 8-hit chain", hits)
+	}
+	if !sawReadyFight {
+		t.Fatal("AS_SONICBLOW chain missing robr READYFIGHT tail")
 	}
 }
 

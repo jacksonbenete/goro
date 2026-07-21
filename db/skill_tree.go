@@ -127,6 +127,33 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 	SkillSNWindwalk:      {{SkillID: SkillACConcentration, Level: 9}},
 	SkillTFHiding:        {{SkillID: SkillTFSteal, Level: 5}},
 	SkillTFDetoxify:      {{SkillID: SkillTFPoison, Level: 3}},
+	SkillASLeft:          {{SkillID: SkillASRight, Level: 2}},
+	SkillASCloaking:      {{SkillID: SkillTFHiding, Level: 2}},
+	SkillASSonicblow:     {{SkillID: SkillASKatar, Level: 4}},
+	SkillASGrimtooth:     {{SkillID: SkillASCloaking, Level: 2}, {SkillID: SkillASSonicblow, Level: 5}},
+	SkillASEnchantpoison: {{SkillID: SkillTFPoison, Level: 1}},
+	SkillASPoisonreact:   {{SkillID: SkillASEnchantpoison, Level: 3}},
+	SkillASVenomdust:     {{SkillID: SkillASEnchantpoison, Level: 5}},
+	SkillASSplasher:      {{SkillID: SkillASVenomdust, Level: 5}, {SkillID: SkillASPoisonreact, Level: 5}},
+	SkillASCKatar:        {{SkillID: SkillTFDouble, Level: 5}, {SkillID: SkillASKatar, Level: 7}},
+	SkillASCEdp:          {{SkillID: SkillASCCdp, Level: 1}},
+	SkillASCBreaker: {
+		{SkillID: SkillTFDouble, Level: 5},
+		{SkillID: SkillTFPoison, Level: 5},
+		{SkillID: SkillASCloaking, Level: 3},
+		{SkillID: SkillASEnchantpoison, Level: 6},
+	},
+	SkillASCMeteorassault: {
+		{SkillID: SkillASKatar, Level: 5},
+		{SkillID: SkillASRight, Level: 3},
+		{SkillID: SkillASSonicblow, Level: 5},
+		{SkillID: SkillASCBreaker, Level: 1},
+	},
+	SkillASCCdp: {
+		{SkillID: SkillTFPoison, Level: 10},
+		{SkillID: SkillTFDetoxify, Level: 1},
+		{SkillID: SkillASEnchantpoison, Level: 5},
+	},
 }
 
 var SkillRequirementsByJob = map[int]map[uint16][]SkillRequirement{
@@ -294,6 +321,23 @@ var SkillMaxLevels = map[uint16]int{
 	SkillTFBacksliding:     1,
 	SkillTFPickstone:       1,
 	SkillTFThrowstone:      1,
+	SkillASRight:           5,
+	SkillASLeft:            5,
+	SkillASKatar:           10,
+	SkillASCloaking:        10,
+	SkillASSonicblow:       10,
+	SkillASGrimtooth:       5,
+	SkillASEnchantpoison:   10,
+	SkillASPoisonreact:     10,
+	SkillASVenomdust:       10,
+	SkillASSplasher:        10,
+	SkillASSonicaccel:      1,
+	SkillASVenomknife:      1,
+	SkillASCKatar:          5,
+	SkillASCEdp:            5,
+	SkillASCBreaker:        10,
+	SkillASCMeteorassault:  10,
+	SkillASCCdp:            1,
 }
 
 var superNoviceSkillTree = []uint16{
@@ -349,6 +393,42 @@ var sniperSkillTree = []uint16{
 	SkillSNSharpshooting,
 	SkillSNSight,
 	SkillSNWindwalk,
+}
+
+var thiefSkillTree = []uint16{
+	SkillTFDouble,
+	SkillTFSteal,
+	SkillTFPoison,
+	SkillTFSprinklesand,
+	SkillTFThrowstone,
+	SkillTFMiss,
+	SkillTFHiding,
+	SkillTFDetoxify,
+	SkillTFBacksliding,
+	SkillTFPickstone,
+}
+
+var assassinSkillTree = []uint16{
+	SkillASRight,
+	SkillASKatar,
+	SkillASCloaking,
+	SkillASEnchantpoison,
+	SkillASVenomknife,
+	SkillASLeft,
+	SkillASSonicblow,
+	SkillASVenomdust,
+	SkillASPoisonreact,
+	SkillASSonicaccel,
+	SkillASGrimtooth,
+	SkillASSplasher,
+}
+
+var assassinCrossSkillTree = []uint16{
+	SkillASCBreaker,
+	SkillASCCdp,
+	SkillASCEdp,
+	SkillASCKatar,
+	SkillASCMeteorassault,
 }
 
 var acolyteSkillTree = []uint16{
@@ -505,7 +585,12 @@ var skillTreeByJob = map[int][]uint16{
 	JobPriestH:      combinedSkillTree(acolyteSkillTree, priestSkillTree, highPriestSkillTree),
 	JobPriestB:      combinedSkillTree(acolyteSkillTree, priestSkillTree),
 	JobMerchant:     {SkillMCInccarry, SkillMCMammonite, SkillMCIdentify, SkillMCLoud, SkillMCDiscount, SkillMCPushcart, SkillMCChangecart, SkillMCCartdecorate, SkillMCOvercharge, SkillMCVending, SkillMCCartrevolution},
-	JobThief:        {SkillTFDouble, SkillTFSteal, SkillTFPoison, SkillTFSprinklesand, SkillTFThrowstone, SkillTFMiss, SkillTFHiding, SkillTFDetoxify, SkillTFBacksliding, SkillTFPickstone},
+	JobThief:        thiefSkillTree,
+	JobThiefH:       thiefSkillTree,
+	JobThiefB:       thiefSkillTree,
+	JobAssassin:     combinedSkillTree(thiefSkillTree, assassinSkillTree),
+	JobAssassinH:    combinedSkillTree(thiefSkillTree, assassinSkillTree, assassinCrossSkillTree),
+	JobAssassinB:    combinedSkillTree(thiefSkillTree, assassinSkillTree),
 	JobSuperNovice:  superNoviceSkillTree,
 	JobSuperNoviceB: superNoviceSkillTree,
 }

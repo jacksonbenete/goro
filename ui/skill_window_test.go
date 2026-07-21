@@ -415,6 +415,99 @@ func TestSkillWindowShowsSniperUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsAssassinUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobAssassin},
+		Skills: session.Skills{
+			Points: 2,
+			List: []session.Skill{
+				{ID: db.SkillTFHiding, Level: 2, Upgradable: true},
+				{ID: db.SkillTFPoison, Level: 1, Upgradable: true},
+				{ID: db.SkillASRight, Level: 2, Upgradable: true},
+				{ID: db.SkillASKatar, Level: 4, Upgradable: true},
+				{ID: db.SkillASCloaking, Level: 2, Upgradable: true},
+				{ID: db.SkillASSonicblow, Level: 4, Upgradable: true},
+				{ID: db.SkillASEnchantpoison, Level: 5, Upgradable: true},
+				{ID: db.SkillASVenomdust, Level: 5, Upgradable: true},
+				{ID: db.SkillASPoisonreact, Level: 4, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillASCloaking,
+		db.SkillASEnchantpoison,
+		db.SkillASLeft,
+		db.SkillASSonicblow,
+		db.SkillASVenomdust,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("assassin tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillASGrimtooth) {
+		t.Fatal("grimtooth should not be visible before sonic blow reaches level 5")
+	}
+	if containsSkill(skills, db.SkillASSplasher) {
+		t.Fatal("venom splasher should not be visible before poison react reaches level 5")
+	}
+	window.stageSkill(db.SkillASSonicblow)
+	window.stageSkill(db.SkillASPoisonreact)
+	skills = window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillASGrimtooth) {
+		t.Fatal("grimtooth should be visible after staged sonic blow level satisfies robr prerequisite")
+	}
+	if !containsSkill(skills, db.SkillASSplasher) {
+		t.Fatal("venom splasher should be visible after staged poison react level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsAssassinCrossUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobAssassinH},
+		Skills: session.Skills{
+			Points: 2,
+			List: []session.Skill{
+				{ID: db.SkillTFDouble, Level: 5, Upgradable: true},
+				{ID: db.SkillTFPoison, Level: 10, Upgradable: true},
+				{ID: db.SkillTFDetoxify, Level: 1, Upgradable: true},
+				{ID: db.SkillASKatar, Level: 7, Upgradable: true},
+				{ID: db.SkillASRight, Level: 3, Upgradable: true},
+				{ID: db.SkillASCloaking, Level: 3, Upgradable: true},
+				{ID: db.SkillASSonicblow, Level: 5, Upgradable: true},
+				{ID: db.SkillASEnchantpoison, Level: 6, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillASCKatar,
+		db.SkillASCCdp,
+		db.SkillASCBreaker,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("assassin cross tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillASCEdp) {
+		t.Fatal("enchant deadly poison should not be visible before create deadly poison reaches level 1")
+	}
+	if containsSkill(skills, db.SkillASCMeteorassault) {
+		t.Fatal("meteor assault should not be visible before soul destroyer reaches level 1")
+	}
+	window.stageSkill(db.SkillASCCdp)
+	window.stageSkill(db.SkillASCBreaker)
+	skills = window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillASCEdp) {
+		t.Fatal("enchant deadly poison should be visible after staged create deadly poison satisfies robr prerequisite")
+	}
+	if !containsSkill(skills, db.SkillASCMeteorassault) {
+		t.Fatal("meteor assault should be visible after staged soul destroyer satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowOrdersPendingUnlocksBySkillTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobSuperNovice},

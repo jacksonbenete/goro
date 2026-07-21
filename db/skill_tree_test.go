@@ -122,6 +122,40 @@ func TestHunterSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestAssassinSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	thief := SkillTreeSkillIDs(JobThiefH)
+	if !containsSkillID(thief, SkillTFDouble) || !containsSkillID(thief, SkillTFPickstone) || containsSkillID(thief, SkillASSonicblow) {
+		t.Fatalf("high thief tree = %v, want thief skills only", thief)
+	}
+
+	assassin := SkillTreeSkillIDs(JobAssassin)
+	for _, skillID := range []uint16{
+		SkillTFDouble,
+		SkillASRight,
+		SkillASCloaking,
+		SkillASVenomknife,
+		SkillASSonicaccel,
+		SkillASSplasher,
+	} {
+		if !containsSkillID(assassin, skillID) {
+			t.Fatalf("assassin tree = %v, missing robr skill %d", assassin, skillID)
+		}
+	}
+	if containsSkillID(assassin, SkillASCBreaker) {
+		t.Fatalf("assassin tree = %v, should not include assassin cross skills", assassin)
+	}
+
+	babyAssassin := SkillTreeSkillIDs(JobAssassinB)
+	if !containsSkillID(babyAssassin, SkillASGrimtooth) || containsSkillID(babyAssassin, SkillASCEdp) {
+		t.Fatalf("baby assassin tree = %v, want assassin duplicate without assassin cross skills", babyAssassin)
+	}
+
+	assassinCross := SkillTreeSkillIDs(JobAssassinH)
+	if !containsSkillID(assassinCross, SkillTFPoison) || !containsSkillID(assassinCross, SkillASKatar) || !containsSkillID(assassinCross, SkillASCBreaker) || !containsSkillID(assassinCross, SkillASCMeteorassault) {
+		t.Fatalf("assassin cross tree = %v, want thief, assassin, and assassin cross skills", assassinCross)
+	}
+}
+
 func TestWizardSkillRequirementsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		skillID uint16
@@ -246,6 +280,31 @@ func TestHunterSkillRequirementsMirrorRobrowser(t *testing.T) {
 		{SkillSNFalconassault, []SkillRequirement{{SkillID: SkillACVulture, Level: 5}, {SkillID: SkillHTFalcon, Level: 1}, {SkillID: SkillHTBlitzbeat, Level: 5}, {SkillID: SkillHTSteelcrow, Level: 3}}},
 		{SkillSNSharpshooting, []SkillRequirement{{SkillID: SkillACDouble, Level: 5}, {SkillID: SkillACConcentration, Level: 10}}},
 		{SkillSNWindwalk, []SkillRequirement{{SkillID: SkillACConcentration, Level: 9}}},
+	} {
+		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+}
+
+func TestAssassinSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{SkillASLeft, []SkillRequirement{{SkillID: SkillASRight, Level: 2}}},
+		{SkillASCloaking, []SkillRequirement{{SkillID: SkillTFHiding, Level: 2}}},
+		{SkillASSonicblow, []SkillRequirement{{SkillID: SkillASKatar, Level: 4}}},
+		{SkillASGrimtooth, []SkillRequirement{{SkillID: SkillASCloaking, Level: 2}, {SkillID: SkillASSonicblow, Level: 5}}},
+		{SkillASEnchantpoison, []SkillRequirement{{SkillID: SkillTFPoison, Level: 1}}},
+		{SkillASPoisonreact, []SkillRequirement{{SkillID: SkillASEnchantpoison, Level: 3}}},
+		{SkillASVenomdust, []SkillRequirement{{SkillID: SkillASEnchantpoison, Level: 5}}},
+		{SkillASSplasher, []SkillRequirement{{SkillID: SkillASVenomdust, Level: 5}, {SkillID: SkillASPoisonreact, Level: 5}}},
+		{SkillASCKatar, []SkillRequirement{{SkillID: SkillTFDouble, Level: 5}, {SkillID: SkillASKatar, Level: 7}}},
+		{SkillASCEdp, []SkillRequirement{{SkillID: SkillASCCdp, Level: 1}}},
+		{SkillASCBreaker, []SkillRequirement{{SkillID: SkillTFDouble, Level: 5}, {SkillID: SkillTFPoison, Level: 5}, {SkillID: SkillASCloaking, Level: 3}, {SkillID: SkillASEnchantpoison, Level: 6}}},
+		{SkillASCMeteorassault, []SkillRequirement{{SkillID: SkillASKatar, Level: 5}, {SkillID: SkillASRight, Level: 3}, {SkillID: SkillASSonicblow, Level: 5}, {SkillID: SkillASCBreaker, Level: 1}}},
+		{SkillASCCdp, []SkillRequirement{{SkillID: SkillTFPoison, Level: 10}, {SkillID: SkillTFDetoxify, Level: 1}, {SkillID: SkillASEnchantpoison, Level: 5}}},
 	} {
 		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
@@ -388,6 +447,36 @@ func TestHunterSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillSNFalconassault, 5},
 		{SkillSNSharpshooting, 5},
 		{SkillSNWindwalk, 10},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestAssassinSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillASRight, 5},
+		{SkillASLeft, 5},
+		{SkillASKatar, 10},
+		{SkillASCloaking, 10},
+		{SkillASSonicblow, 10},
+		{SkillASGrimtooth, 5},
+		{SkillASEnchantpoison, 10},
+		{SkillASPoisonreact, 10},
+		{SkillASVenomdust, 10},
+		{SkillASSplasher, 10},
+		{SkillASSonicaccel, 1},
+		{SkillASVenomknife, 1},
+		{SkillASCKatar, 5},
+		{SkillASCEdp, 5},
+		{SkillASCBreaker, 10},
+		{SkillASCMeteorassault, 10},
+		{SkillASCCdp, 1},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
 		if !ok || got != tc.want {

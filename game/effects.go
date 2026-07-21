@@ -1598,6 +1598,18 @@ var (
 	readyFightSkillActionSpec = newSkillActionSpec(skillActorActionReadyFight, false, &idleSkillActionSpec)
 )
 
+func sonicBlowSkillActionSpec() skillActionSpec {
+	next := newSkillActionSpec(skillActorActionReadyFight, true, nil)
+	for hit := 8; hit >= 1; hit-- {
+		spec := newSkillActionSpec(skillActorActionAttack, false, &next)
+		if hit > 1 {
+			spec.speed = 30 * time.Millisecond
+		}
+		next = spec
+	}
+	return next
+}
+
 func newSkillActionSpec(action skillActorAction, repeat bool, next *skillActionSpec) skillActionSpec {
 	return skillActionSpec{
 		defined: true,
@@ -1719,6 +1731,9 @@ func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
 		spec := newSkillActionSpec(skillActorActionAttack, false, &readyFightSkillActionSpec)
 		spec.speed = 50 * time.Millisecond
 		return spec, true
+	}
+	if skillID == db.SkillASSonicblow {
+		return sonicBlowSkillActionSpec(), true
 	}
 	switch db.SkillActions[skillID] {
 	case db.SkillActionNone:
