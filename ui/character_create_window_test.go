@@ -1,10 +1,31 @@
 package ui
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kivutar/goro/session"
+)
 
 func TestCharacterSelectPage(t *testing.T) {
 	if got := CharacterSelectPage(5); got != 1 {
 		t.Fatalf("page = %d, want 1", got)
+	}
+}
+
+func TestCharacterSelectDeleteDisabledForEmptySlot(t *testing.T) {
+	opts := CharacterSelectWindowOptions{
+		SelectedSlot: 1,
+		Characters: []session.Character{
+			{ID: 10, Slot: 1},
+		},
+	}
+	if characterSelectDeleteDisabled(opts) {
+		t.Fatal("delete disabled for occupied slot")
+	}
+
+	opts.SelectedSlot = 2
+	if !characterSelectDeleteDisabled(opts) {
+		t.Fatal("delete enabled for empty slot")
 	}
 }
 

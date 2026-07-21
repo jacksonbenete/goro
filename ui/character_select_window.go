@@ -107,6 +107,7 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 	pageCount := maxInt(1, (w.opts.MaxSlots+2)/3)
 	pageStart := page * 3
 	selected, hasSelection := characterBySlot(w.opts.Characters, w.opts.SelectedSlot)
+	deleteDisabled := characterSelectDeleteDisabled(w.opts)
 	return Win(
 		Title("Select Character"),
 		CloseButton(false),
@@ -138,7 +139,7 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 				CrossAlign(primitives.CrossAxisCenter),
 		),
 		Footer(
-			rotheme.Button("Delete", func() {
+			rotheme.ButtonDisabled("Delete", deleteDisabled, func() {
 				if w.callbacks.OnDelete != nil {
 					w.callbacks.OnDelete()
 				}
@@ -313,6 +314,11 @@ func CharacterSelectPage(slot int) int {
 		return 0
 	}
 	return slot / 3
+}
+
+func characterSelectDeleteDisabled(opts CharacterSelectWindowOptions) bool {
+	_, hasSelection := characterBySlot(opts.Characters, opts.SelectedSlot)
+	return !hasSelection
 }
 
 func characterSelectWindowRect(ctx client.Context) (int, int, int, int) {
