@@ -269,6 +269,31 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 		{SkillID: SkillTFDetoxify, Level: 1},
 		{SkillID: SkillASEnchantpoison, Level: 5},
 	},
+
+	SkillAMPharmacy:       {{SkillID: SkillAMLearningpotion, Level: 5}},
+	SkillAMDemonstration:  {{SkillID: SkillAMPharmacy, Level: 4}},
+	SkillAMAcidterror:     {{SkillID: SkillAMPharmacy, Level: 5}},
+	SkillAMPotionpitcher:  {{SkillID: SkillAMPharmacy, Level: 3}},
+	SkillAMCannibalize:    {{SkillID: SkillAMPharmacy, Level: 6}},
+	SkillAMSpheremine:     {{SkillID: SkillAMPharmacy, Level: 2}},
+	SkillAMCpWeapon:       {{SkillID: SkillAMCpArmor, Level: 3}},
+	SkillAMCpShield:       {{SkillID: SkillAMCpHelm, Level: 3}},
+	SkillAMCpArmor:        {{SkillID: SkillAMCpShield, Level: 3}},
+	SkillAMCpHelm:         {{SkillID: SkillAMPharmacy, Level: 2}},
+	SkillAMCallhomun:      {{SkillID: SkillAMRest, Level: 1}},
+	SkillAMRest:           {{SkillID: SkillAMBioethics, Level: 1}},
+	SkillAMResurrecthomun: {{SkillID: SkillAMCallhomun, Level: 1}},
+	SkillAMTwilight1:      {{SkillID: SkillAMPharmacy, Level: 10}},
+	SkillAMTwilight2:      {{SkillID: SkillAMPharmacy, Level: 10}},
+	SkillAMTwilight3:      {{SkillID: SkillAMPharmacy, Level: 10}},
+	SkillCRSlimpitcher:    {{SkillID: SkillAMPotionpitcher, Level: 5}},
+	SkillCRFullprotection: {
+		{SkillID: SkillAMCpWeapon, Level: 5},
+		{SkillID: SkillAMCpArmor, Level: 5},
+		{SkillID: SkillAMCpShield, Level: 5},
+		{SkillID: SkillAMCpHelm, Level: 5},
+	},
+	SkillCRAciddemonstration: {{SkillID: SkillAMDemonstration, Level: 5}, {SkillID: SkillAMAcidterror, Level: 5}},
 }
 
 var SkillRequirementsByJob = map[int]map[uint16][]SkillRequirement{
@@ -607,6 +632,31 @@ var SkillMaxLevels = map[uint16]int{
 	SkillASCBreaker:         10,
 	SkillASCMeteorassault:   10,
 	SkillASCCdp:             1,
+
+	SkillAMAxemastery:        10,
+	SkillAMLearningpotion:    10,
+	SkillAMPharmacy:          10,
+	SkillAMDemonstration:     5,
+	SkillAMAcidterror:        5,
+	SkillAMPotionpitcher:     5,
+	SkillAMCannibalize:       5,
+	SkillAMSpheremine:        5,
+	SkillAMCpWeapon:          5,
+	SkillAMCpShield:          5,
+	SkillAMCpArmor:           5,
+	SkillAMCpHelm:            5,
+	SkillAMBioethics:         1,
+	SkillAMCallhomun:         1,
+	SkillAMRest:              1,
+	SkillAMResurrecthomun:    5,
+	SkillAMBerserkpitcher:    1,
+	SkillCRSlimpitcher:       10,
+	SkillCRFullprotection:    5,
+	SkillCRAciddemonstration: 10,
+	SkillCRCultivation:       2,
+	SkillAMTwilight1:         1,
+	SkillAMTwilight2:         1,
+	SkillAMTwilight3:         1,
 }
 
 var superNoviceSkillTree = []uint16{
@@ -672,6 +722,35 @@ var whitesmithSkillTree = []uint16{
 	SkillWSMeltdown,
 	SkillWSOverthrustmax,
 	SkillWSWeaponrefine,
+}
+
+var alchemistSkillTree = []uint16{
+	SkillAMLearningpotion,
+	SkillAMSpheremine,
+	SkillAMAxemastery,
+	SkillAMCpHelm,
+	SkillAMBioethics,
+	SkillAMTwilight1,
+	SkillAMPharmacy,
+	SkillAMPotionpitcher,
+	SkillAMCpShield,
+	SkillAMRest,
+	SkillAMBerserkpitcher,
+	SkillAMTwilight2,
+	SkillAMDemonstration,
+	SkillAMCpArmor,
+	SkillAMCallhomun,
+	SkillAMTwilight3,
+	SkillAMAcidterror,
+	SkillAMCpWeapon,
+	SkillAMResurrecthomun,
+	SkillAMCannibalize,
+}
+
+var creatorSkillTree = []uint16{
+	SkillCRSlimpitcher,
+	SkillCRAciddemonstration,
+	SkillCRFullprotection,
 }
 
 var archerSkillTree = []uint16{
@@ -1046,6 +1125,9 @@ var skillTreeByJob = map[int][]uint16{
 	JobBlacksmith:   combinedSkillTree(merchantSkillTree, blacksmithSkillTree),
 	JobBlacksmithH:  combinedSkillTree(merchantSkillTree, blacksmithSkillTree, whitesmithSkillTree),
 	JobBlacksmithB:  combinedSkillTree(merchantSkillTree, blacksmithSkillTree),
+	JobAlchemist:    combinedSkillTree(merchantSkillTree, alchemistSkillTree),
+	JobAlchemistH:   combinedSkillTree(merchantSkillTree, alchemistSkillTree, creatorSkillTree),
+	JobAlchemistB:   combinedSkillTree(merchantSkillTree, alchemistSkillTree),
 	JobThief:        thiefSkillTree,
 	JobThiefH:       thiefSkillTree,
 	JobThiefB:       thiefSkillTree,

@@ -948,6 +948,107 @@ func TestSkillWindowShowsWhitesmithUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsAlchemistUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobAlchemist},
+		Skills: session.Skills{
+			Points: 4,
+			List: []session.Skill{
+				{ID: db.SkillAMLearningpotion, Level: 5, Upgradable: true},
+				{ID: db.SkillAMPharmacy, Level: 9, Upgradable: true},
+				{ID: db.SkillAMBioethics, Level: 1, Upgradable: true},
+				{ID: db.SkillAMCpHelm, Level: 3, Upgradable: true},
+				{ID: db.SkillAMCpShield, Level: 3, Upgradable: true},
+				{ID: db.SkillAMCpArmor, Level: 2, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillAMPharmacy,
+		db.SkillAMSpheremine,
+		db.SkillAMPotionpitcher,
+		db.SkillAMDemonstration,
+		db.SkillAMAcidterror,
+		db.SkillAMCannibalize,
+		db.SkillAMCpHelm,
+		db.SkillAMCpShield,
+		db.SkillAMCpArmor,
+		db.SkillAMRest,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("alchemist tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	for _, skillID := range []uint16{
+		db.SkillAMTwilight1,
+		db.SkillAMCpWeapon,
+		db.SkillAMCallhomun,
+	} {
+		if containsSkill(skills, skillID) {
+			t.Fatalf("alchemist skill %d should not be visible before staged prerequisite: %v", skillID, skills)
+		}
+	}
+	window.stageSkill(db.SkillAMPharmacy)
+	window.stageSkill(db.SkillAMCpArmor)
+	window.stageSkill(db.SkillAMRest)
+	skills = window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillAMTwilight1,
+		db.SkillAMTwilight2,
+		db.SkillAMTwilight3,
+		db.SkillAMCpWeapon,
+		db.SkillAMCallhomun,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("alchemist staged prerequisites did not expose skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillAMResurrecthomun) {
+		t.Fatal("homunculus resurrection should not be visible before call homunculus reaches level 1")
+	}
+	window.stageSkill(db.SkillAMCallhomun)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillAMResurrecthomun) {
+		t.Fatal("homunculus resurrection should be visible after staged call homunculus level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsCreatorUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobAlchemistH},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillAMPotionpitcher, Level: 5, Upgradable: true},
+				{ID: db.SkillAMCpWeapon, Level: 5, Upgradable: true},
+				{ID: db.SkillAMCpArmor, Level: 5, Upgradable: true},
+				{ID: db.SkillAMCpShield, Level: 5, Upgradable: true},
+				{ID: db.SkillAMCpHelm, Level: 5, Upgradable: true},
+				{ID: db.SkillAMDemonstration, Level: 5, Upgradable: true},
+				{ID: db.SkillAMAcidterror, Level: 4, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillCRSlimpitcher,
+		db.SkillCRFullprotection,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("creator tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillCRAciddemonstration) {
+		t.Fatal("acid demonstration should not be visible before acid terror reaches level 5")
+	}
+	window.stageSkill(db.SkillAMAcidterror)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillCRAciddemonstration) {
+		t.Fatal("acid demonstration should be visible after staged acid terror level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowOrdersPendingUnlocksBySkillTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobSuperNovice},

@@ -320,6 +320,41 @@ func TestBlacksmithSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestAlchemistSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	merchant := SkillTreeSkillIDs(JobMerchantH)
+	if !containsSkillID(merchant, SkillMCInccarry) || !containsSkillID(merchant, SkillMCCartdecorate) || containsSkillID(merchant, SkillAMPharmacy) {
+		t.Fatalf("high merchant tree = %v, want merchant skills only", merchant)
+	}
+
+	alchemist := SkillTreeSkillIDs(JobAlchemist)
+	for _, skillID := range []uint16{
+		SkillMCInccarry,
+		SkillAMLearningpotion,
+		SkillAMSpheremine,
+		SkillAMBioethics,
+		SkillAMDemonstration,
+		SkillAMResurrecthomun,
+		SkillAMCannibalize,
+	} {
+		if !containsSkillID(alchemist, skillID) {
+			t.Fatalf("alchemist tree = %v, missing robr skill %d", alchemist, skillID)
+		}
+	}
+	if containsSkillID(alchemist, SkillCRFullprotection) {
+		t.Fatalf("alchemist tree = %v, should not include creator skills", alchemist)
+	}
+
+	babyAlchemist := SkillTreeSkillIDs(JobAlchemistB)
+	if !containsSkillID(babyAlchemist, SkillAMCpWeapon) || containsSkillID(babyAlchemist, SkillCRSlimpitcher) {
+		t.Fatalf("baby alchemist tree = %v, want alchemist duplicate without creator skills", babyAlchemist)
+	}
+
+	creator := SkillTreeSkillIDs(JobAlchemistH)
+	if !containsSkillID(creator, SkillMCPushcart) || !containsSkillID(creator, SkillAMAcidterror) || !containsSkillID(creator, SkillCRAciddemonstration) || !containsSkillID(creator, SkillCRFullprotection) {
+		t.Fatalf("creator tree = %v, want merchant, alchemist, and creator skills", creator)
+	}
+}
+
 func TestWizardSkillRequirementsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		skillID uint16
@@ -636,6 +671,37 @@ func TestBlacksmithSkillRequirementsMirrorRobrowser(t *testing.T) {
 		{SkillWSWeaponrefine, []SkillRequirement{{SkillID: SkillBSWeaponresearch, Level: 10}}},
 		{SkillWSCarttermination, []SkillRequirement{{SkillID: SkillMCMammonite, Level: 10}, {SkillID: SkillBSHammerfall, Level: 5}, {SkillID: SkillWSCartboost, Level: 1}}},
 		{SkillWSOverthrustmax, []SkillRequirement{{SkillID: SkillBSOverthrust, Level: 5}}},
+	} {
+		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+}
+
+func TestAlchemistSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{SkillAMPharmacy, []SkillRequirement{{SkillID: SkillAMLearningpotion, Level: 5}}},
+		{SkillAMDemonstration, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 4}}},
+		{SkillAMAcidterror, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 5}}},
+		{SkillAMPotionpitcher, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 3}}},
+		{SkillAMCannibalize, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 6}}},
+		{SkillAMSpheremine, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 2}}},
+		{SkillAMCpWeapon, []SkillRequirement{{SkillID: SkillAMCpArmor, Level: 3}}},
+		{SkillAMCpShield, []SkillRequirement{{SkillID: SkillAMCpHelm, Level: 3}}},
+		{SkillAMCpArmor, []SkillRequirement{{SkillID: SkillAMCpShield, Level: 3}}},
+		{SkillAMCpHelm, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 2}}},
+		{SkillAMCallhomun, []SkillRequirement{{SkillID: SkillAMRest, Level: 1}}},
+		{SkillAMRest, []SkillRequirement{{SkillID: SkillAMBioethics, Level: 1}}},
+		{SkillAMResurrecthomun, []SkillRequirement{{SkillID: SkillAMCallhomun, Level: 1}}},
+		{SkillAMTwilight1, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 10}}},
+		{SkillAMTwilight2, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 10}}},
+		{SkillAMTwilight3, []SkillRequirement{{SkillID: SkillAMPharmacy, Level: 10}}},
+		{SkillCRSlimpitcher, []SkillRequirement{{SkillID: SkillAMPotionpitcher, Level: 5}}},
+		{SkillCRFullprotection, []SkillRequirement{{SkillID: SkillAMCpWeapon, Level: 5}, {SkillID: SkillAMCpArmor, Level: 5}, {SkillID: SkillAMCpShield, Level: 5}, {SkillID: SkillAMCpHelm, Level: 5}}},
+		{SkillCRAciddemonstration, []SkillRequirement{{SkillID: SkillAMDemonstration, Level: 5}, {SkillID: SkillAMAcidterror, Level: 5}}},
 	} {
 		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
@@ -1008,6 +1074,51 @@ func TestBlacksmithSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillWSOverthrustmax, 5},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestAlchemistSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillAMAxemastery, 10},
+		{SkillAMLearningpotion, 10},
+		{SkillAMPharmacy, 10},
+		{SkillAMDemonstration, 5},
+		{SkillAMAcidterror, 5},
+		{SkillAMPotionpitcher, 5},
+		{SkillAMCannibalize, 5},
+		{SkillAMSpheremine, 5},
+		{SkillAMCpWeapon, 5},
+		{SkillAMCpShield, 5},
+		{SkillAMCpArmor, 5},
+		{SkillAMCpHelm, 5},
+		{SkillAMBioethics, 1},
+		{SkillAMCallhomun, 1},
+		{SkillAMRest, 1},
+		{SkillAMResurrecthomun, 5},
+		{SkillAMBerserkpitcher, 1},
+		{SkillAMTwilight1, 1},
+		{SkillAMTwilight2, 1},
+		{SkillAMTwilight3, 1},
+		{SkillCRSlimpitcher, 10},
+		{SkillCRFullprotection, 5},
+		{SkillCRAciddemonstration, 10},
+		{SkillCRCultivation, 2},
+		{SkillCRAlchemy, 0},
+		{SkillCRSynthesispotion, 0},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if tc.want == 0 {
+			if ok {
+				t.Fatalf("skill %d max level = %d ok=%t, want unavailable", tc.skillID, got, ok)
+			}
+			continue
+		}
 		if !ok || got != tc.want {
 			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
 		}
