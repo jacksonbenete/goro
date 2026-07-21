@@ -11714,6 +11714,65 @@ func TestSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	}
 }
 
+func TestFireWallSkillUnitEntryUsesPersistentEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9007, CreatorID: 2000000, UnitID: 127, X: 12, Y: 34, Visible: true})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	effect := mode.worldEffects[0]
+	if effect.actorID != 9007 || effect.effectID != effectFireWall || effect.x != 12 || effect.y != 34 {
+		t.Fatalf("effect = %+v", effect)
+	}
+	if !effect.persistent {
+		t.Fatalf("fire wall skill unit effect is not persistent")
+	}
+	if effect.expires.Sub(effect.starts) < skillUnitEffectFallbackDuration {
+		t.Fatalf("fire wall lifetime = %s, want skill unit fallback", effect.expires.Sub(effect.starts))
+	}
+	if effect.duration != 0 {
+		t.Fatalf("fire wall animation override = %s, want native component timing", effect.duration)
+	}
+}
+
+func TestMappedSkillUnitEntriesUsePersistentEffects(t *testing.T) {
+	for unitID, spec := range skillUnitEffectSpecs {
+		if len(spec.effectIDs) == 0 {
+			continue
+		}
+		world := worldstate.New()
+		world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+		mode := &WorldMode{}
+		ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+		entryID := uint32(unitID) + 100000
+
+		mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: entryID, CreatorID: 2000000, UnitID: unitID, X: 12, Y: 34, Visible: true})
+		if len(mode.worldEffects) != len(spec.effectIDs) {
+			t.Fatalf("unit %d world effects = %d, want %d", unitID, len(mode.worldEffects), len(spec.effectIDs))
+		}
+		for _, effect := range mode.worldEffects {
+			if !effect.persistent {
+				t.Fatalf("unit %d effect %d is not persistent", unitID, effect.effectID)
+			}
+		}
+	}
+}
+
+func TestRepeatedSTRKeyIndexLoops(t *testing.T) {
+	starts := time.Unix(100, 0)
+	now := starts.Add(250 * time.Millisecond)
+	if got := strEffectKeyIndex(starts, now, 60, 12, true); got != 3 {
+		t.Fatalf("repeated key index = %.2f, want 3", got)
+	}
+	if got := strEffectKeyIndex(starts, now, 60, 12, false); got != 15 {
+		t.Fatalf("one-shot key index = %.2f, want 15", got)
+	}
+}
+
 func TestWarpPortalSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}

@@ -22,7 +22,7 @@ func (m *WorldMode) drawSTREffect(screen *render.Frame, ctx client.Context, proj
 	if fps <= 0 {
 		fps = 60
 	}
-	keyIndex := float64(now.Sub(effect.starts)) / float64(time.Second) * float64(fps)
+	keyIndex := strEffectKeyIndex(effect.starts, now, fps, str.MaxKey, component.repeat)
 	drawn := false
 	for _, layer := range str.Layers {
 		anim, ok := calculateSTRAnimation(layer, keyIndex)
@@ -44,6 +44,20 @@ func (m *WorldMode) drawSTREffect(screen *render.Frame, ctx client.Context, proj
 		drawn = true
 	}
 	return drawn
+}
+
+func strEffectKeyIndex(starts, now time.Time, fps int, maxKey int, repeat bool) float64 {
+	if fps <= 0 {
+		fps = 60
+	}
+	keyIndex := float64(now.Sub(starts)) / float64(time.Second) * float64(fps)
+	if repeat && maxKey > 0 {
+		keyIndex = math.Mod(keyIndex, float64(maxKey))
+		if keyIndex < 0 {
+			keyIndex += float64(maxKey)
+		}
+	}
+	return keyIndex
 }
 
 func resolveEffectSTRFile(component worldEffectComponent, effect worldEffect, lessEffects bool) string {

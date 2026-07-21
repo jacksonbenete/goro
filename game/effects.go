@@ -710,6 +710,7 @@ type worldEffect struct {
 	expires             time.Time
 	duration            time.Duration
 	size                float64
+	persistent          bool
 	spriteFrameOverride int
 	hasSpriteFrame      bool
 }
@@ -1068,7 +1069,7 @@ func (m *WorldMode) applySkillUnitEntry(ctx client.Context, entry network.SkillU
 	}
 	now := time.Now()
 	for _, effectID := range effectIDs {
-		if m.addWorldEffectAtCellLifetime(ctx, effectID, entry.ID, int(entry.X), int(entry.Y), now, skillUnitEffectFallbackDuration) {
+		if m.addWorldEffectAtCellLifetime(ctx, effectID, entry.ID, int(entry.X), int(entry.Y), now, skillUnitEffectFallbackDuration, true) {
 			glog.Debugf("skill unit effect unit=%d id=%d creator=%d cell=%d,%d effect=%d", entry.UnitID, entry.ID, entry.CreatorID, entry.X, entry.Y, effectID)
 		}
 	}
@@ -1089,7 +1090,7 @@ func (m *WorldMode) applySkillUnitLookChange(ctx client.Context, look network.Ac
 	m.removeSkillUnitEffects(look.ID)
 	now := time.Now()
 	for _, effectID := range effectIDs {
-		if m.addWorldEffectAtCellLifetime(ctx, effectID, look.ID, x, y, now, skillUnitEffectFallbackDuration) {
+		if m.addWorldEffectAtCellLifetime(ctx, effectID, look.ID, x, y, now, skillUnitEffectFallbackDuration, true) {
 			glog.Debugf("skill unit effect changed id=%d unit=%d cell=%d,%d effect=%d", look.ID, look.Value, x, y, effectID)
 		}
 	}
@@ -1290,7 +1291,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID
 	return true
 }
 
-func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, lifetimeOverride time.Duration) bool {
+func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, lifetimeOverride time.Duration, persistent bool) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -1312,12 +1313,13 @@ func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID in
 		duration = lifetimeOverride
 	}
 	effect := worldEffect{
-		effectID: effectID,
-		actorID:  actorID,
-		x:        x,
-		y:        y,
-		starts:   starts,
-		expires:  starts.Add(duration),
+		effectID:   effectID,
+		actorID:    actorID,
+		x:          x,
+		y:          y,
+		starts:     starts,
+		expires:    starts.Add(duration),
+		persistent: persistent,
 	}
 	m.worldEffects = append(m.worldEffects, effect)
 	m.scheduleWorldEffectSound(starts, spec, effect)
@@ -2210,6 +2212,9 @@ func (m *WorldMode) drawWorldEffects(screen *render.Frame, ctx client.Context, p
 		worldY := cellCenter(y)
 		worldZ := terrainHeightAt(ctx.World, x, y) + 0.07
 		for index, component := range spec.components {
+			if effect.persistent {
+				component.repeat = true
+			}
 			componentDuration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
 			if effect.duration > 0 && !component.repeat {
 				componentDuration = effect.duration
