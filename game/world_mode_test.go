@@ -7180,12 +7180,43 @@ func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 			}
 		}
 	}
-	if len(mode.damageFloaters) != 4 {
-		t.Fatalf("damage floaters = %d, want 4", len(mode.damageFloaters))
+	if len(mode.damageFloaters) != 8 {
+		t.Fatalf("damage floaters = %d, want 8", len(mode.damageFloaters))
 	}
-	for i, floater := range mode.damageFloaters {
-		if floater.text != "252" {
-			t.Fatalf("floater %d text = %q, want 252", i, floater.text)
+	wantFloaters := []struct {
+		text string
+		kind damageFloaterKind
+	}{
+		{text: "252", kind: damageFloaterNormal},
+		{text: "252", kind: damageFloaterCombo},
+		{text: "252", kind: damageFloaterNormal},
+		{text: "504", kind: damageFloaterCombo},
+		{text: "252", kind: damageFloaterNormal},
+		{text: "756", kind: damageFloaterCombo},
+		{text: "252", kind: damageFloaterNormal},
+		{text: "1008", kind: damageFloaterCombo},
+	}
+	for i, want := range wantFloaters {
+		floater := mode.damageFloaters[i]
+		if floater.text != want.text || floater.kind != want.kind {
+			t.Fatalf("floater %d = %+v, want text=%q kind=%d", i, floater, want.text, want.kind)
+		}
+		if i > 1 {
+			if delay := floater.starts.Sub(mode.damageFloaters[i-2].starts); delay != multiHitDelay {
+				t.Fatalf("floater %d delay = %s, want %s", i, delay, multiHitDelay)
+			}
+		}
+		if floater.kind == damageFloaterCombo {
+			if floater.duration != damageFloaterDuration(damageFloaterCombo) {
+				t.Fatalf("combo floater %d duration = %s, want %s", i, floater.duration, damageFloaterDuration(damageFloaterCombo))
+			}
+			wantVisible := damageFloaterComboTransientDuration()
+			if i == len(wantFloaters)-1 {
+				wantVisible = damageFloaterDuration(damageFloaterCombo)
+			}
+			if visible := floater.expires.Sub(floater.starts); visible != wantVisible {
+				t.Fatalf("combo floater %d visible = %s, want %s", i, visible, wantVisible)
+			}
 		}
 	}
 }

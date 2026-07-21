@@ -188,20 +188,22 @@ func damageFloaterPlacement(kind damageFloaterKind, progress float64) (dx, dy, z
 	progress = clampFloat(progress, 0, 1)
 	alpha = 1 - progress
 	switch kind {
+	case damageFloaterCombo:
+		scale = math.Min(progress, 0.05) * 70
+		zLift = 7.0 + progress
 	case damageFloaterRecoveryHP, damageFloaterRecoverySP:
 		scale = math.Max((1-progress*2)*3, 0.8)
 		zLift = 2.0
 		if progress >= 0.4 {
-			zLift += (progress - 0.4) * 3.0
+			zLift += (progress - 0.4) * 5.0
 		}
 	case damageFloaterMiss:
-		scale = 0.7
-		zLift = 3.0 + progress*3.0
+		scale = 0.5
+		zLift = 3.5 + progress*7.0
 	default:
-		scale = math.Max((1-progress)*4, 0.35)
-		arc := math.Sin(-math.Pi/2+math.Pi*(0.5+progress*1.5)) * 1.2
-		dx = progress * 0.35
-		dy = -progress * 0.35
+		scale = math.Max((1-progress)*4, 0)
+		arc := math.Sin(-math.Pi/2+math.Pi*(0.5+progress*1.5)) * 5.0
+		dx = progress * 4.0
 		zLift = 2.0 + arc
 	}
 	return dx, dy, zLift, scale, alpha
@@ -210,6 +212,8 @@ func damageFloaterPlacement(kind damageFloaterKind, progress float64) (dx, dy, z
 func damageFloaterColor(kind damageFloaterKind, fallback color.RGBA) color.RGBA {
 	switch kind {
 	case damageFloaterCritical:
+		return damageFloaterYellow
+	case damageFloaterCombo:
 		return damageFloaterYellow
 	case damageFloaterIncoming:
 		return damageFloaterRed
@@ -232,7 +236,10 @@ func withAlpha(c color.RGBA, alpha float64) color.RGBA {
 }
 
 func damageFloaterProgress(floater damageFloater, now time.Time) float64 {
-	duration := floater.expires.Sub(floater.starts)
+	duration := floater.duration
+	if duration <= 0 {
+		duration = floater.expires.Sub(floater.starts)
+	}
 	if duration <= 0 {
 		return 1
 	}

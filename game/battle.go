@@ -2,8 +2,6 @@ package game
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/glog"
-	"github.com/kivutar/goro/input"
 	"image/color"
 	"math"
 	"sort"
@@ -12,6 +10,8 @@ import (
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -26,14 +26,15 @@ type attackIntent struct {
 }
 
 type damageFloater struct {
-	actorID uint32
-	x       int
-	y       int
-	text    string
-	color   color.RGBA
-	kind    damageFloaterKind
-	starts  time.Time
-	expires time.Time
+	actorID  uint32
+	x        int
+	y        int
+	text     string
+	color    color.RGBA
+	kind     damageFloaterKind
+	starts   time.Time
+	expires  time.Time
+	duration time.Duration
 }
 
 type damageFloaterKind int
@@ -45,6 +46,7 @@ const (
 	damageFloaterRecoveryHP
 	damageFloaterRecoverySP
 	damageFloaterMiss
+	damageFloaterCombo
 )
 
 func actionAnimationDuration(action res.ACTAction, fallback time.Duration) time.Duration {
@@ -497,7 +499,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	} else if isLocalActor(ctx, action.TargetID) {
 		x, y = ctx.World.Player.X, ctx.World.Player.Y
 	}
-	m.addActionDamageFloaters(action, targetLocal, sourceLocal, x, y, hitAt)
+	m.addActionDamageFloaters(action, target, targetOK, targetLocal, sourceLocal, x, y, hitAt)
 	if sourceLocal {
 		m.maybeSendPetHuntingTalk(ctx, now)
 	}
@@ -641,45 +643,120 @@ func actionVisualHitCount(action network.ActorActionNotify) int {
 	return maxInt(1, int(action.HitCount))
 }
 
-func (m *WorldMode) addActionDamageFloaters(action network.ActorActionNotify, targetLocal, sourceLocal bool, x, y int, hitAt time.Time) {
+func (m *WorldMode) addActionDamageFloaters(action network.ActorActionNotify, target world.Actor, targetOK, targetLocal, sourceLocal bool, x, y int, hitAt time.Time) {
 	text, kind, floaterColor := actionDamageFloater(action, targetLocal, sourceLocal)
 	if text == "" {
 		return
 	}
 	count := actionVisualHitCount(action)
-	if count <= 1 || action.Damage+action.LeftDamage <= 0 || kind == damageFloaterCritical {
-		m.damageFloaters = append(m.damageFloaters, damageFloater{
-			actorID: action.TargetID,
-			x:       x,
-			y:       y,
-			text:    text,
-			color:   floaterColor,
-			kind:    kind,
-			starts:  hitAt,
-			expires: hitAt.Add(damageFloaterDuration(kind)),
-		})
+	total := action.Damage + action.LeftDamage
+	if count <= 1 || total <= 0 {
+		m.addDamageFloater(action.TargetID, x, y, text, floaterColor, kind, hitAt)
 		return
 	}
+	values := actionDamageFloaterValues(action, count)
+	combo := actionShowsComboDamageFloaters(action, target, targetOK, targetLocal)
+	for i := 0; i < count; i++ {
+		starts := hitAt.Add(multiHitDelay * time.Duration(i))
+		m.addDamageFloater(action.TargetID, x, y, strconv.Itoa(values[i]), floaterColor, kind, starts)
+		if combo {
+			m.addComboDamageFloater(action.TargetID, x, y, actionComboDamageFloaterValue(action, count, i), starts, i+1 == count)
+		}
+	}
+}
+
+func (m *WorldMode) addDamageFloater(actorID uint32, x, y int, text string, floaterColor color.RGBA, kind damageFloaterKind, starts time.Time) {
+	duration := damageFloaterDuration(kind)
+	m.addDamageFloaterWithTiming(actorID, x, y, text, floaterColor, kind, starts, duration, duration)
+}
+
+func (m *WorldMode) addComboDamageFloater(actorID uint32, x, y int, value int, starts time.Time, final bool) {
+	if value <= 0 {
+		return
+	}
+	visible := damageFloaterComboTransientDuration()
+	if final {
+		visible = damageFloaterDuration(damageFloaterCombo)
+	}
+	m.addDamageFloaterWithTiming(actorID, x, y, strconv.Itoa(value), damageFloaterYellow, damageFloaterCombo, starts, visible, damageFloaterDuration(damageFloaterCombo))
+}
+
+func (m *WorldMode) addDamageFloaterWithTiming(actorID uint32, x, y int, text string, floaterColor color.RGBA, kind damageFloaterKind, starts time.Time, visible, duration time.Duration) {
+	if visible <= 0 {
+		visible = damageFloaterDuration(kind)
+	}
+	if duration <= 0 {
+		duration = visible
+	}
+	m.damageFloaters = append(m.damageFloaters, damageFloater{
+		actorID:  actorID,
+		x:        x,
+		y:        y,
+		text:     text,
+		color:    floaterColor,
+		kind:     kind,
+		starts:   starts,
+		expires:  starts.Add(visible),
+		duration: duration,
+	})
+}
+
+func actionDamageFloaterValues(action network.ActorActionNotify, count int) []int {
+	values := make([]int, count)
+	if count <= 0 {
+		return values
+	}
 	total := int(action.Damage + action.LeftDamage)
+	if action.SkillID != 0 && action.Damage > 0 {
+		value := int(math.Floor(float64(action.Damage) / float64(count)))
+		for i := range values {
+			values[i] = value
+		}
+		return values
+	}
 	base := total / count
 	rem := total % count
-	for i := 0; i < count; i++ {
-		value := base
+	for i := range values {
+		values[i] = base
 		if i < rem {
-			value++
+			values[i]++
 		}
-		starts := hitAt.Add(multiHitDelay * time.Duration(i))
-		m.damageFloaters = append(m.damageFloaters, damageFloater{
-			actorID: action.TargetID,
-			x:       x,
-			y:       y,
-			text:    strconv.Itoa(value),
-			color:   floaterColor,
-			kind:    kind,
-			starts:  starts,
-			expires: starts.Add(damageFloaterDuration(kind)),
-		})
 	}
+	return values
+}
+
+func actionComboDamageFloaterValue(action network.ActorActionNotify, count, index int) int {
+	if action.SkillID != 0 && action.Damage > 0 && count > 0 {
+		return int(math.Floor((float64(action.Damage) / float64(count)) * float64(index+1)))
+	}
+	values := actionDamageFloaterValues(action, count)
+	total := 0
+	for i := 0; i <= index && i < len(values); i++ {
+		total += values[i]
+	}
+	return total
+}
+
+func actionShowsComboDamageFloaters(action network.ActorActionNotify, target world.Actor, targetOK, targetLocal bool) bool {
+	if !targetOK || targetLocal || action.Damage <= 0 || actionVisualHitCount(action) <= 1 {
+		return false
+	}
+	if action.SkillID != 0 {
+		return !actorIsPlayerObject(target)
+	}
+	switch action.Action {
+	case 8, 9, 13:
+		return actorHasMobObjectType(target)
+	default:
+		return false
+	}
+}
+
+func actorIsPlayerObject(actor world.Actor) bool {
+	if actor.HasObjectType {
+		return actor.ObjectType == actorObjectTypePC
+	}
+	return res.HasPlayerJobToken(int(actor.Job))
 }
 
 func (m *WorldMode) applyActorPickupActionNotify(ctx client.Context, action network.ActorActionNotify, now time.Time) {
@@ -1207,14 +1284,15 @@ func (m *WorldMode) addLocalRecoveryFloater(ctx client.Context, amount int, floa
 		}
 	}
 	m.damageFloaters = append(m.damageFloaters, damageFloater{
-		actorID: actorID,
-		x:       ctx.World.Player.X,
-		y:       ctx.World.Player.Y,
-		text:    fmt.Sprintf("%d", amount),
-		color:   floaterColor,
-		kind:    kind,
-		starts:  now,
-		expires: now.Add(damageFloaterDuration(kind)),
+		actorID:  actorID,
+		x:        ctx.World.Player.X,
+		y:        ctx.World.Player.Y,
+		text:     fmt.Sprintf("%d", amount),
+		color:    floaterColor,
+		kind:     kind,
+		starts:   now,
+		expires:  now.Add(damageFloaterDuration(kind)),
+		duration: damageFloaterDuration(kind),
 	})
 }
 
@@ -1242,9 +1320,19 @@ func damageFloaterDuration(kind damageFloaterKind) time.Duration {
 	switch kind {
 	case damageFloaterMiss:
 		return 800 * time.Millisecond
+	case damageFloaterCombo:
+		return 3000 * time.Millisecond
 	default:
 		return 1500 * time.Millisecond
 	}
+}
+
+func damageFloaterComboTransientDuration() time.Duration {
+	const robrowserComboTransient = 450 * time.Millisecond
+	if multiHitDelay < robrowserComboTransient {
+		return multiHitDelay
+	}
+	return robrowserComboTransient
 }
 
 func currentNormalAttackRange(ctx client.Context) int {
