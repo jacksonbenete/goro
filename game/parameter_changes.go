@@ -107,7 +107,9 @@ func (m *WorldMode) applyParameterChange(ctx client.Context, change network.Para
 		network.StatusJobLevel:  previousJobLevel,
 	}
 	if visual, ok := statusVisualEffects[change.VarID]; ok {
-		visual.applyParameterChange(ctx, m, previousValues[change.VarID])
+		if !visual.recovery {
+			visual.applyParameterChange(ctx, m, previousValues[change.VarID])
+		}
 	}
 }
 
