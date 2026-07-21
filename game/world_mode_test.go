@@ -9102,9 +9102,21 @@ func TestSTRAnimationAttachedEntityUsesActorAnchor(t *testing.T) {
 	}
 }
 
+func TestSTRAnimationLocalOffsetFlipsYBeforeRotationLikeRobrowser(t *testing.T) {
+	anim := res.STRAnimation{
+		Pos:   [2]float32{330, 340},
+		Angle: 90,
+	}
+	gotX, gotY := strAnimationLocalOffset(anim, 10, 20, true)
+	wantX, wantY := -10.0/35.0, -30.0/35.0
+	if math.Abs(gotX-wantX) > 0.0001 || math.Abs(gotY-wantY) > 0.0001 {
+		t.Fatalf("STR local offset = %.4f %.4f, want %.4f %.4f", gotX, gotY, wantX, wantY)
+	}
+}
+
 func TestSTRAnimationBlendMatchesRobrowserD3DBlend(t *testing.T) {
-	if got := strAnimationBlend(res.STRAnimation{SrcAlpha: 5, DestAlpha: 7}); got != render.BlendLighter {
-		t.Fatalf("SRC_ALPHA/DST_ALPHA blend = %v, want BlendLighter", got)
+	if got := strAnimationBlend(res.STRAnimation{SrcAlpha: 5, DestAlpha: 7}); got != render.BlendSrcAlphaDstAlpha {
+		t.Fatalf("SRC_ALPHA/DST_ALPHA blend = %v, want BlendSrcAlphaDstAlpha", got)
 	}
 	if got := strAnimationBlend(res.STRAnimation{SrcAlpha: 5, DestAlpha: 2}); got != render.BlendLighter {
 		t.Fatalf("SRC_ALPHA/ONE blend = %v, want BlendLighter", got)

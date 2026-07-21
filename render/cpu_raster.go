@@ -86,6 +86,14 @@ func (i *Image) blendPixel(x, y int, src color.RGBA, blend Blend) {
 		i.pix.Pix[off+3] = addByte(i.pix.Pix[off+3], src.A)
 		return
 	}
+	if blend == BlendSrcAlphaDstAlpha {
+		dstA := i.pix.Pix[off+3]
+		i.pix.Pix[off] = srcAlphaDstAlphaByte(src.R, src.A, i.pix.Pix[off], dstA)
+		i.pix.Pix[off+1] = srcAlphaDstAlphaByte(src.G, src.A, i.pix.Pix[off+1], dstA)
+		i.pix.Pix[off+2] = srcAlphaDstAlphaByte(src.B, src.A, i.pix.Pix[off+2], dstA)
+		i.pix.Pix[off+3] = srcAlphaDstAlphaByte(src.A, src.A, dstA, dstA)
+		return
+	}
 	a := uint32(src.A)
 	ia := uint32(255 - src.A)
 	i.pix.Pix[off] = byte((uint32(src.R)*a + uint32(i.pix.Pix[off])*ia) / 255)
@@ -141,6 +149,14 @@ func addByte(a, b uint8) uint8 {
 
 func alphaByte(c, a uint8) uint8 {
 	return uint8((uint32(c)*uint32(a) + 127) / 255)
+}
+
+func srcAlphaDstAlphaByte(src, srcA, dst, dstA uint8) uint8 {
+	out := (uint32(src)*uint32(srcA) + uint32(dst)*uint32(dstA) + 127) / 255
+	if out > 255 {
+		return 255
+	}
+	return uint8(out)
 }
 
 func lerpByteF(a, b uint8, t float64) float64 {

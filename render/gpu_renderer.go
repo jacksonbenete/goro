@@ -35,12 +35,16 @@ type gpuRenderer struct {
 	worldLayout      *wgpu.PipelineLayout
 	pipelineAlpha    *wgpu.RenderPipeline
 	pipelineAdd      *wgpu.RenderPipeline
+	pipelineSrcDst   *wgpu.RenderPipeline
 	worldAlphaWrite  *wgpu.RenderPipeline
 	worldAddWrite    *wgpu.RenderPipeline
+	worldSrcDstWrite *wgpu.RenderPipeline
 	worldAlphaRead   *wgpu.RenderPipeline
 	worldAddRead     *wgpu.RenderPipeline
+	worldSrcDstRead  *wgpu.RenderPipeline
 	billboardAlpha   *wgpu.RenderPipeline
 	billboardAdd     *wgpu.RenderPipeline
+	billboardSrcDst  *wgpu.RenderPipeline
 	uniform          *wgpu.Buffer
 	worldUniform     *wgpu.Buffer
 	samplers         map[samplerKey]*wgpu.Sampler
@@ -255,11 +259,23 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 	if err != nil {
 		return err
 	}
+	srcDst := gputypes.BlendState{
+		Color: gputypes.BlendComponent{SrcFactor: gputypes.BlendFactorSrcAlpha, DstFactor: gputypes.BlendFactorDstAlpha, Operation: gputypes.BlendOperationAdd},
+		Alpha: gputypes.BlendComponent{SrcFactor: gputypes.BlendFactorSrcAlpha, DstFactor: gputypes.BlendFactorDstAlpha, Operation: gputypes.BlendOperationAdd},
+	}
+	r.pipelineSrcDst, err = r.createPipeline(shader, srcDst, "goro-screen-pipeline-src-alpha-dst-alpha")
+	if err != nil {
+		return err
+	}
 	r.worldAlphaWrite, err = r.createWorldPipeline(worldShader, gputypes.BlendStateAlpha(), true, "goro-world-pipeline-alpha-write")
 	if err != nil {
 		return err
 	}
 	r.worldAddWrite, err = r.createWorldPipeline(worldShader, add, true, "goro-world-pipeline-add-write")
+	if err != nil {
+		return err
+	}
+	r.worldSrcDstWrite, err = r.createWorldPipeline(worldShader, srcDst, true, "goro-world-pipeline-src-alpha-dst-alpha-write")
 	if err != nil {
 		return err
 	}
@@ -271,11 +287,19 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 	if err != nil {
 		return err
 	}
+	r.worldSrcDstRead, err = r.createWorldPipeline(worldShader, srcDst, false, "goro-world-pipeline-src-alpha-dst-alpha-read")
+	if err != nil {
+		return err
+	}
 	r.billboardAlpha, err = r.createWorldBillboardPipeline(billboardShader, gputypes.BlendStateAlpha(), "goro-world-billboard-alpha")
 	if err != nil {
 		return err
 	}
 	r.billboardAdd, err = r.createWorldBillboardPipeline(billboardShader, add, "goro-world-billboard-add")
+	if err != nil {
+		return err
+	}
+	r.billboardSrcDst, err = r.createWorldBillboardPipeline(billboardShader, srcDst, "goro-world-billboard-src-alpha-dst-alpha")
 	if err != nil {
 		return err
 	}
@@ -858,6 +882,8 @@ func (r *gpuRenderer) drawWorldBillboard(ctx *gogpu.Context, pass *wgpu.RenderPa
 	}
 	if cmd.Options.Blend == BlendLighter {
 		pass.SetPipeline(r.billboardAdd)
+	} else if cmd.Options.Blend == BlendSrcAlphaDstAlpha {
+		pass.SetPipeline(r.billboardSrcDst)
 	} else {
 		pass.SetPipeline(r.billboardAlpha)
 	}
@@ -1020,6 +1046,9 @@ func (r *gpuRenderer) pipeline(blend Blend) *wgpu.RenderPipeline {
 	if blend == BlendLighter {
 		return r.pipelineAdd
 	}
+	if blend == BlendSrcAlphaDstAlpha {
+		return r.pipelineSrcDst
+	}
 	return r.pipelineAlpha
 }
 
@@ -1029,6 +1058,12 @@ func (r *gpuRenderer) worldPipelineFor(blend Blend, depthWrite bool) *wgpu.Rende
 			return r.worldAddWrite
 		}
 		return r.worldAddRead
+	}
+	if blend == BlendSrcAlphaDstAlpha {
+		if depthWrite {
+			return r.worldSrcDstWrite
+		}
+		return r.worldSrcDstRead
 	}
 	if depthWrite {
 		return r.worldAlphaWrite
@@ -1135,17 +1170,35 @@ func (r *gpuRenderer) release() {
 	if r.pipelineAdd != nil {
 		r.pipelineAdd.Release()
 	}
+	if r.pipelineSrcDst != nil {
+		r.pipelineSrcDst.Release()
+	}
 	if r.worldAlphaWrite != nil {
 		r.worldAlphaWrite.Release()
 	}
 	if r.worldAddWrite != nil {
 		r.worldAddWrite.Release()
 	}
+	if r.worldSrcDstWrite != nil {
+		r.worldSrcDstWrite.Release()
+	}
 	if r.worldAlphaRead != nil {
 		r.worldAlphaRead.Release()
 	}
 	if r.worldAddRead != nil {
 		r.worldAddRead.Release()
+	}
+	if r.worldSrcDstRead != nil {
+		r.worldSrcDstRead.Release()
+	}
+	if r.billboardAlpha != nil {
+		r.billboardAlpha.Release()
+	}
+	if r.billboardAdd != nil {
+		r.billboardAdd.Release()
+	}
+	if r.billboardSrcDst != nil {
+		r.billboardSrcDst.Release()
 	}
 	if r.layout != nil {
 		r.layout.Release()

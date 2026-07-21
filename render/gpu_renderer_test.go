@@ -170,6 +170,18 @@ func TestBlendLighterWeightsSourceByAlpha(t *testing.T) {
 	}
 }
 
+func TestBlendSrcAlphaDstAlphaUsesBothAlphaFactors(t *testing.T) {
+	dst := NewImage(1, 1)
+	dst.Fill(color.RGBA{R: 10, G: 20, B: 30, A: 40})
+	dst.blendPixel(0, 0, color.RGBA{R: 100, G: 80, B: 60, A: 128}, BlendSrcAlphaDstAlpha)
+
+	got := dst.RGBA().RGBAAt(0, 0)
+	want := color.RGBA{R: 52, G: 43, B: 35, A: 71}
+	if got != want {
+		t.Fatalf("SRC_ALPHA/DST_ALPHA blend = %+v, want %+v", got, want)
+	}
+}
+
 func TestWorldUniformBytesPacksMatrixAndFog(t *testing.T) {
 	camera := Camera3D{
 		Enabled: true,

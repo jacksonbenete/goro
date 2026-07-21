@@ -250,30 +250,33 @@ func drawSTRAnimation(screen *render.Frame, projection sceneProjection, texture 
 	if !ok {
 		return
 	}
-	const pixelRatio = 1.0 / 35.0
-	offsetX, offsetY := strAnimationOffset(anim, attached)
 	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	angle := -float64(anim.Angle) * math.Pi / 180
-	sinA, cosA := math.Sin(angle), math.Cos(angle)
-	vertexPoint := func(ix, iy int) modelPoint3 {
-		x := float64(anim.XY[ix])
-		y := float64(anim.XY[iy])
-		rotX := x*cosA - y*sinA
-		rotY := x*sinA + y*cosA
-		dx := rotX*pixelRatio + offsetX
-		dy := -rotY*pixelRatio + offsetY
+	vertexPoint := func(x, y float32) modelPoint3 {
+		dx, dy := strAnimationLocalOffset(anim, x, y, attached)
 		return add3(add3(center, mul3(right, dx)), mul3(up, dy))
 	}
 	tint := strAnimationTint(anim)
 	bounds := texture.Bounds()
 	w, h := float32(bounds.Dx()), float32(bounds.Dy())
 	vertices := []render.Vertex3D{
-		strAnimationVertex3D(vertexPoint(0, 4), texturePoint{u: 0, v: 0}, tint, w, h, center),
-		strAnimationVertex3D(vertexPoint(1, 5), texturePoint{u: 1, v: 0}, tint, w, h, center),
-		strAnimationVertex3D(vertexPoint(3, 7), texturePoint{u: 0, v: 1}, tint, w, h, center),
-		strAnimationVertex3D(vertexPoint(2, 6), texturePoint{u: 1, v: 1}, tint, w, h, center),
+		strAnimationVertex3D(vertexPoint(anim.XY[0], anim.XY[4]), texturePoint{u: 0, v: 0}, tint, w, h, center),
+		strAnimationVertex3D(vertexPoint(anim.XY[1], anim.XY[5]), texturePoint{u: 1, v: 0}, tint, w, h, center),
+		strAnimationVertex3D(vertexPoint(anim.XY[3], anim.XY[7]), texturePoint{u: 0, v: 1}, tint, w, h, center),
+		strAnimationVertex3D(vertexPoint(anim.XY[2], anim.XY[6]), texturePoint{u: 1, v: 1}, tint, w, h, center),
 	}
 	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, strAnimationDrawOptions(anim))
+}
+
+func strAnimationLocalOffset(anim res.STRAnimation, x, y float32, attached bool) (float64, float64) {
+	const pixelRatio = 1.0 / 35.0
+	angle := -float64(anim.Angle) * math.Pi / 180
+	sinA, cosA := math.Sin(angle), math.Cos(angle)
+	localX := float64(x) * pixelRatio
+	localY := -float64(y) * pixelRatio
+	rotX := localX*cosA - localY*sinA
+	rotY := localX*sinA + localY*cosA
+	offsetX, offsetY := strAnimationOffset(anim, attached)
+	return rotX + offsetX, rotY + offsetY
 }
 
 func strAnimationVertex3D(point modelPoint3, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32, depthPoint modelPoint3) render.Vertex3D {
@@ -298,10 +301,10 @@ func strAnimationDrawOptions(anim res.STRAnimation) *render.DrawTrianglesOptions
 
 func strAnimationBlend(anim res.STRAnimation) render.Blend {
 	// reference client applies the Direct3D blend factors stored in each STR layer.
-	// D3DBLEND_SRCALPHA + D3DBLEND_DESTALPHA is used by bright fog-like
-	// effects such as Pneuma; on our opaque world target it matches src-alpha
-	// additive blending.
-	if anim.SrcAlpha == 5 && (anim.DestAlpha == 2 || anim.DestAlpha == 7) {
+	if anim.SrcAlpha == 5 && anim.DestAlpha == 7 {
+		return render.BlendSrcAlphaDstAlpha
+	}
+	if anim.SrcAlpha == 5 && anim.DestAlpha == 2 {
 		return render.BlendLighter
 	}
 	if anim.DestAlpha == 2 {

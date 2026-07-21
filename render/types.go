@@ -23,6 +23,7 @@ type Blend int
 const (
 	BlendSourceOver Blend = iota
 	BlendLighter
+	BlendSrcAlphaDstAlpha
 )
 
 type Vertex struct {
