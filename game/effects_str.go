@@ -13,6 +13,8 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
+const strEffectDepthBias = 0.02
+
 func (m *WorldMode) drawSTREffect(screen *render.Frame, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, now time.Time) bool {
 	str := m.loadWorldEffectSTR(ctx.Resources, resolveEffectSTRFile(component, effect, lessEffectsEnabled(ctx)), component.texturePath)
 	if str == nil {
@@ -266,17 +268,28 @@ func drawSTRAnimation(screen *render.Frame, projection sceneProjection, texture 
 	bounds := texture.Bounds()
 	w, h := float32(bounds.Dx()), float32(bounds.Dy())
 	vertices := []render.Vertex3D{
-		texturedSurfaceVertex3D(vertexPoint(0, 4), texturePoint{u: 0, v: 0}, tint, w, h),
-		texturedSurfaceVertex3D(vertexPoint(1, 5), texturePoint{u: 1, v: 0}, tint, w, h),
-		texturedSurfaceVertex3D(vertexPoint(3, 7), texturePoint{u: 0, v: 1}, tint, w, h),
-		texturedSurfaceVertex3D(vertexPoint(2, 6), texturePoint{u: 1, v: 1}, tint, w, h),
+		strAnimationVertex3D(vertexPoint(0, 4), texturePoint{u: 0, v: 0}, tint, w, h, center),
+		strAnimationVertex3D(vertexPoint(1, 5), texturePoint{u: 1, v: 0}, tint, w, h, center),
+		strAnimationVertex3D(vertexPoint(3, 7), texturePoint{u: 0, v: 1}, tint, w, h, center),
+		strAnimationVertex3D(vertexPoint(2, 6), texturePoint{u: 1, v: 1}, tint, w, h, center),
 	}
 	screen.DrawTriangles3DOwned(vertices, quadIndices012213, texture, strAnimationDrawOptions(anim))
+}
+
+func strAnimationVertex3D(point modelPoint3, uv texturePoint, tint color.RGBA, textureWidth, textureHeight float32, depthPoint modelPoint3) render.Vertex3D {
+	vertex := texturedSurfaceVertex3D(point, uv, tint, textureWidth, textureHeight)
+	vertex.DepthX = float32(depthPoint.x)
+	vertex.DepthY = float32(depthPoint.y)
+	vertex.DepthZ = float32(depthPoint.z)
+	return vertex
 }
 
 func strAnimationDrawOptions(anim res.STRAnimation) *render.DrawTrianglesOptions {
 	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
 	options.Blend = strAnimationBlend(anim)
+	// robr's STR shader keeps the quad on the camera plane and subtracts
+	// clip-space Z, so tall effects do not sink behind the floor at the bottom.
+	options.DepthBias = strEffectDepthBias
 	// robr's StrEffect shader has uFogUse, but StrEffect.beforeRender never sets
 	// it; WebGL initializes uniforms to false, so STR effects render unfogged.
 	options.DisableFog = true

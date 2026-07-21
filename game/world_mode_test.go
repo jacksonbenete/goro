@@ -8935,6 +8935,29 @@ func TestSTRAnimationDrawOptionsDisableFogToMatchRobrowser(t *testing.T) {
 	}
 }
 
+func TestSTRAnimationDrawOptionsUseDepthBiasToMatchRobrowser(t *testing.T) {
+	options := strAnimationDrawOptions(res.STRAnimation{SrcAlpha: 5, DestAlpha: 6})
+	if options.DepthBias <= 0 {
+		t.Fatalf("STR depth bias = %.3f, want positive robr-style camera bias", options.DepthBias)
+	}
+}
+
+func TestSTRAnimationVertexUsesCenterDepthToMatchRobrowser(t *testing.T) {
+	point := modelPoint3{x: 1, y: 2, z: 3}
+	depthPoint := modelPoint3{x: 4, y: 5, z: 6}
+	vertex := strAnimationVertex3D(point, texturePoint{u: 0.25, v: 0.5}, color.RGBA{R: 51, G: 102, B: 153, A: 204}, 80, 40, depthPoint)
+
+	if vertex.X != 1 || vertex.Y != 2 || vertex.Z != 3 {
+		t.Fatalf("vertex position = %.1f %.1f %.1f, want rendered point", vertex.X, vertex.Y, vertex.Z)
+	}
+	if vertex.DepthX != 4 || vertex.DepthY != 5 || vertex.DepthZ != 6 {
+		t.Fatalf("vertex depth = %.1f %.1f %.1f, want STR center depth", vertex.DepthX, vertex.DepthY, vertex.DepthZ)
+	}
+	if vertex.SrcX != 20 || vertex.SrcY != 20 {
+		t.Fatalf("vertex uv = %.1f %.1f, want texture pixel coords", vertex.SrcX, vertex.SrcY)
+	}
+}
+
 func TestLevelUpEffectSpecsUseSTRResources(t *testing.T) {
 	base, ok := worldEffectSpecForID(effectBaseLevelUp)
 	if !ok {
