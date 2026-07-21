@@ -12,7 +12,7 @@ func TestCharacterSelectPage(t *testing.T) {
 	}
 }
 
-func TestCharacterSelectDeleteDisabledForEmptySlot(t *testing.T) {
+func TestCharacterSelectFooterButtonStateForSelectedSlot(t *testing.T) {
 	opts := CharacterSelectWindowOptions{
 		SelectedSlot: 1,
 		Characters: []session.Character{
@@ -22,10 +22,16 @@ func TestCharacterSelectDeleteDisabledForEmptySlot(t *testing.T) {
 	if characterSelectDeleteDisabled(opts) {
 		t.Fatal("delete disabled for occupied slot")
 	}
+	if !characterSelectMakeDisabled(opts) {
+		t.Fatal("make enabled for occupied slot")
+	}
 
 	opts.SelectedSlot = 2
 	if !characterSelectDeleteDisabled(opts) {
 		t.Fatal("delete enabled for empty slot")
+	}
+	if characterSelectMakeDisabled(opts) {
+		t.Fatal("make disabled for empty slot")
 	}
 }
 

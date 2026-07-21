@@ -34,7 +34,7 @@ func (m *LoginMode) updateCharacterSelectInput(ctx client.Context) {
 			m.moveSelectedSlot(1)
 		}
 		if ctx.Input.JustPressed(input.KeyEnter) {
-			m.submitSelectedCharacter(ctx)
+			m.activateCharacterSelectSlot(ctx, m.selectedSlot, time.Now())
 		}
 	}
 	m.showCharacterSelectWindow(ctx)
@@ -58,11 +58,7 @@ func (m *LoginMode) updateCharacterSelectWindow(ctx client.Context) {
 			m.selectedSlot = clampCharacterSlot(slot, m.maxSlots)
 		},
 		OnActivateSlot: func(slot int) {
-			if _, ok := characterBySlot(ctx.Session.Characters, slot); ok {
-				m.submitSelectedCharacter(ctx)
-			} else {
-				m.openCharacterCreate(ctx, slot, time.Now())
-			}
+			m.activateCharacterSelectSlot(ctx, slot, time.Now())
 		},
 		OnPreviousPage: func() {
 			m.moveSelectedSlot(-3)
@@ -73,9 +69,8 @@ func (m *LoginMode) updateCharacterSelectWindow(ctx client.Context) {
 		OnMake: func() {
 			slot := m.selectedSlot
 			if _, ok := characterBySlot(ctx.Session.Characters, slot); ok {
-				if empty, hasEmpty := firstEmptyCharacterSlot(ctx.Session.Characters, m.maxSlots); hasEmpty {
-					slot = empty
-				}
+				m.status = "character slot occupied"
+				return
 			}
 			m.openCharacterCreate(ctx, slot, time.Now())
 		},
@@ -94,6 +89,15 @@ func (m *LoginMode) updateCharacterSelectWindow(ctx client.Context) {
 		return
 	}
 	m.charSelectWindow.SetOptions(ctx, opts)
+}
+
+func (m *LoginMode) activateCharacterSelectSlot(ctx client.Context, slot int, now time.Time) {
+	m.selectedSlot = clampCharacterSlot(slot, m.maxSlots)
+	if _, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot); ok {
+		m.submitSelectedCharacter(ctx)
+		return
+	}
+	m.openCharacterCreate(ctx, m.selectedSlot, now)
 }
 
 func (m *LoginMode) characterSelectPreviewImages(ctx client.Context, opts gameui.CharacterSelectWindowOptions) map[int]image.Image {

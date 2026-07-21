@@ -108,6 +108,7 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 	pageStart := page * 3
 	selected, hasSelection := characterBySlot(w.opts.Characters, w.opts.SelectedSlot)
 	deleteDisabled := characterSelectDeleteDisabled(w.opts)
+	makeDisabled := characterSelectMakeDisabled(w.opts)
 	return Win(
 		Title("Select Character"),
 		CloseButton(false),
@@ -145,7 +146,7 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 				}
 			}),
 			primitives.Expanded(primitives.Box()),
-			rotheme.Button("Make", func() {
+			rotheme.ButtonDisabled("Make", makeDisabled, func() {
 				if w.callbacks.OnMake != nil {
 					w.callbacks.OnMake()
 				}
@@ -319,6 +320,11 @@ func CharacterSelectPage(slot int) int {
 func characterSelectDeleteDisabled(opts CharacterSelectWindowOptions) bool {
 	_, hasSelection := characterBySlot(opts.Characters, opts.SelectedSlot)
 	return !hasSelection
+}
+
+func characterSelectMakeDisabled(opts CharacterSelectWindowOptions) bool {
+	_, hasSelection := characterBySlot(opts.Characters, opts.SelectedSlot)
+	return hasSelection
 }
 
 func characterSelectWindowRect(ctx client.Context) (int, int, int, int) {

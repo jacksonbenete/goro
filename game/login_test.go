@@ -113,6 +113,61 @@ func TestAutoSelectCharacterRequiresAutologin(t *testing.T) {
 	}
 }
 
+func TestCharacterSelectEnterOnEmptySlotOpensCreate(t *testing.T) {
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCharacter
+	mode.selectedSlot = 2
+	mode.maxSlots = 9
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyEnter, true)
+	ctx := client.Context{
+		Input:     inputState,
+		Resources: &res.Manager{},
+		Session:   &session.Session{},
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+
+	mode.updateCharacterSelectInput(ctx)
+
+	if mode.create.slot != 2 {
+		t.Fatalf("create slot = %d, want 2", mode.create.slot)
+	}
+	if mode.fade.phase != loginFadeOut || !mode.fade.hasTarget || mode.fade.target != loginPhaseCreate {
+		t.Fatalf("fade = %+v, want fade to character create", mode.fade)
+	}
+	if mode.status != "create a character" {
+		t.Fatalf("status = %q, want create a character", mode.status)
+	}
+}
+
+func TestCharacterSelectEnterOnOccupiedSlotSubmits(t *testing.T) {
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCharacter
+	mode.selectedSlot = 1
+	mode.maxSlots = 9
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyEnter, true)
+	ctx := client.Context{
+		Input:     inputState,
+		Resources: &res.Manager{},
+		Session: &session.Session{Characters: []session.Character{
+			{Slot: 1, Name: "Alice"},
+		}},
+		ScreenW: 1280,
+		ScreenH: 720,
+	}
+
+	mode.updateCharacterSelectInput(ctx)
+
+	if mode.fade.phase != loginFadeNone {
+		t.Fatalf("fade = %+v, want no create transition", mode.fade)
+	}
+	if mode.status != "select character failed: not connected" {
+		t.Fatalf("status = %q, want submit path", mode.status)
+	}
+}
+
 func TestLoginModeSendsCharServerPingAfterInterval(t *testing.T) {
 	ln, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
