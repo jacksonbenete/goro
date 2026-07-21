@@ -73,6 +73,7 @@ type Actor struct {
 	BodyState      uint16
 	HealthState    uint16
 	EffectState    uint32
+	Opt3State      uint32
 	HasState       bool
 	HasCart        bool
 	CartNum        int
@@ -163,6 +164,7 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.BodyState = existing.BodyState
 			actor.HealthState = existing.HealthState
 			actor.EffectState = existing.EffectState
+			actor.Opt3State = existing.Opt3State
 			actor.HasState = existing.HasState
 		}
 		if !actor.HasCartState {

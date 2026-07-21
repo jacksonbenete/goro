@@ -17,7 +17,7 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	if m.applyPushCartStatus(ctx, change) {
 		return
 	}
-	m.applyActorEffectStateStatus(ctx, change)
+	m.applyActorOpt3StateStatus(ctx, change)
 	m.applyTrickDeadStatus(ctx, change)
 	localID := localSkillTarget(ctx)
 	if change.ActorID != 0 && localID != 0 && change.ActorID != localID && change.ActorID != ctx.Session.CharID {
@@ -46,8 +46,8 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	glog.Debugf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
 }
 
-func (m *WorldMode) applyActorEffectStateStatus(ctx client.Context, change network.StatusEffectChange) {
-	bit, ok := actorEffectStateBitForStatus(change.StatusID)
+func (m *WorldMode) applyActorOpt3StateStatus(ctx client.Context, change network.StatusEffectChange) {
+	bit, ok := actorOpt3StateBitForStatus(change.StatusID)
 	if !ok || ctx.World == nil {
 		return
 	}
@@ -62,23 +62,21 @@ func (m *WorldMode) applyActorEffectStateStatus(ctx client.Context, change netwo
 	if !ok {
 		return
 	}
-	oldState := actor.EffectState
 	if change.Active {
-		actor.EffectState |= bit
+		actor.Opt3State |= bit
 	} else {
-		actor.EffectState &^= bit
+		actor.Opt3State &^= bit
 	}
 	actor.HasState = true
-	m.applyActorEffectStateEffects(ctx, id, oldState, actor.EffectState)
 	if local {
-		ctx.World.Player.EffectState = actor.EffectState
+		ctx.World.Player.Opt3State = actor.Opt3State
 		ctx.World.Player.HasState = true
 		return
 	}
 	upsertActor(ctx, actor)
 }
 
-func actorEffectStateBitForStatus(statusID uint16) (uint32, bool) {
+func actorOpt3StateBitForStatus(statusID uint16) (uint32, bool) {
 	bit, ok := db.StatusOpt3State[statusID]
 	if !ok {
 		return 0, false

@@ -130,12 +130,22 @@ func actorStateTint(actor worldstate.Actor) color.RGBA {
 		g *= 0.2
 		b *= 0.2
 	}
-	if actor.EffectState&db.Opt3Energycoat != 0 {
-		r *= 0.5
-		g *= 0.5
-		b *= 0.85
-	}
+	vr, vg, vb := actorOpt3StateTint(actor.Opt3State)
+	r *= vr
+	g *= vg
+	b *= vb
 	return color.RGBA{R: byte(clampUnit(r) * 255), G: byte(clampUnit(g) * 255), B: byte(clampUnit(b) * 255), A: 255}
+}
+
+func actorOpt3StateTint(opt3State uint32) (float64, float64, float64) {
+	r, g, b := 1.0, 1.0, 1.0
+	if opt3State&db.Opt3Quicken != 0 {
+		b = 0
+	}
+	if opt3State&db.Opt3Energycoat != 0 || opt3State&db.Opt3Bunsin != 0 {
+		r, g, b = 0.5, 0.5, 0.85
+	}
+	return r, g, b
 }
 
 func (m *WorldMode) actorRenderTint(actor worldstate.Actor, now time.Time) color.RGBA {

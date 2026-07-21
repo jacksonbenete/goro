@@ -182,6 +182,9 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 		EffectState:   entry.EffectState,
 		HasState:      entry.HasState,
 	}
+	if existing, ok := ctx.World.Actors[entry.ID]; ok {
+		actor.Opt3State = existing.Opt3State
+	}
 	applyActorCartStateFromEffect(&actor)
 	upsertActor(ctx, actor)
 }

@@ -500,7 +500,7 @@ func TestActorStateTintMatchesReferenceBodyAndHealthTints(t *testing.T) {
 	}
 }
 
-func TestEnergyCoatStatusSetsActorEffectStateAndTint(t *testing.T) {
+func TestEnergyCoatStatusSetsActorOpt3StateAndTint(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
@@ -513,8 +513,8 @@ func TestEnergyCoatStatusSetsActorEffectStateAndTint(t *testing.T) {
 		Active:   true,
 	})
 
-	if world.Player.EffectState&db.Opt3Energycoat == 0 {
-		t.Fatalf("effect state = 0x%08X, want energy coat bit", world.Player.EffectState)
+	if world.Player.Opt3State&db.Opt3Energycoat == 0 {
+		t.Fatalf("opt3 state = 0x%08X, want energy coat bit", world.Player.Opt3State)
 	}
 	tint := actorStateTint(world.Player)
 	if tint.R != 127 || tint.G != 127 || tint.B != 216 || tint.A != 255 {
@@ -526,12 +526,63 @@ func TestEnergyCoatStatusSetsActorEffectStateAndTint(t *testing.T) {
 		ActorID:  2000000,
 		Active:   false,
 	})
-	if world.Player.EffectState&db.Opt3Energycoat != 0 {
-		t.Fatalf("effect state = 0x%08X, want energy coat cleared", world.Player.EffectState)
+	if world.Player.Opt3State&db.Opt3Energycoat != 0 {
+		t.Fatalf("opt3 state = 0x%08X, want energy coat cleared", world.Player.Opt3State)
 	}
 }
 
-func TestBerserkStatusSetsActorEffectStateFromImportedOpt3Table(t *testing.T) {
+func TestTwoHandQuickenStatusUsesOpt3WithoutSightEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusTwohandquicken,
+		ActorID:  2000000,
+		Active:   true,
+	})
+
+	if world.Player.Opt3State&db.Opt3Quicken == 0 {
+		t.Fatalf("opt3 state = 0x%08X, want quicken bit", world.Player.Opt3State)
+	}
+	if world.Player.EffectState&db.EffectStateSight != 0 {
+		t.Fatalf("effect state = 0x%08X, want no Sight bit from quicken", world.Player.EffectState)
+	}
+	if tint := actorStateTint(world.Player); tint.B != 0 {
+		t.Fatalf("quicken tint = %+v, want robr OPT3 quicken blue channel removed", tint)
+	}
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects = %+v, want no EF_SIGHT from quicken status", mode.worldEffects)
+	}
+}
+
+func TestActorEntryPreservesExistingOpt3State(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{ID: 300, X: 10, Y: 20, Job: 1, Opt3State: db.Opt3Quicken, HasState: true})
+	ctx := client.Context{World: world}
+	mode := &WorldMode{}
+
+	mode.upsertNetworkActor(ctx, network.ActorEntry{
+		ID:          300,
+		X:           11,
+		Y:           20,
+		Job:         1,
+		EffectState: db.EffectStateRuwach,
+		HasState:    true,
+	})
+
+	actor := world.Actors[300]
+	if actor.Opt3State&db.Opt3Quicken == 0 {
+		t.Fatalf("actor opt3 state = 0x%08X, want quicken preserved", actor.Opt3State)
+	}
+	if actor.EffectState != db.EffectStateRuwach {
+		t.Fatalf("actor effect state = 0x%08X, want packet effect state", actor.EffectState)
+	}
+}
+
+func TestBerserkStatusSetsActorOpt3StateFromImportedTable(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	sessionState := &session.Session{AccountID: 2000000, CharID: 150000}
@@ -544,8 +595,8 @@ func TestBerserkStatusSetsActorEffectStateFromImportedOpt3Table(t *testing.T) {
 		Active:   true,
 	})
 
-	if world.Player.EffectState&db.Opt3Berserk == 0 {
-		t.Fatalf("effect state = 0x%08X, want berserk bit", world.Player.EffectState)
+	if world.Player.Opt3State&db.Opt3Berserk == 0 {
+		t.Fatalf("opt3 state = 0x%08X, want berserk bit", world.Player.Opt3State)
 	}
 
 	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
@@ -553,19 +604,19 @@ func TestBerserkStatusSetsActorEffectStateFromImportedOpt3Table(t *testing.T) {
 		ActorID:  2000000,
 		Active:   false,
 	})
-	if world.Player.EffectState&db.Opt3Berserk != 0 {
-		t.Fatalf("effect state = 0x%08X, want berserk cleared", world.Player.EffectState)
+	if world.Player.Opt3State&db.Opt3Berserk != 0 {
+		t.Fatalf("opt3 state = 0x%08X, want berserk cleared", world.Player.Opt3State)
 	}
 }
 
-func TestCollectSceneActorEntriesPreservesLocalEnergyCoatEffectState(t *testing.T) {
+func TestCollectSceneActorEntriesPreservesLocalOpt3State(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{
-		ID:          2000000,
-		X:           10,
-		Y:           20,
-		EffectState: db.Opt3Energycoat,
-		HasState:    true,
+		ID:        2000000,
+		X:         10,
+		Y:         20,
+		Opt3State: db.Opt3Energycoat,
+		HasState:  true,
 	}
 	sessionState := &session.Session{
 		AccountID: 2000000,
@@ -581,8 +632,8 @@ func TestCollectSceneActorEntriesPreservesLocalEnergyCoatEffectState(t *testing.
 	if len(entries) == 0 {
 		t.Fatal("no actor entries collected")
 	}
-	if entries[0].actor.EffectState&db.Opt3Energycoat == 0 {
-		t.Fatalf("entry effect state = 0x%08X, want energy coat preserved", entries[0].actor.EffectState)
+	if entries[0].actor.Opt3State&db.Opt3Energycoat == 0 {
+		t.Fatalf("entry opt3 state = 0x%08X, want energy coat preserved", entries[0].actor.Opt3State)
 	}
 	if entries[0].actor.EffectState&db.EffectStateCart1 == 0 {
 		t.Fatalf("entry effect state = 0x%08X, want cart option merged", entries[0].actor.EffectState)
