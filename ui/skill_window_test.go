@@ -422,6 +422,94 @@ func TestSkillWindowShowsHighPriestUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsMonkUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobMonk},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillALDemonbane, Level: 10, Upgradable: true},
+				{ID: db.SkillALDp, Level: 10, Upgradable: true},
+				{ID: db.SkillMOIronhand, Level: 5, Upgradable: true},
+				{ID: db.SkillMOCallspirits, Level: 4, Upgradable: true},
+				{ID: db.SkillMODodge, Level: 5, Upgradable: true},
+				{ID: db.SkillMOTripleattack, Level: 5, Upgradable: true},
+				{ID: db.SkillMOChaincombo, Level: 3, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillMOIronhand,
+		db.SkillMOCallspirits,
+		db.SkillMODodge,
+		db.SkillMOTripleattack,
+		db.SkillMOBladestop,
+		db.SkillMOCombofinish,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("monk tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillMOAbsorbspirits) {
+		t.Fatal("absorb spirits should not be visible before call spirits reaches level 5")
+	}
+	if containsSkill(skills, db.SkillMOInvestigate) {
+		t.Fatal("investigate should not be visible before call spirits reaches level 5")
+	}
+	window.stageSkill(db.SkillMOCallspirits)
+	skills = window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillMOAbsorbspirits) {
+		t.Fatal("absorb spirits should be visible after staged call spirits level satisfies robr prerequisite")
+	}
+	if !containsSkill(skills, db.SkillMOInvestigate) {
+		t.Fatal("investigate should be visible after staged call spirits level satisfies robr prerequisite")
+	}
+}
+
+func TestSkillWindowShowsChampionUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobMonkH},
+		Skills: session.Skills{
+			Points: 2,
+			List: []session.Skill{
+				{ID: db.SkillMOIronhand, Level: 7, Upgradable: true},
+				{ID: db.SkillMOCallspirits, Level: 5, Upgradable: true},
+				{ID: db.SkillMOExplosionspirits, Level: 4, Upgradable: true},
+				{ID: db.SkillMOTripleattack, Level: 5, Upgradable: true},
+				{ID: db.SkillMOCombofinish, Level: 3, Upgradable: true},
+				{ID: db.SkillChTigerfist, Level: 1, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillChPalmstrike,
+		db.SkillChTigerfist,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("champion tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillChSoulcollect) {
+		t.Fatal("zen should not be visible before fury reaches level 5")
+	}
+	if containsSkill(skills, db.SkillChChaincrush) {
+		t.Fatal("chain crush combo should not be visible before tiger fist reaches level 2")
+	}
+	window.stageSkill(db.SkillMOExplosionspirits)
+	window.stageSkill(db.SkillChTigerfist)
+	skills = window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillChSoulcollect) {
+		t.Fatal("zen should be visible after staged fury level satisfies robr prerequisite")
+	}
+	if !containsSkill(skills, db.SkillChChaincrush) {
+		t.Fatal("chain crush combo should be visible after staged tiger fist level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowShowsHunterUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobHunter},

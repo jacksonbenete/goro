@@ -128,6 +128,35 @@ func TestPriestSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	}
 }
 
+func TestMonkSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
+	monk := SkillTreeSkillIDs(JobMonk)
+	for _, skillID := range []uint16{
+		SkillALHeal,
+		SkillMOIronhand,
+		SkillMOCallspirits,
+		SkillMOKitranslation,
+		SkillMOBalkyoung,
+		SkillMOBodyrelocation,
+	} {
+		if !containsSkillID(monk, skillID) {
+			t.Fatalf("monk tree = %v, missing robr skill %d", monk, skillID)
+		}
+	}
+	if containsSkillID(monk, SkillChSoulcollect) {
+		t.Fatalf("monk tree = %v, should not include champion skills", monk)
+	}
+
+	babyMonk := SkillTreeSkillIDs(JobMonkB)
+	if !containsSkillID(babyMonk, SkillMOExtremityfist) || containsSkillID(babyMonk, SkillChChaincrush) {
+		t.Fatalf("baby monk tree = %v, want monk duplicate without champion skills", babyMonk)
+	}
+
+	champion := SkillTreeSkillIDs(JobMonkH)
+	if !containsSkillID(champion, SkillALBlessing) || !containsSkillID(champion, SkillMOCombofinish) || !containsSkillID(champion, SkillChSoulcollect) || !containsSkillID(champion, SkillChChaincrush) {
+		t.Fatalf("champion tree = %v, want acolyte, monk, and champion skills", champion)
+	}
+}
+
 func TestHunterSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	archer := SkillTreeSkillIDs(JobArcherH)
 	if !containsSkillID(archer, SkillACDouble) || !containsSkillID(archer, SkillACConcentration) || containsSkillID(archer, SkillHTFalcon) {
@@ -361,6 +390,37 @@ func TestPriestSkillRequirementsMirrorRobrowser(t *testing.T) {
 	}
 }
 
+func TestMonkSkillRequirementsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{SkillMOIronhand, []SkillRequirement{{SkillID: SkillALDemonbane, Level: 10}, {SkillID: SkillALDp, Level: 10}}},
+		{SkillMOSpiritsrecovery, []SkillRequirement{{SkillID: SkillMOBladestop, Level: 2}}},
+		{SkillMOCallspirits, []SkillRequirement{{SkillID: SkillMOIronhand, Level: 2}}},
+		{SkillMOAbsorbspirits, []SkillRequirement{{SkillID: SkillMOCallspirits, Level: 5}}},
+		{SkillMOTripleattack, []SkillRequirement{{SkillID: SkillMODodge, Level: 5}}},
+		{SkillMOBodyrelocation, []SkillRequirement{{SkillID: SkillMOSpiritsrecovery, Level: 2}, {SkillID: SkillMOExtremityfist, Level: 3}, {SkillID: SkillMOSteelbody, Level: 3}}},
+		{SkillMODodge, []SkillRequirement{{SkillID: SkillMOIronhand, Level: 5}, {SkillID: SkillMOCallspirits, Level: 5}}},
+		{SkillMOInvestigate, []SkillRequirement{{SkillID: SkillMOCallspirits, Level: 5}}},
+		{SkillMOFingeroffensive, []SkillRequirement{{SkillID: SkillMOInvestigate, Level: 3}}},
+		{SkillMOSteelbody, []SkillRequirement{{SkillID: SkillMOCombofinish, Level: 3}}},
+		{SkillMOBladestop, []SkillRequirement{{SkillID: SkillMODodge, Level: 5}}},
+		{SkillMOExplosionspirits, []SkillRequirement{{SkillID: SkillMOAbsorbspirits, Level: 1}}},
+		{SkillMOExtremityfist, []SkillRequirement{{SkillID: SkillMOExplosionspirits, Level: 3}, {SkillID: SkillMOFingeroffensive, Level: 3}}},
+		{SkillMOChaincombo, []SkillRequirement{{SkillID: SkillMOTripleattack, Level: 5}}},
+		{SkillMOCombofinish, []SkillRequirement{{SkillID: SkillMOChaincombo, Level: 3}}},
+		{SkillChSoulcollect, []SkillRequirement{{SkillID: SkillMOExplosionspirits, Level: 5}}},
+		{SkillChPalmstrike, []SkillRequirement{{SkillID: SkillMOIronhand, Level: 7}, {SkillID: SkillMOCallspirits, Level: 5}}},
+		{SkillChTigerfist, []SkillRequirement{{SkillID: SkillMOIronhand, Level: 5}, {SkillID: SkillMOTripleattack, Level: 5}, {SkillID: SkillMOCombofinish, Level: 3}}},
+		{SkillChChaincrush, []SkillRequirement{{SkillID: SkillMOIronhand, Level: 5}, {SkillID: SkillMOCallspirits, Level: 5}, {SkillID: SkillChTigerfist, Level: 2}}},
+	} {
+		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+}
+
 func TestHunterSkillRequirementsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		skillID uint16
@@ -579,6 +639,40 @@ func TestPriestSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 		{SkillHPBasilica, 5},
 		{SkillHPMeditatio, 10},
 		{SkillHPManarecharge, 5},
+	} {
+		got, ok := SkillMaxLevel(tc.skillID)
+		if !ok || got != tc.want {
+			t.Fatalf("skill %d max level = %d ok=%t, want %d", tc.skillID, got, ok, tc.want)
+		}
+	}
+}
+
+func TestMonkSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, tc := range []struct {
+		skillID uint16
+		want    int
+	}{
+		{SkillMOIronhand, 10},
+		{SkillMOSpiritsrecovery, 5},
+		{SkillMOCallspirits, 5},
+		{SkillMOAbsorbspirits, 1},
+		{SkillMOTripleattack, 10},
+		{SkillMOBodyrelocation, 1},
+		{SkillMODodge, 10},
+		{SkillMOInvestigate, 5},
+		{SkillMOFingeroffensive, 5},
+		{SkillMOSteelbody, 5},
+		{SkillMOBladestop, 5},
+		{SkillMOExplosionspirits, 5},
+		{SkillMOExtremityfist, 5},
+		{SkillMOChaincombo, 5},
+		{SkillMOCombofinish, 5},
+		{SkillMOKitranslation, 1},
+		{SkillMOBalkyoung, 1},
+		{SkillChSoulcollect, 1},
+		{SkillChPalmstrike, 5},
+		{SkillChTigerfist, 5},
+		{SkillChChaincrush, 10},
 	} {
 		got, ok := SkillMaxLevel(tc.skillID)
 		if !ok || got != tc.want {
