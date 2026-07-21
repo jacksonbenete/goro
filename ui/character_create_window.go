@@ -166,7 +166,6 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 					primitives.Box(characterCreateStatList(w.opts.Stats)).
 						Width(characterCreateListW).
 						Height(characterCreatePanelH).
-						Background(rotheme.Default.Colors.PanelBody).
 						BorderStyle(1, rotheme.Default.Colors.WindowBorder).
 						PaddingTop(13),
 				).
@@ -204,7 +203,7 @@ func characterCreateStatList(stats [CharacterCreateStatCount]uint8) widget.Widge
 	return rotheme.Table(
 		rows,
 		rotheme.TableRowHeightOpt(22),
-		rotheme.TableColors(rotheme.Default.Colors.WindowFooter, rotheme.Default.Colors.PanelBody),
+		rotheme.TableColors(rotheme.Default.Colors.WindowBody, rotheme.Default.Colors.WindowBody),
 	)
 }
 
@@ -302,7 +301,6 @@ func (w *characterCreatePreview) Draw(_ widget.Context, canvas widget.Canvas) {
 		return
 	}
 	bounds := w.Bounds()
-	canvas.DrawRect(bounds, rotheme.Default.Colors.PanelBody)
 	if w.image != nil {
 		imgBounds := w.image.Bounds()
 		x := bounds.Min.X + (bounds.Width()-float32(imgBounds.Dx()))/2
@@ -419,7 +417,6 @@ func (w *characterCreateStatGraph) Draw(_ widget.Context, canvas widget.Canvas) 
 		return
 	}
 	bounds := w.Bounds()
-	canvas.DrawRect(bounds, rotheme.Default.Colors.PanelBody)
 
 	cx := bounds.Min.X + bounds.Width()/2
 	cy := bounds.Min.Y + bounds.Height()/2
