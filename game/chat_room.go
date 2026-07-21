@@ -270,7 +270,7 @@ func (m *WorldMode) addChatRoomMessage(ctx client.Context, chat network.ChatMess
 }
 
 func (m *WorldMode) handleChatMessage(ctx client.Context, chat network.ChatMessage, now time.Time) {
-	if m.ui.chatRoom.IsOpen() {
+	if m.ui.chatRoom.IsOpen() && !chat.HasColor {
 		m.addChatRoomMessage(ctx, chat)
 		return
 	}

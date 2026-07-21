@@ -11646,6 +11646,17 @@ func TestFormatConsoleMessageUsesMsgStringTable(t *testing.T) {
 	}
 }
 
+func TestColoredConsoleMessageUsesPacketColor(t *testing.T) {
+	console := &gameui.ChatConsole{}
+	addConsoleMessage(console, nil, network.ChatMessage{Text: "Experience Gained Base:1 (0.01%) Job:1 (0.01%)", Color: 0x00B5FFB5, HasColor: true})
+
+	messages := console.Messages()
+	wantColor := color.RGBA{R: 0xB5, G: 0xFF, B: 0xB5, A: 255}
+	if len(messages) != 1 || messages[0].Text != "Experience Gained Base:1 (0.01%) Job:1 (0.01%)" || messages[0].Color != wantColor {
+		t.Fatalf("messages = %+v, want color %+v", messages, wantColor)
+	}
+}
+
 func TestFormatPickupConsoleMessageUsesMsgStringAndItemName(t *testing.T) {
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")

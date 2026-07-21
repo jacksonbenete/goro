@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"github.com/kivutar/goro/network"
@@ -44,11 +45,24 @@ func addConsoleMessage(console *gameui.ChatConsole, manager *res.Manager, chat n
 	if text == "" {
 		return
 	}
+	if chat.HasColor {
+		console.AddColoredMessage(roClientColor(chat.Color), "%s", text)
+		return
+	}
 	if chat.Text == "" || !strings.Contains(text, " : ") {
 		console.AddSystemMessage("%s", text)
 		return
 	}
 	console.AddMessage("%s", text)
+}
+
+func roClientColor(value uint32) color.RGBA {
+	return color.RGBA{
+		R: uint8(value),
+		G: uint8(value >> 8),
+		B: uint8(value >> 16),
+		A: 255,
+	}
 }
 
 func addWhisperMessage(console *gameui.ChatConsole, whisper network.WhisperMessage) {

@@ -32,6 +32,7 @@ const (
 	PacketZCChatRoomLeave     uint16 = 0x00DD
 	PacketZCChatRoomRole      uint16 = 0x00E1
 	PacketZCBroadcast         uint16 = 0x009A
+	PacketZCNPCChat           uint16 = 0x02C1
 	PacketZCMsg               uint16 = 0x0291
 	PacketZCMsgValue          uint16 = 0x07E2
 	PacketZCMsgSkill          uint16 = 0x07E6
@@ -45,6 +46,7 @@ type ChatMessage struct {
 	Value     int32
 	SkillID   uint16
 	Color     uint32
+	HasColor  bool
 }
 
 type WhisperMessage struct {
@@ -247,6 +249,16 @@ func ParseChatMessage(packet Packet) (ChatMessage, bool, error) {
 		return ChatMessage{
 			Text: packetCString(packet.Data[4:]),
 		}, true, nil
+	case PacketZCNPCChat:
+		if len(packet.Data) < 12 {
+			return ChatMessage{}, false, fmt.Errorf("ZC_NPC_CHAT too short: %d", len(packet.Data))
+		}
+		return ChatMessage{
+			GID:      binary.LittleEndian.Uint32(packet.Data[4:8]),
+			Color:    binary.LittleEndian.Uint32(packet.Data[8:12]),
+			HasColor: true,
+			Text:     packetCString(packet.Data[12:]),
+		}, true, nil
 	case PacketZCMsg:
 		if len(packet.Data) < 4 {
 			return ChatMessage{}, false, fmt.Errorf("ZC_MSG too short: %d", len(packet.Data))
@@ -272,7 +284,7 @@ func ParseChatMessage(packet Packet) (ChatMessage, bool, error) {
 		}
 		messageID := binary.LittleEndian.Uint16(packet.Data[2:4])
 		color := binary.LittleEndian.Uint32(packet.Data[4:8])
-		return ChatMessage{MessageID: int(messageID), Color: color}, true, nil
+		return ChatMessage{MessageID: int(messageID), Color: color, HasColor: true}, true, nil
 	default:
 		return ChatMessage{}, false, nil
 	}

@@ -539,7 +539,7 @@ email check.
 | `0x02BC` | S->C | untracked | `0x02bc` | `6` | `-` | - |
 | `0x02BF` | S->C | untracked | `0x02bf` | `-1` | `-` | - |
 | `0x02C0` | S->C | untracked | `0x02c0` | `-1` | `-` | - |
-| `0x02C1` | S->C | untracked | `0x02c1` | `-1` | `-` | - |
+| `0x02C1` | S->C | implemented | `0x02c1` | `-1` | `-` | chat_packets.go, packet.go |
 | `0x02C2` | S->C | untracked | `0x02c2` | `-1` | `-` | - |
 | `0x02C4` | C->S | implemented | `HEADER_CZ_PARTY_JOIN_REQ` | `sizeof( PACKET_CZ_PARTY_JOIN_REQ )` | `clif_parse_PartyInvite2` | party_packets.go |
 | `0x02C5` | S->C | implemented | `0x02c5` | `30` | `-` | party_packets.go |

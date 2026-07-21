@@ -356,6 +356,25 @@ func TestParseBroadcastChat(t *testing.T) {
 	}
 }
 
+func TestParseNPCColorChat(t *testing.T) {
+	packet := Packet{ID: PacketZCNPCChat, Data: []byte{
+		0xc1, 0x02, 0x1e, 0x00,
+		0x44, 0x33, 0x22, 0x11,
+		0xb5, 0xff, 0xb5, 0x00,
+		'E', 'x', 'p', 'e', 'r', 'i', 'e', 'n', 'c', 'e', ' ', 'G', 'a', 'i', 'n', 'e', 'd', 0,
+	}}
+	chat, ok, err := ParseChatMessage(packet)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("npc color chat packet not recognized")
+	}
+	if chat.GID != 0x11223344 || chat.Text != "Experience Gained" || !chat.HasColor || chat.Color != 0x00B5FFB5 {
+		t.Fatalf("unexpected npc color chat: %+v", chat)
+	}
+}
+
 func TestParseMsgStringID(t *testing.T) {
 	packet := Packet{ID: PacketZCMsg, Data: []byte{0x91, 0x02, 0x2a, 0x00}}
 	chat, ok, err := ParseChatMessage(packet)

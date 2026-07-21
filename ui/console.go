@@ -152,6 +152,13 @@ func (c *ChatConsole) AddGuildMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorGuild, format, args...)
 }
 
+func (c *ChatConsole) AddColoredMessage(messageColor color.RGBA, format string, args ...any) {
+	if messageColor.A == 0 {
+		messageColor.A = 255
+	}
+	c.addMessageColor(messageColor, format, args...)
+}
+
 func (c *ChatConsole) AddErrorMessage(format string, args ...any) {
 	c.addMessageColor(consoleColorError, format, args...)
 }
