@@ -438,6 +438,7 @@ func (m *WorldMode) resumeActorWalk(ctx client.Context, resume scheduledWalkResu
 		return
 	}
 	setPlayerMovementAt(ctx, player.X, player.Y, resume.toX, resume.toY, player.Dir, resume.at, 0)
+	m.clearLocalActorAction(ctx)
 }
 
 func (m *WorldMode) stopActorMovementAt(ctx client.Context, id uint32, at time.Time) {

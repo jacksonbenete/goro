@@ -194,6 +194,9 @@ func (m *WorldMode) upsertNetworkActor(ctx client.Context, entry network.ActorEn
 	if existing, ok := ctx.World.Actors[entry.ID]; ok && existing.HasState {
 		oldState = existing.EffectState
 	}
+	if entry.Moving {
+		m.clearActorAction(ctx, entry.ID)
+	}
 	upsertNetworkActor(ctx, entry)
 	m.requestActorGuildEmblem(ctx, entry.GuildID, entry.EmblemVersion)
 	if !entry.HasState {

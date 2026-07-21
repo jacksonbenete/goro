@@ -899,18 +899,32 @@ func (m *WorldMode) clearLocalActorAction(ctx client.Context) {
 	if ctx.Session == nil {
 		return
 	}
-	m.clearActorAction(ctx.Session.AccountID)
-	m.clearActorAction(ctx.Session.CharID)
+	m.clearActorAction(ctx, ctx.Session.AccountID)
+	m.clearActorAction(ctx, ctx.Session.CharID)
 }
 
-func (m *WorldMode) clearActorAction(id uint32) {
+func (m *WorldMode) clearActorAction(ctx client.Context, id uint32) {
 	if id == 0 || m.actorAnims == nil {
 		return
 	}
-	if anim, ok := m.actorAnims[id]; ok && (anim.actionFamily == spriteActionPCDeath || anim.actionFamily == spriteActionNonPCDeath) {
+	if anim, ok := m.actorAnims[id]; ok && m.actorActionAnimationIsDeath(ctx, id, anim) {
 		return
 	}
 	delete(m.actorAnims, id)
+}
+
+func (m *WorldMode) actorActionAnimationIsDeath(ctx client.Context, id uint32, anim actorAnimation) bool {
+	if anim.actionFamily == spriteActionPCDeath {
+		return true
+	}
+	if anim.actionFamily != spriteActionNonPCDeath {
+		return false
+	}
+	actor, ok, local := actorForCombatID(ctx, id)
+	if !ok {
+		return true
+	}
+	return !local && !res.HasPlayerJobToken(int(actor.Job))
 }
 
 func (m *WorldMode) startCombatAnimation(ctx client.Context, id uint32, actionFamily int, started time.Time, duration time.Duration) {

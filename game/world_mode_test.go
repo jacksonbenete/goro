@@ -1991,6 +1991,48 @@ func TestApplyActorActionNotifyResumesFocusedLocalWalkAfterHurt(t *testing.T) {
 	if world.Player.ToX != 15 || world.Player.ToY != 20 {
 		t.Fatalf("local player resumed target = %d,%d, want 15,20", world.Player.ToX, world.Player.ToY)
 	}
+	afterWalk := world.Player.MoveStarted.Add(world.Player.MoveDuration).Add(time.Millisecond)
+	if anim, ok := mode.actorAnimation(150000, afterWalk); ok {
+		t.Fatalf("local player animation after resumed walk = %+v, want idle/no stale READYFIGHT", anim)
+	}
+	if anim, ok := mode.actorAnimation(2000000, afterWalk); ok {
+		t.Fatalf("local account animation after resumed walk = %+v, want idle/no stale READYFIGHT", anim)
+	}
+}
+
+func TestMovingActorPacketClearsReadyFightAction(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{ID: 300, X: 10, Y: 20, Job: 1, Speed: 150})
+	mode := &WorldMode{actorAnims: map[uint32]actorAnimation{
+		300: {
+			actionFamily: spriteActionPCReadyFight,
+			loop:         true,
+			play:         true,
+			hasPlay:      true,
+		},
+	}}
+	ctx := client.Context{World: world}
+
+	mode.upsertNetworkActor(ctx, network.ActorEntry{
+		ID:         300,
+		X:          15,
+		Y:          20,
+		Job:        1,
+		Moving:     true,
+		FromX:      10,
+		FromY:      20,
+		ToX:        15,
+		ToY:        20,
+		Appearance: true,
+		Speed:      150,
+	})
+
+	if anim, ok := mode.actorAnims[300]; ok {
+		t.Fatalf("moving actor animation = %+v, want movement to replace stale READYFIGHT", anim)
+	}
+	if actor := world.Actors[300]; !actor.Moving || actor.FromX != 10 || actor.ToX != 15 {
+		t.Fatalf("moving actor = %+v, want movement preserved", actor)
+	}
 }
 
 func TestSetActorActionStopsMovingActor(t *testing.T) {
