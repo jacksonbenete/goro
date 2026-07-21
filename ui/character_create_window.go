@@ -303,7 +303,6 @@ func (w *characterCreatePreview) Draw(_ widget.Context, canvas widget.Canvas) {
 	}
 	bounds := w.Bounds()
 	canvas.DrawRect(bounds, rotheme.Default.Colors.PanelBody)
-	canvas.StrokeRect(bounds, rotheme.Default.Colors.WindowBorder, 1)
 	if w.image != nil {
 		imgBounds := w.image.Bounds()
 		x := bounds.Min.X + (bounds.Width()-float32(imgBounds.Dx()))/2
@@ -421,7 +420,6 @@ func (w *characterCreateStatGraph) Draw(_ widget.Context, canvas widget.Canvas) 
 	}
 	bounds := w.Bounds()
 	canvas.DrawRect(bounds, rotheme.Default.Colors.PanelBody)
-	canvas.StrokeRect(bounds, rotheme.Default.Colors.WindowBorder, 1)
 
 	cx := bounds.Min.X + bounds.Width()/2
 	cy := bounds.Min.Y + bounds.Height()/2
