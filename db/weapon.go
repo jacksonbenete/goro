@@ -1,31 +1,37 @@
 package db
 
 const (
-	WeaponNone         = 0
-	WeaponShortsword   = 1
-	WeaponSword        = 2
-	WeaponTwoHandSword = 3
-	WeaponSpear        = 4
-	WeaponTwoHandSpear = 5
-	WeaponAxe          = 6
-	WeaponTwoHandAxe   = 7
-	WeaponMace         = 8
-	WeaponTwoHandMace  = 9
-	WeaponRod          = 10
-	WeaponBow          = 11
-	WeaponKnuckle      = 12
-	WeaponInstrument   = 13
-	WeaponWhip         = 14
-	WeaponBook         = 15
-	WeaponKatar        = 16
-	WeaponGunHandgun   = 17
-	WeaponGunRifle     = 18
-	WeaponGunGatling   = 19
-	WeaponGunShotgun   = 20
-	WeaponGunGrenade   = 21
-	WeaponShuriken     = 22
-	WeaponTwoHandRod   = 23
-	MaxWeaponType      = 103
+	WeaponNone                 = 0
+	WeaponShortsword           = 1
+	WeaponSword                = 2
+	WeaponTwoHandSword         = 3
+	WeaponSpear                = 4
+	WeaponTwoHandSpear         = 5
+	WeaponAxe                  = 6
+	WeaponTwoHandAxe           = 7
+	WeaponMace                 = 8
+	WeaponTwoHandMace          = 9
+	WeaponRod                  = 10
+	WeaponBow                  = 11
+	WeaponKnuckle              = 12
+	WeaponInstrument           = 13
+	WeaponWhip                 = 14
+	WeaponBook                 = 15
+	WeaponKatar                = 16
+	WeaponGunHandgun           = 17
+	WeaponGunRifle             = 18
+	WeaponGunGatling           = 19
+	WeaponGunShotgun           = 20
+	WeaponGunGrenade           = 21
+	WeaponShuriken             = 22
+	WeaponTwoHandRod           = 23
+	WeaponShortswordShortsword = 25
+	WeaponSwordSword           = 26
+	WeaponAxeAxe               = 27
+	WeaponShortswordSword      = 28
+	WeaponShortswordAxe        = 29
+	WeaponSwordAxe             = 30
+	MaxWeaponType              = 103
 )
 
 func PlayerWeaponType(weaponValue int) int {
@@ -86,10 +92,8 @@ func PlayerWeaponType(weaponValue int) int {
 		return WeaponMace
 	case weaponValue < 1600:
 		return WeaponBook
-	case weaponValue < 1650:
-		return WeaponRod
 	case weaponValue < 1700:
-		return WeaponNone
+		return WeaponRod
 	case weaponValue < 1750:
 		return WeaponBow
 	case weaponValue < 1800:
@@ -106,26 +110,28 @@ func PlayerWeaponType(weaponValue int) int {
 		return WeaponTwoHandRod
 	case weaponValue < 13000:
 		return WeaponNone
-	case weaponValue < 13050:
-		return WeaponShortsword
 	case weaponValue < 13100:
-		return WeaponNone
+		return WeaponShortsword
 	case weaponValue < 13150:
 		return WeaponGunHandgun
 	case weaponValue < 13200:
 		return WeaponGunRifle
 	case weaponValue < 13300:
 		return WeaponNone
-	case weaponValue < 13350:
-		return WeaponShuriken
 	case weaponValue < 13400:
-		return WeaponNone
-	case weaponValue < 13450:
+		return WeaponShuriken
+	case weaponValue < 13500:
 		return WeaponSword
 	case weaponValue < 18100:
 		return WeaponNone
-	case weaponValue < 18150:
+	case weaponValue < 18500:
 		return WeaponBow
+	case weaponValue < 20000:
+		return WeaponNone
+	case weaponValue < 21000:
+		return WeaponTwoHandRod
+	case weaponValue < 22000:
+		return WeaponTwoHandSword
 	default:
 		return WeaponNone
 	}

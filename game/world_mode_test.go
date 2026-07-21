@@ -9595,6 +9595,25 @@ func TestCombatHitDelayFallsBackToMidpoint(t *testing.T) {
 	}
 }
 
+func TestAttackActionFamilyUsesRobrowserWizardRodAction(t *testing.T) {
+	femaleWizard := worldstate.Actor{Job: db.JobWizard, Sex: 0, Weapon: 1601}
+	if got := attackActionFamilyForActor(femaleWizard); got != spriteActionPCAttack3 {
+		t.Fatalf("female Wizard rod attack action = %d, want ATTACK3", got)
+	}
+	maleWizard := worldstate.Actor{Job: db.JobWizard, Sex: 1, Weapon: 1601}
+	if got := attackActionFamilyForActor(maleWizard); got != spriteActionPCAttack2 {
+		t.Fatalf("male Wizard rod attack action = %d, want ATTACK2", got)
+	}
+	unarmedWizard := worldstate.Actor{Job: db.JobWizard, Sex: 0}
+	if got := attackActionFamilyForActor(unarmedWizard); got != spriteActionPCAttack1 {
+		t.Fatalf("female Wizard unarmed attack action = %d, want ATTACK1", got)
+	}
+	leftHandRod := worldstate.Actor{Job: db.JobWizard, Sex: 0, Shield: 1601}
+	if got := attackActionFamilyForActor(leftHandRod); got != spriteActionPCAttack3 {
+		t.Fatalf("female Wizard left-hand rod attack action = %d, want ATTACK3", got)
+	}
+}
+
 func TestActorActionFrameDelayUsesPlayerWeaponActionFrames(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 1, Weapon: 3, Dir: 0}

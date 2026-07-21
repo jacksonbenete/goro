@@ -1137,10 +1137,15 @@ func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bo
 
 func attackActionFamilyForActor(actor world.Actor) int {
 	if res.HasPlayerJobToken(int(actor.Job)) {
-		if isSecondPCAttack(int(actor.Job), actor.Sex, int(actor.Weapon)) {
+		weapon, _ := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
+		switch db.PlayerWeaponAction(int(actor.Job), actor.Sex, weapon) {
+		case db.PlayerWeaponActionAttack2:
+			return spriteActionPCAttack2
+		case db.PlayerWeaponActionAttack3:
 			return spriteActionPCAttack3
+		default:
+			return spriteActionPCAttack1
 		}
-		return spriteActionPCAttack2
 	}
 	return spriteActionNonPCAttack
 }
@@ -1178,41 +1183,6 @@ func deathActionFamilyForActor(actor world.Actor) int {
 		return spriteActionPCDeath
 	}
 	return spriteActionNonPCDeath
-}
-
-func isSecondPCAttack(job int, sex byte, weaponValue int) bool {
-	weaponType := db.PlayerWeaponType(weaponValue)
-	switch job {
-	case 0, 23, 4001, 4045:
-		if sex != 0 {
-			return weaponType == 2 || weaponType == 3 || (weaponType >= 6 && weaponType <= 10) || weaponType == 23
-		}
-		return weaponType == 1
-	case 1, 7, 13, 14, 21:
-		return weaponType >= 4 && weaponType <= 5
-	case 2, 5:
-		return weaponType == 1
-	case 3:
-		return weaponType != 11
-	case 6, 11, 17, 19, 20:
-		return weaponType == 11
-	case 8:
-		return weaponType == 15
-	case 10, 18:
-		return weaponType == 2 || (weaponType > 5 && weaponType <= 8)
-	case 12:
-		return weaponType == 16 || (weaponType > 24 && weaponType <= 30)
-	case 15:
-		return weaponType == 0 || weaponType == 12
-	case 16:
-		return weaponType == 5 || weaponType == 10 || weaponType == 15 || weaponType == 23
-	case 24:
-		return weaponType >= 18 && weaponType <= 21
-	case 25:
-		return weaponType == 22
-	default:
-		return false
-	}
 }
 
 func actionHasHitReaction(action network.ActorActionNotify) bool {
