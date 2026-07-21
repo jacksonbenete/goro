@@ -675,6 +675,7 @@ const (
 	effectGospelGround      = SkillEffectGospelGround
 	effectShieldProjectile  = SkillEffectShieldProjectile
 	effectFogWallGround     = SkillEffectFogWallGround
+	effectHermodeMusic      = SkillEffectHermodeMusic
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -5248,6 +5249,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectBeginAsura11:      beginAsura11EffectSpec(),
 	effectChemical2Dash:     chemical2EffectSpec(),
 	effectBottomHermode:     {},
+	effectHermodeMusic:      soundOnlyEffectSpec("effect\\헤르모드의 지팡이"),
 	effectItemFastDown:      sprEffectSpec("fast", "effect\\fast.wav", true, false),
 	effectTarotCard1:        tarotCardEffectSpec(1),
 	effectTarotCard2:        tarotCardEffectSpec(2),

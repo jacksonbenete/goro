@@ -2114,14 +2114,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 640 {
-		t.Fatalf("implemented effects = %d, want 640", coverage.Implemented)
+	if coverage.Implemented != 641 {
+		t.Fatalf("implemented effects = %d, want 641", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 105.3 || coverage.ActivePercent > 105.6 {
-		t.Fatalf("active coverage = %.3f, want about 105.4", coverage.ActivePercent)
+	if coverage.ActivePercent < 105.5 || coverage.ActivePercent > 105.8 {
+		t.Fatalf("active coverage = %.3f, want about 105.6", coverage.ActivePercent)
 	}
 }
 
@@ -4709,6 +4709,10 @@ func TestRobrowserSimpleEffectsFiveHundredToFiveFiftyMatchTableRows(t *testing.T
 	hermode, ok := worldEffectSpecForID(effectBottomHermode)
 	if !ok || len(hermode.components) != 0 || len(hermode.sfx) != 0 {
 		t.Fatalf("EF_BOTTOM_HERMODE spec = %+v ok=%t, want empty robr row", hermode, ok)
+	}
+	hermodeMusic, ok := worldEffectSpecForID(effectHermodeMusic)
+	if !ok || len(hermodeMusic.components) != 0 || len(hermodeMusic.sfx) != 1 || hermodeMusic.sfx[0] != "effect\\헤르모드의 지팡이" {
+		t.Fatalf("517_music spec = %+v ok=%t, want robr Hermode sound", hermodeMusic, ok)
 	}
 
 	for _, tc := range []struct {
@@ -7682,6 +7686,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "CG_MARIONETTE imported", skillEffectIDs(db.SkillCGMarionette), 395)
 	expectEffectIDs(t, "CG_MARIONETTE imported hit", skillHitEffectIDs(db.SkillCGMarionette), 396)
 	expectEffectIDs(t, "CG_LONGINGFREEDOM imported", skillEffectIDs(db.SkillCGLongingfreedom), 500)
+	expectEffectIDs(t, "CG_HERMODE imported music", skillEffectIDs(db.SkillCGHermode), effectHermodeMusic)
 	expectEffectIDs(t, "CG_HERMODE imported ground", skillGroundEffectIDs(db.SkillCGHermode), effectBottomHermode)
 	expectEffectIDs(t, "CG_TAROTCARD imported success", skillSuccessEffectIDs(db.SkillCGTarotcard), 500)
 	expectEffectIDs(t, "CR_ACIDDEMONSTRATION imported", skillEffectIDs(db.SkillCRAciddemonstration), effectAcidDemon)
@@ -7895,9 +7900,11 @@ func TestImportedSkillActionFallback(t *testing.T) {
 	if !sight.defined || sight.action != skillActorActionSkill || !sight.play || sight.repeat || sight.next == nil || sight.next.action != skillActorActionIdle {
 		t.Fatalf("SN_SIGHT action = %+v, want local skill action for robr ACTION then IDLE", sight)
 	}
-	wink := skillAction(db.SkillDCWinkcharm)
-	if !wink.defined || wink.action != skillActorActionSkill || !wink.play || wink.repeat || wink.next == nil || wink.next.action != skillActorActionIdle {
-		t.Fatalf("DC_WINKCHARM action = %+v, want robr SKILL then IDLE", wink)
+	for _, skillID := range []uint16{db.SkillDCWinkcharm, db.SkillBDRokisweil} {
+		action := skillAction(skillID)
+		if !action.defined || action.action != skillActorActionSkill || !action.play || !action.repeat || action.next != nil || !action.hasFrame || action.frame != 1 || action.length != 3 || action.speed != 250*time.Millisecond {
+			t.Fatalf("dance/play action for skill %d = %+v, want robr repeating SKILL frame 1", skillID, action)
+		}
 	}
 	sonic := skillAction(db.SkillASSonicblow)
 	hits := 0

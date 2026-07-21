@@ -185,7 +185,7 @@ func TestSkillWindowShowsSageUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobSage},
 		Skills: session.Skills{
-			Points: 1,
+			Points: 3,
 			List: []session.Skill{
 				{ID: db.SkillMGFirebolt, Level: 1, Upgradable: true},
 				{ID: db.SkillMGColdbolt, Level: 1, Upgradable: true},
@@ -215,11 +215,25 @@ func TestSkillWindowShowsSageUnlocksFromRobrowserTree(t *testing.T) {
 		db.SkillSADeluge,
 		db.SkillSAViolentgale,
 		db.SkillSAVolcano,
-		db.SkillWZEarthspike,
 	} {
 		if !containsSkill(skills, skillID) {
 			t.Fatalf("sage tree did not expose unlocked skill %d: %v", skillID, skills)
 		}
+	}
+	if containsSkill(skills, db.SkillWZEarthspike) {
+		t.Fatal("earth spike should not be visible for Sage before seismic weapon reaches level 1")
+	}
+	window.stageSkill(db.SkillSASeismicweapon)
+	skills = window.visibleSkills(Context{Session: s})
+	if !containsSkill(skills, db.SkillWZEarthspike) {
+		t.Fatalf("earth spike should be visible after staged seismic weapon satisfies robr Sage prerequisite: %v", skills)
+	}
+	if containsSkill(skills, db.SkillWZHeavendrive) {
+		t.Fatal("heaven's drive should not be visible for Sage before earth spike reaches level 1")
+	}
+	window.stageSkill(db.SkillWZEarthspike)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillWZHeavendrive) {
+		t.Fatal("heaven's drive should be visible after staged earth spike satisfies robr Sage prerequisite")
 	}
 	if containsSkill(skills, db.SkillSALandprotector) {
 		t.Fatal("land protector should not be visible before volcano reaches level 3")

@@ -683,6 +683,7 @@ const (
 	effectGospelGround      = db.SkillEffectGospelGround
 	effectShieldProjectile  = db.SkillEffectShieldProjectile
 	effectFogWallGround     = db.SkillEffectFogWallGround
+	effectHermodeMusic      = db.SkillEffectHermodeMusic
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1621,6 +1622,15 @@ func sonicBlowSkillActionSpec() skillActionSpec {
 	return next
 }
 
+func danceSkillActionSpec() skillActionSpec {
+	spec := newSkillActionSpec(skillActorActionSkill, true, nil)
+	spec.hasFrame = true
+	spec.frame = 1
+	spec.length = 3
+	spec.speed = 250 * time.Millisecond
+	return spec
+}
+
 func newSkillActionSpec(action skillActorAction, repeat bool, next *skillActionSpec) skillActionSpec {
 	return skillActionSpec{
 		defined: true,
@@ -1771,6 +1781,8 @@ func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
 		return newSkillActionSpec(skillActorActionPickup, false, &idleSkillActionSpec), true
 	case db.SkillActionReadyfight:
 		return readyFightSkillActionSpec, true
+	case db.SkillActionDance:
+		return danceSkillActionSpec(), true
 	default:
 		return skillActionSpec{}, false
 	}

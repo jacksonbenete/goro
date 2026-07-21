@@ -3736,6 +3736,7 @@ const (
 	SkillEffectGospelGround      = 11011
 	SkillEffectShieldProjectile  = 11012
 	SkillEffectFogWallGround     = 11013
+	SkillEffectHermodeMusic      = 11014
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -4081,7 +4082,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillWSWeaponrefine:             {},
 	SkillWSOverthrustmax:            {EffectIDs: []int{128}},
 	SkillCGLongingfreedom:           {EffectIDs: []int{500}},
-	SkillCGHermode:                  {GroundEffectIDs: []int{effectBottomHermode}},
+	SkillCGHermode:                  {EffectIDs: []int{SkillEffectHermodeMusic}, GroundEffectIDs: []int{effectBottomHermode}},
 	SkillCGTarotcard:                {SuccessEffectIDs: []int{500}},
 	SkillCRAciddemonstration:        {EffectIDs: []int{effectAcidDemon}},
 	SkillSLHigh:                     {EffectIDs: []int{424, 503}},
@@ -4282,6 +4283,7 @@ const (
 	SkillActionReadyfight
 	SkillActionNone
 	SkillActionAttackFixedFrame
+	SkillActionDance
 )
 
 var SkillActions = map[uint16]SkillActionKind{
@@ -4424,27 +4426,28 @@ var SkillActions = map[uint16]SkillActionKind{
 	SkillNJTatamigaeshi:       SkillActionPickup,
 	SkillSREarthshaker:        SkillActionPickup,
 	SkillSNSight:              SkillActionAction,
-	SkillDCWinkcharm:          SkillActionSkill,
-	SkillDCFortunekiss:        SkillActionSkill,
-	SkillDCUglydance:          SkillActionSkill,
-	SkillDCHumming:            SkillActionSkill,
-	SkillDCDontforgetme:       SkillActionSkill,
-	SkillDCServiceforyou:      SkillActionSkill,
-	SkillBaAppleidun:          SkillActionSkill,
-	SkillBaDissonance:         SkillActionSkill,
-	SkillBaWhistle:            SkillActionSkill,
-	SkillBaAssassincross:      SkillActionSkill,
-	SkillBaPoembragi:          SkillActionSkill,
-	SkillBDLullaby:            SkillActionSkill,
-	SkillBDRichmankim:         SkillActionSkill,
-	SkillBDEternalchaos:       SkillActionSkill,
-	SkillBDDrumbattlefield:    SkillActionSkill,
-	SkillBDSiegfried:          SkillActionSkill,
-	SkillCGHermode:            SkillActionSkill,
-	SkillBDRingnibelungen:     SkillActionSkill,
-	SkillBDIntoabyss:          SkillActionSkill,
-	SkillCGMoonlit:            SkillActionSkill,
-	SkillCGMarionette:         SkillActionSkill,
+	SkillDCWinkcharm:          SkillActionDance,
+	SkillDCFortunekiss:        SkillActionDance,
+	SkillDCUglydance:          SkillActionDance,
+	SkillDCHumming:            SkillActionDance,
+	SkillDCDontforgetme:       SkillActionDance,
+	SkillDCServiceforyou:      SkillActionDance,
+	SkillBaAppleidun:          SkillActionDance,
+	SkillBaDissonance:         SkillActionDance,
+	SkillBaWhistle:            SkillActionDance,
+	SkillBaAssassincross:      SkillActionDance,
+	SkillBaPoembragi:          SkillActionDance,
+	SkillBDLullaby:            SkillActionDance,
+	SkillBDRichmankim:         SkillActionDance,
+	SkillBDEternalchaos:       SkillActionDance,
+	SkillBDDrumbattlefield:    SkillActionDance,
+	SkillBDSiegfried:          SkillActionDance,
+	SkillCGHermode:            SkillActionDance,
+	SkillBDRingnibelungen:     SkillActionDance,
+	SkillBDRokisweil:          SkillActionDance,
+	SkillBDIntoabyss:          SkillActionDance,
+	SkillCGMoonlit:            SkillActionDance,
+	SkillCGMarionette:         SkillActionDance,
 	SkillSMEndure:             SkillActionReadyfight,
 	SkillACShower:             SkillActionAttack,
 	SkillKNAutocounter:        SkillActionAttackFixedFrame,

@@ -326,6 +326,9 @@ var SkillRequirementsByJob = map[int]map[uint16][]SkillRequirement{
 	JobCrusader2H: crusaderSkillRequirementOverrides,
 	JobCrusaderB:  crusaderSkillRequirementOverrides,
 	JobCrusader2B: crusaderSkillRequirementOverrides,
+	JobSage:       sageSkillRequirementOverrides,
+	JobSageH:      sageSkillRequirementOverrides,
+	JobSageB:      sageSkillRequirementOverrides,
 	JobRogue:      rogueSkillRequirementOverrides,
 	JobRogueH:     rogueSkillRequirementOverrides,
 	JobRogueB:     rogueSkillRequirementOverrides,
@@ -345,6 +348,11 @@ var crusaderSkillRequirementOverrides = map[uint16][]SkillRequirement{
 	SkillALCure: {{SkillID: SkillCRTrust, Level: 5}},
 	SkillALDp:   {{SkillID: SkillALCure, Level: 1}},
 	SkillALHeal: {{SkillID: SkillCRTrust, Level: 10}, {SkillID: SkillALDemonbane, Level: 5}},
+}
+
+var sageSkillRequirementOverrides = map[uint16][]SkillRequirement{
+	SkillWZEarthspike:  {{SkillID: SkillSASeismicweapon, Level: 1}},
+	SkillWZHeavendrive: {{SkillID: SkillWZEarthspike, Level: 1}},
 }
 
 var rogueSkillRequirementOverrides = map[uint16][]SkillRequirement{
@@ -1015,8 +1023,8 @@ var rogueSkillTree = []uint16{
 var stalkerSkillTree = []uint16{
 	SkillSTChasewalk,
 	SkillSTFullstrip,
-	SkillSTRejectsword,
 	SkillSTPreserve,
+	SkillSTRejectsword,
 }
 
 var acolyteSkillTree = []uint16{

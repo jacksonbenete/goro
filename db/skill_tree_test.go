@@ -336,6 +336,11 @@ func TestRogueSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	if !containsSkillID(stalker, SkillTFPoison) || !containsSkillID(stalker, SkillRGIntimidate) || !containsSkillID(stalker, SkillSTChasewalk) || !containsSkillID(stalker, SkillSTPreserve) {
 		t.Fatalf("stalker tree = %v, want thief, rogue, and stalker skills", stalker)
 	}
+	stalkerTrans := stalker[len(SkillTreeSkillIDs(JobRogue)):]
+	wantStalkerTrans := []uint16{SkillSTChasewalk, SkillSTFullstrip, SkillSTPreserve, SkillSTRejectsword}
+	if !reflect.DeepEqual(stalkerTrans, wantStalkerTrans) {
+		t.Fatalf("stalker trans tree = %v, want robr order %v", stalkerTrans, wantStalkerTrans)
+	}
 }
 
 func TestBlacksmithSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
@@ -470,6 +475,21 @@ func TestSageSkillRequirementsMirrorRobrowser(t *testing.T) {
 	} {
 		if got := SkillRequirements[tc.skillID]; !reflect.DeepEqual(got, tc.want) {
 			t.Fatalf("requirements for skill %d = %+v, want %+v", tc.skillID, got, tc.want)
+		}
+	}
+
+	for _, tc := range []struct {
+		job     int
+		skillID uint16
+		want    []SkillRequirement
+	}{
+		{JobWizard, SkillWZEarthspike, []SkillRequirement{{SkillID: SkillMGStonecurse, Level: 1}}},
+		{JobSage, SkillWZEarthspike, []SkillRequirement{{SkillID: SkillSASeismicweapon, Level: 1}}},
+		{JobSageH, SkillWZEarthspike, []SkillRequirement{{SkillID: SkillSASeismicweapon, Level: 1}}},
+		{JobSageB, SkillWZHeavendrive, []SkillRequirement{{SkillID: SkillWZEarthspike, Level: 1}}},
+	} {
+		if got := SkillRequirementsForJob(tc.job, tc.skillID); !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("requirements for job %d skill %d = %+v, want %+v", tc.job, tc.skillID, got, tc.want)
 		}
 	}
 }
