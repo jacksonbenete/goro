@@ -31,8 +31,8 @@ func (m *WorldMode) drawRSWEffects(screen *render.Frame, ctx client.Context, pro
 func (m *WorldMode) drawRSWEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, spec worldEffectSpec, effectID int, index int, rswEffect res.RSWEffect, worldX, worldY, worldZ float64, now time.Time) {
 	effect := worldEffect{
 		effectID: effectID,
-		x:        int(math.Round(worldX - 0.5)),
-		y:        int(math.Round(worldY - 0.5)),
+		x:        int(math.Round(worldX)),
+		y:        int(math.Round(worldY)),
 		expires:  now.Add(24 * time.Hour),
 		duration: 24 * time.Hour,
 	}
@@ -57,10 +57,12 @@ func mapEffectComponent(component worldEffectComponent) worldEffectComponent {
 }
 
 func rswEffectWorldPosition(gnd *res.GND, effect res.RSWEffect) (float64, float64, float64) {
+	// robr subtracts 0.5 from authored map effect objects, then SpriteRenderer.vs
+	// adds +0.5 back. Goro projects directly, so use the final world position.
 	if gnd == nil {
-		return float64(effect.Position.X) - 0.5, float64(effect.Position.Z) - 0.5, float64(effect.Position.Y) + 1
+		return float64(effect.Position.X), float64(effect.Position.Z), float64(effect.Position.Y) + 1
 	}
-	return float64(effect.Position.X) + float64(gnd.Width) - 0.5, float64(effect.Position.Z) + float64(gnd.Height) - 0.5, float64(effect.Position.Y) + 1
+	return float64(effect.Position.X) + float64(gnd.Width), float64(effect.Position.Z) + float64(gnd.Height), float64(effect.Position.Y) + 1
 }
 
 func loopingRSWEffectStart(effect res.RSWEffect, index int, duration time.Duration, now time.Time) time.Time {

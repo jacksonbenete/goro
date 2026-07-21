@@ -2,6 +2,7 @@ package game
 
 import (
 	"testing"
+	"time"
 
 	worldstate "github.com/kivutar/goro/world"
 )
@@ -69,5 +70,26 @@ func TestSpecialNPCResourceNormalization(t *testing.T) {
 	got := normalizeSpecialNPCResourceName(`data/sprite/npc/Guildflag90_1.gr2`)
 	if got != "GUILDFLAG90_1.GR2" {
 		t.Fatalf("normalized resource = %q", got)
+	}
+}
+
+func TestPersistentSpecialNPCWorldEffectKeepsActorCellAnchor(t *testing.T) {
+	now := time.Unix(100, 0)
+	entry := sceneActorDrawEntry{
+		actor:  worldstate.Actor{ID: 700, X: 30, Y: 40, Job: actorJobClearNPC},
+		worldX: 30.5,
+		worldY: 40.5,
+	}
+
+	effect := persistentWorldEffectForActorEntry(effectTorch, entry, now)
+
+	if effect.actorID != 700 || effect.effectID != effectTorch {
+		t.Fatalf("effect identity = %+v", effect)
+	}
+	if effect.x != 30 || effect.y != 40 {
+		t.Fatalf("effect cell = %d,%d; want actor cell 30,40", effect.x, effect.y)
+	}
+	if !effect.starts.Equal(now) || !effect.expires.Equal(now.Add(24*time.Hour)) || effect.duration != 24*time.Hour {
+		t.Fatalf("effect lifetime = starts %s expires %s duration %s", effect.starts, effect.expires, effect.duration)
 	}
 }

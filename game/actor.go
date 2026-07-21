@@ -27,8 +27,14 @@ func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) floa
 	return projectedHeight / float64(humanoidBillboardAnchorY)
 }
 
-func actorWorldAnchor(actor worldstate.Actor, x, y float64) (float64, float64) {
+// robr stores entity positions as cells and adds +0.5 in SpriteRenderer.vs.
+// Goro projects world coordinates directly, so actor-like entities use cell centers.
+func cellWorldAnchor(x, y float64) (float64, float64) {
 	return cellCenter(x), cellCenter(y)
+}
+
+func actorWorldAnchor(_ worldstate.Actor, x, y float64) (float64, float64) {
+	return cellWorldAnchor(x, y)
 }
 
 func pointInActorPickBounds(mouseX, mouseY, centerX, centerY, scale float64) bool {

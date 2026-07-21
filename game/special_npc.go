@@ -2,7 +2,6 @@ package game
 
 import (
 	"github.com/kivutar/goro/client"
-	"math"
 	"strings"
 	"time"
 
@@ -79,15 +78,7 @@ func (m *WorldMode) drawPersistentWorldEffectAt(screen *render.Frame, ctx client
 	if !ok {
 		return
 	}
-	effect := worldEffect{
-		effectID: effectID,
-		actorID:  entry.actor.ID,
-		x:        int(math.Round(entry.worldX - 0.5)),
-		y:        int(math.Round(entry.worldY - 0.5)),
-		starts:   now,
-		expires:  now.Add(24 * time.Hour),
-		duration: 24 * time.Hour,
-	}
+	effect := persistentWorldEffectForActorEntry(effectID, entry, now)
 	for index, component := range spec.components {
 		component = mapEffectComponent(component)
 		duration := worldEffectComponentDuration(spec, component)
@@ -102,5 +93,17 @@ func (m *WorldMode) drawPersistentWorldEffectAt(screen *render.Frame, ctx client
 		effect.starts = componentStart
 		progress := worldEffectComponentProgress(componentStart, duration, now)
 		m.drawWorldEffectComponent(screen, ctx, projection, effect, component, index, entry.worldX, entry.worldY, entry.worldZ+0.07, progress, duration, now)
+	}
+}
+
+func persistentWorldEffectForActorEntry(effectID int, entry sceneActorDrawEntry, now time.Time) worldEffect {
+	return worldEffect{
+		effectID: effectID,
+		actorID:  entry.actor.ID,
+		x:        int(entry.actor.X),
+		y:        int(entry.actor.Y),
+		starts:   now,
+		expires:  now.Add(24 * time.Hour),
+		duration: 24 * time.Hour,
 	}
 }
