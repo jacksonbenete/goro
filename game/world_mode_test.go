@@ -8478,6 +8478,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
 	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
+	expectEffectIDs(t, "UNT_ICEWALL", skillUnitEffectIDs(141), effectIceWall)
 	expectEffectIDs(t, "UNT_LULLABY", skillUnitEffectIDs(158), effectBottomLullaby)
 	expectEffectIDs(t, "UNT_RICHMANKIM", skillUnitEffectIDs(159), effectBottomRichKim)
 	expectEffectIDs(t, "UNT_ETERNALCHAOS", skillUnitEffectIDs(160), effectBottomChaos)
@@ -11672,6 +11673,22 @@ func TestHandleMapChangeSameLoadedMapReusesModeAndSnapsCamera(t *testing.T) {
 	}
 	if !mode.camera.initialized || mode.camera.x != 114.5 || mode.camera.y != 145.5 {
 		t.Fatalf("camera = initialized %t %.2f,%.2f, want 114.5,145.5", mode.camera.initialized, mode.camera.x, mode.camera.y)
+	}
+}
+
+func TestMapCellUpdateChangesGATWalkability(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "geffen"
+	world.GAT = testPathGAT(3, 3, nil)
+	mode := &WorldMode{hoveredWalk: hoveredWalkCellCache{valid: true}}
+
+	mode.applyMapCellUpdate(client.Context{World: world}, network.MapCellUpdate{MapName: "geffen", X: 1, Y: 2, RawType: 5})
+
+	if world.GAT.Walkable(1, 2) {
+		t.Fatalf("updated cell should not be walkable: %+v", world.GAT.Cells[2*world.GAT.Width+1])
+	}
+	if mode.hoveredWalk.valid {
+		t.Fatal("hovered walk cache should be invalidated")
 	}
 }
 

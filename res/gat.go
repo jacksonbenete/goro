@@ -87,6 +87,16 @@ func (g *GAT) Walkable(x, y int) bool {
 	return ok && cell.Type&GATTypeWalkable != 0
 }
 
+func (g *GAT) SetCellRawType(x, y int, rawType uint32) bool {
+	if !g.InBounds(x, y) {
+		return false
+	}
+	cell := &g.Cells[y*g.Width+x]
+	cell.RawType = rawType
+	cell.Type = GATCellType(rawType)
+	return true
+}
+
 func GATCellType(raw uint32) uint32 {
 	switch raw {
 	case 0, 2, 4, 6, 0x80000000, 0x80000002, 0x80000005, 0x80000006:

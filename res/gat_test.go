@@ -40,6 +40,26 @@ func TestParseGAT(t *testing.T) {
 	}
 }
 
+func TestSetCellRawTypeUpdatesWalkability(t *testing.T) {
+	gat := &GAT{
+		Width:  1,
+		Height: 1,
+		Cells:  []GATCell{{RawType: 0, Type: GATCellType(0)}},
+	}
+	if !gat.Walkable(0, 0) {
+		t.Fatal("initial cell should be walkable")
+	}
+	if !gat.SetCellRawType(0, 0, 5) {
+		t.Fatal("cell update failed")
+	}
+	if gat.Walkable(0, 0) {
+		t.Fatalf("raw type 5 should not be walkable: %+v", gat.Cells[0])
+	}
+	if got := gat.Cells[0].Type; got != GATTypeSnipable {
+		t.Fatalf("cell type = %d, want snipable only", got)
+	}
+}
+
 func writeGATCell(buf *bytes.Buffer, heights [4]float32, rawType uint32) {
 	for _, h := range heights {
 		var tmp [4]byte

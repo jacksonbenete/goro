@@ -16,6 +16,13 @@ type MapChange struct {
 	ServerMove bool
 }
 
+type MapCellUpdate struct {
+	MapName string
+	X       int
+	Y       int
+	RawType uint32
+}
+
 func ParseMapChange(packet Packet) (MapChange, bool, error) {
 	switch packet.ID {
 	case 0x0091, 0x0092, 0x0AC7:
@@ -42,6 +49,21 @@ func ParseMapChange(packet Packet) (MapChange, bool, error) {
 		change.ServerMove = change.Address != "0.0.0.0" && change.Port != 0
 	}
 	return change, true, nil
+}
+
+func ParseMapCellUpdate(packet Packet) (MapCellUpdate, bool, error) {
+	if packet.ID != 0x0192 {
+		return MapCellUpdate{}, false, nil
+	}
+	if len(packet.Data) < 24 {
+		return MapCellUpdate{}, false, fmt.Errorf("ZC_UPDATE_MAPINFO too short: %d", len(packet.Data))
+	}
+	return MapCellUpdate{
+		X:       int(binary.LittleEndian.Uint16(packet.Data[2:4])),
+		Y:       int(binary.LittleEndian.Uint16(packet.Data[4:6])),
+		RawType: uint32(binary.LittleEndian.Uint16(packet.Data[6:8])),
+		MapName: normalizeMapName(fixedString(packet.Data[8:24])),
+	}, true, nil
 }
 
 func normalizeMapName(mapName string) string {

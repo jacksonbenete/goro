@@ -222,6 +222,26 @@ func TestParseMapChangeServerMoveDomain(t *testing.T) {
 	}
 }
 
+func TestParseMapCellUpdate(t *testing.T) {
+	data := make([]byte, 24)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0192)
+	binary.LittleEndian.PutUint16(data[2:4], 123)
+	binary.LittleEndian.PutUint16(data[4:6], 456)
+	binary.LittleEndian.PutUint16(data[6:8], 5)
+	copy(data[8:24], []byte("geffen.gat"))
+
+	update, ok, err := ParseMapCellUpdate(Packet{ID: 0x0192, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("packet was not parsed")
+	}
+	if update.MapName != "geffen" || update.X != 123 || update.Y != 456 || update.RawType != 5 {
+		t.Fatalf("unexpected map cell update: %+v", update)
+	}
+}
+
 func packPosition(x, y, dir int) (byte, byte, byte) {
 	return byte(x >> 2), byte(((x & 0x03) << 6) | ((y >> 4) & 0x3f)), byte(((y & 0x0f) << 4) | (dir & 0x0f))
 }
