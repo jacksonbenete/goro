@@ -30,13 +30,14 @@ func TestShortcutSlotHotkeyRoundTrip(t *testing.T) {
 }
 
 func TestShortcutBarSyncsFromSessionHotkeys(t *testing.T) {
+	slots := make([]session.HotkeySlot, shortcutCols+2)
+	slots[0] = session.HotkeySlot{Type: network.HotkeyTypeSkill, ID: 6, Level: 2}
+	slots[1] = session.HotkeySlot{Type: network.HotkeyTypeItem, ID: 501}
+	slots[shortcutCols+1] = session.HotkeySlot{Type: network.HotkeyTypeSkill, ID: 28, Level: 4}
 	ctx := Context{Session: &session.Session{Hotkeys: session.Hotkeys{
 		Loaded:  true,
 		Version: 3,
-		Slots: []session.HotkeySlot{
-			{Type: network.HotkeyTypeSkill, ID: 6, Level: 2},
-			{Type: network.HotkeyTypeItem, ID: 501},
-		},
+		Slots:   slots,
 	}}}
 
 	bar := &ShortcutBar{}
@@ -46,6 +47,9 @@ func TestShortcutBarSyncsFromSessionHotkeys(t *testing.T) {
 	}
 	if bar.slots[1].kind != shortcutItem || bar.slots[1].itemID != 501 {
 		t.Fatalf("slot 2 = %+v", bar.slots[1])
+	}
+	if bar.slots[shortcutCols+1] != (shortcutSlotState{kind: shortcutSkill, skillID: 28, skillLevel: 4}) {
+		t.Fatalf("second-row slot = %+v", bar.slots[shortcutCols+1])
 	}
 	if bar.hotkeyVersion != 3 {
 		t.Fatalf("hotkey version = %d, want 3", bar.hotkeyVersion)
@@ -102,6 +106,109 @@ func TestShortcutDropRejectsPassiveSkill(t *testing.T) {
 	}
 	if app.invalidates != 0 {
 		t.Fatalf("shortcut drop invalidates = %d, want 0", app.invalidates)
+	}
+}
+
+func TestShortcutBarVisibleRowsClamp(t *testing.T) {
+	bar := &ShortcutBar{}
+	if got := bar.visibleRowCount(); got != shortcutMinRows {
+		t.Fatalf("default visible rows = %d, want %d", got, shortcutMinRows)
+	}
+	bar.setVisibleRows(Context{}, shortcutMaxRows+3)
+	if got := bar.visibleRowCount(); got != shortcutMaxRows {
+		t.Fatalf("max visible rows = %d, want %d", got, shortcutMaxRows)
+	}
+	bar.setVisibleRows(Context{}, 0)
+	if got := bar.visibleRowCount(); got != shortcutMinRows {
+		t.Fatalf("min visible rows = %d, want %d", got, shortcutMinRows)
+	}
+}
+
+func TestShortcutDropUsesVisibleAdditionalRows(t *testing.T) {
+	app := &shortcutInvalidatingApp{}
+	ctx := Context{
+		ScreenW:   800,
+		ScreenH:   600,
+		UIApp:     app,
+		UIManager: &shortcutInvalidatingManager{},
+		Session:   &session.Session{},
+	}
+	bar := &ShortcutBar{}
+	bar.setVisibleRows(ctx, 2)
+	x, y := bar.slotBounds(ctx, shortcutCols)
+
+	if !bar.AcceptSkillDrop(ctx, session.Skill{ID: 6, Level: 2, Type: 1}, x+1, y+1) {
+		t.Fatal("second-row skill drop was not accepted")
+	}
+	if got := bar.slots[shortcutCols]; got.kind != shortcutSkill || got.skillID != 6 || got.skillLevel != 2 {
+		t.Fatalf("second-row slot = %+v", got)
+	}
+	if len(ctx.Session.Hotkeys.Slots) <= shortcutCols || ctx.Session.Hotkeys.Slots[shortcutCols].ID != 6 {
+		t.Fatalf("session hotkeys = %+v", ctx.Session.Hotkeys.Slots)
+	}
+}
+
+func TestShortcutDropIgnoresHiddenRows(t *testing.T) {
+	ctx := Context{
+		ScreenW: 800,
+		ScreenH: 600,
+		Session: &session.Session{},
+	}
+	bar := &ShortcutBar{}
+	x, y := bar.slotBounds(ctx, shortcutCols)
+
+	if bar.AcceptSkillDrop(ctx, session.Skill{ID: 6, Level: 2, Type: 1}, x+1, y+1) {
+		t.Fatal("hidden-row skill drop was accepted")
+	}
+	if got := bar.slots[shortcutCols]; got.kind != shortcutEmpty {
+		t.Fatalf("hidden-row slot = %+v", got)
+	}
+}
+
+func TestShortcutBarPreservesFourthRowAcrossServerRefresh(t *testing.T) {
+	bar := &ShortcutBar{}
+	bar.charID = 1
+	bar.hotkeyVersion = 4
+	bar.slots[network.HotkeyListSlots2008] = shortcutSlotState{kind: shortcutSkill, skillID: 28, skillLevel: 4}
+	ctx := Context{Session: &session.Session{
+		CharID: 1,
+		Hotkeys: session.Hotkeys{
+			Loaded:  true,
+			Version: 5,
+			Slots:   make([]session.HotkeySlot, network.HotkeyListSlots2008),
+		},
+	}}
+
+	bar.SyncFromSession(ctx)
+	if got := bar.slots[network.HotkeyListSlots2008]; got.kind != shortcutSkill || got.skillID != 28 || got.skillLevel != 4 {
+		t.Fatalf("fourth-row local slot = %+v", got)
+	}
+}
+
+func TestShortcutBarClearsCachedSlotsOnCharacterChange(t *testing.T) {
+	bar := &ShortcutBar{}
+	bar.charID = 1
+	bar.hotkeyVersion = 4
+	bar.slots[0] = shortcutSlotState{kind: shortcutSkill, skillID: 6, skillLevel: 2}
+	bar.slots[network.HotkeyListSlots2008] = shortcutSlotState{kind: shortcutSkill, skillID: 28, skillLevel: 4}
+	ctx := Context{Session: &session.Session{
+		CharID: 2,
+		Hotkeys: session.Hotkeys{
+			Loaded:  true,
+			Version: 5,
+			Slots:   make([]session.HotkeySlot, network.HotkeyListSlots2008),
+		},
+	}}
+
+	bar.SyncFromSession(ctx)
+	if got := bar.slots[0]; got.kind != shortcutEmpty {
+		t.Fatalf("first-row stale slot = %+v", got)
+	}
+	if got := bar.slots[network.HotkeyListSlots2008]; got.kind != shortcutEmpty {
+		t.Fatalf("fourth-row stale slot = %+v", got)
+	}
+	if bar.charID != 2 {
+		t.Fatalf("bar charID = %d, want 2", bar.charID)
 	}
 }
 

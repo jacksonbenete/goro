@@ -2,14 +2,14 @@ package ui
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/glog"
-	"github.com/kivutar/goro/input"
 	"image"
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -18,12 +18,18 @@ import (
 )
 
 const (
-	shortcutSlots    = 9
-	shortcutSlot     = 34
-	shortcutGap      = 2
-	shortcutPad      = 3
-	shortcutLabelH   = 12
-	shortcutLabelGap = 1
+	shortcutCols       = 9
+	shortcutMaxRows    = 4
+	shortcutTotalSlots = shortcutCols * shortcutMaxRows
+	shortcutMinRows    = 1
+	shortcutSlot       = 34
+	shortcutGap        = 2
+	shortcutRowGap     = 2
+	shortcutPad        = 3
+	shortcutLabelH     = 12
+	shortcutLabelGap   = 1
+	shortcutControlGap = 2
+	shortcutControlW   = int(rotheme.IconButtonSize)
 )
 
 type shortcutKind int
@@ -44,12 +50,17 @@ type shortcutSlotState struct {
 }
 
 type ShortcutBar struct {
-	slots         [shortcutSlots]shortcutSlotState
+	slots         [shortcutTotalSlots]shortcutSlotState
+	visibleRows   int
 	hotkeyVersion int
 	content       widget.Widget
 	root          widget.Widget
 	published     bool
 	rootX         int
+	rootY         int
+	rootW         int
+	rootH         int
+	charID        uint32
 	ctx           Context
 	actions       GameActions
 	assets        AssetProvider
@@ -69,7 +80,7 @@ func (b *ShortcutBar) Update(ctx Context, actions GameActions) bool {
 	}
 	assets, _ := actions.(AssetProvider)
 	b.Publish(ctx, actions, assets)
-	for i := 0; i < shortcutSlots; i++ {
+	for i := 0; i < shortcutCols; i++ {
 		if ctx.Input.JustPressed(shortcutKey(i)) {
 			b.activate(ctx, actions, i)
 			b.redraw()
@@ -88,11 +99,15 @@ func (b *ShortcutBar) Publish(ctx Context, actions GameActions, assets AssetProv
 	b.actions = actions
 	b.assets = assets
 	b.ensureContent()
-	x, _ := b.bounds(ctx)
-	if b.root == nil || b.rootX != x {
+	x, y := b.bounds(ctx)
+	w, h := shortcutBarWidth(), shortcutBarHeightForRows(b.visibleRowCount())
+	if b.root == nil || b.rootX != x || b.rootY != y || b.rootW != w || b.rootH != h {
 		old := b.root
 		b.rootX = x
-		b.root = positionedWidget(b.content, x, 8, shortcutBarWidth(), shortcutBarHeight())
+		b.rootY = y
+		b.rootW = w
+		b.rootH = h
+		b.root = positionedWidget(b.content, x, y, w, h)
 		if b.published && old != nil {
 			ctx.UIManager.RemoveOverlay(old)
 			ctx.UIManager.AddOverlay(b.root)
@@ -112,6 +127,48 @@ func (b *ShortcutBar) ResetOverlay(ctx Context) {
 	b.published = false
 	b.root = nil
 	b.content = nil
+}
+
+func (b *ShortcutBar) visibleRowCount() int {
+	if b.visibleRows <= 0 {
+		return shortcutMinRows
+	}
+	return clampShortcutRows(b.visibleRows)
+}
+
+func (b *ShortcutBar) setVisibleRows(ctx Context, rows int) {
+	rows = clampShortcutRows(rows)
+	if rows == b.visibleRowCount() {
+		return
+	}
+	oldRoot := b.root
+	b.visibleRows = rows
+	b.content = nil
+	b.root = nil
+	b.rootX = 0
+	b.rootY = 0
+	b.rootW = 0
+	b.rootH = 0
+	b.hideTooltip()
+	if b.published {
+		if ctx.UIManager != nil && oldRoot != nil {
+			ctx.UIManager.RemoveOverlay(oldRoot)
+		}
+		b.published = false
+	}
+	b.Publish(ctx, b.actions, b.assets)
+	b.redraw()
+	b.invalidate(ctx)
+}
+
+func clampShortcutRows(rows int) int {
+	if rows < shortcutMinRows {
+		return shortcutMinRows
+	}
+	if rows > shortcutMaxRows {
+		return shortcutMaxRows
+	}
+	return rows
 }
 
 func (b *ShortcutBar) DrawTooltip(screen *render.Frame) {
@@ -197,7 +254,7 @@ func (b *ShortcutBar) activate(ctx Context, actions GameActions, slot int) {
 }
 
 func (b *ShortcutBar) slotAt(ctx Context, mx, my int) (int, bool) {
-	for i := 0; i < shortcutSlots; i++ {
+	for i := 0; i < b.visibleRowCount()*shortcutCols; i++ {
 		x, y := b.slotBounds(ctx, i)
 		if pointInRect(mx, my, x, y, shortcutSlot, shortcutSlot) {
 			return i, true
@@ -208,7 +265,7 @@ func (b *ShortcutBar) slotAt(ctx Context, mx, my int) (int, bool) {
 
 func (b *ShortcutBar) pointInside(ctx Context, mx, my int) bool {
 	x, y := b.bounds(ctx)
-	return pointInRect(mx, my, x, y, shortcutBarWidth(), shortcutBarHeight())
+	return pointInRect(mx, my, x, y, shortcutBarWidth(), shortcutBarHeightForRows(b.visibleRowCount()))
 }
 
 func (b *ShortcutBar) bounds(ctx Context) (int, int) {
@@ -218,39 +275,76 @@ func (b *ShortcutBar) bounds(ctx Context) (int, int) {
 
 func (b *ShortcutBar) slotBounds(ctx Context, slot int) (int, int) {
 	x, y := b.bounds(ctx)
-	return x + shortcutPad + slot*(shortcutSlot+shortcutGap), y + shortcutPad
+	row := slot / shortcutCols
+	col := slot % shortcutCols
+	rowH := shortcutSlot + shortcutLabelGap + shortcutLabelH
+	return x + shortcutPad + col*(shortcutSlot+shortcutGap), y + shortcutPad + row*(rowH+shortcutRowGap)
 }
 
 func shortcutBarWidth() int {
-	return shortcutSlots*shortcutSlot + (shortcutSlots-1)*shortcutGap + shortcutPad*2
+	return shortcutGridWidth() + shortcutControlGap + shortcutControlW
 }
 
 func shortcutBarHeight() int {
-	return shortcutPad*2 + shortcutSlot + shortcutLabelGap + shortcutLabelH
+	return shortcutBarHeightForRows(shortcutMinRows)
+}
+
+func shortcutGridWidth() int {
+	return shortcutCols*shortcutSlot + (shortcutCols-1)*shortcutGap + shortcutPad*2
+}
+
+func shortcutBarHeightForRows(rows int) int {
+	rows = clampShortcutRows(rows)
+	rowH := shortcutSlot + shortcutLabelGap + shortcutLabelH
+	return shortcutPad*2 + rows*rowH + maxInt(0, rows-1)*shortcutRowGap
 }
 
 func (b *ShortcutBar) ensureContent() {
 	if b.content != nil {
 		return
 	}
-	columns := make([]widget.Widget, 0, shortcutSlots)
-	for i := 0; i < shortcutSlots; i++ {
-		columns = append(columns, b.slotColumn(i))
+	visibleRows := b.visibleRowCount()
+	rows := make([]widget.Widget, 0, visibleRows)
+	for row := 0; row < visibleRows; row++ {
+		columns := make([]widget.Widget, 0, shortcutCols)
+		for col := 0; col < shortcutCols; col++ {
+			columns = append(columns, b.slotColumn(row*shortcutCols+col))
+		}
+		rows = append(rows, primitives.HBox(columns...).
+			Gap(shortcutGap).
+			CrossAlign(primitives.CrossAxisStart))
 	}
 	b.content = Win(
 		TitleBar(false),
 		Radius(0),
-		Size(float32(shortcutBarWidth()), float32(shortcutBarHeight())),
+		Size(float32(shortcutBarWidth()), float32(shortcutBarHeightForRows(visibleRows))),
 		Content(
-			primitives.Box(
-				primitives.HBox(columns...).
-					Gap(shortcutGap).
-					CrossAlign(primitives.CrossAxisStart),
+			primitives.HBox(
+				primitives.Box(rows...).
+					Width(float32(shortcutGridWidth())).
+					Gap(shortcutRowGap).
+					Padding(shortcutPad).
+					CrossAlign(primitives.CrossAxisStretch),
+				b.rowControls(visibleRows),
 			).
-				Padding(shortcutPad).
-				CrossAlign(primitives.CrossAxisStretch),
+				Gap(shortcutControlGap).
+				CrossAlign(primitives.CrossAxisStart),
 		),
 	)
+}
+
+func (b *ShortcutBar) rowControls(visibleRows int) widget.Widget {
+	return primitives.Box(
+		rotheme.IconButtonDisabled(rotheme.IconButtonPlus, visibleRows >= shortcutMaxRows, func() {
+			b.setVisibleRows(b.ctx, b.visibleRowCount()+1)
+		}),
+		rotheme.IconButtonDisabled(rotheme.IconButtonMinus, visibleRows <= shortcutMinRows, func() {
+			b.setVisibleRows(b.ctx, b.visibleRowCount()-1)
+		}),
+	).
+		Width(float32(shortcutControlW)).
+		Gap(shortcutControlGap).
+		PaddingTop(shortcutPad)
 }
 
 func (b *ShortcutBar) slotColumn(slot int) widget.Widget {
@@ -264,9 +358,13 @@ func (b *ShortcutBar) slotColumn(slot int) widget.Widget {
 }
 
 func shortcutKeyLabel(slot int) widget.Widget {
+	label := ""
+	if slot >= 0 && slot < shortcutCols {
+		label = fmt.Sprintf("F%d", slot+1)
+	}
 	return primitives.Box(
 		primitives.Expanded(primitives.Box()),
-		rotheme.Text(fmt.Sprintf("F%d", slot+1)).
+		rotheme.Text(label).
 			Color(rotheme.Default.Colors.MutedText).
 			Align(widget.TextAlignCenter).
 			LineHeight(shortcutLabelH),
@@ -395,7 +493,7 @@ func (w *shortcutSlotButton) Event(ctx widget.Context, e event.Event) bool {
 }
 
 func (b *ShortcutBar) showTooltip(slot int) {
-	if slot < 0 || slot >= shortcutSlots {
+	if slot < 0 || slot >= shortcutTotalSlots {
 		return
 	}
 	text := b.tooltipText(slot)
@@ -404,11 +502,11 @@ func (b *ShortcutBar) showTooltip(slot int) {
 		return
 	}
 	barX, barY := b.bounds(b.ctx)
-	b.tooltip.Show(b.ctx, text, barX+shortcutBarWidth()/2, barY+shortcutBarHeight()+2, barY-2)
+	b.tooltip.Show(b.ctx, text, barX+shortcutBarWidth()/2, barY+shortcutBarHeightForRows(b.visibleRowCount())+2, barY-2)
 }
 
 func (b *ShortcutBar) tooltipText(slot int) string {
-	if slot < 0 || slot >= shortcutSlots {
+	if slot < 0 || slot >= shortcutTotalSlots {
 		return ""
 	}
 	entry := b.slots[slot]
@@ -426,7 +524,10 @@ func (b *ShortcutBar) tooltipText(slot int) string {
 	if name == "" {
 		return ""
 	}
-	return fmt.Sprintf("[ F%d ] %s", slot+1, name)
+	if slot < shortcutCols {
+		return fmt.Sprintf("[ F%d ] %s", slot+1, name)
+	}
+	return name
 }
 
 func (b *ShortcutBar) hideTooltip() {
@@ -487,13 +588,27 @@ func (b *ShortcutBar) markIconMiss(key shortcutItemIconKey) {
 }
 
 func (b *ShortcutBar) SyncFromSession(ctx Context) {
-	if ctx.Session == nil || !ctx.Session.Hotkeys.Loaded || b.hotkeyVersion == ctx.Session.Hotkeys.Version {
+	if ctx.Session == nil {
 		return
 	}
+	if b.charID != ctx.Session.CharID {
+		for i := range b.slots {
+			b.slots[i] = shortcutSlotState{}
+		}
+		b.hotkeyVersion = 0
+		b.charID = ctx.Session.CharID
+	}
+	if !ctx.Session.Hotkeys.Loaded || b.hotkeyVersion == ctx.Session.Hotkeys.Version {
+		return
+	}
+	hasLocalRows := len(ctx.Session.Hotkeys.Slots) > network.HotkeyListSlots2008
 	for i := range b.slots {
-		b.slots[i] = shortcutSlotState{}
 		if i < len(ctx.Session.Hotkeys.Slots) {
 			b.slots[i] = shortcutSlotFromHotkey(ctx.Session.Hotkeys.Slots[i])
+			continue
+		}
+		if i < network.HotkeyListSlots2008 || hasLocalRows {
+			b.slots[i] = shortcutSlotState{}
 		}
 	}
 	b.hotkeyVersion = ctx.Session.Hotkeys.Version
@@ -527,11 +642,11 @@ func shortcutSlotFromHotkey(h session.HotkeySlot) shortcutSlotState {
 }
 
 func (b *ShortcutBar) sendSlotChange(ctx Context, slot int) {
-	if slot < 0 || slot >= shortcutSlots {
+	if slot < 0 || slot >= shortcutTotalSlots {
 		return
 	}
 	hotkey := b.slots[slot].hotkey()
-	if ctx.Network != nil {
+	if ctx.Network != nil && slot < network.HotkeyListSlots2008 {
 		if err := ctx.Network.SendHotkey(uint16(slot), hotkey); err != nil {
 			glog.Warnf("shortcut hotkey save failed slot=%d: %v", slot+1, err)
 		}
