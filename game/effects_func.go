@@ -310,43 +310,100 @@ func (m *WorldMode) drawLevel99BubbleEffect(screen *render.Frame, ctx client.Con
 	if texture == nil {
 		return
 	}
-	const (
-		gameToWorld = 0.1 * 2.2
-		columns     = 4
-		anchors     = 4
-		seedMax     = 99.0
-		resetY      = -30.0
-		fallSpeed   = 0.15
-		driftK      = 0.15
-	)
 	elapsedFrames := math.Max(0, now.Sub(effect.starts).Seconds()*60)
-	cycleSpan := seedMax - resetY
 	size := component.sizeStart
 	if size <= 0 {
-		size = 2.4 * gameToWorld * 0.6 * 2
+		size = 2.4 * level99BubbleGameToWorld * 0.6 * 2
 	}
-	for column := 0; column < columns; column++ {
-		for anchor := 0; anchor < anchors; anchor++ {
-			salt := column*97 + anchor*31
-			seed := deterministicUnit(effect, salt+501) * seedMax
-			cycle := math.Mod(elapsedFrames*fallSpeed+seed, cycleSpan)
-			localY := seedMax - cycle
-			alpha := clampFloat((250+30*(localY+20))/255, 0, 250.0/255.0)
-			if alpha <= 0 {
+	for column := 0; column < level99BubbleColumns; column++ {
+		for anchor := 0; anchor < level99BubbleAnchors; anchor++ {
+			sample := level99BubbleSample(effect, column, anchor, elapsedFrames)
+			if !sample.visible || sample.alpha <= 0 {
 				continue
 			}
-			phaseX := elapsedFrames*0.045 + deterministicUnit(effect, salt+601)*2*math.Pi
-			phaseY := elapsedFrames*0.052 + deterministicUnit(effect, salt+701)*2*math.Pi
-			localX := math.Sin(phaseX) * driftK * gameToWorld
-			localZ := math.Sin(phaseY) * driftK * gameToWorld
 			tint := component.color
 			if tint.A == 0 {
 				tint = color.RGBA{R: 80, G: 80, B: 255, A: 250}
 			}
-			tint.A = uint8(alpha * 255)
-			drawTexturedEffectBillboardRotatedXY(screen, projection, texture, x+localX, y+localZ, z+component.posZ+localY*gameToWorld, size, size, 0, tint, true)
+			tint.A = uint8(sample.alpha * 255)
+			drawTexturedEffectBillboardRotatedXY(screen, projection, texture, x+sample.offsetX, y+sample.offsetY, z+component.posZ+sample.height, size, size, 0, tint, true)
 		}
 	}
+}
+
+const (
+	level99BubbleGameToWorld = 0.1 * 2.2
+	level99BubbleColumns     = 4
+	level99BubbleAnchors     = 4
+	level99BubbleSeedMax     = 99.0
+	level99BubbleResetY      = -30.0
+	level99BubbleRiseSpeed   = 0.15
+	level99BubbleDrift       = 0.15
+	level99BubblePhaseXRate  = 0.045
+	level99BubblePhaseYRate  = 0.052
+)
+
+type level99BubbleParticle struct {
+	visible bool
+	offsetX float64
+	offsetY float64
+	height  float64
+	alpha   float64
+}
+
+func level99BubbleSample(effect worldEffect, column, anchor int, elapsedFrames float64) level99BubbleParticle {
+	elapsedFrames = math.Max(0, elapsedFrames)
+	salt := column*97 + anchor*31
+	seed := deterministicUnit(effect, salt+501) * level99BubbleSeedMax
+	cycleSpan := level99BubbleSeedMax - level99BubbleResetY
+	cycle := math.Mod(elapsedFrames*level99BubbleRiseSpeed+seed, cycleSpan)
+	clientY := level99BubbleSeedMax - cycle
+	if clientY > 0 {
+		return level99BubbleParticle{}
+	}
+	heightUnits := -clientY
+	visibleFrames := heightUnits / level99BubbleRiseSpeed
+	visibleStartFrame := elapsedFrames - visibleFrames
+	phaseX := visibleStartFrame*level99BubblePhaseXRate + deterministicUnit(effect, salt+601)*2*math.Pi
+	phaseY := visibleStartFrame*level99BubblePhaseYRate + deterministicUnit(effect, salt+701)*2*math.Pi
+	signX, signY := level99BubbleDriftSigns(anchor)
+	return level99BubbleParticle{
+		visible: true,
+		offsetX: signX * level99BubbleIntegratedDrift(phaseX, level99BubblePhaseXRate, visibleFrames) *
+			level99BubbleGameToWorld,
+		offsetY: signY * level99BubbleIntegratedDrift(phaseY, level99BubblePhaseYRate, visibleFrames) *
+			level99BubbleGameToWorld,
+		height: heightUnits * level99BubbleGameToWorld,
+		alpha:  level99BubbleAlpha(clientY),
+	}
+}
+
+func level99BubbleDriftSigns(anchor int) (float64, float64) {
+	switch anchor % level99BubbleAnchors {
+	case 1:
+		return -1, -1
+	case 2:
+		return 1, -1
+	case 3:
+		return -1, 1
+	default:
+		return 1, 1
+	}
+}
+
+func level99BubbleIntegratedDrift(phase, rate, frames float64) float64 {
+	if frames <= 0 || rate == 0 {
+		return 0
+	}
+	return level99BubbleDrift / rate * (math.Cos(phase) - math.Cos(phase+rate*frames))
+}
+
+func level99BubbleAlpha(clientY float64) float64 {
+	alpha := 250.0
+	if clientY < -20 {
+		alpha = 250 + (clientY+20)*25
+	}
+	return clampFloat(alpha/255, 0, 250.0/255.0)
 }
 
 func (m *WorldMode) drawPropertyGroundEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z float64, now time.Time) {

@@ -6423,6 +6423,42 @@ func TestRobrowserQuadHornRuntimeDefaults(t *testing.T) {
 	}
 }
 
+func TestQuadHornUVsMatchSourceFaceStrips(t *testing.T) {
+	if len(quadHornUVs) != 12 {
+		t.Fatalf("quadHornUVs len = %d, want 12", len(quadHornUVs))
+	}
+	for face := 0; face < 4; face++ {
+		u0 := float32(face) * 0.2
+		uvs := quadHornUVs[face*3 : face*3+3]
+		want := []texturePoint{
+			{u: u0, v: 0},
+			{u: u0, v: 1},
+			{u: u0 + 0.2, v: 1},
+		}
+		if !reflect.DeepEqual(uvs, want) {
+			t.Fatalf("quad horn face %d uvs = %+v, want %+v", face, uvs, want)
+		}
+	}
+}
+
+func TestQuadHornDefaultRotationKeepsApexAboveBase(t *testing.T) {
+	effect := worldEffect{effectID: effectIceWall, actorID: 1, starts: time.Unix(10, 20)}
+	component := worldEffectComponent{}
+	salt := 0
+	rotateX := quadHornRange(effect, salt+5, component.quadHornRotateXMin, component.quadHornRotateXMax)
+	rotateY := quadHornRange(effect, salt+6, component.quadHornRotateYMin, component.quadHornRotateYMax)
+	rotateZ := quadHornRange(effect, salt+7, component.quadHornRotateZMin, component.quadHornRotateZMax)
+	height := 3.0
+	bottomSize := 0.4
+	origin := modelPoint3{y: height * 0.9}
+	apex := add3(origin, rotateEffectCylinderVector(modelPoint3{y: height}, rotateX, rotateY, rotateZ))
+	base := add3(origin, rotateEffectCylinderVector(modelPoint3{x: -bottomSize, y: -height, z: bottomSize}, rotateX, rotateY, rotateZ))
+
+	if apex.y <= base.y {
+		t.Fatalf("quad horn apex y = %.3f, base y = %.3f, want apex above base", apex.y, base.y)
+	}
+}
+
 func TestRobrowserOldPortalEffectsZeroToFifty(t *testing.T) {
 	entry, ok := worldEffectSpecForID(effectEntry)
 	if !ok {

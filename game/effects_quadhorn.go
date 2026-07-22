@@ -8,10 +8,10 @@ import (
 )
 
 var quadHornUVs = []texturePoint{
-	{u: 0, v: 0}, {u: 1, v: 0}, {u: 1, v: 1},
-	{u: 0, v: 0}, {u: 1, v: 1}, {u: 0, v: 1},
-	{u: 1, v: 0}, {u: 1, v: 1}, {u: 0, v: 1},
-	{u: 1, v: 0}, {u: 0, v: 1}, {u: 0, v: 0},
+	{u: 0.0, v: 0}, {u: 0.0, v: 1}, {u: 0.2, v: 1},
+	{u: 0.2, v: 0}, {u: 0.2, v: 1}, {u: 0.4, v: 1},
+	{u: 0.4, v: 0}, {u: 0.4, v: 1}, {u: 0.6, v: 1},
+	{u: 0.6, v: 0}, {u: 0.6, v: 1}, {u: 0.8, v: 1},
 }
 
 func (m *WorldMode) drawQuadHornEffect(screen *render.Frame, ctx client.Context, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, componentDuration time.Duration) {
@@ -43,7 +43,7 @@ func (m *WorldMode) drawQuadHornEffect(screen *render.Frame, ctx client.Context,
 
 	rotateX := quadHornRange(effect, salt+5, component.quadHornRotateXMin, component.quadHornRotateXMax)
 	rotateY := quadHornRange(effect, salt+6, component.quadHornRotateYMin, component.quadHornRotateYMax)
-	rotateZ := 180 + quadHornRange(effect, salt+7, component.quadHornRotateZMin, component.quadHornRotateZMax)
+	rotateZ := quadHornRange(effect, salt+7, component.quadHornRotateZMin, component.quadHornRotateZMax)
 	x := worldX + component.posX
 	y := worldY + component.posY
 	z := worldZ + component.posZ
