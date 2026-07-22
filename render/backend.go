@@ -464,6 +464,42 @@ func mapKey(key gpucontext.Key) (input.Key, bool) {
 		return input.KeyAlt, true
 	case gpucontext.KeyG:
 		return input.KeyG, true
+	case gpucontext.Key1:
+		return input.Key1, true
+	case gpucontext.Key2:
+		return input.Key2, true
+	case gpucontext.Key3:
+		return input.Key3, true
+	case gpucontext.Key4:
+		return input.Key4, true
+	case gpucontext.Key5:
+		return input.Key5, true
+	case gpucontext.Key6:
+		return input.Key6, true
+	case gpucontext.Key7:
+		return input.Key7, true
+	case gpucontext.Key8:
+		return input.Key8, true
+	case gpucontext.Key9:
+		return input.Key9, true
+	case gpucontext.KeyQ:
+		return input.KeyQ, true
+	case gpucontext.KeyW:
+		return input.KeyW, true
+	case gpucontext.KeyE:
+		return input.KeyE, true
+	case gpucontext.KeyR:
+		return input.KeyR, true
+	case gpucontext.KeyT:
+		return input.KeyT, true
+	case gpucontext.KeyY:
+		return input.KeyY, true
+	case gpucontext.KeyU:
+		return input.KeyU, true
+	case gpucontext.KeyI:
+		return input.KeyI, true
+	case gpucontext.KeyO:
+		return input.KeyO, true
 	case gpucontext.KeyF1:
 		return input.KeyF1, true
 	case gpucontext.KeyF2:
@@ -482,6 +518,8 @@ func mapKey(key gpucontext.Key) (input.Key, bool) {
 		return input.KeyF8, true
 	case gpucontext.KeyF9:
 		return input.KeyF9, true
+	case gpucontext.KeyF12:
+		return input.KeyF12, true
 	default:
 		return 0, false
 	}

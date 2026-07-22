@@ -20,6 +20,24 @@ const (
 	KeyCtrl
 	KeyAlt
 	KeyG
+	Key1
+	Key2
+	Key3
+	Key4
+	Key5
+	Key6
+	Key7
+	Key8
+	Key9
+	KeyQ
+	KeyW
+	KeyE
+	KeyR
+	KeyT
+	KeyY
+	KeyU
+	KeyI
+	KeyO
 	KeyF1
 	KeyF2
 	KeyF3
@@ -29,6 +47,7 @@ const (
 	KeyF7
 	KeyF8
 	KeyF9
+	KeyF12
 )
 
 type MouseButton int
