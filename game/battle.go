@@ -162,6 +162,15 @@ func (m *WorldMode) actorActionACT(ctx client.Context, actor world.Actor) *res.A
 }
 
 func (m *WorldMode) actorActionDuration(ctx client.Context, actor world.Actor, actionFamily int, fallback time.Duration) time.Duration {
+	if !res.HasPlayerJobToken(int(actor.Job)) && !actorIsMercenary(actor) && m.nonPCActorHasGR2Model(ctx, actor) {
+		if action, ok := gr2ActionForActionFamily(actionFamily); ok {
+			if view := m.nonPCGR2ModelView(ctx, actor); view != nil {
+				if duration := view.actionDuration(action); duration > 0 {
+					return duration
+				}
+			}
+		}
+	}
 	if action, ok := m.actorResolvedAction(ctx, actor, actionFamily); ok {
 		return actionAnimationDuration(action, fallback)
 	}

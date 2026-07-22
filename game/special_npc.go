@@ -1,10 +1,10 @@
 package game
 
 import (
-	"github.com/kivutar/goro/client"
 	"strings"
 	"time"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
 	worldstate "github.com/kivutar/goro/world"
 )

@@ -635,6 +635,9 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, ctx client.Contex
 	if entry.hidden {
 		return
 	}
+	if !entry.isPlayer && m.nonPCActorHasGR2Model(ctx, entry.actor) {
+		return
+	}
 	now := time.Now()
 	if m.actorShadowSuppressed(entry.actor, now) {
 		return
@@ -1006,6 +1009,7 @@ func sanitizeActorName(name string) string {
 func displayNameFromResource(name string) string {
 	name = strings.TrimSpace(strings.TrimSuffix(name, ".spr"))
 	name = strings.TrimSuffix(name, ".act")
+	name = strings.TrimSuffix(name, ".gr2")
 	name = strings.ReplaceAll(name, "_", " ")
 	name = strings.ToLower(strings.TrimSpace(name))
 	fields := strings.Fields(name)
@@ -1101,6 +1105,9 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, 
 		return m.drawMercenarySprite3D(screen, ctx, projection, entry, cameraYaw, shadow)
 	}
 	if !res.HasPlayerJobToken(int(actor.Job)) {
+		if m.nonPCActorHasGR2Model(ctx, actor) {
+			return m.drawNonPCGR2Model3D(screen, ctx, entry, shadow)
+		}
 		return m.drawNonPCSprite3D(screen, ctx, projection, entry, cameraYaw, shadow)
 	}
 	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))

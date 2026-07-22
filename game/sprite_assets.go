@@ -36,7 +36,7 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*spriteVi
 		return nil, fmt.Sprintf("%s job=%d resource-name=missing", label, job)
 	}
 	if isGR2Resource(resourceName) {
-		return nil, fmt.Sprintf("%s job=%d resource=%s gr2-model=unsupported", label, job, resourceName)
+		return nil, fmt.Sprintf("%s job=%d resource=%s gr2-model=not-sprite", label, job, resourceName)
 	}
 	view, status := loadSpriteView(manager, res.NonPCSpriteResourceCandidates(job, resourceName, "act"), res.NonPCSpriteResourceCandidates(job, resourceName, "spr"), nil, label+" "+resourceName)
 	if view == nil {
@@ -62,11 +62,7 @@ func actorJobHasNoSprite(job int) bool {
 }
 
 func isGR2Resource(resourceName string) bool {
-	name := strings.ToLower(strings.ReplaceAll(resourceName, "/", "\\"))
-	if i := strings.LastIndex(name, "\\"); i >= 0 {
-		name = name[i+1:]
-	}
-	return strings.HasSuffix(name, ".gr2")
+	return res.IsGR2ResourceName(resourceName)
 }
 
 func characterHeadPalette(character session.Character) int {

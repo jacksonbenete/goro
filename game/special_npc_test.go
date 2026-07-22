@@ -15,7 +15,7 @@ func TestSpecialNPCVisualForActorResource(t *testing.T) {
 		want     specialNPCVisual
 	}{
 		{
-			name:     "guild flag gr2 remains sprite fallback",
+			name:     "guild flag gr2 is normal actor model",
 			actor:    worldstate.Actor{Job: 722},
 			resource: "Guildflag90_1.gr2",
 			want:     specialNPCVisualNone,

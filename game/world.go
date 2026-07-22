@@ -65,6 +65,8 @@ type WorldMode struct {
 	mercenaryViewMiss map[actorSpriteKey]struct{}
 	nonPCViews        map[int]*spriteView
 	nonPCViewMiss     map[int]struct{}
+	gr2Models         map[int]*gr2ModelView
+	gr2ModelMiss      map[int]struct{}
 	petAccessoryIDs   map[uint32]uint32
 	petAccessoryViews map[petAccessorySpriteKey]*spriteView
 	petAccessoryMiss  map[petAccessorySpriteKey]struct{}
@@ -295,6 +297,8 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.mercenaryViewMiss = make(map[actorSpriteKey]struct{})
 	m.nonPCViews = make(map[int]*spriteView)
 	m.nonPCViewMiss = make(map[int]struct{})
+	m.gr2Models = make(map[int]*gr2ModelView)
+	m.gr2ModelMiss = make(map[int]struct{})
 	m.petAccessoryIDs = make(map[uint32]uint32)
 	m.petAccessoryViews = make(map[petAccessorySpriteKey]*spriteView)
 	m.petAccessoryMiss = make(map[petAccessorySpriteKey]struct{})
