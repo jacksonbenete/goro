@@ -611,6 +611,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.ui.npcDialog.Apply(dialog)
 			continue
 		}
+		if compass, ok, err := network.ParseMinimapCompass(pkt); err != nil {
+			glog.Errorf("parse minimap compass 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.ui.minimap.ApplyCompass(compass.ID, compass.Type, compass.X, compass.Y, compass.Color, time.Now())
+			continue
+		}
 		if ack, ok, err := network.ParseSelfMoveAck(pkt); err != nil {
 			glog.Errorf("parse self move ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {

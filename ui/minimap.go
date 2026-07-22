@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -17,12 +20,12 @@ import (
 )
 
 const (
-	minimapWidth                   = 188
-	minimapHeight                  = 206
-	minimapMargin                  = windowScreenMargin
-	minimapPad                     = 10
-	minimapInfoBandH               = 22
-	minimapMarkerRedrawDelayFrames = 4
+	minimapWidth           = 188
+	minimapHeight          = 206
+	minimapMargin          = windowScreenMargin
+	minimapPad             = 10
+	minimapInfoBandH       = 22
+	minimapCompassDuration = 15 * time.Second
 )
 
 var (
@@ -32,18 +35,26 @@ var (
 )
 
 type Minimap struct {
-	mapName           string
-	img               image.Image
-	scaled            image.Image
-	scaledKey         string
-	window            Window
-	widget            *minimapWidget
-	hidden            bool
-	markerMap         string
-	markerX           int
-	markerY           int
-	hasPosition       bool
-	markerRedrawDelay int
+	mapName         string
+	img             image.Image
+	mapImageTried   bool
+	scaled          image.Image
+	scaledKey       string
+	arrow           image.Image
+	arrowLoadTried  bool
+	arrowVariants   [8]image.Image
+	window          Window
+	widget          *minimapWidget
+	hidden          bool
+	markerMap       string
+	markerX         int
+	markerY         int
+	markerDir       int
+	hasPosition     bool
+	visualKey       string
+	compass         map[uint8]minimapCompassMarker
+	compassRevision uint64
+	compassDrawnRev uint64
 }
 
 type minimapRect struct {
@@ -53,7 +64,17 @@ type minimapRect struct {
 	h int
 }
 
+type minimapCompassMarker struct {
+	id      uint8
+	typ     int
+	x       int
+	y       int
+	color   color.RGBA
+	expires time.Time
+}
+
 func (m *Minimap) Update(ctx Context) bool {
+	now := time.Now()
 	width, height := ctx.ScreenSize()
 	x, y, w, h := minimapBounds(width, height)
 	m.ensureWindow(w, h)
@@ -65,31 +86,32 @@ func (m *Minimap) Update(ctx Context) bool {
 	}
 	previousMap := m.mapName
 	m.ensureImage(ctx.Resources, ctx.World.MapName)
+	m.ensureArrow(ctx.Resources)
 	mapChanged := previousMap != m.mapName
+	compassChanged := false
+	if mapChanged && previousMap != "" {
+		compassChanged = m.clearCompassMarkers()
+	}
+	if m.pruneCompassMarkers(now) {
+		compassChanged = true
+	}
 	if m.widget == nil {
 		m.widget = newMinimapWidget()
 	}
 	m.widget.ctx = ctx
 	m.widget.image = m.scaledImage(minimapContentMapSize(w, h))
-	markerChanged := m.playerMarkerChanged(ctx.World.Player.X, ctx.World.Player.Y)
+	m.widget.arrow = m.playerArrow(ctx.World.Player.Dir)
+	m.widget.now = now
+	m.widget.compassMarkers = m.compassSnapshot()
+	markerChanged := m.playerMarkerChanged(ctx.World.Player.X, ctx.World.Player.Y, ctx.World.Player.Dir)
+	visualKey := m.currentVisualKey(ctx, now)
+	visualChanged := visualKey != m.visualKey
 	needsPublish := false
-	needsRedraw := mapChanged
+	needsRedraw := mapChanged || markerChanged || visualChanged || compassChanged || m.compassDrawnRev != m.compassRevision || len(m.widget.compassMarkers) > 0
 	if !m.window.IsOpen() {
 		m.window.OpenAt(x, y, m.widgetTree())
 		needsPublish = true
-		m.markerRedrawDelay = 0
 	} else {
-		if mapChanged {
-			m.markerRedrawDelay = 0
-		} else if markerChanged {
-			m.markerRedrawDelay = minimapMarkerRedrawDelayFrames
-		}
-		if m.markerRedrawDelay > 0 {
-			m.markerRedrawDelay--
-			if m.markerRedrawDelay == 0 {
-				needsRedraw = true
-			}
-		}
 		if m.window.SetAutoPosition(x, y) {
 			needsPublish = true
 		}
@@ -98,11 +120,14 @@ func (m *Minimap) Update(ctx Context) bool {
 		needsPublish = true
 	}
 	if needsPublish {
-		m.widget.SetNeedsRedraw(true)
 		m.window.Publish(ctx)
+		m.markRedraw(ctx)
+		m.compassDrawnRev = m.compassRevision
 	} else if needsRedraw {
-		m.widget.SetNeedsRedraw(true)
+		m.markRedraw(ctx)
+		m.compassDrawnRev = m.compassRevision
 	}
+	m.visualKey = visualKey
 	return false
 }
 
@@ -134,16 +159,20 @@ func (m *Minimap) widgetTree() widget.Widget {
 
 func (m *Minimap) ensureImage(manager *res.Manager, mapName string) {
 	normalized := normalizeMinimapMapName(mapName)
-	if normalized == "" || manager == nil {
+	if normalized == "" {
 		return
 	}
-	if m.mapName == normalized {
+	if m.mapName != normalized {
+		m.mapName = normalized
+		m.img = nil
+		m.mapImageTried = false
+		m.scaled = nil
+		m.scaledKey = ""
+	}
+	if manager == nil || m.img != nil || m.mapImageTried {
 		return
 	}
-	m.mapName = normalized
-	m.img = nil
-	m.scaled = nil
-	m.scaledKey = ""
+	m.mapImageTried = true
 	img, _, err := res.LoadImage(manager, minimapImageCandidates(normalized))
 	if err != nil {
 		return
@@ -151,15 +180,167 @@ func (m *Minimap) ensureImage(manager *res.Manager, mapName string) {
 	m.img = img
 }
 
-func (m *Minimap) playerMarkerChanged(x, y int) bool {
-	if m.hasPosition && m.markerMap == m.mapName && m.markerX == x && m.markerY == y {
+func (m *Minimap) ensureArrow(manager *res.Manager) {
+	if manager == nil || m.arrow != nil || m.arrowLoadTried {
+		return
+	}
+	m.arrowLoadTried = true
+	img, _, err := res.LoadImage(manager, minimapArrowCandidates())
+	if err != nil {
+		return
+	}
+	m.arrow = img
+	m.arrowVariants = [8]image.Image{}
+}
+
+func (m *Minimap) playerMarkerChanged(x, y, dir int) bool {
+	dir = normalizeMinimapDirection(dir)
+	if m.hasPosition && m.markerMap == m.mapName && m.markerX == x && m.markerY == y && m.markerDir == dir {
 		return false
 	}
 	m.markerMap = m.mapName
 	m.markerX = x
 	m.markerY = y
+	m.markerDir = dir
 	m.hasPosition = true
 	return true
+}
+
+func (m *Minimap) playerArrow(dir int) image.Image {
+	if m.arrow == nil {
+		return nil
+	}
+	dir = normalizeMinimapDirection(dir)
+	if m.arrowVariants[dir] == nil {
+		m.arrowVariants[dir] = rotateMinimapArrow(m.arrow, minimapPlayerArrowAngle(dir))
+	}
+	return m.arrowVariants[dir]
+}
+
+func (m *Minimap) ApplyCompass(id uint8, typ, x, y int, rgb uint32, now time.Time) {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if typ == 2 {
+		if len(m.compass) == 0 {
+			return
+		}
+		if _, ok := m.compass[id]; !ok {
+			return
+		}
+		delete(m.compass, id)
+		m.compassRevision++
+		m.markCompassDirty()
+		return
+	}
+	if m.compass == nil {
+		m.compass = make(map[uint8]minimapCompassMarker)
+	}
+	marker := minimapCompassMarker{
+		id:    id,
+		typ:   typ,
+		x:     x,
+		y:     y,
+		color: minimapCompassColor(rgb),
+	}
+	if typ == 0 {
+		marker.expires = now.Add(minimapCompassDuration)
+	}
+	m.compass[id] = marker
+	m.compassRevision++
+	m.markCompassDirty()
+}
+
+func (m *Minimap) markCompassDirty() {
+	if m.widget != nil {
+		m.widget.SetNeedsRedraw(true)
+	}
+}
+
+func (m *Minimap) markRedraw(ctx Context) {
+	if m.widget != nil {
+		m.widget.SetNeedsRedraw(true)
+	}
+	if m.window.published != nil {
+		if redraw, ok := m.window.published.(interface{ SetNeedsRedraw(bool) }); ok {
+			redraw.SetNeedsRedraw(true)
+		}
+	}
+	if ctx.UIApp != nil {
+		ctx.UIApp.Invalidate()
+	}
+}
+
+func (m *Minimap) clearCompassMarkers() bool {
+	if len(m.compass) == 0 {
+		return false
+	}
+	for id := range m.compass {
+		delete(m.compass, id)
+	}
+	m.compassRevision++
+	m.markCompassDirty()
+	return true
+}
+
+func (m *Minimap) pruneCompassMarkers(now time.Time) bool {
+	if len(m.compass) == 0 {
+		return false
+	}
+	changed := false
+	for id, marker := range m.compass {
+		if marker.expires.IsZero() || now.Before(marker.expires) {
+			continue
+		}
+		delete(m.compass, id)
+		changed = true
+	}
+	if changed {
+		m.compassRevision++
+		m.markCompassDirty()
+	}
+	return changed
+}
+
+func (m *Minimap) compassSnapshot() []minimapCompassMarker {
+	if len(m.compass) == 0 {
+		return nil
+	}
+	markers := make([]minimapCompassMarker, 0, len(m.compass))
+	for _, marker := range m.compass {
+		markers = append(markers, marker)
+	}
+	sort.Slice(markers, func(i, j int) bool {
+		return markers[i].id < markers[j].id
+	})
+	return markers
+}
+
+func (m *Minimap) currentVisualKey(ctx Context, now time.Time) string {
+	if ctx.World == nil {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "map=%s|pos=%d,%d,%d|img=%s|arrow=%s|compass=%d", m.mapName, ctx.World.Player.X, ctx.World.Player.Y, normalizeMinimapDirection(ctx.World.Player.Dir), minimapImageStateKey(m.widget.image), minimapImageStateKey(m.widget.arrow), m.compassRevision)
+	if len(m.widget.compassMarkers) > 0 {
+		fmt.Fprintf(&b, "|blink=%d", minimapCompassBlinkPhase(now, ctx.Started))
+		for _, marker := range m.widget.compassMarkers {
+			fmt.Fprintf(&b, "|c=%d,%d,%d,%d,%02x%02x%02x,%t", marker.id, marker.typ, marker.x, marker.y, marker.color.R, marker.color.G, marker.color.B, marker.expires.IsZero())
+		}
+	}
+	if ctx.Session != nil && ctx.Session.Party.Active() {
+		currentMap := normalizeMinimapMapName(ctx.World.MapName)
+		for _, member := range ctx.Session.Party.Members {
+			if member.AccountID == 0 || member.AccountID == ctx.Session.AccountID || !member.Online() || member.X < 0 || member.Y < 0 {
+				continue
+			}
+			if memberMap := normalizeMinimapMapName(member.MapName); memberMap != "" && memberMap != currentMap {
+				continue
+			}
+			fmt.Fprintf(&b, "|p=%d,%d,%d,%s", member.AccountID, member.X, member.Y, normalizeMinimapMapName(member.MapName))
+		}
+	}
+	return b.String()
 }
 
 func minimapBounds(width, _ int) (int, int, int, int) {
@@ -202,16 +383,7 @@ func (m *Minimap) scaledImage(size int) image.Image {
 		return nil
 	}
 	dst := image.NewRGBA(image.Rect(0, 0, size, size))
-	srcAspect := float64(bounds.Dx()) / float64(bounds.Dy())
-	drawW, drawH := size, size
-	if srcAspect > 1 {
-		drawH = int(float64(drawW)/srcAspect + 0.5)
-	} else if srcAspect < 1 {
-		drawW = int(float64(drawH)*srcAspect + 0.5)
-	}
-	drawX := (size - drawW) / 2
-	drawY := (size - drawH) / 2
-	xdraw.ApproxBiLinear.Scale(dst, image.Rect(drawX, drawY, drawX+drawW, drawY+drawH), m.img, bounds, xdraw.Over, nil)
+	xdraw.ApproxBiLinear.Scale(dst, dst.Bounds(), m.img, bounds, xdraw.Over, nil)
 	m.scaled = dst
 	m.scaledKey = key
 	return m.scaled
@@ -219,8 +391,11 @@ func (m *Minimap) scaledImage(size int) image.Image {
 
 type minimapWidget struct {
 	widget.WidgetBase
-	ctx   Context
-	image image.Image
+	ctx            Context
+	image          image.Image
+	arrow          image.Image
+	now            time.Time
+	compassMarkers []minimapCompassMarker
 }
 
 func newMinimapWidget() *minimapWidget {
@@ -243,15 +418,15 @@ func (w *minimapWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 		return
 	}
 	rect := minimapContentMapRect(bounds)
-	canvas.DrawRect(geometry.NewRect(float32(rect.x), float32(rect.y), float32(rect.w), float32(rect.h)), Color(WindowBodyColor))
 	if w.image != nil {
 		canvas.DrawImage(w.image, geometry.Pt(float32(rect.x), float32(rect.y)))
 	}
-	strokeMinimapRect(canvas, rect)
 	if w.ctx.World != nil {
 		mapW, mapH := minimapWorldSize(w.ctx.World)
 		if mapW > 0 && mapH > 0 {
-			drawMinimapMarker(canvas, rect, mapW, mapH, w.ctx.World.Player.X, w.ctx.World.Player.Y, minimapPlayerColor, 4)
+			drawMinimapPlayerMarker(canvas, rect, mapW, mapH, w.ctx.World.Player.X, w.ctx.World.Player.Y, w.arrow)
+			drawMinimapCompassMarkers(canvas, rect, mapW, mapH, w.compassMarkers, w.now, w.ctx.Started)
+			drawMinimapPartyMarkers(canvas, rect, mapW, mapH, w.ctx)
 		}
 		label := minimapDisplayName(w.ctx.World.MapName)
 		footerY := bounds.Min.Y + bounds.Height() - 19
@@ -283,24 +458,104 @@ func strokeMinimapRect(canvas widget.Canvas, rect minimapRect) {
 	canvas.StrokeRect(geometry.NewRect(float32(rect.x), float32(rect.y), float32(rect.w), float32(rect.h)), Color(WindowBorderColor), 1)
 }
 
+func drawMinimapPlayerMarker(canvas widget.Canvas, rect minimapRect, mapW, mapH, cellX, cellY int, arrow image.Image) {
+	x, y, ok := minimapCellToScreen(rect, mapW, mapH, cellX, cellY)
+	if !ok {
+		return
+	}
+	if arrow == nil {
+		drawMinimapMarkerAt(canvas, x, y, minimapPlayerColor, 4)
+		return
+	}
+	bounds := arrow.Bounds()
+	canvas.DrawImage(arrow, geometry.Pt(float32(x-bounds.Dx()/2), float32(y-bounds.Dy()/2)))
+}
+
 func drawMinimapMarker(canvas widget.Canvas, rect minimapRect, mapW, mapH, cellX, cellY int, fill color.RGBA, radius int) {
 	x, y, ok := minimapCellToScreen(rect, mapW, mapH, cellX, cellY)
 	if !ok {
 		return
 	}
+	drawMinimapMarkerAt(canvas, x, y, fill, radius)
+}
+
+func drawMinimapMarkerAt(canvas widget.Canvas, x, y int, fill color.RGBA, radius int) {
 	canvas.DrawRect(geometry.NewRect(float32(x-radius-1), float32(y-radius-1), float32(radius*2+3), float32(radius*2+3)), Color(color.RGBA{A: 190}))
 	canvas.DrawRect(geometry.NewRect(float32(x-radius), float32(y-radius), float32(radius*2+1), float32(radius*2+1)), Color(fill))
+}
+
+func drawMinimapCompassMarkers(canvas widget.Canvas, rect minimapRect, mapW, mapH int, markers []minimapCompassMarker, now, started time.Time) {
+	if len(markers) == 0 || !minimapCompassBlinkVisible(now, started) {
+		return
+	}
+	for _, marker := range markers {
+		x, y, ok := minimapCellToScreen(rect, mapW, mapH, marker.x, marker.y)
+		if !ok {
+			continue
+		}
+		drawMinimapCross(canvas, x, y, marker.color)
+	}
+}
+
+func drawMinimapPartyMarkers(canvas widget.Canvas, rect minimapRect, mapW, mapH int, ctx Context) {
+	if ctx.World == nil || ctx.Session == nil || !ctx.Session.Party.Active() {
+		return
+	}
+	currentMap := normalizeMinimapMapName(ctx.World.MapName)
+	for _, member := range ctx.Session.Party.Members {
+		if member.AccountID == 0 || member.AccountID == ctx.Session.AccountID || !member.Online() || member.X < 0 || member.Y < 0 {
+			continue
+		}
+		if memberMap := normalizeMinimapMapName(member.MapName); memberMap != "" && memberMap != currentMap {
+			continue
+		}
+		x, y, ok := minimapCellToScreen(rect, mapW, mapH, member.X, member.Y)
+		if !ok {
+			continue
+		}
+		drawMinimapSquareCentered(canvas, x, y, 6, color.RGBA{R: 255, G: 255, B: 255, A: 255})
+		drawMinimapSquareCentered(canvas, x, y, 4, minimapMemberColor(member.AccountID))
+	}
+}
+
+func drawMinimapCross(canvas widget.Canvas, x, y int, fill color.RGBA) {
+	canvas.DrawRect(geometry.NewRect(float32(x-1), float32(y-4), 2, 8), Color(fill))
+	canvas.DrawRect(geometry.NewRect(float32(x-4), float32(y-1), 8, 2), Color(fill))
+}
+
+func drawMinimapSquareCentered(canvas widget.Canvas, x, y, size int, fill color.RGBA) {
+	if size <= 0 {
+		return
+	}
+	half := size / 2
+	canvas.DrawRect(geometry.NewRect(float32(x-half), float32(y-half), float32(size), float32(size)), Color(fill))
 }
 
 func minimapCellToScreen(rect minimapRect, mapW, mapH, cellX, cellY int) (int, int, bool) {
 	if mapW <= 0 || mapH <= 0 || rect.w <= 0 || rect.h <= 0 {
 		return 0, 0, false
 	}
-	nx := clampUnit((float64(cellX) + 0.5) / float64(mapW))
-	ny := clampUnit((float64(cellY) + 0.5) / float64(mapH))
-	x := rect.x + int(nx*float64(rect.w-1)+0.5)
-	y := rect.y + int((1-ny)*float64(rect.h-1)+0.5)
+	projected := minimapProjectedMapRect(rect, mapW, mapH)
+	x := projected.x + int(float64(cellX)*float64(projected.w)/float64(mapW))
+	y := projected.y + projected.h - int(float64(cellY)*float64(projected.h)/float64(mapH))
 	return x, y, true
+}
+
+func minimapProjectedMapRect(rect minimapRect, mapW, mapH int) minimapRect {
+	if mapW <= 0 || mapH <= 0 || rect.w <= 0 || rect.h <= 0 {
+		return minimapRect{}
+	}
+	maxSide := maxInt(mapW, mapH)
+	drawW := int(float64(rect.w)*float64(mapW)/float64(maxSide) + 0.5)
+	drawH := int(float64(rect.h)*float64(mapH)/float64(maxSide) + 0.5)
+	drawW = maxInt(1, minInt(rect.w, drawW))
+	drawH = maxInt(1, minInt(rect.h, drawH))
+	return minimapRect{
+		x: rect.x + (rect.w-drawW)/2,
+		y: rect.y + (rect.h-drawH)/2,
+		w: drawW,
+		h: drawH,
+	}
 }
 
 func minimapWorldSize(world *worldstate.World) (int, int) {
@@ -340,6 +595,19 @@ func minimapImageCandidates(mapName string) []string {
 	}
 }
 
+func minimapArrowCandidates() []string {
+	koreanInterface := "유저인터페이스"
+	return []string{
+		"data\\texture\\" + koreanInterface + "\\map\\map_arrow.bmp",
+		"texture\\" + koreanInterface + "\\map\\map_arrow.bmp",
+		"data\\texture\\interface\\map\\map_arrow.bmp",
+		"texture\\interface\\map\\map_arrow.bmp",
+		"data\\texture\\map\\map_arrow.bmp",
+		"texture\\map\\map_arrow.bmp",
+		"map_arrow.bmp",
+	}
+}
+
 func normalizeMinimapMapName(mapName string) string {
 	name := strings.TrimSpace(mapName)
 	if name == "" {
@@ -351,6 +619,119 @@ func normalizeMinimapMapName(mapName string) string {
 	name = strings.TrimSuffix(name, ".gnd")
 	name = strings.TrimSuffix(name, ".bmp")
 	return strings.ToLower(name)
+}
+
+func normalizeMinimapDirection(direction int) int {
+	direction %= 8
+	if direction < 0 {
+		direction += 8
+	}
+	return direction
+}
+
+func minimapPlayerArrowAngle(direction int) float64 {
+	robrDirection := minimapROBrowserDirection(direction)
+	return float64((robrDirection+4)&7) * math.Pi / 4
+}
+
+func minimapROBrowserDirection(direction int) int {
+	return [...]int{4, 3, 2, 1, 0, 7, 6, 5}[normalizeMinimapDirection(direction)]
+}
+
+func rotateMinimapArrow(src image.Image, angle float64) image.Image {
+	if src == nil {
+		return nil
+	}
+	bounds := src.Bounds()
+	sw, sh := bounds.Dx(), bounds.Dy()
+	if sw <= 0 || sh <= 0 {
+		return nil
+	}
+	sin, cos := math.Sin(angle), math.Cos(angle)
+	if math.Abs(sin) < 1e-12 {
+		sin = 0
+	}
+	if math.Abs(cos) < 1e-12 {
+		cos = 0
+	}
+	dw := int(math.Ceil(math.Abs(float64(sw)*cos) + math.Abs(float64(sh)*sin)))
+	dh := int(math.Ceil(math.Abs(float64(sw)*sin) + math.Abs(float64(sh)*cos)))
+	dw = maxInt(1, dw)
+	dh = maxInt(1, dh)
+	dst := image.NewNRGBA(image.Rect(0, 0, dw, dh))
+	scx := float64(sw-1) * 0.5
+	scy := float64(sh-1) * 0.5
+	dcx := float64(dw-1) * 0.5
+	dcy := float64(dh-1) * 0.5
+	for y := 0; y < dh; y++ {
+		for x := 0; x < dw; x++ {
+			dx := float64(x) - dcx
+			dy := float64(y) - dcy
+			sx := cos*dx + sin*dy + scx
+			sy := -sin*dx + cos*dy + scy
+			ix := int(math.Round(sx))
+			iy := int(math.Round(sy))
+			if ix < 0 || iy < 0 || ix >= sw || iy >= sh {
+				continue
+			}
+			c := color.NRGBAModel.Convert(src.At(bounds.Min.X+ix, bounds.Min.Y+iy)).(color.NRGBA)
+			dst.SetNRGBA(x, y, c)
+		}
+	}
+	return dst
+}
+
+func minimapCompassColor(rgb uint32) color.RGBA {
+	return color.RGBA{
+		R: uint8((rgb >> 16) & 0xff),
+		G: uint8((rgb >> 8) & 0xff),
+		B: uint8(rgb & 0xff),
+		A: 255,
+	}
+}
+
+func minimapCompassBlinkVisible(now, started time.Time) bool {
+	return minimapCompassBlinkPhase(now, started) == 1
+}
+
+func minimapCompassBlinkPhase(now, started time.Time) int {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	var elapsed time.Duration
+	if !started.IsZero() {
+		elapsed = now.Sub(started)
+	} else {
+		elapsed = time.Duration(now.UnixNano())
+	}
+	if elapsed < 0 {
+		elapsed = 0
+	}
+	if elapsed.Milliseconds()%1000 > 500 {
+		return 1
+	}
+	return 0
+}
+
+func minimapImageStateKey(img image.Image) string {
+	if img == nil {
+		return "nil"
+	}
+	bounds := img.Bounds()
+	return fmt.Sprintf("%dx%d", bounds.Dx(), bounds.Dy())
+}
+
+func minimapMemberColor(accountID uint32) color.RGBA {
+	x := accountID
+	x ^= x << 13
+	x ^= x >> 17
+	x ^= x << 5
+	return color.RGBA{
+		R: uint8(48 + (x & 0xbf)),
+		G: uint8(48 + ((x >> 8) & 0xbf)),
+		B: uint8(48 + ((x >> 16) & 0xbf)),
+		A: 255,
+	}
 }
 
 func minimapDisplayName(mapName string) string {
