@@ -68,7 +68,7 @@ func TestShortcutDropMarksShortcutOverlayDirty(t *testing.T) {
 	}
 	x, y := bar.slotBounds(ctx, 0)
 
-	if !bar.AcceptSkillDrop(ctx, session.Skill{ID: 6, Level: 2}, x+1, y+1) {
+	if !bar.AcceptSkillDrop(ctx, session.Skill{ID: 6, Level: 2, Type: 1}, x+1, y+1) {
 		t.Fatal("skill drop was not accepted")
 	}
 	if app.invalidates != 1 {
@@ -76,6 +76,32 @@ func TestShortcutDropMarksShortcutOverlayDirty(t *testing.T) {
 	}
 	if got := bar.slots[0]; got.kind != shortcutSkill || got.skillID != 6 || got.skillLevel != 2 {
 		t.Fatalf("slot = %+v", got)
+	}
+}
+
+func TestShortcutDropRejectsPassiveSkill(t *testing.T) {
+	app := &shortcutInvalidatingApp{}
+	ctx := Context{
+		ScreenW:   800,
+		ScreenH:   600,
+		UIApp:     app,
+		UIManager: &shortcutInvalidatingManager{},
+		Session:   &session.Session{},
+	}
+	bar := &ShortcutBar{}
+	bar.Publish(ctx, nil, nil)
+	x, y := bar.slotBounds(ctx, 0)
+	original := shortcutSlotState{kind: shortcutItem, itemID: 501}
+	bar.slots[0] = original
+
+	if !bar.AcceptSkillDrop(ctx, session.Skill{ID: db.SkillALDemonbane, Level: 10, Type: 0}, x+1, y+1) {
+		t.Fatal("passive skill drop over shortcut should be consumed")
+	}
+	if bar.slots[0] != original {
+		t.Fatalf("slot = %+v, want unchanged %+v", bar.slots[0], original)
+	}
+	if app.invalidates != 0 {
+		t.Fatalf("shortcut drop invalidates = %d, want 0", app.invalidates)
 	}
 }
 

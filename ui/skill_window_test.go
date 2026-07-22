@@ -1380,7 +1380,7 @@ func TestSkillDragReleaseOverShortcutStoresSkill(t *testing.T) {
 	inputState.SetMouseButton(input.MouseButtonLeft, false)
 
 	window := &SkillWindow{
-		dragSkill:  session.Skill{ID: 46, Level: 10},
+		dragSkill:  session.Skill{ID: 46, Level: 10, Type: 1},
 		dragActive: true,
 		dragFrom:   time.Now().Add(-time.Second),
 	}
@@ -1389,6 +1389,43 @@ func TestSkillDragReleaseOverShortcutStoresSkill(t *testing.T) {
 	}
 	if got := bar.slots[0]; got.kind != shortcutSkill || got.skillID != 46 || got.skillLevel != 10 {
 		t.Fatalf("shortcut slot = %+v, want double strafe level 10", got)
+	}
+}
+
+func TestSkillDragReleaseOverShortcutRejectsPassiveSkill(t *testing.T) {
+	inputState := input.NewState()
+	bar := &ShortcutBar{}
+	x, y := bar.slotBounds(Context{ScreenW: 800, ScreenH: 600}, 0)
+	bar.slots[0] = shortcutSlotState{kind: shortcutItem, itemID: 501}
+	inputState.SetMousePosition(x+shortcutSlot/2, y+shortcutSlot/2)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	inputState.EndFrame()
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
+
+	window := &SkillWindow{
+		dragSkill:  session.Skill{ID: db.SkillALDemonbane, Level: 10, Type: 0},
+		dragActive: true,
+		dragFrom:   time.Now().Add(-time.Second),
+	}
+	if !window.UpdateDrag(Context{Input: inputState, ScreenW: 800, ScreenH: 600}, bar) {
+		t.Fatal("passive skill drag release over shortcut should be consumed")
+	}
+	if got := bar.slots[0]; got.kind != shortcutItem || got.itemID != 501 {
+		t.Fatalf("shortcut slot = %+v, want unchanged item shortcut", got)
+	}
+}
+
+func TestSkillWindowRejectsPassiveDrag(t *testing.T) {
+	window := &SkillWindow{}
+	window.pressSkill(
+		Context{},
+		nil,
+		session.Skill{ID: db.SkillALDemonbane, Type: 0, Level: 10},
+		20,
+		30,
+	)
+	if window.dragActive {
+		t.Fatal("passive player skill started a drag")
 	}
 }
 

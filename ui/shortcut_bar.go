@@ -141,7 +141,7 @@ func (b *ShortcutBar) AcceptSkillDrop(ctx Context, skill session.Skill, mx, my i
 	if !ok {
 		return false
 	}
-	if skill.ID == 0 || skill.Level <= 0 {
+	if !skillCanUseShortcut(skill) {
 		return true
 	}
 	b.ctx = ctx
@@ -154,6 +154,10 @@ func (b *ShortcutBar) AcceptSkillDrop(ctx Context, skill session.Skill, mx, my i
 	b.redraw()
 	b.invalidate(ctx)
 	return true
+}
+
+func skillCanUseShortcut(skill session.Skill) bool {
+	return skill.ID != 0 && skill.Level > 0 && skill.Type != 0
 }
 
 func (b *ShortcutBar) ClearDepletedItem(ctx Context, index, itemID uint16) bool {

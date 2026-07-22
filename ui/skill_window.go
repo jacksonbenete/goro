@@ -333,6 +333,10 @@ func (w *SkillWindow) pressSkill(ctx Context, actions GameActions, skill session
 		glog.Debugf("skill use ignored id=%d: not learned", skill.ID)
 		return
 	}
+	if !skillCanUseShortcut(skill) {
+		glog.Debugf("skill use ignored id=%d: passive skill", skill.ID)
+		return
+	}
 	now := time.Now()
 	if w.lastClick == skill.ID && now.Sub(w.lastClickAt) <= 360*time.Millisecond {
 		w.lastClick = 0

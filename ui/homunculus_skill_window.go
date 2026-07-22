@@ -406,7 +406,7 @@ func (w *HomunculusSkillWindow) pressSkill(ctx Context, actions GameActions, ski
 		glog.Debugf("%s skill use ignored id=%d: not learned", w.kindLabelLower(), skill.ID)
 		return
 	}
-	if skill.Type == 0 {
+	if !skillCanUseShortcut(skill) {
 		glog.Debugf("%s skill use ignored id=%d: passive skill", w.kindLabelLower(), skill.ID)
 		return
 	}
