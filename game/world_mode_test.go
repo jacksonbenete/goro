@@ -4990,12 +4990,12 @@ func TestRobrowserSimpleEffectsFiveFiftyToSixHundredMatchTableRows(t *testing.T)
 		{"EF_HFLIMOON3", effectHfliMoon3, "moonlight_3", "effect\\h_moonlight_3.wav"},
 		{"EF_HO_UP", effectHoUp, "h_levelup", ""},
 		{"EF_HAMIDEFENCE", effectHamiDefence, "defense", ""},
-		{"EF_FOOD01", effectStatFoodSTR, "food_str", ""},
-		{"EF_FOOD02", effectStatFoodINT, "food_int", ""},
-		{"EF_FOOD03", effectStatFoodVIT, "food_vit", ""},
-		{"EF_FOOD04", effectStatFoodAGI, "food_agi", ""},
-		{"EF_FOOD05", effectStatFoodDEX, "food_dex", ""},
-		{"EF_FOOD06", effectStatFoodLUK, "food_luk", ""},
+		{"EF_FOOD01", effectStatFoodSTR, "food_str", "_heal_effect.wav"},
+		{"EF_FOOD02", effectStatFoodINT, "food_int", "_heal_effect.wav"},
+		{"EF_FOOD03", effectStatFoodVIT, "food_vit", "_heal_effect.wav"},
+		{"EF_FOOD04", effectStatFoodAGI, "food_agi", "_heal_effect.wav"},
+		{"EF_FOOD05", effectStatFoodDEX, "food_dex", "_heal_effect.wav"},
+		{"EF_FOOD06", effectStatFoodLUK, "food_luk", "_heal_effect.wav"},
 	} {
 		spec, ok := worldEffectSpecForID(tc.id)
 		if !ok || len(spec.components) != 1 {
@@ -12063,6 +12063,32 @@ func TestUseItemAckYellowPotionSchedulesHealSound(t *testing.T) {
 		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectPotionYellow || effect.x != 10 || effect.y != 20 {
+		t.Fatalf("effect = %+v", effect)
+	}
+	if len(mode.scheduledSounds) != 1 {
+		t.Fatalf("scheduled sounds = %d, want 1", len(mode.scheduledSounds))
+	}
+	sound := mode.scheduledSounds[0]
+	if len(sound.paths) != 1 || sound.paths[0] != "_heal_effect.wav" {
+		t.Fatalf("sound paths = %v, want _heal_effect.wav", sound.paths)
+	}
+	if !sound.positioned || sound.actorID != 2000000 || sound.x != 10 || sound.y != 20 {
+		t.Fatalf("sound position = %+v", sound)
+	}
+}
+
+func TestUseItemAckStatFoodSchedulesHealSound(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: 12041, AID: 2000000, Amount: 2, Result: 1})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectStatFoodSTR || effect.x != 10 || effect.y != 20 {
 		t.Fatalf("effect = %+v", effect)
 	}
 	if len(mode.scheduledSounds) != 1 {
