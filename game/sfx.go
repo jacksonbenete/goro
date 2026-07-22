@@ -206,7 +206,7 @@ func (m *WorldMode) playSFXFirstVolume(ctx client.Context, volume float64, paths
 		source, err := ctx.Audio.PlaySFXVolume(path, volume)
 		if err == nil {
 			if source != "" {
-				glog.Debugf("sfx playing path=%s source=%s", path, source)
+				glog.Debugf("sfx playing path=%s source=%s volume=%.2f", path, source, volume)
 			}
 			return
 		}

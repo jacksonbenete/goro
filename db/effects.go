@@ -2895,6 +2895,12 @@ func potionEffectSpec(file string, c color.RGBA) EffectSpec {
 	}
 }
 
+func healingPotionEffectSpec(file string, c color.RGBA) EffectSpec {
+	spec := potionEffectSpec(file, c)
+	spec.SFX = []string{"_heal_effect.wav"}
+	return spec
+}
+
 func berserkPotionEffectSpec() EffectSpec {
 	spec := strEffectSpecAttached("버서크", "effect\\ac_concentration.wav", false)
 	spec.CameraShake = 200 * time.Millisecond
@@ -5033,10 +5039,10 @@ var EffectSpecs = map[int]EffectSpec{
 			AttachedEntity: true,
 		}},
 	},
-	effectPotionRed:    potionEffectSpec("빨간포션", color.RGBA{R: 255, G: 82, B: 70, A: 255}),
-	effectPotionOrange: potionEffectSpec("주홍포션", color.RGBA{R: 255, G: 145, B: 58, A: 255}),
-	effectPotionYellow: potionEffectSpec("노란포션", color.RGBA{R: 255, G: 226, B: 76, A: 255}),
-	effectPotionWhite:  potionEffectSpec("하얀포션", color.RGBA{R: 245, G: 245, B: 255, A: 255}),
+	effectPotionRed:    healingPotionEffectSpec("빨간포션", color.RGBA{R: 255, G: 82, B: 70, A: 255}),
+	effectPotionOrange: healingPotionEffectSpec("주홍포션", color.RGBA{R: 255, G: 145, B: 58, A: 255}),
+	effectPotionYellow: healingPotionEffectSpec("노란포션", color.RGBA{R: 255, G: 226, B: 76, A: 255}),
+	effectPotionWhite:  healingPotionEffectSpec("하얀포션", color.RGBA{R: 245, G: 245, B: 255, A: 255}),
 	effectPotionBlue:   bluePotionEffectSpec(),
 	effectPotionGreen:  potionEffectSpec("초록포션", color.RGBA{R: 78, G: 225, B: 98, A: 255}),
 	effectDarkBreath:   {Components: []EffectComponent{{Kind: EffectComponentSPR, SpriteFile: "darkbreath", SpriteHead: true, AttachedEntity: true}}},

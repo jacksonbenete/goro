@@ -2959,17 +2959,17 @@ func TestRobrowserSimpleEffectsTwoHundredToTwoFiftyMatchTableRows(t *testing.T) 
 	}
 }
 
-func TestRobrowserPotionEffectsTwoHundredRowsAreAttached(t *testing.T) {
+func TestReferencePotionEffectsTwoHundredRowsAreAttached(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		id   int
 		file string
 		wav  string
 	}{
-		{"EF_POTION1", effectPotionRed, "빨간포션", ""},
-		{"EF_POTION2", effectPotionOrange, "주홍포션", ""},
-		{"EF_POTION3", effectPotionYellow, "노란포션", ""},
-		{"EF_POTION4", effectPotionWhite, "하얀포션", ""},
+		{"EF_POTION1", effectPotionRed, "빨간포션", "_heal_effect.wav"},
+		{"EF_POTION2", effectPotionOrange, "주홍포션", "_heal_effect.wav"},
+		{"EF_POTION3", effectPotionYellow, "노란포션", "_heal_effect.wav"},
+		{"EF_POTION4", effectPotionWhite, "하얀포션", "_heal_effect.wav"},
 		{"EF_POTION5", effectPotionBlue, "파란포션", "effect\\흡기.wav"},
 		{"EF_POTION6", effectPotionGreen, "초록포션", ""},
 		{"EF_POTION7", effectFood, "fruit", "_heal_effect.wav"},
@@ -12048,6 +12048,32 @@ func TestUseItemAckAddsItemUseEffect(t *testing.T) {
 	}
 	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectPotionRed || effect.x != 10 || effect.y != 20 {
 		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestUseItemAckYellowPotionSchedulesHealSound(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	mode.addItemUseEffect(ctx, network.UseItemAck{Index: 12, ItemID: 503, AID: 2000000, Amount: 2, Result: 1})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != effectPotionYellow || effect.x != 10 || effect.y != 20 {
+		t.Fatalf("effect = %+v", effect)
+	}
+	if len(mode.scheduledSounds) != 1 {
+		t.Fatalf("scheduled sounds = %d, want 1", len(mode.scheduledSounds))
+	}
+	sound := mode.scheduledSounds[0]
+	if len(sound.paths) != 1 || sound.paths[0] != "_heal_effect.wav" {
+		t.Fatalf("sound paths = %v, want _heal_effect.wav", sound.paths)
+	}
+	if !sound.positioned || sound.actorID != 2000000 || sound.x != 10 || sound.y != 20 {
+		t.Fatalf("sound position = %+v", sound)
 	}
 }
 
