@@ -196,6 +196,8 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 		HealthState:      entry.HealthState,
 		EffectState:      entry.EffectState,
 		HasState:         entry.HasState,
+		Level:            entry.Level,
+		HasLevel:         entry.HasLevel,
 	}
 	if existing, ok := ctx.World.Actors[entry.ID]; ok {
 		actor.Opt3State = existing.Opt3State
@@ -223,6 +225,7 @@ func (m *WorldMode) upsertNetworkActor(ctx client.Context, entry network.ActorEn
 		m.clearActorAction(ctx, entry.ID)
 	}
 	upsertNetworkActor(ctx, entry)
+	m.syncActorEntryLevel99Aura(ctx, entry.ID)
 	m.requestActorGuildEmblem(ctx, entry.GuildID, entry.EmblemVersion)
 	if !entry.HasState {
 		return
@@ -265,6 +268,7 @@ func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVan
 	}
 	m.addActorVanishTeleportEffect(ctx, vanish)
 	m.removeActorEffectStateEffects(vanish.ID)
+	m.removeLevel99AuraEffects(vanish.ID)
 	ctx.World.RemoveActor(vanish.ID)
 	delete(m.actorAnims, vanish.ID)
 	delete(m.actorDeaths, vanish.ID)
@@ -311,6 +315,7 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 		}
 		ctx.World.RemoveActor(id)
 		m.removeActorEffectStateEffects(id)
+		m.removeLevel99AuraEffects(id)
 		delete(m.actorDeaths, id)
 		delete(m.actorAnims, id)
 		delete(m.actorSoundFrames, id)

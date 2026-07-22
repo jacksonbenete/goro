@@ -82,6 +82,8 @@ type Actor struct {
 	EffectState      uint32
 	Opt3State        uint32
 	HasState         bool
+	Level            int
+	HasLevel         bool
 	HasCart          bool
 	CartNum          int
 	HasCartState     bool
@@ -184,6 +186,10 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.EffectState = existing.EffectState
 			actor.Opt3State = existing.Opt3State
 			actor.HasState = existing.HasState
+		}
+		if !actor.HasLevel {
+			actor.Level = existing.Level
+			actor.HasLevel = existing.HasLevel
 		}
 		if !actor.HasCartState {
 			actor.HasCart = existing.HasCart

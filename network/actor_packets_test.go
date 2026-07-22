@@ -109,6 +109,7 @@ func TestParseActorStandEntry2008(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[34:36], 4)
 	binary.LittleEndian.PutUint32(data[36:40], 0x01020304)
 	binary.LittleEndian.PutUint16(data[40:42], 7)
+	binary.LittleEndian.PutUint16(data[56:58], 99)
 	data[49] = 1
 	data[50], data[51], data[52] = packPosition(120, 140, 5)
 
@@ -125,8 +126,34 @@ func TestParseActorStandEntry2008(t *testing.T) {
 	if !entry.HasState || entry.BodyState != 1 || entry.HealthState != 2 || entry.EffectState != 0x00000408 {
 		t.Fatalf("unexpected state: %+v", entry)
 	}
+	if !entry.HasLevel || entry.Level != 99 {
+		t.Fatalf("level = %d has=%t, want 99 true", entry.Level, entry.HasLevel)
+	}
 	if entry.GuildID != 0x01020304 || entry.EmblemVersion != 7 {
 		t.Fatalf("unexpected guild emblem fields: %+v", entry)
+	}
+}
+
+func TestParseActorNewEntry2008Level(t *testing.T) {
+	data := make([]byte, 59)
+	binary.LittleEndian.PutUint16(data[0:2], 0x02ED)
+	binary.LittleEndian.PutUint32(data[2:6], 2000007)
+	binary.LittleEndian.PutUint16(data[6:8], 430)
+	binary.LittleEndian.PutUint16(data[16:18], 5)
+	binary.LittleEndian.PutUint16(data[18:20], 3)
+	binary.LittleEndian.PutUint16(data[55:57], 99)
+	data[49] = 1
+	data[50], data[51], data[52] = packPosition(120, 140, 5)
+
+	entry, ok, err := ParseActorEntry(Packet{ID: 0x02ED, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || !entry.Appearance {
+		t.Fatalf("new entry not parsed: ok=%v entry=%+v", ok, entry)
+	}
+	if entry.ID != 2000007 || entry.X != 120 || entry.Y != 140 || !entry.HasLevel || entry.Level != 99 {
+		t.Fatalf("unexpected entry: %+v", entry)
 	}
 }
 
@@ -148,6 +175,7 @@ func TestParseActorMoveEntry2008Palettes(t *testing.T) {
 	binary.LittleEndian.PutUint16(data[39:41], 3)
 	binary.LittleEndian.PutUint32(data[41:45], 0x01020304)
 	binary.LittleEndian.PutUint16(data[45:47], 8)
+	binary.LittleEndian.PutUint16(data[63:65], 99)
 	data[54] = 1
 	data[55], data[56], data[57], data[58], data[59], data[60] = packMovePosition(10, 20, 30, 40)
 
@@ -163,6 +191,9 @@ func TestParseActorMoveEntry2008Palettes(t *testing.T) {
 	}
 	if entry.GuildID != 0x01020304 || entry.EmblemVersion != 8 {
 		t.Fatalf("unexpected guild emblem fields: %+v", entry)
+	}
+	if !entry.HasLevel || entry.Level != 99 {
+		t.Fatalf("level = %d has=%t, want 99 true", entry.Level, entry.HasLevel)
 	}
 	if !entry.HasMoveStartTick || entry.MoveStartTick != 234567 {
 		t.Fatalf("move start tick = %d has=%t, want 234567 true", entry.MoveStartTick, entry.HasMoveStartTick)
@@ -207,6 +238,7 @@ func TestParseActorMoveEntryModern(t *testing.T) {
 	binary.LittleEndian.PutUint32(data[27:31], 345678)
 	binary.LittleEndian.PutUint16(data[31:33], 22)
 	binary.LittleEndian.PutUint16(data[33:35], 33)
+	binary.LittleEndian.PutUint16(data[63:65], 99)
 	data[54] = 1
 	data[55], data[56], data[57], data[58], data[59], data[60] = packMovePosition(10, 20, 11, 21)
 
@@ -225,6 +257,9 @@ func TestParseActorMoveEntryModern(t *testing.T) {
 	}
 	if !entry.HasMoveStartTick || entry.MoveStartTick != 345678 {
 		t.Fatalf("move start tick = %d has=%t, want 345678 true", entry.MoveStartTick, entry.HasMoveStartTick)
+	}
+	if !entry.HasLevel || entry.Level != 99 {
+		t.Fatalf("level = %d has=%t, want 99 true", entry.Level, entry.HasLevel)
 	}
 }
 

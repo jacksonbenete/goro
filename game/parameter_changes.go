@@ -111,6 +111,9 @@ func (m *WorldMode) applyParameterChange(ctx client.Context, change network.Para
 			visual.applyParameterChange(ctx, m, previousValues[change.VarID])
 		}
 	}
+	if change.VarID == network.StatusBaseLevel {
+		m.syncLevel99AuraEffects(ctx, time.Now())
+	}
 }
 
 var (

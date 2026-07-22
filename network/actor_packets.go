@@ -38,6 +38,8 @@ type ActorEntry struct {
 	HealthState      uint16
 	EffectState      uint32
 	HasState         bool
+	Level            int
+	HasLevel         bool
 }
 
 type ActorVanish struct {
@@ -377,6 +379,8 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			HeadDir:       uint8(binary.LittleEndian.Uint16(packet.Data[34:36])),
 			GuildID:       binary.LittleEndian.Uint32(packet.Data[36:40]),
 			EmblemVersion: uint32(binary.LittleEndian.Uint16(packet.Data[40:42])),
+			Level:         int(binary.LittleEndian.Uint16(packet.Data[55:57])),
+			HasLevel:      true,
 			Sex:           packet.Data[49],
 			Appearance:    true,
 			X:             x,
@@ -408,6 +412,8 @@ func ParseActorEntry(packet Packet) (ActorEntry, bool, error) {
 			HeadDir:       uint8(binary.LittleEndian.Uint16(packet.Data[34:36])),
 			GuildID:       binary.LittleEndian.Uint32(packet.Data[36:40]),
 			EmblemVersion: uint32(binary.LittleEndian.Uint16(packet.Data[40:42])),
+			Level:         int(binary.LittleEndian.Uint16(packet.Data[56:58])),
+			HasLevel:      true,
 			Sex:           packet.Data[49],
 			Appearance:    true,
 			X:             x,
@@ -468,6 +474,8 @@ func parseActorMoveEntryModern(packet Packet) (ActorEntry, error) {
 		HeadDir:          uint8(binary.LittleEndian.Uint16(packet.Data[39:41])),
 		GuildID:          binary.LittleEndian.Uint32(packet.Data[41:45]),
 		EmblemVersion:    uint32(binary.LittleEndian.Uint16(packet.Data[45:47])),
+		Level:            int(binary.LittleEndian.Uint16(packet.Data[63:65])),
+		HasLevel:         true,
 		Sex:              packet.Data[54],
 		Appearance:       true,
 		X:                toX,

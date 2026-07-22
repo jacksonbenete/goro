@@ -1817,6 +1817,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	m.ui.minimap.Update(ctx)
 	removeExpiredStatusEffects(ctx.Session, now)
 	m.ui.statusIcons.Update(ctx, now)
+	m.syncLevel99AuraEffects(ctx, now)
 	m.updateCompanionAI(ctx, now)
 	m.updateBot(ctx, now)
 	pointerBlocked := uiPointerBlocked(ctx)

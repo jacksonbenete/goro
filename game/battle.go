@@ -904,6 +904,8 @@ func actorForCombatID(ctx client.Context, id uint32) (world.Actor, bool, bool) {
 		actor.HeadMid = character.HeadMid
 		actor.HeadLow = character.HeadLow
 		actor.Sex = ctx.Session.Sex
+		actor.Level = ctx.Session.Progress.BaseLevel
+		actor.HasLevel = actor.Level > 0
 		actor.Appearance = true
 		return actor, true, true
 	}
@@ -1550,6 +1552,7 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 	actor, ok, local := actorForCombatID(ctx, id)
 	if !ok {
 		if !local {
+			m.removeLevel99AuraEffects(id)
 			ctx.World.RemoveActor(id)
 		}
 		return
@@ -1609,6 +1612,9 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 				m.actorLife[id] = life
 			}
 		}
+	}
+	if !local && actor.HasObjectType && actor.ObjectType != actorObjectTypePC {
+		m.removeLevel99AuraEffects(id)
 	}
 	glog.Debugf("actor death id=%d job=%d local=%t action=%d death_ms=%d remove_ms=%d", id, actor.Job, local, actionFamily, deathDuration.Milliseconds(), visibleDuration.Milliseconds())
 }

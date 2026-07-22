@@ -149,6 +149,24 @@ func TestUpsertActorPreservesChatRoomState(t *testing.T) {
 	}
 }
 
+func TestUpsertActorPreservesLevelWhenUpdateOmitsIt(t *testing.T) {
+	w := New()
+	w.UpsertActor(Actor{
+		ID:       2000001,
+		X:        10,
+		Y:        20,
+		Level:    99,
+		HasLevel: true,
+	})
+
+	w.UpsertActor(Actor{ID: 2000001, X: 11, Y: 20})
+
+	actor := w.Actors[2000001]
+	if !actor.HasLevel || actor.Level != 99 {
+		t.Fatalf("level = %d has=%t, want 99 true", actor.Level, actor.HasLevel)
+	}
+}
+
 func TestUpsertActorPreservesSittingUntilMove(t *testing.T) {
 	w := New()
 	w.UpsertActor(Actor{ID: 2000001, X: 10, Y: 20, Sitting: true})
