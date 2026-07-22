@@ -2,12 +2,14 @@ package ui
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/input"
 	"strings"
 
+	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/core/textfield"
 	"github.com/gogpu/ui/primitives"
+	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -39,6 +41,7 @@ type ChatRoomWindow struct {
 	input      string
 	inputField *textfield.Widget
 	lines      []chatRoomLine
+	scrollY    state.Signal[float32]
 	action     ChatRoomWindowAction
 }
 
@@ -60,6 +63,7 @@ func (w *ChatRoomWindow) Open(ctx Context, title string, limit uint16, public bo
 	w.input = ""
 	w.inputField = nil
 	w.lines = nil
+	w.scrollY = nil
 	w.action = ChatRoomWindowAction{}
 	w.Window.Open(ctx, w.widgetTree(ctx))
 	w.focusInput()
@@ -223,12 +227,9 @@ func (w *ChatRoomWindow) widgetTree(ctx Context) widget.Widget {
 }
 
 func (w *ChatRoomWindow) contentTree() widget.Widget {
-	lines := w.visibleLines()
 	messageHeight := chatRoomWindowContentH - 24 - chatRoomMessagePadY*2
-	maxLines := maxInt(1, (messageHeight+1)/(consoleLineH+1))
-	if len(lines) > maxLines {
-		lines = lines[len(lines)-maxLines:]
-	}
+	textWidth := maxInt(1, scrollbarSafeIntWidth(chatRoomWindowW-2*chatRoomMessagePadX)-6)
+	lines := wrapChatRoomLines(w.visibleLines(), textWidth)
 	contentHeight := whisperMessageContentHeight(len(lines))
 	rows := make([]widget.Widget, 0, len(lines)+1)
 	if spacerH := messageHeight - contentHeight; spacerH > 0 {
@@ -237,22 +238,30 @@ func (w *ChatRoomWindow) contentTree() widget.Widget {
 	for _, line := range lines {
 		rows = append(rows,
 			primitives.Box(
-				rotheme.Text(trimRunes(line.text, 52)).
+				rotheme.Text(line.text).
 					Color(line.color).
-					MaxLines(1).
-					Ellipsis(),
+					MaxLines(1),
 			).Height(consoleLineH),
 		)
 	}
 	messageList := primitives.Box(rows...).
 		Gap(1).
 		CrossAlign(primitives.CrossAxisStretch)
+	w.ensureScrollSignal().Set(consoleBottomScrollY(len(lines), messageHeight))
 	return primitives.Box(
 		primitives.Box(w.memberSummary()).
 			Height(20).
 			PaddingXY(chatRoomMessagePadX, 3).
 			CrossAlign(primitives.CrossAxisStretch),
-		primitives.Box(messageList).
+		primitives.Box(
+			scrollview.New(
+				primitives.Box(messageList).
+					PaddingRight(ROScrollbarGutter),
+				scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
+				scrollview.ScrollYSignal(w.ensureScrollSignal()),
+				scrollview.ScrollStep(float32(consoleLineH*3)),
+			),
+		).
 			Height(float32(messageHeight)).
 			PaddingXY(chatRoomMessagePadX, chatRoomMessagePadY).
 			CrossAlign(primitives.CrossAxisStretch),
@@ -362,6 +371,13 @@ func (w *ChatRoomWindow) focusInput() {
 	if w.inputField != nil {
 		w.inputField.SetFocused(true)
 	}
+}
+
+func (w *ChatRoomWindow) ensureScrollSignal() state.Signal[float32] {
+	if w.scrollY == nil {
+		w.scrollY = state.NewSignal[float32](0)
+	}
+	return w.scrollY
 }
 
 func (w *ChatRoomWindow) windowTitle() string {

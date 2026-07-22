@@ -23,7 +23,6 @@ const (
 	consoleMargin     = windowScreenMargin
 	consoleWidth      = 480
 	consoleHeight     = 176
-	consoleMaxLines   = 9
 	consoleMaxInput   = 120
 	consoleMaxHistory = 20
 	consoleFieldH     = 24
@@ -62,6 +61,7 @@ type ChatConsole struct {
 	scrollY    state.Signal[float32]
 	cacheKey   string
 	messageH   int
+	messageW   int
 }
 
 func (c *ChatConsole) Active() bool {
@@ -812,14 +812,15 @@ func (c *ChatConsole) nextInput() {
 
 func (c *ChatConsole) widgetTree(width, height int) widget.Widget {
 	contentWidth := maxInt(1, width-16)
-	messageWidgets := make([]widget.Widget, 0, consoleMaxLines)
-	for _, line := range c.visibleLines() {
+	c.messageW = maxInt(1, scrollbarSafeIntWidth(contentWidth)-4)
+	wrappedLines := wrapConsoleMessages(c.visibleLines(), c.messageW)
+	messageWidgets := make([]widget.Widget, 0, len(wrappedLines))
+	for _, line := range wrappedLines {
 		messageWidgets = append(messageWidgets,
 			primitives.Box(
-				rotheme.Text(line.Text).
-					Color(Color(line.Color)).
-					MaxLines(1).
-					Ellipsis(),
+				rotheme.Text(line.text).
+					Color(Color(line.color)).
+					MaxLines(1),
 			).Height(consoleLineH),
 		)
 	}
@@ -955,7 +956,11 @@ func (c *ChatConsole) scrollToBottom() {
 	if c.messageH <= 0 {
 		return
 	}
-	c.ensureScrollSignal().Set(consoleBottomScrollY(len(c.visibleLines()), c.messageH))
+	lines := len(c.visibleLines())
+	if c.messageW > 0 {
+		lines = len(wrapConsoleMessages(c.visibleLines(), c.messageW))
+	}
+	c.ensureScrollSignal().Set(consoleBottomScrollY(lines, c.messageH))
 }
 
 func (c *ChatConsole) Messages() []ConsoleMessage {
