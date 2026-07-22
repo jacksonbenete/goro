@@ -9847,8 +9847,14 @@ func TestMercenaryAttackSchedulesWeaponSwingAndHitSounds(t *testing.T) {
 	if got := mode.scheduledSounds[0].paths; len(got) != 1 || got[0] != "attack_sword.wav" {
 		t.Fatalf("swing sound = %+v", mode.scheduledSounds[0])
 	}
+	if sound := mode.scheduledSounds[0]; !sound.positioned || sound.actorID != 400 {
+		t.Fatalf("swing sound source = %+v, want source actor", sound)
+	}
 	if got := mode.scheduledSounds[1].paths; len(got) != 1 || got[0] != "_hit_sword.wav" {
 		t.Fatalf("hit sound = %+v", mode.scheduledSounds[1])
+	}
+	if sound := mode.scheduledSounds[1]; !sound.positioned || sound.actorID != 300 {
+		t.Fatalf("hit sound source = %+v, want target actor", sound)
 	}
 }
 
@@ -10407,6 +10413,31 @@ func TestProcessNonPCMotionSoundSchedulesIdleACTSound(t *testing.T) {
 	if mode.scheduledSounds[0].paths[0] != "poring_idle.wav" {
 		t.Fatalf("idle sound = %+v", mode.scheduledSounds[0])
 	}
+	if sound := mode.scheduledSounds[0]; !sound.positioned || sound.actorID != 300 {
+		t.Fatalf("idle sound source = %+v, want actor position", sound)
+	}
+}
+
+func TestSpatialSoundGainUsesDHXJAndClassicRODistanceCurve(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		dist float64
+		want float64
+	}{
+		{name: "same cell", dist: 0, want: 1},
+		{name: "inside min", dist: 3, want: 1},
+		{name: "at min", dist: 4, want: 1},
+		{name: "inverse distance", dist: 8, want: 0.5},
+		{name: "at max", dist: 25, want: 4.0 / 25.0},
+		{name: "beyond max clamps", dist: 50, want: 4.0 / 25.0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := referenceSpatialSoundGain(0, 0, tc.dist, 0)
+			if math.Abs(got-tc.want) > 0.0001 {
+				t.Fatalf("gain = %.4f, want %.4f", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestProcessMapSoundsSchedulesNearbyRSWSound(t *testing.T) {
@@ -10442,6 +10473,9 @@ func TestProcessMapSoundsSchedulesNearbyRSWSound(t *testing.T) {
 	sound := mode.scheduledSounds[0]
 	if sound.paths[0] != "water.wav" || math.Abs(sound.volume-0.7) > 0.0001 {
 		t.Fatalf("scheduled map sound = %+v", sound)
+	}
+	if !sound.positioned || sound.actorID != 0 || sound.x != 110 || sound.y != 220 {
+		t.Fatalf("scheduled map sound source = %+v, want fixed world position", sound)
 	}
 	if got := mode.mapSoundNext[0]; !got.Equal(now.Add(2 * time.Second)) {
 		t.Fatalf("next map sound time = %s, want %s", got, now.Add(2*time.Second))

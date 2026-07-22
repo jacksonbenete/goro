@@ -479,7 +479,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		if actionDef, ok := m.actorResolvedAction(ctx, source, attackFamily); ok {
 			hitDelay = combatHitDelayFromAction(actionDef, attackDuration)
 			if sounds := actionSFXCandidatesForActor(source, m.actorActionACT(ctx, source), actionDef, firstActionSoundMotion(actionDef)); len(sounds) > 0 {
-				m.scheduleSound(now.Add(hitDelay), sounds...)
+				m.scheduleSoundAtActor(now.Add(hitDelay), action.SourceID, sounds...)
 			}
 		}
 	}
@@ -497,7 +497,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 			hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
 			m.startCombatAnimationWithNext(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, hurtDuration, postHurtAnimation(target, hitAt.Add(hurtDuration)))
 		}
-		m.scheduleSound(hitAt, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
+		m.scheduleSoundAtActor(hitAt, action.TargetID, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
 		m.addSkillEffect(ctx, action, hitAt)
 		m.addSkillHitEffect(ctx, action, hitAt)
 	}

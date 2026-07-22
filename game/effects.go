@@ -1409,7 +1409,7 @@ func (m *WorldMode) scheduleWorldEffectSound(starts time.Time, spec worldEffectS
 		if i < len(spec.sfxDelays) {
 			delay = spec.sfxDelays[i]
 		}
-		m.scheduleSound(starts.Add(delay), path)
+		m.scheduleSoundAtWorldEffect(starts.Add(delay), effect, path)
 	}
 }
 

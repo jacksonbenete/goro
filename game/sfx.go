@@ -13,9 +13,13 @@ import (
 )
 
 type scheduledSound struct {
-	at     time.Time
-	paths  []string
-	volume float64
+	at         time.Time
+	paths      []string
+	volume     float64
+	positioned bool
+	actorID    uint32
+	x          float64
+	y          float64
 }
 
 type actorSoundFrame struct {
@@ -29,6 +33,34 @@ func (m *WorldMode) scheduleSound(at time.Time, paths ...string) {
 }
 
 func (m *WorldMode) scheduleSoundVolume(at time.Time, volume float64, paths ...string) {
+	m.scheduleSoundOptions(scheduledSound{at: at, volume: volume}, paths...)
+}
+
+func (m *WorldMode) scheduleSoundAtActor(at time.Time, actorID uint32, paths ...string) {
+	m.scheduleSoundVolumeAtActor(at, 1, actorID, paths...)
+}
+
+func (m *WorldMode) scheduleSoundVolumeAtActor(at time.Time, volume float64, actorID uint32, paths ...string) {
+	m.scheduleSoundOptions(scheduledSound{at: at, volume: volume, positioned: true, actorID: actorID}, paths...)
+}
+
+func (m *WorldMode) scheduleSoundVolumeAtPosition(at time.Time, volume float64, x, y float64, paths ...string) {
+	m.scheduleSoundOptions(scheduledSound{at: at, volume: volume, positioned: true, x: x, y: y}, paths...)
+}
+
+func (m *WorldMode) scheduleSoundAtWorldEffect(at time.Time, effect worldEffect, paths ...string) {
+	sound := scheduledSound{
+		at:         at,
+		volume:     1,
+		positioned: true,
+		actorID:    effect.actorID,
+		x:          float64(effect.x),
+		y:          float64(effect.y),
+	}
+	m.scheduleSoundOptions(sound, paths...)
+}
+
+func (m *WorldMode) scheduleSoundOptions(sound scheduledSound, paths ...string) {
 	clean := paths[:0]
 	for _, path := range paths {
 		path = strings.TrimSpace(path)
@@ -39,11 +71,8 @@ func (m *WorldMode) scheduleSoundVolume(at time.Time, volume float64, paths ...s
 	if len(clean) == 0 {
 		return
 	}
-	m.scheduledSounds = append(m.scheduledSounds, scheduledSound{
-		at:     at,
-		paths:  append([]string(nil), clean...),
-		volume: volume,
-	})
+	sound.paths = append([]string(nil), clean...)
+	m.scheduledSounds = append(m.scheduledSounds, sound)
 }
 
 func (m *WorldMode) playDueScheduledSounds(ctx client.Context, now time.Time) {
@@ -56,9 +85,21 @@ func (m *WorldMode) playDueScheduledSounds(ctx client.Context, now time.Time) {
 			active = append(active, sound)
 			continue
 		}
-		m.playSFXFirstVolume(ctx, sound.volume, sound.paths...)
+		m.playScheduledSound(ctx, sound, now)
 	}
 	m.scheduledSounds = active
+}
+
+func (m *WorldMode) playScheduledSound(ctx client.Context, sound scheduledSound, now time.Time) {
+	volume := sound.volume
+	if sound.positioned {
+		x, y, ok := scheduledSoundPosition(ctx, sound, now)
+		if !ok {
+			return
+		}
+		volume *= spatialSoundGain(ctx, x, y, now)
+	}
+	m.playSFXFirstVolume(ctx, volume, sound.paths...)
 }
 
 func (m *WorldMode) processMapSounds(ctx client.Context, now time.Time) {
@@ -87,7 +128,7 @@ func (m *WorldMode) processMapSounds(ctx client.Context, now time.Time) {
 		if math.Hypot(soundX-playerX, soundY-playerY) > maxDistance {
 			continue
 		}
-		m.scheduleSoundVolume(now, float64(sound.Volume), sound.File)
+		m.scheduleSoundVolumeAtPosition(now, float64(sound.Volume), soundX, soundY, sound.File)
 		delay := time.Duration(float64(time.Second) * float64(sound.Cycle))
 		if delay < 100*time.Millisecond {
 			delay = 100 * time.Millisecond
@@ -139,7 +180,7 @@ func (m *WorldMode) processNonPCMotionSound(ctx client.Context, actor worldstate
 		return
 	}
 	if sound := actionSoundName(view.act, action, motion); sound != "" {
-		m.scheduleSound(now, sound)
+		m.scheduleSoundAtActor(now, actor.ID, sound)
 	}
 }
 
@@ -174,6 +215,48 @@ func (m *WorldMode) playSFXFirstVolume(ctx client.Context, volume float64, paths
 	if lastErr != nil {
 		glog.Warnf("sfx failed paths=%v: %v", paths, lastErr)
 	}
+}
+
+const (
+	// dhxj and classic-ro-client use 40/250 world-unit distances; Goro keeps
+	// actor and RSW sound positions in cells, so those become 4/25 cells.
+	referenceSoundMinDistanceCells = 4.0
+	referenceSoundMaxDistanceCells = 25.0
+)
+
+func scheduledSoundPosition(ctx client.Context, sound scheduledSound, now time.Time) (float64, float64, bool) {
+	if ctx.World == nil {
+		return 0, 0, false
+	}
+	if sound.actorID != 0 {
+		if actor, ok := ctx.World.Actors[sound.actorID]; ok {
+			x, y := actorRenderPosition(actor, now)
+			return x, y, true
+		}
+		if isLocalActor(ctx, sound.actorID) {
+			x, y := actorRenderPosition(ctx.World.Player, now)
+			return x, y, true
+		}
+		return 0, 0, false
+	}
+	return sound.x, sound.y, true
+}
+
+func spatialSoundGain(ctx client.Context, sourceX, sourceY float64, now time.Time) float64 {
+	if ctx.World == nil {
+		return 1
+	}
+	listenerX, listenerY := actorRenderPosition(ctx.World.Player, now)
+	return referenceSpatialSoundGain(listenerX, listenerY, sourceX, sourceY)
+}
+
+func referenceSpatialSoundGain(listenerX, listenerY, sourceX, sourceY float64) float64 {
+	dist := math.Hypot(sourceX-listenerX, sourceY-listenerY)
+	if !isFinite(dist) {
+		return 1
+	}
+	dist = clampFloat(dist, referenceSoundMinDistanceCells, referenceSoundMaxDistanceCells)
+	return referenceSoundMinDistanceCells / dist
 }
 
 func actionSoundName(act *res.ACT, action res.ACTAction, motion int) string {
