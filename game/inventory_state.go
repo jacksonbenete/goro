@@ -264,6 +264,11 @@ func normalizeSessionInventoryItem(item *session.InventoryItem) {
 	if item == nil {
 		return
 	}
+	if item.Type == db.ItemTypeCard {
+		item.Equip = false
+		item.Equipped = false
+		return
+	}
 	if inventoryItemTypeIsEquipment(item.Type) {
 		item.Equip = true
 	}

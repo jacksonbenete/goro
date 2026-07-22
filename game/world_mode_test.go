@@ -12745,6 +12745,22 @@ func TestSessionItemFromNetworkDefaultsAmmoLocation(t *testing.T) {
 	}
 }
 
+func TestSessionItemFromNetworkDoesNotMarkCardsAsEquipment(t *testing.T) {
+	item := sessionItemFromNetwork(network.InventoryItem{
+		Index:      9,
+		ItemID:     4001,
+		Type:       db.ItemTypeCard,
+		Location:   db.EquipAccessory1,
+		Identified: true,
+		Amount:     1,
+		Equip:      true,
+		Equipped:   true,
+	})
+	if item.Equip || item.Equipped || item.Location != db.EquipAccessory1 {
+		t.Fatalf("card item = %+v, want non-equipment card with original location", item)
+	}
+}
+
 func TestInventoryItemListReplacesDifferentItemAtReusedIndex(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{

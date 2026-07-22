@@ -394,7 +394,7 @@ func (w *InventoryBagWindow) activateItem(ctx Context, item session.InventoryIte
 		glog.Debugf("card composition list requested index=%d item=%d", item.Index, item.ItemID)
 		return
 	}
-	if inventoryItemIsEquipment(item) {
+	if inventoryItemCanEquip(item) {
 		equipInventoryItem(ctx, item)
 		return
 	}
@@ -713,7 +713,7 @@ func (w *inventoryGridWidget) drawScrollBar(canvas widget.Canvas) {
 }
 
 func inventoryItemTab(item session.InventoryItem) int {
-	if inventoryItemIsEquipment(item) {
+	if inventoryItemUsesEquipmentTab(item) {
 		return inventoryBagTabEquip
 	}
 	if inventoryItemIsUsable(item) {
@@ -722,13 +722,34 @@ func inventoryItemTab(item session.InventoryItem) int {
 	return inventoryBagTabEtc
 }
 
-func inventoryItemIsEquipment(item session.InventoryItem) bool {
-	return item.Equip || inventoryItemTypeIsEquipment(item.Type)
+func inventoryItemCanEquip(item session.InventoryItem) bool {
+	if item.Type == db.ItemTypeCard {
+		return false
+	}
+	return item.Equip || inventoryItemTypeCanEquip(item.Type)
 }
 
-func inventoryItemTypeIsEquipment(itemType uint8) bool {
+func inventoryItemUsesEquipmentTab(item session.InventoryItem) bool {
+	switch item.Type {
+	case db.ItemTypeCard, db.ItemTypeAmmo:
+		return false
+	default:
+		return item.Equip || inventoryItemTypeUsesEquipmentTab(item.Type)
+	}
+}
+
+func inventoryItemTypeCanEquip(itemType uint8) bool {
 	switch itemType {
 	case db.ItemTypeArmor, db.ItemTypeWeapon, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeAmmo, db.ItemTypeShadowGear:
+		return true
+	default:
+		return false
+	}
+}
+
+func inventoryItemTypeUsesEquipmentTab(itemType uint8) bool {
+	switch itemType {
+	case db.ItemTypeArmor, db.ItemTypeWeapon, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeShadowGear:
 		return true
 	default:
 		return false

@@ -80,7 +80,9 @@ func TestInventoryBagClassifiesTabs(t *testing.T) {
 		{name: "pet egg type", item: session.InventoryItem{Type: 7}, tab: inventoryBagTabEquip},
 		{name: "etc", item: session.InventoryItem{Type: 3}, tab: inventoryBagTabEtc},
 		{name: "card", item: session.InventoryItem{Type: 6}, tab: inventoryBagTabEtc},
-		{name: "ammo", item: session.InventoryItem{Type: 10}, tab: inventoryBagTabEquip},
+		{name: "card with stale equipment flag", item: session.InventoryItem{Type: 6, Equip: true}, tab: inventoryBagTabEtc},
+		{name: "ammo", item: session.InventoryItem{Type: 10}, tab: inventoryBagTabEtc},
+		{name: "ammo with equipment flag", item: session.InventoryItem{Type: 10, Equip: true}, tab: inventoryBagTabEtc},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -88,6 +90,15 @@ func TestInventoryBagClassifiesTabs(t *testing.T) {
 				t.Fatalf("tab = %d, want %d", got, tc.tab)
 			}
 		})
+	}
+}
+
+func TestInventoryBagSeparatesEquipCapabilityFromEquipTab(t *testing.T) {
+	if inventoryItemCanEquip(session.InventoryItem{Type: db.ItemTypeCard, Equip: true}) {
+		t.Fatal("card should not be equip-capable")
+	}
+	if !inventoryItemCanEquip(session.InventoryItem{Type: db.ItemTypeAmmo}) {
+		t.Fatal("ammo should stay equip-capable")
 	}
 }
 

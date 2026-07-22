@@ -301,7 +301,7 @@ func (w *EquipmentWindow) AcceptInventoryDrop(ctx Context, item session.Inventor
 	if !w.IsOpen() || !pointInRect(mx, my, w.x, w.y, equipmentWindowWidth, equipmentWindowHeight) {
 		return false
 	}
-	if inventoryItemIsEquipment(item) {
+	if inventoryItemCanEquip(item) {
 		equipInventoryItem(ctx, item)
 	}
 	return true

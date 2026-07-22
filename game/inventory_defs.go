@@ -6,7 +6,7 @@ const inventoryIconSize = 24
 
 func inventoryItemTypeIsEquipment(itemType uint8) bool {
 	switch itemType {
-	case db.ItemTypeArmor, db.ItemTypeWeapon, db.ItemTypeCard, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeAmmo, db.ItemTypeShadowGear:
+	case db.ItemTypeArmor, db.ItemTypeWeapon, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeAmmo, db.ItemTypeShadowGear:
 		return true
 	default:
 		return false

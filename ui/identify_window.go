@@ -214,7 +214,7 @@ func (w *IdentifyWindow) items(s *session.Session) []session.InventoryItem {
 	}
 	items := make([]session.InventoryItem, 0, len(w.indexes))
 	for _, index := range w.indexes {
-		if item, ok := findInventoryItemByIndex(s, index); ok && !item.Identified && inventoryItemIsEquipment(item) {
+		if item, ok := findInventoryItemByIndex(s, index); ok && !item.Identified && inventoryItemCanEquip(item) {
 			items = append(items, item)
 		}
 	}
