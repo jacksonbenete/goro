@@ -7358,8 +7358,8 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 		t.Fatalf("firebolt marker size = %.1f, want default 1", size)
 	}
 	for skillID, wantSize := range map[uint16]float64{
-		db.SkillACShower:        2,
-		db.SkillALPneuma:        2,
+		db.SkillACShower:        5,
+		db.SkillALPneuma:        5,
 		db.SkillASGrimtooth:     5,
 		db.SkillASVenomdust:     5,
 		db.SkillBSHammerfall:    5,
@@ -7376,14 +7376,14 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 		db.SkillPRMagnus:        9,
 		db.SkillPRSanctuary:     7,
 		db.SkillSNFalconassault: 5,
-		db.SkillWZFirepillar:    2,
+		db.SkillWZFirepillar:    5,
 		db.SkillWZFrostnova:     5,
 		db.SkillWZHeavendrive:   7,
 		db.SkillWZMeteor:        11,
 		db.SkillWZQuagmire:      7,
 		db.SkillWZStormgust:     11,
 		db.SkillWZVermilion:     13,
-		db.SkillWZWaterball:     2,
+		db.SkillWZWaterball:     5,
 	} {
 		if size := skillCastGroundSampleSize(skillID); size != wantSize {
 			t.Fatalf("skill %d marker size = %.1f, want classic client rendered scope %.1f", skillID, size, wantSize)

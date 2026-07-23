@@ -3706,8 +3706,8 @@ const (
 // SkillGroundCastClientScopeSizes mirrors the classic client ground scope.
 // The client stores GetScopeSize(skill)+2 as the rendered MagicTarget tile span.
 var SkillGroundCastClientScopeSizes = map[uint16]float64{
-	SkillACShower:        2,
-	SkillALPneuma:        2,
+	SkillACShower:        5,
+	SkillALPneuma:        5,
 	SkillASGrimtooth:     5,
 	SkillASVenomdust:     5,
 	SkillBSHammerfall:    5,
@@ -3724,14 +3724,14 @@ var SkillGroundCastClientScopeSizes = map[uint16]float64{
 	SkillPRMagnus:        9,
 	SkillPRSanctuary:     7,
 	SkillSNFalconassault: 5,
-	SkillWZFirepillar:    2,
+	SkillWZFirepillar:    5,
 	SkillWZFrostnova:     5,
 	SkillWZHeavendrive:   7,
 	SkillWZMeteor:        11,
 	SkillWZQuagmire:      7,
 	SkillWZStormgust:     11,
 	SkillWZVermilion:     13,
-	SkillWZWaterball:     2,
+	SkillWZWaterball:     5,
 }
 
 func SkillGroundCastSize(skillID uint16, level int) float64 {
