@@ -3698,6 +3698,41 @@ var SkillGroundCastSizes = map[uint16][]float64{
 	SkillWZVermilion:          {11},
 }
 
+const (
+	SkillGroundCastClientFPS                     = 60
+	SkillGroundCastClientRotationRadiansPerFrame = 0.5
+)
+
+// SkillGroundCastClientScopeSizes mirrors the classic client ground scope.
+// The client stores GetScopeSize(skill)+2 as the rendered MagicTarget tile span.
+var SkillGroundCastClientScopeSizes = map[uint16]float64{
+	SkillACShower:        2,
+	SkillALPneuma:        2,
+	SkillASGrimtooth:     5,
+	SkillASVenomdust:     5,
+	SkillBSHammerfall:    5,
+	SkillCRSlimpitcher:   9,
+	SkillHTBlitzbeat:     5,
+	SkillHTDetecting:     5,
+	SkillHWGanbantein:    5,
+	SkillHWGravitation:   7,
+	SkillMGFireball:      7,
+	SkillMGNapalmbeat:    5,
+	SkillMGThunderstorm:  7,
+	SkillPRBenedictio:    5,
+	SkillPRMagnus:        9,
+	SkillPRSanctuary:     7,
+	SkillSNFalconassault: 5,
+	SkillWZFirepillar:    2,
+	SkillWZFrostnova:     5,
+	SkillWZHeavendrive:   7,
+	SkillWZMeteor:        11,
+	SkillWZQuagmire:      7,
+	SkillWZStormgust:     11,
+	SkillWZVermilion:     13,
+	SkillWZWaterball:     2,
+}
+
 func SkillGroundCastSize(skillID uint16, level int) float64 {
 	sizes := SkillGroundCastSizes[skillID]
 	if len(sizes) == 0 {
@@ -3710,6 +3745,19 @@ func SkillGroundCastSize(skillID uint16, level int) float64 {
 		return sizes[0]
 	}
 	return 1
+}
+
+func SkillGroundCastClientScopeSize(skillID uint16) (float64, bool) {
+	size, ok := SkillGroundCastClientScopeSizes[skillID]
+	return size, ok
+}
+
+func SkillGroundCastClientRotationRadiansPerSecond(skillID uint16) (float64, bool) {
+	size, ok := SkillGroundCastClientScopeSize(skillID)
+	if !ok || size <= 0 {
+		return 0, false
+	}
+	return SkillGroundCastClientRotationRadiansPerFrame / size * SkillGroundCastClientFPS, true
 }
 
 const (

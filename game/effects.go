@@ -701,18 +701,19 @@ const (
 )
 
 type worldEffect struct {
-	effectID            int
-	actorID             uint32
-	targetID            uint32
-	x                   int
-	y                   int
-	starts              time.Time
-	expires             time.Time
-	duration            time.Duration
-	size                float64
-	persistent          bool
-	spriteFrameOverride int
-	hasSpriteFrame      bool
+	effectID                             int
+	actorID                              uint32
+	targetID                             uint32
+	x                                    int
+	y                                    int
+	starts                               time.Time
+	expires                              time.Time
+	duration                             time.Duration
+	size                                 float64
+	groundSampleRotationRadiansPerSecond float64
+	persistent                           bool
+	spriteFrameOverride                  int
+	hasSpriteFrame                       bool
 }
 
 type worldEffectSpec struct {
@@ -1369,6 +1370,10 @@ func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID in
 }
 
 func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
+	return m.addWorldEffectAtCellDurationSizeRotation(ctx, effectID, actorID, x, y, starts, durationOverride, sizeOverride, 0)
+}
+
+func (m *WorldMode) addWorldEffectAtCellDurationSizeRotation(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64, rotationRadiansPerSecond float64) bool {
 	if ctx.World == nil {
 		return false
 	}
@@ -1390,14 +1395,15 @@ func (m *WorldMode) addWorldEffectAtCellDurationSize(ctx client.Context, effectI
 		duration = durationOverride
 	}
 	effect := worldEffect{
-		effectID: effectID,
-		actorID:  actorID,
-		x:        x,
-		y:        y,
-		starts:   starts,
-		expires:  starts.Add(duration),
-		duration: durationOverride,
-		size:     sizeOverride,
+		effectID:                             effectID,
+		actorID:                              actorID,
+		x:                                    x,
+		y:                                    y,
+		starts:                               starts,
+		expires:                              starts.Add(duration),
+		duration:                             durationOverride,
+		size:                                 sizeOverride,
+		groundSampleRotationRadiansPerSecond: rotationRadiansPerSecond,
 	}
 	m.worldEffects = append(m.worldEffects, effect)
 	m.scheduleWorldEffectSound(starts, spec, effect)
@@ -1447,13 +1453,17 @@ func (m *WorldMode) addWorldEffectAtCellIfMissing(ctx client.Context, effectID i
 }
 
 func (m *WorldMode) addWorldEffectAtCellDurationSizeIfMissing(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64) bool {
+	return m.addWorldEffectAtCellDurationSizeRotationIfMissing(ctx, effectID, actorID, x, y, starts, durationOverride, sizeOverride, 0)
+}
+
+func (m *WorldMode) addWorldEffectAtCellDurationSizeRotationIfMissing(ctx client.Context, effectID int, actorID uint32, x, y int, starts time.Time, durationOverride time.Duration, sizeOverride float64, rotationRadiansPerSecond float64) bool {
 	now := time.Now()
 	for _, effect := range m.worldEffects {
 		if effect.effectID == effectID && effect.actorID == actorID && effect.x == x && effect.y == y && now.Before(effect.expires) {
 			return false
 		}
 	}
-	return m.addWorldEffectAtCellDurationSize(ctx, effectID, actorID, x, y, starts, durationOverride, sizeOverride)
+	return m.addWorldEffectAtCellDurationSizeRotation(ctx, effectID, actorID, x, y, starts, durationOverride, sizeOverride, rotationRadiansPerSecond)
 }
 
 func (m *WorldMode) addWorldEffectBetweenAtDurationIfMissing(ctx client.Context, effectID int, actorID, targetID uint32, starts time.Time, durationOverride time.Duration) bool {
@@ -1472,7 +1482,8 @@ func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, prop
 	}
 	if targetID == 0 && (cellX != 0 || cellY != 0) {
 		markerSize := skillCastGroundSampleSize(skillID)
-		if m.addWorldEffectAtCellDurationSizeIfMissing(ctx, effectGroundSample, 0, cellX, cellY, starts, duration, markerSize) {
+		markerRotationSpeed := skillCastGroundSampleRotationRadiansPerSecond(skillID)
+		if m.addWorldEffectAtCellDurationSizeRotationIfMissing(ctx, effectGroundSample, 0, cellX, cellY, starts, duration, markerSize, markerRotationSpeed) {
 			glog.Debugf("skill cast ground marker source=%s skill=%d src=%d cell=%d,%d delay_ms=%d", source, skillID, sourceID, cellX, cellY, duration.Milliseconds())
 		}
 	}
@@ -1497,7 +1508,15 @@ func (m *WorldMode) addSkillCastEffects(ctx client.Context, skillID uint16, prop
 }
 
 func skillCastGroundSampleSize(skillID uint16) float64 {
+	if size, ok := db.SkillGroundCastClientScopeSize(skillID); ok {
+		return size
+	}
 	return db.SkillGroundCastSize(skillID, 0)
+}
+
+func skillCastGroundSampleRotationRadiansPerSecond(skillID uint16) float64 {
+	speed, _ := db.SkillGroundCastClientRotationRadiansPerSecond(skillID)
+	return speed
 }
 
 func effectAnchor(ctx client.Context, actorID uint32) (int, int, bool) {

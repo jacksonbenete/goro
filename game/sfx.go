@@ -220,7 +220,7 @@ func (m *WorldMode) playSFXFirstVolume(ctx client.Context, volume float64, paths
 }
 
 const (
-	// dhxj and classic-ro-client use 40/250 world-unit distances; Goro keeps
+	// Reference clients use 40/250 world-unit distances; Goro keeps
 	// actor and RSW sound positions in cells, so those become 4/25 cells.
 	referenceSoundMinDistanceCells = 4.0
 	referenceSoundMaxDistanceCells = 25.0

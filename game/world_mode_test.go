@@ -7147,6 +7147,21 @@ func TestGroundSampleEffectSpecUsesMagicTargetPlane(t *testing.T) {
 	}
 }
 
+func TestGroundSampleRotationAngleUsesClientSpeedOverride(t *testing.T) {
+	start := time.Unix(10, 0)
+	now := start.Add(time.Second)
+	speed := 0.5 / 7 * 60
+	effect := worldEffect{starts: start, groundSampleRotationRadiansPerSecond: speed}
+	if got := groundSampleRotationAngle(effect, now); math.Abs(got-speed) > 0.001 {
+		t.Fatalf("override angle = %.4f, want %.4f", got, speed)
+	}
+	fallback := worldEffect{starts: start}
+	wantFallback := 40 * math.Pi / 180
+	if got := groundSampleRotationAngle(fallback, now); math.Abs(got-wantFallback) > 0.001 {
+		t.Fatalf("fallback angle = %.4f, want %.4f", got, wantFallback)
+	}
+}
+
 func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectCastRing)
 	if !ok {
@@ -7342,8 +7357,44 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 	if size := skillCastGroundSampleSize(19); size != 1 {
 		t.Fatalf("firebolt marker size = %.1f, want default 1", size)
 	}
-	if size := skillCastGroundSampleSize(db.SkillMGThunderstorm); size != 5 {
-		t.Fatalf("thunderstorm marker size = %.1f, want roBrowser MagicTarget size 5", size)
+	for skillID, wantSize := range map[uint16]float64{
+		db.SkillACShower:        2,
+		db.SkillALPneuma:        2,
+		db.SkillASGrimtooth:     5,
+		db.SkillASVenomdust:     5,
+		db.SkillBSHammerfall:    5,
+		db.SkillCRSlimpitcher:   9,
+		db.SkillHTBlitzbeat:     5,
+		db.SkillHTDetecting:     5,
+		db.SkillHWGanbantein:    5,
+		db.SkillHWGravitation:   7,
+		db.SkillMGFireball:      7,
+		db.SkillMGNapalmbeat:    5,
+		db.SkillMGThunderstorm:  7,
+		db.SkillPRBenedictio:    5,
+		db.SkillPRMagnus:        9,
+		db.SkillPRSanctuary:     7,
+		db.SkillSNFalconassault: 5,
+		db.SkillWZFirepillar:    2,
+		db.SkillWZFrostnova:     5,
+		db.SkillWZHeavendrive:   7,
+		db.SkillWZMeteor:        11,
+		db.SkillWZQuagmire:      7,
+		db.SkillWZStormgust:     11,
+		db.SkillWZVermilion:     13,
+		db.SkillWZWaterball:     2,
+	} {
+		if size := skillCastGroundSampleSize(skillID); size != wantSize {
+			t.Fatalf("skill %d marker size = %.1f, want classic client rendered scope %.1f", skillID, size, wantSize)
+		}
+		gotSpeed := skillCastGroundSampleRotationRadiansPerSecond(skillID)
+		wantSpeed := 0.5 / wantSize * 60
+		if math.Abs(gotSpeed-wantSpeed) > 0.001 {
+			t.Fatalf("skill %d marker speed = %.4f rad/s, want %.4f", skillID, gotSpeed, wantSpeed)
+		}
+	}
+	if speed := skillCastGroundSampleRotationRadiansPerSecond(19); speed != 0 {
+		t.Fatalf("default marker speed override = %.4f, want fallback path", speed)
 	}
 }
 
@@ -7514,7 +7565,8 @@ func TestGroundSkillCastEffectsAddGroundSampleMarker(t *testing.T) {
 		t.Fatalf("world effects = %d, want 3", len(mode.worldEffects))
 	}
 	marker := mode.worldEffects[0]
-	if marker.effectID != effectGroundSample || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond || marker.size != 5 {
+	wantSpeed := 0.5 / 7 * 60
+	if marker.effectID != effectGroundSample || marker.actorID != 0 || marker.x != 123 || marker.y != 456 || marker.duration != 1800*time.Millisecond || marker.size != 7 || math.Abs(marker.groundSampleRotationRadiansPerSecond-wantSpeed) > 0.001 {
 		t.Fatalf("ground marker = %+v", marker)
 	}
 	if mode.worldEffects[1].effectID != effectCastRing || mode.worldEffects[2].effectID != effectBeginSpell4 {

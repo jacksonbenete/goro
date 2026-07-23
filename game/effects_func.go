@@ -27,6 +27,8 @@ const (
 	effectFuncBodyColor
 )
 
+const groundSampleFallbackRotationRadiansPerSecond = 40 * math.Pi / 180
+
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.funcAdapter {
 	case effectFuncGroundSample:
@@ -131,7 +133,7 @@ func (m *WorldMode) drawGroundPlaneEffect(screen *render.Frame, ctx client.Conte
 		size = 1
 	}
 	half := size * 0.5
-	angle := now.Sub(effect.starts).Seconds() * 40 * math.Pi / 180
+	angle := groundSampleRotationAngle(effect, now)
 	uv := func(u, v float64) texturePoint {
 		sinA, cosA := math.Sin(angle), math.Cos(angle)
 		x, y := u-0.5, v-0.5
@@ -159,6 +161,15 @@ func (m *WorldMode) drawGroundPlaneEffect(screen *render.Frame, ctx client.Conte
 	}
 	tint := effectComponentTint(component, alpha)
 	drawTexturedSurface3DAlpha(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint})
+}
+
+func groundSampleRotationAngle(effect worldEffect, now time.Time) float64 {
+	elapsed := math.Max(0, now.Sub(effect.starts).Seconds())
+	speed := effect.groundSampleRotationRadiansPerSecond
+	if speed <= 0 {
+		speed = groundSampleFallbackRotationRadiansPerSecond
+	}
+	return elapsed * speed
 }
 
 func (m *WorldMode) drawLockOnTargetEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, worldX, worldY, worldZ float64, progress float64, now time.Time) {
