@@ -939,6 +939,7 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.
 		return
 	}
 	now := time.Now()
+	m.applySkillNameBubble(ctx, notify.SourceID, notify.SkillID, now)
 	m.startSkillNoDamageSourceAnimation(ctx, notify, now)
 	for _, effectID := range skillEffectIDs(notify.SkillID) {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
@@ -963,11 +964,12 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.
 }
 
 func (m *WorldMode) applySkillCastNotify(ctx client.Context, notify network.SkillCastNotify) {
+	now := time.Now()
+	m.applySkillNameBubble(ctx, notify.SourceID, notify.SkillID, now)
 	if notify.DelayTime == 0 {
 		return
 	}
 	duration := time.Duration(notify.DelayTime) * time.Millisecond
-	now := time.Now()
 	m.startSkillCastSourceAnimation(ctx, notify, duration, now)
 	if !skillHidesCastBar(notify.SkillID) {
 		m.startActorCastBar(ctx, notify.SourceID, duration, now)

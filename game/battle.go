@@ -468,6 +468,9 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	}
 	source, sourceOK, sourceLocal := actorForCombatID(ctx, action.SourceID)
 	target, targetOK, targetLocal := actorForCombatID(ctx, action.TargetID)
+	if action.SkillID > 0 {
+		m.applySkillNameBubble(ctx, action.SourceID, action.SkillID, now)
+	}
 	if sourceOK && targetOK {
 		m.faceCombatSource(ctx, source, sourceLocal, target)
 		source.Dir = directionFromDelta(source.X, source.Y, target.X, target.Y, source.Dir)
@@ -1695,12 +1698,12 @@ func actorCastBarProgress(bar actorCastBar, now time.Time) (float64, bool) {
 }
 
 func actorLifeBarHeight(life actorLife) float64 {
-	height := 5.0
+	height := actorOverlayBarHeight
 	if life.hasSP {
-		height += 4
+		height += actorOverlayBarRowSpacing
 	}
 	if life.hasHunger {
-		height += 4
+		height += actorOverlayBarRowSpacing
 	}
 	return height
 }
@@ -1709,17 +1712,41 @@ func actorNameBelowLifeBarY(baseY, scale float64, life actorLife) float64 {
 	return actorLifeBarY(baseY, scale) + actorLifeBarHeight(life) + 3
 }
 
+const (
+	actorOverlayBarWidth      = 60.0
+	actorOverlayBarRowHeight  = 3.0
+	actorOverlayBarRowSpacing = 4.0
+	actorOverlayBarHeight     = actorOverlayBarRowHeight + 2
+)
+
+func actorOverlayBarX(centerX float64) float64 {
+	return math.Round(centerX - actorOverlayBarWidth/2)
+}
+
+func actorOverlayBarY(y float64) float64 {
+	return math.Round(y)
+}
+
+func actorOverlayBarFillWidth(ratio float64) float64 {
+	if ratio <= 0 || math.IsNaN(ratio) || math.IsInf(ratio, 0) {
+		return 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+	return math.Round((actorOverlayBarWidth - 2) * ratio)
+}
+
 func (m *WorldMode) drawActorLifeBar(screen *render.Frame, ctx client.Context, entry sceneActorDrawEntry) {
 	life, ok := m.actorLifeForDisplay(ctx, entry.actor)
 	if !ok {
 		return
 	}
 	ratio := actorLifeRatio(life.hp, life.maxHP)
-	const width = 60.0
 	height := actorLifeBarHeight(life)
-	x := math.Round(entry.screenX - width/2)
-	y := math.Round(actorLifeBarY(entry.screenY, entry.scale))
-	fillWidth := math.Round((width - 2) * ratio)
+	x := actorOverlayBarX(entry.screenX)
+	y := actorOverlayBarY(actorLifeBarY(entry.screenY, entry.scale))
+	fillWidth := actorOverlayBarFillWidth(ratio)
 	fill := color.RGBA{R: 255, G: 0, B: 231, A: 255}
 	if life.player || life.friendly {
 		fill = ui.PlayerHPBarColor
@@ -1729,27 +1756,27 @@ func (m *WorldMode) drawActorLifeBar(screen *render.Frame, ctx client.Context, e
 	} else if ratio < 0.25 {
 		fill = color.RGBA{R: 255, G: 255, B: 0, A: 255}
 	}
-	render.DrawRect(screen, x, y, width, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
-	render.DrawRect(screen, x+1, y+1, width-2, height-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
+	render.DrawRect(screen, x, y, actorOverlayBarWidth, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
+	render.DrawRect(screen, x+1, y+1, actorOverlayBarWidth-2, height-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
 	if fillWidth > 0 {
-		render.DrawRect(screen, x+1, y+1, fillWidth, 3, fill)
+		render.DrawRect(screen, x+1, y+1, fillWidth, actorOverlayBarRowHeight, fill)
 	}
 	rowY := y + 1
 	if life.hasSP {
-		rowY += 4
+		rowY += actorOverlayBarRowSpacing
 		spRatio := actorLifeRatio(life.sp, life.maxSP)
-		render.DrawRect(screen, x, rowY-1, width, 1, color.RGBA{R: 16, G: 24, B: 156, A: 255})
-		if spWidth := math.Round((width - 2) * spRatio); spWidth > 0 {
-			render.DrawRect(screen, x+1, rowY, spWidth, 3, ui.PlayerSPBarColor)
+		render.DrawRect(screen, x, rowY-1, actorOverlayBarWidth, 1, color.RGBA{R: 16, G: 24, B: 156, A: 255})
+		if spWidth := actorOverlayBarFillWidth(spRatio); spWidth > 0 {
+			render.DrawRect(screen, x+1, rowY, spWidth, actorOverlayBarRowHeight, ui.PlayerSPBarColor)
 		}
 	}
 	if life.hasHunger {
-		rowY += 4
+		rowY += actorOverlayBarRowSpacing
 		hungerRatio := actorLifeRatio(life.hunger, life.maxHunger)
 		hungerFill := ui.HungerBarFillColor(life.hunger, life.maxHunger)
-		render.DrawRect(screen, x+1, rowY-1, width-2, 1, color.RGBA{R: 66, G: 66, B: 66, A: 255})
-		if hungerWidth := math.Round((width - 2) * hungerRatio); hungerWidth > 0 {
-			render.DrawRect(screen, x+1, rowY, hungerWidth, 3, hungerFill)
+		render.DrawRect(screen, x+1, rowY-1, actorOverlayBarWidth-2, 1, color.RGBA{R: 66, G: 66, B: 66, A: 255})
+		if hungerWidth := actorOverlayBarFillWidth(hungerRatio); hungerWidth > 0 {
+			render.DrawRect(screen, x+1, rowY, hungerWidth, actorOverlayBarRowHeight, hungerFill)
 		}
 	}
 }
@@ -1781,19 +1808,17 @@ func (m *WorldMode) drawActorCastBar(screen *render.Frame, entry sceneActorDrawE
 		delete(m.actorCastBars, entry.actor.ID)
 		return
 	}
-	const width = 60.0
-	const height = 6.0
-	x := math.Round(entry.screenX - width/2)
-	y := math.Round(actorCastBarY(entry.screenY, entry.scale))
-	fillWidth := math.Round((width - 2) * ratio)
-	render.DrawRect(screen, x, y, width, height, color.RGBA{R: 16, G: 24, B: 156, A: 255})
-	render.DrawRect(screen, x+1, y+1, width-2, height-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
+	x := actorOverlayBarX(entry.screenX)
+	y := actorOverlayBarY(actorCastBarY(entry.screenY, entry.scale))
+	fillWidth := actorOverlayBarFillWidth(ratio)
+	render.DrawRect(screen, x, y, actorOverlayBarWidth, actorOverlayBarHeight, color.RGBA{R: 16, G: 24, B: 156, A: 255})
+	render.DrawRect(screen, x+1, y+1, actorOverlayBarWidth-2, actorOverlayBarHeight-2, color.RGBA{R: 66, G: 66, B: 66, A: 255})
 	if fillWidth > 0 {
 		fill := bar.color
 		if fill.A == 0 {
 			fill = color.RGBA{R: 0, G: 255, B: 0, A: 255}
 		}
-		render.DrawRect(screen, x+1, y+1, fillWidth, height-2, fill)
+		render.DrawRect(screen, x+1, y+1, fillWidth, actorOverlayBarRowHeight, fill)
 	}
 }
 

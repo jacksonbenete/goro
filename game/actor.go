@@ -505,8 +505,10 @@ const (
 	actorJobHiddenNPC             = 111
 	actorJobClearNPC              = 844
 	actorObjectTypePC             = 0
+	actorObjectTypeDisguised      = 1
 	actorObjectTypeMob            = 5
 	actorObjectTypeNPC            = 6
+	actorObjectTypePet            = 7
 	actorObjectTypeHomunculus     = 8
 	actorObjectTypeMercenary      = 9
 	actorObjectTypeElemental      = 10
@@ -1119,7 +1121,7 @@ func actorLifeBarY(baseY, scale float64) float64 {
 }
 
 func actorCastBarY(baseY, scale float64) float64 {
-	return actorSpriteTopY(baseY, scale) - 10
+	return actorSpriteTopY(baseY, scale) + 4
 }
 
 func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, shadow float64) bool {

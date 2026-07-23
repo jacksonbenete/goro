@@ -9720,6 +9720,26 @@ func TestActorOverlayLifeBarIsBelowNameLabel(t *testing.T) {
 	}
 }
 
+func TestActorOverlayCastBarIsBelowSpeechBubble(t *testing.T) {
+	bubbleBottomY := actorSpeechBubbleBottomY(100, 1.2)
+	barY := actorCastBarY(100, 1.2)
+	if barY <= bubbleBottomY {
+		t.Fatalf("cast bar y = %.1f, bubble bottom y = %.1f; want cast bar below bubble", barY, bubbleBottomY)
+	}
+}
+
+func TestActorOverlayBarFillWidthRoundsAndClamps(t *testing.T) {
+	if got, want := actorOverlayBarFillWidth(0.333), math.Round((actorOverlayBarWidth-2)*0.333); got != want {
+		t.Fatalf("fill width = %.1f, want %.1f", got, want)
+	}
+	if got := actorOverlayBarFillWidth(1.5); got != actorOverlayBarWidth-2 {
+		t.Fatalf("clamped fill width = %.1f, want %.1f", got, actorOverlayBarWidth-2)
+	}
+	if got := actorOverlayBarFillWidth(math.NaN()); got != 0 {
+		t.Fatalf("nan fill width = %.1f, want 0", got)
+	}
+}
+
 func TestLocalPlayerNameIsBelowHPAndSPBars(t *testing.T) {
 	life := actorLife{hasSP: true}
 	barY := actorLifeBarY(100, 1.2)

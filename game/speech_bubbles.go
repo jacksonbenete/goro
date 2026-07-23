@@ -91,6 +91,12 @@ func speechBubbleText(text string) string {
 	return text
 }
 
+const actorSpeechBubbleGap = 6.0
+
+func actorSpeechBubbleBottomY(baseY, scale float64) float64 {
+	return actorSpriteTopY(baseY, scale) - actorSpeechBubbleGap
+}
+
 func (m *WorldMode) drawSpeechBubbles(screen *render.Frame, entries []sceneActorDrawEntry, now time.Time) {
 	if len(m.speechBubbles) == 0 {
 		return
@@ -108,7 +114,7 @@ func (m *WorldMode) drawSpeechBubbles(screen *render.Frame, entries []sceneActor
 		if !ok || strings.TrimSpace(bubble.text) == "" {
 			continue
 		}
-		bottomY := actorSpriteTopY(entry.screenY, entry.scale) - 6
+		bottomY := actorSpeechBubbleBottomY(entry.screenY, entry.scale)
 		render.DrawUISpeechBubble(screen, bubble.text, entry.screenX, bottomY, speechBubbleMaxWidth)
 	}
 }
