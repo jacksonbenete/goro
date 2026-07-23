@@ -11,12 +11,13 @@ import (
 	"github.com/kivutar/goro/session"
 )
 
-func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte) (*humanoidSpriteView, string) {
+func loadPlayerHumanoidSpriteView(manager *res.Manager, character session.Character, sex byte, admin bool) (*humanoidSpriteView, string) {
 	weapon, shield := res.NormalizePlayerWeaponShield(int(character.Weapon), int(character.Shield))
 	return loadHumanoidSpriteViewWithAppearance(manager, humanoidAppearance{
 		job:         int(character.Job),
 		head:        int(character.Hair),
 		sex:         sex,
+		admin:       admin,
 		bodyPalette: int(character.BodyPal),
 		headPalette: characterHeadPalette(character),
 		weapon:      weapon,
@@ -83,7 +84,7 @@ func loadHumanoidSpriteView(manager *res.Manager, job int, head int, sex byte, b
 }
 
 func loadHumanoidSpriteViewWithAppearance(manager *res.Manager, appearance humanoidAppearance, label string) (*humanoidSpriteView, string) {
-	body, bodyStatus := loadBodySpriteView(manager, appearance.job, appearance.sex, appearance.bodyPalette, label+" body")
+	body, bodyStatus := loadBodySpriteView(manager, appearance.job, appearance.sex, appearance.bodyPalette, appearance.admin, label+" body")
 	if body == nil {
 		return nil, bodyStatus
 	}
@@ -157,8 +158,14 @@ func loadMercenaryHumanoidSpriteView(manager *res.Manager, appearance humanoidAp
 	return view, status
 }
 
-func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, label string) (*spriteView, string) {
-	return loadSpriteView(manager, res.PlayerBodyResourceCandidates(job, sex, "act"), res.PlayerBodyResourceCandidates(job, sex, "spr"), res.PlayerBodyPaletteResourceCandidates(job, sex, palette, "pal"), label)
+func loadBodySpriteView(manager *res.Manager, job int, sex byte, palette int, admin bool, label string) (*spriteView, string) {
+	actCandidates := res.PlayerBodyResourceCandidates(job, sex, "act")
+	sprCandidates := res.PlayerBodyResourceCandidates(job, sex, "spr")
+	if admin {
+		actCandidates = append(res.PlayerAdminBodyResourceCandidates(sex, "act"), actCandidates...)
+		sprCandidates = append(res.PlayerAdminBodyResourceCandidates(sex, "spr"), sprCandidates...)
+	}
+	return loadSpriteView(manager, actCandidates, sprCandidates, res.PlayerBodyPaletteResourceCandidates(job, sex, palette, "pal"), label)
 }
 
 func loadHeadSpriteView(manager *res.Manager, job int, head int, sex byte, palette int, label string) (*spriteView, string) {

@@ -54,6 +54,32 @@ func TestPlayerBodyResourceRealWhenConfigured(t *testing.T) {
 	t.Logf("head resources act=%s spr=%s actions=%d frames=%d", headActSource, headSprSource, len(headAct.Actions), len(headSpr.Frames))
 }
 
+func TestPlayerAdminBodyResourceRealWhenConfigured(t *testing.T) {
+	manager := realDataManager(t)
+	for _, sex := range []byte{0, 1} {
+		actSource, actData, ok := manager.ReadFirst(PlayerAdminBodyResourceCandidates(sex, "act"))
+		if !ok {
+			t.Skipf("admin body act not found for sex=%d", sex)
+		}
+		sprSource, sprData, ok := manager.ReadFirst(PlayerAdminBodyResourceCandidates(sex, "spr"))
+		if !ok {
+			t.Skipf("admin body spr not found for sex=%d", sex)
+		}
+		act, err := ParseACT(actData)
+		if err != nil {
+			t.Fatalf("parse %s: %v", actSource, err)
+		}
+		spr, err := ParseSPR(sprData)
+		if err != nil {
+			t.Fatalf("parse %s: %v", sprSource, err)
+		}
+		if len(act.Actions) == 0 || len(spr.Frames) == 0 {
+			t.Fatalf("empty admin body resources sex=%d: actions=%d frames=%d", sex, len(act.Actions), len(spr.Frames))
+		}
+		t.Logf("admin body sex=%d act=%s spr=%s actions=%d frames=%d", sex, actSource, sprSource, len(act.Actions), len(spr.Frames))
+	}
+}
+
 func TestPlayerMageEquippedRodOverlayRealWhenConfigured(t *testing.T) {
 	manager := realDataManager(t)
 	job := 2

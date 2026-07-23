@@ -246,7 +246,7 @@ func (m *LoginMode) characterCreatePreviewView(ctx client.Context) *humanoidSpri
 		Hair:      int16(m.create.hairStyle),
 		HairColor: uint8(m.create.hairColor),
 	}
-	view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex)
+	view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex, false)
 	m.create.previewKey = key
 	if view == nil {
 		m.create.previewFailed = true

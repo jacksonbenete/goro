@@ -53,6 +53,7 @@ type Actor struct {
 	BodyPal          int16
 	Sex              byte
 	HeadDir          uint8
+	IsAdmin          bool
 	Appearance       bool
 	Moving           bool
 	FromX            int
@@ -161,6 +162,9 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.Sex = existing.Sex
 			actor.HeadDir = existing.HeadDir
 			actor.Appearance = existing.Appearance
+		}
+		if !actor.IsAdmin && existing.IsAdmin {
+			actor.IsAdmin = true
 		}
 		if !actor.HasObjectType {
 			actor.ObjectType = existing.ObjectType

@@ -8,6 +8,7 @@ type Session struct {
 	AuthCode             uint32
 	UserLevel            uint32
 	Sex                  byte
+	AdminList            []uint32
 	Playing              bool
 	NoShift              bool
 	NoCtrl               bool
@@ -106,6 +107,18 @@ func (s *Session) SelectedCharacter() Character {
 		return s.Characters[0]
 	}
 	return Character{ID: s.CharID, Name: "Player", Job: 0}
+}
+
+func (s *Session) IsAdminID(id uint32) bool {
+	if s == nil || id == 0 {
+		return false
+	}
+	for _, adminID := range s.AdminList {
+		if adminID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func VitalsFromCharacter(character Character) Vitals {

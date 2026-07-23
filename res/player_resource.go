@@ -16,6 +16,7 @@ const (
 	playerIMFRoot         = "data\\imf\\"
 	playerBodyDir         = "몸통"
 	playerHeadDir         = "머리통"
+	playerAdminBody       = "운영자"
 	mercenaryWeaponRoot   = "data\\sprite\\인간족\\용병\\"
 	playerPaletteBodyDir  = "몸"
 	playerPaletteHeadDir  = "머리"
@@ -65,6 +66,13 @@ func PlayerBodyResourceCandidates(job int, sex byte, extension string) []string 
 		out = append(out, fmt.Sprintf("%s%s\\%s\\%s_%s.%s", playerHumanSpriteRoot, playerBodyDir, sexToken, token, sexToken, extension))
 	}
 	return out
+}
+
+func PlayerAdminBodyResourceCandidates(sex byte, extension string) []string {
+	sexToken := PlayerSexToken(sex)
+	return []string{
+		fmt.Sprintf("%s%s\\%s\\%s_%s.%s", playerHumanSpriteRoot, playerBodyDir, sexToken, playerAdminBody, sexToken, extension),
+	}
 }
 
 func PlayerCartResourceCandidates(cartNum int, extension string) []string {

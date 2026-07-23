@@ -241,6 +241,18 @@ func TestApplyActorJumpPositionMovesLocalPlayer(t *testing.T) {
 	}
 }
 
+func TestApplyMapAcceptEnterMarksAdminPlayer(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{AccountID: 2000000, CharID: 150000, AdminList: []uint32{2000000}}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	applyMapAcceptEnter(ctx, network.MapAcceptEnter{X: 10, Y: 20, Dir: 4})
+
+	if !world.Player.IsAdmin {
+		t.Fatalf("world player admin state = false")
+	}
+}
+
 func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 150000, Job: 5}
@@ -335,7 +347,9 @@ func TestCollectSceneActorEntriesUsesSelectedCharacterCartOption(t *testing.T) {
 	world.Player = worldstate.Actor{ID: 150004, X: 10, Y: 20, Dir: 4}
 	ctx := client.Context{
 		Session: &session.Session{
-			CharID: 150004,
+			AccountID: 2000000,
+			CharID:    150004,
+			AdminList: []uint32{2000000},
 			Selected: session.Character{
 				ID:     150004,
 				Job:    5,
@@ -354,6 +368,9 @@ func TestCollectSceneActorEntriesUsesSelectedCharacterCartOption(t *testing.T) {
 	}
 	if hasCart, cartNum := actorCartState(entries[0].actor); !hasCart || cartNum != 1 {
 		t.Fatalf("local cart from selected character option = has %t num %d actor %+v", hasCart, cartNum, entries[0].actor)
+	}
+	if !entries[0].actor.IsAdmin || !world.Player.IsAdmin {
+		t.Fatalf("local admin state not applied: entry=%t world=%t", entries[0].actor.IsAdmin, world.Player.IsAdmin)
 	}
 }
 
@@ -11753,6 +11770,16 @@ func TestActorDisplayLabelsIncludeGuildNameOnSecondLine(t *testing.T) {
 	labels = actorDisplayLabels(ctx, worldstate.Actor{Name: "Poring", GuildName: "Knights", HasObjectType: true, ObjectType: actorObjectTypeMob}, false)
 	if len(labels) != 1 || labels[0] != "Poring" {
 		t.Fatalf("mob labels = %#v, want Poring only", labels)
+	}
+}
+
+func TestActorNameLabelColorUsesYellowForAdmin(t *testing.T) {
+	want := color.RGBA{R: 255, G: 255, B: 0, A: 255}
+	if got := actorNameLabelColor(worldstate.Actor{IsAdmin: true}, true); got != want {
+		t.Fatalf("local admin label color = %+v, want %+v", got, want)
+	}
+	if got := actorNameLabelColor(worldstate.Actor{IsAdmin: true}, false); got != want {
+		t.Fatalf("remote admin label color = %+v, want %+v", got, want)
 	}
 }
 

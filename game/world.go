@@ -190,6 +190,7 @@ type actorSpriteKey struct {
 	job         int
 	head        int
 	sex         byte
+	admin       bool
 	bodyPalette int
 	headPalette int
 	weapon      int
@@ -337,7 +338,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
 	character := ctx.Session.SelectedCharacter()
-	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex); view != nil {
+	if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex, localPlayerIsAdmin(ctx)); view != nil {
 		m.playerView = view
 		playerStatus = status
 	} else {
@@ -364,7 +365,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 		glog.Warnf("cursor resources unavailable: %s", status)
 	}
 	render.SetCursorMode(render.CursorModeHidden)
-	glog.Debugf("player sprite resources char_id=%d name=%s job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
+	glog.Debugf("player sprite resources char_id=%d name=%s admin=%t job=%d hair=%d weapon=%d shield=%d head_top=%d head_mid=%d head_low=%d body_pal=%d head_pal=%d hair_color=%d account_sex=%d %s", character.ID, character.Name, localPlayerIsAdmin(ctx), character.Job, character.Hair, character.Weapon, character.Shield, character.HeadTop, character.HeadMid, character.HeadLow, character.BodyPal, character.HeadPal, character.HairColor, ctx.Session.Sex, playerStatus)
 	m.rebindPersistentUI(ctx)
 	if ctx.World.MapName == "" {
 		return
@@ -1264,7 +1265,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 				continue
 			}
 			if applyActorLookChange(ctx, look) {
-				if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, ctx.Session.SelectedCharacter(), ctx.Session.Sex); view != nil {
+				if view, status := loadPlayerHumanoidSpriteView(ctx.Resources, ctx.Session.SelectedCharacter(), ctx.Session.Sex, localPlayerIsAdmin(ctx)); view != nil {
 					m.playerView = view
 					glog.Debugf("player sprite changed type=%d value=%d %s", look.Type, look.Value, status)
 				} else {

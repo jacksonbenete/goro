@@ -99,6 +99,7 @@ func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor world.A
 		job:         int(actor.Job),
 		head:        int(actor.Head),
 		sex:         actor.Sex,
+		admin:       actor.IsAdmin,
 		bodyPalette: int(actor.BodyPal),
 		headPalette: int(actor.HeadPal),
 		weapon:      weapon,

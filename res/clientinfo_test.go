@@ -12,6 +12,12 @@ func TestParseClientInfo(t *testing.T) {
     <port>6900</port>
     <version>55</version>
     <langtype>0</langtype>
+    <aid><admin>2000002</admin></aid>
+    <yellow>
+      <admin>2000003</admin>
+      <admin>2000002</admin>
+      <admin>not-a-number</admin>
+    </yellow>
   </connection>
 </clientinfo>`))
 	if err != nil {
@@ -26,5 +32,14 @@ func TestParseClientInfo(t *testing.T) {
 	conn := info.Connections[0]
 	if conn.Display != "TestRO" || conn.Address != "127.0.0.1" || conn.Port != 6900 || conn.Version != 55 {
 		t.Fatalf("unexpected connection: %+v", conn)
+	}
+	wantAdmins := []uint32{2000003, 2000002}
+	if len(conn.AdminList) != len(wantAdmins) {
+		t.Fatalf("admin list = %v, want %v", conn.AdminList, wantAdmins)
+	}
+	for i := range wantAdmins {
+		if conn.AdminList[i] != wantAdmins[i] {
+			t.Fatalf("admin list = %v, want %v", conn.AdminList, wantAdmins)
+		}
 	}
 }

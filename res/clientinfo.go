@@ -26,6 +26,7 @@ type Connection struct {
 	Version         int
 	LangType        int
 	RegistrationWeb string
+	AdminList       []uint32
 }
 
 func ParseClientInfoFile(path string) (ClientInfo, error) {
@@ -56,6 +57,7 @@ func ParseClientInfo(data []byte) (ClientInfo, error) {
 			Version:         parseIntDefault(rawConn.Version, 55),
 			LangType:        parseIntDefault(rawConn.LangType, 0),
 			RegistrationWeb: strings.TrimSpace(rawConn.RegistrationWeb),
+			AdminList:       parseClientInfoAdminList(rawConn),
 		}
 		if conn.Address == "" {
 			continue
@@ -95,6 +97,32 @@ func parseIntDefault(value string, fallback int) int {
 	return i
 }
 
+func parseClientInfoAdminList(raw rawConnection) []uint32 {
+	seen := make(map[uint32]struct{})
+	out := make([]uint32, 0, len(raw.Yellow.Admins)+len(raw.AID.Admins))
+	appendAdmins := func(values []string) {
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				continue
+			}
+			id64, err := strconv.ParseUint(value, 10, 32)
+			if err != nil || id64 == 0 {
+				continue
+			}
+			id := uint32(id64)
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			out = append(out, id)
+		}
+	}
+	appendAdmins(raw.Yellow.Admins)
+	appendAdmins(raw.AID.Admins)
+	return out
+}
+
 type rawClientInfo struct {
 	XMLName     xml.Name        `xml:"clientinfo"`
 	ServiceType string          `xml:"servicetype"`
@@ -102,11 +130,17 @@ type rawClientInfo struct {
 }
 
 type rawConnection struct {
-	Display         string `xml:"display"`
-	Description     string `xml:"desc"`
-	Address         string `xml:"address"`
-	Port            string `xml:"port"`
-	Version         string `xml:"version"`
-	LangType        string `xml:"langtype"`
-	RegistrationWeb string `xml:"registrationweb"`
+	Display         string       `xml:"display"`
+	Description     string       `xml:"desc"`
+	Address         string       `xml:"address"`
+	Port            string       `xml:"port"`
+	Version         string       `xml:"version"`
+	LangType        string       `xml:"langtype"`
+	RegistrationWeb string       `xml:"registrationweb"`
+	AID             rawAdminList `xml:"aid"`
+	Yellow          rawAdminList `xml:"yellow"`
+}
+
+type rawAdminList struct {
+	Admins []string `xml:"admin"`
 }

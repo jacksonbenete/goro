@@ -180,6 +180,7 @@ func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {
 		BodyPal:          entry.BodyPal,
 		Sex:              entry.Sex,
 		HeadDir:          entry.HeadDir,
+		IsAdmin:          actorIsAdmin(ctx, entry.ID),
 		Appearance:       entry.Appearance,
 		Moving:           entry.Moving,
 		FromX:            entry.FromX,
@@ -431,6 +432,17 @@ func isLocalActor(ctx client.Context, id uint32) bool {
 	return ctx.Session != nil && id != 0 && (id == ctx.Session.AccountID || id == ctx.Session.CharID)
 }
 
+func actorIsAdmin(ctx client.Context, id uint32) bool {
+	return ctx.Session != nil && ctx.Session.IsAdminID(id)
+}
+
+func localPlayerIsAdmin(ctx client.Context) bool {
+	if ctx.Session == nil {
+		return false
+	}
+	return ctx.Session.IsAdminID(ctx.Session.AccountID) || ctx.Session.IsAdminID(ctx.Session.CharID)
+}
+
 func applyMapAcceptEnter(ctx client.Context, enter network.MapAcceptEnter) {
 	if ctx.Session != nil {
 		ctx.Session.SyncServerTick(enter.ServerTick, time.Now())
@@ -440,6 +452,7 @@ func applyMapAcceptEnter(ctx client.Context, enter network.MapAcceptEnter) {
 	ctx.Session.PlayerDir = enter.Dir
 	ctx.Session.Playing = true
 	ctx.World.SetPlayerPosition(enter.X, enter.Y, enter.Dir)
+	ctx.World.Player.IsAdmin = localPlayerIsAdmin(ctx)
 }
 
 func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
@@ -560,6 +573,8 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Frame, ctx client.Co
 	player.Job = character.Job
 	player.Head = character.Hair
 	player.Sex = ctx.Session.Sex
+	player.IsAdmin = localPlayerIsAdmin(ctx)
+	ctx.World.Player.IsAdmin = player.IsAdmin
 	if !player.HasCartState {
 		if player.HasState {
 			player.EffectState = (player.EffectState &^ actorEffectCartMask) | (character.Option & actorEffectCartMask)
@@ -1039,6 +1054,9 @@ func titleASCIIWord(word string) string {
 }
 
 func actorNameLabelColor(actor worldstate.Actor, isPlayer bool) color.RGBA {
+	if actor.IsAdmin {
+		return color.RGBA{R: 255, G: 255, B: 0, A: 255}
+	}
 	if isPlayer {
 		return color.RGBA{R: 255, G: 255, B: 255, A: 255}
 	}
@@ -1120,6 +1138,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, 
 		job:         int(actor.Job),
 		head:        int(actor.Head),
 		sex:         actor.Sex,
+		admin:       actor.IsAdmin,
 		bodyPalette: int(actor.BodyPal),
 		headPalette: int(actor.HeadPal),
 		weapon:      weapon,

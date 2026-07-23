@@ -233,7 +233,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 				ctx.Session.Sex = login.Sex
 				ctx.Session.CharServers = convertCharServers(login.CharServer)
 				m.status = fmt.Sprintf("account accepted: aid=%d char_servers=%d", login.AccountID, len(login.CharServer))
-				glog.Infof("account accepted aid=%d sex=%d char_servers=%d", login.AccountID, login.Sex, len(login.CharServer))
+				glog.Infof("account accepted aid=%d sex=%d admin=%t char_servers=%d", login.AccountID, login.Sex, ctx.Session.IsAdminID(login.AccountID), len(login.CharServer))
 				for _, server := range login.CharServer {
 					m.packets = append(m.packets, fmt.Sprintf("char %s %s:%d users=%d", server.Name, server.Address, server.Port, server.UserCount))
 				}
@@ -808,6 +808,9 @@ func uniqueLoginStrings(values []string) []string {
 
 func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection, userConfirmed bool) {
 	m.disableCharServerPing()
+	if ctx.Session != nil {
+		ctx.Session.AdminList = append([]uint32(nil), conn.AdminList...)
+	}
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, conn.Address, conn.Port)
 	cancel()
@@ -818,7 +821,7 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 	}
 
 	m.status = ctx.Network.Status()
-	glog.Infof("connected login server %s:%d", conn.Address, conn.Port)
+	glog.Infof("connected login server %s:%d admins=%v", conn.Address, conn.Port, conn.AdminList)
 	if strings.TrimSpace(m.username) == "" && m.password == "" {
 		return
 	}

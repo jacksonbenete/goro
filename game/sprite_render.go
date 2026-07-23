@@ -110,6 +110,7 @@ type humanoidAppearance struct {
 	job         int
 	head        int
 	sex         byte
+	admin       bool
 	bodyPalette int
 	headPalette int
 	weapon      int

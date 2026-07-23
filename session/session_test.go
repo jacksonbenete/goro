@@ -11,6 +11,7 @@ func TestSelectCharacterClearsCharacterScopedState(t *testing.T) {
 	s.AuthCode = 123
 	s.UserLevel = 99
 	s.Sex = 1
+	s.AdminList = []uint32{2000000, 2000002}
 	s.NoShift = true
 	s.NoCtrl = true
 	s.LessEffects = true
@@ -64,6 +65,9 @@ func TestSelectCharacterClearsCharacterScopedState(t *testing.T) {
 	if s.AccountID != 2000000 || s.AuthCode != 123 || s.UserLevel != 99 || s.Sex != 1 {
 		t.Fatalf("account state was not preserved: %+v", s)
 	}
+	if len(s.AdminList) != 2 || s.AdminList[0] != 2000000 || s.AdminList[1] != 2000002 {
+		t.Fatalf("admin list was not preserved: %+v", s.AdminList)
+	}
 	if !s.NoShift || !s.NoCtrl || !s.LessEffects || !s.HomunculusCustomAI || !s.HomunculusAggressive || !s.MercenaryCustomAI || !s.MercenaryAggressive || !s.SnapTargets || !s.SnapItems || !s.Whisper.Configured {
 		t.Fatalf("client settings were not preserved: %+v", s)
 	}
@@ -90,6 +94,16 @@ func TestSelectCharacterClearsCharacterScopedState(t *testing.T) {
 	}
 	if len(s.Storage.Items) != 0 || s.Storage.Open || len(s.Cart.Items) != 0 || s.Cart.Open || len(s.Skills.List) != 0 || s.Skills.Points != 0 || len(s.Hotkeys.Slots) != 0 || s.Hotkeys.Loaded || len(s.Statuses.Active) != 0 || len(s.Friends.List) != 0 || s.Party.Active() || s.Movement.HasServerSpeed {
 		t.Fatalf("character scoped state leaked: storage=%+v cart=%+v skills=%+v hotkeys=%+v statuses=%+v friends=%+v party=%+v movement=%+v", s.Storage, s.Cart, s.Skills, s.Hotkeys, s.Statuses, s.Friends, s.Party, s.Movement)
+	}
+}
+
+func TestIsAdminID(t *testing.T) {
+	s := &Session{AdminList: []uint32{2000000, 2000002}}
+	if !s.IsAdminID(2000002) {
+		t.Fatal("admin id was not recognized")
+	}
+	if s.IsAdminID(0) || s.IsAdminID(2000001) {
+		t.Fatal("non-admin id was recognized")
 	}
 }
 

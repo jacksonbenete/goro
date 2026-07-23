@@ -48,6 +48,19 @@ func TestPlayerCartResourceCandidates(t *testing.T) {
 	}
 }
 
+func TestPlayerAdminBodyResourceCandidates(t *testing.T) {
+	got := PlayerAdminBodyResourceCandidates(1, "spr")
+	want := "data\\sprite\\인간족\\몸통\\남\\운영자_남.spr"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("male admin body candidate = %q, want %q", got, want)
+	}
+	got = PlayerAdminBodyResourceCandidates(0, "act")
+	want = "data\\sprite\\인간족\\몸통\\여\\운영자_여.act"
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("female admin body candidate = %q, want %q", got, want)
+	}
+}
+
 func TestPlayerWeaponOverlayResourceCandidates(t *testing.T) {
 	got := PlayerWeaponOverlayResourceCandidates(0, 1, 1201, false, "act")
 	want := []string{

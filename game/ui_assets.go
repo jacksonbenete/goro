@@ -91,7 +91,7 @@ func (m *WorldMode) drawEquipmentPreview(screen previewRenderTarget, ctx client.
 	}
 	view := m.playerView
 	if view == nil && ctx.Resources != nil && ctx.Session != nil {
-		loaded, _ := loadPlayerHumanoidSpriteView(ctx.Resources, ctx.Session.SelectedCharacter(), ctx.Session.Sex)
+		loaded, _ := loadPlayerHumanoidSpriteView(ctx.Resources, ctx.Session.SelectedCharacter(), ctx.Session.Sex, localPlayerIsAdmin(ctx))
 		view = loaded
 		if loaded != nil {
 			m.playerView = loaded
@@ -104,7 +104,7 @@ func (m *WorldMode) drawEquipmentPreviewForCharacter(screen previewRenderTarget,
 	if screen == nil || width <= 0 || height <= 0 || ctx.Resources == nil {
 		return
 	}
-	view, _ := loadPlayerHumanoidSpriteView(ctx.Resources, character, sex)
+	view, _ := loadPlayerHumanoidSpriteView(ctx.Resources, character, sex, false)
 	m.drawHumanoidPreview(screen, view, x, y, width, height)
 }
 
