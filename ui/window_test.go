@@ -3,10 +3,12 @@ package ui
 import (
 	"testing"
 
+	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/input"
 )
 
 func TestFooterStretchesContent(t *testing.T) {
@@ -101,6 +103,120 @@ func TestWindowFullRedrawPublishIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestWindowDragReusesPublishedOverlay(t *testing.T) {
+	manager := &escapeMenuTestUIManager{}
+	app := &windowDragTestApp{}
+	inputState := input.NewState()
+	ctx := client.Context{
+		Input:     inputState,
+		UIApp:     app,
+		UIManager: manager,
+		ScreenW:   800,
+		ScreenH:   600,
+	}
+	content := newWindowDragEventRecorder()
+	window := NewWindow(100, 80)
+	window.OpenAt(10, 20, content)
+	window.Publish(ctx)
+	if len(manager.overlays) != 1 {
+		t.Fatalf("published overlays = %d, want 1", len(manager.overlays))
+	}
+	root := manager.overlays[0]
+	overlay := root.(*positionedOverlay)
+
+	inputState.SetMousePosition(20, 25)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	if !window.Update(ctx) {
+		t.Fatal("title press was not consumed")
+	}
+	window.Publish(ctx)
+	if manager.overlays[0] != root {
+		t.Fatal("drag start replaced the published overlay")
+	}
+	if app.beginToken != root {
+		t.Fatal("drag start did not capture the published overlay")
+	}
+	if app.beginRect != geometry.NewRect(10, 20, 100, 80) {
+		t.Fatalf("drag capture rect = %v, want x=10 y=20 w=100 h=80", app.beginRect)
+	}
+	if !overlay.hidden {
+		t.Fatal("drag start did not hide the overlay from the UI canvas")
+	}
+	if children := overlay.Children(); len(children) != 0 {
+		t.Fatalf("hidden overlay exposed %d dirty children", len(children))
+	}
+	mouse := event.NewMouseEvent(event.MousePress, event.ButtonLeft, event.ButtonStateLeft, geometry.Pt(20, 25), geometry.Pt(20, 25), event.ModNone)
+	if overlay.Event(widget.NewContext(), mouse) {
+		t.Fatal("hidden overlay consumed a mouse event")
+	}
+	if content.events != 0 {
+		t.Fatalf("hidden overlay forwarded %d events to content", content.events)
+	}
+	widget.ClearRedrawInTree(root)
+	overlay.clearDamage()
+	app.rects = nil
+
+	inputState.EndFrame()
+	inputState.SetMousePosition(50, 60)
+	if !window.Update(ctx) {
+		t.Fatal("drag move was not consumed")
+	}
+	window.Publish(ctx)
+	if manager.overlays[0] != root {
+		t.Fatal("drag move replaced the published overlay")
+	}
+	if window.x != 40 || window.y != 55 {
+		t.Fatalf("window position = %d,%d; want 40,55", window.x, window.y)
+	}
+	if bounds := overlay.Bounds(); bounds != geometry.NewRect(40, 55, 100, 80) {
+		t.Fatalf("overlay bounds = %v, want x=40 y=55 w=100 h=80", bounds)
+	}
+	if screenBounds := overlay.ScreenBounds(); screenBounds != geometry.NewRect(40, 55, 100, 80) {
+		t.Fatalf("overlay screen bounds = %v, want x=40 y=55 w=100 h=80", screenBounds)
+	}
+	if len(app.moves) != 1 || app.moves[0] != geometry.NewRect(40, 55, 100, 80) {
+		t.Fatalf("drag layer moves = %v, want final x=40 y=55 w=100 h=80", app.moves)
+	}
+	if overlay.NeedsRedraw() {
+		t.Fatal("drag move dirtied the UI overlay")
+	}
+	if len(app.rects) != 0 {
+		t.Fatalf("drag move invalidated UI rects: got %d calls, want 0", len(app.rects))
+	}
+
+	content.SetNeedsRedraw(true)
+	inputState.EndFrame()
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
+	if !window.Update(ctx) {
+		t.Fatal("drag release was not consumed")
+	}
+	if app.endToken != root {
+		t.Fatal("drag release did not clear the drag layer")
+	}
+	if overlay.hidden {
+		t.Fatal("drag release did not restore the overlay")
+	}
+	if !overlay.NeedsRedraw() {
+		t.Fatal("drag release did not redraw the window at its final position")
+	}
+	if !content.NeedsRedraw() {
+		t.Fatal("drag release discarded content dirty state")
+	}
+	if len(app.rects) != 1 {
+		t.Fatalf("drag release invalidates = %d, want 1", len(app.rects))
+	}
+	if last := app.rects[0]; last != geometry.NewRect(38, 53, 104, 84) {
+		t.Fatalf("drag release dirty rect = %v, want x=38 y=53 w=104 h=84", last)
+	}
+	if children := overlay.Children(); len(children) != 0 {
+		t.Fatalf("damaged overlay exposed %d dirty children before repaint", len(children))
+	}
+	overlay.clearDamage()
+	if children := overlay.Children(); len(children) != 1 {
+		t.Fatalf("clean overlay children = %d, want 1", len(children))
+	}
+}
+
 func TestScreenEdgeAnchorsUseWindowMargin(t *testing.T) {
 	ctx := client.Context{ScreenW: 800, ScreenH: 600}
 
@@ -122,4 +238,61 @@ func TestScreenEdgeAnchorsUseWindowMargin(t *testing.T) {
 	if x, _ := cartDefaultPosition(ctx); x != ctx.ScreenW-cartWindowWidth-windowScreenMargin {
 		t.Fatalf("cart x = %d; want %d", x, ctx.ScreenW-cartWindowWidth-windowScreenMargin)
 	}
+}
+
+type windowDragTestApp struct {
+	rects      []geometry.Rect
+	beginToken any
+	beginRect  geometry.Rect
+	moves      []geometry.Rect
+	endToken   any
+}
+
+func (a *windowDragTestApp) SetUIRoot(widget.Widget) {}
+func (a *windowDragTestApp) Frame()                  {}
+func (a *windowDragTestApp) Invalidate()             {}
+func (a *windowDragTestApp) InvalidateRect(rect geometry.Rect) {
+	a.rects = append(a.rects, rect)
+}
+func (a *windowDragTestApp) Cursor() widget.CursorType {
+	return widget.CursorDefault
+}
+func (a *windowDragTestApp) HoveredWidget() widget.Widget {
+	return nil
+}
+func (a *windowDragTestApp) BeginWindowDragLayer(token any, rect geometry.Rect) bool {
+	a.beginToken = token
+	a.beginRect = rect
+	return true
+}
+func (a *windowDragTestApp) MoveWindowDragLayer(token any, rect geometry.Rect) {
+	a.moves = append(a.moves, rect)
+}
+func (a *windowDragTestApp) EndWindowDragLayer(token any) {
+	a.endToken = token
+}
+
+type windowDragEventRecorder struct {
+	widget.WidgetBase
+	events int
+}
+
+func newWindowDragEventRecorder() *windowDragEventRecorder {
+	w := &windowDragEventRecorder{}
+	w.SetVisible(true)
+	w.SetEnabled(true)
+	return w
+}
+
+func (w *windowDragEventRecorder) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
+	size := constraints.Constrain(geometry.Sz(10, 10))
+	w.SetBounds(geometry.FromPointSize(geometry.Point{}, size))
+	return size
+}
+
+func (w *windowDragEventRecorder) Draw(widget.Context, widget.Canvas) {}
+
+func (w *windowDragEventRecorder) Event(widget.Context, event.Event) bool {
+	w.events++
+	return true
 }

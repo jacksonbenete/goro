@@ -2,7 +2,9 @@ package render
 
 import (
 	"fmt"
+	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"math"
 	"os"
@@ -45,6 +47,7 @@ type uiAppReceiver interface {
 
 type uiAppBridge struct {
 	*uiapp.App
+	runner *runner
 }
 
 func (b uiAppBridge) SetUIRoot(root widget.Widget) {
@@ -72,6 +75,13 @@ func (b uiAppBridge) Invalidate() {
 	b.App.Window().Context().Invalidate()
 }
 
+func (b uiAppBridge) InvalidateRect(rect geometry.Rect) {
+	if b.App == nil || b.App.Window() == nil || b.App.Window().Context() == nil || rect.IsEmpty() {
+		return
+	}
+	b.App.Window().Context().InvalidateRect(rect)
+}
+
 func (b uiAppBridge) Cursor() widget.CursorType {
 	if b.App == nil || b.App.Window() == nil || b.App.Window().Context() == nil {
 		return widget.CursorDefault
@@ -84,6 +94,25 @@ func (b uiAppBridge) HoveredWidget() widget.Widget {
 		return nil
 	}
 	return b.App.Window().HoveredWidget()
+}
+
+func (b uiAppBridge) BeginWindowDragLayer(token any, rect geometry.Rect) bool {
+	if b.runner == nil {
+		return false
+	}
+	return b.runner.beginUIDragLayer(token, rect)
+}
+
+func (b uiAppBridge) MoveWindowDragLayer(token any, rect geometry.Rect) {
+	if b.runner != nil {
+		b.runner.moveUIDragLayer(token, rect)
+	}
+}
+
+func (b uiAppBridge) EndWindowDragLayer(token any) {
+	if b.runner != nil {
+		b.runner.endUIDragLayer(token)
+	}
 }
 
 type overlayDrawer interface {
@@ -109,6 +138,13 @@ type cachedOverlayImage struct {
 	image  *Image
 	width  int
 	height int
+}
+
+type uiDragLayer struct {
+	token  any
+	rect   geometry.Rect
+	image  *Image
+	active bool
 }
 
 type runner struct {
@@ -147,6 +183,7 @@ type runner struct {
 	vsyncWarned     bool
 	uiDrawnOnce     bool
 	uiScale         float64
+	uiDrag          uiDragLayer
 }
 
 func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) error {
@@ -198,7 +235,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 		receiver.SetQuitFunc(gg.Quit)
 	}
 	if receiver, ok := game.(uiAppReceiver); ok {
-		receiver.SetUIApp(uiAppBridge{App: ui})
+		receiver.SetUIApp(uiAppBridge{App: ui, runner: r})
 	}
 	game.Resize(cfg.Width, cfg.Height)
 	wireInput(events, game.InputState())
@@ -679,6 +716,8 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	if err := r.savePendingScreenshot(ctx); err != nil {
 		return err
 	}
+	// Goro redraws the 3D scene every frame; UI canvas damage only scopes UI texture updates.
+	ctx.SetDamageRects(nil)
 	if err := r.gpu.Draw(ctx, r.screen); err != nil {
 		return err
 	}
@@ -822,7 +861,86 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 	}
 	opts.Filter = FilterNearest
 	screen.DrawImage(r.uiImage, &opts)
+	r.drawUIDragLayer(screen)
 	return nil
+}
+
+func (r *runner) beginUIDragLayer(token any, rect geometry.Rect) bool {
+	if r == nil || token == nil || rect.IsEmpty() {
+		return false
+	}
+	img := r.captureUIImageRect(rect)
+	if img == nil {
+		return false
+	}
+	r.uiDrag = uiDragLayer{
+		token:  token,
+		rect:   rect,
+		image:  img,
+		active: true,
+	}
+	return true
+}
+
+func (r *runner) moveUIDragLayer(token any, rect geometry.Rect) {
+	if r == nil || token == nil || rect.IsEmpty() || !r.uiDrag.active || r.uiDrag.token != token {
+		return
+	}
+	r.uiDrag.rect = rect
+}
+
+func (r *runner) endUIDragLayer(token any) {
+	if r == nil || token == nil || !r.uiDrag.active || r.uiDrag.token != token {
+		return
+	}
+	r.uiDrag = uiDragLayer{}
+}
+
+func (r *runner) captureUIImageRect(rect geometry.Rect) *Image {
+	if r.uiImage == nil || r.uiImage.pix == nil {
+		return nil
+	}
+	srcBounds := r.uiImage.Bounds()
+	if srcBounds.Empty() {
+		return nil
+	}
+	logicalW, logicalH := r.width, r.height
+	if logicalW <= 0 {
+		logicalW = srcBounds.Dx()
+	}
+	if logicalH <= 0 {
+		logicalH = srcBounds.Dy()
+	}
+	scaleX := float64(srcBounds.Dx()) / float64(logicalW)
+	scaleY := float64(srcBounds.Dy()) / float64(logicalH)
+	crop := image.Rect(
+		int(math.Floor(float64(rect.Min.X)*scaleX)),
+		int(math.Floor(float64(rect.Min.Y)*scaleY)),
+		int(math.Ceil(float64(rect.Max.X)*scaleX)),
+		int(math.Ceil(float64(rect.Max.Y)*scaleY)),
+	).Intersect(srcBounds)
+	if crop.Empty() {
+		return nil
+	}
+	img := NewImage(crop.Dx(), crop.Dy())
+	draw.Draw(img.pix, img.pix.Bounds(), r.uiImage.pix, crop.Min, draw.Src)
+	img.version++
+	return img
+}
+
+func (r *runner) drawUIDragLayer(screen *Frame) {
+	if r == nil || screen == nil || !r.uiDrag.active || r.uiDrag.image == nil || r.uiDrag.rect.IsEmpty() {
+		return
+	}
+	bounds := r.uiDrag.image.Bounds()
+	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
+		return
+	}
+	var opts DrawImageOptions
+	opts.GeoM.Scale(float64(r.uiDrag.rect.Width())/float64(bounds.Dx()), float64(r.uiDrag.rect.Height())/float64(bounds.Dy()))
+	opts.GeoM.Translate(float64(r.uiDrag.rect.Min.X), float64(r.uiDrag.rect.Min.Y))
+	opts.Filter = FilterNearest
+	screen.DrawImage(r.uiDrag.image, &opts)
 }
 
 func (r *runner) updateUIImage() {

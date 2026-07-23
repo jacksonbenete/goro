@@ -31,6 +31,9 @@ const (
 	ROWindowFooterPadding = 10
 	ROWindowFooterGap     = 8
 	windowScreenMargin    = 8
+	windowDirtyPadding    = 2
+	windowTitleButtonSize = 17
+	windowTitleButtonPadR = 7
 )
 
 func Win(options ...WindowOption) widget.Widget {
@@ -198,6 +201,7 @@ type Window struct {
 	positioned  bool
 	userMoved   bool
 	dragging    bool
+	dragLayer   bool
 	dragDX      int
 	dragDY      int
 	content     widget.Widget
@@ -219,6 +223,7 @@ func (w *Window) EnsureWindow(width, height int) bool {
 }
 
 func (w *Window) Close() {
+	w.endDragLayer(w.ctx)
 	w.setOpacity(1)
 	w.open = false
 	w.dragging = false
@@ -226,8 +231,6 @@ func (w *Window) Close() {
 	w.placed = nil
 	w.Publish(w.ctx)
 }
-
-const grabbedWindowOpacity = 0.95
 
 func NewWindow(width, height int) Window {
 	return Window{
@@ -259,13 +262,10 @@ func (w *Window) IsOpen() bool {
 }
 
 func (w *Window) SetContent(content widget.Widget) {
+	w.endDragLayer(w.ctx)
 	w.content = content
 	w.placed = nil
-	if w.dragging {
-		w.setOpacity(grabbedWindowOpacity)
-	} else {
-		w.setOpacity(1)
-	}
+	w.setOpacity(1)
 }
 
 func (w *Window) Publish(ctx client.Context) {
@@ -296,6 +296,8 @@ func (w *Window) Unpublish(ctx client.Context) {
 	if w == nil || ctx.UIManager == nil || w.published == nil {
 		return
 	}
+	w.endDragLayer(ctx)
+	clearPositionedOverlayDamage(w.published)
 	ctx.UIManager.RemoveOverlay(w.published)
 	w.published = nil
 }
@@ -304,6 +306,7 @@ func (w *Window) SetSize(width, height int) {
 	if w.width == width && w.height == height {
 		return
 	}
+	w.endDragLayer(w.ctx)
 	w.width = width
 	w.height = height
 	w.placed = nil
@@ -325,10 +328,8 @@ func (w *Window) SetAutoPosition(x, y int) bool {
 	if w.x == x && w.y == y && w.positioned {
 		return false
 	}
-	w.x = x
-	w.y = y
 	w.positioned = true
-	w.placed = nil
+	w.setPosition(w.ctx, x, y)
 	return true
 }
 
@@ -341,13 +342,13 @@ func (w *Window) Update(ctx client.Context) bool {
 	screenW, screenH := ctx.ScreenSize()
 	if w.dragging {
 		if ctx.Input.MousePressed(input.MouseButtonLeft) {
-			w.x = clampWindowInt(ctx.Input.MouseX-w.dragDX, windowScreenMargin, maxInt(windowScreenMargin, screenW-w.width-windowScreenMargin))
-			w.y = clampWindowInt(ctx.Input.MouseY-w.dragDY, windowScreenMargin, maxInt(windowScreenMargin, screenH-w.height-windowScreenMargin))
-			w.placed = nil
+			x := clampWindowInt(ctx.Input.MouseX-w.dragDX, windowScreenMargin, maxInt(windowScreenMargin, screenW-w.width-windowScreenMargin))
+			y := clampWindowInt(ctx.Input.MouseY-w.dragDY, windowScreenMargin, maxInt(windowScreenMargin, screenH-w.height-windowScreenMargin))
+			w.setDragPosition(ctx, x, y)
 			return true
 		}
 		w.dragging = false
-		w.setOpacity(1)
+		w.endDragLayer(ctx)
 		return true
 	}
 	if w.CloseOnEsc && ctx.Input.JustPressed(input.KeyEscape) {
@@ -362,11 +363,14 @@ func (w *Window) Update(ctx client.Context) bool {
 		return false
 	}
 	if pointInRect(ctx.Input.MouseX, ctx.Input.MouseY, w.x, w.y, w.width, w.titleHeight) {
+		if w.titleButtonHit(ctx.Input.MouseX, ctx.Input.MouseY) {
+			return true
+		}
 		w.dragging = true
 		w.userMoved = true
 		w.dragDX = ctx.Input.MouseX - w.x
 		w.dragDY = ctx.Input.MouseY - w.y
-		w.setOpacity(grabbedWindowOpacity)
+		w.beginDragLayer(ctx)
 		return true
 	}
 	return true
@@ -399,9 +403,13 @@ func (w *Window) setOpacity(opacity float32) {
 		box.SetNeedsRedraw(true)
 	}
 	if changed {
-		w.placed = nil
-	} else if box, ok := w.placed.(*primitives.BoxWidget); ok {
-		box.SetNeedsRedraw(true)
+		if overlay := w.positionedOverlay(); overlay != nil {
+			damage := overlay.markFrameDirty()
+			invalidateWindowRect(w.ctx, damage)
+		} else if w.placed != nil {
+			markNeedsRedraw(w.placed)
+			invalidateWindowRect(w.ctx, windowFrameRect(w.x, w.y, w.width, w.height))
+		}
 	}
 }
 
@@ -411,8 +419,127 @@ func (w *Window) Widget() widget.Widget {
 	}
 	if w.placed == nil {
 		w.placed = positionedWidget(w.content, w.x, w.y, w.width, w.height)
+	} else if overlay, ok := w.placed.(*positionedOverlay); ok {
+		overlay.setFrame(w.x, w.y, w.width, w.height)
 	}
 	return w.placed
+}
+
+func (w *Window) setPosition(ctx client.Context, x, y int) {
+	if w.x == x && w.y == y {
+		return
+	}
+	oldX, oldY := w.x, w.y
+	w.x, w.y = x, y
+	if overlay := w.positionedOverlay(); overlay != nil {
+		damage := overlay.setFrame(x, y, w.width, w.height)
+		invalidateWindowRect(ctx, damage)
+		return
+	}
+	w.placed = nil
+	damage := windowFrameRect(oldX, oldY, w.width, w.height).Union(windowFrameRect(x, y, w.width, w.height)).Expand(windowDirtyPadding)
+	invalidateWindowRect(ctx, damage)
+}
+
+func (w *Window) setDragPosition(ctx client.Context, x, y int) {
+	if !w.dragLayer {
+		w.setPosition(ctx, x, y)
+		return
+	}
+	if w.x == x && w.y == y {
+		return
+	}
+	overlay := w.positionedOverlay()
+	if overlay == nil {
+		w.dragLayer = false
+		w.setPosition(ctx, x, y)
+		return
+	}
+	w.x, w.y = x, y
+	overlay.setFrameQuiet(x, y, w.width, w.height)
+	if app, ok := ctx.UIApp.(windowDragLayerUIApp); ok {
+		app.MoveWindowDragLayer(overlay, overlay.frameRect())
+	}
+}
+
+func (w *Window) positionedOverlay() *positionedOverlay {
+	overlay, _ := w.placed.(*positionedOverlay)
+	return overlay
+}
+
+func (w *Window) titleButtonHit(x, y int) bool {
+	if w.titleHeight <= 0 || w.width <= 0 {
+		return false
+	}
+	left := w.x + w.width - windowTitleButtonPadR - windowTitleButtonSize
+	top := w.y + (w.titleHeight-windowTitleButtonSize)/2
+	return pointInRect(x, y, left, top, windowTitleButtonSize, windowTitleButtonSize)
+}
+
+func (w *Window) beginDragLayer(ctx client.Context) {
+	if w.dragLayer {
+		return
+	}
+	overlay := w.positionedOverlay()
+	if overlay == nil {
+		if root := w.Widget(); root != nil {
+			overlay, _ = root.(*positionedOverlay)
+		}
+	}
+	if overlay == nil {
+		return
+	}
+	app, ok := ctx.UIApp.(windowDragLayerUIApp)
+	if !ok || !app.BeginWindowDragLayer(overlay, overlay.frameRect()) {
+		return
+	}
+	w.dragLayer = true
+	overlay.hidden = true
+	damage := overlay.markFrameDirty()
+	invalidateWindowRect(ctx, damage)
+}
+
+func (w *Window) endDragLayer(ctx client.Context) {
+	if !w.dragLayer {
+		return
+	}
+	overlay := w.positionedOverlay()
+	if overlay == nil {
+		w.dragLayer = false
+		return
+	}
+	if app, ok := ctx.UIApp.(windowDragLayerUIApp); ok {
+		app.EndWindowDragLayer(overlay)
+	}
+	w.dragLayer = false
+	overlay.hidden = false
+	damage := overlay.markFrameDirty()
+	invalidateWindowRect(ctx, damage)
+}
+
+type rectInvalidatingUIApp interface {
+	InvalidateRect(geometry.Rect)
+}
+
+type windowDragLayerUIApp interface {
+	BeginWindowDragLayer(token any, rect geometry.Rect) bool
+	MoveWindowDragLayer(token any, rect geometry.Rect)
+	EndWindowDragLayer(token any)
+}
+
+func invalidateWindowRect(ctx client.Context, rect geometry.Rect) {
+	if ctx.UIApp == nil || rect.IsEmpty() {
+		return
+	}
+	if app, ok := ctx.UIApp.(rectInvalidatingUIApp); ok {
+		app.InvalidateRect(rect)
+		return
+	}
+	ctx.UIApp.Invalidate()
+}
+
+func windowFrameRect(x, y, width, height int) geometry.Rect {
+	return geometry.NewRect(float32(x), float32(y), float32(width), float32(height))
 }
 
 func markNeedsRedraw(root widget.Widget) {
@@ -434,7 +561,20 @@ func positionedWidget(content widget.Widget, x, y, width, height int) widget.Wid
 	}
 	w.SetVisible(true)
 	w.SetEnabled(true)
+	w.SetBounds(windowFrameRect(x, y, width, height))
+	if setter, ok := content.(interface{ SetParent(widget.Widget) }); ok {
+		setter.SetParent(w)
+	}
 	return w
+}
+
+func clearPositionedOverlayDamage(root widget.Widget) {
+	overlay, ok := root.(*positionedOverlay)
+	if !ok {
+		return
+	}
+	overlay.clearDamage()
+	overlay.hidden = false
 }
 
 type positionedOverlay struct {
@@ -442,6 +582,65 @@ type positionedOverlay struct {
 	child         widget.Widget
 	x, y          int
 	width, height int
+	damage        geometry.Rect
+	hasDamage     bool
+	hidden        bool
+}
+
+func (w *positionedOverlay) setFrame(x, y, width, height int) geometry.Rect {
+	if w.x == x && w.y == y && w.width == width && w.height == height {
+		return geometry.Rect{}
+	}
+	oldFrame := w.frameRect()
+	w.x, w.y = x, y
+	w.width, w.height = width, height
+	newFrame := w.frameRect()
+	w.SetBounds(newFrame)
+	w.SetScreenOrigin(newFrame.Min)
+	return w.markDamage(oldFrame.Union(newFrame))
+}
+
+func (w *positionedOverlay) setFrameQuiet(x, y, width, height int) {
+	w.x, w.y = x, y
+	w.width, w.height = width, height
+	frame := w.frameRect()
+	w.SetBounds(frame)
+	w.SetScreenOrigin(frame.Min)
+}
+
+func (w *positionedOverlay) markFrameDirty() geometry.Rect {
+	return w.markDamage(w.frameRect())
+}
+
+func (w *positionedOverlay) markDamage(rect geometry.Rect) geometry.Rect {
+	if rect.IsEmpty() {
+		return geometry.Rect{}
+	}
+	rect = rect.Expand(windowDirtyPadding)
+	if w.hasDamage && !w.damage.IsEmpty() {
+		w.damage = w.damage.Union(rect)
+	} else {
+		w.damage = rect
+	}
+	w.hasDamage = true
+	w.MarkRedrawLocal()
+	return rect
+}
+
+func (w *positionedOverlay) frameRect() geometry.Rect {
+	return windowFrameRect(w.x, w.y, w.width, w.height)
+}
+
+func (w *positionedOverlay) ScreenBounds() geometry.Rect {
+	if w.hasDamage && !w.damage.IsEmpty() {
+		return w.damage
+	}
+	return w.WidgetBase.ScreenBounds()
+}
+
+func (w *positionedOverlay) clearDamage() {
+	w.damage = geometry.Rect{}
+	w.hasDamage = false
 }
 
 func (w *positionedOverlay) Layout(ctx widget.Context, _ geometry.Constraints) geometry.Size {
@@ -457,7 +656,8 @@ func (w *positionedOverlay) Layout(ctx widget.Context, _ geometry.Constraints) g
 }
 
 func (w *positionedOverlay) Draw(ctx widget.Context, canvas widget.Canvas) {
-	if !w.IsVisible() || w.child == nil {
+	defer w.clearDamage()
+	if !w.IsVisible() || w.hidden || w.child == nil {
 		return
 	}
 	canvas.PushTransform(w.Bounds().Min)
@@ -467,7 +667,7 @@ func (w *positionedOverlay) Draw(ctx widget.Context, canvas widget.Canvas) {
 }
 
 func (w *positionedOverlay) Event(ctx widget.Context, e event.Event) bool {
-	if !w.IsVisible() || !w.IsEnabled() || w.child == nil {
+	if !w.IsVisible() || !w.IsEnabled() || w.hidden || w.child == nil {
 		return false
 	}
 	switch ev := e.(type) {
@@ -493,7 +693,7 @@ func (w *positionedOverlay) Event(ctx widget.Context, e event.Event) bool {
 }
 
 func (w *positionedOverlay) Children() []widget.Widget {
-	if w.child == nil {
+	if w.hidden || w.hasDamage || w.child == nil {
 		return nil
 	}
 	return []widget.Widget{w.child}
