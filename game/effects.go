@@ -1088,6 +1088,9 @@ func (m *WorldMode) applyGroundSkillNotify(ctx client.Context, notify network.Gr
 }
 
 func (m *WorldMode) applySkillUnitEntry(ctx client.Context, entry network.SkillUnitEntry) {
+	if m.applySkillUnitModelEntry(entry) {
+		return
+	}
 	if !entry.Visible {
 		return
 	}
@@ -1107,11 +1110,14 @@ func (m *WorldMode) applySkillUnitLookChange(ctx client.Context, look network.Ac
 	if look.Type != 0 || look.ID == 0 {
 		return false
 	}
+	if m.applyUsedTrapLookChange(ctx, look) {
+		return true
+	}
 	effectIDs := skillUnitEffectIDs(uint16(look.Value))
 	if len(effectIDs) == 0 {
 		return false
 	}
-	x, y, ok := m.skillUnitEffectCell(look.ID)
+	x, y, ok := m.skillUnitCell(look.ID)
 	if !ok {
 		return false
 	}
@@ -1129,12 +1135,17 @@ func (m *WorldMode) applySkillUnitDisappear(disappear network.SkillUnitDisappear
 	if disappear.ID == 0 {
 		return
 	}
-	if m.removeSkillUnitEffects(disappear.ID) {
+	removedEffects := m.removeSkillUnitEffects(disappear.ID)
+	removedModel := m.removeSkillUnitModelOnly(disappear.ID)
+	if removedEffects || removedModel {
 		glog.Debugf("skill unit effect removed id=%d", disappear.ID)
 	}
 }
 
-func (m *WorldMode) skillUnitEffectCell(id uint32) (int, int, bool) {
+func (m *WorldMode) skillUnitCell(id uint32) (int, int, bool) {
+	if x, y, ok := m.skillUnitModelCell(id); ok {
+		return x, y, true
+	}
 	for _, effect := range m.worldEffects {
 		if effect.actorID == id {
 			return effect.x, effect.y, true

@@ -281,6 +281,23 @@ func TestParseSkillUnitDisappear(t *testing.T) {
 	}
 }
 
+func TestParseSkillUnitUpdate(t *testing.T) {
+	data := make([]byte, 6)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01AC)
+	binary.LittleEndian.PutUint32(data[2:6], 0x11223344)
+
+	update, ok, err := ParseSkillUnitUpdate(Packet{ID: 0x01AC, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("skill unit update not parsed")
+	}
+	if update.ID != 0x11223344 {
+		t.Fatalf("update = %+v", update)
+	}
+}
+
 func TestParseSkillFailAck(t *testing.T) {
 	data := make([]byte, 10)
 	binary.LittleEndian.PutUint16(data[0:2], 0x0110)

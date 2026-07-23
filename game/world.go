@@ -76,6 +76,7 @@ type WorldMode struct {
 	rsmBoundsCache    map[rsmBoundsCacheKey]rsmBounds
 	rsmFaceMetaCache  map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
 	rsmPlacementGrid  *rsmPlacementGrid
+	runtimeRSMModels  map[string]*res.RSM
 	gndMeshCache      *gndRetainedMeshCache
 	pendingWarp       bool
 	pendingAttack     attackIntent
@@ -110,6 +111,8 @@ type WorldMode struct {
 	actorDeaths       map[uint32]time.Time
 	actorSoundFrames  map[uint32]actorSoundFrame
 	actorLife         map[uint32]actorLife
+	skillUnitModels   map[uint32]skillUnitModel
+	hiddenSkillUnits  map[uint32]skillUnitModel
 	actorNameReqAt    map[uint32]time.Time
 	guildEmblems      map[uint32]guildEmblem
 	speechBubbles     map[uint32]speechBubble
@@ -1436,6 +1439,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.applySkillUnitDisappear(skillUnit)
 			continue
 		}
+		if skillUnit, ok, err := network.ParseSkillUnitUpdate(pkt); err != nil {
+			glog.Errorf("parse skill unit update 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			m.applySkillUnitUpdate(skillUnit)
+			continue
+		}
 		if effect, ok, err := network.ParseSpecialEffectNotify(pkt); err != nil {
 			glog.Errorf("parse special effect 0x%04X: %v", pkt.ID, err)
 		} else if ok {
@@ -2153,6 +2162,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 		if ctx.World.RSW != nil && len(ctx.World.RSM) > 0 {
 			actorOverlays = m.drawSceneModelsAndActors(screen, ctx, projection, vertexFog, now)
 		} else {
+			m.drawSkillUnitRSMModels(screen, ctx, projection, now)
 			m.drawGroundItems(screen, ctx, projection, now)
 			actorOverlays = m.drawSceneActors(screen, ctx, projection)
 		}
@@ -2373,6 +2383,7 @@ type sceneDrawEntry struct {
 
 func (m *WorldMode) drawSceneModelsAndActors(screen *render.Frame, ctx client.Context, projection sceneProjection, fog sceneFog, now time.Time) []sceneActorDrawEntry {
 	m.drawRSMModels(screen, ctx.Resources, ctx.World.RSW, ctx.World.RSM, ctx.World.GND, projection, fog, now)
+	m.drawSkillUnitRSMModels(screen, ctx, projection, now)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, now)
 	entries := make([]sceneDrawEntry, 0, len(actors)+len(items))

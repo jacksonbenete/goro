@@ -12428,6 +12428,115 @@ func TestQuagmireSkillUnitEntriesBuildFiveByFiveZone(t *testing.T) {
 	}
 }
 
+func TestTrapSkillUnitEntryAddsRuntimeRSMModel(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9201, CreatorID: 2000000, UnitID: 145, X: 12, Y: 34, Visible: true})
+
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects = %+v, want none for trap placement model", mode.worldEffects)
+	}
+	unit, ok := mode.skillUnitModels[9201]
+	if !ok {
+		t.Fatal("trap model was not tracked")
+	}
+	if unit.unitID != 145 || unit.x != 12 || unit.y != 34 || unit.modelPath != db.SkillUnitModels[145].ModelPath {
+		t.Fatalf("trap model = %+v", unit)
+	}
+}
+
+func TestHiddenTrapSkillUnitUpdateRevealsRuntimeRSMModel(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9202, CreatorID: 3000000, UnitID: 151, X: 12, Y: 34, Visible: false})
+	if len(mode.skillUnitModels) != 0 {
+		t.Fatalf("visible trap models = %+v, want none", mode.skillUnitModels)
+	}
+	if _, ok := mode.hiddenSkillUnits[9202]; !ok {
+		t.Fatal("hidden trap model was not tracked")
+	}
+
+	mode.applySkillUnitUpdate(network.SkillUnitUpdate{ID: 9202})
+
+	if _, ok := mode.hiddenSkillUnits[9202]; ok {
+		t.Fatalf("hidden trap still tracked after reveal: %+v", mode.hiddenSkillUnits[9202])
+	}
+	if unit, ok := mode.skillUnitModels[9202]; !ok || unit.unitID != 151 || unit.x != 12 || unit.y != 34 {
+		t.Fatalf("visible trap after reveal = %+v ok=%t", unit, ok)
+	}
+}
+
+func TestUsedTrapLookChangeRemovesModelAndSpawnsTriggerBurst(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9203, CreatorID: 2000000, UnitID: 151, X: 12, Y: 34, Visible: true})
+	if !mode.applySkillUnitLookChange(ctx, network.ActorLookChange{ID: 9203, Type: 0, Value: uint32(db.SkillUnitUsedTraps)}) {
+		t.Fatal("used trap look change was not handled")
+	}
+
+	if len(mode.skillUnitModels) != 0 {
+		t.Fatalf("trap models after trigger = %+v, want none", mode.skillUnitModels)
+	}
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %+v, want freezing trap burst", mode.worldEffects)
+	}
+	effect := mode.worldEffects[0]
+	if effect.effectID != effectFreezingTrap || effect.actorID != 0 || effect.x != 12 || effect.y != 34 || effect.persistent {
+		t.Fatalf("trigger burst = %+v", effect)
+	}
+}
+
+func TestSkillUnitDisappearRemovesRuntimeRSMModel(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9204, CreatorID: 2000000, UnitID: 145, X: 12, Y: 34, Visible: true})
+	mode.applySkillUnitDisappear(network.SkillUnitDisappear{ID: 9204})
+
+	if len(mode.skillUnitModels) != 0 || len(mode.hiddenSkillUnits) != 0 || len(mode.worldEffects) != 0 {
+		t.Fatalf("skill unit state after disappear models=%+v hidden=%+v effects=%+v", mode.skillUnitModels, mode.hiddenSkillUnits, mode.worldEffects)
+	}
+}
+
+func TestSkillUnitRSMPlacementUsesCellCenterAndTerrainHeight(t *testing.T) {
+	world := &worldstate.World{
+		GAT: &res.GAT{
+			Width:  2,
+			Height: 2,
+			Cells: []res.GATCell{
+				{Heights: [4]float32{1, 1, 1, 1}},
+				{Heights: [4]float32{2, 2, 2, 2}},
+				{Heights: [4]float32{3, 3, 3, 3}},
+				{Heights: [4]float32{7, 7, 7, 7}},
+			},
+		},
+	}
+	unit := skillUnitModel{unitID: 145, x: 1, y: 1, modelPath: db.SkillUnitModels[145].ModelPath}
+
+	placement := skillUnitRSMPlacement(world, 9205, unit)
+
+	if placement.baseX != 1.5 || placement.baseY != 1.5 {
+		t.Fatalf("base = %.1f,%.1f, want cell center 1.5,1.5", placement.baseX, placement.baseY)
+	}
+	if placement.model.Position.Y != 7 {
+		t.Fatalf("model y = %.1f, want terrain height 7", placement.model.Position.Y)
+	}
+	if placement.model.Scale != (res.RSWVector3{X: 1, Y: 1, Z: 1}) {
+		t.Fatalf("scale = %+v, want 1,1,1", placement.model.Scale)
+	}
+}
+
 func TestMappedSkillUnitEntriesUsePersistentEffects(t *testing.T) {
 	for unitID, spec := range skillUnitEffectSpecs {
 		if len(spec.effectIDs) == 0 {

@@ -74,6 +74,10 @@ type SkillUnitDisappear struct {
 	ID uint32
 }
 
+type SkillUnitUpdate struct {
+	ID uint32
+}
+
 type SkillFailAck struct {
 	SkillID uint16
 	Number  uint32
@@ -234,6 +238,16 @@ func ParseSkillUnitDisappear(packet Packet) (SkillUnitDisappear, bool, error) {
 		return SkillUnitDisappear{}, false, fmt.Errorf("ZC_SKILL_DISAPPEAR too short: %d", len(packet.Data))
 	}
 	return SkillUnitDisappear{ID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
+}
+
+func ParseSkillUnitUpdate(packet Packet) (SkillUnitUpdate, bool, error) {
+	if packet.ID != 0x01AC {
+		return SkillUnitUpdate{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return SkillUnitUpdate{}, false, fmt.Errorf("ZC_SKILL_UPDATE too short: %d", len(packet.Data))
+	}
+	return SkillUnitUpdate{ID: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
 }
 
 func ParseSkillFailAck(packet Packet) (SkillFailAck, bool, error) {
