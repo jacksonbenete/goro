@@ -645,6 +645,7 @@ func (r *runner) applyRuntimeSettings() {
 	if fullscreen := provider.RuntimeFullscreen(); fullscreen != r.fullscreen {
 		r.app.SetFullscreen(fullscreen)
 		r.fullscreen = fullscreen
+		r.requestUIRedraw()
 	}
 	if fps := provider.RuntimeFPS(); fps != r.fps {
 		r.fps = fps
@@ -820,12 +821,14 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 		}
 		r.uiDrawnOnce = false
 		r.uiImage = nil
+		r.requestUIRedraw()
 	}
 	if r.uiScale != deviceScale {
 		r.uiCanvas.SetDeviceScale(deviceScale)
 		r.uiScale = deviceScale
 		r.uiDrawnOnce = false
 		r.uiImage = nil
+		r.requestUIRedraw()
 	}
 
 	win := r.ui.Window()
@@ -945,6 +948,19 @@ func (r *runner) drawUIDragLayer(screen *Frame) {
 
 func (r *runner) updateUIImage() {
 	r.uiImage = updateCanvasImage(r.uiCanvas, r.uiImage)
+}
+
+func (r *runner) requestUIRedraw() {
+	if r == nil || r.ui == nil || r.ui.Window() == nil {
+		return
+	}
+	win := r.ui.Window()
+	if root := win.Root(); root != nil {
+		widget.MarkRedrawInTree(root)
+	}
+	if ctx := win.Context(); ctx != nil {
+		ctx.Invalidate()
+	}
 }
 
 func updateCanvasImage(canvas *ggcanvas.Canvas, dstImage *Image) *Image {
