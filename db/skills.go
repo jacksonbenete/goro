@@ -3717,6 +3717,7 @@ var SkillGroundCastClientScopeSizes = map[uint16]float64{
 	SkillHWGanbantein:    5,
 	SkillHWGravitation:   7,
 	SkillMGFireball:      7,
+	SkillMGFirewall:      2,
 	SkillMGNapalmbeat:    5,
 	SkillMGThunderstorm:  7,
 	SkillPRBenedictio:    5,

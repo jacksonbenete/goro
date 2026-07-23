@@ -7369,6 +7369,7 @@ func TestSkillVisualMetadataMappings(t *testing.T) {
 		db.SkillHWGanbantein:    5,
 		db.SkillHWGravitation:   7,
 		db.SkillMGFireball:      7,
+		db.SkillMGFirewall:      2,
 		db.SkillMGNapalmbeat:    5,
 		db.SkillMGThunderstorm:  7,
 		db.SkillPRBenedictio:    5,
