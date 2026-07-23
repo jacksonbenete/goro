@@ -3,11 +3,17 @@ package game
 import (
 	"fmt"
 	"image/color"
+	"strconv"
 	"strings"
 
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
 	gameui "github.com/kivutar/goro/ui"
+)
+
+var (
+	expNotifyColor      = color.RGBA{R: 255, G: 255, B: 99, A: 255}
+	questExpNotifyColor = color.RGBA{R: 164, G: 66, B: 220, A: 255}
 )
 
 func formatConsoleMessage(manager *res.Manager, chat network.ChatMessage) string {
@@ -63,6 +69,53 @@ func roClientColor(value uint32) color.RGBA {
 		B: uint8(value >> 16),
 		A: 255,
 	}
+}
+
+func addExpNotifyMessage(console *gameui.ChatConsole, manager *res.Manager, notify network.ExpNotify) {
+	if console == nil {
+		return
+	}
+	text, messageColor := formatExpNotifyMessage(manager, notify)
+	if text == "" {
+		return
+	}
+	console.AddColoredMessage(messageColor, "%s", text)
+}
+
+func formatExpNotifyMessage(manager *res.Manager, notify network.ExpNotify) (string, color.RGBA) {
+	switch notify.ExpType {
+	case 0:
+		switch notify.VarID {
+		case network.StatusBaseExp:
+			return formatExpNotifyTemplate(manager, 1613, "Gained %d base experience", notify.Amount), expNotifyColor
+		case network.StatusJobExp:
+			return formatExpNotifyTemplate(manager, 1614, "Gained %d job experience", notify.Amount), expNotifyColor
+		default:
+			return "", color.RGBA{}
+		}
+	case 1:
+		switch notify.VarID {
+		case network.StatusBaseExp:
+			return fmt.Sprintf("Experience gained from Quest, Base:%d", notify.Amount), questExpNotifyColor
+		case network.StatusJobExp:
+			return fmt.Sprintf("Experience gained from Quest, Job:%d", notify.Amount), questExpNotifyColor
+		default:
+			return "", color.RGBA{}
+		}
+	default:
+		return "", color.RGBA{}
+	}
+}
+
+func formatExpNotifyTemplate(manager *res.Manager, messageID int, fallback string, amount int32) string {
+	text := ""
+	if manager != nil {
+		text, _ = manager.MsgString(messageID)
+	}
+	if text == "" {
+		return fmt.Sprintf(fallback, amount)
+	}
+	return strings.Replace(text, "%d", strconv.FormatInt(int64(amount), 10), 1)
 }
 
 func addWhisperMessage(console *gameui.ChatConsole, whisper network.WhisperMessage) {

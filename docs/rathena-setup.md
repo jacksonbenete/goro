@@ -258,6 +258,22 @@ index 79cf8caea..45447e40b 100644
  // 2009-06-03aRagexeRE
  #if PACKETVER >= 20090603
  	parseable_packet(0x07d7,8,clif_parse_PartyChangeOption,2,6,7);
+diff --git a/src/map/pc.cpp b/src/map/pc.cpp
+index 29bde3e97..e07b2ca76 100755
+--- a/src/map/pc.cpp
++++ b/src/map/pc.cpp
+@@ -8523,0 +8524 @@ void pc_gainexp(map_session_data *sd, block_list *src, t_exp base_exp, t_exp job
++#if PACKETVER >= 20091027
+@@ -8527,0 +8529 @@ void pc_gainexp(map_session_data *sd, block_list *src, t_exp base_exp, t_exp job
++#endif
+@@ -8545,0 +8548 @@ void pc_lostexp(map_session_data *sd, t_exp base_exp, t_exp job_exp) {
++#if PACKETVER >= 20091027
+@@ -8546,0 +8550 @@ void pc_lostexp(map_session_data *sd, t_exp base_exp, t_exp job_exp) {
++#endif
+@@ -8552,0 +8557 @@ void pc_lostexp(map_session_data *sd, t_exp base_exp, t_exp job_exp) {
++#if PACKETVER >= 20091027
+@@ -8553,0 +8559 @@ void pc_lostexp(map_session_data *sd, t_exp base_exp, t_exp job_exp) {
++#endif
 diff --git a/src/map/packets_struct.hpp b/src/map/packets_struct.hpp
 index 52d1555d9..1720f560c 100644
 --- a/src/map/packets_struct.hpp

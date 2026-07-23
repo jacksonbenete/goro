@@ -7,6 +7,8 @@ import (
 )
 
 const (
+	PacketZCNotifyExp uint16 = 0x07F6
+
 	StatusSpeed       uint16 = 0
 	StatusBaseExp     uint16 = 1
 	StatusJobExp      uint16 = 2
@@ -95,6 +97,13 @@ type Recovery struct {
 	Amount   int
 }
 
+type ExpNotify struct {
+	AID     uint32
+	Amount  int32
+	VarID   uint16
+	ExpType uint16
+}
+
 type StatusEffectChange struct {
 	StatusID    uint16
 	ActorID     uint32
@@ -124,6 +133,21 @@ func ParseParameterChange(packet Packet) (ParameterChange, bool, error) {
 	return ParameterChange{
 		VarID: binary.LittleEndian.Uint16(packet.Data[2:4]),
 		Value: int64(binary.LittleEndian.Uint32(packet.Data[4:8])),
+	}, true, nil
+}
+
+func ParseExpNotify(packet Packet) (ExpNotify, bool, error) {
+	if packet.ID != PacketZCNotifyExp {
+		return ExpNotify{}, false, nil
+	}
+	if len(packet.Data) < 14 {
+		return ExpNotify{}, false, fmt.Errorf("ZC_NOTIFY_EXP too short: %d", len(packet.Data))
+	}
+	return ExpNotify{
+		AID:     binary.LittleEndian.Uint32(packet.Data[2:6]),
+		Amount:  int32(binary.LittleEndian.Uint32(packet.Data[6:10])),
+		VarID:   binary.LittleEndian.Uint16(packet.Data[10:12]),
+		ExpType: binary.LittleEndian.Uint16(packet.Data[12:14]),
 	}, true, nil
 }
 

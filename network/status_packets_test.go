@@ -96,6 +96,27 @@ func TestParseRecovery(t *testing.T) {
 	}
 }
 
+func TestParseExpNotify(t *testing.T) {
+	data := make([]byte, 14)
+	amount := int32(-1234)
+	binary.LittleEndian.PutUint16(data[0:2], PacketZCNotifyExp)
+	binary.LittleEndian.PutUint32(data[2:6], 0x11223344)
+	binary.LittleEndian.PutUint32(data[6:10], uint32(amount))
+	binary.LittleEndian.PutUint16(data[10:12], StatusBaseExp)
+	binary.LittleEndian.PutUint16(data[12:14], 1)
+
+	notify, ok, err := ParseExpNotify(Packet{ID: PacketZCNotifyExp, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("exp notify not parsed")
+	}
+	if notify.AID != 0x11223344 || notify.Amount != -1234 || notify.VarID != StatusBaseExp || notify.ExpType != 1 {
+		t.Fatalf("notify = %+v", notify)
+	}
+}
+
 func TestParseStatusSnapshot(t *testing.T) {
 	data := make([]byte, 44)
 	binary.LittleEndian.PutUint16(data[0:2], 0x00BD)

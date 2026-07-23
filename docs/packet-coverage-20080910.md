@@ -38,6 +38,13 @@ The rAthena setup patch makes `clif_homunculus_updatestatus` send a full
 the 2008 client flow can display stale HP, SP, or EXP values after the initial
 homunculus info packet.
 
+`ZC_NOTIFY_EXP` (`0x07F6`) is the later client-side EXP gain/loss notification
+packet. eAthena and Hercules both gate `clif_displayexp()` behind
+`PACKETVER >= 20091027`, and Hercules' 2008 Sakray packet table does not include
+`0x07F6`. The rAthena setup patch keeps the same behavior by not sending that
+packet to the 2008 Sakray profile; `@showexp` remains the server text-message
+path for green EXP percentage lines.
+
 See [homunculus and mercenary support](companions-20080910.md) for the current
 companion UI, AI, skill, and visual coverage.
 

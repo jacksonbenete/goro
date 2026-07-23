@@ -500,6 +500,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.handleChatMessage(ctx, chat, now)
 			continue
 		}
+		if notify, ok, err := network.ParseExpNotify(pkt); err != nil {
+			glog.Errorf("parse exp notify 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			addExpNotifyMessage(&m.ui.console, ctx.Resources, notify)
+			continue
+		}
 		if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {
 			glog.Errorf("parse whisper message 0x%04X: %v", pkt.ID, err)
 		} else if ok {

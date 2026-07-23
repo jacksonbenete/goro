@@ -11925,6 +11925,42 @@ func TestColoredConsoleMessageUsesPacketColor(t *testing.T) {
 	}
 }
 
+func TestExpNotifyConsoleMessageUsesMsgStringTable(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	msgTable := strings.Repeat("ignored#\n", 1613) + "Base EXP +%d#\nJob EXP +%d#\n"
+	if err := os.WriteFile(filepath.Join(dataDir, "msgstringtable.txt"), []byte(msgTable), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	console := &gameui.ChatConsole{}
+	addExpNotifyMessage(console, manager, network.ExpNotify{Amount: 42, VarID: network.StatusBaseExp})
+
+	messages := console.Messages()
+	wantColor := color.RGBA{R: 255, G: 255, B: 99, A: 255}
+	if len(messages) != 1 || messages[0].Text != "Base EXP +42" || messages[0].Color != wantColor {
+		t.Fatalf("messages = %+v, want color %+v", messages, wantColor)
+	}
+}
+
+func TestQuestExpNotifyConsoleMessageUsesRobrowserText(t *testing.T) {
+	console := &gameui.ChatConsole{}
+	addExpNotifyMessage(console, nil, network.ExpNotify{Amount: 7, VarID: network.StatusJobExp, ExpType: 1})
+
+	messages := console.Messages()
+	wantColor := color.RGBA{R: 164, G: 66, B: 220, A: 255}
+	if len(messages) != 1 || messages[0].Text != "Experience gained from Quest, Job:7" || messages[0].Color != wantColor {
+		t.Fatalf("messages = %+v, want color %+v", messages, wantColor)
+	}
+}
+
 func TestFormatPickupConsoleMessageUsesMsgStringAndItemName(t *testing.T) {
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")
