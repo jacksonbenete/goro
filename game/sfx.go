@@ -13,13 +13,14 @@ import (
 )
 
 type scheduledSound struct {
-	at         time.Time
-	paths      []string
-	volume     float64
-	positioned bool
-	actorID    uint32
-	x          float64
-	y          float64
+	at          time.Time
+	paths       []string
+	volume      float64
+	positioned  bool
+	actorID     uint32
+	hasPosition bool
+	x           float64
+	y           float64
 }
 
 type actorSoundFrame struct {
@@ -45,17 +46,18 @@ func (m *WorldMode) scheduleSoundVolumeAtActor(at time.Time, volume float64, act
 }
 
 func (m *WorldMode) scheduleSoundVolumeAtPosition(at time.Time, volume float64, x, y float64, paths ...string) {
-	m.scheduleSoundOptions(scheduledSound{at: at, volume: volume, positioned: true, x: x, y: y}, paths...)
+	m.scheduleSoundOptions(scheduledSound{at: at, volume: volume, positioned: true, hasPosition: true, x: x, y: y}, paths...)
 }
 
 func (m *WorldMode) scheduleSoundAtWorldEffect(at time.Time, effect worldEffect, paths ...string) {
 	sound := scheduledSound{
-		at:         at,
-		volume:     1,
-		positioned: true,
-		actorID:    effect.actorID,
-		x:          float64(effect.x),
-		y:          float64(effect.y),
+		at:          at,
+		volume:      1,
+		positioned:  true,
+		actorID:     effect.actorID,
+		hasPosition: true,
+		x:           float64(effect.x),
+		y:           float64(effect.y),
 	}
 	m.scheduleSoundOptions(sound, paths...)
 }
@@ -237,6 +239,12 @@ func scheduledSoundPosition(ctx client.Context, sound scheduledSound, now time.T
 			x, y := actorRenderPosition(ctx.World.Player, now)
 			return x, y, true
 		}
+		if sound.hasPosition {
+			return sound.x, sound.y, true
+		}
+		return 0, 0, false
+	}
+	if !sound.hasPosition {
 		return 0, 0, false
 	}
 	return sound.x, sound.y, true

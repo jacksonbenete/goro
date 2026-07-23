@@ -12454,6 +12454,63 @@ func TestFireWallSkillUnitEntryUsesPersistentEffect(t *testing.T) {
 	}
 }
 
+func TestWizardSkillUnitEntrySchedulesCellSound(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		unitID uint16
+		path   string
+	}{
+		{name: "ice wall", unitID: 141, path: "effect\\wizard_icewall.wav"},
+		{name: "quagmire", unitID: 142, path: "effect\\wizard_quagmire.wav"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			world := worldstate.New()
+			world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+			mode := &WorldMode{}
+			ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+			mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9101, CreatorID: 2000000, UnitID: tc.unitID, X: 12, Y: 34, Visible: true})
+
+			if len(mode.scheduledSounds) != 1 {
+				t.Fatalf("scheduled sounds = %+v, want one", mode.scheduledSounds)
+			}
+			sound := mode.scheduledSounds[0]
+			if len(sound.paths) != 1 || sound.paths[0] != tc.path {
+				t.Fatalf("sound paths = %+v, want %s", sound.paths, tc.path)
+			}
+			if !sound.positioned || sound.actorID != 9101 || !sound.hasPosition {
+				t.Fatalf("sound position metadata = %+v", sound)
+			}
+			x, y, ok := scheduledSoundPosition(ctx, sound, time.Now())
+			if !ok || x != 12 || y != 34 {
+				t.Fatalf("sound position = %.0f,%.0f ok=%t, want 12,34 true", x, y, ok)
+			}
+		})
+	}
+}
+
+func TestStormGustSkillNotifySchedulesSound(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[1100] = worldstate.Actor{ID: 1100, X: 12, Y: 34}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: db.SkillWZStormgust, TargetID: 1100, SourceID: 2000000, Result: 1})
+
+	if len(mode.scheduledSounds) != 1 {
+		t.Fatalf("scheduled sounds = %+v, want one", mode.scheduledSounds)
+	}
+	sound := mode.scheduledSounds[0]
+	if len(sound.paths) != 1 || sound.paths[0] != "effect\\wizard_stormgust.wav" {
+		t.Fatalf("sound paths = %+v, want storm gust sfx", sound.paths)
+	}
+	x, y, ok := scheduledSoundPosition(ctx, sound, time.Now())
+	if !ok || x != 12 || y != 34 {
+		t.Fatalf("sound position = %.0f,%.0f ok=%t, want target position 12,34 true", x, y, ok)
+	}
+}
+
 func TestQuagmireSkillUnitEntriesBuildFiveByFiveZone(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
