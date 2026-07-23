@@ -262,7 +262,7 @@ type rsmPlacementContext struct {
 func (m *WorldMode) rsmPlacementContext(rsm *res.RSM, rsw *res.RSW, visible visibleRSMPlacement) (rsmPlacementContext, bool) {
 	placement := visible.model
 	rootName := selectedRSMRootName(rsm, placement.NodeName)
-	nodeIndices := selectedRSMNodeIndices(rsm, placement.NodeName)
+	nodeIndices := selectedRSMNodeIndices(rsm, rootName)
 	if len(nodeIndices) == 0 {
 		return rsmPlacementContext{}, false
 	}
@@ -407,28 +407,44 @@ func selectedRSMNodeIndices(rsm *res.RSM, rootName string) []int {
 	if rsm == nil || len(rsm.Nodes) == 0 {
 		return nil
 	}
-	rootName = selectedRSMRootName(rsm, rootName)
 	if rootName == "" {
-		indices := make([]int, len(rsm.Nodes))
-		for i := range indices {
-			indices[i] = i
+		return allRSMNodeIndices(rsm)
+	}
+	nodes := make(map[string]*res.RSMNode, len(rsm.Nodes))
+	for i := range rsm.Nodes {
+		nodes[rsm.Nodes[i].Name] = &rsm.Nodes[i]
+	}
+	if nodes[rootName] == nil {
+		return allRSMNodeIndices(rsm)
+	}
+	selected := map[string]struct{}{rootName: {}}
+	descendantRoots := map[string]struct{}{rootName: {}}
+	for node := nodes[rootName]; node != nil; {
+		parentName := node.ParentName
+		if parentName == "" || parentName == node.Name {
+			break
 		}
-		return indices
+		parent := nodes[parentName]
+		if parent == nil {
+			break
+		}
+		selected[parent.Name] = struct{}{}
+		node = parent
 	}
 
-	selected := map[string]struct{}{rootName: {}}
 	changed := true
 	for changed {
 		changed = false
 		for i := range rsm.Nodes {
 			node := &rsm.Nodes[i]
-			if _, ok := selected[node.Name]; ok {
+			if _, ok := descendantRoots[node.Name]; ok {
 				continue
 			}
-			if _, ok := selected[node.ParentName]; !ok {
+			if _, ok := descendantRoots[node.ParentName]; !ok {
 				continue
 			}
 			selected[node.Name] = struct{}{}
+			descendantRoots[node.Name] = struct{}{}
 			changed = true
 		}
 	}
@@ -438,6 +454,17 @@ func selectedRSMNodeIndices(rsm *res.RSM, rootName string) []int {
 		if _, ok := selected[rsm.Nodes[i].Name]; ok {
 			indices = append(indices, i)
 		}
+	}
+	return indices
+}
+
+func allRSMNodeIndices(rsm *res.RSM) []int {
+	if rsm == nil || len(rsm.Nodes) == 0 {
+		return nil
+	}
+	indices := make([]int, len(rsm.Nodes))
+	for i := range indices {
+		indices[i] = i
 	}
 	return indices
 }

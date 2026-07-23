@@ -45,6 +45,58 @@ func TestCalculateRSMBoundsSeparatesMainNodeFromModel(t *testing.T) {
 	}
 }
 
+func TestRSMPlacementContextIncludesSelectedNodeAncestors(t *testing.T) {
+	rsm := &res.RSM{
+		MainNodeName: "root",
+		Nodes: []res.RSMNode{
+			{
+				Name:   "root",
+				Matrix: identityRSMMatrix(),
+				Scale:  res.RSMVector3{X: 1, Y: 1, Z: 1},
+				Vertices: []res.RSMVector3{
+					{X: -1, Y: 0, Z: -1},
+					{X: 1, Y: 2, Z: 1},
+				},
+			},
+			{
+				Name:       "child",
+				ParentName: "root",
+				Matrix:     identityRSMMatrix(),
+				Position:   res.RSMVector3{X: 100},
+				Scale:      res.RSMVector3{X: 1, Y: 1, Z: 1},
+				Vertices: []res.RSMVector3{
+					{X: 0, Y: 0, Z: 0},
+					{X: 2, Y: 3, Z: 2},
+				},
+			},
+			{
+				Name:       "sibling",
+				ParentName: "root",
+				Matrix:     identityRSMMatrix(),
+				Scale:      res.RSMVector3{X: 1, Y: 1, Z: 1},
+				Vertices: []res.RSMVector3{
+					{X: 10, Y: 0, Z: 0},
+					{X: 11, Y: 1, Z: 1},
+				},
+			},
+		},
+	}
+
+	world := &WorldMode{}
+	context, ok := world.rsmPlacementContext(rsm, &res.RSW{}, visibleRSMPlacement{
+		model: res.RSWModel{
+			NodeName: "child",
+			Scale:    res.RSWVector3{X: 1, Y: 1, Z: 1},
+		},
+	})
+	if !ok {
+		t.Fatal("placement context was not built")
+	}
+	if len(context.nodeIndices) != 2 || context.nodeIndices[0] != 0 || context.nodeIndices[1] != 1 {
+		t.Fatalf("node indices = %#v, want selected node plus ancestor", context.nodeIndices)
+	}
+}
+
 func TestRSMInstanceMatrixUsesParsedRSWModelY(t *testing.T) {
 	rsm := &res.RSM{}
 	placement := res.RSWModel{
