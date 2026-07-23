@@ -1920,6 +1920,7 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	129: {effectIDs: []int{effectPortal}},           // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
 	133: {effectIDs: []int{effectPneuma}},           // UNT_PNEUMA -> EF_PNEUMA
 	141: {effectIDs: []int{effectIceWall}},          // UNT_ICEWALL -> EF_ICEWALL
+	142: {effectIDs: []int{effectQuagmire}},         // UNT_QUAGMIRE -> EF_QUAGMIRE
 	158: {effectIDs: []int{effectBottomLullaby}},    // UNT_LULLABY -> 278_ground
 	159: {effectIDs: []int{effectBottomRichKim}},    // UNT_RICHMANKIM -> 279_ground
 	160: {effectIDs: []int{effectBottomChaos}},      // UNT_ETERNALCHAOS -> 280_ground

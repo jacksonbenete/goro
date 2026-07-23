@@ -8479,6 +8479,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
 	expectEffectIDs(t, "UNT_ICEWALL", skillUnitEffectIDs(141), effectIceWall)
+	expectEffectIDs(t, "UNT_QUAGMIRE", skillUnitEffectIDs(142), effectQuagmire)
 	expectEffectIDs(t, "UNT_LULLABY", skillUnitEffectIDs(158), effectBottomLullaby)
 	expectEffectIDs(t, "UNT_RICHMANKIM", skillUnitEffectIDs(159), effectBottomRichKim)
 	expectEffectIDs(t, "UNT_ETERNALCHAOS", skillUnitEffectIDs(160), effectBottomChaos)
@@ -12372,6 +12373,43 @@ func TestFireWallSkillUnitEntryUsesPersistentEffect(t *testing.T) {
 	}
 	if effect.duration != 0 {
 		t.Fatalf("fire wall animation override = %s, want native component timing", effect.duration)
+	}
+}
+
+func TestQuagmireSkillUnitEntriesBuildFiveByFiveZone(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	const centerX, centerY = 50, 60
+	entryID := uint32(9100)
+	for dy := -2; dy <= 2; dy++ {
+		for dx := -2; dx <= 2; dx++ {
+			mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: entryID, CreatorID: 2000000, UnitID: 142, X: uint16(centerX + dx), Y: uint16(centerY + dy), Visible: true})
+			entryID++
+		}
+	}
+
+	if len(mode.worldEffects) != 25 {
+		t.Fatalf("quagmire world effects = %d, want 25", len(mode.worldEffects))
+	}
+	cells := make(map[worldstate.WalkStep]bool, len(mode.worldEffects))
+	for _, effect := range mode.worldEffects {
+		if effect.effectID != effectQuagmire {
+			t.Fatalf("effect id = %d, want quagmire: %+v", effect.effectID, effect)
+		}
+		if !effect.persistent {
+			t.Fatalf("quagmire unit effect is not persistent: %+v", effect)
+		}
+		cells[worldstate.WalkStep{X: effect.x, Y: effect.y}] = true
+	}
+	for y := centerY - 2; y <= centerY+2; y++ {
+		for x := centerX - 2; x <= centerX+2; x++ {
+			if !cells[worldstate.WalkStep{X: x, Y: y}] {
+				t.Fatalf("missing quagmire cell %d,%d in %+v", x, y, cells)
+			}
+		}
 	}
 }
 
