@@ -361,6 +361,23 @@ mysql rathena < sql-files/mob_skill_db.sql
 mysql rathena < sql-files/mob_skill_db2.sql
 ```
 
+Refresh the ignored YAML import overrides from the current templates after a
+fresh checkout or after rebasing the rAthena fork:
+
+```sh
+mkdir -p db/import
+cp db/import-tmpl/item_group_db.yml db/import/item_group_db.yml
+cp db/import-tmpl/item_packages.yml db/import/item_packages.yml
+cp db/import-tmpl/job_stats.yml db/import/job_stats.yml
+cp db/import-tmpl/elemental_db.yml db/import/elemental_db.yml
+```
+
+`db/import` is intentionally ignored by rAthena, so existing local files are not
+updated by `git pull` or `git rebase`. Stale template copies can trigger startup
+warnings such as outdated `ITEM_GROUP_DB`, `ITEM_PACKAGE_DB`, `JOB_STATS`, or
+`ELEMENTAL_DB` database versions. If you keep custom rows in these files, upgrade
+or merge them instead of overwriting them.
+
 Use the same database names in `conf/inter_athena.conf`:
 
 ```conf
