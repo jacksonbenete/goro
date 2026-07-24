@@ -120,6 +120,78 @@ func TestPlayerWeaponViewIDUsesItemClassNumBeforeFallbackRange(t *testing.T) {
 	}
 }
 
+func TestPlayerWeaponIsBowUsesExpandedViewID(t *testing.T) {
+	manager := &Manager{
+		itemMetadataLoaded: true,
+		itemMetadata: map[int]ItemMetadata{
+			50000: {ClassNum: 73, ClassNumSet: true},
+			1710:  {ClassNum: 999, ClassNumSet: true},
+		},
+	}
+	if !PlayerWeaponIsBow(manager, 50000) {
+		t.Fatal("weapon item with CrossBow view id should count as bow")
+	}
+	if !PlayerWeaponIsBow(nil, 74) {
+		t.Fatal("Arbalest view id should count as bow")
+	}
+	if PlayerWeaponIsBow(nil, db.WeaponSword) {
+		t.Fatal("sword type should not count as bow")
+	}
+	if !PlayerWeaponIsBow(manager, 1710) {
+		t.Fatal("bow item should still count as bow when class num is not a known weapon type")
+	}
+}
+
+func TestPlayerWeaponOverlayResourceCandidatesPreferExactViewID(t *testing.T) {
+	got := PlayerWeaponOverlayResourceCandidates(db.JobArcher, 1, 73, false, "spr")
+	want := []string{
+		"data\\sprite\\인간족\\궁수\\궁수_남_73.spr",
+		"data\\sprite\\인간족\\궁수\\궁수_남_활.spr",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("bow overlay candidates = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("bow overlay candidates[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestPlayerWeaponOverlayResourceCandidatesForItemPreferItemSpecificSprite(t *testing.T) {
+	got := PlayerWeaponOverlayResourceCandidatesForItem(db.JobWizard, 0, 1615, 10, false, "spr")
+	want := []string{
+		"data\\sprite\\인간족\\위저드\\위저드_여_1615.spr",
+		"data\\sprite\\인간족\\위저드\\위저드_여_10.spr",
+		"data\\sprite\\인간족\\위저드\\위저드_여_롯드.spr",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("staff overlay candidates = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("staff overlay candidates[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestPlayerWeaponOverlayResourceCandidatesForItemUsesItemTypeWhenViewIDIsUnknown(t *testing.T) {
+	got := PlayerWeaponOverlayResourceCandidatesForItem(db.JobWizard, 0, 1615, 999, false, "spr")
+	want := []string{
+		"data\\sprite\\인간족\\위저드\\위저드_여_1615.spr",
+		"data\\sprite\\인간족\\위저드\\위저드_여_999.spr",
+		"data\\sprite\\인간족\\위저드\\위저드_여_롯드.spr",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("staff overlay candidates = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("staff overlay candidates[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestPlayerWeaponOverlayTypeForJobMatchesReferenceJobRules(t *testing.T) {
 	if got := PlayerWeaponOverlayTypeForJob(2, 5, false); got != 10 {
 		t.Fatalf("mage overlay type for weapon 5 = %d, want rod type 10", got)

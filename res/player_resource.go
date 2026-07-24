@@ -175,7 +175,37 @@ func PlayerWeaponOverlayResourceCandidates(job int, sex byte, weaponValue int, s
 	if weaponValue <= 0 {
 		return nil
 	}
-	weaponType := PlayerWeaponOverlayTypeForJob(job, db.PlayerWeaponType(weaponValue), false)
+	return playerWeaponOverlayResourceCandidates(job, sex, []int{weaponValue}, weaponValue, secondLayer, extension)
+}
+
+func PlayerWeaponOverlayResourceCandidatesForItem(job int, sex byte, weaponItemID int, weaponViewID int, secondLayer bool, extension string) []string {
+	if weaponItemID <= 0 && weaponViewID <= 0 {
+		return nil
+	}
+	lookupValue := weaponViewID
+	if lookupValue <= 0 {
+		lookupValue = weaponItemID
+	}
+	weaponValues := make([]int, 0, 2)
+	if weaponItemID > 0 {
+		weaponValues = append(weaponValues, weaponItemID)
+	}
+	if weaponViewID > 0 && weaponViewID != weaponItemID {
+		weaponValues = append(weaponValues, weaponViewID)
+	}
+	return playerWeaponOverlayResourceCandidates(job, sex, weaponValues, lookupValue, secondLayer, extension)
+}
+
+func playerWeaponOverlayResourceCandidates(job int, sex byte, weaponValues []int, lookupValue int, secondLayer bool, extension string) []string {
+	weaponType := PlayerWeaponOverlayTypeForJob(job, db.PlayerWeaponType(lookupValue), false)
+	if weaponType <= 0 {
+		for _, weaponValue := range weaponValues {
+			weaponType = PlayerWeaponOverlayTypeForJob(job, db.PlayerWeaponType(weaponValue), false)
+			if weaponType > 0 {
+				break
+			}
+		}
+	}
 	if weaponType <= 0 {
 		return nil
 	}
@@ -188,18 +218,32 @@ func PlayerWeaponOverlayResourceCandidates(job int, sex byte, weaponValue int, s
 	}
 	sexToken := PlayerSexToken(sex)
 	jobToken := PlayerJobToken(job)
-	out := make([]string, 0, 2)
+	out := make([]string, 0, len(weaponValues)+1)
+	add := func(path string) {
+		for _, existing := range out {
+			if existing == path {
+				return
+			}
+		}
+		out = append(out, path)
+	}
 	if secondLayer {
-		out = append(out,
-			fmt.Sprintf("%s%s\\%s_%s_%d_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, weaponValue&0xFFFF, weaponLightSuffix, extension),
-			fmt.Sprintf("%s%s\\%s_%s_%s_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, token, weaponLightSuffix, extension),
-		)
+		for _, weaponValue := range weaponValues {
+			if weaponValue <= 0 {
+				continue
+			}
+			add(fmt.Sprintf("%s%s\\%s_%s_%d_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, weaponValue&0xFFFF, weaponLightSuffix, extension))
+		}
+		add(fmt.Sprintf("%s%s\\%s_%s_%s_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, token, weaponLightSuffix, extension))
 		return out
 	}
-	out = append(out,
-		fmt.Sprintf("%s%s\\%s_%s_%d.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, weaponValue&0xFFFF, extension),
-		fmt.Sprintf("%s%s\\%s_%s_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, token, extension),
-	)
+	for _, weaponValue := range weaponValues {
+		if weaponValue <= 0 {
+			continue
+		}
+		add(fmt.Sprintf("%s%s\\%s_%s_%d.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, weaponValue&0xFFFF, extension))
+	}
+	add(fmt.Sprintf("%s%s\\%s_%s_%s.%s", playerHumanSpriteRoot, jobToken, jobToken, sexToken, token, extension))
 	return out
 }
 
@@ -269,6 +313,16 @@ func PlayerWeaponViewID(manager *Manager, weaponValue int) int {
 		}
 	}
 	return db.PlayerWeaponType(weaponValue)
+}
+
+func PlayerWeaponIsBow(manager *Manager, weaponValue int) bool {
+	if weaponValue <= 0 {
+		return false
+	}
+	if db.PlayerWeaponType(PlayerWeaponViewID(manager, weaponValue)) == db.WeaponBow {
+		return true
+	}
+	return db.PlayerWeaponType(weaponValue) == db.WeaponBow
 }
 
 func NormalizePlayerWeaponShield(weapon, shield int) (int, int) {

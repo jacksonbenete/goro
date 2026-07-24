@@ -1170,6 +1170,14 @@ func TestCurrentNormalAttackRangeUsesEquippedBowAndVultureEye(t *testing.T) {
 	}
 }
 
+func TestClassSpecificBowViewIDAddsArrowProjectileEffect(t *testing.T) {
+	actor := worldstate.Actor{Job: db.JobArcher, Weapon: 73}
+	effectID, ok := normalAttackBeforeHitEffectID(nil, actor)
+	if !ok || effectID != effectArrowShot {
+		t.Fatalf("class-specific bow effect = %d ok=%t, want arrow projectile", effectID, ok)
+	}
+}
+
 func TestApplyAttackFailureForDistanceStoresServerRange(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
@@ -9860,6 +9868,21 @@ func TestAttackActionFamilyUsesRobrowserWizardRodAction(t *testing.T) {
 	}
 }
 
+func TestAttackActionFamilyUsesExpandedWeaponViewIDs(t *testing.T) {
+	knightSword := worldstate.Actor{Job: db.JobKnight, Weapon: 48}
+	if got := attackActionFamilyForActor(knightSword); got != spriteActionPCAttack2 {
+		t.Fatalf("Knight two-hand sword view attack action = %d, want ATTACK2", got)
+	}
+	archerBow := worldstate.Actor{Job: db.JobArcher, Weapon: 73}
+	if got := attackActionFamilyForActor(archerBow); got != spriteActionPCAttack2 {
+		t.Fatalf("Archer CrossBow view attack action = %d, want ATTACK2", got)
+	}
+	hunterBow := worldstate.Actor{Job: db.JobHunter, Weapon: 74}
+	if got := attackActionFamilyForActor(hunterBow); got != spriteActionPCAttack3 {
+		t.Fatalf("Hunter Arbalest view attack action = %d, want ATTACK3", got)
+	}
+}
+
 func TestActorActionFrameDelayUsesPlayerWeaponActionFrames(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: 1, Weapon: 3, Dir: 0}
@@ -13298,14 +13321,14 @@ func TestInventoryEquipmentRebuildsLocalWeaponAppearanceFromEquippedItem(t *test
 		{Index: 2, ItemID: 1607, Type: 5, Location: 0x0002, Equip: true, Equipped: true, Identified: true},
 	})
 
-	if sessionState.Selected.Weapon != 10 || sessionState.Selected.Shield != 0 {
-		t.Fatalf("selected weapon = %d shield = %d, want 10/0", sessionState.Selected.Weapon, sessionState.Selected.Shield)
+	if sessionState.Selected.Weapon != 1607 || sessionState.Selected.Shield != 0 {
+		t.Fatalf("selected weapon = %d shield = %d, want 1607/0", sessionState.Selected.Weapon, sessionState.Selected.Shield)
 	}
-	if sessionState.Characters[0].Weapon != 10 {
-		t.Fatalf("character list weapon = %d, want 10", sessionState.Characters[0].Weapon)
+	if sessionState.Characters[0].Weapon != 1607 {
+		t.Fatalf("character list weapon = %d, want 1607", sessionState.Characters[0].Weapon)
 	}
-	if world.Player.Weapon != 10 || world.Player.Shield != 0 {
-		t.Fatalf("world player weapon = %d shield = %d, want 10/0", world.Player.Weapon, world.Player.Shield)
+	if world.Player.Weapon != 1607 || world.Player.Shield != 0 {
+		t.Fatalf("world player weapon = %d shield = %d, want 1607/0", world.Player.Weapon, world.Player.Shield)
 	}
 }
 

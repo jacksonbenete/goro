@@ -310,7 +310,7 @@ func rebuildLocalEquipmentAppearance(ctx client.Context) {
 		occupiesLeftHand := item.Location&db.EquipShield != 0
 		if occupiesRightHand {
 			hasWeapon = true
-			weapon = res.PlayerWeaponViewID(ctx.Resources, int(item.ItemID))
+			weapon = int(item.ItemID)
 		}
 		if occupiesLeftHand && !occupiesRightHand {
 			hasShield = true
@@ -338,7 +338,7 @@ func normalAttackRangeFromEquippedItems(s *session.Session, manager *res.Manager
 		if !item.Equip || !item.Equipped || item.Location&db.EquipWeapon == 0 {
 			continue
 		}
-		if res.PlayerWeaponViewID(manager, int(item.ItemID)) == 11 {
+		if res.PlayerWeaponIsBow(manager, int(item.ItemID)) {
 			return 5 + learnedSkillLevel(s, 44)
 		}
 		return 1

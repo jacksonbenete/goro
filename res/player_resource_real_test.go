@@ -1,6 +1,7 @@
 package res
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/kivutar/goro/db"
@@ -125,6 +126,43 @@ func TestPlayerMageEquippedRodOverlayRealWhenConfigured(t *testing.T) {
 			t.Fatalf("mage rod attack action has no visible frames")
 		}
 	}
+}
+
+func TestPlayerWizardItemSpecificStaffOverlayRealWhenConfigured(t *testing.T) {
+	manager := realDataManager(t)
+	job := db.JobWizard
+	sex := byte(0)
+	weapon := 1615
+	viewID := manager.PlayerWeaponViewID(weapon)
+	actCandidates := PlayerWeaponOverlayResourceCandidatesForItem(job, sex, weapon, viewID, false, "act")
+	sprCandidates := PlayerWeaponOverlayResourceCandidatesForItem(job, sex, weapon, viewID, false, "spr")
+	if len(actCandidates) == 0 || len(sprCandidates) == 0 {
+		t.Fatalf("wizard staff candidates missing act=%q spr=%q", actCandidates, sprCandidates)
+	}
+	if _, _, ok := manager.ReadFirst([]string{actCandidates[0]}); !ok {
+		t.Skipf("item-specific wizard staff act not found: %s", actCandidates[0])
+	}
+	if _, _, ok := manager.ReadFirst([]string{sprCandidates[0]}); !ok {
+		t.Skipf("item-specific wizard staff spr not found: %s", sprCandidates[0])
+	}
+	actSource, actData, ok := manager.ReadFirst(actCandidates)
+	if !ok {
+		t.Fatalf("wizard staff act not found candidates=%q", actCandidates)
+	}
+	sprSource, sprData, ok := manager.ReadFirst(sprCandidates)
+	if !ok {
+		t.Fatalf("wizard staff spr not found candidates=%q", sprCandidates)
+	}
+	if !strings.Contains(actSource, "1615") || !strings.Contains(sprSource, "1615") {
+		t.Fatalf("wizard staff loaded act=%s spr=%s, want item-specific 1615 resources", actSource, sprSource)
+	}
+	if _, err := ParseACT(actData); err != nil {
+		t.Fatalf("parse %s: %v", actSource, err)
+	}
+	if _, err := ParseSPR(sprData); err != nil {
+		t.Fatalf("parse %s: %v", sprSource, err)
+	}
+	t.Logf("wizard staff resources act=%s spr=%s view_id=%d", actSource, sprSource, viewID)
 }
 
 func TestMercenaryWeaponOverlayResourceRealWhenConfigured(t *testing.T) {

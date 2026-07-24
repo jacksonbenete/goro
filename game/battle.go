@@ -478,7 +478,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	attackDuration := combatDuration(action.SourceSpeed, defaultAttackAnimationDuration)
 	attackFamily := spriteActionNonPCAttack
 	if sourceOK {
-		attackFamily = skillActionFamilyForActor(source, action.SkillID)
+		attackFamily = skillActionFamilyForActorWithResources(ctx.Resources, source, action.SkillID)
 		if action.SkillID > 0 {
 			m.startSkillActionAnimation(ctx, action.SourceID, source, skillAction(action.SkillID), now, attackDuration)
 		} else if sourceLocal && res.HasPlayerJobToken(int(source.Job)) {
@@ -607,7 +607,7 @@ func actorUsesBow(manager *res.Manager, actor world.Actor) bool {
 	if actor.Weapon <= 0 {
 		return false
 	}
-	return res.PlayerWeaponViewID(manager, int(actor.Weapon)) == 11
+	return res.PlayerWeaponIsBow(manager, int(actor.Weapon))
 }
 
 func normalAttackBeforeHitEffectID(manager *res.Manager, actor world.Actor) (int, bool) {
@@ -1194,11 +1194,19 @@ func (m *WorldMode) actorAnimation(id uint32, now time.Time) (actorAnimation, bo
 }
 
 func attackActionFamilyForActor(actor world.Actor) int {
+	return attackActionFamilyForActorWithResources(nil, actor)
+}
+
+func attackActionFamilyForActorWithResources(manager *res.Manager, actor world.Actor) int {
 	if actorIsMercenary(actor) {
 		return mercenaryAttackActionFamily(int(actor.Job), actor.Sex, int(actor.Weapon))
 	}
 	if res.HasPlayerJobToken(int(actor.Job)) {
 		weapon, _ := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
+		viewID := res.PlayerWeaponViewID(manager, weapon)
+		if db.PlayerWeaponType(viewID) > 0 {
+			weapon = viewID
+		}
 		switch db.PlayerWeaponAction(int(actor.Job), actor.Sex, weapon) {
 		case db.PlayerWeaponActionAttack2:
 			return spriteActionPCAttack2
@@ -1212,10 +1220,14 @@ func attackActionFamilyForActor(actor world.Actor) int {
 }
 
 func skillActionFamilyForActor(actor world.Actor, skillID uint16) int {
+	return skillActionFamilyForActorWithResources(nil, actor, skillID)
+}
+
+func skillActionFamilyForActorWithResources(manager *res.Manager, actor world.Actor, skillID uint16) int {
 	if skillID == 0 {
-		return attackActionFamilyForActor(actor)
+		return attackActionFamilyForActorWithResources(manager, actor)
 	}
-	return skillAction(skillID).actionFamilyForActor(actor)
+	return skillAction(skillID).actionFamilyForActorWithResources(manager, actor)
 }
 
 func skillCastActionFamilyForActor(actor world.Actor, skillID uint16) int {

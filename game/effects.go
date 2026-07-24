@@ -1043,7 +1043,7 @@ func (m *WorldMode) startSkillSourceCastAnimation(ctx client.Context, sourceID u
 }
 
 func (m *WorldMode) startSkillActionAnimation(ctx client.Context, id uint32, actor worldstate.Actor, spec skillActionSpec, started time.Time, duration time.Duration) {
-	anim := spec.actorAnimationForActor(actor, started, duration)
+	anim := spec.actorAnimationForActorWithResources(ctx.Resources, actor, started, duration)
 	m.setActorAction(ctx, id, anim)
 	if ctx.Session == nil || !isLocalActor(ctx, id) {
 		return
@@ -1738,6 +1738,10 @@ func cloneSkillActionSpec(spec *skillActionSpec) *skillActionSpec {
 }
 
 func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
+	return s.actionFamilyForActorWithResources(nil, actor)
+}
+
+func (s skillActionSpec) actionFamilyForActorWithResources(manager *res.Manager, actor worldstate.Actor) int {
 	if s.action == skillActorActionNone {
 		return -1
 	}
@@ -1749,7 +1753,7 @@ func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
 	case skillActorActionIdle:
 		return spriteActionIdle
 	case skillActorActionAttack:
-		return attackActionFamilyForActor(actor)
+		return attackActionFamilyForActorWithResources(manager, actor)
 	case skillActorActionAttack1:
 		return spriteActionPCAttack1
 	case skillActorActionAttack2:
@@ -1769,6 +1773,10 @@ func (s skillActionSpec) actionFamilyForActor(actor worldstate.Actor) int {
 }
 
 func (s skillActionSpec) actorAnimationForActor(actor worldstate.Actor, started time.Time, duration time.Duration) actorAnimation {
+	return s.actorAnimationForActorWithResources(nil, actor, started, duration)
+}
+
+func (s skillActionSpec) actorAnimationForActorWithResources(manager *res.Manager, actor worldstate.Actor, started time.Time, duration time.Duration) actorAnimation {
 	if !s.defined {
 		s = defaultSkillActionSpec
 	}
@@ -1776,7 +1784,7 @@ func (s skillActionSpec) actorAnimationForActor(actor worldstate.Actor, started 
 		started = started.Add(s.delay)
 	}
 	anim := actorAnimation{
-		actionFamily: s.actionFamilyForActor(actor),
+		actionFamily: s.actionFamilyForActorWithResources(manager, actor),
 		started:      started,
 		startDelay:   s.delay,
 		duration:     duration,
@@ -1801,7 +1809,7 @@ func (s skillActionSpec) actorAnimationForActor(actor worldstate.Actor, started 
 		anim.hasSpeed = true
 	}
 	if s.next != nil && !s.next.isNaturalIdleFallback() {
-		next := s.next.actorAnimationForActor(actor, time.Time{}, duration)
+		next := s.next.actorAnimationForActorWithResources(manager, actor, time.Time{}, duration)
 		anim.next = &next
 	}
 	return anim

@@ -191,10 +191,11 @@ func loadWeaponOverlaySpriteView(manager *res.Manager, job int, sex byte, weapon
 	if weapon <= 0 {
 		return nil, ""
 	}
+	viewID := weapon
 	if manager != nil {
-		weapon = manager.PlayerWeaponViewID(weapon)
+		viewID = manager.PlayerWeaponViewID(weapon)
 	}
-	return loadSpriteView(manager, res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "act"), res.PlayerWeaponOverlayResourceCandidates(job, sex, weapon, secondLayer, "spr"), nil, label)
+	return loadSpriteView(manager, res.PlayerWeaponOverlayResourceCandidatesForItem(job, sex, weapon, viewID, secondLayer, "act"), res.PlayerWeaponOverlayResourceCandidatesForItem(job, sex, weapon, viewID, secondLayer, "spr"), nil, label)
 }
 
 func loadMercenaryWeaponOverlaySpriteView(manager *res.Manager, resourceName string, job int, sex byte, weapon int, secondLayer bool, label string) (*spriteView, string) {
