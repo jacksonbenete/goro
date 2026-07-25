@@ -12,7 +12,6 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/session"
-	"github.com/kivutar/goro/ui"
 	"github.com/kivutar/goro/world"
 )
 
@@ -67,7 +66,7 @@ func (m *WorldMode) drawROCursor(screen *render.Frame, ctx client.Context, proje
 	state := m.cursorState()
 	state.draw(screen, ctx, action, now, magnetX, magnetY)
 	m.storeCursorState(state)
-	ui.DrawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill)
+	m.drawPendingSkillCursorLevel(screen, ctx, m.pendingSkill.skill, magnetX, magnetY)
 }
 
 func (m *WorldMode) cursorState() *roCursorState {

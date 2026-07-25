@@ -52,6 +52,7 @@ type WorldMode struct {
 	damageNumberView  *spriteView
 	damageNumberMiss  bool
 	damageNumbers     map[string]*spriteBillboard
+	cursorLevelNums   map[string]*spriteBillboard
 	damageMsgView     *spriteView
 	damageMsgMiss     bool
 	itemMarker        *render.Image
@@ -288,6 +289,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.damageNumberView = nil
 	m.damageNumberMiss = false
 	m.damageNumbers = make(map[string]*spriteBillboard)
+	m.cursorLevelNums = make(map[string]*spriteBillboard)
 	m.damageMsgView = nil
 	m.damageMsgMiss = false
 	m.itemMarker = nil
