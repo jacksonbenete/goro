@@ -94,6 +94,7 @@ func (m *WorldMode) humanoidSpriteViewForActor(ctx client.Context, actor world.A
 	if actorIsMercenary(actor) {
 		return m.mercenaryHumanoidSpriteView(ctx, actor)
 	}
+	actor = actorWithVisualJob(actor)
 	weapon, shield := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
 	key := actorSpriteKey{
 		job:         int(actor.Job),
@@ -121,7 +122,7 @@ func (m *WorldMode) nonPCResolvedAction(ctx client.Context, actor world.Actor, a
 }
 
 func (m *WorldMode) actorResolvedAction(ctx client.Context, actor world.Actor, actionFamily int) (res.ACTAction, bool) {
-	if res.HasPlayerJobToken(int(actor.Job)) || actorIsMercenary(actor) {
+	if res.HasPlayerJobToken(actorVisualJob(actor)) || actorIsMercenary(actor) {
 		view := m.humanoidSpriteViewForActor(ctx, actor)
 		if view == nil || view.body == nil {
 			return res.ACTAction{}, false
@@ -152,7 +153,7 @@ func (m *WorldMode) nonPCActionACT(ctx client.Context, actor world.Actor) *res.A
 }
 
 func (m *WorldMode) actorActionACT(ctx client.Context, actor world.Actor) *res.ACT {
-	if res.HasPlayerJobToken(int(actor.Job)) || actorIsMercenary(actor) {
+	if res.HasPlayerJobToken(actorVisualJob(actor)) || actorIsMercenary(actor) {
 		view := m.humanoidSpriteViewForActor(ctx, actor)
 		if view == nil || view.body == nil {
 			return nil
@@ -1201,13 +1202,14 @@ func attackActionFamilyForActorWithResources(manager *res.Manager, actor world.A
 	if actorIsMercenary(actor) {
 		return mercenaryAttackActionFamily(int(actor.Job), actor.Sex, int(actor.Weapon))
 	}
-	if res.HasPlayerJobToken(int(actor.Job)) {
+	job := actorVisualJob(actor)
+	if res.HasPlayerJobToken(job) {
 		weapon, _ := res.NormalizePlayerWeaponShield(int(actor.Weapon), int(actor.Shield))
 		viewID := res.PlayerWeaponViewID(manager, weapon)
 		if db.PlayerWeaponType(viewID) > 0 {
 			weapon = viewID
 		}
-		switch db.PlayerWeaponAction(int(actor.Job), actor.Sex, weapon) {
+		switch db.PlayerWeaponAction(job, actor.Sex, weapon) {
 		case db.PlayerWeaponActionAttack2:
 			return spriteActionPCAttack2
 		case db.PlayerWeaponActionAttack3:

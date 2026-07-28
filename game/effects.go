@@ -1746,7 +1746,7 @@ func (s skillActionSpec) actionFamilyForActorWithResources(manager *res.Manager,
 		return -1
 	}
 	mercenary := actorIsMercenary(actor)
-	if !res.HasPlayerJobToken(int(actor.Job)) && !mercenary {
+	if !res.HasPlayerJobToken(actorVisualJob(actor)) && !mercenary {
 		return spriteActionNonPCAttack
 	}
 	switch s.action {

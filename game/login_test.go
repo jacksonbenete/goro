@@ -18,6 +18,7 @@ import (
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
+	worldstate "github.com/kivutar/goro/world"
 )
 
 func TestLoginBackgroundSetsPrefer2008SingleImage(t *testing.T) {
@@ -92,6 +93,29 @@ func TestCharacterSelectUsesConfiguredSlot(t *testing.T) {
 
 	if mode.selectedSlot != 4 {
 		t.Fatalf("selected slot = %d, want configured slot 4", mode.selectedSlot)
+	}
+}
+
+func TestLoginModeAppliesEarlySpeedParameterChange(t *testing.T) {
+	mode := NewLoginMode()
+	world := worldstate.New()
+	ctx := client.Context{
+		Session: &session.Session{},
+		World:   world,
+	}
+	data := make([]byte, 8)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00B0)
+	binary.LittleEndian.PutUint16(data[2:4], network.StatusSpeed)
+	binary.LittleEndian.PutUint32(data[4:8], 112)
+
+	if !mode.applyLoginParameterChange(ctx, network.Packet{ID: 0x00B0, Data: data}) {
+		t.Fatal("speed parameter change was not handled")
+	}
+	if !ctx.Session.Movement.HasServerSpeed || ctx.Session.Movement.ServerSpeed != 112 {
+		t.Fatalf("session speed = %+v, want authoritative 112", ctx.Session.Movement)
+	}
+	if world.Player.Speed != 112 {
+		t.Fatalf("player speed = %d, want 112", world.Player.Speed)
 	}
 }
 

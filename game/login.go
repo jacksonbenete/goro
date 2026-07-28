@@ -169,6 +169,9 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			continue
 		}
 		m.packets = append(m.packets, pkt.String())
+		if m.applyLoginParameterChange(ctx, pkt) {
+			continue
+		}
 		if hotkeys, ok, err := network.ParseHotkeyList(pkt); err != nil {
 			m.packets = append(m.packets, "parse hotkey list: "+err.Error())
 		} else if ok {
@@ -443,6 +446,19 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		return m.nextWorldMode(ctx, time.Now()), nil
 	}
 	return nil, nil
+}
+
+func (m *LoginMode) applyLoginParameterChange(ctx client.Context, pkt network.Packet) bool {
+	change, ok, err := network.ParseParameterChange(pkt)
+	if err != nil {
+		m.packets = append(m.packets, "parse parameter change: "+err.Error())
+		return true
+	}
+	if !ok {
+		return false
+	}
+	applyParameterChange(ctx, change)
+	return true
 }
 
 func (m *LoginMode) Draw(ctx client.Context, screen *render.Frame) {

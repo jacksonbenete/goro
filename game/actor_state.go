@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"image/color"
 	"time"
 
@@ -17,9 +18,13 @@ func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.Act
 		return
 	}
 	if isLocalActor(ctx, change.ID) {
+		oldVisualJob := localPlayerVisualJob(ctx)
 		oldState := ctx.World.Player.EffectState
 		setActorRenderState(&ctx.World.Player, change.BodyState, change.HealthState, change.EffectState)
 		m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
+		if newVisualJob := localPlayerVisualJob(ctx); newVisualJob != oldVisualJob {
+			m.reloadPlayerSpriteView(ctx, fmt.Sprintf("state effect=0x%08X", change.EffectState))
+		}
 		glog.Debugf("actor state local id=%d body=%d health=0x%04X effect=0x%08X", change.ID, change.BodyState, change.HealthState, change.EffectState)
 		return
 	}

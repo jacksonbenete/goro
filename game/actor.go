@@ -678,6 +678,7 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, ctx client.Contex
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
 	actorX, actorY := actorRenderPosition(actor, now)
 	actor.Dir = actorRenderDirection(actor, now)
+	actor = actorWithVisualJob(actor)
 	terrainZ := terrainHeightAt(world, actorX, actorY)
 	worldX, worldY := actorWorldAnchor(actor, actorX, actorY)
 	point := projection.Project(worldX, worldY, terrainZ)
