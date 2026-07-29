@@ -831,6 +831,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if cartItems, ok, err := network.ParseCartItemList(pkt); err != nil {
 			glog.Errorf("parse cart item list 0x%04X: %v", pkt.ID, err)
 		} else if ok {
+			glog.Debugf("cart item list items=%d", len(cartItems))
 			applyCartItemList(ctx, cartItems)
 			m.ui.cartWindow.ClampScroll(ctx.Session)
 			m.ui.cartWindow.Refresh(ctx, &m.ui.itemInfoWindow)
@@ -846,6 +847,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if cartAmount, ok, err := network.ParseCartAmount(pkt); err != nil {
 			glog.Errorf("parse cart amount 0x%04X: %v", pkt.ID, err)
 		} else if ok {
+			glog.Debugf("cart amount count=%d/%d weight=%d/%d", cartAmount.Amount, cartAmount.MaxAmount, cartAmount.Weight, cartAmount.MaxWeight)
 			applyCartAmount(ctx, cartAmount)
 			m.ui.cartWindow.ClampScroll(ctx.Session)
 			m.ui.cartWindow.Refresh(ctx, &m.ui.itemInfoWindow)

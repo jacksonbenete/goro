@@ -205,24 +205,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		if change, ok, err := network.ParseMapChange(pkt); err != nil {
 			m.packets = append(m.packets, "parse ZC_NPCACK_MAPMOVE: "+err.Error())
 		} else if ok {
-			ctx.World.MapName = change.MapName
-			ctx.Session.Zone.MapName = change.MapName
-			applyWarpPosition(ctx, change.X, change.Y)
-			ctx.Session.Playing = true
-			m.status = fmt.Sprintf("map change: %s at %d,%d", change.MapName, change.X, change.Y)
-			glog.Debugf("login map change map=%s x=%d y=%d server_move=%t addr=%s port=%d", change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port)
-			if change.ServerMove {
-				ctx.Session.Zone.Address = change.Address
-				ctx.Session.Zone.Port = change.Port
-				m.connectMapServer(ctx, network.ZoneServerNotify{
-					CharID:  ctx.Session.CharID,
-					MapName: change.MapName,
-					Address: change.Address,
-					Port:    change.Port,
-				})
-			} else {
-				m.startWorldFade(time.Now())
-			}
+			m.applyLoginMapChange(ctx, change)
 			continue
 		}
 		if pkt.ID == 0x0069 {
@@ -362,35 +345,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			applyFriendState(ctx, friendState)
 			continue
 		}
-		if cartItems, ok, err := network.ParseCartItemList(pkt); err != nil {
-			m.packets = append(m.packets, "parse cart item list: "+err.Error())
-		} else if ok {
-			glog.Debugf("login cart item list items=%d", len(cartItems))
-			applyCartItemList(ctx, cartItems)
-			continue
-		}
-		if cartAmount, ok, err := network.ParseCartAmount(pkt); err != nil {
-			m.packets = append(m.packets, "parse cart amount: "+err.Error())
-		} else if ok {
-			glog.Debugf("login cart amount count=%d/%d weight=%d/%d", cartAmount.Amount, cartAmount.MaxAmount, cartAmount.Weight, cartAmount.MaxWeight)
-			applyCartAmount(ctx, cartAmount)
-			continue
-		}
-		if cartItem, ok, err := network.ParseCartItemAdded(pkt); err != nil {
-			m.packets = append(m.packets, "parse cart item added: "+err.Error())
-		} else if ok {
-			glog.Debugf("login cart item added index=%d item=%d amount=%d", cartItem.Index, cartItem.ItemID, cartItem.Amount)
-			applyCartItemAdded(ctx, cartItem)
-			continue
-		}
-		if cartItem, ok, err := network.ParseCartItemRemoved(pkt); err != nil {
-			m.packets = append(m.packets, "parse cart item removed: "+err.Error())
-		} else if ok {
-			applyCartItemRemoved(ctx, cartItem)
-			continue
-		}
-		if network.ParseCartClosed(pkt) {
-			applyCartClosed(ctx)
+		if m.applyLoginCartPacket(ctx, pkt) {
 			continue
 		}
 		if board, ok, err := network.ParseVendingBoard(pkt); err != nil {
@@ -425,6 +380,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			m.packets = append(m.packets, "parse actor entry: "+err.Error())
 		} else if ok {
 			upsertNetworkActor(ctx, entry)
+			continue
 		}
 		if len(m.packets) > 8 {
 			m.packets = m.packets[len(m.packets)-8:]
@@ -459,6 +415,69 @@ func (m *LoginMode) applyLoginParameterChange(ctx client.Context, pkt network.Pa
 	}
 	applyParameterChange(ctx, change)
 	return true
+}
+
+func (m *LoginMode) applyLoginCartPacket(ctx client.Context, pkt network.Packet) bool {
+	if cartItems, ok, err := network.ParseCartItemList(pkt); err != nil {
+		m.packets = append(m.packets, "parse cart item list: "+err.Error())
+		return true
+	} else if ok {
+		glog.Debugf("login cart item list items=%d", len(cartItems))
+		applyCartItemList(ctx, cartItems)
+		return true
+	}
+	if cartAmount, ok, err := network.ParseCartAmount(pkt); err != nil {
+		m.packets = append(m.packets, "parse cart amount: "+err.Error())
+		return true
+	} else if ok {
+		glog.Debugf("login cart amount count=%d/%d weight=%d/%d", cartAmount.Amount, cartAmount.MaxAmount, cartAmount.Weight, cartAmount.MaxWeight)
+		applyCartAmount(ctx, cartAmount)
+		return true
+	}
+	if cartItem, ok, err := network.ParseCartItemAdded(pkt); err != nil {
+		m.packets = append(m.packets, "parse cart item added: "+err.Error())
+		return true
+	} else if ok {
+		glog.Debugf("login cart item added index=%d item=%d amount=%d", cartItem.Index, cartItem.ItemID, cartItem.Amount)
+		applyCartItemAdded(ctx, cartItem)
+		return true
+	}
+	if cartItem, ok, err := network.ParseCartItemRemoved(pkt); err != nil {
+		m.packets = append(m.packets, "parse cart item removed: "+err.Error())
+		return true
+	} else if ok {
+		applyCartItemRemoved(ctx, cartItem)
+		return true
+	}
+	if network.ParseCartClosed(pkt) {
+		applyCartClosed(ctx)
+		return true
+	}
+	return false
+}
+
+func (m *LoginMode) applyLoginMapChange(ctx client.Context, change network.MapChange) {
+	ctx.World.MapName = change.MapName
+	ctx.Session.Zone.MapName = change.MapName
+	applyWarpPosition(ctx, change.X, change.Y)
+	ctx.Session.Playing = true
+	m.status = fmt.Sprintf("map change: %s at %d,%d", change.MapName, change.X, change.Y)
+	glog.Debugf("login map change map=%s x=%d y=%d server_move=%t addr=%s port=%d", change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port)
+	if change.ServerMove {
+		ctx.Session.Zone.Address = change.Address
+		ctx.Session.Zone.Port = change.Port
+		m.connectMapServer(ctx, network.ZoneServerNotify{
+			CharID:  ctx.Session.CharID,
+			MapName: change.MapName,
+			Address: change.Address,
+			Port:    change.Port,
+		})
+		return
+	}
+	if m.fade.enterWorld {
+		return
+	}
+	m.startWorldFade(time.Now())
 }
 
 func (m *LoginMode) Draw(ctx client.Context, screen *render.Frame) {

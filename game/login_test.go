@@ -103,12 +103,8 @@ func TestLoginModeAppliesEarlySpeedParameterChange(t *testing.T) {
 		Session: &session.Session{},
 		World:   world,
 	}
-	data := make([]byte, 8)
-	binary.LittleEndian.PutUint16(data[0:2], 0x00B0)
-	binary.LittleEndian.PutUint16(data[2:4], network.StatusSpeed)
-	binary.LittleEndian.PutUint32(data[4:8], 112)
 
-	if !mode.applyLoginParameterChange(ctx, network.Packet{ID: 0x00B0, Data: data}) {
+	if !mode.applyLoginParameterChange(ctx, testParameterChangePacket(network.StatusSpeed, 112)) {
 		t.Fatal("speed parameter change was not handled")
 	}
 	if !ctx.Session.Movement.HasServerSpeed || ctx.Session.Movement.ServerSpeed != 112 {
@@ -117,6 +113,73 @@ func TestLoginModeAppliesEarlySpeedParameterChange(t *testing.T) {
 	if world.Player.Speed != 112 {
 		t.Fatalf("player speed = %d, want 112", world.Player.Speed)
 	}
+}
+
+func TestLoginModeAppliesStartupCartDuringWorldFade(t *testing.T) {
+	mode := NewLoginMode()
+	mode.startWorldFade(time.Now())
+	ctx := client.Context{
+		Session: &session.Session{},
+		World:   worldstate.New(),
+	}
+
+	if !mode.applyLoginCartPacket(ctx, testCartAmountPacket(1, 100, 450, 80000)) {
+		t.Fatal("cart amount packet was not handled")
+	}
+	if !ctx.Session.Cart.Open || ctx.Session.Cart.Amount != 1 || ctx.Session.Cart.MaxAmount != 100 || ctx.Session.Cart.Weight != 450 || ctx.Session.Cart.MaxWeight != 80000 {
+		t.Fatalf("cart after startup packet = %+v", ctx.Session.Cart)
+	}
+}
+
+func TestLoginModeInitialSameMapChangeDoesNotRestartWorldFade(t *testing.T) {
+	mode := NewLoginMode()
+	start := time.Now()
+	mode.startWorldFade(start)
+	change, ok, err := network.ParseMapChange(testMapChangePacket("geffen", 81, 179))
+	if err != nil || !ok {
+		t.Fatalf("parse map change ok=%t err=%v", ok, err)
+	}
+	ctx := client.Context{
+		Session: &session.Session{Zone: session.ZoneServer{MapName: "geffen"}, PlayerX: 81, PlayerY: 179},
+		World:   worldstate.New(),
+	}
+	ctx.World.MapName = "geffen"
+
+	mode.applyLoginMapChange(ctx, change)
+
+	if !mode.fade.enterWorld || !mode.fade.started.Equal(start) {
+		t.Fatalf("fade = %+v, want original world fade", mode.fade)
+	}
+	if ctx.Session.PlayerX != 81 || ctx.Session.PlayerY != 179 || ctx.World.MapName != "geffen" {
+		t.Fatalf("map state = %s %d,%d", ctx.World.MapName, ctx.Session.PlayerX, ctx.Session.PlayerY)
+	}
+}
+
+func testParameterChangePacket(varID uint16, value uint32) network.Packet {
+	data := make([]byte, 8)
+	binary.LittleEndian.PutUint16(data[0:2], 0x00B0)
+	binary.LittleEndian.PutUint16(data[2:4], varID)
+	binary.LittleEndian.PutUint32(data[4:8], value)
+	return network.Packet{ID: 0x00B0, Data: data}
+}
+
+func testCartAmountPacket(amount, maxAmount uint16, weight, maxWeight uint32) network.Packet {
+	data := make([]byte, 14)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0121)
+	binary.LittleEndian.PutUint16(data[2:4], amount)
+	binary.LittleEndian.PutUint16(data[4:6], maxAmount)
+	binary.LittleEndian.PutUint32(data[6:10], weight)
+	binary.LittleEndian.PutUint32(data[10:14], maxWeight)
+	return network.Packet{ID: 0x0121, Data: data}
+}
+
+func testMapChangePacket(mapName string, x, y int) network.Packet {
+	data := make([]byte, 22)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0091)
+	copy(data[2:18], []byte(mapName))
+	binary.LittleEndian.PutUint16(data[18:20], uint16(x))
+	binary.LittleEndian.PutUint16(data[20:22], uint16(y))
+	return network.Packet{ID: 0x0091, Data: data}
 }
 
 func TestAutoSelectCharacterRequiresAutologin(t *testing.T) {
