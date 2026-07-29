@@ -6,6 +6,7 @@ import (
 	"github.com/kivutar/goro/input"
 	"image"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -196,6 +197,7 @@ func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, c
 	grid := newInventoryGridWidget(inventoryGridConfig{
 		items:   items,
 		icons:   w.itemIcons(ctx, items),
+		amounts: inventoryGridAmountLabels(items),
 		onPress: func(item session.InventoryItem) { w.startItemDragOrActivate(ctx, item) },
 		onHover: func(item session.InventoryItem) { w.showTooltip(ctx, item) },
 		onLeave: func() { w.hideTooltip() },
@@ -486,11 +488,28 @@ func (w *InventoryBagWindow) ensureScrollSignal() state.Signal[float32] {
 }
 
 func inventoryBagTotalRows(itemCount int) int {
-	rows := (itemCount + inventoryBagCols - 1) / inventoryBagCols
-	if rows < inventoryBagRows {
-		return inventoryBagRows
+	return inventoryGridTotalRows(itemCount, inventoryBagCols, inventoryBagRows)
+}
+
+func inventoryGridTotalRows(itemCount, cols, minRows int) int {
+	if cols <= 0 {
+		cols = 1
+	}
+	rows := (itemCount + cols - 1) / cols
+	if rows < minRows {
+		return minRows
 	}
 	return rows
+}
+
+func inventoryGridAmountLabels(items []session.InventoryItem) []string {
+	labels := make([]string, len(items))
+	for i, item := range items {
+		if item.Amount > 1 {
+			labels[i] = strconv.Itoa(item.Amount)
+		}
+	}
+	return labels
 }
 
 type tabBlendEdge int
@@ -569,6 +588,11 @@ func (w *tabWidget) Event(ctx widget.Context, e event.Event) bool {
 type inventoryGridConfig struct {
 	items        []session.InventoryItem
 	icons        []image.Image
+	amounts      []string
+	cols         int
+	minRows      int
+	cellSize     int
+	viewWidth    int
 	onPress      func(session.InventoryItem)
 	onHover      func(session.InventoryItem)
 	onLeave      func()
@@ -589,7 +613,7 @@ func newInventoryGridWidget(cfg inventoryGridConfig) *inventoryGridWidget {
 }
 
 func (w *inventoryGridWidget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
-	size := constraints.Constrain(geometry.Sz(inventoryBagViewW, float32(inventoryBagTotalRows(len(w.cfg.items))*inventoryBagCell)))
+	size := constraints.Constrain(geometry.Sz(float32(w.viewWidth()), float32(w.totalRows()*w.cellSize())))
 	w.SetBounds(geometry.FromPointSize(w.Position(), size))
 	return size
 }
@@ -598,10 +622,11 @@ func (w *inventoryGridWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	bounds := w.Bounds()
 	canvas.DrawRect(bounds, rotheme.Default.Colors.WindowBody)
 	canvas.StrokeRect(bounds, rotheme.Default.Colors.WindowBorder, 1)
-	rows := inventoryBagTotalRows(len(w.cfg.items))
-	for row := 0; row < rows; row++ {
-		for col := 0; col < inventoryBagCols; col++ {
-			index := row*inventoryBagCols + col
+	startRow, endRow := w.visibleRows(canvas)
+	cols := w.cols()
+	for row := startRow; row < endRow; row++ {
+		for col := 0; col < cols; col++ {
+			index := row*cols + col
 			cell := w.cellBounds(index)
 			fill := widget.RGBA8(255, 255, 250, 64)
 			if index == w.hovered {
@@ -611,18 +636,52 @@ func (w *inventoryGridWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 			canvas.StrokeRect(cell, widget.RGBA8(216, 224, 232, 160), 1)
 		}
 	}
-	for i, item := range w.cfg.items {
+	startIndex := startRow * cols
+	endIndex := minInt(len(w.cfg.items), endRow*cols)
+	for i := startIndex; i < endIndex; i++ {
+		item := w.cfg.items[i]
 		cell := w.cellBounds(i)
 		if i < len(w.cfg.icons) && w.cfg.icons[i] != nil {
 			canvas.DrawImage(w.cfg.icons[i], geometry.Pt(cell.Min.X+4, cell.Min.Y+4))
 		}
 		if item.Amount > 1 {
-			rotheme.DrawText(canvas, fmt.Sprintf("%d", item.Amount), geometry.NewRect(cell.Max.X-18, cell.Max.Y-15, 16, 12), rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignRight)
+			amount := ""
+			if i < len(w.cfg.amounts) {
+				amount = w.cfg.amounts[i]
+			}
+			if amount == "" {
+				amount = strconv.Itoa(item.Amount)
+			}
+			rotheme.DrawText(canvas, amount, geometry.NewRect(cell.Max.X-18, cell.Max.Y-15, 16, 12), rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignRight)
 		}
 		if item.Equipped {
 			rotheme.DrawText(canvas, "E", geometry.NewRect(cell.Min.X+2, cell.Min.Y+2, 12, 12), rotheme.Default.Typography.TextSize, widget.RGBA8(54, 128, 76, 255), false, widget.TextAlignLeft)
 		}
 	}
+}
+
+func (w *inventoryGridWidget) visibleRows(canvas widget.Canvas) (int, int) {
+	rows := w.totalRows()
+	if rows <= 0 {
+		return 0, 0
+	}
+	clip := canvas.ClipBounds()
+	if clip.IsEmpty() {
+		return 0, 0
+	}
+	offset := canvas.TransformOffset()
+	cellSize := w.cellSize()
+	localTop := clip.Min.Y - offset.Y
+	localBottom := clip.Max.Y - offset.Y
+	if localBottom <= 0 || localTop >= float32(rows*cellSize) {
+		return 0, 0
+	}
+	start := maxInt(0, int(localTop)/cellSize)
+	end := minInt(rows, int(localBottom)/cellSize+1)
+	if end < start {
+		end = start
+	}
+	return start, end
 }
 
 func (w *inventoryGridWidget) Event(ctx widget.Context, e event.Event) bool {
@@ -675,28 +734,66 @@ func (w *inventoryGridWidget) Event(ctx widget.Context, e event.Event) bool {
 
 func (w *inventoryGridWidget) cellBounds(index int) geometry.Rect {
 	bounds := w.Bounds()
-	col := index % inventoryBagCols
-	row := index / inventoryBagCols
+	cellSize := w.cellSize()
+	col := index % w.cols()
+	row := index / w.cols()
 	return geometry.NewRect(
-		bounds.Min.X+float32(col*inventoryBagCell),
-		bounds.Min.Y+float32(row*inventoryBagCell),
-		inventoryBagCell-1,
-		inventoryBagCell-1,
+		bounds.Min.X+float32(col*cellSize),
+		bounds.Min.Y+float32(row*cellSize),
+		float32(cellSize-1),
+		float32(cellSize-1),
 	)
 }
 
 func (w *inventoryGridWidget) indexAt(point geometry.Point) int {
 	local := point.Sub(w.Bounds().Min)
-	if local.X < 0 || local.Y < 0 || local.X >= inventoryBagGridW || local.Y >= float32(inventoryBagTotalRows(len(w.cfg.items))*inventoryBagCell) {
+	cellSize := w.cellSize()
+	if local.X < 0 || local.Y < 0 || local.X >= float32(w.gridWidth()) || local.Y >= float32(w.totalRows()*cellSize) {
 		return -1
 	}
-	col := int(local.X) / inventoryBagCell
-	row := int(local.Y) / inventoryBagCell
-	index := row*inventoryBagCols + col
+	col := int(local.X) / cellSize
+	row := int(local.Y) / cellSize
+	index := row*w.cols() + col
 	if index < 0 || index >= len(w.cfg.items) {
 		return -1
 	}
 	return index
+}
+
+func (w *inventoryGridWidget) cols() int {
+	if w.cfg.cols > 0 {
+		return w.cfg.cols
+	}
+	return inventoryBagCols
+}
+
+func (w *inventoryGridWidget) minRows() int {
+	if w.cfg.minRows > 0 {
+		return w.cfg.minRows
+	}
+	return inventoryBagRows
+}
+
+func (w *inventoryGridWidget) cellSize() int {
+	if w.cfg.cellSize > 0 {
+		return w.cfg.cellSize
+	}
+	return inventoryBagCell
+}
+
+func (w *inventoryGridWidget) gridWidth() int {
+	return w.cols() * w.cellSize()
+}
+
+func (w *inventoryGridWidget) viewWidth() int {
+	if w.cfg.viewWidth > 0 {
+		return w.cfg.viewWidth
+	}
+	return w.gridWidth() + ROScrollbarGutter
+}
+
+func (w *inventoryGridWidget) totalRows() int {
+	return inventoryGridTotalRows(len(w.cfg.items), w.cols(), w.minRows())
 }
 
 func inventoryItemTab(item session.InventoryItem) int {

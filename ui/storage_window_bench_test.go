@@ -215,21 +215,21 @@ func newCartWindowScrollBenchFixture(itemCount int, canvasKind listBenchCanvasKi
 	}
 
 	cart.OpenWindow(ctx)
-	inputState.SetMousePosition(cart.x+12, cart.y+ROWindowTitleHeight+cartTableHeaderH+16)
+	inputState.SetMousePosition(cart.x+cartGridLeftPad+12, cart.y+ROWindowTitleHeight+16)
 	canvasFactory := newListBenchCanvasFactory(canvasKind)
 	app.Frame()
 	app.Window().DrawTo(canvasFactory())
 
-	wheelPosition := geometry.Pt(float32(cart.x+12), float32(cart.y+ROWindowTitleHeight+cartTableHeaderH+16))
+	wheelPosition := geometry.Pt(float32(cart.x+cartGridLeftPad+12), float32(cart.y+ROWindowTitleHeight+16))
 	wheel := event.NewWheelEvent(geometry.Pt(0, 1), wheelPosition, wheelPosition, event.ModNone)
-	maxRow := len(sessionState.Cart.Items) - cartRows
+	maxRow := inventoryGridTotalRows(len(sessionState.Cart.Items), cartGridCols, cartGridRows) - cartGridRows
 
 	return &listWindowScrollBenchFixture{
 		app:           app,
 		input:         inputState,
 		canvasFactory: canvasFactory,
 		wheel:         wheel,
-		mouseMoves:    listWindowMouseHoverMoves(cart.x+12, cart.y+ROWindowTitleHeight+cartTableHeaderH, storageRowH, cartRows),
+		mouseMoves:    listWindowMouseHoverMoves(cart.x+cartGridLeftPad+12, cart.y+ROWindowTitleHeight, cartGridCell, cartGridRows),
 		maxRow:        maxRow,
 		resetScroll: func() {
 			cart.ensureScrollSignal().Set(0)
@@ -260,8 +260,9 @@ func newListBenchCanvasFactory(kind listBenchCanvasKind) func() widget.Canvas {
 			return uirender.NewCanvas(dc, width, height)
 		}
 	default:
-		canvas := storageBenchCanvas{}
+		canvas := newStorageBenchCanvas()
 		return func() widget.Canvas {
+			canvas.reset()
 			return canvas
 		}
 	}
@@ -345,52 +346,99 @@ func benchCartSession(count int) *session.Session {
 	}
 }
 
-type storageBenchCanvas struct{}
-
-func (storageBenchCanvas) Clear(widget.Color) {}
-
-func (storageBenchCanvas) DrawRect(geometry.Rect, widget.Color) {}
-
-func (storageBenchCanvas) FillRectDirect(geometry.Rect, widget.Color) {}
-
-func (storageBenchCanvas) StrokeRect(geometry.Rect, widget.Color, float32) {}
-
-func (storageBenchCanvas) DrawRoundRect(geometry.Rect, widget.Color, float32) {}
-
-func (storageBenchCanvas) StrokeRoundRect(geometry.Rect, widget.Color, float32, float32) {}
-
-func (storageBenchCanvas) DrawCircle(geometry.Point, float32, widget.Color) {}
-
-func (storageBenchCanvas) StrokeCircle(geometry.Point, float32, widget.Color, float32) {}
-
-func (storageBenchCanvas) StrokeArc(geometry.Point, float32, float64, float64, widget.Color, float32) {
+type storageBenchCanvas struct {
+	clip           geometry.Rect
+	clipStack      [16]geometry.Rect
+	clipDepth      int
+	transform      geometry.Point
+	transformStack [16]geometry.Point
+	transformDepth int
 }
 
-func (storageBenchCanvas) DrawLine(geometry.Point, geometry.Point, widget.Color, float32) {}
-
-func (storageBenchCanvas) DrawText(string, geometry.Rect, float32, widget.Color, bool, widget.TextAlign) {
+func newStorageBenchCanvas() *storageBenchCanvas {
+	c := &storageBenchCanvas{}
+	c.reset()
+	return c
 }
 
-func (storageBenchCanvas) MeasureText(string, float32, bool) float32 { return 0 }
+func (c *storageBenchCanvas) reset() {
+	c.clip = geometry.NewRect(0, 0, 800, 600)
+	c.clipDepth = 0
+	c.transform = geometry.Point{}
+	c.transformDepth = 0
+}
 
-func (storageBenchCanvas) DrawImage(image.Image, geometry.Point) {}
+func (*storageBenchCanvas) Clear(widget.Color) {}
 
-func (storageBenchCanvas) PushClip(geometry.Rect) {}
+func (*storageBenchCanvas) DrawRect(geometry.Rect, widget.Color) {}
 
-func (storageBenchCanvas) PushClipRoundRect(geometry.Rect, float32) {}
+func (*storageBenchCanvas) FillRectDirect(geometry.Rect, widget.Color) {}
 
-func (storageBenchCanvas) PopClip() {}
+func (*storageBenchCanvas) StrokeRect(geometry.Rect, widget.Color, float32) {}
 
-func (storageBenchCanvas) PushTransform(geometry.Point) {}
+func (*storageBenchCanvas) DrawRoundRect(geometry.Rect, widget.Color, float32) {}
 
-func (storageBenchCanvas) PopTransform() {}
+func (*storageBenchCanvas) StrokeRoundRect(geometry.Rect, widget.Color, float32, float32) {}
 
-func (storageBenchCanvas) TransformOffset() geometry.Point { return geometry.Point{} }
+func (*storageBenchCanvas) DrawCircle(geometry.Point, float32, widget.Color) {}
 
-func (storageBenchCanvas) ScreenOriginBase() geometry.Point { return geometry.Point{} }
+func (*storageBenchCanvas) StrokeCircle(geometry.Point, float32, widget.Color, float32) {}
 
-func (storageBenchCanvas) ClipBounds() geometry.Rect { return geometry.Rect{} }
+func (*storageBenchCanvas) StrokeArc(geometry.Point, float32, float64, float64, widget.Color, float32) {
+}
 
-func (storageBenchCanvas) ReplayScene(*scene.Scene) {}
+func (*storageBenchCanvas) DrawLine(geometry.Point, geometry.Point, widget.Color, float32) {}
 
-var _ widget.Canvas = storageBenchCanvas{}
+func (*storageBenchCanvas) DrawText(string, geometry.Rect, float32, widget.Color, bool, widget.TextAlign) {
+}
+
+func (*storageBenchCanvas) MeasureText(string, float32, bool) float32 { return 0 }
+
+func (*storageBenchCanvas) DrawImage(image.Image, geometry.Point) {}
+
+func (c *storageBenchCanvas) PushClip(r geometry.Rect) {
+	if c.clipDepth < len(c.clipStack) {
+		c.clipStack[c.clipDepth] = c.clip
+		c.clipDepth++
+	}
+	r = geometry.NewRect(r.Min.X+c.transform.X, r.Min.Y+c.transform.Y, r.Width(), r.Height())
+	c.clip = c.clip.Intersection(r)
+}
+
+func (c *storageBenchCanvas) PushClipRoundRect(r geometry.Rect, _ float32) {
+	c.PushClip(r)
+}
+
+func (c *storageBenchCanvas) PopClip() {
+	if c.clipDepth <= 0 {
+		return
+	}
+	c.clipDepth--
+	c.clip = c.clipStack[c.clipDepth]
+}
+
+func (c *storageBenchCanvas) PushTransform(offset geometry.Point) {
+	if c.transformDepth < len(c.transformStack) {
+		c.transformStack[c.transformDepth] = c.transform
+		c.transformDepth++
+	}
+	c.transform = c.transform.Add(offset)
+}
+
+func (c *storageBenchCanvas) PopTransform() {
+	if c.transformDepth <= 0 {
+		return
+	}
+	c.transformDepth--
+	c.transform = c.transformStack[c.transformDepth]
+}
+
+func (c *storageBenchCanvas) TransformOffset() geometry.Point { return c.transform }
+
+func (*storageBenchCanvas) ScreenOriginBase() geometry.Point { return geometry.Point{} }
+
+func (c *storageBenchCanvas) ClipBounds() geometry.Rect { return c.clip }
+
+func (*storageBenchCanvas) ReplayScene(*scene.Scene) {}
+
+var _ widget.Canvas = (*storageBenchCanvas)(nil)

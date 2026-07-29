@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
@@ -18,16 +19,20 @@ import (
 )
 
 const (
-	cartWindowWidth  = storageWindowWidth
-	cartTableHeaderH = 36
-	cartRows         = storageRows
-	cartWindowHeight = ROWindowTitleHeight + cartTableHeaderH + cartRows*storageRowH + ROWindowFooterHeight
+	cartGridCols     = 7
+	cartGridRows     = 4
+	cartGridCell     = inventoryBagCell
+	cartGridW        = cartGridCols * cartGridCell
+	cartGridViewW    = cartGridW + ROScrollbarGutter
+	cartGridViewH    = cartGridRows * cartGridCell
+	cartGridLeftPad  = 40
+	cartWindowWidth  = cartGridLeftPad + cartGridViewW
+	cartWindowHeight = ROWindowTitleHeight + cartGridViewH + ROWindowFooterHeight
 )
 
 type CartWindow struct {
 	Window
 	scrollY       state.Signal[float32]
-	selectedRow   int
 	snapshot      uint64
 	itemInfo      *ItemInfoWindow
 	lastClickItem uint16
@@ -35,6 +40,7 @@ type CartWindow struct {
 	dragItem      session.InventoryItem
 	dragActive    bool
 	dragFrom      time.Time
+	tooltip       tooltipState
 	icons         map[storageItemIconKey]image.Image
 	iconMiss      map[storageItemIconKey]struct{}
 }
@@ -52,6 +58,7 @@ func (w *CartWindow) Toggle(ctx Context) {
 func (w *CartWindow) SetOpen(open bool) {
 	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
 	if !open {
+		w.hideTooltip()
 		w.Window.Close()
 	}
 }
@@ -59,7 +66,6 @@ func (w *CartWindow) SetOpen(open bool) {
 func (w *CartWindow) OpenWindow(ctx Context) {
 	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
 	w.ClampScroll(ctx.Session)
-	w.selectedRow = -1
 	w.snapshot = w.cartSnapshot(ctx.Session)
 	x, y := cartDefaultPosition(ctx)
 	if !w.IsOpen() {
@@ -77,6 +83,7 @@ func (w *CartWindow) OpenWindow(ctx Context) {
 func (w *CartWindow) Update(ctx Context, inventory *InventoryBagWindow, storage *StorageWindow, itemInfo *ItemInfoWindow) bool {
 	w.EnsureWindow(cartWindowWidth, cartWindowHeight)
 	if !w.IsOpen() || ctx.Input == nil {
+		w.hideTooltip()
 		return false
 	}
 	if !inventoryBagHasCart(ctx) {
@@ -94,11 +101,9 @@ func (w *CartWindow) Update(ctx Context, inventory *InventoryBagWindow, storage 
 		w.itemInfo = itemInfo
 		w.SetContent(w.widgetTree(ctx, itemInfo))
 	}
-	if w.handlePointer(ctx, itemInfo) {
-		return true
-	}
 	consumed := w.Window.Update(ctx)
 	if !w.IsOpen() {
+		w.hideTooltip()
 		w.Publish(ctx)
 		return consumed
 	}
@@ -128,6 +133,13 @@ func (w *CartWindow) UpdateDrag(ctx Context, inventory *InventoryBagWindow, stor
 
 func (w *CartWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvider) {
 	w.Publish(ctx)
+}
+
+func (w *CartWindow) DrawTooltip(screen *render.Frame) {
+	if w.dragActive {
+		return
+	}
+	w.tooltip.Draw(screen)
 }
 
 func (w *CartWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {
@@ -179,6 +191,40 @@ func (w *CartWindow) AcceptStorageDrop(ctx Context, item session.InventoryItem, 
 }
 
 func (w *CartWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
+	items := sortedCartItems(ctx.Session)
+	grid := newInventoryGridWidget(inventoryGridConfig{
+		items:     items,
+		icons:     w.cartItemIcons(ctx, items),
+		amounts:   inventoryGridAmountLabels(items),
+		cols:      cartGridCols,
+		minRows:   cartGridRows,
+		cellSize:  cartGridCell,
+		viewWidth: cartGridViewW,
+		onPress: func(item session.InventoryItem) {
+			w.startItemDragOrWithdraw(ctx, item)
+		},
+		onHover: func(item session.InventoryItem) {
+			w.showTooltip(ctx, item)
+		},
+		onLeave: func() {
+			w.hideTooltip()
+		},
+		onRightClick: func(item session.InventoryItem, mx, my int) {
+			w.hideTooltip()
+			w.dragActive = false
+			w.dragItem = session.InventoryItem{}
+			if itemInfo != nil {
+				itemInfo.openItem(ctx, item, mx, my)
+			}
+		},
+	})
+	scroll := scrollview.New(
+		grid,
+		scrollview.DirectionOpt(scrollview.Vertical),
+		scrollview.ScrollbarOpt(scrollview.ScrollbarAuto),
+		scrollview.ScrollYSignal(w.ensureScrollSignal()),
+		scrollview.ScrollStep(cartGridCell),
+	)
 	return Win(
 		Title("Pushcart"),
 		CloseButton(true),
@@ -188,9 +234,17 @@ func (w *CartWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Wi
 		}),
 		Size(cartWindowWidth, cartWindowHeight),
 		Content(
-			primitives.Box(w.cartTableWidget(ctx)).
-				Height(cartTableHeight()).
-				Background(rotheme.Default.Colors.PanelBody),
+			primitives.HBox(
+				primitives.Box().
+					Width(cartGridLeftPad).
+					Height(cartGridViewH).
+					Background(rotheme.Default.Colors.WindowBody),
+				primitives.Box(scroll).
+					Width(cartGridViewW).
+					Height(cartGridViewH),
+			).
+				Gap(0).
+				Background(rotheme.Default.Colors.WindowBody),
 		),
 		Footer(
 			rotheme.Text(w.cartCountText(ctx.Session)),
@@ -200,86 +254,27 @@ func (w *CartWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Wi
 	)
 }
 
-func (w *CartWindow) cartTableWidget(ctx Context) *rotheme.TableViewWidget {
-	items := sortedCartItems(ctx.Session)
-	rows := w.cartRows(ctx, items)
-	icons := w.cartItemIcons(ctx, items)
-	return rotheme.TableView(
-		rotheme.TableViewColumns(storageTableColumns),
-		rotheme.TableViewRowCount(len(rows)),
-		rotheme.TableViewRowHeight(storageRowH),
-		rotheme.TableViewHeaderHeight(cartTableHeaderH),
-		rotheme.TableViewEmptyText("No items"),
-		rotheme.TableViewScrollYSignal(w.ensureScrollSignal()),
-		rotheme.TableViewSelectedRow(state.NewSignal[int](w.selectedRow)),
-		rotheme.TableViewDispatchHoverToCells(false),
-		rotheme.TableViewBuildSimpleCell(func(cell rotheme.TableViewCellContext) rotheme.TableViewSimpleCell {
-			if cell.Row < 0 || cell.Row >= len(rows) {
-				return rotheme.TableViewSimpleCell{Hidden: true}
-			}
-			switch cell.Column.Key {
-			case "item":
-				var icon image.Image
-				if cell.Row < len(icons) {
-					icon = icons[cell.Row]
-				}
-				return rotheme.TableViewSimpleCell{Icon: icon, Text: rows[cell.Row].name}
-			case "amount":
-				return rotheme.TableViewSimpleCell{
-					Text:  rows[cell.Row].amount,
-					Align: widget.TextAlignRight,
-					Color: rotheme.Default.Colors.MutedText,
-				}
-			default:
-				return rotheme.TableViewSimpleCell{Hidden: true}
-			}
-		}),
-		rotheme.TableViewOnRowClick(func(row int) {
-			if row >= 0 && row < len(rows) {
-				w.selectedRow = row
-			}
-		}),
-	)
-}
-
-func (w *CartWindow) handlePointer(ctx Context, itemInfo *ItemInfoWindow) bool {
-	if ctx.Input.MouseJustPressed(input.MouseButtonRight) {
-		item, _, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)
-		if !ok {
-			return false
-		}
-		if itemInfo != nil {
-			itemInfo.openItem(ctx, item, ctx.Input.MouseX, ctx.Input.MouseY)
-		}
-		return true
-	}
-	if !ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
-		return false
-	}
-	item, row, ok := w.itemAt(ctx.Session, ctx.Input.MouseX, ctx.Input.MouseY)
-	if !ok {
-		return false
-	}
-	w.selectedRow = row
+func (w *CartWindow) startItemDragOrWithdraw(ctx Context, item session.InventoryItem) {
+	w.hideTooltip()
 	now := time.Now()
 	if w.lastClickItem == item.Index && now.Sub(w.lastClickAt) <= 360*time.Millisecond {
 		w.withdraw(ctx, item)
 		w.lastClickItem = 0
-		w.refresh(ctx, itemInfo)
-		return true
+		w.refresh(ctx, w.itemInfo)
+		return
 	}
 	w.lastClickItem = item.Index
 	w.lastClickAt = now
 	w.dragItem = item
 	w.dragActive = true
 	w.dragFrom = now
-	w.refresh(ctx, itemInfo)
-	return true
+	w.refresh(ctx, w.itemInfo)
 }
 
 func (w *CartWindow) close(ctx Context) {
 	w.Window.Close()
 	w.dragActive = false
+	w.hideTooltip()
 	if ctx.Session != nil {
 		ctx.Session.Cart.Open = false
 	}
@@ -327,32 +322,15 @@ func (w *CartWindow) ClampScroll(s *session.Session) {
 	if s != nil {
 		itemCount = len(s.Cart.Items)
 	}
-	if w.selectedRow >= itemCount {
-		w.selectedRow = -1
-	}
 	scroll := w.ensureScrollSignal()
-	maxScroll := float32(maxInt(0, itemCount-cartRows) * storageRowH)
+	contentHeight := inventoryGridTotalRows(itemCount, cartGridCols, cartGridRows) * cartGridCell
+	maxScroll := float32(maxInt(0, contentHeight-cartGridViewH))
 	switch value := scroll.Get(); {
 	case value < 0:
 		scroll.Set(0)
 	case value > maxScroll:
 		scroll.Set(maxScroll)
 	}
-}
-
-func (w *CartWindow) cartRows(ctx Context, items []session.InventoryItem) []storageTableRow {
-	rows := make([]storageTableRow, len(items))
-	for i, item := range items {
-		name := inventoryItemDisplayName(ctx.Resources, item)
-		if item.Refine > 0 {
-			name = fmt.Sprintf("+%d %s", item.Refine, name)
-		}
-		rows[i] = storageTableRow{
-			name:   name,
-			amount: fmt.Sprintf("x%d", maxInt(1, item.Amount)),
-		}
-	}
-	return rows
 }
 
 func (w *CartWindow) cartItemIcons(ctx Context, items []session.InventoryItem) []image.Image {
@@ -407,20 +385,6 @@ func (w *CartWindow) ensureScrollSignal() state.Signal[float32] {
 	return w.scrollY
 }
 
-func (w *CartWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, int, bool) {
-	tableX := w.x
-	tableY := w.y + ROWindowTitleHeight
-	row, ok := cartTableRowAt(mx, my, tableX, tableY, cartWindowWidth, int(cartTableHeight()), len(sortedCartItems(s)), w.ensureScrollSignal().Get())
-	if !ok {
-		return session.InventoryItem{}, 0, false
-	}
-	items := sortedCartItems(s)
-	if row < 0 || row >= len(items) {
-		return session.InventoryItem{}, 0, false
-	}
-	return items[row], row, true
-}
-
 func (w *CartWindow) cartSnapshot(s *session.Session) uint64 {
 	if s == nil {
 		return 0
@@ -450,20 +414,17 @@ func (w *CartWindow) cartWeightText(s *session.Session) string {
 	return fmt.Sprintf("Weight: %.1f/%.1f", float64(s.Cart.Weight)/10, float64(s.Cart.MaxWeight)/10)
 }
 
-func cartTableHeight() float32 {
-	return cartTableHeaderH + cartRows*storageRowH
+func (w *CartWindow) showTooltip(ctx Context, item session.InventoryItem) {
+	if item.ItemID == 0 || w.dragActive || ctx.Input == nil {
+		w.hideTooltip()
+		return
+	}
+	text := fmt.Sprintf("%s: %d ea", inventoryItemDisplayName(ctx.Resources, item), maxInt(1, item.Amount))
+	w.tooltip.Show(ctx, text, ctx.Input.MouseX, ctx.Input.MouseY+18, ctx.Input.MouseY-6)
 }
 
-func cartTableRowAt(mx, my, tableX, tableY, tableW, tableH, rowCount int, scrollY float32) (int, bool) {
-	if !pointInRect(mx, my, tableX, tableY+cartTableHeaderH, scrollbarSafeIntWidth(tableW), tableH-cartTableHeaderH) {
-		return 0, false
-	}
-	localY := float32(my-tableY) - cartTableHeaderH + scrollY
-	row := int(localY / float32(storageRowH))
-	if row < 0 || row >= rowCount {
-		return 0, false
-	}
-	return row, true
+func (w *CartWindow) hideTooltip() {
+	w.tooltip.Hide()
 }
 
 func cartDefaultPosition(ctx Context) (int, int) {

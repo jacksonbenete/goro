@@ -2223,6 +2223,7 @@ func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Frame) {
 	}
 	m.ui.inventoryBag.DrawTooltip(screen)
 	m.ui.equipmentWindow.DrawTooltip(screen)
+	m.ui.cartWindow.DrawTooltip(screen)
 	m.ui.itemInfoWindow.DrawTooltip(screen)
 	m.ui.skillWindow.DrawTooltip(screen)
 	m.ui.homunculusSkill.DrawTooltip(screen)
