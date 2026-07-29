@@ -19,6 +19,9 @@ const (
 	falconFollowRange               = 2
 	falconStopRange                 = 1
 	falconRetargetInterval          = time.Second
+	falconAttackMoveSpeedMS         = 35
+	falconAttackReturnDelay         = 432 * time.Millisecond
+	falconAttackOvershoot           = 5
 )
 
 type falconRenderState struct {
@@ -36,6 +39,8 @@ type falconRenderState struct {
 	targetX      int
 	targetY      int
 	lastWalkTick time.Time
+	attacking    bool
+	returnAt     time.Time
 }
 
 func actorHasFalcon(actor worldstate.Actor) bool {
@@ -65,6 +70,19 @@ func falconMoveSpeedMS(ownerSpeed int) int {
 		return 1
 	}
 	return speed
+}
+
+func falconSkillAttacksTarget(skillID uint16) bool {
+	switch skillID {
+	case db.SkillHTBlitzbeat, db.SkillSNFalconassault:
+		return true
+	default:
+		return false
+	}
+}
+
+func falconSkillAttacksGround(skillID uint16) bool {
+	return skillID == db.SkillHTDetecting
 }
 
 func (m *WorldMode) applyFalconStatus(ctx client.Context, change network.StatusEffectChange) {
@@ -103,6 +121,88 @@ func (m *WorldMode) applyFalconStatus(ctx client.Context, change network.StatusE
 		m.removeFalconState(id)
 	}
 	glog.Debugf("actor falcon status actor=%d active=%t", id, change.Active)
+}
+
+func (m *WorldMode) applyFalconSkillNoDamageNotify(ctx client.Context, notify network.SkillNoDamageNotify, now time.Time) {
+	if !falconSkillAttacksTarget(notify.SkillID) {
+		return
+	}
+	target, ok, _ := actorForCombatID(ctx, notify.TargetID)
+	if !ok {
+		return
+	}
+	targetX, targetY := actorRenderPosition(target, now)
+	m.startFalconAttackAt(ctx, notify.SourceID, int(targetX), int(targetY), now)
+}
+
+func (m *WorldMode) applyFalconActorActionNotify(ctx client.Context, action network.ActorActionNotify, now time.Time) {
+	if !falconSkillAttacksTarget(action.SkillID) {
+		return
+	}
+	target, ok, _ := actorForCombatID(ctx, action.TargetID)
+	if !ok {
+		return
+	}
+	targetX, targetY := actorRenderPosition(target, now)
+	m.startFalconAttackAt(ctx, action.SourceID, int(targetX), int(targetY), now)
+}
+
+func (m *WorldMode) applyFalconSkillCastNotify(ctx client.Context, notify network.SkillCastNotify, now time.Time) {
+	if !falconSkillAttacksGround(notify.SkillID) {
+		return
+	}
+	m.startFalconAttackAt(ctx, notify.SourceID, int(notify.X), int(notify.Y), now)
+}
+
+func (m *WorldMode) applyFalconGroundSkillNotify(ctx client.Context, notify network.GroundSkillNotify, now time.Time) {
+	if !falconSkillAttacksGround(notify.SkillID) {
+		return
+	}
+	m.startFalconAttackAt(ctx, notify.SourceID, int(notify.X), int(notify.Y), now)
+}
+
+func (m *WorldMode) startFalconAttackAt(ctx client.Context, sourceID uint32, targetX, targetY int, now time.Time) bool {
+	source, ok, local := actorForCombatID(ctx, sourceID)
+	if !ok {
+		return false
+	}
+	if local {
+		source = actorWithSelectedPersistentEffectOptions(ctx, source)
+		source.ID = localFalconOwnerID(ctx)
+	}
+	if source.ID == 0 || !actorHasFalcon(source) {
+		return false
+	}
+	falcon := m.updateFalconState(source, now)
+	if falcon == nil {
+		return false
+	}
+	falcon.startAttack(targetX, targetY, now)
+	return true
+}
+
+func actorWithSelectedPersistentEffectOptions(ctx client.Context, actor worldstate.Actor) worldstate.Actor {
+	if ctx.Session == nil {
+		return actor
+	}
+	character := ctx.Session.SelectedCharacter()
+	actor.Job = character.Job
+	if actor.HasState {
+		actor.EffectState = (actor.EffectState &^ actorPersistentEffectOptionMask) | (character.Option & actorPersistentEffectOptionMask)
+	} else {
+		actor.EffectState = character.Option
+	}
+	return actor
+}
+
+func localFalconOwnerID(ctx client.Context) uint32 {
+	if ctx.Session == nil {
+		return 0
+	}
+	if ctx.Session.CharID != 0 {
+		return ctx.Session.CharID
+	}
+	return ctx.Session.AccountID
 }
 
 func setSelectedCharacterOptionBit(ctx client.Context, bit uint32, active bool) {
@@ -236,17 +336,29 @@ func (m *WorldMode) updateFalconState(actor worldstate.Actor, now time.Time) *fa
 	ownerX, ownerY := actorRenderPosition(actor, now)
 	state := m.falcons[actor.ID]
 	if state == nil {
+		targetX, targetY := falconFollowTargetCell(ownerX, ownerY)
 		state = &falconRenderState{
 			x:           ownerX,
 			y:           ownerY,
 			direction:   actor.Dir,
 			moveSpeedMS: falconMoveSpeedMS(actor.Speed),
+			hasTarget:   true,
+			targetX:     targetX,
+			targetY:     targetY,
 		}
 		m.falcons[actor.ID] = state
 		return state
 	}
 	state.advance(now)
-	state.moveSpeedMS = falconMoveSpeedMS(actor.Speed)
+	if state.attacking {
+		if !state.returnAt.IsZero() && !now.Before(state.returnAt) {
+			state.attacking = false
+			if state.hasTarget {
+				state.startPathTo(state.targetX, state.targetY, 0, now)
+			}
+		}
+		return state
+	}
 	if falconFollowDistance(ownerX, ownerY, state.x, state.y) < falconFollowRange {
 		return state
 	}
@@ -258,7 +370,8 @@ func (m *WorldMode) updateFalconState(actor worldstate.Actor, now time.Time) *fa
 	if !state.lastWalkTick.IsZero() && state.lastWalkTick.Add(falconRetargetInterval).After(now) {
 		return state
 	}
-	state.startWalk(targetX, targetY, now)
+	state.moveSpeedMS = falconMoveSpeedMS(actor.Speed)
+	state.startFollow(targetX, targetY, now)
 	return state
 }
 
@@ -280,19 +393,38 @@ func (state *falconRenderState) advance(now time.Time) {
 	state.direction = directionFromFloatDelta(fromX, fromY, toX, toY, state.direction)
 }
 
-func (state *falconRenderState) startWalk(targetX, targetY int, now time.Time) {
+func (state *falconRenderState) startFollow(targetX, targetY int, now time.Time) {
+	if state == nil {
+		return
+	}
+	state.hasTarget = true
+	state.targetX = targetX
+	state.targetY = targetY
+	state.lastWalkTick = now
+	state.startPathTo(targetX, targetY, falconStopRange, now)
+}
+
+func (state *falconRenderState) startAttack(targetX, targetY int, now time.Time) {
+	if state == nil {
+		return
+	}
+	state.advance(now)
+	overX, overY := falconOvershootTarget(state.x, state.y, targetX, targetY)
+	state.attacking = true
+	state.returnAt = now.Add(falconAttackReturnDelay)
+	state.moveSpeedMS = falconAttackMoveSpeedMS
+	state.startPathTo(overX, overY, 0, now)
+}
+
+func (state *falconRenderState) startPathTo(targetX, targetY int, stopRange int, now time.Time) {
 	if state == nil {
 		return
 	}
 	fromX, fromY := falconFollowTargetCell(state.x, state.y)
-	path := falconFollowPath(fromX, fromY, targetX, targetY, falconStopRange)
+	path := falconFollowPath(fromX, fromY, targetX, targetY, stopRange)
 	if len(path) < 2 {
-		state.hasTarget = true
-		state.targetX = targetX
-		state.targetY = targetY
 		state.moving = false
 		state.path = nil
-		state.lastWalkTick = now
 		return
 	}
 	state.path = path
@@ -301,10 +433,6 @@ func (state *falconRenderState) startWalk(targetX, targetY int, now time.Time) {
 	state.moveStartY = state.y
 	state.moveDuration = actorMovementDurationFromWithSpeed(path, fromX, fromY, path[len(path)-1].X, path[len(path)-1].Y, state.moveSpeedMS, state.moveStartX, state.moveStartY, true)
 	state.moving = state.moveDuration > 0
-	state.hasTarget = true
-	state.targetX = targetX
-	state.targetY = targetY
-	state.lastWalkTick = now
 	if state.moving {
 		state.direction = directionFromDelta(fromX, fromY, path[1].X, path[1].Y, state.direction)
 	}
@@ -314,12 +442,19 @@ func (state *falconRenderState) spriteState(cameraYaw float64) spriteState {
 	if state == nil {
 		return spriteState{}
 	}
-	return spriteState{
+	sprite := spriteState{
 		actionFamily: spriteActionIdle,
 		direction:    state.direction,
 		cameraYaw:    cameraYaw,
 		loopIdle:     true,
+		moving:       state.moving,
+		moveSpeedMS:  state.moveSpeedMS,
+		loop:         true,
 	}
+	if state.attacking {
+		sprite.actionFamily = spriteActionWalk
+	}
+	return sprite
 }
 
 func falconFollowDistance(ownerX, ownerY, falconX, falconY float64) int {
@@ -328,6 +463,36 @@ func falconFollowDistance(ownerX, ownerY, falconX, falconY float64) int {
 
 func falconFollowTargetCell(x, y float64) (int, int) {
 	return int(x), int(y)
+}
+
+func falconOvershootTarget(fromX, fromY float64, targetX, targetY int) (int, int) {
+	overX := targetX
+	overY := targetY
+	toX := float64(targetX)
+	toY := float64(targetY)
+	switch {
+	case fromX > toX && fromY > toY:
+		overX -= falconAttackOvershoot
+		overY -= falconAttackOvershoot
+	case fromX < toX && fromY > toY:
+		overX += falconAttackOvershoot
+		overY -= falconAttackOvershoot
+	case fromX < toX && fromY < toY:
+		overX += falconAttackOvershoot
+		overY += falconAttackOvershoot
+	case fromX > toX && fromY < toY:
+		overX -= falconAttackOvershoot
+		overY += falconAttackOvershoot
+	case fromY < toY:
+		overY += falconAttackOvershoot
+	case fromY > toY:
+		overY -= falconAttackOvershoot
+	case fromX < toX:
+		overX += falconAttackOvershoot
+	case fromX > toX:
+		overX -= falconAttackOvershoot
+	}
+	return overX, overY
 }
 
 func falconFollowPath(fromX, fromY, targetX, targetY, stopRange int) []worldstate.WalkStep {

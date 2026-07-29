@@ -942,6 +942,7 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.
 	now := time.Now()
 	m.applySkillNameBubble(ctx, notify.SourceID, notify.SkillID, now)
 	m.startSkillNoDamageSourceAnimation(ctx, notify, now)
+	m.applyFalconSkillNoDamageNotify(ctx, notify, now)
 	for _, effectID := range skillEffectIDs(notify.SkillID) {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 			glog.Debugf("skill effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
@@ -967,6 +968,7 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.
 func (m *WorldMode) applySkillCastNotify(ctx client.Context, notify network.SkillCastNotify) {
 	now := time.Now()
 	m.applySkillNameBubble(ctx, notify.SourceID, notify.SkillID, now)
+	m.applyFalconSkillCastNotify(ctx, notify, now)
 	if notify.DelayTime == 0 {
 		return
 	}
@@ -1083,6 +1085,7 @@ func (m *WorldMode) applyGroundSkillNotify(ctx client.Context, notify network.Gr
 		return
 	}
 	now := time.Now()
+	m.applyFalconGroundSkillNotify(ctx, notify, now)
 	for _, effectID := range effectIDs {
 		if m.addWorldEffectAtCellIfMissing(ctx, effectID, int(notify.X), int(notify.Y), now) {
 			glog.Debugf("ground skill effect skill=%d src=%d level=%d cell=%d,%d effect=%d", notify.SkillID, notify.SourceID, notify.Level, notify.X, notify.Y, effectID)

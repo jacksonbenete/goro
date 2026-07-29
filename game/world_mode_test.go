@@ -498,6 +498,150 @@ func TestFalconSpriteStateUsesIdleGlideAction(t *testing.T) {
 	if state.actionFamily == spriteActionWalk {
 		t.Fatal("falcon follow should not use character walk action")
 	}
+
+	falcon.attacking = true
+	state = falcon.spriteState(45)
+	if state.actionFamily != spriteActionWalk {
+		t.Fatalf("falcon attack sprite state = %+v, want walk action like robr", state)
+	}
+}
+
+func TestFalconNoDamageSkillAttackUsesRobrowserOvershoot(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150006, X: 10, Y: 20, Dir: 4}
+	world.Actors[300] = worldstate.Actor{ID: 300, Job: 1002, X: 12, Y: 20}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150006,
+			Selected: session.Character{
+				ID:     150006,
+				Job:    db.JobHunter,
+				Option: db.EffectStateFalcon,
+			},
+		},
+		World: world,
+	}
+	mode := &WorldMode{}
+
+	mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{
+		SkillID:  db.SkillHTBlitzbeat,
+		SourceID: 2000000,
+		TargetID: 300,
+		Result:   1,
+	})
+	falcon := mode.falcons[150006]
+	if falcon == nil || !falcon.attacking {
+		t.Fatalf("falcon = %+v, want attacking state", falcon)
+	}
+	if falcon.moveSpeedMS != falconAttackMoveSpeedMS {
+		t.Fatalf("falcon attack speed = %d, want %d", falcon.moveSpeedMS, falconAttackMoveSpeedMS)
+	}
+	end := falcon.path[len(falcon.path)-1]
+	if end.X != 17 || end.Y != 20 {
+		t.Fatalf("falcon attack endpoint = %d,%d, want robr overshoot past target", end.X, end.Y)
+	}
+}
+
+func TestFalconActorActionSkillAttackForFalconAssault(t *testing.T) {
+	world := worldstate.New()
+	world.Actors[200] = worldstate.Actor{
+		ID:          200,
+		Job:         db.JobHunterH,
+		X:           10,
+		Y:           20,
+		Dir:         4,
+		EffectState: db.EffectStateFalcon,
+		HasState:    true,
+	}
+	world.Actors[300] = worldstate.Actor{ID: 300, Job: 1002, X: 8, Y: 19}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150006},
+		World:   world,
+	}
+	mode := &WorldMode{}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:  db.SkillSNFalconassault,
+		SourceID: 200,
+		TargetID: 300,
+	})
+	falcon := mode.falcons[200]
+	if falcon == nil || !falcon.attacking {
+		t.Fatalf("falcon = %+v, want Falcon Assault attack state", falcon)
+	}
+	end := falcon.path[len(falcon.path)-1]
+	if end.X != 3 || end.Y != 14 {
+		t.Fatalf("falcon assault endpoint = %d,%d, want robr diagonal overshoot", end.X, end.Y)
+	}
+}
+
+func TestFalconDetectingSkillCastAttacksGroundWithoutDelay(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150006, X: 10, Y: 20, Dir: 4}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150006,
+			Selected: session.Character{
+				ID:     150006,
+				Job:    db.JobHunter,
+				Option: db.EffectStateFalcon,
+			},
+		},
+		World: world,
+	}
+	mode := &WorldMode{}
+
+	mode.applySkillCastNotify(ctx, network.SkillCastNotify{
+		SkillID:  db.SkillHTDetecting,
+		SourceID: 2000000,
+		X:        12,
+		Y:        22,
+	})
+	falcon := mode.falcons[150006]
+	if falcon == nil || !falcon.attacking {
+		t.Fatalf("falcon = %+v, want Detecting attack even with zero cast delay", falcon)
+	}
+	end := falcon.path[len(falcon.path)-1]
+	if end.X != 17 || end.Y != 27 {
+		t.Fatalf("detecting endpoint = %d,%d, want robr ground overshoot", end.X, end.Y)
+	}
+}
+
+func TestFalconAttackReturnsToFollowTarget(t *testing.T) {
+	start := time.Unix(100, 0)
+	state := &falconRenderState{
+		x:           10,
+		y:           20,
+		direction:   4,
+		moveSpeedMS: 100,
+		hasTarget:   true,
+		targetX:     10,
+		targetY:     20,
+	}
+	state.startAttack(12, 20, start)
+	mode := &WorldMode{falcons: map[uint32]*falconRenderState{150006: state}}
+	actor := worldstate.Actor{
+		ID:          150006,
+		Job:         db.JobHunter,
+		EffectState: db.EffectStateFalcon,
+		X:           10,
+		Y:           20,
+		Speed:       150,
+	}
+
+	mode.updateFalconState(actor, start.Add(falconAttackReturnDelay+time.Millisecond))
+	if state.attacking {
+		t.Fatal("falcon should leave attacking state after robr return delay")
+	}
+	if state.moveSpeedMS != falconAttackMoveSpeedMS {
+		t.Fatalf("return speed = %d, want attack speed retained like robr", state.moveSpeedMS)
+	}
+	end := state.path[len(state.path)-1]
+	if end.X != 10 || end.Y != 20 {
+		t.Fatalf("return endpoint = %d,%d, want last follow target", end.X, end.Y)
+	}
 }
 
 func TestDrawSceneModelsAndActorsRunsFalconPass(t *testing.T) {

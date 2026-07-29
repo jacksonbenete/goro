@@ -471,6 +471,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	target, targetOK, targetLocal := actorForCombatID(ctx, action.TargetID)
 	if action.SkillID > 0 {
 		m.applySkillNameBubble(ctx, action.SourceID, action.SkillID, now)
+		m.applyFalconActorActionNotify(ctx, action, now)
 	}
 	if sourceOK && targetOK {
 		m.faceCombatSource(ctx, source, sourceLocal, target)
