@@ -1,10 +1,12 @@
 package render
 
 import (
+	"math"
 	"os"
 	"testing"
 
 	uiapp "github.com/gogpu/ui/app"
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/uitest"
 	"github.com/gogpu/ui/widget"
@@ -91,5 +93,41 @@ func TestRequestUIRedrawMarksCleanTreeDirty(t *testing.T) {
 	}
 	if widget.NeedsRedrawInTree(root) {
 		t.Fatal("root stayed dirty after requested redraw")
+	}
+}
+
+func TestUIDragLayerDrawRectPreservesPhysicalCropSize(t *testing.T) {
+	r := &runner{
+		uiImage: NewImage(1000, 750),
+		width:   800,
+		height:  600,
+	}
+	frame := geometry.NewRect(11, 21, 100, 80)
+	capture := r.captureUIImageRect(frame)
+	if capture.image == nil {
+		t.Fatal("capture returned nil image")
+	}
+	if got := capture.image.Bounds().Dx(); got != 126 {
+		t.Fatalf("capture width = %d, want 126 physical px", got)
+	}
+	if got := capture.image.Bounds().Dy(); got != 101 {
+		t.Fatalf("capture height = %d, want 101 physical px", got)
+	}
+
+	if !r.beginUIDragLayer("window", frame) {
+		t.Fatal("drag layer did not start")
+	}
+	r.moveUIDragLayer("window", geometry.NewRect(40, 55, 100, 80))
+	drawRect := r.uiDrag.drawRect()
+	assertFloatClose(t, "draw x", float64(drawRect.Min.X), 39.4)
+	assertFloatClose(t, "draw y", float64(drawRect.Min.Y), 54.8)
+	assertFloatClose(t, "draw width", float64(drawRect.Width()), 100.8)
+	assertFloatClose(t, "draw height", float64(drawRect.Height()), 80.8)
+}
+
+func assertFloatClose(t *testing.T, label string, got, want float64) {
+	t.Helper()
+	if math.Abs(got-want) > 0.001 {
+		t.Fatalf("%s = %.4f, want %.4f", label, got, want)
 	}
 }

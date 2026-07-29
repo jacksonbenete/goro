@@ -141,10 +141,19 @@ type cachedOverlayImage struct {
 }
 
 type uiDragLayer struct {
-	token  any
-	rect   geometry.Rect
-	image  *Image
-	active bool
+	token       any
+	rect        geometry.Rect
+	image       *Image
+	active      bool
+	drawOffsetX float32
+	drawOffsetY float32
+	drawWidth   float32
+	drawHeight  float32
+}
+
+type uiImageRectCapture struct {
+	image *Image
+	rect  geometry.Rect
 }
 
 type runner struct {
@@ -872,15 +881,19 @@ func (r *runner) beginUIDragLayer(token any, rect geometry.Rect) bool {
 	if r == nil || token == nil || rect.IsEmpty() {
 		return false
 	}
-	img := r.captureUIImageRect(rect)
-	if img == nil {
+	capture := r.captureUIImageRect(rect)
+	if capture.image == nil {
 		return false
 	}
 	r.uiDrag = uiDragLayer{
-		token:  token,
-		rect:   rect,
-		image:  img,
-		active: true,
+		token:       token,
+		rect:        rect,
+		image:       capture.image,
+		active:      true,
+		drawOffsetX: capture.rect.Min.X - rect.Min.X,
+		drawOffsetY: capture.rect.Min.Y - rect.Min.Y,
+		drawWidth:   capture.rect.Width(),
+		drawHeight:  capture.rect.Height(),
 	}
 	return true
 }
@@ -899,13 +912,13 @@ func (r *runner) endUIDragLayer(token any) {
 	r.uiDrag = uiDragLayer{}
 }
 
-func (r *runner) captureUIImageRect(rect geometry.Rect) *Image {
+func (r *runner) captureUIImageRect(rect geometry.Rect) uiImageRectCapture {
 	if r.uiImage == nil || r.uiImage.pix == nil {
-		return nil
+		return uiImageRectCapture{}
 	}
 	srcBounds := r.uiImage.Bounds()
 	if srcBounds.Empty() {
-		return nil
+		return uiImageRectCapture{}
 	}
 	logicalW, logicalH := r.width, r.height
 	if logicalW <= 0 {
@@ -923,12 +936,16 @@ func (r *runner) captureUIImageRect(rect geometry.Rect) *Image {
 		int(math.Ceil(float64(rect.Max.Y)*scaleY)),
 	).Intersect(srcBounds)
 	if crop.Empty() {
-		return nil
+		return uiImageRectCapture{}
 	}
 	img := NewImage(crop.Dx(), crop.Dy())
 	draw.Draw(img.pix, img.pix.Bounds(), r.uiImage.pix, crop.Min, draw.Src)
 	img.version++
-	return img
+	logicalRect := geometry.Rect{
+		Min: geometry.Pt(float32(float64(crop.Min.X)/scaleX), float32(float64(crop.Min.Y)/scaleY)),
+		Max: geometry.Pt(float32(float64(crop.Max.X)/scaleX), float32(float64(crop.Max.Y)/scaleY)),
+	}
+	return uiImageRectCapture{image: img, rect: logicalRect}
 }
 
 func (r *runner) drawUIDragLayer(screen *Frame) {
@@ -939,11 +956,26 @@ func (r *runner) drawUIDragLayer(screen *Frame) {
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
 		return
 	}
+	drawRect := r.uiDrag.drawRect()
+	if drawRect.IsEmpty() {
+		return
+	}
 	var opts DrawImageOptions
-	opts.GeoM.Scale(float64(r.uiDrag.rect.Width())/float64(bounds.Dx()), float64(r.uiDrag.rect.Height())/float64(bounds.Dy()))
-	opts.GeoM.Translate(float64(r.uiDrag.rect.Min.X), float64(r.uiDrag.rect.Min.Y))
+	opts.GeoM.Scale(float64(drawRect.Width())/float64(bounds.Dx()), float64(drawRect.Height())/float64(bounds.Dy()))
+	opts.GeoM.Translate(float64(drawRect.Min.X), float64(drawRect.Min.Y))
 	opts.Filter = FilterNearest
 	screen.DrawImage(r.uiDrag.image, &opts)
+}
+
+func (d uiDragLayer) drawRect() geometry.Rect {
+	width, height := d.drawWidth, d.drawHeight
+	if width <= 0 {
+		width = d.rect.Width()
+	}
+	if height <= 0 {
+		height = d.rect.Height()
+	}
+	return geometry.NewRect(d.rect.Min.X+d.drawOffsetX, d.rect.Min.Y+d.drawOffsetY, width, height)
 }
 
 func (r *runner) updateUIImage() {
