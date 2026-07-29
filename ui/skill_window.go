@@ -715,11 +715,11 @@ func canIncreaseSkill(s *session.Session, skill session.Skill) bool {
 }
 
 func skillMaxLevel(skill session.Skill) int {
-	if skill.MaxLevel > 0 {
-		return skill.MaxLevel
-	}
 	if maxLevel, ok := db.SkillMaxLevel(skill.ID); ok {
 		return maxLevel
+	}
+	if skill.MaxLevel > 0 {
+		return skill.MaxLevel
 	}
 	return 0
 }

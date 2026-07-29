@@ -8,6 +8,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
+	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
 	worldstate "github.com/kivutar/goro/world"
 )
@@ -37,6 +38,39 @@ func TestChangeCartSkillOpensSelector(t *testing.T) {
 	}
 	if mode.pendingSkill.skill.ID != 0 {
 		t.Fatalf("pending skill = %+v, want none", mode.pendingSkill.skill)
+	}
+}
+
+func TestSessionSkillFromNetworkUsesDBMaxBeforeResourceMax(t *testing.T) {
+	skill := sessionSkillFromNetwork(network.SkillInfo{
+		ID:         db.SkillHTBlitzbeat,
+		Level:      10,
+		Upgradable: true,
+	})
+	if skill.Level != 5 || skill.MaxLevel != 5 {
+		t.Fatalf("blitz beat skill = %+v, want level/max clamped to db max 5", skill)
+	}
+}
+
+func TestTargetSkillPendingLevelUsesDBMaxBeforeResourceMax(t *testing.T) {
+	mode := &WorldMode{}
+	controller := skillController{mode: mode}
+	skill := session.Skill{ID: db.SkillHTBlitzbeat, Level: 10, MaxLevel: 10, Type: skillTargetEnemy, Range: 9}
+
+	if err := controller.Use(client.Context{}, skill, "test"); err != nil {
+		t.Fatalf("blitz beat use failed: %v", err)
+	}
+	if mode.pendingSkill.skill.Level != 5 || mode.pendingSkill.maxLevel != 5 {
+		t.Fatalf("pending blitz beat = %+v, want level/max capped to db max 5", mode.pendingSkill)
+	}
+
+	inputState := input.NewState()
+	inputState.AddWheel(0, 20)
+	if !mode.skills().AdjustPendingLevelFromWheel(client.Context{Input: inputState}) {
+		t.Fatal("pending skill wheel was not consumed")
+	}
+	if mode.pendingSkill.skill.Level != 5 {
+		t.Fatalf("pending blitz beat level = %d, want capped to 5", mode.pendingSkill.skill.Level)
 	}
 }
 

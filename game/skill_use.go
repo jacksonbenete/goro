@@ -57,8 +57,42 @@ func skillLabel(skill session.Skill) string {
 	return fmt.Sprintf("Skill %d", skill.ID)
 }
 
+func knownSkillMaxLevel(skill session.Skill) int {
+	if maxLevel, ok := db.SkillMaxLevel(skill.ID); ok {
+		return maxLevel
+	}
+	if skill.MaxLevel > 0 {
+		return skill.MaxLevel
+	}
+	return 0
+}
+
+func normalizeSessionSkillLevelCap(skill session.Skill) session.Skill {
+	maxLevel := knownSkillMaxLevel(skill)
+	if maxLevel <= 0 {
+		return skill
+	}
+	skill.MaxLevel = maxLevel
+	if skill.Level > maxLevel {
+		skill.Level = maxLevel
+	}
+	return skill
+}
+
+func skillUseMaxLevel(skill session.Skill) int {
+	if maxLevel := knownSkillMaxLevel(skill); maxLevel > 0 {
+		return maxLevel
+	}
+	return maxInt(1, skill.Level)
+}
+
+func skillUseLevel(skill session.Skill) uint16 {
+	skill = normalizeSessionSkillLevelCap(skill)
+	return uint16(maxInt(1, skill.Level))
+}
+
 func sessionSkillFromNetwork(skill network.SkillInfo) session.Skill {
-	return session.Skill{
+	return normalizeSessionSkillLevelCap(session.Skill{
 		ID:         skill.ID,
 		Type:       skill.Type,
 		Level:      skill.Level,
@@ -66,7 +100,7 @@ func sessionSkillFromNetwork(skill network.SkillInfo) session.Skill {
 		Range:      skill.Range,
 		Name:       skill.Name,
 		Upgradable: skill.Upgradable,
-	}
+	})
 }
 
 func sessionSkillFromNetworkWithResources(manager *res.Manager, skill network.SkillInfo) session.Skill {
@@ -76,7 +110,7 @@ func sessionSkillFromNetworkWithResources(manager *res.Manager, skill network.Sk
 			out.MaxLevel = maxLevel
 		}
 	}
-	return out
+	return normalizeSessionSkillLevelCap(out)
 }
 
 func localSkillTarget(ctx client.Context) uint32 {
@@ -201,6 +235,7 @@ func (c skillController) Use(ctx client.Context, skill session.Skill, source str
 	if skill.ID == 0 || skill.Level <= 0 {
 		return fmt.Errorf("skill is not learned")
 	}
+	skill = normalizeSessionSkillLevelCap(skill)
 	if skill.Type == 0 || skillForcesPassive(skill.ID) {
 		return fmt.Errorf("passive skill")
 	}
@@ -213,7 +248,7 @@ func (c skillController) Use(ctx client.Context, skill session.Skill, source str
 			return fmt.Errorf("missing skill target")
 		}
 		if ctx.Network != nil {
-			level := uint16(maxInt(1, skill.Level))
+			level := skillUseLevel(skill)
 			if err := ctx.Network.SendUseSkillToID(skill.ID, level, target); err != nil {
 				return err
 			}
@@ -230,7 +265,7 @@ func (c skillController) Use(ctx client.Context, skill session.Skill, source str
 		return c.SendToID(ctx, skill, target, source)
 	}
 	if skill.Range > 0 || isGroundTargetSkill(skill) {
-		c.mode.pendingSkill = pendingSkillTarget{skill: skill, maxLevel: maxInt(1, skill.Level), started: time.Now()}
+		c.mode.pendingSkill = pendingSkillTarget{skill: skill, maxLevel: skillUseMaxLevel(skill), started: time.Now()}
 		glog.Debugf("%s skill target pending skill=%d level=%d range=%d", source, skill.ID, skill.Level, skill.Range)
 		return nil
 	}
@@ -251,7 +286,7 @@ func (c skillController) SendToID(ctx client.Context, skill session.Skill, targe
 	if target == 0 {
 		return fmt.Errorf("missing skill target")
 	}
-	level := uint16(maxInt(1, skill.Level))
+	level := skillUseLevel(skill)
 	glog.Debugf("%s skill use skill=%d level=%d target=%d", source, skill.ID, level, target)
 	if err := ctx.Network.SendUseSkillToID(skill.ID, level, target); err != nil {
 		return err
@@ -272,7 +307,7 @@ func (c skillController) SendToGround(ctx client.Context, skill session.Skill, x
 	if !walkTargetInBounds(ctx, x, y) {
 		return fmt.Errorf("invalid ground target %d,%d", x, y)
 	}
-	level := uint16(maxInt(1, skill.Level))
+	level := skillUseLevel(skill)
 	glog.Debugf("%s ground skill use skill=%d level=%d target=%d,%d", source, skill.ID, level, x, y)
 	if err := ctx.Network.SendUseSkillToGround(skill.ID, level, x, y); err != nil {
 		return err
@@ -290,7 +325,7 @@ func (c skillController) SendToGroundWithText(ctx client.Context, skill session.
 	if !walkTargetInBounds(ctx, x, y) {
 		return fmt.Errorf("invalid ground target %d,%d", x, y)
 	}
-	level := uint16(maxInt(1, skill.Level))
+	level := skillUseLevel(skill)
 	glog.Debugf("%s ground skill with text use skill=%d level=%d target=%d,%d text_len=%d", source, skill.ID, level, x, y, len([]byte(text)))
 	if err := ctx.Network.SendUseSkillToGroundWithText(skill.ID, level, x, y, text); err != nil {
 		return err
@@ -323,8 +358,11 @@ func (c skillController) AdjustPendingLevelFromWheel(ctx client.Context) bool {
 	}
 	pending := c.mode.pendingSkill
 	maxLevel := pending.maxLevel
+	if knownMax := knownSkillMaxLevel(pending.skill); knownMax > 0 && (maxLevel <= 0 || knownMax < maxLevel) {
+		maxLevel = knownMax
+	}
 	if maxLevel <= 0 {
-		maxLevel = maxInt(1, pending.skill.Level)
+		maxLevel = skillUseMaxLevel(pending.skill)
 	}
 	step := int(math.Ceil(math.Abs(ctx.Input.WheelY)))
 	if step < 1 {

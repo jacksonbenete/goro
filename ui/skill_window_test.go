@@ -45,6 +45,22 @@ func TestSkillWindowCanStageSkillHonorsMaxLevel(t *testing.T) {
 	}
 }
 
+func TestSkillWindowCanStageSkillUsesDBMaxBeforeResourceMax(t *testing.T) {
+	s := &session.Session{Skills: session.Skills{Points: 3}}
+	window := &SkillWindow{}
+	skill := session.Skill{ID: db.SkillHTBlitzbeat, Level: 4, MaxLevel: 10, Upgradable: true}
+	if !window.canStageSkill(s, skill) {
+		t.Fatal("expected level 4/5 blitz beat to allow one staged level")
+	}
+	window.stageSkill(skill.ID)
+	if window.canStageSkill(s, skill) {
+		t.Fatal("blitz beat should not stage past db max level 5")
+	}
+	if canIncreaseSkill(s, session.Skill{ID: db.SkillHTBlitzbeat, Level: 5, MaxLevel: 10, Upgradable: true}) {
+		t.Fatal("db max should keep blitz beat from increasing at level 5")
+	}
+}
+
 func TestSkillWindowCanStageSkillWithoutKnownMaxAllowsAvailablePoints(t *testing.T) {
 	s := &session.Session{Skills: session.Skills{Points: 3}}
 	window := &SkillWindow{}
