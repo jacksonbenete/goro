@@ -596,9 +596,9 @@ func (w *SkillWindow) skillRequirementsMet(job int, levels map[uint16]int, skill
 
 func skillDefaultPosition(ctx Context) (int, int) {
 	width, height := ctx.ScreenSize()
-	x := minInt(characterWindowX+characterWindowWidth+12, maxInt(windowScreenMargin, width-skillWindowWidth-windowScreenMargin))
-	y := minInt(characterWindowY, maxInt(windowScreenMargin, height-skillWindowHeight-windowScreenMargin))
-	return maxInt(windowScreenMargin, x), maxInt(windowScreenMargin, y)
+	x := maxInt(windowScreenMargin, (width-skillWindowWidth)/2)
+	y := maxInt(windowScreenMargin, (height-skillWindowHeight)/2)
+	return x, y
 }
 
 var skillTableColumns = []rotheme.TableViewColumn{

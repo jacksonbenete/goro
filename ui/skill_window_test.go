@@ -1353,6 +1353,18 @@ func TestSkillWindowSkillAtMouseUsesTableViewBody(t *testing.T) {
 	}
 }
 
+func TestSkillDefaultPositionCentersOnScreen(t *testing.T) {
+	x, y := skillDefaultPosition(Context{ScreenW: 800, ScreenH: 600})
+	if x != 220 || y != 106 {
+		t.Fatalf("skill default position = %d,%d; want centered 220,106", x, y)
+	}
+
+	x, y = skillDefaultPosition(Context{ScreenW: 320, ScreenH: 240})
+	if x != windowScreenMargin || y != windowScreenMargin {
+		t.Fatalf("small screen skill default position = %d,%d; want margin %d,%d", x, y, windowScreenMargin, windowScreenMargin)
+	}
+}
+
 func TestSkillWindowTablePlusStagesSkill(t *testing.T) {
 	skill := session.Skill{ID: db.SkillSMBash, Level: 1, MaxLevel: 10, Upgradable: true}
 	s := &session.Session{Skills: session.Skills{Points: 1}}
