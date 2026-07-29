@@ -27,6 +27,8 @@ var iconButtonSegments = map[IconButtonKind][][4]float32{
 	IconButtonMinus: {{-1, 0, 1, 0}},
 }
 
+const iconButtonGlyphYOffset float32 = 0.25
+
 func IconButton(kind IconButtonKind, onClick func()) *primitives.BoxWidget {
 	return IconButtonDisabled(kind, false, onClick)
 }
@@ -108,7 +110,7 @@ func drawIconGlyph(canvas widget.Canvas, bounds geometry.Rect, kind IconButtonKi
 		return
 	}
 	midX := float32(int(bounds.Min.X + bounds.Width()/2))
-	midY := float32(int(bounds.Min.Y + bounds.Height()/2))
+	midY := float32(int(bounds.Min.Y+bounds.Height()/2)) + iconButtonGlyphYOffset
 	half := float32(icon / 2)
 	for _, s := range iconButtonSegments[kind] {
 		canvas.DrawLine(
@@ -128,9 +130,10 @@ func drawIconChevron(canvas widget.Canvas, bounds geometry.Rect, color widget.Co
 	scale := size / IconButtonSize
 	offsetX := bounds.Min.X + (bounds.Width()-IconButtonSize*scale)/2
 	offsetY := bounds.Min.Y + (bounds.Height()-IconButtonSize*scale)/2
-	a := geometry.Pt(offsetX+p1.X*scale, offsetY+p1.Y*scale)
-	b := geometry.Pt(offsetX+p2.X*scale, offsetY+p2.Y*scale)
-	c := geometry.Pt(offsetX+p3.X*scale, offsetY+p3.Y*scale)
+	yOffset := iconButtonGlyphYOffset * scale
+	a := geometry.Pt(offsetX+p1.X*scale, offsetY+p1.Y*scale+yOffset)
+	b := geometry.Pt(offsetX+p2.X*scale, offsetY+p2.Y*scale+yOffset)
+	c := geometry.Pt(offsetX+p3.X*scale, offsetY+p3.Y*scale+yOffset)
 	canvas.DrawLine(a, b, color, 1)
 	canvas.DrawLine(b, c, color, 1)
 }
