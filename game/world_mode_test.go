@@ -155,6 +155,85 @@ func TestApplyStatusEffectChangeIgnoresRemoteActor(t *testing.T) {
 	}
 }
 
+func TestApplyFalconStatusUpdatesLocalActorAndSelectedOption(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:          150000,
+		Job:         db.JobHunter,
+		EffectState: db.EffectStateRuwach,
+		HasState:    true,
+	}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150000,
+		Selected:  session.Character{ID: 150000, Job: db.JobHunter},
+		Characters: []session.Character{
+			{ID: 150000, Job: db.JobHunter},
+		},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusFalcon,
+		ActorID:  2000000,
+		Active:   true,
+	})
+	if world.Player.EffectState&db.EffectStateFalcon == 0 {
+		t.Fatalf("world player effect state = 0x%08X, want falcon bit", world.Player.EffectState)
+	}
+	if world.Player.EffectState&db.EffectStateRuwach == 0 {
+		t.Fatalf("world player effect state = 0x%08X, want existing state preserved", world.Player.EffectState)
+	}
+	if sessionState.Selected.Option&db.EffectStateFalcon == 0 {
+		t.Fatalf("selected option = 0x%08X, want falcon bit", sessionState.Selected.Option)
+	}
+	if sessionState.Characters[0].Option&db.EffectStateFalcon == 0 {
+		t.Fatalf("character option = 0x%08X, want falcon bit", sessionState.Characters[0].Option)
+	}
+	if _, ok := sessionState.Statuses.Active[db.StatusFalcon]; !ok {
+		t.Fatal("falcon status should still be tracked for the status icon")
+	}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusFalcon,
+		ActorID:  2000000,
+		Active:   false,
+	})
+	if world.Player.EffectState&db.EffectStateFalcon != 0 {
+		t.Fatalf("world player effect state = 0x%08X, want falcon bit cleared", world.Player.EffectState)
+	}
+	if sessionState.Selected.Option&db.EffectStateFalcon != 0 {
+		t.Fatalf("selected option = 0x%08X, want falcon bit cleared", sessionState.Selected.Option)
+	}
+	if _, ok := sessionState.Statuses.Active[db.StatusFalcon]; ok {
+		t.Fatal("inactive falcon status should be removed from status tracking")
+	}
+}
+
+func TestApplyFalconStatusUpdatesRemoteActor(t *testing.T) {
+	world := worldstate.New()
+	world.Actors[110000001] = worldstate.Actor{ID: 110000001, Job: db.JobHunter, HasState: true}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+	mode := &WorldMode{}
+
+	mode.applyStatusEffectChange(ctx, network.StatusEffectChange{
+		StatusID: db.StatusFalcon,
+		ActorID:  110000001,
+		Active:   true,
+	})
+	actor := world.Actors[110000001]
+	if actor.EffectState&db.EffectStateFalcon == 0 {
+		t.Fatalf("remote actor effect state = 0x%08X, want falcon bit", actor.EffectState)
+	}
+	if len(ctx.Session.Statuses.Active) != 0 {
+		t.Fatalf("remote falcon status changed local list: %+v", ctx.Session.Statuses.Active)
+	}
+}
+
 func TestApplyTrickDeadStatusHoldsDeathPose(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 150000, Job: 0, X: 10, Y: 20}
@@ -341,6 +420,120 @@ func TestActorCartStateFromEffectUsesReferenceCartNumbers(t *testing.T) {
 	}
 }
 
+func TestActorHasFalconUsesReferenceEffectBitAndJobs(t *testing.T) {
+	if !actorHasFalcon(worldstate.Actor{Job: db.JobHunter, EffectState: db.EffectStateFalcon}) {
+		t.Fatal("hunter falcon bit should create a falcon")
+	}
+	if !actorHasFalcon(worldstate.Actor{Job: db.JobHunterH, EffectState: db.EffectStateFalcon}) {
+		t.Fatal("sniper falcon bit should create a falcon")
+	}
+	if actorHasFalcon(worldstate.Actor{Job: db.JobKnight, EffectState: db.EffectStateFalcon}) {
+		t.Fatal("non-hunter falcon bit should not create a falcon sprite")
+	}
+	if actorHasFalcon(worldstate.Actor{Job: db.JobHunter}) {
+		t.Fatal("hunter without falcon bit should not create a falcon")
+	}
+}
+
+func TestFalconStateFollowsAsIndependentEntity(t *testing.T) {
+	mode := &WorldMode{}
+	start := time.Unix(100, 0)
+	actor := worldstate.Actor{
+		ID:          150011,
+		Job:         db.JobHunter,
+		EffectState: db.EffectStateFalcon,
+		X:           10,
+		Y:           20,
+		Dir:         4,
+		Speed:       150,
+	}
+
+	falcon := mode.updateFalconState(actor, start)
+	if falcon == nil {
+		t.Fatal("falcon state was not created")
+	}
+	if falcon.x != 10 || falcon.y != 20 || falcon.moving {
+		t.Fatalf("initial falcon = x %.2f y %.2f moving=%t, want owner cell and idle", falcon.x, falcon.y, falcon.moving)
+	}
+
+	actor.X = 13
+	falcon = mode.updateFalconState(actor, start.Add(falconRetargetInterval+time.Millisecond))
+	if falcon == nil || !falcon.moving {
+		t.Fatalf("falcon = %+v, want independent follow movement", falcon)
+	}
+	if falcon.moveSpeedMS != 100 {
+		t.Fatalf("falcon speed = %d, want owner speed - 50", falcon.moveSpeedMS)
+	}
+	if len(falcon.path) == 0 {
+		t.Fatal("falcon follow path is empty")
+	}
+	end := falcon.path[len(falcon.path)-1]
+	if end.X != 12 || end.Y != 20 {
+		t.Fatalf("falcon follow endpoint = %d,%d, want to stop one cell from owner", end.X, end.Y)
+	}
+
+	falcon.advance(start.Add(falconRetargetInterval + 50*time.Millisecond))
+	if falcon.x <= 10 || falcon.x >= 13 {
+		t.Fatalf("falcon x = %.2f, want independent position between old position and owner", falcon.x)
+	}
+}
+
+func TestFalconFollowUsesRobrowserRangeFloor(t *testing.T) {
+	if got := falconFollowDistance(11.9, 20, 10, 20); got != 1 {
+		t.Fatalf("falcon follow distance = %d, want floored euclidean distance", got)
+	}
+	path := falconFollowPath(10, 20, 12, 21, falconStopRange)
+	end := path[len(path)-1]
+	if end.X != 11 || end.Y != 21 {
+		t.Fatalf("diagonal-ish falcon endpoint = %d,%d, want floor(distance) <= 1 stop", end.X, end.Y)
+	}
+}
+
+func TestFalconSpriteStateUsesIdleGlideAction(t *testing.T) {
+	falcon := &falconRenderState{direction: 3, moving: true}
+	state := falcon.spriteState(45)
+	if state.actionFamily != spriteActionIdle || !state.loopIdle {
+		t.Fatalf("falcon sprite state = %+v, want looping idle glide action", state)
+	}
+	if state.actionFamily == spriteActionWalk {
+		t.Fatal("falcon follow should not use character walk action")
+	}
+}
+
+func TestDrawSceneModelsAndActorsRunsFalconPass(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "hugel"
+	world.Player = worldstate.Actor{ID: 150006, X: 209, Y: 220, Dir: 4}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150006,
+			Selected: session.Character{
+				ID:     150006,
+				Job:    db.JobHunter,
+				Option: db.EffectStateFalcon,
+			},
+		},
+		Resources: &res.Manager{},
+		World:     world,
+	}
+	mode := &WorldMode{
+		falconViews: map[int]*spriteView{
+			db.JobHunter: {},
+		},
+	}
+	screen := render.NewFrame(800, 600)
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(209), cellCenter(220), 0)
+
+	actors := mode.drawSceneModelsAndActors(screen, ctx, projection, sceneFog{}, time.Unix(100, 0))
+	if len(actors) == 0 {
+		t.Fatal("no actor entries collected")
+	}
+	if _, ok := mode.falcons[150006]; !ok {
+		t.Fatal("mixed scene draw path did not run falcon pass")
+	}
+}
+
 func TestCollectSceneActorEntriesUsesSelectedCharacterCartOption(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "prontera"
@@ -371,6 +564,45 @@ func TestCollectSceneActorEntriesUsesSelectedCharacterCartOption(t *testing.T) {
 	}
 	if !entries[0].actor.IsAdmin || !world.Player.IsAdmin {
 		t.Fatalf("local admin state not applied: entry=%t world=%t", entries[0].actor.IsAdmin, world.Player.IsAdmin)
+	}
+}
+
+func TestCollectSceneActorEntriesMergesSelectedCharacterFalconOption(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "pay_arche"
+	world.Player = worldstate.Actor{
+		ID:          150011,
+		X:           10,
+		Y:           20,
+		Dir:         4,
+		HasState:    true,
+		EffectState: db.EffectStateRuwach,
+	}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150011,
+			Selected: session.Character{
+				ID:     150011,
+				Job:    db.JobHunter,
+				Option: db.EffectStateFalcon,
+			},
+		},
+		World: world,
+	}
+	mode := &WorldMode{}
+	screen := render.NewFrame(800, 600)
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+
+	entries := mode.collectSceneActorEntries(screen, ctx, projection)
+	if len(entries) == 0 {
+		t.Fatal("no scene actor entries collected")
+	}
+	if entries[0].actor.EffectState&db.EffectStateFalcon == 0 {
+		t.Fatalf("entry effect state = 0x%08X, want selected falcon option merged", entries[0].actor.EffectState)
+	}
+	if entries[0].actor.EffectState&db.EffectStateRuwach == 0 {
+		t.Fatalf("entry effect state = 0x%08X, want live effect state preserved", entries[0].actor.EffectState)
 	}
 }
 

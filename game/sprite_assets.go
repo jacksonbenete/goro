@@ -241,6 +241,15 @@ func loadCartSpriteView(manager *res.Manager, cartNum int) (*spriteView, string)
 	)
 }
 
+func loadFalconSpriteView(manager *res.Manager, job int) (*spriteView, string) {
+	return loadSpriteView(manager,
+		res.PlayerFalconResourceCandidates(job, "act"),
+		res.PlayerFalconResourceCandidates(job, "spr"),
+		nil,
+		fmt.Sprintf("falcon job=%d", job),
+	)
+}
+
 func loadCursorSpriteView(manager *res.Manager) (*spriteView, string) {
 	return loadSpriteView(manager,
 		[]string{"data\\sprite\\cursors.act", "data/sprite/cursors.act", "data\\sprite\\interface\\cursors.act", "data/sprite/interface/cursors.act"},

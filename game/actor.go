@@ -529,6 +529,7 @@ func (m *WorldMode) drawSceneActors(screen *render.Frame, ctx client.Context, pr
 	for _, entry := range entries {
 		m.drawSceneActorEntry(screen, ctx, projection, entry)
 	}
+	m.drawSceneActorFalcons(screen, ctx, projection, entries)
 	return entries
 }
 
@@ -579,7 +580,7 @@ func (m *WorldMode) collectSceneActorEntries(screen *render.Frame, ctx client.Co
 	ctx.World.Player.IsAdmin = player.IsAdmin
 	if !player.HasCartState {
 		if player.HasState {
-			player.EffectState = (player.EffectState &^ actorEffectCartMask) | (character.Option & actorEffectCartMask)
+			player.EffectState = (player.EffectState &^ actorPersistentEffectOptionMask) | (character.Option & actorPersistentEffectOptionMask)
 		} else {
 			player.EffectState = character.Option
 		}

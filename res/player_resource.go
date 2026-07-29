@@ -11,7 +11,7 @@ const (
 	playerHumanSpriteRoot = "data\\sprite\\인간족\\"
 	playerAccessoryRoot   = "data\\sprite\\악세사리\\"
 	playerShieldRoot      = "data\\sprite\\방패\\"
-	playerCartRoot        = "data\\sprite\\이팩트\\"
+	playerEffectRoot      = "data\\sprite\\이팩트\\"
 	playerPaletteRoot     = "data\\palette\\"
 	playerIMFRoot         = "data\\imf\\"
 	playerBodyDir         = "몸통"
@@ -41,6 +41,21 @@ var playerCartTokens = []string{
 	"포링싣은카트",
 	"포링카트",
 	"마도카트",
+}
+
+func PlayerFalconResourceCandidates(job int, extension string) []string {
+	token := "매"
+	switch job {
+	case db.JobHunterH:
+		token = "매2"
+	case db.JobRanger, db.JobRanger2, 4098:
+		token = "owl"
+	case db.JobWindhawk, 4270, 4278:
+		token = "windhawk_hawk"
+	}
+	return []string{
+		fmt.Sprintf("%s%s.%s", playerEffectRoot, token, extension),
+	}
 }
 
 var accessoryLuaCandidates = []string{
@@ -83,7 +98,7 @@ func PlayerCartResourceCandidates(cartNum int, extension string) []string {
 		cartNum = len(playerCartTokens) - 1
 	}
 	return []string{
-		fmt.Sprintf("%s%s.%s", playerCartRoot, playerCartTokens[cartNum], extension),
+		fmt.Sprintf("%s%s.%s", playerEffectRoot, playerCartTokens[cartNum], extension),
 	}
 }
 

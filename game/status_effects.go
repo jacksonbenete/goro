@@ -17,6 +17,7 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	if m.applyPushCartStatus(ctx, change) {
 		return
 	}
+	m.applyFalconStatus(ctx, change)
 	m.applyActorOpt3StateStatus(ctx, change)
 	m.applyTrickDeadStatus(ctx, change)
 	localID := localSkillTarget(ctx)

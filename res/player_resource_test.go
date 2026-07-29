@@ -48,6 +48,28 @@ func TestPlayerCartResourceCandidates(t *testing.T) {
 	}
 }
 
+func TestPlayerFalconResourceCandidatesMatchRobrowserJobMapping(t *testing.T) {
+	cases := []struct {
+		name string
+		job  int
+		want string
+	}{
+		{name: "hunter", job: db.JobHunter, want: "data\\sprite\\이팩트\\매.spr"},
+		{name: "baby hunter", job: db.JobHunterB, want: "data\\sprite\\이팩트\\매.spr"},
+		{name: "sniper", job: db.JobHunterH, want: "data\\sprite\\이팩트\\매2.spr"},
+		{name: "ranger", job: db.JobRanger, want: "data\\sprite\\이팩트\\owl.spr"},
+		{name: "windhawk", job: db.JobWindhawk, want: "data\\sprite\\이팩트\\windhawk_hawk.spr"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := PlayerFalconResourceCandidates(tc.job, "spr")
+			if len(got) != 1 || got[0] != tc.want {
+				t.Fatalf("falcon candidate = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestPlayerAdminBodyResourceCandidates(t *testing.T) {
 	got := PlayerAdminBodyResourceCandidates(1, "spr")
 	want := "data\\sprite\\인간족\\몸통\\남\\운영자_남.spr"

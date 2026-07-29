@@ -42,6 +42,9 @@ type WorldMode struct {
 	shadowViewMiss    bool
 	cartViews         map[int]*spriteView
 	cartViewMiss      map[int]struct{}
+	falconViews       map[int]*spriteView
+	falconViewMiss    map[int]struct{}
+	falcons           map[uint32]*falconRenderState
 	cursorView        *spriteView
 	cursorViewMiss    bool
 	slotMachineView   *spriteView
@@ -358,6 +361,9 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	}
 	m.cartViews = make(map[int]*spriteView)
 	m.cartViewMiss = make(map[int]struct{})
+	m.falconViews = make(map[int]*spriteView)
+	m.falconViewMiss = make(map[int]struct{})
+	m.falcons = make(map[uint32]*falconRenderState)
 	if view, status := loadCursorSpriteView(ctx.Resources); view != nil {
 		m.cursorView = view
 		if status != "" {
@@ -2416,6 +2422,7 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Frame, ctx client.Co
 		}
 		m.drawSceneActorEntry(screen, ctx, projection, actors[entry.actorIndex])
 	}
+	m.drawSceneActorFalcons(screen, ctx, projection, actors)
 	return actors
 }
 
