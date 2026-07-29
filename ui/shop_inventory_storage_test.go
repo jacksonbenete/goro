@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
@@ -99,6 +101,55 @@ func TestInventoryBagSeparatesEquipCapabilityFromEquipTab(t *testing.T) {
 	}
 	if !inventoryItemCanEquip(session.InventoryItem{Type: db.ItemTypeAmmo}) {
 		t.Fatal("ammo should stay equip-capable")
+	}
+}
+
+func TestInventoryBagClampScrollUsesPixelOffset(t *testing.T) {
+	items := make([]session.InventoryItem, inventoryBagCols*(inventoryBagRows+2))
+	for i := range items {
+		items[i] = session.InventoryItem{Index: uint16(i + 1), ItemID: 501, Type: db.ItemTypeHealing}
+	}
+	sessionState := &session.Session{Inventory: session.Inventory{Items: items}}
+	window := InventoryBagWindow{tab: inventoryBagTabItem}
+	scroll := window.ensureScrollSignal()
+
+	scroll.Set(999)
+	window.ClampScroll(sessionState)
+	if got, want := scroll.Get(), float32(2*inventoryBagCell); got != want {
+		t.Fatalf("clamped scroll = %.1f, want %.1f", got, want)
+	}
+
+	scroll.Set(-8)
+	window.ClampScroll(sessionState)
+	if got := scroll.Get(); got != 0 {
+		t.Fatalf("negative scroll clamped to %.1f, want 0", got)
+	}
+}
+
+func TestInventoryGridUsesScrollableContentCoordinates(t *testing.T) {
+	items := make([]session.InventoryItem, inventoryBagCols*inventoryBagRows+1)
+	for i := range items {
+		items[i] = session.InventoryItem{Index: uint16(i + 1), ItemID: 501, Type: db.ItemTypeHealing}
+	}
+	grid := newInventoryGridWidget(inventoryGridConfig{items: items})
+	size := grid.Layout(widget.NewContext(), geometry.Constraints{
+		MinWidth:  inventoryBagViewW,
+		MaxWidth:  inventoryBagViewW,
+		MinHeight: 0,
+		MaxHeight: geometry.Infinity,
+	})
+
+	if got, want := size.Width, float32(inventoryBagViewW); got != want {
+		t.Fatalf("grid width = %.1f, want %.1f", got, want)
+	}
+	if got, want := size.Height, float32((inventoryBagRows+1)*inventoryBagCell); got != want {
+		t.Fatalf("grid height = %.1f, want %.1f", got, want)
+	}
+	if got, want := grid.indexAt(geometry.Pt(inventoryBagCell/2, inventoryBagRows*inventoryBagCell+inventoryBagCell/2)), inventoryBagCols*inventoryBagRows; got != want {
+		t.Fatalf("scrolled content index = %d, want %d", got, want)
+	}
+	if got := grid.indexAt(geometry.Pt(inventoryBagGridW+1, inventoryBagCell/2)); got != -1 {
+		t.Fatalf("scrollbar gutter hit index = %d, want -1", got)
 	}
 }
 
