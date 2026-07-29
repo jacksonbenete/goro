@@ -10,6 +10,7 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
@@ -62,6 +63,7 @@ type ShopWindow struct {
 	buyIcons        map[shopItemIconKey]image.Image
 	buyIconMiss     map[shopItemIconKey]struct{}
 	closePacketSent bool
+	amountPrompt    shopAmountPrompt
 }
 
 type shopSellCartItem struct {
@@ -95,6 +97,7 @@ func (w *ShopWindow) OpenDeal(selection network.ShopDealSelection, ctx Context) 
 
 func (w *ShopWindow) OpenSell(list []network.ShopSellItem, ctx Context) {
 	w.closeDealWindow(ctx)
+	w.amountPrompt.Close(ctx)
 	w.mode = shopModeSell
 	w.ensureBuyPosition(ctx)
 	w.sellable = make(map[uint16]network.ShopSellItem, len(list))
@@ -117,6 +120,7 @@ func (w *ShopWindow) OpenSell(list []network.ShopSellItem, ctx Context) {
 
 func (w *ShopWindow) OpenBuy(list []network.ShopBuyItem, ctx Context) {
 	w.closeDealWindow(ctx)
+	w.amountPrompt.Close(ctx)
 	w.mode = shopModeBuy
 	w.ensureBuyPosition(ctx)
 	w.buyItems = append(w.buyItems[:0], list...)
@@ -163,6 +167,9 @@ func (w *ShopWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	if ctx.Input == nil {
 		return false
 	}
+	if w.amountPrompt.Update(ctx) {
+		return true
+	}
 	if w.dealWindow.IsOpen() {
 		if ctx.Input.JustPressed(input.KeyEscape) {
 			w.closeDealWindow(ctx)
@@ -195,6 +202,7 @@ func (w *ShopWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvide
 	if w.mode == shopModeBuy || w.mode == shopModeSell {
 		w.buyWindow.Publish(ctx)
 		w.buyCartWindow.Publish(ctx)
+		w.amountPrompt.Publish(ctx)
 		return
 	}
 }
@@ -289,9 +297,12 @@ func (w *ShopWindow) refreshBuyWindow(ctx Context) {
 	w.buyCartWindow.SetContent(w.buyCartWidgetTree(ctx))
 	w.buyWindow.Publish(ctx)
 	w.buyCartWindow.Publish(ctx)
+	w.amountPrompt.Publish(ctx)
+	w.amountPrompt.BringToFront(ctx)
 }
 
 func (w *ShopWindow) closeBuyWindows(ctx Context) {
+	w.amountPrompt.Close(ctx)
 	if w.buyWindow.width != 0 {
 		w.buyWindow.Close()
 		w.buyWindow.Unpublish(ctx)
@@ -509,7 +520,7 @@ func (w *ShopWindow) handleBuyPointer(ctx Context, itemInfo *ItemInfoWindow) boo
 		}
 		if row, ok := w.buyCartRowAt(ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			if w.isDoubleClick(row, true) {
-				w.transferCartRowToShop(row)
+				w.transferCartRowToShop(ctx, row)
 				w.lastClickRow = -1
 				w.refreshBuyWindow(ctx)
 				return true
@@ -543,7 +554,7 @@ func (w *ShopWindow) handleBuyPointer(ctx Context, itemInfo *ItemInfoWindow) boo
 					return true
 				}
 				if dragging && w.buyShopDropTarget(ctx.Input.MouseX, ctx.Input.MouseY) {
-					w.decrementSellCartRow(row)
+					w.transferCartRowToShop(ctx, row)
 					w.refreshBuyWindow(ctx)
 				}
 				return true
@@ -552,7 +563,7 @@ func (w *ShopWindow) handleBuyPointer(ctx Context, itemInfo *ItemInfoWindow) boo
 				return true
 			}
 			if dragging && w.buyShopDropTarget(ctx.Input.MouseX, ctx.Input.MouseY) {
-				w.decrementBuyCartRow(row)
+				w.transferCartRowToShop(ctx, row)
 				w.refreshBuyWindow(ctx)
 			}
 			return true
@@ -655,22 +666,22 @@ func (w *ShopWindow) transferShopRowToCart(ctx Context, row int) {
 			return
 		}
 		if sell, ok := w.sellable[items[row].Index]; ok {
-			w.addCartItem(items[row], sell)
+			w.requestAddSellItem(ctx, items[row], sell)
 		}
 		return
 	}
 	if row < 0 || row >= len(w.buyItems) {
 		return
 	}
-	w.addBuyItem(w.buyItems[row])
+	w.requestAddBuyItem(ctx, w.buyItems[row])
 }
 
-func (w *ShopWindow) transferCartRowToShop(row int) {
+func (w *ShopWindow) transferCartRowToShop(ctx Context, row int) {
 	if w.mode == shopModeSell {
-		w.decrementSellCartRow(row)
+		w.requestRemoveSellCartItem(ctx, row)
 		return
 	}
-	w.decrementBuyCartRow(row)
+	w.requestRemoveBuyCartItem(ctx, row)
 }
 
 func (w *ShopWindow) rememberShopClick(row int, cart bool) {
@@ -826,6 +837,74 @@ func shopSellItemPrice(item network.ShopSellItem) uint32 {
 	return item.Price
 }
 
+func (w *ShopWindow) openAmountPrompt(ctx Context, initial, max uint16, onSubmit func(uint16)) {
+	w.amountPrompt.Open(ctx, initial, max, onSubmit)
+}
+
+func (w *ShopWindow) maxBuyAmount(ctx Context, item network.ShopBuyItem) uint16 {
+	maxAmount := ^uint16(0)
+	if ctx.Session == nil {
+		return maxAmount
+	}
+	price := shopBuyItemPrice(item)
+	if price == 0 {
+		return maxAmount
+	}
+	remaining := ctx.Session.Inventory.Zeny - w.total()
+	if remaining <= 0 {
+		return 1
+	}
+	affordable := remaining / int64(price)
+	if affordable < 1 {
+		return 1
+	}
+	if affordable > int64(maxAmount) {
+		return maxAmount
+	}
+	return uint16(affordable)
+}
+
+func (w *ShopWindow) canAffordBuyAmount(ctx Context, item network.ShopBuyItem, amount uint16) bool {
+	if ctx.Session == nil {
+		return true
+	}
+	price := int64(shopBuyItemPrice(item))
+	if price <= 0 {
+		return true
+	}
+	return w.total()+price*int64(amount) <= ctx.Session.Inventory.Zeny
+}
+
+func shopItemTypeStackable(itemType uint8) bool {
+	switch itemType {
+	case db.ItemTypeWeapon, db.ItemTypeArmor, db.ItemTypePetEgg, db.ItemTypePetArmor, db.ItemTypeShadowGear:
+		return false
+	default:
+		return true
+	}
+}
+
+func clampShopAmount(amount, maxAmount uint16) uint16 {
+	if maxAmount == 0 {
+		maxAmount = 1
+	}
+	if amount == 0 {
+		return 1
+	}
+	if amount > maxAmount {
+		return maxAmount
+	}
+	return amount
+}
+
+func addShopAmount(current, amount, maxAmount uint16) uint16 {
+	sum := uint32(current) + uint32(amount)
+	if sum > uint32(maxAmount) {
+		return maxAmount
+	}
+	return uint16(sum)
+}
+
 func (w *ShopWindow) sellAvailableItems(ctx Context) []session.InventoryItem {
 	if ctx.Session == nil || len(w.sellable) == 0 {
 		return nil
@@ -839,30 +918,97 @@ func (w *ShopWindow) sellAvailableItems(ctx Context) []session.InventoryItem {
 	return items
 }
 
-func (w *ShopWindow) addCartItem(item session.InventoryItem, sell network.ShopSellItem) {
+func (w *ShopWindow) requestAddBuyItem(ctx Context, item network.ShopBuyItem) {
+	if shopItemTypeStackable(item.Type) {
+		w.openAmountPrompt(ctx, 1, w.maxBuyAmount(ctx, item), func(amount uint16) {
+			w.addBuyItemAmount(ctx, item, amount)
+			w.refreshBuyWindow(ctx)
+		})
+		return
+	}
+	w.addBuyItem(item)
+}
+
+func (w *ShopWindow) requestAddSellItem(ctx Context, item session.InventoryItem, sell network.ShopSellItem) {
 	maxAmount := uint16(maxInt(1, item.Amount))
+	if shopItemTypeStackable(item.Type) && maxAmount > 1 {
+		w.openAmountPrompt(ctx, maxAmount, maxAmount, func(amount uint16) {
+			w.addCartItemAmount(item, sell, amount)
+			w.refreshBuyWindow(ctx)
+		})
+		return
+	}
+	w.addCartItem(item, sell)
+}
+
+func (w *ShopWindow) requestRemoveBuyCartItem(ctx Context, row int) {
+	if row < 0 || row >= len(w.buyCart) {
+		return
+	}
+	item := w.buyCart[row]
+	if shopItemTypeStackable(item.item.Type) && item.amount > 1 {
+		w.openAmountPrompt(ctx, item.amount, item.amount, func(amount uint16) {
+			w.decrementBuyCartRowAmount(row, amount)
+			w.refreshBuyWindow(ctx)
+		})
+		return
+	}
+	w.decrementBuyCartRow(row)
+}
+
+func (w *ShopWindow) requestRemoveSellCartItem(ctx Context, row int) {
+	if row < 0 || row >= len(w.cart) {
+		return
+	}
+	item := w.cart[row]
+	if shopItemTypeStackable(item.item.Type) && item.amount > 1 {
+		w.openAmountPrompt(ctx, item.amount, item.amount, func(amount uint16) {
+			w.decrementSellCartRowAmount(row, amount)
+			w.refreshBuyWindow(ctx)
+		})
+		return
+	}
+	w.decrementSellCartRow(row)
+}
+
+func (w *ShopWindow) addCartItem(item session.InventoryItem, sell network.ShopSellItem) {
+	w.addCartItemAmount(item, sell, uint16(maxInt(1, item.Amount)))
+}
+
+func (w *ShopWindow) addCartItemAmount(item session.InventoryItem, sell network.ShopSellItem, amount uint16) {
+	maxAmount := uint16(maxInt(1, item.Amount))
+	amount = clampShopAmount(amount, maxAmount)
 	for i := range w.cart {
 		if w.cart[i].item.Index == item.Index {
-			w.cart[i].amount = w.cart[i].max
+			w.cart[i].amount = addShopAmount(w.cart[i].amount, amount, w.cart[i].max)
 			return
 		}
 	}
 	w.cart = append(w.cart, shopSellCartItem{
 		item:   item,
 		over:   sell.OverchargePrice,
-		amount: maxAmount,
+		amount: amount,
 		max:    maxAmount,
 	})
 }
 
 func (w *ShopWindow) addBuyItem(item network.ShopBuyItem) {
+	w.addBuyItemAmount(Context{}, item, 1)
+}
+
+func (w *ShopWindow) addBuyItemAmount(ctx Context, item network.ShopBuyItem, amount uint16) {
+	amount = clampShopAmount(amount, ^uint16(0))
+	if !w.canAffordBuyAmount(ctx, item, amount) {
+		glog.Warnf("shop buy skipped: not enough zeny item=%d amount=%d", item.ItemID, amount)
+		return
+	}
 	for i := range w.buyCart {
 		if w.buyCart[i].item.ItemID == item.ItemID {
-			w.buyCart[i].amount++
+			w.buyCart[i].amount = addShopAmount(w.buyCart[i].amount, amount, ^uint16(0))
 			return
 		}
 	}
-	w.buyCart = append(w.buyCart, shopBuyCartItem{item: item, amount: 1})
+	w.buyCart = append(w.buyCart, shopBuyCartItem{item: item, amount: amount})
 }
 
 func (w *ShopWindow) submit(ctx Context) {
@@ -912,11 +1058,16 @@ func (w *ShopWindow) submitBuy(ctx Context) {
 }
 
 func (w *ShopWindow) decrementBuyCartRow(row int) {
+	w.decrementBuyCartRowAmount(row, 1)
+}
+
+func (w *ShopWindow) decrementBuyCartRowAmount(row int, amount uint16) {
 	if row < 0 || row >= len(w.buyCart) {
 		return
 	}
-	if w.buyCart[row].amount > 1 {
-		w.buyCart[row].amount--
+	amount = clampShopAmount(amount, w.buyCart[row].amount)
+	if w.buyCart[row].amount > amount {
+		w.buyCart[row].amount -= amount
 		return
 	}
 	w.buyCart = append(w.buyCart[:row], w.buyCart[row+1:]...)
@@ -924,6 +1075,18 @@ func (w *ShopWindow) decrementBuyCartRow(row int) {
 
 func (w *ShopWindow) decrementSellCartRow(row int) {
 	if row < 0 || row >= len(w.cart) {
+		return
+	}
+	w.decrementSellCartRowAmount(row, w.cart[row].amount)
+}
+
+func (w *ShopWindow) decrementSellCartRowAmount(row int, amount uint16) {
+	if row < 0 || row >= len(w.cart) {
+		return
+	}
+	amount = clampShopAmount(amount, w.cart[row].amount)
+	if w.cart[row].amount > amount {
+		w.cart[row].amount -= amount
 		return
 	}
 	w.cart = append(w.cart[:row], w.cart[row+1:]...)

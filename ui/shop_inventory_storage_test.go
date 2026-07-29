@@ -47,6 +47,110 @@ func TestShopBuyCartTracksQuantityAndTotal(t *testing.T) {
 	}
 }
 
+func TestShopBuyStackableItemUsesAmountPrompt(t *testing.T) {
+	window := ShopWindow{
+		mode:     shopModeBuy,
+		buyItems: []network.ShopBuyItem{{ItemID: 501, Type: db.ItemTypeHealing, Price: 100}},
+	}
+	ctx := Context{ScreenW: 800, ScreenH: 600}
+
+	window.transferShopRowToCart(ctx, 0)
+	if !window.amountPrompt.IsOpen() {
+		t.Fatal("stackable shop item should open amount prompt")
+	}
+	if len(window.buyCart) != 0 {
+		t.Fatalf("buy cart changed before amount submit: %+v", window.buyCart)
+	}
+
+	window.amountPrompt.value = "7"
+	window.amountPrompt.submit(ctx)
+	if len(window.buyCart) != 1 || window.buyCart[0].amount != 7 {
+		t.Fatalf("buy cart = %+v, want one item amount 7", window.buyCart)
+	}
+}
+
+func TestShopAmountPromptStaysAboveShopWindowsAfterRefresh(t *testing.T) {
+	manager := NewManager()
+	window := ShopWindow{}
+	ctx := Context{ScreenW: 800, ScreenH: 600, UIManager: manager}
+	window.OpenBuy([]network.ShopBuyItem{{ItemID: 501, Type: db.ItemTypeHealing, Price: 100}}, ctx)
+
+	window.transferShopRowToCart(ctx, 0)
+	window.refreshBuyWindow(ctx)
+
+	if !window.amountPrompt.IsOpen() {
+		t.Fatal("amount prompt should be open")
+	}
+	if len(manager.overlays) == 0 {
+		t.Fatal("no overlays published")
+	}
+	if got := manager.overlays[len(manager.overlays)-1]; got != window.amountPrompt.published {
+		t.Fatalf("top overlay = %T, want amount prompt", got)
+	}
+}
+
+func TestShopBuyNonStackableItemSkipsAmountPrompt(t *testing.T) {
+	window := ShopWindow{
+		mode:     shopModeBuy,
+		buyItems: []network.ShopBuyItem{{ItemID: 1201, Type: db.ItemTypeWeapon, Price: 100}},
+	}
+
+	window.transferShopRowToCart(Context{ScreenW: 800, ScreenH: 600}, 0)
+	if window.amountPrompt.IsOpen() {
+		t.Fatal("non-stackable shop item should not open amount prompt")
+	}
+	if len(window.buyCart) != 1 || window.buyCart[0].amount != 1 {
+		t.Fatalf("buy cart = %+v, want one item amount 1", window.buyCart)
+	}
+}
+
+func TestShopSellStackableItemUsesAmountPrompt(t *testing.T) {
+	window := ShopWindow{
+		mode:     shopModeSell,
+		sellable: map[uint16]network.ShopSellItem{8: {Index: 8, Price: 10, OverchargePrice: 12}},
+	}
+	ctx := Context{
+		ScreenW: 800,
+		ScreenH: 600,
+		Session: &session.Session{Inventory: session.Inventory{Items: []session.InventoryItem{
+			{Index: 8, ItemID: 938, Type: db.ItemTypeEtc, Amount: 9},
+		}}},
+	}
+
+	window.transferShopRowToCart(ctx, 0)
+	if !window.amountPrompt.IsOpen() {
+		t.Fatal("stackable sell item should open amount prompt")
+	}
+
+	window.amountPrompt.value = "4"
+	window.amountPrompt.submit(ctx)
+	if len(window.cart) != 1 || window.cart[0].amount != 4 || window.cart[0].max != 9 {
+		t.Fatalf("sell cart = %+v, want one item amount 4 max 9", window.cart)
+	}
+}
+
+func TestShopRemoveBuyCartStackUsesAmountPrompt(t *testing.T) {
+	window := ShopWindow{
+		mode: shopModeBuy,
+		buyCart: []shopBuyCartItem{{
+			item:   network.ShopBuyItem{ItemID: 501, Type: db.ItemTypeHealing, Price: 100},
+			amount: 8,
+		}},
+	}
+	ctx := Context{ScreenW: 800, ScreenH: 600}
+
+	window.transferCartRowToShop(ctx, 0)
+	if !window.amountPrompt.IsOpen() {
+		t.Fatal("stackable cart item should open amount prompt before removal")
+	}
+
+	window.amountPrompt.value = "3"
+	window.amountPrompt.submit(ctx)
+	if len(window.buyCart) != 1 || window.buyCart[0].amount != 5 {
+		t.Fatalf("buy cart = %+v, want remaining amount 5", window.buyCart)
+	}
+}
+
 func TestShopItemAtUsesTableViewBody(t *testing.T) {
 	window := ShopWindow{
 		mode:     shopModeBuy,
