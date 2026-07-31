@@ -36,3 +36,23 @@ func TestIconButtonChevronKeepsIntegerXAndQuarterPixelY(t *testing.T) {
 		t.Fatalf("left icon second point = %v, want 5,8.25", got)
 	}
 }
+
+func TestIconButtonMouseButtonKeepsFullSurfaceSize(t *testing.T) {
+	root := IconButton(IconButtonClose, nil)
+	size := root.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(IconButtonSize, IconButtonSize)))
+	if size.Width != IconButtonSize || size.Height != IconButtonSize {
+		t.Fatalf("icon button size = %v, want %dx%d", size, int(IconButtonSize), int(IconButtonSize))
+	}
+	children := root.Children()
+	if len(children) != 1 {
+		t.Fatalf("icon button children = %d, want 1", len(children))
+	}
+	bounder, ok := children[0].(interface{ Bounds() geometry.Rect })
+	if !ok {
+		t.Fatalf("icon button child does not expose bounds")
+	}
+	bounds := bounder.Bounds()
+	if bounds.Width() != IconButtonSize || bounds.Height() != IconButtonSize {
+		t.Fatalf("icon button child bounds = %v, want %dx%d", bounds, int(IconButtonSize), int(IconButtonSize))
+	}
+}

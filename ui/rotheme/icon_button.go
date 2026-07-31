@@ -34,7 +34,9 @@ func IconButton(kind IconButtonKind, onClick func()) *primitives.BoxWidget {
 }
 
 func IconButtonDisabled(kind IconButtonKind, disabled bool, onClick func()) *primitives.BoxWidget {
-	return primitives.Box(newMouseButton("", func() bool { return disabled }, 0, IconButtonPainter{Kind: kind}, onClick).MinWidth(IconButtonSize)).
+	return primitives.Box(newMouseButton("", func() bool { return disabled }, 0, IconButtonPainter{Kind: kind}, onClick).
+		MinWidth(IconButtonSize).
+		MinHeight(IconButtonSize)).
 		Width(IconButtonSize).
 		Height(IconButtonSize)
 }

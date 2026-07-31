@@ -53,15 +53,16 @@ func buttonWithPaddingFn(label string, disabled func() bool, paddingY float32, o
 
 type mouseButtonWidget struct {
 	widget.WidgetBase
-	label    string
-	disabled func() bool
-	onClick  func()
-	painter  button.Painter
-	paddingX float32
-	paddingY float32
-	minWidth float32
-	hovered  bool
-	pressed  bool
+	label     string
+	disabled  func() bool
+	onClick   func()
+	painter   button.Painter
+	paddingX  float32
+	paddingY  float32
+	minWidth  float32
+	minHeight float32
+	hovered   bool
+	pressed   bool
 }
 
 func newMouseButton(label string, disabled func() bool, paddingY float32, painter button.Painter, onClick func()) *mouseButtonWidget {
@@ -83,6 +84,11 @@ func (w *mouseButtonWidget) MinWidth(width float32) *mouseButtonWidget {
 	return w
 }
 
+func (w *mouseButtonWidget) MinHeight(height float32) *mouseButtonWidget {
+	w.minHeight = height
+	return w
+}
+
 func (w *mouseButtonWidget) resolvedDisabled() bool {
 	if w.disabled == nil {
 		return false
@@ -96,6 +102,9 @@ func (w *mouseButtonWidget) Layout(_ widget.Context, constraints geometry.Constr
 		width = w.minWidth
 	}
 	height := Default.Typography.TextSize + w.paddingY*2
+	if height < w.minHeight {
+		height = w.minHeight
+	}
 	return constraints.Constrain(geometry.Sz(width, height))
 }
 
