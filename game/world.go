@@ -173,6 +173,7 @@ type worldUI struct {
 	mercenaryConfirm  gameui.ConfirmModal
 	statsWindow       gameui.StatsWindow
 	skillWindow       gameui.SkillWindow
+	emoteWindow       gameui.EmoteWindow
 	friendsWindow     gameui.FriendsWindow
 	guildWindow       gameui.GuildWindow
 	friendSettings    gameui.FriendSettingsWindow
@@ -487,6 +488,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.ui.itemInfoWindow.Rebind(ctx, m)
 	m.ui.statsWindow.Rebind(ctx)
 	m.ui.skillWindow.Rebind(ctx, m)
+	m.ui.emoteWindow.Rebind(ctx, &m.ui.console)
 	m.ui.homunculusSkill.Rebind(ctx, m)
 	m.ui.mercenarySkill.Rebind(ctx, m)
 	m.ui.friendsWindow.Rebind(ctx)
@@ -1826,6 +1828,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.mercenarySkill.Update(ctx, &m.ui.shortcutBar, m) {
 		return nil, nil
 	}
+	if m.toggleEmoteWindowFromInput(ctx) {
+		return nil, nil
+	}
+	if m.ui.emoteWindow.Update(ctx, &m.ui.console) {
+		return nil, nil
+	}
 	if m.toggleGuildWindowFromInput(ctx) {
 		return nil, nil
 	}
@@ -2014,6 +2022,17 @@ func (m *WorldMode) basicMenuCallbacks(ctx client.Context) gameui.BasicMenuCallb
 	}
 }
 
+func (m *WorldMode) toggleEmoteWindowFromInput(ctx client.Context) bool {
+	if ctx.Input == nil || m.ui.keyboardInputBlocked(ctx) {
+		return false
+	}
+	if !ctx.Input.Pressed(input.KeyAlt) || !ctx.Input.JustPressed(input.KeyL) {
+		return false
+	}
+	m.ui.emoteWindow.Toggle(ctx, &m.ui.console)
+	return true
+}
+
 func (m *WorldMode) toggleGuildWindowFromInput(ctx client.Context) bool {
 	if ctx.Input == nil || m.ui.console.Active() {
 		return false
@@ -2147,6 +2166,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.petLastTalk = m.petLastTalk
 	next.ui.statsWindow = m.ui.statsWindow
 	next.ui.skillWindow = m.ui.skillWindow
+	next.ui.emoteWindow = m.ui.emoteWindow
 	next.ui.friendsWindow = m.ui.friendsWindow
 	next.ui.guildWindow = m.ui.guildWindow
 	next.ui.friendSettings = m.ui.friendSettings

@@ -8,6 +8,13 @@ type emotionEntry struct {
 	commands []string
 }
 
+type Emotion struct {
+	ID       uint8
+	Frame    int
+	Command  string
+	Commands []string
+}
+
 var emotionEntries = []emotionEntry{
 	{0, 0, []string{"!"}},
 	{1, 1, []string{"?"}},
@@ -101,6 +108,17 @@ var emotionEntries = []emotionEntry{
 
 var emotionCommandIDs = buildEmotionCommandIDs()
 var emotionSpriteFrames = buildEmotionSpriteFrames()
+var emotionFrameEntries = buildEmotionFrameEntries()
+
+var emotionInterfaceFrames = []int{
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+	10, 11, 12, 13, 15, 16, 17, 18, 19, 20,
+	21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+	31, 32, 33, 35, 36, 37, 38, 39, 40, 41,
+	42, 43, 44, 45, 46, 51, 52, 53, 54, 55,
+	56, 64, 67, 68, 70, 71, 72, 73, 74, 75,
+	76, 77, 78, 79,
+}
 
 func buildEmotionCommandIDs() map[string]uint8 {
 	out := make(map[string]uint8)
@@ -120,6 +138,14 @@ func buildEmotionSpriteFrames() map[uint8]int {
 	return out
 }
 
+func buildEmotionFrameEntries() map[int]emotionEntry {
+	out := make(map[int]emotionEntry)
+	for _, entry := range emotionEntries {
+		out[entry.frame] = entry
+	}
+	return out
+}
+
 func EmotionCommandID(command string) (uint8, bool) {
 	id, ok := emotionCommandIDs[strings.ToLower(strings.TrimSpace(command))]
 	return id, ok
@@ -128,4 +154,22 @@ func EmotionCommandID(command string) (uint8, bool) {
 func EmotionSpriteFrame(id uint8) (int, bool) {
 	frame, ok := emotionSpriteFrames[id]
 	return frame, ok
+}
+
+func EmotionList() []Emotion {
+	out := make([]Emotion, 0, len(emotionInterfaceFrames))
+	for _, frame := range emotionInterfaceFrames {
+		entry, ok := emotionFrameEntries[frame]
+		if !ok || len(entry.commands) == 0 {
+			continue
+		}
+		commands := append([]string(nil), entry.commands...)
+		out = append(out, Emotion{
+			ID:       entry.id,
+			Frame:    entry.frame,
+			Command:  commands[0],
+			Commands: commands,
+		})
+	}
+	return out
 }

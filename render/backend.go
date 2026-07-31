@@ -538,6 +538,8 @@ func mapKey(key gpucontext.Key) (input.Key, bool) {
 		return input.KeyAlt, true
 	case gpucontext.KeyG:
 		return input.KeyG, true
+	case gpucontext.KeyL:
+		return input.KeyL, true
 	case gpucontext.Key1:
 		return input.Key1, true
 	case gpucontext.Key2:

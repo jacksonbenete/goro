@@ -20,6 +20,7 @@ const (
 	KeyCtrl
 	KeyAlt
 	KeyG
+	KeyL
 	Key1
 	Key2
 	Key3
