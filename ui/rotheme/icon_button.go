@@ -34,17 +34,7 @@ func IconButton(kind IconButtonKind, onClick func()) *primitives.BoxWidget {
 }
 
 func IconButtonDisabled(kind IconButtonKind, disabled bool, onClick func()) *primitives.BoxWidget {
-	opts := []button.Option{
-		button.TextOpt(""),
-		button.SizeOpt(button.Small),
-		button.PainterOpt(IconButtonPainter{Kind: kind}),
-		button.RoundedOpt(ButtonRadius),
-		button.Disabled(disabled),
-	}
-	if !disabled && onClick != nil {
-		opts = append(opts, button.OnClick(onClick))
-	}
-	return primitives.Box(button.New(opts...).PaddingXY(0, 0).MinWidth(IconButtonSize)).
+	return primitives.Box(newMouseButton("", func() bool { return disabled }, 0, IconButtonPainter{Kind: kind}, onClick).MinWidth(IconButtonSize)).
 		Width(IconButtonSize).
 		Height(IconButtonSize)
 }

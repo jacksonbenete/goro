@@ -144,3 +144,41 @@ func TestBasicMenuRebindRefreshesButtonCallbacks(t *testing.T) {
 		t.Fatalf("original calls = %d, want 0", originalCalls)
 	}
 }
+
+func TestBasicMenuButtonDoesNotReinvokeFromEnterKey(t *testing.T) {
+	app := uiapp.New()
+	manager := NewManager()
+	manager.SetUIApp(basicMenuTestApp{app: app})
+	ctx := client.Context{
+		Input:     input.NewState(),
+		UIManager: manager,
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+	itemCalls := 0
+	var menu BasicMenu
+	menu.Update(ctx, BasicMenuCallbacks{
+		OnItems: func() { itemCalls++ },
+	})
+
+	app.Frame()
+	app.Window().DrawTo(&uitest.MockCanvas{})
+	point := geometry.Pt(
+		float32(basicMenuX+basicMenuPad+2*(basicMenuButtonW+basicMenuGapX)+basicMenuButtonW/2),
+		float32(basicMenuY+basicMenuPad+basicMenuButtonH/2),
+	)
+	app.Window().HandleEvent(uitest.Click(point.X, point.Y))
+	app.Window().HandleEvent(uitest.Release(point.X, point.Y))
+	if itemCalls != 1 {
+		t.Fatalf("item calls after click = %d, want 1", itemCalls)
+	}
+	if focused := app.Window().Context().FocusedWidget(); focused != nil {
+		t.Fatalf("basic menu button kept keyboard focus: %T", focused)
+	}
+
+	app.Window().HandleEvent(event.NewKeyEvent(event.KeyPress, event.KeyEnter, 0, event.ModNone))
+	app.Window().HandleEvent(event.NewKeyEvent(event.KeyRelease, event.KeyEnter, 0, event.ModNone))
+	if itemCalls != 1 {
+		t.Fatalf("item calls after enter = %d, want 1", itemCalls)
+	}
+}
