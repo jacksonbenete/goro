@@ -31,6 +31,8 @@ const (
 	emoteDefaultX         = 600
 	emoteDefaultY         = 200
 	emoteDoubleClickDelay = 360
+	// roBrowser's 2D SpriteRenderer subtracts half of a 35px cell from canvas Y.
+	emoteRendererMidCellY = 17.5
 )
 
 type EmoteWindow struct {
@@ -458,8 +460,7 @@ func (s *emoteSpriteSet) composeIcon(frame int) image.Image {
 	}
 	first := anim.Layers[0]
 	target := render.NewImage(emoteCellSize, emoteCellSize)
-	centerX := float64(emoteCellSize/2) - float64(first.X)
-	centerY := float64(emoteCellSize) - float64(first.Y)
+	centerX, centerY := emoteIconAnchor(first)
 	rendered := false
 	for _, layer := range anim.Layers {
 		if layer.Index < 0 {
@@ -476,6 +477,11 @@ func (s *emoteSpriteSet) composeIcon(frame int) image.Image {
 		return nil
 	}
 	return target.RGBA()
+}
+
+func emoteIconAnchor(first res.ACTLayer) (float64, float64) {
+	return float64(emoteCellSize/2) - float64(first.X),
+		float64(emoteCellSize) - float64(first.Y) - emoteRendererMidCellY
 }
 
 func (s *emoteSpriteSet) frameImage(index int32, sprType int32) *render.Image {

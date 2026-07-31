@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -8,11 +9,22 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/res"
 )
 
 func TestEmotePageCountMatchesRobrowserWindow(t *testing.T) {
 	if got := emotePageCount(); got != 3 {
 		t.Fatalf("emotePageCount() = %d, want 3", got)
+	}
+}
+
+func TestEmoteIconAnchorMatchesRobrowser2DRenderer(t *testing.T) {
+	x, y := emoteIconAnchor(res.ACTLayer{X: -3, Y: -12})
+	if math.Abs(x-23) > 0.001 {
+		t.Fatalf("x = %.3f, want 23", x)
+	}
+	if math.Abs(y-34.5) > 0.001 {
+		t.Fatalf("y = %.3f, want 34.5", y)
 	}
 }
 
