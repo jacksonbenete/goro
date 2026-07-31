@@ -169,6 +169,10 @@ func (d *NPCDialog) ResetPublished(ctx Context) {
 	d.publish(ctx)
 }
 
+func (d *NPCDialog) IsOpen() bool {
+	return d != nil && d.open
+}
+
 func (d *NPCDialog) Update(ctx Context) bool {
 	if !d.open {
 		if d.dialogWindow.published != nil || d.menuWindow.published != nil || d.inputWindow.published != nil {

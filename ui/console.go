@@ -80,6 +80,7 @@ func (c *ChatConsole) Update(ctx client.Context) bool {
 	c.flushPendingMessageRedraw(ctx)
 	c.ensureWindow(ctx)
 	c.syncActiveFromField()
+	wasActive := c.active
 	defer c.Publish(ctx)
 	defer c.armPendingMessageRedraw()
 	if ctx.Input == nil {
@@ -91,6 +92,10 @@ func (c *ChatConsole) Update(ctx client.Context) bool {
 	}
 	if ctx.Input.JustPressed(input.KeyEnter) && !c.active {
 		c.setActive(true)
+		return true
+	}
+	if c.active && ctx.Input.JustPressed(input.KeyEnter) {
+		c.submit(ctx)
 		return true
 	}
 	if c.active && c.clickedOutside(ctx) {
@@ -107,7 +112,7 @@ func (c *ChatConsole) Update(ctx client.Context) bool {
 	}
 	consumed := c.window.Update(ctx)
 	c.syncActiveFromField()
-	return consumed || c.active
+	return consumed || wasActive || c.active
 }
 
 func (c *ChatConsole) Publish(ctx client.Context) {

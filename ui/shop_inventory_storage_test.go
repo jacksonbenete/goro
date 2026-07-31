@@ -69,6 +69,29 @@ func TestShopBuyStackableItemUsesAmountPrompt(t *testing.T) {
 	}
 }
 
+func TestShopWindowBlocksKeyboardShortcutsDuringTransaction(t *testing.T) {
+	window := ShopWindow{}
+	if window.KeyboardShortcutsBlocked() {
+		t.Fatal("closed shop should not block keyboard shortcuts")
+	}
+
+	ctx := Context{ScreenW: 800, ScreenH: 600}
+	window.OpenBuy([]network.ShopBuyItem{{ItemID: 501, Type: db.ItemTypeHealing, Price: 100}}, ctx)
+	if !window.KeyboardShortcutsBlocked() {
+		t.Fatal("open buy shop should block keyboard shortcuts")
+	}
+
+	window.transferShopRowToCart(ctx, 0)
+	if !window.KeyboardShortcutsBlocked() {
+		t.Fatal("shop amount prompt should block keyboard shortcuts")
+	}
+
+	window.ApplyResult(ctx, network.ShopResult{Sell: false, Result: 0})
+	if window.KeyboardShortcutsBlocked() {
+		t.Fatal("completed shop should stop blocking keyboard shortcuts")
+	}
+}
+
 func TestShopAmountPromptStaysAboveShopWindowsAfterRefresh(t *testing.T) {
 	manager := NewManager()
 	window := ShopWindow{}

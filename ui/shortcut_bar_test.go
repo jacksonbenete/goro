@@ -231,6 +231,21 @@ func TestShortcutBarActivatesSecondRowNumberKey(t *testing.T) {
 	}
 }
 
+func TestShortcutBarSkipsKeyActivationWhenKeyboardBlocked(t *testing.T) {
+	inputState := input.NewState()
+	inputState.SetKey(input.Key1, true)
+	actions := &shortcutBlockingActions{blocked: true}
+	bar := &ShortcutBar{}
+	bar.slots[shortcutCols] = shortcutSlotState{kind: shortcutSkill, skillID: 6, skillLevel: 2}
+
+	if bar.Update(shortcutBarActionContext(inputState), actions) {
+		t.Fatal("blocked shortcut key was consumed")
+	}
+	if actions.used.ID != 0 {
+		t.Fatalf("used skill = %+v, want none", actions.used)
+	}
+}
+
 func TestShortcutBarActivatesThirdRowLetterKey(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetKey(input.KeyQ, true)
@@ -322,6 +337,15 @@ func (m *shortcutInvalidatingManager) Clear() {
 
 type shortcutInvalidatingApp struct {
 	invalidates int
+}
+
+type shortcutBlockingActions struct {
+	skillWindowTestRenderer
+	blocked bool
+}
+
+func (a *shortcutBlockingActions) KeyboardShortcutsBlocked(Context) bool {
+	return a.blocked
 }
 
 func (a *shortcutInvalidatingApp) SetUIRoot(widget.Widget) {}

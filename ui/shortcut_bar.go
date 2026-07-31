@@ -91,6 +91,9 @@ func (b *ShortcutBar) Update(ctx Context, actions GameActions) bool {
 	}
 	assets, _ := actions.(AssetProvider)
 	b.Publish(ctx, actions, assets)
+	if blocker, ok := actions.(KeyboardShortcutBlocker); ok && blocker.KeyboardShortcutsBlocked(ctx) {
+		return false
+	}
 	if ctx.Input.JustPressed(input.KeyF12) {
 		b.cycleVisibleRows(ctx)
 		return true

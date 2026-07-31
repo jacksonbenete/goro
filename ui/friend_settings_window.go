@@ -42,8 +42,7 @@ func (w *FriendSettingsWindow) Rebind(ctx Context) {
 		return
 	}
 	w.ctx = ctx
-	w.SetContent(w.widgetTree(ctx))
-	w.Publish(ctx)
+	w.RebindContent(ctx, w.widgetTree(ctx))
 }
 
 func (w *FriendSettingsWindow) widgetTree(ctx Context) widget.Widget {

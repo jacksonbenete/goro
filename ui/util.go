@@ -38,6 +38,10 @@ type GameActions interface {
 	AddTeleportEffect(ctx client.Context)
 }
 
+type KeyboardShortcutBlocker interface {
+	KeyboardShortcutsBlocked(ctx client.Context) bool
+}
+
 func PointInRect(px, py, x, y, w, h int) bool {
 	return px >= x && py >= y && px < x+w && py < y+h
 }

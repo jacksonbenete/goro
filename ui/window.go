@@ -275,6 +275,17 @@ func (w *Window) SetContent(content widget.Widget) {
 	w.setOpacity(1)
 }
 
+func (w *Window) RebindContent(ctx client.Context, content widget.Widget) {
+	if w == nil || !w.open {
+		return
+	}
+	w.Unpublish(ctx)
+	w.placed = nil
+	w.ctx = ctx
+	w.SetContent(content)
+	w.Publish(ctx)
+}
+
 func (w *Window) Publish(ctx client.Context) {
 	if w == nil || ctx.UIManager == nil {
 		return

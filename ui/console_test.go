@@ -186,6 +186,23 @@ func TestConsoleInputHistoryUsesArrowKeys(t *testing.T) {
 	}
 }
 
+func TestConsoleSubmitConsumesClosingEnterFrame(t *testing.T) {
+	console := &ChatConsole{input: "/ns", active: true}
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyEnter, true)
+	sessionState := &session.Session{}
+
+	if !console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600, UIManager: NewManager(), Session: sessionState}) {
+		t.Fatal("closing submit enter frame was not consumed")
+	}
+	if !sessionState.NoShift {
+		t.Fatal("command was not submitted")
+	}
+	if console.Active() || console.input != "" {
+		t.Fatalf("console active=%t input=%q, want closed empty input", console.Active(), console.input)
+	}
+}
+
 func TestConsoleOutsideClickBlursAndPassesThrough(t *testing.T) {
 	console := &ChatConsole{input: "hello", active: true}
 	inputState := input.NewState()

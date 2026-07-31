@@ -190,6 +190,57 @@ type worldUI struct {
 	shortcutBar       gameui.ShortcutBar
 }
 
+func (u *worldUI) KeyboardShortcutsBlocked(ctx client.Context) bool {
+	return u.keyboardInputBlocked(ctx)
+}
+
+func (u *worldUI) keyboardInputBlocked(ctx client.Context) bool {
+	if u == nil {
+		return false
+	}
+	return u.console.Active() ||
+		u.npcDialog.IsOpen() ||
+		u.escapeMenu.IsOpen() ||
+		u.teleportModal.IsOpen() ||
+		u.deathModal.IsOpen() ||
+		u.disconnectDialog.IsOpen() ||
+		u.friendRequest.IsOpen() ||
+		u.friendConfirm.IsOpen() ||
+		u.partyRequest.IsOpen() ||
+		u.guildRequest.IsOpen() ||
+		u.tradeRequest.IsOpen() ||
+		u.partyInfo.IsOpen() ||
+		u.petConfirm.IsOpen() ||
+		u.homunculusConfirm.IsOpen() ||
+		u.mercenaryConfirm.IsOpen() ||
+		u.settingsWindow.IsOpen() ||
+		u.identifyWindow.IsOpen() ||
+		u.cardWindow.IsOpen() ||
+		u.makingArrow.IsOpen() ||
+		u.petEggWindow.IsOpen() ||
+		u.petInfoWindow.IsOpen() ||
+		u.homunculusInfo.IsOpen() ||
+		u.homunculusSkill.IsOpen() ||
+		u.mercenaryInfo.IsOpen() ||
+		u.mercenarySkill.IsOpen() ||
+		u.changeCartWindow.IsOpen() ||
+		u.shopWindow.KeyboardShortcutsBlocked() ||
+		u.vendingWindow.KeyboardShortcutsBlocked() ||
+		u.tradeWindow.IsOpen() ||
+		u.friendSettings.IsOpen() ||
+		u.whisperWindow.IsOpen() ||
+		u.chatRoomCreate.IsOpen() ||
+		u.chatRoom.IsOpen() ||
+		u.partySettings.IsOpen() ||
+		u.partyCreate.IsOpen() ||
+		u.partyInvite.IsOpen() ||
+		u.skillTextPrompt.IsOpen()
+}
+
+func (m *WorldMode) KeyboardShortcutsBlocked(ctx client.Context) bool {
+	return m.ui.KeyboardShortcutsBlocked(ctx)
+}
+
 type actorSpriteKey struct {
 	job         int
 	head        int
@@ -1542,16 +1593,19 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.mapFade.phase == mapFadeHold {
 		return nil, nil
 	}
-	if m.skills().CancelFromInput(ctx) {
-		return nil, nil
+	keyboardBlocked := m.ui.keyboardInputBlocked(ctx)
+	if !keyboardBlocked {
+		if m.skills().CancelFromInput(ctx) {
+			return nil, nil
+		}
+		if m.cancelPetCaptureFromInput(ctx) {
+			return nil, nil
+		}
+		if m.openEscapeMenuFromInput(ctx) {
+			return nil, nil
+		}
+		m.skills().AdjustPendingLevelFromWheel(ctx)
 	}
-	if m.cancelPetCaptureFromInput(ctx) {
-		return nil, nil
-	}
-	if m.openEscapeMenuFromInput(ctx) {
-		return nil, nil
-	}
-	m.skills().AdjustPendingLevelFromWheel(ctx)
 	petContextConsumed := m.ui.petContext.Update(ctx)
 	if action := m.ui.petContext.PopAction(); action.Kind != gameui.PetContextActionNone {
 		m.handlePetContextAction(ctx, action)
@@ -1838,8 +1892,10 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.statsWindow.Update(ctx) {
 		return nil, nil
 	}
-	if m.ui.basicMenu.Update(ctx, m.basicMenuCallbacks(ctx)) {
-		return nil, nil
+	if !m.ui.keyboardInputBlocked(ctx) {
+		if m.ui.basicMenu.Update(ctx, m.basicMenuCallbacks(ctx)) {
+			return nil, nil
+		}
 	}
 	m.ui.minimap.Update(ctx)
 	removeExpiredStatusEffects(ctx.Session, now)

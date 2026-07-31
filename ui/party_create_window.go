@@ -64,9 +64,9 @@ func (w *PartyCreateWindow) Rebind(ctx Context) {
 	}
 	w.ctx = ctx
 	w.nameField = nil
-	w.SetContent(w.widgetTree(ctx))
+	content := w.widgetTree(ctx)
 	w.focusName()
-	w.Publish(ctx)
+	w.RebindContent(ctx, content)
 }
 
 func (w *PartyCreateWindow) PopAction() PartyCreateWindowAction {

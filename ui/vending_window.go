@@ -176,6 +176,10 @@ func (w *VendingWindow) Update(ctx Context, itemInfo *ItemInfoWindow) bool {
 	return inside
 }
 
+func (w *VendingWindow) KeyboardShortcutsBlocked() bool {
+	return w != nil && w.mode != vendingModeNone
+}
+
 func (w *VendingWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvider) {
 	if w.mode == vendingModeNone {
 		return

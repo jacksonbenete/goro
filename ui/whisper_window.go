@@ -86,7 +86,9 @@ func (w *WhisperWindow) Rebind(ctx Context) {
 	}
 	w.ctx = ctx
 	w.inputField = nil
-	w.refresh(ctx)
+	content := w.widgetTree(ctx)
+	w.focusInput()
+	w.RebindContent(ctx, content)
 }
 
 func (w *WhisperWindow) PopAction() WhisperWindowAction {

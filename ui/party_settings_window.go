@@ -48,8 +48,7 @@ func (w *PartySettingsWindow) Rebind(ctx Context) {
 		return
 	}
 	w.ctx = ctx
-	w.SetContent(w.widgetTree(ctx))
-	w.Publish(ctx)
+	w.RebindContent(ctx, w.widgetTree(ctx))
 }
 
 func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {
@@ -84,10 +83,10 @@ func (w *PartySettingsWindow) widgetTree(ctx Context) widget.Widget {
 		),
 		Footer(
 			primitives.Expanded(primitives.Box()),
-				rotheme.Button("OK", func() {
-					w.apply(ctx)
-				}),
-				rotheme.Button("Cancel", w.Close),
+			rotheme.Button("OK", func() {
+				w.apply(ctx)
+			}),
+			rotheme.Button("Cancel", w.Close),
 		),
 	)
 }
