@@ -264,6 +264,13 @@ func (w *Window) IsOpen() bool {
 func (w *Window) SetContent(content widget.Widget) {
 	w.endDragLayer(w.ctx)
 	w.content = content
+	if overlay := w.positionedOverlay(); overlay != nil {
+		damage := overlay.setChild(content, windowWidgetContext(w.ctx))
+		w.setOpacity(1)
+		invalidateWindowLayout(w.ctx)
+		invalidateWindowRect(w.ctx, damage)
+		return
+	}
 	w.placed = nil
 	w.setOpacity(1)
 }
@@ -521,6 +528,14 @@ type rectInvalidatingUIApp interface {
 	InvalidateRect(geometry.Rect)
 }
 
+type layoutInvalidatingUIApp interface {
+	InvalidateLayout()
+}
+
+type widgetContextUIApp interface {
+	WidgetContext() widget.Context
+}
+
 type windowDragLayerUIApp interface {
 	BeginWindowDragLayer(token any, rect geometry.Rect) bool
 	MoveWindowDragLayer(token any, rect geometry.Rect)
@@ -536,6 +551,24 @@ func invalidateWindowRect(ctx client.Context, rect geometry.Rect) {
 		return
 	}
 	ctx.UIApp.Invalidate()
+}
+
+func invalidateWindowLayout(ctx client.Context) {
+	if ctx.UIApp == nil {
+		return
+	}
+	if app, ok := ctx.UIApp.(layoutInvalidatingUIApp); ok {
+		app.InvalidateLayout()
+		return
+	}
+	ctx.UIApp.Invalidate()
+}
+
+func windowWidgetContext(ctx client.Context) widget.Context {
+	if app, ok := ctx.UIApp.(widgetContextUIApp); ok {
+		return app.WidgetContext()
+	}
+	return nil
 }
 
 func windowFrameRect(x, y, width, height int) geometry.Rect {
@@ -608,6 +641,25 @@ func (w *positionedOverlay) setFrameQuiet(x, y, width, height int) {
 	w.SetScreenOrigin(frame.Min)
 }
 
+func (w *positionedOverlay) setChild(child widget.Widget, ctx widget.Context) geometry.Rect {
+	if w.child == child {
+		return w.markFrameDirty()
+	}
+	if w.child != nil {
+		widget.UnmountTree(w.child)
+	}
+	w.child = child
+	if child != nil {
+		if setter, ok := child.(interface{ SetParent(widget.Widget) }); ok {
+			setter.SetParent(w)
+		}
+		if ctx != nil {
+			widget.MountTree(child, ctx)
+		}
+	}
+	return w.markFrameDirty()
+}
+
 func (w *positionedOverlay) markFrameDirty() geometry.Rect {
 	return w.markDamage(w.frameRect())
 }
@@ -662,6 +714,9 @@ func (w *positionedOverlay) Draw(ctx widget.Context, canvas widget.Canvas) {
 	}
 	canvas.PushTransform(w.Bounds().Min)
 	widget.StampScreenOrigin(w.child, canvas)
+	if w.hasDamage {
+		widget.ClearRedrawInTree(w.child)
+	}
 	widget.DrawChild(w.child, ctx, canvas)
 	canvas.PopTransform()
 }

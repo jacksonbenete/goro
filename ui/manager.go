@@ -113,7 +113,11 @@ func (r *overlayRoot) Draw(ctx widget.Context, canvas widget.Canvas) {
 	if !r.IsVisible() {
 		return
 	}
+	clip := canvas.ClipBounds()
 	for _, child := range r.children {
+		if !widgetIntersectsRect(child, clip) {
+			continue
+		}
 		widget.StampScreenOrigin(child, canvas)
 		widget.DrawChild(child, ctx, canvas)
 	}
@@ -178,6 +182,25 @@ func widgetCoversPoint(child widget.Widget, position geometry.Point) bool {
 		return box.Bounds().Contains(position)
 	}
 	return false
+}
+
+func widgetIntersectsRect(child widget.Widget, rect geometry.Rect) bool {
+	if child == nil {
+		return false
+	}
+	if rect.IsEmpty() {
+		return false
+	}
+	if visible, ok := child.(interface{ IsVisible() bool }); ok && !visible.IsVisible() {
+		return false
+	}
+	if bounds, ok := child.(interface{ Bounds() geometry.Rect }); ok {
+		return bounds.Bounds().Intersects(rect)
+	}
+	if box, ok := child.(*primitives.BoxWidget); ok {
+		return box.Bounds().Intersects(rect)
+	}
+	return true
 }
 
 func (r *overlayRoot) Children() []widget.Widget {

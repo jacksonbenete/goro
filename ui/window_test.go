@@ -6,6 +6,7 @@ import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
+	"github.com/gogpu/ui/uitest"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
@@ -91,15 +92,11 @@ func TestWindowFullRedrawPublishIsIdempotent(t *testing.T) {
 
 	window.SetContent(primitives.Box())
 	window.Publish(ctx)
-	if manager.overlays[0] == root {
-		t.Fatal("content change did not replace the published root")
+	if manager.overlays[0] != root {
+		t.Fatal("content change replaced the published root")
 	}
-	replaced, ok := manager.overlays[0].(interface{ NeedsRedraw() bool })
-	if !ok {
-		t.Fatal("replaced root does not expose redraw state")
-	}
-	if !replaced.NeedsRedraw() {
-		t.Fatal("full redraw content replacement did not dirty the new root")
+	if !redraw.NeedsRedraw() {
+		t.Fatal("content replacement did not dirty the published root")
 	}
 }
 
@@ -217,6 +214,33 @@ func TestWindowDragReusesPublishedOverlay(t *testing.T) {
 	}
 }
 
+func TestDamagedPositionedOverlayClearsPreexistingChildDirty(t *testing.T) {
+	child := newWindowDragEventRecorder()
+	overlay := positionedWidget(child, 10, 20, 100, 80).(*positionedOverlay)
+	child.SetNeedsRedraw(true)
+	overlay.markFrameDirty()
+
+	overlay.Draw(widget.NewContext(), &uitest.MockCanvas{})
+
+	if child.NeedsRedraw() {
+		t.Fatal("damaged overlay left preexisting child redraw dirty for another frame")
+	}
+}
+
+func TestDamagedPositionedOverlayKeepsChildDirtyRaisedDuringDraw(t *testing.T) {
+	child := newWindowDragEventRecorder()
+	child.dirtyDuringDraw = true
+	overlay := positionedWidget(child, 10, 20, 100, 80).(*positionedOverlay)
+	child.SetNeedsRedraw(true)
+	overlay.markFrameDirty()
+
+	overlay.Draw(widget.NewContext(), &uitest.MockCanvas{})
+
+	if !child.NeedsRedraw() {
+		t.Fatal("damaged overlay cleared redraw raised by child Draw")
+	}
+}
+
 func TestScreenEdgeAnchorsUseWindowMargin(t *testing.T) {
 	ctx := client.Context{ScreenW: 800, ScreenH: 600}
 
@@ -274,7 +298,8 @@ func (a *windowDragTestApp) EndWindowDragLayer(token any) {
 
 type windowDragEventRecorder struct {
 	widget.WidgetBase
-	events int
+	events          int
+	dirtyDuringDraw bool
 }
 
 func newWindowDragEventRecorder() *windowDragEventRecorder {
@@ -290,7 +315,11 @@ func (w *windowDragEventRecorder) Layout(_ widget.Context, constraints geometry.
 	return size
 }
 
-func (w *windowDragEventRecorder) Draw(widget.Context, widget.Canvas) {}
+func (w *windowDragEventRecorder) Draw(widget.Context, widget.Canvas) {
+	if w.dirtyDuringDraw {
+		w.SetNeedsRedraw(true)
+	}
+}
 
 func (w *windowDragEventRecorder) Event(widget.Context, event.Event) bool {
 	w.events++

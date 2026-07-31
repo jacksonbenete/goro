@@ -82,6 +82,20 @@ func (b uiAppBridge) InvalidateRect(rect geometry.Rect) {
 	b.App.Window().Context().InvalidateRect(rect)
 }
 
+func (b uiAppBridge) InvalidateLayout() {
+	if b.App == nil || b.App.Window() == nil || b.App.Window().Context() == nil {
+		return
+	}
+	b.App.Window().Context().Invalidate()
+}
+
+func (b uiAppBridge) WidgetContext() widget.Context {
+	if b.App == nil || b.App.Window() == nil {
+		return nil
+	}
+	return b.App.Window().Context()
+}
+
 func (b uiAppBridge) Cursor() widget.CursorType {
 	if b.App == nil || b.App.Window() == nil || b.App.Window().Context() == nil {
 		return widget.CursorDefault
@@ -193,6 +207,20 @@ type runner struct {
 	uiDrawnOnce     bool
 	uiScale         float64
 	uiDrag          uiDragLayer
+
+	lastUpdateDuration  time.Duration
+	lastGameUpdateDur   time.Duration
+	lastUIFrameDur      time.Duration
+	lastUIWork          bool
+	lastUIRedraw        bool
+	lastUIDrawDur       time.Duration
+	lastUICanvasDrawDur time.Duration
+	lastUIFlushDur      time.Duration
+	lastUIImageDur      time.Duration
+	lastUIDirtyRegions  int
+	lastUIFullRepaint   bool
+	lastUIDirtyUnion    geometry.Rect
+	lastUIDrawStats     widget.DrawStats
 }
 
 func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) error {
@@ -583,6 +611,7 @@ func mapMouseButton(button gpucontext.MouseButton) (input.MouseButton, bool) {
 }
 
 func (r *runner) update() error {
+	updateStart := time.Now()
 	r.applyRuntimeSettings()
 	if r.duration > 0 && r.started.IsZero() {
 		r.started = time.Now()
@@ -601,12 +630,19 @@ func (r *runner) update() error {
 		}
 		glog.Infof("benchmark start duration=%s warmup=%s vsync=%v", r.duration, r.warmup, r.renderCfg.VSync)
 	}
+	gameStart := time.Now()
 	if err := r.game.Update(); err != nil {
 		return err
 	}
+	r.lastGameUpdateDur = time.Since(gameStart)
 	if r.ui != nil {
+		uiStart := time.Now()
 		r.ui.Frame()
+		r.lastUIFrameDur = time.Since(uiStart)
+	} else {
+		r.lastUIFrameDur = 0
 	}
+	r.lastUpdateDuration = time.Since(updateStart)
 	reapplyCursorMode()
 	if r.duration <= 0 {
 		return nil
@@ -676,6 +712,7 @@ func (r *runner) applyRuntimeSettings() {
 }
 
 func (r *runner) draw(ctx *gogpu.Context) error {
+	drawStart := time.Now()
 	width, height := ctx.Size()
 	if width <= 0 || height <= 0 {
 		width, height = r.width, r.height
@@ -704,6 +741,7 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	}
 	r.screen.BeginFrame()
 	r.screen.SetScreenScale(scaleX, scaleY)
+	r.resetUIDrawMeasurement()
 	r.game.Draw(r.screen)
 	if err := r.drawUIOverlay(r.screen, deviceScale); err != nil {
 		return err
@@ -730,6 +768,31 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	ctx.SetDamageRects(nil)
 	if err := r.gpu.Draw(ctx, r.screen); err != nil {
 		return err
+	}
+	drawDur := time.Since(drawStart)
+	totalDur := r.lastUpdateDuration + drawDur
+	if totalDur > 16*time.Millisecond {
+		glog.Errorf(
+			"slow frame frame=%d total_ms=%.2f threshold_ms=16.00 update_ms=%.2f game_update_ms=%.2f ui_frame_ms=%.2f draw_ms=%.2f ui_work=%t ui_redraw=%t ui_draw_ms=%.2f ui_canvas_ms=%.2f ui_flush_ms=%.2f ui_image_ms=%.2f ui_dirty_regions=%d ui_full_repaint=%t ui_union=%.0f,%.0f %.0fx%.0f",
+			r.frames,
+			durationMS(totalDur),
+			durationMS(r.lastUpdateDuration),
+			durationMS(r.lastGameUpdateDur),
+			durationMS(r.lastUIFrameDur),
+			durationMS(drawDur),
+			r.lastUIWork,
+			r.lastUIRedraw,
+			durationMS(r.lastUIDrawDur),
+			durationMS(r.lastUICanvasDrawDur),
+			durationMS(r.lastUIFlushDur),
+			durationMS(r.lastUIImageDur),
+			r.lastUIDirtyRegions,
+			r.lastUIFullRepaint,
+			r.lastUIDirtyUnion.Min.X,
+			r.lastUIDirtyUnion.Min.Y,
+			r.lastUIDirtyUnion.Width(),
+			r.lastUIDirtyUnion.Height(),
+		)
 	}
 	r.frames++
 	if !r.measureStarted.IsZero() {
@@ -801,6 +864,23 @@ func framebufferScale(width, height, framebufferW, framebufferH int) (float32, f
 	return scaleX, scaleY
 }
 
+func durationMS(d time.Duration) float64 {
+	return float64(d.Microseconds()) / 1000
+}
+
+func (r *runner) resetUIDrawMeasurement() {
+	r.lastUIWork = false
+	r.lastUIRedraw = false
+	r.lastUIDrawDur = 0
+	r.lastUICanvasDrawDur = 0
+	r.lastUIFlushDur = 0
+	r.lastUIImageDur = 0
+	r.lastUIDirtyRegions = 0
+	r.lastUIFullRepaint = false
+	r.lastUIDirtyUnion = geometry.Rect{}
+	r.lastUIDrawStats = widget.DrawStats{}
+}
+
 func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) error {
 	if r.renderCfg.NoUI {
 		return nil
@@ -843,8 +923,11 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 	win := r.ui.Window()
 	needsWork := !r.uiDrawnOnce || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
 	if needsWork {
+		r.lastUIWork = true
+		uiStart := time.Now()
 		win.ClearAnimationFrame()
 		drawn := false
+		canvasStart := time.Now()
 		if err := r.uiCanvas.Draw(func(cc *gg.Context) {
 			baseCanvas := uirender.NewCanvas(cc, width, height)
 			canvas := widget.Canvas(scaledImageCanvas{Canvas: baseCanvas, scale: float32(deviceScale)})
@@ -856,12 +939,47 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 		}); err != nil {
 			return fmt.Errorf("draw ui canvas: %w", err)
 		}
+		canvasDur := time.Since(canvasStart)
+		var flushDur time.Duration
+		var imageDur time.Duration
 		if drawn {
+			r.lastUIRedraw = true
 			r.uiDrawnOnce = true
+			flushStart := time.Now()
 			if _, err := r.uiCanvas.Flush(); err != nil {
 				return fmt.Errorf("flush ui canvas: %w", err)
 			}
+			flushDur = time.Since(flushStart)
+			imageStart := time.Now()
 			r.updateUIImage()
+			imageDur = time.Since(imageStart)
+		}
+		uiDur := time.Since(uiStart)
+		r.lastUIDrawDur += uiDur
+		r.lastUICanvasDrawDur += canvasDur
+		r.lastUIFlushDur += flushDur
+		r.lastUIImageDur += imageDur
+		r.lastUIDirtyRegions = win.DirtyRegionCount()
+		r.lastUIFullRepaint = win.WasFullRepaint()
+		r.lastUIDirtyUnion = win.LastDirtyUnion()
+		r.lastUIDrawStats = win.LastDrawStats()
+		if uiDur > 16*time.Millisecond {
+			union := win.LastDirtyUnion()
+			glog.Errorf(
+				"slow ui redraw ms=%.2f canvas_ms=%.2f flush_ms=%.2f image_ms=%.2f drawn=%t dirty_regions=%d full=%t union=%.0f,%.0f %.0fx%.0f stats=%+v",
+				durationMS(uiDur),
+				durationMS(canvasDur),
+				durationMS(flushDur),
+				durationMS(imageDur),
+				drawn,
+				win.DirtyRegionCount(),
+				win.WasFullRepaint(),
+				union.Min.X,
+				union.Min.Y,
+				union.Width(),
+				union.Height(),
+				win.LastDrawStats(),
+			)
 		}
 	}
 	if !r.uiDrawnOnce || r.uiImage == nil {

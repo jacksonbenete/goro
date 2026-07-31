@@ -55,13 +55,19 @@ type ChatConsole struct {
 
 	OnGuildWindow func()
 
-	ctx        client.Context
-	window     Window
-	inputField *textfield.Widget
-	scrollY    state.Signal[float32]
-	cacheKey   string
-	messageH   int
-	messageW   int
+	ctx                       client.Context
+	window                    Window
+	inputField                *textfield.Widget
+	scrollY                   state.Signal[float32]
+	cacheKey                  string
+	renderedMessagesKey       string
+	renderedMessagesKeyValid  bool
+	pendingMessageRedraw      bool
+	pendingMessageRedrawReady bool
+	playerMarkerKey           string
+	playerMarkerStableUpdates int
+	messageH                  int
+	messageW                  int
 }
 
 func (c *ChatConsole) Active() bool {
@@ -70,9 +76,12 @@ func (c *ChatConsole) Active() bool {
 
 func (c *ChatConsole) Update(ctx client.Context) bool {
 	c.ctx = ctx
+	c.updatePlayerMarkerStability(ctx)
+	c.flushPendingMessageRedraw(ctx)
 	c.ensureWindow(ctx)
 	c.syncActiveFromField()
 	defer c.Publish(ctx)
+	defer c.armPendingMessageRedraw()
 	if ctx.Input == nil {
 		return false
 	}
@@ -126,13 +135,15 @@ func (c *ChatConsole) ensureWindow(ctx client.Context) {
 	c.window.SetAutoPosition(x, y)
 	c.window.SetSize(width, height)
 	if !c.window.IsOpen() {
-		c.cacheKey = key
-		c.window.OpenAt(x, y, c.widgetTree(width, height))
+		content := c.widgetTree(width, height)
+		c.cacheKey = c.renderKey(width, height)
+		c.window.OpenAt(x, y, content)
 		return
 	}
 	if c.cacheKey != key {
-		c.cacheKey = key
-		c.window.SetContent(c.widgetTree(width, height))
+		content := c.widgetTree(width, height)
+		c.cacheKey = c.renderKey(width, height)
+		c.window.SetContent(content)
 	}
 }
 
@@ -179,8 +190,7 @@ func (c *ChatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 		copy(c.messages, c.messages[len(c.messages)-80:])
 		c.messages = c.messages[:80]
 	}
-	c.invalidate()
-	c.scrollToBottom()
+	c.scheduleMessageRedraw()
 }
 
 func (c *ChatConsole) submit(ctx client.Context) {
@@ -811,6 +821,10 @@ func (c *ChatConsole) nextInput() {
 }
 
 func (c *ChatConsole) widgetTree(width, height int) widget.Widget {
+	c.renderedMessagesKey = c.messagesKey()
+	c.renderedMessagesKeyValid = true
+	c.pendingMessageRedraw = false
+	c.pendingMessageRedrawReady = false
 	contentWidth := maxInt(1, width-16)
 	c.messageW = maxInt(1, scrollbarSafeIntWidth(contentWidth)-4)
 	wrappedLines := wrapConsoleMessages(c.visibleLines(), c.messageW)
@@ -881,11 +895,79 @@ func consoleBottomScrollY(lines int, viewportHeight int) float32 {
 }
 
 func (c *ChatConsole) renderKey(width, height int) string {
-	return fmt.Sprintf("%dx%d:%s", width, height, c.messagesKey())
+	messageKey := c.messagesKey()
+	if c.pendingMessageRedraw && c.renderedMessagesKeyValid {
+		messageKey = c.renderedMessagesKey
+	}
+	return fmt.Sprintf("%dx%d:%s", width, height, messageKey)
 }
 
 func (c *ChatConsole) invalidate() {
 	c.cacheKey = ""
+}
+
+func (c *ChatConsole) scheduleMessageRedraw() {
+	if c.window.IsOpen() && c.cacheKey != "" {
+		c.pendingMessageRedraw = true
+		c.pendingMessageRedrawReady = false
+		return
+	}
+	c.invalidate()
+	c.scrollToBottom()
+}
+
+func (c *ChatConsole) armPendingMessageRedraw() {
+	if c.pendingMessageRedraw {
+		c.pendingMessageRedrawReady = true
+	}
+}
+
+func (c *ChatConsole) flushPendingMessageRedraw(ctx client.Context) {
+	if !c.pendingMessageRedraw || !c.pendingMessageRedrawReady {
+		return
+	}
+	// Minimap marker redraws are queued after player cell changes. Wait for that
+	// frame so pickup messages do not merge the top-left status and bottom console
+	// dirty regions into one tall repaint.
+	if !c.playerMarkerSettled(ctx) {
+		return
+	}
+	c.pendingMessageRedraw = false
+	c.pendingMessageRedrawReady = false
+	c.invalidate()
+	c.scrollToBottom()
+}
+
+func (c *ChatConsole) updatePlayerMarkerStability(ctx client.Context) {
+	key, ok := consolePlayerMarkerKey(ctx)
+	if !ok {
+		c.playerMarkerKey = ""
+		c.playerMarkerStableUpdates = 0
+		return
+	}
+	if c.playerMarkerKey != key {
+		c.playerMarkerKey = key
+		c.playerMarkerStableUpdates = 0
+		return
+	}
+	if c.playerMarkerStableUpdates < 3 {
+		c.playerMarkerStableUpdates++
+	}
+}
+
+func (c *ChatConsole) playerMarkerSettled(ctx client.Context) bool {
+	if ctx.World == nil {
+		return true
+	}
+	return c.playerMarkerStableUpdates >= 2
+}
+
+func consolePlayerMarkerKey(ctx client.Context) (string, bool) {
+	if ctx.World == nil {
+		return "", false
+	}
+	player := ctx.World.Player
+	return fmt.Sprintf("%s:%d:%d:%d", ctx.World.MapName, player.X, player.Y, player.Dir), true
 }
 
 func (c *ChatConsole) messagesKey() string {

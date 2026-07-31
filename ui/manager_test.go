@@ -13,6 +13,7 @@ import (
 type countingOverlay struct {
 	widget.WidgetBase
 	events int
+	draws  int
 }
 
 func newCountingOverlay() *countingOverlay {
@@ -28,7 +29,7 @@ func (w *countingOverlay) Layout(_ widget.Context, constraints geometry.Constrai
 	return size
 }
 
-func (w *countingOverlay) Draw(widget.Context, widget.Canvas) {}
+func (w *countingOverlay) Draw(widget.Context, widget.Canvas) { w.draws++ }
 
 func (w *countingOverlay) Event(widget.Context, event.Event) bool {
 	w.events++
@@ -72,4 +73,36 @@ func TestTopOverlayBlocksLowerOverlayEvents(t *testing.T) {
 	if lower.events != 0 {
 		t.Fatalf("lower overlay events = %d, want 0", lower.events)
 	}
+}
+
+func TestOverlayRootDrawSkipsChildrenOutsideClip(t *testing.T) {
+	left := newCountingOverlay()
+	right := newCountingOverlay()
+	root := newOverlayRoot([]widget.Widget{
+		positionedWidget(left, 10, 20, 40, 30),
+		positionedWidget(right, 200, 20, 40, 30),
+	})
+	root.Layout(nil, geometry.Tight(geometry.Sz(300, 100)))
+
+	canvas := clippedOverlayCanvas{
+		MockCanvas: uitest.MockCanvas{},
+		clip:       geometry.NewRect(190, 0, 80, 80),
+	}
+	root.Draw(nil, &canvas)
+
+	if left.draws != 0 {
+		t.Fatalf("left overlay draws = %d, want 0", left.draws)
+	}
+	if right.draws != 1 {
+		t.Fatalf("right overlay draws = %d, want 1", right.draws)
+	}
+}
+
+type clippedOverlayCanvas struct {
+	uitest.MockCanvas
+	clip geometry.Rect
+}
+
+func (c *clippedOverlayCanvas) ClipBounds() geometry.Rect {
+	return c.clip
 }

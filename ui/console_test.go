@@ -6,6 +6,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
+	worldstate "github.com/kivutar/goro/world"
 )
 
 func TestConsoleNoShiftCommandTogglesSessionPreference(t *testing.T) {
@@ -222,6 +223,81 @@ func TestConsoleTypingAndRefocusScrollToBottom(t *testing.T) {
 	console.setActive(true)
 	if got := console.ensureScrollSignal().Get(); got != bottom {
 		t.Fatalf("refocus scroll = %f, want %f", got, bottom)
+	}
+}
+
+func TestConsoleMessageRedrawDefersOneUpdate(t *testing.T) {
+	console := &ChatConsole{}
+	ctx := client.Context{
+		Input:     input.NewState(),
+		ScreenW:   800,
+		ScreenH:   600,
+		UIManager: NewManager(),
+	}
+
+	console.Update(ctx)
+	initialKey := console.cacheKey
+	if initialKey == "" {
+		t.Fatal("console did not cache its initial content")
+	}
+
+	console.AddBlueMessage("You got Jellopy (1).")
+	if !console.pendingMessageRedraw || console.pendingMessageRedrawReady {
+		t.Fatalf("pending redraw = %t ready = %t, want pending not ready", console.pendingMessageRedraw, console.pendingMessageRedrawReady)
+	}
+
+	console.Update(ctx)
+	if console.cacheKey != initialKey {
+		t.Fatal("message redraw happened in the packet frame")
+	}
+	if !console.pendingMessageRedraw || !console.pendingMessageRedrawReady {
+		t.Fatalf("pending redraw = %t ready = %t, want armed for next update", console.pendingMessageRedraw, console.pendingMessageRedrawReady)
+	}
+
+	console.Update(ctx)
+	if console.cacheKey == initialKey {
+		t.Fatal("message redraw was not flushed on the following update")
+	}
+	if console.pendingMessageRedraw || console.pendingMessageRedrawReady {
+		t.Fatalf("pending redraw = %t ready = %t, want cleared", console.pendingMessageRedraw, console.pendingMessageRedrawReady)
+	}
+}
+
+func TestConsoleMessageRedrawWaitsForStablePlayerMarker(t *testing.T) {
+	console := &ChatConsole{}
+	world := worldstate.New()
+	world.MapName = "prt_fild08"
+	world.Player.X = 10
+	world.Player.Y = 10
+	world.Player.Dir = 0
+	ctx := client.Context{
+		Input:     input.NewState(),
+		ScreenW:   800,
+		ScreenH:   600,
+		UIManager: NewManager(),
+		World:     world,
+	}
+
+	console.Update(ctx)
+	console.Update(ctx)
+	console.Update(ctx)
+	initialKey := console.cacheKey
+
+	world.Player.X = 11
+	console.AddBlueMessage("You got Apple (1).")
+	console.Update(ctx)
+	if console.cacheKey != initialKey {
+		t.Fatal("message redraw flushed on the marker-change update")
+	}
+
+	console.Update(ctx)
+	if console.cacheKey != initialKey {
+		t.Fatal("message redraw flushed before the minimap marker frame could drain")
+	}
+
+	console.Update(ctx)
+	if console.cacheKey == initialKey {
+		t.Fatal("message redraw did not flush after the marker became stable")
 	}
 }
 

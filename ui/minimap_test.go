@@ -81,7 +81,7 @@ func TestMinimapCellToScreenUsesCenteredProjection(t *testing.T) {
 	}
 }
 
-func TestMinimapUpdateRedrawsImmediatelyWhenPlayerMarkerChanges(t *testing.T) {
+func TestMinimapUpdateDefersPlayerMarkerRedraw(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "prontera"
 	world.SetPlayerPosition(10, 20, 4)
@@ -105,36 +105,52 @@ func TestMinimapUpdateRedrawsImmediatelyWhenPlayerMarkerChanges(t *testing.T) {
 
 	world.SetPlayerPosition(11, 20, 4)
 	m.Update(ctx)
-	if !m.widget.NeedsRedraw() {
-		t.Fatal("player marker move did not dirty minimap immediately")
+	if m.widget.NeedsRedraw() {
+		t.Fatal("player marker move dirtied minimap in the same update")
 	}
-	if redraw, ok := m.window.published.(interface{ NeedsRedraw() bool }); !ok || !redraw.NeedsRedraw() {
-		t.Fatal("player marker move did not dirty minimap overlay root")
+	if !m.pendingMarker {
+		t.Fatal("player marker move did not queue a deferred redraw")
+	}
+	if app.invalidates != 0 {
+		t.Fatal("queued player marker redraw invalidated UI in the same update")
+	}
+
+	m.Update(ctx)
+	if !m.widget.NeedsRedraw() {
+		t.Fatal("deferred player marker move did not dirty minimap")
 	}
 	if app.invalidates == 0 {
-		t.Fatal("player marker move did not invalidate UI app")
+		t.Fatal("deferred player marker move did not invalidate UI app")
 	}
 	widget.ClearRedrawInTree(m.window.published)
 	app.invalidates = 0
 
 	world.SetPlayerPosition(12, 20, 4)
 	m.Update(ctx)
+	if m.widget.NeedsRedraw() {
+		t.Fatal("second player marker move dirtied minimap in the same update")
+	}
+	m.Update(ctx)
 	if !m.widget.NeedsRedraw() {
-		t.Fatal("second player marker move did not dirty minimap immediately")
+		t.Fatal("second deferred player marker move did not dirty minimap")
 	}
 	if app.invalidates == 0 {
-		t.Fatal("second player marker move did not invalidate UI app")
+		t.Fatal("second deferred player marker move did not invalidate UI app")
 	}
 	widget.ClearRedrawInTree(m.window.published)
 	app.invalidates = 0
 
 	world.SetPlayerPosition(12, 20, 5)
 	m.Update(ctx)
+	if m.widget.NeedsRedraw() {
+		t.Fatal("player marker direction change dirtied minimap in the same update")
+	}
+	m.Update(ctx)
 	if !m.widget.NeedsRedraw() {
-		t.Fatal("player marker direction change did not dirty minimap immediately")
+		t.Fatal("deferred player marker direction change did not dirty minimap")
 	}
 	if app.invalidates == 0 {
-		t.Fatal("player marker direction change did not invalidate UI app")
+		t.Fatal("deferred player marker direction change did not invalidate UI app")
 	}
 }
 

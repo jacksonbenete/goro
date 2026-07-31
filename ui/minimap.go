@@ -35,26 +35,28 @@ var (
 )
 
 type Minimap struct {
-	mapName         string
-	img             image.Image
-	mapImageTried   bool
-	scaled          image.Image
-	scaledKey       string
-	arrow           image.Image
-	arrowLoadTried  bool
-	arrowVariants   [8]image.Image
-	window          Window
-	widget          *minimapWidget
-	hidden          bool
-	markerMap       string
-	markerX         int
-	markerY         int
-	markerDir       int
-	hasPosition     bool
-	visualKey       string
-	compass         map[uint8]minimapCompassMarker
-	compassRevision uint64
-	compassDrawnRev uint64
+	mapName          string
+	img              image.Image
+	mapImageTried    bool
+	scaled           image.Image
+	scaledKey        string
+	arrow            image.Image
+	arrowLoadTried   bool
+	arrowVariants    [8]image.Image
+	window           Window
+	widget           *minimapWidget
+	hidden           bool
+	markerMap        string
+	markerX          int
+	markerY          int
+	markerDir        int
+	hasPosition      bool
+	visualKey        string
+	compass          map[uint8]minimapCompassMarker
+	compassRevision  uint64
+	compassDrawnRev  uint64
+	pendingMarker    bool
+	pendingMarkerOld minimapPlayerMarkerState
 }
 
 type minimapRect struct {
@@ -71,6 +73,15 @@ type minimapCompassMarker struct {
 	y       int
 	color   color.RGBA
 	expires time.Time
+}
+
+type minimapPlayerMarkerState struct {
+	valid bool
+	mapID string
+	x     int
+	y     int
+	dir   int
+	arrow image.Image
 }
 
 func (m *Minimap) Update(ctx Context) bool {
@@ -98,6 +109,7 @@ func (m *Minimap) Update(ctx Context) bool {
 	if m.widget == nil {
 		m.widget = newMinimapWidget()
 	}
+	oldMarker := m.playerMarkerState()
 	m.widget.ctx = ctx
 	m.widget.image = m.scaledImage(minimapContentMapSize(w, h))
 	m.widget.arrow = m.playerArrow(ctx.World.Player.Dir)
@@ -107,7 +119,10 @@ func (m *Minimap) Update(ctx Context) bool {
 	visualKey := m.currentVisualKey(ctx, now)
 	visualChanged := visualKey != m.visualKey
 	needsPublish := false
-	needsRedraw := mapChanged || markerChanged || visualChanged || compassChanged || m.compassDrawnRev != m.compassRevision || len(m.widget.compassMarkers) > 0
+	fullRedraw := mapChanged || visualChanged || compassChanged || m.compassDrawnRev != m.compassRevision || len(m.widget.compassMarkers) > 0
+	markerOnly := markerChanged && !fullRedraw
+	drawPendingMarker := m.pendingMarker && !markerChanged
+	needsRedraw := fullRedraw || drawPendingMarker
 	if !m.window.IsOpen() {
 		m.window.OpenAt(x, y, m.widgetTree())
 		needsPublish = true
@@ -121,11 +136,21 @@ func (m *Minimap) Update(ctx Context) bool {
 	}
 	if needsPublish {
 		m.window.Publish(ctx)
+		m.clearPendingMarker()
 		m.markRedraw(ctx)
 		m.compassDrawnRev = m.compassRevision
 	} else if needsRedraw {
-		m.markRedraw(ctx)
+		if fullRedraw {
+			m.clearPendingMarker()
+			m.markRedraw(ctx)
+		} else if drawPendingMarker {
+			m.markPlayerMarkerRedraw(ctx, m.pendingMarkerOld)
+			m.clearPendingMarker()
+		}
 		m.compassDrawnRev = m.compassRevision
+	}
+	if markerOnly {
+		m.queuePendingMarker(oldMarker)
 	}
 	m.visualKey = visualKey
 	return false
@@ -206,6 +231,30 @@ func (m *Minimap) playerMarkerChanged(x, y, dir int) bool {
 	return true
 }
 
+func (m *Minimap) playerMarkerState() minimapPlayerMarkerState {
+	return minimapPlayerMarkerState{
+		valid: m.hasPosition,
+		mapID: m.markerMap,
+		x:     m.markerX,
+		y:     m.markerY,
+		dir:   m.markerDir,
+		arrow: m.playerArrow(m.markerDir),
+	}
+}
+
+func (m *Minimap) queuePendingMarker(old minimapPlayerMarkerState) {
+	if m.pendingMarker {
+		return
+	}
+	m.pendingMarker = true
+	m.pendingMarkerOld = old
+}
+
+func (m *Minimap) clearPendingMarker() {
+	m.pendingMarker = false
+	m.pendingMarkerOld = minimapPlayerMarkerState{}
+}
+
 func (m *Minimap) playerArrow(dir int) image.Image {
 	if m.arrow == nil {
 		return nil
@@ -271,6 +320,32 @@ func (m *Minimap) markRedraw(ctx Context) {
 	}
 }
 
+func (m *Minimap) markPlayerMarkerRedraw(ctx Context, old minimapPlayerMarkerState) {
+	if m.widget == nil || ctx.World == nil {
+		m.markRedraw(ctx)
+		return
+	}
+	current := minimapPlayerMarkerState{
+		valid: true,
+		mapID: m.mapName,
+		x:     ctx.World.Player.X,
+		y:     ctx.World.Player.Y,
+		dir:   normalizeMinimapDirection(ctx.World.Player.Dir),
+		arrow: m.widget.arrow,
+	}
+	if !m.widget.markPlayerDirty(old, current) {
+		m.markRedraw(ctx)
+		return
+	}
+	if ctx.UIApp != nil {
+		if app, ok := ctx.UIApp.(rectInvalidatingUIApp); ok {
+			app.InvalidateRect(m.widget.ScreenBounds())
+		} else {
+			ctx.UIApp.Invalidate()
+		}
+	}
+}
+
 func (m *Minimap) clearCompassMarkers() bool {
 	if len(m.compass) == 0 {
 		return false
@@ -321,7 +396,7 @@ func (m *Minimap) currentVisualKey(ctx Context, now time.Time) string {
 		return ""
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "map=%s|pos=%d,%d,%d|img=%s|arrow=%s|compass=%d", m.mapName, ctx.World.Player.X, ctx.World.Player.Y, normalizeMinimapDirection(ctx.World.Player.Dir), minimapImageStateKey(m.widget.image), minimapImageStateKey(m.widget.arrow), m.compassRevision)
+	fmt.Fprintf(&b, "map=%s|img=%s|compass=%d", m.mapName, minimapImageStateKey(m.widget.image), m.compassRevision)
 	if len(m.widget.compassMarkers) > 0 {
 		fmt.Fprintf(&b, "|blink=%d", minimapCompassBlinkPhase(now, ctx.Started))
 		for _, marker := range m.widget.compassMarkers {
@@ -396,6 +471,7 @@ type minimapWidget struct {
 	arrow          image.Image
 	now            time.Time
 	compassMarkers []minimapCompassMarker
+	dirtyRect      geometry.Rect
 }
 
 func newMinimapWidget() *minimapWidget {
@@ -440,6 +516,47 @@ func (w *minimapWidget) Event(_ widget.Context, _ event.Event) bool {
 	return false
 }
 
+func (w *minimapWidget) ScreenBounds() geometry.Rect {
+	if w.NeedsRedraw() && !w.dirtyRect.IsEmpty() {
+		bounds := w.WidgetBase.Bounds()
+		screen := w.WidgetBase.ScreenBounds()
+		return w.dirtyRect.TranslateXY(screen.Min.X-bounds.Min.X, screen.Min.Y-bounds.Min.Y)
+	}
+	return w.WidgetBase.ScreenBounds()
+}
+
+func (w *minimapWidget) ClearRedraw() {
+	w.WidgetBase.ClearRedraw()
+	w.dirtyRect = geometry.Rect{}
+}
+
+func (w *minimapWidget) markPlayerDirty(old, current minimapPlayerMarkerState) bool {
+	if w.ctx.World == nil || !current.valid {
+		return false
+	}
+	bounds := w.Bounds()
+	if bounds.IsEmpty() {
+		return false
+	}
+	mapW, mapH := minimapWorldSize(w.ctx.World)
+	if mapW <= 0 || mapH <= 0 {
+		return false
+	}
+	mapRect := minimapContentMapRect(bounds)
+	dirty := minimapPlayerMarkerDirtyRect(mapRect, mapW, mapH, current)
+	if old.valid && old.mapID == current.mapID {
+		dirty = dirty.Union(minimapPlayerMarkerDirtyRect(mapRect, mapW, mapH, old))
+	}
+	dirty = dirty.Union(minimapCoordsDirtyRect(bounds))
+	dirty = dirty.Intersection(bounds)
+	if dirty.IsEmpty() {
+		return false
+	}
+	w.dirtyRect = dirty
+	w.SetNeedsRedraw(true)
+	return true
+}
+
 func minimapContentMapRect(bounds geometry.Rect) minimapRect {
 	available := int(bounds.Height()) - minimapInfoBandH - minimapPad
 	size := minInt(int(bounds.Width())-2*minimapPad, available)
@@ -469,6 +586,25 @@ func drawMinimapPlayerMarker(canvas widget.Canvas, rect minimapRect, mapW, mapH,
 	}
 	bounds := arrow.Bounds()
 	canvas.DrawImage(arrow, geometry.Pt(float32(x-bounds.Dx()/2), float32(y-bounds.Dy()/2)))
+}
+
+func minimapPlayerMarkerDirtyRect(rect minimapRect, mapW, mapH int, marker minimapPlayerMarkerState) geometry.Rect {
+	x, y, ok := minimapCellToScreen(rect, mapW, mapH, marker.x, marker.y)
+	if !ok {
+		return geometry.Rect{}
+	}
+	width, height := 11, 11
+	if marker.arrow != nil {
+		bounds := marker.arrow.Bounds()
+		width = maxInt(width, bounds.Dx())
+		height = maxInt(height, bounds.Dy())
+	}
+	return geometry.NewRect(float32(x-width/2), float32(y-height/2), float32(width), float32(height)).Expand(4)
+}
+
+func minimapCoordsDirtyRect(bounds geometry.Rect) geometry.Rect {
+	footerY := bounds.Min.Y + bounds.Height() - 19
+	return geometry.NewRect(bounds.Min.X+bounds.Width()/2-2, footerY-2, bounds.Width()/2-minimapPad+4, 20)
 }
 
 func drawMinimapMarker(canvas widget.Canvas, rect minimapRect, mapW, mapH, cellX, cellY int, fill color.RGBA, radius int) {
