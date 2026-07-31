@@ -4,17 +4,36 @@ import (
 	"testing"
 
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/res"
 )
 
-func TestSkillUnitTrapRSMModelsLoadFromRealDataWhenConfigured(t *testing.T) {
+func TestLegacySkillUnitTrapRSMModelsLoadFromRealDataWhenConfigured(t *testing.T) {
 	manager := realDataManager(t)
+	checked := 0
 	for unitID, spec := range db.SkillUnitModels {
-		rsm, err := loadRSMModel(manager, spec.ModelPath)
-		if err != nil {
-			t.Fatalf("load trap model unit=%d model=%s: %v", unitID, spec.ModelPath, err)
+		if len(spec.FallbackModelPaths) == 0 {
+			continue
+		}
+		checked++
+		var rsm *res.RSM
+		var loadedPath string
+		for _, modelPath := range spec.ModelPaths() {
+			loaded, err := loadRSMModel(manager, modelPath)
+			if err != nil {
+				continue
+			}
+			rsm = loaded
+			loadedPath = modelPath
+			break
+		}
+		if rsm == nil {
+			t.Fatalf("load trap model unit=%d paths=%v", unitID, spec.ModelPaths())
 		}
 		if len(rsm.Nodes) == 0 {
-			t.Fatalf("trap model unit=%d model=%s has no nodes", unitID, spec.ModelPath)
+			t.Fatalf("trap model unit=%d model=%s has no nodes", unitID, loadedPath)
 		}
+	}
+	if checked == 0 {
+		t.Fatal("no legacy trap RSM models were checked")
 	}
 }

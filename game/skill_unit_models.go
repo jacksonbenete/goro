@@ -18,7 +18,11 @@ type skillUnitModel struct {
 	x               int
 	y               int
 	modelPath       string
+	modelFallbacks  []string
 	triggerEffectID int
+	scale           float64
+	fixedFrame      int
+	hasFixedFrame   bool
 }
 
 func skillUnitModelSpec(unitID uint16) (db.SkillUnitModelSpec, bool) {
@@ -32,7 +36,11 @@ func skillUnitModelFromEntry(entry network.SkillUnitEntry, spec db.SkillUnitMode
 		x:               int(entry.X),
 		y:               int(entry.Y),
 		modelPath:       spec.ModelPath,
+		modelFallbacks:  append([]string(nil), spec.FallbackModelPaths...),
 		triggerEffectID: spec.TriggerEffectID,
+		scale:           spec.Scale,
+		fixedFrame:      spec.FixedFrame,
+		hasFixedFrame:   spec.HasFixedFrame,
 	}
 }
 
@@ -157,10 +165,13 @@ func (m *WorldMode) drawSkillUnitRSMModels(screen *render.Frame, ctx client.Cont
 		}
 		rsm := m.runtimeRSMModel(ctx.Resources, unit.modelPath)
 		if rsm == nil {
+			rsm, unit.modelPath = m.runtimeSkillUnitFallbackRSMModel(ctx.Resources, unit)
+		}
+		if rsm == nil {
 			continue
 		}
 		placement := skillUnitRSMPlacement(ctx.World, id, unit)
-		frame, _ := rsmAnimationFrame(rsm, placement.model, now)
+		frame, _ := skillUnitRSMFrame(rsm, placement.model, unit, now)
 		m.drawAnimatedRSMPlacement(screen, ctx.Resources, ctx.World.RSW, rsm, placement, frame)
 	}
 }
@@ -185,9 +196,23 @@ func (m *WorldMode) runtimeRSMModel(manager *res.Manager, modelPath string) *res
 	return rsm
 }
 
+func (m *WorldMode) runtimeSkillUnitFallbackRSMModel(manager *res.Manager, unit skillUnitModel) (*res.RSM, string) {
+	for _, modelPath := range unit.modelFallbacks {
+		rsm := m.runtimeRSMModel(manager, modelPath)
+		if rsm != nil {
+			return rsm, modelPath
+		}
+	}
+	return nil, ""
+}
+
 func skillUnitRSMPlacement(world *worldstate.World, id uint32, unit skillUnitModel) visibleRSMPlacement {
 	baseX := cellCenter(float64(unit.x))
 	baseY := cellCenter(float64(unit.y))
+	scale := unit.scale
+	if scale == 0 {
+		scale = 1
+	}
 	return visibleRSMPlacement{
 		index: int(id),
 		model: res.RSWModel{
@@ -196,9 +221,16 @@ func skillUnitRSMPlacement(world *worldstate.World, id uint32, unit skillUnitMod
 			Position: res.RSWVector3{
 				Y: float32(terrainHeightAt(world, float64(unit.x), float64(unit.y))),
 			},
-			Scale: res.RSWVector3{X: 1, Y: 1, Z: 1},
+			Scale: res.RSWVector3{X: float32(scale), Y: float32(scale), Z: float32(scale)},
 		},
 		baseX: baseX,
 		baseY: baseY,
 	}
+}
+
+func skillUnitRSMFrame(rsm *res.RSM, placement res.RSWModel, unit skillUnitModel, now time.Time) (int, bool) {
+	if unit.hasFixedFrame {
+		return unit.fixedFrame, false
+	}
+	return rsmAnimationFrame(rsm, placement, now)
 }

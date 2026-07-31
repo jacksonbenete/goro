@@ -13038,6 +13038,48 @@ func TestTrapSkillUnitEntryAddsRuntimeRSMModel(t *testing.T) {
 	if unit.unitID != 145 || unit.x != 12 || unit.y != 34 || unit.modelPath != db.SkillUnitModels[145].ModelPath {
 		t.Fatalf("trap model = %+v", unit)
 	}
+	if len(unit.modelFallbacks) != 1 || unit.modelFallbacks[0] != "effect\\trap03.rsm" {
+		t.Fatalf("trap fallbacks = %+v", unit.modelFallbacks)
+	}
+	if unit.scale != 0.15 || !unit.hasFixedFrame || unit.fixedFrame != 3 {
+		t.Fatalf("trap render controls = scale %.3f fixed=%t frame=%d", unit.scale, unit.hasFixedFrame, unit.fixedFrame)
+	}
+}
+
+func TestRobrowserRSMTrapSkillUnitModelsUseTrapRenderControls(t *testing.T) {
+	expected := map[uint16]string{
+		143: "외부소품\\트랩03_3.rsm",
+		144: "외부소품\\트랩02.rsm",
+		145: "외부소품\\트랩01.rsm",
+		147: "외부소품\\트랩03.rsm",
+		148: "외부소품\\트랩03_6.rsm",
+		149: "외부소품\\트랩03_4.rsm",
+		150: "외부소품\\트랩03_5.rsm",
+		151: "외부소품\\트랩03_2.rsm",
+		152: "외부소품\\트랩04.rsm",
+		153: "외부소품\\트랩05.rsm",
+		210: "event\\3차트랩_변화01.rsm",
+		211: "event\\3차트랩_변수01.rsm",
+		212: "event\\3차트랩_변지01.rsm",
+		213: "event\\3차트랩_변풍01.rsm",
+		214: "event\\3차트랩_화01.rsm",
+		215: "event\\3차트랩_수01.rsm",
+		216: "event\\3차트랩_풍01.rsm",
+		217: "event\\3차트랩_지01.rsm",
+		229: "event\\3차트랩_가시01.rsm",
+	}
+	for unitID, wantPath := range expected {
+		spec, ok := db.SkillUnitModels[unitID]
+		if !ok {
+			t.Fatalf("trap unit %d is not mapped", unitID)
+		}
+		if spec.ModelPath != wantPath {
+			t.Fatalf("trap unit %d model = %q, want %q", unitID, spec.ModelPath, wantPath)
+		}
+		if spec.Scale != 0.15 || !spec.HasFixedFrame || spec.FixedFrame != 3 {
+			t.Fatalf("trap unit %d render controls = scale %.3f fixed=%t frame=%d", unitID, spec.Scale, spec.HasFixedFrame, spec.FixedFrame)
+		}
+	}
 }
 
 func TestHiddenTrapSkillUnitUpdateRevealsRuntimeRSMModel(t *testing.T) {
@@ -13126,6 +13168,37 @@ func TestSkillUnitRSMPlacementUsesCellCenterAndTerrainHeight(t *testing.T) {
 	}
 	if placement.model.Scale != (res.RSWVector3{X: 1, Y: 1, Z: 1}) {
 		t.Fatalf("scale = %+v, want 1,1,1", placement.model.Scale)
+	}
+}
+
+func TestTrapSkillUnitRSMPlacementUsesEffectScale(t *testing.T) {
+	world := worldstate.New()
+	unit := skillUnitModel{unitID: 145, x: 1, y: 1, modelPath: db.SkillUnitModels[145].ModelPath, scale: db.SkillUnitModels[145].Scale}
+
+	placement := skillUnitRSMPlacement(world, 9206, unit)
+
+	want := res.RSWVector3{X: 0.15, Y: 0.15, Z: 0.15}
+	if placement.model.Scale != want {
+		t.Fatalf("scale = %+v, want skill-unit trap scale %+v", placement.model.Scale, want)
+	}
+}
+
+func TestTrapSkillUnitRSMFrameUsesClassicClientFixedFrame(t *testing.T) {
+	rsm := &res.RSM{
+		AnimLength: 12,
+		Nodes: []res.RSMNode{{
+			Name: "root",
+			PositionKeyframes: []res.RSMPositionKeyframe{
+				{Frame: 0},
+				{Frame: 12, Pos: res.RSMVector3{X: 12}},
+			},
+		}},
+	}
+	unit := skillUnitModel{hasFixedFrame: true, fixedFrame: 3}
+
+	frame, animated := skillUnitRSMFrame(rsm, res.RSWModel{}, unit, time.UnixMilli(1000))
+	if animated || frame != 3 {
+		t.Fatalf("trap RSM frame = %d animated=%t, want fixed frame 3", frame, animated)
 	}
 }
 
