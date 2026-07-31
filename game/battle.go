@@ -1672,6 +1672,33 @@ func (m *WorldMode) actorDeathAlpha(id uint32, now time.Time) float64 {
 	return alpha
 }
 
+func (m *WorldMode) actorVisualAlpha(id uint32, now time.Time) float64 {
+	return math.Min(m.actorDeathAlpha(id, now), m.actorVanishAlpha(id, now))
+}
+
+func (m *WorldMode) actorVanishAlpha(id uint32, now time.Time) float64 {
+	fade, ok := m.actorVanishes[id]
+	if !ok {
+		return 1
+	}
+	total := fade.removeAt.Sub(fade.started)
+	if total <= 0 {
+		return 0
+	}
+	elapsed := now.Sub(fade.started)
+	if elapsed <= 0 {
+		return 1
+	}
+	alpha := 1 - float64(elapsed)/float64(total)
+	if alpha < 0 {
+		return 0
+	}
+	if alpha > 1 {
+		return 1
+	}
+	return alpha
+}
+
 func (m *WorldMode) drawAttackFocusMarker(screen *render.Frame, ctx client.Context, now time.Time, entries []sceneActorDrawEntry) {
 	if m.attackFocusID == 0 || screen == nil {
 		return

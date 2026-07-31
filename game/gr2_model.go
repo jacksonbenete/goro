@@ -51,7 +51,7 @@ func (m *WorldMode) drawNonPCGR2Model3D(screen *render.Frame, ctx client.Context
 		lighting = sceneLightingFromRSW(ctx.World.RSW)
 	}
 	tint := m.actorRenderTint(actor, now)
-	alpha := m.actorDeathAlpha(actor.ID, now)
+	alpha := m.actorVisualAlpha(actor.ID, now)
 	if alpha <= 0 {
 		return true
 	}

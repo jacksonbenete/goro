@@ -113,6 +113,7 @@ type WorldMode struct {
 	mapSoundNext      map[int]time.Time
 	mapWeatherSounds  map[int]time.Time
 	actorDeaths       map[uint32]time.Time
+	actorVanishes     map[uint32]actorVanishFade
 	actorSoundFrames  map[uint32]actorSoundFrame
 	actorLife         map[uint32]actorLife
 	skillUnitModels   map[uint32]skillUnitModel
@@ -387,6 +388,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.mapSoundNext = make(map[int]time.Time)
 	m.mapWeatherSounds = make(map[int]time.Time)
 	m.actorDeaths = make(map[uint32]time.Time)
+	m.actorVanishes = make(map[uint32]actorVanishFade)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
 	m.actorLife = make(map[uint32]actorLife)
 	m.speechBubbles = make(map[uint32]speechBubble)
@@ -1553,6 +1555,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			glog.Errorf("parse actor entry 0x%04X: %v", pkt.ID, err)
 		} else if ok {
 			m.clearActorDeath(entry.ID)
+			m.clearActorVanish(entry.ID)
 			m.upsertNetworkActor(ctx, entry)
 			m.applyWarpPortalEntry(ctx, entry)
 		}
@@ -1574,6 +1577,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	m.processLockedAttack(ctx)
 	now = time.Now()
 	m.cleanupDeadActors(ctx, now)
+	m.cleanupVanishedActors(ctx, now)
 	m.processScheduledActorStops(ctx, now)
 	m.processScheduledWalkResumes(ctx, now)
 	m.processActorMotionSounds(ctx, now)

@@ -10644,6 +10644,52 @@ func TestApplyActorVanishOutOfSightDoesNotAddTeleportEffect(t *testing.T) {
 	}
 }
 
+func TestApplyActorVanishOutOfSightFadesBeforeRemovingNPC(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{
+		ID:            300,
+		X:             20,
+		Y:             20,
+		Job:           100,
+		ObjectType:    actorObjectTypeNPC,
+		HasObjectType: true,
+	}
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorVanish(ctx, network.ActorVanish{ID: 300, Reason: actorVanishOutOfSight})
+
+	if _, ok := world.Actors[300]; !ok {
+		t.Fatal("out-of-sight NPC was removed immediately")
+	}
+	fade, ok := mode.actorVanishes[300]
+	if !ok {
+		t.Fatal("out-of-sight fade missing")
+	}
+	if got := fade.removeAt.Sub(fade.started); got != actorVanishOutOfSightFadeDuration {
+		t.Fatalf("fade duration = %s, want %s", got, actorVanishOutOfSightFadeDuration)
+	}
+	if got := mode.actorVanishAlpha(300, fade.started.Add(actorVanishOutOfSightFadeDuration/2)); math.Abs(got-0.5) > 0.001 {
+		t.Fatalf("fade alpha halfway = %.3f, want 0.5", got)
+	}
+
+	mode.cleanupVanishedActors(ctx, fade.started.Add(actorVanishOutOfSightFadeDuration/2))
+	if _, ok := world.Actors[300]; !ok {
+		t.Fatal("out-of-sight NPC was removed before fade completed")
+	}
+	mode.cleanupVanishedActors(ctx, fade.removeAt.Add(time.Millisecond))
+	if _, ok := world.Actors[300]; ok {
+		t.Fatal("out-of-sight NPC remained after fade completed")
+	}
+	if _, ok := mode.actorVanishes[300]; ok {
+		t.Fatal("out-of-sight fade state remained after cleanup")
+	}
+}
+
 func TestMobLookChangeToPlayerJobDoesNotChangeDeathSpriteFamily(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}

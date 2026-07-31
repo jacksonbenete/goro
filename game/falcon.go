@@ -283,6 +283,7 @@ func (m *WorldMode) drawSceneActorFalcons(screen *render.Frame, ctx client.Conte
 		if entry.hidden {
 			alpha = 0.35
 		}
+		alpha *= m.actorVisualAlpha(entry.actor.ID, now)
 		m.drawActorFalcon3D(screen, ctx, projection, entry.actor, projection.cameraYaw, alpha, now)
 	}
 	m.pruneFalconStates(activeOwners)

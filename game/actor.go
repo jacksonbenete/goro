@@ -218,6 +218,7 @@ func (m *WorldMode) upsertNetworkActor(ctx client.Context, entry network.ActorEn
 	if ctx.World == nil {
 		return
 	}
+	m.clearActorVanish(entry.ID)
 	oldState := uint32(0)
 	if existing, ok := ctx.World.Actors[entry.ID]; ok && existing.HasState {
 		oldState = existing.EffectState
@@ -256,6 +257,13 @@ const (
 	actorVanishTeleport   = 3
 )
 
+const actorVanishOutOfSightFadeDuration = time.Second
+
+type actorVanishFade struct {
+	started  time.Time
+	removeAt time.Time
+}
+
 func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVanish) {
 	glog.Debugf("actor vanish id=%d reason=%d", vanish.ID, vanish.Reason)
 	pendingHomunculusDelete := m.homDeleteID != 0 && vanish.ID == m.homDeleteID
@@ -264,25 +272,91 @@ func (m *WorldMode) applyActorVanish(ctx client.Context, vanish network.ActorVan
 		m.clearAttackFocus()
 	}
 	if vanish.Reason == actorVanishDeath {
+		m.clearActorVanish(vanish.ID)
 		m.startActorDeath(ctx, vanish.ID)
 		return
+	}
+	if vanish.Reason == actorVanishOutOfSight && !pendingHomunculusDelete && !pendingMercenaryDelete {
+		if m.startActorOutOfSightVanish(ctx, vanish.ID) {
+			return
+		}
 	}
 	m.addActorVanishTeleportEffect(ctx, vanish)
 	m.removeActorEffectStateEffects(vanish.ID)
 	m.removeLevel99AuraEffects(vanish.ID)
-	ctx.World.RemoveActor(vanish.ID)
-	delete(m.actorAnims, vanish.ID)
-	delete(m.actorDeaths, vanish.ID)
-	delete(m.actorSoundFrames, vanish.ID)
-	delete(m.actorLife, vanish.ID)
-	delete(m.speechBubbles, vanish.ID)
-	delete(m.petAccessoryIDs, vanish.ID)
+	m.removeActorNow(ctx, vanish.ID)
 	if pendingHomunculusDelete {
 		m.clearDeletedHomunculus(ctx)
 	}
 	if pendingMercenaryDelete {
 		m.clearDeletedMercenary(ctx)
 	}
+}
+
+func (m *WorldMode) startActorOutOfSightVanish(ctx client.Context, id uint32) bool {
+	if ctx.World == nil {
+		return false
+	}
+	actor, ok := ctx.World.Actors[id]
+	if !ok {
+		return false
+	}
+	now := time.Now()
+	actor = freezeActorAtRenderedPosition(actor, now)
+	ctx.World.Actors[id] = actor
+	if m.actorVanishes == nil {
+		m.actorVanishes = make(map[uint32]actorVanishFade)
+	}
+	m.actorVanishes[id] = actorVanishFade{
+		started:  now,
+		removeAt: now.Add(actorVanishOutOfSightFadeDuration),
+	}
+	m.removeActorEffectStateEffects(id)
+	m.removeLevel99AuraEffects(id)
+	delete(m.actorLife, id)
+	delete(m.actorCastBars, id)
+	delete(m.speechBubbles, id)
+	glog.Debugf("actor out-of-sight fade id=%d duration_ms=%d", id, actorVanishOutOfSightFadeDuration.Milliseconds())
+	return true
+}
+
+func freezeActorAtRenderedPosition(actor worldstate.Actor, now time.Time) worldstate.Actor {
+	x, y := actorRenderPosition(actor, now)
+	actor.X = int(math.Round(x))
+	actor.Y = int(math.Round(y))
+	actor.Moving = false
+	actor.FromX = actor.X
+	actor.FromY = actor.Y
+	actor.ToX = actor.X
+	actor.ToY = actor.Y
+	actor.MovePath = nil
+	actor.HasMoveStart = false
+	actor.MoveStartX = 0
+	actor.MoveStartY = 0
+	actor.WalkDistance = 0
+	return actor
+}
+
+func (m *WorldMode) removeActorNow(ctx client.Context, id uint32) {
+	if ctx.World != nil {
+		ctx.World.RemoveActor(id)
+	}
+	m.clearRemovedActorState(id)
+}
+
+func (m *WorldMode) clearRemovedActorState(id uint32) {
+	delete(m.actorAnims, id)
+	delete(m.actorDeaths, id)
+	delete(m.actorVanishes, id)
+	delete(m.actorSoundFrames, id)
+	delete(m.actorLife, id)
+	delete(m.actorCastBars, id)
+	delete(m.speechBubbles, id)
+	delete(m.petAccessoryIDs, id)
+}
+
+func (m *WorldMode) clearActorVanish(id uint32) {
+	delete(m.actorVanishes, id)
 }
 
 func (m *WorldMode) addActorVanishTeleportEffect(ctx client.Context, vanish network.ActorVanish) {
@@ -333,6 +407,19 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 			m.clearAttackFocus()
 		}
 		glog.Debugf("actor death removed id=%d", id)
+	}
+}
+
+func (m *WorldMode) cleanupVanishedActors(ctx client.Context, now time.Time) {
+	if len(m.actorVanishes) == 0 {
+		return
+	}
+	for id, fade := range m.actorVanishes {
+		if now.Before(fade.removeAt) {
+			continue
+		}
+		m.removeActorNow(ctx, id)
+		glog.Debugf("actor out-of-sight removed id=%d", id)
 	}
 }
 
@@ -615,6 +702,7 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Frame, ctx client.Context
 	if entry.hidden {
 		alpha = 0.35
 	}
+	alpha *= m.actorVisualAlpha(entry.actor.ID, time.Now())
 	if entry.isPlayer {
 		if !cartDrawAfterActor(entry.actor, cameraYaw) {
 			m.drawActorCart3D(screen, ctx, projection, entry, cameraYaw, entry.shadow, alpha)
@@ -673,7 +761,7 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, ctx client.Contex
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		return
 	}
-	drawFixedSpriteShadowBillboard3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+actorShadowTerrainLift, scale, m.actorDeathAlpha(entry.actor.ID, now), entry.shadow)
+	drawFixedSpriteShadowBillboard3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+actorShadowTerrainLift, scale, m.actorVisualAlpha(entry.actor.ID, now), entry.shadow)
 }
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
@@ -1193,7 +1281,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), 1, shadow, m.actorRenderTint(actor, now))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), m.actorVisualAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
 	return true
 }
 
@@ -1230,7 +1318,7 @@ func (m *WorldMode) drawMercenarySprite3D(screen *render.Frame, ctx client.Conte
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), m.actorDeathAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), m.actorVisualAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
 	return true
 }
 
@@ -1275,7 +1363,7 @@ func (m *WorldMode) drawNonPCSprite3D(screen *render.Frame, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), m.actorDeathAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), m.actorVisualAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
 	return true
 }
 
