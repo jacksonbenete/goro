@@ -160,7 +160,11 @@ func (m *WorldMode) drawGroundPlaneEffect(screen *render.Frame, ctx client.Conte
 		uv(0, 1),
 	}
 	tint := effectComponentTint(component, alpha)
-	drawTexturedSurface3DAlpha(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint})
+	drawTexturedSurface3DWithOptions(screen, texture, verts, uvs, quadIndices012023, [4]color.RGBA{tint, tint, tint, tint}, groundSampleDrawOptions())
+}
+
+func groundSampleDrawOptions() *render.DrawTrianglesOptions {
+	return triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
 }
 
 func groundSampleRotationAngle(effect worldEffect, now time.Time) float64 {

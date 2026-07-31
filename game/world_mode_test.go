@@ -7546,6 +7546,19 @@ func TestGroundSampleRotationAngleUsesClientSpeedOverride(t *testing.T) {
 	}
 }
 
+func TestGroundSampleDrawOptionsClampRotatedMagicTargetTexture(t *testing.T) {
+	options := groundSampleDrawOptions()
+	if options.Filter != render.FilterLinear {
+		t.Fatalf("filter = %v, want linear", options.Filter)
+	}
+	if options.Address != render.AddressClampToZero {
+		t.Fatalf("address = %v, want clamp-to-zero to avoid repeated rotated MagicTarget corners", options.Address)
+	}
+	if !options.DepthTest {
+		t.Fatal("ground sample depth test is disabled")
+	}
+}
+
 func TestCastRingEffectSpecUsesMagicRingCylinder(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectCastRing)
 	if !ok {
