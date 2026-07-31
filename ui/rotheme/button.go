@@ -36,145 +36,80 @@ func LargeButtonDisabled(label string, disabled bool, onClick func()) *primitive
 }
 
 func buttonWithPadding(label string, disabled bool, paddingY float32, onClick func()) *primitives.BoxWidget {
+	opts := []button.Option{
+		button.TextOpt(label),
+		button.SizeOpt(button.Small),
+		button.PainterOpt(ButtonPainter{}),
+		button.RoundedOpt(ButtonRadius),
+		button.Disabled(disabled),
+	}
+	if onClick != nil {
+		opts = append(opts, button.OnClick(onClick))
+	}
 	return primitives.Box(
-		newMouseButton(label, func() bool { return disabled }, paddingY, ButtonPainter{}, onClick),
+		newMouseOnlyButton(button.New(opts...).PaddingXY(ButtonPaddingX, paddingY)),
 	).
 		CrossAlign(primitives.CrossAxisStretch).
 		Height(Default.Typography.TextSize + paddingY*2)
 }
 
 func buttonWithPaddingFn(label string, disabled func() bool, paddingY float32, onClick func()) *primitives.BoxWidget {
+	opts := []button.Option{
+		button.TextOpt(label),
+		button.SizeOpt(button.Small),
+		button.PainterOpt(ButtonPainter{}),
+		button.RoundedOpt(ButtonRadius),
+		button.DisabledFn(disabled),
+	}
+	if onClick != nil {
+		opts = append(opts, button.OnClick(onClick))
+	}
 	return primitives.Box(
-		newMouseButton(label, disabled, paddingY, ButtonPainter{}, onClick),
+		newMouseOnlyButton(button.New(opts...).PaddingXY(ButtonPaddingX, paddingY)),
 	).
 		CrossAlign(primitives.CrossAxisStretch).
 		Height(Default.Typography.TextSize + paddingY*2)
 }
 
-type mouseButtonWidget struct {
+type mouseOnlyButtonWidget struct {
 	widget.WidgetBase
-	label     string
-	disabled  func() bool
-	onClick   func()
-	painter   button.Painter
-	paddingX  float32
-	paddingY  float32
-	minWidth  float32
-	minHeight float32
-	hovered   bool
-	pressed   bool
+	button *button.Widget
 }
 
-func newMouseButton(label string, disabled func() bool, paddingY float32, painter button.Painter, onClick func()) *mouseButtonWidget {
-	w := &mouseButtonWidget{
-		label:    label,
-		disabled: disabled,
-		onClick:  onClick,
-		painter:  painter,
-		paddingX: ButtonPaddingX,
-		paddingY: paddingY,
-	}
+func newMouseOnlyButton(btn *button.Widget) *mouseOnlyButtonWidget {
+	w := &mouseOnlyButtonWidget{button: btn}
 	w.SetVisible(true)
 	w.SetEnabled(true)
+	btn.SetParent(w)
 	return w
 }
 
-func (w *mouseButtonWidget) MinWidth(width float32) *mouseButtonWidget {
-	w.minWidth = width
-	return w
+func (w *mouseOnlyButtonWidget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {
+	return w.button.Layout(ctx, constraints)
 }
 
-func (w *mouseButtonWidget) MinHeight(height float32) *mouseButtonWidget {
-	w.minHeight = height
-	return w
+func (w *mouseOnlyButtonWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
+	w.button.Draw(ctx, canvas)
 }
 
-func (w *mouseButtonWidget) resolvedDisabled() bool {
-	if w.disabled == nil {
+func (w *mouseOnlyButtonWidget) Event(ctx widget.Context, e event.Event) bool {
+	if _, ok := e.(*event.KeyEvent); ok {
 		return false
 	}
-	return w.disabled()
+	consumed := w.button.Event(ctx, e)
+	if mouse, ok := e.(*event.MouseEvent); ok && mouse.Button == event.ButtonLeft {
+		ctx.ReleaseFocus(w.button)
+	}
+	return consumed
 }
 
-func (w *mouseButtonWidget) Layout(_ widget.Context, constraints geometry.Constraints) geometry.Size {
-	width := float32(len(w.label))*Default.Typography.TextSize*0.55 + w.paddingX*2
-	if width < w.minWidth {
-		width = w.minWidth
-	}
-	height := Default.Typography.TextSize + w.paddingY*2
-	if height < w.minHeight {
-		height = w.minHeight
-	}
-	return constraints.Constrain(geometry.Sz(width, height))
+func (w *mouseOnlyButtonWidget) Children() []widget.Widget {
+	return []widget.Widget{w.button}
 }
 
-func (w *mouseButtonWidget) Draw(_ widget.Context, canvas widget.Canvas) {
-	if w.painter == nil {
-		return
-	}
-	w.painter.PaintButton(canvas, button.PaintState{
-		Text:     w.label,
-		Size:     button.Small,
-		Hovered:  w.hovered,
-		Pressed:  w.pressed,
-		Disabled: w.resolvedDisabled(),
-		Bounds:   w.Bounds(),
-	})
-}
-
-func (w *mouseButtonWidget) Event(ctx widget.Context, e event.Event) bool {
-	if w.resolvedDisabled() {
-		return false
-	}
-	mouse, ok := e.(*event.MouseEvent)
-	if !ok {
-		return false
-	}
-	switch mouse.MouseType {
-	case event.MouseEnter, event.MouseMove:
-		w.hovered = true
-		ctx.SetCursor(widget.CursorPointer)
-		w.SetNeedsRedraw(true)
-		ctx.InvalidateRect(w.Bounds())
-		return true
-	case event.MouseLeave:
-		w.hovered = false
-		w.pressed = false
-		ctx.SetCursor(widget.CursorDefault)
-		w.SetNeedsRedraw(true)
-		ctx.InvalidateRect(w.Bounds())
-		return true
-	case event.MousePress:
-		if mouse.Button != event.ButtonLeft {
-			return false
-		}
-		w.pressed = true
-		w.SetNeedsRedraw(true)
-		ctx.InvalidateRect(w.Bounds())
-		return true
-	case event.MouseRelease:
-		if mouse.Button != event.ButtonLeft {
-			return false
-		}
-		wasPressed := w.pressed
-		inside := w.Bounds().Contains(mouse.Position)
-		w.pressed = false
-		w.hovered = inside
-		w.SetNeedsRedraw(true)
-		ctx.InvalidateRect(w.Bounds())
-		if wasPressed && inside && w.onClick != nil {
-			w.onClick()
-		}
-		return true
-	case event.MouseDrag:
-		return w.pressed
-	default:
-		return false
-	}
-}
-
-func (w *mouseButtonWidget) Children() []widget.Widget {
-	return nil
+func (w *mouseOnlyButtonWidget) SetBounds(bounds geometry.Rect) {
+	w.WidgetBase.SetBounds(bounds)
+	w.button.SetBounds(bounds)
 }
 
 type ButtonPainter struct{}

@@ -55,4 +55,16 @@ func TestIconButtonMouseButtonKeepsFullSurfaceSize(t *testing.T) {
 	if bounds.Width() != IconButtonSize || bounds.Height() != IconButtonSize {
 		t.Fatalf("icon button child bounds = %v, want %dx%d", bounds, int(IconButtonSize), int(IconButtonSize))
 	}
+	inner := children[0].Children()
+	if len(inner) != 1 {
+		t.Fatalf("icon button delegated children = %d, want 1", len(inner))
+	}
+	innerBounder, ok := inner[0].(interface{ Bounds() geometry.Rect })
+	if !ok {
+		t.Fatalf("icon button delegated child does not expose bounds")
+	}
+	innerBounds := innerBounder.Bounds()
+	if innerBounds.Width() != IconButtonSize || innerBounds.Height() != IconButtonSize {
+		t.Fatalf("icon button delegated child bounds = %v, want %dx%d", innerBounds, int(IconButtonSize), int(IconButtonSize))
+	}
 }
