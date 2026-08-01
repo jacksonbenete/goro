@@ -459,6 +459,7 @@ func (m *LoginMode) applyLoginCartPacket(ctx client.Context, pkt network.Packet)
 func (m *LoginMode) applyLoginMapChange(ctx client.Context, change network.MapChange) {
 	ctx.World.MapName = change.MapName
 	ctx.Session.Zone.MapName = change.MapName
+	resetWorldForSelectedCharacterIfNeeded(ctx)
 	applyWarpPosition(ctx, change.X, change.Y)
 	ctx.Session.Playing = true
 	m.status = fmt.Sprintf("map change: %s at %d,%d", change.MapName, change.X, change.Y)

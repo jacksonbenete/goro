@@ -531,15 +531,65 @@ func localPlayerIsAdmin(ctx client.Context) bool {
 }
 
 func applyMapAcceptEnter(ctx client.Context, enter network.MapAcceptEnter) {
-	if ctx.Session != nil {
-		ctx.Session.SyncServerTick(enter.ServerTick, time.Now())
+	if ctx.Session == nil || ctx.World == nil {
+		return
 	}
+	resetWorldForSelectedCharacterIfNeeded(ctx)
+	ctx.Session.SyncServerTick(enter.ServerTick, time.Now())
 	ctx.Session.PlayerX = enter.X
 	ctx.Session.PlayerY = enter.Y
 	ctx.Session.PlayerDir = enter.Dir
 	ctx.Session.Playing = true
 	ctx.World.SetPlayerPosition(enter.X, enter.Y, enter.Dir)
 	ctx.World.Player.IsAdmin = localPlayerIsAdmin(ctx)
+}
+
+func resetWorldForSelectedCharacterIfNeeded(ctx client.Context) {
+	if ctx.Session == nil || ctx.World == nil || ctx.Session.CharID == 0 {
+		return
+	}
+	if ctx.Session.Playing && ctx.World.Player.ID == ctx.Session.CharID {
+		return
+	}
+	ctx.World.Player = worldActorForSelectedCharacter(ctx)
+	ctx.World.Actors = make(map[uint32]worldstate.Actor)
+	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
+	ctx.World.Dir = 0
+}
+
+func worldActorForSelectedCharacter(ctx client.Context) worldstate.Actor {
+	character := ctx.Session.SelectedCharacter()
+	actor := worldstate.Actor{
+		ID:            ctx.Session.CharID,
+		Name:          character.Name,
+		Job:           character.Job,
+		Head:          character.Hair,
+		Weapon:        character.Weapon,
+		Shield:        character.Shield,
+		HeadTop:       character.HeadTop,
+		HeadMid:       character.HeadMid,
+		HeadLow:       character.HeadLow,
+		HeadPal:       character.HeadPal,
+		BodyPal:       character.BodyPal,
+		Sex:           ctx.Session.Sex,
+		IsAdmin:       localPlayerIsAdmin(ctx),
+		Appearance:    true,
+		Speed:         defaultPlayerMoveSpeedMS,
+		EffectState:   character.Option,
+		HasState:      character.Option != 0,
+		Level:         ctx.Session.Progress.BaseLevel,
+		HasLevel:      ctx.Session.Progress.BaseLevel > 0,
+		AttackRange:   ctx.Session.AttackRange,
+		GuildID:       ctx.Session.GuildID,
+		EmblemVersion: ctx.Session.EmblemVersion,
+		GuildName:     ctx.Session.GuildName,
+		HasObjectType: true,
+		ObjectType:    actorObjectTypePC,
+	}
+	if character.Option&actorEffectCartMask != 0 {
+		applyActorCartStateFromEffect(&actor)
+	}
+	return actor
 }
 
 func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {

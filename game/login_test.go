@@ -13,6 +13,7 @@ import (
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/config"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
@@ -152,6 +153,46 @@ func TestLoginModeInitialSameMapChangeDoesNotRestartWorldFade(t *testing.T) {
 	}
 	if ctx.Session.PlayerX != 81 || ctx.Session.PlayerY != 179 || ctx.World.MapName != "geffen" {
 		t.Fatalf("map state = %s %d,%d", ctx.World.MapName, ctx.Session.PlayerX, ctx.Session.PlayerY)
+	}
+}
+
+func TestLoginMapChangeResetsWorldForChangedSelectedCharacter(t *testing.T) {
+	mode := NewLoginMode()
+	change, ok, err := network.ParseMapChange(testMapChangePacket("geffen", 81, 179))
+	if err != nil || !ok {
+		t.Fatalf("parse map change ok=%t err=%v", ok, err)
+	}
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:           150000,
+		Job:          db.JobAlchemist,
+		HasCartState: true,
+		HasCart:      true,
+		CartNum:      4,
+		EffectState:  db.EffectStateCart4,
+		Opt3State:    db.Opt3Quicken,
+		HasState:     true,
+	}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "stale actor"}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150001,
+			Selected:  session.Character{ID: 150001, Name: "Wizard", Job: db.JobWizard},
+		},
+		World: world,
+	}
+
+	mode.applyLoginMapChange(ctx, change)
+
+	if world.Player.ID != 150001 || world.Player.Job != db.JobWizard {
+		t.Fatalf("world player = %+v, want selected wizard", world.Player)
+	}
+	if world.Player.HasCart || world.Player.Opt3State != 0 || world.Player.EffectState&actorEffectCartMask != 0 {
+		t.Fatalf("old local state leaked after login map change: %+v", world.Player)
+	}
+	if len(world.Actors) != 0 {
+		t.Fatalf("stale actors survived login map change: %+v", world.Actors)
 	}
 }
 

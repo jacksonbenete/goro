@@ -332,6 +332,122 @@ func TestApplyMapAcceptEnterMarksAdminPlayer(t *testing.T) {
 	}
 }
 
+func TestApplyMapAcceptEnterResetsWorldForChangedSelectedCharacter(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:           150000,
+		Job:          db.JobAlchemist,
+		HasCartState: true,
+		HasCart:      true,
+		CartNum:      4,
+		EffectState:  db.EffectStateCart4,
+		Opt3State:    db.Opt3Quicken,
+		HasState:     true,
+	}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "stale actor"}
+	world.Items[400] = worldstate.FloorItem{ID: 400, ItemID: 501}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150001,
+		Sex:       1,
+		Selected: session.Character{
+			ID:     150001,
+			Name:   "Wizard",
+			Job:    db.JobWizard,
+			Hair:   7,
+			Weapon: 1601,
+		},
+		Progress: session.Progress{BaseLevel: 42},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	applyMapAcceptEnter(ctx, network.MapAcceptEnter{X: 20, Y: 30, Dir: 3})
+
+	if world.Player.ID != 150001 || world.Player.Name != "Wizard" || world.Player.Job != db.JobWizard || world.Player.Weapon != 1601 {
+		t.Fatalf("world player identity/appearance = %+v", world.Player)
+	}
+	if world.Player.HasCart || world.Player.CartNum != 0 || world.Player.EffectState&actorEffectCartMask != 0 {
+		t.Fatalf("old cart state leaked into selected character: %+v", world.Player)
+	}
+	if world.Player.Opt3State != 0 {
+		t.Fatalf("old opt3 state leaked into selected character: 0x%08X", world.Player.Opt3State)
+	}
+	if world.Player.X != 20 || world.Player.Y != 30 || world.Player.Dir != 3 || world.Dir != 3 {
+		t.Fatalf("world player position = %+v world dir=%d", world.Player, world.Dir)
+	}
+	if len(world.Actors) != 0 || len(world.Items) != 0 {
+		t.Fatalf("stale world state survived character switch actors=%+v items=%+v", world.Actors, world.Items)
+	}
+}
+
+func TestApplyMapAcceptEnterKeepsWorldStateForSameCharacter(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:           150000,
+		Job:          db.JobAlchemist,
+		HasCartState: true,
+		HasCart:      true,
+		CartNum:      4,
+		EffectState:  db.EffectStateCart4,
+		Opt3State:    db.Opt3Quicken,
+		HasState:     true,
+	}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "same map actor"}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150000,
+		Playing:   true,
+		Selected:  session.Character{ID: 150000, Job: db.JobAlchemist},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	applyMapAcceptEnter(ctx, network.MapAcceptEnter{X: 20, Y: 30, Dir: 3})
+
+	if !world.Player.HasCartState || !world.Player.HasCart || world.Player.CartNum != 4 || world.Player.EffectState&db.EffectStateCart4 == 0 {
+		t.Fatalf("same-character cart state was not preserved: %+v", world.Player)
+	}
+	if world.Player.Opt3State&db.Opt3Quicken == 0 {
+		t.Fatalf("same-character opt3 state was not preserved: 0x%08X", world.Player.Opt3State)
+	}
+	if len(world.Actors) != 1 {
+		t.Fatalf("same-character actors were cleared: %+v", world.Actors)
+	}
+}
+
+func TestApplyMapAcceptEnterResetsWorldForCharacterSelectReentry(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:           150000,
+		Job:          db.JobAlchemist,
+		HasCartState: true,
+		HasCart:      true,
+		CartNum:      4,
+		EffectState:  db.EffectStateCart4,
+		Opt3State:    db.Opt3Quicken,
+		HasState:     true,
+	}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "stale actor"}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150000,
+		Playing:   false,
+		Selected:  session.Character{ID: 150000, Job: db.JobAlchemist},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+
+	applyMapAcceptEnter(ctx, network.MapAcceptEnter{X: 20, Y: 30, Dir: 3})
+
+	if world.Player.HasCart || world.Player.CartNum != 0 || world.Player.EffectState&actorEffectCartMask != 0 {
+		t.Fatalf("cart state leaked through character-select re-entry: %+v", world.Player)
+	}
+	if world.Player.Opt3State != 0 {
+		t.Fatalf("opt3 state leaked through character-select re-entry: 0x%08X", world.Player.Opt3State)
+	}
+	if len(world.Actors) != 0 {
+		t.Fatalf("stale actors survived character-select re-entry: %+v", world.Actors)
+	}
+}
+
 func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 150000, Job: 5}
