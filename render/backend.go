@@ -170,10 +170,40 @@ type uiImageRectCapture struct {
 	rect  geometry.Rect
 }
 
+type uiProfileStats struct {
+	start            time.Time
+	lastLog          time.Time
+	frames           int64
+	slowFrames       int64
+	uiSlowFrames     int64
+	uiWorkFrames     int64
+	uiRedrawFrames   int64
+	uiFullRepaints   int64
+	dirtyRegionSum   int64
+	dirtyRegionMax   int
+	totalDurSum      time.Duration
+	updateDurSum     time.Duration
+	gameUpdateDurSum time.Duration
+	uiFrameDurSum    time.Duration
+	drawDurSum       time.Duration
+	uiDrawDurSum     time.Duration
+	uiCanvasDurSum   time.Duration
+	uiFlushDurSum    time.Duration
+	uiImageDurSum    time.Duration
+	totalDurMax      time.Duration
+	updateDurMax     time.Duration
+	gameUpdateDurMax time.Duration
+	uiFrameDurMax    time.Duration
+	drawDurMax       time.Duration
+	uiDrawDurMax     time.Duration
+	uiCanvasDurMax   time.Duration
+	uiFlushDurMax    time.Duration
+	uiImageDurMax    time.Duration
+}
+
 type runner struct {
 	app             *gogpu.App
 	ui              *uiapp.App
-	uiCanvas        *ggcanvas.Canvas
 	uiImage         *Image
 	uiOverlayCanvas *ggcanvas.Canvas
 	uiTextCache     map[string]cachedOverlayImage
@@ -206,6 +236,13 @@ type runner struct {
 	vsyncWarned     bool
 	uiDrawnOnce     bool
 	uiScale         float64
+	uiCanvas        *ggcanvas.Canvas
+	uiLogicalWidth  int
+	uiLogicalHeight int
+	uiAsync         *asyncUIRasterizer
+	uiAsyncBusy     bool
+	uiPendingLists  []uiDrawList
+	uiGeneration    uint64
 	uiDrag          uiDragLayer
 
 	lastUpdateDuration  time.Duration
@@ -221,6 +258,7 @@ type runner struct {
 	lastUIFullRepaint   bool
 	lastUIDirtyUnion    geometry.Rect
 	lastUIDrawStats     widget.DrawStats
+	uiProfile           uiProfileStats
 }
 
 func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) error {
@@ -307,6 +345,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 			r.gpu.release()
 			r.gpu = nil
 		}
+		r.stopAsyncUIRasterizer()
 		if r.uiCanvas != nil {
 			_ = r.uiCanvas.Close()
 			r.uiCanvas = nil
@@ -674,6 +713,7 @@ func (r *runner) update() error {
 			}
 		}
 		glog.Infof("benchmark result fps=%.1f measured_fps=%.1f frames=%d measured_frames=%d elapsed=%.3fs measured_elapsed=%.3fs", float64(r.frames)/elapsed, measuredFPS, r.frames, r.measuredFrames, elapsed, measuredElapsed)
+		r.logUIProfile(time.Now(), true)
 		if r.cpuProfile != nil {
 			pprof.StopCPUProfile()
 			_ = r.cpuProfile.Close()
@@ -796,6 +836,7 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 			r.lastUIDirtyUnion.Height(),
 		)
 	}
+	r.recordUIProfile(drawDur, totalDur)
 	r.frames++
 	if !r.measureStarted.IsZero() {
 		r.measuredFrames++
@@ -870,6 +911,123 @@ func durationMS(d time.Duration) float64 {
 	return float64(d.Microseconds()) / 1000
 }
 
+func avgDurationMS(sum time.Duration, count int64) float64 {
+	if count <= 0 {
+		return 0
+	}
+	return float64(sum.Microseconds()) / 1000 / float64(count)
+}
+
+func maxDuration(a, b time.Duration) time.Duration {
+	if b > a {
+		return b
+	}
+	return a
+}
+
+func (r *runner) recordUIProfile(drawDur, totalDur time.Duration) {
+	if r == nil || !r.renderCfg.UIProfile {
+		return
+	}
+	now := time.Now()
+	stats := &r.uiProfile
+	if stats.frames == 0 {
+		stats.start = now
+		stats.lastLog = now
+	}
+	stats.frames++
+	if totalDur > 16*time.Millisecond {
+		stats.slowFrames++
+	}
+	if r.lastUIFrameDur+r.lastUIDrawDur > 16*time.Millisecond {
+		stats.uiSlowFrames++
+	}
+	if r.lastUIWork {
+		stats.uiWorkFrames++
+	}
+	if r.lastUIRedraw {
+		stats.uiRedrawFrames++
+	}
+	if r.lastUIFullRepaint {
+		stats.uiFullRepaints++
+	}
+	stats.dirtyRegionSum += int64(r.lastUIDirtyRegions)
+	if r.lastUIDirtyRegions > stats.dirtyRegionMax {
+		stats.dirtyRegionMax = r.lastUIDirtyRegions
+	}
+	stats.totalDurSum += totalDur
+	stats.updateDurSum += r.lastUpdateDuration
+	stats.gameUpdateDurSum += r.lastGameUpdateDur
+	stats.uiFrameDurSum += r.lastUIFrameDur
+	stats.drawDurSum += drawDur
+	stats.uiDrawDurSum += r.lastUIDrawDur
+	stats.uiCanvasDurSum += r.lastUICanvasDrawDur
+	stats.uiFlushDurSum += r.lastUIFlushDur
+	stats.uiImageDurSum += r.lastUIImageDur
+	stats.totalDurMax = maxDuration(stats.totalDurMax, totalDur)
+	stats.updateDurMax = maxDuration(stats.updateDurMax, r.lastUpdateDuration)
+	stats.gameUpdateDurMax = maxDuration(stats.gameUpdateDurMax, r.lastGameUpdateDur)
+	stats.uiFrameDurMax = maxDuration(stats.uiFrameDurMax, r.lastUIFrameDur)
+	stats.drawDurMax = maxDuration(stats.drawDurMax, drawDur)
+	stats.uiDrawDurMax = maxDuration(stats.uiDrawDurMax, r.lastUIDrawDur)
+	stats.uiCanvasDurMax = maxDuration(stats.uiCanvasDurMax, r.lastUICanvasDrawDur)
+	stats.uiFlushDurMax = maxDuration(stats.uiFlushDurMax, r.lastUIFlushDur)
+	stats.uiImageDurMax = maxDuration(stats.uiImageDurMax, r.lastUIImageDur)
+	if now.Sub(stats.lastLog) >= time.Second {
+		r.logUIProfile(now, false)
+		stats.lastLog = now
+	}
+}
+
+func (r *runner) logUIProfile(now time.Time, final bool) {
+	if r == nil || !r.renderCfg.UIProfile || r.uiProfile.frames == 0 {
+		return
+	}
+	stats := &r.uiProfile
+	elapsed := now.Sub(stats.start).Seconds()
+	fps := 0.0
+	if elapsed > 0 {
+		fps = float64(stats.frames) / elapsed
+	}
+	label := "ui profile"
+	if final {
+		label = "ui profile final"
+	}
+	glog.Infof(
+		"%s elapsed=%.1fs frames=%d fps=%.1f slow_frames=%d ui_slow_frames=%d ui_work_frames=%d ui_redraw_frames=%d ui_full_repaints=%d avg_total_ms=%.2f max_total_ms=%.2f avg_update_ms=%.2f max_update_ms=%.2f avg_game_update_ms=%.2f max_game_update_ms=%.2f avg_draw_ms=%.2f max_draw_ms=%.2f avg_ui_frame_ms=%.2f max_ui_frame_ms=%.2f avg_ui_draw_ms=%.2f max_ui_draw_ms=%.2f avg_ui_draw_work_ms=%.2f avg_ui_canvas_ms=%.2f max_ui_canvas_ms=%.2f avg_ui_flush_ms=%.2f max_ui_flush_ms=%.2f avg_ui_image_ms=%.2f max_ui_image_ms=%.2f avg_dirty_regions=%.2f max_dirty_regions=%d",
+		label,
+		elapsed,
+		stats.frames,
+		fps,
+		stats.slowFrames,
+		stats.uiSlowFrames,
+		stats.uiWorkFrames,
+		stats.uiRedrawFrames,
+		stats.uiFullRepaints,
+		avgDurationMS(stats.totalDurSum, stats.frames),
+		durationMS(stats.totalDurMax),
+		avgDurationMS(stats.updateDurSum, stats.frames),
+		durationMS(stats.updateDurMax),
+		avgDurationMS(stats.gameUpdateDurSum, stats.frames),
+		durationMS(stats.gameUpdateDurMax),
+		avgDurationMS(stats.drawDurSum, stats.frames),
+		durationMS(stats.drawDurMax),
+		avgDurationMS(stats.uiFrameDurSum, stats.frames),
+		durationMS(stats.uiFrameDurMax),
+		avgDurationMS(stats.uiDrawDurSum, stats.frames),
+		durationMS(stats.uiDrawDurMax),
+		avgDurationMS(stats.uiDrawDurSum, stats.uiWorkFrames),
+		avgDurationMS(stats.uiCanvasDurSum, stats.frames),
+		durationMS(stats.uiCanvasDurMax),
+		avgDurationMS(stats.uiFlushDurSum, stats.frames),
+		durationMS(stats.uiFlushDurMax),
+		avgDurationMS(stats.uiImageDurSum, stats.frames),
+		durationMS(stats.uiImageDurMax),
+		float64(stats.dirtyRegionSum)/float64(stats.frames),
+		stats.dirtyRegionMax,
+	)
+}
+
 func (r *runner) resetUIDrawMeasurement() {
 	r.lastUIWork = false
 	r.lastUIRedraw = false
@@ -890,6 +1048,13 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 	if r.ui == nil || screen == nil || width <= 0 || height <= 0 {
 		return nil
 	}
+	if r.renderCfg.AsyncUI {
+		return r.drawUIAsync(screen, width, height, deviceScale)
+	}
+	return r.drawUISync(screen, width, height, deviceScale)
+}
+
+func (r *runner) drawUISync(screen *Frame, width, height int, deviceScale float64) error {
 	provider := r.app.GPUContextProvider()
 	if provider == nil {
 		return nil
@@ -914,7 +1079,7 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 		r.uiImage = nil
 		r.requestUIRedraw()
 	}
-	if r.uiScale != deviceScale {
+	if !sameUIScale(r.uiScale, deviceScale) {
 		r.uiCanvas.SetDeviceScale(deviceScale)
 		r.uiScale = deviceScale
 		r.uiDrawnOnce = false
@@ -923,6 +1088,9 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 	}
 
 	win := r.ui.Window()
+	if win == nil {
+		return nil
+	}
 	needsWork := !r.uiDrawnOnce || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
 	if needsWork {
 		r.lastUIWork = true
@@ -984,6 +1152,66 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 			)
 		}
 	}
+	return r.drawUIPublishedImage(screen, width, height)
+}
+
+func (r *runner) drawUIAsync(screen *Frame, width, height int, deviceScale float64) error {
+	if deviceScale <= 0 {
+		deviceScale = 1
+	}
+	win := r.ui.Window()
+	if win == nil {
+		return nil
+	}
+	r.updateUIRasterSurface(width, height, deviceScale)
+	r.collectAsyncUIResults(width, height, deviceScale)
+
+	needsWork := !r.uiDrawnOnce || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
+	if needsWork {
+		r.lastUIWork = true
+		uiStart := time.Now()
+		win.ClearAnimationFrame()
+		drawn := false
+		canvasStart := time.Now()
+		recorder := newUIDrawRecorder(width, height, deviceScale)
+		recorder.setTextMode(widget.TextModeVector)
+		drawn = win.DrawTo(recorder)
+		recorder.setTextMode(widget.TextModeAuto)
+		list := recorder.list()
+		recorder.close()
+		canvasDur := time.Since(canvasStart)
+		if drawn {
+			r.lastUIRedraw = true
+			r.enqueueUIDrawList(list)
+		}
+		uiDur := time.Since(uiStart)
+		r.lastUIDrawDur += uiDur
+		r.lastUICanvasDrawDur += canvasDur
+		r.lastUIDirtyRegions = win.DirtyRegionCount()
+		r.lastUIFullRepaint = win.WasFullRepaint()
+		r.lastUIDirtyUnion = win.LastDirtyUnion()
+		r.lastUIDrawStats = win.LastDrawStats()
+		if uiDur > 16*time.Millisecond {
+			union := win.LastDirtyUnion()
+			glog.Errorf(
+				"slow ui record ms=%.2f canvas_ms=%.2f drawn=%t dirty_regions=%d full=%t union=%.0f,%.0f %.0fx%.0f stats=%+v",
+				durationMS(uiDur),
+				durationMS(canvasDur),
+				drawn,
+				win.DirtyRegionCount(),
+				win.WasFullRepaint(),
+				union.Min.X,
+				union.Min.Y,
+				union.Width(),
+				union.Height(),
+				win.LastDrawStats(),
+			)
+		}
+	}
+	return r.drawUIPublishedImage(screen, width, height)
+}
+
+func (r *runner) drawUIPublishedImage(screen *Frame, width, height int) error {
 	if !r.uiDrawnOnce || r.uiImage == nil {
 		return nil
 	}
@@ -995,6 +1223,117 @@ func (r *runner) drawUI(screen *Frame, width, height int, deviceScale float64) e
 	screen.DrawImage(r.uiImage, &opts)
 	r.drawUIDragLayer(screen)
 	return nil
+}
+
+func (r *runner) updateUIRasterSurface(width, height int, deviceScale float64) {
+	if r.uiLogicalWidth == width && r.uiLogicalHeight == height && sameUIScale(r.uiScale, deviceScale) {
+		return
+	}
+	r.uiLogicalWidth = width
+	r.uiLogicalHeight = height
+	r.uiScale = deviceScale
+	r.uiGeneration++
+	r.uiDrawnOnce = false
+	r.uiImage = nil
+	r.uiPendingLists = nil
+	r.requestUIRedraw()
+}
+
+func (r *runner) ensureAsyncUIRasterizer() *asyncUIRasterizer {
+	if r.uiAsync == nil {
+		r.uiAsync = newAsyncUIRasterizer()
+	}
+	return r.uiAsync
+}
+
+func (r *runner) enqueueUIDrawList(list uiDrawList) {
+	if r == nil || len(list.ops) == 0 {
+		return
+	}
+	if r.uiAsyncBusy {
+		if len(r.uiPendingLists) == 0 {
+			r.uiPendingLists = append(r.uiPendingLists, list)
+		} else {
+			r.uiPendingLists[0] = list
+			r.uiPendingLists = r.uiPendingLists[:1]
+		}
+		return
+	}
+	r.submitUIDrawList(list)
+}
+
+func (r *runner) submitUIDrawList(list uiDrawList) {
+	rasterizer := r.ensureAsyncUIRasterizer()
+	job := uiRasterJob{generation: r.uiGeneration, list: list}
+	if rasterizer.submit(job) {
+		r.uiAsyncBusy = true
+		return
+	}
+	r.requestUIRedraw()
+}
+
+func (r *runner) submitPendingUIDrawLists() {
+	if r == nil || r.uiAsyncBusy || len(r.uiPendingLists) == 0 {
+		return
+	}
+	list := r.uiPendingLists[len(r.uiPendingLists)-1]
+	r.uiPendingLists = nil
+	r.submitUIDrawList(list)
+}
+
+func (r *runner) collectAsyncUIResults(width, height int, deviceScale float64) {
+	if r.uiAsync == nil {
+		return
+	}
+	for {
+		select {
+		case result := <-r.uiAsync.done:
+			r.uiAsyncBusy = false
+			if result.err != nil {
+				glog.Warnf("async ui raster failed: %v", result.err)
+				r.uiGeneration++
+				r.uiDrawnOnce = false
+				r.uiImage = nil
+				r.uiPendingLists = nil
+				r.requestUIRedraw()
+				continue
+			}
+			if result.generation != r.uiGeneration || result.width != width || result.height != height || !sameUIScale(result.scale, deviceScale) {
+				r.uiPendingLists = nil
+				continue
+			}
+			imageStart := time.Now()
+			r.uiImage = result.image
+			r.uiDrawnOnce = r.uiImage != nil
+			r.lastUIImageDur += time.Since(imageStart)
+			if r.renderCfg.UIProfile && result.rasterDur > 16*time.Millisecond {
+				glog.Debugf(
+					"async ui raster ms=%.2f canvas_ms=%.2f flush_ms=%.2f image_ms=%.2f generation=%d size=%dx%d scale=%.2f",
+					durationMS(result.rasterDur),
+					durationMS(result.canvasDur),
+					durationMS(result.flushDur),
+					durationMS(result.imageDur),
+					result.generation,
+					result.width,
+					result.height,
+					result.scale,
+				)
+			}
+			r.submitPendingUIDrawLists()
+		default:
+			return
+		}
+	}
+}
+
+func (r *runner) stopAsyncUIRasterizer() {
+	if r == nil || r.uiAsync == nil {
+		return
+	}
+	r.uiAsync.stop()
+	r.uiAsync = nil
+	r.uiAsyncBusy = false
+	r.uiPendingLists = nil
 }
 
 func (r *runner) beginUIDragLayer(token any, rect geometry.Rect) bool {
@@ -1119,24 +1458,7 @@ func updateCanvasImage(canvas *ggcanvas.Canvas, dstImage *Image) *Image {
 	if canvas == nil || canvas.Context() == nil {
 		return dstImage
 	}
-	src := canvas.Context().ResizeTarget().ImageView()
-	if src == nil {
-		return dstImage
-	}
-	width, height := src.Bounds().Dx(), src.Bounds().Dy()
-	if dstImage == nil || dstImage.pix == nil || dstImage.Bounds().Dx() != width || dstImage.Bounds().Dy() != height {
-		dstImage = NewImage(width, height)
-	}
-	dst := dstImage.pix
-	if src.Stride == width*4 && dst.Stride == width*4 {
-		copy(dst.Pix, src.Pix)
-	} else {
-		for y := 0; y < height; y++ {
-			copy(dst.Pix[y*dst.Stride:y*dst.Stride+width*4], src.Pix[y*src.Stride:y*src.Stride+width*4])
-		}
-	}
-	dstImage.version++
-	return dstImage
+	return imageFromGGContext(canvas.Context(), dstImage)
 }
 
 func (r *runner) drawUIOverlay(screen *Frame, deviceScale float64) error {

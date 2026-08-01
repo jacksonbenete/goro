@@ -57,6 +57,8 @@ graphics_api = gles
 vsync = false
 fps = true
 no_ui = true
+async_ui = false
+profile_ui = false
 
 [network]
 trace = true
@@ -93,6 +95,8 @@ file = ./ignored.log
 		"--sfx-volume", "0.85",
 		"--graphics-api", "vulkan",
 		"--no-ui=false",
+		"--async-ui=true",
+		"--profile-ui=true",
 		"--char-slot", "3",
 		"--no-shift=false",
 		"--no-ctrl=true",
@@ -122,7 +126,7 @@ file = ./ignored.log
 	if !cfg.Audio.Disabled || !cfg.Audio.BGM || cfg.Audio.BGMVolume != 0.75 || cfg.Audio.SFXVolume != 0.85 {
 		t.Fatalf("unexpected audio config: %#v", cfg.Audio)
 	}
-	if cfg.Render.GraphicsAPI != "vulkan" || cfg.Render.VSync || !cfg.Render.FPS || cfg.Render.NoUI {
+	if cfg.Render.GraphicsAPI != "vulkan" || cfg.Render.VSync || !cfg.Render.FPS || cfg.Render.NoUI || !cfg.Render.AsyncUI || !cfg.Render.UIProfile {
 		t.Fatalf("unexpected render config: %#v", cfg.Render)
 	}
 	if !cfg.Network.Trace {
@@ -193,6 +197,8 @@ sfx_volume = 0.20
 [render]
 vsync = false
 fps = true
+async_ui = true
+profile_ui = true
 
 [gameplay]
 no_shift = true
@@ -207,7 +213,7 @@ itemsnap = true
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !cfg.Window.Fullscreen || cfg.Audio.BGMVolume != 0.10 || cfg.Audio.SFXVolume != 0.20 || cfg.Render.VSync || !cfg.Render.FPS || !cfg.Gameplay.NoShift || cfg.Gameplay.NoCtrl || !cfg.Gameplay.LessEffects || !cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
+	if !cfg.Window.Fullscreen || cfg.Audio.BGMVolume != 0.10 || cfg.Audio.SFXVolume != 0.20 || cfg.Render.VSync || !cfg.Render.FPS || !cfg.Render.AsyncUI || !cfg.Render.UIProfile || !cfg.Gameplay.NoShift || cfg.Gameplay.NoCtrl || !cfg.Gameplay.LessEffects || !cfg.Gameplay.SnapTargets || !cfg.Gameplay.SnapItems {
 		t.Fatalf("user config not loaded: %#v", cfg)
 	}
 }

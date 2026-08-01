@@ -57,6 +57,8 @@ type RenderConfig struct {
 	VSync              bool
 	FPS                bool
 	NoUI               bool
+	AsyncUI            bool
+	UIProfile          bool
 	BenchSeconds       int
 	BenchWarmupSeconds int
 	CPUProfile         string
@@ -229,6 +231,7 @@ func defaultConfig() Config {
 		},
 		Render: RenderConfig{
 			GraphicsAPI:        "vulkan",
+			AsyncUI:            true,
 			VSync:              true,
 			BenchWarmupSeconds: 0,
 		},
@@ -303,6 +306,8 @@ func applyCLI(cfg *Config, args []string) error {
 	fs.BoolVar(&cfg.Render.VSync, "vsync", cfg.Render.VSync, "enable vsync")
 	fs.BoolVar(&cfg.Render.FPS, "fps", cfg.Render.FPS, "show measured FPS counter")
 	fs.BoolVar(&cfg.Render.NoUI, "no-ui", cfg.Render.NoUI, "disable UI rendering for benchmarking")
+	fs.BoolVar(&cfg.Render.AsyncUI, "async-ui", cfg.Render.AsyncUI, "rasterize UI off the draw thread")
+	fs.BoolVar(&cfg.Render.UIProfile, "profile-ui", cfg.Render.UIProfile, "log aggregate UI frame and redraw timings")
 	fs.IntVar(&cfg.Render.BenchSeconds, "bench-seconds", cfg.Render.BenchSeconds, "quit after benchmarking for this many seconds")
 	fs.IntVar(&cfg.Render.BenchWarmupSeconds, "bench-warmup-seconds", cfg.Render.BenchWarmupSeconds, "benchmark warmup seconds")
 	fs.StringVar(&cfg.Render.CPUProfile, "cpu-profile", cfg.Render.CPUProfile, "write CPU profile to this path during benchmark")
@@ -398,6 +403,10 @@ func applyConfigValue(cfg *Config, section, key, value string) error {
 		return setBool(value, &cfg.Render.FPS)
 	case "render.noui":
 		return setBool(value, &cfg.Render.NoUI)
+	case "render.asyncui":
+		return setBool(value, &cfg.Render.AsyncUI)
+	case "render.profileui":
+		return setBool(value, &cfg.Render.UIProfile)
 	case "render.benchseconds":
 		return setInt(value, &cfg.Render.BenchSeconds)
 	case "render.benchwarmupseconds":
