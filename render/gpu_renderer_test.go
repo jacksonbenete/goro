@@ -70,6 +70,45 @@ func TestWorldMeshSubmissionDoesNotCreateDynamicWorldCommand(t *testing.T) {
 	}
 }
 
+func TestDepthWriteWorldMeshBatchesGroupByRenderKey(t *testing.T) {
+	screen := NewFrame(320, 240)
+	texture := WhiteImage()
+	otherTexture := NewImage(1, 1)
+	otherTexture.Fill(color.White)
+	options := DrawTrianglesOptions{DepthWrite: true}
+	meshA := testWorldMesh(texture, &options)
+	meshB := testWorldMesh(texture, &options)
+	meshC := testWorldMesh(otherTexture, &options)
+
+	screen.BeginFrame()
+	screen.DrawWorldMesh(meshA)
+	screen.DrawWorldMesh(meshB)
+	screen.DrawWorldMesh(meshC)
+
+	batches := (&gpuRenderer{}).depthWriteWorldMeshBatches(screen)
+	if got := len(batches); got != 2 {
+		t.Fatalf("world mesh batches = %d, want 2", got)
+	}
+	if got := len(batches[0].meshes); got != 2 {
+		t.Fatalf("first batch meshes = %d, want 2", got)
+	}
+	if got := len(batches[1].meshes); got != 1 {
+		t.Fatalf("second batch meshes = %d, want 1", got)
+	}
+}
+
+func TestDepthWriteWorldMeshBatchesSkipNonDepthMesh(t *testing.T) {
+	screen := NewFrame(320, 240)
+	texture := WhiteImage()
+
+	screen.BeginFrame()
+	screen.DrawWorldMesh(testWorldMesh(texture, &DrawTrianglesOptions{}))
+
+	if got := len((&gpuRenderer{}).depthWriteWorldMeshBatches(screen)); got != 0 {
+		t.Fatalf("world mesh batches = %d, want 0", got)
+	}
+}
+
 func TestWorldBillboardSubmissionDoesNotCreateDynamicWorldCommand(t *testing.T) {
 	screen := NewFrame(320, 240)
 	screen.BeginFrame()
@@ -236,6 +275,14 @@ func TestWorldVertexPackingCarriesFogToggle(t *testing.T) {
 	if got := unfoggedData[13]; got != 0 {
 		t.Fatalf("unfogged vertex flag = %.1f, want 0", got)
 	}
+}
+
+func testWorldMesh(texture *Image, options *DrawTrianglesOptions) *WorldMesh {
+	return NewWorldMesh([]Vertex3D{
+		{X: 0, Y: 0, Z: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{X: 1, Y: 0, Z: 0, SrcX: 1, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+		{X: 1, Y: 1, Z: 0, SrcX: 1, SrcY: 1, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
+	}, []uint16{0, 1, 2}, texture, options)
 }
 
 func f32At(data []byte, offset int) float32 {

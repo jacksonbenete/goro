@@ -26,47 +26,49 @@ const (
 )
 
 type gpuRenderer struct {
-	dev              *wgpu.Device
-	queue            *wgpu.Queue
-	format           gputypes.TextureFormat
-	bgl              *wgpu.BindGroupLayout
-	worldBGL         *wgpu.BindGroupLayout
-	layout           *wgpu.PipelineLayout
-	worldLayout      *wgpu.PipelineLayout
-	pipelineAlpha    *wgpu.RenderPipeline
-	pipelineAdd      *wgpu.RenderPipeline
-	pipelineSrcDst   *wgpu.RenderPipeline
-	worldAlphaWrite  *wgpu.RenderPipeline
-	worldAddWrite    *wgpu.RenderPipeline
-	worldSrcDstWrite *wgpu.RenderPipeline
-	worldAlphaRead   *wgpu.RenderPipeline
-	worldAddRead     *wgpu.RenderPipeline
-	worldSrcDstRead  *wgpu.RenderPipeline
-	billboardAlpha   *wgpu.RenderPipeline
-	billboardAdd     *wgpu.RenderPipeline
-	billboardSrcDst  *wgpu.RenderPipeline
-	uniform          *wgpu.Buffer
-	worldUniform     *wgpu.Buffer
-	samplers         map[samplerKey]*wgpu.Sampler
-	textures         map[*Image]*gpuImageTexture
-	bindGroups       map[bindGroupKey]*wgpu.BindGroup
-	worldMeshes      map[*WorldMesh]*gpuWorldMesh
-	depthTex         *wgpu.Texture
-	depthView        *wgpu.TextureView
-	depthWidth       int
-	depthHeight      int
-	worldVertexBuf   dynamicGPUBuffer
-	worldIndexBuf    dynamicGPUBuffer
-	screenVertexBuf  dynamicGPUBuffer
-	screenIndexBuf   dynamicGPUBuffer
-	billboardQuadBuf *wgpu.Buffer
-	frameBuffers     []*wgpu.Buffer
-	frameBindGroups  []*wgpu.BindGroup
-	neutralLightmap  *Image
-	statsEnabled     bool
-	statsLast        time.Time
-	worldDebug       bool
-	worldDebugLast   time.Time
+	dev                 *wgpu.Device
+	queue               *wgpu.Queue
+	format              gputypes.TextureFormat
+	bgl                 *wgpu.BindGroupLayout
+	worldBGL            *wgpu.BindGroupLayout
+	layout              *wgpu.PipelineLayout
+	worldLayout         *wgpu.PipelineLayout
+	pipelineAlpha       *wgpu.RenderPipeline
+	pipelineAdd         *wgpu.RenderPipeline
+	pipelineSrcDst      *wgpu.RenderPipeline
+	worldAlphaWrite     *wgpu.RenderPipeline
+	worldAddWrite       *wgpu.RenderPipeline
+	worldSrcDstWrite    *wgpu.RenderPipeline
+	worldAlphaRead      *wgpu.RenderPipeline
+	worldAddRead        *wgpu.RenderPipeline
+	worldSrcDstRead     *wgpu.RenderPipeline
+	billboardAlpha      *wgpu.RenderPipeline
+	billboardAdd        *wgpu.RenderPipeline
+	billboardSrcDst     *wgpu.RenderPipeline
+	uniform             *wgpu.Buffer
+	worldUniform        *wgpu.Buffer
+	samplers            map[samplerKey]*wgpu.Sampler
+	textures            map[*Image]*gpuImageTexture
+	bindGroups          map[bindGroupKey]*wgpu.BindGroup
+	worldMeshes         map[*WorldMesh]*gpuWorldMesh
+	depthTex            *wgpu.Texture
+	depthView           *wgpu.TextureView
+	depthWidth          int
+	depthHeight         int
+	worldVertexBuf      dynamicGPUBuffer
+	worldIndexBuf       dynamicGPUBuffer
+	screenVertexBuf     dynamicGPUBuffer
+	screenIndexBuf      dynamicGPUBuffer
+	billboardQuadBuf    *wgpu.Buffer
+	frameBuffers        []*wgpu.Buffer
+	frameBindGroups     []*wgpu.BindGroup
+	neutralLightmap     *Image
+	worldMeshBatches    []worldMeshBatch
+	worldMeshBatchByKey map[drawBatchKey]int
+	statsEnabled        bool
+	statsLast           time.Time
+	worldDebug          bool
+	worldDebugLast      time.Time
 
 	worldFrameScratch worldFrameScratch
 }
@@ -88,6 +90,11 @@ type gpuWorldMesh struct {
 	indexBuf   *wgpu.Buffer
 	indexCount uint32
 	version    uint64
+}
+
+type worldMeshBatch struct {
+	key    drawBatchKey
+	meshes []*WorldMesh
 }
 
 type renderPassState struct {
@@ -522,12 +529,8 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 	}
 	worldState := renderPassState{}
 	if screen.camera.Enabled {
-		for _, meshCommand := range screen.worldMeshes {
-			mesh := meshCommand.Mesh
-			if mesh == nil || !mesh.options.DepthWrite {
-				continue
-			}
-			if err := r.drawWorldMesh(ctx, pass, mesh, &worldState); err != nil {
+		for _, batch := range r.depthWriteWorldMeshBatches(screen) {
+			if err := r.drawWorldMeshBatch(ctx, pass, batch, &worldState); err != nil {
 				_ = pass.End()
 				return err
 			}
@@ -856,6 +859,73 @@ func (r *gpuRenderer) drawWorldMesh(ctx *gogpu.Context, pass *wgpu.RenderPassEnc
 	state.setVertexBuffer(pass, gpuMesh.vertexBuf)
 	state.setIndexBuffer(pass, gpuMesh.indexBuf)
 	pass.DrawIndexed(gpuMesh.indexCount, 1, 0, 0, 0)
+	return nil
+}
+
+func (r *gpuRenderer) depthWriteWorldMeshBatches(screen *Frame) []worldMeshBatch {
+	if screen == nil || len(screen.worldMeshes) == 0 {
+		return nil
+	}
+	for i := range r.worldMeshBatches {
+		r.worldMeshBatches[i].meshes = r.worldMeshBatches[i].meshes[:0]
+	}
+	r.worldMeshBatches = r.worldMeshBatches[:0]
+	if r.worldMeshBatchByKey == nil {
+		r.worldMeshBatchByKey = make(map[drawBatchKey]int, len(screen.worldMeshes))
+	} else {
+		clear(r.worldMeshBatchByKey)
+	}
+	for _, meshCommand := range screen.worldMeshes {
+		mesh := meshCommand.Mesh
+		if mesh == nil || !mesh.options.DepthWrite || mesh.texture == nil || mesh.texture.pix == nil || len(mesh.vertices) == 0 || len(mesh.indices) == 0 {
+			continue
+		}
+		key := drawBatchKey{texture: mesh.texture, lightTexture: mesh.lightTexture, options: mesh.options}
+		batchIndex, ok := r.worldMeshBatchByKey[key]
+		if !ok {
+			r.worldMeshBatches = append(r.worldMeshBatches, worldMeshBatch{key: key})
+			batchIndex = len(r.worldMeshBatches) - 1
+			r.worldMeshBatchByKey[key] = batchIndex
+		}
+		r.worldMeshBatches[batchIndex].meshes = append(r.worldMeshBatches[batchIndex].meshes, mesh)
+	}
+	return r.worldMeshBatches
+}
+
+func (r *gpuRenderer) drawWorldMeshBatch(ctx *gogpu.Context, pass *wgpu.RenderPassEncoder, batch worldMeshBatch, state *renderPassState) error {
+	if len(batch.meshes) == 0 || batch.key.texture == nil || batch.key.texture.pix == nil {
+		return nil
+	}
+	if state == nil {
+		state = &renderPassState{}
+	}
+	tex, err := r.ensureTexture(ctx, batch.key.texture, batch.key.options)
+	if err != nil {
+		return err
+	}
+	lightTex, err := r.ensureBatchLightTexture(ctx, batch.key)
+	if err != nil {
+		return err
+	}
+	sampler, err := r.sampler(batch.key.options)
+	if err != nil {
+		return err
+	}
+	bg, err := r.bindWorldGroup(r.worldUniform, 96, tex.tex, lightTex.tex, sampler)
+	if err != nil {
+		return err
+	}
+	state.setPipeline(pass, r.worldPipelineFor(batch.key.options.Blend, batch.key.options.DepthWrite))
+	state.setBindGroup(pass, bg)
+	for _, mesh := range batch.meshes {
+		gpuMesh, err := r.ensureWorldMesh(mesh)
+		if err != nil {
+			return err
+		}
+		state.setVertexBuffer(pass, gpuMesh.vertexBuf)
+		state.setIndexBuffer(pass, gpuMesh.indexBuf)
+		pass.DrawIndexed(gpuMesh.indexCount, 1, 0, 0, 0)
+	}
 	return nil
 }
 

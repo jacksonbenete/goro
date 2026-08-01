@@ -59,16 +59,16 @@ func (r *gpuRenderer) buildWorldFrame(screen *Frame) worldFrame {
 			scratch.alpha = append(scratch.alpha, cmd)
 			continue
 		}
+		w, h := cmd.Texture.Bounds().Dx(), cmd.Texture.Bounds().Dy()
+		if w <= 0 || h <= 0 {
+			continue
+		}
 		key := drawBatchKey{texture: cmd.Texture, lightTexture: cmd.LightTexture, options: cmd.Options}
 		batchIndex, ok := scratch.batchByKey[key]
 		if !ok {
 			scratch.pending = append(scratch.pending, pendingWorldBatch{key: key})
 			batchIndex = len(scratch.pending) - 1
 			scratch.batchByKey[key] = batchIndex
-		}
-		w, h := cmd.Texture.Bounds().Dx(), cmd.Texture.Bounds().Dy()
-		if w <= 0 || h <= 0 {
-			continue
 		}
 		batch := &scratch.pending[batchIndex]
 		batch.commands = append(batch.commands, cmd)
