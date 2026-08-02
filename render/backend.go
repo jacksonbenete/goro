@@ -1076,14 +1076,14 @@ func (r *runner) drawUISync(screen *Frame, width, height int, deviceScale float6
 			return fmt.Errorf("resize ui canvas: %w", err)
 		}
 		r.uiDrawnOnce = false
-		r.uiImage = nil
+		r.setUIImage(nil)
 		r.requestUIRedraw()
 	}
 	if !sameUIScale(r.uiScale, deviceScale) {
 		r.uiCanvas.SetDeviceScale(deviceScale)
 		r.uiScale = deviceScale
 		r.uiDrawnOnce = false
-		r.uiImage = nil
+		r.setUIImage(nil)
 		r.requestUIRedraw()
 	}
 
@@ -1167,7 +1167,7 @@ func (r *runner) drawUIAsync(screen *Frame, width, height int, deviceScale float
 	r.collectAsyncUIResults(width, height, deviceScale)
 
 	needsWork := !r.uiDrawnOnce || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
-	if needsWork {
+	if r.shouldRecordAsyncUI(needsWork) {
 		r.lastUIWork = true
 		uiStart := time.Now()
 		win.ClearAnimationFrame()
@@ -1234,7 +1234,7 @@ func (r *runner) updateUIRasterSurface(width, height int, deviceScale float64) {
 	r.uiScale = deviceScale
 	r.uiGeneration++
 	r.uiDrawnOnce = false
-	r.uiImage = nil
+	r.setUIImage(nil)
 	r.uiPendingLists = nil
 	r.requestUIRedraw()
 }
@@ -1293,7 +1293,7 @@ func (r *runner) collectAsyncUIResults(width, height int, deviceScale float64) {
 				glog.Warnf("async ui raster failed: %v", result.err)
 				r.uiGeneration++
 				r.uiDrawnOnce = false
-				r.uiImage = nil
+				r.setUIImage(nil)
 				r.uiPendingLists = nil
 				r.requestUIRedraw()
 				continue
@@ -1303,7 +1303,7 @@ func (r *runner) collectAsyncUIResults(width, height int, deviceScale float64) {
 				continue
 			}
 			imageStart := time.Now()
-			r.uiImage = result.image
+			r.setUIImage(result.image)
 			r.uiDrawnOnce = r.uiImage != nil
 			r.lastUIImageDur += time.Since(imageStart)
 			if r.renderCfg.UIProfile && result.rasterDur > 16*time.Millisecond {
@@ -1344,7 +1344,7 @@ func (r *runner) beginUIDragLayer(token any, rect geometry.Rect) bool {
 	if capture.image == nil {
 		return false
 	}
-	r.uiDrag = uiDragLayer{
+	r.setUIDragLayer(uiDragLayer{
 		token:       token,
 		rect:        rect,
 		image:       capture.image,
@@ -1353,7 +1353,7 @@ func (r *runner) beginUIDragLayer(token any, rect geometry.Rect) bool {
 		drawOffsetY: capture.rect.Min.Y - rect.Min.Y,
 		drawWidth:   capture.rect.Width(),
 		drawHeight:  capture.rect.Height(),
-	}
+	})
 	return true
 }
 
@@ -1368,7 +1368,7 @@ func (r *runner) endUIDragLayer(token any) {
 	if r == nil || token == nil || !r.uiDrag.active || r.uiDrag.token != token {
 		return
 	}
-	r.uiDrag = uiDragLayer{}
+	r.setUIDragLayer(uiDragLayer{})
 }
 
 func (r *runner) captureUIImageRect(rect geometry.Rect) uiImageRectCapture {
@@ -1438,7 +1438,39 @@ func (d uiDragLayer) drawRect() geometry.Rect {
 }
 
 func (r *runner) updateUIImage() {
-	r.uiImage = updateCanvasImage(r.uiCanvas, r.uiImage)
+	r.setUIImage(updateCanvasImage(r.uiCanvas, r.uiImage))
+}
+
+func (r *runner) setUIImage(img *Image) {
+	if r == nil || r.uiImage == img {
+		return
+	}
+	if r.gpu != nil {
+		r.gpu.releaseImageTexture(r.uiImage)
+	}
+	r.uiImage = img
+}
+
+func (r *runner) setUIDragLayer(layer uiDragLayer) {
+	if r == nil {
+		return
+	}
+	old := r.uiDrag.image
+	if old != nil && old != layer.image && old != r.uiImage && r.gpu != nil {
+		r.gpu.releaseImageTexture(old)
+	}
+	r.uiDrag = layer
+}
+
+func (r *runner) shouldRecordAsyncUI(needsWork bool) bool {
+	if !needsWork {
+		return false
+	}
+	if r != nil && r.uiAsyncBusy && len(r.uiPendingLists) > 0 {
+		r.lastUIWork = true
+		return false
+	}
+	return true
 }
 
 func (r *runner) requestUIRedraw() {

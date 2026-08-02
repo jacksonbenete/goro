@@ -762,6 +762,18 @@ func (r *gpuRenderer) releaseTexture(tex *gogpu.Texture) {
 	tex.Destroy()
 }
 
+func (r *gpuRenderer) releaseImageTexture(img *Image) {
+	if r == nil || img == nil {
+		return
+	}
+	existing := r.textures[img]
+	if existing == nil {
+		return
+	}
+	r.releaseTexture(existing.tex)
+	delete(r.textures, img)
+}
+
 func (r *gpuRenderer) sampler(opts DrawTrianglesOptions) (*wgpu.Sampler, error) {
 	key := samplerKey{filter: opts.Filter, address: opts.Address}
 	if sampler := r.samplers[key]; sampler != nil {

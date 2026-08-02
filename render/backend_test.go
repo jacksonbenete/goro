@@ -96,6 +96,90 @@ func TestRequestUIRedrawMarksCleanTreeDirty(t *testing.T) {
 	}
 }
 
+func TestSetUIImageReleasesPreviousGPUTexture(t *testing.T) {
+	oldImage := NewImage(1, 1)
+	nextImage := NewImage(1, 1)
+	gpu := &gpuRenderer{
+		textures: map[*Image]*gpuImageTexture{
+			oldImage: {},
+		},
+	}
+	r := &runner{gpu: gpu, uiImage: oldImage}
+
+	r.setUIImage(nextImage)
+
+	if r.uiImage != nextImage {
+		t.Fatal("runner did not publish the replacement UI image")
+	}
+	if _, ok := gpu.textures[oldImage]; ok {
+		t.Fatal("old UI image texture was not released from the GPU cache")
+	}
+}
+
+func TestSetUIImageKeepsCurrentGPUTextureWhenImageUnchanged(t *testing.T) {
+	image := NewImage(1, 1)
+	gpu := &gpuRenderer{
+		textures: map[*Image]*gpuImageTexture{
+			image: {},
+		},
+	}
+	r := &runner{gpu: gpu, uiImage: image}
+
+	r.setUIImage(image)
+
+	if _, ok := gpu.textures[image]; !ok {
+		t.Fatal("current UI image texture was released even though the image did not change")
+	}
+}
+
+func TestSetUIDragLayerReleasesPreviousGPUTexture(t *testing.T) {
+	oldImage := NewImage(1, 1)
+	nextImage := NewImage(1, 1)
+	gpu := &gpuRenderer{
+		textures: map[*Image]*gpuImageTexture{
+			oldImage: {},
+		},
+	}
+	r := &runner{
+		gpu: gpu,
+		uiDrag: uiDragLayer{
+			image:  oldImage,
+			active: true,
+		},
+	}
+
+	r.setUIDragLayer(uiDragLayer{image: nextImage, active: true})
+
+	if r.uiDrag.image != nextImage {
+		t.Fatal("runner did not publish the replacement drag image")
+	}
+	if _, ok := gpu.textures[oldImage]; ok {
+		t.Fatal("old drag image texture was not released from the GPU cache")
+	}
+}
+
+func TestShouldRecordAsyncUIBackpressuresWhenPendingListExists(t *testing.T) {
+	r := &runner{
+		uiAsyncBusy:    true,
+		uiPendingLists: []uiDrawList{{}},
+	}
+
+	if r.shouldRecordAsyncUI(true) {
+		t.Fatal("async UI recording was not backpressured while a raster and pending list were already queued")
+	}
+	if !r.lastUIWork {
+		t.Fatal("backpressured UI work was not reported")
+	}
+}
+
+func TestShouldRecordAsyncUIAllowsFirstPendingListWhileBusy(t *testing.T) {
+	r := &runner{uiAsyncBusy: true}
+
+	if !r.shouldRecordAsyncUI(true) {
+		t.Fatal("async UI did not allow recording the first pending draw list")
+	}
+}
+
 func TestUIDragLayerDrawRectPreservesPhysicalCropSize(t *testing.T) {
 	r := &runner{
 		uiImage: NewImage(1000, 750),
