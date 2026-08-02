@@ -128,10 +128,24 @@ func upsertSessionSkill(s *session.Session, skill session.Skill) {
 		if s.Skills.List[i].ID != skill.ID {
 			continue
 		}
+		skill = mergeSessionSkillUpdate(s.Skills.List[i], skill)
 		s.Skills.List[i] = skill
 		return
 	}
 	s.Skills.List = append(s.Skills.List, skill)
+}
+
+func mergeSessionSkillUpdate(existing, update session.Skill) session.Skill {
+	if update.Type == 0 {
+		update.Type = existing.Type
+	}
+	if update.Name == "" {
+		update.Name = existing.Name
+	}
+	if update.MaxLevel == 0 {
+		update.MaxLevel = existing.MaxLevel
+	}
+	return update
 }
 
 func refreshLocalPlayerMoveSpeed(ctx client.Context) {

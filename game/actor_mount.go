@@ -17,12 +17,23 @@ func actorWithVisualJob(actor worldstate.Actor) worldstate.Actor {
 	return actor
 }
 
+func characterWithVisualJob(character session.Character) session.Character {
+	return characterWithVisualJobForEffectState(character, character.Option)
+}
+
+func characterWithVisualJobForEffectState(character session.Character, effectState uint32) session.Character {
+	character.Job = int16(visualJobForEffectState(int(character.Job), effectState))
+	return character
+}
+
 func visualJobForEffectState(job int, effectState uint32) int {
-	if effectState&db.EffectStateRiding == 0 {
-		return job
+	if effectState&db.EffectStateWedding != 0 {
+		return db.JobMarried
 	}
-	if mounted, ok := db.MountJob(job); ok {
-		return mounted
+	if effectState&db.EffectStateRiding != 0 {
+		if mounted, ok := db.MountJob(job); ok {
+			return mounted
+		}
 	}
 	return job
 }
@@ -38,8 +49,7 @@ func localPlayerVisualCharacter(ctx client.Context) session.Character {
 	} else if ctx.World != nil && ctx.World.Player.EffectState != 0 {
 		effectState = ctx.World.Player.EffectState
 	}
-	character.Job = int16(visualJobForEffectState(int(character.Job), effectState))
-	return character
+	return characterWithVisualJobForEffectState(character, effectState)
 }
 
 func localPlayerVisualJob(ctx client.Context) int {

@@ -10,6 +10,12 @@ func TestSkillAttackRangeMirrorsRobrowserCompanionRows(t *testing.T) {
 		want    int
 	}{
 		{"vanilmirth caprice", SkillHvanCaprice, 5, 9},
+		{"wedding male", SkillWEMale, 1, 9},
+		{"wedding female", SkillWEFemale, 1, 9},
+		{"wedding call partner", SkillWECallpartner, 1, 1},
+		{"wedding baby", SkillWEBaby, 1, 9},
+		{"wedding call parent", SkillWECallparent, 1, 1},
+		{"wedding call baby", SkillWECallbaby, 1, 1},
 		{"filir sbr44", SkillHfliSbr44, 1, 9},
 		{"homunculus s needle", SkillMhStahlHorn, 10, 9},
 		{"mercenary devotion", SkillMlDevotion, 4, 10},

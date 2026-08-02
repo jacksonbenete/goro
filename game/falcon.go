@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	actorPersistentEffectOptionMask = actorEffectCartMask | db.EffectStateFalcon
+	actorPersistentEffectOptionMask = actorEffectCartMask | db.EffectStateFalcon | db.EffectStateWedding
 	falconGlideHeight               = 5.0
 	falconFollowRange               = 2
 	falconStopRange                 = 1

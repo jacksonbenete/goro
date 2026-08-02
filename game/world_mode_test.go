@@ -523,6 +523,53 @@ func TestApplyPushCartStatusTracksLocalAndRemoteActors(t *testing.T) {
 	}
 }
 
+func TestApplyActorStateChangeSyncsSelectedWeddingOption(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, Job: db.JobWizard, HasState: true}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150000,
+		Selected:  session.Character{ID: 150000, Job: db.JobWizard},
+		Characters: []session.Character{
+			{ID: 150000, Job: db.JobWizard},
+		},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+	mode := &WorldMode{}
+
+	mode.applyActorStateChange(ctx, network.ActorStateChange{
+		ID:          2000000,
+		BodyState:   0,
+		HealthState: 0,
+		EffectState: db.EffectStateWedding,
+	})
+	if world.Player.EffectState&db.EffectStateWedding == 0 {
+		t.Fatalf("world player effect state = 0x%08X, want wedding bit", world.Player.EffectState)
+	}
+	if sessionState.Selected.Option&db.EffectStateWedding == 0 {
+		t.Fatalf("selected option = 0x%08X, want wedding bit", sessionState.Selected.Option)
+	}
+	if sessionState.Characters[0].Option&db.EffectStateWedding == 0 {
+		t.Fatalf("character option = 0x%08X, want wedding bit", sessionState.Characters[0].Option)
+	}
+
+	mode.applyActorStateChange(ctx, network.ActorStateChange{
+		ID:          2000000,
+		BodyState:   0,
+		HealthState: 0,
+		EffectState: 0,
+	})
+	if world.Player.EffectState&db.EffectStateWedding != 0 {
+		t.Fatalf("world player effect state = 0x%08X, want wedding bit cleared", world.Player.EffectState)
+	}
+	if sessionState.Selected.Option&db.EffectStateWedding != 0 {
+		t.Fatalf("selected option = 0x%08X, want wedding bit cleared", sessionState.Selected.Option)
+	}
+	if sessionState.Characters[0].Option&db.EffectStateWedding != 0 {
+		t.Fatalf("character option = 0x%08X, want wedding bit cleared", sessionState.Characters[0].Option)
+	}
+}
+
 func TestActorCartStateFromEffectUsesReferenceCartNumbers(t *testing.T) {
 	actor := worldstate.Actor{Job: 5, EffectState: db.EffectStateCart3}
 	hasCart, cartNum := actorCartState(actor)
@@ -863,6 +910,48 @@ func TestCollectSceneActorEntriesMergesSelectedCharacterFalconOption(t *testing.
 	}
 	if entries[0].actor.EffectState&db.EffectStateRuwach == 0 {
 		t.Fatalf("entry effect state = 0x%08X, want live effect state preserved", entries[0].actor.EffectState)
+	}
+}
+
+func TestCollectSceneActorEntriesMergesSelectedCharacterWeddingOption(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "prontera"
+	world.Player = worldstate.Actor{
+		ID:          150012,
+		X:           10,
+		Y:           20,
+		Dir:         4,
+		HasState:    true,
+		EffectState: db.EffectStateRuwach,
+	}
+	ctx := client.Context{
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150012,
+			Selected: session.Character{
+				ID:     150012,
+				Job:    db.JobWizard,
+				Option: db.EffectStateWedding,
+			},
+		},
+		World: world,
+	}
+	mode := &WorldMode{}
+	screen := render.NewFrame(800, 600)
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+
+	entries := mode.collectSceneActorEntries(screen, ctx, projection)
+	if len(entries) == 0 {
+		t.Fatal("no scene actor entries collected")
+	}
+	if entries[0].actor.EffectState&db.EffectStateWedding == 0 {
+		t.Fatalf("entry effect state = 0x%08X, want selected wedding option merged", entries[0].actor.EffectState)
+	}
+	if entries[0].actor.EffectState&db.EffectStateRuwach == 0 {
+		t.Fatalf("entry effect state = 0x%08X, want live effect state preserved", entries[0].actor.EffectState)
+	}
+	if entries[0].actor.Job != db.JobMarried {
+		t.Fatalf("entry visual job = %d, want married job %d", entries[0].actor.Job, db.JobMarried)
 	}
 }
 
@@ -8495,6 +8584,12 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "CR_ACIDDEMONSTRATION imported", skillEffectIDs(db.SkillCRAciddemonstration), effectAcidDemon)
 	expectEffectIDs(t, "SL_KAAHI imported", skillEffectIDs(db.SkillSLKaahi), effectHated)
 	expectEffectIDs(t, "SL_STIN imported", skillEffectIDs(db.SkillSLStin), effectStin)
+	expectEffectIDs(t, "WE_MALE imported empty", skillEffectIDs(db.SkillWEMale))
+	expectEffectIDs(t, "WE_FEMALE imported empty", skillEffectIDs(db.SkillWEFemale))
+	expectEffectIDs(t, "WE_CALLPARTNER imported empty", skillEffectIDs(db.SkillWECallpartner))
+	expectEffectIDs(t, "WE_BABY imported", skillEffectIDs(db.SkillWEBaby), 408)
+	expectEffectIDs(t, "WE_CALLPARENT imported empty", skillEffectIDs(db.SkillWECallparent))
+	expectEffectIDs(t, "WE_CALLBABY imported empty", skillEffectIDs(db.SkillWECallbaby))
 	expectEffectIDs(t, "LK_HEADCRUSH imported begin", skillBeginEffectIDs(db.SkillLKHeadcrush), effectBash3D3)
 	expectEffectIDs(t, "LK_HEADCRUSH imported hit", skillHitEffectIDs(db.SkillLKHeadcrush), effectEnemyHitNormal1)
 	expectEffectIDs(t, "LK_JOINTBEAT imported begin", skillBeginEffectIDs(db.SkillLKJointbeat), effectBash3D4)

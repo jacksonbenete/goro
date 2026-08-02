@@ -837,6 +837,22 @@ func TestAlchemistSkillRequirementsMirrorRobrowser(t *testing.T) {
 	}
 }
 
+func TestWeddingSkillMaxLevelsMirrorRobrowser(t *testing.T) {
+	for _, skillID := range []uint16{
+		SkillWEMale,
+		SkillWEFemale,
+		SkillWECallpartner,
+		SkillWEBaby,
+		SkillWECallparent,
+		SkillWECallbaby,
+	} {
+		got, ok := SkillMaxLevel(skillID)
+		if !ok || got != 1 {
+			t.Fatalf("skill %d max level = %d ok=%t, want 1", skillID, got, ok)
+		}
+	}
+}
+
 func TestWizardSkillMaxLevelsMirrorRobrowser(t *testing.T) {
 	for _, tc := range []struct {
 		skillID uint16

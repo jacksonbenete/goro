@@ -19,6 +19,15 @@ func TestVisualJobForPecoRiding(t *testing.T) {
 	}
 }
 
+func TestVisualJobForWeddingCostume(t *testing.T) {
+	if got := visualJobForEffectState(db.JobWizard, db.EffectStateWedding); got != db.JobMarried {
+		t.Fatalf("wedding visual job = %d, want married job %d", got, db.JobMarried)
+	}
+	if got := visualJobForEffectState(db.JobKnight, db.EffectStateRiding|db.EffectStateWedding); got != db.JobMarried {
+		t.Fatalf("wedding riding visual job = %d, want married job %d", got, db.JobMarried)
+	}
+}
+
 func TestLocalPlayerVisualCharacterKeepsSessionJobUnchanged(t *testing.T) {
 	sessionState := &session.Session{
 		Selected: session.Character{ID: 200, Job: db.JobKnight, Option: db.EffectStateRiding},
@@ -34,6 +43,18 @@ func TestLocalPlayerVisualCharacterKeepsSessionJobUnchanged(t *testing.T) {
 	}
 	if sessionState.Selected.Job != db.JobKnight {
 		t.Fatalf("session job mutated to %d, want base knight", sessionState.Selected.Job)
+	}
+}
+
+func TestCharacterWithVisualJobUsesWeddingOptionWithoutMutatingBaseJob(t *testing.T) {
+	character := session.Character{ID: 200, Job: db.JobWizard, Option: db.EffectStateWedding}
+
+	visual := characterWithVisualJob(character)
+	if visual.Job != db.JobMarried {
+		t.Fatalf("visual character job = %d, want married job %d", visual.Job, db.JobMarried)
+	}
+	if character.Job != db.JobWizard {
+		t.Fatalf("source character job mutated to %d, want base wizard", character.Job)
 	}
 }
 
@@ -57,5 +78,28 @@ func TestAppendActorDrawEntryUsesMountedVisualJob(t *testing.T) {
 	}
 	if actor.Job != db.JobKnight {
 		t.Fatalf("source actor job mutated to %d, want base knight", actor.Job)
+	}
+}
+
+func TestAppendActorDrawEntryUsesWeddingVisualJob(t *testing.T) {
+	world := worldstate.New()
+	actor := worldstate.Actor{
+		ID:          300,
+		Job:         db.JobWizard,
+		EffectState: db.EffectStateWedding,
+		X:           10,
+		Y:           20,
+	}
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 0)
+
+	entries := appendActorDrawEntry(nil, world, projection, actor, false, time.Now(), 800, 600)
+	if len(entries) != 1 {
+		t.Fatalf("entries = %d, want 1", len(entries))
+	}
+	if got := entries[0].actor.Job; got != db.JobMarried {
+		t.Fatalf("entry visual job = %d, want married job %d", got, db.JobMarried)
+	}
+	if actor.Job != db.JobWizard {
+		t.Fatalf("source actor job mutated to %d, want base wizard", actor.Job)
 	}
 }

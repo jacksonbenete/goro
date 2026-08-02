@@ -325,6 +325,7 @@ func (m *LoginMode) characterPreviewView(ctx client.Context, character session.C
 	if view := m.charViews[character.ID]; view != nil {
 		return view
 	}
+	character = characterWithVisualJob(character)
 	view, status := loadPlayerHumanoidSpriteView(ctx.Resources, character, ctx.Session.Sex, false)
 	if view == nil {
 		if m.charViewFailed == nil {

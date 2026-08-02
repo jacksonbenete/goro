@@ -3,6 +3,12 @@ package db
 // SkillAttackRanges mirrors roBrowser's DB/Skills/SkillInfo.js AttackRange rows.
 // It is intentionally sparse so broader SkillInfo metadata can be batch-imported later.
 var SkillAttackRanges = map[uint16][]int{
+	SkillWEMale:             {9},
+	SkillWEFemale:           {9},
+	SkillWECallpartner:      {1},
+	SkillWEBaby:             {9},
+	SkillWECallparent:       {1},
+	SkillWECallbaby:         {1},
 	SkillHlifHeal:           {1, 1, 1, 1, 1},
 	SkillHlifAvoid:          {1, 1, 1, 1, 1},
 	SkillHlifBrain:          {1, 1, 1, 1, 1},

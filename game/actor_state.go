@@ -21,6 +21,7 @@ func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.Act
 		oldVisualJob := localPlayerVisualJob(ctx)
 		oldState := ctx.World.Player.EffectState
 		setActorRenderState(&ctx.World.Player, change.BodyState, change.HealthState, change.EffectState)
+		setSelectedCharacterOptionBit(ctx, db.EffectStateWedding, change.EffectState&db.EffectStateWedding != 0)
 		m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
 		if newVisualJob := localPlayerVisualJob(ctx); newVisualJob != oldVisualJob {
 			m.reloadPlayerSpriteView(ctx, fmt.Sprintf("state effect=0x%08X", change.EffectState))

@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"strings"
 	"testing"
+
+	"github.com/kivutar/goro/db"
 )
 
 func TestParseSkillInfoList(t *testing.T) {
@@ -344,6 +346,25 @@ func TestBuildUseSkillToIDPacketForClientDate20080910(t *testing.T) {
 		t.Fatalf("level = %d", got)
 	}
 	if got := binary.LittleEndian.Uint16(packet[4:6]); got != 5 {
+		t.Fatalf("skill = %d", got)
+	}
+	if got := binary.LittleEndian.Uint32(packet[6:10]); got != 0x11223344 {
+		t.Fatalf("target = 0x%08X", got)
+	}
+}
+
+func TestBuildWeddingSkillToIDPacketForClientDate20080910(t *testing.T) {
+	packet := BuildUseSkillToIDPacketForClientDate(db.SkillWECallpartner, 1, 0x11223344, 20080910)
+	if got := ID(packet); got != 0x0438 {
+		t.Fatalf("opcode = 0x%04X", got)
+	}
+	if len(packet) != 10 {
+		t.Fatalf("len = %d", len(packet))
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 1 {
+		t.Fatalf("level = %d", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[4:6]); got != db.SkillWECallpartner {
 		t.Fatalf("skill = %d", got)
 	}
 	if got := binary.LittleEndian.Uint32(packet[6:10]); got != 0x11223344 {
