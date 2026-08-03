@@ -280,6 +280,31 @@ func TestConsoleMessageRedrawDefersOneUpdate(t *testing.T) {
 	}
 }
 
+func TestConsoleMessagesKeyCachesUntilMessagesChange(t *testing.T) {
+	console := &ChatConsole{}
+
+	console.AddSystemMessage("ready")
+	first := console.messagesKey()
+	if first == "" {
+		t.Fatal("messages key was empty")
+	}
+	if console.messagesKeyDirty {
+		t.Fatal("messages key stayed dirty after rebuild")
+	}
+
+	console.AddBlueMessage("updated")
+	if !console.messagesKeyDirty {
+		t.Fatal("message append did not invalidate messages key")
+	}
+	second := console.messagesKey()
+	if second == first {
+		t.Fatal("messages key did not change after message append")
+	}
+	if console.messagesKeyDirty {
+		t.Fatal("messages key stayed dirty after second rebuild")
+	}
+}
+
 func TestConsoleMessageRedrawWaitsForStablePlayerMarker(t *testing.T) {
 	console := &ChatConsole{}
 	world := worldstate.New()

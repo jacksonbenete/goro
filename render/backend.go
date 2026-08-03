@@ -274,7 +274,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 		WithSize(cfg.Width, cfg.Height).
 		WithResizable(true).
 		WithContinuousRender(true).
-		WithVSync(renderCfg.VSync && renderCfg.BenchSeconds == 0)
+		WithVSync(renderCfg.VSync)
 	if cfg.Fullscreen {
 		appConfig = appConfig.WithFullscreen()
 	}
@@ -359,7 +359,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 }
 
 func configureGogpuVSync(renderCfg config.RenderConfig) {
-	if renderCfg.VSync && renderCfg.BenchSeconds == 0 {
+	if renderCfg.VSync {
 		return
 	}
 	if os.Getenv("GOGPU_WAYLAND_FRAME_CALLBACK") == "" {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -62,9 +63,19 @@ type ChatConsole struct {
 	cacheKey                  string
 	renderedMessagesKey       string
 	renderedMessagesKeyValid  bool
+	messagesKeyCache          string
+	messagesKeyDirty          bool
+	renderKeyCache            string
+	renderKeyW                int
+	renderKeyH                int
+	renderKeyMessagesKey      string
 	pendingMessageRedraw      bool
 	pendingMessageRedrawReady bool
-	playerMarkerKey           string
+	playerMarkerMap           string
+	playerMarkerX             int
+	playerMarkerY             int
+	playerMarkerDir           int
+	playerMarkerValid         bool
 	playerMarkerStableUpdates int
 	messageH                  int
 	messageW                  int
@@ -141,13 +152,13 @@ func (c *ChatConsole) ensureWindow(ctx client.Context) {
 	c.window.SetSize(width, height)
 	if !c.window.IsOpen() {
 		content := c.widgetTree(width, height)
-		c.cacheKey = c.renderKey(width, height)
+		c.cacheKey = key
 		c.window.OpenAt(x, y, content)
 		return
 	}
 	if c.cacheKey != key {
 		content := c.widgetTree(width, height)
-		c.cacheKey = c.renderKey(width, height)
+		c.cacheKey = key
 		c.window.SetContent(content)
 	}
 }
@@ -195,6 +206,7 @@ func (c *ChatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 		copy(c.messages, c.messages[len(c.messages)-80:])
 		c.messages = c.messages[:80]
 	}
+	c.messagesKeyDirty = true
 	c.scheduleMessageRedraw()
 }
 
@@ -900,11 +912,20 @@ func consoleBottomScrollY(lines int, viewportHeight int) float32 {
 }
 
 func (c *ChatConsole) renderKey(width, height int) string {
-	messageKey := c.messagesKey()
+	messageKey := ""
 	if c.pendingMessageRedraw && c.renderedMessagesKeyValid {
 		messageKey = c.renderedMessagesKey
+	} else {
+		messageKey = c.messagesKey()
 	}
-	return fmt.Sprintf("%dx%d:%s", width, height, messageKey)
+	if c.renderKeyCache != "" && c.renderKeyW == width && c.renderKeyH == height && c.renderKeyMessagesKey == messageKey {
+		return c.renderKeyCache
+	}
+	c.renderKeyW = width
+	c.renderKeyH = height
+	c.renderKeyMessagesKey = messageKey
+	c.renderKeyCache = strconv.Itoa(width) + "x" + strconv.Itoa(height) + ":" + messageKey
+	return c.renderKeyCache
 }
 
 func (c *ChatConsole) invalidate() {
@@ -944,14 +965,23 @@ func (c *ChatConsole) flushPendingMessageRedraw(ctx client.Context) {
 }
 
 func (c *ChatConsole) updatePlayerMarkerStability(ctx client.Context) {
-	key, ok := consolePlayerMarkerKey(ctx)
-	if !ok {
-		c.playerMarkerKey = ""
+	if ctx.World == nil {
+		c.playerMarkerValid = false
+		c.playerMarkerMap = ""
 		c.playerMarkerStableUpdates = 0
 		return
 	}
-	if c.playerMarkerKey != key {
-		c.playerMarkerKey = key
+	player := ctx.World.Player
+	if !c.playerMarkerValid ||
+		c.playerMarkerMap != ctx.World.MapName ||
+		c.playerMarkerX != player.X ||
+		c.playerMarkerY != player.Y ||
+		c.playerMarkerDir != player.Dir {
+		c.playerMarkerValid = true
+		c.playerMarkerMap = ctx.World.MapName
+		c.playerMarkerX = player.X
+		c.playerMarkerY = player.Y
+		c.playerMarkerDir = player.Dir
 		c.playerMarkerStableUpdates = 0
 		return
 	}
@@ -967,20 +997,17 @@ func (c *ChatConsole) playerMarkerSettled(ctx client.Context) bool {
 	return c.playerMarkerStableUpdates >= 2
 }
 
-func consolePlayerMarkerKey(ctx client.Context) (string, bool) {
-	if ctx.World == nil {
-		return "", false
-	}
-	player := ctx.World.Player
-	return fmt.Sprintf("%s:%d:%d:%d", ctx.World.MapName, player.X, player.Y, player.Dir), true
-}
-
 func (c *ChatConsole) messagesKey() string {
+	if !c.messagesKeyDirty && (len(c.messages) == 0 || c.messagesKeyCache != "") {
+		return c.messagesKeyCache
+	}
 	var b strings.Builder
 	for _, msg := range c.messages {
 		fmt.Fprintf(&b, "%02x%02x%02x%02x:%s\n", msg.Color.R, msg.Color.G, msg.Color.B, msg.Color.A, msg.Text)
 	}
-	return b.String()
+	c.messagesKeyCache = b.String()
+	c.messagesKeyDirty = false
+	return c.messagesKeyCache
 }
 
 func (c *ChatConsole) inputWidget() *textfield.Widget {

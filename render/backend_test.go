@@ -39,7 +39,7 @@ func TestConfigureGogpuVSyncLeavesWaylandFrameGateWhenVSyncOn(t *testing.T) {
 	}
 }
 
-func TestConfigureGogpuVSyncDisablesWaylandFrameGateForBenchmarks(t *testing.T) {
+func TestConfigureGogpuVSyncLeavesWaylandFrameGateForVSyncBenchmarks(t *testing.T) {
 	t.Setenv("GOGPU_WAYLAND_FRAME_CALLBACK", "")
 	if err := os.Unsetenv("GOGPU_WAYLAND_FRAME_CALLBACK"); err != nil {
 		t.Fatal(err)
@@ -47,8 +47,8 @@ func TestConfigureGogpuVSyncDisablesWaylandFrameGateForBenchmarks(t *testing.T) 
 
 	configureGogpuVSync(config.RenderConfig{VSync: true, BenchSeconds: 10})
 
-	if got := os.Getenv("GOGPU_WAYLAND_FRAME_CALLBACK"); got != "0" {
-		t.Fatalf("GOGPU_WAYLAND_FRAME_CALLBACK = %q, want 0", got)
+	if got, ok := os.LookupEnv("GOGPU_WAYLAND_FRAME_CALLBACK"); ok {
+		t.Fatalf("GOGPU_WAYLAND_FRAME_CALLBACK = %q, want unset", got)
 	}
 }
 
