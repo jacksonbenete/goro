@@ -1799,6 +1799,18 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.updateSkillTextPrompt(ctx) {
 		return nil, nil
 	}
+	if m.ui.makingArrow.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.makingItem.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.repairItem.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.weaponRefine.Update(ctx) {
+		return nil, nil
+	}
 	if m.ui.console.Update(ctx) {
 		return nil, nil
 	}
@@ -1819,18 +1831,6 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.cardWindow.Update(ctx) {
-		return nil, nil
-	}
-	if m.ui.makingArrow.Update(ctx) {
-		return nil, nil
-	}
-	if m.ui.makingItem.Update(ctx) {
-		return nil, nil
-	}
-	if m.ui.repairItem.Update(ctx) {
-		return nil, nil
-	}
-	if m.ui.weaponRefine.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.petEggWindow.Update(ctx) {

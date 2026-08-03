@@ -10122,7 +10122,7 @@ func TestSpecialEffectNotifyMapsServerResultEffects(t *testing.T) {
 		mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: effectID})
 	}
 
-	want := []int{effectRefineFail, effectRefineOK, effectPharmacyOK, effectPharmacyFail}
+	want := []int{effectRefineOK, effectPharmacyFail}
 	wantSFX := []string{
 		"effect\\bs_refinefailed.wav",
 		"effect\\bs_refinesuccess.wav",
@@ -10144,6 +10144,33 @@ func TestSpecialEffectNotifyMapsServerResultEffects(t *testing.T) {
 		if len(sound.paths) != 1 || sound.paths[0] != wantSFX[i] {
 			t.Fatalf("scheduled sound %d = %+v, want %q", i, sound, wantSFX[i])
 		}
+	}
+}
+
+func TestMakingItemWindowEnterConsumesBeforeConsole(t *testing.T) {
+	inputState := input.NewState()
+	netClient := network.NewClient(20080910, false)
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Input:   inputState,
+		Network: netClient,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	mode.ui.makingItem.OpenList(ctx, network.MakingItemList{
+		Items: []network.MakingItemOption{{ItemID: 501}},
+	})
+
+	inputState.SetKey(input.KeyEnter, true)
+	if _, err := mode.Update(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if mode.ui.console.Active() {
+		t.Fatal("console became active before making item window consumed Enter")
+	}
+	if !mode.ui.makingItem.IsOpen() {
+		t.Fatal("making item window closed even though the disconnected test client could not send")
 	}
 }
 

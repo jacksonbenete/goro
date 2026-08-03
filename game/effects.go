@@ -1180,10 +1180,12 @@ func (m *WorldMode) applySpecialEffectNotify(ctx client.Context, notify network.
 		return
 	}
 	spec, _ := worldEffectSpecForID(effectID)
+	if craftingResultSpecialEffect(notify.EffectID) {
+		m.replaceCraftingResultEffect(ctx, notify, effectID, spec)
+		return
+	}
 	if m.addWorldEffectIfMissing(ctx, effectID, notify.AID) {
 		glog.Debugf("special effect actor=%d special=%d effect=%d sfx=%v", notify.AID, notify.EffectID, effectID, spec.sfx)
-	} else if craftingResultSpecialEffect(notify.EffectID) {
-		glog.Debugf("special effect skipped duplicate actor=%d special=%d effect=%d sfx=%v", notify.AID, notify.EffectID, effectID, spec.sfx)
 	}
 }
 
@@ -1234,6 +1236,26 @@ func craftingResultSpecialEffect(effectID uint32) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func (m *WorldMode) replaceCraftingResultEffect(ctx client.Context, notify network.SpecialEffectNotify, effectID int, spec worldEffectSpec) {
+	for _, activeID := range craftingResultEffectGroup(effectID) {
+		m.removeWorldEffect(activeID, notify.AID)
+	}
+	if m.addWorldEffect(ctx, effectID, notify.AID) {
+		glog.Debugf("special effect actor=%d special=%d effect=%d sfx=%v restart=true", notify.AID, notify.EffectID, effectID, spec.sfx)
+	}
+}
+
+func craftingResultEffectGroup(effectID int) []int {
+	switch effectID {
+	case effectRefineOK, effectRefineFail:
+		return []int{effectRefineOK, effectRefineFail}
+	case effectPharmacyOK, effectPharmacyFail:
+		return []int{effectPharmacyOK, effectPharmacyFail}
+	default:
+		return []int{effectID}
 	}
 }
 
