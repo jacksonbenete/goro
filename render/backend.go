@@ -286,7 +286,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 	uiTheme.Colors.Background = widget.RGBA8(0, 0, 0, 0)
 	ui := uiapp.New(
 		uiapp.WithWindowProvider(gg),
-		uiapp.WithPlatformProvider(gg),
+		uiapp.WithPlatformProvider(roCursorPlatformProvider{PlatformProvider: gg}),
 		uiapp.WithEventSource(events),
 		uiapp.WithTheme(uiTheme),
 		uiapp.WithRenderMode(uiapp.RenderModeFrameworkManaged),
