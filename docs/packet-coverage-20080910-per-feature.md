@@ -32,9 +32,11 @@
 
   Guild
 
-  - [ ] Change member position info: 0x0161
   - [x] Create guild/result: 0x0165, 0x0167
   - [x] Invite/reply to guild: 0x0168, 0x0169, 0x016A, 0x016B
+  - [x] Guild info, menu, member/position list state, skills, and ban history: 0x014F, 0x0150, 0x0154, 0x0160, 0x0162, 0x0163, 0x0166, 0x016C, 0x0174, 0x0176, 0x01B6
+  - [x] Guild emblem request/upload/image/change: 0x0151, 0x0152, 0x0153, 0x01B4
+  - [x] Change guild member positions and position info: 0x0155, 0x0156, 0x0161
   - [x] Change guild notice: 0x016E
   - [ ] Guild alliance request/reply/delete/opposition: 0x0170, 0x0172, 0x0180, 0x0183
   - [ ] Guild message: 0x017E
@@ -45,6 +47,7 @@
   - [x] Card composition list/insert: 0x017A, 0x017C
   - [x] Arrow Crafting material list/selection: 0x01AD, 0x01AE
   - [x] Show equipment/view equipment: 0x02D6, 0x02D7, 0x02D8
+  - [x] Vending open/close/list/purchase/store state: 0x012D, 0x012E, 0x012F, 0x0130, 0x0131, 0x0132, 0x0133, 0x0134, 0x0135, 0x0136, 0x0137, 0x01B2
   - [ ] Blacksmith/alchemist crafting: 0x018E
   - [ ] Item repair: 0x01FD
   - [ ] Weapon refine: 0x0222

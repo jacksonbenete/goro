@@ -22,8 +22,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `204`
-- Client-to-map accepted packets referenced by Goro: `94` / `177`
+- Effective map opcodes referenced by Goro: `208`
+- Client-to-map accepted packets referenced by Goro: `95` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## Homunculus Compatibility Notes
@@ -63,21 +63,13 @@ companion UI, AI, skill, and visual coverage.
 
 | Opcode | Direction | rAthena symbol | Length | Handler | Priority |
 |---:|---|---|---:|---|---|
-| `0x007E` | C->S | `0x007e` | `102` | `clif_parse_UseSkillToPosMoreInfo` | P0/P1 |
 | `0x0149` | C->S | `0x0149` | `9` | `clif_parse_GMReqNoChat` | P2 |
-| `0x0161` | C->S | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | P2 |
-| `0x016E` | C->S | `0x016e` | `186` | `clif_parse_GuildChangeNotice` | P2 |
 | `0x0170` | C->S | `0x0170` | `14` | `clif_parse_GuildRequestAlliance` | P2 |
 | `0x0172` | C->S | `0x0172` | `10` | `clif_parse_GuildReplyAlliance` | P2 |
 | `0x017E` | C->S | `0x017e` | `-1` | `clif_parse_GuildMessage` | P2 |
 | `0x0180` | C->S | `0x0180` | `6` | `clif_parse_GuildOpposition` | P2 |
 | `0x0183` | C->S | `0x0183` | `10` | `clif_parse_GuildDelAlliance` | P2 |
-| `0x01A1` | C->S | `0x01a1` | `3` | `clif_parse_PetMenu` | P2 |
-| `0x01A5` | C->S | `0x01a5` | `26` | `clif_parse_ChangePetName` | P2 |
-| `0x01A9` | C->S | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | P2 |
 | `0x023B` | C->S | `0x023b` | `36` | `clif_parse_StoragePassword` | P0/P1 |
-| `0x02C4` | C->S | `HEADER_CZ_PARTY_JOIN_REQ` | `sizeof( PACKET_CZ_PARTY_JOIN_REQ )` | `clif_parse_PartyInvite2` | P2 |
-| `0x02C7` | C->S | `HEADER_CZ_PARTY_JOIN_REQ_ACK` | `sizeof( PACKET_CZ_PARTY_JOIN_REQ_ACK )` | `clif_parse_ReplyPartyInvite2` | P2 |
 | `0x02CF` | C->S | `0x02cf` | `6` | `clif_parse_MemorialDungeonCommand` | P2 |
 | `0x02DB` | C->S | `0x02db` | `-1` | `clif_parse_BattleChat` | P2 |
 | `0x0802` | C->S | `0x0802` | `18` | `clif_parse_PartyBookingRegisterReq` | P2 |
@@ -286,34 +278,34 @@ email check.
 | `0x0149` | C->S | missing | `0x0149` | `9` | `clif_parse_GMReqNoChat` | - |
 | `0x014A` | S->C | referenced | `0x014a` | `6` | `-` | packet.go |
 | `0x014D` | C->S | referenced | `0x014d` | `2` | `clif_parse_GuildCheckMaster` | packet.go |
-| `0x014F` | C->S | referenced | `0x014f` | `6` | `clif_parse_GuildRequestInfo` | packet.go |
-| `0x0150` | S->C | referenced | `0x0150` | `110` | `-` | packet.go |
-| `0x0151` | C->S | referenced | `0x0151` | `6` | `clif_parse_GuildRequestEmblem` | packet.go |
-| `0x0152` | S->C | referenced | `0x0152` | `-1` | `-` | packet.go |
-| `0x0153` | C->S | referenced | `0x0153` | `-1` | `clif_parse_GuildChangeEmblem` | packet.go |
-| `0x0154` | S->C | referenced | `0x0154` | `-1` | `-` | packet.go |
-| `0x0155` | C->S | referenced | `HEADER_CZ_REQ_CHANGE_MEMBERPOS` | `-1` | `clif_parse_GuildChangeMemberPosition` | packet.go |
+| `0x014F` | C->S | referenced | `0x014f` | `6` | `clif_parse_GuildRequestInfo` | guild_packets.go, packet.go |
+| `0x0150` | S->C | referenced | `0x0150` | `110` | `-` | guild_packets.go, packet.go |
+| `0x0151` | C->S | referenced | `0x0151` | `6` | `clif_parse_GuildRequestEmblem` | guild_packets.go, packet.go |
+| `0x0152` | S->C | referenced | `0x0152` | `-1` | `-` | guild_packets.go, packet.go |
+| `0x0153` | C->S | referenced | `0x0153` | `-1` | `clif_parse_GuildChangeEmblem` | guild_packets.go, packet.go |
+| `0x0154` | S->C | referenced | `0x0154` | `-1` | `-` | guild_packets.go, packet.go |
+| `0x0155` | C->S | referenced | `HEADER_CZ_REQ_CHANGE_MEMBERPOS` | `-1` | `clif_parse_GuildChangeMemberPosition` | guild_packets.go, packet.go |
 | `0x0157` | S->C | referenced | `0x0157` | `6` | `-` | packet.go |
-| `0x0158` | S->C | untracked | `0x0158` | `-1` | `-` | - |
+| `0x0158` | S->C | referenced | `0x0158` | `-1` | `-` | guild_packets.go, packet.go |
 | `0x0159` | C->S | referenced | `HEADER_CZ_REQ_LEAVE_GUILD` | `sizeof( PACKET_CZ_REQ_LEAVE_GUILD )` | `clif_parse_GuildLeave` | packet.go |
 | `0x015B` | C->S | referenced | `HEADER_CZ_REQ_BAN_GUILD` | `sizeof( PACKET_CZ_REQ_BAN_GUILD )` | `clif_parse_GuildExpulsion` | packet.go |
 | `0x015D` | C->S | referenced | `HEADER_CZ_REQ_DISORGANIZE_GUILD` | `sizeof( PACKET_CZ_REQ_DISORGANIZE_GUILD )` | `clif_parse_GuildBreak` | packet.go |
 | `0x015F` | S->C | untracked | `0x015f` | `42` | `-` | - |
-| `0x0161` | C->S | missing | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | - |
+| `0x0161` | C->S | implemented | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | guild_packets.go |
 | `0x0164` | S->C | untracked | `0x0164` | `-1` | `-` | - |
 | `0x0165` | C->S | referenced | `0x0165` | `30` | `clif_parse_CreateGuild` | guild_packets.go |
-| `0x0166` | S->C | referenced | `0x0166` | `-1` | `-` | packet.go |
+| `0x0166` | S->C | referenced | `0x0166` | `-1` | `-` | guild_packets.go, packet.go |
 | `0x0167` | S->C | referenced | `0x0167` | `3` | `-` | guild_packets.go |
 | `0x0168` | C->S | referenced | `HEADER_CZ_REQ_JOIN_GUILD` | `sizeof( PACKET_CZ_REQ_JOIN_GUILD )` | `clif_parse_GuildInvite` | guild_packets.go |
 | `0x0169` | S->C | referenced | `0x0169` | `3` | `-` | guild_packets.go |
 | `0x016A` | S->C | referenced | `0x016a` | `30` | `-` | guild_packets.go |
 | `0x016B` | C->S | referenced | `HEADER_CZ_JOIN_GUILD` | `sizeof( PACKET_CZ_JOIN_GUILD )` | `clif_parse_GuildReplyInvite` | guild_packets.go |
-| `0x016C` | S->C | referenced | `0x016c` | `43` | `-` | packet.go |
+| `0x016C` | S->C | referenced | `0x016c` | `43` | `-` | guild_packets.go, packet.go |
 | `0x016E` | C->S | referenced | `0x016e` | `186` | `clif_parse_GuildChangeNotice` | guild_packets.go |
 | `0x0170` | C->S | missing | `0x0170` | `14` | `clif_parse_GuildRequestAlliance` | - |
 | `0x0172` | C->S | missing | `0x0172` | `10` | `clif_parse_GuildReplyAlliance` | - |
 | `0x0175` | S->C | referenced | `0x0175` | `6` | `-` | packet.go |
-| `0x0176` | S->C | untracked | `0x0176` | `106` | `-` | - |
+| `0x0176` | S->C | implemented | `0x0176` | `106` | `-` | guild_packets.go, packet.go |
 | `0x0177` | S->C | referenced | `0x0177` | `-1` | `-` | item_packets.go, packet.go |
 | `0x0178` | C->S | referenced | `HEADER_CZ_REQ_ITEMIDENTIFY` | `sizeof( PACKET_CZ_REQ_ITEMIDENTIFY )` | `clif_parse_ItemIdentify` | item_packets.go |
 | `0x017A` | C->S | referenced | `HEADER_CZ_REQ_ITEMCOMPOSITION_LIST` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION_LIST )` | `clif_parse_UseCard` | item_packets.go |
@@ -350,7 +342,7 @@ email check.
 | `0x01A8` | S->C | referenced | `0x01a8` | `4` | `-` | packet.go |
 | `0x01A9` | C->S | implemented | `0x01a9` | `6` | `clif_parse_SendEmotion` (pet emotion) | pet_packets.go |
 | `0x01AA` | S->C | implemented | `0x01aa` | `10` | `-` | pet_packets.go |
-| `0x01AC` | S->C | untracked | `0x01ac` | `6` | `-` | - |
+| `0x01AC` | S->C | referenced | `0x01ac` | `6` | `-` | skill_packets.go |
 | `0x01AD` | S->C | referenced | `0x01ad` | `-1` | `-` | item_packets.go, packet.go |
 | `0x01AE` | C->S | implemented | `HEADER_CZ_REQ_MAKINGARROW` | `sizeof( PACKET_CZ_REQ_MAKINGARROW )` | `clif_parse_SelectArrow` | item_packets.go |
 | `0x01AF` | C->S | referenced | `0x01af` | `4` | `clif_parse_ChangeCart` | skill_packets.go |
@@ -358,7 +350,7 @@ email check.
 | `0x01B1` | S->C | untracked | `0x01b1` | `7` | `-` | - |
 | `0x01B2` | C->S | referenced | `0x01b2` | `-1` | `clif_parse_OpenVending` | vending_packets.go |
 | `0x01B5` | S->C | referenced | `0x01b5` | `18` | `-` | packet.go |
-| `0x01B6` | S->C | referenced | `0x01b6` | `114` | `-` | packet.go |
+| `0x01B6` | S->C | referenced | `0x01b6` | `114` | `-` | guild_packets.go, packet.go |
 | `0x01B7` | S->C | untracked | `0x01b7` | `6` | `-` | - |
 | `0x01B8` | S->C | untracked | `0x01b8` | `3` | `-` | - |
 | `0x01BA` | C->S | missing | `0x01ba` | `26` | `clif_parse_GMShift` | - |
