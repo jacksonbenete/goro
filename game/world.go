@@ -160,6 +160,7 @@ type worldUI struct {
 	identifyWindow    gameui.IdentifyWindow
 	cardWindow        gameui.CardCompositionWindow
 	makingArrow       gameui.MakingArrowWindow
+	makingItem        gameui.MakingItemWindow
 	petEggWindow      gameui.PetEggWindow
 	petInfoWindow     gameui.PetInfoWindow
 	petContext        gameui.PetContextMenu
@@ -219,6 +220,7 @@ func (u *worldUI) keyboardInputBlocked(ctx client.Context) bool {
 		u.identifyWindow.IsOpen() ||
 		u.cardWindow.IsOpen() ||
 		u.makingArrow.IsOpen() ||
+		u.makingItem.IsOpen() ||
 		u.petEggWindow.IsOpen() ||
 		u.petInfoWindow.IsOpen() ||
 		u.homunculusInfo.IsOpen() ||
@@ -836,6 +838,21 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		} else if ok {
 			glog.Debugf("making arrow list items=%v", arrowList.ItemIDs)
 			m.ui.makingArrow.OpenList(ctx, arrowList)
+			continue
+		}
+		if makingList, ok, err := network.ParseMakableItemList(pkt); err != nil {
+			glog.Errorf("parse makable item list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			glog.Debugf("makable item list items=%v", makingList.Items)
+			m.ui.makingItem.OpenList(ctx, makingList)
+			continue
+		}
+		if makingAck, ok, err := network.ParseMakingItemAck(pkt); err != nil {
+			glog.Errorf("parse item creation ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			glog.Debugf("item creation ack item=%d result=%d success=%v alchemist=%v", makingAck.ItemID, makingAck.Result, makingAck.Success(), makingAck.Alchemist())
+			m.ui.makingItem.ApplyAck(ctx, makingAck)
+			m.ui.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
 		if compositionList, ok, err := network.ParseItemCompositionList(pkt); err != nil {
@@ -1771,6 +1788,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.makingArrow.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.makingItem.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.petEggWindow.Update(ctx) {

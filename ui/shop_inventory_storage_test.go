@@ -475,3 +475,25 @@ func TestIdentifyWindowShowsOnlyUnidentifiedEquipmentFromServerList(t *testing.T
 		t.Fatal("identify window did not open")
 	}
 }
+
+func TestMakingItemWindowOpensServerList(t *testing.T) {
+	window := MakingItemWindow{}
+	window.OpenList(Context{ScreenW: 800, ScreenH: 600}, network.MakingItemList{
+		Items: []network.MakingItemOption{
+			{ItemID: 501, Material: [3]uint16{1000, 990, 5}},
+			{ItemID: 713},
+		},
+	})
+
+	if !window.IsOpen() {
+		t.Fatal("making item window did not open")
+	}
+	if len(window.items) != 2 || window.items[0].ItemID != 501 || window.items[0].Material != [3]uint16{1000, 990, 5} {
+		t.Fatalf("making item window items = %+v", window.items)
+	}
+
+	window.OpenList(Context{ScreenW: 800, ScreenH: 600}, network.MakingItemList{})
+	if window.IsOpen() {
+		t.Fatal("making item window stayed open for empty list")
+	}
+}

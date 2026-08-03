@@ -307,6 +307,48 @@ func TestPacketLengths2008FramesMakingArrowList(t *testing.T) {
 	}
 }
 
+func TestPacketLengths2008FramesMakableItemList(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	packets, err := framer.Push([]byte{
+		0x8d, 0x01, 0x0c, 0x00,
+		0xf5, 0x01, 0xe8, 0x03, 0xde, 0x03, 0x05, 0x00,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != PacketZCMakableItemList || len(packets[0].Data) != 12 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
+func TestPacketLengths2008FramesMakingItemList(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	packets, err := framer.Push([]byte{
+		0x5a, 0x02, 0x08, 0x00,
+		0x01, 0x00, 0xc9, 0x02,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != PacketZCMakingItemList || len(packets[0].Data) != 8 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != 0x00B6 || len(packets[1].Data) != 6 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+}
+
 func TestPacketLengths2008FramesCartDeltaPackets(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	data := make([]byte, 0, 39)

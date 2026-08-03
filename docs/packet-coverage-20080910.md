@@ -22,8 +22,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `208`
-- Client-to-map accepted packets referenced by Goro: `95` / `177`
+- Effective map opcodes referenced by Goro: `210`
+- Client-to-map accepted packets referenced by Goro: `96` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## Homunculus Compatibility Notes
@@ -319,7 +319,9 @@ email check.
 | `0x0187` | S->C | referenced | `0x0187` | `6` | `-` | packet.go |
 | `0x018A` | C->S | implemented | `0x018a` | `4` | `clif_parse_QuitGame` | login_packets.go |
 | `0x018B` | S->C | referenced | `0x018b` | `4` | `-` | packet.go, restart_packets.go |
-| `0x018E` | C->S | missing | `HEADER_CZ_REQMAKINGITEM` | `sizeof( struct PACKET_CZ_REQMAKINGITEM )` | `clif_parse_ProduceMix` | - |
+| `0x018D` | S->C | implemented | `HEADER_ZC_MAKABLEITEMLIST` | `-1` | `-` | item_packets.go, packet.go |
+| `0x018E` | C->S | implemented | `HEADER_CZ_REQMAKINGITEM` | `sizeof( struct PACKET_CZ_REQMAKINGITEM )` | `clif_parse_ProduceMix` | item_packets.go |
+| `0x018F` | S->C | implemented | `HEADER_ZC_ACK_REQMAKINGITEM` | `6` | `-` | item_packets.go, packet.go |
 | `0x0190` | C->S | referenced | `0x0190` | `19` | `clif_parse_ActionRequest` | item_packets.go, login_packets.go |
 | `0x0193` | C->S | referenced | `0x0193` | `2` | `clif_parse_CloseKafra` | item_packets.go |
 | `0x0196` | S->C | referenced | `0x0196` | `9` | `-` | packet.go, status_packets.go |
@@ -478,6 +480,7 @@ email check.
 | `0x0257` | S->C | untracked | `0x0257` | `8` | `-` | - |
 | `0x0258` | S->C | untracked | `0x0258` | `2` | `-` | - |
 | `0x0259` | S->C | untracked | `0x0259` | `3` | `-` | - |
+| `0x025A` | S->C | referenced | `HEADER_ZC_MAKINGITEM_LIST` | `-1` | `-` | item_packets.go, packet.go |
 | `0x025B` | C->S | missing | `HEADER_CZ_REQ_MAKINGITEM` | `sizeof( struct PACKET_CZ_REQ_MAKINGITEM )` | `clif_parse_Cooking` | - |
 | `0x025C` | C->S | missing | `0x025c` | `4` | `clif_parse_Auction_buysell` | - |
 | `0x025D` | C->S | missing | `0x025d` | `6` | `clif_parse_Auction_close` | - |

@@ -184,40 +184,7 @@ func (w *MakingArrowWindow) itemTableRows(ctx Context, itemIDs []uint16) []itemT
 }
 
 func (w *MakingArrowWindow) itemIconImage(manager *res.Manager, itemID uint16) image.Image {
-	if manager == nil || itemID == 0 {
-		return nil
-	}
-	key := identifyItemIconKey{itemID: itemID, identified: true}
-	if w.icons != nil {
-		if img := w.icons[key]; img != nil {
-			return img
-		}
-	}
-	if _, ok := w.iconMiss[key]; ok {
-		return nil
-	}
-	resourceName, ok := manager.ItemResourceName(int(itemID), true)
-	if !ok {
-		w.markIconMiss(key)
-		return nil
-	}
-	img, _, err := res.LoadImage(manager, res.ItemIconTextureCandidates(resourceName))
-	if err != nil {
-		w.markIconMiss(key)
-		return nil
-	}
-	if w.icons == nil {
-		w.icons = make(map[identifyItemIconKey]image.Image)
-	}
-	w.icons[key] = img
-	return img
-}
-
-func (w *MakingArrowWindow) markIconMiss(key identifyItemIconKey) {
-	if w.iconMiss == nil {
-		w.iconMiss = make(map[identifyItemIconKey]struct{})
-	}
-	w.iconMiss[key] = struct{}{}
+	return cachedIdentifiedItemIcon(manager, itemID, &w.icons, &w.iconMiss)
 }
 
 func (w *MakingArrowWindow) clampScroll() {

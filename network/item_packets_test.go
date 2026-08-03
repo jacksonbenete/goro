@@ -377,6 +377,66 @@ func TestParseMakingArrowList(t *testing.T) {
 	}
 }
 
+func TestParseMakableItemList(t *testing.T) {
+	listData := make([]byte, 20)
+	binary.LittleEndian.PutUint16(listData[0:2], PacketZCMakableItemList)
+	binary.LittleEndian.PutUint16(listData[2:4], uint16(len(listData)))
+	binary.LittleEndian.PutUint16(listData[4:6], 501)
+	binary.LittleEndian.PutUint16(listData[6:8], 1000)
+	binary.LittleEndian.PutUint16(listData[8:10], 990)
+	binary.LittleEndian.PutUint16(listData[10:12], 5)
+	binary.LittleEndian.PutUint16(listData[12:14], 713)
+	binary.LittleEndian.PutUint16(listData[14:16], 0)
+	binary.LittleEndian.PutUint16(listData[16:18], 0)
+	binary.LittleEndian.PutUint16(listData[18:20], 0)
+
+	list, ok, err := ParseMakableItemList(Packet{ID: PacketZCMakableItemList, Data: listData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(list.Items) != 2 {
+		t.Fatalf("makable item list ok=%v value=%+v", ok, list)
+	}
+	if list.Items[0].ItemID != 501 || list.Items[0].Material != [3]uint16{1000, 990, 5} {
+		t.Fatalf("first makable item = %+v", list.Items[0])
+	}
+	if list.Items[1].ItemID != 713 || list.Items[1].Material != [3]uint16{} {
+		t.Fatalf("second makable item = %+v", list.Items[1])
+	}
+}
+
+func TestParseMakingItemList(t *testing.T) {
+	listData := make([]byte, 10)
+	binary.LittleEndian.PutUint16(listData[0:2], PacketZCMakingItemList)
+	binary.LittleEndian.PutUint16(listData[2:4], uint16(len(listData)))
+	binary.LittleEndian.PutUint16(listData[4:6], 1)
+	binary.LittleEndian.PutUint16(listData[6:8], 713)
+	binary.LittleEndian.PutUint16(listData[8:10], 714)
+
+	list, ok, err := ParseMakingItemList(Packet{ID: PacketZCMakingItemList, Data: listData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || list.Type != 1 || len(list.Items) != 2 || list.Items[0].ItemID != 713 || list.Items[1].ItemID != 714 {
+		t.Fatalf("making item list ok=%v value=%+v", ok, list)
+	}
+}
+
+func TestParseMakingItemAck(t *testing.T) {
+	ackData := make([]byte, 6)
+	binary.LittleEndian.PutUint16(ackData[0:2], PacketZCAckReqMakingItem)
+	binary.LittleEndian.PutUint16(ackData[2:4], 2)
+	binary.LittleEndian.PutUint16(ackData[4:6], 713)
+
+	ack, ok, err := ParseMakingItemAck(Packet{ID: PacketZCAckReqMakingItem, Data: ackData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || ack.ItemID != 713 || ack.Result != 2 || !ack.Success() || !ack.Alchemist() {
+		t.Fatalf("making item ack ok=%v value=%+v", ok, ack)
+	}
+}
+
 func TestBuildItemCompositionPackets(t *testing.T) {
 	list := BuildItemCompositionListPacket(7)
 	if got := binary.LittleEndian.Uint16(list[0:2]); got != 0x017A {
@@ -404,6 +464,23 @@ func TestBuildMakingArrowPacket(t *testing.T) {
 	}
 	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 909 {
 		t.Fatalf("making arrow item id = %d, want 909", got)
+	}
+}
+
+func TestBuildMakingItemPacket(t *testing.T) {
+	packet := BuildMakingItemPacket(501, [3]uint16{1000, 990, 5})
+	if len(packet) != 10 || ID(packet) != PacketCZReqMakingItem {
+		t.Fatalf("unexpected making item packet header: % X", packet)
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 501 {
+		t.Fatalf("making item id = %d, want 501", got)
+	}
+	if got := [3]uint16{
+		binary.LittleEndian.Uint16(packet[4:6]),
+		binary.LittleEndian.Uint16(packet[6:8]),
+		binary.LittleEndian.Uint16(packet[8:10]),
+	}; got != [3]uint16{1000, 990, 5} {
+		t.Fatalf("making item material = %v", got)
 	}
 }
 

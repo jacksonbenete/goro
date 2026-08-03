@@ -48,10 +48,10 @@
   - [x] Arrow Crafting material list/selection: 0x01AD, 0x01AE
   - [x] Show equipment/view equipment: 0x02D6, 0x02D7, 0x02D8
   - [x] Vending open/close/list/purchase/store state: 0x012D, 0x012E, 0x012F, 0x0130, 0x0131, 0x0132, 0x0133, 0x0134, 0x0135, 0x0136, 0x0137, 0x01B2
-  - [ ] Blacksmith/alchemist crafting: 0x018E
+  - [x] Blacksmith/alchemist crafting list/request/result: 0x018D, 0x018E, 0x018F
   - [ ] Item repair: 0x01FD
   - [ ] Weapon refine: 0x0222
-  - [ ] Cooking: 0x025B
+  - [ ] Cooking list/request: 0x025A, 0x025B
   - [ ] Storage password: 0x023B
   - [ ] Cash shop NPC buy: 0x0288
 

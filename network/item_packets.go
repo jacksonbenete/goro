@@ -14,6 +14,7 @@ const (
 	PacketCZReqItemIdentify        uint16 = 0x0178
 	PacketCZReqItemCompositionList uint16 = 0x017A
 	PacketCZReqItemComposition     uint16 = 0x017C
+	PacketCZReqMakingItem          uint16 = 0x018E
 	PacketCZReqMakingArrow         uint16 = 0x01AE
 	PacketCZUseItem2               uint16 = 0x0439
 	PacketCZUseItemLegacy          uint16 = 0x00A7
@@ -28,6 +29,12 @@ const (
 	PacketCZMoveFromCart           uint16 = 0x0127
 	PacketCZMoveStorageToCart      uint16 = 0x0128
 	PacketCZMoveCartToStorage      uint16 = 0x0129
+)
+
+const (
+	PacketZCMakableItemList  uint16 = 0x018D
+	PacketZCAckReqMakingItem uint16 = 0x018F
+	PacketZCMakingItemList   uint16 = 0x025A
 )
 
 type itemPickupPacketLayout struct {
@@ -130,6 +137,29 @@ type FloorItemEntry struct {
 
 type MakingArrowList struct {
 	ItemIDs []uint16
+}
+
+type MakingItemOption struct {
+	ItemID   uint16
+	Material [3]uint16
+}
+
+type MakingItemList struct {
+	Type  uint16
+	Items []MakingItemOption
+}
+
+type MakingItemAck struct {
+	Result uint16
+	ItemID uint16
+}
+
+func (a MakingItemAck) Success() bool {
+	return a.Result == 0 || a.Result == 2
+}
+
+func (a MakingItemAck) Alchemist() bool {
+	return a.Result == 2 || a.Result == 3
 }
 
 type FloorItemDisappear struct {
@@ -652,6 +682,78 @@ func ParseMakingArrowList(packet Packet) (MakingArrowList, bool, error) {
 	return MakingArrowList{ItemIDs: itemIDs}, true, nil
 }
 
+func ParseMakableItemList(packet Packet) (MakingItemList, bool, error) {
+	if packet.ID != PacketZCMakableItemList {
+		return MakingItemList{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKABLEITEMLIST too short: %d", len(packet.Data))
+	}
+	size := int(binary.LittleEndian.Uint16(packet.Data[2:4]))
+	if size > len(packet.Data) {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKABLEITEMLIST invalid length: header=%d data=%d", size, len(packet.Data))
+	}
+	if size < 4 {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKABLEITEMLIST invalid length: %d", size)
+	}
+	const entrySize = 8
+	if (size-4)%entrySize != 0 {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKABLEITEMLIST invalid item payload: %d", size)
+	}
+	items := make([]MakingItemOption, 0, (size-4)/entrySize)
+	for offset := 4; offset+entrySize <= size; offset += entrySize {
+		items = append(items, MakingItemOption{
+			ItemID: binary.LittleEndian.Uint16(packet.Data[offset : offset+2]),
+			Material: [3]uint16{
+				binary.LittleEndian.Uint16(packet.Data[offset+2 : offset+4]),
+				binary.LittleEndian.Uint16(packet.Data[offset+4 : offset+6]),
+				binary.LittleEndian.Uint16(packet.Data[offset+6 : offset+8]),
+			},
+		})
+	}
+	return MakingItemList{Items: items}, true, nil
+}
+
+func ParseMakingItemList(packet Packet) (MakingItemList, bool, error) {
+	if packet.ID != PacketZCMakingItemList {
+		return MakingItemList{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKINGITEM_LIST too short: %d", len(packet.Data))
+	}
+	size := int(binary.LittleEndian.Uint16(packet.Data[2:4]))
+	if size > len(packet.Data) {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKINGITEM_LIST invalid length: header=%d data=%d", size, len(packet.Data))
+	}
+	if size < 6 {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKINGITEM_LIST invalid length: %d", size)
+	}
+	if (size-6)%2 != 0 {
+		return MakingItemList{}, false, fmt.Errorf("ZC_MAKINGITEM_LIST odd item payload: %d", size)
+	}
+	items := make([]MakingItemOption, 0, (size-6)/2)
+	for offset := 6; offset+2 <= size; offset += 2 {
+		items = append(items, MakingItemOption{ItemID: binary.LittleEndian.Uint16(packet.Data[offset : offset+2])})
+	}
+	return MakingItemList{
+		Type:  binary.LittleEndian.Uint16(packet.Data[4:6]),
+		Items: items,
+	}, true, nil
+}
+
+func ParseMakingItemAck(packet Packet) (MakingItemAck, bool, error) {
+	if packet.ID != PacketZCAckReqMakingItem {
+		return MakingItemAck{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return MakingItemAck{}, false, fmt.Errorf("ZC_ACK_REQMAKINGITEM too short: %d", len(packet.Data))
+	}
+	return MakingItemAck{
+		Result: binary.LittleEndian.Uint16(packet.Data[2:4]),
+		ItemID: binary.LittleEndian.Uint16(packet.Data[4:6]),
+	}, true, nil
+}
+
 func ParseItemCompositionList(packet Packet) (ItemCompositionList, bool, error) {
 	if packet.ID != 0x017B {
 		return ItemCompositionList{}, false, nil
@@ -1039,6 +1141,16 @@ func BuildMakingArrowPacket(itemID uint16) []byte {
 	return packet
 }
 
+func BuildMakingItemPacket(itemID uint16, material [3]uint16) []byte {
+	packet := make([]byte, 10)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqMakingItem)
+	binary.LittleEndian.PutUint16(packet[2:4], itemID)
+	binary.LittleEndian.PutUint16(packet[4:6], material[0])
+	binary.LittleEndian.PutUint16(packet[6:8], material[1])
+	binary.LittleEndian.PutUint16(packet[8:10], material[2])
+	return packet
+}
+
 func BuildWearEquipPacket(index, location uint16) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWearEquip)
@@ -1235,6 +1347,17 @@ func (c *Client) SendMakingArrow(itemID uint16) error {
 		glog.Debugf("sent CZ_REQ_MAKINGARROW opcode=0x%04X item=%d client_date=%d", ID(packet), itemID, c.clientDate)
 	} else {
 		glog.Warnf("send CZ_REQ_MAKINGARROW failed opcode=0x%04X len=%d item=%d client_date=%d: %v", ID(packet), len(packet), itemID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendMakingItem(itemID uint16, material [3]uint16) error {
+	packet := BuildMakingItemPacket(itemID, material)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQMAKINGITEM opcode=0x%04X item=%d material=%v client_date=%d", ID(packet), itemID, material, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQMAKINGITEM failed opcode=0x%04X len=%d item=%d material=%v client_date=%d: %v", ID(packet), len(packet), itemID, material, c.clientDate, err)
 	}
 	return err
 }
