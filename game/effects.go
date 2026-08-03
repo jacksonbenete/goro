@@ -1179,8 +1179,11 @@ func (m *WorldMode) applySpecialEffectNotify(ctx client.Context, notify network.
 	if effectID <= 0 {
 		return
 	}
+	spec, _ := worldEffectSpecForID(effectID)
 	if m.addWorldEffectIfMissing(ctx, effectID, notify.AID) {
-		glog.Debugf("special effect actor=%d special=%d effect=%d", notify.AID, notify.EffectID, effectID)
+		glog.Debugf("special effect actor=%d special=%d effect=%d sfx=%v", notify.AID, notify.EffectID, effectID, spec.sfx)
+	} else if craftingResultSpecialEffect(notify.EffectID) {
+		glog.Debugf("special effect skipped duplicate actor=%d special=%d effect=%d sfx=%v", notify.AID, notify.EffectID, effectID, spec.sfx)
 	}
 }
 
@@ -1220,6 +1223,18 @@ var networkSpecialEffectIDs = map[uint32]int{
 	network.SpecialEffectSuperNoviceBaseLevelUp: effectBaseLevelUp,
 	network.SpecialEffectSuperNoviceJobLevelUp:  effectJobLevelUp,
 	network.SpecialEffectTaekwonBaseLevelUp:     effectBaseLevelUp,
+}
+
+func craftingResultSpecialEffect(effectID uint32) bool {
+	switch effectID {
+	case network.SpecialEffectRefineFailure,
+		network.SpecialEffectRefineSuccess,
+		network.SpecialEffectPharmacySuccess,
+		network.SpecialEffectPharmacyFailure:
+		return true
+	default:
+		return false
+	}
 }
 
 func skillFailMessage(ack network.SkillFailAck) string {

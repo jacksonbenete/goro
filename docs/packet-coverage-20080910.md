@@ -22,8 +22,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `210`
-- Client-to-map accepted packets referenced by Goro: `96` / `177`
+- Effective map opcodes referenced by Goro: `216`
+- Client-to-map accepted packets referenced by Goro: `98` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## Homunculus Compatibility Notes
@@ -403,8 +403,9 @@ email check.
 | `0x01F9` | C->S | missing | `0x01f9` | `6` | `clif_parse_Adopt_request` | - |
 | `0x01FA` | S->C | untracked | `0x01fa` | `48` | `-` | - |
 | `0x01FB` | S->C | untracked | `0x01fb` | `56` | `-` | - |
-| `0x01FC` | S->C | untracked | `0x01fc` | `-1` | `-` | - |
-| `0x01FD` | C->S | missing | `HEADER_CZ_REQ_ITEMREPAIR1` | `sizeof( struct PACKET_CZ_REQ_ITEMREPAIR1 )` | `clif_parse_RepairItem` | - |
+| `0x01FC` | S->C | implemented | `HEADER_ZC_REPAIRITEMLIST` | `-1` | `-` | item_packets.go, packet.go |
+| `0x01FD` | C->S | implemented | `HEADER_CZ_REQ_ITEMREPAIR1` | `sizeof( struct PACKET_CZ_REQ_ITEMREPAIR1 )` | `clif_parse_RepairItem` | item_packets.go |
+| `0x01FE` | S->C | implemented | `HEADER_ZC_ACK_ITEMREPAIR` | `5` | `-` | item_packets.go, packet.go |
 | `0x0200` | S->C | untracked | `0x0200` | `26` | `-` | - |
 | `0x0201` | S->C | referenced | `0x0201` | `-1` | `-` | friend_packets.go, packet.go |
 | `0x0202` | C->S | referenced | `0x0202` | `26` | `clif_parse_FriendsListAdd` | friend_packets.go |
@@ -428,8 +429,9 @@ email check.
 | `0x021E` | S->C | implemented | `0x021e` | `6` | `-` | effect_packets.go, packet.go |
 | `0x021F` | S->C | untracked | `0x021f` | `66` | `-` | - |
 | `0x0220` | S->C | referenced | `0x0220` | `10` | `-` | packet.go |
-| `0x0221` | S->C | untracked | `0x0221` | `-1` | `-` | - |
-| `0x0222` | C->S | missing | `0x0222` | `6` | `clif_parse_WeaponRefine` | - |
+| `0x0221` | S->C | implemented | `HEADER_ZC_NOTIFY_WEAPONITEMLIST` | `-1` | `-` | item_packets.go, packet.go |
+| `0x0222` | C->S | implemented | `0x0222` | `6` | `clif_parse_WeaponRefine` | item_packets.go |
+| `0x0223` | S->C | implemented | `HEADER_ZC_ACK_WEAPONREFINE` | `8` | `-` | item_packets.go, packet.go |
 | `0x0225` | C->S | missing | `HEADER_CZ_TAEKWON_RANK` | `sizeof( PACKET_CZ_TAEKWON_RANK )` | `clif_parse_ranklist_taekwon` | - |
 | `0x0227` | S->C | untracked | `0x0227` | `18` | `-` | - |
 | `0x0228` | S->C | untracked | `0x0228` | `18` | `-` | - |

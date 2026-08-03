@@ -49,8 +49,8 @@
   - [x] Show equipment/view equipment: 0x02D6, 0x02D7, 0x02D8
   - [x] Vending open/close/list/purchase/store state: 0x012D, 0x012E, 0x012F, 0x0130, 0x0131, 0x0132, 0x0133, 0x0134, 0x0135, 0x0136, 0x0137, 0x01B2
   - [x] Blacksmith/alchemist crafting list/request/result: 0x018D, 0x018E, 0x018F
-  - [ ] Item repair: 0x01FD
-  - [ ] Weapon refine: 0x0222
+  - [x] Item repair list/request/result: 0x01FC, 0x01FD, 0x01FE
+  - [x] Weapon refine list/request/result: 0x0221, 0x0222, 0x0223
   - [ ] Cooking list/request: 0x025A, 0x025B
   - [ ] Storage password: 0x023B
   - [ ] Cash shop NPC buy: 0x0288

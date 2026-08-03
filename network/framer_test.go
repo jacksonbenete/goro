@@ -349,6 +349,56 @@ func TestPacketLengths2008FramesMakingItemList(t *testing.T) {
 	}
 }
 
+func TestPacketLengths2008FramesRepairItemListAndAck(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	packets, err := framer.Push([]byte{
+		0xfc, 0x01, 0x11, 0x00,
+		0x07, 0x00, 0xb1, 0x04, 0x05, 0xa1, 0x0f, 0xa2, 0x0f, 0x00, 0x00, 0x00, 0x00,
+		0xfe, 0x01, 0x07, 0x00, 0x00,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 3 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != PacketZCRepairItemList || len(packets[0].Data) != 17 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != PacketZCAckItemRepair || len(packets[1].Data) != 5 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+	if packets[2].ID != 0x00B6 || len(packets[2].Data) != 6 {
+		t.Fatalf("third packet = %s", packets[2])
+	}
+}
+
+func TestPacketLengths2008FramesWeaponRefineListAndAck(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	packets, err := framer.Push([]byte{
+		0x21, 0x02, 0x11, 0x00,
+		0x0b, 0x00, 0x4d, 0x04, 0x04, 0xa1, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x23, 0x02, 0x01, 0x00, 0x00, 0x00, 0x4d, 0x04,
+		0xb6, 0x00, 0x44, 0x33, 0x22, 0x11,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 3 {
+		t.Fatalf("packets = %d", len(packets))
+	}
+	if packets[0].ID != PacketZCWeaponRefineList || len(packets[0].Data) != 17 {
+		t.Fatalf("first packet = %s", packets[0])
+	}
+	if packets[1].ID != PacketZCAckWeaponRefine || len(packets[1].Data) != 8 {
+		t.Fatalf("second packet = %s", packets[1])
+	}
+	if packets[2].ID != 0x00B6 || len(packets[2].Data) != 6 {
+		t.Fatalf("third packet = %s", packets[2])
+	}
+}
+
 func TestPacketLengths2008FramesCartDeltaPackets(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	data := make([]byte, 0, 39)

@@ -161,6 +161,8 @@ type worldUI struct {
 	cardWindow        gameui.CardCompositionWindow
 	makingArrow       gameui.MakingArrowWindow
 	makingItem        gameui.MakingItemWindow
+	repairItem        gameui.RepairItemWindow
+	weaponRefine      gameui.WeaponRefineWindow
 	petEggWindow      gameui.PetEggWindow
 	petInfoWindow     gameui.PetInfoWindow
 	petContext        gameui.PetContextMenu
@@ -221,6 +223,8 @@ func (u *worldUI) keyboardInputBlocked(ctx client.Context) bool {
 		u.cardWindow.IsOpen() ||
 		u.makingArrow.IsOpen() ||
 		u.makingItem.IsOpen() ||
+		u.repairItem.IsOpen() ||
+		u.weaponRefine.IsOpen() ||
 		u.petEggWindow.IsOpen() ||
 		u.petInfoWindow.IsOpen() ||
 		u.homunculusInfo.IsOpen() ||
@@ -852,6 +856,36 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		} else if ok {
 			glog.Debugf("item creation ack item=%d result=%d success=%v alchemist=%v", makingAck.ItemID, makingAck.Result, makingAck.Success(), makingAck.Alchemist())
 			m.ui.makingItem.ApplyAck(ctx, makingAck)
+			m.ui.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
+		if repairList, ok, err := network.ParseRepairItemList(pkt); err != nil {
+			glog.Errorf("parse repair item list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			glog.Debugf("repair item list items=%v", repairList.Items)
+			m.ui.repairItem.OpenList(ctx, repairList)
+			continue
+		}
+		if repairAck, ok, err := network.ParseRepairItemAck(pkt); err != nil {
+			glog.Errorf("parse repair item ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			glog.Debugf("repair item ack index=%d success=%v", repairAck.Index, repairAck.Success())
+			m.ui.repairItem.ApplyAck(ctx, repairAck)
+			m.ui.inventoryBag.ClampScroll(ctx.Session)
+			continue
+		}
+		if refineList, ok, err := network.ParseWeaponRefineList(pkt); err != nil {
+			glog.Errorf("parse weapon refine list 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			glog.Debugf("weapon refine list items=%v", refineList.Items)
+			m.ui.weaponRefine.OpenList(ctx, refineList)
+			continue
+		}
+		if refineAck, ok, err := network.ParseWeaponRefineAck(pkt); err != nil {
+			glog.Errorf("parse weapon refine ack 0x%04X: %v", pkt.ID, err)
+		} else if ok {
+			glog.Debugf("weapon refine ack item=%d result=%d success=%v", refineAck.ItemID, refineAck.Result, refineAck.Success())
+			m.ui.weaponRefine.ApplyAck(ctx, refineAck)
 			m.ui.inventoryBag.ClampScroll(ctx.Session)
 			continue
 		}
@@ -1791,6 +1825,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.makingItem.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.repairItem.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.weaponRefine.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.petEggWindow.Update(ctx) {

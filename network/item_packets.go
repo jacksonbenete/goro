@@ -15,7 +15,9 @@ const (
 	PacketCZReqItemCompositionList uint16 = 0x017A
 	PacketCZReqItemComposition     uint16 = 0x017C
 	PacketCZReqMakingItem          uint16 = 0x018E
+	PacketCZReqItemRepair          uint16 = 0x01FD
 	PacketCZReqMakingArrow         uint16 = 0x01AE
+	PacketCZReqWeaponRefine        uint16 = 0x0222
 	PacketCZUseItem2               uint16 = 0x0439
 	PacketCZUseItemLegacy          uint16 = 0x00A7
 	PacketCZReqWearEquip           uint16 = 0x00A9
@@ -34,6 +36,10 @@ const (
 const (
 	PacketZCMakableItemList  uint16 = 0x018D
 	PacketZCAckReqMakingItem uint16 = 0x018F
+	PacketZCRepairItemList   uint16 = 0x01FC
+	PacketZCAckItemRepair    uint16 = 0x01FE
+	PacketZCWeaponRefineList uint16 = 0x0221
+	PacketZCAckWeaponRefine  uint16 = 0x0223
 	PacketZCMakingItemList   uint16 = 0x025A
 )
 
@@ -160,6 +166,46 @@ func (a MakingItemAck) Success() bool {
 
 func (a MakingItemAck) Alchemist() bool {
 	return a.Result == 2 || a.Result == 3
+}
+
+type RepairItem struct {
+	Index  uint16
+	ItemID uint16
+	Refine uint8
+	Cards  [4]uint16
+}
+
+type RepairItemList struct {
+	Items []RepairItem
+}
+
+type RepairItemAck struct {
+	Index   uint16
+	Failure bool
+}
+
+func (a RepairItemAck) Success() bool {
+	return !a.Failure
+}
+
+type WeaponRefineItem struct {
+	Index  uint16
+	ItemID uint16
+	Refine uint8
+	Cards  [4]uint16
+}
+
+type WeaponRefineList struct {
+	Items []WeaponRefineItem
+}
+
+type WeaponRefineAck struct {
+	Result uint32
+	ItemID uint16
+}
+
+func (a WeaponRefineAck) Success() bool {
+	return a.Result == 0
 }
 
 type FloorItemDisappear struct {
@@ -754,6 +800,129 @@ func ParseMakingItemAck(packet Packet) (MakingItemAck, bool, error) {
 	}, true, nil
 }
 
+func ParseRepairItemList(packet Packet) (RepairItemList, bool, error) {
+	if packet.ID != PacketZCRepairItemList {
+		return RepairItemList{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return RepairItemList{}, false, fmt.Errorf("ZC_REPAIRITEMLIST too short: %d", len(packet.Data))
+	}
+	size := int(binary.LittleEndian.Uint16(packet.Data[2:4]))
+	if size > len(packet.Data) {
+		return RepairItemList{}, false, fmt.Errorf("ZC_REPAIRITEMLIST invalid length: header=%d data=%d", size, len(packet.Data))
+	}
+	if size < 4 {
+		return RepairItemList{}, false, fmt.Errorf("ZC_REPAIRITEMLIST invalid length: %d", size)
+	}
+	items, err := parseEquipmentChoiceItems(packet.Data[4:size], "ZC_REPAIRITEMLIST")
+	if err != nil {
+		return RepairItemList{}, false, err
+	}
+	return RepairItemList{Items: repairItemsFromEquipmentChoices(items)}, true, nil
+}
+
+func ParseRepairItemAck(packet Packet) (RepairItemAck, bool, error) {
+	if packet.ID != PacketZCAckItemRepair {
+		return RepairItemAck{}, false, nil
+	}
+	if len(packet.Data) < 5 {
+		return RepairItemAck{}, false, fmt.Errorf("ZC_ACK_ITEMREPAIR too short: %d", len(packet.Data))
+	}
+	return RepairItemAck{
+		Index:   binary.LittleEndian.Uint16(packet.Data[2:4]),
+		Failure: packet.Data[4] != 0,
+	}, true, nil
+}
+
+func ParseWeaponRefineList(packet Packet) (WeaponRefineList, bool, error) {
+	if packet.ID != PacketZCWeaponRefineList {
+		return WeaponRefineList{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return WeaponRefineList{}, false, fmt.Errorf("ZC_NOTIFY_WEAPONITEMLIST too short: %d", len(packet.Data))
+	}
+	size := int(binary.LittleEndian.Uint16(packet.Data[2:4]))
+	if size > len(packet.Data) {
+		return WeaponRefineList{}, false, fmt.Errorf("ZC_NOTIFY_WEAPONITEMLIST invalid length: header=%d data=%d", size, len(packet.Data))
+	}
+	if size < 4 {
+		return WeaponRefineList{}, false, fmt.Errorf("ZC_NOTIFY_WEAPONITEMLIST invalid length: %d", size)
+	}
+	items, err := parseEquipmentChoiceItems(packet.Data[4:size], "ZC_NOTIFY_WEAPONITEMLIST")
+	if err != nil {
+		return WeaponRefineList{}, false, err
+	}
+	return WeaponRefineList{Items: weaponRefineItemsFromEquipmentChoices(items)}, true, nil
+}
+
+func ParseWeaponRefineAck(packet Packet) (WeaponRefineAck, bool, error) {
+	if packet.ID != PacketZCAckWeaponRefine {
+		return WeaponRefineAck{}, false, nil
+	}
+	if len(packet.Data) < 8 {
+		return WeaponRefineAck{}, false, fmt.Errorf("ZC_ACK_WEAPONREFINE too short: %d", len(packet.Data))
+	}
+	return WeaponRefineAck{
+		Result: binary.LittleEndian.Uint32(packet.Data[2:6]),
+		ItemID: binary.LittleEndian.Uint16(packet.Data[6:8]),
+	}, true, nil
+}
+
+type equipmentChoiceItem struct {
+	Index  uint16
+	ItemID uint16
+	Refine uint8
+	Cards  [4]uint16
+}
+
+func parseEquipmentChoiceItems(data []byte, packetName string) ([]equipmentChoiceItem, error) {
+	const entrySize = 13
+	if len(data)%entrySize != 0 {
+		return nil, fmt.Errorf("%s invalid item payload: %d", packetName, len(data)+4)
+	}
+	items := make([]equipmentChoiceItem, 0, len(data)/entrySize)
+	for offset := 0; offset+entrySize <= len(data); offset += entrySize {
+		items = append(items, equipmentChoiceItem{
+			Index:  binary.LittleEndian.Uint16(data[offset : offset+2]),
+			ItemID: binary.LittleEndian.Uint16(data[offset+2 : offset+4]),
+			Refine: data[offset+4],
+			Cards: [4]uint16{
+				binary.LittleEndian.Uint16(data[offset+5 : offset+7]),
+				binary.LittleEndian.Uint16(data[offset+7 : offset+9]),
+				binary.LittleEndian.Uint16(data[offset+9 : offset+11]),
+				binary.LittleEndian.Uint16(data[offset+11 : offset+13]),
+			},
+		})
+	}
+	return items, nil
+}
+
+func repairItemsFromEquipmentChoices(items []equipmentChoiceItem) []RepairItem {
+	out := make([]RepairItem, len(items))
+	for i, item := range items {
+		out[i] = RepairItem{
+			Index:  item.Index,
+			ItemID: item.ItemID,
+			Refine: item.Refine,
+			Cards:  item.Cards,
+		}
+	}
+	return out
+}
+
+func weaponRefineItemsFromEquipmentChoices(items []equipmentChoiceItem) []WeaponRefineItem {
+	out := make([]WeaponRefineItem, len(items))
+	for i, item := range items {
+		out[i] = WeaponRefineItem{
+			Index:  item.Index,
+			ItemID: item.ItemID,
+			Refine: item.Refine,
+			Cards:  item.Cards,
+		}
+	}
+	return out
+}
+
 func ParseItemCompositionList(packet Packet) (ItemCompositionList, bool, error) {
 	if packet.ID != 0x017B {
 		return ItemCompositionList{}, false, nil
@@ -1151,6 +1320,35 @@ func BuildMakingItemPacket(itemID uint16, material [3]uint16) []byte {
 	return packet
 }
 
+func BuildRepairItemPacket(item RepairItem) []byte {
+	packet := make([]byte, 15)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqItemRepair)
+	writeEquipmentChoiceItem(packet[2:15], equipmentChoiceItem{
+		Index:  item.Index,
+		ItemID: item.ItemID,
+		Refine: item.Refine,
+		Cards:  item.Cards,
+	})
+	return packet
+}
+
+func BuildWeaponRefinePacket(index uint32) []byte {
+	packet := make([]byte, 6)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWeaponRefine)
+	binary.LittleEndian.PutUint32(packet[2:6], index)
+	return packet
+}
+
+func writeEquipmentChoiceItem(dst []byte, item equipmentChoiceItem) {
+	binary.LittleEndian.PutUint16(dst[0:2], item.Index)
+	binary.LittleEndian.PutUint16(dst[2:4], item.ItemID)
+	dst[4] = item.Refine
+	binary.LittleEndian.PutUint16(dst[5:7], item.Cards[0])
+	binary.LittleEndian.PutUint16(dst[7:9], item.Cards[1])
+	binary.LittleEndian.PutUint16(dst[9:11], item.Cards[2])
+	binary.LittleEndian.PutUint16(dst[11:13], item.Cards[3])
+}
+
 func BuildWearEquipPacket(index, location uint16) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqWearEquip)
@@ -1358,6 +1556,28 @@ func (c *Client) SendMakingItem(itemID uint16, material [3]uint16) error {
 		glog.Debugf("sent CZ_REQMAKINGITEM opcode=0x%04X item=%d material=%v client_date=%d", ID(packet), itemID, material, c.clientDate)
 	} else {
 		glog.Warnf("send CZ_REQMAKINGITEM failed opcode=0x%04X len=%d item=%d material=%v client_date=%d: %v", ID(packet), len(packet), itemID, material, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendRepairItem(item RepairItem) error {
+	packet := BuildRepairItemPacket(item)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_ITEMREPAIR opcode=0x%04X index=%d item=%d refine=%d cards=%v client_date=%d", ID(packet), item.Index, item.ItemID, item.Refine, item.Cards, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_ITEMREPAIR failed opcode=0x%04X len=%d index=%d item=%d refine=%d cards=%v client_date=%d: %v", ID(packet), len(packet), item.Index, item.ItemID, item.Refine, item.Cards, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendWeaponRefine(index uint32) error {
+	packet := BuildWeaponRefinePacket(index)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_WEAPONREFINE opcode=0x%04X index=%d client_date=%d", ID(packet), index, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_WEAPONREFINE failed opcode=0x%04X len=%d index=%d client_date=%d: %v", ID(packet), len(packet), index, c.clientDate, err)
 	}
 	return err
 }

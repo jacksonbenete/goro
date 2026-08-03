@@ -10123,12 +10123,26 @@ func TestSpecialEffectNotifyMapsServerResultEffects(t *testing.T) {
 	}
 
 	want := []int{effectRefineFail, effectRefineOK, effectPharmacyOK, effectPharmacyFail}
+	wantSFX := []string{
+		"effect\\bs_refinefailed.wav",
+		"effect\\bs_refinesuccess.wav",
+		"effect\\p_success.wav",
+		"effect\\p_failed.wav",
+	}
 	if len(mode.worldEffects) != len(want) {
 		t.Fatalf("world effects = %d, want %d: %+v", len(mode.worldEffects), len(want), mode.worldEffects)
 	}
 	for i, effect := range mode.worldEffects {
 		if effect.effectID != want[i] {
 			t.Fatalf("world effect %d = %+v, want effect %d", i, effect, want[i])
+		}
+	}
+	if len(mode.scheduledSounds) != len(wantSFX) {
+		t.Fatalf("scheduled sounds = %d, want %d: %+v", len(mode.scheduledSounds), len(wantSFX), mode.scheduledSounds)
+	}
+	for i, sound := range mode.scheduledSounds {
+		if len(sound.paths) != 1 || sound.paths[0] != wantSFX[i] {
+			t.Fatalf("scheduled sound %d = %+v, want %q", i, sound, wantSFX[i])
 		}
 	}
 }

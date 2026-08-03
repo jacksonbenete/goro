@@ -437,6 +437,70 @@ func TestParseMakingItemAck(t *testing.T) {
 	}
 }
 
+func TestParseRepairItemListAndAck(t *testing.T) {
+	listData := make([]byte, 4+13*2)
+	binary.LittleEndian.PutUint16(listData[0:2], PacketZCRepairItemList)
+	binary.LittleEndian.PutUint16(listData[2:4], uint16(len(listData)))
+	writeTestEquipmentChoice(listData[4:17], 7, 1201, 5, [4]uint16{4001, 4002, 0, 0})
+	writeTestEquipmentChoice(listData[17:30], 9, 2301, 2, [4]uint16{0, 0, 0, 0})
+
+	list, ok, err := ParseRepairItemList(Packet{ID: PacketZCRepairItemList, Data: listData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(list.Items) != 2 {
+		t.Fatalf("repair item list ok=%v value=%+v", ok, list)
+	}
+	if list.Items[0] != (RepairItem{Index: 7, ItemID: 1201, Refine: 5, Cards: [4]uint16{4001, 4002, 0, 0}}) {
+		t.Fatalf("first repair item = %+v", list.Items[0])
+	}
+	if list.Items[1] != (RepairItem{Index: 9, ItemID: 2301, Refine: 2}) {
+		t.Fatalf("second repair item = %+v", list.Items[1])
+	}
+
+	ackData := make([]byte, 5)
+	binary.LittleEndian.PutUint16(ackData[0:2], PacketZCAckItemRepair)
+	binary.LittleEndian.PutUint16(ackData[2:4], 7)
+	ackData[4] = 0
+	ack, ok, err := ParseRepairItemAck(Packet{ID: PacketZCAckItemRepair, Data: ackData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || ack.Index != 7 || !ack.Success() {
+		t.Fatalf("repair ack ok=%v value=%+v", ok, ack)
+	}
+}
+
+func TestParseWeaponRefineListAndAck(t *testing.T) {
+	listData := make([]byte, 4+13)
+	binary.LittleEndian.PutUint16(listData[0:2], PacketZCWeaponRefineList)
+	binary.LittleEndian.PutUint16(listData[2:4], uint16(len(listData)))
+	writeTestEquipmentChoice(listData[4:17], 11, 1101, 4, [4]uint16{4001, 0, 0, 0})
+
+	list, ok, err := ParseWeaponRefineList(Packet{ID: PacketZCWeaponRefineList, Data: listData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || len(list.Items) != 1 {
+		t.Fatalf("weapon refine list ok=%v value=%+v", ok, list)
+	}
+	if list.Items[0] != (WeaponRefineItem{Index: 11, ItemID: 1101, Refine: 4, Cards: [4]uint16{4001, 0, 0, 0}}) {
+		t.Fatalf("weapon refine item = %+v", list.Items[0])
+	}
+
+	ackData := make([]byte, 8)
+	binary.LittleEndian.PutUint16(ackData[0:2], PacketZCAckWeaponRefine)
+	binary.LittleEndian.PutUint32(ackData[2:6], 1)
+	binary.LittleEndian.PutUint16(ackData[6:8], 1101)
+	ack, ok, err := ParseWeaponRefineAck(Packet{ID: PacketZCAckWeaponRefine, Data: ackData})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok || ack.ItemID != 1101 || ack.Result != 1 || ack.Success() {
+		t.Fatalf("weapon refine ack ok=%v value=%+v", ok, ack)
+	}
+}
+
 func TestBuildItemCompositionPackets(t *testing.T) {
 	list := BuildItemCompositionListPacket(7)
 	if got := binary.LittleEndian.Uint16(list[0:2]); got != 0x017A {
@@ -484,6 +548,45 @@ func TestBuildMakingItemPacket(t *testing.T) {
 	}
 }
 
+func TestBuildRepairItemPacket(t *testing.T) {
+	packet := BuildRepairItemPacket(RepairItem{Index: 7, ItemID: 1201, Refine: 5, Cards: [4]uint16{4001, 4002, 0, 0}})
+	if len(packet) != 15 || ID(packet) != PacketCZReqItemRepair {
+		t.Fatalf("unexpected repair packet header: % X", packet)
+	}
+	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 7 {
+		t.Fatalf("repair index = %d, want 7", got)
+	}
+	if got := binary.LittleEndian.Uint16(packet[4:6]); got != 1201 {
+		t.Fatalf("repair item = %d, want 1201", got)
+	}
+	if packet[6] != 5 {
+		t.Fatalf("repair refine = %d, want 5", packet[6])
+	}
+	if got := [4]uint16{
+		binary.LittleEndian.Uint16(packet[7:9]),
+		binary.LittleEndian.Uint16(packet[9:11]),
+		binary.LittleEndian.Uint16(packet[11:13]),
+		binary.LittleEndian.Uint16(packet[13:15]),
+	}; got != [4]uint16{4001, 4002, 0, 0} {
+		t.Fatalf("repair cards = %v", got)
+	}
+}
+
+func TestBuildWeaponRefinePacket(t *testing.T) {
+	packet := BuildWeaponRefinePacket(11)
+	if len(packet) != 6 || ID(packet) != PacketCZReqWeaponRefine {
+		t.Fatalf("unexpected weapon refine packet header: % X", packet)
+	}
+	if got := binary.LittleEndian.Uint32(packet[2:6]); got != 11 {
+		t.Fatalf("weapon refine index = %d, want 11", got)
+	}
+
+	cancel := BuildWeaponRefinePacket(0xFFFFFFFF)
+	if got := binary.LittleEndian.Uint32(cancel[2:6]); got != 0xFFFFFFFF {
+		t.Fatalf("weapon refine cancel index = 0x%08X, want 0xFFFFFFFF", got)
+	}
+}
+
 func TestBuildItemIdentifyPacket(t *testing.T) {
 	packet := BuildItemIdentifyPacket(9)
 	if len(packet) != 4 || ID(packet) != PacketCZReqItemIdentify {
@@ -492,6 +595,16 @@ func TestBuildItemIdentifyPacket(t *testing.T) {
 	if got := binary.LittleEndian.Uint16(packet[2:4]); got != 9 {
 		t.Fatalf("identify index = %d, want 9", got)
 	}
+}
+
+func writeTestEquipmentChoice(dst []byte, index, itemID uint16, refine uint8, cards [4]uint16) {
+	binary.LittleEndian.PutUint16(dst[0:2], index)
+	binary.LittleEndian.PutUint16(dst[2:4], itemID)
+	dst[4] = refine
+	binary.LittleEndian.PutUint16(dst[5:7], cards[0])
+	binary.LittleEndian.PutUint16(dst[7:9], cards[1])
+	binary.LittleEndian.PutUint16(dst[9:11], cards[2])
+	binary.LittleEndian.PutUint16(dst[11:13], cards[3])
 }
 
 func TestParseEquippedArrow(t *testing.T) {

@@ -67,12 +67,26 @@ func (w *MakingItemWindow) Update(ctx Context) bool {
 		return false
 	}
 	w.clampScroll()
+	if ctx.Input != nil && ctx.Input.JustPressed(input.KeyEscape) {
+		w.cancel(ctx)
+		w.Publish(ctx)
+		return true
+	}
 	consumed := w.Window.Update(ctx)
+	keyboardConsumed := false
+	if w.IsOpen() {
+		keyboardConsumed = updateSelectionTableKeyboard(ctx, &w.selectedRow, len(w.items), makingItemRows, makingItemRowH, w.ensureScrollSignal(), func() {
+			w.confirm(ctx)
+		})
+		if keyboardConsumed && w.IsOpen() {
+			w.RebindContent(ctx, w.widgetTree(ctx))
+		}
+	}
 	if w.IsOpen() {
 		w.updateDoubleClick(ctx)
 	}
 	w.Publish(ctx)
-	return consumed
+	return consumed || keyboardConsumed
 }
 
 func (w *MakingItemWindow) widgetTree(ctx Context) widget.Widget {
