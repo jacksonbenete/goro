@@ -525,7 +525,7 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 			hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
 			m.startCombatAnimationWithNext(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, hurtDuration, postHurtAnimation(target, hitAt.Add(hurtDuration)))
 		}
-		m.scheduleSoundAtActor(hitAt, action.TargetID, combatHitSFXCandidates(source, sourceOK, target, targetOK)...)
+		m.scheduleSoundAtActor(hitAt, action.TargetID, combatHitSFXCandidates(action, source, sourceOK, target, targetOK)...)
 		m.addSkillEffect(ctx, action, hitAt)
 		m.addSkillHitEffect(ctx, action, hitAt)
 	}

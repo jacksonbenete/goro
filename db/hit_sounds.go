@@ -14,12 +14,18 @@ func WeaponAttackSounds(weaponType int) []string {
 	return weaponAttackSoundTable[MaxWeaponType]
 }
 
+func EnemyHitNormalSounds() []string {
+	return enemyHitNormalSounds
+}
+
 func JobHitSounds(job int) []string {
 	if sounds, ok := jobHitSoundTable[job]; ok {
 		return sounds
 	}
 	return jobHitSoundTable[JobNovice]
 }
+
+var enemyHitNormalSounds = []string{"_enemy_hit_normal1.wav", "_enemy_hit_normal2.wav", "_enemy_hit_normal3.wav", "_enemy_hit_normal4.wav"}
 
 var weaponHitSoundTable = map[int][]string{
 	WeaponNone:         {"_hit_fist1.wav", "_hit_fist2.wav", "_hit_fist3.wav", "_hit_fist4.wav"},

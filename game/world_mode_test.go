@@ -10814,6 +10814,79 @@ func TestActionSoundNameIgnoresAttackMarker(t *testing.T) {
 	}
 }
 
+func TestSkillHitSoundUsesReferenceEnemyNormalSounds(t *testing.T) {
+	source := worldstate.Actor{Job: db.JobWizard, Weapon: 1601}
+	target := worldstate.Actor{Job: 1002, ObjectType: actorObjectTypeMob, HasObjectType: true}
+
+	got := combatHitSFXCandidates(network.ActorActionNotify{SkillID: db.SkillWZEarthspike}, source, true, target, true)
+	requireSameStringSet(t, got, db.EnemyHitNormalSounds())
+	if got[0] == "_hit_rod.wav" || got[0] == "_hit_arrow.wav" {
+		t.Fatalf("skill hit sound = %q, want enemy hit normal sound", got[0])
+	}
+}
+
+func TestEarthSpikeSchedulesEnemyHitAndSpikeSounds(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Job: db.JobWizard, Weapon: 1601, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1002,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}, World: world}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SourceID:    2000000,
+		TargetID:    300,
+		SkillID:     db.SkillWZEarthspike,
+		SourceSpeed: 800,
+		TargetSpeed: 480,
+		Damage:      84,
+		Action:      network.ActorActionSkill,
+	})
+
+	if len(mode.scheduledSounds) != 2 {
+		t.Fatalf("scheduled sounds = %+v, want enemy hit and earth spike sounds", mode.scheduledSounds)
+	}
+	if got := mode.scheduledSounds[0].paths; !sameStringSet(got, db.EnemyHitNormalSounds()) {
+		t.Fatalf("enemy hit sound candidates = %v, want rotated %v", got, db.EnemyHitNormalSounds())
+	}
+	if sound := mode.scheduledSounds[0]; !sound.positioned || sound.actorID != 300 {
+		t.Fatalf("enemy hit sound source = %+v, want target actor", sound)
+	}
+	if got := mode.scheduledSounds[1].paths; len(got) != 1 || got[0] != "effect\\wizard_earthspike.wav" {
+		t.Fatalf("earth spike sound = %+v", mode.scheduledSounds[1])
+	}
+}
+
+func requireSameStringSet(t *testing.T, got, want []string) {
+	t.Helper()
+	if !sameStringSet(got, want) {
+		t.Fatalf("strings = %v, want same set as %v", got, want)
+	}
+}
+
+func sameStringSet(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	seen := make(map[string]int, len(want))
+	for _, value := range want {
+		seen[value]++
+	}
+	for _, value := range got {
+		if seen[value] == 0 {
+			return false
+		}
+		seen[value]--
+	}
+	return true
+}
+
 func TestMercenaryAttackSchedulesWeaponSwingAndHitSounds(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 8, Y: 20, Dir: 4}

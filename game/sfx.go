@@ -8,6 +8,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
 	worldstate "github.com/kivutar/goro/world"
 )
@@ -307,7 +308,10 @@ func weaponAttackSFXCandidates(actor worldstate.Actor) []string {
 	return db.WeaponAttackSounds(db.PlayerWeaponType(actorWeaponForSounds(actor)))
 }
 
-func combatHitSFXCandidates(source worldstate.Actor, sourceOK bool, target worldstate.Actor, targetOK bool) []string {
+func combatHitSFXCandidates(action network.ActorActionNotify, source worldstate.Actor, sourceOK bool, target worldstate.Actor, targetOK bool) []string {
+	if action.SkillID != 0 {
+		return rotatedSFXCandidates(db.EnemyHitNormalSounds(), combatHitSFXRoll(action))
+	}
 	if targetOK && res.HasPlayerJobToken(int(target.Job)) {
 		return db.JobHitSounds(int(target.Job))
 	}
@@ -315,6 +319,27 @@ func combatHitSFXCandidates(source worldstate.Actor, sourceOK bool, target world
 		return db.WeaponHitSounds(db.PlayerWeaponType(actorWeaponForSounds(source)))
 	}
 	return nil
+}
+
+func rotatedSFXCandidates(paths []string, roll uint32) []string {
+	if len(paths) <= 1 {
+		return paths
+	}
+	start := int(roll % uint32(len(paths)))
+	out := make([]string, 0, len(paths))
+	out = append(out, paths[start:]...)
+	out = append(out, paths[:start]...)
+	return out
+}
+
+func combatHitSFXRoll(action network.ActorActionNotify) uint32 {
+	roll := action.SourceID*1103515245 + action.TargetID*2654435761
+	roll ^= uint32(action.ServerTick) * 2246822519
+	roll ^= uint32(action.SkillID)<<16 | uint32(action.SkillLevel)
+	roll ^= uint32(action.Damage) + uint32(action.LeftDamage)*16777619
+	roll ^= uint32(action.HitCount)<<8 | uint32(action.Action)
+	roll ^= roll >> 16
+	return roll
 }
 
 func actorUsesWeaponSounds(actor worldstate.Actor) bool {
