@@ -3,7 +3,8 @@
 Target client date: `20080910`.
 
 Sources:
-- rAthena `src/map/clif_packetdb.hpp`, preprocessed with `PACKETVER=20080910`.
+- Goro-compatible rAthena `src/map/clif_packetdb.hpp`, preprocessed with
+  `PACKETVER=20080910` and `PACKETVER_SAK_NUM=20080910`.
 - rAthena `src/map/packets.hpp`, `src/map/packets_struct.hpp`, and `src/common/packets.hpp` for header aliases.
 - Goro `network/*.go` for currently referenced packet IDs, excluding tests.
 
@@ -33,15 +34,15 @@ packet (`0x022E`). `ZC_HO_PAR_CHANGE` (`0x07DB`) is a later packet, starting at
 packet table. Goro still parses the later homunculus property and param-change
 variants so it can interoperate with nearby or patched servers.
 
-The rAthena setup patch makes `clif_homunculus_updatestatus` send a full
-`0x022E` refresh for `PACKETVER < 20090610`. Without that server-side fallback,
-the 2008 client flow can display stale HP, SP, or EXP values after the initial
-homunculus info packet.
+Current upstream rAthena and the Goro-compatible rAthena branch make
+`clif_homunculus_updatestatus` send a full `0x022E` refresh for
+`PACKETVER < 20090610`. Older server checkouts without that fallback can display
+stale HP, SP, or EXP values after the initial homunculus info packet.
 
 `ZC_NOTIFY_EXP` (`0x07F6`) is the later client-side EXP gain/loss notification
 packet. eAthena and Hercules both gate `clif_displayexp()` behind
 `PACKETVER >= 20091027`, and Hercules' 2008 Sakray packet table does not include
-`0x07F6`. The rAthena setup patch keeps the same behavior by not sending that
+`0x07F6`. Current upstream rAthena keeps the same behavior by not sending that
 packet to the 2008 Sakray profile; `@showexp` remains the server text-message
 path for green EXP percentage lines.
 

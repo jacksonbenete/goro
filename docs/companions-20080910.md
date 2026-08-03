@@ -5,7 +5,7 @@ Target client date: `20080910`.
 Goro implements homunculus and mercenary companions as one companion feature with
 separate session state, UI windows, AI runners, and packet paths. The behavior is
 kept close to roBrowser where possible, with 2008 packetver compatibility kept
-explicit because modern rAthena sends newer homunculus refresh packets by
+explicit because older rAthena builds sent newer homunculus refresh packets by
 default.
 
 ## Runtime Features
@@ -71,13 +71,14 @@ do not silently lose companion state.
 
 For `PACKETVER=20080910`, official-style clients use the full
 `ZC_PROPERTY_HOMUN` packet (`0x022E`) for homunculus status refreshes.
-`ZC_HO_PAR_CHANGE` (`0x07DB`) starts at `PACKETVER >= 20090610`, so a modern
-rAthena tree must be patched to send a full `0x022E` refresh for old clients
-when homunculus HP, SP, or EXP changes.
+`ZC_HO_PAR_CHANGE` (`0x07DB`) starts at `PACKETVER >= 20090610`, so old clients
+need the server to send a full `0x022E` refresh when homunculus HP, SP, or EXP
+changes.
 
-The required patch is documented in [rAthena setup](rathena-setup.md). Without
-it, the homunculus status window can show stale HP/SP/EXP after the initial info
-packet.
+Current upstream rAthena and the Goro-compatible rAthena branch contain that
+fallback. Older rAthena checkouts without it can show stale HP/SP/EXP after the
+initial info packet. See [rAthena setup](rathena-setup.md) for the recommended
+server branch.
 
 ## Visual And Data Notes
 
