@@ -13,8 +13,16 @@ const (
 	PacketZCNotifyEffect2 uint16 = 0x01F3
 	PacketZCMVP           uint16 = 0x010C
 
-	SpecialEffectBaseLevelUp = 0
-	SpecialEffectJobLevelUp  = 1
+	SpecialEffectBaseLevelUp            = 0
+	SpecialEffectJobLevelUp             = 1
+	SpecialEffectRefineFailure          = 2
+	SpecialEffectRefineSuccess          = 3
+	SpecialEffectGameOver               = 4
+	SpecialEffectPharmacySuccess        = 5
+	SpecialEffectPharmacyFailure        = 6
+	SpecialEffectSuperNoviceBaseLevelUp = 7
+	SpecialEffectSuperNoviceJobLevelUp  = 8
+	SpecialEffectTaekwonBaseLevelUp     = 9
 )
 
 type SpecialEffectNotify struct {

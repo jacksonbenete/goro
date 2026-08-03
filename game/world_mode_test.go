@@ -10106,6 +10106,33 @@ func TestSpecialEffectNotifyAddsLevelUpEffects(t *testing.T) {
 	}
 }
 
+func TestSpecialEffectNotifyMapsServerResultEffects(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	for _, effectID := range []uint32{
+		network.SpecialEffectRefineFailure,
+		network.SpecialEffectRefineSuccess,
+		network.SpecialEffectPharmacySuccess,
+		network.SpecialEffectPharmacyFailure,
+		network.SpecialEffectGameOver,
+	} {
+		mode.applySpecialEffectNotify(ctx, network.SpecialEffectNotify{AID: 2000000, EffectID: effectID})
+	}
+
+	want := []int{effectRefineFail, effectRefineOK, effectPharmacyOK, effectPharmacyFail}
+	if len(mode.worldEffects) != len(want) {
+		t.Fatalf("world effects = %d, want %d: %+v", len(mode.worldEffects), len(want), mode.worldEffects)
+	}
+	for i, effect := range mode.worldEffects {
+		if effect.effectID != want[i] {
+			t.Fatalf("world effect %d = %+v, want effect %d", i, effect, want[i])
+		}
+	}
+}
+
 func TestMVPNotifyAddsMVPBannerEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}

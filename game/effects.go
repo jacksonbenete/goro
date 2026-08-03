@@ -1210,8 +1210,16 @@ func specialEffectID(effectID uint32) int {
 }
 
 var networkSpecialEffectIDs = map[uint32]int{
-	network.SpecialEffectBaseLevelUp: effectBaseLevelUp,
-	network.SpecialEffectJobLevelUp:  effectJobLevelUp,
+	network.SpecialEffectBaseLevelUp:            effectBaseLevelUp,
+	network.SpecialEffectJobLevelUp:             effectJobLevelUp,
+	network.SpecialEffectRefineFailure:          effectRefineFail,
+	network.SpecialEffectRefineSuccess:          effectRefineOK,
+	network.SpecialEffectGameOver:               0,
+	network.SpecialEffectPharmacySuccess:        effectPharmacyOK,
+	network.SpecialEffectPharmacyFailure:        effectPharmacyFail,
+	network.SpecialEffectSuperNoviceBaseLevelUp: effectBaseLevelUp,
+	network.SpecialEffectSuperNoviceJobLevelUp:  effectJobLevelUp,
+	network.SpecialEffectTaekwonBaseLevelUp:     effectBaseLevelUp,
 }
 
 func skillFailMessage(ack network.SkillFailAck) string {
