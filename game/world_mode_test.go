@@ -1515,6 +1515,85 @@ func TestCursorMagnetOffsetFollowsTargetSnapSetting(t *testing.T) {
 	}
 }
 
+func TestCursorMagnetOffsetSnapsTargetSkillToSelf(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{
+		ID:            200,
+		X:             10,
+		Y:             20,
+		ObjectType:    actorObjectTypePC,
+		HasObjectType: true,
+	}
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	point := projection.Project(cellCenter(10), cellCenter(20), 0)
+	inputState := input.NewState()
+	inputState.SetMousePosition(int(point.x)+7, int(point.y)+3)
+	ctx := client.Context{
+		Input: inputState,
+		Session: &session.Session{
+			AccountID:   100,
+			CharID:      200,
+			SnapTargets: true,
+		},
+		World: world,
+	}
+	mode := &WorldMode{pendingSkill: pendingSkillTarget{skill: session.Skill{
+		ID:    db.SkillAMPotionpitcher,
+		Type:  skillTargetFriend,
+		Range: 9,
+	}}}
+
+	scale := actorBillboardScreenScale(projection, cellCenter(10), cellCenter(20), 0)
+	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	wantDX := float64(inputState.MouseX) - targetX
+	wantDY := float64(inputState.MouseY) - targetY
+	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionTarget2, now)
+	if math.Abs(dx-wantDX) > 0.1 || math.Abs(dy-wantDY) > 0.1 {
+		t.Fatalf("self target skill snap offset = %.1f,%.1f, want %.1f,%.1f", dx, dy, wantDX, wantDY)
+	}
+}
+
+func TestCursorMagnetOffsetSnapsTargetSkillToHomunculus(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypeHomunculus,
+		HasObjectType: true,
+	})
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	point := projection.Project(cellCenter(11), cellCenter(20), 0)
+	inputState := input.NewState()
+	inputState.SetMousePosition(int(point.x)+7, int(point.y)+3)
+	ctx := client.Context{
+		Input: inputState,
+		Session: &session.Session{
+			AccountID:   100,
+			CharID:      200,
+			SnapTargets: true,
+		},
+		World: world,
+	}
+	mode := &WorldMode{pendingSkill: pendingSkillTarget{skill: session.Skill{
+		ID:    db.SkillAMPotionpitcher,
+		Type:  skillTargetFriend,
+		Range: 9,
+	}}}
+
+	scale := actorBillboardScreenScale(projection, cellCenter(11), cellCenter(20), 0)
+	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	wantDX := float64(inputState.MouseX) - targetX
+	wantDY := float64(inputState.MouseY) - targetY
+	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionTarget2, now)
+	if math.Abs(dx-wantDX) > 0.1 || math.Abs(dy-wantDY) > 0.1 {
+		t.Fatalf("homunculus target skill snap offset = %.1f,%.1f, want %.1f,%.1f", dx, dy, wantDX, wantDY)
+	}
+}
+
 func TestCursorMagnetOffsetFollowsItemSnapSetting(t *testing.T) {
 	now := time.Now()
 	world := worldstate.New()

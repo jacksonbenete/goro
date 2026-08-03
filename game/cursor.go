@@ -238,7 +238,7 @@ func (m *WorldMode) cursorMagnetOffset(ctx client.Context, projection sceneProje
 			return 0, 0
 		}
 		actor, ok := clickedSkillTarget(ctx, projection, skill, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths)
-		if !ok || !cursorActorCanSnap(actor) {
+		if !ok {
 			return 0, 0
 		}
 		return m.cursorActorMagnetOffset(ctx, projection, actor, now)
@@ -298,18 +298,6 @@ func spriteBillboardScreenCenter(billboard *spriteBillboard, point screenPoint, 
 	x := float64(point.x) + (float64(bounds.Dx())/2-billboard.anchorX)*scale
 	y := float64(point.y) + (float64(bounds.Dy())/2-billboard.anchorY)*scale
 	return x, y, true
-}
-
-func cursorActorCanSnap(actor world.Actor) bool {
-	if !actor.HasObjectType {
-		return false
-	}
-	switch actor.ObjectType {
-	case actorObjectTypeMob, actorObjectTypeNPCABR, actorObjectTypeNPCBionic:
-		return true
-	default:
-		return false
-	}
 }
 
 func cursorSnapTargets(ctx client.Context) bool {
