@@ -102,6 +102,41 @@ func TestRealPotionAndProvokeSTRExactResources(t *testing.T) {
 	}
 }
 
+func TestRealPharmacyResultSTRExactResources(t *testing.T) {
+	manager := realDataManager(t)
+	for _, path := range []string{
+		`data\texture\effect\p_success.str`,
+		`data\texture\effect\p_failed.str`,
+	} {
+		data, err := manager.ReadFileExact(path)
+		if err != nil {
+			t.Fatalf("read exact %s: %v", path, err)
+		}
+		str, err := ParseSTR(data, "")
+		if err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		if len(str.Layers) == 0 {
+			t.Fatalf("%s has no layers", path)
+		}
+		foundTexture := false
+		for _, layer := range str.Layers {
+			for _, texture := range layer.Textures {
+				if texture == "" {
+					continue
+				}
+				if _, err := manager.ReadFileExact(texture); err != nil {
+					t.Fatalf("read exact texture %s from %s: %v", texture, path, err)
+				}
+				foundTexture = true
+			}
+		}
+		if !foundTexture {
+			t.Fatalf("%s references no textures", path)
+		}
+	}
+}
+
 func TestRealCylinderEffectTextures(t *testing.T) {
 	manager := realDataManager(t)
 	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "ring_blue", "alpha1", "대폭발", "pok3", "lens1", "lens2"} {

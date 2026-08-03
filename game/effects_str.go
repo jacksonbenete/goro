@@ -241,7 +241,7 @@ func strAnimFrame(from, to res.STRAnimation, delta float32, texCount int) float3
 		}
 		return value
 	default:
-		return 0
+		return from.AniFrame
 	}
 }
 
