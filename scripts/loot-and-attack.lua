@@ -15,6 +15,7 @@ end
 local current_target = nil
 local last_attack_at = 0
 local attack_retry_seconds = 1.2
+local double_strafe_id = 46
 local current_item = nil
 local last_loot_at = 0
 local loot_retry_seconds = 1.0
@@ -44,7 +45,9 @@ function tick()
 		if current_target ~= enemy.id or now - last_attack_at >= attack_retry_seconds then
 			current_target = enemy.id
 			last_attack_at = now
-			goro.attack(enemy.id)
+			if not goro.skill(enemy.id, double_strafe_id) then
+				goro.attack(enemy.id)
+			end
 		end
 	else
 		current_target = nil

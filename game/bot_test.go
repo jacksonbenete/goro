@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/session"
 	worldstate "github.com/kivutar/goro/world"
 	lua "github.com/yuin/gopher-lua"
@@ -70,6 +71,49 @@ end
 	assertLuaNumber(t, seen, "enemy_id", 300)
 	assertLuaNumber(t, seen, "items", 1)
 	assertLuaNumber(t, seen, "item_id", 501)
+}
+
+func TestLuaBotCanRequestTargetSkillChase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bot.lua")
+	if err := os.WriteFile(path, []byte(`
+function tick()
+	ok = goro.skill(300, 46)
+end
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sess := session.New()
+	sess.CharID = 2000000
+	sess.Skills.List = []session.Skill{{
+		ID:    db.SkillACDouble,
+		Type:  skillTargetEnemy,
+		Level: 10,
+		Range: 9,
+		Name:  "Double Strafe",
+	}}
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(64, 64)
+	world.Player = worldstate.Actor{ID: sess.CharID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "Poring", X: 30, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+
+	mode := &WorldMode{}
+	bot, err := newLuaBot(client.Context{Session: sess, World: world}, mode, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+
+	ok, _ := bot.state.GetGlobal("ok").(lua.LBool)
+	if !bool(ok) {
+		t.Fatal("goro.skill returned false")
+	}
+	if mode.pendingSkill.targetID != 300 || mode.pendingSkill.skill.ID != db.SkillACDouble {
+		t.Fatalf("pending skill = %+v, want AC_DOUBLE target 300", mode.pendingSkill)
+	}
 }
 
 func TestLuaBotDoesNotExposeDyingEnemies(t *testing.T) {

@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/session"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -107,6 +109,16 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 			L.Push(lua.LBool(mode.scriptAttack(ctx, id)))
 			return 1
 		},
+		"skill": func(L *lua.LState) int {
+			id := uint32(L.CheckInt(1))
+			skillArg := L.Get(2)
+			if skillArg == lua.LNil {
+				L.ArgError(2, "skill id or name expected")
+				return 0
+			}
+			L.Push(lua.LBool(mode.scriptSkill(ctx, id, skillArg)))
+			return 1
+		},
 		"loot": func(L *lua.LState) int {
 			id := uint32(L.CheckInt(1))
 			L.Push(lua.LBool(mode.scriptLoot(ctx, id)))
@@ -144,6 +156,26 @@ func (m *WorldMode) scriptAttack(ctx client.Context, id uint32) bool {
 	return true
 }
 
+func (m *WorldMode) scriptSkill(ctx client.Context, id uint32, skillArg lua.LValue) bool {
+	if ctx.World == nil {
+		return false
+	}
+	actor, ok := ctx.World.Actors[id]
+	if !ok || !actorCanBeAttackClicked(ctx, actor) {
+		return false
+	}
+	skill, ok := luaSkill(ctx, skillArg)
+	if !ok {
+		glog.Debugf("script skill unavailable target=%d skill=%s", id, skillArg.String())
+		return false
+	}
+	if err := m.skills().UseTarget(ctx, skill, actor, "script"); err != nil {
+		glog.Debugf("script skill failed skill=%d target=%d: %v", skill.ID, id, err)
+		return false
+	}
+	return true
+}
+
 func (m *WorldMode) scriptLoot(ctx client.Context, id uint32) bool {
 	if ctx.World == nil {
 		return false
@@ -156,6 +188,42 @@ func (m *WorldMode) scriptLoot(ctx client.Context, id uint32) bool {
 	m.clearAttackFocus()
 	m.requestPickup(ctx, item, "script")
 	return true
+}
+
+func luaSkill(ctx client.Context, skillArg lua.LValue) (session.Skill, bool) {
+	switch value := skillArg.(type) {
+	case lua.LNumber:
+		if value <= 0 || value > 65535 {
+			return session.Skill{}, false
+		}
+		return skillByID(ctx.Session, uint16(value))
+	case lua.LString:
+		return luaSkillByName(ctx, string(value))
+	default:
+		return session.Skill{}, false
+	}
+}
+
+func luaSkillByName(ctx client.Context, name string) (session.Skill, bool) {
+	if ctx.Session == nil {
+		return session.Skill{}, false
+	}
+	needle := normalizeLuaSkillName(name)
+	if needle == "" {
+		return session.Skill{}, false
+	}
+	for _, skill := range ctx.Session.Skills.List {
+		if normalizeLuaSkillName(skill.Name) == needle || normalizeLuaSkillName(db.SkillResourceName[skill.ID]) == needle {
+			return skill, true
+		}
+	}
+	return session.Skill{}, false
+}
+
+func normalizeLuaSkillName(name string) string {
+	name = strings.TrimSpace(strings.ToLower(name))
+	name = strings.ReplaceAll(name, "_", " ")
+	return strings.Join(strings.Fields(name), " ")
 }
 
 func luaEnemyList(L *lua.LState, ctx client.Context, actorDeaths map[uint32]time.Time) *lua.LTable {

@@ -233,3 +233,30 @@ func TestMercenaryPendingTargetSkillSchedulesFromMercenaryPosition(t *testing.T)
 		t.Fatal("pending mercenary skill was not scheduled from the mercenary position")
 	}
 }
+
+func TestTargetSkillRangeUsesMovingActorCurrentCell(t *testing.T) {
+	now := time.Now()
+	target := worldstate.Actor{
+		ID:           300,
+		X:            30,
+		Y:            10,
+		FromX:        20,
+		FromY:        10,
+		ToX:          30,
+		ToY:          10,
+		Moving:       true,
+		MoveStarted:  now,
+		MoveDuration: 10 * time.Second,
+		MovePath: []worldstate.WalkStep{
+			{X: 20, Y: 10},
+			{X: 30, Y: 10},
+		},
+	}
+
+	if !targetSkillWithinRangeFrom(11, 10, 9, target) {
+		t.Fatal("moving target should be in range at its current rendered cell")
+	}
+	if targetSkillWithinRangeCells(11, 10, target.X, target.Y, 9) {
+		t.Fatal("test target final destination should be out of range")
+	}
+}

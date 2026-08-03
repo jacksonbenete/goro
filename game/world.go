@@ -264,13 +264,14 @@ type pickupIntent struct {
 }
 
 type pendingSkillTarget struct {
-	skill    session.Skill
-	maxLevel int
-	targetID uint32
-	expires  time.Time
-	readyAt  time.Time
-	source   string
-	started  time.Time
+	skill       session.Skill
+	maxLevel    int
+	targetID    uint32
+	expires     time.Time
+	readyAt     time.Time
+	source      string
+	started     time.Time
+	lastChaseAt time.Time
 }
 
 type pendingSkillTextTarget struct {

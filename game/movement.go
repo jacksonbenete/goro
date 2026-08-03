@@ -98,7 +98,11 @@ func currentPlayerCell(ctx client.Context, now time.Time) (int, int) {
 	if ctx.World == nil {
 		return 0, 0
 	}
-	x, y := actorRenderPosition(ctx.World.Player, now)
+	return actorCurrentCell(ctx.World.Player, now)
+}
+
+func actorCurrentCell(actor worldstate.Actor, now time.Time) (int, int) {
+	x, y := actorRenderPosition(actor, now)
 	return int(math.Round(x)), int(math.Round(y))
 }
 

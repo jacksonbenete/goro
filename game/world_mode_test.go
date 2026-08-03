@@ -1676,6 +1676,49 @@ func TestAttackTargetWithinRangeUsesMeleeAdjacency(t *testing.T) {
 	}
 }
 
+func TestNormalAttackTargetWithinRangeRejectsRangedCorner(t *testing.T) {
+	if !normalAttackTargetWithinRange(10, 20, 11, 21, 1) {
+		t.Fatal("normal melee attack should keep diagonal adjacency")
+	}
+	if !attackTargetWithinRange(124, 70, 129, 75, 5) {
+		t.Fatal("client skill-style range should still include the square corner")
+	}
+	if normalAttackTargetWithinRange(124, 70, 129, 75, 5) {
+		t.Fatal("normal ranged attack should reject the server-failing square corner")
+	}
+	if !normalAttackTargetWithinRange(125, 72, 129, 75, 5) {
+		t.Fatal("normal ranged attack should allow a non-corner cell at the same range")
+	}
+}
+
+func TestNormalAttackRangeUsesMovingActorCurrentCell(t *testing.T) {
+	now := time.Now()
+	target := worldstate.Actor{
+		ID:           300,
+		X:            30,
+		Y:            10,
+		FromX:        20,
+		FromY:        10,
+		ToX:          30,
+		ToY:          10,
+		Moving:       true,
+		MoveStarted:  now,
+		MoveDuration: 10 * time.Second,
+		MovePath: []worldstate.WalkStep{
+			{X: 20, Y: 10},
+			{X: 30, Y: 10},
+		},
+	}
+
+	targetX, targetY := actorCurrentCell(target, now)
+	if !normalAttackTargetWithinRange(11, 10, targetX, targetY, 9) {
+		t.Fatal("moving target should be in range at its current rendered cell")
+	}
+	if attackTargetWithinRange(11, 10, target.X, target.Y, 9) {
+		t.Fatal("test target final destination should be out of range")
+	}
+}
+
 func TestAttackApproachCellChoosesClosestWalkableNeighbor(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{X: 112, Y: 302}
@@ -1732,6 +1775,60 @@ func TestAttackApproachCellUsesRangedAttackRange(t *testing.T) {
 	}
 	if targetDistance <= 1 {
 		t.Fatalf("ranged approach = %d,%d, want not adjacent contact", x, y)
+	}
+}
+
+func TestNormalAttackApproachCellAvoidsRejectedRangedCorner(t *testing.T) {
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(200, 100)
+	ctx := client.Context{World: world}
+
+	x, y, ok := normalAttackApproachCellFromTarget(ctx, 123, 71, 129, 75, 5)
+	if !ok {
+		t.Fatal("expected ranged normal attack approach cell")
+	}
+	if x == 124 && y == 70 {
+		t.Fatalf("normal attack approach = %d,%d, want to avoid server-rejected range corner", x, y)
+	}
+	if !normalAttackTargetWithinRange(x, y, 129, 75, 5) {
+		t.Fatalf("normal attack approach = %d,%d, want server-compatible range", x, y)
+	}
+	if !walkTargetReachable(ctx, 123, 71, x, y) {
+		t.Fatalf("normal attack approach = %d,%d, want reachable path", x, y)
+	}
+}
+
+func TestRangedAttackApproachCellRequiresReachablePath(t *testing.T) {
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(12, 5)
+	for y := 0; y < world.GAT.Height; y++ {
+		world.GAT.SetCellRawType(4, y, 1)
+	}
+	ctx := client.Context{World: world}
+
+	if x, y, ok := rangedAttackApproachCellFromTarget(ctx, 1, 2, 8, 2, 3); ok {
+		t.Fatalf("ranged approach = %d,%d, want no unreachable chase cell", x, y)
+	}
+}
+
+func TestRangedAttackApproachCellSkipsUnreachablePreferredCell(t *testing.T) {
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(12, 5)
+	for _, cell := range [][2]int{
+		{4, 1}, {4, 2}, {4, 3},
+		{5, 1}, {5, 3},
+		{6, 1}, {6, 2}, {6, 3},
+	} {
+		world.GAT.SetCellRawType(cell[0], cell[1], 1)
+	}
+	ctx := client.Context{World: world}
+
+	x, y, ok := rangedAttackApproachCellFromTarget(ctx, 1, 2, 8, 2, 3)
+	if !ok {
+		t.Fatal("expected reachable fallback approach cell")
+	}
+	if x != 5 || y != 0 {
+		t.Fatalf("ranged approach = %d,%d, want reachable fallback 5,0", x, y)
 	}
 }
 

@@ -76,6 +76,14 @@ This uses the same path as a normal player click, including chase and range hand
 
 Alias for `goro.attack(id)`.
 
+### `goro.skill(id, skill)`
+
+Requests a target skill on the enemy actor with this id. `skill` can be either a numeric skill id or a learned skill name such as `"AC_DOUBLE"`.
+
+Returns `true` if the target and skill are usable, otherwise `false`.
+
+This uses the same path as a skill-window or shortcut target click, including chase and range handling. Scripts should avoid calling it every tick for the same target; keep a small retry delay.
+
 ### `goro.items()`
 
 Returns an array of visible floor items.
@@ -116,6 +124,7 @@ end
 local current_target = nil
 local last_attack_at = 0
 local attack_retry_seconds = 1.2
+local double_strafe_id = 46
 local current_item = nil
 local last_loot_at = 0
 local loot_retry_seconds = 1.0
@@ -145,7 +154,9 @@ function tick()
 		if current_target ~= enemy.id or now - last_attack_at >= attack_retry_seconds then
 			current_target = enemy.id
 			last_attack_at = now
-			goro.attack(enemy.id)
+			if not goro.skill(enemy.id, double_strafe_id) then
+				goro.attack(enemy.id)
+			end
 		end
 	else
 		current_target = nil
