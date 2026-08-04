@@ -557,16 +557,20 @@ func (m *WorldMode) applyActorActionAIState(ctx client.Context, action network.A
 }
 
 func (m *WorldMode) addSkillBeginEffect(ctx client.Context, action network.ActorActionNotify, starts time.Time) {
-	if action.SkillID == 0 {
+	m.addSkillBeginEffectsAt(ctx, action.SkillID, action.SourceID, action.TargetID, starts)
+}
+
+func (m *WorldMode) addSkillBeginEffectsAt(ctx client.Context, skillID uint16, sourceID, targetID uint32, starts time.Time) {
+	if skillID == 0 {
 		return
 	}
-	for _, effectID := range skillBeginEffectIDs(action.SkillID) {
-		actorID := action.SourceID
+	for _, effectID := range skillBeginEffectIDs(skillID) {
+		actorID := sourceID
 		if effectDetachesLocalActor(effectID) && isLocalActor(ctx, actorID) {
 			actorID = 0
 		}
 		if m.addWorldEffectAt(ctx, effectID, actorID, starts) {
-			glog.Debugf("skill begin effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+			glog.Debugf("skill begin effect skill=%d src=%d target=%d effect=%d", skillID, sourceID, targetID, effectID)
 		}
 	}
 }

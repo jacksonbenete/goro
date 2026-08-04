@@ -943,6 +943,7 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.
 	m.applySkillNameBubble(ctx, notify.SourceID, notify.SkillID, now)
 	m.startSkillNoDamageSourceAnimation(ctx, notify, now)
 	m.applyFalconSkillNoDamageNotify(ctx, notify, now)
+	m.addSkillBeginEffectsAt(ctx, notify.SkillID, notify.SourceID, notify.TargetID, now)
 	for _, effectID := range skillEffectIDs(notify.SkillID) {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 			glog.Debugf("skill effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)
@@ -1378,6 +1379,7 @@ func (m *WorldMode) addWorldEffectBetweenAtDuration(ctx client.Context, effectID
 	m.worldEffects = append(m.worldEffects, effect)
 	m.scheduleWorldEffectSound(starts, spec, effect)
 	m.startWorldEffectCameraShake(starts, spec)
+	m.applyWorldEffectSideEffects(ctx, effect, starts)
 	return true
 }
 

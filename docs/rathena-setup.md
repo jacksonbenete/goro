@@ -1,9 +1,9 @@
 # rAthena Setup
 
 Goro targets the classic pre-renewal `2008-09-10aSakexe` flow by default.
-Current upstream rAthena already contains most of the old-client fixes Goro used
+Current upstream rAthena already contains the old-client protocol fixes Goro used
 to need as local patches, so the setup is now mostly a normal rAthena checkout
-plus the remaining 2008 Sakray profile defaults.
+plus the remaining 2008 Sakray profile/configuration defaults.
 
 ## Recommended Source
 
@@ -21,18 +21,18 @@ remaining local compatibility/configuration deltas:
 
 - `PACKETVER=20080910`, `PACKETVER_SAK_NUM=20080910`, and `PRERE` defaults in
   `src/custom/defines_pre.hpp`
-- the legacy Sakexe character-select record layout
-- the 2008 pre-renewal packet DB gate that prevents early Renewal packet
+- the 2008 Sakexe packet DB gate that prevents early Renewal packet
   shuffles from overriding the Sakexe table
 - local development config, NPC script selection, rates, and map caches
 
 Upstream rAthena now already has the homunculus property packet support,
 homunculus `0x022E` refresh fallback, EXP-notify packet gate, old skill cast ACK
-fallback, and old packetver cloth-color build fix.
+fallback, old packetver cloth-color build fix, and legacy `0x006d` character
+record layout.
 
 Starting from upstream `rathena/rathena` is possible, but for the exact
 `2008-09-10aSakexe` environment use the `goro` branch until the remaining
-profile-specific packet/character deltas are upstream.
+profile-specific packet/configuration deltas are upstream.
 
 ## Build
 

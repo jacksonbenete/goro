@@ -13959,6 +13959,60 @@ func TestSkillNoDamageNotifyAddsProvokeEffect(t *testing.T) {
 	}
 }
 
+func TestSkillNoDamageNotifyAddsSongTalkBeginEffects(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "data"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "data", "dc_scream.txt"), []byte("SCREAM\r\n\tDancer line\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "data", "ba_frostjoke.txt"), []byte("FROST JOKE\r\n\tBard line\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name     string
+		skillID  uint16
+		effectID int
+		text     string
+	}{
+		{name: "scream", skillID: db.SkillDCScream, effectID: effectTalkScream, text: "Dancer line"},
+		{name: "frost joke", skillID: db.SkillBaFrostjoke, effectID: effectTalkFrostJoke, text: "Bard line"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			world := worldstate.New()
+			world.Player = worldstate.Actor{ID: 150000, X: 10, Y: 20}
+			sessionState := &session.Session{
+				AccountID: 2000000,
+				CharID:    150000,
+				Selected:  session.Character{ID: 150000, Name: "Kivutar", Job: db.JobDancer},
+			}
+			mode := &WorldMode{}
+			ctx := client.Context{Session: sessionState, World: world, Resources: manager}
+
+			mode.applySkillNoDamageNotify(ctx, network.SkillNoDamageNotify{SkillID: tc.skillID, TargetID: 2000000, SourceID: 2000000, Result: 1})
+			if len(mode.worldEffects) != 1 {
+				t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+			}
+			if effect := mode.worldEffects[0]; effect.actorID != 2000000 || effect.effectID != tc.effectID {
+				t.Fatalf("effect = %+v, want actor 2000000 effect %d", effect, tc.effectID)
+			}
+			if bubble, ok := mode.speechBubbles[2000000]; !ok || bubble.text != tc.text {
+				t.Fatalf("account bubble = %+v ok=%t, want %q", bubble, ok, tc.text)
+			}
+			if bubble, ok := mode.speechBubbles[150000]; !ok || bubble.text != tc.text {
+				t.Fatalf("char bubble = %+v ok=%t, want %q", bubble, ok, tc.text)
+			}
+		})
+	}
+}
+
 func TestSkillNoDamageNotifyAddsStealEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
