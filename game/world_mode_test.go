@@ -13595,6 +13595,34 @@ func TestFireWallSkillUnitEntryUsesPersistentEffect(t *testing.T) {
 	}
 }
 
+func TestSkillUnitEntryRefreshesExistingPersistentCellEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9008, CreatorID: 2000000, UnitID: 172, X: 12, Y: 34, Visible: true})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	first := mode.worldEffects[0]
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9008, CreatorID: 2000000, UnitID: 172, X: 13, Y: 35, Visible: true})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects after refresh = %d, want 1: %+v", len(mode.worldEffects), mode.worldEffects)
+	}
+	effect := mode.worldEffects[0]
+	if effect.actorID != 9008 || effect.effectID != effectBottomHummingGround || effect.x != 13 || effect.y != 35 {
+		t.Fatalf("effect after refresh = %+v, want moved humming ground effect", effect)
+	}
+	if !effect.starts.Equal(first.starts) {
+		t.Fatalf("effect start changed from %s to %s, want loop phase preserved", first.starts, effect.starts)
+	}
+	if effect.expires.Before(first.expires) {
+		t.Fatalf("effect expiry moved backward from %s to %s", first.expires, effect.expires)
+	}
+}
+
 func TestWizardSkillUnitEntrySchedulesCellSound(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

@@ -1422,13 +1422,42 @@ func (m *WorldMode) addWorldEffectAtCellLifetime(ctx client.Context, effectID in
 	if lifetimeOverride > duration {
 		duration = lifetimeOverride
 	}
+	expires := starts.Add(duration)
+	if persistent && actorID != 0 {
+		active := m.worldEffects[:0]
+		updated := false
+		moved := false
+		for _, effect := range m.worldEffects {
+			if effect.effectID == effectID && effect.actorID == actorID {
+				if starts.Before(effect.expires) {
+					if !updated {
+						moved = effect.x != x || effect.y != y
+						effect.x = x
+						effect.y = y
+						if effect.expires.Before(expires) {
+							effect.expires = expires
+						}
+						effect.persistent = true
+						active = append(active, effect)
+						updated = true
+					}
+				}
+				continue
+			}
+			active = append(active, effect)
+		}
+		m.worldEffects = active
+		if updated {
+			return moved
+		}
+	}
 	effect := worldEffect{
 		effectID:   effectID,
 		actorID:    actorID,
 		x:          x,
 		y:          y,
 		starts:     starts,
-		expires:    starts.Add(duration),
+		expires:    expires,
 		persistent: persistent,
 	}
 	m.worldEffects = append(m.worldEffects, effect)
