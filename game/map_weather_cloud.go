@@ -233,7 +233,7 @@ func (s *mapWeatherCloudState) spawn(index int, params mapWeatherCloudParams, wo
 	offsetY := weatherCloudPlacementOffset(index, generation, 2, 9, params)
 	cloud.x = centerX + offsetX
 	cloud.y = centerY + offsetY
-	ground := terrainHeightAtRenderPoint(world, centerX, centerY)
+	ground := 0.0
 	zJitter := weatherCloudHash01(index, generation, 3) * params.zRand
 	if params.useGround {
 		ground = terrainHeightAtRenderPoint(world, cloud.x, cloud.y)

@@ -5,6 +5,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	worldstate "github.com/kivutar/goro/world"
 )
 
 func TestMapWeatherForComodoMatchesReferenceWeatherTable(t *testing.T) {
@@ -135,7 +137,10 @@ func TestYunoCloudWeatherSpawnsInOuterSkyRing(t *testing.T) {
 	now := time.Unix(10, 0)
 	const centerX = 37.5
 	const centerY = 98.5
-	state.ensure("yuno.rsw", params, nil, centerX, centerY, now)
+	world := &worldstate.World{GND: testGNDWithTopHeights(64, 64, func(_, _ int) [4]float32 {
+		return [4]float32{12, 12, 12, 12}
+	})}
+	state.ensure("yuno.rsw", params, world, centerX, centerY, now)
 	if len(state.clouds) == 0 {
 		t.Fatal("weather cloud state empty")
 	}
@@ -146,7 +151,7 @@ func TestYunoCloudWeatherSpawnsInOuterSkyRing(t *testing.T) {
 		t.Fatalf("Yuno cloud offset = %.2f,%.2f, want signed 2.5..22.5 from center", dx, dy)
 	}
 	if first.z < 4 || first.z > 5 {
-		t.Fatalf("Yuno cloud z = %.2f, want player terrain + 4..5", first.z)
+		t.Fatalf("Yuno cloud z = %.2f, want fixed weather height 4..5", first.z)
 	}
 }
 
