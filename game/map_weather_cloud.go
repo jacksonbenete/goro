@@ -76,7 +76,7 @@ func weatherCloudParamsForEffect(effectID int) (mapWeatherCloudParams, bool) {
 			count:        240,
 			offsetMin:    25 * weatherCloudClassicUnit,
 			radius:       200 * weatherCloudClassicUnit,
-			zOffset:      40 * weatherCloudClassicUnit,
+			zOffset:      -50 * weatherCloudClassicUnit,
 			zRand:        10 * weatherCloudClassicUnit,
 			sizeBase:     30 * math.Sqrt2 * weatherCloudClassicUnit,
 			sizeRand:     20 * math.Sqrt2 * weatherCloudClassicUnit,

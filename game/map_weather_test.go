@@ -72,7 +72,7 @@ func TestYunoCloudWeatherParamsMatchClassicProfile(t *testing.T) {
 	if params.tint != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) || params.alphaMax != 240.0/255.0 {
 		t.Fatalf("EF_CLOUD2 tint/alpha = %+v", params)
 	}
-	if params.count != 240 || params.offsetMin != 2.5 || params.radius != 20 || params.zOffset != 4 || params.zRand != 1 {
+	if params.count != 240 || params.offsetMin != 2.5 || params.radius != 20 || params.zOffset != -5 || params.zRand != 1 {
 		t.Fatalf("EF_CLOUD2 placement = %+v", params)
 	}
 	if params.sizeBase != 30*math.Sqrt2*0.1 || params.sizeRand != 20*math.Sqrt2*0.1 {
@@ -150,8 +150,8 @@ func TestYunoCloudWeatherSpawnsInOuterSkyRing(t *testing.T) {
 	if dx < 2.5 || dx > 22.5 || dy < 2.5 || dy > 22.5 {
 		t.Fatalf("Yuno cloud offset = %.2f,%.2f, want signed 2.5..22.5 from center", dx, dy)
 	}
-	if first.z < 4 || first.z > 5 {
-		t.Fatalf("Yuno cloud z = %.2f, want fixed weather height 4..5", first.z)
+	if first.z < -5 || first.z > -4 {
+		t.Fatalf("Yuno cloud z = %.2f, want fixed weather height -5..-4", first.z)
 	}
 }
 
