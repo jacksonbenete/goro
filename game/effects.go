@@ -669,21 +669,39 @@ const (
 )
 
 const (
-	effectWhitePulse        = db.SkillEffectWhitePulse
-	effectSpearProjectile   = db.SkillEffectSpearProjectile
-	effectSpiralBeforeCast  = db.SkillEffectSpiralBeforeCast
-	effectSpearHitSound     = db.SkillEffectSpearHitSound
-	effectEnemyHitNormal1   = db.SkillEffectEnemyHitNormal1
-	effectQuake             = db.SkillEffectQuake
-	effectAnkleSnareGround  = db.SkillEffectAnkleSnareGround
-	effectSharpShootingCast = db.SkillEffectSharpShootingCast
-	effectAdrenalineCast    = db.SkillEffectAdrenalineCast
-	effectMaximizeSounds    = db.SkillEffectMaximizeSounds
-	effectGreedSound        = db.SkillEffectGreedSound
-	effectGospelGround      = db.SkillEffectGospelGround
-	effectShieldProjectile  = db.SkillEffectShieldProjectile
-	effectFogWallGround     = db.SkillEffectFogWallGround
-	effectHermodeMusic      = db.SkillEffectHermodeMusic
+	effectWhitePulse             = db.SkillEffectWhitePulse
+	effectSpearProjectile        = db.SkillEffectSpearProjectile
+	effectSpiralBeforeCast       = db.SkillEffectSpiralBeforeCast
+	effectSpearHitSound          = db.SkillEffectSpearHitSound
+	effectEnemyHitNormal1        = db.SkillEffectEnemyHitNormal1
+	effectQuake                  = db.SkillEffectQuake
+	effectAnkleSnareGround       = db.SkillEffectAnkleSnareGround
+	effectSharpShootingCast      = db.SkillEffectSharpShootingCast
+	effectAdrenalineCast         = db.SkillEffectAdrenalineCast
+	effectMaximizeSounds         = db.SkillEffectMaximizeSounds
+	effectGreedSound             = db.SkillEffectGreedSound
+	effectGospelGround           = db.SkillEffectGospelGround
+	effectShieldProjectile       = db.SkillEffectShieldProjectile
+	effectFogWallGround          = db.SkillEffectFogWallGround
+	effectHermodeMusic           = db.SkillEffectHermodeMusic
+	effectBottomDissonanceGround = db.SkillEffectBottomDissonanceGround
+	effectBottomLullabyGround    = db.SkillEffectBottomLullabyGround
+	effectBottomRichKimGround    = db.SkillEffectBottomRichKimGround
+	effectBottomChaosGround      = db.SkillEffectBottomChaosGround
+	effectBottomDrumGround       = db.SkillEffectBottomDrumGround
+	effectBottomNibelungGround   = db.SkillEffectBottomNibelungGround
+	effectBottomRokiGround       = db.SkillEffectBottomRokiGround
+	effectBottomAbyssGround      = db.SkillEffectBottomAbyssGround
+	effectBottomSiegGround       = db.SkillEffectBottomSiegGround
+	effectBottomWhistleGround    = db.SkillEffectBottomWhistleGround
+	effectBottomSinXGround       = db.SkillEffectBottomSinXGround
+	effectBottomBragiGround      = db.SkillEffectBottomBragiGround
+	effectBottomAppleGround      = db.SkillEffectBottomAppleGround
+	effectBottomUglyDanceGround  = db.SkillEffectBottomUglyDanceGround
+	effectBottomHummingGround    = db.SkillEffectBottomHummingGround
+	effectBottomForgetGround     = db.SkillEffectBottomForgetGround
+	effectBottomFortuneGround    = db.SkillEffectBottomFortuneGround
+	effectBottomServiceGround    = db.SkillEffectBottomServiceGround
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute
@@ -1078,9 +1096,9 @@ func (m *WorldMode) faceSkillSource(ctx client.Context, sourceID, targetID uint3
 }
 
 func (m *WorldMode) applyGroundSkillNotify(ctx client.Context, notify network.GroundSkillNotify) {
-	effectIDs := skillEffectIDs(notify.SkillID)
+	effectIDs := skillGroundEffectIDs(notify.SkillID)
 	if len(effectIDs) == 0 {
-		effectIDs = skillGroundEffectIDs(notify.SkillID)
+		effectIDs = skillEffectIDs(notify.SkillID)
 	}
 	if len(effectIDs) == 0 {
 		return
@@ -2004,61 +2022,61 @@ type skillUnitEffectSpec struct {
 // display the full portal there because a separate UNT_WARPPORTAL entry is not
 // guaranteed before the unit's LOOK_BASE morph.
 var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
-	126: {effectIDs: []int{effectSafetyWall}},       // UNT_SAFETYWALL -> EF_GLASSWALL2
-	127: {effectIDs: []int{effectFireWall}},         // UNT_FIREWALL -> EF_FIREWALL
-	128: {effectIDs: []int{effectPortal}},           // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
-	129: {effectIDs: []int{effectPortal}},           // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
-	131: {effectIDs: []int{effectBottomSanc}},       // UNT_SANCTUARY -> EF_BOTTOM_SANC
-	132: {effectIDs: []int{effectBottomMagnus}},     // UNT_MAGNUS -> EF_BOTTOM_MAG
-	133: {effectIDs: []int{effectPneuma}},           // UNT_PNEUMA -> EF_PNEUMA
-	135: {effectIDs: []int{effectFirePillarOn}},     // UNT_FIREPILLAR_WAITING -> EF_FIREPILLARON
-	141: {effectIDs: []int{effectIceWall}},          // UNT_ICEWALL -> EF_ICEWALL
-	142: {effectIDs: []int{effectQuagmire}},         // UNT_QUAGMIRE -> EF_QUAGMIRE
-	146: {effectIDs: []int{effectVenomDust2}},       // UNT_VENOMDUST -> EF_VENOMDUST2
-	154: {effectIDs: []int{effectBottomVolcano}},    // UNT_VOLCANO -> EF_BOTTOM_VO
-	155: {effectIDs: []int{effectBottomDeluge}},     // UNT_DELUGE -> EF_BOTTOM_DE
-	156: {effectIDs: []int{effectBottomViolent}},    // UNT_VIOLENTGALE -> EF_BOTTOM_VI
-	157: {effectIDs: []int{effectBottomLand}},       // UNT_LANDPROTECTOR -> EF_BOTTOM_LA
-	158: {effectIDs: []int{effectBottomLullaby}},    // UNT_LULLABY -> 278_ground
-	159: {effectIDs: []int{effectBottomRichKim}},    // UNT_RICHMANKIM -> 279_ground
-	160: {effectIDs: []int{effectBottomChaos}},      // UNT_ETERNALCHAOS -> 280_ground
-	161: {effectIDs: []int{effectBottomDrum}},       // UNT_DRUMBATTLEFIELD -> 281_ground
-	162: {effectIDs: []int{effectBottomNibelung}},   // UNT_RINGNIBELUNGEN -> 282_ground
-	163: {effectIDs: []int{effectBottomRoki}},       // UNT_ROKISWEIL -> 283_ground
-	164: {effectIDs: []int{effectBottomAbyss}},      // UNT_INTOABYSS -> 284_ground
-	165: {effectIDs: []int{effectBottomSieg}},       // UNT_SIEGFRIED -> 285_ground
-	166: {effectIDs: []int{effectBottomDissonance}}, // UNT_DISSONANCE -> 277_ground
-	167: {effectIDs: []int{effectBottomWhistle}},    // UNT_WHISTLE -> 286_ground
-	168: {effectIDs: []int{effectBottomSinX}},       // UNT_ASSASSINCROSS -> 287_ground
-	169: {effectIDs: []int{effectBottomBragi}},      // UNT_POEMBRAGI -> 288_ground
-	170: {effectIDs: []int{effectBottomApple}},      // UNT_APPLEIDUN -> 289_ground
-	171: {effectIDs: []int{effectBottomUglyDance}},  // UNT_UGLYDANCE -> 290_ground
-	172: {effectIDs: []int{effectBottomHumming}},    // UNT_HUMMING -> 291_ground
-	173: {effectIDs: []int{effectBottomForget}},     // UNT_DONTFORGETME -> 292_ground
-	174: {effectIDs: []int{effectBottomFortune}},    // UNT_FORTUNEKISS -> 293_ground
-	175: {effectIDs: []int{effectBottomService}},    // UNT_SERVICEFORYOU -> 294_ground
-	177: {effectIDs: []int{effectDemonstration}},    // UNT_DEMONSTRATION -> EF_DEMONSTRATION
-	179: {effectIDs: []int{effectBottomGospel}},     // UNT_GOSPEL -> 370_ground
-	180: {effectIDs: []int{effectBottomBasilica}},   // UNT_BASILICA -> EF_BOTTOM_BASILICA
-	181: {effectIDs: []int{effectMoonlit}},          // UNT_MOONLIT -> 394_ground
-	182: {effectIDs: []int{effectFogWallGround}},    // UNT_FOGWALL -> 405_ground
-	183: {effectIDs: []int{effectBottomSpider}},     // UNT_SPIDERWEB -> EF_BOTTOM_SPIDER
-	184: {effectIDs: []int{effectGravitation}},      // UNT_GRAVITATION -> 522_ground
-	185: {effectIDs: []int{effectBottomHermode}},    // UNT_HERMODE -> EF_BOTTOM_HERMODE
-	188: {effectIDs: []int{effectTatami}},           // UNT_TATAMIGAESHI -> EF_TATAMI
-	189: {effectIDs: []int{effectKaen}},             // UNT_KAEN -> EF_KAEN
-	199: {effectIDs: []int{effectBottomEvilLand}},   // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
-	202: {effectIDs: []int{effectGlassWall3}},       // UNT_EPICLESIS -> EF_GLASSWALL3
-	203: {effectIDs: []int{effectEarthWall}},        // UNT_EARTHSTRAIN -> EF_EARTHWALL
-	204: {effectIDs: []int{effectBottomManhole}},    // UNT_MANHOLE -> EF_BOTTOM_MANHOLE
-	205: {effectIDs: []int{effectForestLight6}},     // UNT_DIMENSIONDOOR -> EF_FORESTLIGHT6
-	206: {effectIDs: []int{effectBottomAni}},        // UNT_CHAOSPANIC -> EF_BOTTOM_ANI
-	207: {effectIDs: []int{effectBottomMaelstrom}},  // UNT_MAELSTROM -> EF_BOTTOM_MAELSTROM
-	208: {effectIDs: []int{effectBottomBloodyLust}}, // UNT_BLOODYLUST -> EF_BOTTOM_BLOODYLUST
-	218: {effectIDs: []int{effectBotReverb}},        // UNT_REVERBERATION -> EF_BOT_REVERB
-	220: {effectIDs: []int{effectFireWall2}},        // UNT_FIREWALK -> EF_FIREWALL2
-	221: {effectIDs: []int{effectShockwave2}},       // UNT_ELECTRICWALK -> EF_SHOCKWAVE2
-	222: {effectIDs: []int{effectBotReverb2}},       // UNT_NETHERWORLD -> EF_BOT_REVERB2
+	126: {effectIDs: []int{effectSafetyWall}},             // UNT_SAFETYWALL -> EF_GLASSWALL2
+	127: {effectIDs: []int{effectFireWall}},               // UNT_FIREWALL -> EF_FIREWALL
+	128: {effectIDs: []int{effectPortal}},                 // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
+	129: {effectIDs: []int{effectPortal}},                 // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
+	131: {effectIDs: []int{effectBottomSanc}},             // UNT_SANCTUARY -> EF_BOTTOM_SANC
+	132: {effectIDs: []int{effectBottomMagnus}},           // UNT_MAGNUS -> EF_BOTTOM_MAG
+	133: {effectIDs: []int{effectPneuma}},                 // UNT_PNEUMA -> EF_PNEUMA
+	135: {effectIDs: []int{effectFirePillarOn}},           // UNT_FIREPILLAR_WAITING -> EF_FIREPILLARON
+	141: {effectIDs: []int{effectIceWall}},                // UNT_ICEWALL -> EF_ICEWALL
+	142: {effectIDs: []int{effectQuagmire}},               // UNT_QUAGMIRE -> EF_QUAGMIRE
+	146: {effectIDs: []int{effectVenomDust2}},             // UNT_VENOMDUST -> EF_VENOMDUST2
+	154: {effectIDs: []int{effectBottomVolcano}},          // UNT_VOLCANO -> EF_BOTTOM_VO
+	155: {effectIDs: []int{effectBottomDeluge}},           // UNT_DELUGE -> EF_BOTTOM_DE
+	156: {effectIDs: []int{effectBottomViolent}},          // UNT_VIOLENTGALE -> EF_BOTTOM_VI
+	157: {effectIDs: []int{effectBottomLand}},             // UNT_LANDPROTECTOR -> EF_BOTTOM_LA
+	158: {effectIDs: []int{effectBottomLullabyGround}},    // UNT_LULLABY -> 278_ground
+	159: {effectIDs: []int{effectBottomRichKimGround}},    // UNT_RICHMANKIM -> 279_ground
+	160: {effectIDs: []int{effectBottomChaosGround}},      // UNT_ETERNALCHAOS -> 280_ground
+	161: {effectIDs: []int{effectBottomDrumGround}},       // UNT_DRUMBATTLEFIELD -> 281_ground
+	162: {effectIDs: []int{effectBottomNibelungGround}},   // UNT_RINGNIBELUNGEN -> 282_ground
+	163: {effectIDs: []int{effectBottomRokiGround}},       // UNT_ROKISWEIL -> 283_ground
+	164: {effectIDs: []int{effectBottomAbyssGround}},      // UNT_INTOABYSS -> 284_ground
+	165: {effectIDs: []int{effectBottomSiegGround}},       // UNT_SIEGFRIED -> 285_ground
+	166: {effectIDs: []int{effectBottomDissonanceGround}}, // UNT_DISSONANCE -> 277_ground
+	167: {effectIDs: []int{effectBottomWhistleGround}},    // UNT_WHISTLE -> 286_ground
+	168: {effectIDs: []int{effectBottomSinXGround}},       // UNT_ASSASSINCROSS -> 287_ground
+	169: {effectIDs: []int{effectBottomBragiGround}},      // UNT_POEMBRAGI -> 288_ground
+	170: {effectIDs: []int{effectBottomAppleGround}},      // UNT_APPLEIDUN -> 289_ground
+	171: {effectIDs: []int{effectBottomUglyDanceGround}},  // UNT_UGLYDANCE -> 290_ground
+	172: {effectIDs: []int{effectBottomHummingGround}},    // UNT_HUMMING -> 291_ground
+	173: {effectIDs: []int{effectBottomForgetGround}},     // UNT_DONTFORGETME -> 292_ground
+	174: {effectIDs: []int{effectBottomFortuneGround}},    // UNT_FORTUNEKISS -> 293_ground
+	175: {effectIDs: []int{effectBottomServiceGround}},    // UNT_SERVICEFORYOU -> 294_ground
+	177: {effectIDs: []int{effectDemonstration}},          // UNT_DEMONSTRATION -> EF_DEMONSTRATION
+	179: {effectIDs: []int{effectBottomGospel}},           // UNT_GOSPEL -> 370_ground
+	180: {effectIDs: []int{effectBottomBasilica}},         // UNT_BASILICA -> EF_BOTTOM_BASILICA
+	181: {effectIDs: []int{effectMoonlit}},                // UNT_MOONLIT -> 394_ground
+	182: {effectIDs: []int{effectFogWallGround}},          // UNT_FOGWALL -> 405_ground
+	183: {effectIDs: []int{effectBottomSpider}},           // UNT_SPIDERWEB -> EF_BOTTOM_SPIDER
+	184: {effectIDs: []int{effectGravitation}},            // UNT_GRAVITATION -> 522_ground
+	185: {effectIDs: []int{effectBottomHermode}},          // UNT_HERMODE -> EF_BOTTOM_HERMODE
+	188: {effectIDs: []int{effectTatami}},                 // UNT_TATAMIGAESHI -> EF_TATAMI
+	189: {effectIDs: []int{effectKaen}},                   // UNT_KAEN -> EF_KAEN
+	199: {effectIDs: []int{effectBottomEvilLand}},         // UNT_EVILLAND -> EF_BOTTOM_EVILLAND
+	202: {effectIDs: []int{effectGlassWall3}},             // UNT_EPICLESIS -> EF_GLASSWALL3
+	203: {effectIDs: []int{effectEarthWall}},              // UNT_EARTHSTRAIN -> EF_EARTHWALL
+	204: {effectIDs: []int{effectBottomManhole}},          // UNT_MANHOLE -> EF_BOTTOM_MANHOLE
+	205: {effectIDs: []int{effectForestLight6}},           // UNT_DIMENSIONDOOR -> EF_FORESTLIGHT6
+	206: {effectIDs: []int{effectBottomAni}},              // UNT_CHAOSPANIC -> EF_BOTTOM_ANI
+	207: {effectIDs: []int{effectBottomMaelstrom}},        // UNT_MAELSTROM -> EF_BOTTOM_MAELSTROM
+	208: {effectIDs: []int{effectBottomBloodyLust}},       // UNT_BLOODYLUST -> EF_BOTTOM_BLOODYLUST
+	218: {effectIDs: []int{effectBotReverb}},              // UNT_REVERBERATION -> EF_BOT_REVERB
+	220: {effectIDs: []int{effectFireWall2}},              // UNT_FIREWALK -> EF_FIREWALL2
+	221: {effectIDs: []int{effectShockwave2}},             // UNT_ELECTRICWALK -> EF_SHOCKWAVE2
+	222: {effectIDs: []int{effectBotReverb2}},             // UNT_NETHERWORLD -> EF_BOT_REVERB2
 }
 
 func skillUnitEffectIDs(unitID uint16) []int {

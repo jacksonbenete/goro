@@ -661,21 +661,39 @@ const (
 )
 
 const (
-	effectWhitePulse        = SkillEffectWhitePulse
-	effectSpearProjectile   = SkillEffectSpearProjectile
-	effectSpiralBeforeCast  = SkillEffectSpiralBeforeCast
-	effectSpearHitSound     = SkillEffectSpearHitSound
-	effectEnemyHitNormal1   = SkillEffectEnemyHitNormal1
-	effectQuake             = SkillEffectQuake
-	effectAnkleSnareGround  = SkillEffectAnkleSnareGround
-	effectSharpShootingCast = SkillEffectSharpShootingCast
-	effectAdrenalineCast    = SkillEffectAdrenalineCast
-	effectMaximizeSounds    = SkillEffectMaximizeSounds
-	effectGreedSound        = SkillEffectGreedSound
-	effectGospelGround      = SkillEffectGospelGround
-	effectShieldProjectile  = SkillEffectShieldProjectile
-	effectFogWallGround     = SkillEffectFogWallGround
-	effectHermodeMusic      = SkillEffectHermodeMusic
+	effectWhitePulse             = SkillEffectWhitePulse
+	effectSpearProjectile        = SkillEffectSpearProjectile
+	effectSpiralBeforeCast       = SkillEffectSpiralBeforeCast
+	effectSpearHitSound          = SkillEffectSpearHitSound
+	effectEnemyHitNormal1        = SkillEffectEnemyHitNormal1
+	effectQuake                  = SkillEffectQuake
+	effectAnkleSnareGround       = SkillEffectAnkleSnareGround
+	effectSharpShootingCast      = SkillEffectSharpShootingCast
+	effectAdrenalineCast         = SkillEffectAdrenalineCast
+	effectMaximizeSounds         = SkillEffectMaximizeSounds
+	effectGreedSound             = SkillEffectGreedSound
+	effectGospelGround           = SkillEffectGospelGround
+	effectShieldProjectile       = SkillEffectShieldProjectile
+	effectFogWallGround          = SkillEffectFogWallGround
+	effectHermodeMusic           = SkillEffectHermodeMusic
+	effectBottomDissonanceGround = SkillEffectBottomDissonanceGround
+	effectBottomLullabyGround    = SkillEffectBottomLullabyGround
+	effectBottomRichKimGround    = SkillEffectBottomRichKimGround
+	effectBottomChaosGround      = SkillEffectBottomChaosGround
+	effectBottomDrumGround       = SkillEffectBottomDrumGround
+	effectBottomNibelungGround   = SkillEffectBottomNibelungGround
+	effectBottomRokiGround       = SkillEffectBottomRokiGround
+	effectBottomAbyssGround      = SkillEffectBottomAbyssGround
+	effectBottomSiegGround       = SkillEffectBottomSiegGround
+	effectBottomWhistleGround    = SkillEffectBottomWhistleGround
+	effectBottomSinXGround       = SkillEffectBottomSinXGround
+	effectBottomBragiGround      = SkillEffectBottomBragiGround
+	effectBottomAppleGround      = SkillEffectBottomAppleGround
+	effectBottomUglyDanceGround  = SkillEffectBottomUglyDanceGround
+	effectBottomHummingGround    = SkillEffectBottomHummingGround
+	effectBottomForgetGround     = SkillEffectBottomForgetGround
+	effectBottomFortuneGround    = SkillEffectBottomFortuneGround
+	effectBottomServiceGround    = SkillEffectBottomServiceGround
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -2779,6 +2797,42 @@ func fogWallGroundEffectSpec() EffectSpec {
 			},
 		},
 	}
+}
+
+func songGroundEffectSpec(texture string, tint color.RGBA, textureSize float64) EffectSpec {
+	if textureSize <= 0 {
+		textureSize = 0.5
+	}
+	spec := EffectSpec{
+		Duration: 1500 * time.Millisecond,
+	}
+	if tint.A > 0 {
+		spec.Components = append(spec.Components, EffectComponent{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "FlatColorTile",
+			Color:          tint,
+			SizeStart:      1,
+			RenderBefore:   true,
+			AttachedEntity: false,
+		})
+	}
+	if texture != "" {
+		spec.Components = append(spec.Components, EffectComponent{
+			Kind:           EffectComponentFUNC,
+			FuncName:       "GroundTexture",
+			TextureFile:    texture,
+			Duration:       1500 * time.Millisecond,
+			SizeStart:      textureSize,
+			SizeEnd:        textureSize,
+			AlphaMax:       0.7,
+			PosZ:           0.2,
+			PosZEnd:        0.6,
+			BlendAdditive:  true,
+			RenderBefore:   true,
+			AttachedEntity: false,
+		})
+	}
+	return spec
 }
 
 func spiralBeforeCastEffectSpec() EffectSpec {
@@ -5124,21 +5178,39 @@ var EffectSpecs = map[int]EffectSpec{
 	effectBottomNibelung: soundOnlyEffectSpec(
 		"effect\\니벨룽겐의 반지.wav",
 	),
-	effectBottomRoki:    soundOnlyEffectSpec("effect\\로키.wav"),
-	effectBottomAbyss:   soundOnlyEffectSpec("effect\\심연속으로.wav"),
-	effectBottomSieg:    soundOnlyEffectSpec("effect\\불사신.wav"),
-	effectBottomWhistle: soundOnlyEffectSpec("effect\\달빛세레나데.wav"),
-	effectBottomSinX:    soundOnlyEffectSpec("effect\\석양의 어쌔신.wav"),
-	effectBottomBragi:   soundOnlyEffectSpec("effect\\브라기의 시.wav"),
-	effectBottomApple:   soundOnlyEffectSpec("effect\\이둔의 사과.wav"),
-	effectBottomHumming: soundOnlyEffectSpec("effect\\흥얼거림.wav"),
-	effectBottomForget:  soundOnlyEffectSpec("effect\\나를잊지말아요.wav"),
-	effectBottomFortune: soundOnlyEffectSpec("effect\\행운의.wav"),
-	effectBottomService: soundOnlyEffectSpec("effect\\당신을 위한 서비스.wav"),
-	effectTalkFrostJoke: funcEffectSpec("FrostJokeTalk", 500*time.Millisecond, true),
-	effectTalkScream:    funcEffectSpec("ScreamTalk", 500*time.Millisecond, true),
-	effectThrowItem:     throwItemEffectSpec("유저인터페이스/item/염산병.bmp", 30),
-	effectChemicalProt:  soundOnlyEffectSpec("apocalips_attack.wav"),
+	effectBottomRoki:             soundOnlyEffectSpec("effect\\로키.wav"),
+	effectBottomAbyss:            soundOnlyEffectSpec("effect\\심연속으로.wav"),
+	effectBottomSieg:             soundOnlyEffectSpec("effect\\불사신.wav"),
+	effectBottomWhistle:          soundOnlyEffectSpec("effect\\달빛세레나데.wav"),
+	effectBottomSinX:             soundOnlyEffectSpec("effect\\석양의 어쌔신.wav"),
+	effectBottomBragi:            soundOnlyEffectSpec("effect\\브라기의 시.wav"),
+	effectBottomApple:            soundOnlyEffectSpec("effect\\이둔의 사과.wav"),
+	effectBottomHumming:          soundOnlyEffectSpec("effect\\흥얼거림.wav"),
+	effectBottomForget:           soundOnlyEffectSpec("effect\\나를잊지말아요.wav"),
+	effectBottomFortune:          soundOnlyEffectSpec("effect\\행운의.wav"),
+	effectBottomService:          soundOnlyEffectSpec("effect\\당신을 위한 서비스.wav"),
+	effectBottomDissonanceGround: songGroundEffectSpec("effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5),
+	effectBottomLullabyGround:    songGroundEffectSpec("effect/zz.bmp", color.RGBA{R: 237, G: 158, B: 255, A: 13}, 0.5),
+	effectBottomRichKimGround:    songGroundEffectSpec("effect/pocket.bmp", color.RGBA{R: 252, G: 199, B: 199, A: 13}, 0.5),
+	effectBottomChaosGround:      songGroundEffectSpec("effect/lens_g.bmp", color.RGBA{R: 128, G: 255, B: 194, A: 13}, 0.5),
+	effectBottomDrumGround:       songGroundEffectSpec("effect/melody_b.bmp", color.RGBA{R: 237, G: 101, B: 252, A: 13}, 0.5),
+	effectBottomNibelungGround:   songGroundEffectSpec("effect/twirl.bmp", color.RGBA{R: 28, G: 236, B: 255, A: 13}, 0.5),
+	effectBottomRokiGround:       songGroundEffectSpec("effect/safeline.bmp", color.RGBA{R: 220, G: 101, B: 252, A: 13}, 0.5),
+	effectBottomAbyssGround:      songGroundEffectSpec("effect/bluegemstone.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 1),
+	effectBottomSiegGround:       songGroundEffectSpec("effect/lens_b.bmp", color.RGBA{R: 72, G: 59, B: 255, A: 13}, 0.5),
+	effectBottomWhistleGround:    songGroundEffectSpec("effect/melody_b.bmp", color.RGBA{R: 255, G: 192, B: 203, A: 13}, 0.5),
+	effectBottomSinXGround:       songGroundEffectSpec("effect/lens_r.bmp", color.RGBA{R: 255, G: 204, B: 217, A: 102}, 0.5),
+	effectBottomBragiGround:      songGroundEffectSpec("effect/spell_01.bmp", color.RGBA{}, 0.5),
+	effectBottomAppleGround:      songGroundEffectSpec("effect/idun_apple.bmp", color.RGBA{R: 255, G: 255, B: 0, A: 13}, 1),
+	effectBottomUglyDanceGround:  songGroundEffectSpec("effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5),
+	effectBottomHummingGround:    songGroundEffectSpec("effect/melody_a.bmp", color.RGBA{R: 230, G: 209, B: 209, A: 13}, 0.5),
+	effectBottomForgetGround:     songGroundEffectSpec("effect/lens_g.bmp", color.RGBA{R: 28, G: 255, B: 115, A: 13}, 0.5),
+	effectBottomFortuneGround:    songGroundEffectSpec("effect/heart_2.bmp", color.RGBA{R: 252, G: 111, B: 101, A: 13}, 0.5),
+	effectBottomServiceGround:    songGroundEffectSpec("effect/safeline.bmp", color.RGBA{R: 255, G: 128, B: 183, A: 13}, 0.5),
+	effectTalkFrostJoke:          funcEffectSpec("FrostJokeTalk", 500*time.Millisecond, true),
+	effectTalkScream:             funcEffectSpec("ScreamTalk", 500*time.Millisecond, true),
+	effectThrowItem:              throwItemEffectSpec("유저인터페이스/item/염산병.bmp", 30),
+	effectChemicalProt:           soundOnlyEffectSpec("apocalips_attack.wav"),
 	effectDemonstration: {
 		Components: []EffectComponent{{
 			Kind:           EffectComponentSPR,

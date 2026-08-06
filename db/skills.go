@@ -3764,28 +3764,46 @@ func SkillGroundCastClientRotationRadiansPerSecond(skillID uint16) (float64, boo
 const (
 	// Synthetic numeric aliases for robr EffectTable.js string keys referenced
 	// from SkillEffect.js. These are not Ragnarok packet effect IDs.
-	SkillEffectColdBolt          = 10014
-	SkillEffectFireBolt          = 10019
-	SkillEffectQuakeMagnum       = 10022
-	SkillEffectArrowShot         = 10060
-	SkillEffectArrowShower       = 10061
-	SkillEffectMagicPower        = 10366
-	SkillEffectGravitationGround = 10484
-	SkillEffectWhitePulse        = 11000
-	SkillEffectSpearProjectile   = 11001
-	SkillEffectSpiralBeforeCast  = 11002
-	SkillEffectSpearHitSound     = 11003
-	SkillEffectEnemyHitNormal1   = 11004
-	SkillEffectQuake             = 11005
-	SkillEffectAnkleSnareGround  = 11006
-	SkillEffectSharpShootingCast = 11007
-	SkillEffectAdrenalineCast    = 11008
-	SkillEffectMaximizeSounds    = 11009
-	SkillEffectGreedSound        = 11010
-	SkillEffectGospelGround      = 11011
-	SkillEffectShieldProjectile  = 11012
-	SkillEffectFogWallGround     = 11013
-	SkillEffectHermodeMusic      = 11014
+	SkillEffectColdBolt               = 10014
+	SkillEffectFireBolt               = 10019
+	SkillEffectQuakeMagnum            = 10022
+	SkillEffectArrowShot              = 10060
+	SkillEffectArrowShower            = 10061
+	SkillEffectMagicPower             = 10366
+	SkillEffectGravitationGround      = 10484
+	SkillEffectWhitePulse             = 11000
+	SkillEffectSpearProjectile        = 11001
+	SkillEffectSpiralBeforeCast       = 11002
+	SkillEffectSpearHitSound          = 11003
+	SkillEffectEnemyHitNormal1        = 11004
+	SkillEffectQuake                  = 11005
+	SkillEffectAnkleSnareGround       = 11006
+	SkillEffectSharpShootingCast      = 11007
+	SkillEffectAdrenalineCast         = 11008
+	SkillEffectMaximizeSounds         = 11009
+	SkillEffectGreedSound             = 11010
+	SkillEffectGospelGround           = 11011
+	SkillEffectShieldProjectile       = 11012
+	SkillEffectFogWallGround          = 11013
+	SkillEffectHermodeMusic           = 11014
+	SkillEffectBottomDissonanceGround = 11015
+	SkillEffectBottomLullabyGround    = 11016
+	SkillEffectBottomRichKimGround    = 11017
+	SkillEffectBottomChaosGround      = 11018
+	SkillEffectBottomDrumGround       = 11019
+	SkillEffectBottomNibelungGround   = 11020
+	SkillEffectBottomRokiGround       = 11021
+	SkillEffectBottomAbyssGround      = 11022
+	SkillEffectBottomSiegGround       = 11023
+	SkillEffectBottomWhistleGround    = 11024
+	SkillEffectBottomSinXGround       = 11025
+	SkillEffectBottomBragiGround      = 11026
+	SkillEffectBottomAppleGround      = 11027
+	SkillEffectBottomUglyDanceGround  = 11028
+	SkillEffectBottomHummingGround    = 11029
+	SkillEffectBottomForgetGround     = 11030
+	SkillEffectBottomFortuneGround    = 11031
+	SkillEffectBottomServiceGround    = 11032
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -4010,30 +4028,30 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillSAComa:                     {},
 	SkillBDAdaptation:               {},
 	SkillBDEncore:                   {},
-	SkillBDLullaby:                  {EffectIDs: []int{effectBottomLullaby}, GroundEffectIDs: []int{effectBottomLullaby}},
-	SkillBDRichmankim:               {EffectIDs: []int{effectBottomRichKim}, GroundEffectIDs: []int{effectBottomRichKim}},
-	SkillBDEternalchaos:             {EffectIDs: []int{effectBottomChaos}, GroundEffectIDs: []int{effectBottomChaos}},
-	SkillBDDrumbattlefield:          {EffectIDs: []int{effectBottomDrum}, GroundEffectIDs: []int{effectBottomDrum}},
-	SkillBDRingnibelungen:           {EffectIDs: []int{effectBottomNibelung}, GroundEffectIDs: []int{effectBottomNibelung}},
-	SkillBDRokisweil:                {EffectIDs: []int{effectBottomRoki}, GroundEffectIDs: []int{effectBottomRoki}},
-	SkillBDIntoabyss:                {EffectIDs: []int{effectBottomAbyss}, GroundEffectIDs: []int{effectBottomAbyss}},
-	SkillBDSiegfried:                {EffectIDs: []int{effectBottomSieg}, GroundEffectIDs: []int{effectBottomSieg}},
+	SkillBDLullaby:                  {EffectIDs: []int{effectBottomLullaby}, GroundEffectIDs: []int{SkillEffectBottomLullabyGround}},
+	SkillBDRichmankim:               {EffectIDs: []int{effectBottomRichKim}, GroundEffectIDs: []int{SkillEffectBottomRichKimGround}},
+	SkillBDEternalchaos:             {EffectIDs: []int{effectBottomChaos}, GroundEffectIDs: []int{SkillEffectBottomChaosGround}},
+	SkillBDDrumbattlefield:          {EffectIDs: []int{effectBottomDrum}, GroundEffectIDs: []int{SkillEffectBottomDrumGround}},
+	SkillBDRingnibelungen:           {EffectIDs: []int{effectBottomNibelung}, GroundEffectIDs: []int{SkillEffectBottomNibelungGround}},
+	SkillBDRokisweil:                {EffectIDs: []int{effectBottomRoki}, GroundEffectIDs: []int{SkillEffectBottomRokiGround}},
+	SkillBDIntoabyss:                {EffectIDs: []int{effectBottomAbyss}, GroundEffectIDs: []int{SkillEffectBottomAbyssGround}},
+	SkillBDSiegfried:                {EffectIDs: []int{effectBottomSieg}, GroundEffectIDs: []int{SkillEffectBottomSiegGround}},
 	SkillBaMusicallesson:            {},
 	SkillBaMusicalstrike:            {BeforeHitEffectIDs: []int{SkillEffectArrowShot}, HideCastAura: true},
-	SkillBaDissonance:               {GroundEffectIDs: []int{effectBottomDissonance}},
+	SkillBaDissonance:               {GroundEffectIDs: []int{SkillEffectBottomDissonanceGround}},
 	SkillBaFrostjoke:                {BeginCastEffectIDs: []int{effectTalkFrostJoke}},
-	SkillBaWhistle:                  {EffectIDs: []int{effectBottomWhistle}, GroundEffectIDs: []int{effectBottomWhistle}},
-	SkillBaAssassincross:            {EffectIDs: []int{effectBottomSinX}, GroundEffectIDs: []int{effectBottomSinX}},
-	SkillBaPoembragi:                {EffectIDs: []int{effectBottomBragi}, GroundEffectIDs: []int{effectBottomBragi}},
-	SkillBaAppleidun:                {EffectIDs: []int{effectBottomApple}, GroundEffectIDs: []int{effectBottomApple}},
+	SkillBaWhistle:                  {EffectIDs: []int{effectBottomWhistle}, GroundEffectIDs: []int{SkillEffectBottomWhistleGround}},
+	SkillBaAssassincross:            {EffectIDs: []int{effectBottomSinX}, GroundEffectIDs: []int{SkillEffectBottomSinXGround}},
+	SkillBaPoembragi:                {EffectIDs: []int{effectBottomBragi}, GroundEffectIDs: []int{SkillEffectBottomBragiGround}},
+	SkillBaAppleidun:                {EffectIDs: []int{effectBottomApple}, GroundEffectIDs: []int{SkillEffectBottomAppleGround}},
 	SkillDCDancinglesson:            {},
 	SkillDCThrowarrow:               {BeforeHitEffectIDs: []int{SkillEffectArrowShot}, HideCastAura: true},
-	SkillDCUglydance:                {GroundEffectIDs: []int{effectBottomUglyDance}},
+	SkillDCUglydance:                {GroundEffectIDs: []int{SkillEffectBottomUglyDanceGround}},
 	SkillDCScream:                   {BeginCastEffectIDs: []int{effectTalkScream}},
-	SkillDCHumming:                  {EffectIDs: []int{effectBottomHumming}, GroundEffectIDs: []int{effectBottomHumming}},
-	SkillDCDontforgetme:             {EffectIDs: []int{effectBottomForget}, GroundEffectIDs: []int{effectBottomForget}},
-	SkillDCFortunekiss:              {EffectIDs: []int{effectBottomFortune}, GroundEffectIDs: []int{effectBottomFortune}},
-	SkillDCServiceforyou:            {EffectIDs: []int{effectBottomService}, GroundEffectIDs: []int{effectBottomService}},
+	SkillDCHumming:                  {EffectIDs: []int{effectBottomHumming}, GroundEffectIDs: []int{SkillEffectBottomHummingGround}},
+	SkillDCDontforgetme:             {EffectIDs: []int{effectBottomForget}, GroundEffectIDs: []int{SkillEffectBottomForgetGround}},
+	SkillDCFortunekiss:              {EffectIDs: []int{effectBottomFortune}, GroundEffectIDs: []int{SkillEffectBottomFortuneGround}},
+	SkillDCServiceforyou:            {EffectIDs: []int{effectBottomService}, GroundEffectIDs: []int{SkillEffectBottomServiceGround}},
 	SkillITMTomahawk:                {EffectIDs: []int{494}},
 	SkillNPCDarkcross:               {EffectIDs: []int{effectDarkGrandCross}},
 	SkillNPCDarkstrike:              {EffectIDs: []int{effectDarkSoulStrike}},

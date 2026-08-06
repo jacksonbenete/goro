@@ -27,7 +27,10 @@ const (
 	effectFuncBodyColor
 )
 
-const groundSampleFallbackRotationRadiansPerSecond = 40 * math.Pi / 180
+const (
+	groundSampleFallbackRotationRadiansPerSecond = 40 * math.Pi / 180
+	groundTextureHoverPeriodSeconds              = 10.8
+)
 
 func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, now time.Time) {
 	switch component.funcAdapter {
@@ -52,7 +55,7 @@ func (m *WorldMode) drawFuncEffect(screen *render.Frame, ctx client.Context, pro
 	case effectFuncFlatColorTile:
 		m.drawFlatColorTileEffect(screen, component, worldX, worldY, worldZ)
 	case effectFuncGroundTexture:
-		m.drawGroundTextureEffect(screen, ctx, component, worldX, worldY, worldZ, progress)
+		m.drawGroundTextureEffect(screen, ctx, component, effect, componentIndex, worldX, worldY, worldZ, progress, now)
 	default:
 	}
 }
@@ -461,7 +464,7 @@ func (m *WorldMode) drawFlatColorTileEffect(screen *render.Frame, component worl
 	drawGroundTextureQuad(screen, m.whitePixel, x, y, z+component.posZ+0.02, size, size, 0, tint, false)
 }
 
-func (m *WorldMode) drawGroundTextureEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, x, y, z, progress float64) {
+func (m *WorldMode) drawGroundTextureEffect(screen *render.Frame, ctx client.Context, component worldEffectComponent, effect worldEffect, componentIndex int, x, y, z, progress float64, now time.Time) {
 	texture := m.effectFileTexture(ctx.Resources, component.textureFile)
 	if texture == nil {
 		return
@@ -475,7 +478,17 @@ func (m *WorldMode) drawGroundTextureEffect(screen *render.Frame, ctx client.Con
 	}
 	alpha := effectComponentAlpha(progress, component)
 	tint := effectComponentTint(component, alpha)
-	drawGroundTextureQuad(screen, texture, x, y, z+component.posZ, size, size, component.angleStart, tint, component.blendAdditive)
+	zOffset := groundTextureZOffset(component, effect, componentIndex, now)
+	drawGroundTextureQuad(screen, texture, x, y, z+zOffset, size, size, component.angleStart, tint, component.blendAdditive)
+}
+
+func groundTextureZOffset(component worldEffectComponent, effect worldEffect, componentIndex int, now time.Time) float64 {
+	if component.posZEnd == 0 || component.posZEnd == component.posZ || now.IsZero() {
+		return component.posZ
+	}
+	elapsed := math.Max(0, now.Sub(effect.starts).Seconds())
+	phase := deterministicAngle(effect, componentIndex+733) + elapsed*2*math.Pi/groundTextureHoverPeriodSeconds
+	return component.posZ + (component.posZEnd-component.posZ)*(0.5+0.5*math.Sin(phase))
 }
 
 func (m *WorldMode) drawSpiritSphereEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, component worldEffectComponent, effect worldEffect, x, y, z float64, now time.Time) {

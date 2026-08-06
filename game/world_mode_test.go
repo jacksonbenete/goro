@@ -3018,14 +3018,14 @@ func TestBashBeginEffectSpecUsesCylinderComponents(t *testing.T) {
 
 func TestWorldEffectSpecCatalogCoverage(t *testing.T) {
 	coverage := effectCoverageSnapshot()
-	if coverage.Implemented != 641 {
-		t.Fatalf("implemented effects = %d, want 641", coverage.Implemented)
+	if coverage.Implemented != 659 {
+		t.Fatalf("implemented effects = %d, want 659", coverage.Implemented)
 	}
 	if coverage.ReferenceActive != 607 || coverage.ReferenceAll != 1147 {
 		t.Fatalf("reference client totals = active %d all %d", coverage.ReferenceActive, coverage.ReferenceAll)
 	}
-	if coverage.ActivePercent < 105.5 || coverage.ActivePercent > 105.8 {
-		t.Fatalf("active coverage = %.3f, want about 105.6", coverage.ActivePercent)
+	if coverage.ActivePercent < 108.5 || coverage.ActivePercent > 108.7 {
+		t.Fatalf("active coverage = %.3f, want about 108.6", coverage.ActivePercent)
 	}
 }
 
@@ -4565,6 +4565,73 @@ func TestRobrowserSimpleEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.T
 		if len(spec.sfx) != 1 || spec.sfx[0] != tc.wav {
 			t.Fatalf("%s sfx = %v, want %q", tc.name, spec.sfx, tc.wav)
 		}
+	}
+}
+
+func TestRobrowserBottomSongGroundEffectsMatchTableRows(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		id      int
+		texture string
+		tint    color.RGBA
+		size    float64
+	}{
+		{"277_ground", effectBottomDissonanceGround, "effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5},
+		{"278_ground", effectBottomLullabyGround, "effect/zz.bmp", color.RGBA{R: 237, G: 158, B: 255, A: 13}, 0.5},
+		{"279_ground", effectBottomRichKimGround, "effect/pocket.bmp", color.RGBA{R: 252, G: 199, B: 199, A: 13}, 0.5},
+		{"280_ground", effectBottomChaosGround, "effect/lens_g.bmp", color.RGBA{R: 128, G: 255, B: 194, A: 13}, 0.5},
+		{"281_ground", effectBottomDrumGround, "effect/melody_b.bmp", color.RGBA{R: 237, G: 101, B: 252, A: 13}, 0.5},
+		{"282_ground", effectBottomNibelungGround, "effect/twirl.bmp", color.RGBA{R: 28, G: 236, B: 255, A: 13}, 0.5},
+		{"283_ground", effectBottomRokiGround, "effect/safeline.bmp", color.RGBA{R: 220, G: 101, B: 252, A: 13}, 0.5},
+		{"284_ground", effectBottomAbyssGround, "effect/bluegemstone.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 1},
+		{"285_ground", effectBottomSiegGround, "effect/lens_b.bmp", color.RGBA{R: 72, G: 59, B: 255, A: 13}, 0.5},
+		{"286_ground", effectBottomWhistleGround, "effect/melody_b.bmp", color.RGBA{R: 255, G: 192, B: 203, A: 13}, 0.5},
+		{"287_ground", effectBottomSinXGround, "effect/lens_r.bmp", color.RGBA{R: 255, G: 204, B: 217, A: 102}, 0.5},
+		{"288_ground", effectBottomBragiGround, "effect/spell_01.bmp", color.RGBA{}, 0.5},
+		{"289_ground", effectBottomAppleGround, "effect/idun_apple.bmp", color.RGBA{R: 255, G: 255, B: 0, A: 13}, 1},
+		{"290_ground", effectBottomUglyDanceGround, "effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5},
+		{"291_ground", effectBottomHummingGround, "effect/melody_a.bmp", color.RGBA{R: 230, G: 209, B: 209, A: 13}, 0.5},
+		{"292_ground", effectBottomForgetGround, "effect/lens_g.bmp", color.RGBA{R: 28, G: 255, B: 115, A: 13}, 0.5},
+		{"293_ground", effectBottomFortuneGround, "effect/heart_2.bmp", color.RGBA{R: 252, G: 111, B: 101, A: 13}, 0.5},
+		{"294_ground", effectBottomServiceGround, "effect/safeline.bmp", color.RGBA{R: 255, G: 128, B: 183, A: 13}, 0.5},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		wantComponents := 2
+		if tc.tint.A == 0 {
+			wantComponents = 1
+		}
+		if !ok || spec.duration != 1500*time.Millisecond || len(spec.sfx) != 0 || len(spec.components) != wantComponents {
+			t.Fatalf("%s spec = %+v ok=%t, want visible song ground", tc.name, spec, ok)
+		}
+		textureIndex := 0
+		if tc.tint.A > 0 {
+			tile := spec.components[0]
+			if tile.kind != effectComponentFUNC || tile.funcName != "FlatColorTile" || tile.funcAdapter != effectFuncFlatColorTile || tile.color != tc.tint || tile.sizeStart != 1 || !tile.renderBefore || tile.attachedEntity {
+				t.Fatalf("%s flat tile = %+v", tc.name, tile)
+			}
+			textureIndex = 1
+		}
+		texture := spec.components[textureIndex]
+		if texture.kind != effectComponentFUNC || texture.funcName != "GroundTexture" || texture.funcAdapter != effectFuncGroundTexture || texture.textureFile != tc.texture || texture.duration != 1500*time.Millisecond || texture.sizeStart != tc.size || texture.sizeEnd != tc.size || texture.alphaMax != 0.7 || texture.posZ != 0.2 || texture.posZEnd != 0.6 || !texture.blendAdditive || !texture.renderBefore || texture.attachedEntity {
+			t.Fatalf("%s texture = %+v", tc.name, texture)
+		}
+	}
+}
+
+func TestGroundTextureEffectHoverMovesBetweenZRange(t *testing.T) {
+	start := time.Unix(1, 0)
+	effect := worldEffect{effectID: effectBottomHummingGround, actorID: 172, starts: start}
+	component := worldEffectComponent{posZ: 0.2, posZEnd: 0.6}
+
+	first := groundTextureZOffset(component, effect, 1, start)
+	later := groundTextureZOffset(component, effect, 1, start.Add(3*time.Second))
+	for _, got := range []float64{first, later} {
+		if got < 0.2 || got > 0.6 {
+			t.Fatalf("hover z = %.3f, want inside 0.2..0.6", got)
+		}
+	}
+	if math.Abs(first-later) < 0.001 {
+		t.Fatalf("hover z did not move: %.3f then %.3f", first, later)
 	}
 }
 
@@ -8605,52 +8672,52 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "BD_ADAPTATION imported empty", skillEffectIDs(db.SkillBDAdaptation))
 	expectEffectIDs(t, "BD_ENCORE imported empty", skillEffectIDs(db.SkillBDEncore))
 	expectEffectIDs(t, "BD_LULLABY imported", skillEffectIDs(db.SkillBDLullaby), effectBottomLullaby)
-	expectEffectIDs(t, "BD_LULLABY imported ground", skillGroundEffectIDs(db.SkillBDLullaby), effectBottomLullaby)
+	expectEffectIDs(t, "BD_LULLABY imported ground", skillGroundEffectIDs(db.SkillBDLullaby), effectBottomLullabyGround)
 	expectEffectIDs(t, "BD_RICHMANKIM imported", skillEffectIDs(db.SkillBDRichmankim), effectBottomRichKim)
-	expectEffectIDs(t, "BD_RICHMANKIM imported ground", skillGroundEffectIDs(db.SkillBDRichmankim), effectBottomRichKim)
+	expectEffectIDs(t, "BD_RICHMANKIM imported ground", skillGroundEffectIDs(db.SkillBDRichmankim), effectBottomRichKimGround)
 	expectEffectIDs(t, "BD_ETERNALCHAOS imported", skillEffectIDs(db.SkillBDEternalchaos), effectBottomChaos)
-	expectEffectIDs(t, "BD_ETERNALCHAOS imported ground", skillGroundEffectIDs(db.SkillBDEternalchaos), effectBottomChaos)
+	expectEffectIDs(t, "BD_ETERNALCHAOS imported ground", skillGroundEffectIDs(db.SkillBDEternalchaos), effectBottomChaosGround)
 	expectEffectIDs(t, "BD_DRUMBATTLEFIELD imported", skillEffectIDs(db.SkillBDDrumbattlefield), effectBottomDrum)
-	expectEffectIDs(t, "BD_DRUMBATTLEFIELD imported ground", skillGroundEffectIDs(db.SkillBDDrumbattlefield), effectBottomDrum)
+	expectEffectIDs(t, "BD_DRUMBATTLEFIELD imported ground", skillGroundEffectIDs(db.SkillBDDrumbattlefield), effectBottomDrumGround)
 	expectEffectIDs(t, "BD_RINGNIBELUNGEN imported", skillEffectIDs(db.SkillBDRingnibelungen), effectBottomNibelung)
-	expectEffectIDs(t, "BD_RINGNIBELUNGEN imported ground", skillGroundEffectIDs(db.SkillBDRingnibelungen), effectBottomNibelung)
+	expectEffectIDs(t, "BD_RINGNIBELUNGEN imported ground", skillGroundEffectIDs(db.SkillBDRingnibelungen), effectBottomNibelungGround)
 	expectEffectIDs(t, "BD_ROKISWEIL imported", skillEffectIDs(db.SkillBDRokisweil), effectBottomRoki)
-	expectEffectIDs(t, "BD_ROKISWEIL imported ground", skillGroundEffectIDs(db.SkillBDRokisweil), effectBottomRoki)
+	expectEffectIDs(t, "BD_ROKISWEIL imported ground", skillGroundEffectIDs(db.SkillBDRokisweil), effectBottomRokiGround)
 	expectEffectIDs(t, "BD_INTOABYSS imported", skillEffectIDs(db.SkillBDIntoabyss), effectBottomAbyss)
-	expectEffectIDs(t, "BD_INTOABYSS imported ground", skillGroundEffectIDs(db.SkillBDIntoabyss), effectBottomAbyss)
+	expectEffectIDs(t, "BD_INTOABYSS imported ground", skillGroundEffectIDs(db.SkillBDIntoabyss), effectBottomAbyssGround)
 	expectEffectIDs(t, "BD_SIEGFRIED imported", skillEffectIDs(db.SkillBDSiegfried), effectBottomSieg)
-	expectEffectIDs(t, "BD_SIEGFRIED imported ground", skillGroundEffectIDs(db.SkillBDSiegfried), effectBottomSieg)
+	expectEffectIDs(t, "BD_SIEGFRIED imported ground", skillGroundEffectIDs(db.SkillBDSiegfried), effectBottomSiegGround)
 	expectEffectIDs(t, "BA_MUSICALLESSON imported empty", skillEffectIDs(db.SkillBaMusicallesson))
 	expectEffectIDs(t, "BA_MUSICALSTRIKE imported before hit", skillBeforeHitEffectIDs(db.SkillBaMusicalstrike), effectArrowShot)
 	if !skillHidesCastAura(db.SkillBaMusicalstrike) {
 		t.Fatal("BA_MUSICALSTRIKE should hide cast aura like robr")
 	}
-	expectEffectIDs(t, "BA_DISSONANCE imported ground", skillGroundEffectIDs(db.SkillBaDissonance), effectBottomDissonance)
+	expectEffectIDs(t, "BA_DISSONANCE imported ground", skillGroundEffectIDs(db.SkillBaDissonance), effectBottomDissonanceGround)
 	expectEffectIDs(t, "BA_FROSTJOKE imported begin", skillBeginEffectIDs(db.SkillBaFrostjoke), effectTalkFrostJoke)
 	expectEffectIDs(t, "BA_WHISTLE imported", skillEffectIDs(db.SkillBaWhistle), effectBottomWhistle)
-	expectEffectIDs(t, "BA_WHISTLE imported ground", skillGroundEffectIDs(db.SkillBaWhistle), effectBottomWhistle)
+	expectEffectIDs(t, "BA_WHISTLE imported ground", skillGroundEffectIDs(db.SkillBaWhistle), effectBottomWhistleGround)
 	expectEffectIDs(t, "BA_ASSASSINCROSS imported", skillEffectIDs(db.SkillBaAssassincross), effectBottomSinX)
-	expectEffectIDs(t, "BA_ASSASSINCROSS imported ground", skillGroundEffectIDs(db.SkillBaAssassincross), effectBottomSinX)
+	expectEffectIDs(t, "BA_ASSASSINCROSS imported ground", skillGroundEffectIDs(db.SkillBaAssassincross), effectBottomSinXGround)
 	expectEffectIDs(t, "BA_POEMBRAGI imported", skillEffectIDs(db.SkillBaPoembragi), effectBottomBragi)
-	expectEffectIDs(t, "BA_POEMBRAGI imported ground", skillGroundEffectIDs(db.SkillBaPoembragi), effectBottomBragi)
+	expectEffectIDs(t, "BA_POEMBRAGI imported ground", skillGroundEffectIDs(db.SkillBaPoembragi), effectBottomBragiGround)
 	expectEffectIDs(t, "BA_APPLEIDUN imported", skillEffectIDs(db.SkillBaAppleidun), effectBottomApple)
-	expectEffectIDs(t, "BA_APPLEIDUN imported ground", skillGroundEffectIDs(db.SkillBaAppleidun), effectBottomApple)
+	expectEffectIDs(t, "BA_APPLEIDUN imported ground", skillGroundEffectIDs(db.SkillBaAppleidun), effectBottomAppleGround)
 	expectEffectIDs(t, "BA_PANGVOICE imported success", skillSuccessEffectIDs(db.SkillBaPangvoice), effectFVoice)
 	expectEffectIDs(t, "DC_DANCINGLESSON imported empty", skillEffectIDs(db.SkillDCDancinglesson))
 	expectEffectIDs(t, "DC_THROWARROW imported before hit", skillBeforeHitEffectIDs(db.SkillDCThrowarrow), effectArrowShot)
 	if !skillHidesCastAura(db.SkillDCThrowarrow) {
 		t.Fatal("DC_THROWARROW should hide cast aura like robr")
 	}
-	expectEffectIDs(t, "DC_UGLYDANCE imported ground", skillGroundEffectIDs(db.SkillDCUglydance), effectBottomUglyDance)
+	expectEffectIDs(t, "DC_UGLYDANCE imported ground", skillGroundEffectIDs(db.SkillDCUglydance), effectBottomUglyDanceGround)
 	expectEffectIDs(t, "DC_SCREAM imported begin", skillBeginEffectIDs(db.SkillDCScream), effectTalkScream)
 	expectEffectIDs(t, "DC_HUMMING imported", skillEffectIDs(db.SkillDCHumming), effectBottomHumming)
-	expectEffectIDs(t, "DC_HUMMING imported ground", skillGroundEffectIDs(db.SkillDCHumming), effectBottomHumming)
+	expectEffectIDs(t, "DC_HUMMING imported ground", skillGroundEffectIDs(db.SkillDCHumming), effectBottomHummingGround)
 	expectEffectIDs(t, "DC_DONTFORGETME imported", skillEffectIDs(db.SkillDCDontforgetme), effectBottomForget)
-	expectEffectIDs(t, "DC_DONTFORGETME imported ground", skillGroundEffectIDs(db.SkillDCDontforgetme), effectBottomForget)
+	expectEffectIDs(t, "DC_DONTFORGETME imported ground", skillGroundEffectIDs(db.SkillDCDontforgetme), effectBottomForgetGround)
 	expectEffectIDs(t, "DC_FORTUNEKISS imported", skillEffectIDs(db.SkillDCFortunekiss), effectBottomFortune)
-	expectEffectIDs(t, "DC_FORTUNEKISS imported ground", skillGroundEffectIDs(db.SkillDCFortunekiss), effectBottomFortune)
+	expectEffectIDs(t, "DC_FORTUNEKISS imported ground", skillGroundEffectIDs(db.SkillDCFortunekiss), effectBottomFortuneGround)
 	expectEffectIDs(t, "DC_SERVICEFORYOU imported", skillEffectIDs(db.SkillDCServiceforyou), effectBottomService)
-	expectEffectIDs(t, "DC_SERVICEFORYOU imported ground", skillGroundEffectIDs(db.SkillDCServiceforyou), effectBottomService)
+	expectEffectIDs(t, "DC_SERVICEFORYOU imported ground", skillGroundEffectIDs(db.SkillDCServiceforyou), effectBottomServiceGround)
 	expectEffectIDs(t, "DC_WINKCHARM imported success", skillSuccessEffectIDs(db.SkillDCWinkcharm), effectWink)
 	expectEffectIDs(t, "SL_KAIZEL imported", skillEffectIDs(db.SkillSLKaizel), effectKaizel)
 	expectEffectIDs(t, "SL_STUN imported", skillEffectIDs(db.SkillSLStun), effectStin3)
@@ -9342,24 +9409,24 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_DELUGE", skillUnitEffectIDs(155), effectBottomDeluge)
 	expectEffectIDs(t, "UNT_VIOLENTGALE", skillUnitEffectIDs(156), effectBottomViolent)
 	expectEffectIDs(t, "UNT_LANDPROTECTOR", skillUnitEffectIDs(157), effectBottomLand)
-	expectEffectIDs(t, "UNT_LULLABY", skillUnitEffectIDs(158), effectBottomLullaby)
-	expectEffectIDs(t, "UNT_RICHMANKIM", skillUnitEffectIDs(159), effectBottomRichKim)
-	expectEffectIDs(t, "UNT_ETERNALCHAOS", skillUnitEffectIDs(160), effectBottomChaos)
-	expectEffectIDs(t, "UNT_DRUMBATTLEFIELD", skillUnitEffectIDs(161), effectBottomDrum)
-	expectEffectIDs(t, "UNT_RINGNIBELUNGEN", skillUnitEffectIDs(162), effectBottomNibelung)
-	expectEffectIDs(t, "UNT_ROKISWEIL", skillUnitEffectIDs(163), effectBottomRoki)
-	expectEffectIDs(t, "UNT_INTOABYSS", skillUnitEffectIDs(164), effectBottomAbyss)
-	expectEffectIDs(t, "UNT_SIEGFRIED", skillUnitEffectIDs(165), effectBottomSieg)
-	expectEffectIDs(t, "UNT_DISSONANCE", skillUnitEffectIDs(166), effectBottomDissonance)
-	expectEffectIDs(t, "UNT_WHISTLE", skillUnitEffectIDs(167), effectBottomWhistle)
-	expectEffectIDs(t, "UNT_ASSASSINCROSS", skillUnitEffectIDs(168), effectBottomSinX)
-	expectEffectIDs(t, "UNT_POEMBRAGI", skillUnitEffectIDs(169), effectBottomBragi)
-	expectEffectIDs(t, "UNT_APPLEIDUN", skillUnitEffectIDs(170), effectBottomApple)
-	expectEffectIDs(t, "UNT_UGLYDANCE", skillUnitEffectIDs(171), effectBottomUglyDance)
-	expectEffectIDs(t, "UNT_HUMMING", skillUnitEffectIDs(172), effectBottomHumming)
-	expectEffectIDs(t, "UNT_DONTFORGETME", skillUnitEffectIDs(173), effectBottomForget)
-	expectEffectIDs(t, "UNT_FORTUNEKISS", skillUnitEffectIDs(174), effectBottomFortune)
-	expectEffectIDs(t, "UNT_SERVICEFORYOU", skillUnitEffectIDs(175), effectBottomService)
+	expectEffectIDs(t, "UNT_LULLABY", skillUnitEffectIDs(158), effectBottomLullabyGround)
+	expectEffectIDs(t, "UNT_RICHMANKIM", skillUnitEffectIDs(159), effectBottomRichKimGround)
+	expectEffectIDs(t, "UNT_ETERNALCHAOS", skillUnitEffectIDs(160), effectBottomChaosGround)
+	expectEffectIDs(t, "UNT_DRUMBATTLEFIELD", skillUnitEffectIDs(161), effectBottomDrumGround)
+	expectEffectIDs(t, "UNT_RINGNIBELUNGEN", skillUnitEffectIDs(162), effectBottomNibelungGround)
+	expectEffectIDs(t, "UNT_ROKISWEIL", skillUnitEffectIDs(163), effectBottomRokiGround)
+	expectEffectIDs(t, "UNT_INTOABYSS", skillUnitEffectIDs(164), effectBottomAbyssGround)
+	expectEffectIDs(t, "UNT_SIEGFRIED", skillUnitEffectIDs(165), effectBottomSiegGround)
+	expectEffectIDs(t, "UNT_DISSONANCE", skillUnitEffectIDs(166), effectBottomDissonanceGround)
+	expectEffectIDs(t, "UNT_WHISTLE", skillUnitEffectIDs(167), effectBottomWhistleGround)
+	expectEffectIDs(t, "UNT_ASSASSINCROSS", skillUnitEffectIDs(168), effectBottomSinXGround)
+	expectEffectIDs(t, "UNT_POEMBRAGI", skillUnitEffectIDs(169), effectBottomBragiGround)
+	expectEffectIDs(t, "UNT_APPLEIDUN", skillUnitEffectIDs(170), effectBottomAppleGround)
+	expectEffectIDs(t, "UNT_UGLYDANCE", skillUnitEffectIDs(171), effectBottomUglyDanceGround)
+	expectEffectIDs(t, "UNT_HUMMING", skillUnitEffectIDs(172), effectBottomHummingGround)
+	expectEffectIDs(t, "UNT_DONTFORGETME", skillUnitEffectIDs(173), effectBottomForgetGround)
+	expectEffectIDs(t, "UNT_FORTUNEKISS", skillUnitEffectIDs(174), effectBottomFortuneGround)
+	expectEffectIDs(t, "UNT_SERVICEFORYOU", skillUnitEffectIDs(175), effectBottomServiceGround)
 	expectEffectIDs(t, "UNT_DEMONSTRATION", skillUnitEffectIDs(177), effectDemonstration)
 	expectEffectIDs(t, "UNT_GOSPEL", skillUnitEffectIDs(179), effectBottomGospel)
 	expectEffectIDs(t, "UNT_BASILICA", skillUnitEffectIDs(180), effectBottomBasilica)
@@ -13449,6 +13516,21 @@ func TestGroundSkillNotifyAddsCellEffect(t *testing.T) {
 	mode.applyGroundSkillNotify(ctx, network.GroundSkillNotify{SkillID: 21, SourceID: 2000000, Level: 4, X: 123, Y: 456})
 	if len(mode.worldEffects) != 1 {
 		t.Fatalf("deduped world effects = %d, want 1", len(mode.worldEffects))
+	}
+}
+
+func TestGroundSkillNotifyPrefersDancerGroundEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applyGroundSkillNotify(ctx, network.GroundSkillNotify{SkillID: db.SkillDCHumming, SourceID: 2000000, Level: 4, X: 123, Y: 456})
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 0 || effect.effectID != effectBottomHummingGround || effect.x != 123 || effect.y != 456 {
+		t.Fatalf("effect = %+v, want Dancer ground row", effect)
 	}
 }
 
