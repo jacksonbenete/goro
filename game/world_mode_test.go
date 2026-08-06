@@ -4570,11 +4570,11 @@ func TestRobrowserSimpleEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.T
 
 func TestRobrowserBottomSongGroundEffectsMatchTableRows(t *testing.T) {
 	for _, tc := range []struct {
-		name    string
-		id      int
-		texture string
-		tint    color.RGBA
-		size    float64
+		name     string
+		id       int
+		texture  string
+		tint     color.RGBA
+		robrSize float64
 	}{
 		{"277_ground", effectBottomDissonanceGround, "effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5},
 		{"278_ground", effectBottomLullabyGround, "effect/zz.bmp", color.RGBA{R: 237, G: 158, B: 255, A: 13}, 0.5},
@@ -4611,8 +4611,9 @@ func TestRobrowserBottomSongGroundEffectsMatchTableRows(t *testing.T) {
 			}
 			textureIndex = 1
 		}
+		wantSize := tc.robrSize * 2
 		texture := spec.components[textureIndex]
-		if texture.kind != effectComponentFUNC || texture.funcName != "GroundTexture" || texture.funcAdapter != effectFuncGroundTexture || texture.textureFile != tc.texture || texture.duration != 1500*time.Millisecond || texture.sizeStart != tc.size || texture.sizeEnd != tc.size || texture.alphaMax != 0.7 || texture.posZ != 0.2 || texture.posZEnd != 0.6 || !texture.blendAdditive || !texture.renderBefore || texture.attachedEntity {
+		if texture.kind != effectComponentFUNC || texture.funcName != "GroundTexture" || texture.funcAdapter != effectFuncGroundTexture || texture.textureFile != tc.texture || texture.duration != 1500*time.Millisecond || texture.sizeStart != wantSize || texture.sizeEnd != wantSize || texture.alphaMax != 0.7 || texture.posZ != 0.2 || texture.posZEnd != 0.6 || !texture.blendAdditive || !texture.renderBefore || texture.attachedEntity {
 			t.Fatalf("%s texture = %+v", tc.name, texture)
 		}
 	}

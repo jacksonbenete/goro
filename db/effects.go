@@ -2803,6 +2803,8 @@ func songGroundEffectSpec(texture string, tint color.RGBA, textureSize float64) 
 	if textureSize <= 0 {
 		textureSize = 0.5
 	}
+	// roBrowser's HoveringTexture applies this value to a [-1,1] quad.
+	textureWorldSize := textureSize * 2
 	spec := EffectSpec{
 		Duration: 1500 * time.Millisecond,
 	}
@@ -2822,8 +2824,8 @@ func songGroundEffectSpec(texture string, tint color.RGBA, textureSize float64) 
 			FuncName:       "GroundTexture",
 			TextureFile:    texture,
 			Duration:       1500 * time.Millisecond,
-			SizeStart:      textureSize,
-			SizeEnd:        textureSize,
+			SizeStart:      textureWorldSize,
+			SizeEnd:        textureWorldSize,
 			AlphaMax:       0.7,
 			PosZ:           0.2,
 			PosZEnd:        0.6,
