@@ -38,6 +38,8 @@ func mapWeatherEffectIDForMap(name string) int {
 	switch normalizeMapNameForWeather(name) {
 	case "xmas.rsw":
 		return effectSnow
+	case "yuno.rsw":
+		return effectCloud2
 	case "einbroch.rsw":
 		return effectCloud4
 	default:

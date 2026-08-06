@@ -21,7 +21,9 @@ type mapWeatherCloudParams struct {
 	effectID     int
 	textureFiles []string
 	tint         color.RGBA
+	alphaMax     float64
 	count        int
+	offsetMin    float64
 	radius       float64
 	zOffset      float64
 	zRand        float64
@@ -36,6 +38,7 @@ type mapWeatherCloudParams struct {
 	additive     bool
 	blackKey     bool
 	disableFog   bool
+	useGround    bool
 	screenHaze   color.RGBA
 }
 
@@ -64,11 +67,36 @@ type mapWeatherCloud struct {
 
 func weatherCloudParamsForEffect(effectID int) (mapWeatherCloudParams, bool) {
 	switch effectID {
+	case effectCloud2:
+		return mapWeatherCloudParams{
+			effectID:     effectCloud2,
+			textureFiles: []string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"},
+			tint:         color.RGBA{R: 255, G: 255, B: 255, A: 255},
+			alphaMax:     240.0 / 255.0,
+			count:        240,
+			offsetMin:    25 * weatherCloudClassicUnit,
+			radius:       200 * weatherCloudClassicUnit,
+			zOffset:      40 * weatherCloudClassicUnit,
+			zRand:        10 * weatherCloudClassicUnit,
+			sizeBase:     30 * math.Sqrt2 * weatherCloudClassicUnit,
+			sizeRand:     20 * math.Sqrt2 * weatherCloudClassicUnit,
+			driftSpeed:   0.05 * weatherCloudFrameRate * weatherCloudClassicUnit,
+			ramp:         80 * time.Second / weatherCloudFrameRate,
+			fadeOut:      240 * time.Second / weatherCloudFrameRate,
+			rotStartMin:  300 * time.Second / weatherCloudFrameRate,
+			rotStartRand: 200 * time.Second / weatherCloudFrameRate,
+			overlay:      false,
+			additive:     false,
+			blackKey:     false,
+			disableFog:   true,
+			useGround:    false,
+		}, true
 	case effectCloud4:
 		return mapWeatherCloudParams{
 			effectID:     effectCloud4,
 			textureFiles: []string{"effect/fog1.tga", "effect/fog2.tga", "effect/fog3.tga"},
 			tint:         color.RGBA{R: 252, G: 171, B: 143, A: 255},
+			alphaMax:     weatherCloudClassicAlphaMax,
 			count:        320,
 			radius:       150 * weatherCloudClassicUnit,
 			zOffset:      -20 * weatherCloudClassicUnit,
@@ -84,6 +112,7 @@ func weatherCloudParamsForEffect(effectID int) (mapWeatherCloudParams, bool) {
 			additive:     false,
 			blackKey:     false,
 			disableFog:   true,
+			useGround:    true,
 			screenHaze:   color.RGBA{R: 252, G: 171, B: 143, A: 70},
 		}, true
 	default:
@@ -200,12 +229,17 @@ func (s *mapWeatherCloudState) update(params mapWeatherCloudParams, world *world
 func (s *mapWeatherCloudState) spawn(index int, params mapWeatherCloudParams, world *worldstate.World, centerX, centerY float64) {
 	cloud := &s.clouds[index]
 	generation := cloud.generation
-	offsetX := weatherCloudHashSigned(index, generation, 1) * params.radius
-	offsetY := weatherCloudHashSigned(index, generation, 2) * params.radius
+	offsetX := weatherCloudPlacementOffset(index, generation, 1, 8, params)
+	offsetY := weatherCloudPlacementOffset(index, generation, 2, 9, params)
 	cloud.x = centerX + offsetX
 	cloud.y = centerY + offsetY
-	ground := terrainHeightAtRenderPoint(world, cloud.x, cloud.y)
-	cloud.z = ground + params.zOffset - weatherCloudHash01(index, generation, 3)*params.zRand
+	ground := terrainHeightAtRenderPoint(world, centerX, centerY)
+	zJitter := weatherCloudHash01(index, generation, 3) * params.zRand
+	if params.useGround {
+		ground = terrainHeightAtRenderPoint(world, cloud.x, cloud.y)
+		zJitter = -zJitter
+	}
+	cloud.z = ground + params.zOffset + zJitter
 	cloud.size = params.sizeBase + weatherCloudHash01(index, generation, 4)*params.sizeRand
 	cloud.age = 0
 	cloud.rotStart = params.rotStartMin + time.Duration(weatherCloudHash01(index, generation, 12)*float64(params.rotStartRand))
@@ -220,6 +254,17 @@ func (s *mapWeatherCloudState) spawn(index int, params mapWeatherCloudParams, wo
 	}
 }
 
+func weatherCloudPlacementOffset(index, generation, distanceSalt, signSalt int, params mapWeatherCloudParams) float64 {
+	if params.offsetMin > 0 {
+		offset := params.offsetMin + weatherCloudHash01(index, generation, distanceSalt)*params.radius
+		if weatherCloudHash01(index, generation, signSalt) < 0.5 {
+			return -offset
+		}
+		return offset
+	}
+	return weatherCloudHashSigned(index, generation, distanceSalt) * params.radius
+}
+
 func weatherCloudPhaseRate(index, generation, salt int) float64 {
 	rate := degreesToRadians(weatherCloudFrameRate)
 	if weatherCloudHash01(index, generation, salt) < 0.5 {
@@ -231,11 +276,11 @@ func weatherCloudPhaseRate(index, generation, salt int) float64 {
 func mapWeatherCloudAlpha(cloud mapWeatherCloud, params mapWeatherCloudParams) float64 {
 	switch {
 	case cloud.age < params.ramp:
-		return weatherCloudClassicAlphaMax * float64(cloud.age) / float64(params.ramp)
+		return params.alphaMax * float64(cloud.age) / float64(params.ramp)
 	case cloud.age <= cloud.rotStart:
-		return weatherCloudClassicAlphaMax
+		return params.alphaMax
 	case cloud.age < cloud.rotStart+params.fadeOut:
-		return weatherCloudClassicAlphaMax * (1 - float64(cloud.age-cloud.rotStart)/float64(params.fadeOut))
+		return params.alphaMax * (1 - float64(cloud.age-cloud.rotStart)/float64(params.fadeOut))
 	default:
 		return 0
 	}

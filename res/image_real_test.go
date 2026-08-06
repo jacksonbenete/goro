@@ -17,9 +17,9 @@ func TestEffectTextureRealArchiveWhenConfigured(t *testing.T) {
 	t.Logf("decoded %s bounds=%v", source, img.Bounds())
 }
 
-func TestWeatherFogTexturesKeepVisibleAlphaWhenConfigured(t *testing.T) {
+func TestWeatherCloudTexturesKeepVisibleAlphaWhenConfigured(t *testing.T) {
 	manager := realDataManager(t)
-	for _, name := range []string{"fog1", "fog2", "fog3"} {
+	for _, name := range []string{"fog1", "fog2", "fog3", "cloud1", "cloud2", "cloud4"} {
 		img, source, err := LoadImageExact(manager, EffectTextureCandidates(name))
 		if err != nil {
 			t.Fatal(err)

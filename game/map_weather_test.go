@@ -20,9 +20,10 @@ func TestMapWeatherForComodoMatchesReferenceWeatherTable(t *testing.T) {
 
 func TestMapWeatherEffectIDForReferenceWeatherTable(t *testing.T) {
 	tests := map[string]int{
-		"xmas":     effectSnow,
-		"xmas.gat": effectSnow,
-		"einbroch": effectCloud4,
+		"xmas":           effectSnow,
+		"xmas.gat":       effectSnow,
+		"data\\yuno.gat": effectCloud2,
+		"einbroch":       effectCloud4,
 	}
 	for name, want := range tests {
 		if got := mapWeatherEffectIDForMap(name); got != want {
@@ -58,6 +59,31 @@ func TestMapWeatherReferenceEffectsHaveSpecs(t *testing.T) {
 	}
 }
 
+func TestYunoCloudWeatherParamsMatchClassicProfile(t *testing.T) {
+	params, ok := weatherCloudParamsForEffect(effectCloud2)
+	if !ok {
+		t.Fatal("EF_CLOUD2 weather cloud params missing")
+	}
+	if len(params.textureFiles) != 3 || params.textureFiles[0] != "effect/cloud4.tga" || params.textureFiles[1] != "effect/cloud1.tga" || params.textureFiles[2] != "effect/cloud2.tga" {
+		t.Fatalf("EF_CLOUD2 weather cloud resources = %+v", params)
+	}
+	if params.tint != (color.RGBA{R: 255, G: 255, B: 255, A: 255}) || params.alphaMax != 240.0/255.0 {
+		t.Fatalf("EF_CLOUD2 tint/alpha = %+v", params)
+	}
+	if params.count != 240 || params.offsetMin != 2.5 || params.radius != 20 || params.zOffset != 4 || params.zRand != 1 {
+		t.Fatalf("EF_CLOUD2 placement = %+v", params)
+	}
+	if params.sizeBase != 30*math.Sqrt2*0.1 || params.sizeRand != 20*math.Sqrt2*0.1 {
+		t.Fatalf("EF_CLOUD2 size = %+v", params)
+	}
+	if params.ramp != 80*time.Second/60 || params.fadeOut != 240*time.Second/60 || params.rotStartMin != 5*time.Second || params.rotStartRand != 200*time.Second/60 {
+		t.Fatalf("EF_CLOUD2 timing = %+v", params)
+	}
+	if params.useGround || params.overlay || params.additive || params.blackKey || !params.disableFog || params.screenHaze.A != 0 {
+		t.Fatalf("EF_CLOUD2 render options = %+v", params)
+	}
+}
+
 func TestEinbrochCloudWeatherSpecUsesClassicResources(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectCloud4)
 	if !ok || len(spec.components) != 1 {
@@ -83,6 +109,9 @@ func TestEinbrochCloudWeatherParamsMatchClassicProfile(t *testing.T) {
 	if params.count != 320 || params.radius != 15 || params.zOffset != -2 || params.zRand != 0.5 {
 		t.Fatalf("EF_CLOUD4 weather cloud placement = %+v", params)
 	}
+	if !params.useGround || params.alphaMax != weatherCloudClassicAlphaMax {
+		t.Fatalf("EF_CLOUD4 ground-relative alpha = %+v", params)
+	}
 	if params.blackKey {
 		t.Fatalf("EF_CLOUD4 weather cloud should preserve black-key pixels: %+v", params)
 	}
@@ -97,6 +126,27 @@ func TestEinbrochCloudWeatherParamsMatchClassicProfile(t *testing.T) {
 	}
 	if params.ramp != 170*time.Second/60 || params.rotStartMin != 5*time.Second || params.rotStartRand != 200*time.Second/60 {
 		t.Fatalf("EF_CLOUD4 weather cloud timing = %+v", params)
+	}
+}
+
+func TestYunoCloudWeatherSpawnsInOuterSkyRing(t *testing.T) {
+	params, _ := weatherCloudParamsForEffect(effectCloud2)
+	state := mapWeatherCloudState{}
+	now := time.Unix(10, 0)
+	const centerX = 37.5
+	const centerY = 98.5
+	state.ensure("yuno.rsw", params, nil, centerX, centerY, now)
+	if len(state.clouds) == 0 {
+		t.Fatal("weather cloud state empty")
+	}
+	first := state.clouds[0]
+	dx := math.Abs(first.x - centerX)
+	dy := math.Abs(first.y - centerY)
+	if dx < 2.5 || dx > 22.5 || dy < 2.5 || dy > 22.5 {
+		t.Fatalf("Yuno cloud offset = %.2f,%.2f, want signed 2.5..22.5 from center", dx, dy)
+	}
+	if first.z < 4 || first.z > 5 {
+		t.Fatalf("Yuno cloud z = %.2f, want player terrain + 4..5", first.z)
 	}
 }
 
