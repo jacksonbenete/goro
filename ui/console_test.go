@@ -3,6 +3,7 @@ package ui
 import (
 	"testing"
 
+	"github.com/gogpu/ui/event"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
@@ -200,6 +201,23 @@ func TestConsoleSubmitConsumesClosingEnterFrame(t *testing.T) {
 	}
 	if console.Active() || console.input != "" {
 		t.Fatalf("console active=%t input=%q, want closed empty input", console.Active(), console.input)
+	}
+}
+
+func TestConsoleTextFieldSubmitRemembersSubmittedWidgetText(t *testing.T) {
+	console := &ChatConsole{input: "stale", active: true}
+	field := console.inputWidget()
+	field.SetText("  @jump 47 104  ")
+
+	if !field.Event(nil, event.NewKeyEvent(event.KeyPress, event.KeyEnter, 0, event.ModNone)) {
+		t.Fatal("enter key was not handled by text field")
+	}
+
+	if len(console.history) != 1 || console.history[0] != "@jump 47 104" {
+		t.Fatalf("history = %#v, want submitted @jump command", console.history)
+	}
+	if console.input != "  @jump 47 104  " {
+		t.Fatalf("input = %q, want submitted text preserved after failed send", console.input)
 	}
 }
 

@@ -218,7 +218,14 @@ func (c *ChatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 }
 
 func (c *ChatConsole) submit(ctx client.Context) {
-	text := strings.TrimSpace(c.input)
+	c.submitText(ctx, c.input)
+}
+
+func (c *ChatConsole) submitText(ctx client.Context, inputText string) {
+	if c.input != inputText {
+		c.setInput(inputText)
+	}
+	text := strings.TrimSpace(inputText)
 	if text == "" {
 		c.setActive(false)
 		return
@@ -1030,8 +1037,8 @@ func (c *ChatConsole) inputWidget() *textfield.Widget {
 			c.historyDraft = ""
 			c.scrollToBottom()
 		},
-		func(string) {
-			c.submit(c.ctx)
+		func(value string) {
+			c.submitText(c.ctx, value)
 		},
 		textfield.MaxLength(consoleMaxInput),
 		textfield.Placeholder("Press Enter to chat"),
