@@ -131,6 +131,13 @@ func (c *ChatConsole) Publish(ctx client.Context) {
 	c.window.Publish(ctx)
 }
 
+func (c *ChatConsole) Unpublish(ctx client.Context) {
+	if c == nil {
+		return
+	}
+	c.window.Unpublish(ctx)
+}
+
 func (c *ChatConsole) clickedOutside(ctx client.Context) bool {
 	if ctx.Input == nil || !ctx.Input.MouseJustPressed(input.MouseButtonLeft) {
 		return false

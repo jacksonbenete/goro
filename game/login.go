@@ -625,6 +625,7 @@ func (m *LoginMode) clearLoginWindows(ctx client.Context) {
 	m.loginWindow = nil
 	m.charSelectWindow = nil
 	m.charCreateWindow = nil
+	m.console.Unpublish(ctx)
 	if ctx.UIManager != nil {
 		ctx.UIManager.Clear()
 	}

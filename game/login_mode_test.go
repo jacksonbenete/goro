@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/kivutar/goro/client"
 	"testing"
+	"time"
 
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
@@ -25,5 +26,33 @@ func TestNewCharacterSelectModePreparesSavedCharacters(t *testing.T) {
 	}
 	if mode.maxSlots < 6 {
 		t.Fatalf("max slots = %d, want enough slots for saved characters", mode.maxSlots)
+	}
+}
+
+func TestCharacterSwitchKeepsConsolePublishableAfterLoginClear(t *testing.T) {
+	manager := gameui.NewManager()
+	ctx := client.Context{
+		UIManager: manager,
+		ScreenW:   800,
+		ScreenH:   600,
+		Session:   &session.Session{},
+	}
+	mode := NewWorldMode()
+	mode.ui.console.AddSystemMessage("ready")
+	mode.ui.console.Update(ctx)
+	if !manager.PointerBlocked(20, 500) {
+		t.Fatal("console did not publish before character switch")
+	}
+
+	login := mode.nextCharacterSelectMode(ctx)
+	login.clearLoginWindows(ctx)
+	if manager.PointerBlocked(20, 500) {
+		t.Fatal("login clear left the world console overlay published")
+	}
+
+	next := login.nextWorldMode(ctx, time.Unix(10, 0))
+	next.ui.console.Update(ctx)
+	if !manager.PointerBlocked(20, 500) {
+		t.Fatal("console did not republish after returning from character select")
 	}
 }
