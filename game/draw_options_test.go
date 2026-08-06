@@ -1,6 +1,7 @@
 package game
 
 import (
+	"math"
 	"testing"
 
 	"github.com/kivutar/goro/render"
@@ -26,5 +27,18 @@ func TestGroundTextureDrawOptionsClampTileEdges(t *testing.T) {
 	}
 	if !options.DepthTest || !options.DepthWrite {
 		t.Fatalf("ground depth flags test=%t write=%t, want both true", options.DepthTest, options.DepthWrite)
+	}
+}
+
+func TestRSMModelDrawOptionsUseTinyDepthBias(t *testing.T) {
+	options := rsmModelDrawOptions(render.FilterLinear, render.AddressClampToEdge)
+	if options.Filter != render.FilterLinear || options.Address != render.AddressClampToEdge {
+		t.Fatalf("RSM options filter/address = %v/%v", options.Filter, options.Address)
+	}
+	if !options.DepthTest || !options.DepthWrite {
+		t.Fatalf("RSM depth flags test=%t write=%t, want both true", options.DepthTest, options.DepthWrite)
+	}
+	if math.Abs(float64(options.DepthBias-rsmModelDepthBias)) > 0.0000001 || options.DepthBias <= 0 {
+		t.Fatalf("RSM depth bias = %.10f, want %.10f", options.DepthBias, rsmModelDepthBias)
 	}
 }

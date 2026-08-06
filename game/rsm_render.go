@@ -220,7 +220,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 			if texture != nil {
 				bounds := texture.Bounds()
 				w, h := float32(bounds.Dx()), float32(bounds.Dy())
-				builder := builderFor(texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressClampToEdge))
+				builder := builderFor(texture, rsmModelDrawOptions(render.FilterLinear, render.AddressClampToEdge))
 				if builder != nil {
 					builder.addTriangle(
 						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
@@ -234,7 +234,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 				m.whitePixel = render.NewImage(1, 1)
 				m.whitePixel.Fill(color.White)
 			}
-			builder := builderFor(m.whitePixel, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+			builder := builderFor(m.whitePixel, rsmModelDrawOptions(render.FilterNearest, render.AddressUnsafe))
 			if builder != nil {
 				builder.addTriangle(
 					coloredSurfaceVertex3D(worldTri.verts[0], 0, 0, worldTri.color),
@@ -346,7 +346,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Frame, manager *res.
 			if texture != nil {
 				bounds := texture.Bounds()
 				w, h := float32(bounds.Dx()), float32(bounds.Dy())
-				batch := batchFor(texture, worldOpaqueTriangleDrawOptions(render.FilterLinear, render.AddressClampToEdge))
+				batch := batchFor(texture, rsmModelDrawOptions(render.FilterLinear, render.AddressClampToEdge))
 				if batch != nil {
 					batch.addTriangle(
 						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
@@ -360,7 +360,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Frame, manager *res.
 				m.whitePixel = render.NewImage(1, 1)
 				m.whitePixel.Fill(color.White)
 			}
-			batch := batchFor(m.whitePixel, worldOpaqueTriangleDrawOptions(render.FilterNearest, render.AddressUnsafe))
+			batch := batchFor(m.whitePixel, rsmModelDrawOptions(render.FilterNearest, render.AddressUnsafe))
 			if batch != nil {
 				batch.addTriangle(
 					coloredSurfaceVertex3D(worldTri.verts[0], 0, 0, worldTri.color),
