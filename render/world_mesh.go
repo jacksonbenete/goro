@@ -6,6 +6,7 @@ type WorldMesh struct {
 	texture      *Image
 	lightTexture *Image
 	options      DrawTrianglesOptions
+	drawOrder    int
 	version      uint64
 }
 
@@ -18,6 +19,10 @@ func NewWorldMesh(vertices []Vertex3D, indices []uint16, texture *Image, opts *D
 }
 
 func NewWorldMeshWithLightmap(vertices []Vertex3D, indices []uint16, texture, lightTexture *Image, opts *DrawTrianglesOptions) *WorldMesh {
+	return NewWorldMeshWithLightmapDrawOrder(vertices, indices, texture, lightTexture, opts, 0)
+}
+
+func NewWorldMeshWithLightmapDrawOrder(vertices []Vertex3D, indices []uint16, texture, lightTexture *Image, opts *DrawTrianglesOptions, drawOrder int) *WorldMesh {
 	var o DrawTrianglesOptions
 	if opts != nil {
 		o = *opts
@@ -28,6 +33,7 @@ func NewWorldMeshWithLightmap(vertices []Vertex3D, indices []uint16, texture, li
 		texture:      texture,
 		lightTexture: lightTexture,
 		options:      o,
+		drawOrder:    drawOrder,
 		version:      1,
 	}
 }

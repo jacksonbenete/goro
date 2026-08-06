@@ -14,6 +14,11 @@ const (
 	gndRetainedChunkSize         = 16
 )
 
+const (
+	retainedWorldMeshDrawOrderGround = iota
+	retainedWorldMeshDrawOrderRSM
+)
+
 type retainedWorldMesh struct {
 	mesh *render.WorldMesh
 }
@@ -40,6 +45,7 @@ type retainedMeshBuilder struct {
 	texture      *render.Image
 	lightTexture *render.Image
 	options      render.DrawTrianglesOptions
+	drawOrder    int
 	vertices     []render.Vertex3D
 	indices      []uint16
 	meshes       []retainedWorldMesh
@@ -77,7 +83,7 @@ func (b *retainedMeshBuilder) flush() {
 		b.indices = b.indices[:0]
 		return
 	}
-	mesh := render.NewWorldMeshWithLightmap(b.vertices, b.indices, b.texture, b.lightTexture, &b.options)
+	mesh := render.NewWorldMeshWithLightmapDrawOrder(b.vertices, b.indices, b.texture, b.lightTexture, &b.options, b.drawOrder)
 	b.meshes = append(b.meshes, retainedWorldMesh{mesh: mesh})
 	b.vertices = nil
 	b.indices = nil
@@ -146,7 +152,7 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 		key := retainedMeshKey{texture: texture, lightTexture: lightTexture, options: *options}
 		builder := builders[key]
 		if builder == nil {
-			builder = &retainedMeshBuilder{texture: texture, lightTexture: lightTexture, options: *options}
+			builder = &retainedMeshBuilder{texture: texture, lightTexture: lightTexture, options: *options, drawOrder: retainedWorldMeshDrawOrderGround}
 			builders[key] = builder
 		}
 		return builder

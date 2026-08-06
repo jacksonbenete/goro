@@ -207,7 +207,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 		key := retainedMeshKey{texture: texture, options: *options}
 		builder := builders[key]
 		if builder == nil {
-			builder = &retainedMeshBuilder{texture: texture, options: *options}
+			builder = &retainedMeshBuilder{texture: texture, options: *options, drawOrder: retainedWorldMeshDrawOrderRSM}
 			builders[key] = builder
 			builderOrder = append(builderOrder, builder)
 		}
