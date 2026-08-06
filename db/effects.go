@@ -3707,6 +3707,37 @@ func weatherCloudEffectSpec(textures []string, tint color.RGBA, alpha, radius, z
 	}
 }
 
+func einbrochWeatherCloudEffectSpec() EffectSpec {
+	const duration = 34 * time.Second
+	size := 35 * math.Sqrt2 * 0.1
+	return EffectSpec{
+		Duration: duration,
+		Components: []EffectComponent{{
+			Kind:          EffectComponent3D,
+			TextureFiles:  []string{"effect/fog1.tga", "effect/fog2.tga", "effect/fog3.tga"},
+			Duration:      duration,
+			Duplicate:     320,
+			AlphaMax:      170.0 / 255.0,
+			FadeIn:        true,
+			FadeOut:       true,
+			BlendAdditive: false,
+			Overlay:       true,
+			PosXRand:      15,
+			PosYRand:      15,
+			PosZRand:      0.5,
+			PosXEnd:       1.5,
+			PosYEnd:       1.5,
+			PosZ:          -2,
+			SizeStartX:    size,
+			SizeStartY:    size,
+			SizeEndX:      size,
+			SizeEndY:      size,
+			SizeRand:      10 * math.Sqrt2 * 0.1,
+			Color:         color.RGBA{R: 252, G: 171, B: 143, A: 255},
+		}},
+	}
+}
+
 // EffectSpecs is adapted from robr's DB/Effects/EffectTable.js. Do not add
 // guessed local visual behavior here; either import it from robr or leave the
 // effect unsupported until the reference behavior is understood.
@@ -3718,7 +3749,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectCloud:       weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.18, 35, -10, 20*time.Second),
 	effectCloud2:      weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.58, 35, 4, 20*time.Second),
 	effectCloud3:      weatherCloudEffectSpec([]string{"effect/fog1.tga", "effect/fog2.tga", "effect/fog3.tga"}, color.RGBA{R: 120, G: 110, B: 100, A: 255}, 0.78, 45, -10, 34*time.Second),
-	effectCloud4:      weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.58, 35, -10, 20*time.Second),
+	effectCloud4:      einbrochWeatherCloudEffectSpec(),
 	effectCloud5:      weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 225, G: 212, B: 194, A: 255}, 0.70, 50, 4, 8*time.Second),
 	effectCloud6:      weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 255, G: 255, B: 255, A: 255}, 0.58, 35, 4, 28*time.Second),
 	effectCloud7:      weatherCloudEffectSpec([]string{"effect/cloud4.tga", "effect/cloud1.tga", "effect/cloud2.tga"}, color.RGBA{R: 51, G: 79, B: 161, A: 255}, 0.55, 35, 4, 20*time.Second),

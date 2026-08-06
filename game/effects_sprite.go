@@ -67,6 +67,9 @@ func effect3DSpriteDrawOptions(component worldEffectComponent) *render.DrawTrian
 	if component.blendAdditive {
 		options.Blend = render.BlendLighter
 	}
+	if component.overlay {
+		options.DepthTest = false
+	}
 	return options
 }
 

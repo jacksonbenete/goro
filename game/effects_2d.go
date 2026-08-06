@@ -30,5 +30,5 @@ func (m *WorldMode) draw2DEffect(screen *render.Frame, ctx client.Context, proje
 		return
 	}
 	angle := worldEffectBillboardAngleForEffect(component, projection, effect, salt, progress)
-	drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), true)
+	drawTexturedEffectBillboardRotatedXYWithOptions(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), texturedEffectBillboardDrawOptions(true, component.overlay))
 }

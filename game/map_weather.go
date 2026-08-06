@@ -39,7 +39,7 @@ func mapWeatherEffectIDForMap(name string) int {
 	case "xmas.rsw":
 		return effectSnow
 	case "einbroch.rsw":
-		return effectCloud3
+		return effectCloud4
 	default:
 		return 0
 	}
@@ -63,11 +63,21 @@ func (m *WorldMode) drawMapWeatherEffects(screen *render.Frame, ctx client.Conte
 	if screen == nil || ctx.World == nil || ctx.World.GND == nil {
 		return
 	}
-	switch mapWeatherForMap(ctx.World.MapName) {
+	kind := mapWeatherForMap(ctx.World.MapName)
+	effectID := mapWeatherEffectIDForMap(ctx.World.MapName)
+	switch kind {
 	case mapWeatherFireworks:
+		m.mapWeatherCloud.reset()
 		m.drawFireworksWeather(screen, ctx, projection, now)
 	case mapWeatherLoopingEffect:
-		m.drawLoopingMapWeatherEffect(screen, ctx, projection, mapWeatherEffectIDForMap(ctx.World.MapName), now)
+		if _, ok := weatherCloudParamsForEffect(effectID); ok {
+			m.drawMapWeatherCloudEffect(screen, ctx, projection, effectID, now)
+			return
+		}
+		m.mapWeatherCloud.reset()
+		m.drawLoopingMapWeatherEffect(screen, ctx, projection, effectID, now)
+	default:
+		m.mapWeatherCloud.reset()
 	}
 }
 

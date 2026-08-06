@@ -73,10 +73,16 @@ func applyROTransparency(img image.Image) *image.NRGBA {
 }
 
 func ApplyEffectTransparency(img image.Image) *image.NRGBA {
+	return ApplyEffectTransparencyWithBlackKey(img, true)
+}
+
+func ApplyEffectTransparencyWithBlackKey(img image.Image, blackKey bool) *image.NRGBA {
 	out := applyROTransparency(img)
-	for i := 0; i < len(out.Pix); i += 4 {
-		if out.Pix[i] < 3 && out.Pix[i+1] < 3 && out.Pix[i+2] < 3 {
-			out.Pix[i+3] = 0
+	if blackKey {
+		for i := 0; i < len(out.Pix); i += 4 {
+			if out.Pix[i] < 3 && out.Pix[i+1] < 3 && out.Pix[i+2] < 3 {
+				out.Pix[i+3] = 0
+			}
 		}
 	}
 	clearTransparentRGB(out)

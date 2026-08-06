@@ -47,3 +47,17 @@ func TestApplyEffectTransparencyClearsTransparentRGB(t *testing.T) {
 		t.Fatalf("non-key pixel = %+v, want original", got)
 	}
 }
+
+func TestApplyEffectTransparencyCanPreserveBlackKey(t *testing.T) {
+	img := image.NewNRGBA(image.Rect(0, 0, 2, 1))
+	img.SetNRGBA(0, 0, color.NRGBA{R: 1, G: 2, B: 1, A: 255})
+	img.SetNRGBA(1, 0, color.NRGBA{R: 255, G: 0, B: 255, A: 255})
+
+	out := ApplyEffectTransparencyWithBlackKey(img, false)
+	if got := out.NRGBAAt(0, 0); got != (color.NRGBA{R: 1, G: 2, B: 1, A: 255}) {
+		t.Fatalf("near-black pixel = %+v, want preserved", got)
+	}
+	if got := out.NRGBAAt(1, 0); got != (color.NRGBA{}) {
+		t.Fatalf("magenta key pixel = %+v, want fully zero", got)
+	}
+}

@@ -26,49 +26,52 @@ const (
 )
 
 type gpuRenderer struct {
-	dev                 *wgpu.Device
-	queue               *wgpu.Queue
-	format              gputypes.TextureFormat
-	bgl                 *wgpu.BindGroupLayout
-	worldBGL            *wgpu.BindGroupLayout
-	layout              *wgpu.PipelineLayout
-	worldLayout         *wgpu.PipelineLayout
-	pipelineAlpha       *wgpu.RenderPipeline
-	pipelineAdd         *wgpu.RenderPipeline
-	pipelineSrcDst      *wgpu.RenderPipeline
-	worldAlphaWrite     *wgpu.RenderPipeline
-	worldAddWrite       *wgpu.RenderPipeline
-	worldSrcDstWrite    *wgpu.RenderPipeline
-	worldAlphaRead      *wgpu.RenderPipeline
-	worldAddRead        *wgpu.RenderPipeline
-	worldSrcDstRead     *wgpu.RenderPipeline
-	billboardAlpha      *wgpu.RenderPipeline
-	billboardAdd        *wgpu.RenderPipeline
-	billboardSrcDst     *wgpu.RenderPipeline
-	uniform             *wgpu.Buffer
-	worldUniform        *wgpu.Buffer
-	samplers            map[samplerKey]*wgpu.Sampler
-	textures            map[*Image]*gpuImageTexture
-	bindGroups          map[bindGroupKey]*wgpu.BindGroup
-	worldMeshes         map[*WorldMesh]*gpuWorldMesh
-	depthTex            *wgpu.Texture
-	depthView           *wgpu.TextureView
-	depthWidth          int
-	depthHeight         int
-	worldVertexBuf      dynamicGPUBuffer
-	worldIndexBuf       dynamicGPUBuffer
-	screenVertexBuf     dynamicGPUBuffer
-	screenIndexBuf      dynamicGPUBuffer
-	billboardQuadBuf    *wgpu.Buffer
-	frameBuffers        []*wgpu.Buffer
-	frameBindGroups     []*wgpu.BindGroup
-	neutralLightmap     *Image
-	worldMeshBatches    []worldMeshBatch
-	worldMeshBatchByKey map[drawBatchKey]int
-	statsEnabled        bool
-	statsLast           time.Time
-	worldDebug          bool
-	worldDebugLast      time.Time
+	dev                    *wgpu.Device
+	queue                  *wgpu.Queue
+	format                 gputypes.TextureFormat
+	bgl                    *wgpu.BindGroupLayout
+	worldBGL               *wgpu.BindGroupLayout
+	layout                 *wgpu.PipelineLayout
+	worldLayout            *wgpu.PipelineLayout
+	pipelineAlpha          *wgpu.RenderPipeline
+	pipelineAdd            *wgpu.RenderPipeline
+	pipelineSrcDst         *wgpu.RenderPipeline
+	worldAlphaWrite        *wgpu.RenderPipeline
+	worldAddWrite          *wgpu.RenderPipeline
+	worldSrcDstWrite       *wgpu.RenderPipeline
+	worldAlphaRead         *wgpu.RenderPipeline
+	worldAddRead           *wgpu.RenderPipeline
+	worldSrcDstRead        *wgpu.RenderPipeline
+	billboardAlphaRead     *wgpu.RenderPipeline
+	billboardAddRead       *wgpu.RenderPipeline
+	billboardSrcDstRead    *wgpu.RenderPipeline
+	billboardAlphaNoDepth  *wgpu.RenderPipeline
+	billboardAddNoDepth    *wgpu.RenderPipeline
+	billboardSrcDstNoDepth *wgpu.RenderPipeline
+	uniform                *wgpu.Buffer
+	worldUniform           *wgpu.Buffer
+	samplers               map[samplerKey]*wgpu.Sampler
+	textures               map[*Image]*gpuImageTexture
+	bindGroups             map[bindGroupKey]*wgpu.BindGroup
+	worldMeshes            map[*WorldMesh]*gpuWorldMesh
+	depthTex               *wgpu.Texture
+	depthView              *wgpu.TextureView
+	depthWidth             int
+	depthHeight            int
+	worldVertexBuf         dynamicGPUBuffer
+	worldIndexBuf          dynamicGPUBuffer
+	screenVertexBuf        dynamicGPUBuffer
+	screenIndexBuf         dynamicGPUBuffer
+	billboardQuadBuf       *wgpu.Buffer
+	frameBuffers           []*wgpu.Buffer
+	frameBindGroups        []*wgpu.BindGroup
+	neutralLightmap        *Image
+	worldMeshBatches       []worldMeshBatch
+	worldMeshBatchByKey    map[drawBatchKey]int
+	statsEnabled           bool
+	statsLast              time.Time
+	worldDebug             bool
+	worldDebugLast         time.Time
 
 	worldFrameScratch worldFrameScratch
 }
@@ -298,15 +301,27 @@ func (r *gpuRenderer) init(_ *gogpu.Context) error {
 	if err != nil {
 		return err
 	}
-	r.billboardAlpha, err = r.createWorldBillboardPipeline(billboardShader, gputypes.BlendStateAlpha(), "goro-world-billboard-alpha")
+	r.billboardAlphaRead, err = r.createWorldBillboardPipeline(billboardShader, gputypes.BlendStateAlpha(), true, "goro-world-billboard-alpha-read")
 	if err != nil {
 		return err
 	}
-	r.billboardAdd, err = r.createWorldBillboardPipeline(billboardShader, add, "goro-world-billboard-add")
+	r.billboardAddRead, err = r.createWorldBillboardPipeline(billboardShader, add, true, "goro-world-billboard-add-read")
 	if err != nil {
 		return err
 	}
-	r.billboardSrcDst, err = r.createWorldBillboardPipeline(billboardShader, srcDst, "goro-world-billboard-src-alpha-dst-alpha")
+	r.billboardSrcDstRead, err = r.createWorldBillboardPipeline(billboardShader, srcDst, true, "goro-world-billboard-src-alpha-dst-alpha-read")
+	if err != nil {
+		return err
+	}
+	r.billboardAlphaNoDepth, err = r.createWorldBillboardPipeline(billboardShader, gputypes.BlendStateAlpha(), false, "goro-world-billboard-alpha-no-depth")
+	if err != nil {
+		return err
+	}
+	r.billboardAddNoDepth, err = r.createWorldBillboardPipeline(billboardShader, add, false, "goro-world-billboard-add-no-depth")
+	if err != nil {
+		return err
+	}
+	r.billboardSrcDstNoDepth, err = r.createWorldBillboardPipeline(billboardShader, srcDst, false, "goro-world-billboard-src-alpha-dst-alpha-no-depth")
 	if err != nil {
 		return err
 	}
@@ -391,7 +406,7 @@ func (r *gpuRenderer) createWorldPipeline(shader *wgpu.ShaderModule, blend gputy
 	})
 }
 
-func (r *gpuRenderer) createWorldBillboardPipeline(shader *wgpu.ShaderModule, blend gputypes.BlendState, label string) (*wgpu.RenderPipeline, error) {
+func (r *gpuRenderer) createWorldBillboardPipeline(shader *wgpu.ShaderModule, blend gputypes.BlendState, depthTest bool, label string) (*wgpu.RenderPipeline, error) {
 	return r.dev.CreateRenderPipeline(&wgpu.RenderPipelineDescriptor{
 		Label:  label,
 		Layout: r.worldLayout,
@@ -418,6 +433,7 @@ func (r *gpuRenderer) createWorldBillboardPipeline(shader *wgpu.ShaderModule, bl
 						{Format: gputypes.VertexFormatFloat32x4, Offset: 48, ShaderLocation: 6},
 						{Format: gputypes.VertexFormatFloat32x4, Offset: 64, ShaderLocation: 7},
 						{Format: gputypes.VertexFormatFloat32, Offset: 80, ShaderLocation: 8},
+						{Format: gputypes.VertexFormatFloat32, Offset: 84, ShaderLocation: 9},
 					},
 				},
 			},
@@ -430,7 +446,7 @@ func (r *gpuRenderer) createWorldBillboardPipeline(shader *wgpu.ShaderModule, bl
 		DepthStencil: &wgpu.DepthStencilState{
 			Format:            gputypes.TextureFormatDepth24Plus,
 			DepthWriteEnabled: false,
-			DepthCompare:      gputypes.CompareFunctionLessEqual,
+			DepthCompare:      worldBillboardDepthCompare(depthTest),
 		},
 		Fragment: &wgpu.FragmentState{
 			Module:     shader,
@@ -442,6 +458,13 @@ func (r *gpuRenderer) createWorldBillboardPipeline(shader *wgpu.ShaderModule, bl
 			}},
 		},
 	})
+}
+
+func worldBillboardDepthCompare(depthTest bool) gputypes.CompareFunction {
+	if depthTest {
+		return gputypes.CompareFunctionLessEqual
+	}
+	return gputypes.CompareFunctionAlways
 }
 
 func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
@@ -962,18 +985,31 @@ func (r *gpuRenderer) drawWorldBillboard(ctx *gogpu.Context, pass *wgpu.RenderPa
 	if err != nil {
 		return err
 	}
-	if cmd.Options.Blend == BlendLighter {
-		pass.SetPipeline(r.billboardAdd)
-	} else if cmd.Options.Blend == BlendSrcAlphaDstAlpha {
-		pass.SetPipeline(r.billboardSrcDst)
-	} else {
-		pass.SetPipeline(r.billboardAlpha)
-	}
+	pass.SetPipeline(r.worldBillboardPipelineFor(cmd.Options.Blend, cmd.Options.DepthTest))
 	pass.SetBindGroup(0, bg, nil)
 	pass.SetVertexBuffer(0, r.billboardQuadBuf, 0)
 	pass.SetVertexBuffer(1, instanceBuf, 0)
 	pass.Draw(6, 1, 0, 0)
 	return nil
+}
+
+func (r *gpuRenderer) worldBillboardPipelineFor(blend Blend, depthTest bool) *wgpu.RenderPipeline {
+	if depthTest {
+		if blend == BlendLighter {
+			return r.billboardAddRead
+		}
+		if blend == BlendSrcAlphaDstAlpha {
+			return r.billboardSrcDstRead
+		}
+		return r.billboardAlphaRead
+	}
+	if blend == BlendLighter {
+		return r.billboardAddNoDepth
+	}
+	if blend == BlendSrcAlphaDstAlpha {
+		return r.billboardSrcDstNoDepth
+	}
+	return r.billboardAlphaNoDepth
 }
 
 func (r *gpuRenderer) createBillboardQuadBuffer() (*wgpu.Buffer, error) {
@@ -1001,6 +1037,10 @@ func (r *gpuRenderer) createBillboardQuadBuffer() (*wgpu.Buffer, error) {
 }
 
 func billboardInstanceData(cmd WorldBillboardCommand) []float32 {
+	fogEnabled := float32(1)
+	if cmd.Options.DisableFog {
+		fogEnabled = 0
+	}
 	return []float32{
 		cmd.Center[0], cmd.Center[1], cmd.Center[2],
 		cmd.RightAxis[0], cmd.RightAxis[1], cmd.RightAxis[2],
@@ -1008,7 +1048,7 @@ func billboardInstanceData(cmd WorldBillboardCommand) []float32 {
 		cmd.DepthUpAxis[0], cmd.DepthUpAxis[1], cmd.DepthUpAxis[2],
 		cmd.Width, cmd.Height, cmd.AnchorX, cmd.AnchorY,
 		saneColor(cmd.ColorR), saneColor(cmd.ColorG), saneColor(cmd.ColorB), saneColor(cmd.ColorA),
-		saneDepthBias(cmd.DepthBias), 0, 0, 0,
+		saneDepthBias(cmd.DepthBias), fogEnabled, 0, 0,
 	}
 }
 
@@ -1273,14 +1313,17 @@ func (r *gpuRenderer) release() {
 	if r.worldSrcDstRead != nil {
 		r.worldSrcDstRead.Release()
 	}
-	if r.billboardAlpha != nil {
-		r.billboardAlpha.Release()
-	}
-	if r.billboardAdd != nil {
-		r.billboardAdd.Release()
-	}
-	if r.billboardSrcDst != nil {
-		r.billboardSrcDst.Release()
+	for _, pipeline := range []*wgpu.RenderPipeline{
+		r.billboardAlphaRead,
+		r.billboardAddRead,
+		r.billboardSrcDstRead,
+		r.billboardAlphaNoDepth,
+		r.billboardAddNoDepth,
+		r.billboardSrcDstNoDepth,
+	} {
+		if pipeline != nil {
+			pipeline.Release()
+		}
 	}
 	if r.layout != nil {
 		r.layout.Release()
@@ -1370,11 +1413,18 @@ func worldUniformBytes(camera Camera3D) []byte {
 	if camera.Enabled && camera.Fog.Enabled && camera.Fog.Far > camera.Fog.Near {
 		fogEnabled = 1
 	}
+	fogStrength := camera.Fog.Strength
+	if fogStrength <= 0 || math.IsNaN(float64(fogStrength)) || math.IsInf(float64(fogStrength), 0) {
+		fogStrength = 1
+	}
+	if fogStrength > 1 {
+		fogStrength = 1
+	}
 	fogValues := [8]float32{
 		camera.Fog.Near,
 		camera.Fog.Far,
 		fogEnabled,
-		0,
+		fogStrength,
 		camera.Fog.ColorR,
 		camera.Fog.ColorG,
 		camera.Fog.ColorB,

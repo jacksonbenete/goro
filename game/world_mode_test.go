@@ -10036,6 +10036,27 @@ func TestEffect3DSpriteDrawOptionsHonorAdditiveBlend(t *testing.T) {
 	if got := effect3DSpriteDrawOptions(worldEffectComponent{worldSizedSprite: true}).DepthBias; got != strEffectDepthBias {
 		t.Fatalf("world-sized sprite effect depth bias = %.3f, want %.3f", got, strEffectDepthBias)
 	}
+	if effect3DSpriteDrawOptions(worldEffectComponent{overlay: true}).DepthTest {
+		t.Fatal("overlay sprite effect depth test enabled, want disabled")
+	}
+}
+
+func TestTexturedEffectBillboardDrawOptionsHonorOverlay(t *testing.T) {
+	defaultOptions := texturedEffectBillboardDrawOptions(false, false)
+	if !defaultOptions.DepthTest {
+		t.Fatal("default textured effect depth test disabled, want enabled")
+	}
+	if got := defaultOptions.Blend; got != render.BlendSourceOver {
+		t.Fatalf("default textured effect blend = %v, want source-over", got)
+	}
+	additiveOptions := texturedEffectBillboardDrawOptions(true, false)
+	if got := additiveOptions.Blend; got != render.BlendLighter {
+		t.Fatalf("additive textured effect blend = %v, want lighter", got)
+	}
+	overlayOptions := texturedEffectBillboardDrawOptions(false, true)
+	if overlayOptions.DepthTest {
+		t.Fatal("overlay textured effect depth test enabled, want disabled")
+	}
 }
 
 func TestWorldSizedSpriteBillboardUsesCenterDepthLikeRobrowser(t *testing.T) {

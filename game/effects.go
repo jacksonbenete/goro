@@ -2613,11 +2613,15 @@ func deterministicUnit(effect worldEffect, salt int) float64 {
 }
 
 func (m *WorldMode) effectFileTexture(manager *res.Manager, path string) *render.Image {
+	return m.effectFileTextureWithBlackKey(manager, path, true)
+}
+
+func (m *WorldMode) effectFileTextureWithBlackKey(manager *res.Manager, path string, blackKey bool) *render.Image {
 	path = strings.TrimSpace(path)
 	if manager == nil || path == "" {
 		return nil
 	}
-	key := "__effectfile_" + path
+	key := "__effectfile_" + path + "|blackkey=" + strconv.FormatBool(blackKey)
 	if m.textures == nil {
 		m.textures = make(map[string]*render.Image)
 	}
@@ -2643,7 +2647,11 @@ func (m *WorldMode) effectFileTexture(manager *res.Manager, path string) *render
 		glog.Warnf("effect texture missing path=%s: %v", path, err)
 		return nil
 	}
-	texture := render.NewImageFromImage(res.ApplyEffectTransparency(img))
+	out := res.ApplyEffectTransparencyWithBlackKey(img, blackKey)
+	texture := render.NewImageFromImage(out)
+	if !blackKey {
+		texture = render.NewImageFromStraightAlpha(out)
+	}
 	m.textures[key] = texture
 	return texture
 }

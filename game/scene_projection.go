@@ -66,12 +66,13 @@ func (p sceneProjection) RenderCameraWithFog(fog sceneFog) render.Camera3D {
 	}
 	if fog.enabled && fog.far > fog.near {
 		camera.Fog = render.Fog3D{
-			Enabled: true,
-			Near:    float32(fog.near),
-			Far:     float32(fog.far),
-			ColorR:  float32(fog.color.R) / 255,
-			ColorG:  float32(fog.color.G) / 255,
-			ColorB:  float32(fog.color.B) / 255,
+			Enabled:  true,
+			Near:     float32(fog.near),
+			Far:      float32(fog.far),
+			Strength: float32(fog.factor),
+			ColorR:   float32(fog.color.R) / 255,
+			ColorG:   float32(fog.color.G) / 255,
+			ColorB:   float32(fog.color.B) / 255,
 		}
 	}
 	return camera

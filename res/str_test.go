@@ -139,7 +139,7 @@ func TestRealPharmacyResultSTRExactResources(t *testing.T) {
 
 func TestRealCylinderEffectTextures(t *testing.T) {
 	manager := realDataManager(t)
-	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "ring_blue", "alpha1", "대폭발", "pok3", "lens1", "lens2"} {
+	for _, name := range []string{"alpha_down", "alpha_center", "ring_yellow", "ring_blue", "alpha1", "대폭발", "pok3", "lens1", "lens2", "fog1", "fog2", "fog3"} {
 		if _, source, err := LoadImageExact(manager, EffectTextureCandidates(name)); err != nil {
 			t.Fatalf("load exact effect texture %s: %v", name, err)
 		} else if source == "" {

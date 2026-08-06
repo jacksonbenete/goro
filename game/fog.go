@@ -12,6 +12,7 @@ type sceneFog struct {
 	enabled bool
 	near    float64
 	far     float64
+	factor  float64
 	color   color.RGBA
 }
 
@@ -20,14 +21,30 @@ func sceneFogFromMap(manager *res.Manager, mapName string, cfg config.FogConfig)
 		return sceneFog{}
 	}
 	parameter, ok := manager.FogParameter(mapName)
-	if !ok || parameter.Far <= parameter.Near {
+	if !ok || parameter.Far <= parameter.Near || parameter.Factor <= 0 {
 		return sceneFog{}
+	}
+	fogColor := parameter.Color
+	if weatherColor, ok := sceneFogColorForMapWeather(mapName); ok {
+		fogColor = weatherColor
 	}
 	return sceneFog{
 		enabled: true,
 		near:    parameter.Near * 240,
 		far:     parameter.Far * 240,
-		color:   parameter.Color,
+		factor:  clampFloat(parameter.Factor, 0, 1),
+		color:   fogColor,
+	}
+}
+
+func sceneFogColorForMapWeather(mapName string) (color.RGBA, bool) {
+	effectID := mapWeatherEffectIDForMap(mapName)
+	switch effectID {
+	case effectCloud4:
+		params, ok := weatherCloudParamsForEffect(effectID)
+		return params.tint, ok
+	default:
+		return color.RGBA{}, false
 	}
 }
 
@@ -35,7 +52,7 @@ func (f sceneFog) mixColor(c color.RGBA, depth float64) color.RGBA {
 	if !f.enabled || !isFinite(depth) {
 		return c
 	}
-	amount := smoothstep(f.near, f.far, depth)
+	amount := smoothstep(f.near, f.far, depth) * f.factor
 	if amount <= 0 {
 		return c
 	}
@@ -55,7 +72,7 @@ func (f sceneFog) attenuateColor(c color.RGBA, depth float64) color.RGBA {
 	if !f.enabled || !isFinite(depth) {
 		return c
 	}
-	amount := smoothstep(f.near, f.far, depth)
+	amount := smoothstep(f.near, f.far, depth) * f.factor
 	if amount <= 0 {
 		return c
 	}

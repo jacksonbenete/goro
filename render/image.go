@@ -38,6 +38,22 @@ func NewImageFromImage(src image.Image) *Image {
 	return &Image{pix: dst}
 }
 
+func NewImageFromStraightAlpha(src image.Image) *Image {
+	b := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, b.Dx(), b.Dy()))
+	for y := 0; y < b.Dy(); y++ {
+		for x := 0; x < b.Dx(); x++ {
+			c := color.NRGBAModel.Convert(src.At(b.Min.X+x, b.Min.Y+y)).(color.NRGBA)
+			off := dst.PixOffset(x, y)
+			dst.Pix[off+0] = c.R
+			dst.Pix[off+1] = c.G
+			dst.Pix[off+2] = c.B
+			dst.Pix[off+3] = c.A
+		}
+	}
+	return &Image{pix: dst}
+}
+
 func (i *Image) Bounds() image.Rectangle {
 	if i == nil || i.pix == nil {
 		return image.Rectangle{}

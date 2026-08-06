@@ -35,17 +35,20 @@ func (m *WorldMode) draw3DEffect(screen *render.Frame, ctx client.Context, proje
 		if sizeX <= 0 || sizeY <= 0 {
 			continue
 		}
+		drawX := worldX + offsetX
+		drawY := worldY + offsetY
+		drawZ := worldZ + offsetZ
 		if component.textureFile != "" || len(component.textureFiles) > 0 {
 			texture := m.effectTextureFrame(ctx.Resources, component, progress)
 			if texture == nil {
 				continue
 			}
 			angle := worldEffectBillboardAngleForEffect(component, projection, effect, salt, progress)
-			drawTexturedEffectBillboardRotatedXY(screen, projection, texture, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), component.blendAdditive)
+			drawTexturedEffectBillboardRotatedXYWithOptions(screen, projection, texture, drawX, drawY, drawZ, sizeX, sizeY, angle, effectComponentTint(component, alpha), texturedEffectBillboardDrawOptions(component.blendAdditive, component.overlay))
 			continue
 		}
 		size := (sizeX + sizeY) * 0.5
-		m.draw3DSpriteEffect(screen, ctx, projection, effect, component, worldX+offsetX, worldY+offsetY, worldZ+offsetZ, size, alpha, progress, starts, now)
+		m.draw3DSpriteEffect(screen, ctx, projection, effect, component, drawX, drawY, drawZ, size, alpha, progress, starts, now)
 	}
 }
 
@@ -307,6 +310,21 @@ func effectAxisSize(progress, start, end float64, smooth bool) float64 {
 }
 
 func drawTexturedEffectBillboardRotatedXY(screen *render.Frame, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, sizeX, sizeY, angle float64, tint color.RGBA, additive bool) {
+	drawTexturedEffectBillboardRotatedXYWithOptions(screen, projection, texture, worldX, worldY, worldZ, sizeX, sizeY, angle, tint, texturedEffectBillboardDrawOptions(additive, false))
+}
+
+func texturedEffectBillboardDrawOptions(additive, overlay bool) *render.DrawTrianglesOptions {
+	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
+	if additive {
+		options.Blend = render.BlendLighter
+	}
+	if overlay {
+		options.DepthTest = false
+	}
+	return options
+}
+
+func drawTexturedEffectBillboardRotatedXYWithOptions(screen *render.Frame, projection sceneProjection, texture *render.Image, worldX, worldY, worldZ, sizeX, sizeY, angle float64, tint color.RGBA, options *render.DrawTrianglesOptions) {
 	if screen == nil || texture == nil || tint.A == 0 {
 		return
 	}
@@ -326,9 +344,8 @@ func drawTexturedEffectBillboardRotatedXY(screen *render.Frame, projection scene
 		rightAxis = add3(mul3(right, cosA*axisScaleX), mul3(up, -sinA*axisScaleX))
 		upAxis = add3(mul3(right, -sinA*axisScaleY), mul3(up, -cosA*axisScaleY))
 	}
-	options := triangleDrawOptions(render.FilterLinear, render.AddressClampToZero)
-	if additive {
-		options.Blend = render.BlendLighter
+	if options == nil {
+		options = texturedEffectBillboardDrawOptions(false, false)
 	}
 	screen.DrawWorldBillboard(render.WorldBillboardCommand{
 		Texture:     texture,

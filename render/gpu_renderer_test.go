@@ -4,10 +4,13 @@ import (
 	"encoding/binary"
 	"image/color"
 	"math"
+	"strings"
 	"testing"
 
+	"github.com/gogpu/gputypes"
 	"github.com/gogpu/naga"
 	"github.com/gogpu/naga/spirv"
+	"github.com/gogpu/wgpu"
 )
 
 func TestRendererShadersParse(t *testing.T) {
@@ -47,6 +50,26 @@ func TestRendererShadersGenerateSPIRV(t *testing.T) {
 		if len(data) == 0 {
 			t.Fatalf("%s shader SPIR-V is empty", name)
 		}
+	}
+}
+
+func TestWorldShadersUseProjectedFogDepth(t *testing.T) {
+	for name, source := range map[string]string{
+		"world":           worldShaderWGSL,
+		"world-billboard": worldBillboardShaderWGSL,
+	} {
+		if !strings.Contains(source, "fog_depth") || !strings.Contains(source, "smoothstep(uniforms.fog[0], uniforms.fog[1], input.fog_depth)") {
+			t.Fatalf("%s shader does not use interpolated fog depth", name)
+		}
+		if !strings.Contains(source, "* uniforms.fog[3]") {
+			t.Fatalf("%s shader does not use fog strength", name)
+		}
+		if strings.Contains(source, "input.clip[2] /") {
+			t.Fatalf("%s shader uses fragment clip depth for fog", name)
+		}
+	}
+	if !strings.Contains(worldBillboardShaderWGSL, "* input.fog_enabled") {
+		t.Fatal("world billboard shader does not honor per-billboard fog toggle")
 	}
 }
 
@@ -160,6 +183,62 @@ func TestWorldBillboardCommandsKeepSeparateInstanceData(t *testing.T) {
 	}
 }
 
+func TestWorldBillboardInstanceDataCarriesFogToggle(t *testing.T) {
+	texture := WhiteImage()
+	fogged := billboardInstanceData(WorldBillboardCommand{Texture: texture})
+	unfogged := billboardInstanceData(WorldBillboardCommand{Texture: texture, Options: DrawTrianglesOptions{DisableFog: true}})
+	if got := fogged[21]; got != 1 {
+		t.Fatalf("fogged billboard flag = %.1f, want 1", got)
+	}
+	if got := unfogged[21]; got != 0 {
+		t.Fatalf("unfogged billboard flag = %.1f, want 0", got)
+	}
+}
+
+func TestWorldBillboardDepthCompareHonorsDepthTestOption(t *testing.T) {
+	if got := worldBillboardDepthCompare(true); got != gputypes.CompareFunctionLessEqual {
+		t.Fatalf("depth-tested billboard compare = %v, want less-equal", got)
+	}
+	if got := worldBillboardDepthCompare(false); got != gputypes.CompareFunctionAlways {
+		t.Fatalf("overlay billboard compare = %v, want always", got)
+	}
+}
+
+func TestWorldBillboardPipelineSelectionHonorsBlendAndDepthTest(t *testing.T) {
+	alphaRead := &wgpu.RenderPipeline{}
+	addRead := &wgpu.RenderPipeline{}
+	srcDstRead := &wgpu.RenderPipeline{}
+	alphaNoDepth := &wgpu.RenderPipeline{}
+	addNoDepth := &wgpu.RenderPipeline{}
+	srcDstNoDepth := &wgpu.RenderPipeline{}
+	renderer := &gpuRenderer{
+		billboardAlphaRead:     alphaRead,
+		billboardAddRead:       addRead,
+		billboardSrcDstRead:    srcDstRead,
+		billboardAlphaNoDepth:  alphaNoDepth,
+		billboardAddNoDepth:    addNoDepth,
+		billboardSrcDstNoDepth: srcDstNoDepth,
+	}
+	cases := []struct {
+		name      string
+		blend     Blend
+		depthTest bool
+		want      *wgpu.RenderPipeline
+	}{
+		{name: "alpha read", depthTest: true, want: alphaRead},
+		{name: "add read", blend: BlendLighter, depthTest: true, want: addRead},
+		{name: "src-dst read", blend: BlendSrcAlphaDstAlpha, depthTest: true, want: srcDstRead},
+		{name: "alpha no depth", want: alphaNoDepth},
+		{name: "add no depth", blend: BlendLighter, want: addNoDepth},
+		{name: "src-dst no depth", blend: BlendSrcAlphaDstAlpha, want: srcDstNoDepth},
+	}
+	for _, tc := range cases {
+		if got := renderer.worldBillboardPipelineFor(tc.blend, tc.depthTest); got != tc.want {
+			t.Fatalf("%s pipeline = %p, want %p", tc.name, got, tc.want)
+		}
+	}
+}
+
 func TestBuildFrameAppliesScreenScaleTo2DVertices(t *testing.T) {
 	screen := NewFrame(320, 240)
 	screen.BeginFrame()
@@ -228,12 +307,13 @@ func TestWorldUniformBytesPacksMatrixAndFog(t *testing.T) {
 			0: 1, 5: 2, 10: 3, 15: 4,
 		},
 		Fog: Fog3D{
-			Enabled: true,
-			Near:    10,
-			Far:     20,
-			ColorR:  0.25,
-			ColorG:  0.5,
-			ColorB:  0.75,
+			Enabled:  true,
+			Near:     10,
+			Far:      20,
+			Strength: 0.5,
+			ColorR:   0.25,
+			ColorG:   0.5,
+			ColorB:   0.75,
 		},
 	}
 	data := worldUniformBytes(camera)
@@ -251,6 +331,9 @@ func TestWorldUniformBytesPacksMatrixAndFog(t *testing.T) {
 	}
 	if got := f32At(data, 72); got != 1 {
 		t.Fatalf("fog enabled = %v, want 1", got)
+	}
+	if got := f32At(data, 76); got != 0.5 {
+		t.Fatalf("fog strength = %v, want 0.5", got)
 	}
 	if got := f32At(data, 80); got != 0.25 {
 		t.Fatalf("fog red = %v, want 0.25", got)

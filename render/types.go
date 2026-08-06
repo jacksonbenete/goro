@@ -49,12 +49,13 @@ type Camera3D struct {
 }
 
 type Fog3D struct {
-	Enabled bool
-	Near    float32
-	Far     float32
-	ColorR  float32
-	ColorG  float32
-	ColorB  float32
+	Enabled  bool
+	Near     float32
+	Far      float32
+	Strength float32
+	ColorR   float32
+	ColorG   float32
+	ColorB   float32
 }
 
 type DrawTrianglesOptions struct {

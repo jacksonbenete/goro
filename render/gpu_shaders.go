@@ -74,6 +74,7 @@ struct VertexOutput {
 	@location(1) color: vec4<f32>,
 	@location(2) fog_enabled: f32,
 	@location(3) light_uv: vec2<f32>,
+	@location(4) fog_depth: f32,
 }
 
 @vertex
@@ -90,6 +91,7 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 	out.color = input.color;
 	out.fog_enabled = input.fog_enabled;
 	out.light_uv = input.light_uv;
+	out.fog_depth = max(0.0, clip_z);
 	return out;
 }
 
@@ -101,8 +103,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 	if (color[3] < 0.01) {
 		discard;
 	}
-	let depth = input.clip[2] / max(input.clip[3], 0.000001);
-	let fog = clamp(smoothstep(uniforms.fog[0], uniforms.fog[1], depth) * uniforms.fog[2] * input.fog_enabled, 0.0, 1.0);
+	let fog = clamp(smoothstep(uniforms.fog[0], uniforms.fog[1], input.fog_depth) * uniforms.fog[2] * uniforms.fog[3] * input.fog_enabled, 0.0, 1.0);
 	return vec4<f32>(
 		color[0] * (1.0 - fog) + uniforms.fog_color[0] * fog,
 		color[1] * (1.0 - fog) + uniforms.fog_color[1] * fog,
@@ -137,12 +138,15 @@ struct VertexInput {
 	@location(6) params: vec4<f32>,
 	@location(7) color: vec4<f32>,
 	@location(8) depth_bias: f32,
+	@location(9) fog_enabled: f32,
 }
 
 struct VertexOutput {
 	@builtin(position) clip: vec4<f32>,
 	@location(0) uv: vec2<f32>,
 	@location(1) color: vec4<f32>,
+	@location(2) fog_depth: f32,
+	@location(3) fog_enabled: f32,
 }
 
 @vertex
@@ -163,6 +167,8 @@ fn vs_main(input: VertexInput) -> VertexOutput {
 	out.clip = vec4<f32>(clip[0], clip[1], final_z, clip[3]);
 	out.uv = input.uv;
 	out.color = input.color;
+	out.fog_depth = max(0.0, clip_z);
+	out.fog_enabled = input.fog_enabled;
 	return out;
 }
 
@@ -172,8 +178,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
 	if (color[3] < 0.01) {
 		discard;
 	}
-	let depth = input.clip[2] / max(input.clip[3], 0.000001);
-	let fog = clamp(smoothstep(uniforms.fog[0], uniforms.fog[1], depth) * uniforms.fog[2], 0.0, 1.0);
+	let fog = clamp(smoothstep(uniforms.fog[0], uniforms.fog[1], input.fog_depth) * uniforms.fog[2] * uniforms.fog[3] * input.fog_enabled, 0.0, 1.0);
 	return vec4<f32>(
 		color[0] * (1.0 - fog) + uniforms.fog_color[0] * fog,
 		color[1] * (1.0 - fog) + uniforms.fog_color[1] * fog,

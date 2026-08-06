@@ -53,3 +53,15 @@ func TestPayonDungeonFogRealWhenConfigured(t *testing.T) {
 		t.Logf("%s fog near=%.3f far=%.3f color=%02x%02x%02x factor=%.3f", mapName, parameter.Near, parameter.Far, parameter.Color.R, parameter.Color.G, parameter.Color.B, parameter.Factor)
 	}
 }
+
+func TestEinbrochFogRealWhenConfigured(t *testing.T) {
+	manager := realDataManager(t)
+	parameter, ok := manager.FogParameter("einbroch.rsw")
+	if !ok {
+		t.Fatal("einbroch.rsw fog missing")
+	}
+	if parameter.Factor != 0.5 {
+		t.Fatalf("einbroch.rsw fog factor = %.3f, want 0.500", parameter.Factor)
+	}
+	t.Logf("einbroch.rsw fog near=%.3f far=%.3f color=%02x%02x%02x factor=%.3f", parameter.Near, parameter.Far, parameter.Color.R, parameter.Color.G, parameter.Color.B, parameter.Factor)
+}

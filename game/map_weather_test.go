@@ -1,6 +1,8 @@
 package game
 
 import (
+	"image/color"
+	"math"
 	"testing"
 	"time"
 )
@@ -20,7 +22,7 @@ func TestMapWeatherEffectIDForReferenceWeatherTable(t *testing.T) {
 	tests := map[string]int{
 		"xmas":     effectSnow,
 		"xmas.gat": effectSnow,
-		"einbroch": effectCloud3,
+		"einbroch": effectCloud4,
 	}
 	for name, want := range tests {
 		if got := mapWeatherEffectIDForMap(name); got != want {
@@ -53,6 +55,63 @@ func TestMapWeatherReferenceEffectsHaveSpecs(t *testing.T) {
 		if _, ok := worldEffectSpecForID(effectID); !ok {
 			t.Fatalf("missing weather effect spec %d", effectID)
 		}
+	}
+}
+
+func TestEinbrochCloudWeatherSpecUsesClassicResources(t *testing.T) {
+	spec, ok := worldEffectSpecForID(effectCloud4)
+	if !ok || len(spec.components) != 1 {
+		t.Fatalf("EF_CLOUD4 spec = %+v ok=%t", spec, ok)
+	}
+	component := spec.components[0]
+	if component.kind != effectComponent3D || len(component.textureFiles) != 3 || component.textureFiles[0] != "effect/fog1.tga" || component.textureFiles[2] != "effect/fog3.tga" {
+		t.Fatalf("EF_CLOUD4 textures = %+v", component)
+	}
+	if component.color != (color.RGBA{R: 252, G: 171, B: 143, A: 255}) || component.alphaMax != 170.0/255.0 {
+		t.Fatalf("EF_CLOUD4 tint/alpha = %+v", component)
+	}
+}
+
+func TestEinbrochCloudWeatherParamsMatchClassicProfile(t *testing.T) {
+	params, ok := weatherCloudParamsForEffect(effectCloud4)
+	if !ok {
+		t.Fatal("EF_CLOUD4 weather cloud params missing")
+	}
+	if len(params.textureFiles) != 3 || params.textureFiles[0] != "effect/fog1.tga" || params.tint != (color.RGBA{R: 252, G: 171, B: 143, A: 255}) {
+		t.Fatalf("EF_CLOUD4 weather cloud resources = %+v", params)
+	}
+	if params.count != 320 || params.radius != 15 || params.zOffset != -2 || params.zRand != 0.5 {
+		t.Fatalf("EF_CLOUD4 weather cloud placement = %+v", params)
+	}
+	if params.blackKey {
+		t.Fatalf("EF_CLOUD4 weather cloud should preserve black-key pixels: %+v", params)
+	}
+	if !params.disableFog {
+		t.Fatalf("EF_CLOUD4 weather cloud should not be darkened by map fog: %+v", params)
+	}
+	if params.screenHaze != (color.RGBA{R: 252, G: 171, B: 143, A: 70}) {
+		t.Fatalf("EF_CLOUD4 screen haze = %+v, want peach weather tint", params.screenHaze)
+	}
+	if params.sizeBase != 35*math.Sqrt2*0.1 || params.sizeRand != 10*math.Sqrt2*0.1 {
+		t.Fatalf("EF_CLOUD4 weather cloud size = %+v", params)
+	}
+	if params.ramp != 170*time.Second/60 || params.rotStartMin != 5*time.Second || params.rotStartRand != 200*time.Second/60 {
+		t.Fatalf("EF_CLOUD4 weather cloud timing = %+v", params)
+	}
+}
+
+func TestMapWeatherCloudKeepsExistingParticlesWhenCenterMoves(t *testing.T) {
+	params, _ := weatherCloudParamsForEffect(effectCloud4)
+	state := mapWeatherCloudState{}
+	now := time.Unix(10, 0)
+	state.ensure("einbroch.rsw", params, nil, 37.5, 98.5, now)
+	if len(state.clouds) == 0 {
+		t.Fatal("weather cloud state empty")
+	}
+	firstX, firstY := state.clouds[0].x, state.clouds[0].y
+	state.update(params, nil, 57.5, 118.5, now.Add(time.Second))
+	if math.Hypot(state.clouds[0].x-firstX, state.clouds[0].y-firstY) > 1 {
+		t.Fatalf("weather cloud snapped to moved center: before %.2f,%.2f after %.2f,%.2f", firstX, firstY, state.clouds[0].x, state.clouds[0].y)
 	}
 }
 
