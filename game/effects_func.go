@@ -649,61 +649,6 @@ func warpEffectVertex3D(x, y, z float64, c color.RGBA) render.Vertex3D {
 	return warpEffectTexturedVertex3D(x, y, z, 0, 0, c)
 }
 
-func drawWarpZoneEffect(screen *render.Frame, white, ringTexture *render.Image, x, y, z float64, now time.Time) {
-	const (
-		segments       = 64
-		ringCount      = 4
-		baseRadius     = 0.25
-		radiusRange    = 1.18
-		bandWidth      = 0.34
-		cycleSeconds   = 4.0
-		bottomBaseSize = 0.95
-		topBaseSize    = 1.58
-		heightBase     = 1.10
-		groundLift     = 0.04
-	)
-	z += groundLift
-	seconds := float64(now.UnixNano()) / float64(time.Second)
-
-	for i := 0; i < ringCount; i++ {
-		phase := math.Mod(seconds+float64(i), cycleSeconds) / cycleSeconds
-		sizeFactor := 1 - phase
-		heightFactor := phase * 2
-		if phase > 0.5 {
-			heightFactor = (1 - phase) * 2
-		}
-		alpha := uint8(102 * warpCycleFade(phase))
-		drawWorldCylinderBand(screen, white, ringTexture, x, y, z, bottomBaseSize*sizeFactor, topBaseSize*sizeFactor, heightBase*heightFactor, color.RGBA{R: 155, G: 205, B: 255, A: alpha}, segments)
-	}
-	drawWorldRadialGradient(screen, white, x, y, z, 0.18, 0.85, color.RGBA{R: 170, G: 210, B: 255, A: 54}, segments)
-	for i := 0; i < ringCount; i++ {
-		phase := math.Mod(seconds*0.55+float64(i)/ringCount, 1)
-		radius := baseRadius + phase*radiusRange
-		alpha := uint8(155 * (1 - phase))
-		if alpha < 28 {
-			alpha = 28
-		}
-		drawWorldSoftRing(screen, white, x, y, z, radius, bandWidth, color.RGBA{R: 185, G: 215, B: 255, A: alpha}, segments)
-	}
-	pulse := 0.5 + 0.5*math.Sin(seconds*2.4)
-	drawWorldSoftRing(screen, white, x, y, z, 0.35+pulse*0.06, 0.26, color.RGBA{R: 235, G: 245, B: 255, A: 150}, segments)
-}
-
-func warpCycleFade(phase float64) float64 {
-	switch {
-	case phase < 0.25:
-		return phase / 0.25
-	case phase > 0.75:
-		return (1 - phase) / 0.25
-	default:
-		return 1
-	}
-}
-
-func drawWorldRadialGradient(screen *render.Frame, white *render.Image, x, y, z, innerRadius, outerRadius float64, c color.RGBA, segments int) {
-	drawWorldRingBand(screen, white, x, y, z, innerRadius, outerRadius, c.A, 0, c, segments)
-}
-
 func drawWorldSoftRing(screen *render.Frame, white *render.Image, x, y, z, radius, width float64, c color.RGBA, segments int) {
 	inner := math.Max(0, radius-width*0.5)
 	mid := math.Max(inner+0.01, radius)

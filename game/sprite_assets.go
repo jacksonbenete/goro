@@ -54,12 +54,10 @@ func loadNonPCSpriteView(manager *res.Manager, job int, label string) (*spriteVi
 }
 
 func actorJobHasNoSprite(job int) bool {
-	switch job {
-	case actorJobWarpPortal, actorJobHiddenNPC, actorJobClearNPC:
+	if isWarpActorJob(job) {
 		return true
-	default:
-		return false
 	}
+	return job == actorJobHiddenNPC || job == actorJobClearNPC
 }
 
 func isGR2Resource(resourceName string) bool {

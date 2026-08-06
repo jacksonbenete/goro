@@ -4931,13 +4931,17 @@ func TestRobrowserPortalAndGroundEffectsThreeHundredToThreeFiftyMatchTableRows(t
 	if !ok || len(warp.components) != 3 || warp.duration != 7*time.Second {
 		t.Fatalf("EF_WARPZONE2 spec = %+v ok=%t", warp, ok)
 	}
-	for i, component := range warp.components[:2] {
-		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 4*time.Second || component.duplicate != 4 || component.duplicateDelay != time.Second || component.alphaMax != 0.4 || component.animation != 3 || component.bottomSize < 1.9 || component.topSize < 3.2 || component.height != 1.1 || !component.repeat || component.rotate || !component.fade || !component.attachedEntity {
+	for i, want := range []struct {
+		bottom float64
+		top    float64
+	}{{1.15, 1.9}, {1.05, 1.8}} {
+		component := warp.components[i]
+		if component.kind != effectComponentCylinder || component.textureName != "ring_blue" || component.duration != 4*time.Second || component.duplicate != 4 || component.duplicateDelay != time.Second || component.alphaMax != 0.48 || component.animation != 3 || component.bottomSize != want.bottom || component.topSize != want.top || component.height != 1.35 || !component.repeat || component.rotate || !component.fade || !component.attachedEntity {
 			t.Fatalf("EF_WARPZONE2 cylinder %d = %+v", i, component)
 		}
 	}
 	particle := warp.components[2]
-	if particle.kind != effectComponent3D || particle.textureFile != "effect/pok1.tga" || particle.duration != time.Second || particle.duplicate != 5 || particle.duplicateDelay != 300*time.Millisecond || particle.sizeStart != effectTableSize(50) || particle.posXStartRand != 3 || particle.posYStartRand != 3 || particle.posZEndRand != 2 || particle.posZEndMiddle != 2 || !particle.repeat || !particle.blendAdditive || !particle.attachedEntity {
+	if particle.kind != effectComponent3D || particle.textureFile != "effect/pok1.tga" || particle.duration != time.Second || particle.duplicate != 5 || particle.duplicateDelay != 300*time.Millisecond || particle.sizeStart != effectTableSize(32) || particle.posXStartRand != 1.45 || particle.posYStartRand != 1.45 || particle.posZEndRand != 1.5 || particle.posZEndMiddle != 1.4 || !particle.repeat || !particle.blendAdditive || !particle.attachedEntity {
 		t.Fatalf("EF_WARPZONE2 particle = %+v", particle)
 	}
 
@@ -7712,6 +7716,62 @@ func TestFireBallEffectSpecMatchesRobrowserProjectileAndHit(t *testing.T) {
 	}
 }
 
+func TestRepeatedWorldEffectDuplicateProgressUsesDuplicateDelay(t *testing.T) {
+	component := worldEffectComponent{
+		duration:       4 * time.Second,
+		delay:          200 * time.Millisecond,
+		repeat:         true,
+		duplicate:      4,
+		duplicateDelay: time.Second,
+	}
+	starts := time.Unix(1000, 0)
+	now := starts.Add(2700 * time.Millisecond)
+	for _, tc := range []struct {
+		duplicate int
+		want      float64
+	}{
+		{0, 0.625},
+		{1, 0.375},
+		{2, 0.125},
+	} {
+		got, active := worldEffectComponentDuplicateProgressForDraw(starts, component, tc.duplicate, component.duration, now)
+		if !active {
+			t.Fatalf("duplicate %d inactive, want progress %.3f", tc.duplicate, tc.want)
+		}
+		if math.Abs(got-tc.want) > 0.000001 {
+			t.Fatalf("duplicate %d progress = %.6f, want %.6f", tc.duplicate, got, tc.want)
+		}
+	}
+	if got, active := worldEffectComponentDuplicateProgressForDraw(starts, component, 3, component.duration, now); active {
+		t.Fatalf("duplicate 3 active with progress %.6f, want delayed until its own start", got)
+	}
+}
+
+func TestCylinderAnimationThreeScalesRadiusAndPulsesHeightLikeRobrowser(t *testing.T) {
+	component := worldEffectComponent{
+		animation:  3,
+		bottomSize: 2,
+		topSize:    4,
+		height:     6,
+	}
+	for _, tc := range []struct {
+		progress   float64
+		wantBottom float64
+		wantTop    float64
+		wantHeight float64
+	}{
+		{0, 2, 4, 0},
+		{0.25, 1.5, 3, 3},
+		{0.5, 1, 2, 6},
+		{0.75, 0.5, 1, 3},
+	} {
+		gotBottom, gotTop, gotHeight := effectCylinderAnimatedDimensions(component, tc.progress)
+		if math.Abs(gotBottom-tc.wantBottom) > 0.000001 || math.Abs(gotTop-tc.wantTop) > 0.000001 || math.Abs(gotHeight-tc.wantHeight) > 0.000001 {
+			t.Fatalf("progress %.2f dimensions = %.6f %.6f %.6f, want %.6f %.6f %.6f", tc.progress, gotBottom, gotTop, gotHeight, tc.wantBottom, tc.wantTop, tc.wantHeight)
+		}
+	}
+}
+
 func TestBashHitEffectSpecMatchesRobrowserLensCircle(t *testing.T) {
 	spec, ok := worldEffectSpecForID(effectBashHit)
 	if !ok {
@@ -10407,22 +10467,81 @@ func TestSpecialEffectNotifyDedupesParameterLevelUpFallback(t *testing.T) {
 	}
 }
 
-func TestWarpPortalActorEntryAddsPortalEffect(t *testing.T) {
+func TestWarpPortalActorEntryAddsWarpZoneEffect(t *testing.T) {
+	for _, job := range []int16{actorJobWarpPortal, actorJobWarpPortalActive} {
+		t.Run(fmt.Sprintf("job_%d", job), func(t *testing.T) {
+			world := worldstate.New()
+			sessionState := &session.Session{AccountID: 2000000}
+			mode := &WorldMode{}
+			ctx := client.Context{Session: sessionState, World: world}
+			entry := network.ActorEntry{ID: 900, Job: job, X: 30, Y: 40}
+
+			upsertNetworkActor(ctx, entry)
+			mode.applyWarpPortalEntry(ctx, entry)
+			mode.applyWarpPortalEntry(ctx, entry)
+
+			if len(mode.worldEffects) != 1 {
+				t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+			}
+			if effect := mode.worldEffects[0]; effect.actorID != 900 || effect.effectID != effectWarpZone2 || effect.x != 30 || effect.y != 40 || effect.duration != warpPortalActorEffectLifetime {
+				t.Fatalf("effect = %+v", effect)
+			}
+		})
+	}
+}
+
+func TestWaitingWarpPortalActorEntryAddsReadyPortalEffect(t *testing.T) {
 	world := worldstate.New()
 	sessionState := &session.Session{AccountID: 2000000}
 	mode := &WorldMode{}
 	ctx := client.Context{Session: sessionState, World: world}
-	entry := network.ActorEntry{ID: 900, Job: 128, X: 30, Y: 40}
+	entry := network.ActorEntry{ID: 900, Job: actorJobWarpPortalWaiting, X: 30, Y: 40}
 
 	upsertNetworkActor(ctx, entry)
-	mode.applyWarpPortalEntry(ctx, entry)
 	mode.applyWarpPortalEntry(ctx, entry)
 
 	if len(mode.worldEffects) != 1 {
 		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
 	}
-	if effect := mode.worldEffects[0]; effect.actorID != 900 || effect.effectID != effectPortal || effect.x != 30 || effect.y != 40 {
+	if effect := mode.worldEffects[0]; effect.actorID != 900 || effect.effectID != effectReadyPortal || effect.x != 30 || effect.y != 40 || effect.duration != warpPortalActorEffectLifetime {
 		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestWarpPortalActorEntryReplacesWaitingEffect(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: sessionState, World: world}
+	entry := network.ActorEntry{ID: 900, Job: actorJobWarpPortalWaiting, X: 30, Y: 40}
+
+	upsertNetworkActor(ctx, entry)
+	mode.applyWarpPortalEntry(ctx, entry)
+	entry.Job = actorJobWarpPortalActive
+	upsertNetworkActor(ctx, entry)
+	mode.applyWarpPortalEntry(ctx, entry)
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
+	}
+	if effect := mode.worldEffects[0]; effect.actorID != 900 || effect.effectID != effectWarpZone2 {
+		t.Fatalf("effect = %+v", effect)
+	}
+}
+
+func TestRemoveActorNowRemovesActorWorldEffects(t *testing.T) {
+	world := worldstate.New()
+	sessionState := &session.Session{AccountID: 2000000}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: sessionState, World: world}
+	entry := network.ActorEntry{ID: 900, Job: actorJobWarpPortal, X: 30, Y: 40}
+
+	upsertNetworkActor(ctx, entry)
+	mode.applyWarpPortalEntry(ctx, entry)
+	mode.removeActorNow(ctx, entry.ID)
+
+	if len(mode.worldEffects) != 0 {
+		t.Fatalf("world effects after remove = %+v, want none", mode.worldEffects)
 	}
 }
 
@@ -13252,13 +13371,15 @@ func TestFormatPickupConsoleMessageFallback(t *testing.T) {
 
 func TestActorDisplayNameDoesNotLabelWarpPortal(t *testing.T) {
 	ctx := client.Context{Resources: &res.Manager{}}
-	actor := worldstate.Actor{Job: actorJobWarpPortal}
+	for _, job := range []int16{actorJobWarpPortal, actorJobWarpPortalActive, actorJobWarpPortalWaiting} {
+		actor := worldstate.Actor{Job: job}
 
-	if got := actorDisplayName(ctx, actor, false); got != "" {
-		t.Fatalf("display name = %q, want empty", got)
-	}
-	if !isWarpActor(actor) {
-		t.Fatal("expected warp actor classification")
+		if got := actorDisplayName(ctx, actor, false); got != "" {
+			t.Fatalf("job %d display name = %q, want empty", job, got)
+		}
+		if !isWarpActor(actor) {
+			t.Fatalf("job %d expected warp actor classification", job)
+		}
 	}
 }
 

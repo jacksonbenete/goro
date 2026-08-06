@@ -1183,6 +1183,10 @@ func (m *WorldMode) skillUnitCell(id uint32) (int, int, bool) {
 }
 
 func (m *WorldMode) removeSkillUnitEffects(id uint32) bool {
+	return m.removeWorldEffectsForActor(id)
+}
+
+func (m *WorldMode) removeWorldEffectsForActor(id uint32) bool {
 	active := m.worldEffects[:0]
 	removed := false
 	for _, effect := range m.worldEffects {
@@ -2486,10 +2490,14 @@ func worldEffectComponentDuration(spec worldEffectSpec, component worldEffectCom
 }
 
 func worldEffectComponentStartOffset(component worldEffectComponent, duplicateIndex int) time.Duration {
+	return component.delay + worldEffectComponentDuplicateStartOffset(component, duplicateIndex)
+}
+
+func worldEffectComponentDuplicateStartOffset(component worldEffectComponent, duplicateIndex int) time.Duration {
 	if duplicateIndex < 0 {
 		duplicateIndex = 0
 	}
-	return component.delay + time.Duration(duplicateIndex)*(component.duplicateDelay+component.delayOffsetDelta)
+	return time.Duration(duplicateIndex) * (component.duplicateDelay + component.delayOffsetDelta)
 }
 
 func worldEffectComponentMaxStartOffset(component worldEffectComponent) time.Duration {
@@ -2533,12 +2541,26 @@ func worldEffectComponentProgressForDraw(starts time.Time, component worldEffect
 	return clampFloat(float64(cycleElapsed)/float64(duration), 0, 1)
 }
 
+func worldEffectComponentDuplicateProgressForDraw(starts time.Time, component worldEffectComponent, duplicateIndex int, duration time.Duration, now time.Time) (float64, bool) {
+	starts = starts.Add(worldEffectComponentDuplicateStartOffset(component, duplicateIndex))
+	if component.repeat {
+		progress := worldEffectComponentProgressForDraw(starts, component, duration, now)
+		return progress, progress < 1
+	}
+	starts = starts.Add(component.delay)
+	if now.Before(starts) {
+		return 0, false
+	}
+	progress := worldEffectComponentProgress(starts, duration, now)
+	return progress, progress < 1
+}
+
 func (m *WorldMode) drawWorldEffectComponent(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, worldX, worldY, worldZ, progress float64, componentDuration time.Duration, now time.Time) {
 	switch component.kind {
 	case effectComponentSTR:
 		m.drawSTREffect(screen, ctx, projection, component, effect, worldX, worldY, worldZ, now)
 	case effectComponentCylinder:
-		m.drawCylinderEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, componentDuration, now)
+		m.drawCylinderEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, componentDuration, now)
 	case effectComponent2D:
 		m.draw2DEffect(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, now)
 	case effectComponent3D:

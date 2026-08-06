@@ -9,7 +9,7 @@ import (
 	"github.com/kivutar/goro/render"
 )
 
-func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z, progress float64, componentDuration time.Duration, now time.Time) {
+func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context, projection sceneProjection, effect worldEffect, component worldEffectComponent, componentIndex int, x, y, z float64, componentDuration time.Duration, now time.Time) {
 	texture := m.effectTexture(ctx.Resources, component.textureName)
 	if texture == nil {
 		return
@@ -23,15 +23,8 @@ func (m *WorldMode) drawCylinderEffect(screen *render.Frame, ctx client.Context,
 		baseDuration = 500 * time.Millisecond
 	}
 	for i := 0; i < duplicates; i++ {
-		instanceProgress := progress
-		if !component.repeat {
-			starts := effect.starts.Add(worldEffectComponentStartOffset(component, i))
-			if now.Before(starts) {
-				continue
-			}
-			instanceProgress = worldEffectComponentProgress(starts, baseDuration, now)
-		}
-		if instanceProgress >= 1 {
+		instanceProgress, active := worldEffectComponentDuplicateProgressForDraw(effect.starts, component, i, baseDuration, now)
+		if !active {
 			continue
 		}
 		m.drawCylinderEffectInstance(screen, projection, texture, effect, component, componentIndex, x, y, z, instanceProgress, i)
@@ -43,26 +36,7 @@ func (m *WorldMode) drawCylinderEffectInstance(screen *render.Frame, projection 
 	if alpha <= 0 {
 		return
 	}
-	topSize := component.topSize
-	if component.animation == 2 {
-		topSize *= progress
-	}
-	bottomSize := component.bottomSize
-	height := component.height
-	if component.animation == 1 {
-		height *= progress
-	}
-	if component.animation == 4 {
-		bottomSize *= progress
-		topSize *= progress
-	}
-	if component.animation == 5 {
-		if progress < 0.5 {
-			height *= progress * 2
-		} else {
-			height *= (1 - progress) * 2
-		}
-	}
+	bottomSize, topSize, height := effectCylinderAnimatedDimensions(component, progress)
 	if !component.fixedPerspective {
 		drawWorldCylinderBandOriented(screen, m.whitePixel, texture, projection, component, x, y, z+component.posZ, bottomSize, topSize, height, effectComponentTint(component, alpha), maxInt(component.circleSides, component.totalCircleSides), progress)
 		return
@@ -83,6 +57,37 @@ func (m *WorldMode) drawCylinderEffectInstance(screen *render.Frame, projection 
 		alpha:            alpha,
 		angle:            angle,
 	})
+}
+
+func effectCylinderAnimatedDimensions(component worldEffectComponent, progress float64) (float64, float64, float64) {
+	bottomSize := component.bottomSize
+	topSize := component.topSize
+	height := component.height
+	switch component.animation {
+	case 1:
+		height *= progress
+	case 2:
+		topSize *= progress
+	case 3:
+		scale := 1 - progress
+		bottomSize *= scale
+		topSize *= scale
+		if progress < 0.5 {
+			height *= progress * 2
+		} else if progress > 0.5 {
+			height *= (1 - progress) * 2
+		}
+	case 4:
+		bottomSize *= progress
+		topSize *= progress
+	case 5:
+		if progress < 0.5 {
+			height *= progress * 2
+		} else {
+			height *= (1 - progress) * 2
+		}
+	}
+	return bottomSize, topSize, height
 }
 
 type effectCylinderDraw struct {

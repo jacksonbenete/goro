@@ -21,8 +21,8 @@ func (m *WorldMode) draw3DEffect(screen *render.Frame, ctx client.Context, proje
 	}
 	for i := 0; i < duplicates; i++ {
 		starts := effect.starts.Add(worldEffectComponentStartOffset(component, i))
-		progress := worldEffectComponentProgress(starts, componentDuration, now)
-		if now.Before(starts) || progress >= 1 {
+		progress, active := worldEffectComponentDuplicateProgressForDraw(effect.starts, component, i, componentDuration, now)
+		if !active {
 			continue
 		}
 		alpha := effectBillboardAlphaForDuplicate(progress, component, i)

@@ -1793,8 +1793,8 @@ func warpZone2EffectSpec() EffectSpec {
 	return EffectSpec{
 		Duration: 7 * time.Second,
 		Components: []EffectComponent{
-			warpZone2Cylinder(2, 3.3),
-			warpZone2Cylinder(1.9, 3.2),
+			warpZone2Cylinder(1.15, 1.9),
+			warpZone2Cylinder(1.05, 1.8),
 			{
 				Kind:           EffectComponent3D,
 				TextureFile:    "effect/pok1.tga",
@@ -1805,12 +1805,12 @@ func warpZone2EffectSpec() EffectSpec {
 				AlphaMax:       1,
 				FadeIn:         true,
 				FadeOut:        true,
-				PosXStartRand:  3,
-				PosYStartRand:  3,
-				PosZEndRand:    2,
-				PosZEndMiddle:  2,
-				SizeStart:      effectTableSize(50),
-				SizeEnd:        effectTableSize(50),
+				PosXStartRand:  1.45,
+				PosYStartRand:  1.45,
+				PosZEndRand:    1.5,
+				PosZEndMiddle:  1.4,
+				SizeStart:      effectTableSize(32),
+				SizeEnd:        effectTableSize(32),
 				BlendMode:      2,
 				BlendAdditive:  true,
 				AttachedEntity: true,
@@ -1821,7 +1821,7 @@ func warpZone2EffectSpec() EffectSpec {
 }
 
 func warpZone2Cylinder(bottomSize, topSize float64) EffectComponent {
-	component := robrCylinderBlendComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 4*time.Second, 0.4, 3, bottomSize, topSize, 1.1, true, false, true, 2)
+	component := robrCylinderBlendComponent("ring_blue", color.RGBA{R: 128, G: 128, B: 255, A: 255}, 4*time.Second, 0.48, 3, bottomSize, topSize, 1.35, true, false, true, 2)
 	component.Duplicate = 4
 	component.DuplicateDelay = time.Second
 	component.Repeat = true

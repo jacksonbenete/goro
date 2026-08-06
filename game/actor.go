@@ -240,14 +240,31 @@ func (m *WorldMode) upsertNetworkActor(ctx client.Context, entry network.ActorEn
 }
 
 func (m *WorldMode) applyWarpPortalEntry(ctx client.Context, entry network.ActorEntry) {
-	if !isWarpPortalJob(entry.Job) {
+	effectID, ok := warpPortalActorEffectID(entry.Job)
+	if !ok {
 		return
 	}
-	m.addWorldEffectIfMissing(ctx, effectPortal, entry.ID)
+	m.removeOtherWarpPortalActorEffects(entry.ID, effectID)
+	m.addWorldEffectBetweenAtDurationIfMissing(ctx, effectID, entry.ID, 0, time.Now(), warpPortalActorEffectLifetime)
 }
 
-func isWarpPortalJob(job int16) bool {
-	return job == 128 || job == 129
+func warpPortalActorEffectID(job int16) (int, bool) {
+	switch int(job) {
+	case actorJobWarpPortal, actorJobWarpPortalActive:
+		return effectWarpZone2, true
+	case actorJobWarpPortalWaiting:
+		return effectReadyPortal, true
+	default:
+		return 0, false
+	}
+}
+
+func (m *WorldMode) removeOtherWarpPortalActorEffects(actorID uint32, keepEffectID int) {
+	for _, effectID := range []int{effectWarpZone2, effectReadyPortal, effectPortal} {
+		if effectID != keepEffectID {
+			m.removeWorldEffect(effectID, actorID)
+		}
+	}
 }
 
 const (
@@ -257,7 +274,10 @@ const (
 	actorVanishTeleport   = 3
 )
 
-const actorVanishOutOfSightFadeDuration = time.Second
+const (
+	actorVanishOutOfSightFadeDuration = time.Second
+	warpPortalActorEffectLifetime     = 24 * time.Hour
+)
 
 type actorVanishFade struct {
 	started  time.Time
@@ -345,6 +365,7 @@ func (m *WorldMode) removeActorNow(ctx client.Context, id uint32) {
 }
 
 func (m *WorldMode) clearRemovedActorState(id uint32) {
+	m.removeWorldEffectsForActor(id)
 	delete(m.actorAnims, id)
 	delete(m.actorDeaths, id)
 	delete(m.actorVanishes, id)
@@ -639,6 +660,8 @@ const (
 	actorBillboardCellWorldUnits  = 5.0
 	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
 	actorJobWarpPortal            = 45
+	actorJobWarpPortalActive      = 128
+	actorJobWarpPortalWaiting     = 129
 	actorJobHiddenNPC             = 111
 	actorJobClearNPC              = 844
 	actorObjectTypePC             = 0
@@ -771,11 +794,6 @@ func (m *WorldMode) drawSceneActorEntry(screen *render.Frame, ctx client.Context
 		}
 	}
 	if isWarpActor(entry.actor) {
-		if m.whitePixel == nil {
-			m.whitePixel = render.NewImage(1, 1)
-			m.whitePixel.Fill(color.White)
-		}
-		drawWarpZoneEffect(screen, m.whitePixel, m.effectTexture(ctx.Resources, "ring_blue"), entry.worldX, entry.worldY, entry.worldZ, time.Now())
 		return
 	}
 	if !cartDrawAfterActor(entry.actor, cameraYaw) {
@@ -1182,7 +1200,11 @@ func displayNameFromResource(name string) string {
 }
 
 func isWarpActor(actor worldstate.Actor) bool {
-	return actor.Job == actorJobWarpPortal
+	return isWarpActorJob(int(actor.Job))
+}
+
+func isWarpActorJob(job int) bool {
+	return job == actorJobWarpPortal || job == actorJobWarpPortalActive || job == actorJobWarpPortalWaiting
 }
 
 func titleASCIIWord(word string) string {
