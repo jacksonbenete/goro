@@ -155,6 +155,7 @@ type worldUI struct {
 	storageWindow     gameui.StorageWindow
 	cartWindow        gameui.CartWindow
 	changeCartWindow  gameui.ChangeCartWindow
+	itemPickup        gameui.ItemPickupNotification
 	shopWindow        gameui.ShopWindow
 	vendingWindow     gameui.VendingWindow
 	itemInfoWindow    gameui.ItemInfoWindow
@@ -759,11 +760,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if pickup, ok, err := network.ParseItemPickupAck(pkt); err != nil {
 			glog.Errorf("parse item pickup ack 0x%04X: %v", pkt.ID, err)
 		} else if ok {
-			m.applyItemPickupAck(ctx, pickup)
-			if pickup.Result == 0 {
-				message := formatPickupConsoleMessage(ctx.Resources, pickup)
+			if item, gained, success := m.applyItemPickupAck(ctx, pickup); success {
+				display := pickup
+				display.Amount = uint16(gained)
+				message := formatPickupConsoleMessage(ctx.Resources, display)
 				glog.Debugf("console pickup message item_id=%d amount=%d text=%q", pickup.ItemID, pickup.Amount, message)
 				m.ui.console.AddBlueMessage("%s", message)
+				m.ui.itemPickup.Show(ctx, item, gained, time.Now())
 			} else {
 				m.ui.console.AddErrorMessage("Pickup failed item %d result=%d", pickup.ItemID, pickup.Result)
 			}
@@ -2373,6 +2376,7 @@ func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Frame) {
 	m.ui.mercenarySkill.DrawTooltip(screen)
 	m.ui.guildWindow.DrawTooltip(screen)
 	m.ui.shortcutBar.DrawTooltip(screen)
+	m.ui.itemPickup.Draw(screen, ctx, m, time.Now())
 }
 
 func (m *WorldMode) drawUIDragGhosts(screen *render.Frame, ctx client.Context) {

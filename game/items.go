@@ -51,6 +51,11 @@ const (
 	pickupAnimationDuration  = 450 * time.Millisecond
 )
 
+const (
+	itemPickupResultSuccess = 0
+	itemPickupResultReceive = 3
+)
+
 var itemNameLabelForeground = color.RGBA{R: 255, G: 239, B: 148, A: 255}
 
 func (m *WorldMode) applyFloorItemEntry(ctx client.Context, entry network.FloorItemEntry) {
@@ -84,25 +89,49 @@ func (m *WorldMode) applyFloorItemDisappear(ctx client.Context, disappear networ
 	glog.Debugf("floor item disappear id=%d", disappear.ID)
 }
 
-func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPickupAck) {
-	if ack.Result == 0 {
+func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPickupAck) (session.InventoryItem, int, bool) {
+	if !itemPickupAckAddsItem(ack) {
 		m.pendingPickup = pickupIntent{}
-		addPickedSessionInventoryItem(ctx.Session, session.InventoryItem{
-			Index:      ack.Index,
-			ItemID:     ack.ItemID,
-			Type:       ack.Type,
-			Location:   ack.Location,
-			Identified: ack.Identified,
-			Amount:     maxInt(1, int(ack.Amount)),
-			Equip:      inventoryItemTypeIsEquipment(ack.Type),
-			Damaged:    ack.Damaged,
-			Refine:     ack.Refine,
-		})
-		m.applyLocalPickupSuccess(ctx)
-		glog.Debugf("item pickup ack success index=%d item_id=%d amount=%d type=%d location=0x%04X identified=%t", ack.Index, ack.ItemID, ack.Amount, ack.Type, ack.Location, ack.Identified)
-		return
+		m.pickupReqItemID = 0
+		glog.Warnf("item pickup ack failed index=%d item_id=%d amount=%d result=%d", ack.Index, ack.ItemID, ack.Amount, ack.Result)
+		return session.InventoryItem{}, 0, false
 	}
-	glog.Warnf("item pickup ack failed index=%d item_id=%d amount=%d result=%d", ack.Index, ack.ItemID, ack.Amount, ack.Result)
+	m.pendingPickup = pickupIntent{}
+	item := session.InventoryItem{
+		Index:      ack.Index,
+		ItemID:     ack.ItemID,
+		Type:       ack.Type,
+		Location:   ack.Location,
+		Identified: ack.Identified,
+		Amount:     maxInt(1, int(ack.Amount)),
+		Equip:      inventoryItemTypeIsEquipment(ack.Type),
+		Damaged:    ack.Damaged,
+		Refine:     ack.Refine,
+	}
+	gained := item.Amount
+	if ack.Result == itemPickupResultReceive {
+		if previous, ok := findSessionInventoryItem(ctx.Session, ack.Index); ok && previous.ItemID == ack.ItemID {
+			gained = item.Amount - previous.Amount
+			if gained <= 0 {
+				gained = item.Amount
+			}
+		}
+		addOrReplaceSessionInventoryItem(ctx.Session, item)
+	} else {
+		addPickedSessionInventoryItem(ctx.Session, item)
+	}
+	m.applyLocalPickupSuccess(ctx)
+	glog.Debugf("item pickup ack success index=%d item_id=%d amount=%d gained=%d type=%d location=0x%04X identified=%t result=%d", ack.Index, ack.ItemID, ack.Amount, gained, ack.Type, ack.Location, ack.Identified, ack.Result)
+	return item, gained, true
+}
+
+func itemPickupAckAddsItem(ack network.ItemPickupAck) bool {
+	switch ack.Result {
+	case itemPickupResultSuccess, itemPickupResultReceive:
+		return true
+	default:
+		return false
+	}
 }
 
 func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem, source string) {

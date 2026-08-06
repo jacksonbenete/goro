@@ -10540,6 +10540,57 @@ func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testi
 	}
 }
 
+func TestApplyItemPickupAckReceiveItemReplacesStackAndReportsGain(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 7, ItemID: 512, Amount: 3, Identified: true}},
+		},
+	}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: sessionState}
+
+	item, gained, ok := mode.applyItemPickupAck(ctx, network.ItemPickupAck{
+		Index:      7,
+		ItemID:     512,
+		Amount:     5,
+		Type:       0,
+		Identified: true,
+		Result:     itemPickupResultReceive,
+	})
+
+	if !ok {
+		t.Fatal("receive item ack was not treated as an inventory add")
+	}
+	if gained != 2 {
+		t.Fatalf("gained = %d, want 2", gained)
+	}
+	if item.Amount != 5 {
+		t.Fatalf("display item amount = %d, want server total 5", item.Amount)
+	}
+	if got := sessionState.Inventory.Items[0].Amount; got != 5 {
+		t.Fatalf("inventory amount = %d, want replaced server total 5", got)
+	}
+}
+
+func TestApplyItemPickupAckFailureDoesNotAddItem(t *testing.T) {
+	sessionState := &session.Session{}
+	mode := &WorldMode{
+		pendingPickup:   pickupIntent{itemID: 9001},
+		pickupReqItemID: 9001,
+	}
+	ctx := client.Context{Session: sessionState}
+
+	if _, _, ok := mode.applyItemPickupAck(ctx, network.ItemPickupAck{Index: 7, ItemID: 512, Amount: 1, Result: 1}); ok {
+		t.Fatal("failed pickup ack was treated as success")
+	}
+	if len(sessionState.Inventory.Items) != 0 {
+		t.Fatalf("inventory items = %+v, want none", sessionState.Inventory.Items)
+	}
+	if mode.pendingPickup.itemID != 0 || mode.pickupReqItemID != 0 {
+		t.Fatalf("pickup state = pending %d requested %d, want cleared", mode.pendingPickup.itemID, mode.pickupReqItemID)
+	}
+}
+
 func TestApplyActorPickupActionNotifyStartsPickupInsteadOfAttack(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
