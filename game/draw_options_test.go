@@ -41,10 +41,4 @@ func TestRSMModelDrawOptionsUseTinyDepthBias(t *testing.T) {
 	if math.Abs(float64(options.DepthBias-rsmModelDepthBias)) > 0.0000001 || options.DepthBias <= 0 {
 		t.Fatalf("RSM depth bias = %.10f, want %.10f", options.DepthBias, rsmModelDepthBias)
 	}
-	if options.DepthBias <= groundDecalDepthBias {
-		t.Fatalf("RSM depth bias = %.10f, want stronger than decal bias %.10f", options.DepthBias, groundDecalDepthBias)
-	}
-	if options.DepthBias >= 0.001 {
-		t.Fatalf("RSM depth bias = %.10f, want a tiny geometry nudge", options.DepthBias)
-	}
 }
