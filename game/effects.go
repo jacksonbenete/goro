@@ -337,6 +337,9 @@ const (
 	effectCloud          = 229
 	effectCloud2         = 230
 	effectMapPillar      = 231
+	effectMapPillar2     = 247
+	effectMapPillar3     = 259
+	effectMapPillar4     = 260
 	effectCloud3         = 233
 	effectMaple          = 333
 	effectDragonSmoke    = 373
@@ -2386,6 +2389,8 @@ func effectFuncAdapterForName(name string) effectFuncAdapter {
 		return effectFuncGroundTexture
 	case "EffectBodyColor":
 		return effectFuncBodyColor
+	case "MapPillar":
+		return effectFuncMapPillar
 	default:
 		return effectFuncUnknown
 	}

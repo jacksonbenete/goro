@@ -1,6 +1,8 @@
 package game
 
 import (
+	"image/color"
+	"math"
 	"testing"
 	"time"
 
@@ -77,6 +79,9 @@ func TestReferenceRSWMapEffectIDsHaveSpecs(t *testing.T) {
 		effectDragonSmoke,
 		effectBanjjakii,
 		effectMapPillar,
+		effectMapPillar2,
+		effectMapPillar3,
+		effectMapPillar4,
 		effectTorchRed,
 		effectTorchGreen,
 		effectTorchPurple,
@@ -90,5 +95,56 @@ func TestReferenceRSWMapEffectIDsHaveSpecs(t *testing.T) {
 		if _, ok := worldEffectSpecForID(effectID); !ok {
 			t.Fatalf("missing RSW map effect spec %d", effectID)
 		}
+	}
+}
+
+func TestMapPillarEffectSpecsMatchReferenceVariants(t *testing.T) {
+	type variant struct {
+		name        string
+		id          int
+		texture     string
+		radiusStart float64
+		alpha       float64
+		tint        color.RGBA
+	}
+	for _, tc := range []variant{
+		{"EF_MAPPILLAR", effectMapPillar, "ring_blue", 2, 50.0 / 255.0, color.RGBA{R: 110, G: 175, B: 255, A: 255}},
+		{"EF_MAPPILLAR2", effectMapPillar2, "ring_blue", 11, 70.0 / 255.0, color.RGBA{R: 110, G: 175, B: 255, A: 255}},
+		{"EF_MAPPILLAR3", effectMapPillar3, "magic_green", 2, 50.0 / 255.0, color.RGBA{R: 255, G: 255, B: 255, A: 255}},
+		{"EF_MAPPILLAR4", effectMapPillar4, "ring_red", 2, 50.0 / 255.0, color.RGBA{R: 255, G: 255, B: 255, A: 255}},
+	} {
+		spec, ok := worldEffectSpecForID(tc.id)
+		if !ok || spec.duration != 16*time.Second || len(spec.components) != 1 {
+			t.Fatalf("%s spec = %+v ok=%t", tc.name, spec, ok)
+		}
+		component := spec.components[0]
+		if component.kind != effectComponentFUNC || component.funcName != "MapPillar" || component.funcAdapter != effectFuncMapPillar || component.textureName != tc.texture || component.duration != 16*time.Second {
+			t.Fatalf("%s component timing/texture = %+v", tc.name, component)
+		}
+		if component.alphaMax != tc.alpha || component.color != tc.tint || component.blendMode != 2 || !component.blendAdditive || component.attachedEntity {
+			t.Fatalf("%s component alpha/color/blend = %+v", tc.name, component)
+		}
+		if component.bottomSize != tc.radiusStart*0.2 || component.height != 24 {
+			t.Fatalf("%s component geometry = %+v", tc.name, component)
+		}
+	}
+}
+
+func TestMapPillarBandHeightMatchesReferenceLifecycle(t *testing.T) {
+	maxHeight := 24.0
+	if got := mapPillarBandHeight(199, maxHeight); got != 0 {
+		t.Fatalf("height before grow = %.3f, want 0", got)
+	}
+	if got := mapPillarBandHeight(245, maxHeight); math.Abs(got-maxHeight*math.Sin(45*math.Pi/180)) > 0.0001 {
+		t.Fatalf("height mid grow = %.3f", got)
+	}
+	if got := mapPillarBandHeight(291, maxHeight); got != maxHeight {
+		t.Fatalf("height after grow = %.3f, want %.3f", got, maxHeight)
+	}
+	if got := mapPillarBandHeight(800, maxHeight); math.Abs(got-23.8) > 0.0001 {
+		t.Fatalf("height shrink start = %.3f, want 23.8", got)
+	}
+	if got := mapPillarBandHeight(919, maxHeight); got != 0 {
+		t.Fatalf("height after shrink = %.3f, want 0", got)
 	}
 }

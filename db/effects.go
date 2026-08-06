@@ -331,6 +331,9 @@ const (
 	effectCloud          = 229
 	effectCloud2         = 230
 	effectMapPillar      = 231
+	effectMapPillar2     = 247
+	effectMapPillar3     = 259
+	effectMapPillar4     = 260
 	effectCloud3         = 233
 	effectMaple          = 333
 	effectDragonSmoke    = 373
@@ -3547,6 +3550,28 @@ func mapGlowEffectSpec(tint color.RGBA, radius float64) EffectSpec {
 	}
 }
 
+func mapPillarEffectSpec(texture string, tint color.RGBA, radiusStart, alphaMax float64) EffectSpec {
+	const (
+		duration   = 16 * time.Second
+		worldScale = 0.2
+	)
+	return EffectSpec{
+		Duration: duration,
+		Components: []EffectComponent{{
+			Kind:          EffectComponentFUNC,
+			FuncName:      "MapPillar",
+			TextureName:   texture,
+			Duration:      duration,
+			AlphaMax:      alphaMax,
+			BottomSize:    radiusStart * worldScale,
+			Height:        120 * worldScale,
+			BlendMode:     2,
+			BlendAdditive: true,
+			Color:         tint,
+		}},
+	}
+}
+
 func mapFallingParticleEffectSpec(textureFile string, tint color.RGBA, count int) EffectSpec {
 	return EffectSpec{
 		Duration: 1400 * time.Millisecond,
@@ -3848,27 +3873,11 @@ var EffectSpecs = map[int]EffectSpec{
 			AttachedEntity: true,
 		}},
 	},
-	effectBanjjakii: banjjakiiEffectSpec(),
-	effectMapPillar: {
-		Duration: 24 * time.Hour,
-		Components: []EffectComponent{{
-			Kind:             EffectComponentCylinder,
-			TextureName:      "alpha_center",
-			Duration:         1600 * time.Millisecond,
-			Repeat:           true,
-			AlphaMax:         0.42,
-			Fade:             true,
-			Rotate:           true,
-			Animation:        1,
-			BottomSize:       0.55,
-			TopSize:          1.2,
-			Height:           8,
-			TotalCircleSides: 32,
-			CircleSides:      32,
-			BlendAdditive:    true,
-			Color:            color.RGBA{R: 205, G: 235, B: 255, A: 255},
-		}},
-	},
+	effectBanjjakii:  banjjakiiEffectSpec(),
+	effectMapPillar:  mapPillarEffectSpec("ring_blue", color.RGBA{R: 110, G: 175, B: 255, A: 255}, 2, 50.0/255.0),
+	effectMapPillar2: mapPillarEffectSpec("ring_blue", color.RGBA{R: 110, G: 175, B: 255, A: 255}, 11, 70.0/255.0),
+	effectMapPillar3: mapPillarEffectSpec("magic_green", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2, 50.0/255.0),
+	effectMapPillar4: mapPillarEffectSpec("ring_red", color.RGBA{R: 255, G: 255, B: 255, A: 255}, 2, 50.0/255.0),
 	effectMapGhost: {
 		Duration: 24 * time.Hour,
 		Components: []EffectComponent{{
