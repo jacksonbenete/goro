@@ -4568,13 +4568,13 @@ func TestRobrowserSimpleEffectsTwoFiftyToThreeHundredMatchTableRows(t *testing.T
 	}
 }
 
-func TestRobrowserBottomSongGroundEffectsMatchTableRows(t *testing.T) {
+func TestBottomSongGroundEffectsMatchReferenceRows(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		id       int
-		texture  string
-		tint     color.RGBA
-		robrSize float64
+		name        string
+		id          int
+		texture     string
+		tint        color.RGBA
+		textureSize float64
 	}{
 		{"277_ground", effectBottomDissonanceGround, "effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5},
 		{"278_ground", effectBottomLullabyGround, "effect/zz.bmp", color.RGBA{R: 237, G: 158, B: 255, A: 13}, 0.5},
@@ -4592,7 +4592,7 @@ func TestRobrowserBottomSongGroundEffectsMatchTableRows(t *testing.T) {
 		{"290_ground", effectBottomUglyDanceGround, "effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5},
 		{"291_ground", effectBottomHummingGround, "effect/melody_a.bmp", color.RGBA{R: 230, G: 209, B: 209, A: 13}, 0.5},
 		{"292_ground", effectBottomForgetGround, "effect/lens_g.bmp", color.RGBA{R: 28, G: 255, B: 115, A: 13}, 0.5},
-		{"293_ground", effectBottomFortuneGround, "effect/heart_2.bmp", color.RGBA{R: 252, G: 111, B: 101, A: 13}, 0.5},
+		{"293_ground", effectBottomFortuneGround, "effect/kiss.bmp", color.RGBA{R: 252, G: 111, B: 101, A: 13}, 2.5},
 		{"294_ground", effectBottomServiceGround, "effect/safeline.bmp", color.RGBA{R: 255, G: 128, B: 183, A: 13}, 0.5},
 	} {
 		spec, ok := worldEffectSpecForID(tc.id)
@@ -4611,7 +4611,7 @@ func TestRobrowserBottomSongGroundEffectsMatchTableRows(t *testing.T) {
 			}
 			textureIndex = 1
 		}
-		wantSize := tc.robrSize * 2
+		wantSize := tc.textureSize * 2
 		texture := spec.components[textureIndex]
 		if texture.kind != effectComponentFUNC || texture.funcName != "GroundTexture" || texture.funcAdapter != effectFuncGroundTexture || texture.textureFile != tc.texture || texture.duration != 1500*time.Millisecond || texture.sizeStart != wantSize || texture.sizeEnd != wantSize || texture.alphaMax != 0.7 || texture.posZ != 0.2 || texture.posZEnd != 0.6 || !texture.blendAdditive || !texture.renderBefore || texture.attachedEntity {
 			t.Fatalf("%s texture = %+v", tc.name, texture)

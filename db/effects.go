@@ -5207,7 +5207,7 @@ var EffectSpecs = map[int]EffectSpec{
 	effectBottomUglyDanceGround:  songGroundEffectSpec("effect/lens_w.bmp", color.RGBA{R: 255, G: 255, B: 255, A: 13}, 0.5),
 	effectBottomHummingGround:    songGroundEffectSpec("effect/melody_a.bmp", color.RGBA{R: 230, G: 209, B: 209, A: 13}, 0.5),
 	effectBottomForgetGround:     songGroundEffectSpec("effect/lens_g.bmp", color.RGBA{R: 28, G: 255, B: 115, A: 13}, 0.5),
-	effectBottomFortuneGround:    songGroundEffectSpec("effect/heart_2.bmp", color.RGBA{R: 252, G: 111, B: 101, A: 13}, 0.5),
+	effectBottomFortuneGround:    songGroundEffectSpec("effect/kiss.bmp", color.RGBA{R: 252, G: 111, B: 101, A: 13}, 2.5),
 	effectBottomServiceGround:    songGroundEffectSpec("effect/safeline.bmp", color.RGBA{R: 255, G: 128, B: 183, A: 13}, 0.5),
 	effectTalkFrostJoke:          funcEffectSpec("FrostJokeTalk", 500*time.Millisecond, true),
 	effectTalkScream:             funcEffectSpec("ScreamTalk", 500*time.Millisecond, true),
