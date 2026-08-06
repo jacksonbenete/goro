@@ -2,6 +2,7 @@ package db
 
 import (
 	"image/color"
+	"math"
 	"strconv"
 	"time"
 )
@@ -2827,6 +2828,7 @@ func songGroundEffectSpec(texture string, tint color.RGBA, textureSize float64) 
 			SizeStart:      textureWorldSize,
 			SizeEnd:        textureWorldSize,
 			AlphaMax:       0.7,
+			AngleStart:     math.Pi,
 			PosZ:           0.2,
 			PosZEnd:        0.6,
 			BlendAdditive:  true,

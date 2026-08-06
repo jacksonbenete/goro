@@ -4613,7 +4613,7 @@ func TestBottomSongGroundEffectsMatchReferenceRows(t *testing.T) {
 		}
 		wantSize := tc.textureSize * 2
 		texture := spec.components[textureIndex]
-		if texture.kind != effectComponentFUNC || texture.funcName != "GroundTexture" || texture.funcAdapter != effectFuncGroundTexture || texture.textureFile != tc.texture || texture.duration != 1500*time.Millisecond || texture.sizeStart != wantSize || texture.sizeEnd != wantSize || texture.alphaMax != 0.7 || texture.posZ != 0.2 || texture.posZEnd != 0.6 || !texture.blendAdditive || !texture.renderBefore || texture.attachedEntity {
+		if texture.kind != effectComponentFUNC || texture.funcName != "GroundTexture" || texture.funcAdapter != effectFuncGroundTexture || texture.textureFile != tc.texture || texture.duration != 1500*time.Millisecond || texture.sizeStart != wantSize || texture.sizeEnd != wantSize || texture.alphaMax != 0.7 || texture.angleStart != math.Pi || texture.posZ != 0.2 || texture.posZEnd != 0.6 || !texture.blendAdditive || !texture.renderBefore || texture.attachedEntity {
 			t.Fatalf("%s texture = %+v", tc.name, texture)
 		}
 	}
