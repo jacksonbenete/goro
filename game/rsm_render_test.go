@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 )
 
@@ -94,6 +95,45 @@ func TestRSMPlacementContextIncludesSelectedNodeAncestors(t *testing.T) {
 	}
 	if len(context.nodeIndices) != 2 || context.nodeIndices[0] != 0 || context.nodeIndices[1] != 1 {
 		t.Fatalf("node indices = %#v, want selected node plus ancestor", context.nodeIndices)
+	}
+}
+
+func TestRSMDrawOptionsLayerHorizontalSurfaces(t *testing.T) {
+	horizontal := modelWorldTriangle{
+		verts: [3]modelPoint3{
+			{x: 0, y: 0, z: 0},
+			{x: 1, y: 0, z: 0},
+			{x: 0, y: 0, z: 1},
+		},
+	}
+	vertical := modelWorldTriangle{
+		verts: [3]modelPoint3{
+			{x: 0, y: 0, z: 0},
+			{x: 1, y: 0, z: 0},
+			{x: 0, y: 1, z: 0},
+		},
+	}
+
+	early := rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, horizontal, 3)
+	later := rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, horizontal, 4)
+	wall := rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, vertical, 4)
+
+	if early.DepthBias <= rsmModelDepthBias {
+		t.Fatalf("horizontal RSM depth bias = %.10f, want above base %.10f", early.DepthBias, rsmModelDepthBias)
+	}
+	if later.DepthBias <= early.DepthBias {
+		t.Fatalf("later horizontal RSM depth bias = %.10f, want above earlier %.10f", later.DepthBias, early.DepthBias)
+	}
+	if wall.DepthBias != rsmModelDepthBias {
+		t.Fatalf("vertical RSM depth bias = %.10f, want base %.10f", wall.DepthBias, rsmModelDepthBias)
+	}
+	capped := rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, horizontal, 10000)
+	if capped.DepthBias >= rsmModelDepthBias*1.25 {
+		t.Fatalf("capped horizontal RSM depth bias = %.10f, want below actor-occluding bias %.10f", capped.DepthBias, rsmModelDepthBias*1.25)
+	}
+	wrapped := rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, horizontal, 4+rsmHorizontalDepthBiasLayers)
+	if wrapped.DepthBias != later.DepthBias {
+		t.Fatalf("wrapped horizontal RSM depth bias = %.10f, want layer repeat %.10f", wrapped.DepthBias, later.DepthBias)
 	}
 }
 

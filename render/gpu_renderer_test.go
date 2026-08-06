@@ -120,40 +120,6 @@ func TestDepthWriteWorldMeshBatchesGroupByRenderKey(t *testing.T) {
 	}
 }
 
-func TestDepthWriteWorldMeshBatchesKeepDrawOrdersSeparate(t *testing.T) {
-	screen := NewFrame(320, 240)
-	texture := WhiteImage()
-	options := DrawTrianglesOptions{DepthWrite: true}
-	model := testWorldMeshWithDrawOrder(texture, &options, 1)
-	groundA := testWorldMeshWithDrawOrder(texture, &options, 0)
-	groundB := testWorldMeshWithDrawOrder(texture, &options, 0)
-
-	screen.BeginFrame()
-	screen.DrawWorldMesh(model)
-	screen.DrawWorldMesh(groundA)
-	screen.DrawWorldMesh(groundB)
-
-	batches := (&gpuRenderer{}).depthWriteWorldMeshBatches(screen)
-	if got := len(batches); got != 2 {
-		t.Fatalf("world mesh batches = %d, want 2", got)
-	}
-	if batches[0].drawOrder != 0 || batches[1].drawOrder != 1 {
-		t.Fatalf("batch draw orders = %d,%d, want 0,1", batches[0].drawOrder, batches[1].drawOrder)
-	}
-	if got := len(batches[0].meshes); got != 2 {
-		t.Fatalf("ground batch meshes = %d, want 2", got)
-	}
-	if batches[0].meshes[0] != groundA || batches[0].meshes[1] != groundB {
-		t.Fatal("ground meshes were not grouped in the ground draw-order batch")
-	}
-	if got := len(batches[1].meshes); got != 1 {
-		t.Fatalf("model batch meshes = %d, want 1", got)
-	}
-	if batches[1].meshes[0] != model {
-		t.Fatal("model mesh was not kept in the model draw-order batch")
-	}
-}
-
 func TestDepthWriteWorldMeshBatchesSkipNonDepthMesh(t *testing.T) {
 	screen := NewFrame(320, 240)
 	texture := WhiteImage()
@@ -395,15 +361,11 @@ func TestWorldVertexPackingCarriesFogToggle(t *testing.T) {
 }
 
 func testWorldMesh(texture *Image, options *DrawTrianglesOptions) *WorldMesh {
-	return testWorldMeshWithDrawOrder(texture, options, 0)
-}
-
-func testWorldMeshWithDrawOrder(texture *Image, options *DrawTrianglesOptions, drawOrder int) *WorldMesh {
-	return NewWorldMeshWithLightmapDrawOrder([]Vertex3D{
+	return NewWorldMesh([]Vertex3D{
 		{X: 0, Y: 0, Z: 0, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
 		{X: 1, Y: 0, Z: 0, SrcX: 1, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
 		{X: 1, Y: 1, Z: 0, SrcX: 1, SrcY: 1, ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1},
-	}, []uint16{0, 1, 2}, texture, nil, options, drawOrder)
+	}, []uint16{0, 1, 2}, texture, options)
 }
 
 func f32At(data []byte, offset int) float32 {

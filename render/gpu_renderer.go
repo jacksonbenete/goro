@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"image/color"
 	"math"
-	"sort"
 	"time"
 
 	"github.com/gogpu/gogpu"
@@ -68,7 +67,7 @@ type gpuRenderer struct {
 	frameBindGroups        []*wgpu.BindGroup
 	neutralLightmap        *Image
 	worldMeshBatches       []worldMeshBatch
-	worldMeshBatchByKey    map[worldMeshBatchKey]int
+	worldMeshBatchByKey    map[drawBatchKey]int
 	statsEnabled           bool
 	statsLast              time.Time
 	worldDebug             bool
@@ -97,15 +96,8 @@ type gpuWorldMesh struct {
 }
 
 type worldMeshBatch struct {
-	key          drawBatchKey
-	drawOrder    int
-	firstCommand int
-	meshes       []*WorldMesh
-}
-
-type worldMeshBatchKey struct {
-	key       drawBatchKey
-	drawOrder int
+	key    drawBatchKey
+	meshes []*WorldMesh
 }
 
 type renderPassState struct {
@@ -914,35 +906,24 @@ func (r *gpuRenderer) depthWriteWorldMeshBatches(screen *Frame) []worldMeshBatch
 	}
 	r.worldMeshBatches = r.worldMeshBatches[:0]
 	if r.worldMeshBatchByKey == nil {
-		r.worldMeshBatchByKey = make(map[worldMeshBatchKey]int, len(screen.worldMeshes))
+		r.worldMeshBatchByKey = make(map[drawBatchKey]int, len(screen.worldMeshes))
 	} else {
 		clear(r.worldMeshBatchByKey)
 	}
-	for commandIndex, meshCommand := range screen.worldMeshes {
+	for _, meshCommand := range screen.worldMeshes {
 		mesh := meshCommand.Mesh
 		if mesh == nil || !mesh.options.DepthWrite || mesh.texture == nil || mesh.texture.pix == nil || len(mesh.vertices) == 0 || len(mesh.indices) == 0 {
 			continue
 		}
 		key := drawBatchKey{texture: mesh.texture, lightTexture: mesh.lightTexture, options: mesh.options}
-		batchKey := worldMeshBatchKey{key: key, drawOrder: mesh.drawOrder}
-		batchIndex, ok := r.worldMeshBatchByKey[batchKey]
+		batchIndex, ok := r.worldMeshBatchByKey[key]
 		if !ok {
-			r.worldMeshBatches = append(r.worldMeshBatches, worldMeshBatch{
-				key:          key,
-				drawOrder:    mesh.drawOrder,
-				firstCommand: commandIndex,
-			})
+			r.worldMeshBatches = append(r.worldMeshBatches, worldMeshBatch{key: key})
 			batchIndex = len(r.worldMeshBatches) - 1
-			r.worldMeshBatchByKey[batchKey] = batchIndex
+			r.worldMeshBatchByKey[key] = batchIndex
 		}
 		r.worldMeshBatches[batchIndex].meshes = append(r.worldMeshBatches[batchIndex].meshes, mesh)
 	}
-	sort.SliceStable(r.worldMeshBatches, func(i, j int) bool {
-		if r.worldMeshBatches[i].drawOrder != r.worldMeshBatches[j].drawOrder {
-			return r.worldMeshBatches[i].drawOrder < r.worldMeshBatches[j].drawOrder
-		}
-		return r.worldMeshBatches[i].firstCommand < r.worldMeshBatches[j].firstCommand
-	})
 	return r.worldMeshBatches
 }
 

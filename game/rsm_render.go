@@ -207,7 +207,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 		key := retainedMeshKey{texture: texture, options: *options}
 		builder := builders[key]
 		if builder == nil {
-			builder = &retainedMeshBuilder{texture: texture, options: *options, drawOrder: retainedWorldMeshDrawOrderRSM}
+			builder = &retainedMeshBuilder{texture: texture, options: *options}
 			builders[key] = builder
 			builderOrder = append(builderOrder, builder)
 		}
@@ -220,7 +220,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 			if texture != nil {
 				bounds := texture.Bounds()
 				w, h := float32(bounds.Dx()), float32(bounds.Dy())
-				builder := builderFor(texture, rsmModelDrawOptions(render.FilterLinear, render.AddressClampToEdge))
+				builder := builderFor(texture, rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, worldTri, visible.index))
 				if builder != nil {
 					builder.addTriangle(
 						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
@@ -234,7 +234,7 @@ func (m *WorldMode) rsmMeshesForPlacement(manager *res.Manager, rsm *res.RSM, rs
 				m.whitePixel = render.NewImage(1, 1)
 				m.whitePixel.Fill(color.White)
 			}
-			builder := builderFor(m.whitePixel, rsmModelDrawOptions(render.FilterNearest, render.AddressUnsafe))
+			builder := builderFor(m.whitePixel, rsmDrawOptionsForTriangle(render.FilterNearest, render.AddressUnsafe, worldTri, visible.index))
 			if builder != nil {
 				builder.addTriangle(
 					coloredSurfaceVertex3D(worldTri.verts[0], 0, 0, worldTri.color),
@@ -346,7 +346,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Frame, manager *res.
 			if texture != nil {
 				bounds := texture.Bounds()
 				w, h := float32(bounds.Dx()), float32(bounds.Dy())
-				batch := batchFor(texture, rsmModelDrawOptions(render.FilterLinear, render.AddressClampToEdge))
+				batch := batchFor(texture, rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, worldTri, visible.index))
 				if batch != nil {
 					batch.addTriangle(
 						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
@@ -360,7 +360,7 @@ func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Frame, manager *res.
 				m.whitePixel = render.NewImage(1, 1)
 				m.whitePixel.Fill(color.White)
 			}
-			batch := batchFor(m.whitePixel, rsmModelDrawOptions(render.FilterNearest, render.AddressUnsafe))
+			batch := batchFor(m.whitePixel, rsmDrawOptionsForTriangle(render.FilterNearest, render.AddressUnsafe, worldTri, visible.index))
 			if batch != nil {
 				batch.addTriangle(
 					coloredSurfaceVertex3D(worldTri.verts[0], 0, 0, worldTri.color),
@@ -389,6 +389,18 @@ func (m *WorldMode) animatedRSMNodeMatrices(rsm *res.RSM, frame int) map[string]
 	matrices := buildRSMNodeMatrices(rsm, frame)
 	m.rsmAnimNodes[key] = matrices
 	return matrices
+}
+
+func rsmDrawOptionsForTriangle(filter render.Filter, address render.Address, tri modelWorldTriangle, placementIndex int) *render.DrawTrianglesOptions {
+	if rsmTriangleIsHorizontal(tri) {
+		return rsmHorizontalSurfaceDrawOptions(filter, address, placementIndex)
+	}
+	return rsmModelDrawOptions(filter, address)
+}
+
+func rsmTriangleIsHorizontal(tri modelWorldTriangle) bool {
+	normal := normalize3(cross3(sub3(tri.verts[1], tri.verts[0]), sub3(tri.verts[2], tri.verts[0])))
+	return math.Abs(normal.y) >= 0.98
 }
 
 func selectedRSMRootName(rsm *res.RSM, rootName string) string {
