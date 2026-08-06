@@ -11,7 +11,7 @@ import (
 	worldstate "github.com/kivutar/goro/world"
 )
 
-const tileCursorDepthBias = 1.0 / 32768.0
+const tileCursorDepthBias = groundDecalDepthBias
 
 func (m *WorldMode) drawTileCursor(screen *render.Frame, ctx client.Context, projection sceneProjection) {
 	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {

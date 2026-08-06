@@ -46,7 +46,7 @@ const (
 	// triangles clip the bottom pixels of tight NPC/mob sprite frames.
 	actorSpriteTerrainLift = 0.2
 	actorShadowTerrainLift = 0.05
-	actorShadowDepthBias   = 0.001
+	actorShadowDepthBias   = groundDecalDepthBias
 )
 
 const (

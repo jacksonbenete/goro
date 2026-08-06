@@ -2,6 +2,8 @@ package game
 
 import "github.com/kivutar/goro/render"
 
+const groundDecalDepthBias = 1.0 / 32768.0
+
 func triangleDrawOptions(filter render.Filter, address render.Address) *render.DrawTrianglesOptions {
 	return &render.DrawTrianglesOptions{
 		Filter:    filter,
