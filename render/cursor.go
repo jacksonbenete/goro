@@ -98,6 +98,9 @@ type roCursorPlatformProvider struct {
 
 func (p roCursorPlatformProvider) SetCursor(cursor gpucontext.CursorShape) {
 	if cursorModeHidden() {
+		// UI cursor sync runs every frame. Forward CursorNone instead of
+		// suppressing the call so Wayland can hide once its pointer is ready.
+		p.PlatformProvider.SetCursor(gpucontext.CursorNone)
 		return
 	}
 	p.PlatformProvider.SetCursor(cursor)

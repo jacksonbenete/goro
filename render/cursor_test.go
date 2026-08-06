@@ -67,6 +67,7 @@ func TestSetCursorModeSkipsUnchangedMode(t *testing.T) {
 	}
 
 	SetCursorMode(CursorModeNormal)
+	SetCursorMode(CursorModeNormal)
 	reapplyCursorMode()
 
 	if got, want := len(app.cursors), 2; got != want {
@@ -77,7 +78,25 @@ func TestSetCursorModeSkipsUnchangedMode(t *testing.T) {
 	}
 }
 
-func TestROCursorPlatformProviderSuppressesUICursorWhenHidden(t *testing.T) {
+func TestReapplyCursorModeKeepsNormalCursorCached(t *testing.T) {
+	resetCursorStateForTest(t)
+	app := &recordingCursorApp{}
+	cursorState.Lock()
+	cursorState.app = app
+	cursorState.Unlock()
+
+	SetCursorMode(CursorModeNormal)
+	reapplyCursorMode()
+
+	if got, want := len(app.cursors), 1; got != want {
+		t.Fatalf("cursor applies = %d, want %d", got, want)
+	}
+	if got, want := app.cursors[0], gpucontext.CursorDefault; got != want {
+		t.Fatalf("cursor = %v, want %v", got, want)
+	}
+}
+
+func TestROCursorPlatformProviderKeepsUICursorHidden(t *testing.T) {
 	resetCursorStateForTest(t)
 	base := &recordingPlatformProvider{}
 	provider := roCursorPlatformProvider{PlatformProvider: base}
@@ -87,17 +106,24 @@ func TestROCursorPlatformProviderSuppressesUICursorWhenHidden(t *testing.T) {
 
 	SetCursorMode(CursorModeHidden)
 	provider.SetCursor(gpucontext.CursorDefault)
+	provider.SetCursor(gpucontext.CursorPointer)
 
 	SetCursorMode(CursorModeNormal)
 	provider.SetCursor(gpucontext.CursorText)
 
-	if got, want := len(base.cursors), 2; got != want {
+	if got, want := len(base.cursors), 4; got != want {
 		t.Fatalf("delegated UI cursor applies = %d, want %d", got, want)
 	}
 	if got, want := base.cursors[0], gpucontext.CursorPointer; got != want {
 		t.Fatalf("first delegated cursor = %v, want %v", got, want)
 	}
-	if got, want := base.cursors[1], gpucontext.CursorText; got != want {
+	if got, want := base.cursors[1], gpucontext.CursorNone; got != want {
+		t.Fatalf("hidden delegated cursor = %v, want %v", got, want)
+	}
+	if got, want := base.cursors[2], gpucontext.CursorNone; got != want {
+		t.Fatalf("second hidden delegated cursor = %v, want %v", got, want)
+	}
+	if got, want := base.cursors[3], gpucontext.CursorText; got != want {
 		t.Fatalf("second delegated cursor = %v, want %v", got, want)
 	}
 }
