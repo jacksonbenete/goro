@@ -1507,11 +1507,22 @@ func TestCursorMagnetOffsetFollowsTargetSnapSetting(t *testing.T) {
 	ctx.Session.SnapTargets = true
 	scale := actorBillboardScreenScale(projection, cellCenter(11), cellCenter(20), 0)
 	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	inputState.SetMousePosition(int(math.Round(targetX))+7, int(math.Round(targetY))+3)
 	wantDX := float64(inputState.MouseX) - targetX
 	wantDY := float64(inputState.MouseY) - targetY
 	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionAttack, now)
 	if math.Abs(dx-wantDX) > 0.1 || math.Abs(dy-wantDY) > 0.1 {
 		t.Fatalf("target snap offset = %.1f,%.1f, want %.1f,%.1f", dx, dy, wantDX, wantDY)
+	}
+	if got := mode.cursorDesiredAction(ctx, projection, now); got != cursorActionAttack {
+		t.Fatalf("target snap cursor action = %d, want attack inside snap distance", got)
+	}
+	inputState.SetMousePosition(int(math.Round(targetX)), int(math.Round(targetY+actorCursorSnapRadius(scale)*1.05)))
+	if dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionAttack, now); dx != 0 || dy != 0 {
+		t.Fatalf("outer target snap offset = %.1f,%.1f, want zero inside pick bounds but outside snap distance", dx, dy)
+	}
+	if got := mode.cursorDesiredAction(ctx, projection, now); got != cursorActionDefault {
+		t.Fatalf("outer target snap cursor action = %d, want default inside pick bounds but outside snap distance", got)
 	}
 }
 
@@ -1546,6 +1557,7 @@ func TestCursorMagnetOffsetSnapsTargetSkillToSelf(t *testing.T) {
 
 	scale := actorBillboardScreenScale(projection, cellCenter(10), cellCenter(20), 0)
 	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	inputState.SetMousePosition(int(math.Round(targetX))+7, int(math.Round(targetY))+3)
 	wantDX := float64(inputState.MouseX) - targetX
 	wantDY := float64(inputState.MouseY) - targetY
 	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionTarget2, now)
@@ -1586,11 +1598,19 @@ func TestCursorMagnetOffsetSnapsTargetSkillToHomunculus(t *testing.T) {
 
 	scale := actorBillboardScreenScale(projection, cellCenter(11), cellCenter(20), 0)
 	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	inputState.SetMousePosition(int(math.Round(targetX))+7, int(math.Round(targetY))+3)
 	wantDX := float64(inputState.MouseX) - targetX
 	wantDY := float64(inputState.MouseY) - targetY
 	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionTarget2, now)
 	if math.Abs(dx-wantDX) > 0.1 || math.Abs(dy-wantDY) > 0.1 {
 		t.Fatalf("homunculus target skill snap offset = %.1f,%.1f, want %.1f,%.1f", dx, dy, wantDX, wantDY)
+	}
+	if got := mode.cursorDesiredAction(ctx, projection, now); got != cursorActionTarget2 {
+		t.Fatalf("homunculus target skill cursor action = %d, want target2 inside snap distance", got)
+	}
+	inputState.SetMousePosition(int(math.Round(targetX)), int(math.Round(targetY+actorCursorSnapRadius(scale)*1.05)))
+	if got := mode.cursorDesiredAction(ctx, projection, now); got != cursorActionTarget {
+		t.Fatalf("outer homunculus target skill cursor action = %d, want target inside pick bounds but outside snap distance", got)
 	}
 }
 
@@ -1618,11 +1638,22 @@ func TestCursorMagnetOffsetFollowsItemSnapSetting(t *testing.T) {
 	ctx.Session.SnapItems = true
 	scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), 0) * 0.42
 	targetX, targetY := groundItemPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	inputState.SetMousePosition(int(math.Round(targetX)), int(math.Round(targetY)))
 	wantDX := float64(inputState.MouseX) - targetX
 	wantDY := float64(inputState.MouseY) - targetY
 	dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionPick, now)
 	if math.Abs(dx-wantDX) > 0.1 || math.Abs(dy-wantDY) > 0.1 {
 		t.Fatalf("item snap offset = %.1f,%.1f, want %.1f,%.1f", dx, dy, wantDX, wantDY)
+	}
+	if got := mode.cursorDesiredAction(ctx, projection, now); got != cursorActionPick {
+		t.Fatalf("item snap cursor action = %d, want pick inside snap distance", got)
+	}
+	inputState.SetMousePosition(int(math.Round(targetX+groundItemCursorSnapRadius(scale)*1.1)), int(math.Round(targetY)))
+	if dx, dy := mode.cursorMagnetOffset(ctx, projection, cursorActionPick, now); dx != 0 || dy != 0 {
+		t.Fatalf("outer item snap offset = %.1f,%.1f, want zero inside pick bounds but outside snap distance", dx, dy)
+	}
+	if got := mode.cursorDesiredAction(ctx, projection, now); got != cursorActionDefault {
+		t.Fatalf("outer item snap cursor action = %d, want default inside pick bounds but outside snap distance", got)
 	}
 }
 

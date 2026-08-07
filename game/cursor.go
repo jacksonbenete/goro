@@ -29,6 +29,8 @@ const (
 	cursorActionNoWalk  = 13
 )
 
+const cursorSnapTriggerScale = 0.5
+
 type cursorActionInfo struct {
 	drawX     float64
 	drawY     float64
@@ -160,13 +162,15 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		return cursorActionRotate
 	}
 	if m.pendingSkill.skill.ID != 0 {
-		if _, ok := clickedSkillTarget(ctx, projection, m.pendingSkill.skill, mouseX, mouseY, now, m.actorDeaths); ok {
+		actor, ok := clickedSkillTarget(ctx, projection, m.pendingSkill.skill, mouseX, mouseY, now, m.actorDeaths)
+		if ok && (!cursorSnapTargets(ctx) || m.cursorActorSnapEligible(ctx, projection, actor, now)) {
 			return cursorActionTarget2
 		}
 		return cursorActionTarget
 	}
 	if m.pendingPetCapture.active {
-		if _, ok := clickedSkillTarget(ctx, projection, petCaptureTargetSkill(), mouseX, mouseY, now, m.actorDeaths); ok {
+		actor, ok := clickedSkillTarget(ctx, projection, petCaptureTargetSkill(), mouseX, mouseY, now, m.actorDeaths)
+		if ok && (!cursorSnapTargets(ctx) || m.cursorActorSnapEligible(ctx, projection, actor, now)) {
 			return cursorActionTarget2
 		}
 		return cursorActionTarget
@@ -177,7 +181,7 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 	if _, ok := m.hoveredChatRoomBoard(ctx, projection, mouseX, mouseY, now); ok {
 		return cursorActionClick
 	}
-	if _, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok {
+	if item, ok := clickedGroundItem(ctx, projection, mouseX, mouseY, now); ok && (!cursorSnapItems(ctx) || cursorGroundItemSnapEligible(ctx, projection, item, now)) {
 		return cursorActionPick
 	}
 	if actor, ok := hoveredCursorActor(ctx, projection, mouseX, mouseY, now, m.actorDeaths); ok {
@@ -185,7 +189,9 @@ func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProj
 		case isWarpActor(actor):
 			return cursorActionWarp
 		case actorCanBeAttackClicked(ctx, actor):
-			return cursorActionAttack
+			if !cursorSnapTargets(ctx) || m.cursorActorSnapEligible(ctx, projection, actor, now) {
+				return cursorActionAttack
+			}
 		case cursorActorCanTalk(actor):
 			return cursorActionTalk
 		}
@@ -214,11 +220,10 @@ func (m *WorldMode) cursorMagnetOffset(ctx client.Context, projection sceneProje
 		if !ok {
 			return 0, 0
 		}
-		x, y := floorItemWorldPosition(item)
-		z := floorItemRenderHeight(ctx.World, item, now)
-		point := projection.Project(cellCenter(x), cellCenter(y), z)
-		scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), z) * 0.42
-		targetX, targetY := groundItemPickBoundsCenter(float64(point.x), float64(point.y), scale)
+		targetX, targetY, scale, ok := cursorGroundItemMagnetTarget(ctx, projection, item, now)
+		if !ok || !pointInCursorSnapDistance(float64(ctx.Input.MouseX), float64(ctx.Input.MouseY), targetX, targetY, groundItemCursorSnapRadius(scale)) {
+			return 0, 0
+		}
 		return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
 	case cursorActionAttack:
 		if !cursorSnapTargets(ctx) {
@@ -258,18 +263,74 @@ func (m *WorldMode) pendingTargetCursorSkill() (session.Skill, bool) {
 }
 
 func (m *WorldMode) cursorActorMagnetOffset(ctx client.Context, projection sceneProjection, actor world.Actor, now time.Time) (float64, float64) {
-	if ctx.Input == nil || ctx.World == nil {
+	targetX, targetY, scale, ok := m.cursorActorMagnetTarget(ctx, projection, actor, now)
+	if !ok || !pointInCursorSnapDistance(float64(ctx.Input.MouseX), float64(ctx.Input.MouseY), targetX, targetY, actorCursorSnapRadius(scale)) {
 		return 0, 0
+	}
+	return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
+}
+
+func (m *WorldMode) cursorActorSnapEligible(ctx client.Context, projection sceneProjection, actor world.Actor, now time.Time) bool {
+	if ctx.Input == nil {
+		return false
+	}
+	targetX, targetY, scale, ok := m.cursorActorMagnetTarget(ctx, projection, actor, now)
+	return ok && pointInCursorSnapDistance(float64(ctx.Input.MouseX), float64(ctx.Input.MouseY), targetX, targetY, actorCursorSnapRadius(scale))
+}
+
+func (m *WorldMode) cursorActorMagnetTarget(ctx client.Context, projection sceneProjection, actor world.Actor, now time.Time) (float64, float64, float64, bool) {
+	if ctx.Input == nil || ctx.World == nil {
+		return 0, 0, 0, false
 	}
 	actorX, actorY := actorRenderPosition(actor, now)
 	terrainZ := terrainHeightAt(ctx.World, actorX, actorY)
 	point := projection.Project(cellCenter(actorX), cellCenter(actorY), terrainZ)
 	scale := actorBillboardScreenScale(projection, cellCenter(actorX), cellCenter(actorY), terrainZ)
 	if targetX, targetY, ok := m.cursorActorSpriteCenter(ctx, projection, actor, point, scale, now); ok {
-		return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
+		return targetX, targetY, scale, true
 	}
 	targetX, targetY := actorPickBoundsCenter(float64(point.x), float64(point.y), scale)
-	return float64(ctx.Input.MouseX) - targetX, float64(ctx.Input.MouseY) - targetY
+	return targetX, targetY, scale, true
+}
+
+func cursorGroundItemSnapEligible(ctx client.Context, projection sceneProjection, item world.FloorItem, now time.Time) bool {
+	if ctx.Input == nil {
+		return false
+	}
+	targetX, targetY, scale, ok := cursorGroundItemMagnetTarget(ctx, projection, item, now)
+	return ok && pointInCursorSnapDistance(float64(ctx.Input.MouseX), float64(ctx.Input.MouseY), targetX, targetY, groundItemCursorSnapRadius(scale))
+}
+
+func cursorGroundItemMagnetTarget(ctx client.Context, projection sceneProjection, item world.FloorItem, now time.Time) (float64, float64, float64, bool) {
+	if ctx.World == nil {
+		return 0, 0, 0, false
+	}
+	x, y := floorItemWorldPosition(item)
+	z := floorItemRenderHeight(ctx.World, item, now)
+	point := projection.Project(cellCenter(x), cellCenter(y), z)
+	scale := actorBillboardScreenScale(projection, cellCenter(x), cellCenter(y), z) * 0.42
+	targetX, targetY := groundItemPickBoundsCenter(float64(point.x), float64(point.y), scale)
+	return targetX, targetY, scale, true
+}
+
+func pointInCursorSnapDistance(mouseX, mouseY, centerX, centerY, radius float64) bool {
+	dx := mouseX - centerX
+	dy := mouseY - centerY
+	return dx*dx+dy*dy <= radius*radius
+}
+
+func actorCursorSnapRadius(scale float64) float64 {
+	scale = normalizePickScale(scale)
+	halfWidth := 44 * scale * cursorSnapTriggerScale
+	halfHeight := (float64(humanoidBillboardAnchorY) + 20) / 2 * scale * cursorSnapTriggerScale
+	return math.Hypot(halfWidth, halfHeight)
+}
+
+func groundItemCursorSnapRadius(scale float64) float64 {
+	scale = normalizePickScale(scale)
+	halfWidth := 18 * scale * cursorSnapTriggerScale
+	halfHeight := 20 * scale * cursorSnapTriggerScale
+	return math.Hypot(halfWidth, halfHeight)
 }
 
 func (m *WorldMode) cursorActorSpriteCenter(ctx client.Context, projection sceneProjection, actor world.Actor, point screenPoint, scale float64, now time.Time) (float64, float64, bool) {
