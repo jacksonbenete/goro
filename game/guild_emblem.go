@@ -115,7 +115,11 @@ func (m *WorldMode) actorGuildEmblem(ctx client.Context, actor worldstate.Actor,
 			version = ctx.Session.EmblemVersion
 		}
 	}
-	if guildID == 0 || version == 0 || m.guildEmblems == nil {
+	if guildID == 0 || version == 0 {
+		return nil
+	}
+	if m.guildEmblems == nil {
+		m.requestActorGuildEmblem(ctx, guildID, version)
 		return nil
 	}
 	emblem := m.guildEmblems[guildID]

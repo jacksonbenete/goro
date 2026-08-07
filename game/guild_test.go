@@ -6,6 +6,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
+	worldstate "github.com/kivutar/goro/world"
 )
 
 func TestApplyLocalGuildDetailsInfersMasterFromSelectedCharacter(t *testing.T) {
@@ -39,5 +40,20 @@ func TestApplyLocalGuildDetailsClearsMasterWhenSelectedCharacterIsNotMaster(t *t
 
 	if s.Guild.IsMaster {
 		t.Fatal("non-master selected character should lose master access from guild info")
+	}
+}
+
+func TestActorGuildEmblemRequestsFromUninitializedCache(t *testing.T) {
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Network: network.NewClient(20080910, false),
+		Session: &session.Session{GuildID: 0x01020304, EmblemVersion: 7},
+	}
+
+	if emblem := mode.actorGuildEmblem(ctx, worldstate.Actor{}, true); emblem != nil {
+		t.Fatalf("emblem = %v, want nil until image packet arrives", emblem)
+	}
+	if mode.guildEmblems == nil {
+		t.Fatal("local guild emblem lookup should initialize request cache")
 	}
 }
