@@ -2054,14 +2054,11 @@ type skillUnitEffectSpec struct {
 }
 
 // Mostly mirrors reference client's DB/Skills/SkillUnit.js: unit id -> effect id.
-// rAthena's 2008 path sends UNT_WARP_ACTIVE (129) after destination selection;
-// display the full portal there because a separate UNT_WARPPORTAL entry is not
-// guaranteed before the unit's LOOK_BASE morph.
 var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	126: {effectIDs: []int{effectSafetyWall}},             // UNT_SAFETYWALL -> EF_GLASSWALL2
 	127: {effectIDs: []int{effectFireWall}},               // UNT_FIREWALL -> EF_FIREWALL
-	128: {effectIDs: []int{effectPortal}},                 // UNT_WARPPORTAL / rAthena UNT_WARP_WAITING -> EF_PORTAL2
-	129: {effectIDs: []int{effectPortal}},                 // rAthena UNT_WARP_ACTIVE -> EF_PORTAL2
+	128: {effectIDs: []int{effectPortal}},                 // UNT_WARPPORTAL -> EF_PORTAL2
+	129: {effectIDs: []int{effectReadyPortal}},            // UNT_PRE_WARPPORTAL -> EF_READYPORTAL2
 	131: {effectIDs: []int{effectBottomSanc}},             // UNT_SANCTUARY -> EF_BOTTOM_SANC
 	132: {effectIDs: []int{effectBottomMagnus}},           // UNT_MAGNUS -> EF_BOTTOM_MAG
 	133: {effectIDs: []int{effectPneuma}},                 // UNT_PNEUMA -> EF_PNEUMA

@@ -9458,7 +9458,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_SAFETYWALL", skillUnitEffectIDs(126), effectSafetyWall)
 	expectEffectIDs(t, "UNT_FIREWALL", skillUnitEffectIDs(127), effectFireWall)
 	expectEffectIDs(t, "UNT_WARPPORTAL", skillUnitEffectIDs(128), effectPortal)
-	expectEffectIDs(t, "rAthena UNT_WARP_ACTIVE", skillUnitEffectIDs(129), effectPortal)
+	expectEffectIDs(t, "UNT_PRE_WARPPORTAL", skillUnitEffectIDs(129), effectReadyPortal)
 	expectEffectIDs(t, "UNT_SANCTUARY", skillUnitEffectIDs(131), effectBottomSanc)
 	expectEffectIDs(t, "UNT_MAGNUS", skillUnitEffectIDs(132), effectBottomMagnus)
 	expectEffectIDs(t, "UNT_PNEUMA", skillUnitEffectIDs(133), effectPneuma)
@@ -14180,7 +14180,7 @@ func TestWarpPortalSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	}
 }
 
-func TestRathenaActiveWarpPortalSkillUnitEntryPersistsUntilDisappear(t *testing.T) {
+func TestPreWarpPortalSkillUnitEntryUsesReadyPortalEffectUntilDisappear(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
 	mode := &WorldMode{}
@@ -14191,7 +14191,7 @@ func TestRathenaActiveWarpPortalSkillUnitEntryPersistsUntilDisappear(t *testing.
 		t.Fatalf("world effects = %d, want 1", len(mode.worldEffects))
 	}
 	effect := mode.worldEffects[0]
-	if effect.actorID != 9005 || effect.effectID != effectPortal || effect.x != 30 || effect.y != 40 {
+	if effect.actorID != 9005 || effect.effectID != effectReadyPortal || effect.x != 30 || effect.y != 40 {
 		t.Fatalf("effect = %+v", effect)
 	}
 	if effect.expires.Sub(effect.starts) < skillUnitEffectFallbackDuration {
@@ -14214,8 +14214,8 @@ func TestWarpPortalSkillUnitLookChangeKeepsPortalAtSameCell(t *testing.T) {
 	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
 
 	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9006, CreatorID: 2000000, UnitID: 129, X: 30, Y: 40, Visible: true})
-	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectPortal {
-		t.Fatalf("world effects before look change = %+v, want portal", mode.worldEffects)
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectReadyPortal {
+		t.Fatalf("world effects before look change = %+v, want ready portal", mode.worldEffects)
 	}
 
 	if !mode.applySkillUnitLookChange(ctx, network.ActorLookChange{ID: 9006, Type: 0, Value: 128}) {
