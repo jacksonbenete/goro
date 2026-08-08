@@ -183,6 +183,41 @@ func TestWorldBillboardCommandsKeepSeparateInstanceData(t *testing.T) {
 	}
 }
 
+func TestWorldBillboardBatchesKeepContiguousOrder(t *testing.T) {
+	texture := WhiteImage()
+	otherTexture := NewImage(1, 1)
+	otherTexture.Fill(color.White)
+	commands := []WorldBillboardCommand{
+		{Texture: texture, Center: [3]float32{1, 2, 3}, Width: 16, Height: 16, ColorA: 1},
+		{Texture: texture, Center: [3]float32{4, 5, 6}, Width: 16, Height: 16, ColorA: 1},
+		{Texture: otherTexture, Center: [3]float32{7, 8, 9}, Width: 16, Height: 16, ColorA: 1},
+		{Texture: texture, Center: [3]float32{10, 11, 12}, Width: 16, Height: 16, ColorA: 1},
+	}
+
+	instances, batches := (&gpuRenderer{}).buildWorldBillboardBatches(commands)
+
+	if got := len(instances); got != len(commands)*billboardInstanceFloatCount {
+		t.Fatalf("billboard instance floats = %d, want %d", got, len(commands)*billboardInstanceFloatCount)
+	}
+	if got := len(batches); got != 3 {
+		t.Fatalf("billboard batches = %d, want 3", got)
+	}
+	wantFirst := []uint32{0, 2, 3}
+	wantCount := []uint32{2, 1, 1}
+	for i := range batches {
+		if batches[i].firstInstance != wantFirst[i] || batches[i].instanceCount != wantCount[i] {
+			t.Fatalf("batch %d = first %d count %d, want first %d count %d", i, batches[i].firstInstance, batches[i].instanceCount, wantFirst[i], wantCount[i])
+		}
+	}
+	for i, cmd := range commands {
+		base := i * billboardInstanceFloatCount
+		got := [3]float32{instances[base], instances[base+1], instances[base+2]}
+		if got != cmd.Center {
+			t.Fatalf("instance %d center = %v, want %v", i, got, cmd.Center)
+		}
+	}
+}
+
 func TestWorldBillboardInstanceDataCarriesFogToggle(t *testing.T) {
 	texture := WhiteImage()
 	fogged := billboardInstanceData(WorldBillboardCommand{Texture: texture})

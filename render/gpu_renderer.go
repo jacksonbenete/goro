@@ -62,12 +62,13 @@ type gpuRenderer struct {
 	worldIndexBuf          dynamicGPUBuffer
 	screenVertexBuf        dynamicGPUBuffer
 	screenIndexBuf         dynamicGPUBuffer
+	billboardInstanceBuf   dynamicGPUBuffer
 	billboardQuadBuf       *wgpu.Buffer
-	frameBuffers           []*wgpu.Buffer
-	frameBindGroups        []*wgpu.BindGroup
 	neutralLightmap        *Image
 	worldMeshBatches       []worldMeshBatch
 	worldMeshBatchByKey    map[drawBatchKey]int
+	worldBillboardBatches  []worldBillboardBatch
+	worldBillboardFloats   []float32
 	statsEnabled           bool
 	statsLast              time.Time
 	worldDebug             bool
@@ -98,6 +99,12 @@ type gpuWorldMesh struct {
 type worldMeshBatch struct {
 	key    drawBatchKey
 	meshes []*WorldMesh
+}
+
+type worldBillboardBatch struct {
+	key           drawBatchKey
+	firstInstance uint32
+	instanceCount uint32
 }
 
 type renderPassState struct {
@@ -494,7 +501,6 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 	if err := r.ensureDepth(width, height); err != nil {
 		return err
 	}
-	r.releaseFrameResources()
 	world := r.buildWorldFrame(screen)
 	frame := r.buildFrame(screen)
 	if r.statsEnabled && time.Since(r.statsLast) >= time.Second {
@@ -602,11 +608,9 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 				return err
 			}
 		}
-		for _, billboard := range screen.worldBillboards {
-			if err := r.drawWorldBillboard(ctx, pass, billboard); err != nil {
-				_ = pass.End()
-				return err
-			}
+		if err := r.drawWorldBillboards(ctx, pass, screen.worldBillboards); err != nil {
+			_ = pass.End()
+			return err
 		}
 	}
 	if vertexBuf != nil && indexBuf != nil {
@@ -964,33 +968,64 @@ func (r *gpuRenderer) drawWorldMeshBatch(ctx *gogpu.Context, pass *wgpu.RenderPa
 	return nil
 }
 
-func (r *gpuRenderer) drawWorldBillboard(ctx *gogpu.Context, pass *wgpu.RenderPassEncoder, cmd WorldBillboardCommand) error {
-	if cmd.Texture == nil || cmd.Texture.pix == nil || r.billboardQuadBuf == nil {
+func (r *gpuRenderer) drawWorldBillboards(ctx *gogpu.Context, pass *wgpu.RenderPassEncoder, commands []WorldBillboardCommand) error {
+	if len(commands) == 0 || r.billboardQuadBuf == nil {
 		return nil
 	}
-	instance := billboardInstanceData(cmd)
-	instanceBuf, err := r.frameBuffer("goro-world-billboard-instances", len(instance)*4, wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst, floatBytes(instance))
+	instances, batches := r.buildWorldBillboardBatches(commands)
+	if len(instances) == 0 || len(batches) == 0 {
+		return nil
+	}
+	instanceBuf, err := r.dynamicBuffer(
+		&r.billboardInstanceBuf,
+		"goro-world-billboard-instances",
+		len(instances)*4,
+		wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst,
+		floatBytes(instances),
+	)
 	if err != nil {
 		return err
 	}
-	tex, err := r.ensureTexture(ctx, cmd.Texture, cmd.Options)
-	if err != nil {
-		return err
-	}
-	sampler, err := r.sampler(cmd.Options)
-	if err != nil {
-		return err
-	}
-	bg, err := r.bindWorldGroup(r.worldUniform, 96, tex.tex, tex.tex, sampler)
-	if err != nil {
-		return err
-	}
-	pass.SetPipeline(r.worldBillboardPipelineFor(cmd.Options.Blend, cmd.Options.DepthTest))
-	pass.SetBindGroup(0, bg, nil)
 	pass.SetVertexBuffer(0, r.billboardQuadBuf, 0)
-	pass.SetVertexBuffer(1, instanceBuf, 0)
-	pass.Draw(6, 1, 0, 0)
+	for _, batch := range batches {
+		tex, err := r.ensureTexture(ctx, batch.key.texture, batch.key.options)
+		if err != nil {
+			return err
+		}
+		sampler, err := r.sampler(batch.key.options)
+		if err != nil {
+			return err
+		}
+		bg, err := r.bindWorldGroup(r.worldUniform, 96, tex.tex, tex.tex, sampler)
+		if err != nil {
+			return err
+		}
+		pass.SetPipeline(r.worldBillboardPipelineFor(batch.key.options.Blend, batch.key.options.DepthTest))
+		pass.SetBindGroup(0, bg, nil)
+		pass.SetVertexBuffer(1, instanceBuf, uint64(batch.firstInstance)*billboardInstanceStride)
+		pass.Draw(6, batch.instanceCount, 0, 0)
+	}
 	return nil
+}
+
+func (r *gpuRenderer) buildWorldBillboardBatches(commands []WorldBillboardCommand) ([]float32, []worldBillboardBatch) {
+	r.worldBillboardFloats = r.worldBillboardFloats[:0]
+	r.worldBillboardBatches = r.worldBillboardBatches[:0]
+	for _, cmd := range commands {
+		if cmd.Texture == nil || cmd.Texture.pix == nil || cmd.Width <= 0 || cmd.Height <= 0 {
+			continue
+		}
+		key := drawBatchKey{texture: cmd.Texture, options: cmd.Options}
+		if len(r.worldBillboardBatches) == 0 || r.worldBillboardBatches[len(r.worldBillboardBatches)-1].key != key {
+			r.worldBillboardBatches = append(r.worldBillboardBatches, worldBillboardBatch{
+				key:           key,
+				firstInstance: uint32(len(r.worldBillboardFloats) / billboardInstanceFloatCount),
+			})
+		}
+		r.worldBillboardFloats = appendBillboardInstanceData(r.worldBillboardFloats, cmd)
+		r.worldBillboardBatches[len(r.worldBillboardBatches)-1].instanceCount++
+	}
+	return r.worldBillboardFloats, r.worldBillboardBatches
 }
 
 func (r *gpuRenderer) worldBillboardPipelineFor(blend Blend, depthTest bool) *wgpu.RenderPipeline {
@@ -1037,11 +1072,15 @@ func (r *gpuRenderer) createBillboardQuadBuffer() (*wgpu.Buffer, error) {
 }
 
 func billboardInstanceData(cmd WorldBillboardCommand) []float32 {
+	return appendBillboardInstanceData(nil, cmd)
+}
+
+func appendBillboardInstanceData(dst []float32, cmd WorldBillboardCommand) []float32 {
 	fogEnabled := float32(1)
 	if cmd.Options.DisableFog {
 		fogEnabled = 0
 	}
-	return []float32{
+	return append(dst,
 		cmd.Center[0], cmd.Center[1], cmd.Center[2],
 		cmd.RightAxis[0], cmd.RightAxis[1], cmd.RightAxis[2],
 		cmd.UpAxis[0], cmd.UpAxis[1], cmd.UpAxis[2],
@@ -1049,7 +1088,7 @@ func billboardInstanceData(cmd WorldBillboardCommand) []float32 {
 		cmd.Width, cmd.Height, cmd.AnchorX, cmd.AnchorY,
 		saneColor(cmd.ColorR), saneColor(cmd.ColorG), saneColor(cmd.ColorB), saneColor(cmd.ColorA),
 		saneDepthBias(cmd.DepthBias), fogEnabled, 0, 0,
-	}
+	)
 }
 
 func (r *gpuRenderer) ensureWorldMesh(mesh *WorldMesh) (*gpuWorldMesh, error) {
@@ -1135,27 +1174,6 @@ func (r *gpuRenderer) dynamicBuffer(slot *dynamicGPUBuffer, label string, size i
 	return slot.buf, nil
 }
 
-func (r *gpuRenderer) frameBuffer(label string, size int, usage wgpu.BufferUsage, data []byte) (*wgpu.Buffer, error) {
-	if size <= 0 {
-		size = 4
-	}
-	buf, err := r.dev.CreateBuffer(&wgpu.BufferDescriptor{
-		Label: label,
-		Size:  uint64(size),
-		Usage: usage,
-	})
-	if err != nil {
-		return nil, err
-	}
-	r.frameBuffers = append(r.frameBuffers, buf)
-	if len(data) > 0 {
-		if err := r.queue.WriteBuffer(buf, 0, data); err != nil {
-			return nil, err
-		}
-	}
-	return buf, nil
-}
-
 func nextBufferCapacity(size int) int {
 	capacity := 4096
 	for capacity < size {
@@ -1233,23 +1251,7 @@ func (r *gpuRenderer) ensureDepth(width, height int) error {
 	return nil
 }
 
-func (r *gpuRenderer) releaseFrameResources() {
-	for _, buf := range r.frameBuffers {
-		if buf != nil {
-			buf.Release()
-		}
-	}
-	r.frameBuffers = r.frameBuffers[:0]
-	for _, bg := range r.frameBindGroups {
-		if bg != nil {
-			bg.Release()
-		}
-	}
-	r.frameBindGroups = r.frameBindGroups[:0]
-}
-
 func (r *gpuRenderer) release() {
-	r.releaseFrameResources()
 	for _, bg := range r.bindGroups {
 		if bg != nil {
 			bg.Release()
