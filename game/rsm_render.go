@@ -296,6 +296,19 @@ type animatedRSMDrawBatch struct {
 	indices []uint16
 }
 
+type animatedRSMScratch struct {
+	batches    []animatedRSMDrawBatch
+	worldVerts []modelPoint3
+}
+
+func (s *animatedRSMScratch) reset() {
+	for i := range s.batches {
+		s.batches[i].clear()
+	}
+	s.batches = s.batches[:0]
+	s.worldVerts = s.worldVerts[:0]
+}
+
 func (b *animatedRSMDrawBatch) addTriangle(a, c, d render.Vertex3D) {
 	if b.texture == nil {
 		return
@@ -319,60 +332,111 @@ func (b *animatedRSMDrawBatch) flush() {
 	b.indices = nil
 }
 
+func (b *animatedRSMDrawBatch) clear() {
+	b.screen = nil
+	b.texture = nil
+	b.options = render.DrawTrianglesOptions{}
+	b.verts = nil
+	b.indices = nil
+}
+
 func (m *WorldMode) drawAnimatedRSMPlacement(screen *render.Frame, manager *res.Manager, rsw *res.RSW, rsm *res.RSM, visible visibleRSMPlacement, frame int) {
 	context, ok := m.rsmPlacementContext(rsm, rsw, visible)
 	if !ok {
 		return
 	}
 	nodeMatrices := m.animatedRSMNodeMatrices(rsm, frame)
-	batchOrder := make([]*animatedRSMDrawBatch, 0, 4)
-	batchFor := func(texture *render.Image, options *render.DrawTrianglesOptions) *animatedRSMDrawBatch {
-		if texture == nil || options == nil {
-			return nil
-		}
-		for _, batch := range batchOrder {
-			if batch.texture == texture && batch.options == *options {
-				return batch
-			}
-		}
-		batch := &animatedRSMDrawBatch{screen: screen, texture: texture, options: *options}
-		batchOrder = append(batchOrder, batch)
-		return batch
-	}
+	batchOrder := m.rsmAnimScratch.batches[:0]
 	for _, nodeIndex := range context.nodeIndices {
 		node := &rsm.Nodes[nodeIndex]
-		for _, worldTri := range buildRSMNodeWorldTriangles(rsm, node, nodeMatrices[node.Name], context.instance, context.lighting, m.rsmFaceMetas(rsm, node)) {
-			texture := m.groundTexture(manager, worldTri.textureName)
-			if texture != nil {
-				bounds := texture.Bounds()
-				w, h := float32(bounds.Dx()), float32(bounds.Dy())
-				batch := batchFor(texture, rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, worldTri, visible.index))
-				if batch != nil {
-					batch.addTriangle(
-						texturedSurfaceVertex3D(worldTri.verts[0], worldTri.uvs[0], worldTri.color, w, h),
-						texturedSurfaceVertex3D(worldTri.verts[1], worldTri.uvs[1], worldTri.color, w, h),
-						texturedSurfaceVertex3D(worldTri.verts[2], worldTri.uvs[2], worldTri.color, w, h),
-					)
-				}
-				continue
-			}
-			if m.whitePixel == nil {
-				m.whitePixel = render.NewImage(1, 1)
-				m.whitePixel.Fill(color.White)
-			}
-			batch := batchFor(m.whitePixel, rsmDrawOptionsForTriangle(render.FilterNearest, render.AddressUnsafe, worldTri, visible.index))
-			if batch != nil {
-				batch.addTriangle(
-					coloredSurfaceVertex3D(worldTri.verts[0], 0, 0, worldTri.color),
-					coloredSurfaceVertex3D(worldTri.verts[1], 1, 0, worldTri.color),
-					coloredSurfaceVertex3D(worldTri.verts[2], 1, 1, worldTri.color),
-				)
-			}
+		m.drawAnimatedRSMNodeTriangles(screen, manager, rsm, node, nodeMatrices[node.Name], context, visible, &batchOrder)
+	}
+	for i := range batchOrder {
+		batchOrder[i].flush()
+		batchOrder[i].clear()
+	}
+	m.rsmAnimScratch.batches = batchOrder[:0]
+}
+
+func animatedRSMBatchFor(screen *render.Frame, batches *[]animatedRSMDrawBatch, texture *render.Image, options render.DrawTrianglesOptions) *animatedRSMDrawBatch {
+	if texture == nil {
+		return nil
+	}
+	order := *batches
+	for i := range order {
+		if order[i].texture == texture && order[i].options == options {
+			return &order[i]
 		}
 	}
-	for _, batch := range batchOrder {
-		batch.flush()
+	order = append(order, animatedRSMDrawBatch{screen: screen, texture: texture, options: options})
+	*batches = order
+	return &order[len(order)-1]
+}
+
+func (m *WorldMode) drawAnimatedRSMNodeTriangles(screen *render.Frame, manager *res.Manager, rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, context rsmPlacementContext, visible visibleRSMPlacement, batchOrder *[]animatedRSMDrawBatch) {
+	worldVerts := m.animatedRSMNodeWorldVerts(rsm, node, nodeMatrix, context.instance)
+	if len(worldVerts) == 0 {
+		return
 	}
+	faceMetas := m.rsmFaceMetas(rsm, node)
+	for faceIndex, face := range node.Faces {
+		if int(face.VertexIndices[0]) >= len(worldVerts) || int(face.VertexIndices[1]) >= len(worldVerts) || int(face.VertexIndices[2]) >= len(worldVerts) {
+			continue
+		}
+		a := worldVerts[face.VertexIndices[0]]
+		b := worldVerts[face.VertexIndices[1]]
+		c := worldVerts[face.VertexIndices[2]]
+		var faceMeta rsmFaceMeta
+		if faceIndex < len(faceMetas) {
+			faceMeta = faceMetas[faceIndex]
+		} else {
+			faceMeta.textureName, faceMeta.uvs = rsmFaceTexture(rsm, node, face)
+		}
+		faceColor := rsmFaceColor(rsm, faceMeta.textureName, a, b, c, context.lighting)
+		texture := m.groundTexture(manager, faceMeta.textureName)
+		if texture != nil {
+			bounds := texture.Bounds()
+			w, h := float32(bounds.Dx()), float32(bounds.Dy())
+			options := rsmDrawOptionsForVertices(render.FilterLinear, render.AddressClampToEdge, a, b, c, visible.index)
+			batch := animatedRSMBatchFor(screen, batchOrder, texture, options)
+			if batch != nil {
+				batch.addTriangle(
+					texturedSurfaceVertex3D(a, faceMeta.uvs[0], faceColor, w, h),
+					texturedSurfaceVertex3D(b, faceMeta.uvs[1], faceColor, w, h),
+					texturedSurfaceVertex3D(c, faceMeta.uvs[2], faceColor, w, h),
+				)
+			}
+			continue
+		}
+		if m.whitePixel == nil {
+			m.whitePixel = render.NewImage(1, 1)
+			m.whitePixel.Fill(color.White)
+		}
+		options := rsmDrawOptionsForVertices(render.FilterNearest, render.AddressUnsafe, a, b, c, visible.index)
+		batch := animatedRSMBatchFor(screen, batchOrder, m.whitePixel, options)
+		if batch != nil {
+			batch.addTriangle(
+				coloredSurfaceVertex3D(a, 0, 0, faceColor),
+				coloredSurfaceVertex3D(b, 1, 0, faceColor),
+				coloredSurfaceVertex3D(c, 1, 1, faceColor),
+			)
+		}
+	}
+}
+
+func (m *WorldMode) animatedRSMNodeWorldVerts(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance) []modelPoint3 {
+	if node == nil || len(node.Vertices) == 0 {
+		return nil
+	}
+	if cap(m.rsmAnimScratch.worldVerts) < len(node.Vertices) {
+		m.rsmAnimScratch.worldVerts = make([]modelPoint3, len(node.Vertices))
+	}
+	worldVerts := m.rsmAnimScratch.worldVerts[:len(node.Vertices)]
+	modelMatrix := rsmNodeModelMatrix(rsm, node, nodeMatrix, instance)
+	for i, vertex := range node.Vertices {
+		worldVerts[i] = mat4TransformPoint(modelMatrix, vectorFromRSM(vertex))
+	}
+	return worldVerts
 }
 
 func (m *WorldMode) animatedRSMNodeMatrices(rsm *res.RSM, frame int) map[string]mat4 {
@@ -392,14 +456,29 @@ func (m *WorldMode) animatedRSMNodeMatrices(rsm *res.RSM, frame int) map[string]
 }
 
 func rsmDrawOptionsForTriangle(filter render.Filter, address render.Address, tri modelWorldTriangle, placementIndex int) *render.DrawTrianglesOptions {
-	if rsmTriangleIsHorizontal(tri) {
+	if rsmTriangleVertsAreHorizontal(tri.verts[0], tri.verts[1], tri.verts[2]) {
 		return rsmHorizontalSurfaceDrawOptions(filter, address, placementIndex)
 	}
 	return rsmModelDrawOptions(filter, address)
 }
 
-func rsmTriangleIsHorizontal(tri modelWorldTriangle) bool {
-	normal := normalize3(cross3(sub3(tri.verts[1], tri.verts[0]), sub3(tri.verts[2], tri.verts[0])))
+func rsmDrawOptionsForVertices(filter render.Filter, address render.Address, a, b, c modelPoint3, placementIndex int) render.DrawTrianglesOptions {
+	options := render.DrawTrianglesOptions{
+		Filter:     filter,
+		Address:    address,
+		DepthTest:  true,
+		DepthWrite: true,
+		DepthBias:  rsmModelDepthBias,
+	}
+	if rsmTriangleVertsAreHorizontal(a, b, c) && placementIndex >= 0 {
+		layer := placementIndex % rsmHorizontalDepthBiasLayers
+		options.DepthBias += float32(layer) * rsmHorizontalDepthBiasStep
+	}
+	return options
+}
+
+func rsmTriangleVertsAreHorizontal(a, b, c modelPoint3) bool {
+	normal := normalize3(cross3(sub3(b, a), sub3(c, a)))
 	return math.Abs(normal.y) >= 0.98
 }
 
@@ -518,20 +597,7 @@ func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4
 		return nil
 	}
 
-	localMatrix := mat4Identity()
-	localMatrix = mat4Translate(localMatrix, modelPoint3{
-		x: -(instance.bounds.min.x + instance.bounds.max.x) * 0.5,
-		y: instance.bounds.max.y,
-		z: -(instance.bounds.min.z + instance.bounds.max.z) * 0.5,
-	})
-	localMatrix = mat4Scale(localMatrix, modelPoint3{x: 1, y: -1, z: 1})
-	localMatrix = mat4Multiply(localMatrix, nodeMatrix)
-	if len(rsm.Nodes) != 1 {
-		localMatrix = mat4Translate(localMatrix, vectorFromRSM(node.Offset))
-	}
-	localMatrix = mat4Multiply(localMatrix, mat4FromMat3(node.Matrix))
-	modelMatrix := mat4Multiply(instance.matrix, localMatrix)
-
+	modelMatrix := rsmNodeModelMatrix(rsm, node, nodeMatrix, instance)
 	worldVerts := make([]modelPoint3, len(node.Vertices))
 	for i, vertex := range node.Vertices {
 		world := mat4TransformPoint(modelMatrix, vectorFromRSM(vertex))
@@ -561,6 +627,22 @@ func buildRSMNodeWorldTriangles(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4
 		})
 	}
 	return triangles
+}
+
+func rsmNodeModelMatrix(rsm *res.RSM, node *res.RSMNode, nodeMatrix mat4, instance modelInstance) mat4 {
+	localMatrix := mat4Identity()
+	localMatrix = mat4Translate(localMatrix, modelPoint3{
+		x: -(instance.bounds.min.x + instance.bounds.max.x) * 0.5,
+		y: instance.bounds.max.y,
+		z: -(instance.bounds.min.z + instance.bounds.max.z) * 0.5,
+	})
+	localMatrix = mat4Scale(localMatrix, modelPoint3{x: 1, y: -1, z: 1})
+	localMatrix = mat4Multiply(localMatrix, nodeMatrix)
+	if len(rsm.Nodes) != 1 {
+		localMatrix = mat4Translate(localMatrix, vectorFromRSM(node.Offset))
+	}
+	localMatrix = mat4Multiply(localMatrix, mat4FromMat3(node.Matrix))
+	return mat4Multiply(instance.matrix, localMatrix)
 }
 
 func buildRSMInstanceMatrix(rsm *res.RSM, placement res.RSWModel, baseX, baseY float64, bounds modelBounds) mat4 {

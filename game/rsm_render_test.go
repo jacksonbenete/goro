@@ -137,6 +137,78 @@ func TestRSMDrawOptionsLayerHorizontalSurfaces(t *testing.T) {
 	}
 }
 
+func TestRSMDrawOptionsForVerticesMatchesTriangleHelper(t *testing.T) {
+	triangles := []modelWorldTriangle{
+		{
+			verts: [3]modelPoint3{
+				{x: 0, y: 0, z: 0},
+				{x: 1, y: 0, z: 0},
+				{x: 0, y: 0, z: 1},
+			},
+		},
+		{
+			verts: [3]modelPoint3{
+				{x: 0, y: 0, z: 0},
+				{x: 1, y: 0, z: 0},
+				{x: 0, y: 1, z: 0},
+			},
+		},
+	}
+	for _, tri := range triangles {
+		fromTri := rsmDrawOptionsForTriangle(render.FilterLinear, render.AddressClampToEdge, tri, 7)
+		fromVerts := rsmDrawOptionsForVertices(render.FilterLinear, render.AddressClampToEdge, tri.verts[0], tri.verts[1], tri.verts[2], 7)
+		if *fromTri != fromVerts {
+			t.Fatalf("draw options mismatch: triangle=%#v vertices=%#v", *fromTri, fromVerts)
+		}
+	}
+}
+
+func TestAnimatedRSMPlacementClearsScratchBatches(t *testing.T) {
+	rsm := &res.RSM{
+		Nodes: []res.RSMNode{
+			{
+				Name:   "root",
+				Matrix: identityRSMMatrix(),
+				Scale:  res.RSMVector3{X: 1, Y: 1, Z: 1},
+				Vertices: []res.RSMVector3{
+					{X: 0, Y: 0, Z: 0},
+					{X: 1, Y: 0, Z: 0},
+					{X: 0, Y: 1, Z: 0},
+				},
+				Faces: []res.RSMFace{
+					{VertexIndices: [3]uint16{0, 1, 2}},
+				},
+			},
+		},
+	}
+	world := &WorldMode{}
+	screen := render.NewFrame(320, 240)
+	screen.BeginFrame()
+
+	world.drawAnimatedRSMPlacement(screen, nil, &res.RSW{}, rsm, visibleRSMPlacement{
+		index: 3,
+		model: res.RSWModel{Scale: res.RSWVector3{X: 1, Y: 1, Z: 1}},
+	}, 0)
+
+	if world.whitePixel == nil {
+		t.Fatal("animated RSM draw did not use the fallback texture")
+	}
+	if len(world.rsmAnimScratch.batches) != 0 {
+		t.Fatalf("scratch batches length = %d, want 0", len(world.rsmAnimScratch.batches))
+	}
+	if cap(world.rsmAnimScratch.batches) == 0 {
+		t.Fatal("scratch batches were not reused")
+	}
+	for i, batch := range world.rsmAnimScratch.batches[:cap(world.rsmAnimScratch.batches)] {
+		if batch.screen != nil || batch.texture != nil || batch.verts != nil || batch.indices != nil {
+			t.Fatalf("scratch batch %d retained frame data: %#v", i, batch)
+		}
+	}
+	if cap(world.rsmAnimScratch.worldVerts) < 3 {
+		t.Fatalf("scratch world verts capacity = %d, want at least 3", cap(world.rsmAnimScratch.worldVerts))
+	}
+}
+
 func TestRSMInstanceMatrixUsesParsedRSWModelY(t *testing.T) {
 	rsm := &res.RSM{}
 	placement := res.RSWModel{

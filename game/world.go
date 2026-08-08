@@ -79,6 +79,7 @@ type WorldMode struct {
 	rsmAnimNodes      map[animatedRSMNodeKey]map[string]mat4
 	rsmBoundsCache    map[rsmBoundsCacheKey]rsmBounds
 	rsmFaceMetaCache  map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
+	rsmAnimScratch    animatedRSMScratch
 	rsmPlacementGrid  *rsmPlacementGrid
 	runtimeRSMModels  map[string]*res.RSM
 	gndMeshCache      *gndRetainedMeshCache
@@ -378,6 +379,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.rsmAnimNodes = make(map[animatedRSMNodeKey]map[string]mat4)
 	m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
 	m.rsmFaceMetaCache = make(map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta)
+	m.rsmAnimScratch.reset()
 	m.rsmPlacementGrid = nil
 	m.gndMeshCache = nil
 	m.pendingWarp = false
