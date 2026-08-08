@@ -1315,7 +1315,7 @@ func spriteViewImage(view *spriteView, index int32, sprType int32) (*render.Imag
 	if !ok {
 		return nil, false
 	}
-	img := render.NewImageFromImage(frame)
+	img := render.NewImageFromStraightAlpha(frame)
 	view.images[key] = img
 	return img, true
 }

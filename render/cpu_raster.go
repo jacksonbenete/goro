@@ -96,10 +96,19 @@ func (i *Image) blendPixel(x, y int, src color.RGBA, blend Blend) {
 	}
 	a := uint32(src.A)
 	ia := uint32(255 - src.A)
-	i.pix.Pix[off] = byte((uint32(src.R)*a + uint32(i.pix.Pix[off])*ia) / 255)
-	i.pix.Pix[off+1] = byte((uint32(src.G)*a + uint32(i.pix.Pix[off+1])*ia) / 255)
-	i.pix.Pix[off+2] = byte((uint32(src.B)*a + uint32(i.pix.Pix[off+2])*ia) / 255)
-	i.pix.Pix[off+3] = byte(a + uint32(i.pix.Pix[off+3])*ia/255)
+	dstA := uint32(i.pix.Pix[off+3])
+	outA := a + dstA*ia/255
+	if outA == 0 {
+		i.pix.Pix[off] = 0
+		i.pix.Pix[off+1] = 0
+		i.pix.Pix[off+2] = 0
+		i.pix.Pix[off+3] = 0
+		return
+	}
+	i.pix.Pix[off] = straightSourceOverByte(src.R, src.A, i.pix.Pix[off], uint8(dstA), outA)
+	i.pix.Pix[off+1] = straightSourceOverByte(src.G, src.A, i.pix.Pix[off+1], uint8(dstA), outA)
+	i.pix.Pix[off+2] = straightSourceOverByte(src.B, src.A, i.pix.Pix[off+2], uint8(dstA), outA)
+	i.pix.Pix[off+3] = byte(outA)
 }
 
 func addressCoord(x, y float32, w, h int, address Address) (float32, float32, bool) {
@@ -149,6 +158,16 @@ func addByte(a, b uint8) uint8 {
 
 func alphaByte(c, a uint8) uint8 {
 	return uint8((uint32(c)*uint32(a) + 127) / 255)
+}
+
+func straightSourceOverByte(src, srcA, dst, dstA uint8, outA uint32) uint8 {
+	srcPremul := uint32(src) * uint32(srcA)
+	dstPremul := uint32(dst) * uint32(dstA) * uint32(255-srcA) / 255
+	out := (srcPremul + dstPremul) / outA
+	if out > 255 {
+		return 255
+	}
+	return uint8(out)
 }
 
 func srcAlphaDstAlphaByte(src, srcA, dst, dstA uint8) uint8 {

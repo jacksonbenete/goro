@@ -39,6 +39,31 @@ func TestSpriteCompositionFilterKeepsSourcePixelsCrisp(t *testing.T) {
 	}
 }
 
+func TestSpriteViewImagePreservesStraightAlphaRGBAFrame(t *testing.T) {
+	view := &spriteView{
+		spr: &res.SPR{
+			RGBAIndex: 0,
+			Frames: []res.SPRFrame{{
+				Type:   res.SPRFrameRGBA,
+				Width:  1,
+				Height: 1,
+				Data:   []byte{64, 200, 240, 255},
+			}},
+		},
+		images: make(map[spriteFrameKey]*render.Image),
+	}
+
+	img, ok := spriteViewImage(view, 0, res.SPRFrameRGBA)
+	if !ok {
+		t.Fatal("spriteViewImage failed")
+	}
+	got := img.RGBA().RGBAAt(0, 0)
+	want := color.RGBA{R: 255, G: 240, B: 200, A: 64}
+	if got != want {
+		t.Fatalf("RGBA sprite frame = %+v, want %+v", got, want)
+	}
+}
+
 func TestActorSpriteWorldZLiftsSpritesAboveTerrain(t *testing.T) {
 	if got := actorSpriteWorldZ(12.5); math.Abs(got-12.7) > 1e-9 {
 		t.Fatalf("actor sprite world z = %.3f, want 12.700", got)
