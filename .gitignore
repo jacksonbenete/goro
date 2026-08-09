@@ -1,7 +1,9 @@
 /goro
 /goro.exe
+/dist/
 *.test
 *.out
 *.log
+/goro.ini
 run.sh
 /profiles/
