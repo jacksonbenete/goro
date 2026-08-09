@@ -61,7 +61,6 @@ func (m *WorldMode) handleChatRoomCreateAck(ctx client.Context, ack network.Chat
 		m.pendingChatRoom = network.ChatRoomCreate{}
 		member := selectedCharacterName(ctx.Session)
 		m.ui.chatRoom.Open(ctx, room.Title, room.Limit, room.Public, []string{member})
-		m.ui.chatRoom.AddSystem(ctx, chatRoomCreateAckMessage(ctx, ack))
 		m.ui.console.AddBlueMessage("%s", chatRoomCreateAckMessage(ctx, ack))
 	case 1, 2:
 		m.pendingChatRoom = network.ChatRoomCreate{}

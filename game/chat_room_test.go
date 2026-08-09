@@ -7,7 +7,31 @@ import (
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/session"
 )
+
+func TestHandleChatRoomCreateAckKeepsSuccessOutOfRoomTranscript(t *testing.T) {
+	mode := &WorldMode{
+		pendingChatRoom: network.ChatRoomCreate{Title: "Room", Limit: 20, Public: true},
+	}
+	ctx := client.Context{
+		Session:   &session.Session{CharID: 1, Selected: session.Character{ID: 1, Name: "Kivutar"}},
+		UIManager: &worldModeTestUIManager{},
+	}
+
+	mode.handleChatRoomCreateAck(ctx, network.ChatRoomCreateAck{Result: 0})
+
+	if !mode.ui.chatRoom.IsOpen() {
+		t.Fatal("chat room was not opened")
+	}
+	if lines := chatRoomLineTexts(t, mode); len(lines) != 0 {
+		t.Fatalf("chat room lines = %q, want an empty transcript", lines)
+	}
+	messages := mode.ui.console.Messages()
+	if len(messages) != 1 || messages[0].Text != "Chat room has been created." {
+		t.Fatalf("console messages = %#v", messages)
+	}
+}
 
 func TestHandleChatMessageRoutesToOpenChatRoomOnly(t *testing.T) {
 	mode := &WorldMode{}
