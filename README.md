@@ -120,14 +120,17 @@ Mostly done:
  * Login
  * Character selection
  * Character creation
+ * Character deletion
  * Maps display
    * Water
    * Map sounds
    * Lightmaps
-   * Fog (innacurate)
+   * Fog (inaccurate)
    * Animated models
    * Weather effects
+   * Map-specific effects such as Yuno clouds, pillars, and fireworks
    * Indoors
+   * Granny 3D NPC models
  * Camera, zoom, rotation
  * Battle and Gameplay
    * Enemies
@@ -139,13 +142,31 @@ Mostly done:
    * Attack-ready stance
    * Jobs
      * Novice
-     * 1-1
+     * Super Novice
+     * First jobs
        * Swordman
        * Magician
        * Archer
        * Acolyte
        * Thief
+       * Merchant
+     * Second jobs
+       * Knight and Crusader
+       * Wizard and Sage
+       * Hunter, Bard, and Dancer
+       * Priest and Monk
+       * Blacksmith and Alchemist
+       * Assassin and Rogue
+     * Transcendent jobs
+       * Lord Knight and Paladin
+       * High Wizard and Professor
+       * Sniper, Clown, and Gypsy
+       * High Priest and Champion
+       * Whitesmith and Creator
+       * Assassin Cross and Stalker
    * Skill effects
+     * Ground skill units and cast markers
+     * Song and dance effects
    * Skill casting
    * Walk cancellation
    * Casting cancellation
@@ -158,7 +179,14 @@ Mostly done:
    * Trading
    * Vending
    * Show equipment
-   * Guild creation and invitations
+   * Alchemist crafting
+   * Blacksmith repair and weapon refinement
+   * Guilds
+     * Creation and invitations
+     * Member and position management
+     * Guild skills
+     * Notices and expulsion history
+     * Emblem selection
    * Pets
      * Capture slot machine
      * Egg hatching
@@ -169,23 +197,43 @@ Mostly done:
      * Emotes and talk bubbles
      * Feeding emotion reactions
      * Familiarity-gated client-side talk triggers
+   * Companions
+     * Homunculi
+       * Status, skills, feeding, renaming, and deletion
+       * Movement, combat, and skill commands
+       * Default and custom USER_AI support
+     * Mercenaries
+       * Status and skill management
+       * Movement, combat, and skill commands
+       * Default and custom USER_AI support
+     * Falcons
    * Friends
    * Parties
    * Whispers
+   * Chat rooms
+   * Character presentation
+     * Item-specific weapon sprites
+     * Mounts
+     * Wedding sprites
+     * Level 99 aura
  * UI
    * Basic information
    * Button bar
-   * Shortcuts bar
+   * Multi-row shortcuts bar with classic key bindings
    * Console
-   * Minimap
+   * Minimap with player and NPC markers
    * Items
    * Equipment
    * Option
      * Settings
    * Friends
    * Party & party settings
+   * Guild management
+   * Chat rooms
    * Stats
    * Skills (flat version)
+   * Homunculus and mercenary status and skill windows
+   * Emote window
    * Cart Storage
    * Kafra Storage (simple)
    * Teleport skill modal
@@ -195,6 +243,9 @@ Mostly done:
    * Vending windows
    * Card composition window
    * Show-equipment window
+   * Alchemist crafting window
+   * Blacksmith repair and refinement windows
+   * Item pickup notifications
    * Item and skill tooltips
    * Status icons with roBrowser-sourced metadata
  * Emotes
@@ -202,3 +253,5 @@ Mostly done:
    * FPS meter
    * Character names and HP/SP bars
    * Speech bubbles
+ * Tools
+   * GRF packing and extraction
