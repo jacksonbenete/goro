@@ -18,6 +18,7 @@ const (
 	chatRoomWindowContentH = 152
 	chatRoomMessagePadX    = 8
 	chatRoomMessagePadY    = 6
+	chatRoomMessageGap     = 1
 )
 
 type ChatRoomWindowAction struct {
@@ -232,7 +233,7 @@ func (w *ChatRoomWindow) contentTree() widget.Widget {
 	lines := wrapChatRoomLines(w.visibleLines(), textWidth)
 	contentHeight := whisperMessageContentHeight(len(lines))
 	rows := make([]widget.Widget, 0, len(lines)+1)
-	if spacerH := messageHeight - contentHeight; spacerH > 0 {
+	if spacerH := messageHeight - contentHeight - chatRoomMessageGap; spacerH > 0 {
 		rows = append(rows, primitives.Box().Height(float32(spacerH)))
 	}
 	for _, line := range lines {
@@ -245,7 +246,7 @@ func (w *ChatRoomWindow) contentTree() widget.Widget {
 		)
 	}
 	messageList := primitives.Box(rows...).
-		Gap(1).
+		Gap(chatRoomMessageGap).
 		CrossAlign(primitives.CrossAxisStretch)
 	w.ensureScrollSignal().Set(consoleBottomScrollY(len(lines), messageHeight))
 	return primitives.Box(
@@ -262,7 +263,7 @@ func (w *ChatRoomWindow) contentTree() widget.Widget {
 				scrollview.ScrollStep(float32(consoleLineH*3)),
 			),
 		).
-			Height(float32(messageHeight)).
+			Height(float32(messageHeight+chatRoomMessagePadY*2)).
 			PaddingXY(chatRoomMessagePadX, chatRoomMessagePadY).
 			CrossAlign(primitives.CrossAxisStretch),
 	).
