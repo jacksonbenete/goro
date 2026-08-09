@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kivutar/goro/render"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -208,6 +209,103 @@ func TestLoopingMapWeatherEffectStartStaggersFireworks(t *testing.T) {
 	}
 	if now.Sub(second) < 0 || now.Sub(second) >= duration {
 		t.Fatalf("second start = %s for now %s", second, now)
+	}
+}
+
+func TestPokJukWeatherUsesFourStatefulRockets(t *testing.T) {
+	if pokJukWeatherFireworks != 4 {
+		t.Fatalf("PokJuk weather rockets = %d, want 4 like the reference client", pokJukWeatherFireworks)
+	}
+	state := mapWeatherFireworkState{}
+	now := time.Unix(40, 0)
+	state.ensure("comodo.rsw", nil, 100, 200, now)
+	for i, rocket := range state.rockets {
+		if rocket.launchTime.IsZero() {
+			t.Fatalf("rocket %d was not initialized", i)
+		}
+	}
+}
+
+func TestPokJukWeatherRiseMatchesROClassic(t *testing.T) {
+	classicRise := 154 * time.Second / 60
+	if pokJukWeatherRiseDuration != classicRise {
+		t.Fatalf("PokJuk weather rise duration = %s, want ro-classic 154-frame timing", pokJukWeatherRiseDuration)
+	}
+}
+
+func TestPokJukWeatherHasMultipleActiveRockets(t *testing.T) {
+	state := mapWeatherFireworkState{}
+	now := time.Unix(40, 0)
+	state.ensure("comodo.rsw", nil, 100, 200, now)
+	active := 0
+	for _, rocket := range state.rockets {
+		elapsed := now.Sub(rocket.launchTime)
+		if elapsed >= 0 && elapsed < pokJukWeatherRocketLifetime() {
+			active++
+		}
+	}
+	if active < 2 {
+		t.Fatalf("active PokJuk rockets = %d, want multiple visible weather rockets", active)
+	}
+}
+
+func TestPokJukWeatherRocketDoesNotFollowMovedCenterWhileActive(t *testing.T) {
+	state := mapWeatherFireworkState{}
+	now := time.Unix(40, 0)
+	state.ensure("comodo.rsw", nil, 100, 200, now)
+	first := state.rockets[0]
+	state.update(nil, 300, 400, now.Add(time.Second))
+	second := state.rockets[0]
+	if first.x != second.x || first.y != second.y || first.z != second.z {
+		t.Fatalf("active rocket followed moved center: before %.2f,%.2f,%.2f after %.2f,%.2f,%.2f", first.x, first.y, first.z, second.x, second.y, second.z)
+	}
+}
+
+func TestPokJukWeatherRocketRecyclesNearCurrentPlayer(t *testing.T) {
+	state := mapWeatherFireworkState{}
+	now := time.Unix(40, 0)
+	state.ensure("comodo.rsw", nil, 100, 200, now)
+	first := state.rockets[0]
+	state.update(nil, 300, 400, now.Add(pokJukWeatherCycle()))
+	second := state.rockets[0]
+	if math.Abs(second.x-300) > pokJukWeatherSpread || math.Abs(second.y-400) > pokJukWeatherSpread {
+		t.Fatalf("recycled rocket origin = %.2f,%.2f, want within %.2f of current player", second.x, second.y, float64(pokJukWeatherSpread))
+	}
+	if math.Hypot(second.x-first.x, second.y-first.y) < 100 {
+		t.Fatalf("recycled rocket did not move to new player area: before %.2f,%.2f after %.2f,%.2f", first.x, first.y, second.x, second.y)
+	}
+}
+
+func TestPokJukWeatherResetsWithMapKey(t *testing.T) {
+	state := mapWeatherFireworkState{}
+	now := time.Unix(40, 0)
+	state.ensure("comodo.rsw", nil, 100, 200, now)
+	first := state.rockets[0]
+	state.ensure("other.rsw", nil, 300, 400, now.Add(time.Second))
+	second := state.rockets[0]
+	if math.Abs(second.x-300) > pokJukWeatherSpread || math.Abs(second.y-400) > pokJukWeatherSpread {
+		t.Fatalf("reset rocket origin = %.2f,%.2f, want within %.2f of new player", second.x, second.y, float64(pokJukWeatherSpread))
+	}
+	if math.Hypot(second.x-first.x, second.y-first.y) < 100 {
+		t.Fatalf("reset rocket did not move to new map area: before %.2f,%.2f after %.2f,%.2f", first.x, first.y, second.x, second.y)
+	}
+}
+
+func TestPokJukWeatherCenterUsesPlayerPosition(t *testing.T) {
+	now := time.Unix(10, 0)
+	world := &worldstate.World{Player: worldstate.Actor{X: 12, Y: 34}}
+	projection := sceneProjection{playerX: 1000, playerY: 2000}
+	x, y := mapWeatherFireworkCenter(world, projection, now)
+	if x != 12 || y != 34 {
+		t.Fatalf("firework center = %.2f,%.2f, want player position", x, y)
+	}
+}
+
+func TestPokJukWeatherTextureFallsBackToAvailableTexture(t *testing.T) {
+	texture := render.NewImage(1, 1)
+	textures := [3]*render.Image{nil, nil, texture}
+	if got := pokJukWeatherTexture(textures, 0); got != texture {
+		t.Fatalf("fallback texture = %p, want %p", got, texture)
 	}
 }
 

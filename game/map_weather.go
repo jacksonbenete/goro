@@ -20,8 +20,7 @@ const (
 const (
 	pokJukLaunchSFX        = "effect\\폭죽.wav"
 	pokJukExplosionSFX     = "effect\\itempokjuk.wav"
-	pokJukExplosionDelay   = 900 * time.Millisecond
-	pokJukWeatherFireworks = 2
+	pokJukWeatherFireworks = 4
 )
 
 func mapWeatherForMap(name string) mapWeatherKind {
@@ -72,6 +71,7 @@ func (m *WorldMode) drawMapWeatherEffects(screen *render.Frame, ctx client.Conte
 		m.mapWeatherCloud.reset()
 		m.drawFireworksWeather(screen, ctx, projection, now)
 	case mapWeatherLoopingEffect:
+		m.mapWeatherPokJuk.reset()
 		if _, ok := weatherCloudParamsForEffect(effectID); ok {
 			m.drawMapWeatherCloudEffect(screen, ctx, projection, effectID, now)
 			return
@@ -80,6 +80,7 @@ func (m *WorldMode) drawMapWeatherEffects(screen *render.Frame, ctx client.Conte
 		m.drawLoopingMapWeatherEffect(screen, ctx, projection, effectID, now)
 	default:
 		m.mapWeatherCloud.reset()
+		m.mapWeatherPokJuk.reset()
 	}
 }
 
@@ -114,36 +115,12 @@ func (m *WorldMode) drawLoopingMapWeatherEffect(screen *render.Frame, ctx client
 }
 
 func (m *WorldMode) drawFireworksWeather(screen *render.Frame, ctx client.Context, projection sceneProjection, now time.Time) {
-	spec, ok := worldEffectSpecForID(effectPokJuk)
-	if !ok {
-		return
-	}
-	const count = pokJukWeatherFireworks
-	for i := 0; i < count; i++ {
-		starts := loopingMapWeatherEffectStart(i, spec.duration, now)
-		m.scheduleMapWeatherSound(i*2, starts, now, pokJukLaunchSFX)
-		m.scheduleMapWeatherSound(i*2+1, starts.Add(pokJukExplosionDelay), now, pokJukExplosionSFX, pokJukLaunchSFX)
-		effect := worldEffect{
-			effectID: effectPokJuk,
-			actorID:  uint32(i + 1),
-			starts:   starts,
-			expires:  now.Add(24 * time.Hour),
-			duration: spec.duration,
-			x:        int(math.Round(projection.playerX)),
-			y:        int(math.Round(projection.playerY)),
-		}
-		worldX := projection.playerX + deterministicSigned(effect, 11)*10
-		worldY := projection.playerY + deterministicSigned(effect, 12)*10
-		worldZ := terrainHeightAt(ctx.World, worldX-0.5, worldY-0.5) + 1
-		for componentIndex, component := range spec.components {
-			duration := m.worldEffectResolvedComponentDuration(ctx, spec, component)
-			if duration <= 0 {
-				duration = spec.duration
-			}
-			progress := worldEffectComponentProgress(starts, duration, now)
-			m.drawWorldEffectComponent(screen, ctx, projection, effect, component, componentIndex, worldX, worldY, worldZ, progress, duration, now)
-		}
-	}
+	key := normalizeMapNameForWeather(ctx.World.MapName)
+	centerX, centerY := mapWeatherFireworkCenter(ctx.World, projection, now)
+	m.mapWeatherPokJuk.ensure(key, ctx.World, centerX, centerY, now)
+	m.mapWeatherPokJuk.update(ctx.World, centerX, centerY, now)
+	m.mapWeatherPokJuk.scheduleSounds(m, now)
+	m.mapWeatherPokJuk.draw(screen, m, ctx, projection, now)
 }
 
 func (m *WorldMode) scheduleMapWeatherSound(index int, starts time.Time, now time.Time, paths ...string) {

@@ -114,6 +114,7 @@ type WorldMode struct {
 	mapSoundNext      map[int]time.Time
 	mapWeatherSounds  map[int]time.Time
 	mapWeatherCloud   mapWeatherCloudState
+	mapWeatherPokJuk  mapWeatherFireworkState
 	actorDeaths       map[uint32]time.Time
 	actorVanishes     map[uint32]actorVanishFade
 	actorSoundFrames  map[uint32]actorSoundFrame
@@ -399,6 +400,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.mapSoundNext = make(map[int]time.Time)
 	m.mapWeatherSounds = make(map[int]time.Time)
 	m.mapWeatherCloud = mapWeatherCloudState{}
+	m.mapWeatherPokJuk = mapWeatherFireworkState{}
 	m.actorDeaths = make(map[uint32]time.Time)
 	m.actorVanishes = make(map[uint32]actorVanishFade)
 	m.actorSoundFrames = make(map[uint32]actorSoundFrame)
