@@ -149,6 +149,11 @@ func cartOffsetBillboard(billboard *spriteBillboard, dx, dy float64) *spriteBill
 	return &out
 }
 
+func cartDirectionOffsetBillboard(billboard *spriteBillboard, direction int) *spriteBillboard {
+	dx, dy := cartSpriteOffset(direction)
+	return cartOffsetBillboard(billboard, dx, dy)
+}
+
 func (m *WorldMode) applyPushCartStatus(ctx client.Context, change network.StatusEffectChange) bool {
 	if change.StatusID != db.StatusOnPushCart || ctx.World == nil {
 		return false
@@ -244,8 +249,27 @@ func (m *WorldMode) drawActorCart3D(screen *render.Frame, ctx client.Context, pr
 	if !ok {
 		return false
 	}
-	dx, dy := cartSpriteOffset(cartSpriteDirection(actor, cameraYaw))
-	billboard = cartOffsetBillboard(billboard, dx, dy)
+	billboard = cartDirectionOffsetBillboard(billboard, cartSpriteDirection(actor, cameraYaw))
 	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, entry.scale, alpha, shadow, color.RGBA{R: 255, G: 255, B: 255, A: 255})
 	return true
+}
+
+func (m *WorldMode) drawActorCartShadow3D(screen *render.Frame, ctx client.Context, projection sceneProjection, entry sceneActorDrawEntry, cameraYaw float64, now time.Time) bool {
+	actor := entry.actor
+	if !entry.castShadow || entry.hidden || m.shadowView == nil || m.shadowViewMiss || !res.HasPlayerJobToken(int(actor.Job)) {
+		return false
+	}
+	if hasCart, _ := actorCartState(actor); !hasCart {
+		return false
+	}
+	billboard, ok := fixedSpriteBillboard(m.shadowView)
+	if !ok {
+		return false
+	}
+	billboard = cartDirectionOffsetBillboard(billboard, cartSpriteDirection(actor, cameraYaw))
+	scale := m.actorShadowRenderScale(ctx, entry, now)
+	if scale == 0 {
+		return false
+	}
+	return drawSpriteShadowBillboard3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ+actorShadowTerrainLift, scale, m.actorVisualAlpha(actor.ID, now), entry.shadow)
 }

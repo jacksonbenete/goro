@@ -942,6 +942,70 @@ func TestCartOffsetBillboardAppliesReferencePixelOffset(t *testing.T) {
 	}
 }
 
+func TestCartDirectionOffsetBillboardPlacesShadowAtCart(t *testing.T) {
+	base := &spriteBillboard{anchorX: 100, anchorY: 200}
+	got := cartDirectionOffsetBillboard(base, 5)
+	if got == base {
+		t.Fatal("cart shadow offset should copy billboard")
+	}
+	if got.anchorX != 130 || got.anchorY != 190 {
+		t.Fatalf("cart shadow anchor = %.0f, %.0f, want 130, 190", got.anchorX, got.anchorY)
+	}
+	if base.anchorX != 100 || base.anchorY != 200 {
+		t.Fatalf("base shadow billboard mutated = %.0f, %.0f", base.anchorX, base.anchorY)
+	}
+}
+
+func TestDrawActorCartShadowUsesLoadedShadowSprite(t *testing.T) {
+	shadowView := &spriteView{
+		spr: &res.SPR{
+			RGBAIndex: 0,
+			Frames: []res.SPRFrame{{
+				Type:   res.SPRFrameRGBA,
+				Width:  16,
+				Height: 8,
+				Data:   solidRGBAFrame(16, 8),
+			}},
+		},
+		act: &res.ACT{Actions: []res.ACTAction{{
+			Animations: []res.ACTAnimation{{Layers: []res.ACTLayer{{
+				Index:   0,
+				SPRType: res.SPRFrameRGBA,
+				ScaleX:  1,
+				ScaleY:  1,
+				Color:   [4]float32{1, 1, 1, 1},
+			}}}},
+		}}},
+		images:     make(map[spriteFrameKey]*render.Image),
+		billboards: make(map[singleSpriteBillboardKey]*spriteBillboard),
+	}
+	mode := &WorldMode{shadowView: shadowView}
+	entry := sceneActorDrawEntry{
+		actor: worldstate.Actor{
+			ID:           300,
+			Job:          db.JobMerchant,
+			Dir:          2,
+			HasCartState: true,
+			HasCart:      true,
+			CartNum:      1,
+		},
+		worldX:      cellCenter(10),
+		worldY:      cellCenter(20),
+		scale:       1,
+		shadow:      1,
+		castShadow:  true,
+		shadowScale: 1,
+	}
+	projection := newSceneProjectionForTarget(800, 600, entry.worldX, entry.worldY, 0)
+	if !mode.drawActorCartShadow3D(render.NewFrame(800, 600), client.Context{}, projection, entry, 0, time.Now()) {
+		t.Fatal("cart shadow was not drawn")
+	}
+	entry.actor.HasCart = false
+	if mode.drawActorCartShadow3D(render.NewFrame(800, 600), client.Context{}, projection, entry, 0, time.Now()) {
+		t.Fatal("cart shadow drawn without a cart")
+	}
+}
+
 func TestApplyActorStateChangeTracksRemoteActorRenderState(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 110000001, X: 10, Y: 20, Job: 1002, Speed: 400, Appearance: true})

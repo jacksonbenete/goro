@@ -818,18 +818,26 @@ func (m *WorldMode) drawActorShadowEntry(screen *render.Frame, ctx client.Contex
 		return
 	}
 	now := time.Now()
-	if m.actorShadowSuppressed(entry.actor, now) {
+	scale := m.actorShadowRenderScale(ctx, entry, now)
+	if scale == 0 {
 		return
 	}
+	if !m.actorShadowSuppressed(entry.actor, now) {
+		drawFixedSpriteShadowBillboard3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+actorShadowTerrainLift, scale, m.actorVisualAlpha(entry.actor.ID, now), entry.shadow)
+	}
+	m.drawActorCartShadow3D(screen, ctx, projection, entry, projection.cameraYaw, now)
+}
+
+func (m *WorldMode) actorShadowRenderScale(ctx client.Context, entry sceneActorDrawEntry, now time.Time) float64 {
 	baseScale := m.actorRenderScale(entry.actor.ID, entry.scale, now)
 	if entry.isPlayer {
 		baseScale = m.playerRenderScale(ctx, entry.actor, entry.scale, now)
 	}
 	scale := baseScale * entry.shadowScale
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		return
+		return 0
 	}
-	drawFixedSpriteShadowBillboard3D(screen, projection, m.shadowView, entry.worldX, entry.worldY, entry.worldZ+actorShadowTerrainLift, scale, m.actorVisualAlpha(entry.actor.ID, now), entry.shadow)
+	return scale
 }
 
 func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World, projection sceneProjection, actor worldstate.Actor, isPlayer bool, now time.Time, screenWidth, screenHeight int) []sceneActorDrawEntry {
