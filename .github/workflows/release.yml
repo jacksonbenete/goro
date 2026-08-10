@@ -43,6 +43,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Generate Windows resources
+        if: matrix.goos == 'windows'
+        run: >-
+          GOOS=linux GOARCH=amd64
+          go run github.com/akavel/rsrc@936343600d578fb5da472acf6987ed76935a389b
+          -arch ${{ matrix.goarch }}
+          -ico packaging/windows/goro.ico
+          -o rsrc_windows_${{ matrix.goarch }}.syso
       - run: |
           ldflags="-s -w"
           if [ "$GOOS" = "windows" ]; then

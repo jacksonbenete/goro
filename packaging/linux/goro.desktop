@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Goro
+Comment=Ragnarok Online client recreation
+Exec=goro
+Icon=goro
+Terminal=false
+Categories=Game;RolePlaying;
+StartupWMClass=GoGPU

@@ -25,6 +25,7 @@ import (
 	"github.com/kivutar/goro/config"
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/input"
+	"github.com/kivutar/goro/internal/appicon"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -271,6 +272,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 	appConfig = appConfig.
 		WithGraphicsAPI(api).
 		WithTitle(cfg.Title).
+		WithIcon(appicon.Image()).
 		WithSize(cfg.Width, cfg.Height).
 		WithResizable(true).
 		WithContinuousRender(true).
