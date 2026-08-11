@@ -11,6 +11,8 @@ like ROBrowser Legacy and Open Midgard and their reverse engineering efforts.
 
 ![goro screenshot](https://github.com/kivutar/goro/releases/download/v0.0.1/goro-20260716-164507.png)
 
+You can also see Goro in action on this [Youtube Playlist](https://www.youtube.com/watch?v=5qldvYi9v-U&list=PLQhSdCGUOBwc).
+
 ## Project Goals
 
 - Faithfully reimplement the original Ragnarok Online client.
