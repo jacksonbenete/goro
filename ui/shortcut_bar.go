@@ -244,8 +244,40 @@ func skillCanUseShortcut(skill session.Skill) bool {
 }
 
 func (b *ShortcutBar) ClearDepletedItem(ctx Context, index, itemID uint16) bool {
+	if itemID != 0 {
+		if _, ok := inventoryItemForShortcut(ctx.Session, 0, itemID); ok {
+			b.redraw()
+			return false
+		}
+	} else if index == 0 {
+		return false
+	}
+
+	b.ctx = ctx
+	changed := false
+	for slot, entry := range b.slots {
+		if entry.kind != shortcutItem {
+			continue
+		}
+		if itemID != 0 {
+			if entry.itemID != itemID {
+				continue
+			}
+		} else if entry.itemIndex != index {
+			continue
+		}
+		b.slots[slot] = shortcutSlotState{}
+		b.sendSlotChange(ctx, slot)
+		changed = true
+	}
+	if !changed {
+		b.redraw()
+		return false
+	}
+	b.hideTooltip()
 	b.redraw()
-	return false
+	b.invalidate(ctx)
+	return true
 }
 
 func (b *ShortcutBar) activate(ctx Context, actions GameActions, slot int) {

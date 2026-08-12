@@ -423,17 +423,54 @@ func TestInventoryItemForShortcutRejectsReusedIndexWithDifferentItem(t *testing.
 	}
 }
 
-func TestShortcutBarKeepsDepletedItemShortcut(t *testing.T) {
+func TestShortcutBarClearsTotallyConsumedItem(t *testing.T) {
+	app := &shortcutInvalidatingApp{}
+	s := &session.Session{Hotkeys: session.Hotkeys{
+		Loaded:  true,
+		Version: 7,
+		Slots: []session.HotkeySlot{
+			{},
+			{},
+			{Type: network.HotkeyTypeItem, ID: 501},
+			{Type: network.HotkeyTypeItem, ID: 602},
+			{Type: network.HotkeyTypeItem, ID: 501},
+		},
+	}}
+	ctx := Context{Session: s, UIApp: app}
 	bar := &ShortcutBar{}
 	bar.slots[2] = shortcutSlotState{kind: shortcutItem, itemIndex: 12, itemID: 501}
 	bar.slots[3] = shortcutSlotState{kind: shortcutItem, itemIndex: 12, itemID: 602}
 	bar.slots[4] = shortcutSlotState{kind: shortcutItem, itemIndex: 14, itemID: 501}
 
-	if bar.ClearDepletedItem(Context{}, 12, 501) {
-		t.Fatal("depleted shortcut should not be cleared locally")
+	if !bar.ClearDepletedItem(ctx, 12, 501) {
+		t.Fatal("totally consumed item shortcuts were not cleared")
 	}
-	if bar.slots[2].kind != shortcutItem || bar.slots[3].kind != shortcutItem || bar.slots[4].kind != shortcutItem {
-		t.Fatalf("shortcut slots changed: slot3=%+v slot4=%+v slot5=%+v", bar.slots[2], bar.slots[3], bar.slots[4])
+	if bar.slots[2].kind != shortcutEmpty || bar.slots[4].kind != shortcutEmpty {
+		t.Fatalf("consumed item shortcuts remain: slot3=%+v slot5=%+v", bar.slots[2], bar.slots[4])
+	}
+	if bar.slots[3].kind != shortcutItem || bar.slots[3].itemID != 602 {
+		t.Fatalf("unrelated shortcut changed: slot4=%+v", bar.slots[3])
+	}
+	if s.Hotkeys.Slots[2].ID != 0 || s.Hotkeys.Slots[4].ID != 0 || s.Hotkeys.Slots[3].ID != 602 {
+		t.Fatalf("session hotkeys = %+v", s.Hotkeys.Slots)
+	}
+	if app.invalidates != 1 {
+		t.Fatalf("shortcut invalidates = %d, want 1", app.invalidates)
+	}
+}
+
+func TestShortcutBarKeepsItemWhenAnotherStackRemains(t *testing.T) {
+	s := &session.Session{Inventory: session.Inventory{Items: []session.InventoryItem{
+		{Index: 14, ItemID: 501, Amount: 2},
+	}}}
+	bar := &ShortcutBar{}
+	bar.slots[2] = shortcutSlotState{kind: shortcutItem, itemIndex: 12, itemID: 501}
+
+	if bar.ClearDepletedItem(Context{Session: s}, 12, 501) {
+		t.Fatal("item shortcut was cleared while another stack remained")
+	}
+	if bar.slots[2].kind != shortcutItem {
+		t.Fatalf("item shortcut changed: %+v", bar.slots[2])
 	}
 }
 

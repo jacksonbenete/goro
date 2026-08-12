@@ -251,10 +251,16 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		glog.Errorf("parse use item ack 0x%04X: %v", pkt.ID, err)
 	} else if ok {
 		glog.Debugf("use item ack index=%d item=%d aid=%d amount=%d result=%d", useAck.Index, useAck.ItemID, useAck.AID, useAck.Amount, useAck.Result)
+		depletedItemID := useAck.ItemID
+		if depletedItemID == 0 {
+			if item, found := findSessionInventoryItem(ctx.Session, useAck.Index); found {
+				depletedItemID = item.ItemID
+			}
+		}
 		m.addItemUseEffect(ctx, useAck)
 		applyUseItemAck(ctx, useAck)
-		if useAck.Result != 0 && useAck.Amount == 0 && m.ui.shortcutBar.ClearDepletedItem(ctx, useAck.Index, useAck.ItemID) {
-			glog.Debugf("shortcut item depleted index=%d item=%d", useAck.Index, useAck.ItemID)
+		if useAck.Result != 0 && useAck.Amount == 0 && m.ui.shortcutBar.ClearDepletedItem(ctx, useAck.Index, depletedItemID) {
+			glog.Debugf("shortcut item depleted index=%d item=%d", useAck.Index, depletedItemID)
 		}
 		m.ui.inventoryBag.ClampScroll(ctx.Session)
 		return nil, false

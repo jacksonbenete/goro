@@ -739,6 +739,36 @@ func TestUseItemAckSetsRemainingAmount(t *testing.T) {
 	}
 }
 
+func TestLegacyUseItemAckClearsConsumedItemShortcut(t *testing.T) {
+	sessionState := &session.Session{
+		Inventory: session.Inventory{
+			Items: []session.InventoryItem{{Index: 12, ItemID: 512, Amount: 1}},
+		},
+		Hotkeys: session.Hotkeys{
+			Loaded:  true,
+			Version: 1,
+			Slots:   []session.HotkeySlot{{Type: network.HotkeyTypeItem, ID: 512}},
+		},
+	}
+	ctx := client.Context{Session: sessionState}
+	mode := &WorldMode{}
+	mode.ui.shortcutBar.SyncFromSession(ctx)
+	packet := network.Packet{
+		ID:   0x00A8,
+		Data: []byte{0xA8, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x01},
+	}
+
+	if next, stop := mode.handleNetworkPacket(ctx, packet, time.Now()); next != nil || stop {
+		t.Fatalf("use item ack changed mode: next=%T stop=%t", next, stop)
+	}
+	if len(sessionState.Inventory.Items) != 0 {
+		t.Fatalf("inventory item count = %d, want 0", len(sessionState.Inventory.Items))
+	}
+	if got := sessionState.Hotkeys.Slots[0]; got.ID != 0 {
+		t.Fatalf("shortcut hotkey = %+v, want empty", got)
+	}
+}
+
 func TestItemIdentifyAckMarksInventoryItemIdentified(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{
