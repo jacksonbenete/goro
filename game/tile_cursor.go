@@ -8,10 +8,12 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
-	worldstate "github.com/kivutar/goro/world"
 )
 
-const tileCursorDepthBias = groundDecalDepthBias
+// RSM walk surfaces can be coplanar with the GAT and use layered depth biases.
+// Keep the cursor just above the largest RSM layer while remaining far below
+// the old 0.001 bias that let it show through furniture.
+const tileCursorDepthBias = rsmModelDepthBias + rsmHorizontalDepthBiasLayers*rsmHorizontalDepthBiasStep
 
 func (m *WorldMode) drawTileCursor(screen *render.Frame, ctx client.Context, projection sceneProjection) {
 	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
@@ -24,7 +26,7 @@ func (m *WorldMode) drawTileCursor(screen *render.Frame, ctx client.Context, pro
 	if !ok {
 		return
 	}
-	verts, ok := tileCursorCellVerts(ctx.World, x, y)
+	verts, ok := tileCursorCellVerts(ctx.World.GAT, x, y)
 	if !ok {
 		return
 	}
@@ -35,43 +37,7 @@ func (m *WorldMode) drawTileCursor(screen *render.Frame, ctx client.Context, pro
 	drawTileCursorSurface3D(screen, m.tileCursorTexture(ctx.Resources), verts)
 }
 
-func tileCursorCellVerts(world *worldstate.World, x, y int) ([4]modelPoint3, bool) {
-	if world == nil {
-		return [4]modelPoint3{}, false
-	}
-	if world.GND != nil {
-		return tileCursorGNDCellVerts(world.GND, x, y)
-	}
-	return tileCursorGATCellVerts(world.GAT, x, y)
-}
-
-func tileCursorGNDCellVerts(gnd *res.GND, x, y int) ([4]modelPoint3, bool) {
-	if gnd == nil || x < 0 || y < 0 {
-		return [4]modelPoint3{}, false
-	}
-	cell, ok := gnd.Cell(x/2, y/2)
-	if !ok || cell.Top < 0 {
-		return [4]modelPoint3{}, false
-	}
-	u0 := 0.0
-	if x%2 != 0 {
-		u0 = 0.5
-	}
-	v0 := 0.0
-	if y%2 != 0 {
-		v0 = 0.5
-	}
-	u1 := u0 + 0.5
-	v1 := v0 + 0.5
-	return [4]modelPoint3{
-		{x: float64(x), y: bilinearHeight(cell.Heights, u0, v0), z: float64(y)},
-		{x: float64(x + 1), y: bilinearHeight(cell.Heights, u1, v0), z: float64(y)},
-		{x: float64(x), y: bilinearHeight(cell.Heights, u0, v1), z: float64(y + 1)},
-		{x: float64(x + 1), y: bilinearHeight(cell.Heights, u1, v1), z: float64(y + 1)},
-	}, true
-}
-
-func tileCursorGATCellVerts(gat *res.GAT, x, y int) ([4]modelPoint3, bool) {
+func tileCursorCellVerts(gat *res.GAT, x, y int) ([4]modelPoint3, bool) {
 	if gat == nil {
 		return [4]modelPoint3{}, false
 	}

@@ -74,9 +74,6 @@ func TestActorShadowDepthBiasUsesTinyGroundDecalNudge(t *testing.T) {
 	if actorShadowDepthBias != groundDecalDepthBias {
 		t.Fatalf("actor shadow depth bias = %.10f, want shared ground decal bias %.10f", actorShadowDepthBias, groundDecalDepthBias)
 	}
-	if actorShadowDepthBias != tileCursorDepthBias {
-		t.Fatalf("actor shadow depth bias = %.10f, want tile cursor bias %.10f", actorShadowDepthBias, tileCursorDepthBias)
-	}
 	if actorShadowDepthBias >= 0.001 {
 		t.Fatalf("actor shadow depth bias = %.10f, want smaller than old overdraw-prone bias", actorShadowDepthBias)
 	}

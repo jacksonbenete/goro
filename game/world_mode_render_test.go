@@ -816,26 +816,18 @@ func flatWalkableGAT(width, height int) *res.GAT {
 	return gat
 }
 
-func TestTileCursorCellVertsUseVisualGNDSubCellWhenAvailable(t *testing.T) {
-	world := worldstate.New()
-	world.GAT = flatWalkableGAT(4, 4)
-	world.GND = &res.GND{
-		Width:    2,
-		Height:   2,
-		Surfaces: []res.GNDSurface{{TextureID: 0}},
-		Cells: []res.GNDCell{
-			{Top: 0, Front: -1, Right: -1, Heights: [4]float32{0, 10, 20, 30}},
-			{Top: 0, Front: -1, Right: -1},
-			{Top: 0, Front: -1, Right: -1},
-			{Top: 0, Front: -1, Right: -1},
-		},
+func TestTileCursorCellVertsUseWalkSurfaceHeights(t *testing.T) {
+	gat := &res.GAT{
+		Width:  4,
+		Height: 4,
+		Cells:  make([]res.GATCell, 16),
 	}
-
-	verts, ok := tileCursorCellVerts(world, 1, 0)
+	gat.Cells[2*gat.Width+1] = res.GATCell{Heights: [4]float32{2, 3, 4, 5}, Type: res.GATTypeWalkable}
+	verts, ok := tileCursorCellVerts(gat, 1, 2)
 	if !ok {
 		t.Fatal("missing cursor cell")
 	}
-	want := [4]float64{5, 10, 15, 20}
+	want := [4]float64{2, 3, 4, 5}
 	for i := range verts {
 		if math.Abs(verts[i].y-want[i]) > 0.001 {
 			t.Fatalf("cursor vertex %d y = %.4f, want %.4f", i, verts[i].y, want[i])
@@ -843,24 +835,12 @@ func TestTileCursorCellVertsUseVisualGNDSubCellWhenAvailable(t *testing.T) {
 	}
 }
 
-func TestTileCursorCellVertsFallsBackToGATHeights(t *testing.T) {
-	gat := &res.GAT{
-		Width:  4,
-		Height: 4,
-		Cells:  make([]res.GATCell, 16),
+func TestTileCursorDepthBiasClearsRSMWalkSurfacesWithoutOverdrawingFurniture(t *testing.T) {
+	maxRSMBias := rsmModelDepthBias + (rsmHorizontalDepthBiasLayers-1)*rsmHorizontalDepthBiasStep
+	if tileCursorDepthBias <= maxRSMBias {
+		t.Fatalf("tile cursor depth bias = %.10f, want above maximum RSM floor bias %.10f", tileCursorDepthBias, maxRSMBias)
 	}
-	gat.Cells[2*gat.Width+1] = res.GATCell{Heights: [4]float32{2, 2, 2, 2}, Type: res.GATTypeWalkable}
-	verts, ok := tileCursorCellVerts(&worldstate.World{GAT: gat}, 1, 2)
-	if !ok {
-		t.Fatal("missing cursor cell")
-	}
-	if math.Abs(verts[0].y-2) > 0.001 {
-		t.Fatalf("cursor vertex y = %.4f, want 2", verts[0].y)
-	}
-}
-
-func TestTileCursorDepthBiasMatchesReferenceClient(t *testing.T) {
-	if math.Abs(tileCursorDepthBias-(1.0/32768.0)) > 0.0000001 {
-		t.Fatalf("tile cursor depth bias = %.10f, want reference z nudge %.10f", tileCursorDepthBias, 1.0/32768.0)
+	if tileCursorDepthBias >= 0.001 {
+		t.Fatalf("tile cursor depth bias = %.10f, want below old overdraw-prone bias", tileCursorDepthBias)
 	}
 }
