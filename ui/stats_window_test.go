@@ -6,13 +6,14 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
 )
 
 func TestStatsWindowSectionsLayOutHorizontally(t *testing.T) {
 	w := &StatsWindow{}
 	body := w.statsBodyWidget(Context{Session: &session.Session{}})
 	body.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(
-		statsWindowWidth-2*statsWindowPad,
+		float32(statsWindowWidth-2*statsWindowPad),
 		statsWindowHeight-ROWindowTitleHeight-2*statsWindowPad,
 	)))
 	children := body.(interface{ Children() []widget.Widget }).Children()
@@ -20,16 +21,75 @@ func TestStatsWindowSectionsLayOutHorizontally(t *testing.T) {
 		t.Fatalf("stats body children = %d, want primary and derived sections", len(children))
 	}
 	primaryChildren := children[0].(interface{ Children() []widget.Widget }).Children()
-	if len(primaryChildren) != 2 {
-		t.Fatalf("primary stats children = %d, want stat rows and status points without a header", len(primaryChildren))
+	if len(primaryChildren) != 1 {
+		t.Fatalf("primary stats children = %d, want only stat rows", len(primaryChildren))
 	}
 	primary := children[0].(interface{ Bounds() geometry.Rect }).Bounds()
-	derived := children[1].(interface{ Bounds() geometry.Rect }).Bounds()
-	if derived.Min.X < primary.Max.X {
-		t.Fatalf("stats sections overlap horizontally: primary=%v derived=%v", primary, derived)
+	right := children[1].(interface{ Bounds() geometry.Rect }).Bounds()
+	if right.Min.X < primary.Max.X {
+		t.Fatalf("stats sections overlap horizontally: primary=%v right=%v", primary, right)
 	}
-	if derived.Min.Y != primary.Min.Y {
-		t.Fatalf("stats sections top alignment differs: primary=%v derived=%v", primary, derived)
+	if right.Min.Y != primary.Min.Y {
+		t.Fatalf("stats sections top alignment differs: primary=%v right=%v", primary, right)
+	}
+	bodyBounds := body.(interface{ Bounds() geometry.Rect }).Bounds()
+	if right.Max.X != bodyBounds.Max.X {
+		t.Fatalf("stats body has trailing horizontal space: body=%v right=%v", bodyBounds, right)
+	}
+	rightChildren := children[1].(interface{ Children() []widget.Widget }).Children()
+	if len(rightChildren) != 2 {
+		t.Fatalf("right stats children = %d, want derived and detail tables", len(rightChildren))
+	}
+	derived := rightChildren[0].(interface{ Bounds() geometry.Rect }).Bounds()
+	details := rightChildren[1].(interface{ Bounds() geometry.Rect }).Bounds()
+	if details.Min.Y != derived.Max.Y+rotheme.TableGap {
+		t.Fatalf("stats detail table y = %.1f, want %.1f", details.Min.Y, derived.Max.Y+rotheme.TableGap)
+	}
+	if details.Width() != derived.Width() {
+		t.Fatalf("stats table widths differ: derived=%.1f details=%.1f", derived.Width(), details.Width())
+	}
+}
+
+func TestStatsGuildNameUsesAvailableSessionState(t *testing.T) {
+	tests := []struct {
+		name string
+		s    *session.Session
+		want string
+	}{
+		{name: "no session", want: ""},
+		{name: "no guild", s: &session.Session{}, want: ""},
+		{name: "actor name", s: &session.Session{GuildName: " Knights "}, want: "Knights"},
+		{name: "guild details", s: &session.Session{GuildName: "Old", Guild: session.Guild{Name: "Mandala"}}, want: "Mandala"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := statsGuildName(test.s); got != test.want {
+				t.Fatalf("stats guild name = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestStatsDetailsSplitAtDerivedTableCenter(t *testing.T) {
+	details := statsDetailsWidget(&session.Session{GuildName: "Knights"}, 12)
+	details.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(
+		statsDerivedColumnWidth,
+		2*statsRowH+rotheme.TableGap,
+	)))
+	if got := details.(interface{ Bounds() geometry.Rect }).Bounds().Width(); got != statsDerivedColumnWidth {
+		t.Fatalf("stats details width = %.1f, want %.1f", got, statsDerivedColumnWidth)
+	}
+	if got := 2*statsDerivedPairWidth + rotheme.TableGap; got != statsDerivedColumnWidth {
+		t.Fatalf("stats detail columns total = %.1f, want %.1f", got, statsDerivedColumnWidth)
+	}
+}
+
+func TestStatsSnapshotChangesWithGuildName(t *testing.T) {
+	s := &session.Session{}
+	before := statsWindowSnapshot(s)
+	s.GuildName = "Knights"
+	if after := statsWindowSnapshot(s); after == before {
+		t.Fatal("stats snapshot did not change with guild name")
 	}
 }
 

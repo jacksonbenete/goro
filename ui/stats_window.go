@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
@@ -12,13 +13,23 @@ import (
 )
 
 const (
-	statsWindowWidth        = 436
-	statsWindowHeight       = 180
-	statsWindowPad          = 10
-	statsRowH               = 18
-	statsRowGap             = rotheme.TableGap
-	statsPrimaryColumnWidth = 176
-	statsSectionGap         = 10
+	statsWindowHeight = 161
+	statsWindowPad    = 10
+	statsRowH         = 18
+	statsRowGap       = rotheme.TableGap
+	statsSectionGap   = 10
+
+	statsPrimaryLabelWidth  float32 = 44
+	statsPrimaryValueWidth  float32 = 56
+	statsPrimaryCostWidth   float32 = 28
+	statsPrimaryButtonGap   float32 = 7
+	statsPrimaryColumnWidth         = statsPrimaryLabelWidth + statsPrimaryValueWidth + statsPrimaryCostWidth + rotheme.IconButtonSize + statsPrimaryButtonGap
+
+	statsDerivedLabelWidth  float32 = 46
+	statsDerivedValueWidth  float32 = 62
+	statsDerivedPairWidth           = statsDerivedLabelWidth + rotheme.TableGap + statsDerivedValueWidth
+	statsDerivedColumnWidth         = 2*(statsDerivedLabelWidth+statsDerivedValueWidth) + 3*rotheme.TableGap
+	statsWindowWidth                = int(2*statsWindowPad + statsPrimaryColumnWidth + statsSectionGap + statsDerivedColumnWidth)
 )
 
 type StatsWindow struct {
@@ -104,7 +115,7 @@ func (w *StatsWindow) widgetTree(ctx Context) widget.Widget {
 		Title("Status"),
 		CloseButton(true),
 		OnClose(func() { w.close(ctx) }),
-		Size(statsWindowWidth, statsWindowHeight),
+		Size(float32(statsWindowWidth), statsWindowHeight),
 		Content(
 			primitives.Box(w.statsBodyWidget(ctx)).Padding(statsWindowPad),
 		),
@@ -115,14 +126,12 @@ func (w *StatsWindow) statsBodyWidget(ctx Context) widget.Widget {
 	stats := sessionStats(ctx.Session)
 	primary := primitives.Box(
 		w.statRowsWidget(ctx),
-		rotheme.Text(fmt.Sprintf("Status Point : %d", stats.Points)),
 	).
-		Width(statsPrimaryColumnWidth).
-		Gap(4)
+		Width(statsPrimaryColumnWidth)
 
 	return primitives.HBox(
 		primary,
-		statsDerivedWidget(stats),
+		statsRightColumnWidget(ctx.Session, stats),
 	).
 		Gap(statsSectionGap).
 		CrossAlign(primitives.CrossAxisStart)
@@ -135,11 +144,11 @@ func (w *StatsWindow) statRowsWidget(ctx Context) widget.Widget {
 		row := row
 		children = append(children,
 			primitives.HBox(
-				statsTextCell(row.label, 48, rotheme.Default.Colors.Text).
+				statsTextCell(row.label, statsPrimaryLabelWidth, rotheme.Default.Colors.Text).
 					Height(statsRowH).
 					Background(rotheme.Default.Colors.ButtonHover),
-				statsTextCell(formatStatValue(row.value, row.bonus), 58, rotheme.Default.Colors.Text),
-				statsTextCell(fmt.Sprintf("%d", statCost(row)), 42, rotheme.Default.Colors.MutedText),
+				statsTextCell(formatStatValue(row.value, row.bonus), statsPrimaryValueWidth, rotheme.Default.Colors.Text),
+				statsTextCell(fmt.Sprintf("%d", statCost(row)), statsPrimaryCostWidth, rotheme.Default.Colors.MutedText),
 				primitives.Expanded(primitives.Box()),
 				rotheme.IconButtonDisabled(rotheme.IconButtonPlus, !canIncreaseStat(ctx.Session, row), func() {
 					w.requestStatIncrease(ctx, row)
@@ -178,28 +187,28 @@ func statsTextCell(text string, width float32, color widget.Color) *primitives.B
 func statsDerivedWidget(stats session.Stats) widget.Widget {
 	rows := []rotheme.TableRow{
 		{
-			{Text: "ATK", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d + %d", stats.Attack, stats.AttackBonus), Width: 62, Align: widget.TextAlignLeft},
-			{Text: "DEF", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d + %d", stats.Defense, stats.DefenseBonus), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "ATK", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.Attack, stats.AttackBonus), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
+			{Text: "DEF", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.Defense, stats.DefenseBonus), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
 		},
 		{
-			{Text: "MATK", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d - %d", stats.MatkMin, stats.MatkMax), Width: 62, Align: widget.TextAlignLeft},
-			{Text: "MDEF", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d + %d", stats.MDefense, stats.MDefenseBonus), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "MATK", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d - %d", stats.MatkMin, stats.MatkMax), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
+			{Text: "MDEF", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.MDefense, stats.MDefenseBonus), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
 		},
 		{
-			{Text: "HIT", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d", stats.Hit), Width: 62, Align: widget.TextAlignLeft},
-			{Text: "FLEE", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d + %d", stats.Flee, stats.FleeBonus), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "HIT", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d", stats.Hit), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
+			{Text: "FLEE", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d + %d", stats.Flee, stats.FleeBonus), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
 		},
 		{
-			{Text: "CRIT", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d", stats.Critical), Width: 62, Align: widget.TextAlignLeft},
-			{Text: "ASPD", Width: 46, Align: widget.TextAlignLeft, Head: true},
-			{Text: fmt.Sprintf("%d", displayASPD(stats.ASPD+stats.ASPDBonus)), Width: 62, Align: widget.TextAlignLeft},
+			{Text: "CRIT", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d", stats.Critical), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
+			{Text: "ASPD", Width: statsDerivedLabelWidth, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d", displayASPD(stats.ASPD+stats.ASPDBonus)), Width: statsDerivedValueWidth, Align: widget.TextAlignRight},
 		},
 	}
 	return primitives.Box(
@@ -211,17 +220,52 @@ func statsDerivedWidget(stats session.Stats) widget.Widget {
 	)
 }
 
+func statsRightColumnWidget(s *session.Session, stats session.Stats) widget.Widget {
+	return primitives.Box(
+		statsDerivedWidget(stats),
+		statsDetailsWidget(s, stats.Points),
+	).Gap(rotheme.TableGap)
+}
+
+func statsDetailsWidget(s *session.Session, points int) widget.Widget {
+	return rotheme.Table(
+		[]rotheme.TableRow{
+			{
+				{Text: "Status Point", Width: statsDerivedPairWidth, Align: widget.TextAlignLeft, Head: true},
+				{Text: fmt.Sprintf("%d", points), Width: statsDerivedPairWidth, Align: widget.TextAlignRight},
+			},
+			{
+				{Text: "Guild", Width: statsDerivedPairWidth, Align: widget.TextAlignLeft, Head: true},
+				{Text: statsGuildName(s), Width: statsDerivedPairWidth, Align: widget.TextAlignRight},
+			},
+		},
+		rotheme.TableRowHeightOpt(statsRowH),
+		rotheme.TableColors(rotheme.Default.Colors.ButtonHover, rotheme.Default.Colors.WindowFooter),
+	)
+}
+
+func statsGuildName(s *session.Session) string {
+	if s == nil {
+		return ""
+	}
+	if name := strings.TrimSpace(s.Guild.Name); name != "" {
+		return name
+	}
+	return strings.TrimSpace(s.GuildName)
+}
+
 func statsWindowSnapshot(s *session.Session) string {
 	stats := sessionStats(s)
 	rows := statsRows(s)
 	return fmt.Sprintf(
-		"%d|%d/%d/%d/%d/%d/%d|%d/%d/%d/%d/%d/%d|%d/%d/%d/%d/%d/%d/%d/%d/%d/%d/%d/%d/%d",
+		"%d|%d/%d/%d/%d/%d/%d|%d/%d/%d/%d/%d/%d|%d/%d/%d/%d/%d/%d/%d/%d/%d/%d/%d/%d/%d|%s",
 		stats.Points,
 		rows[0].value, rows[1].value, rows[2].value, rows[3].value, rows[4].value, rows[5].value,
 		rows[0].bonus, rows[1].bonus, rows[2].bonus, rows[3].bonus, rows[4].bonus, rows[5].bonus,
 		stats.Attack, stats.AttackBonus, stats.MatkMin, stats.MatkMax,
 		stats.Hit, stats.Critical, stats.Defense, stats.DefenseBonus,
 		stats.MDefense, stats.MDefenseBonus, stats.Flee, stats.FleeBonus, stats.ASPD+stats.ASPDBonus,
+		statsGuildName(s),
 	)
 }
 
