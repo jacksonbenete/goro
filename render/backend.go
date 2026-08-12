@@ -1539,13 +1539,7 @@ func (r *runner) drawUIOverlay(screen *Frame, deviceScale float64) error {
 		if err != nil {
 			return err
 		}
-		emblemWidth := 0
-		if label.Emblem != nil {
-			emblemWidth = actorLabelEmblemSize + actorLabelEmblemGap
-		}
-		x := label.CenterX - float64(cached.width+emblemWidth)/2 + float64(emblemWidth)
-		drawCachedOverlayImage(screen, cached, x, label.Y)
-		drawActorLabelEmblem(screen, label.Emblem, x+2, label.Y, cached.height)
+		drawActorLabelOverlay(screen, cached, label)
 	}
 	return nil
 }
@@ -1605,23 +1599,41 @@ const (
 	actorLabelEmblemGap  = 8
 )
 
-func drawActorLabelEmblem(screen *Frame, emblem *Image, textLeft, labelY float64, labelHeight int) {
-	if screen == nil || emblem == nil {
+func drawActorLabelOverlay(screen *Frame, cached cachedOverlayImage, label UIActorLabelCommand) {
+	if screen == nil || cached.image == nil || cached.width <= 0 || cached.height <= 0 {
 		return
 	}
-	bounds := emblem.Bounds()
+	emblemWidth := 0
+	if label.Emblem != nil {
+		emblemWidth = actorLabelEmblemSize + actorLabelEmblemGap
+	}
+	blockLeft := label.CenterX - float64(cached.width+emblemWidth)/2
+	blockLeft, blockTop := snapScreenPoint(screen, blockLeft, label.Y)
+
+	var textOpts DrawImageOptions
+	if bounds := cached.image.Bounds(); bounds.Dx() > 0 && bounds.Dy() > 0 {
+		textOpts.GeoM.Scale(float64(cached.width)/float64(bounds.Dx()), float64(cached.height)/float64(bounds.Dy()))
+	}
+	textOpts.GeoM.Translate(blockLeft+float64(emblemWidth), blockTop)
+	textOpts.Filter = FilterNearest
+	screen.DrawImage(cached.image, &textOpts)
+
+	if label.Emblem == nil {
+		return
+	}
+	bounds := label.Emblem.Bounds()
 	if bounds.Dx() <= 0 || bounds.Dy() <= 0 {
 		return
 	}
-	y := labelY + float64(labelHeight-actorLabelEmblemSize)/2
-	if labelHeight < actorLabelEmblemSize {
-		y = labelY
+	emblemY := blockTop + float64(cached.height-actorLabelEmblemSize)/2
+	if cached.height < actorLabelEmblemSize {
+		emblemY = blockTop
 	}
-	var opts DrawImageOptions
-	opts.GeoM.Scale(float64(actorLabelEmblemSize)/float64(bounds.Dx()), float64(actorLabelEmblemSize)/float64(bounds.Dy()))
-	opts.GeoM.Translate(math.Round(textLeft-actorLabelEmblemSize-actorLabelEmblemGap), math.Round(y))
-	opts.Filter = FilterLinear
-	screen.DrawImage(emblem, &opts)
+	var emblemOpts DrawImageOptions
+	emblemOpts.GeoM.Scale(float64(actorLabelEmblemSize)/float64(bounds.Dx()), float64(actorLabelEmblemSize)/float64(bounds.Dy()))
+	emblemOpts.GeoM.Translate(blockLeft+2, emblemY)
+	emblemOpts.Filter = FilterLinear
+	screen.DrawImage(label.Emblem, &emblemOpts)
 }
 
 func (r *runner) cachedTextLabelImage(provider gpucontext.DeviceProvider, label UITextLabelCommand, deviceScale float64) (cachedOverlayImage, error) {

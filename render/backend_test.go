@@ -180,6 +180,34 @@ func TestShouldRecordAsyncUIAllowsFirstPendingListWhileBusy(t *testing.T) {
 	}
 }
 
+func TestDrawActorLabelOverlayUsesSharedSnappedOrigin(t *testing.T) {
+	screen := NewFrame(320, 240)
+	screen.SetScreenScale(1.25, 1.5)
+	cached := cachedOverlayImage{
+		image:  NewImage(120, 68),
+		width:  60,
+		height: 34,
+	}
+	label := UIActorLabelCommand{
+		Emblem:  NewImage(24, 24),
+		CenterX: 100.82,
+		Y:       50.42,
+	}
+
+	drawActorLabelOverlay(screen, cached, label)
+
+	if len(screen.commands) != 2 {
+		t.Fatalf("draw commands = %d, want text and emblem", len(screen.commands))
+	}
+	textOrigin := screen.commands[0].Vertices[0]
+	emblemOrigin := screen.commands[1].Vertices[0]
+	blockLeft, blockTop := snapScreenPoint(screen, label.CenterX-float64(cached.width+actorLabelEmblemSize+actorLabelEmblemGap)/2, label.Y)
+	assertFloatClose(t, "text x", float64(textOrigin.DstX), blockLeft+actorLabelEmblemSize+actorLabelEmblemGap)
+	assertFloatClose(t, "text y", float64(textOrigin.DstY), blockTop)
+	assertFloatClose(t, "emblem x", float64(emblemOrigin.DstX), blockLeft+2)
+	assertFloatClose(t, "emblem y", float64(emblemOrigin.DstY), blockTop+5)
+}
+
 func TestUIDragLayerDrawRectPreservesPhysicalCropSize(t *testing.T) {
 	r := &runner{
 		uiImage: NewImage(1000, 750),
