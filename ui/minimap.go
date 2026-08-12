@@ -171,6 +171,7 @@ func (m *Minimap) ensureWindow(width, height int) {
 		return
 	}
 	m.window = NewWindow(width, height)
+	m.window.SetBackground(widget.Color{})
 }
 
 func (m *Minimap) widgetTree() widget.Widget {

@@ -206,6 +206,15 @@ func TestMinimapDrawDoesNotPaintInnerMapChrome(t *testing.T) {
 	}
 }
 
+func TestMinimapWindowBackgroundIsTransparent(t *testing.T) {
+	m := &Minimap{}
+	m.ensureWindow(minimapWidth, minimapHeight)
+
+	if m.window.background == nil || !m.window.background.IsTransparent() {
+		t.Fatal("minimap window background is not transparent")
+	}
+}
+
 func TestMinimapImageCandidatesIncludeROPaths(t *testing.T) {
 	candidates := minimapImageCandidates("prontera")
 	if len(candidates) == 0 {
