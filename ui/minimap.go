@@ -153,7 +153,9 @@ func (m *Minimap) Update(ctx Context) bool {
 		m.queuePendingMarker(oldMarker)
 	}
 	m.visualKey = visualKey
-	return false
+	wasDragging := m.window.dragging
+	m.window.Update(ctx)
+	return wasDragging || m.window.dragging
 }
 
 func (m *Minimap) Toggle(ctx Context) {
@@ -172,6 +174,7 @@ func (m *Minimap) ensureWindow(width, height int) {
 	}
 	m.window = NewWindow(width, height)
 	m.window.SetBackground(widget.Color{})
+	m.window.CloseOnEsc = false
 }
 
 func (m *Minimap) widgetTree() widget.Widget {

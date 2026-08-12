@@ -38,6 +38,79 @@ func TestNormalizeMinimapMapName(t *testing.T) {
 	}
 }
 
+func TestMinimapDragsFromTitleBar(t *testing.T) {
+	world := worldstate.New()
+	world.MapName = "prontera"
+	inputState := input.NewState()
+	manager := &escapeMenuTestUIManager{}
+	app := &windowDragTestApp{}
+	ctx := Context{
+		World:     world,
+		Input:     inputState,
+		UIApp:     app,
+		UIManager: manager,
+		ScreenW:   800,
+		ScreenH:   600,
+	}
+	m := &Minimap{}
+	if m.Update(ctx) {
+		t.Fatal("initial minimap update was consumed")
+	}
+	startX, startY, _, _ := minimapBounds(ctx.ScreenW, ctx.ScreenH)
+
+	inputState.SetMousePosition(startX+10, startY+minimapHeight-10)
+	if m.Update(ctx) {
+		t.Fatal("minimap hover was reported as an active drag")
+	}
+
+	inputState.SetMousePosition(startX+12, startY+10)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	if !m.Update(ctx) {
+		t.Fatal("minimap title press did not start a drag")
+	}
+	root := m.window.published
+	if app.beginToken != root {
+		t.Fatal("minimap drag did not use the shared window drag layer")
+	}
+	overlay := root.(*positionedOverlay)
+	widget.ClearRedrawInTree(root)
+	app.rects = nil
+
+	inputState.EndFrame()
+	inputState.SetMousePosition(startX-28, startY+70)
+	if !m.Update(ctx) {
+		t.Fatal("minimap drag move was not consumed")
+	}
+	wantX, wantY := startX-40, startY+60
+	if m.window.x != wantX || m.window.y != wantY {
+		t.Fatalf("minimap position = %d,%d; want %d,%d", m.window.x, m.window.y, wantX, wantY)
+	}
+	if overlay.NeedsRedraw() {
+		t.Fatal("minimap drag move dirtied the UI overlay")
+	}
+	if len(app.rects) != 0 {
+		t.Fatalf("minimap drag move invalidated %d UI rects; want 0", len(app.rects))
+	}
+
+	inputState.EndFrame()
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
+	if !m.Update(ctx) {
+		t.Fatal("minimap drag release was not consumed")
+	}
+	if app.endToken != root {
+		t.Fatal("minimap drag release did not clear the shared drag layer")
+	}
+
+	inputState.EndFrame()
+	ctx.ScreenW = 1000
+	if m.Update(ctx) {
+		t.Fatal("idle minimap update was reported as an active drag")
+	}
+	if m.window.x != wantX || m.window.y != wantY {
+		t.Fatalf("minimap position after resize = %d,%d; want dragged position %d,%d", m.window.x, m.window.y, wantX, wantY)
+	}
+}
+
 func TestMinimapCellToScreenInvertsY(t *testing.T) {
 	rect := minimapRect{x: 10, y: 20, w: 100, h: 100}
 

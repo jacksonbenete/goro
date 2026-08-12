@@ -916,13 +916,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			return nil, nil
 		}
 	}
-	m.ui.minimap.Update(ctx)
+	minimapDragging := m.ui.minimap.Update(ctx)
 	removeExpiredStatusEffects(ctx.Session, now)
 	m.ui.statusIcons.Update(ctx, now)
 	m.syncLevel99AuraEffects(ctx, now)
 	m.updateCompanionAI(ctx, now)
 	m.updateBot(ctx, now)
-	pointerBlocked := uiPointerBlocked(ctx)
+	pointerBlocked := minimapDragging || uiPointerBlocked(ctx)
 	if !pointerBlocked {
 		m.updateCameraZoom(ctx)
 	}
