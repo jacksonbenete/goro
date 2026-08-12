@@ -12,10 +12,13 @@ import (
 )
 
 const (
-	statsWindowWidth  = 286
-	statsWindowHeight = 302
-	statsWindowPad    = 12
-	statsRowH         = 22
+	statsWindowWidth        = 436
+	statsWindowHeight       = 180
+	statsWindowPad          = 10
+	statsRowH               = 18
+	statsRowGap             = rotheme.TableGap
+	statsPrimaryColumnWidth = 176
+	statsSectionGap         = 10
 )
 
 type StatsWindow struct {
@@ -97,43 +100,44 @@ func statsWindowPosition(ctx Context) (int, int) {
 }
 
 func (w *StatsWindow) widgetTree(ctx Context) widget.Widget {
-	stats := sessionStats(ctx.Session)
 	return Win(
 		Title("Status"),
 		CloseButton(true),
 		OnClose(func() { w.close(ctx) }),
 		Size(statsWindowWidth, statsWindowHeight),
 		Content(
-			primitives.Box(
-				rotheme.Text(fmt.Sprintf("Status Point : %d", stats.Points)),
-				primitives.HBox(
-					statsTextCell("Stat", 48, rotheme.Default.Colors.MutedText),
-					statsTextCell("Value", 58, rotheme.Default.Colors.MutedText),
-					statsTextCell("Need", 42, rotheme.Default.Colors.MutedText),
-				).
-					Height(16).
-					CrossAlign(primitives.CrossAxisCenter),
-				w.statRowsWidget(ctx),
-				statsDerivedWidget(stats),
-			).
-				Padding(statsWindowPad).
-				Gap(4),
+			primitives.Box(w.statsBodyWidget(ctx)).Padding(statsWindowPad),
 		),
 	)
+}
+
+func (w *StatsWindow) statsBodyWidget(ctx Context) widget.Widget {
+	stats := sessionStats(ctx.Session)
+	primary := primitives.Box(
+		w.statRowsWidget(ctx),
+		rotheme.Text(fmt.Sprintf("Status Point : %d", stats.Points)),
+	).
+		Width(statsPrimaryColumnWidth).
+		Gap(4)
+
+	return primitives.HBox(
+		primary,
+		statsDerivedWidget(stats),
+	).
+		Gap(statsSectionGap).
+		CrossAlign(primitives.CrossAxisStart)
 }
 
 func (w *StatsWindow) statRowsWidget(ctx Context) widget.Widget {
 	rows := statsRows(ctx.Session)
 	children := make([]widget.Widget, 0, len(rows))
-	for i, row := range rows {
+	for _, row := range rows {
 		row := row
-		bg := rotheme.Default.Colors.Button
-		if i%2 == 1 {
-			bg = rotheme.Default.Colors.PanelBody
-		}
 		children = append(children,
 			primitives.HBox(
-				statsTextCell(row.label, 48, rotheme.Default.Colors.Text),
+				statsTextCell(row.label, 48, rotheme.Default.Colors.Text).
+					Height(statsRowH).
+					Background(rotheme.Default.Colors.ButtonHover),
 				statsTextCell(formatStatValue(row.value, row.bonus), 58, rotheme.Default.Colors.Text),
 				statsTextCell(fmt.Sprintf("%d", statCost(row)), 42, rotheme.Default.Colors.MutedText),
 				primitives.Expanded(primitives.Box()),
@@ -141,13 +145,12 @@ func (w *StatsWindow) statRowsWidget(ctx Context) widget.Widget {
 					w.requestStatIncrease(ctx, row)
 				}),
 			).
-				Height(statsRowH-2).
-				PaddingXY(4, 0).
+				Height(statsRowH).
 				CrossAlign(primitives.CrossAxisCenter).
-				Background(bg),
+				Background(rotheme.Default.Colors.WindowFooter),
 		)
 	}
-	return primitives.Box(children...).Gap(0)
+	return primitives.Box(children...).Gap(statsRowGap)
 }
 
 func (w *StatsWindow) requestStatIncrease(ctx Context, row statRow) {
@@ -163,10 +166,13 @@ func (w *StatsWindow) requestStatIncrease(ctx Context, row statRow) {
 	}
 }
 
-func statsTextCell(text string, width float32, color widget.Color) widget.Widget {
-	return primitives.Box(
+func statsTextCell(text string, width float32, color widget.Color) *primitives.BoxWidget {
+	return primitives.HBox(
 		rotheme.Text(text).Color(color),
-	).Width(width)
+	).
+		Width(width).
+		PaddingXY(rotheme.TableCellPadX, 0).
+		CrossAlign(primitives.CrossAxisCenter)
 }
 
 func statsDerivedWidget(stats session.Stats) widget.Widget {
@@ -202,8 +208,7 @@ func statsDerivedWidget(stats session.Stats) widget.Widget {
 			rotheme.TableRowHeightOpt(18),
 			rotheme.TableColors(rotheme.Default.Colors.ButtonHover, rotheme.Default.Colors.WindowFooter),
 		),
-	).
-		PaddingTop(8)
+	)
 }
 
 func statsWindowSnapshot(s *session.Session) string {
