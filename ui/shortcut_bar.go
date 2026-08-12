@@ -310,10 +310,6 @@ func shortcutBarWidth() int {
 	return shortcutGridWidth() + shortcutControlGap + shortcutControlW + shortcutControlPad
 }
 
-func shortcutBarHeight() int {
-	return shortcutBarHeightForRows(shortcutMinRows)
-}
-
 func shortcutGridWidth() int {
 	return shortcutCols*shortcutSlot + (shortcutCols-1)*shortcutGap + shortcutPad*2
 }

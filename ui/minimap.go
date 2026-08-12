@@ -571,10 +571,6 @@ func minimapContentMapRect(bounds geometry.Rect) minimapRect {
 	}
 }
 
-func strokeMinimapRect(canvas widget.Canvas, rect minimapRect) {
-	canvas.StrokeRect(geometry.NewRect(float32(rect.x), float32(rect.y), float32(rect.w), float32(rect.h)), Color(WindowBorderColor), 1)
-}
-
 func drawMinimapPlayerMarker(canvas widget.Canvas, rect minimapRect, mapW, mapH, cellX, cellY int, arrow image.Image) {
 	x, y, ok := minimapCellToScreen(rect, mapW, mapH, cellX, cellY)
 	if !ok {
@@ -605,14 +601,6 @@ func minimapPlayerMarkerDirtyRect(rect minimapRect, mapW, mapH int, marker minim
 func minimapCoordsDirtyRect(bounds geometry.Rect) geometry.Rect {
 	footerY := bounds.Min.Y + bounds.Height() - 19
 	return geometry.NewRect(bounds.Min.X+bounds.Width()/2-2, footerY-2, bounds.Width()/2-minimapPad+4, 20)
-}
-
-func drawMinimapMarker(canvas widget.Canvas, rect minimapRect, mapW, mapH, cellX, cellY int, fill color.RGBA, radius int) {
-	x, y, ok := minimapCellToScreen(rect, mapW, mapH, cellX, cellY)
-	if !ok {
-		return
-	}
-	drawMinimapMarkerAt(canvas, x, y, fill, radius)
 }
 
 func drawMinimapMarkerAt(canvas widget.Canvas, x, y int, fill color.RGBA, radius int) {

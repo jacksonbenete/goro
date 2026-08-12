@@ -132,10 +132,6 @@ func drawTexturedEffectCylinder(screen *render.Frame, projection sceneProjection
 	screen.DrawTriangles3DOwned(vertices, indices, texture, triangleDrawOptions(render.FilterLinear, render.AddressRepeat))
 }
 
-func drawWorldCylinderBand(screen *render.Frame, white, texture *render.Image, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int) {
-	drawWorldCylinderBandWithBasis(screen, white, texture, x, y, z, bottomRadius, topRadius, height, c, segments, modelPoint3{x: 1}, modelPoint3{z: 1}, modelPoint3{y: 1})
-}
-
 func drawWorldCylinderBandOriented(screen *render.Frame, white, texture *render.Image, projection sceneProjection, component worldEffectComponent, x, y, z, bottomRadius, topRadius, height float64, c color.RGBA, segments int, progress float64) {
 	right := modelPoint3{x: 1}
 	depth := modelPoint3{z: 1}

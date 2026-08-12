@@ -101,9 +101,7 @@ func itemPickupNotificationTextFor(manager *res.Manager, item session.InventoryI
 			suffix = strings.TrimSpace(msg)
 		}
 	}
-	if strings.Contains(suffix, "%d") {
-		suffix = strings.Replace(suffix, "%d", strconv.Itoa(count), 1)
-	}
+	suffix = strings.Replace(suffix, "%d", strconv.Itoa(count), 1)
 	return strings.TrimSpace(name + " " + suffix)
 }
 

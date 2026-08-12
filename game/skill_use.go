@@ -634,14 +634,6 @@ func targetSkillRange(skill session.Skill) int {
 	return maxInt(1, skill.Range)
 }
 
-func targetSkillWithinRange(ctx client.Context, skill session.Skill, actor worldstate.Actor) bool {
-	if ctx.World == nil {
-		return false
-	}
-	playerX, playerY := currentPlayerCell(ctx, time.Now())
-	return targetSkillWithinRangeFrom(playerX, playerY, targetSkillRange(skill), actor)
-}
-
 func targetSkillWithinRangeFrom(sourceX, sourceY, skillRange int, actor worldstate.Actor) bool {
 	targetX, targetY := actorCurrentCell(actor, time.Now())
 	return targetSkillWithinRangeCells(sourceX, sourceY, targetX, targetY, skillRange)

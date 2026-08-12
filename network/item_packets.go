@@ -900,12 +900,7 @@ func parseEquipmentChoiceItems(data []byte, packetName string) ([]equipmentChoic
 func repairItemsFromEquipmentChoices(items []equipmentChoiceItem) []RepairItem {
 	out := make([]RepairItem, len(items))
 	for i, item := range items {
-		out[i] = RepairItem{
-			Index:  item.Index,
-			ItemID: item.ItemID,
-			Refine: item.Refine,
-			Cards:  item.Cards,
-		}
+		out[i] = RepairItem(item)
 	}
 	return out
 }
@@ -913,12 +908,7 @@ func repairItemsFromEquipmentChoices(items []equipmentChoiceItem) []RepairItem {
 func weaponRefineItemsFromEquipmentChoices(items []equipmentChoiceItem) []WeaponRefineItem {
 	out := make([]WeaponRefineItem, len(items))
 	for i, item := range items {
-		out[i] = WeaponRefineItem{
-			Index:  item.Index,
-			ItemID: item.ItemID,
-			Refine: item.Refine,
-			Cards:  item.Cards,
-		}
+		out[i] = WeaponRefineItem(item)
 	}
 	return out
 }
@@ -1323,12 +1313,7 @@ func BuildMakingItemPacket(itemID uint16, material [3]uint16) []byte {
 func BuildRepairItemPacket(item RepairItem) []byte {
 	packet := make([]byte, 15)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqItemRepair)
-	writeEquipmentChoiceItem(packet[2:15], equipmentChoiceItem{
-		Index:  item.Index,
-		ItemID: item.ItemID,
-		Refine: item.Refine,
-		Cards:  item.Cards,
-	})
+	writeEquipmentChoiceItem(packet[2:15], equipmentChoiceItem(item))
 	return packet
 }
 

@@ -1242,10 +1242,6 @@ func actorNameLabelColor(actor worldstate.Actor, isPlayer bool) color.RGBA {
 	}
 }
 
-func drawActorNameLabels(screen *render.Frame, labels []string, emblem *render.Image, centerX, baseY, scale float64, foreground color.RGBA) {
-	drawActorNameLabelsAtY(screen, labels, emblem, centerX, actorNameLabelY(baseY, scale), foreground)
-}
-
 func drawActorNameLabelsAtY(screen *render.Frame, labels []string, emblem *render.Image, centerX, labelY float64, foreground color.RGBA) {
 	if len(labels) == 0 {
 		return

@@ -1738,10 +1738,6 @@ func itemUseEffectIDs(itemID uint16) []int {
 	return itemUseEffectSpec(itemID).effectIDs
 }
 
-func itemUseEffectOnCasterIDs(itemID uint16) []int {
-	return itemUseEffectSpec(itemID).effectIDsOnCaster
-}
-
 func itemUseEffectSpec(itemID uint16) itemEffectSpec {
 	return itemEffectSpecs[itemID]
 }
@@ -1874,10 +1870,6 @@ func (s skillActionSpec) actionFamilyForActorWithResources(manager *res.Manager,
 	default:
 		return spriteActionPCSkill
 	}
-}
-
-func (s skillActionSpec) actorAnimationForActor(actor worldstate.Actor, started time.Time, duration time.Duration) actorAnimation {
-	return s.actorAnimationForActorWithResources(nil, actor, started, duration)
 }
 
 func (s skillActionSpec) actorAnimationForActorWithResources(manager *res.Manager, actor worldstate.Actor, started time.Time, duration time.Duration) actorAnimation {

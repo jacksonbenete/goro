@@ -275,58 +275,6 @@ func drawSpriteBillboardTintAlphaOverlay3D(screen *render.Frame, projection scen
 	})
 }
 
-func drawSpriteBillboardTintAlphaRotated3DWithOptions(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
-	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
-		scale = 1
-	}
-	if alpha < 0 || math.IsNaN(alpha) {
-		alpha = 0
-	}
-	if alpha > 1 || math.IsInf(alpha, 0) {
-		alpha = 1
-	}
-	if shadow < 0 || math.IsNaN(shadow) {
-		shadow = 0
-	}
-	if shadow > 1 || math.IsInf(shadow, 0) {
-		shadow = 1
-	}
-	tintR := float64(tintColor.R) / 255 * shadow
-	tintG := float64(tintColor.G) / 255 * shadow
-	tintB := float64(tintColor.B) / 255 * shadow
-	tintA := float64(tintColor.A) / 255 * alpha
-	right, up, unitsPerPixel, ok := projection.BillboardBasis(worldX, worldY, worldZ)
-	if !ok {
-		return
-	}
-	bounds := billboard.image.Bounds()
-	w := float64(bounds.Dx())
-	h := float64(bounds.Dy())
-	center := modelPoint3{x: worldX, y: worldZ, z: worldY}
-	tint := colorRGBAFromFloats(tintR, tintG, tintB, tintA)
-	axisScale := scale * unitsPerPixel
-	sinA, cosA := math.Sin(angle), math.Cos(angle)
-	rightAxis := add3(mul3(right, cosA*axisScale), mul3(up, -sinA*axisScale))
-	upAxis := add3(mul3(right, -sinA*axisScale), mul3(up, -cosA*axisScale))
-	screen.DrawWorldBillboard(render.WorldBillboardCommand{
-		Texture:     billboard.image,
-		Options:     *options,
-		Center:      [3]float32{float32(center.x), float32(center.y), float32(center.z)},
-		RightAxis:   [3]float32{float32(rightAxis.x), float32(rightAxis.y), float32(rightAxis.z)},
-		UpAxis:      [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
-		DepthUpAxis: [3]float32{float32(upAxis.x), float32(upAxis.y), float32(upAxis.z)},
-		Width:       float32(w),
-		Height:      float32(h),
-		AnchorX:     float32(billboard.anchorX),
-		AnchorY:     float32(billboard.anchorY),
-		ColorR:      float32(tint.R) / 255,
-		ColorG:      float32(tint.G) / 255,
-		ColorB:      float32(tint.B) / 255,
-		ColorA:      float32(tint.A) / 255,
-		DepthBias:   options.DepthBias,
-	})
-}
-
 func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, scale float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
 		scale = 1
@@ -374,10 +322,6 @@ func drawSpriteBillboardTintAlpha3DWithOptions(screen *render.Frame, projection 
 		ColorA:      float32(tint.A) / 255,
 		DepthBias:   options.DepthBias,
 	})
-}
-
-func drawSpriteBillboardTintAlphaWorld3D(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA) {
-	drawSpriteBillboardTintAlphaWorld3DWithOptions(screen, projection, billboard, worldX, worldY, worldZ, pixelScale, angle, alpha, shadow, tintColor, spriteBillboardTriangleDrawOptions())
 }
 
 func drawSpriteBillboardTintAlphaWorld3DWithOptions(screen *render.Frame, projection sceneProjection, billboard *spriteBillboard, worldX, worldY, worldZ, pixelScale, angle float64, alpha float64, shadow float64, tintColor color.RGBA, options *render.DrawTrianglesOptions) {

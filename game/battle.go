@@ -1239,10 +1239,6 @@ func attackActionFamilyForActorWithResources(manager *res.Manager, actor world.A
 	return spriteActionNonPCAttack
 }
 
-func skillActionFamilyForActor(actor world.Actor, skillID uint16) int {
-	return skillActionFamilyForActorWithResources(nil, actor, skillID)
-}
-
 func skillActionFamilyForActorWithResources(manager *res.Manager, actor world.Actor, skillID uint16) int {
 	if skillID == 0 {
 		return attackActionFamilyForActorWithResources(manager, actor)
@@ -1487,19 +1483,6 @@ func attackApproachCellFromTarget(ctx client.Context, sourceX, sourceY, targetX,
 		}
 	}
 	return bestX, bestY, bestDistance < math.Inf(1)
-}
-
-func rangedAttackApproachCell(ctx client.Context, actor world.Actor, attackRange int) (int, int, bool) {
-	if ctx.World == nil {
-		return 0, 0, false
-	}
-	playerX, playerY := currentPlayerCell(ctx, time.Now())
-	return rangedAttackApproachCellFrom(ctx, playerX, playerY, actor, attackRange)
-}
-
-func rangedAttackApproachCellFrom(ctx client.Context, sourceX, sourceY int, actor world.Actor, attackRange int) (int, int, bool) {
-	targetX, targetY := actorCurrentCell(actor, time.Now())
-	return rangedAttackApproachCellFromTarget(ctx, sourceX, sourceY, targetX, targetY, attackRange)
 }
 
 type cellRangePredicate func(sourceX, sourceY, targetX, targetY, attackRange int) bool

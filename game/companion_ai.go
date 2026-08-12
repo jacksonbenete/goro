@@ -1188,9 +1188,7 @@ func pushCompanionOptionalNumber(L *lua.LState, value int, ok bool) {
 
 func mercenaryTypeFromJob(job int16) int {
 	text := strconv.Itoa(int(job))
-	if strings.HasPrefix(text, "-") {
-		text = strings.TrimPrefix(text, "-")
-	}
+	text = strings.TrimPrefix(text, "-")
 	if len(text) <= 1 {
 		return 0
 	}
