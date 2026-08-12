@@ -13,6 +13,12 @@ import (
 	"github.com/kivutar/goro/config"
 )
 
+type emptyUITestRoot struct {
+	*primitives.BoxWidget
+}
+
+func (r *emptyUITestRoot) IsUIRootEmpty() bool { return true }
+
 func TestConfigureGogpuVSyncDisablesWaylandFrameGateWhenVSyncOff(t *testing.T) {
 	t.Setenv("GOGPU_WAYLAND_FRAME_CALLBACK", "")
 	if err := os.Unsetenv("GOGPU_WAYLAND_FRAME_CALLBACK"); err != nil {
@@ -132,6 +138,65 @@ func TestSetUIImageKeepsCurrentGPUTextureWhenImageUnchanged(t *testing.T) {
 	}
 }
 
+func TestUIAppBridgeDiscardsPublishedImageForEmptyRoot(t *testing.T) {
+	app := uiapp.New(uiapp.WithRenderMode(uiapp.RenderModeFrameworkManaged))
+	oldImage := NewImage(1, 1)
+	dragImage := NewImage(1, 1)
+	gpu := &gpuRenderer{
+		textures: map[*Image]*gpuImageTexture{
+			oldImage:  {},
+			dragImage: {},
+		},
+	}
+	r := &runner{
+		ui:             app,
+		gpu:            gpu,
+		uiImage:        oldImage,
+		uiDrawnOnce:    true,
+		uiGeneration:   7,
+		uiPendingLists: []uiDrawList{{ops: []uiDrawOp{func(widget.Canvas) {}}}},
+		uiDrag:         uiDragLayer{image: dragImage, active: true},
+	}
+	bridge := uiAppBridge{App: app, runner: r}
+
+	bridge.SetUIRoot(&emptyUITestRoot{BoxWidget: primitives.Box()})
+
+	if r.uiImage != nil || r.uiDrawnOnce {
+		t.Fatal("empty root retained the previously published UI image")
+	}
+	if r.uiGeneration != 8 {
+		t.Fatalf("UI generation = %d, want 8", r.uiGeneration)
+	}
+	if len(r.uiPendingLists) != 0 {
+		t.Fatal("empty root retained a pending draw list")
+	}
+	if r.uiDrag.active || r.uiDrag.image != nil {
+		t.Fatal("empty root retained the UI drag layer")
+	}
+	if _, ok := gpu.textures[oldImage]; ok {
+		t.Fatal("empty root retained the old UI texture")
+	}
+	if _, ok := gpu.textures[dragImage]; ok {
+		t.Fatal("empty root retained the drag texture")
+	}
+}
+
+func TestUIAppBridgeKeepsPublishedImageForNonEmptyRoot(t *testing.T) {
+	app := uiapp.New(uiapp.WithRenderMode(uiapp.RenderModeFrameworkManaged))
+	image := NewImage(1, 1)
+	r := &runner{ui: app, uiImage: image, uiDrawnOnce: true, uiGeneration: 7}
+	bridge := uiAppBridge{App: app, runner: r}
+
+	bridge.SetUIRoot(primitives.Box())
+
+	if r.uiImage != image || !r.uiDrawnOnce {
+		t.Fatal("non-empty root discarded the published UI image")
+	}
+	if r.uiGeneration != 7 {
+		t.Fatalf("UI generation = %d, want 7", r.uiGeneration)
+	}
+}
+
 func TestSetUIDragLayerReleasesPreviousGPUTexture(t *testing.T) {
 	oldImage := NewImage(1, 1)
 	nextImage := NewImage(1, 1)
@@ -177,6 +242,41 @@ func TestShouldRecordAsyncUIAllowsFirstPendingListWhileBusy(t *testing.T) {
 
 	if !r.shouldRecordAsyncUI(true) {
 		t.Fatal("async UI did not allow recording the first pending draw list")
+	}
+}
+
+func TestCollectStaleAsyncUIResultSubmitsReplacementList(t *testing.T) {
+	rasterizer := &asyncUIRasterizer{
+		jobs: make(chan uiRasterJob, 1),
+		done: make(chan uiRasterResult, 1),
+	}
+	replacement := uiDrawList{ops: []uiDrawOp{func(widget.Canvas) {}}}
+	r := &runner{
+		uiAsync:        rasterizer,
+		uiAsyncBusy:    true,
+		uiGeneration:   2,
+		uiPendingLists: []uiDrawList{replacement},
+	}
+	rasterizer.done <- uiRasterResult{generation: 1, width: 800, height: 600, scale: 1}
+
+	r.collectAsyncUIResults(800, 600, 1)
+
+	if !r.uiAsyncBusy {
+		t.Fatal("replacement UI list was not submitted")
+	}
+	if len(r.uiPendingLists) != 0 {
+		t.Fatal("submitted replacement UI list remained pending")
+	}
+	select {
+	case job := <-rasterizer.jobs:
+		if job.generation != 2 {
+			t.Fatalf("replacement generation = %d, want 2", job.generation)
+		}
+		if len(job.list.ops) != len(replacement.ops) {
+			t.Fatalf("replacement operations = %d, want %d", len(job.list.ops), len(replacement.ops))
+		}
+	default:
+		t.Fatal("replacement UI job was not queued")
 	}
 }
 

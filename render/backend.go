@@ -54,6 +54,9 @@ type uiAppBridge struct {
 func (b uiAppBridge) SetUIRoot(root widget.Widget) {
 	if b.App != nil {
 		b.App.SetRoot(root)
+		if empty, ok := root.(interface{ IsUIRootEmpty() bool }); root == nil || ok && empty.IsUIRootEmpty() {
+			b.runner.discardPublishedUI()
+		}
 		if b.App.Window() != nil && b.App.Window().Context() != nil {
 			b.App.Window().Context().ResetCursor()
 		}
@@ -1301,7 +1304,11 @@ func (r *runner) collectAsyncUIResults(width, height int, deviceScale float64) {
 				continue
 			}
 			if result.generation != r.uiGeneration || result.width != width || result.height != height || !sameUIScale(result.scale, deviceScale) {
-				r.uiPendingLists = nil
+				// Generation changes discard any pending list that predates them.
+				// A list present here was recorded afterward and is the replacement
+				// frame, so submit it instead of losing the new UI with the stale
+				// result.
+				r.submitPendingUIDrawLists()
 				continue
 			}
 			imageStart := time.Now()
@@ -1451,6 +1458,19 @@ func (r *runner) setUIImage(img *Image) {
 		r.gpu.releaseImageTexture(r.uiImage)
 	}
 	r.uiImage = img
+}
+
+func (r *runner) discardPublishedUI() {
+	if r == nil {
+		return
+	}
+	// Do not stop the worker: generation matching cheaply rejects its result,
+	// while keeping the async renderer warm for the next non-empty root.
+	r.uiGeneration++
+	r.uiDrawnOnce = false
+	r.uiPendingLists = nil
+	r.setUIDragLayer(uiDragLayer{})
+	r.setUIImage(nil)
 }
 
 func (r *runner) setUIDragLayer(layer uiDragLayer) {

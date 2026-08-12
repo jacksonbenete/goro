@@ -165,6 +165,13 @@ func (r *overlayRoot) PointerBlocked(position geometry.Point) bool {
 	return false
 }
 
+// IsUIRootEmpty lets the render bridge discard a previously published UI
+// image immediately when the last overlay is removed. This avoids retaining a
+// stale asynchronous frame while the empty root is rasterized.
+func (r *overlayRoot) IsUIRootEmpty() bool {
+	return r == nil || len(r.children) == 0
+}
+
 func widgetCoversPoint(child widget.Widget, position geometry.Point) bool {
 	if child == nil {
 		return false

@@ -38,6 +38,15 @@ func (w *countingOverlay) Event(widget.Context, event.Event) bool {
 
 func (w *countingOverlay) Children() []widget.Widget { return nil }
 
+func TestOverlayRootReportsWhetherItIsEmpty(t *testing.T) {
+	if root := newOverlayRoot(nil); !root.IsUIRootEmpty() {
+		t.Fatal("root without overlays did not report itself empty")
+	}
+	if root := newOverlayRoot([]widget.Widget{newCountingOverlay()}); root.IsUIRootEmpty() {
+		t.Fatal("root with an overlay reported itself empty")
+	}
+}
+
 func TestManagerPointerBlockedUsesOverlayBounds(t *testing.T) {
 	app := uiapp.New()
 	manager := NewManager()
