@@ -31,12 +31,11 @@ const (
 	characterCreatePanelH           = 166
 	characterCreateGraphW           = 194
 	characterCreateGraphH           = 230
-	characterCreateListW            = 136
 	characterCreateColumnGap        = 18
 	characterCreateGraphTopPad      = 15
-	characterCreateSidePanelTopPad  = 15
+	characterCreateNameColumnTopPad = 15
 	characterCreatePreviewTopPad    = (characterCreateGraphH - characterCreatePanelH) / 2
-	characterCreateNameLift         = characterCreatePreviewTopPad - characterCreateSidePanelTopPad
+	characterCreateNameLift         = characterCreatePreviewTopPad - characterCreateNameColumnTopPad
 	characterCreateNameLabelH       = 22
 	characterCreateNameGap          = 5
 	characterCreateNameTopPad       = 8
@@ -45,6 +44,10 @@ const (
 	characterCreateStatButtonRadius = 90
 	characterCreateStatButtonW      = 38
 	characterCreateStatButtonH      = 36
+	characterCreateStatLabelW       = 32
+	characterCreateStatValueW       = 95
+	characterCreateStatRowH         = 22
+	characterCreateStatPanelPad     = 2
 	characterCreateHairColorButtonY = 5
 	characterCreateHairStyleButtonY = 39
 )
@@ -153,44 +156,41 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 		Content(
 			primitives.Box(
 				primitives.HBox(
-					primitives.Box(
-						newCharacterCreatePreview(w.opts.Preview, characterCreatePreviewCallbacks{
-							prev:  w.callbacks.OnHairPrev,
-							next:  w.callbacks.OnHairNext,
-							color: w.callbacks.OnHairColor,
-						}).
-							Width(characterCreatePanelW).
-							Height(characterCreatePanelH),
+					primitives.HBox(
 						primitives.Box(
-							rotheme.Text("Name").
-								LineHeight(characterCreateNameLabelH/rotheme.Default.Typography.TextSize),
-							primitives.Box(name).
+							newCharacterCreatePreview(w.opts.Preview, characterCreatePreviewCallbacks{
+								prev:  w.callbacks.OnHairPrev,
+								next:  w.callbacks.OnHairNext,
+								color: w.callbacks.OnHairColor,
+							}).
 								Width(characterCreatePanelW).
-								Height(characterCreateNameInputH),
+								Height(characterCreatePanelH),
+							primitives.Box(
+								rotheme.Text("Name").
+									LineHeight(characterCreateNameLabelH/rotheme.Default.Typography.TextSize),
+								primitives.Box(name).
+									Width(characterCreatePanelW).
+									Height(characterCreateNameInputH),
+							).
+								Gap(characterCreateNameGap).
+								PaddingTop(characterCreateNameTopPad),
 						).
-							Gap(characterCreateNameGap).
-							PaddingTop(characterCreateNameTopPad),
+							Width(characterCreatePanelW).
+							PaddingTop(characterCreatePreviewTopPad).
+							Gap(-characterCreateNameLift),
+						newCharacterCreateStatGraph(w.opts.Stats, func(stat int) {
+							if w.callbacks.OnStat != nil {
+								w.callbacks.OnStat(stat)
+							}
+						}).
+							Width(characterCreateGraphW).
+							Height(characterCreateGraphH),
 					).
-						Width(characterCreatePanelW).
-						PaddingTop(characterCreatePreviewTopPad).
-						Gap(-characterCreateNameLift),
-					newCharacterCreateStatGraph(w.opts.Stats, func(stat int) {
-						if w.callbacks.OnStat != nil {
-							w.callbacks.OnStat(stat)
-						}
-					}).
-						Width(characterCreateGraphW).
-						Height(characterCreateGraphH),
-					primitives.Box(
-						primitives.Box(characterCreateStatList(w.opts.Stats)).
-							Width(characterCreateListW).
-							Height(characterCreatePanelH).
-							BorderStyle(1, rotheme.Default.Colors.WindowBorder).
-							PaddingTop(13),
-					).
-						PaddingTop(characterCreateSidePanelTopPad),
+						Gap(characterCreateColumnGap).
+						CrossAlign(primitives.CrossAxisStart),
+					primitives.Expanded(primitives.Box()),
+					characterCreateStatTablePanel(w.opts.Stats),
 				).
-					Gap(characterCreateColumnGap).
 					CrossAlign(primitives.CrossAxisStart),
 			).
 				PaddingTop(characterCreateGraphTopPad).
@@ -214,18 +214,28 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 }
 
 func characterCreateStatList(stats [CharacterCreateStatCount]uint8) widget.Widget {
+	return rotheme.Table(
+		characterCreateStatRows(stats),
+		rotheme.TableRowHeightOpt(characterCreateStatRowH),
+	)
+}
+
+func characterCreateStatTablePanel(stats [CharacterCreateStatCount]uint8) *primitives.BoxWidget {
+	return primitives.Box(characterCreateStatList(stats)).
+		Padding(characterCreateStatPanelPad).
+		Background(rotheme.Default.Colors.PanelBody).
+		BorderStyle(1, rotheme.Default.Colors.WindowBorder)
+}
+
+func characterCreateStatRows(stats [CharacterCreateStatCount]uint8) []rotheme.TableRow {
 	rows := make([]rotheme.TableRow, 0, CharacterCreateStatCount)
 	for stat, value := range stats {
 		rows = append(rows, rotheme.TableRow{
-			{Text: CharacterCreateStatLabels()[stat], Width: 84, Align: widget.TextAlignLeft, Head: stat%2 == 0},
-			{Text: fmt.Sprintf("%d", value), Width: 43, Align: widget.TextAlignLeft, Head: stat%2 == 0},
+			{Text: CharacterCreateStatLabels()[stat], Width: characterCreateStatLabelW, Align: widget.TextAlignLeft, Head: true},
+			{Text: fmt.Sprintf("%d", value), Width: characterCreateStatValueW, Align: widget.TextAlignRight},
 		})
 	}
-	return rotheme.Table(
-		rows,
-		rotheme.TableRowHeightOpt(22),
-		rotheme.TableColors(rotheme.Default.Colors.WindowBody, rotheme.Default.Colors.WindowBody),
-	)
+	return rows
 }
 
 func CharacterCreateGraphDrawOrder() [CharacterCreateStatCount]int {

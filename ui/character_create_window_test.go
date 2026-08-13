@@ -170,7 +170,7 @@ func TestCharacterCreatePreviewCenterAlignsWithStatGraph(t *testing.T) {
 	}
 
 	nameBlockY := characterCreatePreviewTopPad + characterCreatePanelH - characterCreateNameLift
-	wantNameBlockY := characterCreateSidePanelTopPad + characterCreatePanelH
+	wantNameBlockY := characterCreateNameColumnTopPad + characterCreatePanelH
 	if nameBlockY != wantNameBlockY {
 		t.Fatalf("name block Y = %d, want restored position %d", nameBlockY, wantNameBlockY)
 	}
@@ -189,6 +189,73 @@ func TestCharacterCreateStatFillIsCenteredOnGraph(t *testing.T) {
 	}
 	if fillBounds.Width() != fillBounds.Height() {
 		t.Fatalf("stat fill bounds = %v, want square SVG viewport", fillBounds)
+	}
+}
+
+func TestCharacterCreateStatTableUsesLabelAndValueCellStyles(t *testing.T) {
+	if characterCreateStatLabelW >= characterCreateStatValueW {
+		t.Fatalf("stat label width = %d, want less than value width %d", characterCreateStatLabelW, characterCreateStatValueW)
+	}
+	rows := characterCreateStatRows([CharacterCreateStatCount]uint8{9, 8, 7, 6, 5, 4})
+	if len(rows) != CharacterCreateStatCount {
+		t.Fatalf("stat table rows = %d, want %d", len(rows), CharacterCreateStatCount)
+	}
+	for stat, row := range rows {
+		if len(row) != 2 {
+			t.Fatalf("stat %d cells = %d, want 2", stat, len(row))
+		}
+		if !row[0].Head {
+			t.Fatalf("stat %d label cell does not use header background", stat)
+		}
+		if row[1].Head {
+			t.Fatalf("stat %d value cell uses header background", stat)
+		}
+		if row[1].Align != widget.TextAlignRight {
+			t.Fatalf("stat %d value alignment = %v, want right", stat, row[1].Align)
+		}
+	}
+}
+
+func TestCharacterCreateStatTablePanelFitsTable(t *testing.T) {
+	panel := characterCreateStatTablePanel([CharacterCreateStatCount]uint8{})
+	size := panel.Layout(widget.NewContext(), geometry.Loose(geometry.Sz(1000, 1000)))
+	wantWidth := characterCreateStatLabelW + characterCreateStatValueW + rotheme.TableGap + 2*characterCreateStatPanelPad
+	wantHeight := CharacterCreateStatCount*characterCreateStatRowH + (CharacterCreateStatCount-1)*rotheme.TableGap + 2*characterCreateStatPanelPad
+	if wantWidth != 132 {
+		t.Fatalf("stat table panel configured width = %.1f, want preserved width 132", wantWidth)
+	}
+	if size.Width != wantWidth || size.Height != wantHeight {
+		t.Fatalf("stat table panel size = %.1fx%.1f, want %.1fx%.1f", size.Width, size.Height, wantWidth, wantHeight)
+	}
+}
+
+func TestCharacterCreateStatTablePanelAlignsTopRight(t *testing.T) {
+	tree := (&CharacterCreateWindow{}).widgetTree()
+	tree.Layout(
+		widget.NewContext(),
+		geometry.Tight(geometry.Sz(characterCreateWindowW, characterCreateWindowH)),
+	)
+
+	windowChildren := tree.Children()
+	if len(windowChildren) < 2 || len(windowChildren[1].Children()) != 1 {
+		t.Fatal("character creation window content tree is incomplete")
+	}
+	content := windowChildren[1].Children()[0]
+	if len(content.Children()) != 1 {
+		t.Fatal("character creation content row is missing")
+	}
+	row := content.Children()[0]
+	rowChildren := row.Children()
+	if len(rowChildren) != 3 {
+		t.Fatalf("character creation row children = %d, want 3", len(rowChildren))
+	}
+	panelBounds := rowChildren[2].(interface{ Bounds() geometry.Rect }).Bounds()
+	rowBounds := row.(interface{ Bounds() geometry.Rect }).Bounds()
+	if panelBounds.Min.Y != 0 {
+		t.Fatalf("stat table panel Y = %.1f, want top-aligned at 0", panelBounds.Min.Y)
+	}
+	if panelBounds.Max.X != rowBounds.Width() {
+		t.Fatalf("stat table panel right = %.1f, want row right %.1f", panelBounds.Max.X, rowBounds.Width())
 	}
 }
 
