@@ -155,10 +155,12 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		glog.Errorf("parse restart ack 0x%04X: %v", pkt.ID, err)
 	} else if ok {
 		if m.ui.deathModal.ApplyRestartAck(ack) {
-			return m.nextCharacterSelectMode(ctx), true
+			m.startCharacterSelectFadeOut(now)
+			return nil, true
 		}
 		if m.ui.escapeMenu.ApplyRestartAck(ack) {
-			return m.nextCharacterSelectMode(ctx), true
+			m.startCharacterSelectFadeOut(now)
+			return nil, true
 		}
 		return nil, false
 	}

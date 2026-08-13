@@ -301,10 +301,11 @@ const (
 )
 
 type mapFadeState struct {
-	phase     mapFadePhase
-	started   time.Time
-	change    network.MapChange
-	hasChange bool
+	phase           mapFadePhase
+	started         time.Time
+	change          network.MapChange
+	hasChange       bool
+	characterSelect bool
 }
 
 const (
@@ -330,9 +331,14 @@ func (m *WorldMode) Name() string {
 func (m *WorldMode) Enter(ctx client.Context) {
 	now := time.Now()
 	if m.mapFade.phase == mapFadeNone {
-		m.startMapFadeIn(now)
-	} else if m.mapFade.started.IsZero() {
-		m.mapFade.started = now
+		m.startMapFadeIn(time.Time{})
+	}
+	if m.mapFade.phase == mapFadeIn && m.mapFade.started.IsZero() {
+		// Enter loads the map synchronously. Start the visible fade only after
+		// that work finishes, or a slow load can consume the whole animation.
+		defer func() {
+			m.mapFade.started = time.Now()
+		}()
 	}
 	zoom, zoomTarget := m.camera.zoom, m.camera.zoomTarget
 	m.camera.Reset()
@@ -539,6 +545,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.mapFade.phase == mapFadeOut {
 		if !m.mapFadeElapsed(now) {
 			return nil, nil
+		}
+		if m.mapFade.characterSelect {
+			return m.nextCharacterSelectMode(ctx), nil
 		}
 		if m.mapFade.hasChange {
 			change := m.mapFade.change
@@ -1192,7 +1201,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.skillTextPrompt = m.ui.skillTextPrompt
 	next.ui.shortcutBar = m.ui.shortcutBar
 	next.ui.minimap = m.ui.minimap
-	next.startMapFadeIn(time.Now())
+	next.startMapFadeIn(time.Time{})
 	m.companionAI.close()
 	return next
 }

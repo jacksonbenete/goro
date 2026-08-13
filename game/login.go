@@ -90,6 +90,7 @@ func NewLoginMode() *LoginMode {
 func NewCharacterSelectMode(ctx client.Context, console gameui.ChatConsole) *LoginMode {
 	mode := NewLoginMode()
 	mode.phase = loginPhaseCharacter
+	mode.fade = loginFadeState{phase: loginFadeIn}
 	mode.status = "select a character"
 	mode.autoAttempted = true
 	mode.console = console
@@ -122,12 +123,17 @@ func (m *LoginMode) Enter(ctx client.Context) {
 	if m.phase == loginPhaseAccount && len(ctx.Resources.ClientInfo.Connections) == 0 {
 		m.status = "no login servers discovered"
 	}
+	if m.fade.phase == loginFadeIn && m.fade.started.IsZero() {
+		// Returning from the world can reconnect and rebuild the character UI
+		// here. Begin fading in only once the destination is ready to draw.
+		m.fade.started = time.Now()
+	}
 }
 
 func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 	now := time.Now()
 	if m.updateFade(ctx, now) {
-		return m.nextWorldMode(ctx, now), nil
+		return m.nextWorldMode(ctx), nil
 	}
 
 	conns := ctx.Resources.ClientInfo.Connections
@@ -405,7 +411,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 	}
 
 	if m.updateFade(ctx, time.Now()) {
-		return m.nextWorldMode(ctx, time.Now()), nil
+		return m.nextWorldMode(ctx), nil
 	}
 	return nil, nil
 }
@@ -564,7 +570,7 @@ func (m *LoginMode) startPhaseFade(target loginPhase, now time.Time) {
 	if m.fade.phase != loginFadeNone && m.fade.hasTarget && m.fade.target == target && !m.fade.enterWorld {
 		return
 	}
-	if m.phase == target && m.fade.phase == loginFadeNone {
+	if m.phase == target {
 		return
 	}
 	m.fade = loginFadeState{
@@ -653,13 +659,13 @@ func (m *LoginMode) drawFade(ctx client.Context, screen *render.Frame, now time.
 	render.DrawRect(screen, 0, 0, float64(width), float64(height), color.RGBA{A: alpha})
 }
 
-func (m *LoginMode) nextWorldMode(ctx client.Context, now time.Time) *WorldMode {
+func (m *LoginMode) nextWorldMode(ctx client.Context) *WorldMode {
 	m.clearLoginWindows(ctx)
 	m.quitConfirm = gameui.ConfirmModal{}
 	m.disableCharServerPing()
 	next := NewWorldMode()
 	next.ui.console = m.console
-	next.startMapFadeIn(now)
+	next.startMapFadeIn(time.Time{})
 	return next
 }
 

@@ -17,6 +17,14 @@ func (m *WorldMode) startMapFadeOut(change network.MapChange, now time.Time) {
 	}
 }
 
+func (m *WorldMode) startCharacterSelectFadeOut(now time.Time) {
+	m.mapFade = mapFadeState{
+		phase:           mapFadeOut,
+		started:         now,
+		characterSelect: true,
+	}
+}
+
 func (m *WorldMode) startMapFadeIn(now time.Time) {
 	m.mapFade = mapFadeState{phase: mapFadeIn, started: now}
 }

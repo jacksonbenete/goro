@@ -1,10 +1,9 @@
 package game
 
 import (
-	"github.com/kivutar/goro/client"
 	"testing"
-	"time"
 
+	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
 )
@@ -50,7 +49,7 @@ func TestCharacterSwitchKeepsConsolePublishableAfterLoginClear(t *testing.T) {
 		t.Fatal("login clear left the world console overlay published")
 	}
 
-	next := login.nextWorldMode(ctx, time.Unix(10, 0))
+	next := login.nextWorldMode(ctx)
 	next.ui.console.Update(ctx)
 	if !manager.PointerBlocked(20, 500) {
 		t.Fatal("console did not republish after returning from character select")

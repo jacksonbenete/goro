@@ -498,6 +498,18 @@ func TestLoginFadeTransitionsThroughBlack(t *testing.T) {
 	}
 }
 
+func TestSameLoginPhaseDoesNotRestartFadeIn(t *testing.T) {
+	started := time.Unix(15, 0)
+	mode := NewCharacterSelectMode(client.Context{}, gameui.ChatConsole{})
+	mode.fade.started = started
+
+	mode.startPhaseFade(loginPhaseCharacter, started.Add(100*time.Millisecond))
+
+	if mode.fade.phase != loginFadeIn || !mode.fade.started.Equal(started) {
+		t.Fatalf("same-phase request changed fade-in to %+v", mode.fade)
+	}
+}
+
 func TestLoginEscapeOpensQuitConfirmation(t *testing.T) {
 	mode := NewLoginMode()
 	inputState := input.NewState()
@@ -624,6 +636,26 @@ func TestLoginWorldFadeWaitsForBlack(t *testing.T) {
 	}
 	if !mode.updateFade(client.Context{}, start.Add(loginTransitionDuration)) {
 		t.Fatal("world handoff did not complete at black")
+	}
+}
+
+func TestLoginToWorldStartsFadeInAfterWorldEnter(t *testing.T) {
+	ctx := client.Context{
+		Resources: &res.Manager{},
+		Session:   &session.Session{},
+		World:     worldstate.New(),
+	}
+	next := NewLoginMode().nextWorldMode(ctx)
+	if next.mapFade.phase != mapFadeIn || !next.mapFade.started.IsZero() {
+		t.Fatalf("pending world fade = %+v, want unstarted fade-in", next.mapFade)
+	}
+
+	next.Enter(ctx)
+	if next.mapFade.started.IsZero() {
+		t.Fatal("world fade-in did not start after Enter")
+	}
+	if got := next.mapFadeAlpha(next.mapFade.started); got != 255 {
+		t.Fatalf("world fade alpha after Enter = %d, want 255", got)
 	}
 }
 
@@ -841,7 +873,7 @@ func TestLoginToWorldClearsPublishedUIRoot(t *testing.T) {
 	mode.charSelectWindow = &gameui.CharacterSelectWindow{}
 	ctx := client.Context{UIManager: manager}
 
-	if next := mode.nextWorldMode(ctx, time.Now()); next == nil {
+	if next := mode.nextWorldMode(ctx); next == nil {
 		t.Fatal("next world mode is nil")
 	}
 	if len(manager.overlays) != 0 {
