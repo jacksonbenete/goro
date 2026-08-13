@@ -69,6 +69,23 @@ func TestCharacterSelectArrowHitboxesKeepFullWidth(t *testing.T) {
 	}
 }
 
+func TestCharacterCreateHairControlsFrameHead(t *testing.T) {
+	bounds := geometry.NewRect(13, 21, characterCreatePanelW, characterCreatePanelH)
+	left := characterCreatePreviewButtonRect(bounds, 0)
+	color := characterCreatePreviewButtonRect(bounds, 1)
+	right := characterCreatePreviewButtonRect(bounds, 2)
+
+	if left.Min.Y != right.Min.Y {
+		t.Fatalf("hair style arrow heights differ: left %.1f, right %.1f", left.Min.Y, right.Min.Y)
+	}
+	if color.Min.Y < bounds.Min.Y || color.Max.Y >= left.Min.Y {
+		t.Fatalf("hair color arrow bounds = %v, want above hair style arrows at %.1f", color, left.Min.Y)
+	}
+	if left.Min.Y >= bounds.Min.Y+bounds.Height()/3 {
+		t.Fatalf("hair style arrows start at %.1f, want within preview's upper third", left.Min.Y)
+	}
+}
+
 func TestCharacterCreateGraphDrawOrderIsValidHexagon(t *testing.T) {
 	points := CharacterCreateGraphPoints(0, 0, 64)
 	order := CharacterCreateGraphDrawOrder()

@@ -27,10 +27,12 @@ const (
 )
 
 const (
-	characterCreatePanelW = 142
-	characterCreatePanelH = 166
-	characterCreateGraphW = 166
-	characterCreateListW  = 136
+	characterCreatePanelW           = 142
+	characterCreatePanelH           = 166
+	characterCreateGraphW           = 166
+	characterCreateListW            = 136
+	characterCreateHairColorButtonY = 5
+	characterCreateHairStyleButtonY = 39
 )
 
 type CharacterCreateWindowOptions struct {
@@ -376,7 +378,11 @@ func characterCreatePreviewButtonAt(bounds geometry.Rect, point geometry.Point) 
 func characterCreatePreviewButtonRect(bounds geometry.Rect, index int) geometry.Rect {
 	size := rotheme.IconButtonSize
 	xs := [...]float32{bounds.Min.X + 16, bounds.Min.X + bounds.Width()/2 - size/2, bounds.Max.X - 16 - size}
-	ys := [...]float32{bounds.Min.Y + 70, bounds.Min.Y + 16, bounds.Min.Y + 70}
+	ys := [...]float32{
+		bounds.Min.Y + characterCreateHairStyleButtonY,
+		bounds.Min.Y + characterCreateHairColorButtonY,
+		bounds.Min.Y + characterCreateHairStyleButtonY,
+	}
 	if index < 0 || index >= len(xs) {
 		index = 0
 	}
