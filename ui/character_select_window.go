@@ -39,11 +39,23 @@ type CharacterSelectWindow struct {
 }
 
 const (
-	characterSelectWindowW  = 576
-	characterSelectWindowH  = 356
-	characterSelectSlotW    = 139
-	characterSelectSlotH    = 144
-	characterSelectArrowGap = 13
+	characterSelectWindowW      = 576
+	characterSelectInfoRowCount = 6
+	characterSelectInfoRowH     = 16
+	characterSelectInfoTableGap = 1
+	characterSelectInfoPanelPad = 2
+	characterSelectInfoPanelW   = 318
+	characterSelectInfoTableH   = characterSelectInfoRowCount*characterSelectInfoRowH + (characterSelectInfoRowCount-1)*characterSelectInfoTableGap
+	characterSelectInfoPanelH   = characterSelectInfoTableH + 2*characterSelectInfoPanelPad
+	characterSelectWindowH      = 356 + characterSelectInfoRowH + characterSelectInfoTableGap
+	characterSelectSlotW        = 139
+	characterSelectSlotH        = 144
+	characterSelectArrowGap     = 13
+	characterSelectInfoColumnW  = (float32(characterSelectInfoPanelW-2*characterSelectInfoPanelPad) - rotheme.TableGap) / 2
+	characterSelectInfoLabelW   = float32(44)
+	characterSelectInfoValueW   = characterSelectInfoColumnW - characterSelectInfoLabelW - rotheme.TableGap
+	characterSelectStatLabelW   = float32(32)
+	characterSelectStatValueW   = characterSelectInfoColumnW - characterSelectStatLabelW - rotheme.TableGap
 )
 
 var characterSelectSelectedBG = widget.RGBA8(222, 237, 252, 255)
@@ -254,8 +266,8 @@ func (w *CharacterSelectWindow) infoPanel(character session.Character, hasCharac
 			rotheme.Text("Empty Slot"),
 			rotheme.Text("Use Make to create a character later."),
 		).
-			Width(318).
-			Height(88).
+			Width(characterSelectInfoPanelW).
+			Height(characterSelectInfoPanelH).
 			Padding(12).
 			Gap(8).
 			Background(rotheme.Default.Colors.PanelBody).
@@ -264,51 +276,55 @@ func (w *CharacterSelectWindow) infoPanel(character session.Character, hasCharac
 	return primitives.Box(
 		characterSelectStatsTable(character),
 	).
-		Width(318).
-		Height(88).
-		Padding(2).
+		Width(characterSelectInfoPanelW).
+		Height(characterSelectInfoPanelH).
+		Padding(characterSelectInfoPanelPad).
 		Background(rotheme.Default.Colors.PanelBody).
 		BorderStyle(1, rotheme.Default.Colors.WindowBorder)
 }
 
 func characterSelectStatsTable(character session.Character) widget.Widget {
-	leftRows := []struct {
+	return rotheme.Table(
+		characterSelectStatsRows(character),
+		rotheme.TableRowHeightOpt(characterSelectInfoRowH),
+		rotheme.TableColors(characterSelectSelectedBG, rotheme.Default.Colors.WindowFooter),
+	)
+}
+
+func characterSelectStatsRows(character session.Character) []rotheme.TableRow {
+	leftRows := [characterSelectInfoRowCount]struct {
 		label string
 		value string
 	}{
 		{"Name", trimRunes(character.Name, 24)},
 		{"Job", trimRunes(db.JobDisplayName(int(character.Job)), 18)},
 		{"Level", fmt.Sprintf("%d / %d", character.Level, character.JobLevel)},
+		{"Exp", fmt.Sprintf("%d", character.Exp)},
 		{"HP", fmt.Sprintf("%d / %d", character.HP, character.MaxHP)},
 		{"SP", fmt.Sprintf("%d / %d", character.SP, character.MaxSP)},
 	}
-	rightRows := [][4]string{
-		{"STR", fmt.Sprintf("%d", character.Str), "INT", fmt.Sprintf("%d", character.Int)},
-		{"AGI", fmt.Sprintf("%d", character.Agi), "DEX", fmt.Sprintf("%d", character.Dex)},
-		{"VIT", fmt.Sprintf("%d", character.Vit), "LUK", fmt.Sprintf("%d", character.Luk)},
+	rightRows := [characterSelectInfoRowCount]struct {
+		label string
+		value string
+	}{
+		{"STR", fmt.Sprintf("%d", character.Str)},
+		{"AGI", fmt.Sprintf("%d", character.Agi)},
+		{"VIT", fmt.Sprintf("%d", character.Vit)},
+		{"INT", fmt.Sprintf("%d", character.Int)},
+		{"DEX", fmt.Sprintf("%d", character.Dex)},
+		{"LUK", fmt.Sprintf("%d", character.Luk)},
 	}
 	rows := make([]rotheme.TableRow, 0, len(leftRows))
-	for i, item := range leftRows {
-		row := rotheme.TableRow{
-			{Text: item.label, Width: 44, Align: widget.TextAlignLeft, Head: true},
-			{Text: item.value, Width: 137, Align: widget.TextAlignLeft},
-		}
-		if i < len(rightRows) {
-			stats := rightRows[i]
-			row = append(row,
-				rotheme.TableCell{Text: stats[0], Width: 32, Align: widget.TextAlignLeft, Head: true},
-				rotheme.TableCell{Text: stats[1], Width: 32, Align: widget.TextAlignRight},
-				rotheme.TableCell{Text: stats[2], Width: 32, Align: widget.TextAlignLeft, Head: true},
-				rotheme.TableCell{Text: stats[3], Width: 32, Align: widget.TextAlignRight},
-			)
-		}
-		rows = append(rows, row)
+	for i, left := range leftRows {
+		right := rightRows[i]
+		rows = append(rows, rotheme.TableRow{
+			{Text: left.label, Width: characterSelectInfoLabelW, Align: widget.TextAlignLeft, Head: true},
+			{Text: left.value, Width: characterSelectInfoValueW, Align: widget.TextAlignLeft},
+			{Text: right.label, Width: characterSelectStatLabelW, Align: widget.TextAlignLeft, Head: true},
+			{Text: right.value, Width: characterSelectStatValueW, Align: widget.TextAlignRight},
+		})
 	}
-	return rotheme.Table(
-		rows,
-		rotheme.TableRowHeightOpt(16),
-		rotheme.TableColors(characterSelectSelectedBG, rotheme.Default.Colors.WindowFooter),
-	)
+	return rows
 }
 
 func CharacterSelectPage(slot int) int {

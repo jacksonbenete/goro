@@ -18,6 +18,7 @@ type AccountAcceptLogin struct {
 
 type Character struct {
 	ID        uint32
+	Exp       int64
 	Money     int64
 	Name      string
 	Slot      uint8
@@ -247,6 +248,7 @@ func resolveCharListLayout(packetLen int) (layout string, headerSize int, record
 func parseCharacter108(data []byte) Character {
 	return Character{
 		ID:        binary.LittleEndian.Uint32(data[0:4]),
+		Exp:       int64(int32(binary.LittleEndian.Uint32(data[4:8]))),
 		Money:     int64(int32(binary.LittleEndian.Uint32(data[8:12]))),
 		JobLevel:  int16(binary.LittleEndian.Uint32(data[16:20])),
 		HP:        int16(binary.LittleEndian.Uint16(data[42:44])),
@@ -279,6 +281,7 @@ func parseCharacter108(data []byte) Character {
 func parseLegacyCharacter106(data []byte) Character {
 	character := Character{
 		ID:       binary.LittleEndian.Uint32(data[0:4]),
+		Exp:      int64(int32(binary.LittleEndian.Uint32(data[4:8]))),
 		Money:    int64(int32(binary.LittleEndian.Uint32(data[8:12]))),
 		JobLevel: int16(binary.LittleEndian.Uint32(data[16:20])),
 		HP:       int16(binary.LittleEndian.Uint16(data[42:44])),

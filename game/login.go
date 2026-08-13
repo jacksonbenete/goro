@@ -988,6 +988,7 @@ func convertCharacters(characters []network.Character) []session.Character {
 func convertCharacter(character network.Character) session.Character {
 	return session.Character{
 		ID:        character.ID,
+		Exp:       character.Exp,
 		Money:     character.Money,
 		Name:      character.Name,
 		Slot:      character.Slot,

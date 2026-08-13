@@ -98,6 +98,13 @@ func TestCharacterSelectUsesConfiguredSlot(t *testing.T) {
 	}
 }
 
+func TestConvertCharacterPreservesExperience(t *testing.T) {
+	got := convertCharacter(network.Character{ID: 10, Exp: 123456})
+	if got.ID != 10 || got.Exp != 123456 {
+		t.Fatalf("converted character = %+v, want ID 10 and EXP 123456", got)
+	}
+}
+
 func TestCharacterSelectWindowArrowsMoveOneSlot(t *testing.T) {
 	mode := NewLoginMode()
 	mode.selectedSlot = 1

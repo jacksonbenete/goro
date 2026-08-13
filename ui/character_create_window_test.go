@@ -39,6 +39,79 @@ func TestCharacterSelectFooterButtonStateForSelectedSlot(t *testing.T) {
 	}
 }
 
+func TestCharacterSelectStatsUseTwoEqualColumnsAndSixRows(t *testing.T) {
+	if characterSelectInfoTableGap != int(rotheme.TableGap) {
+		t.Fatalf("character info table gap = %d, want theme gap %.1f", characterSelectInfoTableGap, rotheme.TableGap)
+	}
+	rows := characterSelectStatsRows(session.Character{
+		Name: "Alice", Exp: 123456,
+		Str: 1, Agi: 2, Vit: 3, Int: 4, Dex: 5, Luk: 6,
+	})
+	if len(rows) != characterSelectInfoRowCount {
+		t.Fatalf("character info rows = %d, want %d", len(rows), characterSelectInfoRowCount)
+	}
+	wantLeftLabels := [...]string{"Name", "Job", "Level", "Exp", "HP", "SP"}
+	wantRightLabels := [...]string{"STR", "AGI", "VIT", "INT", "DEX", "LUK"}
+	for i, row := range rows {
+		if len(row) != 4 {
+			t.Fatalf("character info row %d cells = %d, want 4", i, len(row))
+		}
+		if row[0].Text != wantLeftLabels[i] || row[2].Text != wantRightLabels[i] {
+			t.Fatalf("character info row %d labels = %q, %q", i, row[0].Text, row[2].Text)
+		}
+		leftWidth := row[0].Width + rotheme.TableGap + row[1].Width
+		rightWidth := row[2].Width + rotheme.TableGap + row[3].Width
+		if leftWidth != rightWidth || leftWidth != characterSelectInfoColumnW {
+			t.Fatalf("character info row %d column widths = %.1f, %.1f, want %.1f each", i, leftWidth, rightWidth, characterSelectInfoColumnW)
+		}
+	}
+	if rows[3][1].Text != "123456" {
+		t.Fatalf("experience value = %q, want 123456", rows[3][1].Text)
+	}
+	if characterSelectInfoPanelH != 105 || characterSelectWindowH != 373 {
+		t.Fatalf("character select heights = panel %d, window %d; want 105 and 373", characterSelectInfoPanelH, characterSelectWindowH)
+	}
+}
+
+func TestCharacterSelectInfoPanelFitsSixRowsAndPreservesMargins(t *testing.T) {
+	tree := (&CharacterSelectWindow{opts: CharacterSelectWindowOptions{
+		SelectedSlot: 0,
+		MaxSlots:     9,
+		Characters:   []session.Character{{ID: 10, Slot: 0}},
+	}}).widgetTree()
+	tree.Layout(
+		widget.NewContext(),
+		geometry.Tight(geometry.Sz(characterSelectWindowW, characterSelectWindowH)),
+	)
+
+	windowChildren := tree.Children()
+	if len(windowChildren) < 2 || len(windowChildren[1].Children()) != 1 {
+		t.Fatal("character-select window content tree is incomplete")
+	}
+	content := windowChildren[1].Children()[0]
+	contentChildren := content.Children()
+	if len(contentChildren) != 3 {
+		t.Fatalf("character-select content children = %d, want 3", len(contentChildren))
+	}
+	panel := contentChildren[2]
+	panelBounds := panel.(interface{ Bounds() geometry.Rect }).Bounds()
+	if math.Abs(float64(panelBounds.Width()-characterSelectInfoPanelW)) > 0.001 || math.Abs(float64(panelBounds.Height()-characterSelectInfoPanelH)) > 0.001 {
+		t.Fatalf("character info panel size = %.1fx%.1f, want %dx%d", panelBounds.Width(), panelBounds.Height(), characterSelectInfoPanelW, characterSelectInfoPanelH)
+	}
+	if len(panel.Children()) != 1 {
+		t.Fatal("character info table is missing")
+	}
+	tableBounds := panel.Children()[0].(interface{ Bounds() geometry.Rect }).Bounds()
+	if math.Abs(float64(tableBounds.Min.X-characterSelectInfoPanelPad)) > 0.001 || math.Abs(float64(tableBounds.Min.Y-characterSelectInfoPanelPad)) > 0.001 ||
+		math.Abs(float64(tableBounds.Width()-(characterSelectInfoPanelW-2*characterSelectInfoPanelPad))) > 0.001 || math.Abs(float64(tableBounds.Height()-characterSelectInfoTableH)) > 0.001 {
+		t.Fatalf("character info table bounds = %v, want padded %dpx inside panel", tableBounds, characterSelectInfoPanelPad)
+	}
+	contentBounds := content.(interface{ Bounds() geometry.Rect }).Bounds()
+	if bottomMargin := contentBounds.Height() - panelBounds.Max.Y; math.Abs(float64(bottomMargin-10.8)) > 0.001 {
+		t.Fatalf("character info bottom margin = %.1f, want preserved margin 10.8", bottomMargin)
+	}
+}
+
 func TestCharacterSelectArrowHitboxesKeepFullWidth(t *testing.T) {
 	tree := (&CharacterSelectWindow{opts: CharacterSelectWindowOptions{MaxSlots: 9}}).widgetTree()
 	tree.Layout(
