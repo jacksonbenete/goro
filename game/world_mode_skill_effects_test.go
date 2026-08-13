@@ -1207,6 +1207,91 @@ func TestApplyActorActionNotifyRepeatsFireBoltHits(t *testing.T) {
 	}
 }
 
+func TestZeroDamageSkillKeepsExecutionEffectsWithoutHitReaction(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1063,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     db.SkillMGSoulstrike,
+		SkillLevel:  8,
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		HitCount:    4,
+		Action:      8,
+	})
+
+	if len(mode.worldEffects) != 4 {
+		t.Fatalf("world effects = %+v, want four Soul Strike execution effects", mode.worldEffects)
+	}
+	for i, effect := range mode.worldEffects {
+		if effect.effectID != effectSoulStrike || effect.actorID != 300 || effect.targetID != 2000000 {
+			t.Fatalf("execution effect %d = %+v, want Soul Strike toward target", i, effect)
+		}
+	}
+	if _, ok := mode.actorAnims[300]; ok {
+		t.Fatal("zero-damage target received a hurt animation")
+	}
+	if len(mode.scheduledSounds) != 4 {
+		t.Fatalf("scheduled sounds = %+v, want four Soul Strike effect sounds", mode.scheduledSounds)
+	}
+	for i, sound := range mode.scheduledSounds {
+		if len(sound.paths) != 1 || sound.paths[0] != "effect\\ef_soulstrike.wav" {
+			t.Fatalf("scheduled sound %d = %+v, want only the Soul Strike effect sound", i, sound)
+		}
+	}
+	if len(mode.damageFloaters) != 1 || mode.damageFloaters[0].text != "miss" || mode.damageFloaters[0].kind != damageFloaterMiss {
+		t.Fatalf("damage floaters = %+v, want one miss", mode.damageFloaters)
+	}
+}
+
+func TestZeroDamageSkillKeepsImmediateEffectWithoutHitEffect(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1063,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+		SkillID:     db.SkillMGFrostdiver,
+		SkillLevel:  1,
+		SourceID:    2000000,
+		TargetID:    300,
+		SourceSpeed: 580,
+		TargetSpeed: 480,
+		HitCount:    1,
+		Action:      network.ActorActionSkill,
+	})
+
+	if len(mode.worldEffects) != 1 || mode.worldEffects[0].effectID != effectFrostDiver {
+		t.Fatalf("world effects = %+v, want Frost Diver execution effect without hit effect", mode.worldEffects)
+	}
+}
+
 func TestSkillCastAuraEffectMappings(t *testing.T) {
 	tests := []struct {
 		property uint32

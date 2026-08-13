@@ -936,15 +936,20 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		m.updateCameraZoom(ctx)
 	}
 
-	if !pointerBlocked && ctx.Input.MouseJustPressed(input.MouseButtonLeft) && m.walkReady(now) {
+	leftClick := !pointerBlocked && ctx.Input.MouseJustPressed(input.MouseButtonLeft)
+	if leftClick && m.pendingSkill.skill.ID != 0 {
+		m.nextHeldWalkAt = now.Add(heldWalkRepeatInterval)
+		screenW, screenH := ctx.ScreenSize()
+		projection := m.sceneProjection(ctx, screenW, screenH, now)
+		m.skills().HandleClick(ctx, projection, now)
+		return nil, nil
+	}
+
+	if leftClick && m.walkReady(now) {
 		m.nextHeldWalkAt = now.Add(heldWalkRepeatInterval)
 		screenW, screenH := ctx.ScreenSize()
 		projection := m.sceneProjection(ctx, screenW, screenH, now)
 		if m.handlePetCaptureClick(ctx, projection, now) {
-			return nil, nil
-		}
-		if m.pendingSkill.skill.ID != 0 {
-			m.skills().HandleClick(ctx, projection, now)
 			return nil, nil
 		}
 		playerX, playerY := currentPlayerCell(ctx, now)

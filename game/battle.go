@@ -512,22 +512,32 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		}
 	}
 	hitAt := now.Add(hitDelay)
-	if targetOK && actionHasHitReaction(action) {
+	dealsDamage := actionDealsDamage(action)
+	if targetOK {
 		if hitAt.Before(now) {
 			hitAt = now
 		}
-		m.clearActorCastBar(ctx, action.TargetID)
-		m.addSkillBeginEffect(ctx, action, now)
-		m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, now)
-		m.addNormalAttackHitEffect(ctx, action, target, targetOK, hitAt)
-		m.addSkillBeforeHitEffect(ctx, action, now)
-		if skillTargetUsesHitReaction(action, sourceLocal, targetLocal) {
-			hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
-			m.startCombatAnimationWithNext(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, hurtDuration, postHurtAnimation(target, hitAt.Add(hurtDuration)))
+		if action.SkillID > 0 {
+			m.addSkillBeginEffect(ctx, action, now)
+			m.addSkillBeforeHitEffect(ctx, action, now)
+		} else if dealsDamage {
+			m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, now)
 		}
-		m.scheduleSoundAtActor(hitAt, action.TargetID, combatHitSFXCandidates(action, source, sourceOK, target, targetOK)...)
-		m.addSkillEffect(ctx, action, hitAt)
-		m.addSkillHitEffect(ctx, action, hitAt)
+		if dealsDamage {
+			m.clearActorCastBar(ctx, action.TargetID)
+			m.addNormalAttackHitEffect(ctx, action, target, targetOK, hitAt)
+			if actionHasHitReaction(action) && skillTargetUsesHitReaction(action, sourceLocal, targetLocal) {
+				hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
+				m.startCombatAnimationWithNext(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, hurtDuration, postHurtAnimation(target, hitAt.Add(hurtDuration)))
+			}
+			m.scheduleSoundAtActor(hitAt, action.TargetID, combatHitSFXCandidates(action, source, sourceOK, target, targetOK)...)
+		}
+		if action.SkillID > 0 {
+			m.addSkillEffect(ctx, action, hitAt)
+			if dealsDamage {
+				m.addSkillHitEffect(ctx, action, hitAt)
+			}
+		}
 	}
 	x, y := ctx.World.Player.X, ctx.World.Player.Y
 	if targetOK {
@@ -1290,6 +1300,10 @@ func actionHasHitReaction(action network.ActorActionNotify) bool {
 	if action.Action == 4 || action.Action == 9 || action.Action == 11 {
 		return false
 	}
+	return actionDealsDamage(action)
+}
+
+func actionDealsDamage(action network.ActorActionNotify) bool {
 	return action.Damage > 0 || action.LeftDamage > 0
 }
 
@@ -1381,7 +1395,7 @@ func actionDamageFloater(action network.ActorActionNotify, targetLocal, sourceLo
 	if action.Action == 11 {
 		return "miss", damageFloaterMiss, damageFloaterWhite
 	}
-	if action.Action == 0 || action.Action == 7 {
+	if action.Action == 0 || action.Action == 7 || (action.SkillID > 0 && total == 0) {
 		return "miss", damageFloaterMiss, damageFloaterWhite
 	}
 	return "", damageFloaterNormal, color.RGBA{}

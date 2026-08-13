@@ -1128,6 +1128,50 @@ func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
 	}
 }
 
+func TestPendingSkillTargetClickIgnoresWalkCooldown(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.GAT = flatWalkableGAT(64, 64)
+	lunatic := worldstate.Actor{
+		ID:            300,
+		X:             30,
+		Y:             20,
+		Job:           1063,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	}
+	world.UpsertActor(lunatic)
+
+	inputState := input.NewState()
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{
+			skill:    session.Skill{ID: db.SkillMGSoulstrike, Level: 1, Type: skillTargetEnemy, Range: 9},
+			maxLevel: 10,
+		},
+		walkCooldownUntil: time.Now().Add(time.Hour),
+		tickCooldown:      2,
+	}
+	ctx := client.Context{
+		Input:   inputState,
+		Network: network.NewClient(20080910, false),
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	projection := mode.sceneProjection(ctx, ctx.ScreenW, ctx.ScreenH, time.Now())
+	point := projection.Project(cellCenter(float64(lunatic.X)), cellCenter(float64(lunatic.Y)), 0)
+	inputState.SetMousePosition(int(math.Round(float64(point.x))), int(math.Round(float64(point.y))))
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+
+	if _, err := mode.Update(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if mode.pendingSkill.targetID != lunatic.ID {
+		t.Fatalf("pending skill target = %d, want Lunatic %d despite walk cooldown", mode.pendingSkill.targetID, lunatic.ID)
+	}
+}
+
 func TestPendingSkillWheelAdjustsLevelAndConsumesWheel(t *testing.T) {
 	mode := &WorldMode{
 		pendingSkill: pendingSkillTarget{
