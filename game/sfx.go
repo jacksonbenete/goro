@@ -283,6 +283,20 @@ func actionSoundName(act *res.ACT, action res.ACTAction, motion int) string {
 	return sound
 }
 
+func actionAttackMarkerMotion(act *res.ACT, action res.ACTAction) int {
+	if act != nil {
+		for motion, animation := range action.Animations {
+			if animation.Sound < 0 || animation.Sound >= len(act.Sounds) {
+				continue
+			}
+			if strings.EqualFold(strings.TrimSpace(act.Sounds[animation.Sound]), "atk") {
+				return motion
+			}
+		}
+	}
+	return firstActionSoundMotion(action)
+}
+
 func actionSFXCandidatesForActor(actor worldstate.Actor, act *res.ACT, action res.ACTAction, motion int) []string {
 	if act == nil || motion < 0 || motion >= len(action.Animations) {
 		return nil

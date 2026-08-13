@@ -2434,8 +2434,11 @@ func TestBowNormalAttackAddsArrowProjectileEffect(t *testing.T) {
 	if projectile.effectID != effectArrowShot || projectile.actorID != 300 || projectile.targetID != 200 {
 		t.Fatalf("normal bow projectile = %+v", projectile)
 	}
+	if projectile.duration != referenceBowArrowFlightDuration || projectile.expires.Sub(projectile.starts) != referenceBowArrowFlightDuration {
+		t.Fatalf("normal bow projectile flight = duration %s lifetime %s, want %s", projectile.duration, projectile.expires.Sub(projectile.starts), referenceBowArrowFlightDuration)
+	}
 	hit := mode.worldEffects[1]
-	if hit.effectID != effectHit1 || hit.actorID != 300 || !hit.starts.After(projectile.starts) {
+	if hit.effectID != effectHit1 || hit.actorID != 300 || !hit.starts.Equal(projectile.expires) {
 		t.Fatalf("normal bow hit = %+v projectile=%+v", hit, projectile)
 	}
 }

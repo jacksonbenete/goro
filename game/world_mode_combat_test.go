@@ -622,6 +622,19 @@ func TestActionSoundNameIgnoresAttackMarker(t *testing.T) {
 	}
 }
 
+func TestActionAttackMarkerMotionPrefersATKOverEarlierSound(t *testing.T) {
+	act := &res.ACT{Sounds: []string{"clothes.wav", "atk"}}
+	action := res.ACTAction{Animations: []res.ACTAnimation{
+		{Sound: -1},
+		{Sound: 0},
+		{Sound: -1},
+		{Sound: 1},
+	}}
+	if got := actionAttackMarkerMotion(act, action); got != 3 {
+		t.Fatalf("attack marker motion = %d, want ATK motion 3", got)
+	}
+}
+
 func TestSkillHitSoundUsesReferenceEnemyNormalSounds(t *testing.T) {
 	source := worldstate.Actor{Job: db.JobWizard, Weapon: 1601}
 	target := worldstate.Actor{Job: 1002, ObjectType: actorObjectTypeMob, HasObjectType: true}
@@ -746,6 +759,255 @@ func TestMercenaryAttackSchedulesWeaponSwingAndHitSounds(t *testing.T) {
 	}
 	if sound := mode.scheduledSounds[1]; !sound.positioned || sound.actorID != 300 {
 		t.Fatalf("hit sound source = %+v, want target actor", sound)
+	}
+}
+
+func TestPlayerBowNormalAttackUsesReferenceReleaseAndImpactTimeline(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		job    int16
+		damage int32
+	}{
+		{name: "archer_hit", job: db.JobArcher, damage: 42},
+		{name: "archer_miss", job: db.JobArcher},
+		{name: "hunter_hit", job: db.JobHunter, damage: 42},
+		{name: "hunter_miss", job: db.JobHunter},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const (
+				playerID = uint32(200)
+				targetID = uint32(300)
+			)
+			player := worldstate.Actor{ID: playerID, X: 10, Y: 20, Job: tc.job, Weapon: db.WeaponBow, Dir: 4}
+			world := worldstate.New()
+			world.Player = player
+			world.UpsertActor(worldstate.Actor{
+				ID:            targetID,
+				X:             15,
+				Y:             20,
+				Job:           1002,
+				ObjectType:    actorObjectTypeMob,
+				HasObjectType: true,
+			})
+			actionFamily := attackActionFamilyForActor(player)
+			mode := &WorldMode{playerView: humanoidSoundView(actionFamily, 4, 2, []string{"atk"})}
+			ctx := client.Context{
+				Session: &session.Session{
+					AccountID: playerID,
+					CharID:    playerID,
+					Selected:  session.Character{ID: playerID, Job: tc.job, Weapon: db.WeaponBow},
+				},
+				World: world,
+			}
+
+			mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+				SourceID:    playerID,
+				TargetID:    targetID,
+				SourceSpeed: 800,
+				TargetSpeed: 480,
+				Damage:      tc.damage,
+				Action:      0,
+			})
+
+			sourceAnim, ok := mode.actorAnims[playerID]
+			if !ok {
+				t.Fatal("bow attack animation missing")
+			}
+			if len(mode.worldEffects) == 0 {
+				t.Fatal("arrow projectile missing")
+			}
+			projectile := mode.worldEffects[0]
+			if projectile.effectID != effectArrowShot || projectile.actorID != targetID || projectile.targetID != playerID {
+				t.Fatalf("arrow projectile = %+v", projectile)
+			}
+			if delay := projectile.starts.Sub(sourceAnim.started); delay != 400*time.Millisecond {
+				t.Fatalf("arrow release delay = %s, want ACT marker at 400ms", delay)
+			}
+			if projectile.duration != referenceBowArrowFlightDuration || projectile.expires.Sub(projectile.starts) != referenceBowArrowFlightDuration {
+				t.Fatalf("arrow flight = duration %s lifetime %s, want %s", projectile.duration, projectile.expires.Sub(projectile.starts), referenceBowArrowFlightDuration)
+			}
+
+			if len(mode.scheduledSounds) == 0 {
+				t.Fatal("bow release sound missing")
+			}
+			releaseSound := mode.scheduledSounds[0]
+			if !releaseSound.at.Equal(projectile.starts) || releaseSound.actorID != playerID || !sameStringSet(releaseSound.paths, db.WeaponAttackSounds(db.WeaponBow)) {
+				t.Fatalf("bow release sound = %+v projectile=%+v", releaseSound, projectile)
+			}
+
+			if tc.damage > 0 {
+				if len(mode.worldEffects) != 2 {
+					t.Fatalf("world effects = %+v, want arrow and impact", mode.worldEffects)
+				}
+				impact := mode.worldEffects[1]
+				if impact.effectID != effectHit1 || impact.actorID != targetID || !impact.starts.Equal(projectile.expires) {
+					t.Fatalf("impact = %+v projectile=%+v", impact, projectile)
+				}
+				targetAnim, ok := mode.actorAnims[targetID]
+				if !ok || !targetAnim.started.Equal(impact.starts) {
+					t.Fatalf("target hurt animation = %+v ok=%t impact=%+v", targetAnim, ok, impact)
+				}
+				if len(mode.scheduledSounds) != 2 {
+					t.Fatalf("scheduled sounds = %+v, want release and impact", mode.scheduledSounds)
+				}
+				impactSound := mode.scheduledSounds[1]
+				if !impactSound.at.Equal(impact.starts) || impactSound.actorID != targetID || len(impactSound.paths) != 1 || impactSound.paths[0] != "_hit_arrow.wav" {
+					t.Fatalf("arrow impact sound = %+v impact=%+v", impactSound, impact)
+				}
+				if len(mode.damageFloaters) != 1 || !mode.damageFloaters[0].starts.Equal(impact.starts) {
+					t.Fatalf("damage floater = %+v impact=%+v", mode.damageFloaters, impact)
+				}
+				return
+			}
+
+			if len(mode.worldEffects) != 1 {
+				t.Fatalf("miss effects = %+v, want arrow only", mode.worldEffects)
+			}
+			if len(mode.scheduledSounds) != 1 {
+				t.Fatalf("miss sounds = %+v, want bow release only", mode.scheduledSounds)
+			}
+			if _, ok := mode.actorAnims[targetID]; ok {
+				t.Fatalf("miss started target hurt animation: %+v", mode.actorAnims[targetID])
+			}
+			if len(mode.damageFloaters) != 1 || mode.damageFloaters[0].kind != damageFloaterMiss || !mode.damageFloaters[0].starts.Equal(projectile.expires) {
+				t.Fatalf("miss floater = %+v projectile=%+v", mode.damageFloaters, projectile)
+			}
+		})
+	}
+}
+
+func TestDoubleStrafeUsesReferenceBowReleaseAndMultiHitTimeline(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		damage int32
+	}{
+		{name: "hit", damage: 100},
+		{name: "miss"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const (
+				playerID = uint32(200)
+				targetID = uint32(300)
+			)
+			player := worldstate.Actor{ID: playerID, X: 10, Y: 20, Job: db.JobHunter, Weapon: db.WeaponBow, Dir: 4}
+			world := worldstate.New()
+			world.Player = player
+			world.UpsertActor(worldstate.Actor{
+				ID:            targetID,
+				X:             15,
+				Y:             20,
+				Job:           1002,
+				ObjectType:    actorObjectTypeMob,
+				HasObjectType: true,
+			})
+			actionFamily := skillAction(db.SkillACDouble).actionFamilyForActor(player)
+			mode := &WorldMode{playerView: humanoidSoundView(actionFamily, 4, 2, []string{"atk"})}
+			ctx := client.Context{
+				Session: &session.Session{
+					AccountID: playerID,
+					CharID:    playerID,
+					Selected:  session.Character{ID: playerID, Job: db.JobHunter, Weapon: db.WeaponBow},
+				},
+				World: world,
+			}
+
+			mode.applyActorActionNotify(ctx, network.ActorActionNotify{
+				SourceID:    playerID,
+				TargetID:    targetID,
+				SourceSpeed: 800,
+				TargetSpeed: 480,
+				Damage:      tc.damage,
+				HitCount:    2,
+				Action:      8,
+				SkillID:     db.SkillACDouble,
+				SkillLevel:  10,
+			})
+
+			sourceAnim, ok := mode.actorAnims[playerID]
+			if !ok {
+				t.Fatal("Double Strafe animation missing")
+			}
+			if len(mode.worldEffects) < 2 || mode.worldEffects[0].effectID != effectBashBegin {
+				t.Fatalf("Double Strafe effects = %+v, want begin effect first", mode.worldEffects)
+			}
+			projectile := mode.worldEffects[1]
+			if projectile.effectID != effectArrowShot || projectile.actorID != targetID || projectile.targetID != playerID {
+				t.Fatalf("Double Strafe projectile = %+v", projectile)
+			}
+			if delay := projectile.starts.Sub(sourceAnim.started); delay != 400*time.Millisecond {
+				t.Fatalf("Double Strafe release delay = %s, want ACT marker at 400ms", delay)
+			}
+			if projectile.duration != referenceBowArrowFlightDuration || projectile.expires.Sub(projectile.starts) != referenceBowArrowFlightDuration {
+				t.Fatalf("Double Strafe flight = duration %s lifetime %s, want %s", projectile.duration, projectile.expires.Sub(projectile.starts), referenceBowArrowFlightDuration)
+			}
+
+			var releaseSounds, impactSounds []scheduledSound
+			for _, sound := range mode.scheduledSounds {
+				switch {
+				case sameStringSet(sound.paths, db.WeaponAttackSounds(db.WeaponBow)):
+					releaseSounds = append(releaseSounds, sound)
+				case sameStringSet(sound.paths, db.EnemyHitNormalSounds()):
+					impactSounds = append(impactSounds, sound)
+				}
+			}
+			if len(releaseSounds) != 1 || !releaseSounds[0].at.Equal(projectile.starts) || releaseSounds[0].actorID != playerID {
+				t.Fatalf("Double Strafe release sounds = %+v projectile=%+v", releaseSounds, projectile)
+			}
+
+			if tc.damage > 0 {
+				if len(mode.worldEffects) != 4 {
+					t.Fatalf("Double Strafe effects = %+v, want begin, one arrow, and two impacts", mode.worldEffects)
+				}
+				for i, impact := range mode.worldEffects[2:] {
+					wantStarts := projectile.expires.Add(multiHitDelay * time.Duration(i))
+					if impact.effectID != effectBashHit || impact.actorID != targetID || !impact.starts.Equal(wantStarts) {
+						t.Fatalf("Double Strafe impact %d = %+v, want start %s", i, impact, wantStarts)
+					}
+				}
+				targetAnim, ok := mode.actorAnims[targetID]
+				if !ok || !targetAnim.started.Equal(projectile.expires) {
+					t.Fatalf("Double Strafe target animation = %+v ok=%t, want first impact at %s", targetAnim, ok, projectile.expires)
+				}
+				if len(impactSounds) != 2 {
+					t.Fatalf("Double Strafe impact sounds = %+v, want two", impactSounds)
+				}
+				for i, sound := range impactSounds {
+					wantStarts := projectile.expires.Add(multiHitDelay * time.Duration(i))
+					if !sound.at.Equal(wantStarts) || sound.actorID != targetID {
+						t.Fatalf("Double Strafe impact sound %d = %+v, want target=%d at=%s", i, sound, targetID, wantStarts)
+					}
+				}
+				normalFloaters := make([]damageFloater, 0, 2)
+				for _, floater := range mode.damageFloaters {
+					if floater.kind == damageFloaterNormal {
+						normalFloaters = append(normalFloaters, floater)
+					}
+				}
+				if len(normalFloaters) != 2 {
+					t.Fatalf("Double Strafe damage floaters = %+v, want two normal hits", mode.damageFloaters)
+				}
+				for i, floater := range normalFloaters {
+					wantStarts := projectile.expires.Add(multiHitDelay * time.Duration(i))
+					if !floater.starts.Equal(wantStarts) {
+						t.Fatalf("Double Strafe damage floater %d = %+v, want start %s", i, floater, wantStarts)
+					}
+				}
+				return
+			}
+
+			if len(mode.worldEffects) != 2 {
+				t.Fatalf("Double Strafe miss effects = %+v, want begin and arrow only", mode.worldEffects)
+			}
+			if len(impactSounds) != 0 {
+				t.Fatalf("Double Strafe miss impact sounds = %+v, want none", impactSounds)
+			}
+			if _, ok := mode.actorAnims[targetID]; ok {
+				t.Fatalf("Double Strafe miss started target hurt animation: %+v", mode.actorAnims[targetID])
+			}
+			if len(mode.damageFloaters) != 1 || mode.damageFloaters[0].kind != damageFloaterMiss || !mode.damageFloaters[0].starts.Equal(projectile.expires) {
+				t.Fatalf("Double Strafe miss floater = %+v projectile=%+v", mode.damageFloaters, projectile)
+			}
+		})
 	}
 }
 

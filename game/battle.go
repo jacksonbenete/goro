@@ -69,10 +69,13 @@ func actionAnimationDuration(action res.ACTAction, fallback time.Duration) time.
 }
 
 func combatHitDelayFromAction(action res.ACTAction, duration time.Duration) time.Duration {
+	return combatMotionDelayFromAction(action, duration, firstActionSoundMotion(action))
+}
+
+func combatMotionDelayFromAction(action res.ACTAction, duration time.Duration, motion int) time.Duration {
 	if duration <= 0 {
 		return 0
 	}
-	motion := firstActionSoundMotion(action)
 	if motion >= 0 && len(action.Animations) > 0 {
 		return duration * time.Duration(motion) / time.Duration(len(action.Animations))
 	}
@@ -223,12 +226,13 @@ type actorCastBar struct {
 const attackRetryInterval = 1200 * time.Millisecond
 
 const (
-	defaultAttackAnimationDuration = 600 * time.Millisecond
-	defaultHitAnimationDuration    = 250 * time.Millisecond
-	defaultDeathAnimationDuration  = 900 * time.Millisecond
-	maxCombatAnimationDuration     = 5 * time.Second
-	nonPCDeathFadeDuration         = 5 * time.Second
-	multiHitDelay                  = 200 * time.Millisecond
+	defaultAttackAnimationDuration  = 600 * time.Millisecond
+	defaultHitAnimationDuration     = 250 * time.Millisecond
+	defaultDeathAnimationDuration   = 900 * time.Millisecond
+	maxCombatAnimationDuration      = 5 * time.Second
+	nonPCDeathFadeDuration          = 5 * time.Second
+	multiHitDelay                   = 200 * time.Millisecond
+	referenceBowArrowFlightDuration = 8 * 24 * time.Millisecond
 )
 
 func combatDuration(speed int32, fallback time.Duration) time.Duration {
@@ -492,6 +496,10 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	}
 	attackDuration := combatDuration(action.SourceSpeed, defaultAttackAnimationDuration)
 	attackFamily := spriteActionNonPCAttack
+	playerBowAttack := sourceOK && res.HasPlayerJobToken(int(source.Job)) && actorUsesBow(ctx.Resources, source)
+	normalPlayerBowAttack := action.SkillID == 0 && playerBowAttack
+	doubleStrafeBowAttack := action.SkillID == db.SkillACDouble && playerBowAttack
+	referenceBowFlightAttack := normalPlayerBowAttack || doubleStrafeBowAttack
 	if sourceOK {
 		attackFamily = skillActionFamilyForActorWithResources(ctx.Resources, source, action.SkillID)
 		if action.SkillID > 0 {
@@ -505,13 +513,28 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 	hitDelay := combatDuration(action.SourceSpeed, 0)
 	if sourceOK {
 		if actionDef, ok := m.actorResolvedAction(ctx, source, attackFamily); ok {
-			hitDelay = combatHitDelayFromAction(actionDef, attackDuration)
-			if sounds := actionSFXCandidatesForActor(source, m.actorActionACT(ctx, source), actionDef, firstActionSoundMotion(actionDef)); len(sounds) > 0 {
+			actionACT := m.actorActionACT(ctx, source)
+			soundMotion := firstActionSoundMotion(actionDef)
+			if referenceBowFlightAttack {
+				soundMotion = actionAttackMarkerMotion(actionACT, actionDef)
+			}
+			hitDelay = combatMotionDelayFromAction(actionDef, attackDuration, soundMotion)
+			if sounds := actionSFXCandidatesForActor(source, actionACT, actionDef, soundMotion); len(sounds) > 0 {
 				m.scheduleSoundAtActor(now.Add(hitDelay), action.SourceID, sounds...)
 			}
 		}
 	}
-	hitAt := now.Add(hitDelay)
+	releaseAt := now.Add(hitDelay)
+	hitAt := releaseAt
+	projectileAt := now
+	projectileDuration := time.Duration(0)
+	if referenceBowFlightAttack {
+		// The reference client reveals the arrow at the ACT "atk" marker, then
+		// gives it eight 24 ms ticks to reach the target before applying the hit.
+		projectileAt = releaseAt
+		projectileDuration = referenceBowArrowFlightDuration
+		hitAt = releaseAt.Add(referenceBowArrowFlightDuration)
+	}
 	dealsDamage := actionDealsDamage(action)
 	if targetOK {
 		if hitAt.Before(now) {
@@ -519,9 +542,15 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 		}
 		if action.SkillID > 0 {
 			m.addSkillBeginEffect(ctx, action, now)
-			m.addSkillBeforeHitEffect(ctx, action, now)
-		} else if dealsDamage {
-			m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, now)
+			if doubleStrafeBowAttack {
+				// Double Strafe releases one visible arrow; its two impacts are
+				// delivered separately after that arrow reaches the target.
+				m.addSkillBeforeHitEffectOnce(ctx, action, projectileAt, projectileDuration)
+			} else {
+				m.addSkillBeforeHitEffect(ctx, action, now)
+			}
+		} else {
+			m.addNormalAttackBeforeHitEffect(ctx, action, source, sourceOK, projectileAt, projectileDuration)
 		}
 		if dealsDamage {
 			m.clearActorCastBar(ctx, action.TargetID)
@@ -530,7 +559,14 @@ func (m *WorldMode) applyActorActionNotify(ctx client.Context, action network.Ac
 				hurtDuration := combatDuration(action.TargetSpeed, defaultHitAnimationDuration)
 				m.startCombatAnimationWithNext(ctx, action.TargetID, hurtActionFamilyForActor(target), hitAt, hurtDuration, postHurtAnimation(target, hitAt.Add(hurtDuration)))
 			}
-			m.scheduleSoundAtActor(hitAt, action.TargetID, combatHitSFXCandidates(action, source, sourceOK, target, targetOK)...)
+			hitSoundCount := 1
+			if doubleStrafeBowAttack {
+				hitSoundCount = actionVisualHitCount(action)
+			}
+			hitSounds := combatHitSFXCandidates(action, source, sourceOK, target, targetOK)
+			for i := 0; i < hitSoundCount; i++ {
+				m.scheduleSoundAtActor(hitAt.Add(multiHitDelay*time.Duration(i)), action.TargetID, hitSounds...)
+			}
 		}
 		if action.SkillID > 0 {
 			m.addSkillEffect(ctx, action, hitAt)
@@ -585,7 +621,7 @@ func (m *WorldMode) addSkillBeginEffectsAt(ctx client.Context, skillID uint16, s
 	}
 }
 
-func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action network.ActorActionNotify, source world.Actor, sourceOK bool, starts time.Time) {
+func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action network.ActorActionNotify, source world.Actor, sourceOK bool, starts time.Time, duration time.Duration) {
 	if action.SkillID != 0 || !sourceOK {
 		return
 	}
@@ -593,7 +629,7 @@ func (m *WorldMode) addNormalAttackBeforeHitEffect(ctx client.Context, action ne
 	if !ok {
 		return
 	}
-	if m.addWorldEffectBetweenAt(ctx, effectID, action.TargetID, action.SourceID, starts) {
+	if m.addWorldEffectBetweenAtDuration(ctx, effectID, action.TargetID, action.SourceID, starts, duration) {
 		glog.Debugf("normal attack before-hit effect src=%d target=%d effect=%d", action.SourceID, action.TargetID, effectID)
 	}
 }
@@ -692,6 +728,22 @@ func (m *WorldMode) addSkillBeforeHitEffect(ctx client.Context, action network.A
 			if m.addWorldEffectAt(ctx, effectID, action.SourceID, effectStarts) {
 				glog.Debugf("skill before-hit self effect skill=%d src=%d target=%d effect=%d hit=%d/%d", action.SkillID, action.SourceID, action.TargetID, effectID, i+1, count)
 			}
+		}
+	}
+}
+
+func (m *WorldMode) addSkillBeforeHitEffectOnce(ctx client.Context, action network.ActorActionNotify, starts time.Time, duration time.Duration) {
+	if action.SkillID == 0 {
+		return
+	}
+	for _, effectID := range skillBeforeHitEffectIDs(action.SkillID) {
+		if m.addWorldEffectBetweenAtDuration(ctx, effectID, action.TargetID, action.SourceID, starts, duration) {
+			glog.Debugf("skill before-hit effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
+		}
+	}
+	for _, effectID := range skillBeforeHitEffectSelfIDs(action.SkillID) {
+		if m.addWorldEffectBetweenAtDuration(ctx, effectID, action.SourceID, 0, starts, duration) {
+			glog.Debugf("skill before-hit self effect skill=%d src=%d target=%d effect=%d", action.SkillID, action.SourceID, action.TargetID, effectID)
 		}
 	}
 }
