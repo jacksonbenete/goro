@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"math"
 	"testing"
 
 	"github.com/gogpu/ui/geometry"
@@ -83,6 +84,69 @@ func TestCharacterCreateHairControlsFrameHead(t *testing.T) {
 	}
 	if left.Min.Y >= bounds.Min.Y+bounds.Height()/3 {
 		t.Fatalf("hair style arrows start at %.1f, want within preview's upper third", left.Min.Y)
+	}
+}
+
+func TestCharacterCreateStatButtonsSitOutsideHexagon(t *testing.T) {
+	tree := (&CharacterCreateWindow{}).widgetTree()
+	tree.Layout(
+		widget.NewContext(),
+		geometry.Tight(geometry.Sz(characterCreateWindowW, characterCreateWindowH)),
+	)
+
+	var findGraph func(widget.Widget) *characterCreateStatGraph
+	findGraph = func(current widget.Widget) *characterCreateStatGraph {
+		if graph, ok := current.(*characterCreateStatGraph); ok {
+			return graph
+		}
+		for _, child := range current.Children() {
+			if graph := findGraph(child); graph != nil {
+				return graph
+			}
+		}
+		return nil
+	}
+	graph := findGraph(tree)
+	if graph == nil {
+		t.Fatal("character creation stat graph is missing from widget tree")
+	}
+	bounds := graph.Bounds()
+	if bounds.Width() != characterCreateGraphW || bounds.Height() != characterCreateGraphH {
+		t.Fatalf("stat graph size = %.1fx%.1f, want %dx%d", bounds.Width(), bounds.Height(), characterCreateGraphW, characterCreateGraphH)
+	}
+	cx := bounds.Min.X + bounds.Width()/2
+	cy := bounds.Min.Y + bounds.Height()/2
+	hexagon := characterCreateWidgetGraphPoints(cx, cy, characterCreateGraphOuterRadius)
+
+	for stat := 0; stat < CharacterCreateStatCount; stat++ {
+		rect := characterCreateStatButtonRect(bounds, stat)
+		if rect.Min.X < bounds.Min.X || rect.Min.Y < bounds.Min.Y || rect.Max.X > bounds.Max.X || rect.Max.Y > bounds.Max.Y {
+			t.Fatalf("stat %d button %v exceeds graph bounds %v", stat, rect, bounds)
+		}
+
+		buttonX := rect.Min.X + rect.Width()/2
+		buttonY := rect.Min.Y + rect.Height()/2
+		buttonDistance := math.Hypot(float64(buttonX-cx), float64(buttonY-cy))
+		hexagonDistance := math.Hypot(float64(hexagon[stat].X-cx), float64(hexagon[stat].Y-cy))
+		if buttonDistance <= hexagonDistance {
+			t.Fatalf("stat %d button distance = %.1f, want greater than hexagon radius %.1f", stat, buttonDistance, hexagonDistance)
+		}
+	}
+}
+
+func TestCharacterCreateStatFillIsCenteredOnGraph(t *testing.T) {
+	graphBounds := geometry.NewRect(13, 21, characterCreateGraphW, characterCreateGraphH)
+	cx := graphBounds.Min.X + graphBounds.Width()/2
+	cy := graphBounds.Min.Y + graphBounds.Height()/2
+	fillBounds := characterCreateStatFillBounds(cx, cy, characterCreateGraphOuterRadius)
+
+	fillCenterX := fillBounds.Min.X + fillBounds.Width()/2
+	fillCenterY := fillBounds.Min.Y + fillBounds.Height()/2
+	if fillCenterX != cx || fillCenterY != cy {
+		t.Fatalf("stat fill center = %.1f,%.1f, want graph center %.1f,%.1f", fillCenterX, fillCenterY, cx, cy)
+	}
+	if fillBounds.Width() != fillBounds.Height() {
+		t.Fatalf("stat fill bounds = %v, want square SVG viewport", fillBounds)
 	}
 }
 

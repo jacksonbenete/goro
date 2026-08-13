@@ -29,8 +29,16 @@ const (
 const (
 	characterCreatePanelW           = 142
 	characterCreatePanelH           = 166
-	characterCreateGraphW           = 166
+	characterCreateGraphW           = 194
+	characterCreateGraphH           = 230
 	characterCreateListW            = 136
+	characterCreateColumnGap        = 18
+	characterCreateGraphTopPad      = 15
+	characterCreateSidePanelTopPad  = 15
+	characterCreateGraphOuterRadius = 58
+	characterCreateStatButtonRadius = 90
+	characterCreateStatButtonW      = 38
+	characterCreateStatButtonH      = 36
 	characterCreateHairColorButtonY = 5
 	characterCreateHairStyleButtonY = 39
 )
@@ -157,24 +165,28 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 							Gap(5).
 							PaddingTop(8),
 					).
-						Width(characterCreatePanelW),
+						Width(characterCreatePanelW).
+						PaddingTop(characterCreateSidePanelTopPad),
 					newCharacterCreateStatGraph(w.opts.Stats, func(stat int) {
 						if w.callbacks.OnStat != nil {
 							w.callbacks.OnStat(stat)
 						}
 					}).
 						Width(characterCreateGraphW).
-						Height(characterCreatePanelH),
-					primitives.Box(characterCreateStatList(w.opts.Stats)).
-						Width(characterCreateListW).
-						Height(characterCreatePanelH).
-						BorderStyle(1, rotheme.Default.Colors.WindowBorder).
-						PaddingTop(13),
+						Height(characterCreateGraphH),
+					primitives.Box(
+						primitives.Box(characterCreateStatList(w.opts.Stats)).
+							Width(characterCreateListW).
+							Height(characterCreatePanelH).
+							BorderStyle(1, rotheme.Default.Colors.WindowBorder).
+							PaddingTop(13),
+					).
+						PaddingTop(characterCreateSidePanelTopPad),
 				).
-					Gap(32).
+					Gap(characterCreateColumnGap).
 					CrossAlign(primitives.CrossAxisStart),
 			).
-				PaddingTop(30).
+				PaddingTop(characterCreateGraphTopPad).
 				PaddingLeft(32).
 				PaddingRight(32),
 		),
@@ -426,7 +438,7 @@ func (w *characterCreateStatGraph) Draw(_ widget.Context, canvas widget.Canvas) 
 
 	cx := bounds.Min.X + bounds.Width()/2
 	cy := bounds.Min.Y + bounds.Height()/2
-	outer := float32(58)
+	outer := float32(characterCreateGraphOuterRadius)
 	inner := float32(29)
 	points := characterCreateWidgetGraphPoints(cx, cy, outer)
 	mid := characterCreateWidgetGraphPoints(cx, cy, inner)
@@ -439,7 +451,8 @@ func (w *characterCreateStatGraph) Draw(_ widget.Context, canvas widget.Canvas) 
 		canvas.DrawLine(geometry.Pt(cx, cy), points[current], widget.RGBA8(185, 204, 224, 150), 1)
 	}
 	if filler, ok := canvas.(widget.SVGFiller); ok {
-		filler.FillSVGPath(w.statPolygonSVG(bounds.Width()/2, bounds.Height()/2, outer, order), maxFloat32(bounds.Width(), bounds.Height()), bounds, widget.RGBA8(36, 92, 154, 220))
+		fillBounds := characterCreateStatFillBounds(cx, cy, outer)
+		filler.FillSVGPath(w.statPolygonSVG(outer, outer, outer, order), fillBounds.Width(), fillBounds, widget.RGBA8(36, 92, 154, 220))
 	}
 
 	for stat := 0; stat < CharacterCreateStatCount; stat++ {
@@ -450,8 +463,7 @@ func (w *characterCreateStatGraph) Draw(_ widget.Context, canvas widget.Canvas) 
 		}
 		canvas.DrawRoundRect(rect, bg, rotheme.ButtonRadius)
 		canvas.StrokeRoundRect(rect, rotheme.Default.Colors.ButtonBorder, rotheme.ButtonRadius, 1)
-		rotheme.DrawText(canvas, CharacterCreateStatLabels()[stat], geometry.NewRect(rect.Min.X, rect.Min.Y+3, rect.Width(), 12), rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignCenter)
-		rotheme.DrawText(canvas, fmt.Sprintf("%d", w.stats[stat]), geometry.NewRect(rect.Min.X, rect.Min.Y+18, rect.Width(), 12), rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignCenter)
+		rotheme.DrawText(canvas, CharacterCreateStatLabels()[stat], rect, rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignCenter)
 	}
 }
 
@@ -531,27 +543,19 @@ func characterCreateStatButtonAt(bounds geometry.Rect, point geometry.Point) int
 }
 
 func characterCreateStatButtonRect(bounds geometry.Rect, stat int) geometry.Rect {
-	cx := bounds.Min.X + bounds.Width()/2
-	top := bounds.Min.Y + 5
-	midTop := bounds.Min.Y + 47
-	midBottom := bounds.Min.Y + 92
-	bottom := bounds.Max.Y - 41
-	left := bounds.Min.X + 8
-	right := bounds.Max.X - 46
-	rects := [CharacterCreateStatCount]geometry.Rect{
-		geometry.NewRect(cx-19, top, 38, 36),
-		geometry.NewRect(left, midTop, 38, 36),
-		geometry.NewRect(right, midTop, 38, 36),
-		geometry.NewRect(cx-19, bottom, 38, 36),
-		geometry.NewRect(left, midBottom, 38, 36),
-		geometry.NewRect(right, midBottom, 38, 36),
-	}
-	if stat < 0 || stat >= len(rects) {
+	if stat < 0 || stat >= CharacterCreateStatCount {
 		stat = 0
 	}
-	return rects[stat]
+	cx := bounds.Min.X + bounds.Width()/2
+	cy := bounds.Min.Y + bounds.Height()/2
+	centers := characterCreateWidgetGraphPoints(cx, cy, characterCreateStatButtonRadius)
+	center := centers[stat]
+	x := float32(math.Round(float64(center.X - characterCreateStatButtonW/2)))
+	y := float32(math.Round(float64(center.Y - characterCreateStatButtonH/2)))
+	return geometry.NewRect(x, y, characterCreateStatButtonW, characterCreateStatButtonH)
 }
 
-func maxFloat32(a, b float32) float32 {
-	return float32(math.Max(float64(a), float64(b)))
+func characterCreateStatFillBounds(cx, cy, radius float32) geometry.Rect {
+	diameter := radius * 2
+	return geometry.NewRect(cx-radius, cy-radius, diameter, diameter)
 }
