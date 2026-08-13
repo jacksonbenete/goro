@@ -134,6 +134,48 @@ func TestCharacterCreateStatButtonsSitOutsideHexagon(t *testing.T) {
 	}
 }
 
+func TestCharacterCreatePreviewCenterAlignsWithStatGraph(t *testing.T) {
+	window := &CharacterCreateWindow{}
+	tree := window.widgetTree()
+	tree.Layout(
+		widget.NewContext(),
+		geometry.Tight(geometry.Sz(characterCreateWindowW, characterCreateWindowH)),
+	)
+
+	var preview *characterCreatePreview
+	var graph *characterCreateStatGraph
+	var walk func(widget.Widget)
+	walk = func(current widget.Widget) {
+		if currentPreview, ok := current.(*characterCreatePreview); ok {
+			preview = currentPreview
+		}
+		if currentGraph, ok := current.(*characterCreateStatGraph); ok {
+			graph = currentGraph
+		}
+		for _, child := range current.Children() {
+			walk(child)
+		}
+	}
+	walk(tree)
+	if preview == nil || graph == nil {
+		t.Fatalf("character creation widgets missing: preview=%t graph=%t", preview != nil, graph != nil)
+	}
+
+	previewBounds := preview.Bounds()
+	graphBounds := graph.Bounds()
+	previewCenterY := previewBounds.Min.Y + previewBounds.Height()/2
+	graphCenterY := graphBounds.Min.Y + graphBounds.Height()/2
+	if previewCenterY != graphCenterY {
+		t.Fatalf("preview center Y = %.1f, want graph center Y %.1f", previewCenterY, graphCenterY)
+	}
+
+	nameBlockY := characterCreatePreviewTopPad + characterCreatePanelH - characterCreateNameLift
+	wantNameBlockY := characterCreateSidePanelTopPad + characterCreatePanelH
+	if nameBlockY != wantNameBlockY {
+		t.Fatalf("name block Y = %d, want restored position %d", nameBlockY, wantNameBlockY)
+	}
+}
+
 func TestCharacterCreateStatFillIsCenteredOnGraph(t *testing.T) {
 	graphBounds := geometry.NewRect(13, 21, characterCreateGraphW, characterCreateGraphH)
 	cx := graphBounds.Min.X + graphBounds.Width()/2

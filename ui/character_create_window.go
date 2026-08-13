@@ -35,6 +35,12 @@ const (
 	characterCreateColumnGap        = 18
 	characterCreateGraphTopPad      = 15
 	characterCreateSidePanelTopPad  = 15
+	characterCreatePreviewTopPad    = (characterCreateGraphH - characterCreatePanelH) / 2
+	characterCreateNameLift         = characterCreatePreviewTopPad - characterCreateSidePanelTopPad
+	characterCreateNameLabelH       = 22
+	characterCreateNameGap          = 5
+	characterCreateNameTopPad       = 8
+	characterCreateNameInputH       = 22
 	characterCreateGraphOuterRadius = 58
 	characterCreateStatButtonRadius = 90
 	characterCreateStatButtonW      = 38
@@ -157,16 +163,17 @@ func (w *CharacterCreateWindow) widgetTree() widget.Widget {
 							Height(characterCreatePanelH),
 						primitives.Box(
 							rotheme.Text("Name").
-								LineHeight(22/rotheme.Default.Typography.TextSize),
+								LineHeight(characterCreateNameLabelH/rotheme.Default.Typography.TextSize),
 							primitives.Box(name).
 								Width(characterCreatePanelW).
-								Height(22),
+								Height(characterCreateNameInputH),
 						).
-							Gap(5).
-							PaddingTop(8),
+							Gap(characterCreateNameGap).
+							PaddingTop(characterCreateNameTopPad),
 					).
 						Width(characterCreatePanelW).
-						PaddingTop(characterCreateSidePanelTopPad),
+						PaddingTop(characterCreatePreviewTopPad).
+						Gap(-characterCreateNameLift),
 					newCharacterCreateStatGraph(w.opts.Stats, func(stat int) {
 						if w.callbacks.OnStat != nil {
 							w.callbacks.OnStat(stat)
