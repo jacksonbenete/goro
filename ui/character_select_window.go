@@ -24,8 +24,8 @@ type CharacterSelectWindowOptions struct {
 type CharacterSelectWindowCallbacks struct {
 	OnSelectSlot   func(int)
 	OnActivateSlot func(int)
-	OnPreviousPage func()
-	OnNextPage     func()
+	OnPreviousSlot func()
+	OnNextSlot     func()
 	OnMake         func()
 	OnOK           func()
 	OnCancel       func()
@@ -39,10 +39,11 @@ type CharacterSelectWindow struct {
 }
 
 const (
-	characterSelectWindowW = 576
-	characterSelectWindowH = 356
-	characterSelectSlotW   = 139
-	characterSelectSlotH   = 144
+	characterSelectWindowW  = 576
+	characterSelectWindowH  = 356
+	characterSelectSlotW    = 139
+	characterSelectSlotH    = 144
+	characterSelectArrowGap = 13
 )
 
 var characterSelectSelectedBG = widget.RGBA8(222, 237, 252, 255)
@@ -116,17 +117,17 @@ func (w *CharacterSelectWindow) widgetTree() widget.Widget {
 		Content(
 			primitives.Box(
 				primitives.HBox(
-					characterSelectArrowButton(rotheme.IconButtonLeft, w.callbacks.OnPreviousPage),
+					characterSelectArrowButton(rotheme.IconButtonLeft, w.callbacks.OnPreviousSlot),
 					primitives.HBox(
 						w.slotWidget(pageStart),
 						w.slotWidget(pageStart+1),
 						w.slotWidget(pageStart+2),
 					).
 						Gap(25),
-					characterSelectArrowButton(rotheme.IconButtonRight, w.callbacks.OnNextPage),
+					characterSelectArrowButton(rotheme.IconButtonRight, w.callbacks.OnNextSlot),
 				).
 					CrossAlign(primitives.CrossAxisCenter).
-					Gap(18),
+					Gap(characterSelectArrowGap),
 
 				rotheme.Text(fmt.Sprintf("%d / %d", page+1, pageCount)).
 					Color(rotheme.Default.Colors.MutedText),

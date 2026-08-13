@@ -98,6 +98,23 @@ func TestCharacterSelectUsesConfiguredSlot(t *testing.T) {
 	}
 }
 
+func TestCharacterSelectWindowArrowsMoveOneSlot(t *testing.T) {
+	mode := NewLoginMode()
+	mode.selectedSlot = 1
+	mode.maxSlots = 9
+	callbacks := mode.characterSelectWindowCallbacks(client.Context{})
+
+	callbacks.OnNextSlot()
+	if mode.selectedSlot != 2 {
+		t.Fatalf("right arrow selected slot = %d, want 2", mode.selectedSlot)
+	}
+
+	callbacks.OnPreviousSlot()
+	if mode.selectedSlot != 1 {
+		t.Fatalf("left arrow selected slot = %d, want 1", mode.selectedSlot)
+	}
+}
+
 func TestLoginModeAppliesEarlySpeedParameterChange(t *testing.T) {
 	mode := NewLoginMode()
 	world := worldstate.New()

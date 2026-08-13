@@ -667,6 +667,14 @@ func (m *LoginMode) moveSelectedSlot(delta int) {
 	m.selectedSlot = clampCharacterSlot(m.selectedSlot+delta, m.maxSlots)
 }
 
+func (m *LoginMode) moveToPreviousCharacterSlot() {
+	m.moveSelectedSlot(-1)
+}
+
+func (m *LoginMode) moveToNextCharacterSlot() {
+	m.moveSelectedSlot(1)
+}
+
 func (m *LoginMode) submitSelectedCharacter(ctx client.Context) {
 	character, ok := characterBySlot(ctx.Session.Characters, m.selectedSlot)
 	if !ok {

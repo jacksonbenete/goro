@@ -28,10 +28,10 @@ func (m *LoginMode) updateCharacterSelectInput(ctx client.Context) {
 	}
 	if ctx.Input != nil {
 		if ctx.Input.JustPressed(input.KeyArrowLeft) {
-			m.moveSelectedSlot(-1)
+			m.moveToPreviousCharacterSlot()
 		}
 		if ctx.Input.JustPressed(input.KeyArrowRight) {
-			m.moveSelectedSlot(1)
+			m.moveToNextCharacterSlot()
 		}
 		if ctx.Input.JustPressed(input.KeyEnter) {
 			m.activateCharacterSelectSlot(ctx, m.selectedSlot, time.Now())
@@ -53,19 +53,24 @@ func (m *LoginMode) updateCharacterSelectWindow(ctx client.Context) {
 		opts.Characters = ctx.Session.Characters
 	}
 	opts.PreviewImages = m.characterSelectPreviewImages(ctx, opts)
-	callbacks := gameui.CharacterSelectWindowCallbacks{
+	if m.charSelectWindow == nil {
+		callbacks := m.characterSelectWindowCallbacks(ctx)
+		m.charSelectWindow = gameui.NewCharacterSelectWindow(ctx, opts, callbacks)
+		return
+	}
+	m.charSelectWindow.SetOptions(ctx, opts)
+}
+
+func (m *LoginMode) characterSelectWindowCallbacks(ctx client.Context) gameui.CharacterSelectWindowCallbacks {
+	return gameui.CharacterSelectWindowCallbacks{
 		OnSelectSlot: func(slot int) {
 			m.selectedSlot = clampCharacterSlot(slot, m.maxSlots)
 		},
 		OnActivateSlot: func(slot int) {
 			m.activateCharacterSelectSlot(ctx, slot, time.Now())
 		},
-		OnPreviousPage: func() {
-			m.moveSelectedSlot(-3)
-		},
-		OnNextPage: func() {
-			m.moveSelectedSlot(3)
-		},
+		OnPreviousSlot: m.moveToPreviousCharacterSlot,
+		OnNextSlot:     m.moveToNextCharacterSlot,
 		OnMake: func() {
 			slot := m.selectedSlot
 			if _, ok := characterBySlot(ctx.Session.Characters, slot); ok {
@@ -84,11 +89,6 @@ func (m *LoginMode) updateCharacterSelectWindow(ctx client.Context) {
 			m.openCharacterDeleteConfirm(ctx)
 		},
 	}
-	if m.charSelectWindow == nil {
-		m.charSelectWindow = gameui.NewCharacterSelectWindow(ctx, opts, callbacks)
-		return
-	}
-	m.charSelectWindow.SetOptions(ctx, opts)
 }
 
 func (m *LoginMode) activateCharacterSelectSlot(ctx client.Context, slot int, now time.Time) {

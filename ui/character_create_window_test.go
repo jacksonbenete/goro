@@ -3,7 +3,10 @@ package ui
 import (
 	"testing"
 
+	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
 )
 
 func TestCharacterSelectPage(t *testing.T) {
@@ -32,6 +35,37 @@ func TestCharacterSelectFooterButtonStateForSelectedSlot(t *testing.T) {
 	}
 	if characterSelectMakeDisabled(opts) {
 		t.Fatal("make disabled for empty slot")
+	}
+}
+
+func TestCharacterSelectArrowHitboxesKeepFullWidth(t *testing.T) {
+	tree := (&CharacterSelectWindow{opts: CharacterSelectWindowOptions{MaxSlots: 9}}).widgetTree()
+	tree.Layout(
+		widget.NewContext(),
+		geometry.Tight(geometry.Sz(characterSelectWindowW, characterSelectWindowH)),
+	)
+
+	windowChildren := tree.Children()
+	if len(windowChildren) < 2 || len(windowChildren[1].Children()) != 1 {
+		t.Fatal("character-select window content tree is incomplete")
+	}
+	content := windowChildren[1].Children()[0]
+	if len(content.Children()) == 0 {
+		t.Fatal("character-select window has no content row")
+	}
+	rowChildren := content.Children()[0].Children()
+	if len(rowChildren) != 3 {
+		t.Fatalf("character-select row children = %d, want 3", len(rowChildren))
+	}
+
+	for i, arrow := range []widget.Widget{rowChildren[0], rowChildren[2]} {
+		bounder, ok := arrow.(interface{ Bounds() geometry.Rect })
+		if !ok {
+			t.Fatalf("arrow %d does not expose bounds", i)
+		}
+		if got := bounder.Bounds().Width(); got != rotheme.IconButtonSize {
+			t.Fatalf("arrow %d hitbox width = %.1f, want %.1f", i, got, rotheme.IconButtonSize)
+		}
 	}
 }
 
