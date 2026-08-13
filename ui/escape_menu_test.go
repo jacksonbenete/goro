@@ -3,6 +3,7 @@ package ui
 import (
 	"testing"
 
+	"github.com/gogpu/ui/core/button"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
@@ -96,7 +97,10 @@ func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
 }
 
 func TestEscapeMenuCharacterSelectAckDeniedKeepsMenuOpen(t *testing.T) {
-	menu := EscapeMenu{pending: true, pendingAction: EscapeMenuActionCharacterSelect}
+	menu := EscapeMenu{}
+	menu.Toggle(client.Context{ScreenW: 800, ScreenH: 600})
+	menu.pending = true
+	menu.pendingAction = EscapeMenuActionCharacterSelect
 
 	if menu.ApplyRestartAck(network.RestartAck{Allowed: false}) {
 		t.Fatal("denied restart ack should not request transition")
@@ -145,4 +149,57 @@ func TestEscapeMenuQuitAckRefusedKeepsMenuOpen(t *testing.T) {
 	if !menu.Window.IsOpen() || menu.pending {
 		t.Fatalf("menu = %+v, want open without pending request", menu)
 	}
+}
+
+func TestEscapeMenuRefusalDoesNotReopenCanceledMenu(t *testing.T) {
+	menu := EscapeMenu{}
+	menu.Toggle(client.Context{ScreenW: 800, ScreenH: 600})
+	menu.pending = true
+	menu.pendingAction = EscapeMenuActionExit
+	menu.Window.Close()
+
+	if !menu.ApplyQuitGameAck(network.QuitGameAck{Allowed: false, Result: 1}) {
+		t.Fatal("quit ack was not handled")
+	}
+	if menu.Window.IsOpen() {
+		t.Fatal("refused quit request reopened the canceled menu")
+	}
+}
+
+func TestEscapeMenuPendingOnlyDisablesServerActions(t *testing.T) {
+	menu := EscapeMenu{pending: true, pendingAction: EscapeMenuActionExit}
+	buttons := collectEscapeMenuButtons(menu.widgetTree(client.Context{}))
+	if len(buttons) != 4 {
+		t.Fatalf("buttons = %d, want 4", len(buttons))
+	}
+
+	wantFocusable := []bool{false, true, true, false}
+	for i, want := range wantFocusable {
+		if got := buttons[i].IsFocusable(); got != want {
+			t.Fatalf("button %d focusable = %t, want %t", i, got, want)
+		}
+	}
+}
+
+func collectEscapeMenuButtons(root widget.Widget) []*button.Widget {
+	if root == nil {
+		return nil
+	}
+	buttons := make([]*button.Widget, 0, 4)
+	var visit func(widget.Widget)
+	visit = func(current widget.Widget) {
+		if current == nil {
+			return
+		}
+		if currentButton, ok := current.(*button.Widget); ok {
+			buttons = append(buttons, currentButton)
+		}
+		if parent, ok := current.(interface{ Children() []widget.Widget }); ok {
+			for _, child := range parent.Children() {
+				visit(child)
+			}
+		}
+	}
+	visit(root)
+	return buttons
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/network"
+	gameui "github.com/kivutar/goro/ui"
 )
 
 // handleNetworkPackets drains and applies one frame of world-server packets.
@@ -154,6 +155,8 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	if ack, ok, err := network.ParseRestartAck(pkt); err != nil {
 		glog.Errorf("parse restart ack 0x%04X: %v", pkt.ID, err)
 	} else if ok {
+		refusedCharacterSelect := !ack.Allowed && (m.ui.deathModal.PendingAction() == gameui.DeathModalActionCharSelect ||
+			m.ui.escapeMenu.PendingAction() == gameui.EscapeMenuActionCharacterSelect)
 		if m.ui.deathModal.ApplyRestartAck(ack) {
 			m.startCharacterSelectFadeOut(now)
 			return nil, true
@@ -161,6 +164,9 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		if m.ui.escapeMenu.ApplyRestartAck(ack) {
 			m.startCharacterSelectFadeOut(now)
 			return nil, true
+		}
+		if refusedCharacterSelect {
+			m.addLeaveWorldRefusalMessage(ctx)
 		}
 		return nil, false
 	}

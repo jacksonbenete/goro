@@ -128,8 +128,6 @@ func (m *EscapeMenu) ApplyRestartAck(ack network.RestartAck) bool {
 	}
 	m.pending = false
 	m.pendingAction = EscapeMenuActionNone
-	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
-	m.Window.Open(m.ctx, m.widgetTree(m.ctx))
 	m.refresh(m.ctx)
 	return false
 }
@@ -144,8 +142,6 @@ func (m *EscapeMenu) ApplyQuitGameAck(ack network.QuitGameAck) bool {
 	}
 	m.pending = false
 	m.pendingAction = EscapeMenuActionNone
-	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
-	m.Window.Open(m.ctx, m.widgetTree(m.ctx))
 	m.refresh(m.ctx)
 	return true
 }
@@ -158,6 +154,10 @@ func (m *EscapeMenu) ConsumeAction() EscapeMenuAction {
 
 func (m *EscapeMenu) Pending() bool {
 	return m.pending
+}
+
+func (m *EscapeMenu) PendingAction() EscapeMenuAction {
+	return m.pendingAction
 }
 
 func (m *EscapeMenu) Action() EscapeMenuAction {
@@ -195,11 +195,11 @@ func (m *EscapeMenu) widgetTree(ctx client.Context) widget.Widget {
 					m.action = EscapeMenuActionCharacterSelect
 					m.refresh(ctx)
 				}),
-				rotheme.LargeButtonDisabled("Settings", m.pending, func() {
+				rotheme.LargeButton("Settings", func() {
 					m.action = EscapeMenuActionSettings
 					m.Window.Close()
 				}),
-				rotheme.LargeButtonDisabled("Cancel", m.pending, func() {
+				rotheme.LargeButton("Cancel", func() {
 					m.Window.Close()
 				}),
 				rotheme.LargeButtonDisabled("Exit to Windows", m.pending, func() {

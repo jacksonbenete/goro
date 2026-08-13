@@ -606,6 +606,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.mapFade.phase == mapFadeHold {
 		return nil, nil
 	}
+	m.ui.console.UpdatePresentation(ctx)
 	keyboardBlocked := m.ui.keyboardInputBlocked(ctx)
 	if !keyboardBlocked {
 		if m.skills().CancelFromInput(ctx) {
@@ -766,7 +767,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.weaponRefine.Update(ctx) {
 		return nil, nil
 	}
-	if m.ui.console.Update(ctx) {
+	if m.ui.console.UpdateInput(ctx) {
 		return nil, nil
 	}
 	if m.ui.settingsWindow.Update(ctx) {
@@ -1019,8 +1020,16 @@ func (m *WorldMode) applyQuitGameAck(ctx client.Context, ack network.QuitGameAck
 		return
 	}
 	if handled {
-		m.ui.console.AddErrorMessage("You cannot exit the game right now.")
+		m.addLeaveWorldRefusalMessage(ctx)
 	}
+}
+
+func (m *WorldMode) addLeaveWorldRefusalMessage(ctx client.Context) {
+	message := disconnectMessageText(ctx.Resources, disconnectMessage{
+		msgID:    502,
+		fallback: "You cannot exit the game right now.",
+	})
+	m.ui.console.AddErrorMessage("%s", message)
 }
 
 func (m *WorldMode) openEscapeMenuFromInput(ctx client.Context) bool {

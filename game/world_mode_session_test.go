@@ -561,6 +561,44 @@ func TestFormatConsoleMessageUsesMsgStringTable(t *testing.T) {
 	}
 }
 
+func TestExitRefusalMessageUsesOriginalMessageFallback(t *testing.T) {
+	mode := &WorldMode{}
+
+	mode.addLeaveWorldRefusalMessage(client.Context{})
+
+	messages := mode.ui.console.Messages()
+	if len(messages) != 1 {
+		t.Fatalf("console messages = %d, want 1", len(messages))
+	}
+	if got, want := messages[0].Text, "You cannot exit the game right now."; got != want {
+		t.Fatalf("console message = %q, want %q", got, want)
+	}
+}
+
+func TestExitRefusalMessageUsesMsgString502(t *testing.T) {
+	root := t.TempDir()
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(dataDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	msgTable := strings.Repeat("ignored#\n", 502) + "Please wait 10 seconds before exiting.#\n"
+	if err := os.WriteFile(filepath.Join(dataDir, "msgstringtable.txt"), []byte(msgTable), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mode := &WorldMode{}
+
+	mode.addLeaveWorldRefusalMessage(client.Context{Resources: manager})
+
+	messages := mode.ui.console.Messages()
+	if len(messages) != 1 || messages[0].Text != "Please wait 10 seconds before exiting." {
+		t.Fatalf("console messages = %+v", messages)
+	}
+}
+
 func TestColoredConsoleMessageUsesPacketColor(t *testing.T) {
 	console := &gameui.ChatConsole{}
 	addConsoleMessage(console, nil, network.ChatMessage{Text: "Experience Gained Base:1 (0.01%) Job:1 (0.01%)", Color: 0x00B5FFB5, HasColor: true})

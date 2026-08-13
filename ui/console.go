@@ -86,14 +86,33 @@ func (c *ChatConsole) Active() bool {
 }
 
 func (c *ChatConsole) Update(ctx client.Context) bool {
+	c.UpdatePresentation(ctx)
+	return c.UpdateInput(ctx)
+}
+
+// UpdatePresentation advances deferred message redraws independently of input.
+// World mode calls this before modal input can return early for the frame.
+func (c *ChatConsole) UpdatePresentation(ctx client.Context) {
 	c.ctx = ctx
 	c.updatePlayerMarkerStability(ctx)
 	c.flushPendingMessageRedraw(ctx)
 	c.ensureWindow(ctx)
+	c.Publish(ctx)
+	c.armPendingMessageRedraw()
+}
+
+// UpdateInput handles chat focus, typing, and pointer input after presentation
+// maintenance has already run for the frame.
+func (c *ChatConsole) UpdateInput(ctx client.Context) bool {
+	c.ctx = ctx
 	c.syncActiveFromField()
 	wasActive := c.active
-	defer c.Publish(ctx)
-	defer c.armPendingMessageRedraw()
+	defer func() {
+		c.armPendingMessageRedraw()
+		if c.cacheKey == "" {
+			c.Publish(ctx)
+		}
+	}()
 	if ctx.Input == nil {
 		return false
 	}

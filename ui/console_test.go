@@ -298,6 +298,32 @@ func TestConsoleMessageRedrawDefersOneUpdate(t *testing.T) {
 	}
 }
 
+func TestConsolePresentationFlushesMessagesWithoutInputUpdate(t *testing.T) {
+	console := &ChatConsole{}
+	ctx := client.Context{
+		ScreenW:   800,
+		ScreenH:   600,
+		UIManager: NewManager(),
+	}
+
+	console.UpdatePresentation(ctx)
+	initialKey := console.cacheKey
+	console.AddErrorMessage("You cannot exit the game right now.")
+
+	console.UpdatePresentation(ctx)
+	if console.cacheKey != initialKey {
+		t.Fatal("message redraw did not preserve its one-update deferral")
+	}
+
+	console.UpdatePresentation(ctx)
+	if console.cacheKey == initialKey {
+		t.Fatal("presentation maintenance did not flush the message redraw")
+	}
+	if console.pendingMessageRedraw || console.pendingMessageRedrawReady {
+		t.Fatalf("pending redraw = %t ready = %t, want cleared", console.pendingMessageRedraw, console.pendingMessageRedrawReady)
+	}
+}
+
 func TestConsoleMessagesKeyCachesUntilMessagesChange(t *testing.T) {
 	console := &ChatConsole{}
 
