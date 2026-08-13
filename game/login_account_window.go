@@ -13,15 +13,6 @@ func (m *LoginMode) updateFormInput(ctx client.Context) {
 	}
 }
 
-func (m *LoginMode) drawLoginWindow(ctx client.Context) {
-	if m.loginWindow == nil {
-		m.updateLoginWindow(ctx)
-	}
-	if m.loginWindow != nil {
-		m.loginWindow.Publish(ctx)
-	}
-}
-
 func (m *LoginMode) updateLoginWindow(ctx client.Context) {
 	if m.loginWindow == nil {
 		m.loginWindow = gameui.NewLoginWindow(ctx, m.username, m.password, gameui.LoginWindowCallbacks{

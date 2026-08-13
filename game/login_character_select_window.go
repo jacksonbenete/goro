@@ -266,10 +266,6 @@ func (m *LoginMode) reconnectCharacterServer(ctx client.Context) {
 	})
 }
 
-func (m *LoginMode) drawCharacterSelect(ctx client.Context) {
-	m.showCharacterSelectWindow(ctx)
-}
-
 type characterPreviewTarget interface {
 	DrawImage(*render.Image, *render.DrawImageOptions)
 }

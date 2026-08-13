@@ -256,6 +256,12 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 					continue
 				}
 				m.startPhaseFade(loginPhaseCharacter, time.Now())
+				if m.phase == loginPhaseCharacter && m.charSelectWindow != nil {
+					// A returning character-select mode already has a window built
+					// from the saved session. Apply the refreshed server list during
+					// Update so gogpu/ui can lay out the replacement before Draw.
+					m.showCharacterSelectWindow(ctx)
+				}
 			}
 		}
 		if pkt.ID == 0x006D {
@@ -483,13 +489,6 @@ func (m *LoginMode) applyLoginMapChange(ctx client.Context, change network.MapCh
 
 func (m *LoginMode) Draw(ctx client.Context, screen *render.Frame) {
 	m.drawBackground(ctx, screen)
-	if m.phase == loginPhaseCreate {
-		m.drawCharacterCreate(ctx)
-	} else if m.phase == loginPhaseCharacter {
-		m.drawCharacterSelect(ctx)
-	} else {
-		m.drawLoginWindow(ctx)
-	}
 }
 
 func (m *LoginMode) DrawOverlay(ctx client.Context, screen *render.Frame) {

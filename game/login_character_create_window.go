@@ -143,10 +143,6 @@ func (m *LoginMode) changeCreateHairColor() {
 	m.create.previewImage = nil
 }
 
-func (m *LoginMode) drawCharacterCreate(ctx client.Context) {
-	m.showCharacterCreateWindow(ctx)
-}
-
 func (m *LoginMode) showCharacterCreateWindow(ctx client.Context) {
 	m.updateCharacterCreateWindow(ctx)
 	if m.charCreateWindow != nil {

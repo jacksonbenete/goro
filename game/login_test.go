@@ -16,6 +16,7 @@ import (
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
@@ -577,7 +578,7 @@ func TestLoginQuitConfirmationUsesSeparateOverlay(t *testing.T) {
 		ScreenH:   720,
 	}
 
-	mode.drawLoginWindow(ctx)
+	mode.updateLoginWindow(ctx)
 	inputState.SetKey(input.KeyEscape, true)
 	if !mode.updatePhaseEscape(ctx, time.Unix(20, 0)) {
 		t.Fatal("escape was not consumed")
@@ -681,8 +682,8 @@ func TestLoginWindowPublishesOnlyWhenWidgetChanges(t *testing.T) {
 		ScreenH:   720,
 	}
 
-	mode.drawLoginWindow(ctx)
-	mode.drawLoginWindow(ctx)
+	mode.updateLoginWindow(ctx)
+	mode.updateLoginWindow(ctx)
 	mode.updateFormInput(ctx)
 
 	if manager.adds != 1 {
@@ -690,6 +691,41 @@ func TestLoginWindowPublishesOnlyWhenWidgetChanges(t *testing.T) {
 	}
 	if manager.clears != 0 {
 		t.Fatalf("login window Clear calls = %d, want 0", manager.clears)
+	}
+}
+
+func TestLoginDrawDoesNotReplaceCharacterWindowContent(t *testing.T) {
+	manager := &loginTestUIManager{}
+	mode := NewLoginMode()
+	mode.phase = loginPhaseCharacter
+	mode.maxSlots = 9
+	ctx := client.Context{
+		Resources: &res.Manager{},
+		Session: &session.Session{Characters: []session.Character{
+			{Slot: 0, Name: "Saved", Level: 1, JobLevel: 1},
+		}},
+		UIManager: manager,
+		ScreenW:   1280,
+		ScreenH:   720,
+	}
+
+	mode.showCharacterSelectWindow(ctx)
+	root := mode.charSelectWindow.Widget()
+	widget.ClearRedrawInTree(root)
+	ctx.Session.Characters = []session.Character{
+		{Slot: 0, Name: "Refreshed", Level: 1, JobLevel: 1},
+	}
+
+	mode.Draw(ctx, render.NewFrame(ctx.ScreenW, ctx.ScreenH))
+	if widget.NeedsRedrawInTree(root) {
+		t.Fatal("Draw mutated the character-select widget tree after the UI layout phase")
+	}
+
+	if _, err := mode.Update(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !widget.NeedsRedrawInTree(root) {
+		t.Fatal("Update did not schedule the refreshed character-select content")
 	}
 }
 
