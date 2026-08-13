@@ -18,6 +18,24 @@ func TestEmotePageCountMatchesRobrowserWindow(t *testing.T) {
 	}
 }
 
+func TestEmotePagerCounterIsHorizontallyCentered(t *testing.T) {
+	nav := (&EmoteWindow{}).navWidget(Context{}, nil)
+	nav.Layout(widget.NewContext(), geometry.BoxConstraints(0, 230, 0, emoteNavHeight))
+
+	children := nav.Children()
+	if len(children) != 3 || len(children[1].Children()) != 1 {
+		t.Fatal("emote pager tree is incomplete")
+	}
+	counter := children[1]
+	label := counter.Children()[0]
+	counterBounds := counter.(interface{ Bounds() geometry.Rect }).Bounds()
+	labelBounds := label.(interface{ Bounds() geometry.Rect }).Bounds()
+	wantX := (counterBounds.Width() - labelBounds.Width()) / 2
+	if math.Abs(float64(labelBounds.Min.X-wantX)) > 0.001 {
+		t.Fatalf("emote pager label x = %.1f, want %.1f within %.1fpx counter", labelBounds.Min.X, wantX, counterBounds.Width())
+	}
+}
+
 func TestEmoteIconAnchorMatchesRobrowser2DRenderer(t *testing.T) {
 	x, y := emoteIconAnchor(res.ACTLayer{X: -3, Y: -12})
 	if math.Abs(x-23) > 0.001 {

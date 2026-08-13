@@ -160,7 +160,8 @@ func (w *EmoteWindow) navWidget(ctx Context, console *ChatConsole) widget.Widget
 		).
 			Width(56).
 			Height(22).
-			PaddingTop(4),
+			PaddingTop(4).
+			CrossAlign(primitives.CrossAxisCenter),
 		rotheme.ButtonDisabled("Next", page >= total-1, func() {
 			w.movePage(ctx, console, 1)
 		}).Width(48).Height(22),
