@@ -1,16 +1,11 @@
 package ui
 
 import (
-	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/input"
-	"github.com/kivutar/goro/ui/rotheme"
 )
 
-const (
-	mercenaryContextMenuWidth = 120
-	mercenaryContextMenuRowH  = 28
-)
+const mercenaryContextMenuWidth = 120
 
 type MercenaryContextActionKind uint8
 
@@ -72,28 +67,20 @@ func (m *MercenaryContextMenu) widgetTree() widget.Widget {
 	if m.aggressive {
 		assistLabel = "Stand By"
 	}
-	return Win(
-		TitleBar(false),
-		Radius(0),
-		Size(mercenaryContextMenuWidth, float32(m.height())),
-		Content(
-			primitives.Box(
-				m.button("View Status", MercenaryContextActionInfo),
-				m.button(assistLabel, MercenaryContextActionToggleAssist),
-			),
-		),
+	return contextMenu(
+		mercenaryContextMenuWidth,
+		m.button("View Status", MercenaryContextActionInfo),
+		m.button(assistLabel, MercenaryContextActionToggleAssist),
 	)
 }
 
 func (m *MercenaryContextMenu) button(label string, action MercenaryContextActionKind) widget.Widget {
-	return rotheme.Button(label, func() {
+	return contextMenuItem(label, func() {
 		m.action = MercenaryContextAction{Kind: action}
 		m.Close()
-	}).
-		Width(mercenaryContextMenuWidth).
-		Height(mercenaryContextMenuRowH)
+	})
 }
 
 func (m *MercenaryContextMenu) height() int {
-	return mercenaryContextMenuRowH * 2
+	return contextMenuHeight(2)
 }

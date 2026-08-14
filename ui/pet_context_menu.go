@@ -1,16 +1,11 @@
 package ui
 
 import (
-	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/input"
-	"github.com/kivutar/goro/ui/rotheme"
 )
 
-const (
-	petContextMenuWidth = 140
-	petContextMenuRowH  = 28
-)
+const petContextMenuWidth = 140
 
 type PetContextActionKind uint8
 
@@ -69,31 +64,23 @@ func (m *PetContextMenu) PopAction() PetContextAction {
 }
 
 func (m *PetContextMenu) widgetTree() widget.Widget {
-	return Win(
-		TitleBar(false),
-		Radius(0),
-		Size(petContextMenuWidth, float32(m.height())),
-		Content(
-			primitives.Box(
-				m.button("Check Pet Status", PetContextActionInfo),
-				m.button("Feed", PetContextActionFeed),
-				m.button("Performance", PetContextActionPerformance),
-				m.button("Unequip Accessory", PetContextActionUnequipAccessory),
-				m.button("Return to Egg", PetContextActionBackToEgg),
-			),
-		),
+	return contextMenu(
+		petContextMenuWidth,
+		m.button("Check Pet Status", PetContextActionInfo),
+		m.button("Feed", PetContextActionFeed),
+		m.button("Performance", PetContextActionPerformance),
+		m.button("Unequip Accessory", PetContextActionUnequipAccessory),
+		m.button("Return to Egg", PetContextActionBackToEgg),
 	)
 }
 
 func (m *PetContextMenu) button(label string, action PetContextActionKind) widget.Widget {
-	return rotheme.Button(label, func() {
+	return contextMenuItem(label, func() {
 		m.action = PetContextAction{Kind: action}
 		m.Close()
-	}).
-		Width(petContextMenuWidth).
-		Height(petContextMenuRowH)
+	})
 }
 
 func (m *PetContextMenu) height() int {
-	return petContextMenuRowH * 5
+	return contextMenuHeight(5)
 }

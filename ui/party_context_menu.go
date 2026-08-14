@@ -1,19 +1,14 @@
 package ui
 
 import (
-	"github.com/kivutar/goro/input"
 	"strings"
 
-	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
-	"github.com/kivutar/goro/ui/rotheme"
 )
 
-const (
-	partyContextMenuWidth = 132
-	partyContextMenuRowH  = 28
-)
+const partyContextMenuWidth = 132
 
 type PartyContextMenu struct {
 	Window
@@ -90,21 +85,14 @@ func (m *PartyContextMenu) widgetTree() widget.Widget {
 	if m.isSelf {
 		rows = append(rows, m.button("Leave Party", FriendsWindowActionPartyLeave))
 	}
-	return Win(
-		TitleBar(false),
-		Radius(0),
-		Size(partyContextMenuWidth, float32(m.height())),
-		Content(primitives.Box(rows...)),
-	)
+	return contextMenu(partyContextMenuWidth, rows...)
 }
 
 func (m *PartyContextMenu) button(label string, kind FriendsWindowActionKind) widget.Widget {
-	return rotheme.Button(label, func() {
+	return contextMenuItem(label, func() {
 		m.action = FriendsWindowAction{Kind: kind, PartyMember: m.member}
 		m.Close()
-	}).
-		Width(partyContextMenuWidth).
-		Height(partyContextMenuRowH)
+	})
 }
 
 func (m *PartyContextMenu) height() int {
@@ -118,5 +106,5 @@ func (m *PartyContextMenu) height() int {
 	if m.isSelf {
 		rows++
 	}
-	return partyContextMenuRowH * rows
+	return contextMenuHeight(rows)
 }

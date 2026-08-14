@@ -1,19 +1,14 @@
 package ui
 
 import (
-	"github.com/kivutar/goro/input"
 	"strings"
 
-	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
-	"github.com/kivutar/goro/ui/rotheme"
 )
 
-const (
-	friendContextMenuWidth = 124
-	friendContextMenuRowH  = 28
-)
+const friendContextMenuWidth = 124
 
 type FriendContextMenu struct {
 	Window
@@ -74,35 +69,23 @@ func (m *FriendContextMenu) PopAction() FriendsWindowAction {
 }
 
 func (m *FriendContextMenu) widgetTree() widget.Widget {
-	return Win(
-		TitleBar(false),
-		Radius(0),
-		Size(friendContextMenuWidth, float32(m.height())),
-		Content(
-			primitives.Box(
-				rotheme.Button("1:1 Chat", func() {
-					m.action = FriendsWindowAction{Kind: FriendsWindowActionFriendWhisper, Friend: m.friend}
-					m.Close()
-				}).
-					Width(friendContextMenuWidth).
-					Height(friendContextMenuRowH),
-				rotheme.Button("Delete Friend", func() {
-					m.action = FriendsWindowAction{Kind: FriendsWindowActionFriendDelete, Friend: m.friend}
-					m.Close()
-				}).
-					Width(friendContextMenuWidth).
-					Height(friendContextMenuRowH),
-				rotheme.Button("Block Whisper", func() {
-					m.action = FriendsWindowAction{Kind: FriendsWindowActionFriendBlockWhisper, Friend: m.friend}
-					m.Close()
-				}).
-					Width(friendContextMenuWidth).
-					Height(friendContextMenuRowH),
-			),
-		),
+	return contextMenu(
+		friendContextMenuWidth,
+		contextMenuItem("1:1 Chat", func() {
+			m.action = FriendsWindowAction{Kind: FriendsWindowActionFriendWhisper, Friend: m.friend}
+			m.Close()
+		}),
+		contextMenuItem("Delete Friend", func() {
+			m.action = FriendsWindowAction{Kind: FriendsWindowActionFriendDelete, Friend: m.friend}
+			m.Close()
+		}),
+		contextMenuItem("Block Whisper", func() {
+			m.action = FriendsWindowAction{Kind: FriendsWindowActionFriendBlockWhisper, Friend: m.friend}
+			m.Close()
+		}),
 	)
 }
 
 func (m *FriendContextMenu) height() int {
-	return friendContextMenuRowH * 3
+	return contextMenuHeight(3)
 }

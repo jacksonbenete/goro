@@ -1,16 +1,11 @@
 package ui
 
 import (
-	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/input"
-	"github.com/kivutar/goro/ui/rotheme"
 )
 
-const (
-	homunculusContextMenuWidth = 120
-	homunculusContextMenuRowH  = 28
-)
+const homunculusContextMenuWidth = 120
 
 type HomunculusContextActionKind uint8
 
@@ -73,29 +68,21 @@ func (m *HomunculusContextMenu) widgetTree() widget.Widget {
 	if m.aggressive {
 		assistLabel = "Stand By"
 	}
-	return Win(
-		TitleBar(false),
-		Radius(0),
-		Size(homunculusContextMenuWidth, float32(m.height())),
-		Content(
-			primitives.Box(
-				m.button("View Status", HomunculusContextActionInfo),
-				m.button("Feed", HomunculusContextActionFeed),
-				m.button(assistLabel, HomunculusContextActionToggleAssist),
-			),
-		),
+	return contextMenu(
+		homunculusContextMenuWidth,
+		m.button("View Status", HomunculusContextActionInfo),
+		m.button("Feed", HomunculusContextActionFeed),
+		m.button(assistLabel, HomunculusContextActionToggleAssist),
 	)
 }
 
 func (m *HomunculusContextMenu) button(label string, action HomunculusContextActionKind) widget.Widget {
-	return rotheme.Button(label, func() {
+	return contextMenuItem(label, func() {
 		m.action = HomunculusContextAction{Kind: action}
 		m.Close()
-	}).
-		Width(homunculusContextMenuWidth).
-		Height(homunculusContextMenuRowH)
+	})
 }
 
 func (m *HomunculusContextMenu) height() int {
-	return homunculusContextMenuRowH * 3
+	return contextMenuHeight(3)
 }

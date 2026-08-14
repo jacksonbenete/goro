@@ -1,18 +1,13 @@
 package ui
 
 import (
-	"github.com/kivutar/goro/input"
 	"strings"
 
-	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
-	"github.com/kivutar/goro/ui/rotheme"
+	"github.com/kivutar/goro/input"
 )
 
-const (
-	playerContextMenuWidth = 118
-	playerContextMenuRowH  = 28
-)
+const playerContextMenuWidth = 118
 
 type PlayerContextActionKind uint8
 
@@ -90,57 +85,40 @@ func (m *PlayerContextMenu) PopAction() PlayerContextAction {
 
 func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 	rows := []widget.Widget{
-		rotheme.Button("Trade", func() {
+		contextMenuItem("Trade", func() {
 			m.action = PlayerContextAction{Kind: PlayerContextActionTrade, ActorID: m.actorID, Name: m.name}
 			m.Close()
-		}).
-			Width(playerContextMenuWidth).
-			Height(playerContextMenuRowH),
-		rotheme.Button("See equipment", func() {
+		}),
+		contextMenuItem("See equipment", func() {
 			m.action = PlayerContextAction{Kind: PlayerContextActionSeeEquipment, ActorID: m.actorID, Name: m.name}
 			m.Close()
-		}).
-			Width(playerContextMenuWidth).
-			Height(playerContextMenuRowH),
+		}),
 	}
 	if m.canAddFriend {
 		rows = append(rows,
-			rotheme.Button("Add Friend", func() {
+			contextMenuItem("Add Friend", func() {
 				m.action = PlayerContextAction{Kind: PlayerContextActionAddFriend, ActorID: m.actorID, Name: m.name}
 				m.Close()
-			}).
-				Width(playerContextMenuWidth).
-				Height(playerContextMenuRowH),
+			}),
 		)
 	}
 	if m.canParty {
 		rows = append(rows,
-			rotheme.Button("Invite", func() {
+			contextMenuItem("Invite", func() {
 				m.action = PlayerContextAction{Kind: PlayerContextActionInviteParty, ActorID: m.actorID, Name: m.name}
 				m.Close()
-			}).
-				Width(playerContextMenuWidth).
-				Height(playerContextMenuRowH),
+			}),
 		)
 	}
 	if m.canGuild {
 		rows = append(rows,
-			rotheme.Button("Invite Guild", func() {
+			contextMenuItem("Invite Guild", func() {
 				m.action = PlayerContextAction{Kind: PlayerContextActionInviteGuild, ActorID: m.actorID, Name: m.name}
 				m.Close()
-			}).
-				Width(playerContextMenuWidth).
-				Height(playerContextMenuRowH),
+			}),
 		)
 	}
-	return Win(
-		TitleBar(false),
-		Radius(0),
-		Size(playerContextMenuWidth, float32(m.height())),
-		Content(
-			primitives.Box(rows...),
-		),
-	)
+	return contextMenu(playerContextMenuWidth, rows...)
 }
 
 func (m *PlayerContextMenu) height() int {
@@ -154,5 +132,5 @@ func (m *PlayerContextMenu) height() int {
 	if m.canGuild {
 		rows++
 	}
-	return playerContextMenuRowH * rows
+	return contextMenuHeight(rows)
 }
