@@ -63,27 +63,12 @@ func (w *roTitleBarWidget) Children() []widget.Widget {
 }
 
 func drawTitleBarGradient(canvas widget.Canvas, bounds geometry.Rect) {
-	if bounds.IsEmpty() {
-		return
-	}
-	top := rotheme.Default.Colors.WindowTitleTop
-	bottom := rotheme.Default.Colors.WindowTitle
-	height := int(bounds.Height())
-	if height <= 1 {
-		canvas.DrawRect(bounds, rotheme.Default.Colors.WindowBorder)
-		return
-	}
-	gradientHeight := height - 1
-	for i := 0; i < gradientHeight; i++ {
-		t := float32(1)
-		if gradientHeight > 1 {
-			t = float32(i) / float32(gradientHeight-1)
-		}
-		y := bounds.Min.Y + float32(i)
-		canvas.DrawRect(geometry.NewRect(bounds.Min.X, y, bounds.Width(), 1), top.Lerp(bottom, t))
-	}
-	canvas.DrawRect(
-		geometry.NewRect(bounds.Min.X, bounds.Max.Y-1, bounds.Width(), 1),
+	rotheme.DrawVerticalGradientWithBottomBorder(
+		canvas,
+		bounds,
+		rotheme.Default.Colors.WindowTitleTop,
+		rotheme.Default.Colors.WindowTitle,
 		rotheme.Default.Colors.WindowBorder,
+		1,
 	)
 }

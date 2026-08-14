@@ -63,18 +63,19 @@ func (p IconButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintS
 }
 
 func DrawIconButton(canvas widget.Canvas, bounds geometry.Rect, kind IconButtonKind, hovered, disabled bool) {
-	bg := Default.Colors.Button
+	top, bottom := lighterTitleBarGradient(2)
 	color := Default.Colors.Text
 	border := Default.Colors.ButtonBorder
 	if hovered {
-		bg = Default.Colors.ButtonHover
+		top, bottom = lighterTitleBarGradient(4)
 	}
 	if disabled {
-		bg = Default.Colors.Disabled
+		bottom = Default.Colors.Disabled
+		top = buttonGradientTop(bottom)
 		color = Default.Colors.MutedText
 		border = Default.Colors.FooterLine
 	}
-	drawButtonGradient(canvas, bounds, bg, ButtonRadius)
+	drawButtonGradientColors(canvas, bounds, top, bottom, ButtonRadius)
 	canvas.StrokeRoundRect(bounds, border, ButtonRadius, 1)
 	drawIconGlyph(canvas, bounds, kind, color)
 }

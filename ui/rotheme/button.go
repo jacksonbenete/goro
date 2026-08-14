@@ -89,7 +89,8 @@ func (w *mouseOnlyButtonWidget) Layout(ctx widget.Context, constraints geometry.
 }
 
 func (w *mouseOnlyButtonWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
-	w.button.Draw(ctx, canvas)
+	widget.StampScreenOrigin(w.button, canvas)
+	widget.DrawChild(w.button, ctx, canvas)
 }
 
 func (w *mouseOnlyButtonWidget) Event(ctx widget.Context, e event.Event) bool {
@@ -118,18 +119,21 @@ func (ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState) 
 	if state.Bounds.IsEmpty() {
 		return
 	}
-	bg := Default.Colors.Button
+	top, bottom := lighterTitleBarGradient(2)
 	if state.Background != nil {
-		bg = *state.Background
+		bottom = *state.Background
+		top = buttonGradientTop(bottom)
 	}
 	if state.Hovered {
-		bg = Default.Colors.ButtonHover
+		top, bottom = lighterTitleBarGradient(4)
 	}
 	if state.Pressed {
-		bg = Default.Colors.ButtonDown
+		bottom = Default.Colors.ButtonDown
+		top = buttonGradientTop(bottom)
 	}
 	if state.Disabled {
-		bg = Default.Colors.Disabled
+		bottom = Default.Colors.Disabled
+		top = buttonGradientTop(bottom)
 	}
 	border := Default.Colors.ButtonBorder
 	if state.Disabled {
@@ -139,7 +143,7 @@ func (ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState) 
 	if state.Radius != nil {
 		radius = *state.Radius
 	}
-	drawButtonGradient(canvas, state.Bounds, bg, radius)
+	drawButtonGradientColors(canvas, state.Bounds, top, bottom, radius)
 	canvas.StrokeRoundRect(state.Bounds, border, radius, 1)
 
 	text := Default.Colors.Text
@@ -149,20 +153,33 @@ func (ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState) 
 	DrawText(canvas, state.Text, state.Bounds, Default.Typography.TextSize, text, false, widget.TextAlignCenter)
 }
 
-func drawButtonGradient(canvas widget.Canvas, bounds geometry.Rect, bottom widget.Color, radius float32) {
-	top := bottom.Lerp(widget.RGBA(1, 1, 1, bottom.A), 0.42)
-	height := int(bounds.Height())
-	if height <= 1 {
-		canvas.DrawRoundRect(bounds, bottom, radius)
-		return
+func buttonGradientTop(bottom widget.Color) widget.Color {
+	return bottom.Lerp(widget.RGBA(1, 1, 1, bottom.A), 0.42)
+}
+
+func lighterTitleBarGradient(factor float32) (top, bottom widget.Color) {
+	return lighterGradient(Default.Colors.WindowTitleTop, Default.Colors.WindowTitle, factor)
+}
+
+func lighterGradient(top, bottom widget.Color, factor float32) (widget.Color, widget.Color) {
+	return lighterColor(top, factor), lighterColor(bottom, factor)
+}
+
+func lighterColor(base widget.Color, factor float32) widget.Color {
+	if factor <= 1 {
+		return base
 	}
+	return base.Lerp(widget.RGBA(1, 1, 1, base.A), 1-1/factor)
+}
+
+func drawButtonGradient(canvas widget.Canvas, bounds geometry.Rect, bottom widget.Color, radius float32) {
+	drawButtonGradientColors(canvas, bounds, buttonGradientTop(bottom), bottom, radius)
+}
+
+func drawButtonGradientColors(canvas widget.Canvas, bounds geometry.Rect, top, bottom widget.Color, radius float32) {
 	if radius > 0 {
 		canvas.PushClipRoundRect(bounds, radius)
 		defer canvas.PopClip()
 	}
-	for i := 0; i < height; i++ {
-		t := float32(i) / float32(height-1)
-		y := bounds.Min.Y + float32(i)
-		canvas.DrawRect(geometry.NewRect(bounds.Min.X, y, bounds.Width(), 1), top.Lerp(bottom, t))
-	}
+	DrawVerticalGradient(canvas, bounds, top, bottom)
 }
