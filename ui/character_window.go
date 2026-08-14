@@ -17,10 +17,18 @@ import (
 )
 
 const (
-	characterWindowX      = windowScreenMargin
-	characterWindowY      = windowScreenMargin
-	characterWindowWidth  = 324
-	characterWindowHeight = 158
+	characterWindowX                  = windowScreenMargin
+	characterWindowY                  = windowScreenMargin
+	characterWindowWidth              = 324
+	characterWindowHeight             = 134
+	characterEXPPanelPaddingX float32 = 6
+	characterEXPPanelPaddingY float32 = 4
+	characterEXPPanelGap      float32 = 2
+	characterEXPPanelRadius   float32 = 5
+	characterEXPLabelWidth    float32 = 76
+	characterEXPLabelBarGap   float32 = 6
+	characterEXPBarHeight     float32 = 6
+	characterTextLineHeight   float32 = 1.2
 )
 
 var (
@@ -81,15 +89,10 @@ func (w *CharacterWindow) widgetTree(ctx Context) widget.Widget {
 		Content(
 			primitives.Box(
 				primitives.HBox(
-					characterTextCell(fmt.Sprintf("Base Lv. %d", progress.BaseLevel), 146, rotheme.Default.Colors.Text),
-					characterTextCell(fmt.Sprintf("Job Lv. %d", progress.JobLevel), 146, rotheme.Default.Colors.Text),
-				),
-				primitives.HBox(
 					characterRatioRow("HP", vitals.HP, vitals.MaxHP, Color(characterWindowHPColor), 146),
 					characterRatioRow("SP", vitals.SP, vitals.MaxSP, Color(characterWindowSPColor), 146),
 				).Gap(8),
-				characterProgressRow("Base EXP", progress.BaseExp, progress.NextBaseExp, Color(characterWindowEXPColor), characterWindowWidth-24),
-				characterProgressRow("Job EXP", progress.JobExp, progress.NextJobExp, Color(characterWindowJobEXPColor), characterWindowWidth-24),
+				characterEXPPanel(progress, characterWindowWidth-24),
 				primitives.HBox(
 					characterAlignedTextCell(fmt.Sprintf("Weight : %d / %d", displayWeight(inventory.Weight), displayWeight(inventory.MaxWeight)), 146, weightColor, primitives.TextAlignStart),
 					characterAlignedTextCell(fmt.Sprintf("Zeny : %s", formatHUDNumber(inventory.Zeny)), 146, rotheme.Default.Colors.Text, primitives.TextAlignEnd),
@@ -167,12 +170,31 @@ func characterRatioRow(label string, current, maxValue int, fill widget.Color, w
 	).Width(width).Gap(2)
 }
 
-func characterProgressRow(label string, current, next int64, fill widget.Color, width float32) widget.Widget {
+func characterLevelProgressRow(label string, level int, current, next int64, fill widget.Color, width float32) widget.Widget {
+	barWidth := max(float32(0), width-characterEXPLabelWidth-characterEXPLabelBarGap)
+	textHeight := rotheme.Default.Typography.TextSize * characterTextLineHeight
+	barTop := max(float32(0), (textHeight-characterEXPBarHeight)/2)
+	return primitives.HBox(
+		characterTextCell(fmt.Sprintf("%s Lv. %d", label, level), characterEXPLabelWidth, rotheme.Default.Colors.Text),
+		primitives.Box(
+			newCharacterBarWidget(ratioInt64(current, next), fill, barWidth, characterEXPBarHeight),
+		).PaddingTop(barTop),
+	).
+		Width(width).
+		Gap(characterEXPLabelBarGap)
+}
+
+func characterEXPPanel(progress session.Progress, width float32) widget.Widget {
+	rowWidth := max(float32(0), width-2*characterEXPPanelPaddingX)
 	return primitives.Box(
-		rotheme.Text(fmt.Sprintf("%s %s", label, formatEXPPercent(current, next))).
-			Color(rotheme.Default.Colors.MutedText),
-		newCharacterBarWidget(ratioInt64(current, next), fill, width, 6),
-	).Width(width).Gap(2)
+		characterLevelProgressRow("Base", progress.BaseLevel, progress.BaseExp, progress.NextBaseExp, Color(characterWindowEXPColor), rowWidth),
+		characterLevelProgressRow("Job", progress.JobLevel, progress.JobExp, progress.NextJobExp, Color(characterWindowJobEXPColor), rowWidth),
+	).
+		Width(width).
+		PaddingXY(characterEXPPanelPaddingX, characterEXPPanelPaddingY).
+		Gap(characterEXPPanelGap).
+		Background(rotheme.Default.Colors.WindowFooter).
+		Rounded(characterEXPPanelRadius)
 }
 
 type characterBarWidget struct {
