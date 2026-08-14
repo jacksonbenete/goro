@@ -100,8 +100,8 @@ func TestButtonUsesContinuousLightenedTitleBarGradient(t *testing.T) {
 
 	ButtonPainter{}.PaintButton(canvas, button.PaintState{Bounds: bounds})
 
-	if len(canvas.Rects) != 0 || len(canvas.RoundRects) != 0 || len(canvas.Images) != 1 {
-		t.Fatalf("button background draws = %d rectangles, %d rounded rectangles, and %d images; want one continuous image", len(canvas.Rects), len(canvas.RoundRects), len(canvas.Images))
+	if len(canvas.Rects) != 0 || len(canvas.RoundRects) != 1 || len(canvas.Images) != 1 {
+		t.Fatalf("button background draws = %d rectangles, %d rounded reflections, and %d images; want one gradient and one reflection", len(canvas.Rects), len(canvas.RoundRects), len(canvas.Images))
 	}
 	call := canvas.Images[0]
 	if call.At != bounds.Min || call.Image.Bounds().Size() != image.Pt(80, 22) {
@@ -109,6 +109,12 @@ func TestButtonUsesContinuousLightenedTitleBarGradient(t *testing.T) {
 	}
 	assertGradientColor(t, call.Image, 0, 0, expectedLighterColor(Default.Colors.WindowTitleTop, 2))
 	assertGradientColor(t, call.Image, 0, 21, expectedLighterColor(Default.Colors.WindowTitle, 2))
+	reflect := canvas.RoundRects[0]
+	wantReflectBounds := geometry.NewRect(6, 8, 74, 8)
+	if reflect.Bounds != wantReflectBounds || reflect.Radius != 3 {
+		t.Fatalf("button reflection = bounds %v radius %.1f, want bounds %v radius 3", reflect.Bounds, reflect.Radius, wantReflectBounds)
+	}
+	uitest.AssertColorEqual(t, reflect.Color, widget.RGBA(1, 1, 1, buttonReflectAlpha))
 	if len(canvas.ClipRoundRects) != 1 || canvas.ClipRoundRects[0].Bounds != bounds || canvas.ClipRoundRects[0].Radius != ButtonRadius {
 		t.Fatalf("button rounded clips = %v, want bounds %v radius %.1f", canvas.ClipRoundRects, bounds, ButtonRadius)
 	}

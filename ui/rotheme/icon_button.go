@@ -76,6 +76,7 @@ func DrawIconButton(canvas widget.Canvas, bounds geometry.Rect, kind IconButtonK
 		border = Default.Colors.FooterLine
 	}
 	drawButtonGradientColors(canvas, bounds, top, bottom, ButtonRadius)
+	drawButtonReflect(canvas, bounds, ButtonRadius)
 	canvas.StrokeRoundRect(bounds, border, ButtonRadius, 1)
 	drawIconGlyph(canvas, bounds, kind, color)
 }

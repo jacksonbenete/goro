@@ -13,6 +13,8 @@ const (
 	ButtonPaddingX      float32 = 8
 	ButtonPaddingY      float32 = 5.5
 	LargeButtonPaddingY float32 = 8.5
+	buttonReflectInset  float32 = 3
+	buttonReflectAlpha  float32 = 0.4
 )
 
 func Button(label string, onClick func()) *primitives.BoxWidget {
@@ -144,6 +146,7 @@ func (ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState) 
 		radius = *state.Radius
 	}
 	drawButtonGradientColors(canvas, state.Bounds, top, bottom, radius)
+	drawButtonReflect(canvas, state.Bounds, radius)
 	canvas.StrokeRoundRect(state.Bounds, border, radius, 1)
 
 	text := Default.Colors.Text
@@ -182,4 +185,25 @@ func drawButtonGradientColors(canvas widget.Canvas, bounds geometry.Rect, top, b
 		defer canvas.PopClip()
 	}
 	DrawVerticalGradient(canvas, bounds, top, bottom)
+}
+
+func drawButtonReflect(canvas widget.Canvas, bounds geometry.Rect, radius float32) {
+	width := bounds.Width() - buttonReflectInset*2
+	height := (bounds.Height() - buttonReflectInset*2) / 2
+	if width <= 0 || height <= 0 {
+		return
+	}
+	reflectBounds := geometry.NewRect(
+		bounds.Min.X+buttonReflectInset,
+		bounds.Min.Y+buttonReflectInset,
+		width,
+		height,
+	)
+	reflectRadius := min(max(float32(0), radius-buttonReflectInset), height/2)
+	reflectColor := widget.RGBA(1, 1, 1, buttonReflectAlpha)
+	if reflectRadius > 0 {
+		canvas.DrawRoundRect(reflectBounds, reflectColor, reflectRadius)
+		return
+	}
+	canvas.DrawRect(reflectBounds, reflectColor)
 }
