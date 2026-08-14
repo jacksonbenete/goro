@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	inventoryBagTabW    = 64 - ROScrollbarGutter
-	inventoryBagTabH    = 32
+	inventoryBagTabW    = 32
+	inventoryBagTabH    = 44
 	inventoryBagCell    = 32
 	inventoryBagIcon    = 24
 	inventoryBagCols    = 8
@@ -242,12 +242,13 @@ func (w *InventoryBagWindow) tabColumn(ctx Context, cart *CartWindow) widget.Wid
 	for _, tab := range inventoryBagTabs {
 		tab := tab
 		tabs = append(tabs, newTabWidget(tabWidgetConfig{
-			label:      tab.label,
-			active:     tab.tab == w.tab,
-			width:      inventoryBagTabW + inventoryBagTabOver*2,
-			height:     inventoryBagTabH,
-			blendEdge:  tabBlendRight,
-			blendInset: inventoryBagTabOver,
+			label:         tab.label,
+			labelRotation: rotheme.TextRotationCounterClockwise,
+			active:        tab.tab == w.tab,
+			width:         inventoryBagTabW + inventoryBagTabOver*2,
+			height:        inventoryBagTabH,
+			blendEdge:     tabBlendRight,
+			blendInset:    inventoryBagTabOver,
 			onClick: func() {
 				w.hideTooltip()
 				w.tab = tab.tab
@@ -521,13 +522,14 @@ const (
 )
 
 type tabWidgetConfig struct {
-	label      string
-	active     bool
-	width      int
-	height     int
-	blendEdge  tabBlendEdge
-	blendInset int
-	onClick    func()
+	label         string
+	labelRotation rotheme.TextRotation
+	active        bool
+	width         int
+	height        int
+	blendEdge     tabBlendEdge
+	blendInset    int
+	onClick       func()
 }
 
 type tabWidget struct {
@@ -559,7 +561,7 @@ func (w *tabWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	}
 	canvas.DrawRect(bounds, fill)
 	canvas.StrokeRect(bounds, rotheme.Default.Colors.WindowBorder, 1)
-	rotheme.DrawText(canvas, w.cfg.label, bounds, rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, widget.TextAlignCenter)
+	rotheme.DrawRotatedText(canvas, w.cfg.label, bounds, rotheme.Default.Typography.TextSize, rotheme.Default.Colors.Text, false, w.cfg.labelRotation)
 }
 
 func (w *tabWidget) Event(ctx widget.Context, e event.Event) bool {

@@ -2,6 +2,7 @@ package render
 
 import (
 	"image"
+	"image/draw"
 	"math"
 	"reflect"
 	"sync"
@@ -57,14 +58,31 @@ var scaledCanvasImageCache = struct {
 	images map[scaledCanvasImageKey]*scene.Image
 }{images: make(map[scaledCanvasImageKey]*scene.Image)}
 
+// scaledImageRasterizer is implemented by CPU-generated images that can
+// rasterize themselves directly at the display's physical pixel size. This
+// avoids enlarging a low-resolution logical image on HiDPI displays.
+type scaledImageRasterizer interface {
+	RasterizeForScale(scale float32, width, height int) image.Image
+}
+
 func scaledCanvasSceneImage(img image.Image, logicalW, logicalH int, scale float32) *scene.Image {
-	bounds := img.Bounds()
-	srcW, srcH := bounds.Dx(), bounds.Dy()
-	if srcW <= 0 || srcH <= 0 || logicalW <= 0 || logicalH <= 0 {
+	if logicalW <= 0 || logicalH <= 0 {
 		return nil
 	}
 	dstW := scaledCanvasPhysicalSize(logicalW, scale)
 	dstH := scaledCanvasPhysicalSize(logicalH, scale)
+	nativeScale := false
+	if rasterizer, ok := img.(scaledImageRasterizer); ok {
+		if rasterized := rasterizer.RasterizeForScale(scale, dstW, dstH); rasterized != nil && rasterized.Bounds().Dx() == dstW && rasterized.Bounds().Dy() == dstH {
+			img = rasterized
+			nativeScale = true
+		}
+	}
+	bounds := img.Bounds()
+	srcW, srcH := bounds.Dx(), bounds.Dy()
+	if srcW <= 0 || srcH <= 0 {
+		return nil
+	}
 	key := scaledCanvasImageKey{
 		ptr:     imagePointer(img),
 		srcMinX: bounds.Min.X,
@@ -84,7 +102,11 @@ func scaledCanvasSceneImage(img image.Image, logicalW, logicalH int, scale float
 	}
 
 	rgba := image.NewRGBA(image.Rect(0, 0, dstW, dstH))
-	xdraw.ApproxBiLinear.Scale(rgba, rgba.Bounds(), img, bounds, xdraw.Src, nil)
+	if nativeScale {
+		draw.Draw(rgba, rgba.Bounds(), img, bounds.Min, draw.Src)
+	} else {
+		xdraw.ApproxBiLinear.Scale(rgba, rgba.Bounds(), img, bounds, xdraw.Src, nil)
+	}
 	scImg := &scene.Image{Width: dstW, Height: dstH, Data: rgba.Pix}
 	if key.ptr != 0 {
 		scaledCanvasImageCache.Lock()
