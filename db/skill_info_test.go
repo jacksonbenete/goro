@@ -40,19 +40,16 @@ func TestSkillAttackRangeRejectsUnknownOrInvalidLevel(t *testing.T) {
 	}
 }
 
-func TestCrusaderPaladinSelectableLevelMetadata(t *testing.T) {
+func TestPreRenewalSelectableLevelMetadata(t *testing.T) {
 	for _, skillID := range []uint16{
 		SkillSMBash,
-		SkillSMProvoke,
-		SkillALHeal,
 		SkillCRAutoguard,
-		SkillCRReflectshield,
-		SkillCRHolycross,
-		SkillCRGrandcross,
-		SkillCRSpearquicken,
-		SkillPaPressure,
-		SkillPaShieldchain,
-		SkillPaGospel,
+		SkillMGSoulstrike,
+		SkillPRKyrie,
+		SkillHTBlitzbeat,
+		SkillASSonicblow,
+		SkillAMPotionpitcher,
+		SkillCGArrowvulcan,
 	} {
 		if selectable, known := SkillLevelSelectable(skillID); !known || !selectable {
 			t.Fatalf("skill %d selectable=%t known=%t, want true,true", skillID, selectable, known)
@@ -61,22 +58,20 @@ func TestCrusaderPaladinSelectableLevelMetadata(t *testing.T) {
 
 	for _, skillID := range []uint16{
 		SkillSMMagnum,
-		SkillSMEndure,
-		SkillALCure,
-		SkillCRShieldcharge,
 		SkillCRShieldboomerang,
-		SkillCRDevotion,
-		SkillCRProvidence,
-		SkillCRDefender,
-		SkillCRShrink,
-		SkillPaSacrifice,
+		SkillACDouble,
+		SkillPRMagnificat,
+		SkillHTDetecting,
+		SkillASGrimtooth,
+		SkillCRAciddemonstration,
+		SkillCGTarotcard,
 	} {
 		if selectable, known := SkillLevelSelectable(skillID); !known || selectable {
 			t.Fatalf("skill %d selectable=%t known=%t, want false,true", skillID, selectable, known)
 		}
 	}
 
-	if selectable, known := SkillLevelSelectable(SkillMGSoulstrike); known || selectable {
+	if selectable, known := SkillLevelSelectable(65000); known || selectable {
 		t.Fatalf("unimported skill selectable=%t known=%t, want false,false", selectable, known)
 	}
 }

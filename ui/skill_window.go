@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	skillWindowWidth  = 360
+	skillWindowWidth  = 396
 	skillWindowHeight = 388
 	skillRowH         = 32
 	skillIconSize     = 24
@@ -52,6 +52,8 @@ type SkillWindow struct {
 	lastIconAssets bool
 	assets         AssetProvider
 	actions        GameActions
+	table          *rotheme.TableViewWidget
+	selectedLevels map[uint16]int
 }
 
 func (w *SkillWindow) Toggle(ctx Context) {
@@ -216,7 +218,7 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 
 func (w *SkillWindow) skillTableWidget(ctx Context, assets AssetProvider, actions GameActions) *rotheme.TableViewWidget {
 	skills := w.visibleSkills(ctx)
-	return rotheme.TableView(
+	table := rotheme.TableView(
 		rotheme.TableViewColumns(skillTableColumns),
 		rotheme.TableViewRowCount(len(skills)),
 		rotheme.TableViewRowHeight(skillRowH),
@@ -234,6 +236,8 @@ func (w *SkillWindow) skillTableWidget(ctx Context, assets AssetProvider, action
 			return w.handleSkillTableRowEvent(widgetCtx, ctx, actions, skills, row, e)
 		}),
 	)
+	w.table = table
+	return table
 }
 
 func (w *SkillWindow) skillTableCell(ctx Context, assets AssetProvider, skill session.Skill, cell rotheme.TableViewCellContext) rotheme.TableViewSimpleCell {
@@ -256,10 +260,27 @@ func (w *SkillWindow) skillTableCell(ctx Context, assets AssetProvider, skill se
 			Color: nameColor,
 		}
 	case "level":
+		level := w.selectedSkillLevel(skill)
+		text := fmt.Sprintf("%d", display.Level)
+		if selectable, known := db.SkillLevelSelectable(skill.ID); known && selectable && skill.Level > 0 {
+			text = fmt.Sprintf("%d/%d", level, display.Level)
+		}
 		return rotheme.TableViewSimpleCell{
-			Text:  fmt.Sprintf("%d", display.Level),
+			Text:  text,
 			Color: nameColor,
 		}
+	case "leveldown":
+		selectable, known := db.SkillLevelSelectable(skill.ID)
+		if !known || !selectable || skill.Level <= 0 {
+			return rotheme.TableViewSimpleCell{Hidden: true}
+		}
+		return rotheme.TableViewIconButtonCell(rotheme.IconButtonLeft, w.selectedSkillLevel(skill) <= 1)
+	case "levelupselect":
+		selectable, known := db.SkillLevelSelectable(skill.ID)
+		if !known || !selectable || skill.Level <= 0 {
+			return rotheme.TableViewSimpleCell{Hidden: true}
+		}
+		return rotheme.TableViewIconButtonCell(rotheme.IconButtonRight, w.selectedSkillLevel(skill) >= skill.Level)
 	case "sp":
 		return rotheme.TableViewSimpleCell{
 			Text:  fmt.Sprintf("%d", display.SPCost),
@@ -303,7 +324,17 @@ func (w *SkillWindow) handleSkillTableRowEvent(widgetCtx widget.Context, ctx Con
 		if mouse.Button != event.ButtonLeft {
 			return false
 		}
-		if skillTableLevelUpButtonBounds(row).Contains(mouse.Position) {
+		if selectable, known := db.SkillLevelSelectable(skill.ID); known && selectable && skill.Level > 0 {
+			if skillTableButtonBounds(row, "leveldown").Contains(mouse.Position) {
+				w.adjustSelectedSkillLevel(widgetCtx, skill, row, -1)
+				return true
+			}
+			if skillTableButtonBounds(row, "levelupselect").Contains(mouse.Position) {
+				w.adjustSelectedSkillLevel(widgetCtx, skill, row, 1)
+				return true
+			}
+		}
+		if skillTableButtonBounds(row, "levelup").Contains(mouse.Position) {
 			if !w.canStageSkill(ctx.Session, skill) {
 				glog.Debugf("skill level up ignored id=%d: no points or maxed", skill.ID)
 				return true
@@ -337,6 +368,7 @@ func (w *SkillWindow) pressSkill(ctx Context, actions GameActions, skill session
 		glog.Debugf("skill use ignored id=%d: passive skill", skill.ID)
 		return
 	}
+	skill.Level = w.selectedSkillLevel(skill)
 	now := time.Now()
 	if w.lastClick == skill.ID && now.Sub(w.lastClickAt) <= 360*time.Millisecond {
 		w.lastClick = 0
@@ -456,6 +488,47 @@ func (w *SkillWindow) pendingFor(skillID uint16) int {
 func (w *SkillWindow) skillWithPending(skill session.Skill) session.Skill {
 	skill.Level += w.pendingFor(skill.ID)
 	return skill
+}
+
+func (w *SkillWindow) selectedSkillLevel(skill session.Skill) int {
+	if skill.Level <= 0 {
+		return 0
+	}
+	selectable, known := db.SkillLevelSelectable(skill.ID)
+	if !known || !selectable {
+		return skill.Level
+	}
+	level := skill.Level
+	if w.selectedLevels != nil {
+		if selected := w.selectedLevels[skill.ID]; selected > 0 {
+			level = selected
+		}
+	}
+	return maxInt(1, minInt(skill.Level, level))
+}
+
+func (w *SkillWindow) adjustSelectedSkillLevel(ctx widget.Context, skill session.Skill, row, delta int) bool {
+	selectable, known := db.SkillLevelSelectable(skill.ID)
+	if !known || !selectable || skill.Level <= 0 || delta == 0 {
+		return false
+	}
+	current := w.selectedSkillLevel(skill)
+	next := maxInt(1, minInt(skill.Level, current+delta))
+	if next == current {
+		return false
+	}
+	if w.selectedLevels == nil {
+		w.selectedLevels = make(map[uint16]int)
+	}
+	if next == skill.Level {
+		delete(w.selectedLevels, skill.ID)
+	} else {
+		w.selectedLevels[skill.ID] = next
+	}
+	if w.table != nil && ctx != nil {
+		w.table.InvalidateRow(ctx, row)
+	}
+	return true
 }
 
 func (w *SkillWindow) stageSkill(skillID uint16) {
@@ -605,17 +678,19 @@ var skillTableColumns = []rotheme.TableViewColumn{
 	{Key: "icon", Width: 34},
 	{Key: "type", Width: 16},
 	{Key: "name", Title: "Name", Width: 142},
+	{Key: "leveldown", Width: 18},
 	{Key: "level", Title: "Lv", Width: 40},
+	{Key: "levelupselect", Width: 18},
 	{Key: "sp", Title: "SP", Width: 38},
 	{Key: "range", Title: "Range", Width: 56},
 	{Key: "levelup", Width: 22},
 	{Key: "fill", Flex: 1},
 }
 
-func skillTableLevelUpButtonBounds(row int) geometry.Rect {
+func skillTableButtonBounds(row int, key string) geometry.Rect {
 	x := float32(0)
 	for _, col := range skillTableColumns {
-		if col.Key == "levelup" {
+		if col.Key == key {
 			return geometry.NewRect(
 				x+(col.Width-rotheme.IconButtonSize)/2,
 				float32(row)*skillRowH+(skillRowH-rotheme.IconButtonSize)/2,
@@ -626,6 +701,10 @@ func skillTableLevelUpButtonBounds(row int) geometry.Rect {
 		x += col.Width
 	}
 	return geometry.Rect{}
+}
+
+func skillTableLevelUpButtonBounds(row int) geometry.Rect {
+	return skillTableButtonBounds(row, "levelup")
 }
 
 func skillTypeLabel(skill session.Skill) string {

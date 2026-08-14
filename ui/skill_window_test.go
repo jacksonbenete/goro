@@ -13,6 +13,7 @@ import (
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
 )
 
 func TestCanIncreaseSkillRequiresPointsAndFlag(t *testing.T) {
@@ -1327,17 +1328,103 @@ func TestSkillWindowOrdersPendingUnlocksBySkillTree(t *testing.T) {
 func TestSkillWindowDoubleClickUsesSharedSkillController(t *testing.T) {
 	ctx := Context{ScreenW: 800, ScreenH: 600}
 	mode := &skillWindowTestRenderer{}
-	window := &SkillWindow{}
+	window := &SkillWindow{selectedLevels: map[uint16]int{db.SkillSMProvoke: 1}}
 	skill := session.Skill{ID: 6, Type: 1, Level: 2, Range: 9}
 
 	window.pressSkill(ctx, mode, skill, 20, 30)
 	if mode.used.ID != 0 {
 		t.Fatalf("skill used after first click = %+v, want none", mode.used)
 	}
+	if window.dragSkill.Level != 1 {
+		t.Fatalf("dragged skill level = %d, want selected level 1", window.dragSkill.Level)
+	}
 
 	window.pressSkill(ctx, mode, skill, 20, 30)
-	if mode.used.ID != 6 || mode.used.Level != 2 {
-		t.Fatalf("used skill = %+v, want provoke level 2", mode.used)
+	if mode.used.ID != 6 || mode.used.Level != 1 {
+		t.Fatalf("used skill = %+v, want provoke level 1", mode.used)
+	}
+}
+
+func TestSkillWindowSelectedLevelClampsAndDoesNotRebuild(t *testing.T) {
+	skill := session.Skill{ID: db.SkillMGSoulstrike, Type: 1, Level: 10}
+	window := &SkillWindow{snapshot: "unchanged"}
+
+	if got := window.selectedSkillLevel(skill); got != 10 {
+		t.Fatalf("default selected level = %d, want learned level 10", got)
+	}
+	if !window.adjustSelectedSkillLevel(nil, skill, 0, -1) {
+		t.Fatal("level decrement should change a selectable skill")
+	}
+	if got := window.selectedSkillLevel(skill); got != 9 {
+		t.Fatalf("selected level after decrement = %d, want 9", got)
+	}
+	if window.dirty || window.snapshot != "unchanged" {
+		t.Fatal("level selection should not trigger a skill-window rebuild")
+	}
+	for i := 0; i < 20; i++ {
+		window.adjustSelectedSkillLevel(nil, skill, 0, -1)
+	}
+	if got := window.selectedSkillLevel(skill); got != 1 {
+		t.Fatalf("selected level after repeated decrements = %d, want 1", got)
+	}
+	if window.adjustSelectedSkillLevel(nil, skill, 0, -1) {
+		t.Fatal("decrement at level 1 should not report a change")
+	}
+	for i := 0; i < 20; i++ {
+		window.adjustSelectedSkillLevel(nil, skill, 0, 1)
+	}
+	if got := window.selectedSkillLevel(skill); got != 10 {
+		t.Fatalf("selected level after repeated increments = %d, want 10", got)
+	}
+	if _, ok := window.selectedLevels[skill.ID]; ok {
+		t.Fatal("default learned level should not occupy the selection map")
+	}
+}
+
+func TestSkillWindowFixedLevelSkillHasNoSelectionControls(t *testing.T) {
+	skill := session.Skill{ID: db.SkillACDouble, Type: 1, Level: 10}
+	window := &SkillWindow{}
+
+	if window.adjustSelectedSkillLevel(nil, skill, 0, -1) {
+		t.Fatal("fixed-level skill should reject level selection")
+	}
+	level := window.skillTableCell(Context{}, nil, skill, rotheme.TableViewCellContext{
+		Column: rotheme.TableViewColumn{Key: "level"},
+	})
+	if level.Text != "10" {
+		t.Fatalf("fixed-level cell text = %q, want 10", level.Text)
+	}
+	for _, key := range []string{"leveldown", "levelupselect"} {
+		cell := window.skillTableCell(Context{}, nil, skill, rotheme.TableViewCellContext{
+			Column: rotheme.TableViewColumn{Key: key},
+		})
+		if !cell.Hidden || cell.HasIconButton {
+			t.Fatalf("fixed-level %s cell = %+v, want hidden", key, cell)
+		}
+	}
+}
+
+func TestSkillWindowSelectableLevelCellsShowCurrentAndMaximum(t *testing.T) {
+	skill := session.Skill{ID: db.SkillMGSoulstrike, Type: 1, Level: 10}
+	window := &SkillWindow{selectedLevels: map[uint16]int{skill.ID: 4}}
+
+	level := window.skillTableCell(Context{}, nil, skill, rotheme.TableViewCellContext{
+		Column: rotheme.TableViewColumn{Key: "level"},
+	})
+	if level.Text != "4/10" {
+		t.Fatalf("selectable-level cell text = %q, want 4/10", level.Text)
+	}
+	down := window.skillTableCell(Context{}, nil, skill, rotheme.TableViewCellContext{
+		Column: rotheme.TableViewColumn{Key: "leveldown"},
+	})
+	up := window.skillTableCell(Context{}, nil, skill, rotheme.TableViewCellContext{
+		Column: rotheme.TableViewColumn{Key: "levelupselect"},
+	})
+	if !down.HasIconButton || down.IconButton != rotheme.IconButtonLeft || down.IconButtonDisabled {
+		t.Fatalf("level-down cell = %+v, want enabled left arrow", down)
+	}
+	if !up.HasIconButton || up.IconButton != rotheme.IconButtonRight || up.IconButtonDisabled {
+		t.Fatalf("level-up cell = %+v, want enabled right arrow", up)
 	}
 }
 
@@ -1374,8 +1461,8 @@ func TestSkillWindowSkillAtMouseUsesTableViewBody(t *testing.T) {
 
 func TestSkillDefaultPositionCentersOnScreen(t *testing.T) {
 	x, y := skillDefaultPosition(Context{ScreenW: 800, ScreenH: 600})
-	if x != 220 || y != 106 {
-		t.Fatalf("skill default position = %d,%d; want centered 220,106", x, y)
+	if x != 202 || y != 106 {
+		t.Fatalf("skill default position = %d,%d; want centered 202,106", x, y)
 	}
 
 	x, y = skillDefaultPosition(Context{ScreenW: 320, ScreenH: 240})
@@ -1417,6 +1504,67 @@ func TestSkillWindowTablePlusStagesSkill(t *testing.T) {
 	}
 }
 
+func TestSkillWindowTableLevelArrowSelectsWithoutStartingDrag(t *testing.T) {
+	skill := session.Skill{ID: db.SkillMGSoulstrike, Type: 1, Level: 10}
+	window := &SkillWindow{}
+	bounds := skillTableButtonBounds(0, "leveldown")
+
+	consumed := window.handleSkillTableRowEvent(
+		nil,
+		Context{},
+		nil,
+		[]session.Skill{skill},
+		0,
+		event.NewMouseEvent(
+			event.MousePress,
+			event.ButtonLeft,
+			event.ButtonStateLeft,
+			geometry.Pt(bounds.Min.X+1, bounds.Min.Y+1),
+			geometry.Pt(100, 120),
+			0,
+		),
+	)
+
+	if !consumed {
+		t.Fatal("level arrow press was not consumed")
+	}
+	if got := window.selectedSkillLevel(skill); got != 9 {
+		t.Fatalf("selected level = %d, want 9", got)
+	}
+	if window.dragActive {
+		t.Fatal("level arrow press should not start a skill drag")
+	}
+	if window.dirty {
+		t.Fatal("level arrow press should not rebuild the skill window")
+	}
+}
+
+func TestSkillWindowBlankLevelArrowColumnStillStartsFixedSkillDrag(t *testing.T) {
+	skill := session.Skill{ID: db.SkillACDouble, Type: 1, Level: 10}
+	window := &SkillWindow{}
+	bounds := skillTableButtonBounds(0, "leveldown")
+
+	window.handleSkillTableRowEvent(
+		nil,
+		Context{},
+		nil,
+		[]session.Skill{skill},
+		0,
+		event.NewMouseEvent(
+			event.MousePress,
+			event.ButtonLeft,
+			event.ButtonStateLeft,
+			geometry.Pt(bounds.Min.X+1, bounds.Min.Y+1),
+			geometry.Pt(100, 120),
+			0,
+		),
+	)
+
+	if !window.dragActive || window.dragSkill.ID != skill.ID {
+		t.Fatalf("fixed-level drag = active %t skill %+v, want skill %d", window.dragActive, window.dragSkill, skill.ID)
+	}
+}
+
 func TestSkillDragReleaseOverShortcutStoresSkill(t *testing.T) {
 	inputState := input.NewState()
 	bar := &ShortcutBar{}
@@ -1436,6 +1584,26 @@ func TestSkillDragReleaseOverShortcutStoresSkill(t *testing.T) {
 	}
 	if got := bar.slots[0]; got.kind != shortcutSkill || got.skillID != 46 || got.skillLevel != 10 {
 		t.Fatalf("shortcut slot = %+v, want double strafe level 10", got)
+	}
+}
+
+func TestSkillDragReleaseStoresLevelSelectedWithArrows(t *testing.T) {
+	inputState := input.NewState()
+	bar := &ShortcutBar{}
+	x, y := bar.slotBounds(Context{ScreenW: 800, ScreenH: 600}, 0)
+	inputState.SetMousePosition(x+shortcutSlot/2, y+shortcutSlot/2)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	inputState.EndFrame()
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
+
+	skill := session.Skill{ID: db.SkillMGSoulstrike, Level: 10, Type: 1}
+	window := &SkillWindow{selectedLevels: map[uint16]int{skill.ID: 4}}
+	window.pressSkill(Context{}, nil, skill, 20, 30)
+	if !window.UpdateDrag(Context{Input: inputState, ScreenW: 800, ScreenH: 600}, bar) {
+		t.Fatal("selected-level skill drag release was not consumed")
+	}
+	if got := bar.slots[0]; got.kind != shortcutSkill || got.skillID != skill.ID || got.skillLevel != 4 {
+		t.Fatalf("shortcut slot = %+v, want soul strike level 4", got)
 	}
 }
 

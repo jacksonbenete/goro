@@ -239,6 +239,14 @@ func (w *TableViewWidget) IsFocusable() bool {
 	return w.IsVisible() && w.IsEnabled()
 }
 
+// InvalidateRow redraws one materialized row without rebuilding the table.
+func (w *TableViewWidget) InvalidateRow(ctx widget.Context, row int) {
+	if ctx == nil {
+		return
+	}
+	w.invalidateRow(ctx, row)
+}
+
 func (w *TableViewWidget) Children() []widget.Widget {
 	if w.scroll == nil {
 		return nil

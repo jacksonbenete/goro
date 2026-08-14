@@ -820,6 +820,48 @@ func TestTableViewBuildSimpleCellHoverInvalidatesRowRect(t *testing.T) {
 	}
 }
 
+func TestTableViewInvalidateRowKeepsSimpleTableLocallyDirty(t *testing.T) {
+	table := TableView(
+		TableViewColumns([]TableViewColumn{{Key: "name", Width: 60}}),
+		TableViewRowCount(3),
+		TableViewRowHeight(20),
+		TableViewShowHeader(false),
+		TableViewBuildSimpleCell(func(TableViewCellContext) TableViewSimpleCell {
+			return TableViewSimpleCell{Text: "Row"}
+		}),
+	)
+	ctx := widget.NewContext()
+	var invalidated []geometry.Rect
+	ctx.SetOnInvalidateRect(func(r geometry.Rect) {
+		invalidated = append(invalidated, r)
+	})
+	table.Layout(ctx, geometry.Tight(geometry.Sz(100, 60)))
+	table.SetBounds(geometry.NewRect(0, 0, 100, 60))
+	widget.StampScreenOrigin(table, &tableViewHeaderCanvas{})
+	table.Draw(ctx, &tableViewHeaderCanvas{})
+	widget.ClearRedrawInTree(table)
+
+	row0 := table.body.simpleRows[0]
+	row1 := table.body.simpleRows[1]
+	if row0 == nil || row1 == nil {
+		t.Fatal("expected visible rows to be cached after draw")
+	}
+	table.InvalidateRow(ctx, 1)
+
+	if table.NeedsRedraw() || table.body.NeedsRedraw() {
+		t.Fatal("row invalidation should keep the table and body clean")
+	}
+	if row0.NeedsRedraw() {
+		t.Fatal("unrelated row should remain clean")
+	}
+	if !row1.NeedsRedraw() {
+		t.Fatal("invalidated row should be locally dirty")
+	}
+	if len(invalidated) != 1 || invalidated[0].Height() != table.cfg.rowHeight {
+		t.Fatalf("invalidated rects = %v, want one row-sized rect", invalidated)
+	}
+}
+
 func TestTableViewBodySkipsBackgroundForRowDirtyClip(t *testing.T) {
 	table := TableView(
 		TableViewColumns([]TableViewColumn{{Key: "name", Width: 80}}),
