@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/glog"
-	"github.com/kivutar/goro/input"
 	"image"
 	"strings"
 	"time"
@@ -14,6 +12,8 @@ import (
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -21,7 +21,11 @@ import (
 )
 
 const (
-	skillWindowWidth  = 396
+	skillTabW         = 32
+	skillTabH         = 44
+	skillTabOver      = 1
+	skillTableViewW   = 396
+	skillWindowWidth  = skillTabW + skillTableViewW + skillTabOver*2
 	skillWindowHeight = 388
 	skillRowH         = 32
 	skillIconSize     = 24
@@ -30,10 +34,36 @@ const (
 	skillTableBodyH   = skillTableViewH - skillHeaderH
 )
 
+const (
+	skillTabFirst = iota
+	skillTabSecond
+	skillTabThird
+	skillTabFourth
+	skillTabEtc
+	skillTabCount
+)
+
+var skillTabs = [...]struct {
+	label string
+	tab   int
+}{
+	{label: "1st", tab: skillTabFirst},
+	{label: "2nd", tab: skillTabSecond},
+	{label: "3rd", tab: skillTabThird},
+	{label: "4th", tab: skillTabFourth},
+	{label: "Etc", tab: skillTabEtc},
+}
+
 type SkillWindow struct {
 	Window
+	tab            int
 	scrollY        state.Signal[float32]
 	snapshot       string
+	skillViewKey   string
+	skillViewReady bool
+	allSkills      []session.Skill
+	skillsByTab    [skillTabCount][]session.Skill
+	visibleTabs    []int
 	lastClick      uint16
 	lastClickAt    time.Time
 	dragSkill      session.Skill
@@ -89,8 +119,9 @@ func (w *SkillWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameAc
 		w.Publish(ctx)
 		return true
 	}
-	w.clampScroll(ctx)
 	snapshot := w.skillSnapshot(ctx.Session)
+	w.ensureSkillViewForSnapshot(ctx, snapshot)
+	w.clampScrollCount(len(w.activeSkills()))
 	if snapshot != w.snapshot {
 		w.snapshot = snapshot
 		w.SetContent(w.widgetTree(ctx, actions))
@@ -164,6 +195,8 @@ func (w *SkillWindow) Rebind(ctx Context, actions GameActions) {
 func (w *SkillWindow) openAtDefault(ctx Context) {
 	x, y := skillDefaultPosition(ctx)
 	w.snapshot = w.skillSnapshot(ctx.Session)
+	w.ensureSkillViewForSnapshot(ctx, w.snapshot)
+	w.ensureScrollSignal().Set(0)
 	w.OpenAt(x, y, w.widgetTree(ctx, w.actions))
 	w.Publish(ctx)
 }
@@ -195,11 +228,16 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 		}),
 		Size(skillWindowWidth, skillWindowHeight),
 		Content(
-			primitives.Box(
-				w.skillTableWidget(ctx, assets, actions),
+			primitives.HBox(
+				w.skillTabColumn(ctx, assets, actions),
+				primitives.Box(
+					w.skillTableWidget(ctx, assets, actions),
+				).
+					Width(skillTableViewW).
+					Height(skillTableViewH).
+					Background(rotheme.Default.Colors.PanelBody),
 			).
-				Height(skillTableViewH).
-				Background(rotheme.Default.Colors.PanelBody),
+				Gap(0),
 		),
 		Footer(
 			footerLabel(fmt.Sprintf("Skill Points: %d", maxInt(0, sessionSkillPoints(ctx.Session)-w.pendingCount()))),
@@ -217,7 +255,8 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 }
 
 func (w *SkillWindow) skillTableWidget(ctx Context, assets AssetProvider, actions GameActions) *rotheme.TableViewWidget {
-	skills := w.visibleSkills(ctx)
+	w.ensureSkillView(ctx)
+	skills := w.activeSkills()
 	table := rotheme.TableView(
 		rotheme.TableViewColumns(skillTableColumns),
 		rotheme.TableViewRowCount(len(skills)),
@@ -238,6 +277,38 @@ func (w *SkillWindow) skillTableWidget(ctx Context, assets AssetProvider, action
 	)
 	w.table = table
 	return table
+}
+
+func (w *SkillWindow) skillTabColumn(ctx Context, assets AssetProvider, actions GameActions) widget.Widget {
+	w.ensureSkillView(ctx)
+	tabs := make([]widget.Widget, 0, len(w.visibleTabs))
+	for _, tabID := range w.visibleTabs {
+		tab := skillTabs[tabID]
+		tabs = append(tabs, newTabWidget(tabWidgetConfig{
+			label:         tab.label,
+			labelRotation: rotheme.TextRotationCounterClockwise,
+			active:        tab.tab == w.tab,
+			width:         skillTabW + skillTabOver*2,
+			height:        skillTabH,
+			blendEdge:     tabBlendRight,
+			blendInset:    skillTabOver,
+			onClick: func() {
+				if w.tab == tab.tab {
+					return
+				}
+				w.tab = tab.tab
+				w.ensureScrollSignal().Set(0)
+				w.hasHover = false
+				w.hideTooltip()
+				w.SetContent(w.widgetTreeWithAssets(ctx, assets, actions))
+				w.Publish(ctx)
+			},
+		}))
+	}
+	return primitives.Box(tabs...).
+		Width(skillTabW + skillTabOver*2).
+		Height(skillTableViewH).
+		Gap(-skillTabOver)
 }
 
 func (w *SkillWindow) skillTableCell(ctx Context, assets AssetProvider, skill session.Skill, cell rotheme.TableViewCellContext) rotheme.TableViewSimpleCell {
@@ -354,8 +425,9 @@ func (w *SkillWindow) refresh(ctx Context, actions GameActions) {
 	if actions != nil {
 		w.actions = actions
 	}
-	w.clampScroll(ctx)
 	w.snapshot = w.skillSnapshot(ctx.Session)
+	w.ensureSkillViewForSnapshot(ctx, w.snapshot)
+	w.clampScrollCount(len(w.activeSkills()))
 	w.SetContent(w.widgetTreeWithAssets(ctx, w.assets, w.actions))
 	w.Publish(ctx)
 }
@@ -416,11 +488,12 @@ func (w *SkillWindow) updateTooltipHover(ctx Context) {
 
 func (w *SkillWindow) skillAtMouse(ctx Context, mouseX, mouseY int) (session.Skill, bool) {
 	x, y := w.skillTableBodyOrigin()
-	if !pointInRect(mouseX, mouseY, x, y, scrollbarSafeIntWidth(skillWindowWidth), skillTableBodyH) {
+	if !pointInRect(mouseX, mouseY, x, y, scrollbarSafeIntWidth(skillTableViewW), skillTableBodyH) {
 		return session.Skill{}, false
 	}
 	row := int((float32(mouseY-y) + w.ensureScrollSignal().Get()) / skillRowH)
-	skills := w.visibleSkills(ctx)
+	w.ensureSkillView(ctx)
+	skills := w.activeSkills()
 	if row < 0 || row >= len(skills) {
 		return session.Skill{}, false
 	}
@@ -428,7 +501,7 @@ func (w *SkillWindow) skillAtMouse(ctx Context, mouseX, mouseY int) (session.Ski
 }
 
 func (w *SkillWindow) skillTableBodyOrigin() (int, int) {
-	return w.x, w.y + ROWindowTitleHeight + skillHeaderH
+	return w.x + skillTabW + skillTabOver*2, w.y + ROWindowTitleHeight + skillHeaderH
 }
 
 func (w *SkillWindow) hideTooltip() {
@@ -573,7 +646,8 @@ func (w *SkillWindow) confirmPending(ctx Context) {
 }
 
 func (w *SkillWindow) clampScroll(ctx Context) {
-	w.clampScrollCount(len(w.visibleSkills(ctx)))
+	w.ensureSkillView(ctx)
+	w.clampScrollCount(len(w.activeSkills()))
 }
 
 func (w *SkillWindow) clampScrollCount(skillCount int) {
@@ -588,7 +662,7 @@ func (w *SkillWindow) clampScrollCount(skillCount int) {
 }
 
 func (w *SkillWindow) ClampScroll(s *session.Session) {
-	w.clampScrollCount(len(sessionSkills(s)))
+	w.clampScroll(Context{Session: s})
 }
 
 func (w *SkillWindow) ensureScrollSignal() state.Signal[float32] {
@@ -602,10 +676,75 @@ func (w *SkillWindow) skillSnapshot(s *session.Session) string {
 	if s == nil {
 		return ""
 	}
-	return fmt.Sprintf("points=%d;pending=%v;skills=%v", s.Skills.Points, w.pending, s.Skills.List)
+	return fmt.Sprintf("job=%d;points=%d;pending=%v;skills=%v", s.Selected.Job, s.Skills.Points, w.pending, s.Skills.List)
 }
 
 func (w *SkillWindow) visibleSkills(ctx Context) []session.Skill {
+	w.ensureSkillView(ctx)
+	return w.allSkills
+}
+
+func (w *SkillWindow) ensureSkillView(ctx Context) {
+	w.ensureSkillViewForSnapshot(ctx, w.skillSnapshot(ctx.Session))
+}
+
+func (w *SkillWindow) ensureSkillViewForSnapshot(ctx Context, snapshot string) {
+	if w.skillViewReady && snapshot == w.skillViewKey {
+		return
+	}
+	w.skillViewReady = true
+	w.skillViewKey = snapshot
+	job := db.JobNovice
+	if ctx.Session != nil {
+		job = int(ctx.Session.Selected.Job)
+	}
+	groups := db.SkillTreeSkillGroups(job)
+	w.allSkills = w.buildVisibleSkills(ctx, job, groups)
+	for i := range w.skillsByTab {
+		w.skillsByTab[i] = w.skillsByTab[i][:0]
+	}
+
+	tabBySkill := make(map[uint16]int)
+	available := [skillTabCount]bool{}
+	for _, group := range groups {
+		if group.ClassLevel < 1 || group.ClassLevel > 4 {
+			continue
+		}
+		tab := group.ClassLevel - 1
+		available[tab] = true
+		for _, skillID := range group.SkillIDs {
+			tabBySkill[skillID] = tab
+		}
+	}
+	available[skillTabEtc] = true
+	for _, skill := range w.allSkills {
+		tab, ok := tabBySkill[skill.ID]
+		if !ok {
+			tab = skillTabEtc
+		}
+		w.skillsByTab[tab] = append(w.skillsByTab[tab], skill)
+	}
+
+	w.visibleTabs = w.visibleTabs[:0]
+	for _, tab := range skillTabs {
+		if available[tab.tab] {
+			w.visibleTabs = append(w.visibleTabs, tab.tab)
+		}
+	}
+	if !available[w.tab] {
+		w.tab = w.visibleTabs[0]
+		w.ensureScrollSignal().Set(0)
+	}
+}
+
+func (w *SkillWindow) activeSkills() []session.Skill {
+	if w.tab < 0 || w.tab >= len(w.skillsByTab) {
+		return nil
+	}
+	return w.skillsByTab[w.tab]
+}
+
+func (w *SkillWindow) buildVisibleSkills(ctx Context, job int, groups []db.SkillTreeGroup) []session.Skill {
 	sessionList := sessionSkills(ctx.Session)
 	skills := append([]session.Skill(nil), sessionList...)
 	if ctx.Session == nil {
@@ -620,22 +759,24 @@ func (w *SkillWindow) visibleSkills(ctx Context) []session.Skill {
 
 	ordered := make([]session.Skill, 0, len(sessionList))
 	seen := make(map[uint16]bool, len(sessionList))
-	for _, skillID := range db.SkillTreeSkillIDs(int(ctx.Session.Selected.Job)) {
-		if seen[skillID] {
-			continue
-		}
-		if skill, ok := byID[skillID]; ok {
+	for _, group := range groups {
+		for _, skillID := range group.SkillIDs {
+			if seen[skillID] {
+				continue
+			}
+			if skill, ok := byID[skillID]; ok {
+				ordered = append(ordered, skill)
+				seen[skillID] = true
+				continue
+			}
+			if !w.skillRequirementsMet(job, levels, skillID) {
+				continue
+			}
+			skill := w.lockedSkill(ctx, skillID)
 			ordered = append(ordered, skill)
 			seen[skillID] = true
-			continue
+			levels[skillID] = w.pendingFor(skillID)
 		}
-		if !w.skillRequirementsMet(int(ctx.Session.Selected.Job), levels, skillID) {
-			continue
-		}
-		skill := w.lockedSkill(ctx, skillID)
-		ordered = append(ordered, skill)
-		seen[skillID] = true
-		levels[skillID] = w.pendingFor(skillID)
 	}
 	for _, skill := range sessionList {
 		if !seen[skill.ID] {

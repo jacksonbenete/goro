@@ -1434,10 +1434,11 @@ func TestSkillWindowSelectableLevelCellsShowCurrentAndMaximum(t *testing.T) {
 
 func TestSkillWindowSkillAtMouseUsesTableViewBody(t *testing.T) {
 	s := &session.Session{
+		Selected: session.Character{Job: db.JobSwordman},
 		Skills: session.Skills{
 			List: []session.Skill{
-				{ID: 1},
-				{ID: 2},
+				{ID: db.SkillSMRecovery},
+				{ID: db.SkillSMBash},
 			},
 		},
 	}
@@ -1447,26 +1448,95 @@ func TestSkillWindowSkillAtMouseUsesTableViewBody(t *testing.T) {
 	window.y = 30
 	ctx := Context{Session: s}
 
-	if _, ok := window.skillAtMouse(ctx, window.x+8, window.y+ROWindowTitleHeight+skillHeaderH-1); ok {
+	tableX := window.x + skillTabW + skillTabOver*2
+	if _, ok := window.skillAtMouse(ctx, tableX+8, window.y+ROWindowTitleHeight+skillHeaderH-1); ok {
 		t.Fatal("header should not hit a skill row")
 	}
 
-	skill, ok := window.skillAtMouse(ctx, window.x+8, window.y+ROWindowTitleHeight+skillHeaderH+1)
-	if !ok || skill.ID != 1 {
-		t.Fatalf("skill at top row = %+v, %v; want id 1", skill, ok)
+	skill, ok := window.skillAtMouse(ctx, tableX+8, window.y+ROWindowTitleHeight+skillHeaderH+1)
+	if !ok || skill.ID != db.SkillSMRecovery {
+		t.Fatalf("skill at top row = %+v, %v; want id %d", skill, ok, db.SkillSMRecovery)
 	}
 
 	window.ensureScrollSignal().Set(skillRowH)
-	skill, ok = window.skillAtMouse(ctx, window.x+8, window.y+ROWindowTitleHeight+skillHeaderH+1)
-	if !ok || skill.ID != 2 {
-		t.Fatalf("skill at scrolled top row = %+v, %v; want id 2", skill, ok)
+	skill, ok = window.skillAtMouse(ctx, tableX+8, window.y+ROWindowTitleHeight+skillHeaderH+1)
+	if !ok || skill.ID != db.SkillSMBash {
+		t.Fatalf("skill at scrolled top row = %+v, %v; want id %d", skill, ok, db.SkillSMBash)
+	}
+}
+
+func TestSkillWindowGroupsSkillsIntoSharedVerticalTabs(t *testing.T) {
+	const unknownSkillID uint16 = 65000
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobKnightH},
+		Skills: session.Skills{List: []session.Skill{
+			{ID: db.SkillNVBasic, Level: 9},
+			{ID: db.SkillSMBash, Level: 10},
+			{ID: db.SkillKNPierce, Level: 5},
+			{ID: db.SkillLKSpiralpierce, Level: 1},
+			{ID: unknownSkillID, Level: 1},
+		}},
+	}
+	window := &SkillWindow{}
+	ctx := Context{Session: s}
+	window.ensureSkillView(ctx)
+
+	wantTabs := []int{skillTabFirst, skillTabSecond, skillTabEtc}
+	if len(window.visibleTabs) != len(wantTabs) {
+		t.Fatalf("visible tabs = %v, want %v", window.visibleTabs, wantTabs)
+	}
+	for i, want := range wantTabs {
+		if window.visibleTabs[i] != want {
+			t.Fatalf("visible tabs = %v, want %v", window.visibleTabs, wantTabs)
+		}
+	}
+	if !containsSkill(window.activeSkills(), db.SkillNVBasic) || !containsSkill(window.activeSkills(), db.SkillSMBash) || containsSkill(window.activeSkills(), db.SkillKNPierce) {
+		t.Fatalf("first tab skills = %+v, want novice and swordman skills only", window.activeSkills())
+	}
+	window.tab = skillTabSecond
+	if !containsSkill(window.activeSkills(), db.SkillKNPierce) || !containsSkill(window.activeSkills(), db.SkillLKSpiralpierce) || containsSkill(window.activeSkills(), db.SkillSMBash) {
+		t.Fatalf("second tab skills = %+v, want knight and lord knight skills only", window.activeSkills())
+	}
+	window.tab = skillTabEtc
+	if !containsSkill(window.activeSkills(), unknownSkillID) {
+		t.Fatalf("etc tab skills = %+v, want unknown server skill", window.activeSkills())
+	}
+
+	window.tab = skillTabFirst
+	column := window.skillTabColumn(ctx, nil, nil)
+	children := column.Children()
+	if len(children) != len(wantTabs) {
+		t.Fatalf("skill tab widgets = %d, want %d", len(children), len(wantTabs))
+	}
+	for i, child := range children {
+		tab, ok := child.(*tabWidget)
+		if !ok {
+			t.Fatalf("skill tab child %d = %T, want *tabWidget", i, child)
+		}
+		if tab.cfg.labelRotation != rotheme.TextRotationCounterClockwise {
+			t.Fatalf("skill tab %q rotation = %v, want counter-clockwise", tab.cfg.label, tab.cfg.labelRotation)
+		}
+	}
+}
+
+func TestSkillWindowCachesOrderedAndGroupedSkills(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobSwordman},
+		Skills:   session.Skills{List: []session.Skill{{ID: db.SkillSMBash, Level: 1}}},
+	}
+	window := &SkillWindow{}
+	ctx := Context{Session: s}
+	first := window.visibleSkills(ctx)
+	second := window.visibleSkills(ctx)
+	if len(first) == 0 || len(second) == 0 || &first[0] != &second[0] {
+		t.Fatal("unchanged skill state should reuse the cached ordered view")
 	}
 }
 
 func TestSkillDefaultPositionCentersOnScreen(t *testing.T) {
 	x, y := skillDefaultPosition(Context{ScreenW: 800, ScreenH: 600})
-	if x != 202 || y != 106 {
-		t.Fatalf("skill default position = %d,%d; want centered 202,106", x, y)
+	if x != 185 || y != 106 {
+		t.Fatalf("skill default position = %d,%d; want centered 185,106", x, y)
 	}
 
 	x, y = skillDefaultPosition(Context{ScreenW: 320, ScreenH: 240})

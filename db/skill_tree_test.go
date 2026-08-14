@@ -5,6 +5,22 @@ import (
 	"testing"
 )
 
+func TestSkillTreeGroupsClassifyTranscendentSkillsAsSecondClass(t *testing.T) {
+	groups := SkillTreeSkillGroups(JobKnightH)
+	if len(groups) != 2 {
+		t.Fatalf("lord knight groups = %d, want 2", len(groups))
+	}
+	if groups[0].ClassLevel != 1 || !containsSkillID(groups[0].SkillIDs, SkillNVBasic) || !containsSkillID(groups[0].SkillIDs, SkillSMBash) {
+		t.Fatalf("first-class group = %+v, want novice and swordman skills", groups[0])
+	}
+	if containsSkillID(groups[0].SkillIDs, SkillKNPierce) {
+		t.Fatalf("first-class group = %+v, should not contain knight skills", groups[0])
+	}
+	if groups[1].ClassLevel != 2 || !containsSkillID(groups[1].SkillIDs, SkillKNPierce) || !containsSkillID(groups[1].SkillIDs, SkillLKSpiralpierce) {
+		t.Fatalf("second-class group = %+v, want knight and lord knight skills", groups[1])
+	}
+}
+
 func TestWizardSkillTreeIncludesRobrowserBeforeJobs(t *testing.T) {
 	wizard := SkillTreeSkillIDs(JobWizard)
 	if !containsSkillID(wizard, SkillMGFirebolt) || !containsSkillID(wizard, SkillWZMeteor) {

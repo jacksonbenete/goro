@@ -1252,79 +1252,116 @@ func combinedSkillTree(trees ...[]uint16) []uint16 {
 	return out
 }
 
-var skillTreeByJob = map[int][]uint16{
-	JobNovice:       {SkillNVBasic, SkillNVFirstaid, SkillNVTrickdead},
-	JobSwordman:     swordmanSkillTree,
-	JobSwordmanH:    swordmanSkillTree,
-	JobSwordmanB:    swordmanSkillTree,
-	JobKnight:       combinedSkillTree(swordmanSkillTree, knightSkillTree),
-	JobKnight2:      combinedSkillTree(swordmanSkillTree, knightSkillTree),
-	JobKnightH:      combinedSkillTree(swordmanSkillTree, knightSkillTree, lordKnightSkillTree),
-	JobKnight2H:     combinedSkillTree(swordmanSkillTree, knightSkillTree, lordKnightSkillTree),
-	JobKnightB:      combinedSkillTree(swordmanSkillTree, knightSkillTree),
-	JobKnight2B:     combinedSkillTree(swordmanSkillTree, knightSkillTree),
-	JobCrusader:     combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
-	JobCrusader2:    combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
-	JobCrusaderH:    combinedSkillTree(swordmanSkillTree, crusaderSkillTree, paladinSkillTree),
-	JobCrusader2H:   combinedSkillTree(swordmanSkillTree, crusaderSkillTree, paladinSkillTree),
-	JobCrusaderB:    combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
-	JobCrusader2B:   combinedSkillTree(swordmanSkillTree, crusaderSkillTree),
-	JobMagician:     magicianSkillTree,
-	JobMagicianH:    magicianSkillTree,
-	JobMagicianB:    magicianSkillTree,
-	JobWizard:       combinedSkillTree(magicianSkillTree, wizardSkillTree),
-	JobWizardH:      combinedSkillTree(magicianSkillTree, wizardSkillTree, highWizardSkillTree),
-	JobWizardB:      combinedSkillTree(magicianSkillTree, wizardSkillTree),
-	JobSage:         combinedSkillTree(magicianSkillTree, sageSkillTree),
-	JobSageH:        combinedSkillTree(magicianSkillTree, sageSkillTree, professorSkillTree),
-	JobSageB:        combinedSkillTree(magicianSkillTree, sageSkillTree),
-	JobArcher:       archerSkillTree,
-	JobArcherH:      archerSkillTree,
-	JobArcherB:      archerSkillTree,
-	JobHunter:       combinedSkillTree(archerSkillTree, hunterSkillTree),
-	JobHunterH:      combinedSkillTree(archerSkillTree, hunterSkillTree, sniperSkillTree),
-	JobHunterB:      combinedSkillTree(archerSkillTree, hunterSkillTree),
-	JobBard:         combinedSkillTree(archerSkillTree, bardSkillTree),
-	JobBardH:        combinedSkillTree(archerSkillTree, bardSkillTree, clownGypsySkillTree),
-	JobBardB:        combinedSkillTree(archerSkillTree, bardSkillTree),
-	JobDancer:       combinedSkillTree(archerSkillTree, dancerSkillTree),
-	JobDancerH:      combinedSkillTree(archerSkillTree, dancerSkillTree, clownGypsySkillTree),
-	JobDancerB:      combinedSkillTree(archerSkillTree, dancerSkillTree),
-	JobAcolyte:      acolyteSkillTree,
-	JobAcolyteH:     acolyteSkillTree,
-	JobAcolyteB:     acolyteSkillTree,
-	JobPriest:       combinedSkillTree(acolyteSkillTree, priestSkillTree),
-	JobPriestH:      combinedSkillTree(acolyteSkillTree, priestSkillTree, highPriestSkillTree),
-	JobPriestB:      combinedSkillTree(acolyteSkillTree, priestSkillTree),
-	JobMonk:         combinedSkillTree(acolyteSkillTree, monkSkillTree),
-	JobMonkH:        combinedSkillTree(acolyteSkillTree, monkSkillTree, championSkillTree),
-	JobMonkB:        combinedSkillTree(acolyteSkillTree, monkSkillTree),
-	JobMerchant:     merchantSkillTree,
-	JobMerchantH:    merchantSkillTree,
-	JobMerchantB:    merchantSkillTree,
-	JobBlacksmith:   combinedSkillTree(merchantSkillTree, blacksmithSkillTree),
-	JobBlacksmithH:  combinedSkillTree(merchantSkillTree, blacksmithSkillTree, whitesmithSkillTree),
-	JobBlacksmithB:  combinedSkillTree(merchantSkillTree, blacksmithSkillTree),
-	JobAlchemist:    combinedSkillTree(merchantSkillTree, alchemistSkillTree),
-	JobAlchemistH:   combinedSkillTree(merchantSkillTree, alchemistSkillTree, creatorSkillTree),
-	JobAlchemistB:   combinedSkillTree(merchantSkillTree, alchemistSkillTree),
-	JobThief:        thiefSkillTree,
-	JobThiefH:       thiefSkillTree,
-	JobThiefB:       thiefSkillTree,
-	JobAssassin:     combinedSkillTree(thiefSkillTree, assassinSkillTree),
-	JobAssassinH:    combinedSkillTree(thiefSkillTree, assassinSkillTree, assassinCrossSkillTree),
-	JobAssassinB:    combinedSkillTree(thiefSkillTree, assassinSkillTree),
-	JobRogue:        combinedSkillTree(thiefSkillTree, rogueSkillTree),
-	JobRogueH:       combinedSkillTree(thiefSkillTree, rogueSkillTree, stalkerSkillTree),
-	JobRogueB:       combinedSkillTree(thiefSkillTree, rogueSkillTree),
-	JobSuperNovice:  superNoviceSkillTree,
-	JobSuperNoviceB: superNoviceSkillTree,
+// SkillTreeGroup describes the skills displayed under one class-level tab.
+// Transcendent skills share the second-class group, matching roBrowser's tree.
+type SkillTreeGroup struct {
+	ClassLevel int
+	SkillIDs   []uint16
+}
+
+var noviceSkillTree = []uint16{SkillNVBasic, SkillNVFirstaid, SkillNVTrickdead}
+
+var skillTreeGroupsByJob = map[int][][]uint16{
+	JobNovice:       {noviceSkillTree},
+	JobSwordman:     {swordmanSkillTree},
+	JobSwordmanH:    {swordmanSkillTree},
+	JobSwordmanB:    {swordmanSkillTree},
+	JobKnight:       {swordmanSkillTree, knightSkillTree},
+	JobKnight2:      {swordmanSkillTree, knightSkillTree},
+	JobKnightH:      {swordmanSkillTree, combinedSkillTree(knightSkillTree, lordKnightSkillTree)},
+	JobKnight2H:     {swordmanSkillTree, combinedSkillTree(knightSkillTree, lordKnightSkillTree)},
+	JobKnightB:      {swordmanSkillTree, knightSkillTree},
+	JobKnight2B:     {swordmanSkillTree, knightSkillTree},
+	JobCrusader:     {swordmanSkillTree, crusaderSkillTree},
+	JobCrusader2:    {swordmanSkillTree, crusaderSkillTree},
+	JobCrusaderH:    {swordmanSkillTree, combinedSkillTree(crusaderSkillTree, paladinSkillTree)},
+	JobCrusader2H:   {swordmanSkillTree, combinedSkillTree(crusaderSkillTree, paladinSkillTree)},
+	JobCrusaderB:    {swordmanSkillTree, crusaderSkillTree},
+	JobCrusader2B:   {swordmanSkillTree, crusaderSkillTree},
+	JobMagician:     {magicianSkillTree},
+	JobMagicianH:    {magicianSkillTree},
+	JobMagicianB:    {magicianSkillTree},
+	JobWizard:       {magicianSkillTree, wizardSkillTree},
+	JobWizardH:      {magicianSkillTree, combinedSkillTree(wizardSkillTree, highWizardSkillTree)},
+	JobWizardB:      {magicianSkillTree, wizardSkillTree},
+	JobSage:         {magicianSkillTree, sageSkillTree},
+	JobSageH:        {magicianSkillTree, combinedSkillTree(sageSkillTree, professorSkillTree)},
+	JobSageB:        {magicianSkillTree, sageSkillTree},
+	JobArcher:       {archerSkillTree},
+	JobArcherH:      {archerSkillTree},
+	JobArcherB:      {archerSkillTree},
+	JobHunter:       {archerSkillTree, hunterSkillTree},
+	JobHunterH:      {archerSkillTree, combinedSkillTree(hunterSkillTree, sniperSkillTree)},
+	JobHunterB:      {archerSkillTree, hunterSkillTree},
+	JobBard:         {archerSkillTree, bardSkillTree},
+	JobBardH:        {archerSkillTree, combinedSkillTree(bardSkillTree, clownGypsySkillTree)},
+	JobBardB:        {archerSkillTree, bardSkillTree},
+	JobDancer:       {archerSkillTree, dancerSkillTree},
+	JobDancerH:      {archerSkillTree, combinedSkillTree(dancerSkillTree, clownGypsySkillTree)},
+	JobDancerB:      {archerSkillTree, dancerSkillTree},
+	JobAcolyte:      {acolyteSkillTree},
+	JobAcolyteH:     {acolyteSkillTree},
+	JobAcolyteB:     {acolyteSkillTree},
+	JobPriest:       {acolyteSkillTree, priestSkillTree},
+	JobPriestH:      {acolyteSkillTree, combinedSkillTree(priestSkillTree, highPriestSkillTree)},
+	JobPriestB:      {acolyteSkillTree, priestSkillTree},
+	JobMonk:         {acolyteSkillTree, monkSkillTree},
+	JobMonkH:        {acolyteSkillTree, combinedSkillTree(monkSkillTree, championSkillTree)},
+	JobMonkB:        {acolyteSkillTree, monkSkillTree},
+	JobMerchant:     {merchantSkillTree},
+	JobMerchantH:    {merchantSkillTree},
+	JobMerchantB:    {merchantSkillTree},
+	JobBlacksmith:   {merchantSkillTree, blacksmithSkillTree},
+	JobBlacksmithH:  {merchantSkillTree, combinedSkillTree(blacksmithSkillTree, whitesmithSkillTree)},
+	JobBlacksmithB:  {merchantSkillTree, blacksmithSkillTree},
+	JobAlchemist:    {merchantSkillTree, alchemistSkillTree},
+	JobAlchemistH:   {merchantSkillTree, combinedSkillTree(alchemistSkillTree, creatorSkillTree)},
+	JobAlchemistB:   {merchantSkillTree, alchemistSkillTree},
+	JobThief:        {thiefSkillTree},
+	JobThiefH:       {thiefSkillTree},
+	JobThiefB:       {thiefSkillTree},
+	JobAssassin:     {thiefSkillTree, assassinSkillTree},
+	JobAssassinH:    {thiefSkillTree, combinedSkillTree(assassinSkillTree, assassinCrossSkillTree)},
+	JobAssassinB:    {thiefSkillTree, assassinSkillTree},
+	JobRogue:        {thiefSkillTree, rogueSkillTree},
+	JobRogueH:       {thiefSkillTree, combinedSkillTree(rogueSkillTree, stalkerSkillTree)},
+	JobRogueB:       {thiefSkillTree, rogueSkillTree},
+	JobSuperNovice:  {superNoviceSkillTree},
+	JobSuperNoviceB: {superNoviceSkillTree},
+}
+
+// SkillTreeSkillGroups returns the inherited skill tree split by class level.
+func SkillTreeSkillGroups(job int) []SkillTreeGroup {
+	jobGroups := skillTreeGroupsByJob[job]
+	if job == JobNovice {
+		jobGroups = nil
+	}
+	groupCount := len(jobGroups)
+	if groupCount == 0 {
+		groupCount = 1
+	}
+	groups := make([]SkillTreeGroup, groupCount)
+	for i := range groups {
+		groups[i].ClassLevel = i + 1
+		if i == 0 {
+			groups[i].SkillIDs = append(groups[i].SkillIDs, noviceSkillTree...)
+		}
+		if i < len(jobGroups) {
+			groups[i].SkillIDs = append(groups[i].SkillIDs, jobGroups[i]...)
+		}
+	}
+	return groups
 }
 
 func SkillTreeSkillIDs(job int) []uint16 {
-	out := append([]uint16(nil), skillTreeByJob[JobNovice]...)
-	if job != JobNovice {
-		out = append(out, skillTreeByJob[job]...)
+	groups := SkillTreeSkillGroups(job)
+	total := 0
+	for _, group := range groups {
+		total += len(group.SkillIDs)
+	}
+	out := make([]uint16, 0, total)
+	for _, group := range groups {
+		out = append(out, group.SkillIDs...)
 	}
 	return out
 }
