@@ -35,7 +35,7 @@ const (
 	inventoryBagViewW   = inventoryBagGridW + ROScrollbarGutter
 	inventoryBagViewH   = inventoryBagRows * inventoryBagCell
 	inventoryBagWidth   = inventoryBagTabW + inventoryBagViewW + 2
-	inventoryBagHeight  = ROWindowTitleHeight + inventoryBagViewH + 2
+	inventoryBagHeight  = ROWindowTitleHeight + inventoryBagViewH
 )
 
 const (
@@ -247,8 +247,6 @@ func (w *InventoryBagWindow) tabColumn(ctx Context, cart *CartWindow) widget.Wid
 			active:        tab.tab == w.tab,
 			width:         inventoryBagTabW + inventoryBagTabOver*2,
 			height:        inventoryBagTabH,
-			blendEdge:     tabBlendRight,
-			blendInset:    inventoryBagTabOver,
 			onClick: func() {
 				w.hideTooltip()
 				w.tab = tab.tab

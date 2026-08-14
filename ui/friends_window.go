@@ -182,24 +182,20 @@ func (w *FriendsWindow) widgetTree(ctx Context) widget.Widget {
 func (w *FriendsWindow) friendsTabs() widget.Widget {
 	return primitives.HBox(
 		newTabWidget(tabWidgetConfig{
-			label:      "Friends",
-			active:     w.tab == friendsWindowTabFriends,
-			width:      friendsTabWidth,
-			height:     friendsTabHeight,
-			blendEdge:  tabBlendBottom,
-			blendInset: 1,
+			label:  "Friends",
+			active: w.tab == friendsWindowTabFriends,
+			width:  friendsTabWidth,
+			height: friendsTabHeight,
 			onClick: func() {
 				w.tab = friendsWindowTabFriends
 				w.refresh(w.ctx)
 			},
 		}),
 		newTabWidget(tabWidgetConfig{
-			label:      "Party",
-			active:     w.tab == friendsWindowTabParty,
-			width:      friendsTabWidth,
-			height:     friendsTabHeight,
-			blendEdge:  tabBlendBottom,
-			blendInset: 1,
+			label:  "Party",
+			active: w.tab == friendsWindowTabParty,
+			width:  friendsTabWidth,
+			height: friendsTabHeight,
 			onClick: func() {
 				w.tab = friendsWindowTabParty
 				w.refresh(w.ctx)

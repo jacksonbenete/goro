@@ -3,17 +3,12 @@ package ui
 import (
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
-type tabBlendEdge int
-
-const (
-	tabBlendNone tabBlendEdge = iota
-	tabBlendRight
-	tabBlendBottom
-)
+const verticalTabDividerW = 1
 
 type tabWidgetConfig struct {
 	label         string
@@ -21,8 +16,6 @@ type tabWidgetConfig struct {
 	active        bool
 	width         int
 	height        int
-	blendEdge     tabBlendEdge
-	blendInset    int
 	onClick       func()
 }
 
@@ -37,6 +30,18 @@ func newTabWidget(cfg tabWidgetConfig) *tabWidget {
 	w.SetVisible(true)
 	w.SetEnabled(true)
 	return w
+}
+
+func verticalTabFrame(tabs, content widget.Widget) widget.Widget {
+	return primitives.HBox(
+		tabs,
+		primitives.Box().
+			Width(verticalTabDividerW).
+			Background(rotheme.Default.Colors.WindowBorder),
+		content,
+	).
+		Gap(0).
+		CrossAlign(primitives.CrossAxisStretch)
 }
 
 func (w *tabWidget) Layout(ctx widget.Context, constraints geometry.Constraints) geometry.Size {

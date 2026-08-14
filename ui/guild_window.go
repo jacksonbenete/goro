@@ -241,12 +241,10 @@ func (w *GuildWindow) tabStrip() widget.Widget {
 		def := def
 		tabs = append(tabs,
 			newTabWidget(tabWidgetConfig{
-				label:      def.label,
-				active:     w.tab == def.tab,
-				width:      guildWindowTabWidth,
-				height:     guildWindowTabHeight,
-				blendEdge:  tabBlendBottom,
-				blendInset: 1,
+				label:  def.label,
+				active: w.tab == def.tab,
+				width:  guildWindowTabWidth,
+				height: guildWindowTabHeight,
 				onClick: func() {
 					w.tab = def.tab
 					w.hideTooltip()

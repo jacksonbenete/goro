@@ -253,6 +253,12 @@ func TestInventoryBagClampScrollUsesPixelOffset(t *testing.T) {
 	}
 }
 
+func TestInventoryBagWindowHeightEndsAtGridBottom(t *testing.T) {
+	if got, want := inventoryBagHeight-ROWindowTitleHeight, inventoryBagViewH; got != want {
+		t.Fatalf("inventory content height = %d, want grid height %d", got, want)
+	}
+}
+
 func TestInventoryGridUsesScrollableContentCoordinates(t *testing.T) {
 	items := make([]session.InventoryItem, inventoryBagCols*inventoryBagRows+1)
 	for i := range items {

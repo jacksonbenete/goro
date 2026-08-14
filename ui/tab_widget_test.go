@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/uitest"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/session"
@@ -90,5 +91,37 @@ func TestInventoryBagUsesVerticalTabsWithoutOverflowingCartButton(t *testing.T) 
 	cartBounds := children[len(children)-1].(interface{ Bounds() geometry.Rect }).Bounds()
 	if cartBounds.Max.Y > inventoryBagViewH {
 		t.Fatalf("cart button bottom = %.1f, exceeds tab column height %d", cartBounds.Max.Y, inventoryBagViewH)
+	}
+}
+
+func TestVerticalTabFrameSeparatesRailFromContent(t *testing.T) {
+	const (
+		railW    = 34
+		contentW = 80
+		height   = 100
+	)
+	frame := verticalTabFrame(
+		primitives.Box().Width(railW),
+		primitives.Box().Width(contentW),
+	)
+	frame.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(railW+verticalTabDividerW+contentW, height)))
+
+	children := frame.Children()
+	if len(children) != 3 {
+		t.Fatalf("vertical tab frame children = %d, want rail, divider, and content", len(children))
+	}
+	dividerBounds := children[1].(interface{ Bounds() geometry.Rect }).Bounds()
+	if dividerBounds.Min.X != railW || dividerBounds.Width() != verticalTabDividerW || dividerBounds.Height() != height {
+		t.Fatalf("vertical tab divider bounds = %v, want x=%d width=%d height=%d", dividerBounds, railW, verticalTabDividerW, height)
+	}
+	canvas := &uitest.MockCanvas{}
+	children[1].Draw(widget.NewContext(), canvas)
+	if len(canvas.Rects) != 1 {
+		t.Fatalf("vertical tab divider draws = %d, want one visible rectangle", len(canvas.Rects))
+	}
+	uitest.AssertColorEqual(t, canvas.Rects[0].Color, rotheme.Default.Colors.WindowBorder)
+	contentBounds := children[2].(interface{ Bounds() geometry.Rect }).Bounds()
+	if contentBounds.Min.X != railW+verticalTabDividerW {
+		t.Fatalf("vertical tab content x = %.1f, want %d", contentBounds.Min.X, railW+verticalTabDividerW)
 	}
 }

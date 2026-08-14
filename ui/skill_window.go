@@ -24,8 +24,9 @@ const (
 	skillTabW         = 32
 	skillTabH         = 44
 	skillTabOver      = 1
+	skillTabRailW     = skillTabW + skillTabOver*2
 	skillTableViewW   = 396
-	skillWindowWidth  = skillTabW + skillTableViewW + skillTabOver*2
+	skillWindowWidth  = skillTabRailW + verticalTabDividerW + skillTableViewW
 	skillWindowHeight = 388
 	skillRowH         = 32
 	skillIconSize     = 24
@@ -228,7 +229,7 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 		}),
 		Size(skillWindowWidth, skillWindowHeight),
 		Content(
-			primitives.HBox(
+			verticalTabFrame(
 				w.skillTabColumn(ctx, assets, actions),
 				primitives.Box(
 					w.skillTableWidget(ctx, assets, actions),
@@ -236,8 +237,7 @@ func (w *SkillWindow) widgetTreeWithAssets(ctx Context, assets AssetProvider, ac
 					Width(skillTableViewW).
 					Height(skillTableViewH).
 					Background(rotheme.Default.Colors.PanelBody),
-			).
-				Gap(0),
+			),
 		),
 		Footer(
 			footerLabel(fmt.Sprintf("Skill Points: %d", maxInt(0, sessionSkillPoints(ctx.Session)-w.pendingCount()))),
@@ -288,10 +288,8 @@ func (w *SkillWindow) skillTabColumn(ctx Context, assets AssetProvider, actions 
 			label:         tab.label,
 			labelRotation: rotheme.TextRotationCounterClockwise,
 			active:        tab.tab == w.tab,
-			width:         skillTabW + skillTabOver*2,
+			width:         skillTabRailW,
 			height:        skillTabH,
-			blendEdge:     tabBlendRight,
-			blendInset:    skillTabOver,
 			onClick: func() {
 				if w.tab == tab.tab {
 					return
@@ -306,7 +304,7 @@ func (w *SkillWindow) skillTabColumn(ctx Context, assets AssetProvider, actions 
 		}))
 	}
 	return primitives.Box(tabs...).
-		Width(skillTabW + skillTabOver*2).
+		Width(skillTabRailW).
 		Height(skillTableViewH).
 		Gap(-skillTabOver)
 }
@@ -501,7 +499,7 @@ func (w *SkillWindow) skillAtMouse(ctx Context, mouseX, mouseY int) (session.Ski
 }
 
 func (w *SkillWindow) skillTableBodyOrigin() (int, int) {
-	return w.x + skillTabW + skillTabOver*2, w.y + ROWindowTitleHeight + skillHeaderH
+	return w.x + skillTabRailW + verticalTabDividerW, w.y + ROWindowTitleHeight + skillHeaderH
 }
 
 func (w *SkillWindow) hideTooltip() {

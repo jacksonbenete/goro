@@ -1448,7 +1448,7 @@ func TestSkillWindowSkillAtMouseUsesTableViewBody(t *testing.T) {
 	window.y = 30
 	ctx := Context{Session: s}
 
-	tableX := window.x + skillTabW + skillTabOver*2
+	tableX := window.x + skillTabRailW + verticalTabDividerW
 	if _, ok := window.skillAtMouse(ctx, tableX+8, window.y+ROWindowTitleHeight+skillHeaderH-1); ok {
 		t.Fatal("header should not hit a skill row")
 	}
@@ -1535,8 +1535,8 @@ func TestSkillWindowCachesOrderedAndGroupedSkills(t *testing.T) {
 
 func TestSkillDefaultPositionCentersOnScreen(t *testing.T) {
 	x, y := skillDefaultPosition(Context{ScreenW: 800, ScreenH: 600})
-	if x != 185 || y != 106 {
-		t.Fatalf("skill default position = %d,%d; want centered 185,106", x, y)
+	if x != 184 || y != 106 {
+		t.Fatalf("skill default position = %d,%d; want centered 184,106", x, y)
 	}
 
 	x, y = skillDefaultPosition(Context{ScreenW: 320, ScreenH: 240})
