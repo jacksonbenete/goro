@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,8 +14,46 @@ import (
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
 	worldstate "github.com/kivutar/goro/world"
 )
+
+func TestShopBuyAndSellTotalsAlignWithFooterButtons(t *testing.T) {
+	for _, mode := range []int{shopModeBuy, shopModeSell} {
+		window := ShopWindow{mode: mode}
+		root := window.buyCartWidgetTree(Context{})
+		root.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(shopBuyCartWindowW, float32(window.cartWindowHeight()))))
+
+		var total widget.Widget
+		var walk func(widget.Widget)
+		walk = func(current widget.Widget) {
+			if total != nil {
+				return
+			}
+			if text, ok := current.(interface{ Content() string }); ok && strings.HasPrefix(text.Content(), "Total:") {
+				total = current
+				return
+			}
+			for _, child := range current.Children() {
+				walk(child)
+			}
+		}
+		walk(root)
+		if total == nil {
+			t.Fatalf("shop mode %d total label not found", mode)
+		}
+		bounds := total.(interface{ Bounds() geometry.Rect }).Bounds()
+		if bounds.Min.Y != rotheme.ButtonPaddingY {
+			t.Fatalf("shop mode %d total label y = %.1f, want %.1f to align with footer buttons", mode, bounds.Min.Y, rotheme.ButtonPaddingY)
+		}
+		parent := total.(interface{ Parent() widget.Widget }).Parent()
+		parentBounds := parent.(interface{ Bounds() geometry.Rect }).Bounds()
+		wantHeight := rotheme.Default.Typography.TextSize + rotheme.ButtonPaddingY*2
+		if parentBounds.Height() != wantHeight {
+			t.Fatalf("shop mode %d total wrapper height = %.1f, want %.1f", mode, parentBounds.Height(), wantHeight)
+		}
+	}
+}
 
 func TestShopAddSellCartItemTracksAmount(t *testing.T) {
 	window := ShopWindow{

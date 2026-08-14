@@ -362,7 +362,7 @@ func (w *ShopWindow) buyCartWidgetTree(ctx Context) widget.Widget {
 				Background(rotheme.Default.Colors.PanelBody),
 		),
 		Footer(
-			rotheme.Text(fmt.Sprintf("Total: %s Z", formatHUDNumber(w.total()))),
+			footerLabel(fmt.Sprintf("Total: %s Z", formatHUDNumber(w.total()))),
 			primitives.Expanded(primitives.Box()),
 			rotheme.ButtonDisabled(action, disabled, func() {
 				w.submit(ctx)
