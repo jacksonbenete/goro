@@ -267,6 +267,7 @@ func (w *SkillWindow) skillTableCell(ctx Context, assets AssetProvider, skill se
 		}
 		return rotheme.TableViewSimpleCell{
 			Text:  text,
+			Align: widget.TextAlignCenter,
 			Color: nameColor,
 		}
 	case "leveldown":
@@ -679,7 +680,7 @@ var skillTableColumns = []rotheme.TableViewColumn{
 	{Key: "type", Width: 16},
 	{Key: "name", Title: "Name", Width: 142},
 	{Key: "leveldown", Width: 18},
-	{Key: "level", Title: "Lv", Width: 40},
+	{Key: "level", Title: "Lv", Width: 40, Align: widget.TextAlignCenter},
 	{Key: "levelupselect", Width: 18},
 	{Key: "sp", Title: "SP", Width: 38},
 	{Key: "range", Title: "Range", Width: 56},

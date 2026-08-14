@@ -8,6 +8,7 @@ import (
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/render"
@@ -1413,6 +1414,9 @@ func TestSkillWindowSelectableLevelCellsShowCurrentAndMaximum(t *testing.T) {
 	})
 	if level.Text != "4/10" {
 		t.Fatalf("selectable-level cell text = %q, want 4/10", level.Text)
+	}
+	if level.Align != widget.TextAlignCenter {
+		t.Fatalf("selectable-level alignment = %v, want centered", level.Align)
 	}
 	down := window.skillTableCell(Context{}, nil, skill, rotheme.TableViewCellContext{
 		Column: rotheme.TableViewColumn{Key: "leveldown"},
