@@ -2560,7 +2560,7 @@ func TestSkillUnitEffectMappings(t *testing.T) {
 	expectEffectIDs(t, "UNT_FORTUNEKISS", skillUnitEffectIDs(174), effectBottomFortuneGround)
 	expectEffectIDs(t, "UNT_SERVICEFORYOU", skillUnitEffectIDs(175), effectBottomServiceGround)
 	expectEffectIDs(t, "UNT_DEMONSTRATION", skillUnitEffectIDs(177), effectDemonstration)
-	expectEffectIDs(t, "UNT_GOSPEL", skillUnitEffectIDs(179), effectBottomGospel)
+	expectEffectIDs(t, "UNT_GOSPEL", skillUnitEffectIDs(179), effectGospelGround)
 	expectEffectIDs(t, "UNT_BASILICA", skillUnitEffectIDs(180), effectBottomBasilica)
 	expectEffectIDs(t, "UNT_MOONLIT", skillUnitEffectIDs(181), effectMoonlit)
 	expectEffectIDs(t, "UNT_FOGWALL", skillUnitEffectIDs(182), effectFogWallGround)

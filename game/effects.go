@@ -1099,6 +1099,17 @@ func (m *WorldMode) faceSkillSource(ctx client.Context, sourceID, targetID uint3
 }
 
 func (m *WorldMode) applyGroundSkillNotify(ctx client.Context, notify network.GroundSkillNotify) {
+	// rAthena sends Battle Chant's cast notification at 0,0 and follows it with
+	// one UNT_GOSPEL entry per field cell. Play EF_BOTTOM_GOSPEL once on the
+	// caster here; the unit entries own the persistent ground visuals.
+	if notify.SkillID == db.SkillPaGospel && notify.X == 0 && notify.Y == 0 {
+		for _, effectID := range skillEffectIDs(notify.SkillID) {
+			if m.addWorldEffectIfMissing(ctx, effectID, notify.SourceID) {
+				glog.Debugf("ground skill caster effect skill=%d src=%d level=%d effect=%d", notify.SkillID, notify.SourceID, notify.Level, effectID)
+			}
+		}
+		return
+	}
 	effectIDs := skillGroundEffectIDs(notify.SkillID)
 	if len(effectIDs) == 0 {
 		effectIDs = skillEffectIDs(notify.SkillID)
@@ -2081,7 +2092,7 @@ var skillUnitEffectSpecs = map[uint16]skillUnitEffectSpec{
 	174: {effectIDs: []int{effectBottomFortuneGround}},    // UNT_FORTUNEKISS -> 293_ground
 	175: {effectIDs: []int{effectBottomServiceGround}},    // UNT_SERVICEFORYOU -> 294_ground
 	177: {effectIDs: []int{effectDemonstration}},          // UNT_DEMONSTRATION -> EF_DEMONSTRATION
-	179: {effectIDs: []int{effectBottomGospel}},           // UNT_GOSPEL -> 370_ground
+	179: {effectIDs: []int{effectGospelGround}},           // UNT_GOSPEL -> 370_ground
 	180: {effectIDs: []int{effectBottomBasilica}},         // UNT_BASILICA -> EF_BOTTOM_BASILICA
 	181: {effectIDs: []int{effectMoonlit}},                // UNT_MOONLIT -> 394_ground
 	182: {effectIDs: []int{effectFogWallGround}},          // UNT_FOGWALL -> 405_ground

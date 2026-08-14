@@ -65,6 +65,48 @@ func TestPneumaGroundSkillNotifyAddsCellEffect(t *testing.T) {
 	}
 }
 
+func TestGospelGroundSkillNotifyPlaysOneCastSoundOnCaster(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+	notify := network.GroundSkillNotify{SkillID: db.SkillPaGospel, SourceID: 2000000, Level: 10}
+
+	mode.applyGroundSkillNotify(ctx, notify)
+	mode.applyGroundSkillNotify(ctx, notify)
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("Gospel cast effects = %+v, want one deduplicated caster effect", mode.worldEffects)
+	}
+	effect := mode.worldEffects[0]
+	if effect.effectID != effectBottomGospel || effect.actorID != 2000000 {
+		t.Fatalf("Gospel cast effect = %+v, want EF_BOTTOM_GOSPEL on caster", effect)
+	}
+	if len(mode.scheduledSounds) != 1 || len(mode.scheduledSounds[0].paths) != 1 || mode.scheduledSounds[0].paths[0] != "effect\\가스펠.wav" {
+		t.Fatalf("Gospel cast sounds = %+v, want one Gospel sound", mode.scheduledSounds)
+	}
+}
+
+func TestGospelSkillUnitUsesPersistentGroundVisualWithoutSound(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000}, World: world}
+
+	mode.applySkillUnitEntry(ctx, network.SkillUnitEntry{ID: 9179, CreatorID: 2000000, UnitID: 179, X: 12, Y: 34, Visible: true})
+
+	if len(mode.worldEffects) != 1 {
+		t.Fatalf("Gospel unit effects = %+v, want one", mode.worldEffects)
+	}
+	effect := mode.worldEffects[0]
+	if effect.effectID != effectGospelGround || effect.actorID != 9179 || effect.x != 12 || effect.y != 34 || !effect.persistent {
+		t.Fatalf("Gospel unit effect = %+v, want persistent 370_ground at unit cell", effect)
+	}
+	if len(mode.scheduledSounds) != 0 {
+		t.Fatalf("Gospel unit sounds = %+v, want cast sound owned by poseffect only", mode.scheduledSounds)
+	}
+}
+
 func TestSkillUnitEntryAddsAndRemovesCellEffect(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}

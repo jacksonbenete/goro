@@ -1,5 +1,41 @@
 package db
 
+// skillSelectableLevels mirrors the reference client's bSeperateLv skill
+// metadata. Entries are deliberately limited to the Crusader/Paladin path for
+// now; callers must distinguish an absent entry from a known false value.
+var skillSelectableLevels = map[uint16]bool{
+	SkillSMBash:            true,
+	SkillSMProvoke:         true,
+	SkillSMMagnum:          false,
+	SkillSMEndure:          false,
+	SkillSMMovingrecovery:  false,
+	SkillSMFatalblow:       false,
+	SkillSMAutoberserk:     false,
+	SkillALHeal:            true,
+	SkillALCure:            false,
+	SkillCRTrust:           false,
+	SkillCRAutoguard:       true,
+	SkillCRShieldcharge:    false,
+	SkillCRShieldboomerang: false,
+	SkillCRReflectshield:   true,
+	SkillCRHolycross:       true,
+	SkillCRGrandcross:      true,
+	SkillCRDevotion:        false,
+	SkillCRProvidence:      false,
+	SkillCRDefender:        false,
+	SkillCRSpearquicken:    true,
+	SkillCRShrink:          false,
+	SkillPaPressure:        true,
+	SkillPaShieldchain:     true,
+	SkillPaSacrifice:       false,
+	SkillPaGospel:          true,
+}
+
+func SkillLevelSelectable(skillID uint16) (bool, bool) {
+	selectable, known := skillSelectableLevels[skillID]
+	return selectable, known
+}
+
 // SkillAttackRanges mirrors roBrowser's DB/Skills/SkillInfo.js AttackRange rows.
 // It is intentionally sparse so broader SkillInfo metadata can be batch-imported later.
 var SkillAttackRanges = map[uint16][]int{

@@ -39,3 +39,44 @@ func TestSkillAttackRangeRejectsUnknownOrInvalidLevel(t *testing.T) {
 		t.Fatal("level beyond range table should not resolve")
 	}
 }
+
+func TestCrusaderPaladinSelectableLevelMetadata(t *testing.T) {
+	for _, skillID := range []uint16{
+		SkillSMBash,
+		SkillSMProvoke,
+		SkillALHeal,
+		SkillCRAutoguard,
+		SkillCRReflectshield,
+		SkillCRHolycross,
+		SkillCRGrandcross,
+		SkillCRSpearquicken,
+		SkillPaPressure,
+		SkillPaShieldchain,
+		SkillPaGospel,
+	} {
+		if selectable, known := SkillLevelSelectable(skillID); !known || !selectable {
+			t.Fatalf("skill %d selectable=%t known=%t, want true,true", skillID, selectable, known)
+		}
+	}
+
+	for _, skillID := range []uint16{
+		SkillSMMagnum,
+		SkillSMEndure,
+		SkillALCure,
+		SkillCRShieldcharge,
+		SkillCRShieldboomerang,
+		SkillCRDevotion,
+		SkillCRProvidence,
+		SkillCRDefender,
+		SkillCRShrink,
+		SkillPaSacrifice,
+	} {
+		if selectable, known := SkillLevelSelectable(skillID); !known || selectable {
+			t.Fatalf("skill %d selectable=%t known=%t, want false,true", skillID, selectable, known)
+		}
+	}
+
+	if selectable, known := SkillLevelSelectable(SkillMGSoulstrike); known || selectable {
+		t.Fatalf("unimported skill selectable=%t known=%t, want false,false", selectable, known)
+	}
+}

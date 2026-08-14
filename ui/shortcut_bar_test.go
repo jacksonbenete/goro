@@ -514,6 +514,20 @@ func TestSkillForShortcutFallsBackAndClampsLevel(t *testing.T) {
 	}
 }
 
+func TestFixedLevelShortcutUsesLearnedLevel(t *testing.T) {
+	s := &session.Session{Skills: session.Skills{List: []session.Skill{{
+		ID: db.SkillCRShieldboomerang, Level: 5, Type: 1,
+	}}}}
+
+	skill, ok := skillForShortcut(s, shortcutSlotState{kind: shortcutSkill, skillID: db.SkillCRShieldboomerang, skillLevel: 2})
+	if !ok {
+		t.Fatal("Shield Boomerang shortcut skill not found")
+	}
+	if skill.Level != 5 {
+		t.Fatalf("fixed-level Shield Boomerang shortcut level = %d, want learned level 5", skill.Level)
+	}
+}
+
 func TestSkillForShortcutResolvesHomunculusSkills(t *testing.T) {
 	s := &session.Session{
 		Homunculus: session.Companion{

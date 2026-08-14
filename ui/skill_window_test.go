@@ -470,6 +470,25 @@ func TestSkillWindowShowsPaladinUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowRequiresFaithFiveForMartyrsReckoning(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobCrusaderH},
+		Skills: session.Skills{List: []session.Skill{
+			{ID: db.SkillSMEndure, Level: 1, Upgradable: true},
+			{ID: db.SkillCRTrust, Level: 4, Upgradable: true},
+			{ID: db.SkillCRDevotion, Level: 3, Upgradable: true},
+		}},
+	}
+	window := &SkillWindow{}
+	if containsSkill(window.visibleSkills(Context{Session: s}), db.SkillPaSacrifice) {
+		t.Fatal("martyr's reckoning should not be visible before Faith reaches level 5")
+	}
+	s.Skills.List[1].Level = 5
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillPaSacrifice) {
+		t.Fatal("martyr's reckoning should be visible when Endure, Faith, and Devotion requirements are met")
+	}
+}
+
 func TestSkillWindowShowsPriestUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobPriest},

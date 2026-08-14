@@ -8,6 +8,7 @@ import (
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/widget"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
@@ -769,6 +770,9 @@ func skillForShortcut(s *session.Session, entry shortcutSlotState) (session.Skil
 		return session.Skill{}, false
 	}
 	level := entry.skillLevel
+	if selectable, known := db.SkillLevelSelectable(entry.skillID); known && !selectable {
+		level = skill.Level
+	}
 	if level <= 0 || level > skill.Level {
 		level = skill.Level
 	}

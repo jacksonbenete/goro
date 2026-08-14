@@ -52,7 +52,7 @@ var SkillRequirements = map[uint16][]SkillRequirement{
 		{SkillID: SkillCRShieldcharge, Level: 2},
 	},
 	SkillPaShieldchain:     {{SkillID: SkillCRShieldboomerang, Level: 5}},
-	SkillPaSacrifice:       {{SkillID: SkillSMEndure, Level: 1}, {SkillID: SkillCRDevotion, Level: 3}},
+	SkillPaSacrifice:       {{SkillID: SkillSMEndure, Level: 1}, {SkillID: SkillCRTrust, Level: 5}, {SkillID: SkillCRDevotion, Level: 3}},
 	SkillPaGospel:          {{SkillID: SkillCRTrust, Level: 8}, {SkillID: SkillALDp, Level: 3}, {SkillID: SkillALDemonbane, Level: 5}},
 	SkillMGSafetywall:      {{SkillID: SkillMGNapalmbeat, Level: 7}, {SkillID: SkillMGSoulstrike, Level: 5}},
 	SkillMGSoulstrike:      {{SkillID: SkillMGNapalmbeat, Level: 4}},

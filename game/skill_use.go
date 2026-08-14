@@ -357,6 +357,9 @@ func (c skillController) AdjustPendingLevelFromWheel(ctx client.Context) bool {
 		return false
 	}
 	pending := c.mode.pendingSkill
+	if selectable, known := db.SkillLevelSelectable(pending.skill.ID); known && !selectable {
+		return false
+	}
 	maxLevel := pending.maxLevel
 	if knownMax := knownSkillMaxLevel(pending.skill); knownMax > 0 && (maxLevel <= 0 || knownMax < maxLevel) {
 		maxLevel = knownMax

@@ -1484,6 +1484,24 @@ func TestPendingSkillWheelDoesNotGoBelowLevelOne(t *testing.T) {
 	}
 }
 
+func TestPendingSkillWheelIgnoresKnownFixedLevelSkill(t *testing.T) {
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{
+			skill:    session.Skill{ID: db.SkillCRShieldcharge, Level: 5, Range: 3},
+			maxLevel: 5,
+		},
+	}
+	inputState := input.NewState()
+	inputState.AddWheel(0, -1)
+
+	if mode.skills().AdjustPendingLevelFromWheel(client.Context{Input: inputState}) {
+		t.Fatal("fixed-level Shield Charge consumed the skill-level wheel")
+	}
+	if mode.pendingSkill.skill.Level != 5 || inputState.WheelY != -1 {
+		t.Fatalf("fixed-level wheel changed state: skill=%+v wheel=%f", mode.pendingSkill.skill, inputState.WheelY)
+	}
+}
+
 func TestPendingSkillWheelIgnoredWithoutPendingSkill(t *testing.T) {
 	mode := &WorldMode{}
 	inputState := input.NewState()

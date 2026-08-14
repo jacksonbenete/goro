@@ -555,7 +555,7 @@ func TestCrusaderSkillRequirementsMirrorRobrowser(t *testing.T) {
 		{JobCrusader, SkillCRSpearquicken, []SkillRequirement{{SkillID: SkillKNSpearmastery, Level: 10}}},
 		{JobCrusaderH, SkillPaPressure, []SkillRequirement{{SkillID: SkillSMEndure, Level: 5}, {SkillID: SkillCRTrust, Level: 5}, {SkillID: SkillCRShieldcharge, Level: 2}}},
 		{JobCrusaderH, SkillPaShieldchain, []SkillRequirement{{SkillID: SkillCRShieldboomerang, Level: 5}}},
-		{JobCrusaderH, SkillPaSacrifice, []SkillRequirement{{SkillID: SkillSMEndure, Level: 1}, {SkillID: SkillCRDevotion, Level: 3}}},
+		{JobCrusaderH, SkillPaSacrifice, []SkillRequirement{{SkillID: SkillSMEndure, Level: 1}, {SkillID: SkillCRTrust, Level: 5}, {SkillID: SkillCRDevotion, Level: 3}}},
 		{JobCrusaderH, SkillPaGospel, []SkillRequirement{{SkillID: SkillCRTrust, Level: 8}, {SkillID: SkillALDp, Level: 3}, {SkillID: SkillALDemonbane, Level: 5}}},
 	} {
 		if got := SkillRequirementsForJob(tc.job, tc.skillID); !reflect.DeepEqual(got, tc.want) {
