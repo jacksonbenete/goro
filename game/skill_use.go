@@ -292,6 +292,13 @@ func (c skillController) SendToID(ctx client.Context, skill session.Skill, targe
 		return err
 	}
 	if gameui.IsLevelOneTeleportSkill(skill) {
+		// Level-one Teleport is the direct, random destination variant. Queue
+		// the selection with the cast instead of waiting for the server's warp
+		// list; servers that still send the list are handled by the normal
+		// warp-list path as a harmless compatibility fallback.
+		if err := ctx.Network.SendSelectWarpPoint(skill.ID, gameui.TeleportRandomMap); err != nil {
+			return err
+		}
 		c.mode.addWorldEffect(ctx, effectTeleportation, localSkillTarget(ctx))
 	}
 	return nil

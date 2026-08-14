@@ -1,7 +1,11 @@
 package game
 
 import (
+	"context"
+	"encoding/binary"
+	"io"
 	"math"
+	"net"
 	"testing"
 	"time"
 
@@ -22,6 +26,66 @@ func TestSkillTargetModes(t *testing.T) {
 	}
 	if isSelfTargetSkill(session.Skill{ID: 21, Type: 0x06}) {
 		t.Fatal("ground bit should win over self bit")
+	}
+}
+
+func TestLevelOneTeleportQueuesRandomSelectionWithCast(t *testing.T) {
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, _ := ln.Accept()
+		accepted <- conn
+	}()
+
+	netClient := network.NewClient(20080910, false)
+	defer netClient.Close()
+	addr := ln.Addr().(*net.TCPAddr)
+	if err := netClient.Connect(context.Background(), addr.IP.String(), addr.Port); err != nil {
+		t.Fatal(err)
+	}
+
+	serverConn := <-accepted
+	if serverConn == nil {
+		t.Fatal("server did not accept test client")
+	}
+	defer serverConn.Close()
+
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Network: netClient,
+		Session: &session.Session{AccountID: 0x11223344},
+	}
+	skill := session.Skill{ID: db.SkillALTeleport, Type: skillTargetSelf, Level: 1}
+	if err := mode.skills().SendToID(ctx, skill, ctx.Session.AccountID, "test"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := serverConn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	packets := make([]byte, 30)
+	if _, err := io.ReadFull(serverConn, packets); err != nil {
+		t.Fatalf("reading Teleport requests: %v", err)
+	}
+	if opcode := binary.LittleEndian.Uint16(packets[0:2]); opcode != 0x0438 {
+		t.Fatalf("cast opcode = 0x%04X, want 0x0438", opcode)
+	}
+	if level := binary.LittleEndian.Uint16(packets[2:4]); level != 1 {
+		t.Fatalf("cast level = %d, want 1", level)
+	}
+	if opcode := binary.LittleEndian.Uint16(packets[10:12]); opcode != 0x011B {
+		t.Fatalf("selection opcode = 0x%04X, want 0x011B", opcode)
+	}
+	if skillID := binary.LittleEndian.Uint16(packets[12:14]); skillID != db.SkillALTeleport {
+		t.Fatalf("selection skill = %d, want %d", skillID, db.SkillALTeleport)
+	}
+	if mapName := string(packets[14:20]); mapName != "Random" {
+		t.Fatalf("selection map = %q, want Random", mapName)
 	}
 }
 
