@@ -220,8 +220,8 @@ func (w *ItemInfoWindow) cardSlotsFooter(ctx Context) []widget.Widget {
 	return slots
 }
 
-func (w *ItemInfoWindow) DrawTooltip(screen *render.Frame) {
-	w.tooltip.Draw(screen)
+func (w *ItemInfoWindow) DrawTooltip(ctx Context, screen *render.Frame) {
+	w.tooltip.Draw(ctx, screen)
 }
 
 func (w *ItemInfoWindow) showCardTooltip(ctx Context, cardID uint16) {

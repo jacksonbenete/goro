@@ -162,11 +162,11 @@ func (w *InventoryBagWindow) Draw(screen *render.Frame, ctx Context, assets Asse
 	w.Publish(ctx)
 }
 
-func (w *InventoryBagWindow) DrawTooltip(screen *render.Frame) {
+func (w *InventoryBagWindow) DrawTooltip(ctx Context, screen *render.Frame) {
 	if w.dragActive {
 		return
 	}
-	w.tooltip.Draw(screen)
+	w.tooltip.Draw(ctx, screen)
 }
 
 func (w *InventoryBagWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {

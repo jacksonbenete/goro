@@ -292,8 +292,8 @@ func (w *EquipmentWindow) hideTooltip() {
 	w.tooltip.Hide()
 }
 
-func (w *EquipmentWindow) DrawTooltip(screen *render.Frame) {
-	w.tooltip.Draw(screen)
+func (w *EquipmentWindow) DrawTooltip(ctx Context, screen *render.Frame) {
+	w.tooltip.Draw(ctx, screen)
 }
 
 func (w *EquipmentWindow) AcceptInventoryDrop(ctx Context, item session.InventoryItem, mx, my int) bool {

@@ -206,8 +206,8 @@ func (w *HomunculusSkillWindow) DrawDragGhost(screen *render.Frame, ctx Context,
 	}
 }
 
-func (w *HomunculusSkillWindow) DrawTooltip(screen *render.Frame) {
-	w.tooltip.Draw(screen)
+func (w *HomunculusSkillWindow) DrawTooltip(ctx Context, screen *render.Frame) {
+	w.tooltip.Draw(ctx, screen)
 }
 
 func (w *HomunculusSkillWindow) Publish(ctx Context) {

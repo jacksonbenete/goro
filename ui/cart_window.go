@@ -135,11 +135,11 @@ func (w *CartWindow) Draw(screen *render.Frame, ctx Context, assets AssetProvide
 	w.Publish(ctx)
 }
 
-func (w *CartWindow) DrawTooltip(screen *render.Frame) {
+func (w *CartWindow) DrawTooltip(ctx Context, screen *render.Frame) {
 	if w.dragActive {
 		return
 	}
-	w.tooltip.Draw(screen)
+	w.tooltip.Draw(ctx, screen)
 }
 
 func (w *CartWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {

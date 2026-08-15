@@ -198,8 +198,8 @@ func clampShortcutRows(rows int) int {
 	return rows
 }
 
-func (b *ShortcutBar) DrawTooltip(screen *render.Frame) {
-	b.tooltip.Draw(screen)
+func (b *ShortcutBar) DrawTooltip(ctx Context, screen *render.Frame) {
+	b.tooltip.Draw(ctx, screen)
 }
 
 func (b *ShortcutBar) AcceptItemDrop(ctx Context, item session.InventoryItem, mx, my int) bool {

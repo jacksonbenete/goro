@@ -1015,8 +1015,8 @@ func (w *GuildWindow) hideTooltip() {
 	w.tooltip.Hide()
 }
 
-func (w *GuildWindow) DrawTooltip(screen *render.Frame) {
-	w.tooltip.Draw(screen)
+func (w *GuildWindow) DrawTooltip(ctx Context, screen *render.Frame) {
+	w.tooltip.Draw(ctx, screen)
 }
 
 func (w *GuildWindow) updateSkillTooltipHover(ctx Context) {

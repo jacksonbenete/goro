@@ -506,8 +506,8 @@ func (w *SkillWindow) hideTooltip() {
 	w.tooltip.Hide()
 }
 
-func (w *SkillWindow) DrawTooltip(screen *render.Frame) {
-	w.tooltip.Draw(screen)
+func (w *SkillWindow) DrawTooltip(ctx Context, screen *render.Frame) {
+	w.tooltip.Draw(ctx, screen)
 }
 
 func (w *SkillWindow) skillIconImage(ctx Context, assets AssetProvider, skill session.Skill) image.Image {

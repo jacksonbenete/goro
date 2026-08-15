@@ -133,6 +133,10 @@ func (b uiAppBridge) EndWindowDragLayer(token any) {
 	}
 }
 
+func (b uiAppBridge) WindowDragActive() bool {
+	return b.runner != nil && b.runner.uiDrag.active
+}
+
 type overlayDrawer interface {
 	DrawOverlay(*Frame)
 }

@@ -270,6 +270,7 @@ type windowDragTestApp struct {
 	beginRect  geometry.Rect
 	moves      []geometry.Rect
 	endToken   any
+	active     bool
 }
 
 func (a *windowDragTestApp) SetUIRoot(widget.Widget) {}
@@ -287,6 +288,7 @@ func (a *windowDragTestApp) HoveredWidget() widget.Widget {
 func (a *windowDragTestApp) BeginWindowDragLayer(token any, rect geometry.Rect) bool {
 	a.beginToken = token
 	a.beginRect = rect
+	a.active = true
 	return true
 }
 func (a *windowDragTestApp) MoveWindowDragLayer(token any, rect geometry.Rect) {
@@ -294,7 +296,9 @@ func (a *windowDragTestApp) MoveWindowDragLayer(token any, rect geometry.Rect) {
 }
 func (a *windowDragTestApp) EndWindowDragLayer(token any) {
 	a.endToken = token
+	a.active = false
 }
+func (a *windowDragTestApp) WindowDragActive() bool { return a.active }
 
 type windowDragEventRecorder struct {
 	widget.WidgetBase

@@ -1333,15 +1333,15 @@ func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Frame) {
 	if ctx.Config.Render.NoUI {
 		return
 	}
-	m.ui.inventoryBag.DrawTooltip(screen)
-	m.ui.equipmentWindow.DrawTooltip(screen)
-	m.ui.cartWindow.DrawTooltip(screen)
-	m.ui.itemInfoWindow.DrawTooltip(screen)
-	m.ui.skillWindow.DrawTooltip(screen)
-	m.ui.homunculusSkill.DrawTooltip(screen)
-	m.ui.mercenarySkill.DrawTooltip(screen)
-	m.ui.guildWindow.DrawTooltip(screen)
-	m.ui.shortcutBar.DrawTooltip(screen)
+	m.ui.inventoryBag.DrawTooltip(ctx, screen)
+	m.ui.equipmentWindow.DrawTooltip(ctx, screen)
+	m.ui.cartWindow.DrawTooltip(ctx, screen)
+	m.ui.itemInfoWindow.DrawTooltip(ctx, screen)
+	m.ui.skillWindow.DrawTooltip(ctx, screen)
+	m.ui.homunculusSkill.DrawTooltip(ctx, screen)
+	m.ui.mercenarySkill.DrawTooltip(ctx, screen)
+	m.ui.guildWindow.DrawTooltip(ctx, screen)
+	m.ui.shortcutBar.DrawTooltip(ctx, screen)
 	m.ui.itemPickup.Draw(screen, ctx, m, time.Now())
 }
 

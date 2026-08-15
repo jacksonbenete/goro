@@ -218,7 +218,7 @@ func (w *statusIconsWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 			hovered = int(id)
 		}
 	}
-	if hovered >= 0 && w.ctx.Input != nil {
+	if hovered >= 0 && w.ctx.Input != nil && !TooltipsSuppressed(w.ctx) {
 		w.drawTooltip(canvas, uint16(hovered), w.ctx.Session.Statuses.Active[uint16(hovered)], w.ctx.Input.MouseX, w.ctx.Input.MouseY)
 	}
 }

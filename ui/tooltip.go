@@ -16,11 +16,27 @@ type tooltipState struct {
 	open     bool
 }
 
+type windowDragStateUIApp interface {
+	WindowDragActive() bool
+}
+
+// TooltipsSuppressed reports whether transient hover UI should stay hidden.
+// Window dragging uses a renderer-owned fast path, so that drag state is the
+// authoritative signal shared by every window and tooltip.
+func TooltipsSuppressed(ctx Context) bool {
+	app, ok := ctx.UIApp.(windowDragStateUIApp)
+	return ok && app.WindowDragActive()
+}
+
 func (t *tooltipState) Show(ctx Context, text string, centerX, belowY, aboveY int) {
 	t.ShowBox(ctx, text, centerX, belowY, aboveY, 0, 1)
 }
 
 func (t *tooltipState) ShowBox(ctx Context, text string, centerX, belowY, aboveY int, maxWidth float64, maxLines int) {
+	if TooltipsSuppressed(ctx) {
+		t.Hide()
+		return
+	}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		t.Hide()
@@ -43,8 +59,8 @@ func (t *tooltipState) Hide() {
 	t.open = false
 }
 
-func (t *tooltipState) Draw(screen *render.Frame) {
-	if t == nil || !t.open {
+func (t *tooltipState) Draw(ctx Context, screen *render.Frame) {
+	if t == nil || !t.open || TooltipsSuppressed(ctx) {
 		return
 	}
 	render.DrawUITooltipBox(screen, t.text, float64(t.centerX), float64(t.belowY), float64(t.aboveY), t.maxWidth, t.maxLines)
