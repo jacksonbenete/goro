@@ -226,12 +226,61 @@ func TestConsoleTextFieldSubmitRemembersSubmittedWidgetText(t *testing.T) {
 	if !field.Event(nil, event.NewKeyEvent(event.KeyPress, event.KeyEnter, 0, event.ModNone)) {
 		t.Fatal("enter key was not handled by text field")
 	}
+	console.UpdateInput(client.Context{})
 
 	if len(console.history) != 1 || console.history[0] != "@jump 47 104" {
 		t.Fatalf("history = %#v, want submitted @jump command", console.history)
 	}
 	if console.input != "  @jump 47 104  " {
 		t.Fatalf("input = %q, want submitted text preserved after failed send", console.input)
+	}
+}
+
+func TestConsoleFrameSubmitRemembersCurrentWidgetText(t *testing.T) {
+	console := &ChatConsole{input: "stale", active: true}
+	field := console.inputWidget()
+	field.SetText("  @heal  ")
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyEnter, true)
+
+	if !console.Update(client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}) {
+		t.Fatal("enter key was not handled by console")
+	}
+
+	if len(console.history) != 1 || console.history[0] != "@heal" {
+		t.Fatalf("history = %#v, want submitted @heal command", console.history)
+	}
+	if console.input != "  @heal  " {
+		t.Fatalf("input = %q, want submitted text preserved after failed send", console.input)
+	}
+}
+
+func TestConsoleWidgetAndFrameSubmitOnce(t *testing.T) {
+	sessionState := &session.Session{}
+	ctx := client.Context{ScreenW: 800, ScreenH: 600, UIManager: NewManager(), Session: sessionState}
+	console := &ChatConsole{active: true, ctx: ctx}
+	field := console.inputWidget()
+	field.SetText("/ns")
+
+	if !field.Event(nil, event.NewKeyEvent(event.KeyPress, event.KeyEnter, 0, event.ModNone)) {
+		t.Fatal("enter key was not handled by text field")
+	}
+
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyEnter, true)
+	ctx.Input = inputState
+	if !console.Update(ctx) {
+		t.Fatal("submitted enter frame was not consumed")
+	}
+	if !sessionState.NoShift || console.Active() {
+		t.Fatalf("after frame handling no_shift=%t active=%t, want one submit and closed console", sessionState.NoShift, console.Active())
+	}
+
+	inputState.EndFrame()
+	inputState.SetKey(input.KeyEnter, false)
+	console.Update(ctx)
+	if !sessionState.NoShift || console.Active() {
+		t.Fatalf("after following frame no_shift=%t active=%t, want no duplicate submit", sessionState.NoShift, console.Active())
 	}
 }
 

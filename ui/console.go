@@ -45,14 +45,16 @@ type ConsoleMessage struct {
 }
 
 type ChatConsole struct {
-	active        bool
-	input         string
-	messages      []ConsoleMessage
-	history       []string
-	historyIndex  int
-	historyDraft  string
-	lastMessage   string
-	lastMessageAt time.Time
+	active           bool
+	input            string
+	messages         []ConsoleMessage
+	history          []string
+	historyIndex     int
+	historyDraft     string
+	pendingSubmit    string
+	hasPendingSubmit bool
+	lastMessage      string
+	lastMessageAt    time.Time
 
 	OnGuildWindow func()
 
@@ -113,6 +115,13 @@ func (c *ChatConsole) UpdateInput(ctx client.Context) bool {
 			c.Publish(ctx)
 		}
 	}()
+	if c.hasPendingSubmit {
+		text := c.pendingSubmit
+		c.pendingSubmit = ""
+		c.hasPendingSubmit = false
+		c.submitText(ctx, text)
+		return true
+	}
 	if ctx.Input == nil {
 		return false
 	}
@@ -236,8 +245,15 @@ func (c *ChatConsole) addMessageColor(messageColor color.RGBA, format string, ar
 	c.scheduleMessageRedraw()
 }
 
+func (c *ChatConsole) currentInput() string {
+	if c.inputField != nil {
+		return c.inputField.Text()
+	}
+	return c.input
+}
+
 func (c *ChatConsole) submit(ctx client.Context) {
-	c.submitText(ctx, c.input)
+	c.submitText(ctx, c.currentInput())
 }
 
 func (c *ChatConsole) submitText(ctx client.Context, inputText string) {
@@ -1075,7 +1091,8 @@ func (c *ChatConsole) inputWidget() *textfield.Widget {
 			c.scrollToBottom()
 		},
 		func(value string) {
-			c.submitText(c.ctx, value)
+			c.pendingSubmit = value
+			c.hasPendingSubmit = true
 		},
 		textfield.MaxLength(consoleMaxInput),
 		textfield.Placeholder("Press Enter to chat"),
