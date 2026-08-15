@@ -46,9 +46,9 @@ func (m *WorldMode) drawNonPCGR2Model3D(screen *render.Frame, ctx client.Context
 	palette := view.paletteForActor(actor, state, now)
 	scale := gr2ModelWorldScale * m.actorBodySizeMultiplier(actor.ID, now)
 	matrix := gr2ActorModelMatrix(entry.worldX, entry.worldY, entry.worldZ, actor.Dir, scale)
-	lighting := sceneLightingFromRSW(nil)
+	lighting := m.sceneLighting(nil)
 	if ctx.World != nil {
-		lighting = sceneLightingFromRSW(ctx.World.RSW)
+		lighting = m.sceneLighting(ctx.World.RSW)
 	}
 	tint := m.actorRenderTint(actor, now)
 	alpha := m.actorVisualAlpha(actor.ID, now)

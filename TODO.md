@@ -183,6 +183,5 @@ Source of truth: roBrowser's `src/DB/Effects/EffectConst.js`,
   loops, and actor-attached buff/debuff decorations.
 - [ ] Second-job pre-renewal sweep: Knight/Crusader, Wizard/Sage,
   Priest/Monk, Assassin/Rogue, Hunter/Bard/Dancer, Blacksmith/Alchemist.
-- [ ] Expanded and later content: Super Novice, Taekwon, Star Gladiator,
-  Soul Linker, Ninja, Gunslinger, transcendent classes, renewal third jobs, and
-  modern fourth-job effect IDs.
+- [ ] Remaining expanded and later content: Super Novice, Ninja, Gunslinger,
+  transcendent classes, renewal third jobs, and modern fourth-job effect IDs.

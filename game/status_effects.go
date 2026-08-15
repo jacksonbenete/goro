@@ -20,6 +20,8 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	m.applyFalconStatus(ctx, change)
 	m.applyActorOpt3StateStatus(ctx, change)
 	m.applyTrickDeadStatus(ctx, change)
+	m.applyTaekwonStatus(ctx, change)
+	m.applyTaekwonNightStatus(ctx, change)
 	localID := localSkillTarget(ctx)
 	if change.ActorID != 0 && localID != 0 && change.ActorID != localID && change.ActorID != ctx.Session.CharID {
 		return
@@ -45,6 +47,85 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	}
 	ctx.Session.Statuses.Active[change.StatusID] = effect
 	glog.Debugf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
+}
+
+func (m *WorldMode) applyTaekwonNightStatus(ctx client.Context, change network.StatusEffectChange) {
+	if change.StatusID != db.StatusSoullink && change.StatusID != db.StatusSke {
+		return
+	}
+	id := change.ActorID
+	if id == 0 {
+		id = localSkillTarget(ctx)
+	}
+	if id == 0 || !isLocalActor(ctx, id) || m.taekwonNight == change.Active {
+		return
+	}
+	m.taekwonNight = change.Active
+	// Ground and static-model colors include scene lighting, so rebuild their
+	// retained vertices when Soul Link or Eske changes the local night mode.
+	m.gndMeshCache = nil
+	m.rsmMeshCache = make(map[int][]retainedWorldMesh)
+}
+
+func (m *WorldMode) applyTaekwonStatus(ctx client.Context, change network.StatusEffectChange) {
+	if ctx.World == nil {
+		return
+	}
+	id := change.ActorID
+	if id == 0 {
+		id = localSkillTarget(ctx)
+	}
+	if id == 0 {
+		return
+	}
+
+	switch change.StatusID {
+	case db.StatusRun:
+		effectID := 442 // EF_RUN; the reference effect currently only reserves the footprint hook.
+		if !change.Active {
+			effectID = effectStopEffect
+		}
+		if m.addWorldEffect(ctx, effectID, id) {
+			glog.Debugf("taekwon run status actor=%d active=%t effect=%d", id, change.Active, effectID)
+		}
+		return
+	case db.StatusTing:
+		if m.addWorldEffect(ctx, effectQuakeBody, id) {
+			glog.Debugf("taekwon ting status actor=%d effect=%d", id, effectQuakeBody)
+		}
+		return
+	}
+
+	actionFamily, frame, ok := taekwonStanceAction(change.StatusID)
+	if !ok {
+		return
+	}
+	m.setCombatActorAction(ctx, id, actorAnimation{
+		actionFamily:   actionFamily,
+		started:        time.Now(),
+		play:           false,
+		hasPlay:        true,
+		holdFinal:      true,
+		fixedMotion:    frame,
+		hasFixedMotion: true,
+	})
+}
+
+func taekwonStanceAction(statusID uint16) (actionFamily, frame int, ok bool) {
+	switch statusID {
+	case db.StatusStormkickOn, db.StatusStormkickReady:
+		return spriteActionPCSkill, 0, true
+	case db.StatusDownkickOn, db.StatusDownkickReady:
+		return spriteActionPCSkill, 2, true
+	case db.StatusTurnkickOn, db.StatusTurnkickReady:
+		return spriteActionPCSkill, 3, true
+	case db.StatusCounterOn, db.StatusCounterReady:
+		return spriteActionPCSkill, 4, true
+	case db.StatusDodgeOn, db.StatusDodgeReady:
+		return spriteActionPickup, 1, true
+	default:
+		return 0, 0, false
+	}
 }
 
 func (m *WorldMode) applyActorOpt3StateStatus(ctx client.Context, change network.StatusEffectChange) {

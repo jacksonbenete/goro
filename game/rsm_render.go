@@ -284,7 +284,7 @@ func (m *WorldMode) rsmPlacementContext(rsm *res.RSM, rsw *res.RSW, visible visi
 			baseY:     visible.baseY,
 			matrix:    buildRSMInstanceMatrix(rsm, placement, visible.baseX, visible.baseY, bounds.model),
 		},
-		lighting: sceneLightingFromRSW(rsw),
+		lighting: m.sceneLighting(rsw),
 	}, true
 }
 

@@ -347,6 +347,9 @@ func (c *ChatConsole) SubmitCommand(ctx client.Context, text string) bool {
 	case "/memo":
 		c.submitMemo(ctx)
 		return true
+	case "/taekwon":
+		c.submitTaekwonRanking(ctx)
+		return true
 	case "/screenshot":
 		c.submitScreenshot(ctx)
 		return true
@@ -774,6 +777,21 @@ func (c *ChatConsole) submitMemo(ctx client.Context) {
 		return
 	}
 	if err := ctx.Network.SendRememberWarpPoint(); err != nil {
+		c.AddErrorMessage("send failed: %s", err)
+		return
+	}
+	c.setInput("")
+	c.setActive(false)
+}
+
+func (c *ChatConsole) submitTaekwonRanking(ctx client.Context) {
+	if ctx.Network == nil {
+		c.AddErrorMessage("send failed: not connected")
+		c.setInput("")
+		c.setActive(false)
+		return
+	}
+	if err := ctx.Network.SendTaekwonRankRequest(); err != nil {
 		c.AddErrorMessage("send failed: %s", err)
 		return
 	}

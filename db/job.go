@@ -105,6 +105,10 @@ const (
 	JobOboro           = 4212
 	JobRebellion       = 4215
 	JobSummoner        = 4218
+	JobTaekwonB        = 4225
+	JobStarB           = 4226
+	JobLinkerB         = 4227
+	JobStar2B          = 4238
 	JobStarEmperor     = 4239
 	JobSoulReaper      = 4240
 	JobDragonKnight    = 4252
@@ -271,6 +275,7 @@ var jobDisplayNames = map[int]string{
 	4227: "Baby Soul Linker",
 	4228: "Baby Gunslinger",
 	4229: "Baby Rebellion",
+	4238: "Baby Star Gladiator",
 	4239: "Star Emperor",
 	4240: "Soul Reaper",
 	4241: "Baby Star Emperor",
@@ -371,6 +376,10 @@ func init() {
 	duplicateJobResourceName(JobAlchemist, JobAlchemistB)
 	duplicateJobResourceName(JobBard, JobBardB)
 	duplicateJobResourceName(JobDancer, JobDancerB)
+	duplicateJobResourceName(JobTaekwon, JobTaekwonB)
+	duplicateJobResourceName(JobStar, JobStarB)
+	duplicateJobResourceName(JobStar2, JobStar2B)
+	duplicateJobResourceName(JobLinker, JobLinkerB)
 }
 
 func duplicateJobResourceName(origin int, jobs ...int) {

@@ -120,6 +120,20 @@ func TestConsoleMemoCommandWithoutNetwork(t *testing.T) {
 	}
 }
 
+func TestConsoleTaekwonCommandWithoutNetwork(t *testing.T) {
+	console := &ChatConsole{input: "/taekwon", active: true}
+
+	if !console.SubmitCommand(client.Context{}, "/taekwon") {
+		t.Fatal("taekwon command was not handled")
+	}
+	if console.active || console.input != "" {
+		t.Fatalf("console active=%t input=%q, want closed empty input", console.active, console.input)
+	}
+	if len(console.messages) != 1 || console.messages[0].Text != "send failed: not connected" {
+		t.Fatalf("console messages = %+v", console.messages)
+	}
+}
+
 func TestConsoleScreenshotCommandRequestsCapture(t *testing.T) {
 	console := &ChatConsole{input: "/screenshot", active: true}
 	requested := false

@@ -102,7 +102,7 @@ var jobHitSoundTable = map[int][]string{}
 func init() {
 	setJobHitSounds([]string{"player_clothes.wav"},
 		JobNovice, JobMagician, JobAcolyte, JobMerchant, JobPriest, JobWizard,
-		JobBlacksmith, JobSage, JobAlchemist, JobSuperNovice, JobLinker,
+		JobBlacksmith, JobSage, JobAlchemist, JobSuperNovice, JobLinker, JobLinkerB,
 		JobMarried, JobXmas, JobSummer,
 		JobNoviceH, JobMagicianH, JobAcolyteH, JobMerchantH, JobPriestH,
 		JobWizardH, JobBlacksmithH, JobSageH, JobAlchemistH, JobSuperNoviceB,
@@ -110,12 +110,12 @@ func init() {
 		JobWizardB, JobBlacksmithB, JobSageB, JobAlchemistB)
 	setJobHitSounds([]string{"player_metal.wav"},
 		JobSwordman, JobKnight, JobKnight2, JobCrusader, JobMonk, JobCrusader2,
-		JobStar, JobStar2, JobSwordmanH, JobKnightH, JobKnight2H, JobCrusaderH,
+		JobStar, JobStar2, JobStarB, JobStar2B, JobSwordmanH, JobKnightH, JobKnight2H, JobCrusaderH,
 		JobMonkH, JobCrusader2H, JobSwordmanB, JobKnightB, JobKnight2B,
 		JobCrusaderB, JobMonkB, JobCrusader2B)
 	setJobHitSounds([]string{"player_wooden_male.wav"},
 		JobArcher, JobThief, JobHunter, JobAssassin, JobRogue, JobBard,
-		JobDancer, JobGunslinger, JobNinja, JobTaekwon, JobArcherH, JobThiefH,
+		JobDancer, JobGunslinger, JobNinja, JobTaekwon, JobTaekwonB, JobArcherH, JobThiefH,
 		JobHunterH, JobAssassinH, JobRogueH, JobBardH, JobDancerH, JobArcherB,
 		JobThiefB, JobHunterB, JobAssassinB, JobRogueB, JobBardB, JobDancerB)
 }

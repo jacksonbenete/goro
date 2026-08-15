@@ -57,6 +57,30 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		addExpNotifyMessage(&m.ui.console, ctx.Resources, notify)
 		return nil, false
 	}
+	if mission, ok, err := network.ParseTaekwonMission(pkt); err != nil {
+		glog.Errorf("parse taekwon mission 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyTaekwonMission(ctx, mission)
+		return nil, false
+	}
+	if point, ok, err := network.ParseTaekwonPoint(pkt); err != nil {
+		glog.Errorf("parse taekwon point 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		glog.Debugf("taekwon points current=%d total=%d", point.Point, point.TotalPoint)
+		return nil, false
+	}
+	if ranking, ok, err := network.ParseTaekwonRanking(pkt); err != nil {
+		glog.Errorf("parse taekwon ranking 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyTaekwonRanking(ctx, ranking)
+		return nil, false
+	}
+	if place, ok, err := network.ParseStarPlace(pkt); err != nil {
+		glog.Errorf("parse star place 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		glog.Debugf("star gladiator place request=%d", place.Place)
+		return nil, false
+	}
 	if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {
 		glog.Errorf("parse whisper message 0x%04X: %v", pkt.ID, err)
 	} else if ok {

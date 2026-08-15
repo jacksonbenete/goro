@@ -126,6 +126,7 @@ type WorldMode struct {
 	speechBubbles     map[uint32]speechBubble
 	gndNormalSource   *res.GND
 	gndTopNormals     [][4]modelPoint3
+	taekwonNight      bool
 	ui                worldUI
 	pendingChatRoom   network.ChatRoomCreate
 	pendingTradeName  string
@@ -1688,6 +1689,21 @@ func sceneLightingFromRSW(rsw *res.RSW) sceneLighting {
 		env:       clampUnitPoint(env),
 		opacity:   opacity,
 	}
+}
+
+func (m *WorldMode) sceneLighting(rsw *res.RSW) sceneLighting {
+	lighting := sceneLightingFromRSW(rsw)
+	if !m.taekwonNight {
+		return lighting
+	}
+	lighting.diffuse.x = math.Min(lighting.diffuse.x, 0.5)
+	lighting.diffuse.y = math.Min(lighting.diffuse.y, 0.5)
+	lighting.env = modelPoint3{
+		x: 1 - (1-lighting.ambient.x)*(1-lighting.diffuse.x),
+		y: 1 - (1-lighting.ambient.y)*(1-lighting.diffuse.y),
+		z: 1 - (1-lighting.ambient.z)*(1-lighting.diffuse.z),
+	}
+	return lighting
 }
 
 func (l sceneLighting) groundScale(normal modelPoint3) modelPoint3 {

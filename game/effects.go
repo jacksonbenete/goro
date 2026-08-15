@@ -965,6 +965,12 @@ func (m *WorldMode) applySkillNoDamageNotify(ctx client.Context, notify network.
 	m.startSkillNoDamageSourceAnimation(ctx, notify, now)
 	m.applyFalconSkillNoDamageNotify(ctx, notify, now)
 	m.addSkillBeginEffectsAt(ctx, notify.SkillID, notify.SourceID, notify.TargetID, now)
+	if notify.SkillID == db.SkillTKSevenwind && notify.Amount >= 1 && notify.Amount <= 7 {
+		effectID := effectBeginAsura1 + int(notify.Amount) - 1
+		if m.addWorldEffectAt(ctx, effectID, notify.TargetID, now) {
+			glog.Debugf("mild wind effect skill=%d target=%d effect=%d level=%d", notify.SkillID, notify.TargetID, effectID, notify.Amount)
+		}
+	}
 	for _, effectID := range skillEffectIDs(notify.SkillID) {
 		if m.addWorldEffectBetweenAt(ctx, effectID, notify.TargetID, notify.SourceID, now) {
 			glog.Debugf("skill effect skill=%d src=%d target=%d effect=%d amount=%d", notify.SkillID, notify.SourceID, notify.TargetID, effectID, notify.Amount)

@@ -416,7 +416,7 @@ email check.
 | `0x0209` | S->C | referenced | `0x0209` | `36` | `-` | friend_packets.go, packet.go |
 | `0x020A` | S->C | referenced | `0x020a` | `10` | `-` | friend_packets.go, packet.go |
 | `0x020D` | S->C | untracked | `0x020d` | `-1` | `-` | - |
-| `0x020E` | S->C | untracked | `0x020e` | `32` | `-` | - |
+| `0x020E` | S->C | implemented | `0x020e` | `32` | `-` | taekwon_packets.go, packet.go |
 | `0x020F` | C->S | missing | `0x020f` | `10` | `clif_parse_PVPInfo` | - |
 | `0x0210` | S->C | untracked | `0x0210` | `22` | `-` | - |
 | `0x0212` | C->S | missing | `0x0212` | `26` | `clif_parse_GMRc` | - |
@@ -432,7 +432,9 @@ email check.
 | `0x0221` | S->C | implemented | `HEADER_ZC_NOTIFY_WEAPONITEMLIST` | `-1` | `-` | item_packets.go, packet.go |
 | `0x0222` | C->S | implemented | `0x0222` | `6` | `clif_parse_WeaponRefine` | item_packets.go |
 | `0x0223` | S->C | implemented | `HEADER_ZC_ACK_WEAPONREFINE` | `8` | `-` | item_packets.go, packet.go |
-| `0x0225` | C->S | missing | `HEADER_CZ_TAEKWON_RANK` | `sizeof( PACKET_CZ_TAEKWON_RANK )` | `clif_parse_ranklist_taekwon` | - |
+| `0x0224` | S->C | implemented | `0x0224` | `10` | `-` | taekwon_packets.go, packet.go |
+| `0x0225` | C->S | implemented | `HEADER_CZ_TAEKWON_RANK` | `sizeof( PACKET_CZ_TAEKWON_RANK )` | `clif_parse_ranklist_taekwon` | taekwon_packets.go |
+| `0x0226` | S->C | implemented | `0x0226` | `282` | `-` | taekwon_packets.go, packet.go |
 | `0x0227` | S->C | untracked | `0x0227` | `18` | `-` | - |
 | `0x0228` | S->C | untracked | `0x0228` | `18` | `-` | - |
 | `0x0229` | S->C | referenced | `0x0229` | `15` | `-` | actor_packets.go, packet.go |
@@ -475,7 +477,7 @@ email check.
 | `0x0250` | S->C | untracked | `0x0250` | `3` | `-` | - |
 | `0x0251` | C->S | missing | `HEADER_CZ_AUCTION_ITEM_SEARCH` | `sizeof( PACKET_CZ_AUCTION_ITEM_SEARCH )` | `clif_parse_Auction_search` | - |
 | `0x0252` | S->C | untracked | `0x0252` | `-1` | `-` | - |
-| `0x0253` | S->C | untracked | `0x0253` | `3` | `-` | - |
+| `0x0253` | S->C | implemented | `0x0253` | `3` | `-` | taekwon_packets.go, packet.go |
 | `0x0254` | C->S | missing | `0x0254` | `3` | `clif_parse_FeelSaveOk` | - |
 | `0x0255` | S->C | untracked | `0x0255` | `5` | `-` | - |
 | `0x0256` | S->C | untracked | `0x0256` | `5` | `-` | - |

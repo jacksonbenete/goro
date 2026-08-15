@@ -1,0 +1,53 @@
+package game
+
+import (
+	"image/color"
+	"strconv"
+	"strings"
+
+	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/network"
+)
+
+var taekwonAnnouncementColor = color.RGBA{R: 248, G: 248, B: 255, A: 255}
+var taekwonRankingColor = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+
+func (m *WorldMode) applyTaekwonMission(ctx client.Context, mission network.TaekwonMission) {
+	progress := int(mission.Progress)
+	template := "Taekwon mission: %s (%d%)"
+	if ctx.Resources != nil {
+		if message, ok := ctx.Resources.MsgString(927); ok && strings.TrimSpace(message) != "" {
+			template = message
+		}
+	}
+	message := strings.Replace(template, "%s", mission.MonsterName, 1)
+	message = strings.Replace(message, "%d%", strconv.Itoa(progress)+"%", 1)
+	m.ui.console.AddColoredMessage(taekwonAnnouncementColor, "%s", message)
+	glog.Debugf("taekwon mission monster=%q id=%d progress=%d result=%d", mission.MonsterName, mission.MonsterID, mission.Progress, mission.Result)
+}
+
+func (m *WorldMode) applyTaekwonRanking(ctx client.Context, ranking network.TaekwonRanking) {
+	taekwon, rank, points := "Taekwon", "Rank", "Points"
+	if ctx.Resources != nil {
+		taekwon = taekwonMessageString(ctx, 2388, taekwon)
+		rank = taekwonMessageString(ctx, 2383, rank)
+		points = taekwonMessageString(ctx, 2385, points)
+	}
+	m.ui.console.AddColoredMessage(taekwonRankingColor, "=========== %s %s ===========", taekwon, rank)
+	for index, entry := range ranking.Entries {
+		name := strings.TrimSpace(entry.Name)
+		if name == "" {
+			name = "None"
+		}
+		m.ui.console.AddColoredMessage(taekwonRankingColor, "[%d] %s : %d %s", index+1, name, entry.Point, points)
+	}
+}
+
+func taekwonMessageString(ctx client.Context, id int, fallback string) string {
+	message, ok := ctx.Resources.MsgString(id)
+	if !ok || strings.TrimSpace(message) == "" {
+		return fallback
+	}
+	return message
+}

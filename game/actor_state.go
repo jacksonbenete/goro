@@ -112,7 +112,7 @@ func applyActorBodyState(actor worldstate.Actor, state *spriteState) {
 }
 
 func actorStateTint(actor worldstate.Actor) color.RGBA {
-	r, g, b := 1.0, 1.0, 1.0
+	r, g, b, a := 1.0, 1.0, 1.0, 1.0
 	switch actor.BodyState {
 	case db.BodyStateStone:
 		r, g, b = 0.1, 0.1, 0.1
@@ -136,22 +136,32 @@ func actorStateTint(actor worldstate.Actor) color.RGBA {
 		g *= 0.2
 		b *= 0.2
 	}
-	vr, vg, vb := actorOpt3StateTint(actor.Opt3State)
+	vr, vg, vb, va := actorOpt3StateTint(actor.Opt3State)
 	r *= vr
 	g *= vg
 	b *= vb
-	return color.RGBA{R: byte(clampUnit(r) * 255), G: byte(clampUnit(g) * 255), B: byte(clampUnit(b) * 255), A: 255}
+	a *= va
+	return color.RGBA{R: byte(clampUnit(r) * 255), G: byte(clampUnit(g) * 255), B: byte(clampUnit(b) * 255), A: byte(clampUnit(a) * 255)}
 }
 
-func actorOpt3StateTint(opt3State uint32) (float64, float64, float64) {
-	r, g, b := 1.0, 1.0, 1.0
+func actorOpt3StateTint(opt3State uint32) (float64, float64, float64, float64) {
+	r, g, b, a := 1.0, 1.0, 1.0, 1.0
 	if opt3State&db.Opt3Quicken != 0 {
 		b = 0
 	}
 	if opt3State&db.Opt3Energycoat != 0 || opt3State&db.Opt3Bunsin != 0 {
 		r, g, b = 0.5, 0.5, 0.85
 	}
-	return r, g, b
+	if opt3State&db.Opt3Overthrust != 0 {
+		g, b = 0.75, 0.75
+	}
+	if opt3State&db.Opt3Warm != 0 {
+		g, b = 0.4, 0.4
+	}
+	if opt3State&db.Opt3Soullink != 0 {
+		r, g, b, a = 0.35, 0.35, 0.9, 0.9
+	}
+	return r, g, b, a
 }
 
 func (m *WorldMode) actorRenderTint(actor worldstate.Actor, now time.Time) color.RGBA {

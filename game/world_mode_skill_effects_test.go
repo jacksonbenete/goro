@@ -1852,7 +1852,7 @@ func TestImportedSkillEffectFallback(t *testing.T) {
 	expectEffectIDs(t, "SL_STUN imported", skillEffectIDs(db.SkillSLStun), effectStin3)
 	expectEffectIDs(t, "SL_SMA imported", skillEffectIDs(db.SkillSLSma), effectStin2)
 	expectEffectIDs(t, "SL_SWOO imported", skillEffectIDs(db.SkillSLSwoo), effectM07)
-	expectEffectIDs(t, "SL_SKA imported", skillEffectIDs(db.SkillSLSka), effectSteelBody, effectGumgang2)
+	expectEffectIDs(t, "SL_SKA imported", skillEffectIDs(db.SkillSLSka), effectSteelBody, effectGumgang2, effectQuake)
 	expectEffectIDs(t, "AM_BERSERKPITCHER imported", skillEffectIDs(db.SkillAMBerserkpitcher), effectItemFast3)
 	expectEffectIDs(t, "AM_BERSERKPITCHER imported before hit", skillBeforeHitEffectIDs(db.SkillAMBerserkpitcher), 541)
 	expectEffectIDs(t, "AM_TWILIGHT1 imported", skillEffectIDs(db.SkillAMTwilight1), 497)

@@ -136,7 +136,7 @@ func (m *WorldMode) buildGNDMeshChunk(manager *res.Manager, gnd *res.GND, rsw *r
 		m.whitePixel = render.NewImage(1, 1)
 		m.whitePixel.Fill(color.White)
 	}
-	lighting := sceneLightingFromRSW(rsw)
+	lighting := m.sceneLighting(rsw)
 	topNormals := m.smoothGNDTopNormals(gnd)
 	builders := make(map[retainedMeshKey]*retainedMeshBuilder)
 	builderFor := func(texture, lightTexture *render.Image, options *render.DrawTrianglesOptions) *retainedMeshBuilder {

@@ -60,7 +60,7 @@
   - [ ] PvP info: 0x020F
   - [ ] Blacksmith rank: 0x0217
   - [ ] Alchemist rank: 0x0218
-  - [ ] Taekwon rank: 0x0225
+  - [x] Taekwon mission and rank: 0x020E, 0x0224, 0x0225, 0x0226
   - [ ] Killer rank: 0x0237
 
   Pets
