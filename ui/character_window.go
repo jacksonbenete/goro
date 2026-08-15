@@ -46,6 +46,8 @@ type CharacterWindow struct {
 
 func (w *CharacterWindow) Update(ctx Context) bool {
 	w.EnsureWindow(characterWindowWidth, characterWindowHeight)
+	_, basicMenuHeight := basicMenuSize()
+	w.dragBottom = basicMenuFollowGap + basicMenuHeight
 	if ctx.Session == nil {
 		w.Close()
 		w.Publish(ctx)
@@ -177,7 +179,7 @@ func characterLevelProgressRow(label string, level int, current, next int64, fil
 	return primitives.HBox(
 		characterTextCell(fmt.Sprintf("%s Lv. %d", label, level), characterEXPLabelWidth, rotheme.Default.Colors.Text),
 		primitives.Box(
-			newCharacterBarWidget(ratioInt64(current, next), fill, barWidth, characterEXPBarHeight),
+			newCharacterBarWidgetWithBackground(ratioInt64(current, next), fill, widget.ColorWhite, barWidth, characterEXPBarHeight),
 		).PaddingTop(barTop),
 	).
 		Width(width).
@@ -199,14 +201,19 @@ func characterEXPPanel(progress session.Progress, width float32) widget.Widget {
 
 type characterBarWidget struct {
 	widget.WidgetBase
-	ratio  float64
-	fill   widget.Color
-	width  float32
-	height float32
+	ratio      float64
+	fill       widget.Color
+	background widget.Color
+	width      float32
+	height     float32
 }
 
 func newCharacterBarWidget(ratio float64, fill widget.Color, width, height float32) *characterBarWidget {
-	w := &characterBarWidget{ratio: ratio, fill: fill, width: width, height: height}
+	return newCharacterBarWidgetWithBackground(ratio, fill, Color(characterWindowBarBack), width, height)
+}
+
+func newCharacterBarWidgetWithBackground(ratio float64, fill, background widget.Color, width, height float32) *characterBarWidget {
+	w := &characterBarWidget{ratio: ratio, fill: fill, background: background, width: width, height: height}
 	w.SetVisible(true)
 	w.SetEnabled(false)
 	return w
@@ -223,7 +230,7 @@ func (w *characterBarWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 		return
 	}
 	bounds := w.Bounds()
-	canvas.DrawRect(bounds, Color(characterWindowBarBack))
+	canvas.DrawRect(bounds, w.background)
 	if w.ratio > 0 {
 		fillW := float32(math.Round(float64(bounds.Width()) * w.ratio))
 		if fillW < 1 {

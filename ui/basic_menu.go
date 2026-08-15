@@ -8,15 +8,16 @@ import (
 )
 
 const (
-	basicMenuX       = windowScreenMargin
-	basicMenuY       = characterWindowY + characterWindowHeight + 6
-	basicMenuCols    = 4
-	basicMenuRows    = 2
-	basicMenuButtonW = 72
-	basicMenuButtonH = 24
-	basicMenuGapX    = 6
-	basicMenuGapY    = 5
-	basicMenuPad     = 8
+	basicMenuX         = windowScreenMargin
+	basicMenuY         = characterWindowY + characterWindowHeight + basicMenuFollowGap
+	basicMenuFollowGap = 6
+	basicMenuCols      = 4
+	basicMenuRows      = 2
+	basicMenuButtonW   = 72
+	basicMenuButtonH   = 24
+	basicMenuGapX      = 6
+	basicMenuGapY      = 5
+	basicMenuPad       = 8
 )
 
 type BasicMenu struct {
@@ -80,6 +81,60 @@ func (m *BasicMenu) Rebind(ctx client.Context, callbacks BasicMenuCallbacks) {
 	}
 	m.SetContent(m.widgetTree())
 	m.Publish(ctx)
+}
+
+// FollowCharacterWindow keeps the menu attached below the character window
+// while leaving both as independent overlays for input and redraw purposes.
+func (m *BasicMenu) FollowCharacterWindow(ctx client.Context, character *CharacterWindow) {
+	if character == nil || !character.IsOpen() {
+		return
+	}
+	width, height := basicMenuSize()
+	if m.EnsureWindow(width, height) {
+		m.titleHeight = 0
+	}
+	x := character.x
+	y := character.y + character.height + basicMenuFollowGap
+	if character.dragLayer {
+		m.followDragPosition(ctx, x, y)
+		return
+	}
+	m.endFollowDrag(ctx)
+	if m.positioned && m.x == x && m.y == y {
+		return
+	}
+	m.ctx = ctx
+	m.positioned = true
+	m.setPosition(ctx, x, y)
+	if m.IsOpen() {
+		m.Publish(ctx)
+	}
+}
+
+func (m *BasicMenu) followDragPosition(ctx client.Context, x, y int) {
+	m.ctx = ctx
+	m.positioned = true
+	m.x, m.y = x, y
+	if overlay := m.positionedOverlay(); overlay != nil {
+		overlay.setFrameQuiet(x, y, m.width, m.height)
+		if !overlay.hidden {
+			overlay.hidden = true
+			damage := overlay.markFrameDirty()
+			invalidateWindowRect(ctx, damage)
+		}
+		return
+	}
+	m.placed = nil
+}
+
+func (m *BasicMenu) endFollowDrag(ctx client.Context) {
+	overlay := m.positionedOverlay()
+	if overlay == nil || !overlay.hidden {
+		return
+	}
+	overlay.hidden = false
+	damage := overlay.markFrameDirty()
+	invalidateWindowRect(ctx, damage)
 }
 
 func basicMenuBounds() (int, int, int, int) {

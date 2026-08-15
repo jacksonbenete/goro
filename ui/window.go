@@ -204,6 +204,7 @@ type Window struct {
 	dragLayer   bool
 	dragDX      int
 	dragDY      int
+	dragBottom  int
 	content     widget.Widget
 	placed      widget.Widget
 	published   widget.Widget
@@ -361,7 +362,8 @@ func (w *Window) Update(ctx client.Context) bool {
 	if w.dragging {
 		if ctx.Input.MousePressed(input.MouseButtonLeft) {
 			x := clampWindowInt(ctx.Input.MouseX-w.dragDX, windowScreenMargin, maxInt(windowScreenMargin, screenW-w.width-windowScreenMargin))
-			y := clampWindowInt(ctx.Input.MouseY-w.dragDY, windowScreenMargin, maxInt(windowScreenMargin, screenH-w.height-windowScreenMargin))
+			dragHeight := w.height + maxInt(0, w.dragBottom)
+			y := clampWindowInt(ctx.Input.MouseY-w.dragDY, windowScreenMargin, maxInt(windowScreenMargin, screenH-dragHeight-windowScreenMargin))
 			w.setDragPosition(ctx, x, y)
 			return true
 		}
@@ -476,8 +478,12 @@ func (w *Window) setDragPosition(ctx client.Context, x, y int) {
 	w.x, w.y = x, y
 	overlay.setFrameQuiet(x, y, w.width, w.height)
 	if app, ok := ctx.UIApp.(windowDragLayerUIApp); ok {
-		app.MoveWindowDragLayer(overlay, overlay.frameRect())
+		app.MoveWindowDragLayer(overlay, w.dragLayerRect())
 	}
+}
+
+func (w *Window) dragLayerRect() geometry.Rect {
+	return windowFrameRect(w.x, w.y, w.width, w.height+maxInt(0, w.dragBottom))
 }
 
 func (w *Window) positionedOverlay() *positionedOverlay {
@@ -508,7 +514,7 @@ func (w *Window) beginDragLayer(ctx client.Context) {
 		return
 	}
 	app, ok := ctx.UIApp.(windowDragLayerUIApp)
-	if !ok || !app.BeginWindowDragLayer(overlay, overlay.frameRect()) {
+	if !ok || !app.BeginWindowDragLayer(overlay, w.dragLayerRect()) {
 		return
 	}
 	w.dragLayer = true

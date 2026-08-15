@@ -777,7 +777,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		m.handleEscapeMenuAction(ctx)
 		return nil, nil
 	}
-	if m.ui.characterWindow.Update(ctx) {
+	characterWindowConsumed := m.ui.characterWindow.Update(ctx)
+	m.ui.basicMenu.FollowCharacterWindow(ctx, &m.ui.characterWindow)
+	if characterWindowConsumed {
 		return nil, nil
 	}
 	if m.ui.itemInfoWindow.Update(ctx, m) {

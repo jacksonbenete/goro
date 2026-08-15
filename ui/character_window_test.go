@@ -77,7 +77,12 @@ func TestCharacterEXPPanelWrapsBothRowsInRoundedGreyContainer(t *testing.T) {
 		if len(barChildren) != 1 {
 			t.Fatalf("%s bar slot children = %d, want bar", wantLabel, len(barChildren))
 		}
-		barBounds := barChildren[0].(interface{ Bounds() geometry.Rect }).Bounds()
+		bar, ok := barChildren[0].(*characterBarWidget)
+		if !ok {
+			t.Fatalf("%s bar = %T, want character bar", wantLabel, barChildren[0])
+		}
+		uitest.AssertColorEqual(t, bar.background, widget.ColorWhite)
+		barBounds := bar.Bounds()
 		labelCenterY := labelBounds.Center().Y
 		barCenterY := barSlotBounds.Min.Y + barBounds.Center().Y
 		if math.Abs(float64(labelCenterY-barCenterY)) > 0.001 {
