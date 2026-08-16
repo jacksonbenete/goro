@@ -974,6 +974,17 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.requestPickup(ctx, item, "click")
 			return nil, nil
 		}
+		if actor, ok := hoveredCursorActor(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok && isWarpActor(actor) {
+			m.clearLockedAttack()
+			m.clearAttackFocus()
+			if targetX, targetY, targetOK := warpWalkTarget(ctx, actor, now); targetOK {
+				glog.Debugf("click warp target mouse=%d,%d id=%d job=%d player=%d,%d warp=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Job, playerX, playerY, actor.X, actor.Y, targetX, targetY)
+				m.requestWalk(ctx, targetX, targetY, "warp click")
+			} else {
+				glog.Debugf("click warp target unreachable mouse=%d,%d id=%d job=%d player=%d,%d warp=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Job, playerX, playerY, actor.X, actor.Y)
+			}
+			return nil, nil
+		}
 		if actor, ok := clickedAttackTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY, now, m.actorDeaths); ok {
 			glog.Debugf("click attack target mouse=%d,%d id=%d name=%q job=%d object_type=%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, actor.Job, actor.ObjectType, playerX, playerY, actor.X, actor.Y)
 			m.requestAttack(ctx, actor, "click")

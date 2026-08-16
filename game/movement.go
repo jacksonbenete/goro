@@ -101,6 +101,50 @@ func currentPlayerCell(ctx client.Context, now time.Time) (int, int) {
 	return actorCurrentCell(ctx.World.Player, now)
 }
 
+func warpWalkTarget(ctx client.Context, actor worldstate.Actor, now time.Time) (int, int, bool) {
+	if ctx.World == nil {
+		return 0, 0, false
+	}
+	targetX, targetY := actorCurrentCell(actor, now)
+	if ctx.World.GAT == nil {
+		return targetX, targetY, walkTargetInBounds(ctx, targetX, targetY)
+	}
+
+	playerX, playerY := currentPlayerCell(ctx, now)
+	bestX, bestY := 0, 0
+	bestCost := int(^uint(0) >> 1)
+	found := false
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			// ROBr pathfinds to within one Euclidean tile of a warp actor.
+			if dx*dx+dy*dy > 1 {
+				continue
+			}
+			x, y := targetX+dx, targetY+dy
+			if !ctx.World.GAT.InBounds(x, y) || !ctx.World.GAT.Walkable(x, y) {
+				continue
+			}
+			path, ok := findWalkPath(ctx.World.GAT, playerX, playerY, x, y)
+			if !ok {
+				continue
+			}
+			cost := 0
+			for i := 1; i < len(path); i++ {
+				cost += pathStepCost(
+					pathPoint{x: path[i-1].X, y: path[i-1].Y},
+					pathPoint{x: path[i].X, y: path[i].Y},
+				)
+			}
+			if cost < bestCost {
+				bestX, bestY = x, y
+				bestCost = cost
+				found = true
+			}
+		}
+	}
+	return bestX, bestY, found
+}
+
 func actorCurrentCell(actor worldstate.Actor, now time.Time) (int, int) {
 	x, y := actorRenderPosition(actor, now)
 	return int(math.Round(x)), int(math.Round(y))
