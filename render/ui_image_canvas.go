@@ -33,12 +33,23 @@ func (c scaledImageCanvas) DrawImage(img image.Image, at geometry.Point) {
 		c.Canvas.DrawImage(img, at)
 		return
 	}
+	at = snapCanvasImagePoint(at, c.Canvas.TransformOffset(), c.scale)
 	s := scene.NewScene()
 	s.DrawImage(scImg, scene.NewAffine(
 		float32(logicalW)/float32(scImg.Width), 0, at.X,
 		0, float32(logicalH)/float32(scImg.Height), at.Y,
 	))
 	c.Canvas.ReplayScene(s)
+}
+
+func snapCanvasImagePoint(at, offset geometry.Point, scale float32) geometry.Point {
+	if scale <= 0 || math.IsNaN(float64(scale)) || math.IsInf(float64(scale), 0) {
+		return at
+	}
+	physicalScale := float64(scale)
+	at.X = float32(math.Round(float64(at.X+offset.X)*physicalScale)/physicalScale) - offset.X
+	at.Y = float32(math.Round(float64(at.Y+offset.Y)*physicalScale)/physicalScale) - offset.Y
+	return at
 }
 
 func (c scaledImageCanvas) FillSVGPath(svgData string, viewBox float32, bounds geometry.Rect, color widget.Color) {

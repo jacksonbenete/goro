@@ -3,7 +3,10 @@ package render
 import (
 	"image"
 	"image/color"
+	"math"
 	"testing"
+
+	"github.com/gogpu/ui/geometry"
 )
 
 type testScaledImage struct {
@@ -64,5 +67,35 @@ func TestScaledCanvasSceneImageUsesNativeScaleRasterizer(t *testing.T) {
 	}
 	if got := img.Data[:4]; got[0] != 0x7f || got[1] != 0 || got[2] != 0 || got[3] != 0xff {
 		t.Fatalf("first scene pixel = %v, want native rasterizer pixel", got)
+	}
+}
+
+func TestSnapCanvasImagePointUsesTransformedPhysicalGrid(t *testing.T) {
+	const scale = float32(4.0 / 3.0)
+	offset := geometry.Pt(665, 422)
+	at := snapCanvasImagePoint(geometry.Pt(6, 4), offset, scale)
+	global := at.Add(offset)
+
+	if got := float64(global.X) * float64(scale); math.Abs(got-math.Round(got)) > 0.0001 {
+		t.Fatalf("physical x = %.6f, want integer pixel", got)
+	}
+	if got := float64(global.Y) * float64(scale); math.Abs(got-math.Round(got)) > 0.0001 {
+		t.Fatalf("physical y = %.6f, want integer pixel", got)
+	}
+	if math.Abs(float64(at.X-6.25)) > 0.0001 {
+		t.Fatalf("snapped local x = %.6f, want 6.25", at.X)
+	}
+	if at.Y != 4 {
+		t.Fatalf("already aligned local y = %.6f, want 4", at.Y)
+	}
+}
+
+func TestSnapCanvasImagePointKeepsAlignedPosition(t *testing.T) {
+	const scale = float32(4.0 / 3.0)
+	at := geometry.Pt(6, 4)
+	offset := geometry.Pt(648, 422)
+
+	if got := snapCanvasImagePoint(at, offset, scale); got != at {
+		t.Fatalf("snapped aligned point = %+v, want %+v", got, at)
 	}
 }
