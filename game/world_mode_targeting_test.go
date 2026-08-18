@@ -397,6 +397,60 @@ func TestUpdatePendingAttackDoesNotKeepDelayingScheduledAction(t *testing.T) {
 	}
 }
 
+func TestGroundClickCancelsPendingAttackChase(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.GAT = flatWalkableGAT(64, 64)
+	world.UpsertActor(worldstate.Actor{
+		ID:            300,
+		X:             30,
+		Y:             20,
+		ObjectType:    actorObjectTypeMob,
+		HasObjectType: true,
+	})
+
+	inputState := input.NewState()
+	netClient := network.NewClient(20080910, false)
+	defer netClient.Close()
+	now := time.Now()
+	mode := &WorldMode{
+		tickCooldown: 2,
+		pendingAttack: attackIntent{
+			targetID:    300,
+			expires:     now.Add(time.Second),
+			lastChaseAt: now,
+		},
+		lockedAttackID:   300,
+		attackFocusID:    300,
+		attackFocusStart: now,
+	}
+	ctx := client.Context{
+		Input:   inputState,
+		Network: netClient,
+		Session: &session.Session{AccountID: 2000000, CharID: 150000, NoCtrl: true},
+		World:   world,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	projection := mode.sceneProjection(ctx, ctx.ScreenW, ctx.ScreenH, now)
+	point := projection.Project(cellCenter(12), cellCenter(20), 0)
+	inputState.SetMousePosition(int(point.x), int(point.y))
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+
+	if _, err := mode.Update(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if mode.pendingAttack.targetID != 0 {
+		t.Fatalf("pending attack target = %d, want canceled", mode.pendingAttack.targetID)
+	}
+	if mode.lockedAttackID != 0 {
+		t.Fatalf("locked attack target = %d, want canceled", mode.lockedAttackID)
+	}
+	if mode.attackFocusID != 0 {
+		t.Fatalf("attack focus target = %d, want canceled", mode.attackFocusID)
+	}
+}
+
 func TestPendingAttackReadyAtWaitsForWalkEnd(t *testing.T) {
 	now := time.Unix(100, 0)
 	player := worldstate.Actor{

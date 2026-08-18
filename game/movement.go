@@ -83,8 +83,7 @@ func (m *WorldMode) updateHeldWalk(ctx client.Context, pointerBlocked bool, now 
 	if !ok || playerAtWalkTarget(ctx.World.Player, targetX, targetY, now) {
 		return false
 	}
-	m.clearLockedAttack()
-	m.clearAttackFocus()
+	m.cancelAttackIntent()
 	m.requestWalk(ctx, targetX, targetY, "held click")
 	return true
 }

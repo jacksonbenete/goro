@@ -1001,8 +1001,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		}
 		if targetX, targetY, ok := clickedWalkTarget(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY); ok {
 			glog.Debugf("click walk target mouse=%d,%d player=%d,%d target=%d,%d", ctx.Input.MouseX, ctx.Input.MouseY, playerX, playerY, targetX, targetY)
-			m.clearLockedAttack()
-			m.clearAttackFocus()
+			m.cancelAttackIntent()
 			if shouldUseTurnOnlyGroundClick(ctx) {
 				m.requestChangeDirection(ctx, targetX, targetY, "click")
 				return nil, nil

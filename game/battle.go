@@ -302,6 +302,12 @@ func (m *WorldMode) clearLockedAttack() {
 	m.lastChaseAt = time.Time{}
 }
 
+func (m *WorldMode) cancelAttackIntent() {
+	m.pendingAttack = attackIntent{}
+	m.clearLockedAttack()
+	m.clearAttackFocus()
+}
+
 func (m *WorldMode) focusAttackTarget(targetID uint32, now time.Time) {
 	if targetID == 0 {
 		m.clearAttackFocus()
