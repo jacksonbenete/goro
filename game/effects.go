@@ -1959,6 +1959,13 @@ func importedSkillEffectSpec(skillID uint16) skillEffectSpec {
 }
 
 func importedSkillActionSpec(skillID uint16) (skillActionSpec, bool) {
+	if skillID == db.SkillNJTatamigaeshi {
+		spec := newSkillActionSpec(skillActorActionPickup, false, nil)
+		spec.hasFrame = true
+		spec.frame = 1
+		spec.play = false
+		return spec, true
+	}
 	if skillID == db.SkillACShower {
 		spec := newSkillActionSpec(skillActorActionAttack, false, &readyFightSkillActionSpec)
 		spec.speed = 50 * time.Millisecond

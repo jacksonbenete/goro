@@ -188,7 +188,7 @@ var playerWeaponActions = func() map[int]playerWeaponActionTable {
 	duplicatePlayerWeaponAction(actions, JobDancer, JobDancerH, JobDancerB, JobWanderer, JobTrouvere)
 	duplicatePlayerWeaponAction(actions, JobSuperNovice, JobSuperNoviceB)
 	duplicatePlayerWeaponAction(actions, JobGunslinger, JobRebellion)
-	duplicatePlayerWeaponAction(actions, JobNinja, JobKagerou, JobOboro)
+	duplicatePlayerWeaponAction(actions, JobNinja, JobNinjaB, JobKagerou, JobOboro)
 	duplicatePlayerWeaponAction(actions, JobLinker, JobSoulReaper)
 	return actions
 }()

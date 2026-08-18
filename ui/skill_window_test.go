@@ -613,6 +613,40 @@ func TestSkillWindowShowsMonkUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsNinjaUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobNinja},
+		Skills: session.Skills{
+			Points: 1,
+			List: []session.Skill{
+				{ID: db.SkillNJTobidougu, Level: 5, Upgradable: true},
+				{ID: db.SkillNJTatamigaeshi, Level: 1, Upgradable: true},
+				{ID: db.SkillNJNinpou, Level: 1, Upgradable: true},
+				{ID: db.SkillNJSyuriken, Level: 4, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillNJShadowjump,
+		db.SkillNJKouenka,
+		db.SkillNJHyousensou,
+		db.SkillNJHuujin,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("Ninja tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	if containsSkill(skills, db.SkillNJKunai) {
+		t.Fatal("kunai should not be visible before throw shuriken reaches level 5")
+	}
+	window.stageSkill(db.SkillNJSyuriken)
+	if !containsSkill(window.visibleSkills(Context{Session: s}), db.SkillNJKunai) {
+		t.Fatal("kunai should be visible after staged throw shuriken level satisfies robr prerequisite")
+	}
+}
+
 func TestSkillWindowShowsChampionUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobMonkH},
