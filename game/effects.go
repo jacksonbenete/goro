@@ -705,6 +705,7 @@ const (
 	effectBottomForgetGround     = db.SkillEffectBottomForgetGround
 	effectBottomFortuneGround    = db.SkillEffectBottomFortuneGround
 	effectBottomServiceGround    = db.SkillEffectBottomServiceGround
+	effectGunslingerCoinSound    = db.SkillEffectGunslingerCoinSound
 )
 
 const skillUnitEffectFallbackDuration = 5 * time.Minute

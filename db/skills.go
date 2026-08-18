@@ -3804,6 +3804,7 @@ const (
 	SkillEffectBottomForgetGround     = 11030
 	SkillEffectBottomFortuneGround    = 11031
 	SkillEffectBottomServiceGround    = 11032
+	SkillEffectGunslingerCoinSound    = 11033
 )
 
 var SkillEffects = map[uint16]SkillEffectSpec{
@@ -4169,6 +4170,7 @@ var SkillEffects = map[uint16]SkillEffectSpec{
 	SkillAMTwilight1:                {EffectIDs: []int{497}},
 	SkillAMTwilight2:                {EffectIDs: []int{498}},
 	SkillAMTwilight3:                {EffectIDs: []int{499}},
+	SkillGSGlittering:               {EffectIDs: []int{SkillEffectGunslingerCoinSound}},
 	SkillGSTripleaction:             {EffectIDs: []int{effectTripleAction}},
 	SkillGSBullseye:                 {EffectIDs: []int{effectBullseye}},
 	SkillGSMadnesscancel:            {EffectIDs: []int{625}},

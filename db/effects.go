@@ -698,6 +698,7 @@ const (
 	effectBottomForgetGround     = SkillEffectBottomForgetGround
 	effectBottomFortuneGround    = SkillEffectBottomFortuneGround
 	effectBottomServiceGround    = SkillEffectBottomServiceGround
+	effectGunslingerCoinSound    = SkillEffectGunslingerCoinSound
 )
 
 const EffectPixelRatio = 1.0 / 35.0
@@ -4966,7 +4967,10 @@ var EffectSpecs = map[int]EffectSpec{
 		},
 		[]time.Duration{time.Millisecond, 550 * time.Millisecond, 700 * time.Millisecond, 950 * time.Millisecond},
 	),
-	effectGreedSound:     soundOnlyEffectSpec("effect\\ef_entry.wav"),
+	effectGreedSound: soundOnlyEffectSpec("effect\\ef_entry.wav"),
+
+	effectGunslingerCoinSound: soundOnlyEffectSpec("effect\\플립.wav"),
+
 	effectKyrie:          strEffectSpecAttachedMin("kyrie", "kyrie_min", "effect\\priest_kyrie_eleison_a.wav", false),
 	effectMagnus:         strEffectSpec("magnus", "effect\\priest_magnus.wav"),
 	effectBlitzBeat:      soundOnlyEffectSpec("effect\\hunter_blitzbeat.wav"),

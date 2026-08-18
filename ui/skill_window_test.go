@@ -613,6 +613,59 @@ func TestSkillWindowShowsMonkUnlocksFromRobrowserTree(t *testing.T) {
 	}
 }
 
+func TestSkillWindowShowsGunslingerUnlocksFromRobrowserTree(t *testing.T) {
+	s := &session.Session{
+		Selected: session.Character{Job: db.JobGunslinger},
+		Skills: session.Skills{
+			Points: 2,
+			List: []session.Skill{
+				{ID: db.SkillGSGlittering, Level: 3, Upgradable: true},
+				{ID: db.SkillGSSingleaction, Level: 4, Upgradable: true},
+				{ID: db.SkillGSSnakeeye, Level: 1, Upgradable: true},
+			},
+		},
+	}
+	window := &SkillWindow{}
+	skills := window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillGSFling,
+		db.SkillGSTripleaction,
+		db.SkillGSIncreasing,
+		db.SkillGSMagicalbullet,
+		db.SkillGSCracker,
+		db.SkillGSChainaction,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("Gunslinger tree did not expose unlocked skill %d: %v", skillID, skills)
+		}
+	}
+	for _, skillID := range []uint16{
+		db.SkillGSMadnesscancel,
+		db.SkillGSAdjustment,
+		db.SkillGSTracking,
+		db.SkillGSDust,
+		db.SkillGSSpreadattack,
+	} {
+		if containsSkill(skills, skillID) {
+			t.Fatalf("skill %d should not be visible before its prerequisite reaches the robr level", skillID)
+		}
+	}
+	window.stageSkill(db.SkillGSGlittering)
+	window.stageSkill(db.SkillGSSingleaction)
+	skills = window.visibleSkills(Context{Session: s})
+	for _, skillID := range []uint16{
+		db.SkillGSMadnesscancel,
+		db.SkillGSAdjustment,
+		db.SkillGSTracking,
+		db.SkillGSDust,
+		db.SkillGSSpreadattack,
+	} {
+		if !containsSkill(skills, skillID) {
+			t.Fatalf("staged prerequisite did not expose Gunslinger skill %d: %v", skillID, skills)
+		}
+	}
+}
+
 func TestSkillWindowShowsNinjaUnlocksFromRobrowserTree(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Job: db.JobNinja},

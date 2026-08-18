@@ -115,7 +115,7 @@ func init() {
 		JobCrusaderB, JobMonkB, JobCrusader2B)
 	setJobHitSounds([]string{"player_wooden_male.wav"},
 		JobArcher, JobThief, JobHunter, JobAssassin, JobRogue, JobBard,
-		JobDancer, JobGunslinger, JobNinja, JobNinjaB, JobTaekwon, JobTaekwonB, JobArcherH, JobThiefH,
+		JobDancer, JobGunslinger, JobGunslingerB, JobNinja, JobNinjaB, JobTaekwon, JobTaekwonB, JobArcherH, JobThiefH,
 		JobHunterH, JobAssassinH, JobRogueH, JobBardH, JobDancerH, JobArcherB,
 		JobThiefB, JobHunterB, JobAssassinB, JobRogueB, JobBardB, JobDancerB)
 }

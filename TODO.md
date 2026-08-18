@@ -147,6 +147,8 @@ Source of truth: roBrowser's `src/DB/Effects/EffectConst.js`,
   cart state/appearance, vending bubbles and shop interaction.
 - Ninja expanded-class support: normal/baby jobs, full skill tree and level
   metadata, roBrowser skill actions/effects, and Ninja status routing.
+- Gunslinger expanded-class support: normal/baby jobs, full skill tree and
+  level metadata, weapon actions, status icons, and roBrowser skill effects.
 - Common effects: hit feedback, potion/food families, Heal/recovery feedback,
   base/job level-up, teleport/portal, refine/pharmacy success/failure.
 
@@ -185,5 +187,5 @@ Source of truth: roBrowser's `src/DB/Effects/EffectConst.js`,
   loops, and actor-attached buff/debuff decorations.
 - [ ] Second-job pre-renewal sweep: Knight/Crusader, Wizard/Sage,
   Priest/Monk, Assassin/Rogue, Hunter/Bard/Dancer, Blacksmith/Alchemist.
-- [ ] Remaining expanded and later content: Super Novice, Gunslinger,
-  transcendent classes, renewal third jobs, and modern fourth-job effect IDs.
+- [ ] Remaining expanded and later content: Super Novice, transcendent classes,
+  renewal third jobs, and modern fourth-job effect IDs.

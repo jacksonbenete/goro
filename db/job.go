@@ -109,6 +109,7 @@ const (
 	JobTaekwonB        = 4225
 	JobStarB           = 4226
 	JobLinkerB         = 4227
+	JobGunslingerB     = 4228
 	JobStar2B          = 4238
 	JobStarEmperor     = 4239
 	JobSoulReaper      = 4240
@@ -377,6 +378,7 @@ func init() {
 	duplicateJobResourceName(JobAlchemist, JobAlchemistB)
 	duplicateJobResourceName(JobBard, JobBardB)
 	duplicateJobResourceName(JobDancer, JobDancerB)
+	duplicateJobResourceName(JobGunslinger, JobGunslingerB)
 	duplicateJobResourceName(JobNinja, JobNinjaB)
 	duplicateJobResourceName(JobTaekwon, JobTaekwonB)
 	duplicateJobResourceName(JobStar, JobStarB)
