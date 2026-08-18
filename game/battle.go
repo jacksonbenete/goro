@@ -1218,6 +1218,12 @@ func (m *WorldMode) clearLocalDeathStateIfAlive(ctx client.Context) {
 	if ctx.Session.Vitals.HP <= 0 && ctx.Session.Selected.HP <= 0 {
 		return
 	}
+	// rAthena restores HP before sending the map change for a save-point
+	// respawn. Keep the held death pose during that gap; handleMapChange clears
+	// it only after the fade-out has reached black.
+	if m.ui.deathModal.PendingAction() == ui.DeathModalActionSavePoint {
+		return
+	}
 	m.clearLocalDeathState(ctx)
 }
 

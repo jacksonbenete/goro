@@ -1,8 +1,10 @@
 package game
 
 import (
+	"context"
 	"fmt"
 	"math"
+	"net"
 	"testing"
 	"time"
 
@@ -1613,6 +1615,74 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	}
 	if _, ok := mode.actorAnims[2000000]; ok {
 		t.Fatal("account death animation should clear when player is alive")
+	}
+}
+
+func TestSavePointRespawnHoldsDeathAnimationUntilMapChange(t *testing.T) {
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, _ := ln.Accept()
+		accepted <- conn
+	}()
+
+	netClient := network.NewClient(20080910, false)
+	defer netClient.Close()
+	addr := ln.Addr().(*net.TCPAddr)
+	if err := netClient.Connect(context.Background(), addr.IP.String(), addr.Port); err != nil {
+		t.Fatal(err)
+	}
+	serverConn := <-accepted
+	if serverConn == nil {
+		t.Fatal("server did not accept test client")
+	}
+	defer serverConn.Close()
+
+	world := worldstate.New()
+	world.MapName = "prontera"
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Network: netClient,
+		Session: &session.Session{
+			AccountID: 2000000,
+			CharID:    150000,
+			Selected:  session.Character{ID: 150000, Job: 0, HP: 0},
+			Vitals:    session.Vitals{HP: 0},
+		},
+		World: world,
+	}
+
+	mode.startActorDeath(ctx, 150000)
+	mode.ui.deathModal.ReturnToSavePoint(ctx)
+	if got := mode.ui.deathModal.PendingAction(); got != gameui.DeathModalActionSavePoint {
+		t.Fatalf("pending death action = %d, want save point", got)
+	}
+
+	ctx.Session.Vitals.HP = 1
+	ctx.Session.Selected.HP = 1
+	mode.clearLocalDeathStateIfAlive(ctx)
+	if _, ok := mode.actorAnims[150000]; !ok {
+		t.Fatal("positive HP cleared death animation before respawn map change")
+	}
+	if !mode.ui.deathModal.IsOpen() {
+		t.Fatal("positive HP closed death modal before respawn map change")
+	}
+
+	next := mode.handleMapChange(ctx, network.MapChange{MapName: "geffen", X: 120, Y: 80})
+	if next == nil {
+		t.Fatal("respawn map change did not create the destination world mode")
+	}
+	if _, ok := mode.actorAnims[150000]; ok {
+		t.Fatal("death animation remained after respawn map change")
+	}
+	if mode.ui.deathModal.IsOpen() {
+		t.Fatal("death modal remained open after respawn map change")
 	}
 }
 
