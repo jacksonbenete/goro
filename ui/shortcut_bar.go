@@ -784,6 +784,11 @@ func shortcutSkillByID(s *session.Session, skillID uint16) (session.Skill, bool)
 	if s == nil {
 		return session.Skill{}, false
 	}
+	for _, skill := range s.Guild.Skills {
+		if skill.ID == skillID {
+			return skill, true
+		}
+	}
 	if s.Mercenary.Active {
 		if skill, ok := companionSkillByID(s.Mercenary, skillID); ok {
 			return skill, true

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gogpu/ui/core/checkbox"
 	"github.com/gogpu/ui/core/dropdown"
@@ -17,6 +18,8 @@ import (
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/render"
 	"github.com/kivutar/goro/res"
 	"github.com/kivutar/goro/session"
@@ -59,8 +62,14 @@ type GuildWindow struct {
 	skillPending    map[uint16]int
 	skillOrder      []uint16
 	skillScrollY    state.Signal[float32]
+	lastSkillClick  uint16
+	lastSkillAt     time.Time
+	dragSkill       session.Skill
+	dragActive      bool
+	dragFrom        time.Time
 	historyScrollY  state.Signal[float32]
 	tooltip         tooltipState
+	actions         GameActions
 }
 
 type GuildWindowAction struct {
@@ -155,14 +164,27 @@ func (w *GuildWindow) OpenWindow(ctx Context) {
 	w.Publish(ctx)
 }
 
-func (w *GuildWindow) Update(ctx Context) bool {
+func (w *GuildWindow) Close() {
+	w.dragActive = false
+	w.dragSkill = session.Skill{}
+	w.hideTooltip()
+	w.Window.Close()
+}
+
+func (w *GuildWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameActions) bool {
 	w.EnsureWindow(guildWindowWidth, guildWindowHeight)
 	w.ctx = ctx
 	if !w.IsOpen() {
 		w.hideTooltip()
 		return false
 	}
+	if actions != nil {
+		w.actions = actions
+	}
 	w.updateSkillTooltipHover(ctx)
+	if w.UpdateDrag(ctx, shortcuts) {
+		return true
+	}
 	nextSnapshot := guildWindowSnapshot(ctx.Session)
 	if nextSnapshot != w.snapshot {
 		w.snapshot = nextSnapshot
@@ -172,6 +194,30 @@ func (w *GuildWindow) Update(ctx Context) bool {
 	hasAction := w.action.hasAction()
 	w.Publish(ctx)
 	return consumed || hasAction
+}
+
+func (w *GuildWindow) UpdateDrag(ctx Context, shortcuts *ShortcutBar) bool {
+	if !w.dragActive || ctx.Input == nil {
+		return false
+	}
+	if ctx.Input.MouseJustReleased(input.MouseButtonLeft) || !ctx.Input.MousePressed(input.MouseButtonLeft) {
+		skill := w.dragSkill
+		w.dragActive = false
+		w.dragSkill = session.Skill{}
+		if shortcuts != nil && shortcuts.AcceptSkillDrop(ctx, skill, ctx.Input.MouseX, ctx.Input.MouseY) {
+			w.Publish(ctx)
+			return true
+		}
+		w.Publish(ctx)
+		return true
+	}
+	return true
+}
+
+func (w *GuildWindow) DrawDragGhost(screen *render.Frame, ctx Context, assets AssetProvider) {
+	if w.dragActive && screen != nil && ctx.Input != nil && time.Since(w.dragFrom) > 80*time.Millisecond && assets != nil {
+		assets.DrawSkillIcon(screen, ctx.Resources, w.dragSkill, ctx.Input.MouseX-skillIconSize/2, ctx.Input.MouseY-skillIconSize/2, skillIconSize)
+	}
 }
 
 func (w *GuildWindow) PopAction() GuildWindowAction {
@@ -912,30 +958,65 @@ func (w *GuildWindow) handleGuildSkillTableRowEvent(widgetCtx widget.Context, ct
 	if !ok || row < 0 || row >= len(skills) {
 		return false
 	}
-	skill := w.guildSkillWithPending(skills[row])
+	skill := skills[row]
+	display := w.guildSkillWithPending(skill)
 	switch mouse.MouseType {
 	case event.MouseEnter, event.MouseMove, event.MouseDrag:
-		if widgetCtx != nil && w.canStageGuildSkill(skill, guild) && guildSkillLevelUpButtonBounds(row).Contains(mouse.Position) {
+		if widgetCtx != nil && (skillCanUseShortcut(skill) || w.canStageGuildSkill(display, guild)) {
 			widgetCtx.SetCursor(widget.CursorPointer)
 		}
 		mx, my := int(mouse.GlobalPosition.X), int(mouse.GlobalPosition.Y)
 		if ctx.Input != nil {
 			mx, my = ctx.Input.MouseX, ctx.Input.MouseY
 		}
-		w.showSkillTooltip(ctx, skill, mx, my)
+		w.showSkillTooltip(ctx, display, mx, my)
 		return false
 	case event.MousePress:
-		if mouse.Button != event.ButtonLeft || !guildSkillLevelUpButtonBounds(row).Contains(mouse.Position) {
+		if mouse.Button != event.ButtonLeft {
 			return false
 		}
-		if !w.canStageGuildSkill(skill, guild) {
+		if guildSkillLevelUpButtonBounds(row).Contains(mouse.Position) {
+			if !w.canStageGuildSkill(display, guild) {
+				return true
+			}
+			w.stageGuildSkill(skill.ID)
+			w.refresh(ctx)
 			return true
 		}
-		w.stageGuildSkill(skill.ID)
-		w.refresh(ctx)
+		w.pressGuildSkill(ctx, skill)
 		return true
 	}
 	return false
+}
+
+func (w *GuildWindow) pressGuildSkill(ctx Context, skill session.Skill) {
+	if skill.Level <= 0 {
+		glog.Debugf("guild skill use ignored id=%d: not learned", skill.ID)
+		return
+	}
+	if !skillCanUseShortcut(skill) {
+		glog.Debugf("guild skill use ignored id=%d: passive skill", skill.ID)
+		return
+	}
+	now := time.Now()
+	if w.lastSkillClick == skill.ID && now.Sub(w.lastSkillAt) <= 360*time.Millisecond {
+		w.lastSkillClick = 0
+		w.lastSkillAt = time.Time{}
+		if w.actions == nil {
+			glog.Warnf("guild skill use failed id=%d: no game actions", skill.ID)
+			return
+		}
+		if err := w.actions.UseShortcutSkill(ctx, skill); err != nil {
+			glog.Warnf("guild skill use failed id=%d: %v", skill.ID, err)
+		}
+		return
+	}
+	w.lastSkillClick = skill.ID
+	w.lastSkillAt = now
+	w.dragSkill = skill
+	w.dragActive = true
+	w.hideTooltip()
+	w.dragFrom = now
 }
 
 func guildSkillLevelUpButtonBounds(row int) geometry.Rect {
@@ -1003,7 +1084,7 @@ func (w *GuildWindow) confirmGuildSkillPending(ctx Context) {
 }
 
 func (w *GuildWindow) showSkillTooltip(ctx Context, skill session.Skill, mx, my int) {
-	if skill.ID == 0 {
+	if w.dragActive || skill.ID == 0 {
 		w.hideTooltip()
 		return
 	}

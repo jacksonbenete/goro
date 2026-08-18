@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gogpu/ui/event"
 	"github.com/gogpu/ui/geometry"
@@ -341,5 +342,83 @@ func TestGuildSkillTablePlusStagesSkill(t *testing.T) {
 	}
 	if action := window.PopAction(); action.hasAction() {
 		t.Fatalf("staging should not publish action: %+v", action)
+	}
+}
+
+func TestGuildSkillWindowDoubleClickUsesSharedSkillController(t *testing.T) {
+	ctx := Context{ScreenW: 800, ScreenH: 600}
+	actions := &skillWindowTestRenderer{}
+	window := &GuildWindow{actions: actions}
+	skill := session.Skill{ID: db.SkillGdBattleorder, Type: 4, Level: 1, Range: 1}
+
+	window.pressGuildSkill(ctx, skill)
+	if actions.used.ID != 0 {
+		t.Fatalf("guild skill used after first click = %+v, want none", actions.used)
+	}
+	if !window.dragActive || window.dragSkill.ID != skill.ID {
+		t.Fatalf("guild skill drag = active %t skill %+v", window.dragActive, window.dragSkill)
+	}
+
+	window.pressGuildSkill(ctx, skill)
+	if actions.used.ID != skill.ID || actions.used.Level != skill.Level {
+		t.Fatalf("used guild skill = %+v, want %+v", actions.used, skill)
+	}
+}
+
+func TestGuildSkillDragReleaseOverShortcutStoresSkill(t *testing.T) {
+	inputState := input.NewState()
+	bar := &ShortcutBar{}
+	x, y := bar.slotBounds(Context{ScreenW: 800, ScreenH: 600}, 0)
+	inputState.SetMousePosition(x+shortcutSlot/2, y+shortcutSlot/2)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	inputState.EndFrame()
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
+
+	window := &GuildWindow{
+		dragSkill:  session.Skill{ID: db.SkillGdRegeneration, Level: 3, Type: 4},
+		dragActive: true,
+		dragFrom:   time.Now().Add(-time.Second),
+	}
+	if !window.UpdateDrag(Context{Input: inputState, ScreenW: 800, ScreenH: 600}, bar) {
+		t.Fatal("guild skill drag release was not consumed")
+	}
+	if got := bar.slots[0]; got.kind != shortcutSkill || got.skillID != db.SkillGdRegeneration || got.skillLevel != 3 {
+		t.Fatalf("shortcut slot = %+v, want guild Regeneration level 3", got)
+	}
+}
+
+func TestGuildSkillWindowRejectsPassiveDrag(t *testing.T) {
+	window := &GuildWindow{}
+	window.pressGuildSkill(Context{}, session.Skill{ID: db.SkillGdApproval, Type: 0, Level: 1})
+	if window.dragActive {
+		t.Fatal("passive guild skill started a drag")
+	}
+}
+
+func TestGuildSkillDragUsesLearnedRatherThanPendingLevel(t *testing.T) {
+	skill := session.Skill{ID: db.SkillGdRegeneration, Type: 4, Level: 1}
+	window := &GuildWindow{
+		skillPending: map[uint16]int{skill.ID: 2},
+	}
+	guild := session.Guild{Skills: []session.Skill{skill}}
+
+	window.handleGuildSkillTableRowEvent(
+		nil,
+		Context{},
+		guild,
+		guild.Skills,
+		0,
+		event.NewMouseEvent(
+			event.MousePress,
+			event.ButtonLeft,
+			event.ButtonStateLeft,
+			geometry.Pt(1, 1),
+			geometry.Pt(100, 120),
+			0,
+		),
+	)
+
+	if !window.dragActive || window.dragSkill.Level != 1 {
+		t.Fatalf("dragged guild skill = %+v, want learned level 1", window.dragSkill)
 	}
 }

@@ -547,6 +547,28 @@ func TestSkillForShortcutResolvesHomunculusSkills(t *testing.T) {
 	}
 }
 
+func TestSkillForShortcutResolvesAndActivatesGuildSkills(t *testing.T) {
+	skill := session.Skill{ID: db.SkillGdBattleorder, Level: 1, Type: 4, Name: "Battle Command"}
+	s := &session.Session{Guild: session.Guild{Skills: []session.Skill{skill}}}
+	entry := shortcutSlotState{kind: shortcutSkill, skillID: skill.ID, skillLevel: 1}
+
+	resolved, ok := skillForShortcut(s, entry)
+	if !ok {
+		t.Fatal("guild shortcut skill not found")
+	}
+	if resolved.ID != skill.ID || resolved.Level != skill.Level || resolved.Name != skill.Name {
+		t.Fatalf("guild shortcut skill = %+v, want %+v", resolved, skill)
+	}
+
+	actions := &skillWindowTestRenderer{}
+	bar := &ShortcutBar{}
+	bar.slots[0] = entry
+	bar.activate(Context{Session: s}, actions, 0)
+	if actions.used.ID != skill.ID || actions.used.Level != skill.Level {
+		t.Fatalf("activated guild skill = %+v, want %+v", actions.used, skill)
+	}
+}
+
 func TestSkillForShortcutPrefersMercenaryThenHomunculusBeforePlayer(t *testing.T) {
 	s := &session.Session{
 		Skills: session.Skills{

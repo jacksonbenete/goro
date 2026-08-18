@@ -813,6 +813,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.mercenarySkill.UpdateDrag(ctx, &m.ui.shortcutBar) {
 		return nil, nil
 	}
+	if m.ui.guildWindow.UpdateDrag(ctx, &m.ui.shortcutBar) {
+		return nil, nil
+	}
 	if m.ui.shortcutBar.Update(ctx, m) {
 		return nil, nil
 	}
@@ -899,7 +902,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		}
 		return nil, nil
 	}
-	if m.ui.guildWindow.Update(ctx) {
+	if m.ui.guildWindow.Update(ctx, &m.ui.shortcutBar, m) {
 		if action := m.ui.guildWindow.PopAction(); action.RequestMenu {
 			m.requestGuildWindowTab(ctx, action.MenuTab)
 		} else if action.SelectedEmblemPath != "" {
@@ -1366,6 +1369,7 @@ func (m *WorldMode) drawUIDragGhosts(screen *render.Frame, ctx client.Context) {
 	m.ui.skillWindow.DrawDragGhost(screen, ctx, m)
 	m.ui.homunculusSkill.DrawDragGhost(screen, ctx, m)
 	m.ui.mercenarySkill.DrawDragGhost(screen, ctx, m)
+	m.ui.guildWindow.DrawDragGhost(screen, ctx, m)
 }
 
 func clickedAttackTarget(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (worldstate.Actor, bool) {
