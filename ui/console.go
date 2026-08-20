@@ -16,7 +16,6 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
-	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -269,37 +268,7 @@ func (c *ChatConsole) submitText(ctx client.Context, inputText string) {
 	if c.SubmitCommand(ctx, text) {
 		return
 	}
-	name := "Player"
-	if ctx.Session != nil && strings.TrimSpace(ctx.Session.Selected.Name) != "" {
-		name = ctx.Session.Selected.Name
-	}
-	if strings.HasPrefix(text, "%") {
-		c.submitPartyChat(ctx, name, strings.TrimSpace(strings.TrimPrefix(text, "%")))
-		return
-	}
-	if ctx.Network == nil {
-		c.AddErrorMessage("send failed: not connected")
-		return
-	}
-	if err := ctx.Network.SendGlobalChat(name, text); err != nil {
-		c.AddErrorMessage("send failed: %s", err)
-		return
-	}
-	c.setInput("")
-	c.setActive(false)
-}
-
-func (c *ChatConsole) submitPartyChat(ctx client.Context, name string, message string) {
-	if message == "" {
-		c.setInput("")
-		c.setActive(false)
-		return
-	}
-	if ctx.Network == nil {
-		c.AddErrorMessage("send failed: not connected")
-		return
-	}
-	if err := ctx.Network.SendPartyMessage(fmt.Sprintf("%s : %s", name, message)); err != nil {
+	if err := client.SendChat(ctx, text); err != nil {
 		c.AddErrorMessage("send failed: %s", err)
 		return
 	}
@@ -816,28 +785,9 @@ func (c *ChatConsole) submitTaekwonRanking(ctx client.Context) {
 }
 
 func (c *ChatConsole) submitSitStand(ctx client.Context, sit bool) {
-	if ctx.Network == nil {
-		c.AddErrorMessage("send failed: not connected")
-		return
-	}
-	targetID := consoleLocalActorID(ctx)
-	if targetID == 0 {
-		c.AddErrorMessage("send failed: missing local actor")
-		return
-	}
-	action := network.ActionStandUp
-	if sit {
-		action = network.ActionSitDown
-	}
-	if err := ctx.Network.SendActionRequest(targetID, action); err != nil {
+	if err := client.SetSitting(ctx, sit); err != nil {
 		c.AddErrorMessage("send failed: %s", err)
 		return
-	}
-	if ctx.World != nil {
-		ctx.World.Player.Sitting = sit
-		if sit {
-			ctx.World.Player.Moving = false
-		}
 	}
 	c.setInput("")
 	c.setActive(false)
@@ -845,21 +795,6 @@ func (c *ChatConsole) submitSitStand(ctx client.Context, sit bool) {
 
 func consolePlayerSitting(ctx client.Context) bool {
 	return ctx.World != nil && ctx.World.Player.Sitting
-}
-
-func consoleLocalActorID(ctx client.Context) uint32 {
-	if ctx.Session != nil {
-		if ctx.Session.AccountID != 0 {
-			return ctx.Session.AccountID
-		}
-		if ctx.Session.CharID != 0 {
-			return ctx.Session.CharID
-		}
-	}
-	if ctx.World != nil {
-		return ctx.World.Player.ID
-	}
-	return 0
 }
 
 func (c *ChatConsole) rememberInput(text string) {

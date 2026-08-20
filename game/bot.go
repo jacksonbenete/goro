@@ -108,6 +108,10 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 			L.Push(lua.LBool(scriptUseItem(ctx, L.CheckInt(1))))
 			return 1
 		},
+		"message": func(L *lua.LState) int {
+			L.Push(lua.LBool(scriptMessage(ctx, L.CheckString(1))))
+			return 1
+		},
 		"attack": func(L *lua.LState) int {
 			id := uint32(L.CheckInt(1))
 			L.Push(lua.LBool(mode.scriptAttack(ctx, id)))
@@ -209,6 +213,14 @@ func scriptUseItem(ctx client.Context, index int) bool {
 	}
 	if err := gameui.UseInventoryItem(ctx, item); err != nil {
 		glog.Debugf("script item use failed index=%d item=%d: %v", item.Index, item.ItemID, err)
+		return false
+	}
+	return true
+}
+
+func scriptMessage(ctx client.Context, message string) bool {
+	if err := client.SendChat(ctx, message); err != nil {
+		glog.Debugf("script message failed: %v", err)
 		return false
 	}
 	return true

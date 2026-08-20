@@ -39,7 +39,7 @@
   - [x] Change guild member positions and position info: 0x0155, 0x0156, 0x0161
   - [x] Change guild notice: 0x016E
   - [ ] Guild alliance request/reply/delete/opposition: 0x0170, 0x0172, 0x0180, 0x0183
-  - [ ] Guild message: 0x017E
+  - [x] Guild message send: 0x017E
 
   Items / Crafting / Equipment
 

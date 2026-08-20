@@ -59,6 +59,26 @@ func TestBuildGuildPackets(t *testing.T) {
 		t.Fatal("notice strings should be null padded")
 	}
 
+	message := BuildGuildMessagePacket("Kivutar : hello")
+	if len(message) != 20 || ID(message) != PacketCZGuildMessage {
+		t.Fatalf("BuildGuildMessagePacket len=%d id=0x%04x", len(message), ID(message))
+	}
+	if got := binary.LittleEndian.Uint16(message[2:4]); got != uint16(len(message)) {
+		t.Fatalf("guild message packet length = %d, want %d", got, len(message))
+	}
+	if got := string(message[4 : len(message)-1]); got != "Kivutar : hello" {
+		t.Fatalf("guild message = %q", got)
+	}
+	if message[len(message)-1] != 0 {
+		t.Fatal("guild message should be null terminated")
+	}
+	if packet := BuildGuildMessagePacket("   "); packet != nil {
+		t.Fatalf("empty guild message packet = %x, want nil", packet)
+	}
+	if packet := BuildGuildMessagePacket(strings.Repeat("x", 0xffff)); packet != nil {
+		t.Fatalf("oversized guild message packet length = %d, want nil", len(packet))
+	}
+
 	longNotice := BuildGuildNoticePacket(1, strings.Repeat("s", 80), strings.Repeat("n", 140))
 	if longNotice[65] != 0 || longNotice[185] != 0 {
 		t.Fatal("notice strings should reserve a trailing null byte when truncated")

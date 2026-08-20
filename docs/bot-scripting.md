@@ -106,6 +106,19 @@ Returns `true` if the item exists, otherwise `false`.
 
 This uses the same path as a normal player click, including walking into pickup range. Scripts should avoid calling it every tick for the same item; keep a small retry delay.
 
+### `goro.message(message)`
+
+Sends console-style chat input. Returns `true` when the request was sent, otherwise `false`.
+
+- Plain text sends a public message.
+- Text beginning with `@` sends an atcommand as public chat for the server to interpret.
+- Text beginning with `%` sends a party message.
+- Text beginning with `$` sends a guild message.
+- `/w Name message` or `/whisper Name message` sends a whisper.
+- `/sit` and `/stand` change the player's resting state.
+
+Scripts should keep a delay between messages instead of calling this every tick.
+
 ### `goro.inventory()`
 
 Returns an array of carried inventory entries, ordered by inventory index.

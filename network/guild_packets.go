@@ -5,6 +5,8 @@ import (
 	"compress/zlib"
 	"encoding/binary"
 	"fmt"
+	"strings"
+
 	"github.com/kivutar/goro/glog"
 )
 
@@ -32,6 +34,7 @@ const (
 	PacketZCAckGuildPosInfo uint16 = 0x0174
 	PacketCZReqGuildMember  uint16 = 0x0175
 	PacketZCGuildMemberInfo uint16 = 0x0176
+	PacketCZGuildMessage    uint16 = 0x017E
 	PacketZCUpdateGuildID   uint16 = 0x016C
 	PacketCZReqGuildMenu    uint16 = 0x014F
 	PacketCZReqGuildEmblem  uint16 = 0x0151
@@ -562,6 +565,19 @@ func BuildRegisterGuildEmblemPacket(bmp []byte) ([]byte, error) {
 	return packet, nil
 }
 
+func BuildGuildMessagePacket(message string) []byte {
+	message = strings.TrimSpace(message)
+	size := 4 + len([]byte(message)) + 1
+	if message == "" || size > 0xffff {
+		return nil
+	}
+	packet := make([]byte, size)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZGuildMessage)
+	binary.LittleEndian.PutUint16(packet[2:4], uint16(size))
+	copy(packet[4:], []byte(message))
+	return packet
+}
+
 func (c *Client) SendCreateGuild(charID uint32, name string) error {
 	packet := BuildCreateGuildPacket(charID, name)
 	err := c.Send(packet)
@@ -646,6 +662,20 @@ func (c *Client) SendGuildNotice(guildID uint32, subject, notice string) error {
 		glog.Debugf("sent CZ_GUILD_NOTICE opcode=0x%04X guild_id=%d subject=%q notice_len=%d client_date=%d", ID(packet), guildID, subject, len([]rune(notice)), c.clientDate)
 	} else {
 		glog.Warnf("send CZ_GUILD_NOTICE failed opcode=0x%04X len=%d guild_id=%d subject=%q notice_len=%d client_date=%d: %v", ID(packet), len(packet), guildID, subject, len([]rune(notice)), c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendGuildMessage(message string) error {
+	packet := BuildGuildMessagePacket(message)
+	if len(packet) == 0 {
+		return fmt.Errorf("empty guild message")
+	}
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQUEST_CHAT_GUILD opcode=0x%04X message=%q client_date=%d", ID(packet), message, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQUEST_CHAT_GUILD failed opcode=0x%04X len=%d message=%q client_date=%d: %v", ID(packet), len(packet), message, c.clientDate, err)
 	}
 	return err
 }

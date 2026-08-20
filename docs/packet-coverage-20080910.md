@@ -311,7 +311,7 @@ email check.
 | `0x017A` | C->S | referenced | `HEADER_CZ_REQ_ITEMCOMPOSITION_LIST` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION_LIST )` | `clif_parse_UseCard` | item_packets.go |
 | `0x017B` | S->C | referenced | `0x017b` | `-1` | `-` | packet.go |
 | `0x017C` | C->S | referenced | `HEADER_CZ_REQ_ITEMCOMPOSITION` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION )` | `clif_parse_InsertCard` | item_packets.go |
-| `0x017E` | C->S | missing | `0x017e` | `-1` | `clif_parse_GuildMessage` | - |
+| `0x017E` | C->S | referenced | `0x017e` | `-1` | `clif_parse_GuildMessage` | guild_packets.go |
 | `0x0180` | C->S | missing | `0x0180` | `6` | `clif_parse_GuildOpposition` | - |
 | `0x0182` | S->C | untracked | `0x0182` | `106` | `-` | - |
 | `0x0183` | C->S | missing | `0x0183` | `10` | `clif_parse_GuildDelAlliance` | - |
