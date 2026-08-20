@@ -106,6 +106,35 @@ Returns `true` if the item exists, otherwise `false`.
 
 This uses the same path as a normal player click, including walking into pickup range. Scripts should avoid calling it every tick for the same item; keep a small retry delay.
 
+### `goro.inventory()`
+
+Returns an array of carried inventory entries, ordered by inventory index.
+
+Each entry has:
+
+- `index`
+- `item_id`
+- `amount`
+- `identified`
+- `usable`
+
+The `index` identifies this exact inventory entry and is the value accepted by `goro.use_item()`.
+
+### `goro.use_item(index)`
+
+Requests use of the usable inventory entry with this index.
+
+Returns `true` when the entry exists, is usable, and the request was sent, otherwise `false`. Scripts should wait for the server inventory update or keep a retry delay instead of calling it every tick.
+
+```lua
+for _, item in ipairs(goro.inventory()) do
+	if item.item_id == 501 then -- Red Potion
+		goro.use_item(item.index)
+		break
+	end
+end
+```
+
 ## Example
 
 This loots the nearest item first, then attacks the nearest enemy. It stops when HP is under 25%.

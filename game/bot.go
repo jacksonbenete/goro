@@ -10,6 +10,7 @@ import (
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -97,6 +98,14 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 		},
 		"items": func(L *lua.LState) int {
 			L.Push(luaItemList(L, ctx))
+			return 1
+		},
+		"inventory": func(L *lua.LState) int {
+			L.Push(luaInventoryList(L, ctx))
+			return 1
+		},
+		"use_item": func(L *lua.LState) int {
+			L.Push(lua.LBool(scriptUseItem(ctx, L.CheckInt(1))))
 			return 1
 		},
 		"attack": func(L *lua.LState) int {
@@ -190,6 +199,21 @@ func (m *WorldMode) scriptLoot(ctx client.Context, id uint32) bool {
 	return true
 }
 
+func scriptUseItem(ctx client.Context, index int) bool {
+	if ctx.Session == nil || index <= 0 || index > int(^uint16(0)) {
+		return false
+	}
+	item, ok := findSessionInventoryItem(ctx.Session, uint16(index))
+	if !ok {
+		return false
+	}
+	if err := gameui.UseInventoryItem(ctx, item); err != nil {
+		glog.Debugf("script item use failed index=%d item=%d: %v", item.Index, item.ItemID, err)
+		return false
+	}
+	return true
+}
+
 func luaSkill(ctx client.Context, skillArg lua.LValue) (session.Skill, bool) {
 	switch value := skillArg.(type) {
 	case lua.LNumber:
@@ -280,6 +304,27 @@ func luaItemList(L *lua.LState, ctx client.Context) *lua.LTable {
 		row.RawSetString("y", lua.LNumber(item.Y))
 		row.RawSetString("identified", lua.LBool(item.Identified))
 		row.RawSetString("distance", lua.LNumber(cellDistance(playerX, playerY, item.X, item.Y)))
+		result.Append(row)
+	}
+	return result
+}
+
+func luaInventoryList(L *lua.LState, ctx client.Context) *lua.LTable {
+	result := L.NewTable()
+	if ctx.Session == nil {
+		return result
+	}
+	items := append([]session.InventoryItem(nil), ctx.Session.Inventory.Items...)
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].Index < items[j].Index
+	})
+	for _, item := range items {
+		row := L.NewTable()
+		row.RawSetString("index", lua.LNumber(item.Index))
+		row.RawSetString("item_id", lua.LNumber(item.ItemID))
+		row.RawSetString("amount", lua.LNumber(item.Amount))
+		row.RawSetString("identified", lua.LBool(item.Identified))
+		row.RawSetString("usable", lua.LBool(db.ItemTypeIsUsable(item.Type)))
 		result.Append(row)
 	}
 	return result

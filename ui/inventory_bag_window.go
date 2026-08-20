@@ -411,11 +411,11 @@ func (w *InventoryBagWindow) activateItem(ctx Context, item session.InventoryIte
 		equipInventoryItem(ctx, item)
 		return
 	}
-	if !inventoryItemIsUsable(item) {
+	if !db.ItemTypeIsUsable(item.Type) {
 		glog.Debugf("inventory use skipped: item cannot be used index=%d item=%d type=%d", item.Index, item.ItemID, item.Type)
 		return
 	}
-	if err := useInventoryItem(ctx, item); err != nil {
+	if err := UseInventoryItem(ctx, item); err != nil {
 		glog.Warnf("inventory use failed: %v", err)
 		return
 	}
@@ -726,7 +726,7 @@ func inventoryItemTab(item session.InventoryItem) int {
 	if inventoryItemUsesEquipmentTab(item) {
 		return inventoryBagTabEquip
 	}
-	if inventoryItemIsUsable(item) {
+	if db.ItemTypeIsUsable(item.Type) {
 		return inventoryBagTabItem
 	}
 	return inventoryBagTabEtc
@@ -842,13 +842,4 @@ func inventoryItemEquipLocation(item session.InventoryItem) uint16 {
 		return db.EquipAmmo
 	}
 	return 0
-}
-
-func inventoryItemIsUsable(item session.InventoryItem) bool {
-	switch item.Type {
-	case db.ItemTypeHealing, db.ItemTypeUsable, db.ItemTypeDelayConsume, db.ItemTypeCash:
-		return true
-	default:
-		return false
-	}
 }

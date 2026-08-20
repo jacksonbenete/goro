@@ -292,7 +292,7 @@ func (b *ShortcutBar) activate(ctx Context, actions GameActions, slot int) {
 		if !ok {
 			return
 		}
-		if err := useInventoryItem(ctx, item); err != nil {
+		if err := UseInventoryItem(ctx, item); err != nil {
 			return
 		}
 		glog.Debugf("shortcut item use slot=%d index=%d item=%d", slot+1, item.Index, item.ItemID)

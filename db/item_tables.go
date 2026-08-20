@@ -17,6 +17,16 @@ const (
 	ItemTypeSearch       = 99
 )
 
+// ItemTypeIsUsable reports whether an inventory item type can be consumed.
+func ItemTypeIsUsable(itemType uint8) bool {
+	switch itemType {
+	case ItemTypeHealing, ItemTypeUsable, ItemTypeDelayConsume, ItemTypeCash:
+		return true
+	default:
+		return false
+	}
+}
+
 const (
 	EquipHeadBottom           = 1 << 0
 	EquipWeapon               = 1 << 1

@@ -8,11 +8,12 @@ import (
 	"github.com/kivutar/goro/session"
 )
 
-func useInventoryItem(ctx Context, item session.InventoryItem) error {
+// UseInventoryItem requests use of a consumable inventory entry.
+func UseInventoryItem(ctx Context, item session.InventoryItem) error {
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
 	}
-	if !inventoryItemIsUsable(item) {
+	if !db.ItemTypeIsUsable(item.Type) {
 		return fmt.Errorf("item cannot be used")
 	}
 	target := uint32(0)
