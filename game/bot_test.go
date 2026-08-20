@@ -26,6 +26,8 @@ function tick()
 	local sp, max_sp = goro.sp()
 	local player = goro.player()
 	local enemies = goro.enemies()
+	local players = goro.players()
+	local companions = goro.companions()
 	local items = goro.items()
 	local inventory = goro.inventory()
 	seen = {
@@ -37,6 +39,18 @@ function tick()
 		player_y = player.y,
 		enemies = #enemies,
 		enemy_id = enemies[1].id,
+		players = #players,
+		player_id = players[1].id,
+		player_party_member = players[1].party_member,
+		player_hp = players[1].hp,
+		player_max_hp = players[1].max_hp,
+		companions = #companions,
+		homunculus_id = companions[1].id,
+		homunculus_kind = companions[1].kind,
+		homunculus_own = companions[1].own,
+		homunculus_hp = companions[1].hp,
+		mercenary_id = companions[2].id,
+		mercenary_kind = companions[2].kind,
 		items = #items,
 		item_id = items[1].item_id,
 		inventory = #inventory,
@@ -55,6 +69,9 @@ end
 	sess := session.New()
 	sess.CharID = 2000000
 	sess.Vitals = session.Vitals{HP: 42, MaxHP: 100, SP: 7, MaxSP: 20}
+	sess.Party.Members = []session.PartyMember{{AccountID: 301, Name: "Alice", HP: 30, MaxHP: 80}}
+	sess.Homunculus = session.Companion{ID: 302, Active: true, HP: 45, MaxHP: 60, SP: 12, MaxSP: 20}
+	sess.Mercenary = session.Companion{ID: 303, Active: true, HP: 90, MaxHP: 100, SP: 8, MaxSP: 10}
 	sess.Inventory.Items = []session.InventoryItem{
 		{Index: 9, ItemID: 909, Type: db.ItemTypeEtc, Amount: 2, Identified: true},
 		{Index: 4, ItemID: 501, Type: db.ItemTypeHealing, Amount: 5, Identified: true},
@@ -62,6 +79,9 @@ end
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: sess.CharID, X: 10, Y: 20}
 	world.Actors[300] = worldstate.Actor{ID: 300, Name: "Poring", X: 12, Y: 21, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	world.Actors[301] = worldstate.Actor{ID: 301, Name: "Alice", X: 9, Y: 22, Job: db.JobAcolyte, ObjectType: actorObjectTypePC, HasObjectType: true}
+	world.Actors[302] = worldstate.Actor{ID: 302, Name: "Lif", X: 11, Y: 20, ObjectType: actorObjectTypeHomunculus, HasObjectType: true}
+	world.Actors[303] = worldstate.Actor{ID: 303, Name: "David", X: 10, Y: 22, ObjectType: actorObjectTypeMercenary, HasObjectType: true}
 	world.Items[400] = worldstate.FloorItem{ID: 400, ItemID: 501, X: 11, Y: 20, Amount: 2, Identified: true}
 
 	mode := &WorldMode{}
@@ -86,6 +106,18 @@ end
 	assertLuaNumber(t, seen, "player_y", 20)
 	assertLuaNumber(t, seen, "enemies", 1)
 	assertLuaNumber(t, seen, "enemy_id", 300)
+	assertLuaNumber(t, seen, "players", 1)
+	assertLuaNumber(t, seen, "player_id", 301)
+	assertLuaBool(t, seen, "player_party_member", true)
+	assertLuaNumber(t, seen, "player_hp", 30)
+	assertLuaNumber(t, seen, "player_max_hp", 80)
+	assertLuaNumber(t, seen, "companions", 2)
+	assertLuaNumber(t, seen, "homunculus_id", 302)
+	assertLuaString(t, seen, "homunculus_kind", "homunculus")
+	assertLuaBool(t, seen, "homunculus_own", true)
+	assertLuaNumber(t, seen, "homunculus_hp", 45)
+	assertLuaNumber(t, seen, "mercenary_id", 303)
+	assertLuaString(t, seen, "mercenary_kind", "mercenary")
 	assertLuaNumber(t, seen, "items", 1)
 	assertLuaNumber(t, seen, "item_id", 501)
 	assertLuaNumber(t, seen, "inventory", 2)
@@ -308,6 +340,151 @@ end
 	}
 }
 
+func TestLuaBotCanHealNearbyPlayer(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bot.lua")
+	if err := os.WriteFile(path, []byte(`
+function tick()
+	local players = goro.players()
+	healed = goro.skill(players[1].id, "AL_HEAL")
+end
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
+	sess := session.New()
+	sess.AccountID = 2000000
+	sess.Skills.List = []session.Skill{{
+		ID:    db.SkillALHeal,
+		Type:  skillTargetFriend,
+		Level: 7,
+		Range: 9,
+		Name:  "Heal",
+	}}
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: sess.AccountID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{
+		ID:            300,
+		Name:          "Alice",
+		X:             12,
+		Y:             21,
+		Job:           db.JobAcolyte,
+		ObjectType:    actorObjectTypePC,
+		HasObjectType: true,
+	}
+
+	bot, err := newLuaBot(client.Context{Session: sess, Network: networkClient, World: world}, &WorldMode{}, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+	if healed, _ := bot.state.GetGlobal("healed").(lua.LBool); !bool(healed) {
+		t.Fatal("goro.skill returned false for Heal on a nearby player")
+	}
+
+	want := network.BuildUseSkillToIDPacketForClientDate(db.SkillALHeal, 7, 300, 20080910)
+	readBotTestPackets(t, serverConn, want)
+}
+
+func TestLuaBotCanTargetCompanionsWithFriendlySkills(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bot.lua")
+	if err := os.WriteFile(path, []byte(`
+function tick()
+	for _, companion in ipairs(goro.companions()) do
+		if companion.kind == "homunculus" then
+			pitched = goro.skill(companion.id, "AM_POTIONPITCHER", 3)
+		elseif companion.kind == "mercenary" then
+			blessed = goro.skill(companion.id, "AL_BLESSING")
+		end
+	end
+end
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
+	sess := session.New()
+	sess.AccountID = 2000000
+	sess.Skills.List = []session.Skill{
+		{ID: db.SkillAMPotionpitcher, Type: skillTargetFriend, Level: 5, Range: 9, Name: "Potion Pitcher"},
+		{ID: db.SkillALBlessing, Type: skillTargetFriend, Level: 10, Range: 9, Name: "Blessing"},
+	}
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: sess.AccountID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "Lif", X: 11, Y: 20, ObjectType: actorObjectTypeHomunculus, HasObjectType: true}
+	world.Actors[301] = worldstate.Actor{ID: 301, Name: "David", X: 12, Y: 20, ObjectType: actorObjectTypeMercenary, HasObjectType: true}
+
+	bot, err := newLuaBot(client.Context{Session: sess, Network: networkClient, World: world}, &WorldMode{}, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+	if pitched, _ := bot.state.GetGlobal("pitched").(lua.LBool); !bool(pitched) {
+		t.Fatal("goro.skill returned false for Potion Pitcher on a homunculus")
+	}
+	if blessed, _ := bot.state.GetGlobal("blessed").(lua.LBool); !bool(blessed) {
+		t.Fatal("goro.skill returned false for Blessing on a mercenary")
+	}
+
+	want := make([]byte, 0)
+	want = append(want, network.BuildUseSkillToIDPacketForClientDate(db.SkillAMPotionpitcher, 3, 300, 20080910)...)
+	want = append(want, network.BuildUseSkillToIDPacketForClientDate(db.SkillALBlessing, 10, 301, 20080910)...)
+	readBotTestPackets(t, serverConn, want)
+}
+
+func TestLuaBotRejectsSkillTargetMismatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bot.lua")
+	if err := os.WriteFile(path, []byte(`
+function tick()
+	healed_enemy = goro.skill(300, "AL_HEAL")
+	attacked_player = goro.skill(301, "SM_BASH")
+	attacked_companion = goro.skill(302, "SM_BASH")
+	invalid_level = goro.skill(301, "AL_HEAL", 8)
+end
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sess := session.New()
+	sess.AccountID = 2000000
+	sess.Skills.List = []session.Skill{
+		{ID: db.SkillALHeal, Type: skillTargetFriend, Level: 7, Range: 9, Name: "Heal"},
+		{ID: db.SkillSMBash, Type: skillTargetEnemy, Level: 10, Range: 1, Name: "Bash"},
+	}
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: sess.AccountID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "Poring", X: 11, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	world.Actors[301] = worldstate.Actor{ID: 301, Name: "Alice", X: 11, Y: 21, Job: db.JobAcolyte, ObjectType: actorObjectTypePC, HasObjectType: true}
+	world.Actors[302] = worldstate.Actor{ID: 302, Name: "Lif", X: 10, Y: 21, ObjectType: actorObjectTypeHomunculus, HasObjectType: true}
+
+	bot, err := newLuaBot(client.Context{Session: sess, World: world}, &WorldMode{}, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+	if healed, _ := bot.state.GetGlobal("healed_enemy").(lua.LBool); bool(healed) {
+		t.Fatal("goro.skill allowed Heal on an enemy")
+	}
+	if attacked, _ := bot.state.GetGlobal("attacked_player").(lua.LBool); bool(attacked) {
+		t.Fatal("goro.skill allowed an enemy skill on a player")
+	}
+	if attacked, _ := bot.state.GetGlobal("attacked_companion").(lua.LBool); bool(attacked) {
+		t.Fatal("goro.skill allowed an enemy skill on a companion")
+	}
+	if invalid, _ := bot.state.GetGlobal("invalid_level").(lua.LBool); bool(invalid) {
+		t.Fatal("goro.skill allowed a level above the learned skill level")
+	}
+}
+
 func TestLuaBotDoesNotExposeDyingEnemies(t *testing.T) {
 	sess := session.New()
 	sess.CharID = 2000000
@@ -342,6 +519,17 @@ func assertLuaBool(t *testing.T, table *lua.LTable, key string, want bool) {
 	}
 	if bool(got) != want {
 		t.Fatalf("%s = %v, want %v", key, got, want)
+	}
+}
+
+func assertLuaString(t *testing.T, table *lua.LTable, key, want string) {
+	t.Helper()
+	got, ok := table.RawGetString(key).(lua.LString)
+	if !ok {
+		t.Fatalf("%s = %T, want string", key, table.RawGetString(key))
+	}
+	if string(got) != want {
+		t.Fatalf("%s = %q, want %q", key, got, want)
 	}
 }
 

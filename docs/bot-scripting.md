@@ -64,6 +64,47 @@ Each enemy has:
 - `object_type`
 - `distance`
 
+### `goro.players()`
+
+Returns an array of visible nearby player characters, excluding the local character.
+
+Each player has:
+
+- `id`
+- `name`
+- `x`
+- `y`
+- `job`
+- `distance`
+- `party_member`
+- `hp`
+- `max_hp`
+- `dead`
+
+HP and death information is available for party members when the server has provided it. For other players, `hp` and `max_hp` are `0`.
+
+### `goro.companions()`
+
+Returns an array of visible homunculi and mercenaries.
+
+Each companion has:
+
+- `id`
+- `name`
+- `kind` (`"homunculus"` or `"mercenary"`)
+- `own`
+- `x`
+- `y`
+- `job`
+- `distance`
+- `hp`
+- `max_hp`
+- `sp`
+- `max_sp`
+- `dead`
+
+Vitals are available for the local player's companions and for other companions when the server has provided an actor HP update. Unknown values are `0`.
+
 ### `goro.attack(id)`
 
 Requests a normal attack on the enemy actor with this id.
@@ -76,13 +117,34 @@ This uses the same path as a normal player click, including chase and range hand
 
 Alias for `goro.attack(id)`.
 
-### `goro.skill(id, skill)`
+### `goro.skill(id, skill[, level])`
 
-Requests a target skill on the enemy actor with this id. `skill` can be either a numeric skill id or a learned skill name such as `"AC_DOUBLE"`.
+Requests an actor-targeted skill on the actor with this id. `skill` can be either a numeric skill id or a learned skill name such as `"AC_DOUBLE"` or `"AL_HEAL"`.
 
-Returns `true` if the target and skill are usable, otherwise `false`.
+Returns `true` if the actor is a valid target for the learned skill, otherwise `false`. Enemy skills remain limited to enemies, while friendly skills can target nearby players, homunculi, and mercenaries.
+
+The optional `level` selects a level between `1` and the learned level for skills that support level selection. When omitted, the learned level is used.
 
 This uses the same path as a skill-window or shortcut target click, including chase and range handling. Scripts should avoid calling it every tick for the same target; keep a small retry delay.
+
+```lua
+for _, player in ipairs(goro.players()) do
+	if player.party_member and player.max_hp > 0 and player.hp / player.max_hp < 0.5 then
+		goro.skill(player.id, "AL_HEAL")
+		break
+	end
+end
+```
+
+Friendly skills can target companions in the same way:
+
+```lua
+for _, companion in ipairs(goro.companions()) do
+	if companion.own and companion.kind == "homunculus" then
+		goro.skill(companion.id, "AM_POTIONPITCHER", 3)
+	end
+end
+```
 
 ### `goro.items()`
 

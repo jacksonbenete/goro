@@ -11,6 +11,7 @@ import (
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/session"
 	gameui "github.com/kivutar/goro/ui"
+	worldstate "github.com/kivutar/goro/world"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -96,6 +97,14 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 			L.Push(luaEnemyList(L, ctx, mode.actorDeaths))
 			return 1
 		},
+		"players": func(L *lua.LState) int {
+			L.Push(luaPlayerList(L, ctx))
+			return 1
+		},
+		"companions": func(L *lua.LState) int {
+			L.Push(luaCompanionList(L, ctx, mode))
+			return 1
+		},
 		"items": func(L *lua.LState) int {
 			L.Push(luaItemList(L, ctx))
 			return 1
@@ -129,7 +138,11 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 				L.ArgError(2, "skill id or name expected")
 				return 0
 			}
-			L.Push(lua.LBool(mode.scriptSkill(ctx, id, skillArg)))
+			level := -1
+			if L.GetTop() >= 3 && L.Get(3) != lua.LNil {
+				level = L.CheckInt(3)
+			}
+			L.Push(lua.LBool(mode.scriptSkill(ctx, id, skillArg, level)))
 			return 1
 		},
 		"loot": func(L *lua.LState) int {
@@ -169,17 +182,30 @@ func (m *WorldMode) scriptAttack(ctx client.Context, id uint32) bool {
 	return true
 }
 
-func (m *WorldMode) scriptSkill(ctx client.Context, id uint32, skillArg lua.LValue) bool {
+func (m *WorldMode) scriptSkill(ctx client.Context, id uint32, skillArg lua.LValue, requestedLevel int) bool {
 	if ctx.World == nil {
-		return false
-	}
-	actor, ok := ctx.World.Actors[id]
-	if !ok || !actorCanBeAttackClicked(ctx, actor) {
 		return false
 	}
 	skill, ok := luaSkill(ctx, skillArg)
 	if !ok {
 		glog.Debugf("script skill unavailable target=%d skill=%s", id, skillArg.String())
+		return false
+	}
+	skill = normalizeSessionSkillLevelCap(skill)
+	if requestedLevel != -1 {
+		if requestedLevel < 1 || requestedLevel > skill.Level {
+			glog.Debugf("script skill invalid level skill=%d requested=%d learned=%d", skill.ID, requestedLevel, skill.Level)
+			return false
+		}
+		if selectable, known := db.SkillLevelSelectable(skill.ID); known && !selectable && requestedLevel != skill.Level {
+			glog.Debugf("script skill level not selectable skill=%d requested=%d learned=%d", skill.ID, requestedLevel, skill.Level)
+			return false
+		}
+		skill.Level = requestedLevel
+	}
+	actor, ok, _ := actorForCombatID(ctx, id)
+	if !ok || !actorCanBeSkillTargeted(ctx, skill, actor) {
+		glog.Debugf("script skill invalid target skill=%d target=%d", skill.ID, id)
 		return false
 	}
 	if err := m.skills().UseTarget(ctx, skill, actor, "script"); err != nil {
@@ -281,17 +307,111 @@ func luaEnemyList(L *lua.LState, ctx client.Context, actorDeaths map[uint32]time
 	sort.Ints(ids)
 	for _, id := range ids {
 		actor := ctx.World.Actors[uint32(id)]
-		row := L.NewTable()
-		row.RawSetString("id", lua.LNumber(actor.ID))
-		row.RawSetString("name", lua.LString(actor.Name))
-		row.RawSetString("x", lua.LNumber(actor.X))
-		row.RawSetString("y", lua.LNumber(actor.Y))
-		row.RawSetString("job", lua.LNumber(actor.Job))
+		row := luaActorTable(L, actor, playerX, playerY)
 		row.RawSetString("object_type", lua.LNumber(actor.ObjectType))
-		row.RawSetString("distance", lua.LNumber(cellDistance(playerX, playerY, actor.X, actor.Y)))
 		result.Append(row)
 	}
 	return result
+}
+
+func luaPlayerList(L *lua.LState, ctx client.Context) *lua.LTable {
+	result := L.NewTable()
+	if ctx.World == nil {
+		return result
+	}
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	ids := make([]int, 0, len(ctx.World.Actors))
+	for id, actor := range ctx.World.Actors {
+		if actorCanOpenPlayerContext(ctx, actor) {
+			ids = append(ids, int(id))
+		}
+	}
+	sort.Ints(ids)
+	for _, id := range ids {
+		actor := ctx.World.Actors[uint32(id)]
+		row := luaActorTable(L, actor, playerX, playerY)
+		member := luaPartyMember(ctx.Session, actor.ID)
+		row.RawSetString("party_member", lua.LBool(member != nil))
+		if member != nil {
+			row.RawSetString("hp", lua.LNumber(member.HP))
+			row.RawSetString("max_hp", lua.LNumber(member.MaxHP))
+			row.RawSetString("dead", lua.LBool(member.Dead))
+		} else {
+			row.RawSetString("hp", lua.LNumber(0))
+			row.RawSetString("max_hp", lua.LNumber(0))
+			row.RawSetString("dead", lua.LBool(false))
+		}
+		result.Append(row)
+	}
+	return result
+}
+
+func luaCompanionList(L *lua.LState, ctx client.Context, mode *WorldMode) *lua.LTable {
+	result := L.NewTable()
+	if ctx.World == nil {
+		return result
+	}
+	playerX, playerY := currentPlayerCell(ctx, time.Now())
+	ids := make([]int, 0, 2)
+	for id, actor := range ctx.World.Actors {
+		if actor.HasObjectType && (actor.ObjectType == actorObjectTypeHomunculus || actor.ObjectType == actorObjectTypeMercenary) {
+			ids = append(ids, int(id))
+		}
+	}
+	sort.Ints(ids)
+	for _, id := range ids {
+		actor := ctx.World.Actors[uint32(id)]
+		row := luaActorTable(L, actor, playerX, playerY)
+		kind := "homunculus"
+		if actor.ObjectType == actorObjectTypeMercenary {
+			kind = "mercenary"
+		}
+		row.RawSetString("kind", lua.LString(kind))
+		row.RawSetString("own", lua.LBool(luaCompanionOwnedByPlayer(ctx.Session, actor)))
+		hp, maxHP, sp, maxSP := 0, 0, 0, 0
+		if mode != nil {
+			hp, maxHP, sp, maxSP, _ = mode.companionLife(ctx, actor.ID)
+		}
+		row.RawSetString("hp", lua.LNumber(hp))
+		row.RawSetString("max_hp", lua.LNumber(maxHP))
+		row.RawSetString("sp", lua.LNumber(sp))
+		row.RawSetString("max_sp", lua.LNumber(maxSP))
+		dead := false
+		if mode != nil {
+			_, dead = mode.actorDeaths[actor.ID]
+		}
+		row.RawSetString("dead", lua.LBool(dead))
+		result.Append(row)
+	}
+	return result
+}
+
+func luaActorTable(L *lua.LState, actor worldstate.Actor, playerX, playerY int) *lua.LTable {
+	row := L.NewTable()
+	row.RawSetString("id", lua.LNumber(actor.ID))
+	row.RawSetString("name", lua.LString(actor.Name))
+	row.RawSetString("x", lua.LNumber(actor.X))
+	row.RawSetString("y", lua.LNumber(actor.Y))
+	row.RawSetString("job", lua.LNumber(actor.Job))
+	row.RawSetString("distance", lua.LNumber(cellDistance(playerX, playerY, actor.X, actor.Y)))
+	return row
+}
+
+func luaCompanionOwnedByPlayer(s *session.Session, actor worldstate.Actor) bool {
+	if s == nil {
+		return false
+	}
+	if actor.ObjectType == actorObjectTypeHomunculus {
+		return actor.ID == s.Homunculus.ID
+	}
+	return actor.ObjectType == actorObjectTypeMercenary && actor.ID == s.Mercenary.ID
+}
+
+func luaPartyMember(s *session.Session, actorID uint32) *session.PartyMember {
+	if s == nil || actorID == 0 {
+		return nil
+	}
+	return findPartyMember(&s.Party, actorID)
 }
 
 func luaItemList(L *lua.LState, ctx client.Context) *lua.LTable {
