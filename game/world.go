@@ -101,6 +101,7 @@ type WorldMode struct {
 	lockedAttackID    uint32
 	attackFocusID     uint32
 	attackFocusStart  time.Time
+	scriptHighlight   actorHighlight
 	lastAttackAt      time.Time
 	lastChaseAt       time.Time
 	actorAnims        map[uint32]actorAnimation
@@ -284,6 +285,11 @@ type pendingSkillTarget struct {
 	lastChaseAt time.Time
 }
 
+type actorHighlight struct {
+	id      uint32
+	started time.Time
+}
+
 type pendingSkillTextTarget struct {
 	skill  session.Skill
 	x      int
@@ -396,6 +402,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.pendingSkillText = pendingSkillTextTarget{}
 	m.lockedAttackID = 0
 	m.clearAttackFocus()
+	m.clearScriptHighlight()
 	m.lastAttackAt = time.Time{}
 	m.lastChaseAt = time.Time{}
 	m.actorAnims = make(map[uint32]actorAnimation)

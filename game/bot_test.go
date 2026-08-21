@@ -526,6 +526,245 @@ end
 	}
 }
 
+func TestLuaBotExposesPendingSkillAndActorHighlight(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "targeting.lua")
+	if err := os.WriteFile(path, []byte(`
+function input()
+	pending = goro.pending_skill()
+	highlighted = goro.highlight_actor(300)
+end
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sess := session.New()
+	sess.AccountID = 100
+	sess.CharID = 200
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: sess.CharID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, X: 12, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	mode := &WorldMode{pendingSkill: pendingSkillTarget{
+		skill:    session.Skill{ID: db.SkillACDouble, Name: "Double Strafe", Type: skillTargetEnemy, Level: 3, Range: 9},
+		maxLevel: 10,
+	}}
+	bot, err := newLuaBot(client.Context{Session: sess, World: world}, mode, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bot.inputFrame(true); err != nil {
+		bot.close()
+		t.Fatal(err)
+	}
+
+	pending, ok := bot.state.GetGlobal("pending").(*lua.LTable)
+	if !ok {
+		bot.close()
+		t.Fatalf("pending = %T, want table", bot.state.GetGlobal("pending"))
+	}
+	assertLuaNumber(t, pending, "id", float64(db.SkillACDouble))
+	assertLuaString(t, pending, "name", "Double Strafe")
+	assertLuaNumber(t, pending, "level", 3)
+	assertLuaNumber(t, pending, "max_level", 10)
+	assertLuaNumber(t, pending, "type", skillTargetEnemy)
+	assertLuaString(t, pending, "target", "actor")
+	assertLuaNumber(t, pending, "caster_id", float64(sess.CharID))
+	assertLuaString(t, pending, "caster_kind", "player")
+	assertLuaNumber(t, pending, "caster_x", 10)
+	assertLuaNumber(t, pending, "caster_y", 20)
+	if highlighted, _ := bot.state.GetGlobal("highlighted").(lua.LBool); !bool(highlighted) {
+		bot.close()
+		t.Fatal("goro.highlight_actor returned false")
+	}
+	if mode.scriptHighlight.id != 300 || mode.scriptHighlight.started.IsZero() {
+		bot.close()
+		t.Fatalf("script highlight = %+v, want actor 300", mode.scriptHighlight)
+	}
+
+	bot.close()
+	if mode.scriptHighlight.id != 0 {
+		t.Fatalf("script highlight survived bot close: %+v", mode.scriptHighlight)
+	}
+}
+
+func TestWASDLuaCyclesAndUsesPendingSkillTargets(t *testing.T) {
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
+	inputState := input.NewState()
+	tab, ok := input.KeyCodeFromName("Tab")
+	if !ok {
+		t.Fatal("Tab was not recognized")
+	}
+	enter, ok := input.KeyCodeFromName("Enter")
+	if !ok {
+		t.Fatal("Enter was not recognized")
+	}
+	shift, ok := input.KeyCodeFromName("ShiftLeft")
+	if !ok {
+		t.Fatal("ShiftLeft was not recognized")
+	}
+
+	sess := session.New()
+	sess.AccountID = 100
+	sess.CharID = 200
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: sess.CharID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, X: 12, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	world.Actors[301] = worldstate.Actor{ID: 301, X: 11, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	world.Actors[302] = worldstate.Actor{ID: 302, X: 10, Y: 21, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	world.Actors[400] = worldstate.Actor{ID: 400, X: 10, Y: 19, ObjectType: actorObjectTypePC, HasObjectType: true}
+	skill := session.Skill{ID: db.SkillACDouble, Type: skillTargetEnemy, Level: 3, Range: 9}
+	mode := &WorldMode{
+		pendingSkill: pendingSkillTarget{skill: skill, maxLevel: 10},
+		actorDeaths:  map[uint32]time.Time{302: time.Now().Add(time.Second)},
+	}
+	bot, err := newLuaBot(
+		client.Context{Input: inputState, Network: networkClient, Session: sess, World: world},
+		mode,
+		filepath.Join("..", "scripts", "wasd.lua"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	inputState.SetKeyCode(tab, true)
+	if err := bot.inputFrame(true); err != nil {
+		t.Fatal(err)
+	}
+	if got := mode.scriptHighlight.id; got != 301 {
+		t.Fatalf("first Tab target = %d, want nearest living enemy 301", got)
+	}
+	if inputState.KeyCodeJustPressed(tab) || inputState.JustPressed(input.KeyTab) {
+		t.Fatal("Tab press was not consumed")
+	}
+
+	inputState.SetKeyCode(tab, false)
+	inputState.EndFrame()
+	inputState.SetKeyCode(tab, true)
+	if err := bot.inputFrame(true); err != nil {
+		t.Fatal(err)
+	}
+	if got := mode.scriptHighlight.id; got != 300 {
+		t.Fatalf("second Tab target = %d, want enemy 300", got)
+	}
+
+	inputState.SetKeyCode(tab, false)
+	inputState.EndFrame()
+	inputState.SetKeyCode(shift, true)
+	inputState.SetKeyCode(tab, true)
+	if err := bot.inputFrame(true); err != nil {
+		t.Fatal(err)
+	}
+	if got := mode.scriptHighlight.id; got != 301 {
+		t.Fatalf("reverse Tab target = %d, want enemy 301", got)
+	}
+
+	inputState.SetKeyCode(tab, false)
+	inputState.SetKeyCode(shift, false)
+	inputState.EndFrame()
+	inputState.SetKeyCode(enter, true)
+	if err := bot.inputFrame(true); err != nil {
+		t.Fatal(err)
+	}
+	readBotTestPackets(t, serverConn, network.BuildUseSkillToIDPacketForClientDate(skill.ID, uint16(skill.Level), 301, 20080910))
+	if mode.pendingSkill.skill.ID != 0 {
+		t.Fatalf("pending skill remained after Enter: %+v", mode.pendingSkill)
+	}
+	if mode.scriptHighlight.id != 0 {
+		t.Fatalf("script highlight remained after Enter: %+v", mode.scriptHighlight)
+	}
+	if inputState.KeyCodeJustPressed(enter) || inputState.JustPressed(input.KeyEnter) {
+		t.Fatal("Enter press was not consumed for a focused target")
+	}
+}
+
+func TestWASDLuaCyclesFriendlySkillTargets(t *testing.T) {
+	inputState := input.NewState()
+	tab, ok := input.KeyCodeFromName("Tab")
+	if !ok {
+		t.Fatal("Tab was not recognized")
+	}
+	sess := session.New()
+	sess.AccountID = 100
+	sess.CharID = 200
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: sess.CharID, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "Alice", X: 11, Y: 20, ObjectType: actorObjectTypePC, HasObjectType: true}
+	world.Actors[301] = worldstate.Actor{ID: 301, Name: "Lif", X: 12, Y: 20, ObjectType: actorObjectTypeHomunculus, HasObjectType: true}
+	mode := &WorldMode{pendingSkill: pendingSkillTarget{
+		skill: session.Skill{ID: db.SkillALHeal, Type: skillTargetFriend, Level: 7, Range: 9},
+	}}
+	bot, err := newLuaBot(
+		client.Context{Input: inputState, Session: sess, World: world},
+		mode,
+		filepath.Join("..", "scripts", "wasd.lua"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	pressTab := func() {
+		t.Helper()
+		inputState.SetKeyCode(tab, true)
+		if err := bot.inputFrame(true); err != nil {
+			t.Fatal(err)
+		}
+		inputState.SetKeyCode(tab, false)
+		inputState.EndFrame()
+	}
+	for index, want := range []uint32{sess.AccountID, 300, 301} {
+		pressTab()
+		if got := mode.scriptHighlight.id; got != want {
+			t.Fatalf("friendly Tab target %d = %d, want %d", index+1, got, want)
+		}
+	}
+}
+
+func TestWASDLuaLeavesUnrelatedTargetingKeysAlone(t *testing.T) {
+	inputState := input.NewState()
+	enter, ok := input.KeyCodeFromName("Enter")
+	if !ok {
+		t.Fatal("Enter was not recognized")
+	}
+	tab, ok := input.KeyCodeFromName("Tab")
+	if !ok {
+		t.Fatal("Tab was not recognized")
+	}
+	mode := &WorldMode{pendingSkill: pendingSkillTarget{
+		skill: session.Skill{ID: db.SkillACDouble, Type: skillTargetEnemy, Level: 3, Range: 9},
+	}}
+	bot, err := newLuaBot(
+		client.Context{Input: inputState},
+		mode,
+		filepath.Join("..", "scripts", "wasd.lua"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	inputState.SetKeyCode(enter, true)
+	if err := bot.inputFrame(true); err != nil {
+		t.Fatal(err)
+	}
+	if !inputState.KeyCodeJustPressed(enter) || !inputState.JustPressed(input.KeyEnter) {
+		t.Fatal("Enter without a focused target was consumed")
+	}
+
+	inputState.SetKeyCode(enter, false)
+	inputState.EndFrame()
+	mode.pendingSkill = pendingSkillTarget{
+		skill: session.Skill{ID: 18, Type: skillTargetPlace, Level: 1, Range: 9},
+	}
+	inputState.SetKeyCode(tab, true)
+	if err := bot.inputFrame(true); err != nil {
+		t.Fatal(err)
+	}
+	if !inputState.KeyCodeJustPressed(tab) || !inputState.JustPressed(input.KeyTab) {
+		t.Fatal("Tab for a ground-targeted skill was consumed")
+	}
+}
+
 func TestExampleLuaBotUsesPotionRestsAndResumes(t *testing.T) {
 	networkClient, serverConn := newBotTestConnection(t, 20080910)
 	sess := session.New()

@@ -20,6 +20,7 @@ const botTickInterval = 150 * time.Millisecond
 type luaBot struct {
 	path              string
 	state             *lua.LState
+	mode              *WorldMode
 	nextTick          time.Time
 	disabled          bool
 	keyboardAvailable bool
@@ -74,6 +75,7 @@ func newLuaBot(ctx client.Context, mode *WorldMode, path string) (*luaBot, error
 	bot := &luaBot{
 		path:     path,
 		state:    lua.NewState(),
+		mode:     mode,
 		nextTick: time.Now().Add(botTickInterval),
 	}
 	bot.registerAPI(ctx, mode)
@@ -85,11 +87,16 @@ func newLuaBot(ctx client.Context, mode *WorldMode, path string) (*luaBot, error
 }
 
 func (b *luaBot) close() {
-	if b == nil || b.state == nil {
+	if b == nil {
 		return
 	}
-	b.state.Close()
-	b.state = nil
+	if b.mode != nil {
+		b.mode.clearScriptHighlight()
+	}
+	if b.state != nil {
+		b.state.Close()
+		b.state = nil
+	}
 }
 
 func (b *luaBot) tick() error {
@@ -123,7 +130,7 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 			return 1
 		},
 		"players": func(L *lua.LState) int {
-			L.Push(luaPlayerList(L, ctx))
+			L.Push(luaPlayerList(L, ctx, mode))
 			return 1
 		},
 		"companions": func(L *lua.LState) int {
@@ -176,6 +183,20 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 				level = L.CheckInt(3)
 			}
 			L.Push(lua.LBool(mode.scriptSkill(ctx, id, skillArg, level)))
+			return 1
+		},
+		"pending_skill": func(L *lua.LState) int {
+			L.Push(luaPendingSkill(L, ctx, mode))
+			return 1
+		},
+		"use_pending_skill": func(L *lua.LState) int {
+			id := luaOptionalActorID(L, 1)
+			L.Push(lua.LBool(mode.scriptUsePendingSkill(ctx, id)))
+			return 1
+		},
+		"highlight_actor": func(L *lua.LState) int {
+			id := luaOptionalActorID(L, 1)
+			L.Push(lua.LBool(mode.scriptHighlightActor(ctx, id)))
 			return 1
 		},
 		"loot": func(L *lua.LState) int {
@@ -238,7 +259,8 @@ func (m *WorldMode) scriptSkill(ctx client.Context, id uint32, skillArg lua.LVal
 		skill.Level = requestedLevel
 	}
 	actor, ok, _ := actorForCombatID(ctx, id)
-	if !ok || !actorCanBeSkillTargeted(ctx, skill, actor) {
+	_, dead := m.actorDeaths[id]
+	if !ok || dead || !actorCanBeSkillTargeted(ctx, skill, actor) {
 		glog.Debugf("script skill invalid target skill=%d target=%d", skill.ID, id)
 		return false
 	}
@@ -347,7 +369,7 @@ func luaEnemyList(L *lua.LState, ctx client.Context, actorDeaths map[uint32]time
 	return result
 }
 
-func luaPlayerList(L *lua.LState, ctx client.Context) *lua.LTable {
+func luaPlayerList(L *lua.LState, ctx client.Context, mode *WorldMode) *lua.LTable {
 	result := L.NewTable()
 	if ctx.World == nil {
 		return result
@@ -365,15 +387,19 @@ func luaPlayerList(L *lua.LState, ctx client.Context) *lua.LTable {
 		row := luaActorTable(L, actor, playerX, playerY)
 		member := luaPartyMember(ctx.Session, actor.ID)
 		row.RawSetString("party_member", lua.LBool(member != nil))
+		dead := false
+		if mode != nil {
+			_, dead = mode.actorDeaths[actor.ID]
+		}
 		if member != nil {
 			row.RawSetString("hp", lua.LNumber(member.HP))
 			row.RawSetString("max_hp", lua.LNumber(member.MaxHP))
-			row.RawSetString("dead", lua.LBool(member.Dead))
+			dead = dead || member.Dead
 		} else {
 			row.RawSetString("hp", lua.LNumber(0))
 			row.RawSetString("max_hp", lua.LNumber(0))
-			row.RawSetString("dead", lua.LBool(false))
 		}
+		row.RawSetString("dead", lua.LBool(dead))
 		result.Append(row)
 	}
 	return result
@@ -502,7 +528,7 @@ func luaPlayerTable(L *lua.LState, ctx client.Context) *lua.LTable {
 	hp, maxHP := scriptHP(ctx)
 	sp, maxSP := scriptSP(ctx)
 	if ctx.Session != nil {
-		result.RawSetString("id", lua.LNumber(ctx.Session.CharID))
+		result.RawSetString("id", lua.LNumber(localSkillTarget(ctx)))
 	}
 	result.RawSetString("x", lua.LNumber(x))
 	result.RawSetString("y", lua.LNumber(y))

@@ -366,6 +366,9 @@ func (m *WorldMode) removeActorNow(ctx client.Context, id uint32) {
 
 func (m *WorldMode) clearRemovedActorState(id uint32) {
 	m.removeWorldEffectsForActor(id)
+	if m.scriptHighlight.id == id {
+		m.clearScriptHighlight()
+	}
 	delete(m.actorAnims, id)
 	delete(m.actorDeaths, id)
 	delete(m.actorVanishes, id)
@@ -426,6 +429,9 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 		}
 		if m.attackFocusID == id {
 			m.clearAttackFocus()
+		}
+		if m.scriptHighlight.id == id {
+			m.clearScriptHighlight()
 		}
 		glog.Debugf("actor death removed id=%d", id)
 	}
@@ -699,6 +705,7 @@ func (m *WorldMode) drawSceneActorOverlays(screen *render.Frame, ctx client.Cont
 		m.drawActorLifeBar(screen, ctx, entry)
 	}
 	m.drawAttackFocusMarker(screen, ctx, now, entries)
+	m.drawScriptHighlightMarker(screen, ctx, now, entries)
 	m.drawVendingBoardLabels(screen, ctx, entries)
 	m.drawChatRoomBoardLabels(screen, ctx, entries)
 	m.drawSpeechBubbles(screen, entries, now)

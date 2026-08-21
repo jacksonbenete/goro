@@ -1772,6 +1772,9 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 			m.actorDeaths = make(map[uint32]time.Time)
 		}
 		m.actorDeaths[id] = now.Add(visibleDuration)
+		if m.scriptHighlight.id == id {
+			m.clearScriptHighlight()
+		}
 		if m.actorLife != nil {
 			if life, ok := m.actorLife[id]; ok {
 				life.hp = 0
@@ -1848,20 +1851,31 @@ func (m *WorldMode) actorVanishAlpha(id uint32, now time.Time) float64 {
 }
 
 func (m *WorldMode) drawAttackFocusMarker(screen *render.Frame, ctx client.Context, now time.Time, entries []sceneActorDrawEntry) {
-	if m.attackFocusID == 0 || screen == nil {
+	m.drawActorFocusMarker(screen, ctx, now, entries, m.attackFocusID, &m.attackFocusStart, false)
+}
+
+func (m *WorldMode) drawScriptHighlightMarker(screen *render.Frame, ctx client.Context, now time.Time, entries []sceneActorDrawEntry) {
+	if actorIDsMatch(ctx, m.scriptHighlight.id, m.attackFocusID) {
 		return
 	}
-	if m.attackFocusStart.IsZero() {
-		m.attackFocusStart = now
+	m.drawActorFocusMarker(screen, ctx, now, entries, m.scriptHighlight.id, &m.scriptHighlight.started, true)
+}
+
+func (m *WorldMode) drawActorFocusMarker(screen *render.Frame, ctx client.Context, now time.Time, entries []sceneActorDrawEntry, targetID uint32, started *time.Time, matchLocalAlias bool) {
+	if targetID == 0 || started == nil || screen == nil {
+		return
+	}
+	if started.IsZero() {
+		*started = now
 	}
 	action := cursorActionLock
 	state := m.loadedCursorState(ctx)
-	frame, ok := state.frameAt(action, cursorInfo(action), m.attackFocusStart, now)
+	frame, ok := state.frameAt(action, cursorInfo(action), *started, now)
 	if !ok {
 		return
 	}
 	for _, entry := range entries {
-		if entry.actor.ID != m.attackFocusID {
+		if entry.actor.ID != targetID && !(matchLocalAlias && entry.isPlayer && isLocalActor(ctx, targetID)) {
 			continue
 		}
 		x, y := actorPickBoundsCenter(entry.screenX, entry.screenY, entry.scale)
@@ -1870,6 +1884,19 @@ func (m *WorldMode) drawAttackFocusMarker(screen *render.Frame, ctx client.Conte
 		opts.Filter = spriteDrawFilter()
 		screen.DrawImage(frame.image, &opts)
 		return
+	}
+}
+
+func actorIDsMatch(ctx client.Context, a, b uint32) bool {
+	if a == 0 || b == 0 {
+		return false
+	}
+	return a == b || (isLocalActor(ctx, a) && isLocalActor(ctx, b))
+}
+
+func (m *WorldMode) clearScriptHighlight() {
+	if m != nil {
+		m.scriptHighlight = actorHighlight{}
 	}
 }
 

@@ -20,6 +20,18 @@ end
 
 All functions are exposed through the global `goro` table.
 
+Scripts may also define an optional global `input()` function. Goro calls it once per frame so keyboard edges can be handled without waiting for the slower bot tick.
+
+### `goro.keyboard`
+
+The keyboard API uses layout-independent physical key names such as `"KeyW"`, `"Tab"`, and `"ShiftLeft"`.
+
+- `available()` reports whether keyboard input is available to the script. It is `false` while a UI control has keyboard focus.
+- `is_down(code)` reports held state.
+- `was_pressed(code)` and `was_released(code)` inspect edges without consuming them.
+- `consume_press(code)` consumes a press edge and returns whether one was available. Held state is unchanged.
+- `text()` returns the frame's layout-translated text input.
+
 ### `goro.player()`
 
 Returns the local player state.
@@ -145,6 +157,38 @@ for _, companion in ipairs(goro.companions()) do
 	end
 end
 ```
+
+### `goro.pending_skill()`
+
+Returns the skill currently waiting for a target, or `nil` when no skill is armed or a chosen target is already being chased.
+
+Fields:
+
+- `id`
+- `name`
+- `level`
+- `max_level`
+- `type` (the server target flags)
+- `range`
+- `target` (`"actor"`, `"ground"`, or `"self"`)
+- `caster_id`
+- `caster_kind` (`"player"`, `"homunculus"`, or `"mercenary"`)
+- `caster_x`
+- `caster_y`
+
+The caster fields are omitted when the caster is not currently available.
+
+### `goro.use_pending_skill(id)`
+
+Submits an actor as the target of the skill returned by `goro.pending_skill()`. It returns `true` when the target is valid and the use or chase was started, otherwise `false`.
+
+Unlike `goro.skill()`, this uses the exact armed skill and selected level, including homunculus and mercenary skills.
+
+### `goro.highlight_actor(id)`
+
+Shows the standard target marker on a visible actor. Pass `nil` or `0` to clear it. The function returns `false` when a nonzero actor id is not visible or is dying.
+
+This is a presentation primitive and does not select, attack, or cast on the actor. For example, `scripts/wasd.lua` combines it with the generic keyboard API and the pending-skill functions to implement Tab target cycling entirely in Lua.
 
 ### `goro.items()`
 

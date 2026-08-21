@@ -15,12 +15,136 @@ local attack_retry_seconds = 1.2
 local loot_retry_seconds = 1.0
 local last_attack_at = -math.huge
 local last_loot_at = -math.huge
+local skill_target_id = nil
+local skill_target_skill_id = nil
+
+local skill_target_enemy = 1
+local skill_target_self = 4
+local skill_target_friend = 16
+local skill_target_pet = 64
+local skill_target_homunculus = 128
 
 local function clear_target()
 	active_dx = 0
 	active_dy = 0
 	target_x = nil
 	target_y = nil
+end
+
+local function clear_skill_target()
+	if skill_target_id ~= nil or skill_target_skill_id ~= nil then
+		goro.highlight_actor(nil)
+	end
+	skill_target_id = nil
+	skill_target_skill_id = nil
+end
+
+local function has_flag(value, flag)
+	return value % (flag * 2) >= flag
+end
+
+local function append_skill_targets(targets, seen, entries)
+	for _, entry in ipairs(entries) do
+		if entry.id ~= nil and entry.id ~= 0 and not entry.dead and not seen[entry.id] then
+			seen[entry.id] = true
+			table.insert(targets, entry)
+		end
+	end
+end
+
+local function skill_targets(pending)
+	local targets = {}
+	local seen = {}
+	local flags = pending.type
+	if has_flag(flags, skill_target_enemy) or has_flag(flags, skill_target_pet) then
+		append_skill_targets(targets, seen, goro.enemies())
+	end
+	if has_flag(flags, skill_target_friend) or has_flag(flags, skill_target_self) then
+		append_skill_targets(targets, seen, { goro.player() })
+		append_skill_targets(targets, seen, goro.players())
+		append_skill_targets(targets, seen, goro.companions())
+	end
+	if has_flag(flags, skill_target_homunculus) then
+		append_skill_targets(targets, seen, goro.companions())
+	end
+
+	local caster_x = pending.caster_x or goro.player().x
+	local caster_y = pending.caster_y or goro.player().y
+	table.sort(targets, function(a, b)
+		local adx = a.x - caster_x
+		local ady = a.y - caster_y
+		local bdx = b.x - caster_x
+		local bdy = b.y - caster_y
+		local adistance = adx * adx + ady * ady
+		local bdistance = bdx * bdx + bdy * bdy
+		if adistance == bdistance then
+			return a.id < b.id
+		end
+		return adistance < bdistance
+	end)
+	return targets
+end
+
+local function cycle_skill_target(pending, reverse)
+	local targets = skill_targets(pending)
+	if #targets == 0 then
+		clear_skill_target()
+		skill_target_skill_id = pending.id
+		return
+	end
+
+	local current = nil
+	for index, target in ipairs(targets) do
+		if target.id == skill_target_id then
+			current = index
+			break
+		end
+	end
+	local next_index = 1
+	if reverse then
+		next_index = #targets
+		if current ~= nil then
+			next_index = (current - 2) % #targets + 1
+		end
+	elseif current ~= nil then
+		next_index = current % #targets + 1
+	end
+
+	local id = targets[next_index].id
+	if goro.highlight_actor(id) then
+		skill_target_id = id
+	else
+		clear_skill_target()
+		skill_target_skill_id = pending.id
+	end
+end
+
+local function handle_skill_target_input()
+	local pending = goro.pending_skill()
+	if pending == nil or pending.target ~= "actor" then
+		clear_skill_target()
+		return false
+	end
+	if skill_target_skill_id ~= pending.id then
+		clear_skill_target()
+		skill_target_skill_id = pending.id
+	end
+	if goro.keyboard.was_pressed("Escape") then
+		clear_skill_target()
+		return false
+	end
+	if goro.keyboard.consume_press("Tab") then
+		local reverse = goro.keyboard.is_down("ShiftLeft")
+			or goro.keyboard.is_down("ShiftRight")
+		cycle_skill_target(pending, reverse)
+		return true
+	end
+	if skill_target_id ~= nil and goro.keyboard.consume_press("Enter") then
+		goro.use_pending_skill(skill_target_id)
+		clear_skill_target()
+		return true
+	end
+	return false
 end
 
 local function request_walk(player, dx, dy, max_distance)
@@ -100,6 +224,14 @@ function input()
 	end
 	goro.keyboard.consume_press("Space")
 	goro.keyboard.consume_press("KeyF")
+	if handle_skill_target_input() then
+		fight_down = false
+		loot_down = false
+		attack_target_id = nil
+		loot_target_id = nil
+		clear_target()
+		return
+	end
 
 	fight_down = goro.keyboard.is_down("KeyF")
 	loot_down = goro.keyboard.is_down("Space")
