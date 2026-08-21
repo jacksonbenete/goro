@@ -607,8 +607,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	}
 	m.ui.console.UpdatePresentation(ctx)
 	keyboardBlocked := m.ui.keyboardInputBlocked(ctx)
+	m.updateBotInput(ctx, !keyboardBlocked)
 	if !keyboardBlocked {
-		m.updateBotInput(ctx)
 		if m.skills().CancelFromInput(ctx) {
 			return nil, nil
 		}

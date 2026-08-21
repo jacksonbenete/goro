@@ -243,7 +243,7 @@ func TestLuaBotCanStartLongWalkFromPhysicalKey(t *testing.T) {
 	}
 	defer bot.close()
 
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	want, ok := network.BuildWalkToXYPacketForClientDate(10, 28, 20080910)
@@ -263,7 +263,7 @@ func TestLuaBotCanStartLongWalkFromPhysicalKey(t *testing.T) {
 
 	world.Player.Y = 21
 	mode.walkCooldownUntil = time.Time{}
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	if err := serverConn.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
@@ -275,7 +275,7 @@ func TestLuaBotCanStartLongWalkFromPhysicalKey(t *testing.T) {
 
 	world.Player.Y = 25
 	mode.walkCooldownUntil = time.Time{}
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	want, ok = network.BuildWalkToXYPacketForClientDate(10, 33, 20080910)
@@ -305,7 +305,7 @@ func TestLuaBotCanStartLongWalkFromPhysicalKey(t *testing.T) {
 		},
 	}
 	mode.walkCooldownUntil = time.Time{}
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	want, ok = network.BuildWalkToXYPacketForClientDate(11, 25, 20080910)
@@ -339,7 +339,7 @@ func TestLuaBotCanWalkDiagonally(t *testing.T) {
 	}
 	defer bot.close()
 
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	want, ok := network.BuildWalkToXYPacketForClientDate(18, 28, 20080910)
@@ -374,7 +374,7 @@ func TestLuaBotHeldSpaceLootsNearbyItemsInDistanceOrder(t *testing.T) {
 	}
 	defer bot.close()
 
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	if err := bot.tick(); err != nil {
@@ -383,8 +383,16 @@ func TestLuaBotHeldSpaceLootsNearbyItemsInDistanceOrder(t *testing.T) {
 	readBotTestPackets(t, serverConn, network.BuildItemPickupPacketForClientDate(401, 20080910))
 	assertNoBotTestPacket(t, serverConn, func() error { return bot.tick() })
 
+	if err := bot.inputFrame(false); err != nil {
+		t.Fatal(err)
+	}
 	delete(world.Items, 401)
 	world.Player.X = 11
+	assertNoBotTestPacket(t, serverConn, func() error { return bot.tick() })
+
+	if err := bot.inputFrame(true); err != nil {
+		t.Fatal(err)
+	}
 	if err := bot.tick(); err != nil {
 		t.Fatal(err)
 	}
@@ -422,7 +430,7 @@ func TestLuaBotHeldFightsNearbyEnemiesInDistanceOrder(t *testing.T) {
 	}
 	defer bot.close()
 
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	if err := bot.tick(); err != nil {
@@ -449,7 +457,9 @@ func TestLuaKeyboardExposesTextAndNonConsumingEdges(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "keyboard.lua")
 	if err := os.WriteFile(path, []byte(`
 function input()
+	available = goro.keyboard.available()
 	text = goro.keyboard.text()
+	down = goro.keyboard.is_down("Enter")
 	entered = goro.keyboard.was_pressed("Enter")
 	released = goro.keyboard.was_released("Enter")
 	unknown = goro.keyboard.is_down("NotAKey")
@@ -471,11 +481,17 @@ end
 	}
 	defer bot.close()
 
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	if text, _ := bot.state.GetGlobal("text").(lua.LString); string(text) != "hé" {
 		t.Fatalf("keyboard text = %q, want %q", text, "hé")
+	}
+	if available, _ := bot.state.GetGlobal("available").(lua.LBool); !bool(available) {
+		t.Fatal("keyboard was unavailable without UI capture")
+	}
+	if down, _ := bot.state.GetGlobal("down").(lua.LBool); !bool(down) {
+		t.Fatal("held Enter key was not exposed")
 	}
 	if entered, _ := bot.state.GetGlobal("entered").(lua.LBool); !bool(entered) {
 		t.Fatal("Enter press was not exposed")
@@ -484,9 +500,25 @@ end
 		t.Fatal("unknown key code was reported as down")
 	}
 
+	if err := bot.inputFrame(false); err != nil {
+		t.Fatal(err)
+	}
+	if available, _ := bot.state.GetGlobal("available").(lua.LBool); bool(available) {
+		t.Fatal("keyboard remained available during UI capture")
+	}
+	if text, _ := bot.state.GetGlobal("text").(lua.LString); string(text) != "" {
+		t.Fatalf("captured keyboard text = %q, want empty", text)
+	}
+	if down, _ := bot.state.GetGlobal("down").(lua.LBool); bool(down) {
+		t.Fatal("held key leaked through UI capture")
+	}
+	if entered, _ := bot.state.GetGlobal("entered").(lua.LBool); bool(entered) {
+		t.Fatal("key press leaked through UI capture")
+	}
+
 	inputState.EndFrame()
 	inputState.SetKeyCode(enter, false)
-	if err := bot.inputFrame(); err != nil {
+	if err := bot.inputFrame(true); err != nil {
 		t.Fatal(err)
 	}
 	if released, _ := bot.state.GetGlobal("released").(lua.LBool); !bool(released) {

@@ -18,10 +18,11 @@ import (
 const botTickInterval = 150 * time.Millisecond
 
 type luaBot struct {
-	path     string
-	state    *lua.LState
-	nextTick time.Time
-	disabled bool
+	path              string
+	state             *lua.LState
+	nextTick          time.Time
+	disabled          bool
+	keyboardAvailable bool
 }
 
 func (m *WorldMode) updateBot(ctx client.Context, now time.Time) {
@@ -57,12 +58,12 @@ func (m *WorldMode) updateBot(ctx client.Context, now time.Time) {
 	}
 }
 
-func (m *WorldMode) updateBotInput(ctx client.Context) {
+func (m *WorldMode) updateBotInput(ctx client.Context, keyboardAvailable bool) {
 	path := strings.TrimSpace(ctx.Config.Script.Path)
 	if path == "" || m.bot == nil || m.bot.path != path || m.bot.disabled {
 		return
 	}
-	if err := m.bot.inputFrame(); err != nil {
+	if err := m.bot.inputFrame(keyboardAvailable); err != nil {
 		glog.Warnf("lua script input failed path=%q: %v", m.bot.path, err)
 		m.bot.close()
 		m.bot.disabled = true
@@ -102,10 +103,11 @@ func (b *luaBot) tick() error {
 	return b.state.CallByParam(lua.P{Fn: fn, NRet: 0, Protect: true})
 }
 
-func (b *luaBot) inputFrame() error {
+func (b *luaBot) inputFrame(keyboardAvailable bool) error {
 	if b == nil || b.state == nil {
 		return nil
 	}
+	b.keyboardAvailable = keyboardAvailable
 	fn := b.state.GetGlobal("input")
 	if fn == lua.LNil {
 		return nil
@@ -198,7 +200,7 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 			return 1
 		},
 	})
-	registerLuaKeyboardAPI(b.state, api, ctx)
+	registerLuaKeyboardAPI(b.state, api, ctx, b)
 	b.state.SetGlobal("goro", api)
 }
 
