@@ -254,7 +254,7 @@ func TestApplyItemPickupAckReceiveItemReplacesStackAndReportsGain(t *testing.T) 
 	}
 }
 
-func TestApplyItemPickupAckFailureDoesNotAddItem(t *testing.T) {
+func TestApplyItemPickupAckFailureDoesNotAddItemOrClearPendingPickup(t *testing.T) {
 	sessionState := &session.Session{}
 	mode := &WorldMode{
 		pendingPickup: pickupIntent{itemID: 9001},
@@ -267,8 +267,27 @@ func TestApplyItemPickupAckFailureDoesNotAddItem(t *testing.T) {
 	if len(sessionState.Inventory.Items) != 0 {
 		t.Fatalf("inventory items = %+v, want none", sessionState.Inventory.Items)
 	}
-	if mode.pendingPickup.itemID != 0 {
-		t.Fatalf("pending pickup = %d, want cleared", mode.pendingPickup.itemID)
+	if mode.pendingPickup.itemID != 9001 {
+		t.Fatalf("pending pickup = %d, want 9001", mode.pendingPickup.itemID)
+	}
+}
+
+func TestApplyItemPickupAckSuccessDoesNotClearPendingPickup(t *testing.T) {
+	mode := &WorldMode{
+		pendingPickup: pickupIntent{itemID: 9002},
+	}
+	ctx := client.Context{Session: &session.Session{}}
+
+	if _, _, ok := mode.applyItemPickupAck(ctx, network.ItemPickupAck{
+		Index:  7,
+		ItemID: 512,
+		Amount: 1,
+		Result: itemPickupResultSuccess,
+	}); !ok {
+		t.Fatal("successful pickup acknowledgment was rejected")
+	}
+	if mode.pendingPickup.itemID != 9002 {
+		t.Fatalf("pending pickup = %d, want 9002", mode.pendingPickup.itemID)
 	}
 }
 

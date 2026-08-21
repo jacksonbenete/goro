@@ -91,11 +91,9 @@ func (m *WorldMode) applyFloorItemDisappear(ctx client.Context, disappear networ
 
 func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPickupAck) (session.InventoryItem, int, bool) {
 	if !itemPickupAckAddsItem(ack) {
-		m.pendingPickup = pickupIntent{}
 		glog.Warnf("item pickup ack failed index=%d item_id=%d amount=%d result=%d", ack.Index, ack.ItemID, ack.Amount, ack.Result)
 		return session.InventoryItem{}, 0, false
 	}
-	m.pendingPickup = pickupIntent{}
 	item := session.InventoryItem{
 		Index:      ack.Index,
 		ItemID:     ack.ItemID,
