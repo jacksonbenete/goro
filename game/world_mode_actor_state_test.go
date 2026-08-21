@@ -1384,6 +1384,44 @@ func TestActorBillboardScreenScaleUsesProjectedReferenceHeight(t *testing.T) {
 	}
 }
 
+func TestActorBillboardScreenScaleDoesNotChangeWithCameraPitch(t *testing.T) {
+	const (
+		width  = 800
+		height = 600
+		x      = 10.5
+		y      = 20.5
+		z      = 5
+	)
+	want := actorBillboardScreenScale(newSceneProjectionForTargetYawPitchZoom(width, height, x, y, z, 0, sceneCameraPitch(), 125), x, y, z)
+	for _, pitch := range []float64{defaultCameraMinPitch, 215, 235, defaultCameraMaxPitch} {
+		projection := newSceneProjectionForTargetYawPitchZoom(width, height, x, y, z, 0, pitch, 125)
+		if got := actorBillboardScreenScale(projection, x, y, z); math.Abs(got-want) > 0.000001 {
+			t.Fatalf("actor scale at pitch %.1f = %.6f, want %.6f", pitch, got, want)
+		}
+	}
+}
+
+func TestActorBillboardScreenScaleFollowsZoomAndPerspectiveDepth(t *testing.T) {
+	const (
+		width  = 800
+		height = 600
+		x      = 10.5
+		y      = 20.5
+		z      = 5
+	)
+	zoomedIn := actorBillboardScreenScale(newSceneProjectionForTargetYawPitchZoom(width, height, x, y, z, 0, 235, defaultCameraMinZoom), x, y, z)
+	zoomedOut := actorBillboardScreenScale(newSceneProjectionForTargetYawPitchZoom(width, height, x, y, z, 0, 235, defaultCameraMaxZoom), x, y, z)
+	if zoomedIn <= zoomedOut {
+		t.Fatalf("actor scale did not follow zoom: zoomed in %.6f, zoomed out %.6f", zoomedIn, zoomedOut)
+	}
+
+	nearer := actorBillboardScreenScale(newSceneProjectionForTargetYawPitchZoom(width, height, x, y, z, 0, 235, 125), x, y-5, z)
+	farther := actorBillboardScreenScale(newSceneProjectionForTargetYawPitchZoom(width, height, x, y, z, 0, 235, 125), x, y+5, z)
+	if nearer <= farther {
+		t.Fatalf("actor scale did not follow perspective depth: nearer %.6f, farther %.6f", nearer, farther)
+	}
+}
+
 func TestActorAnchorOutsideViewportKeepsBodyVisibleBelowScreen(t *testing.T) {
 	if actorAnchorOutsideViewport(400, 600+150, 800, 600, 1) {
 		t.Fatal("actor should remain visible while its body can still overlap the bottom edge")

@@ -1197,6 +1197,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 func (m *WorldMode) nextWorldMode() *WorldMode {
 	next := NewWorldMode()
 	next.camera.yawOffset = m.camera.yawOffset
+	next.camera.pitch = m.camera.pitch
 	next.camera.zoom = m.camera.zoom
 	next.camera.zoomTarget = m.camera.zoomTarget
 	next.ui.console = m.ui.console

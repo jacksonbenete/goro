@@ -12,7 +12,6 @@ type sceneFog struct {
 	enabled bool
 	near    float64
 	far     float64
-	factor  float64
 	color   color.RGBA
 }
 
@@ -21,9 +20,11 @@ func sceneFogFromMap(manager *res.Manager, mapName string, cfg config.FogConfig)
 		return sceneFog{}
 	}
 	parameter, ok := manager.FogParameter(mapName)
-	if !ok || parameter.Far <= parameter.Near || parameter.Factor <= 0 {
+	if !ok || parameter.Far <= parameter.Near {
 		return sceneFog{}
 	}
+	// The table's factor column is parsed for compatibility, but the reference
+	// clients apply the near/far fog ramp at full strength.
 	fogColor := parameter.Color
 	if weatherColor, ok := sceneFogColorForMapWeather(mapName); ok {
 		fogColor = weatherColor
@@ -32,7 +33,6 @@ func sceneFogFromMap(manager *res.Manager, mapName string, cfg config.FogConfig)
 		enabled: true,
 		near:    parameter.Near * 240,
 		far:     parameter.Far * 240,
-		factor:  clampFloat(parameter.Factor, 0, 1),
 		color:   fogColor,
 	}
 }
@@ -52,7 +52,7 @@ func (f sceneFog) mixColor(c color.RGBA, depth float64) color.RGBA {
 	if !f.enabled || !isFinite(depth) {
 		return c
 	}
-	amount := smoothstep(f.near, f.far, depth) * f.factor
+	amount := smoothstep(f.near, f.far, depth)
 	if amount <= 0 {
 		return c
 	}
@@ -72,7 +72,7 @@ func (f sceneFog) attenuateColor(c color.RGBA, depth float64) color.RGBA {
 	if !f.enabled || !isFinite(depth) {
 		return c
 	}
-	amount := smoothstep(f.near, f.far, depth) * f.factor
+	amount := smoothstep(f.near, f.far, depth)
 	if amount <= 0 {
 		return c
 	}

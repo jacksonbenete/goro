@@ -242,6 +242,7 @@ func TestFollowCameraTrackingResetKeepsUserView(t *testing.T) {
 		z:           3,
 		lastUpdate:  time.Now(),
 		yawOffset:   73,
+		pitch:       245,
 		zoom:        148,
 		zoomTarget:  152,
 	}
@@ -251,8 +252,8 @@ func TestFollowCameraTrackingResetKeepsUserView(t *testing.T) {
 	if camera.initialized || camera.x != 0 || camera.y != 0 || camera.z != 0 || !camera.lastUpdate.IsZero() {
 		t.Fatalf("tracking state was not reset: %+v", camera)
 	}
-	if camera.yawOffset != 73 || camera.zoom != 148 || camera.zoomTarget != 152 {
-		t.Fatalf("user view = yaw %.1f zoom %.1f target %.1f", camera.yawOffset, camera.zoom, camera.zoomTarget)
+	if camera.yawOffset != 73 || camera.pitch != 245 || camera.zoom != 148 || camera.zoomTarget != 152 {
+		t.Fatalf("user view = yaw %.1f pitch %.1f zoom %.1f target %.1f", camera.yawOffset, camera.pitch, camera.zoom, camera.zoomTarget)
 	}
 }
 
@@ -295,18 +296,28 @@ func TestIndoorCameraYawIsLockedWithoutLosingOutdoorRotation(t *testing.T) {
 	camera := followCamera{initialized: true, x: 10.5, y: 20.5, z: 0}
 
 	camera.Rotate(90)
+	camera.Tilt(30)
 	projection := camera.Projection(ctx, 800, 600, time.Now())
 	if got := projection.cameraYaw; got != -45 {
 		t.Fatalf("indoor projection yaw = %.1f, want -45.0", got)
 	}
+	if got := projection.cameraPitch; got != sceneCameraPitch() {
+		t.Fatalf("indoor projection pitch = %.1f, want fixed %.1f", got, sceneCameraPitch())
+	}
 	if camera.yawOffset != 90 {
 		t.Fatalf("stored outdoor yaw offset = %.1f, want 90.0", camera.yawOffset)
+	}
+	if got := camera.currentPitch(); got != defaultCameraMaxPitch {
+		t.Fatalf("stored outdoor pitch = %.1f, want %.1f", got, defaultCameraMaxPitch)
 	}
 
 	ctx.World.MapName = "prontera"
 	projection = camera.Projection(ctx, 800, 600, time.Now())
 	if got := projection.cameraYaw; got != 90 {
 		t.Fatalf("restored outdoor projection yaw = %.1f, want 90.0", got)
+	}
+	if got := projection.cameraPitch; got != defaultCameraMaxPitch {
+		t.Fatalf("restored outdoor projection pitch = %.1f, want %.1f", got, defaultCameraMaxPitch)
 	}
 }
 
@@ -326,9 +337,11 @@ func TestCameraRotationIsDisabledOnIndoorMap(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetMousePosition(100, 100)
 	inputState.SetMouseButton(input.MouseButtonRight, true)
-	inputState.SetMousePosition(200, 100)
+	inputState.SetKey(input.KeyShift, true)
+	inputState.SetMousePosition(200, 160)
 	mode := &WorldMode{}
 	mode.camera.Rotate(90)
+	mode.camera.Tilt(15)
 	ctx := client.Context{
 		Resources: manager,
 		World:     &worldstate.World{MapName: "geffen_in"},
@@ -341,6 +354,9 @@ func TestCameraRotationIsDisabledOnIndoorMap(t *testing.T) {
 	if mode.camera.yawOffset != 90 {
 		t.Fatalf("stored outdoor camera yaw offset = %.1f, want 90.0", mode.camera.yawOffset)
 	}
+	if got := mode.camera.currentPitch(); got != 245 {
+		t.Fatalf("stored outdoor camera pitch = %.1f, want 245.0", got)
+	}
 }
 
 func TestCameraDragYawDeltaMatchesRobrowserScale(t *testing.T) {
@@ -352,6 +368,52 @@ func TestCameraDragYawDeltaMatchesRobrowserScale(t *testing.T) {
 	}
 	if got := cameraDragYawDelta(100, 0); got != 0 {
 		t.Fatalf("zero width drag yaw delta = %.1f, want 0", got)
+	}
+}
+
+func TestCameraDragPitchDeltaMatchesReferenceClientScale(t *testing.T) {
+	if got := cameraDragPitchDelta(60); got != 18 {
+		t.Fatalf("drag pitch delta = %.1f, want 18.0", got)
+	}
+	if got := cameraDragPitchDelta(-60); got != -18 {
+		t.Fatalf("reverse drag pitch delta = %.1f, want -18.0", got)
+	}
+}
+
+func TestShiftRightDragTiltsCameraWithoutRotating(t *testing.T) {
+	inputState := input.NewState()
+	inputState.SetMousePosition(100, 100)
+	inputState.SetMouseButton(input.MouseButtonRight, true)
+	inputState.SetKey(input.KeyShift, true)
+	inputState.SetMousePosition(200, 160)
+	mode := &WorldMode{}
+	mode.camera.Rotate(45)
+	ctx := client.Context{
+		World:   &worldstate.World{MapName: "prontera"},
+		Input:   inputState,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+
+	mode.updateCameraRotation(ctx)
+
+	if got := mode.camera.currentPitch(); got != defaultCameraMaxPitch {
+		t.Fatalf("camera pitch = %.1f, want %.1f", got, defaultCameraMaxPitch)
+	}
+	if mode.camera.yawOffset != 45 {
+		t.Fatalf("camera yaw = %.1f, want unchanged 45.0", mode.camera.yawOffset)
+	}
+}
+
+func TestCameraPitchIsClampedToReferenceClientOutdoorLimits(t *testing.T) {
+	camera := followCamera{}
+	camera.Tilt(-1000)
+	if got := camera.currentPitch(); got != defaultCameraMinPitch {
+		t.Fatalf("minimum camera pitch = %.1f, want %.1f", got, defaultCameraMinPitch)
+	}
+	camera.Tilt(1000)
+	if got := camera.currentPitch(); got != defaultCameraMaxPitch {
+		t.Fatalf("maximum camera pitch = %.1f, want %.1f", got, defaultCameraMaxPitch)
 	}
 }
 

@@ -162,26 +162,7 @@ func cameraGroundFootprint(projection sceneProjection, screenWidth, screenHeight
 		aspect = float64(screenWidth) / float64(screenHeight)
 	}
 
-	distance := normalizeSceneCameraZoom(projection.cameraZoom) * 0.5
-	pitch := sceneCameraPitch()
-	if pitch > 180 {
-		pitch -= 180
-	}
-	pitch = degreesToRadians(pitch)
-	yaw := degreesToRadians(projection.cameraYaw)
-	horizontal := math.Cos(pitch) * distance
-	eye := modelPoint3{
-		x: projection.playerX + math.Sin(yaw)*horizontal,
-		y: projection.playerZ + math.Sin(pitch)*distance,
-		z: projection.playerY - math.Cos(yaw)*horizontal,
-	}
-	target := modelPoint3{x: projection.playerX, y: projection.playerZ, z: projection.playerY}
-	forward := normalize3(sub3(target, eye))
-	right := normalize3(cross3(modelPoint3{y: 1}, forward))
-	if right == (modelPoint3{}) {
-		right = modelPoint3{x: 1}
-	}
-	up := cross3(forward, right)
+	eye, forward, right, up := projection.cameraBasis()
 	tanHalfFOV := math.Tan(degreesToRadians(sceneCameraFOV()) * 0.5)
 
 	samples := [][2]float64{

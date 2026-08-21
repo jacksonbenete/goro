@@ -144,14 +144,15 @@ func TestNextWorldModeReusesMinimapOverlay(t *testing.T) {
 func TestNextWorldModeCarriesCameraPreferences(t *testing.T) {
 	mode := &WorldMode{camera: followCamera{
 		yawOffset:  73,
+		pitch:      245,
 		zoom:       148,
 		zoomTarget: 152,
 	}}
 
 	next := mode.nextWorldMode()
 
-	if next.camera.yawOffset != 73 || next.camera.zoom != 148 || next.camera.zoomTarget != 152 {
-		t.Fatalf("camera preferences = yaw %.1f zoom %.1f target %.1f", next.camera.yawOffset, next.camera.zoom, next.camera.zoomTarget)
+	if next.camera.yawOffset != 73 || next.camera.pitch != 245 || next.camera.zoom != 148 || next.camera.zoomTarget != 152 {
+		t.Fatalf("camera preferences = yaw %.1f pitch %.1f zoom %.1f target %.1f", next.camera.yawOffset, next.camera.pitch, next.camera.zoom, next.camera.zoomTarget)
 	}
 }
 

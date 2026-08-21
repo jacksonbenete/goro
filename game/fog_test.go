@@ -10,13 +10,13 @@ import (
 	"github.com/kivutar/goro/res"
 )
 
-func TestSceneFogFromMapUsesReferenceClientScale(t *testing.T) {
+func TestSceneFogFromMapUsesReferenceClientScaleAndFullStrength(t *testing.T) {
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dataDir, "fogparametertable.txt"), []byte("prontera#0.5#1.5#ffffff#1.0#"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dataDir, "fogparametertable.txt"), []byte("prontera#0.5#1.5#ffffff#0.3#"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	manager, err := res.NewManager(root)
@@ -31,8 +31,9 @@ func TestSceneFogFromMapUsesReferenceClientScale(t *testing.T) {
 	if fog.near != 120 || fog.far != 360 {
 		t.Fatalf("unexpected scaled distances: near=%v far=%v", fog.near, fog.far)
 	}
-	if fog.factor != 1 {
-		t.Fatalf("unexpected fog factor: %.2f", fog.factor)
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 0)
+	if got := projection.RenderCameraWithFog(fog).Fog.Strength; got != 1 {
+		t.Fatalf("fog strength = %.2f, want full reference-client strength", got)
 	}
 }
 
@@ -57,9 +58,6 @@ func TestSceneFogFromMapUsesEinbrochWeatherTint(t *testing.T) {
 	if fog.color != (color.RGBA{R: 252, G: 171, B: 143, A: 255}) {
 		t.Fatalf("einbroch fog color = %#v, want EF_CLOUD4 tint", fog.color)
 	}
-	if fog.factor != 0.5 {
-		t.Fatalf("einbroch fog factor = %.2f, want table factor 0.5", fog.factor)
-	}
 }
 
 func TestSceneFogMixColorSmoothstepsToFogColor(t *testing.T) {
@@ -67,7 +65,6 @@ func TestSceneFogMixColorSmoothstepsToFogColor(t *testing.T) {
 		enabled: true,
 		near:    10,
 		far:     20,
-		factor:  1,
 		color:   color.RGBA{R: 200, G: 100, B: 50, A: 255},
 	}
 	base := color.RGBA{R: 100, G: 100, B: 100, A: 180}
@@ -82,26 +79,11 @@ func TestSceneFogMixColorSmoothstepsToFogColor(t *testing.T) {
 	}
 }
 
-func TestSceneFogMixColorUsesFogFactor(t *testing.T) {
-	fog := sceneFog{
-		enabled: true,
-		near:    10,
-		far:     20,
-		factor:  0.5,
-		color:   color.RGBA{R: 200, G: 100, B: 50, A: 255},
-	}
-	base := color.RGBA{R: 100, G: 100, B: 100, A: 180}
-	if got := fog.mixColor(base, 20); got != (color.RGBA{R: 150, G: 100, B: 75, A: 180}) {
-		t.Fatalf("factor color mismatch: %#v", got)
-	}
-}
-
 func TestSceneFogAttenuateColorSmoothstepsToBlack(t *testing.T) {
 	fog := sceneFog{
 		enabled: true,
 		near:    10,
 		far:     20,
-		factor:  1,
 		color:   color.RGBA{R: 200, G: 100, B: 50, A: 255},
 	}
 	base := color.RGBA{R: 100, G: 80, B: 60, A: 180}

@@ -47,6 +47,20 @@ func TestSceneCameraDefaultZoomUsesGameplayScale(t *testing.T) {
 	}
 }
 
+func TestCameraProjectionUsesRequestedPitch(t *testing.T) {
+	low := newSceneProjectionForTargetYawPitchZoom(800, 600, 10.5, 20.5, 5, 0, defaultCameraMinPitch, 125)
+	high := newSceneProjectionForTargetYawPitchZoom(800, 600, 10.5, 20.5, 5, 0, defaultCameraMaxPitch, 125)
+	lowEye, _, _, _ := low.cameraBasis()
+	highEye, _, _, _ := high.cameraBasis()
+
+	if low.cameraPitch != defaultCameraMinPitch || high.cameraPitch != defaultCameraMaxPitch {
+		t.Fatalf("projection pitches = %.1f and %.1f, want %.1f and %.1f", low.cameraPitch, high.cameraPitch, defaultCameraMinPitch, defaultCameraMaxPitch)
+	}
+	if highEye.y <= lowEye.y {
+		t.Fatalf("high-pitch eye y = %.2f, want above low-pitch eye y %.2f", highEye.y, lowEye.y)
+	}
+}
+
 func TestCameraProjectionMapsPositiveXToScreenRight(t *testing.T) {
 	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 5)
 	center := projection.Project(10.5, 20.5, 5)

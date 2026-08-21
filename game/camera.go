@@ -1,22 +1,25 @@
 package game
 
 import (
-	"github.com/kivutar/goro/input"
 	"math"
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/res"
 	worldstate "github.com/kivutar/goro/world"
 )
 
 const (
-	defaultCameraFollowLerpPerMS = 0.006
-	defaultCameraWheelZoomStep   = 1.12
-	defaultCameraWheelZoomUnits  = 15
-	defaultCameraPinchZoomScale  = 240
-	defaultCameraMinZoom         = 65.0
-	defaultCameraMaxZoom         = 165.0
+	defaultCameraFollowLerpPerMS   = 0.006
+	defaultCameraWheelZoomStep     = 1.12
+	defaultCameraWheelZoomUnits    = 15
+	defaultCameraPinchZoomScale    = 240
+	defaultCameraMinZoom           = 65.0
+	defaultCameraMaxZoom           = 165.0
+	defaultCameraMinPitch          = 205.0
+	defaultCameraMaxPitch          = 245.0
+	defaultCameraPitchDragPerPixel = 0.3
 )
 
 type followCamera struct {
@@ -26,14 +29,16 @@ type followCamera struct {
 	z           float64
 	lastUpdate  time.Time
 	yawOffset   float64
+	pitch       float64
 	zoom        float64
 	zoomTarget  float64
 }
 
 func (c *followCamera) ResetTracking() {
-	yawOffset, zoom, zoomTarget := c.yawOffset, c.zoom, c.zoomTarget
+	yawOffset, pitch, zoom, zoomTarget := c.yawOffset, c.pitch, c.zoom, c.zoomTarget
 	*c = followCamera{
 		yawOffset:  yawOffset,
+		pitch:      pitch,
 		zoom:       zoom,
 		zoomTarget: zoomTarget,
 	}
@@ -71,6 +76,20 @@ func cameraFollowLerp(delta time.Duration) float64 {
 
 func (c *followCamera) Rotate(delta float64) {
 	c.yawOffset = normalizeCameraYaw(c.yawOffset + delta)
+}
+
+func (c *followCamera) Tilt(delta float64) {
+	if delta == 0 || !isFinite(delta) {
+		return
+	}
+	c.pitch = clampCameraPitch(c.currentPitch() + delta)
+}
+
+func (c *followCamera) currentPitch() float64 {
+	if c.pitch == 0 || !isFinite(c.pitch) {
+		return sceneCameraPitch()
+	}
+	return clampCameraPitch(c.pitch)
 }
 
 func (c *followCamera) ZoomBy(factor float64) {
@@ -130,7 +149,11 @@ func (c *followCamera) ProjectionWithOffset(ctx client.Context, width, height in
 	}
 	outdoorZoom := c.currentZoom()
 	projectedZoom := cameraZoomForMap(ctx, outdoorZoom)
-	return newSceneProjectionForTargetYawZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, projectedZoom)
+	projectedPitch := c.currentPitch()
+	if cameraRotationLockedForMap(ctx) {
+		projectedPitch = sceneCameraPitch()
+	}
+	return newSceneProjectionForTargetYawPitchZoom(width, height, c.x+offsetX, c.y+offsetY, c.z, cameraYawForMap(ctx)+yawOffset, projectedPitch, projectedZoom)
 }
 
 func (c *followCamera) store(ctx client.Context) {
@@ -176,7 +199,11 @@ func (m *WorldMode) updateCameraRotation(ctx client.Context) {
 	delta := 0.0
 	if ctx.Input.MousePressed(input.MouseButtonRight) {
 		screenW, _ := ctx.ScreenSize()
-		delta += cameraDragYawDelta(ctx.Input.MouseDX, screenW)
+		if ctx.Input.Pressed(input.KeyShift) {
+			m.camera.Tilt(cameraDragPitchDelta(ctx.Input.MouseDY))
+			return
+		}
+		delta = cameraDragYawDelta(ctx.Input.MouseDX, screenW)
 	}
 	if delta != 0 {
 		m.camera.Rotate(delta)
@@ -275,6 +302,10 @@ func cameraDragYawDelta(mouseDX, screenWidth int) float64 {
 	return -(float64(mouseDX) / float64(screenWidth)) * 720
 }
 
+func cameraDragPitchDelta(mouseDY int) float64 {
+	return float64(mouseDY) * defaultCameraPitchDragPerPixel
+}
+
 func cameraWheelZoomFactor(wheelY float64) float64 {
 	if wheelY == 0 || !isFinite(wheelY) {
 		return 1
@@ -313,6 +344,13 @@ func clampCameraZoom(zoom float64) float64 {
 		zoom = defaultSceneCameraZoom
 	}
 	return math.Max(defaultCameraMinZoom, math.Min(defaultCameraMaxZoom, zoom))
+}
+
+func clampCameraPitch(pitch float64) float64 {
+	if !isFinite(pitch) || pitch == 0 {
+		pitch = defaultSceneCameraPitch
+	}
+	return math.Max(defaultCameraMinPitch, math.Min(defaultCameraMaxPitch, pitch))
 }
 
 func normalizeCameraYaw(yaw float64) float64 {

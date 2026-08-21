@@ -18,13 +18,15 @@ import (
 )
 
 func actorBillboardScreenScale(projection sceneProjection, x, y, z float64) float64 {
-	base := projection.Project(x, y, z)
-	top := projection.Project(x, y, z+actorBillboardWorldHeightUnit)
-	projectedHeight := math.Hypot(float64(top.x-base.x), float64(top.y-base.y))
-	if projectedHeight <= 0 || math.IsNaN(projectedHeight) || math.IsInf(projectedHeight, 0) {
+	_, _, worldUnitsPerScreenPixel, ok := projection.BillboardBasis(x, y, z)
+	if !ok {
 		return 1
 	}
-	return projectedHeight / float64(humanoidBillboardAnchorY)
+	scale := actorBillboardWorldUnitsPerSourcePixel / worldUnitsPerScreenPixel
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		return 1
+	}
+	return scale
 }
 
 // robr stores entity positions as cells and adds +0.5 in SpriteRenderer.vs.
@@ -661,6 +663,12 @@ type sceneActorDrawEntry struct {
 	isPlayer    bool
 	hidden      bool
 }
+
+const (
+	// RO clients map 175 source pixels to the five world units of one map cell.
+	actorBillboardSourcePixelsPerCell      = 175.0
+	actorBillboardWorldUnitsPerSourcePixel = actorBillboardCellWorldUnits / actorBillboardSourcePixelsPerCell
+)
 
 const (
 	actorBillboardCellWorldUnits  = 5.0

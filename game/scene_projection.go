@@ -14,6 +14,7 @@ type sceneProjection struct {
 	screenW        float64
 	screenH        float64
 	cameraYaw      float64
+	cameraPitch    float64
 	cameraZoom     float64
 	viewProjection mat4
 }
@@ -34,16 +35,21 @@ func newSceneProjectionForTargetYaw(width, height int, targetX, targetY, targetZ
 }
 
 func newSceneProjectionForTargetYawZoom(width, height int, targetX, targetY, targetZ, yaw, zoom float64) sceneProjection {
+	return newSceneProjectionForTargetYawPitchZoom(width, height, targetX, targetY, targetZ, yaw, sceneCameraPitch(), zoom)
+}
+
+func newSceneProjectionForTargetYawPitchZoom(width, height int, targetX, targetY, targetZ, yaw, pitch, zoom float64) sceneProjection {
 	projection := sceneProjection{
-		playerX:    targetX,
-		playerY:    targetY,
-		playerZ:    targetZ,
-		screenW:    float64(width),
-		screenH:    float64(height),
-		cameraYaw:  yaw,
-		cameraZoom: normalizeSceneCameraZoom(zoom),
+		playerX:     targetX,
+		playerY:     targetY,
+		playerZ:     targetZ,
+		screenW:     float64(width),
+		screenH:     float64(height),
+		cameraYaw:   yaw,
+		cameraPitch: clampCameraPitch(pitch),
+		cameraZoom:  normalizeSceneCameraZoom(zoom),
 	}
-	projection.viewProjection = sceneCameraMatrixWithYawZoom(float64(width), float64(height), targetX, targetY, targetZ, yaw, projection.cameraZoom)
+	projection.viewProjection = sceneCameraMatrixWithYawPitchZoom(float64(width), float64(height), targetX, targetY, targetZ, yaw, projection.cameraPitch, projection.cameraZoom)
 	return projection
 }
 
@@ -69,7 +75,7 @@ func (p sceneProjection) RenderCameraWithFog(fog sceneFog) render.Camera3D {
 			Enabled:  true,
 			Near:     float32(fog.near),
 			Far:      float32(fog.far),
-			Strength: float32(fog.factor),
+			Strength: 1,
 			ColorR:   float32(fog.color.R) / 255,
 			ColorG:   float32(fog.color.G) / 255,
 			ColorB:   float32(fog.color.B) / 255,
@@ -110,7 +116,7 @@ func (p sceneProjection) ScreenRay(mouseX, mouseY int) (modelPoint3, modelPoint3
 
 func (p sceneProjection) cameraBasis() (eye, forward, right, up modelPoint3) {
 	distance := normalizeSceneCameraZoom(p.cameraZoom) * 0.5
-	pitch := sceneCameraPitch()
+	pitch := clampCameraPitch(p.cameraPitch)
 	if pitch > 180 {
 		pitch -= 180
 	}
@@ -170,9 +176,9 @@ func (p sceneProjection) projectPoint(x, y, z float64) (screenPoint, bool) {
 	}, true
 }
 
-func sceneCameraMatrixWithYawZoom(width, height, targetX, targetY, targetZ, yawDegrees, zoom float64) mat4 {
+func sceneCameraMatrixWithYawPitchZoom(width, height, targetX, targetY, targetZ, yawDegrees, pitchDegrees, zoom float64) mat4 {
 	distance := normalizeSceneCameraZoom(zoom) * 0.5
-	pitch := sceneCameraPitch()
+	pitch := clampCameraPitch(pitchDegrees)
 	if pitch > 180 {
 		pitch -= 180
 	}
