@@ -418,13 +418,79 @@ func TestStorageItemAtUsesTableViewRowsAtTop(t *testing.T) {
 	window.EnsureWindow(storageWindowWidth, storageWindowHeight)
 	window.Window.OpenAt(80, 90, nil)
 
-	item, row, ok := window.itemAt(sessionState, window.x+8, window.y+storageWindowTitleH+1)
+	item, row, ok := window.itemAt(sessionState, window.x+storageTabRailW+verticalTabDividerW+8, window.y+storageWindowTitleH+1)
 
 	if !ok {
 		t.Fatal("storage row at top of table was not found")
 	}
 	if row != 0 || item.Index != 4 {
 		t.Fatalf("itemAt = row %d item %+v, want row 0 index 4", row, item)
+	}
+}
+
+func TestStorageWindowUsesROBrowserCategories(t *testing.T) {
+	tests := []struct {
+		name     string
+		itemType uint8
+		category storageCategory
+	}{
+		{name: "healing", itemType: db.ItemTypeHealing, category: storageCategoryItem},
+		{name: "usable", itemType: db.ItemTypeUsable, category: storageCategoryItem},
+		{name: "delayed consumable", itemType: db.ItemTypeDelayConsume, category: storageCategoryItem},
+		{name: "cash", itemType: db.ItemTypeCash, category: storageCategoryKafra},
+		{name: "armor", itemType: db.ItemTypeArmor, category: storageCategoryArmor},
+		{name: "shadow gear", itemType: db.ItemTypeShadowGear, category: storageCategoryArmor},
+		{name: "pet egg", itemType: db.ItemTypePetEgg, category: storageCategoryArmor},
+		{name: "weapon", itemType: db.ItemTypeWeapon, category: storageCategoryArms},
+		{name: "pet armor", itemType: db.ItemTypePetArmor, category: storageCategoryArms},
+		{name: "ammo", itemType: db.ItemTypeAmmo, category: storageCategoryAmmo},
+		{name: "card", itemType: db.ItemTypeCard, category: storageCategoryCard},
+		{name: "etc", itemType: db.ItemTypeEtc, category: storageCategoryEtc},
+		{name: "unknown", itemType: db.ItemTypeUnknown, category: storageCategoryEtc},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := storageItemCategory(session.InventoryItem{Type: tc.itemType}); got != tc.category {
+				t.Fatalf("category = %d, want %d", got, tc.category)
+			}
+		})
+	}
+
+	sessionState := &session.Session{Storage: session.Storage{Items: []session.InventoryItem{
+		{Index: 2, ItemID: 1201, Type: db.ItemTypeWeapon},
+		{Index: 1, ItemID: 1101, Type: db.ItemTypeWeapon},
+		{Index: 3, ItemID: 501, Type: db.ItemTypeHealing},
+	}}}
+	window := StorageWindow{tab: storageCategoryArms}
+	items := window.tabItems(sessionState)
+	if len(items) != 2 || items[0].Index != 1 || items[1].Index != 2 {
+		t.Fatalf("storage arms tab = %+v, want sorted indexes 1 and 2", items)
+	}
+}
+
+func TestStorageWindowSelectsFirstNonEmptyCategory(t *testing.T) {
+	sessionState := &session.Session{Storage: session.Storage{Items: []session.InventoryItem{
+		{Index: 2, ItemID: 1201, Type: db.ItemTypeWeapon},
+	}}}
+	window := StorageWindow{tab: storageCategoryItem}
+
+	window.selectFirstNonEmptyTab(sessionState)
+
+	if window.tab != storageCategoryArms {
+		t.Fatalf("storage tab = %d, want arms tab", window.tab)
+	}
+}
+
+func TestStorageWindowTabRailDoesNotHitItems(t *testing.T) {
+	sessionState := &session.Session{Storage: session.Storage{Items: []session.InventoryItem{
+		{Index: 1, ItemID: 501, Type: db.ItemTypeHealing},
+	}}}
+	window := StorageWindow{tab: storageCategoryItem}
+	window.EnsureWindow(storageWindowWidth, storageWindowHeight)
+	window.Window.OpenAt(80, 90, nil)
+
+	if _, _, ok := window.itemAt(sessionState, window.x+storageTabRailW/2, window.y+storageWindowTitleH+1); ok {
+		t.Fatal("storage tab rail hit an item row")
 	}
 }
 

@@ -169,12 +169,13 @@ func newStorageWindowScrollBenchFixture(itemCount int, canvasKind listBenchCanva
 	}
 
 	storage.OpenWindow(ctx)
-	inputState.SetMousePosition(storage.x+12, storage.y+storageWindowTitleH+16)
+	tableX := storage.x + storageTabRailW + verticalTabDividerW
+	inputState.SetMousePosition(tableX+12, storage.y+storageWindowTitleH+16)
 	canvasFactory := newListBenchCanvasFactory(canvasKind)
 	app.Frame()
 	app.Window().DrawTo(canvasFactory())
 
-	wheelPosition := geometry.Pt(float32(storage.x+12), float32(storage.y+storageWindowTitleH+16))
+	wheelPosition := geometry.Pt(float32(tableX+12), float32(storage.y+storageWindowTitleH+16))
 	wheel := event.NewWheelEvent(geometry.Pt(0, 1), wheelPosition, wheelPosition, event.ModNone)
 	maxRow := len(sessionState.Storage.Items) - storageRows
 
@@ -183,7 +184,7 @@ func newStorageWindowScrollBenchFixture(itemCount int, canvasKind listBenchCanva
 		input:         inputState,
 		canvasFactory: canvasFactory,
 		wheel:         wheel,
-		mouseMoves:    listWindowMouseHoverMoves(storage.x+12, storage.y+storageWindowTitleH, storageRowH, storageRows),
+		mouseMoves:    listWindowMouseHoverMoves(tableX+12, storage.y+storageWindowTitleH, storageRowH, storageRows),
 		maxRow:        maxRow,
 		resetScroll: func() {
 			storage.ensureScrollSignal().Set(0)

@@ -18,7 +18,12 @@ import (
 )
 
 const (
-	storageWindowWidth  = 312
+	storageTabW         = 32
+	storageTabH         = 40
+	storageTabOver      = 1
+	storageTabRailW     = storageTabW + storageTabOver*2
+	storageTableViewW   = 312
+	storageWindowWidth  = storageTabRailW + verticalTabDividerW + storageTableViewW
 	storageWindowTitleH = ROWindowTitleHeight
 	storageRowH         = 32
 	storageRows         = 9
@@ -28,18 +33,21 @@ const (
 
 type StorageWindow struct {
 	Window
-	scrollY           state.Signal[float32]
-	selectedRow       int
-	selectedRowSignal state.Signal[int]
-	snapshot          uint64
-	itemInfo          *ItemInfoWindow
-	lastClickItem     uint16
-	lastClickAt       time.Time
-	dragItem          session.InventoryItem
-	dragActive        bool
-	dragFrom          time.Time
-	icons             map[storageItemIconKey]image.Image
-	iconMiss          map[storageItemIconKey]struct{}
+	tab                 storageCategory
+	categoryCounts      [storageCategoryCount]int
+	categoryCountsReady bool
+	scrollY             state.Signal[float32]
+	selectedRow         int
+	selectedRowSignal   state.Signal[int]
+	snapshot            uint64
+	itemInfo            *ItemInfoWindow
+	lastClickItem       uint16
+	lastClickAt         time.Time
+	dragItem            session.InventoryItem
+	dragActive          bool
+	dragFrom            time.Time
+	icons               map[storageItemIconKey]image.Image
+	iconMiss            map[storageItemIconKey]struct{}
 }
 
 type storageItemIconKey struct {
@@ -61,6 +69,8 @@ func (w *StorageWindow) SetOpen(open bool) {
 
 func (w *StorageWindow) OpenWindow(ctx Context) {
 	w.EnsureWindow(storageWindowWidth, storageWindowHeight)
+	w.updateCategoryCounts(ctx.Session)
+	w.selectFirstNonEmptyTab(ctx.Session)
 	w.ClampScroll(ctx.Session)
 	w.setSelectedRow(-1)
 	w.snapshot = w.storageSnapshot(ctx.Session)
@@ -93,11 +103,15 @@ func (w *StorageWindow) Update(ctx Context, inventory *InventoryBagWindow, cart 
 		w.Publish(ctx)
 		return true
 	}
-	w.ClampScroll(ctx.Session)
 	snapshot := w.storageSnapshot(ctx.Session)
-	if snapshot != w.snapshot || itemInfo != w.itemInfo {
+	contentChanged := snapshot != w.snapshot || itemInfo != w.itemInfo
+	if contentChanged {
 		w.snapshot = snapshot
 		w.itemInfo = itemInfo
+		w.updateCategoryCounts(ctx.Session)
+	}
+	w.ClampScroll(ctx.Session)
+	if contentChanged {
 		w.SetContent(w.widgetTree(ctx, itemInfo))
 	}
 	if w.handlePointer(ctx, itemInfo) {
@@ -194,9 +208,13 @@ func (w *StorageWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget
 		}),
 		Size(storageWindowWidth, storageWindowHeight),
 		Content(
-			primitives.Box(w.storageTableWidget(ctx)).
-				Height(storageTableViewHeight()).
-				Background(rotheme.Default.Colors.PanelBody),
+			verticalTabFrame(
+				w.tabColumn(ctx),
+				primitives.Box(w.storageTableWidget(ctx)).
+					Width(storageTableViewW).
+					Height(storageTableViewHeight()).
+					Background(rotheme.Default.Colors.PanelBody),
+			),
 		),
 		Footer(
 			rotheme.Text(w.storageCountText(ctx.Session)),
@@ -206,7 +224,7 @@ func (w *StorageWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget
 }
 
 func (w *StorageWindow) storageTableWidget(ctx Context) *rotheme.TableViewWidget {
-	items := sortedStorageItems(ctx.Session)
+	items := w.tabItems(ctx.Session)
 	rows := w.storageRows(ctx, items)
 	icons := w.storageItemIcons(ctx, items)
 	return rotheme.TableView(
@@ -247,7 +265,36 @@ func (w *StorageWindow) storageTableWidget(ctx Context) *rotheme.TableViewWidget
 	)
 }
 
+func (w *StorageWindow) tabColumn(ctx Context) widget.Widget {
+	tabs := make([]widget.Widget, 0, len(storageCategoryTabs))
+	for _, tab := range storageCategoryTabs {
+		tab := tab
+		tabs = append(tabs, newTabWidget(tabWidgetConfig{
+			label:         tab.label,
+			labelRotation: rotheme.TextRotationCounterClockwise,
+			active:        tab.category == w.tab,
+			width:         storageTabRailW,
+			height:        storageTabH,
+			onClick: func() {
+				if w.tab == tab.category {
+					return
+				}
+				w.tab = tab.category
+				w.ensureScrollSignal().Set(0)
+				w.setSelectedRow(-1)
+				w.lastClickItem = 0
+				w.refresh(ctx, w.itemInfo)
+			},
+		}))
+	}
+	return primitives.Box(tabs...).
+		Width(storageTabRailW).
+		Height(storageTableViewH).
+		Gap(-storageTabOver)
+}
+
 func (w *StorageWindow) refresh(ctx Context, itemInfo *ItemInfoWindow) {
+	w.updateCategoryCounts(ctx.Session)
 	w.ClampScroll(ctx.Session)
 	w.snapshot = w.storageSnapshot(ctx.Session)
 	w.itemInfo = itemInfo
@@ -325,10 +372,7 @@ func (w *StorageWindow) withdraw(ctx Context, item session.InventoryItem) {
 }
 
 func (w *StorageWindow) ClampScroll(s *session.Session) {
-	itemCount := 0
-	if s != nil {
-		itemCount = len(s.Storage.Items)
-	}
+	itemCount := w.tabItemCount(s)
 	if w.selectedRow >= itemCount {
 		w.setSelectedRow(-1)
 	}
@@ -340,6 +384,59 @@ func (w *StorageWindow) ClampScroll(s *session.Session) {
 	case value > maxScroll:
 		scroll.Set(maxScroll)
 	}
+}
+
+func (w *StorageWindow) selectFirstNonEmptyTab(s *session.Session) {
+	if s == nil {
+		return
+	}
+	if !w.categoryCountsReady {
+		w.updateCategoryCounts(s)
+	}
+	if w.tab < storageCategoryCount && w.categoryCounts[w.tab] > 0 {
+		return
+	}
+	for _, tab := range storageCategoryTabs {
+		if w.categoryCounts[tab.category] > 0 {
+			w.tab = tab.category
+			w.ensureScrollSignal().Set(0)
+			return
+		}
+	}
+}
+
+func (w *StorageWindow) tabItems(s *session.Session) []session.InventoryItem {
+	items := sortedStorageItems(s)
+	if len(items) == 0 {
+		return nil
+	}
+	filtered := items[:0]
+	for _, item := range items {
+		if storageItemCategory(item) == w.tab {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
+}
+
+func (w *StorageWindow) tabItemCount(s *session.Session) int {
+	if !w.categoryCountsReady {
+		w.updateCategoryCounts(s)
+	}
+	if w.tab >= storageCategoryCount {
+		return 0
+	}
+	return w.categoryCounts[w.tab]
+}
+
+func (w *StorageWindow) updateCategoryCounts(s *session.Session) {
+	w.categoryCounts = [storageCategoryCount]int{}
+	if s != nil {
+		for _, item := range s.Storage.Items {
+			w.categoryCounts[storageItemCategory(item)]++
+		}
+	}
+	w.categoryCountsReady = true
 }
 
 func (w *StorageWindow) storageRows(ctx Context, items []session.InventoryItem) []storageTableRow {
@@ -473,13 +570,13 @@ func (w *StorageWindow) setSelectedRow(row int) {
 }
 
 func (w *StorageWindow) itemAt(s *session.Session, mx, my int) (session.InventoryItem, int, bool) {
-	tableX := w.x
+	tableX := w.x + storageTabRailW + verticalTabDividerW
 	tableY := w.y + storageWindowTitleH
-	row, ok := storageTableViewRowAt(mx, my, tableX, tableY, storageWindowWidth, int(storageTableViewHeight()), len(sortedStorageItems(s)), w.ensureScrollSignal().Get())
+	items := w.tabItems(s)
+	row, ok := storageTableViewRowAt(mx, my, tableX, tableY, storageTableViewW, int(storageTableViewHeight()), len(items), w.ensureScrollSignal().Get())
 	if !ok {
 		return session.InventoryItem{}, 0, false
 	}
-	items := sortedStorageItems(s)
 	if row < 0 || row >= len(items) {
 		return session.InventoryItem{}, 0, false
 	}
