@@ -141,6 +141,20 @@ func TestNextWorldModeReusesMinimapOverlay(t *testing.T) {
 	}
 }
 
+func TestNextWorldModeCarriesCameraPreferences(t *testing.T) {
+	mode := &WorldMode{camera: followCamera{
+		yawOffset:  73,
+		zoom:       148,
+		zoomTarget: 152,
+	}}
+
+	next := mode.nextWorldMode()
+
+	if next.camera.yawOffset != 73 || next.camera.zoom != 148 || next.camera.zoomTarget != 152 {
+		t.Fatalf("camera preferences = yaw %.1f zoom %.1f target %.1f", next.camera.yawOffset, next.camera.zoom, next.camera.zoomTarget)
+	}
+}
+
 func TestNextWorldModeCarriesOpenInventoryWindow(t *testing.T) {
 	sessionState := &session.Session{
 		Inventory: session.Inventory{Items: []session.InventoryItem{

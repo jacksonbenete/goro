@@ -30,8 +30,13 @@ type followCamera struct {
 	zoomTarget  float64
 }
 
-func (c *followCamera) Reset() {
-	*c = followCamera{}
+func (c *followCamera) ResetTracking() {
+	yawOffset, zoom, zoomTarget := c.yawOffset, c.zoom, c.zoomTarget
+	*c = followCamera{
+		yawOffset:  yawOffset,
+		zoom:       zoom,
+		zoomTarget: zoomTarget,
+	}
 }
 
 func (c *followCamera) Update(ctx client.Context, now time.Time) {
@@ -121,7 +126,6 @@ func (c *followCamera) ProjectionWithOffset(ctx client.Context, width, height in
 	c.store(ctx)
 	yawOffset := c.yawOffset
 	if cameraRotationLockedForMap(ctx) {
-		c.ResetRotation()
 		yawOffset = 0
 	}
 	outdoorZoom := c.currentZoom()
@@ -167,7 +171,6 @@ func (m *WorldMode) cameraShakeOffset(now time.Time) (float64, float64) {
 
 func (m *WorldMode) updateCameraRotation(ctx client.Context) {
 	if cameraRotationLockedForMap(ctx) {
-		m.camera.ResetRotation()
 		return
 	}
 	delta := 0.0

@@ -346,10 +346,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 			m.mapFade.started = time.Now()
 		}()
 	}
-	zoom, zoomTarget := m.camera.zoom, m.camera.zoomTarget
-	m.camera.Reset()
-	m.camera.zoom = zoom
-	m.camera.zoomTarget = zoomTarget
+	m.camera.ResetTracking()
 	ctx.World.GAT = nil
 	ctx.World.GND = nil
 	ctx.World.RSW = nil
@@ -1161,10 +1158,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	applyWarpPosition(ctx, change.X, change.Y)
 	ctx.World.Actors = make(map[uint32]worldstate.Actor)
 	if reuseLoadedMap {
-		zoom, zoomTarget := m.camera.zoom, m.camera.zoomTarget
-		m.camera.Reset()
-		m.camera.zoom = zoom
-		m.camera.zoomTarget = zoomTarget
+		m.camera.ResetTracking()
 		m.camera.Update(ctx, time.Now())
 		if ctx.Network != nil {
 			if err := ctx.Network.SendLoadEndAck(); err != nil {
@@ -1200,6 +1194,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 
 func (m *WorldMode) nextWorldMode() *WorldMode {
 	next := NewWorldMode()
+	next.camera.yawOffset = m.camera.yawOffset
 	next.camera.zoom = m.camera.zoom
 	next.camera.zoomTarget = m.camera.zoomTarget
 	next.ui.console = m.ui.console

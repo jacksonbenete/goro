@@ -234,6 +234,28 @@ func TestIndoorCameraZoomIsLockedWithoutLosingOutdoorZoom(t *testing.T) {
 	}
 }
 
+func TestFollowCameraTrackingResetKeepsUserView(t *testing.T) {
+	camera := followCamera{
+		initialized: true,
+		x:           10.5,
+		y:           20.5,
+		z:           3,
+		lastUpdate:  time.Now(),
+		yawOffset:   73,
+		zoom:        148,
+		zoomTarget:  152,
+	}
+
+	camera.ResetTracking()
+
+	if camera.initialized || camera.x != 0 || camera.y != 0 || camera.z != 0 || !camera.lastUpdate.IsZero() {
+		t.Fatalf("tracking state was not reset: %+v", camera)
+	}
+	if camera.yawOffset != 73 || camera.zoom != 148 || camera.zoomTarget != 152 {
+		t.Fatalf("user view = yaw %.1f zoom %.1f target %.1f", camera.yawOffset, camera.zoom, camera.zoomTarget)
+	}
+}
+
 func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
 	world := worldstate.New()
 	world.MapName = "prontera"
@@ -253,7 +275,7 @@ func TestFollowCameraProjectionIncludesRuntimeYawOffset(t *testing.T) {
 	}
 }
 
-func TestFollowCameraProjectionKeepsIndoorBaseYaw(t *testing.T) {
+func TestIndoorCameraYawIsLockedWithoutLosingOutdoorRotation(t *testing.T) {
 	root := t.TempDir()
 	dataDir := filepath.Join(root, "data")
 	if err := os.Mkdir(dataDir, 0o755); err != nil {
@@ -277,8 +299,14 @@ func TestFollowCameraProjectionKeepsIndoorBaseYaw(t *testing.T) {
 	if got := projection.cameraYaw; got != -45 {
 		t.Fatalf("indoor projection yaw = %.1f, want -45.0", got)
 	}
-	if camera.yawOffset != 0 {
-		t.Fatalf("indoor projection left yaw offset = %.1f, want reset", camera.yawOffset)
+	if camera.yawOffset != 90 {
+		t.Fatalf("stored outdoor yaw offset = %.1f, want 90.0", camera.yawOffset)
+	}
+
+	ctx.World.MapName = "prontera"
+	projection = camera.Projection(ctx, 800, 600, time.Now())
+	if got := projection.cameraYaw; got != 90 {
+		t.Fatalf("restored outdoor projection yaw = %.1f, want 90.0", got)
 	}
 }
 
@@ -310,8 +338,8 @@ func TestCameraRotationIsDisabledOnIndoorMap(t *testing.T) {
 	}
 
 	mode.updateCameraRotation(ctx)
-	if mode.camera.yawOffset != 0 {
-		t.Fatalf("indoor camera yaw offset = %.1f, want reset", mode.camera.yawOffset)
+	if mode.camera.yawOffset != 90 {
+		t.Fatalf("stored outdoor camera yaw offset = %.1f, want 90.0", mode.camera.yawOffset)
 	}
 }
 
