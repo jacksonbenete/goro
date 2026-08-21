@@ -67,10 +67,30 @@ func (m *Manager) PointerBlocked(x, y int) bool {
 
 func (m *Manager) apply() {
 	m.root = newOverlayRoot(m.overlays)
+	m.root.onActivate = m.raiseOverlay
 	if m.app != nil && m.root != nil {
 		m.app.SetUIRoot(m.root)
 		disableRootRepaintBoundary(m.root)
 		m.root.SetNeedsRedraw(true)
+	}
+}
+
+func (m *Manager) raiseOverlay(overlay widget.Widget) {
+	if m == nil || overlay == nil || len(m.overlays) < 2 {
+		return
+	}
+	for i, child := range m.overlays {
+		if child != overlay || i == len(m.overlays)-1 {
+			continue
+		}
+		copy(m.overlays[i:], m.overlays[i+1:])
+		m.overlays[len(m.overlays)-1] = overlay
+		if m.root != nil {
+			// Keep the active root so pointer capture and keyboard focus survive.
+			m.root.children = append(m.root.children[:0], m.overlays...)
+			m.root.SetNeedsRedraw(true)
+		}
+		return
 	}
 }
 
@@ -86,7 +106,8 @@ func disableRootRepaintBoundary(root widget.Widget) {
 
 type overlayRoot struct {
 	widget.WidgetBase
-	children []widget.Widget
+	children   []widget.Widget
+	onActivate func(widget.Widget)
 }
 
 func newOverlayRoot(children []widget.Widget) *overlayRoot {
@@ -147,10 +168,18 @@ func (r *overlayRoot) dispatchPositionedEvent(ctx widget.Context, e event.Event,
 		if !widgetCoversPoint(child, position) {
 			continue
 		}
+		if mouse, ok := e.(*event.MouseEvent); ok && mouse.IsPress() && overlayRaisesOnPress(child) && r.onActivate != nil {
+			r.onActivate(child)
+		}
 		child.Event(ctx, e)
 		return true
 	}
 	return false
+}
+
+func overlayRaisesOnPress(overlay widget.Widget) bool {
+	positioned, ok := overlay.(*positionedOverlay)
+	return ok && positioned.raiseOnPress
 }
 
 func (r *overlayRoot) PointerBlocked(position geometry.Point) bool {

@@ -439,6 +439,9 @@ func (w *Window) Widget() widget.Widget {
 	}
 	if w.placed == nil {
 		w.placed = positionedWidget(w.content, w.x, w.y, w.width, w.height)
+		if overlay := w.positionedOverlay(); overlay != nil {
+			overlay.raiseOnPress = true
+		}
 	} else if overlay, ok := w.placed.(*positionedOverlay); ok {
 		overlay.setFrame(w.x, w.y, w.width, w.height)
 	}
@@ -648,6 +651,7 @@ type positionedOverlay struct {
 	damage        geometry.Rect
 	hasDamage     bool
 	hidden        bool
+	raiseOnPress  bool
 }
 
 func (w *positionedOverlay) setFrame(x, y, width, height int) geometry.Rect {
