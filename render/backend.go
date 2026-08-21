@@ -528,14 +528,10 @@ func wireInput(events gpucontext.EventSource, state *input.State) {
 		return
 	}
 	events.OnKeyPress(func(key gpucontext.Key, _ gpucontext.Modifiers) {
-		if mapped, ok := mapKey(key); ok {
-			state.SetKey(mapped, true)
-		}
+		state.SetKeyCode(key, true)
 	})
 	events.OnKeyRelease(func(key gpucontext.Key, _ gpucontext.Modifiers) {
-		if mapped, ok := mapKey(key); ok {
-			state.SetKey(mapped, false)
-		}
+		state.SetKeyCode(key, false)
 	})
 	events.OnMouseMove(func(x, y float64) {
 		state.SetMousePosition(int(x+0.5), int(y+0.5))
@@ -558,95 +554,6 @@ func wireInput(events gpucontext.EventSource, state *input.State) {
 	events.OnTextInput(func(text string) {
 		state.AddTextInput(text)
 	})
-}
-
-func mapKey(key gpucontext.Key) (input.Key, bool) {
-	switch key {
-	case gpucontext.KeyEnter:
-		return input.KeyEnter, true
-	case gpucontext.KeyEscape:
-		return input.KeyEscape, true
-	case gpucontext.KeyTab:
-		return input.KeyTab, true
-	case gpucontext.KeyUp:
-		return input.KeyArrowUp, true
-	case gpucontext.KeyDown:
-		return input.KeyArrowDown, true
-	case gpucontext.KeyLeft:
-		return input.KeyArrowLeft, true
-	case gpucontext.KeyRight:
-		return input.KeyArrowRight, true
-	case gpucontext.KeyBackspace:
-		return input.KeyBackspace, true
-	case gpucontext.KeyLeftShift, gpucontext.KeyRightShift:
-		return input.KeyShift, true
-	case gpucontext.KeyLeftControl, gpucontext.KeyRightControl:
-		return input.KeyCtrl, true
-	case gpucontext.KeyLeftAlt, gpucontext.KeyRightAlt:
-		return input.KeyAlt, true
-	case gpucontext.KeyG:
-		return input.KeyG, true
-	case gpucontext.KeyL:
-		return input.KeyL, true
-	case gpucontext.Key1:
-		return input.Key1, true
-	case gpucontext.Key2:
-		return input.Key2, true
-	case gpucontext.Key3:
-		return input.Key3, true
-	case gpucontext.Key4:
-		return input.Key4, true
-	case gpucontext.Key5:
-		return input.Key5, true
-	case gpucontext.Key6:
-		return input.Key6, true
-	case gpucontext.Key7:
-		return input.Key7, true
-	case gpucontext.Key8:
-		return input.Key8, true
-	case gpucontext.Key9:
-		return input.Key9, true
-	case gpucontext.KeyQ:
-		return input.KeyQ, true
-	case gpucontext.KeyW:
-		return input.KeyW, true
-	case gpucontext.KeyE:
-		return input.KeyE, true
-	case gpucontext.KeyR:
-		return input.KeyR, true
-	case gpucontext.KeyT:
-		return input.KeyT, true
-	case gpucontext.KeyY:
-		return input.KeyY, true
-	case gpucontext.KeyU:
-		return input.KeyU, true
-	case gpucontext.KeyI:
-		return input.KeyI, true
-	case gpucontext.KeyO:
-		return input.KeyO, true
-	case gpucontext.KeyF1:
-		return input.KeyF1, true
-	case gpucontext.KeyF2:
-		return input.KeyF2, true
-	case gpucontext.KeyF3:
-		return input.KeyF3, true
-	case gpucontext.KeyF4:
-		return input.KeyF4, true
-	case gpucontext.KeyF5:
-		return input.KeyF5, true
-	case gpucontext.KeyF6:
-		return input.KeyF6, true
-	case gpucontext.KeyF7:
-		return input.KeyF7, true
-	case gpucontext.KeyF8:
-		return input.KeyF8, true
-	case gpucontext.KeyF9:
-		return input.KeyF9, true
-	case gpucontext.KeyF12:
-		return input.KeyF12, true
-	default:
-		return 0, false
-	}
 }
 
 func mapMouseButton(button gpucontext.MouseButton) (input.MouseButton, bool) {

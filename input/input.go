@@ -3,7 +3,13 @@ package input
 import (
 	"math"
 	"sort"
+
+	"github.com/gogpu/gpucontext"
 )
+
+// KeyCode identifies a physical keyboard position. Its names follow the
+// browser KeyboardEvent.code convention (KeyW, Digit1, ArrowUp, and so on).
+type KeyCode = gpucontext.Key
 
 type Key int
 
@@ -64,6 +70,10 @@ type State struct {
 	keys              map[Key]bool
 	prev              map[Key]bool
 	justKeys          map[Key]bool
+	keyCodes          map[KeyCode]bool
+	prevKeyCodes      map[KeyCode]bool
+	justKeyCodes      map[KeyCode]bool
+	justKeyCodeUps    map[KeyCode]bool
 	buttons           map[MouseButton]bool
 	prevMouse         map[MouseButton]bool
 	justMouse         map[MouseButton]bool
@@ -97,6 +107,10 @@ func NewState() *State {
 		keys:              make(map[Key]bool),
 		prev:              make(map[Key]bool),
 		justKeys:          make(map[Key]bool),
+		keyCodes:          make(map[KeyCode]bool),
+		prevKeyCodes:      make(map[KeyCode]bool),
+		justKeyCodes:      make(map[KeyCode]bool),
+		justKeyCodeUps:    make(map[KeyCode]bool),
 		buttons:           make(map[MouseButton]bool),
 		prevMouse:         make(map[MouseButton]bool),
 		justMouse:         make(map[MouseButton]bool),
@@ -115,6 +129,15 @@ func (s *State) EndFrame() {
 	}
 	for key := range s.justKeys {
 		delete(s.justKeys, key)
+	}
+	for code, down := range s.keyCodes {
+		s.prevKeyCodes[code] = down
+	}
+	for code := range s.justKeyCodes {
+		delete(s.justKeyCodes, code)
+	}
+	for code := range s.justKeyCodeUps {
+		delete(s.justKeyCodeUps, code)
 	}
 	for button, down := range s.buttons {
 		s.prevMouse[button] = down
@@ -138,6 +161,19 @@ func (s *State) SetKey(key Key, pressed bool) {
 		s.justKeys[key] = true
 	}
 	s.keys[key] = pressed
+}
+
+func (s *State) SetKeyCode(code KeyCode, pressed bool) {
+	if pressed && !s.keyCodes[code] {
+		s.justKeyCodes[code] = true
+	}
+	if !pressed && s.keyCodes[code] {
+		s.justKeyCodeUps[code] = true
+	}
+	s.keyCodes[code] = pressed
+	if key, ok := legacyKeyForCode(code); ok {
+		s.SetKey(key, pressed)
+	}
 }
 
 func (s *State) SetMouseButton(button MouseButton, pressed bool) {
@@ -191,6 +227,34 @@ func (s *State) Pressed(key Key) bool {
 
 func (s *State) JustPressed(key Key) bool {
 	return s.justKeys[key] || (s.keys[key] && !s.prev[key])
+}
+
+func (s *State) KeyCodeDown(code KeyCode) bool {
+	return s.keyCodes[code]
+}
+
+func (s *State) KeyCodeJustPressed(code KeyCode) bool {
+	return s.justKeyCodes[code] || (s.keyCodes[code] && !s.prevKeyCodes[code])
+}
+
+func (s *State) KeyCodeJustReleased(code KeyCode) bool {
+	return s.justKeyCodeUps[code] || (!s.keyCodes[code] && s.prevKeyCodes[code])
+}
+
+// ConsumeKeyCodePress reports a new physical key press once and prevents
+// other physical-key consumers from acting on the same edge. Held state and
+// layout-translated text input are left unchanged.
+func (s *State) ConsumeKeyCodePress(code KeyCode) bool {
+	if !s.KeyCodeJustPressed(code) {
+		return false
+	}
+	delete(s.justKeyCodes, code)
+	s.prevKeyCodes[code] = s.keyCodes[code]
+	if key, ok := legacyKeyForCode(code); ok {
+		delete(s.justKeys, key)
+		s.prev[key] = s.keys[key]
+	}
+	return true
 }
 
 func (s *State) MousePressed(button MouseButton) bool {

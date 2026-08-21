@@ -3,6 +3,7 @@ package game
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"io"
 	"net"
 	"os"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
+	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
 	worldstate "github.com/kivutar/goro/world"
@@ -215,6 +217,280 @@ end
 	}
 	if world.Player.Moving {
 		t.Fatal("player movement was not cleared by /sit")
+	}
+}
+
+func TestLuaBotCanStartLongWalkFromPhysicalKey(t *testing.T) {
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
+	inputState := input.NewState()
+	keyW, ok := input.KeyCodeFromName("KeyW")
+	if !ok {
+		t.Fatal("KeyW was not recognized")
+	}
+	inputState.SetKeyCode(keyW, true)
+
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(64, 64)
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	mode := &WorldMode{}
+	bot, err := newLuaBot(
+		client.Context{Input: inputState, Network: networkClient, World: world},
+		mode,
+		filepath.Join("..", "scripts", "wasd.lua"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	want, ok := network.BuildWalkToXYPacketForClientDate(10, 28, 20080910)
+	if !ok {
+		t.Fatal("failed to build expected walk packet")
+	}
+	readBotTestPackets(t, serverConn, want)
+	if inputState.KeyCodeJustPressed(keyW) {
+		t.Fatal("physical W press was not consumed")
+	}
+	if inputState.JustPressed(input.KeyW) {
+		t.Fatal("W shortcut press was not consumed")
+	}
+	if !inputState.KeyCodeDown(keyW) {
+		t.Fatal("physical W held state was consumed")
+	}
+
+	world.Player.Y = 21
+	mode.walkCooldownUntil = time.Time{}
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if err := serverConn.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := serverConn.Read(make([]byte, 1)); err == nil {
+		t.Fatal("held key unexpectedly refreshed the active walk")
+	}
+
+	world.Player.Y = 25
+	mode.walkCooldownUntil = time.Time{}
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	want, ok = network.BuildWalkToXYPacketForClientDate(10, 33, 20080910)
+	if !ok {
+		t.Fatal("failed to build expected rolling walk packet")
+	}
+	readBotTestPackets(t, serverConn, want)
+
+	inputState.EndFrame()
+	inputState.SetKeyCode(keyW, false)
+	now := time.Now()
+	world.Player = worldstate.Actor{
+		ID:           2000000,
+		X:            10,
+		Y:            33,
+		FromX:        10,
+		FromY:        25,
+		ToX:          10,
+		ToY:          33,
+		Moving:       true,
+		MoveStarted:  now,
+		MoveDuration: 8 * time.Second,
+		MovePath: []worldstate.WalkStep{
+			{X: 10, Y: 25},
+			{X: 11, Y: 25},
+			{X: 10, Y: 33},
+		},
+	}
+	mode.walkCooldownUntil = time.Time{}
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	want, ok = network.BuildWalkToXYPacketForClientDate(11, 25, 20080910)
+	if !ok {
+		t.Fatal("failed to build expected release retarget packet")
+	}
+	readBotTestPackets(t, serverConn, want)
+}
+
+func TestLuaBotCanWalkDiagonally(t *testing.T) {
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
+	inputState := input.NewState()
+	for _, name := range []string{"KeyW", "KeyD"} {
+		code, ok := input.KeyCodeFromName(name)
+		if !ok {
+			t.Fatalf("%s was not recognized", name)
+		}
+		inputState.SetKeyCode(code, true)
+	}
+
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(64, 64)
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	bot, err := newLuaBot(
+		client.Context{Input: inputState, Network: networkClient, World: world},
+		&WorldMode{},
+		filepath.Join("..", "scripts", "wasd.lua"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	want, ok := network.BuildWalkToXYPacketForClientDate(18, 28, 20080910)
+	if !ok {
+		t.Fatal("failed to build expected diagonal walk packet")
+	}
+	readBotTestPackets(t, serverConn, want)
+}
+
+func TestLuaBotHeldSpaceLootsNearbyItemsInDistanceOrder(t *testing.T) {
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
+	inputState := input.NewState()
+	space, ok := input.KeyCodeFromName("Space")
+	if !ok {
+		t.Fatal("Space was not recognized")
+	}
+	inputState.SetKeyCode(space, true)
+
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(64, 64)
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Items[400] = worldstate.FloorItem{ID: 400, ItemID: 501, X: 12, Y: 20}
+	world.Items[401] = worldstate.FloorItem{ID: 401, ItemID: 501, X: 11, Y: 20}
+	world.Items[402] = worldstate.FloorItem{ID: 402, ItemID: 501, X: 30, Y: 20}
+	bot, err := newLuaBot(
+		client.Context{Input: inputState, Network: networkClient, World: world},
+		&WorldMode{},
+		filepath.Join("..", "scripts", "wasd.lua"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+	readBotTestPackets(t, serverConn, network.BuildItemPickupPacketForClientDate(401, 20080910))
+	assertNoBotTestPacket(t, serverConn, func() error { return bot.tick() })
+
+	delete(world.Items, 401)
+	world.Player.X = 11
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+	readBotTestPackets(t, serverConn, network.BuildItemPickupPacketForClientDate(400, 20080910))
+	if inputState.KeyCodeJustPressed(space) {
+		t.Fatal("Space press was not consumed")
+	}
+	if !inputState.KeyCodeDown(space) {
+		t.Fatal("Space held state was consumed")
+	}
+}
+
+func TestLuaBotHeldFightsNearbyEnemiesInDistanceOrder(t *testing.T) {
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
+	inputState := input.NewState()
+	keyF, ok := input.KeyCodeFromName("KeyF")
+	if !ok {
+		t.Fatal("KeyF was not recognized")
+	}
+	inputState.SetKeyCode(keyF, true)
+
+	world := worldstate.New()
+	world.GAT = flatWalkableGAT(64, 64)
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{ID: 300, Name: "Poring", X: 12, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	world.Actors[301] = worldstate.Actor{ID: 301, Name: "Drops", X: 11, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	world.Actors[302] = worldstate.Actor{ID: 302, Name: "Lunatic", X: 30, Y: 20, ObjectType: actorObjectTypeMob, HasObjectType: true}
+	bot, err := newLuaBot(
+		client.Context{Input: inputState, Network: networkClient, World: world},
+		&WorldMode{},
+		filepath.Join("..", "scripts", "wasd.lua"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+	readLegacyBotTestActionPacket(t, serverConn, 301, network.ActionAttack)
+	assertNoBotTestPacket(t, serverConn, func() error { return bot.tick() })
+
+	delete(world.Actors, 301)
+	world.Player.X = 11
+	if err := bot.tick(); err != nil {
+		t.Fatal(err)
+	}
+	readLegacyBotTestActionPacket(t, serverConn, 300, network.ActionAttack)
+	if inputState.KeyCodeJustPressed(keyF) {
+		t.Fatal("physical F press was not consumed")
+	}
+	if !inputState.KeyCodeDown(keyF) {
+		t.Fatal("physical F held state was consumed")
+	}
+}
+
+func TestLuaKeyboardExposesTextAndNonConsumingEdges(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "keyboard.lua")
+	if err := os.WriteFile(path, []byte(`
+function input()
+	text = goro.keyboard.text()
+	entered = goro.keyboard.was_pressed("Enter")
+	released = goro.keyboard.was_released("Enter")
+	unknown = goro.keyboard.is_down("NotAKey")
+end
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	inputState := input.NewState()
+	enter, ok := input.KeyCodeFromName("Enter")
+	if !ok {
+		t.Fatal("Enter was not recognized")
+	}
+	inputState.SetKeyCode(enter, true)
+	inputState.AddTextInput("hé")
+	bot, err := newLuaBot(client.Context{Input: inputState}, &WorldMode{}, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bot.close()
+
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if text, _ := bot.state.GetGlobal("text").(lua.LString); string(text) != "hé" {
+		t.Fatalf("keyboard text = %q, want %q", text, "hé")
+	}
+	if entered, _ := bot.state.GetGlobal("entered").(lua.LBool); !bool(entered) {
+		t.Fatal("Enter press was not exposed")
+	}
+	if unknown, _ := bot.state.GetGlobal("unknown").(lua.LBool); bool(unknown) {
+		t.Fatal("unknown key code was reported as down")
+	}
+
+	inputState.EndFrame()
+	inputState.SetKeyCode(enter, false)
+	if err := bot.inputFrame(); err != nil {
+		t.Fatal(err)
+	}
+	if released, _ := bot.state.GetGlobal("released").(lua.LBool); !bool(released) {
+		t.Fatal("Enter release was not exposed")
 	}
 }
 
@@ -592,5 +868,42 @@ func readBotTestPackets(t *testing.T, conn net.Conn, want []byte) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatalf("packets = %x, want %x", got, want)
+	}
+}
+
+func assertNoBotTestPacket(t *testing.T, conn net.Conn, action func() error) {
+	t.Helper()
+	if err := action(); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(20 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	n, err := conn.Read(make([]byte, 1))
+	if n != 0 || err == nil {
+		t.Fatalf("unexpected packet: bytes=%d err=%v", n, err)
+	}
+	if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+		t.Fatalf("checking for packet: %v", err)
+	}
+}
+
+func readLegacyBotTestActionPacket(t *testing.T, conn net.Conn, targetID uint32, action uint8) {
+	t.Helper()
+	packet := make([]byte, 19)
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadFull(conn, packet); err != nil {
+		t.Fatal(err)
+	}
+	if got := network.ID(packet); got != network.PacketCZRequestAct {
+		t.Fatalf("action packet ID = 0x%04x, want 0x%04x", got, network.PacketCZRequestAct)
+	}
+	if got := binary.LittleEndian.Uint32(packet[5:9]); got != targetID {
+		t.Fatalf("action target = %d, want %d", got, targetID)
+	}
+	if got := packet[18]; got != action {
+		t.Fatalf("action = %d, want %d", got, action)
 	}
 }

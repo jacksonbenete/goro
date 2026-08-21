@@ -92,7 +92,6 @@ func (m *WorldMode) applyFloorItemDisappear(ctx client.Context, disappear networ
 func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPickupAck) (session.InventoryItem, int, bool) {
 	if !itemPickupAckAddsItem(ack) {
 		m.pendingPickup = pickupIntent{}
-		m.pickupReqItemID = 0
 		glog.Warnf("item pickup ack failed index=%d item_id=%d amount=%d result=%d", ack.Index, ack.ItemID, ack.Amount, ack.Result)
 		return session.InventoryItem{}, 0, false
 	}
@@ -120,7 +119,6 @@ func (m *WorldMode) applyItemPickupAck(ctx client.Context, ack network.ItemPicku
 	} else {
 		addPickedSessionInventoryItem(ctx.Session, item)
 	}
-	m.applyLocalPickupSuccess(ctx)
 	glog.Debugf("item pickup ack success index=%d item_id=%d amount=%d gained=%d type=%d location=0x%04X identified=%t result=%d", ack.Index, ack.ItemID, ack.Amount, gained, ack.Type, ack.Location, ack.Identified, ack.Result)
 	return item, gained, true
 }
@@ -134,28 +132,31 @@ func itemPickupAckAddsItem(ack network.ItemPickupAck) bool {
 	}
 }
 
-func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem, source string) {
+func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem, source string) bool {
 	if ctx.Network == nil {
 		m.setWalkCooldown(walkErrorCooldown)
-		return
+		return false
 	}
 	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	if itemWithinPickupRange(playerX, playerY, item.X, item.Y) {
-		m.sendPickupRequest(ctx, item, source)
-		return
+		return m.sendPickupRequest(ctx, item, source)
 	}
 	targetX, targetY, ok := pickupApproachCell(ctx, item)
 	if !ok {
 		glog.Warnf("%s pickup walk blocked item=%d player=%d,%d item=%d,%d", source, item.ID, playerX, playerY, item.X, item.Y)
 		m.setWalkCooldown(walkRequestCooldown)
-		return
+		return false
 	}
 	m.pendingPickup = pickupIntent{
 		itemID:  item.ID,
 		expires: time.Now().Add(8 * time.Second),
 	}
 	glog.Debugf("%s pickup walk target item=%d player=%d,%d item=%d,%d walk=%d,%d", source, item.ID, playerX, playerY, item.X, item.Y, targetX, targetY)
-	m.requestWalk(ctx, targetX, targetY, source+" pickup")
+	if m.requestWalk(ctx, targetX, targetY, source+" pickup") {
+		return true
+	}
+	m.pendingPickup = pickupIntent{}
+	return false
 }
 
 func (m *WorldMode) continuePendingPickup(ctx client.Context, source string) {
@@ -235,29 +236,17 @@ func pendingPickupReadyAt(player worldstate.Actor, now time.Time) time.Time {
 	return readyAt
 }
 
-func (m *WorldMode) sendPickupRequest(ctx client.Context, item worldstate.FloorItem, source string) {
+func (m *WorldMode) sendPickupRequest(ctx client.Context, item worldstate.FloorItem, source string) bool {
 	if err := ctx.Network.SendItemPickup(item.ID); err == nil {
-		m.pickupReqItemID = item.ID
+		m.facePlayerTowardItem(ctx, item)
+		m.startLocalPickupAnimation(ctx, time.Now())
 		m.setWalkCooldown(walkRequestCooldown)
+		return true
 	} else {
 		glog.Warnf("%s pickup request failed item=%d: %v", source, item.ID, err)
 		m.setWalkCooldown(walkErrorCooldown)
+		return false
 	}
-}
-
-func (m *WorldMode) applyLocalPickupSuccess(ctx client.Context) {
-	if ctx.World == nil {
-		return
-	}
-	itemID := m.pickupReqItemID
-	m.pickupReqItemID = 0
-	if itemID != 0 {
-		if item, ok := ctx.World.Items[itemID]; ok {
-			m.facePlayerTowardItem(ctx, item)
-			ctx.World.RemoveItem(itemID)
-		}
-	}
-	m.startLocalPickupAnimation(ctx, time.Now())
 }
 
 func (m *WorldMode) startLocalPickupAnimation(ctx client.Context, started time.Time) {

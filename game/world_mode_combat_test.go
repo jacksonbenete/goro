@@ -167,13 +167,14 @@ func TestApplyActorActionNotifyUpdatesRemoteSitState(t *testing.T) {
 	}
 }
 
-func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testing.T) {
+func TestPickupRequestStartsAnimationAndWaitsForServerDisappear(t *testing.T) {
+	networkClient, serverConn := newBotTestConnection(t, 20080910)
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Dir: 4}
-	world.UpsertItem(worldstate.FloorItem{ID: 9001, ItemID: 909, X: 11, Y: 20, Amount: 1})
+	item := worldstate.FloorItem{ID: 9001, ItemID: 909, X: 11, Y: 20, Amount: 1}
+	world.UpsertItem(item)
 	mode := &WorldMode{
-		pickupReqItemID: 9001,
-		actorAnims:      make(map[uint32]actorAnimation),
+		actorAnims: make(map[uint32]actorAnimation),
 	}
 	mode.actorAnims[150000] = actorAnimation{actionFamily: spriteActionPCReadyFight, loop: true}
 	ctx := client.Context{
@@ -181,13 +182,17 @@ func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testi
 			AccountID: 2000000,
 			CharID:    150000,
 		},
-		World: world,
+		Network: networkClient,
+		World:   world,
 	}
 
-	mode.applyItemPickupAck(ctx, network.ItemPickupAck{ItemID: 909, Amount: 1})
+	if !mode.requestPickup(ctx, item, "test") {
+		t.Fatal("pickup request was rejected")
+	}
+	readBotTestPackets(t, serverConn, network.BuildItemPickupPacketForClientDate(item.ID, 20080910))
 
-	if _, ok := world.Items[9001]; ok {
-		t.Fatal("picked item should be removed locally after pickup ack")
+	if _, ok := world.Items[item.ID]; !ok {
+		t.Fatal("pickup request removed item before server disappearance")
 	}
 	anim, ok := mode.actorAnims[150000]
 	if !ok {
@@ -200,13 +205,20 @@ func TestApplyItemPickupAckRemovesRequestedItemAndStartsPickupAnimation(t *testi
 		t.Fatalf("pickup ack animation next = %+v, want nil so it returns to idle", anim.next)
 	}
 	if expired, ok := mode.actorAnimation(150000, anim.started.Add(anim.duration)); ok {
-		t.Fatalf("pickup ack expired animation = %+v, want idle fallback", expired)
-	}
-	if mode.pickupReqItemID != 0 {
-		t.Fatalf("pickup request item id = %d, want cleared", mode.pickupReqItemID)
+		t.Fatalf("pickup request expired animation = %+v, want idle fallback", expired)
 	}
 	if world.Dir != directionFromDelta(10, 20, 11, 20, 4) {
 		t.Fatalf("player dir = %d", world.Dir)
+	}
+
+	mode.applyItemPickupAck(ctx, network.ItemPickupAck{ItemID: 909, Amount: 1})
+	if _, ok := world.Items[item.ID]; !ok {
+		t.Fatal("pickup acknowledgment removed item before server disappearance")
+	}
+
+	mode.applyFloorItemDisappear(ctx, network.FloorItemDisappear{ID: item.ID})
+	if _, ok := world.Items[item.ID]; ok {
+		t.Fatal("server disappearance did not remove picked item")
 	}
 }
 
@@ -245,8 +257,7 @@ func TestApplyItemPickupAckReceiveItemReplacesStackAndReportsGain(t *testing.T) 
 func TestApplyItemPickupAckFailureDoesNotAddItem(t *testing.T) {
 	sessionState := &session.Session{}
 	mode := &WorldMode{
-		pendingPickup:   pickupIntent{itemID: 9001},
-		pickupReqItemID: 9001,
+		pendingPickup: pickupIntent{itemID: 9001},
 	}
 	ctx := client.Context{Session: sessionState}
 
@@ -256,8 +267,8 @@ func TestApplyItemPickupAckFailureDoesNotAddItem(t *testing.T) {
 	if len(sessionState.Inventory.Items) != 0 {
 		t.Fatalf("inventory items = %+v, want none", sessionState.Inventory.Items)
 	}
-	if mode.pendingPickup.itemID != 0 || mode.pickupReqItemID != 0 {
-		t.Fatalf("pickup state = pending %d requested %d, want cleared", mode.pendingPickup.itemID, mode.pickupReqItemID)
+	if mode.pendingPickup.itemID != 0 {
+		t.Fatalf("pending pickup = %d, want cleared", mode.pendingPickup.itemID)
 	}
 }
 

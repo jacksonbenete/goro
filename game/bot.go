@@ -57,6 +57,18 @@ func (m *WorldMode) updateBot(ctx client.Context, now time.Time) {
 	}
 }
 
+func (m *WorldMode) updateBotInput(ctx client.Context) {
+	path := strings.TrimSpace(ctx.Config.Script.Path)
+	if path == "" || m.bot == nil || m.bot.path != path || m.bot.disabled {
+		return
+	}
+	if err := m.bot.inputFrame(); err != nil {
+		glog.Warnf("lua script input failed path=%q: %v", m.bot.path, err)
+		m.bot.close()
+		m.bot.disabled = true
+	}
+}
+
 func newLuaBot(ctx client.Context, mode *WorldMode, path string) (*luaBot, error) {
 	bot := &luaBot{
 		path:     path,
@@ -84,6 +96,17 @@ func (b *luaBot) tick() error {
 		return nil
 	}
 	fn := b.state.GetGlobal("tick")
+	if fn == lua.LNil {
+		return nil
+	}
+	return b.state.CallByParam(lua.P{Fn: fn, NRet: 0, Protect: true})
+}
+
+func (b *luaBot) inputFrame() error {
+	if b == nil || b.state == nil {
+		return nil
+	}
+	fn := b.state.GetGlobal("input")
 	if fn == lua.LNil {
 		return nil
 	}
@@ -119,6 +142,14 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 		},
 		"message": func(L *lua.LState) int {
 			L.Push(lua.LBool(scriptMessage(ctx, L.CheckString(1))))
+			return 1
+		},
+		"walk": func(L *lua.LState) int {
+			L.Push(lua.LBool(mode.scriptWalk(ctx, L.CheckInt(1), L.CheckInt(2))))
+			return 1
+		},
+		"stop": func(L *lua.LState) int {
+			L.Push(lua.LBool(mode.scriptStop(ctx)))
 			return 1
 		},
 		"attack": func(L *lua.LState) int {
@@ -167,6 +198,7 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 			return 1
 		},
 	})
+	registerLuaKeyboardAPI(b.state, api, ctx)
 	b.state.SetGlobal("goro", api)
 }
 
@@ -225,8 +257,7 @@ func (m *WorldMode) scriptLoot(ctx client.Context, id uint32) bool {
 	}
 	m.clearLockedAttack()
 	m.clearAttackFocus()
-	m.requestPickup(ctx, item, "script")
-	return true
+	return m.requestPickup(ctx, item, "script")
 }
 
 func scriptUseItem(ctx client.Context, index int) bool {

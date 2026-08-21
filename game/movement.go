@@ -149,19 +149,60 @@ func actorCurrentCell(actor worldstate.Actor, now time.Time) (int, int) {
 	return int(math.Round(x)), int(math.Round(y))
 }
 
-func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source string) {
-	if !walkTargetInBounds(ctx, targetX, targetY) {
+func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source string) bool {
+	if ctx.World == nil || ctx.Network == nil || !walkTargetInBounds(ctx, targetX, targetY) {
 		m.setWalkCooldown(walkRequestCooldown)
-		return
+		return false
 	}
 	playerX, playerY := currentPlayerCell(ctx, time.Now())
 	glog.Debugf("%s walk request from=%d,%d to=%d,%d", source, playerX, playerY, targetX, targetY)
 	if err := ctx.Network.SendWalkToXY(targetX, targetY); err == nil {
 		m.setWalkCooldown(walkRequestCooldown)
+		return true
 	} else {
 		glog.Warnf("%s walk request failed from=%d,%d to=%d,%d: %v", source, playerX, playerY, targetX, targetY, err)
 		m.setWalkCooldown(walkErrorCooldown)
+		return false
 	}
+}
+
+// requestWalkStop shortens the current walk to the end of its active path
+// segment. Following the server-approved path avoids a visible reversal when
+// that path bends around an obstacle.
+func (m *WorldMode) requestWalkStop(ctx client.Context, source string) bool {
+	now := time.Now()
+	if ctx.World == nil || ctx.Network == nil {
+		return false
+	}
+	player := ctx.World.Player
+	if !actorIsMovingAt(player, now) {
+		return true
+	}
+	if !m.walkReady(now) {
+		return false
+	}
+	targetX, targetY := nextPlayerPathCell(player, now)
+	return m.requestWalk(ctx, targetX, targetY, source+" stop")
+}
+
+func nextPlayerPathCell(player worldstate.Actor, now time.Time) (int, int) {
+	if len(player.MovePath) >= 2 {
+		elapsed := now.Sub(player.MoveStarted)
+		_, _, x, y := renderPathSegmentWithSpeed(
+			player.MovePath,
+			elapsed,
+			actorMoveSpeed(player),
+			player.MoveStartX,
+			player.MoveStartY,
+			player.HasMoveStart,
+		)
+		return int(math.Round(x)), int(math.Round(y))
+	}
+
+	x, y := actorRenderPosition(player, now)
+	targetX := int(math.Round(x)) + signInt(player.ToX-int(math.Round(x)))
+	targetY := int(math.Round(y)) + signInt(player.ToY-int(math.Round(y)))
+	return targetX, targetY
 }
 
 func shouldUseTurnOnlyGroundClick(ctx client.Context) bool {

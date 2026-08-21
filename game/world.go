@@ -98,7 +98,6 @@ type WorldMode struct {
 	homDeleteID       uint32
 	mercDeleteID      uint32
 	petSlotMachine    petSlotMachineState
-	pickupReqItemID   uint32
 	lockedAttackID    uint32
 	attackFocusID     uint32
 	attackFocusStart  time.Time
@@ -395,7 +394,6 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.pendingPickup = pickupIntent{}
 	m.pendingSkill = pendingSkillTarget{}
 	m.pendingSkillText = pendingSkillTextTarget{}
-	m.pickupReqItemID = 0
 	m.lockedAttackID = 0
 	m.clearAttackFocus()
 	m.lastAttackAt = time.Time{}
@@ -610,6 +608,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	m.ui.console.UpdatePresentation(ctx)
 	keyboardBlocked := m.ui.keyboardInputBlocked(ctx)
 	if !keyboardBlocked {
+		m.updateBotInput(ctx)
 		if m.skills().CancelFromInput(ctx) {
 			return nil, nil
 		}
