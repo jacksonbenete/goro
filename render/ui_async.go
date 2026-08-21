@@ -22,8 +22,7 @@ type asyncUIRasterizer struct {
 }
 
 type uiRasterJob struct {
-	generation uint64
-	list       uiDrawList
+	list uiDrawList
 }
 
 type uiRasterResult struct {
@@ -123,7 +122,7 @@ func (s *uiRasterState) ensure(width, height int, scale float64) {
 func (s *uiRasterState) rasterize(job uiRasterJob) uiRasterResult {
 	list := job.list
 	result := uiRasterResult{
-		generation: job.generation,
+		generation: list.generation,
 		width:      list.width,
 		height:     list.height,
 		scale:      list.scale,
@@ -168,10 +167,11 @@ func sameUIScale(a, b float64) bool {
 }
 
 type uiDrawList struct {
-	width  int
-	height int
-	scale  float64
-	ops    []uiDrawOp
+	generation uint64
+	width      int
+	height     int
+	scale      float64
+	ops        []uiDrawOp
 }
 
 type uiDrawOp func(widget.Canvas)

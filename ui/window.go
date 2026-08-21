@@ -224,7 +224,7 @@ func (w *Window) EnsureWindow(width, height int) bool {
 }
 
 func (w *Window) Close() {
-	w.endDragLayer(w.ctx)
+	w.cancelDragLayer(w.ctx)
 	w.setOpacity(1)
 	w.open = false
 	w.dragging = false
@@ -263,7 +263,7 @@ func (w *Window) IsOpen() bool {
 }
 
 func (w *Window) SetContent(content widget.Widget) {
-	w.endDragLayer(w.ctx)
+	w.cancelDragLayer(w.ctx)
 	w.content = content
 	if overlay := w.positionedOverlay(); overlay != nil {
 		damage := overlay.setChild(content, windowWidgetContext(w.ctx))
@@ -315,7 +315,7 @@ func (w *Window) Unpublish(ctx client.Context) {
 	if w == nil || ctx.UIManager == nil || w.published == nil {
 		return
 	}
-	w.endDragLayer(ctx)
+	w.cancelDragLayer(ctx)
 	clearPositionedOverlayDamage(w.published)
 	ctx.UIManager.RemoveOverlay(w.published)
 	w.published = nil
@@ -325,7 +325,7 @@ func (w *Window) SetSize(width, height int) {
 	if w.width == width && w.height == height {
 		return
 	}
-	w.endDragLayer(w.ctx)
+	w.cancelDragLayer(w.ctx)
 	w.width = width
 	w.height = height
 	w.placed = nil
@@ -524,6 +524,14 @@ func (w *Window) beginDragLayer(ctx client.Context) {
 }
 
 func (w *Window) endDragLayer(ctx client.Context) {
+	w.finishDragLayer(ctx, false)
+}
+
+func (w *Window) cancelDragLayer(ctx client.Context) {
+	w.finishDragLayer(ctx, true)
+}
+
+func (w *Window) finishDragLayer(ctx client.Context, cancel bool) {
 	if !w.dragLayer {
 		return
 	}
@@ -533,7 +541,11 @@ func (w *Window) endDragLayer(ctx client.Context) {
 		return
 	}
 	if app, ok := ctx.UIApp.(windowDragLayerUIApp); ok {
-		app.EndWindowDragLayer(overlay)
+		if cancel {
+			app.CancelWindowDragLayer(overlay)
+		} else {
+			app.EndWindowDragLayer(overlay)
+		}
 	}
 	w.dragLayer = false
 	overlay.hidden = false
@@ -557,6 +569,7 @@ type windowDragLayerUIApp interface {
 	BeginWindowDragLayer(token any, rect geometry.Rect) bool
 	MoveWindowDragLayer(token any, rect geometry.Rect)
 	EndWindowDragLayer(token any)
+	CancelWindowDragLayer(token any)
 }
 
 func invalidateWindowRect(ctx client.Context, rect geometry.Rect) {

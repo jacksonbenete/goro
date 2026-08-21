@@ -223,6 +223,79 @@ func TestSetUIDragLayerReleasesPreviousGPUTexture(t *testing.T) {
 	}
 }
 
+func TestUIDragReleaseWaitsForRestoredAsyncImage(t *testing.T) {
+	dragImage := NewImage(4, 4)
+	restoredImage := NewImage(8, 8)
+	rasterizer := &asyncUIRasterizer{
+		jobs: make(chan uiRasterJob, 1),
+		done: make(chan uiRasterResult, 2),
+	}
+	r := &runner{
+		uiAsync:      rasterizer,
+		uiAsyncBusy:  true,
+		uiGeneration: 7,
+		uiPendingLists: []uiDrawList{
+			{generation: 7, ops: []uiDrawOp{func(widget.Canvas) {}}},
+		},
+		uiDrag: uiDragLayer{
+			token:  "window",
+			image:  dragImage,
+			active: true,
+		},
+	}
+
+	r.endUIDragLayer("window")
+
+	if !r.uiDrag.active || !r.uiDrag.releasePending || r.uiDrag.image != dragImage {
+		t.Fatal("drag image was not retained during the release handoff")
+	}
+	if r.uiGeneration != 8 {
+		t.Fatalf("UI generation = %d, want 8", r.uiGeneration)
+	}
+	if len(r.uiPendingLists) != 1 || r.uiPendingLists[0].generation != 7 {
+		t.Fatal("release discarded queued UI work from the previous generation")
+	}
+	r.completeUIDragLayerRelease()
+	if !r.uiDrag.active || !r.uiDrag.releasePending {
+		t.Fatal("drag handoff ended without a published replacement image")
+	}
+
+	rasterizer.done <- uiRasterResult{generation: 7, width: 800, height: 600, scale: 1, image: NewImage(8, 8)}
+	r.collectAsyncUIResults(800, 600, 1)
+	if !r.uiDrag.active || !r.uiDrag.releasePending {
+		t.Fatal("stale hidden-window result ended the drag handoff")
+	}
+
+	r.uiAsyncBusy = true
+	rasterizer.done <- uiRasterResult{generation: 8, width: 800, height: 600, scale: 1, image: restoredImage}
+	r.collectAsyncUIResults(800, 600, 1)
+	if r.uiDrag.active || r.uiDrag.image != nil {
+		t.Fatal("restored UI image did not end the drag handoff")
+	}
+	if r.uiImage != restoredImage {
+		t.Fatal("restored UI image was not published")
+	}
+}
+
+func TestDrawUIPublishedImageKeepsDragLayerWithoutBaseImage(t *testing.T) {
+	screen := NewFrame(100, 80)
+	r := &runner{
+		uiDrag: uiDragLayer{
+			rect:           geometry.NewRect(10, 12, 30, 24),
+			image:          NewImage(30, 24),
+			active:         true,
+			releasePending: true,
+		},
+	}
+
+	if err := r.drawUIPublishedImage(screen, 100, 80); err != nil {
+		t.Fatal(err)
+	}
+	if len(screen.commands) != 1 {
+		t.Fatalf("draw commands = %d, want retained drag image", len(screen.commands))
+	}
+}
+
 func TestShouldRecordAsyncUIBackpressuresWhenPendingListExists(t *testing.T) {
 	r := &runner{
 		uiAsyncBusy:    true,
@@ -250,7 +323,7 @@ func TestCollectStaleAsyncUIResultSubmitsReplacementList(t *testing.T) {
 		jobs: make(chan uiRasterJob, 1),
 		done: make(chan uiRasterResult, 1),
 	}
-	replacement := uiDrawList{ops: []uiDrawOp{func(widget.Canvas) {}}}
+	replacement := uiDrawList{generation: 2, ops: []uiDrawOp{func(widget.Canvas) {}}}
 	r := &runner{
 		uiAsync:        rasterizer,
 		uiAsyncBusy:    true,
@@ -269,8 +342,8 @@ func TestCollectStaleAsyncUIResultSubmitsReplacementList(t *testing.T) {
 	}
 	select {
 	case job := <-rasterizer.jobs:
-		if job.generation != 2 {
-			t.Fatalf("replacement generation = %d, want 2", job.generation)
+		if job.list.generation != 2 {
+			t.Fatalf("replacement generation = %d, want 2", job.list.generation)
 		}
 		if len(job.list.ops) != len(replacement.ops) {
 			t.Fatalf("replacement operations = %d, want %d", len(job.list.ops), len(replacement.ops))

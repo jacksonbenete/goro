@@ -133,8 +133,14 @@ func (b uiAppBridge) EndWindowDragLayer(token any) {
 	}
 }
 
+func (b uiAppBridge) CancelWindowDragLayer(token any) {
+	if b.runner != nil {
+		b.runner.cancelUIDragLayer(token)
+	}
+}
+
 func (b uiAppBridge) WindowDragActive() bool {
-	return b.runner != nil && b.runner.uiDrag.active
+	return b.runner != nil && b.runner.uiDrag.active && !b.runner.uiDrag.releasePending
 }
 
 type overlayDrawer interface {
@@ -163,14 +169,15 @@ type cachedOverlayImage struct {
 }
 
 type uiDragLayer struct {
-	token       any
-	rect        geometry.Rect
-	image       *Image
-	active      bool
-	drawOffsetX float32
-	drawOffsetY float32
-	drawWidth   float32
-	drawHeight  float32
+	token          any
+	rect           geometry.Rect
+	image          *Image
+	active         bool
+	releasePending bool
+	drawOffsetX    float32
+	drawOffsetY    float32
+	drawWidth      float32
+	drawHeight     float32
 }
 
 type uiImageRectCapture struct {
@@ -1038,6 +1045,7 @@ func (r *runner) drawUISync(screen *Frame, width, height int, deviceScale float6
 			flushDur = time.Since(flushStart)
 			imageStart := time.Now()
 			r.updateUIImage()
+			r.completeUIDragLayerRelease()
 			imageDur = time.Since(imageStart)
 		}
 		uiDur := time.Since(uiStart)
@@ -1128,15 +1136,14 @@ func (r *runner) drawUIAsync(screen *Frame, width, height int, deviceScale float
 }
 
 func (r *runner) drawUIPublishedImage(screen *Frame, width, height int) error {
-	if !r.uiDrawnOnce || r.uiImage == nil {
-		return nil
+	if r.uiDrawnOnce && r.uiImage != nil {
+		var opts DrawImageOptions
+		if b := r.uiImage.Bounds(); b.Dx() > 0 && b.Dy() > 0 {
+			opts.GeoM.Scale(float64(width)/float64(b.Dx()), float64(height)/float64(b.Dy()))
+		}
+		opts.Filter = FilterNearest
+		screen.DrawImage(r.uiImage, &opts)
 	}
-	var opts DrawImageOptions
-	if b := r.uiImage.Bounds(); b.Dx() > 0 && b.Dy() > 0 {
-		opts.GeoM.Scale(float64(width)/float64(b.Dx()), float64(height)/float64(b.Dy()))
-	}
-	opts.Filter = FilterNearest
-	screen.DrawImage(r.uiImage, &opts)
 	r.drawUIDragLayer(screen)
 	return nil
 }
@@ -1166,6 +1173,7 @@ func (r *runner) enqueueUIDrawList(list uiDrawList) {
 	if r == nil || len(list.ops) == 0 {
 		return
 	}
+	list.generation = r.uiGeneration
 	if r.uiAsyncBusy {
 		if len(r.uiPendingLists) == 0 {
 			r.uiPendingLists = append(r.uiPendingLists, list)
@@ -1180,7 +1188,7 @@ func (r *runner) enqueueUIDrawList(list uiDrawList) {
 
 func (r *runner) submitUIDrawList(list uiDrawList) {
 	rasterizer := r.ensureAsyncUIRasterizer()
-	job := uiRasterJob{generation: r.uiGeneration, list: list}
+	job := uiRasterJob{list: list}
 	if rasterizer.submit(job) {
 		r.uiAsyncBusy = true
 		return
@@ -1215,16 +1223,16 @@ func (r *runner) collectAsyncUIResults(width, height int, deviceScale float64) {
 				continue
 			}
 			if result.generation != r.uiGeneration || result.width != width || result.height != height || !sameUIScale(result.scale, deviceScale) {
-				// Generation changes discard any pending list that predates them.
-				// A list present here was recorded afterward and is the replacement
-				// frame, so submit it instead of losing the new UI with the stale
-				// result.
+				// Stale work still updates the rasterizer's retained canvas. Keep
+				// draining queued lists in order, but publish only the current
+				// generation.
 				r.submitPendingUIDrawLists()
 				continue
 			}
 			imageStart := time.Now()
 			r.setUIImage(result.image)
 			r.uiDrawnOnce = r.uiImage != nil
+			r.completeUIDragLayerRelease()
 			r.lastUIImageDur += time.Since(imageStart)
 			if r.renderCfg.UIProfile && result.rasterDur > 16*time.Millisecond {
 				glog.Debugf(
@@ -1257,7 +1265,7 @@ func (r *runner) stopAsyncUIRasterizer() {
 }
 
 func (r *runner) beginUIDragLayer(token any, rect geometry.Rect) bool {
-	if r == nil || token == nil || rect.IsEmpty() {
+	if r == nil || token == nil || rect.IsEmpty() || r.uiDrag.active {
 		return false
 	}
 	capture := r.captureUIImageRect(rect)
@@ -1288,7 +1296,27 @@ func (r *runner) endUIDragLayer(token any) {
 	if r == nil || token == nil || !r.uiDrag.active || r.uiDrag.token != token {
 		return
 	}
+	if r.uiDrag.releasePending {
+		return
+	}
+	// Keep drawing the captured window until the restored UI has finished
+	// rasterizing. Results already in flight contain the hidden overlay, so
+	// move to a new generation and reject them during the handoff.
+	r.uiGeneration++
+	r.uiDrag.releasePending = true
+}
+
+func (r *runner) cancelUIDragLayer(token any) {
+	if r == nil || token == nil || !r.uiDrag.active || r.uiDrag.token != token {
+		return
+	}
 	r.setUIDragLayer(uiDragLayer{})
+}
+
+func (r *runner) completeUIDragLayerRelease() {
+	if r != nil && r.uiDrawnOnce && r.uiImage != nil && r.uiDrag.active && r.uiDrag.releasePending {
+		r.setUIDragLayer(uiDragLayer{})
+	}
 }
 
 func (r *runner) captureUIImageRect(rect geometry.Rect) uiImageRectCapture {

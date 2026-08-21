@@ -188,7 +188,10 @@ func TestWindowDragReusesPublishedOverlay(t *testing.T) {
 		t.Fatal("drag release was not consumed")
 	}
 	if app.endToken != root {
-		t.Fatal("drag release did not clear the drag layer")
+		t.Fatal("drag release did not begin the drag-layer handoff")
+	}
+	if app.cancelToken != nil {
+		t.Fatal("ordinary drag release cancelled the drag layer")
 	}
 	if overlay.hidden {
 		t.Fatal("drag release did not restore the overlay")
@@ -211,6 +214,38 @@ func TestWindowDragReusesPublishedOverlay(t *testing.T) {
 	overlay.clearDamage()
 	if children := overlay.Children(); len(children) != 1 {
 		t.Fatalf("clean overlay children = %d, want 1", len(children))
+	}
+}
+
+func TestWindowCloseCancelsDragLayer(t *testing.T) {
+	manager := &escapeMenuTestUIManager{}
+	app := &windowDragTestApp{}
+	inputState := input.NewState()
+	ctx := client.Context{
+		Input:     inputState,
+		UIApp:     app,
+		UIManager: manager,
+		ScreenW:   800,
+		ScreenH:   600,
+	}
+	window := NewWindow(100, 80)
+	window.OpenAt(10, 20, primitives.Box())
+	window.Publish(ctx)
+	root := manager.overlays[0]
+
+	inputState.SetMousePosition(20, 25)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	window.Update(ctx)
+	window.Close()
+
+	if app.cancelToken != root {
+		t.Fatal("closing a dragged window did not cancel its drag layer")
+	}
+	if app.endToken != nil {
+		t.Fatal("closing a dragged window started a release handoff")
+	}
+	if window.dragLayer || window.dragging {
+		t.Fatal("closed window retained drag state")
 	}
 }
 
@@ -265,12 +300,13 @@ func TestScreenEdgeAnchorsUseWindowMargin(t *testing.T) {
 }
 
 type windowDragTestApp struct {
-	rects      []geometry.Rect
-	beginToken any
-	beginRect  geometry.Rect
-	moves      []geometry.Rect
-	endToken   any
-	active     bool
+	rects       []geometry.Rect
+	beginToken  any
+	beginRect   geometry.Rect
+	moves       []geometry.Rect
+	endToken    any
+	cancelToken any
+	active      bool
 }
 
 func (a *windowDragTestApp) SetUIRoot(widget.Widget) {}
@@ -296,6 +332,10 @@ func (a *windowDragTestApp) MoveWindowDragLayer(token any, rect geometry.Rect) {
 }
 func (a *windowDragTestApp) EndWindowDragLayer(token any) {
 	a.endToken = token
+	a.active = false
+}
+func (a *windowDragTestApp) CancelWindowDragLayer(token any) {
+	a.cancelToken = token
 	a.active = false
 }
 func (a *windowDragTestApp) WindowDragActive() bool { return a.active }
