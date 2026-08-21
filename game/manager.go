@@ -20,6 +20,10 @@ type uiOverlayMode interface {
 	DrawUIOverlay(client.Context, *render.Frame)
 }
 
+type frameSubmittedMode interface {
+	FrameSubmitted()
+}
+
 type Manager struct {
 	ctx  client.Context
 	mode Mode
@@ -68,5 +72,11 @@ func (m *Manager) DrawOverlay(screen *render.Frame) {
 func (m *Manager) DrawUIOverlay(screen *render.Frame) {
 	if mode, ok := m.mode.(uiOverlayMode); ok {
 		mode.DrawUIOverlay(m.ctx, screen)
+	}
+}
+
+func (m *Manager) FrameSubmitted() {
+	if mode, ok := m.mode.(frameSubmittedMode); ok {
+		mode.FrameSubmitted()
 	}
 }

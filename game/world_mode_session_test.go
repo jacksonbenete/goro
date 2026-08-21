@@ -720,6 +720,10 @@ func TestMapFadeAlphaTransitionsThroughBlack(t *testing.T) {
 	if got := mode.mapFadeAlpha(start.Add(time.Second)); got != 255 {
 		t.Fatalf("hold alpha = %d, want 255", got)
 	}
+	mode.startMapPrewarm()
+	if got := mode.mapFadeAlpha(start.Add(time.Second)); got != 255 {
+		t.Fatalf("prewarm alpha = %d, want 255", got)
+	}
 
 	mode.startMapFadeIn(start)
 	if got := mode.mapFadeAlpha(start); got != 255 {
@@ -753,6 +757,17 @@ func TestCharacterSelectTransitionFadesOutAndIn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if next != nil {
+		t.Fatalf("mode switched before an opaque frame was presented: %T", next)
+	}
+	if mode.mapFade.phase != mapFadeHold {
+		t.Fatalf("world fade phase = %d, want opaque hold", mode.mapFade.phase)
+	}
+	mode.recordCoveredMapFrame()
+	next, err = mode.Update(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	login, ok := next.(*LoginMode)
 	if !ok {
 		t.Fatalf("next mode = %T, want *LoginMode", next)
@@ -770,6 +785,50 @@ func TestCharacterSelectTransitionFadesOutAndIn(t *testing.T) {
 	}
 	if got := login.fadeAlpha(login.fade.started); got != 255 {
 		t.Fatalf("character-select fade alpha after Enter = %d, want 255", got)
+	}
+}
+
+func TestMapPrewarmCompletesBeforeFadeInStarts(t *testing.T) {
+	start := time.Unix(200, 0)
+	mode := NewWorldMode()
+	mode.startMapPrewarm()
+
+	mode.advanceMapPrewarm(start)
+	if mode.mapFade.phase != mapFadePrewarm {
+		t.Fatalf("fade phase without a rendered frame = %d, want prewarm", mode.mapFade.phase)
+	}
+
+	mode.recordCoveredMapFrame()
+	mode.advanceMapPrewarm(start)
+	if mode.mapFade.phase != mapFadePrewarm {
+		t.Fatalf("fade phase after one rendered frame = %d, want prewarm", mode.mapFade.phase)
+	}
+
+	mode.recordCoveredMapFrame()
+	mode.advanceMapPrewarm(start)
+	if mode.mapFade.phase != mapFadeIn {
+		t.Fatalf("fade phase after prewarming = %d, want fade-in", mode.mapFade.phase)
+	}
+	if !mode.mapFade.started.Equal(start) {
+		t.Fatalf("fade-in started = %s, want %s", mode.mapFade.started, start)
+	}
+}
+
+func TestMapChangeDuringPrewarmRemainsCovered(t *testing.T) {
+	mode := NewWorldMode()
+	mode.startMapPrewarm()
+	change := network.MapChange{MapName: "geffen"}
+
+	mode.startMapFadeOut(change, time.Unix(300, 0))
+
+	if mode.mapFade.phase != mapFadeHold || !mode.mapFade.hasChange {
+		t.Fatalf("fade after chained map change = %+v, want covered handoff", mode.mapFade)
+	}
+	if mode.mapFade.change.MapName != change.MapName {
+		t.Fatalf("pending map = %q, want %q", mode.mapFade.change.MapName, change.MapName)
+	}
+	if got := mode.mapFadeAlpha(time.Now()); got != 255 {
+		t.Fatalf("chained map change alpha = %d, want 255", got)
 	}
 }
 

@@ -151,6 +151,10 @@ type uiOverlayDrawer interface {
 	DrawUIOverlay(*Frame)
 }
 
+type frameSubmittedReceiver interface {
+	FrameSubmitted()
+}
+
 type runtimeSettingsProvider interface {
 	RuntimeFullscreen() bool
 	RuntimeVSync() bool
@@ -731,8 +735,14 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	}
 	// Goro redraws the 3D scene every frame; UI canvas damage only scopes UI texture updates.
 	ctx.SetDamageRects(nil)
-	if err := r.gpu.Draw(ctx, r.screen); err != nil {
+	submitted, err := r.gpu.Draw(ctx, r.screen)
+	if err != nil {
 		return err
+	}
+	if submitted {
+		if receiver, ok := r.game.(frameSubmittedReceiver); ok {
+			receiver.FrameSubmitted()
+		}
 	}
 	drawDur := time.Since(drawStart)
 	totalDur := r.lastUpdateDuration + drawDur
@@ -796,7 +806,7 @@ func (r *runner) saveScreenshot(ctx *gogpu.Context, path string) error {
 	}
 	var renderErr error
 	img, err := ctx.Renderer().RenderToImage(width, height, func(target *gogpu.Context) {
-		renderErr = r.gpu.Draw(target, r.screen)
+		_, renderErr = r.gpu.Draw(target, r.screen)
 	})
 	if err != nil {
 		return err

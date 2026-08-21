@@ -634,28 +634,31 @@ func TestLoginWorldFadeWaitsForBlack(t *testing.T) {
 	if got := mode.fadeAlpha(start.Add(loginTransitionDuration)); got != 255 {
 		t.Fatalf("world fade alpha at handoff = %d, want 255", got)
 	}
+	if mode.updateFade(client.Context{}, start.Add(loginTransitionDuration)) {
+		t.Fatal("world handoff completed before an opaque frame was presented")
+	}
+	if mode.fade.phase != loginFadeHold {
+		t.Fatalf("world fade phase = %d, want opaque hold", mode.fade.phase)
+	}
+	mode.recordCoveredLoginFrame()
 	if !mode.updateFade(client.Context{}, start.Add(loginTransitionDuration)) {
-		t.Fatal("world handoff did not complete at black")
+		t.Fatal("world handoff did not complete after an opaque frame")
 	}
 }
 
-func TestLoginToWorldStartsFadeInAfterWorldEnter(t *testing.T) {
+func TestLoginToWorldPrewarmsBeforeFadeIn(t *testing.T) {
 	ctx := client.Context{
 		Resources: &res.Manager{},
 		Session:   &session.Session{},
 		World:     worldstate.New(),
 	}
 	next := NewLoginMode().nextWorldMode(ctx)
-	if next.mapFade.phase != mapFadeIn || !next.mapFade.started.IsZero() {
-		t.Fatalf("pending world fade = %+v, want unstarted fade-in", next.mapFade)
-	}
-
 	next.Enter(ctx)
-	if next.mapFade.started.IsZero() {
-		t.Fatal("world fade-in did not start after Enter")
+	if next.mapFade.phase != mapFadePrewarm {
+		t.Fatalf("world fade phase after Enter = %d, want prewarm", next.mapFade.phase)
 	}
-	if got := next.mapFadeAlpha(next.mapFade.started); got != 255 {
-		t.Fatalf("world fade alpha after Enter = %d, want 255", got)
+	if got := next.mapFadeAlpha(time.Now()); got != 255 {
+		t.Fatalf("world prewarm alpha = %d, want 255", got)
 	}
 }
 

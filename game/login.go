@@ -68,18 +68,21 @@ type loginFadePhase int
 const (
 	loginFadeNone loginFadePhase = iota
 	loginFadeOut
+	loginFadeHold
 	loginFadeIn
 )
 
 type loginFadeState struct {
-	phase      loginFadePhase
-	started    time.Time
-	target     loginPhase
-	hasTarget  bool
-	enterWorld bool
+	phase         loginFadePhase
+	started       time.Time
+	coveredFrames int
+	target        loginPhase
+	hasTarget     bool
+	enterWorld    bool
 }
 
 const loginTransitionDuration = 500 * time.Millisecond
+const loginWorldHandoffFrames = 1
 const loginConfirmSFX = "버튼소리.wav"
 const charServerPingInterval = 10 * time.Second
 
@@ -506,6 +509,10 @@ func (m *LoginMode) DrawOverlay(ctx client.Context, screen *render.Frame) {
 	m.drawROCursor(screen, ctx, now)
 }
 
+func (m *LoginMode) FrameSubmitted() {
+	m.recordCoveredLoginFrame()
+}
+
 func (m *LoginMode) drawROCursor(screen *render.Frame, ctx client.Context, now time.Time) {
 	if ctx.Input == nil {
 		return
@@ -599,13 +606,17 @@ func (m *LoginMode) updateFade(ctx client.Context, now time.Time) bool {
 			return false
 		}
 		if m.fade.enterWorld {
-			return true
+			m.fade.phase = loginFadeHold
+			m.fade.coveredFrames = 0
+			return false
 		}
 		if m.fade.hasTarget {
 			m.phase = m.fade.target
 			m.publishPhaseWindow(ctx)
 		}
 		m.fade = loginFadeState{phase: loginFadeIn, started: now}
+	case loginFadeHold:
+		return m.fade.enterWorld && m.fade.coveredFrames >= loginWorldHandoffFrames
 	case loginFadeIn:
 		if now.Sub(m.fade.started) >= loginTransitionDuration {
 			m.fade = loginFadeState{}
@@ -637,16 +648,27 @@ func (m *LoginMode) clearLoginWindows(ctx client.Context) {
 }
 
 func (m *LoginMode) fadeAlpha(now time.Time) uint8 {
-	if m.fade.started.IsZero() {
-		return 0
-	}
 	switch m.fade.phase {
+	case loginFadeHold:
+		return 255
 	case loginFadeOut:
+		if m.fade.started.IsZero() {
+			return 0
+		}
 		return clampColor(255 * clampUnit(float64(now.Sub(m.fade.started))/float64(loginTransitionDuration)))
 	case loginFadeIn:
+		if m.fade.started.IsZero() {
+			return 0
+		}
 		return clampColor(255 * (1 - clampUnit(float64(now.Sub(m.fade.started))/float64(loginTransitionDuration))))
 	default:
 		return 0
+	}
+}
+
+func (m *LoginMode) recordCoveredLoginFrame() {
+	if m.fade.phase == loginFadeHold && m.fade.coveredFrames < loginWorldHandoffFrames {
+		m.fade.coveredFrames++
 	}
 }
 
@@ -665,7 +687,6 @@ func (m *LoginMode) nextWorldMode(ctx client.Context) *WorldMode {
 	m.disableCharServerPing()
 	next := NewWorldMode()
 	next.ui.console = m.console
-	next.startMapFadeIn(time.Time{})
 	return next
 }
 

@@ -303,20 +303,26 @@ const (
 	mapFadeNone mapFadePhase = iota
 	mapFadeOut
 	mapFadeHold
+	mapFadePrewarm
 	mapFadeIn
 )
 
 type mapFadeState struct {
 	phase           mapFadePhase
 	started         time.Time
+	coveredFrames   int
 	change          network.MapChange
 	hasChange       bool
 	characterSelect bool
 }
 
 const (
-	mapFadeOutDuration       = 220 * time.Millisecond
-	mapFadeInDuration        = 340 * time.Millisecond
+	mapFadeOutDuration = 220 * time.Millisecond
+	mapFadeInDuration  = 340 * time.Millisecond
+	// Present the transition cover before blocking on synchronous map loading.
+	mapFadeHandoffFrames = 1
+	// Warm the base map, then allow a frame for the initial post-ack actors.
+	mapFadePrewarmFrames     = 2
 	actorNameRequestCooldown = time.Second
 	defaultRSMLoadLimit      = 128
 )
@@ -336,16 +342,7 @@ func (m *WorldMode) Name() string {
 
 func (m *WorldMode) Enter(ctx client.Context) {
 	now := time.Now()
-	if m.mapFade.phase == mapFadeNone {
-		m.startMapFadeIn(time.Time{})
-	}
-	if m.mapFade.phase == mapFadeIn && m.mapFade.started.IsZero() {
-		// Enter loads the map synchronously. Start the visible fade only after
-		// that work finishes, or a slow load can consume the whole animation.
-		defer func() {
-			m.mapFade.started = time.Now()
-		}()
-	}
+	m.startMapPrewarm()
 	m.camera.ResetTracking()
 	ctx.World.GAT = nil
 	ctx.World.GND = nil
@@ -549,6 +546,11 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		if !m.mapFadeElapsed(now) {
 			return nil, nil
 		}
+		m.mapFade.phase = mapFadeHold
+		m.mapFade.coveredFrames = 0
+		return nil, nil
+	}
+	if m.mapFade.phase == mapFadeHold && m.mapFade.coveredFrames >= mapFadeHandoffFrames {
 		if m.mapFade.characterSelect {
 			return m.nextCharacterSelectMode(ctx), nil
 		}
@@ -564,8 +566,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			}
 			return nil, nil
 		}
-		m.startMapFadeIn(now)
 	}
+	m.advanceMapPrewarm(now)
 	if m.mapFade.phase == mapFadeIn && m.mapFadeElapsed(now) {
 		m.mapFade = mapFadeState{}
 	}
@@ -606,7 +608,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	}
 
 	m.camera.Update(ctx, now)
-	if m.mapFade.phase == mapFadeHold {
+	if m.mapFade.phase == mapFadeHold || m.mapFade.phase == mapFadePrewarm {
 		return nil, nil
 	}
 	m.ui.console.UpdatePresentation(ctx)
@@ -1232,7 +1234,6 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.skillTextPrompt = m.ui.skillTextPrompt
 	next.ui.shortcutBar = m.ui.shortcutBar
 	next.ui.minimap = m.ui.minimap
-	next.startMapFadeIn(time.Time{})
 	m.companionAI.close()
 	return next
 }
@@ -1342,6 +1343,10 @@ func (m *WorldMode) DrawOverlay(ctx client.Context, screen *render.Frame) {
 		m.drawPetSlotMachine(screen, ctx, now)
 		m.drawROCursor(screen, ctx, projection, now)
 	}
+}
+
+func (m *WorldMode) FrameSubmitted() {
+	m.recordCoveredMapFrame()
 }
 
 func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Frame) {

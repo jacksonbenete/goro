@@ -93,6 +93,10 @@ func (g *Game) DrawUIOverlay(screen *render.Frame) {
 	g.modes.DrawUIOverlay(screen)
 }
 
+func (g *Game) FrameSubmitted() {
+	g.modes.FrameSubmitted()
+}
+
 func (g *Game) Resize(width, height int) {
 	if width <= 0 || height <= 0 {
 		g.screenW = g.cfg.Window.Width

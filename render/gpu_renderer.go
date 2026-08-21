@@ -474,13 +474,13 @@ func worldBillboardDepthCompare(depthTest bool) gputypes.CompareFunction {
 	return gputypes.CompareFunctionAlways
 }
 
-func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
+func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) (bool, error) {
 	if screen == nil {
-		return nil
+		return false, nil
 	}
 	surface := ctx.SurfaceView()
 	if surface == nil {
-		return nil
+		return false, nil
 	}
 	width, height := ctx.FramebufferSize()
 	if width <= 0 || height <= 0 {
@@ -488,18 +488,18 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 		width, height = b.Dx(), b.Dy()
 	}
 	if width <= 0 || height <= 0 {
-		return nil
+		return false, nil
 	}
 	if err := r.queue.WriteBuffer(r.uniform, 0, uniformBytes(float32(width), float32(height))); err != nil {
-		return fmt.Errorf("upload screen uniform: %w", err)
+		return false, fmt.Errorf("upload screen uniform: %w", err)
 	}
 	if screen.camera.Enabled {
 		if err := r.queue.WriteBuffer(r.worldUniform, 0, worldUniformBytes(screen.camera)); err != nil {
-			return fmt.Errorf("upload world uniform: %w", err)
+			return false, fmt.Errorf("upload world uniform: %w", err)
 		}
 	}
 	if err := r.ensureDepth(width, height); err != nil {
-		return err
+		return false, err
 	}
 	world := r.buildWorldFrame(screen)
 	frame := r.buildFrame(screen)
@@ -516,27 +516,27 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 	if len(world.floats) > 0 && len(world.indices) > 0 {
 		worldVertexBuf, err = r.dynamicBuffer(&r.worldVertexBuf, "goro-world-vertices", len(world.floats)*4, wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst, floatBytes(world.floats))
 		if err != nil {
-			return err
+			return false, err
 		}
 		worldIndexBuf, err = r.dynamicBuffer(&r.worldIndexBuf, "goro-world-indices", len(world.indices)*4, wgpu.BufferUsageIndex|wgpu.BufferUsageCopyDst, u32Bytes(world.indices))
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 	if len(frame.floats) > 0 && len(frame.indices) > 0 {
 		vertexBuf, err = r.dynamicBuffer(&r.screenVertexBuf, "goro-screen-vertices", len(frame.floats)*4, wgpu.BufferUsageVertex|wgpu.BufferUsageCopyDst, floatBytes(frame.floats))
 		if err != nil {
-			return err
+			return false, err
 		}
 		indexBuf, err = r.dynamicBuffer(&r.screenIndexBuf, "goro-screen-indices", len(frame.indices)*4, wgpu.BufferUsageIndex|wgpu.BufferUsageCopyDst, u32Bytes(frame.indices))
 		if err != nil {
-			return err
+			return false, err
 		}
 	}
 
 	enc, err := r.dev.CreateCommandEncoder(&wgpu.CommandEncoderDescriptor{Label: "goro-screen-encoder"})
 	if err != nil {
-		return err
+		return false, err
 	}
 	clear := clearValue(screen.clear)
 	pass, err := enc.BeginRenderPass(&wgpu.RenderPassDescriptor{
@@ -554,14 +554,14 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 		},
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 	worldState := renderPassState{}
 	if screen.camera.Enabled {
 		for _, batch := range r.depthWriteWorldMeshBatches(screen) {
 			if err := r.drawWorldMeshBatch(ctx, pass, batch, &worldState); err != nil {
 				_ = pass.End()
-				return err
+				return false, err
 			}
 		}
 	}
@@ -575,22 +575,22 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 			tex, err := r.ensureTexture(ctx, batch.key.texture, batch.key.options)
 			if err != nil {
 				_ = pass.End()
-				return err
+				return false, err
 			}
 			sampler, err := r.sampler(batch.key.options)
 			if err != nil {
 				_ = pass.End()
-				return err
+				return false, err
 			}
 			lightTex, err := r.ensureBatchLightTexture(ctx, batch.key)
 			if err != nil {
 				_ = pass.End()
-				return err
+				return false, err
 			}
 			bg, err := r.bindWorldGroup(r.worldUniform, 96, tex.tex, lightTex.tex, sampler)
 			if err != nil {
 				_ = pass.End()
-				return err
+				return false, err
 			}
 			worldState.setPipeline(pass, r.worldPipelineFor(batch.key.options.Blend, batch.key.options.DepthWrite))
 			worldState.setBindGroup(pass, bg)
@@ -605,12 +605,12 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 			}
 			if err := r.drawWorldMesh(ctx, pass, mesh, &worldState); err != nil {
 				_ = pass.End()
-				return err
+				return false, err
 			}
 		}
 		if err := r.drawWorldBillboards(ctx, pass, screen.worldBillboards); err != nil {
 			_ = pass.End()
-			return err
+			return false, err
 		}
 	}
 	if vertexBuf != nil && indexBuf != nil {
@@ -624,31 +624,31 @@ func (r *gpuRenderer) Draw(ctx *gogpu.Context, screen *Frame) error {
 		tex, err := r.ensureTexture(ctx, batch.key.texture, batch.key.options)
 		if err != nil {
 			_ = pass.End()
-			return err
+			return false, err
 		}
 		sampler, err := r.sampler(batch.key.options)
 		if err != nil {
 			_ = pass.End()
-			return err
+			return false, err
 		}
 		bg, err := r.bindGroup(r.bgl, r.uniform, 16, tex.tex, sampler)
 		if err != nil {
 			_ = pass.End()
-			return err
+			return false, err
 		}
 		pass.SetPipeline(r.pipeline(batch.key.options.Blend))
 		pass.SetBindGroup(0, bg, nil)
 		pass.DrawIndexed(batch.indexCount, 1, batch.firstIndex, 0, 0)
 	}
 	if err := pass.End(); err != nil {
-		return err
+		return false, err
 	}
 	cmd, err := enc.Finish()
 	if err != nil {
-		return err
+		return false, err
 	}
 	_, err = r.queue.Submit(cmd)
-	return err
+	return err == nil, err
 }
 
 func (r *gpuRenderer) logWorldDebug(screen *Frame) {
