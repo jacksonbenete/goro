@@ -938,7 +938,9 @@ func (m *WorldMode) applyActorSitStandActionNotify(ctx client.Context, action ne
 		ctx.World.Player.Sitting = sitting
 		if sitting {
 			ctx.World.Player.Moving = false
+			m.cancelAttackIntent()
 		}
+		m.clearLocalActorAction(ctx)
 		return
 	}
 	actor, ok := ctx.World.Actors[id]
@@ -955,6 +957,7 @@ func (m *WorldMode) applyActorSitStandActionNotify(ctx client.Context, action ne
 		actor.Sitting = false
 		ctx.World.Actors[id] = actor
 	}
+	m.clearActorAction(ctx, id)
 }
 
 func (m *WorldMode) applyActorHPUpdate(update network.ActorHPUpdate) {

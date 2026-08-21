@@ -115,7 +115,15 @@ func TestNormalActorUsesCenteredWorldAnchor(t *testing.T) {
 func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20, Moving: true}
-	mode := &WorldMode{}
+	mode := &WorldMode{
+		actorAnims: map[uint32]actorAnimation{
+			2000000: {actionFamily: spriteActionPCReadyFight, loop: true},
+			150000:  {actionFamily: spriteActionPCReadyFight, loop: true},
+		},
+		pendingAttack:  attackIntent{targetID: 300},
+		lockedAttackID: 300,
+		attackFocusID:  300,
+	}
 	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
@@ -131,7 +139,18 @@ func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
 	if world.Player.Moving {
 		t.Fatal("local player kept moving while sitting")
 	}
+	if _, ok := mode.actorAnims[2000000]; ok {
+		t.Fatal("local account animation survived sitting")
+	}
+	if _, ok := mode.actorAnims[150000]; ok {
+		t.Fatal("local character animation survived sitting")
+	}
+	if mode.pendingAttack.targetID != 0 || mode.lockedAttackID != 0 || mode.attackFocusID != 0 {
+		t.Fatalf("local attack intent survived sitting: pending=%d locked=%d focus=%d", mode.pendingAttack.targetID, mode.lockedAttackID, mode.attackFocusID)
+	}
 
+	mode.actorAnims[2000000] = actorAnimation{actionFamily: spriteActionPCReadyFight, loop: true}
+	mode.actorAnims[150000] = actorAnimation{actionFamily: spriteActionPCReadyFight, loop: true}
 	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
 		SourceID: 2000000,
 		Action:   network.ActionStandUp,
@@ -139,12 +158,20 @@ func TestApplyActorActionNotifyUpdatesLocalSitState(t *testing.T) {
 	if world.Player.Sitting {
 		t.Fatal("local player did not stand")
 	}
+	if _, ok := mode.actorAnims[2000000]; ok {
+		t.Fatal("local account animation survived standing")
+	}
+	if _, ok := mode.actorAnims[150000]; ok {
+		t.Fatal("local character animation survived standing")
+	}
 }
 
 func TestApplyActorActionNotifyUpdatesRemoteSitState(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, X: 10, Y: 20, Moving: true})
-	mode := &WorldMode{}
+	mode := &WorldMode{actorAnims: map[uint32]actorAnimation{
+		300: {actionFamily: spriteActionPCReadyFight, loop: true},
+	}}
 	ctx := client.Context{
 		Session: &session.Session{AccountID: 2000000, CharID: 150000},
 		World:   world,
@@ -157,13 +184,20 @@ func TestApplyActorActionNotifyUpdatesRemoteSitState(t *testing.T) {
 	if actor := world.Actors[300]; !actor.Sitting || actor.Moving {
 		t.Fatalf("remote actor sit state = sitting %t moving %t", actor.Sitting, actor.Moving)
 	}
+	if _, ok := mode.actorAnims[300]; ok {
+		t.Fatal("remote actor animation survived sitting")
+	}
 
+	mode.actorAnims[300] = actorAnimation{actionFamily: spriteActionPCReadyFight, loop: true}
 	mode.applyActorActionNotify(ctx, network.ActorActionNotify{
 		SourceID: 300,
 		Action:   network.ActionStandUp,
 	})
 	if actor := world.Actors[300]; actor.Sitting {
 		t.Fatalf("remote actor stayed sitting: %+v", actor)
+	}
+	if _, ok := mode.actorAnims[300]; ok {
+		t.Fatal("remote actor animation survived standing")
 	}
 }
 
