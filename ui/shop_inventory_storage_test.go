@@ -189,6 +189,38 @@ func TestShopSellStackableItemUsesAmountPrompt(t *testing.T) {
 	if len(window.cart) != 1 || window.cart[0].amount != 4 || window.cart[0].max != 9 {
 		t.Fatalf("sell cart = %+v, want one item amount 4 max 9", window.cart)
 	}
+	available := window.sellAvailableItems(ctx)
+	if len(available) != 1 || available[0].Index != 8 || available[0].Amount != 5 {
+		t.Fatalf("available sell items = %+v, want index 8 amount 5", available)
+	}
+}
+
+func TestShopSellAvailableItemsExcludeFullyStagedItems(t *testing.T) {
+	window := ShopWindow{
+		mode: shopModeSell,
+		sellable: map[uint16]network.ShopSellItem{
+			8: {Index: 8, Price: 10},
+			9: {Index: 9, Price: 20},
+		},
+		cart: []shopSellCartItem{
+			{item: session.InventoryItem{Index: 8, ItemID: 938, Type: db.ItemTypeEtc, Amount: 9}, amount: 9, max: 9},
+		},
+	}
+	ctx := Context{Session: &session.Session{Inventory: session.Inventory{Items: []session.InventoryItem{
+		{Index: 8, ItemID: 938, Type: db.ItemTypeEtc, Amount: 9},
+		{Index: 9, ItemID: 1201, Type: db.ItemTypeWeapon, Amount: 1},
+	}}}}
+
+	available := window.sellAvailableItems(ctx)
+	if len(available) != 1 || available[0].Index != 9 {
+		t.Fatalf("available sell items = %+v, want only index 9", available)
+	}
+
+	window.decrementSellCartRow(0)
+	available = window.sellAvailableItems(ctx)
+	if len(available) != 2 || available[0].Index != 8 || available[0].Amount != 9 || available[1].Index != 9 {
+		t.Fatalf("available sell items after removal = %+v, want indexes 8 and 9", available)
+	}
 }
 
 func TestShopRemoveBuyCartStackUsesAmountPrompt(t *testing.T) {

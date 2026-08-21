@@ -915,11 +915,26 @@ func (w *ShopWindow) sellAvailableItems(ctx Context) []session.InventoryItem {
 	}
 	items := make([]session.InventoryItem, 0, len(w.sellable))
 	for _, item := range ctx.Session.Inventory.Items {
-		if _, ok := w.sellable[item.Index]; ok {
-			items = append(items, item)
+		if _, ok := w.sellable[item.Index]; !ok {
+			continue
 		}
+		remaining := maxInt(1, item.Amount) - w.stagedSellAmount(item.Index)
+		if remaining <= 0 {
+			continue
+		}
+		item.Amount = remaining
+		items = append(items, item)
 	}
 	return items
+}
+
+func (w *ShopWindow) stagedSellAmount(index uint16) int {
+	for _, item := range w.cart {
+		if item.item.Index == index {
+			return int(item.amount)
+		}
+	}
+	return 0
 }
 
 func (w *ShopWindow) requestAddBuyItem(ctx Context, item network.ShopBuyItem) {
@@ -938,11 +953,13 @@ func (w *ShopWindow) requestAddSellItem(ctx Context, item session.InventoryItem,
 	if shopItemTypeStackable(item.Type) && maxAmount > 1 {
 		w.openAmountPrompt(ctx, maxAmount, maxAmount, func(amount uint16) {
 			w.addCartItemAmount(item, sell, amount)
+			w.buySelectedRow = -1
 			w.refreshBuyWindow(ctx)
 		})
 		return
 	}
 	w.addCartItem(item, sell)
+	w.buySelectedRow = -1
 }
 
 func (w *ShopWindow) requestRemoveBuyCartItem(ctx Context, row int) {
