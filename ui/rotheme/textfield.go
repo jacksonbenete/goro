@@ -58,7 +58,7 @@ func drawTextFieldInsetShadow(canvas widget.Canvas, bounds geometry.Rect) {
 	for row := 0; row < rows; row++ {
 		alpha := uint8(34 - row*7)
 		canvas.DrawRect(
-			geometry.NewRect(bounds.Min.X+1, bounds.Min.Y+1+float32(row), bounds.Width()-2, 1),
+			geometry.NewRect(bounds.Min.X, bounds.Min.Y+float32(row), bounds.Width(), 1),
 			widget.RGBA8(82, 108, 138, alpha),
 		)
 	}

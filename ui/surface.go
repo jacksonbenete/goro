@@ -289,7 +289,7 @@ func DrawTextBoxSurface(screen *render.Frame, x, y, w, h int, bg, border color.R
 	shadowRows := minInt(4, h-2)
 	for row := 0; row < shadowRows; row++ {
 		alpha := uint8(34 - row*7)
-		render.DrawRect(screen, float64(x+1), float64(y+1+row), float64(w-2), 1, color.RGBA{R: 82, G: 108, B: 138, A: alpha})
+		render.DrawRect(screen, float64(x), float64(y+row), float64(w), 1, color.RGBA{R: 82, G: 108, B: 138, A: alpha})
 	}
 }
 
