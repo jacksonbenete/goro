@@ -1449,7 +1449,7 @@ func clickedSkillTarget(ctx client.Context, projection sceneProjection, skill se
 	bestDistance := math.Inf(1)
 	var best worldstate.Actor
 	for _, actor := range skillTargetCandidates(ctx, skill) {
-		if _, dead := deadActors[actor.ID]; dead {
+		if _, dead := deadActors[actor.ID]; dead && !skillCanTargetDeadActor(skill, actor) {
 			continue
 		}
 		if !actorCanBeSkillTargeted(ctx, skill, actor) {

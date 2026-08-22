@@ -1776,11 +1776,12 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 	}
 	actionFamily := deathActionFamilyForActor(actor)
 	deathDuration := m.actorActionDuration(ctx, actor, actionFamily, defaultDeathAnimationDuration)
+	persistent := !local && actorRepresentsPlayer(actor)
 	visibleDuration := deathDuration
-	if !local {
+	if !local && !persistent {
 		visibleDuration = maxDuration(deathDuration, nonPCDeathFadeDuration)
 	}
-	if local {
+	if local || persistent {
 		m.startHeldCombatAnimation(ctx, id, actionFamily, now, deathDuration)
 	} else {
 		m.startCombatAnimation(ctx, id, actionFamily, now, visibleDuration)
@@ -1790,7 +1791,11 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 		if m.actorDeaths == nil {
 			m.actorDeaths = make(map[uint32]time.Time)
 		}
-		m.actorDeaths[id] = now.Add(visibleDuration)
+		if persistent {
+			m.actorDeaths[id] = time.Time{}
+		} else {
+			m.actorDeaths[id] = now.Add(visibleDuration)
+		}
 		if m.scriptHighlight.id == id {
 			m.clearScriptHighlight()
 		}
@@ -1805,7 +1810,20 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 	if !local && actor.HasObjectType && actor.ObjectType != actorObjectTypePC {
 		m.removeLevel99AuraEffects(id)
 	}
-	glog.Debugf("actor death id=%d job=%d local=%t action=%d death_ms=%d remove_ms=%d", id, actor.Job, local, actionFamily, deathDuration.Milliseconds(), visibleDuration.Milliseconds())
+	glog.Debugf("actor death id=%d job=%d local=%t persistent=%t action=%d death_ms=%d remove_ms=%d", id, actor.Job, local, persistent, actionFamily, deathDuration.Milliseconds(), visibleDuration.Milliseconds())
+}
+
+func (m *WorldMode) applyActorResurrection(ctx client.Context, resurrection network.ActorResurrection) {
+	if resurrection.ID == 0 {
+		return
+	}
+	if isLocalActor(ctx, resurrection.ID) {
+		m.clearLocalDeathState(ctx)
+	} else {
+		m.clearActorDeath(resurrection.ID)
+	}
+	m.setActorAIMotion(ctx, resurrection.ID, aiMotionStand, 0, time.Time{})
+	glog.Debugf("actor resurrected id=%d type=%d", resurrection.ID, resurrection.Type)
 }
 
 func (m *WorldMode) clearActorDeath(id uint32) {
@@ -1817,6 +1835,9 @@ func (m *WorldMode) clearActorDeath(id uint32) {
 func (m *WorldMode) actorDeathAlpha(id uint32, now time.Time) float64 {
 	removeAt, ok := m.actorDeaths[id]
 	if !ok {
+		return 1
+	}
+	if removeAt.IsZero() {
 		return 1
 	}
 	started := now

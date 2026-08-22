@@ -117,6 +117,39 @@ func TestClickedSkillTargetNoShiftAllowsSupportOnEnemies(t *testing.T) {
 	}
 }
 
+func TestResurrectionCanTargetDeadPlayer(t *testing.T) {
+	now := time.Now()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 200, X: 10, Y: 20}
+	deadPlayer := worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		ObjectType:    actorObjectTypePC,
+		HasObjectType: true,
+	}
+	world.UpsertActor(deadPlayer)
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 100, CharID: 200},
+		World:   world,
+	}
+	projection := newSceneProjectionForTarget(800, 600, cellCenter(10), cellCenter(20), 0)
+	point := projection.Project(cellCenter(11), cellCenter(20), 0)
+	deaths := map[uint32]time.Time{deadPlayer.ID: {}}
+
+	actor, ok := clickedSkillTarget(ctx, projection, session.Skill{
+		ID: db.SkillALLResurrection, Type: skillTargetFriend,
+	}, int(point.x), int(point.y), now, deaths)
+	if !ok || actor.ID != deadPlayer.ID {
+		t.Fatalf("Resurrection target = %+v ok=%t, want dead player %d", actor, ok, deadPlayer.ID)
+	}
+	if actor, ok := clickedSkillTarget(ctx, projection, session.Skill{
+		ID: db.SkillALHeal, Type: skillTargetFriend,
+	}, int(point.x), int(point.y), now, deaths); ok && actor.ID == deadPlayer.ID {
+		t.Fatalf("ordinary support skill targeted dead player: %+v", actor)
+	}
+}
+
 func TestAttackTargetWithinRangeUsesMeleeAdjacency(t *testing.T) {
 	if !attackTargetWithinRange(10, 20, 11, 21, 1) {
 		t.Fatal("diagonal adjacent target should be in melee range")

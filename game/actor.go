@@ -88,6 +88,10 @@ func actorCanBeSkillTargeted(ctx client.Context, skill session.Skill, actor worl
 	return false
 }
 
+func skillCanTargetDeadActor(skill session.Skill, actor worldstate.Actor) bool {
+	return skill.ID == db.SkillALLResurrection && actorRepresentsPlayer(actor)
+}
+
 func skillTargetFlagsForActor(ctx client.Context, actor worldstate.Actor) (uint32, bool) {
 	if actor.ID == 0 || isWarpActor(actor) {
 		return 0, false
@@ -413,6 +417,12 @@ func (m *WorldMode) cleanupDeadActors(ctx client.Context, now time.Time) {
 		return
 	}
 	for id, removeAt := range m.actorDeaths {
+		// Dead player characters remain in the world so resurrection skills can
+		// target them. Their zero deadline is cleared by ZC_RESURRECTION, an
+		// actor refresh, or a later non-death vanish packet.
+		if removeAt.IsZero() {
+			continue
+		}
 		if now.Before(removeAt) {
 			continue
 		}

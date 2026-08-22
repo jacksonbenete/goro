@@ -47,6 +47,11 @@ type ActorVanish struct {
 	Reason uint8
 }
 
+type ActorResurrection struct {
+	ID   uint32
+	Type uint16
+}
+
 type SelfMoveAck struct {
 	ServerTick uint32
 	FromX      int
@@ -718,6 +723,19 @@ func ParseActorVanish(packet Packet) (ActorVanish, bool, error) {
 	return ActorVanish{
 		ID:     binary.LittleEndian.Uint32(packet.Data[2:6]),
 		Reason: packet.Data[6],
+	}, true, nil
+}
+
+func ParseActorResurrection(packet Packet) (ActorResurrection, bool, error) {
+	if packet.ID != 0x0148 {
+		return ActorResurrection{}, false, nil
+	}
+	if len(packet.Data) < 8 {
+		return ActorResurrection{}, false, fmt.Errorf("ZC_RESURRECTION too short: %d", len(packet.Data))
+	}
+	return ActorResurrection{
+		ID:   binary.LittleEndian.Uint32(packet.Data[2:6]),
+		Type: binary.LittleEndian.Uint16(packet.Data[6:8]),
 	}, true, nil
 }
 

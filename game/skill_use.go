@@ -640,13 +640,9 @@ func (c skillController) ProcessPendingTarget(ctx client.Context) {
 
 func (c skillController) ApplyAutoRun(ctx client.Context, auto network.AutoRunSkill) {
 	skill := sessionSkillFromNetwork(auto.Skill)
-	target := localSkillTarget(ctx)
-	glog.Debugf("auto-run skill received skill=%d level=%d range=%d name=%q target=%d", skill.ID, skill.Level, skill.Range, skill.Name, target)
-	if target == 0 {
-		return
-	}
-	if err := c.SendToID(ctx, skill, target, "auto"); err != nil {
-		glog.Warnf("auto-run skill use failed skill=%d target=%d: %v", skill.ID, target, err)
+	glog.Debugf("auto-run skill received skill=%d level=%d type=%d range=%d name=%q", skill.ID, skill.Level, skill.Type, skill.Range, skill.Name)
+	if err := c.Use(ctx, skill, "auto"); err != nil {
+		glog.Warnf("auto-run skill use failed skill=%d: %v", skill.ID, err)
 		return
 	}
 }

@@ -1252,6 +1252,53 @@ func TestApplyActorVanishDeathFreezesMovingMobAtRenderedPosition(t *testing.T) {
 	}
 }
 
+func TestRemotePlayerDeathRemainsUntilResurrection(t *testing.T) {
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
+	world.Actors[300] = worldstate.Actor{
+		ID:            300,
+		X:             11,
+		Y:             20,
+		Job:           1,
+		Appearance:    true,
+		ObjectType:    actorObjectTypePC,
+		HasObjectType: true,
+	}
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Session: &session.Session{AccountID: 2000000, CharID: 150000},
+		World:   world,
+	}
+
+	mode.applyActorVanish(ctx, network.ActorVanish{ID: 300, Reason: actorVanishDeath})
+
+	anim, ok := mode.actorAnims[300]
+	if !ok || anim.actionFamily != spriteActionPCDeath || !anim.holdFinal {
+		t.Fatalf("remote player death animation = %+v ok=%t", anim, ok)
+	}
+	if removeAt, ok := mode.actorDeaths[300]; !ok || !removeAt.IsZero() {
+		t.Fatalf("remote player death deadline = %s ok=%t, want persistent zero deadline", removeAt, ok)
+	}
+	if alpha := mode.actorDeathAlpha(300, anim.started.Add(time.Hour)); alpha != 1 {
+		t.Fatalf("remote player death alpha = %f, want 1", alpha)
+	}
+	mode.cleanupDeadActors(ctx, anim.started.Add(time.Hour))
+	if _, ok := world.Actors[300]; !ok {
+		t.Fatal("remote player body was removed by death cleanup")
+	}
+
+	mode.applyActorResurrection(ctx, network.ActorResurrection{ID: 300})
+	if _, ok := mode.actorDeaths[300]; ok {
+		t.Fatal("remote player remained marked dead after resurrection")
+	}
+	if _, ok := mode.actorAnims[300]; ok {
+		t.Fatal("remote player death animation remained after resurrection")
+	}
+	if actor := world.Actors[300]; !actor.HasAIMotion || actor.AIMotion != aiMotionStand {
+		t.Fatalf("resurrected player motion = %+v, want standing", actor)
+	}
+}
+
 func TestApplyActorVanishLogoutAndTeleportAddTeleportEffect(t *testing.T) {
 	for _, reason := range []uint8{actorVanishLogout, actorVanishTeleport} {
 		t.Run(fmt.Sprintf("reason_%d", reason), func(t *testing.T) {

@@ -351,6 +351,24 @@ func TestParseActorVanish(t *testing.T) {
 	}
 }
 
+func TestParseActorResurrection(t *testing.T) {
+	data := make([]byte, 8)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0148)
+	binary.LittleEndian.PutUint32(data[2:6], 2000005)
+	binary.LittleEndian.PutUint16(data[6:8], 1)
+
+	resurrection, ok, err := ParseActorResurrection(Packet{ID: 0x0148, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("resurrection not parsed")
+	}
+	if resurrection.ID != 2000005 || resurrection.Type != 1 {
+		t.Fatalf("unexpected resurrection: %+v", resurrection)
+	}
+}
+
 func TestParseActorLookChangeModern(t *testing.T) {
 	data := make([]byte, 11)
 	binary.LittleEndian.PutUint16(data[0:2], 0x01D7)

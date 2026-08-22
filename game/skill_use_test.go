@@ -149,6 +149,24 @@ func TestTargetSkillPendingLevelUsesDBMaxBeforeResourceMax(t *testing.T) {
 	}
 }
 
+func TestAutoRunTargetSkillStartsTargetSelection(t *testing.T) {
+	mode := &WorldMode{}
+	mode.skills().ApplyAutoRun(client.Context{}, network.AutoRunSkill{Skill: network.SkillInfo{
+		ID:    db.SkillALLResurrection,
+		Type:  skillTargetFriend,
+		Level: 1,
+		Range: 9,
+		Name:  "Resurrection",
+	}})
+
+	if mode.pendingSkill.skill.ID != db.SkillALLResurrection {
+		t.Fatalf("pending skill = %+v, want Resurrection", mode.pendingSkill.skill)
+	}
+	if mode.pendingSkill.skill.Level != 1 || mode.pendingSkill.skill.Type != skillTargetFriend {
+		t.Fatalf("pending Resurrection = %+v", mode.pendingSkill.skill)
+	}
+}
+
 func TestTextGroundSkillClickOpensPrompt(t *testing.T) {
 	world := worldstate.New()
 	world.Player = worldstate.Actor{ID: 2000000, X: 10, Y: 20}
