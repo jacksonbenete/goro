@@ -91,7 +91,7 @@ func (w *ViewEquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) 
 						w.slotWidget(ctx, itemInfo, equipmentSlotAmmo, equipmentCenterColW),
 					).
 						Width(equipmentCenterColW).
-						Height(130).
+						Height(equipmentCenterColH).
 						Gap(0),
 
 					primitives.Box(

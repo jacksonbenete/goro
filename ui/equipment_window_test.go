@@ -6,6 +6,7 @@ import (
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/world"
 )
 
 func TestEquippedItemForSlotUsesEquippedWearLocation(t *testing.T) {
@@ -61,6 +62,53 @@ func TestEquipmentWindowOpensCentered(t *testing.T) {
 	}
 	if window.Window.x != (1280-equipmentWindowWidth)/2 || window.Window.y != (720-equipmentWindowHeight)/2 {
 		t.Fatalf("equipment position = %d,%d, want centered", window.Window.x, window.Window.y)
+	}
+}
+
+func TestEquipmentWindowHeightHasNoCartContentRow(t *testing.T) {
+	want := ROWindowTitleHeight + equipmentWindowPad*2 + equipmentPreviewImageH + equipmentRowH + ROWindowFooterHeight
+	if equipmentWindowHeight != want {
+		t.Fatalf("equipment window height = %d, want content-fitting height %d", equipmentWindowHeight, want)
+	}
+}
+
+func TestEquipmentWindowCartActionsAreInFooter(t *testing.T) {
+	window := &EquipmentWindow{}
+	withoutCart := window.footerWidgets(Context{Session: &session.Session{}}, nil, nil)
+	if len(withoutCart) != 2 {
+		t.Fatalf("footer children without cart = %d, want checkbox and spacer", len(withoutCart))
+	}
+	withCart := window.footerWidgets(Context{Session: &session.Session{Cart: session.Cart{MaxAmount: 1}}}, nil, &CartWindow{})
+	if len(withCart) != 4 {
+		t.Fatalf("footer children with cart = %d, want checkbox, spacer, Cart, and Cart Off", len(withCart))
+	}
+}
+
+func TestEquipmentWindowPecoActionIsInFooter(t *testing.T) {
+	window := &EquipmentWindow{}
+	ctx := Context{Session: &session.Session{
+		Selected: session.Character{ID: 1, Job: db.JobKnight, Option: db.EffectStateRiding},
+	}}
+
+	children := window.footerWidgets(ctx, nil, nil)
+	if len(children) != 3 {
+		t.Fatalf("footer children with Peco = %d, want checkbox, spacer, and Peco Off", len(children))
+	}
+	if got := equipmentRemoveOptionLabel(ctx); got != "Peco Off" {
+		t.Fatalf("remove option label = %q, want Peco Off", got)
+	}
+}
+
+func TestEquipmentWindowPecoStatePrefersCurrentWorldState(t *testing.T) {
+	ctx := Context{
+		Session: &session.Session{
+			Selected: session.Character{ID: 1, Job: db.JobKnight, Option: db.EffectStateRiding},
+		},
+		World: &world.World{Player: world.Actor{ID: 1, HasState: true}},
+	}
+
+	if equipmentHasPeco(ctx) {
+		t.Fatal("current unmounted world state should override stale selected-character state")
 	}
 }
 

@@ -19,14 +19,16 @@ import (
 )
 
 const (
-	equipmentWindowWidth   = 300
-	equipmentWindowHeight  = 242
-	equipmentWindowPad     = 10
-	equipmentLeftColW      = 112
-	equipmentCenterColW    = 56
-	equipmentRightColW     = 112
-	equipmentRowH          = 24
-	equipmentPreviewImageH = 106
+	equipmentWindowWidth    = 300
+	equipmentWindowPad      = 10
+	equipmentLeftColW       = 112
+	equipmentCenterColW     = 56
+	equipmentRightColW      = 112
+	equipmentRowH           = 24
+	equipmentPreviewImageH  = 106
+	equipmentCenterColH     = equipmentPreviewImageH + equipmentRowH
+	equipmentWindowContentH = equipmentCenterColH + 2*equipmentWindowPad
+	equipmentWindowHeight   = ROWindowTitleHeight + equipmentWindowContentH + ROWindowFooterHeight
 )
 
 type EquipmentWindow struct {
@@ -35,6 +37,7 @@ type EquipmentWindow struct {
 	itemInfo      *ItemInfoWindow
 	cart          *CartWindow
 	hasCart       bool
+	hasPeco       bool
 	preview       image.Image
 	tooltip       tooltipState
 	lastClickItem uint16
@@ -101,6 +104,7 @@ func (w *EquipmentWindow) Toggle(ctx Context) {
 	}
 	w.snapshot = equipmentSnapshot(ctx.Session)
 	w.hasCart = inventoryBagHasCart(ctx)
+	w.hasPeco = equipmentHasPeco(ctx)
 	w.preview = nil
 	w.Window.Open(ctx, w.widgetTree(ctx, nil, nil))
 	w.Publish(ctx)
@@ -115,12 +119,14 @@ func (w *EquipmentWindow) Update(ctx Context, itemInfo *ItemInfoWindow, cart *Ca
 	snapshot := equipmentSnapshot(ctx.Session)
 	needsPreview := w.preview == nil && assets != nil
 	hasCart := inventoryBagHasCart(ctx)
-	if snapshot != w.snapshot || itemInfo != w.itemInfo || cart != w.cart || hasCart != w.hasCart || needsPreview {
+	hasPeco := equipmentHasPeco(ctx)
+	if snapshot != w.snapshot || itemInfo != w.itemInfo || cart != w.cart || hasCart != w.hasCart || hasPeco != w.hasPeco || needsPreview {
 		w.hideTooltip()
 		w.snapshot = snapshot
 		w.itemInfo = itemInfo
 		w.cart = cart
 		w.hasCart = hasCart
+		w.hasPeco = hasPeco
 		if assets != nil {
 			w.preview = assets.EquipmentPreviewImage(ctx, equipmentCenterColW, equipmentPreviewImageH)
 		}
@@ -145,6 +151,7 @@ func (w *EquipmentWindow) Rebind(ctx Context, itemInfo *ItemInfoWindow, cart *Ca
 	w.itemInfo = itemInfo
 	w.cart = cart
 	w.hasCart = inventoryBagHasCart(ctx)
+	w.hasPeco = equipmentHasPeco(ctx)
 	if assets != nil {
 		w.preview = assets.EquipmentPreviewImage(ctx, equipmentCenterColW, equipmentPreviewImageH)
 	}
@@ -177,10 +184,9 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 					primitives.Box(
 						newStaticImageWidget(w.preview, equipmentCenterColW, equipmentPreviewImageH),
 						w.slotWidget(ctx, itemInfo, equipmentSlotAmmo, equipmentCenterColW),
-						w.cartButtonWidget(ctx, cart),
 					).
 						Width(equipmentCenterColW).
-						Height(152).
+						Height(equipmentCenterColH).
 						Gap(0),
 
 					primitives.Box(
@@ -197,53 +203,45 @@ func (w *EquipmentWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart
 			).
 				Padding(equipmentWindowPad),
 		),
-		Footer(
-			primitives.Box(
-				rotheme.Checkbox(
-					checkbox.Checked(ctx.Session != nil && ctx.Session.ShowEquip),
-					checkbox.LabelOpt("Show Equip"),
-					checkbox.OnToggle(func(enabled bool) {
-						if ctx.Session != nil {
-							ctx.Session.ShowEquip = enabled
-						}
-						if ctx.Network != nil {
-							_ = ctx.Network.SendShowEquipConfig(enabled)
-						}
-						w.SetContent(w.widgetTree(ctx, itemInfo, cart))
-						w.Publish(ctx)
-					}),
-				),
-			).
-				Width(120).
-				Height(20),
-			primitives.Expanded(primitives.Box()),
-			w.removeCartOptionButton(ctx),
-		),
+		Footer(w.footerWidgets(ctx, itemInfo, cart)...),
 	)
 }
 
-func (w *EquipmentWindow) cartButtonWidget(ctx Context, cart *CartWindow) widget.Widget {
-	if !inventoryBagHasCart(ctx) {
-		return primitives.Box().
-			Width(equipmentCenterColW).
-			Height(22)
+func (w *EquipmentWindow) footerWidgets(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) []widget.Widget {
+	children := []widget.Widget{
+		primitives.Box(
+			rotheme.Checkbox(
+				checkbox.Checked(ctx.Session != nil && ctx.Session.ShowEquip),
+				checkbox.LabelOpt("Show Equip"),
+				checkbox.OnToggle(func(enabled bool) {
+					if ctx.Session != nil {
+						ctx.Session.ShowEquip = enabled
+					}
+					if ctx.Network != nil {
+						_ = ctx.Network.SendShowEquipConfig(enabled)
+					}
+					w.SetContent(w.widgetTree(ctx, itemInfo, cart))
+					w.Publish(ctx)
+				}),
+			),
+		).
+			Width(120).
+			Height(20),
+		primitives.Expanded(primitives.Box()),
 	}
-	return rotheme.Button("Cart", func() {
-		if cart != nil {
-			cart.Toggle(ctx)
-		}
-	}).
-		Width(equipmentCenterColW).
-		Height(22)
-}
-
-func (w *EquipmentWindow) removeCartOptionButton(ctx Context) widget.Widget {
-	if !inventoryBagHasCart(ctx) {
-		return primitives.Box()
+	if inventoryBagHasCart(ctx) {
+		children = append(children, rotheme.Button("Cart", func() {
+			if cart != nil {
+				cart.Toggle(ctx)
+			}
+		}))
 	}
-	return rotheme.Button("Cart Off", func() {
-		w.removeCartOption(ctx)
-	})
+	if label := equipmentRemoveOptionLabel(ctx); label != "" {
+		children = append(children, rotheme.Button(label, func() {
+			w.removeOption(ctx)
+		}))
+	}
+	return children
 }
 
 func (w *EquipmentWindow) slotWidget(ctx Context, itemInfo *ItemInfoWindow, slot equipmentSlotDef, width int) widget.Widget {
@@ -396,11 +394,29 @@ func (w *EquipmentWindow) activateItem(ctx Context, item session.InventoryItem) 
 	}
 }
 
-func (w *EquipmentWindow) removeCartOption(ctx Context) {
+func (w *EquipmentWindow) removeOption(ctx Context) {
 	if ctx.Network == nil {
 		return
 	}
 	_ = ctx.Network.SendRemoveOption()
+}
+
+func equipmentRemoveOptionLabel(ctx Context) string {
+	if equipmentHasPeco(ctx) {
+		return "Peco Off"
+	}
+	if inventoryBagHasCart(ctx) {
+		return "Cart Off"
+	}
+	return ""
+}
+
+func equipmentHasPeco(ctx Context) bool {
+	effectState := selectedCharacter(ctx.Session).Option
+	if ctx.World != nil && (ctx.World.Player.HasState || ctx.World.Player.EffectState != 0) {
+		effectState = ctx.World.Player.EffectState
+	}
+	return effectState&db.EffectStateRiding != 0
 }
 
 func equipmentSnapshot(s *session.Session) string {
