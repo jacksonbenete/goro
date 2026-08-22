@@ -107,8 +107,8 @@ func TestButtonUsesContinuousLightenedTitleBarGradient(t *testing.T) {
 	if call.At != bounds.Min || call.Image.Bounds().Size() != image.Pt(80, 22) {
 		t.Fatalf("button gradient image = at %v size %v, want at %v size 80x22", call.At, call.Image.Bounds().Size(), bounds.Min)
 	}
-	assertGradientColor(t, call.Image, 0, 0, expectedLighterColor(Default.Colors.WindowTitleTop, 2))
-	assertGradientColor(t, call.Image, 0, 21, expectedLighterColor(Default.Colors.WindowTitle, 2))
+	assertGradientColor(t, call.Image, 0, 0, expectedLighterColor(Default.Colors.WindowTitle, 2))
+	assertGradientColor(t, call.Image, 0, 21, expectedLighterColor(Default.Colors.WindowTitleTop, 2))
 	reflect := canvas.RoundRects[0]
 	wantReflectBounds := geometry.NewRect(6, 8, 74, 8)
 	if reflect.Bounds != wantReflectBounds || reflect.Radius != 3 {
@@ -133,13 +133,14 @@ func TestButtonHoverUsesFourTimesLighterTitleBarGradient(t *testing.T) {
 	if len(canvas.Images) != 1 {
 		t.Fatalf("hovered button gradient images = %d, want 1", len(canvas.Images))
 	}
-	assertGradientColor(t, canvas.Images[0].Image, 0, 0, expectedLighterColor(Default.Colors.WindowTitleTop, 4))
-	assertGradientColor(t, canvas.Images[0].Image, 0, 21, expectedLighterColor(Default.Colors.WindowTitle, 4))
+	assertGradientColor(t, canvas.Images[0].Image, 0, 0, expectedLighterColor(Default.Colors.WindowTitle, 4))
+	assertGradientColor(t, canvas.Images[0].Image, 0, 21, expectedLighterColor(Default.Colors.WindowTitleTop, 4))
 }
 
 func TestButtonGradientRasterizesOpaqueAtFractionalScale(t *testing.T) {
 	canvas := &uitest.MockCanvas{}
-	drawButtonGradientColors(canvas, geometry.NewRect(0, 0, 80, 22), Default.Colors.WindowTitleTop, Default.Colors.WindowTitle, ButtonRadius)
+	top, bottom := buttonTitleBarGradient(1)
+	drawButtonGradientColors(canvas, geometry.NewRect(0, 0, 80, 22), top, bottom, ButtonRadius)
 	rasterizer, ok := canvas.Images[0].Image.(interface {
 		RasterizeForScale(scale float32, width, height int) image.Image
 	})
@@ -157,8 +158,8 @@ func TestButtonGradientRasterizesOpaqueAtFractionalScale(t *testing.T) {
 			}
 		}
 	}
-	assertGradientColor(t, scaled, 0, 0, Default.Colors.WindowTitleTop)
-	assertGradientColor(t, scaled, 0, 27, Default.Colors.WindowTitle)
+	assertGradientColor(t, scaled, 0, 0, Default.Colors.WindowTitle)
+	assertGradientColor(t, scaled, 0, 27, Default.Colors.WindowTitleTop)
 }
 
 func assertGradientColor(t *testing.T, img image.Image, x, y int, want widget.Color) {

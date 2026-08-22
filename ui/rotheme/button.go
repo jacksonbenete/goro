@@ -121,21 +121,21 @@ func (ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState) 
 	if state.Bounds.IsEmpty() {
 		return
 	}
-	top, bottom := lighterTitleBarGradient(2)
+	top, bottom := buttonTitleBarGradient(2)
 	if state.Background != nil {
-		bottom = *state.Background
-		top = buttonGradientTop(bottom)
+		top = *state.Background
+		bottom = buttonGradientLight(top)
 	}
 	if state.Hovered {
-		top, bottom = lighterTitleBarGradient(4)
+		top, bottom = buttonTitleBarGradient(4)
 	}
 	if state.Pressed {
-		bottom = Default.Colors.ButtonDown
-		top = buttonGradientTop(bottom)
+		top = Default.Colors.ButtonDown
+		bottom = buttonGradientLight(top)
 	}
 	if state.Disabled {
-		bottom = Default.Colors.Disabled
-		top = buttonGradientTop(bottom)
+		top = Default.Colors.Disabled
+		bottom = buttonGradientLight(top)
 	}
 	border := Default.Colors.ButtonBorder
 	if state.Disabled {
@@ -156,12 +156,17 @@ func (ButtonPainter) PaintButton(canvas widget.Canvas, state button.PaintState) 
 	DrawText(canvas, state.Text, state.Bounds, Default.Typography.TextSize, text, false, widget.TextAlignCenter)
 }
 
-func buttonGradientTop(bottom widget.Color) widget.Color {
-	return bottom.Lerp(widget.RGBA(1, 1, 1, bottom.A), 0.42)
+func buttonGradientLight(dark widget.Color) widget.Color {
+	return dark.Lerp(widget.RGBA(1, 1, 1, dark.A), 0.42)
 }
 
 func lighterTitleBarGradient(factor float32) (top, bottom widget.Color) {
 	return lighterGradient(Default.Colors.WindowTitleTop, Default.Colors.WindowTitle, factor)
+}
+
+func buttonTitleBarGradient(factor float32) (top, bottom widget.Color) {
+	light, dark := lighterTitleBarGradient(factor)
+	return dark, light
 }
 
 func lighterGradient(top, bottom widget.Color, factor float32) (widget.Color, widget.Color) {
@@ -175,8 +180,8 @@ func lighterColor(base widget.Color, factor float32) widget.Color {
 	return base.Lerp(widget.RGBA(1, 1, 1, base.A), 1-1/factor)
 }
 
-func drawButtonGradient(canvas widget.Canvas, bounds geometry.Rect, bottom widget.Color, radius float32) {
-	drawButtonGradientColors(canvas, bounds, buttonGradientTop(bottom), bottom, radius)
+func drawButtonGradient(canvas widget.Canvas, bounds geometry.Rect, dark widget.Color, radius float32) {
+	drawButtonGradientColors(canvas, bounds, dark, buttonGradientLight(dark), radius)
 }
 
 func drawButtonGradientColors(canvas widget.Canvas, bounds geometry.Rect, top, bottom widget.Color, radius float32) {

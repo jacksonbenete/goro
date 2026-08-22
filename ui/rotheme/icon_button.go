@@ -76,15 +76,15 @@ func DrawIconButton(canvas widget.Canvas, bounds geometry.Rect, kind IconButtonK
 		drawDirectionalIconButton(canvas, bounds, kind, fill, border)
 		return
 	}
-	top, bottom := lighterTitleBarGradient(2)
+	top, bottom := buttonTitleBarGradient(2)
 	color := Default.Colors.Text
 	border := Default.Colors.ButtonBorder
 	if hovered {
-		top, bottom = lighterTitleBarGradient(4)
+		top, bottom = buttonTitleBarGradient(4)
 	}
 	if disabled {
-		bottom = Default.Colors.Disabled
-		top = buttonGradientTop(bottom)
+		top = Default.Colors.Disabled
+		bottom = buttonGradientLight(top)
 		color = Default.Colors.MutedText
 		border = Default.Colors.FooterLine
 	}
