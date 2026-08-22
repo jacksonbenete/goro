@@ -362,10 +362,17 @@ func (w *SkillWindow) skillTableCell(ctx Context, assets AssetProvider, skill se
 			Color: rotheme.Default.Colors.MutedText,
 		}
 	case "levelup":
-		return rotheme.TableViewIconButtonCell(rotheme.IconButtonPlus, !w.canStageSkill(ctx.Session, skill))
+		return skillLevelUpButtonCell(w.canStageSkill(ctx.Session, skill))
 	default:
 		return rotheme.TableViewSimpleCell{Hidden: true}
 	}
+}
+
+func skillLevelUpButtonCell(visible bool) rotheme.TableViewSimpleCell {
+	if !visible {
+		return rotheme.TableViewSimpleCell{Hidden: true}
+	}
+	return rotheme.TableViewIconButtonCell(rotheme.IconButtonPlus, false)
 }
 
 func (w *SkillWindow) handleSkillTableRowEvent(widgetCtx widget.Context, ctx Context, actions GameActions, skills []session.Skill, row int, e event.Event) bool {

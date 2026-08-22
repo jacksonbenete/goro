@@ -356,7 +356,7 @@ func (w *HomunculusSkillWindow) skillTableCell(ctx Context, assets AssetProvider
 			Color: rotheme.Default.Colors.MutedText,
 		}
 	case "levelup":
-		return rotheme.TableViewIconButtonCell(rotheme.IconButtonPlus, !w.canStageSkill(ctx.Session, skill))
+		return skillLevelUpButtonCell(w.canStageSkill(ctx.Session, skill))
 	default:
 		return rotheme.TableViewSimpleCell{Hidden: true}
 	}

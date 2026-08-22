@@ -31,6 +31,19 @@ func TestCanIncreaseSkillRequiresPointsAndFlag(t *testing.T) {
 	}
 }
 
+func TestSkillWindowHidesUnavailableLevelUpButton(t *testing.T) {
+	window := &SkillWindow{}
+	cell := window.skillTableCell(
+		Context{Session: &session.Session{}},
+		nil,
+		session.Skill{ID: db.SkillSMBash, Level: 1, Upgradable: true},
+		rotheme.TableViewCellContext{Column: rotheme.TableViewColumn{Key: "levelup"}},
+	)
+	if !cell.Hidden || cell.HasIconButton {
+		t.Fatalf("unavailable skill level-up cell = %+v, want hidden", cell)
+	}
+}
+
 func TestSkillWindowCanStageSkillHonorsMaxLevel(t *testing.T) {
 	s := &session.Session{Skills: session.Skills{Points: 3}}
 	window := &SkillWindow{}

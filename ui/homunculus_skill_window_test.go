@@ -9,6 +9,7 @@ import (
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
 )
 
 func TestHomunculusSkillWindowUsesHomunculusSkillList(t *testing.T) {
@@ -84,6 +85,19 @@ func TestHomunculusSkillWindowCanStageSkillUsesHomunculusPoints(t *testing.T) {
 	}
 	if window.canStageSkill(s, skill) {
 		t.Fatal("homunculus skill should not use player skill points")
+	}
+}
+
+func TestHomunculusSkillWindowHidesUnavailableLevelUpButton(t *testing.T) {
+	window := &HomunculusSkillWindow{}
+	cell := window.skillTableCell(
+		Context{Session: &session.Session{Homunculus: session.Companion{Active: true}}},
+		nil,
+		session.Skill{ID: db.SkillHvanCaprice, Level: 1, Upgradable: true},
+		rotheme.TableViewCellContext{Column: rotheme.TableViewColumn{Key: "levelup"}},
+	)
+	if !cell.Hidden || cell.HasIconButton {
+		t.Fatalf("unavailable homunculus level-up cell = %+v, want hidden", cell)
 	}
 }
 

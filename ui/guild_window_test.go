@@ -11,6 +11,7 @@ import (
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
 	"github.com/kivutar/goro/session"
+	"github.com/kivutar/goro/ui/rotheme"
 )
 
 func TestGuildSkillTooltipUsesSkillDetails(t *testing.T) {
@@ -342,6 +343,20 @@ func TestGuildSkillTablePlusStagesSkill(t *testing.T) {
 	}
 	if action := window.PopAction(); action.hasAction() {
 		t.Fatalf("staging should not publish action: %+v", action)
+	}
+}
+
+func TestGuildSkillTableHidesUnavailableLevelUpButton(t *testing.T) {
+	window := &GuildWindow{}
+	skill := session.Skill{ID: db.SkillGdApproval, Level: 1, MaxLevel: 5, Upgradable: true}
+	cell := window.guildSkillCell(
+		Context{},
+		skill,
+		session.Guild{IsMaster: true},
+		rotheme.TableViewCellContext{Column: rotheme.TableViewColumn{Key: "levelup"}},
+	)
+	if !cell.Hidden || cell.HasIconButton {
+		t.Fatalf("unavailable guild skill level-up cell = %+v, want hidden", cell)
 	}
 }
 

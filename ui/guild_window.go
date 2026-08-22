@@ -904,7 +904,7 @@ func (w *GuildWindow) guildSkillCell(ctx Context, skill session.Skill, guild ses
 			Color: nameColor,
 		}
 	case "levelup":
-		return rotheme.TableViewIconButtonCell(rotheme.IconButtonPlus, !w.canStageGuildSkill(skill, guild))
+		return skillLevelUpButtonCell(w.canStageGuildSkill(skill, guild))
 	default:
 		return rotheme.TableViewSimpleCell{Hidden: true}
 	}
