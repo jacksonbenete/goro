@@ -144,7 +144,6 @@ type worldUI struct {
 	npcDialog         gameui.NPCDialog
 	escapeMenu        gameui.EscapeMenu
 	teleportModal     gameui.TeleportModal
-	deathModal        gameui.DeathModal
 	disconnectDialog  gameui.ConfirmModal
 	friendRequest     gameui.ConfirmModal
 	friendConfirm     gameui.ConfirmModal
@@ -202,7 +201,7 @@ type worldUI struct {
 }
 
 func (u *worldUI) KeyboardShortcutsBlocked(ctx client.Context) bool {
-	return u.keyboardInputBlocked(ctx)
+	return playerIsDead(ctx) || u.keyboardInputBlocked(ctx)
 }
 
 func (u *worldUI) keyboardInputBlocked(ctx client.Context) bool {
@@ -213,7 +212,6 @@ func (u *worldUI) keyboardInputBlocked(ctx client.Context) bool {
 		u.npcDialog.IsOpen() ||
 		u.escapeMenu.IsOpen() ||
 		u.teleportModal.IsOpen() ||
-		u.deathModal.IsOpen() ||
 		u.disconnectDialog.IsOpen() ||
 		u.friendRequest.IsOpen() ||
 		u.friendConfirm.IsOpen() ||
@@ -614,9 +612,14 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	m.ui.console.UpdatePresentation(ctx)
+	dead := playerIsDead(ctx)
 	keyboardBlocked := m.ui.keyboardInputBlocked(ctx)
-	m.updateBotInput(ctx, !keyboardBlocked)
-	if !keyboardBlocked {
+	m.updateBotInput(ctx, !dead && !keyboardBlocked)
+	if dead {
+		if m.updateDeathUIInput(ctx) {
+			return nil, nil
+		}
+	} else if !keyboardBlocked {
 		if m.skills().CancelFromInput(ctx) {
 			return nil, nil
 		}
@@ -630,39 +633,49 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	}
 	petContextConsumed := m.ui.petContext.Update(ctx)
 	if action := m.ui.petContext.PopAction(); action.Kind != gameui.PetContextActionNone {
-		m.handlePetContextAction(ctx, action)
+		if !dead {
+			m.handlePetContextAction(ctx, action)
+		}
 		return nil, nil
 	}
 	if petContextConsumed {
 		return nil, nil
 	}
-	if m.openPetContextFromInput(ctx, now) {
+	if !dead && m.openPetContextFromInput(ctx, now) {
 		return nil, nil
 	}
 	homunculusContextConsumed := m.ui.homunculusContext.Update(ctx)
 	if action := m.ui.homunculusContext.PopAction(); action.Kind != gameui.HomunculusContextActionNone {
-		m.handleHomunculusContextAction(ctx, action)
+		if !dead {
+			m.handleHomunculusContextAction(ctx, action)
+		}
 		return nil, nil
 	}
 	if homunculusContextConsumed {
 		return nil, nil
 	}
-	if m.openHomunculusContextFromInput(ctx, now) {
+	if !dead && m.openHomunculusContextFromInput(ctx, now) {
 		return nil, nil
 	}
 	mercenaryContextConsumed := m.ui.mercenaryContext.Update(ctx)
 	if action := m.ui.mercenaryContext.PopAction(); action.Kind != gameui.MercenaryContextActionNone {
-		m.handleMercenaryContextAction(ctx, action)
+		if !dead {
+			m.handleMercenaryContextAction(ctx, action)
+		}
 		return nil, nil
 	}
 	if mercenaryContextConsumed {
 		return nil, nil
 	}
-	if m.openMercenaryContextFromInput(ctx, now) {
+	if !dead && m.openMercenaryContextFromInput(ctx, now) {
 		return nil, nil
 	}
 	playerContextConsumed := m.ui.playerContext.Update(ctx)
-	switch action := m.ui.playerContext.PopAction(); action.Kind {
+	playerAction := m.ui.playerContext.PopAction()
+	if dead && playerAction.Kind != gameui.PlayerContextActionNone {
+		return nil, nil
+	}
+	switch action := playerAction; action.Kind {
 	case gameui.PlayerContextActionAddFriend:
 		m.sendAddFriend(ctx, action.Name)
 		return nil, nil
@@ -682,19 +695,19 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if playerContextConsumed {
 		return nil, nil
 	}
-	if m.handleCompanionAICommandClick(ctx, now) {
+	if !dead && m.handleCompanionAICommandClick(ctx, now) {
 		return nil, nil
 	}
-	if m.openPlayerContextFromInput(ctx, now) {
+	if !dead && m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.deathModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.guildRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
+	if !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.guildRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if m.updatePetSlotMachine(ctx) {
 		return nil, nil
 	}
-	if m.ui.escapeMenu.IsOpen() {
+	if !dead && m.ui.escapeMenu.IsOpen() {
 		if m.ui.escapeMenu.Update(ctx) {
 			m.handleEscapeMenuAction(ctx)
 			return nil, nil
@@ -742,9 +755,6 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		}
 		return nil, nil
 	}
-	if m.ui.deathModal.Update(ctx) {
-		return nil, nil
-	}
 	if m.ui.teleportModal.Update(ctx, m) {
 		return nil, nil
 	}
@@ -775,13 +785,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.weaponRefine.Update(ctx) {
 		return nil, nil
 	}
-	if m.ui.console.UpdateInput(ctx) {
+	if !dead && m.ui.console.UpdateInput(ctx) {
 		return nil, nil
 	}
 	if m.ui.settingsWindow.Update(ctx) {
 		return nil, nil
 	}
-	if m.ui.escapeMenu.Update(ctx) {
+	if !dead && m.ui.escapeMenu.Update(ctx) {
 		m.handleEscapeMenuAction(ctx)
 		return nil, nil
 	}
@@ -943,12 +953,15 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	removeExpiredStatusEffects(ctx.Session, now)
 	m.ui.statusIcons.Update(ctx, now)
 	m.syncLevel99AuraEffects(ctx, now)
-	m.updateCompanionAI(ctx, now)
-	m.updateBot(ctx, now)
 	pointerBlocked := minimapDragging || uiPointerBlocked(ctx)
 	if !pointerBlocked {
 		m.updateCameraZoom(ctx)
 	}
+	if dead {
+		return nil, nil
+	}
+	m.updateCompanionAI(ctx, now)
+	m.updateBot(ctx, now)
 
 	leftClick := !pointerBlocked && ctx.Input.MouseJustPressed(input.MouseButtonLeft)
 	if leftClick && m.pendingSkill.skill.ID != 0 {
@@ -1024,6 +1037,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 
 func (m *WorldMode) handleEscapeMenuAction(ctx client.Context) {
 	switch m.ui.escapeMenu.ConsumeAction() {
+	case gameui.EscapeMenuActionSavePoint:
+		m.ui.escapeMenu.ReturnToSavePoint(ctx)
 	case gameui.EscapeMenuActionCharacterSelect:
 		m.ui.escapeMenu.RequestCharacterSelect(ctx)
 	case gameui.EscapeMenuActionSettings:
@@ -1031,11 +1046,23 @@ func (m *WorldMode) handleEscapeMenuAction(ctx client.Context) {
 	}
 }
 
+func (m *WorldMode) updateDeathUIInput(ctx client.Context) bool {
+	// Active chat owns Escape so the first press leaves text entry. Enter also
+	// gets priority so chat can be activated even while the pointer is over the
+	// death menu. Otherwise the menu owns Escape and may be freely toggled.
+	chatFirst := m.ui.console.Active() || (ctx.Input != nil && ctx.Input.JustPressed(input.KeyEnter))
+	if chatFirst && m.ui.console.UpdateInput(ctx) {
+		return true
+	}
+	if m.ui.escapeMenu.Update(ctx) {
+		m.handleEscapeMenuAction(ctx)
+		return true
+	}
+	return !chatFirst && m.ui.console.UpdateInput(ctx)
+}
+
 func (m *WorldMode) applyQuitGameAck(ctx client.Context, ack network.QuitGameAck) {
 	handled := m.ui.escapeMenu.ApplyQuitGameAck(ack)
-	if m.ui.deathModal.ApplyQuitGameAck(ack) {
-		handled = true
-	}
 	if ack.Allowed {
 		if ctx.RequestQuit != nil {
 			ctx.RequestQuit()
@@ -1059,7 +1086,7 @@ func (m *WorldMode) openEscapeMenuFromInput(ctx client.Context) bool {
 	if ctx.Input == nil || m.ui.escapeMenu.IsOpen() || !ctx.Input.JustPressed(input.KeyEscape) {
 		return false
 	}
-	if m.ui.deathModal.IsOpen() || m.ui.teleportModal.IsOpen() || m.ui.friendRequest.IsOpen() || m.ui.friendConfirm.IsOpen() || m.ui.partyRequest.IsOpen() || m.ui.guildRequest.IsOpen() || m.ui.tradeRequest.IsOpen() {
+	if m.ui.teleportModal.IsOpen() || m.ui.friendRequest.IsOpen() || m.ui.friendConfirm.IsOpen() || m.ui.partyRequest.IsOpen() || m.ui.guildRequest.IsOpen() || m.ui.tradeRequest.IsOpen() {
 		return false
 	}
 	m.ui.escapeMenu.Toggle(ctx)
@@ -1274,6 +1301,9 @@ func sameLoadedMap(ctx client.Context, mapName string) bool {
 }
 
 func (m *WorldMode) requestNPCTalk(ctx client.Context, actor worldstate.Actor, source string) {
+	if playerIsDead(ctx) {
+		return
+	}
 	if ctx.Network == nil {
 		m.setWalkCooldown(walkErrorCooldown)
 		return
@@ -1334,7 +1364,6 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 		m.ui.homunculusSkill.Draw(screen, ctx, m)
 		m.ui.mercenarySkill.Draw(screen, ctx, m)
 		m.drawHoveredGroundItemLabel(screen, ctx, projection, now)
-		m.ui.deathModal.Draw(screen, ctx, width, height)
 	}
 }
 

@@ -23,6 +23,7 @@ type EscapeMenu struct {
 	action        EscapeMenuAction
 	pending       bool
 	pendingAction EscapeMenuAction
+	deathMode     bool
 	ctx           client.Context
 }
 
@@ -30,6 +31,7 @@ type EscapeMenuAction int
 
 const (
 	EscapeMenuActionNone EscapeMenuAction = iota
+	EscapeMenuActionSavePoint
 	EscapeMenuActionCharacterSelect
 	EscapeMenuActionSettings
 	EscapeMenuActionCancel
@@ -44,12 +46,51 @@ func (m *EscapeMenu) Toggle(ctx client.Context) {
 		m.Publish(ctx)
 		return
 	}
+	if !m.deathMode {
+		m.action = EscapeMenuActionNone
+		m.pending = false
+		m.pendingAction = EscapeMenuActionNone
+	}
+	m.CloseOnEsc = true
+	m.Window.Open(ctx, m.widgetTree(ctx))
+	m.Publish(ctx)
+}
+
+// OpenDeath switches the regular escape menu to its death variant and opens it.
+// The death mode remains active if the player later hides the window with Escape.
+func (m *EscapeMenu) OpenDeath(ctx client.Context) {
+	m.ctx = ctx
+	m.EnsureWindow(escapeMenuWidth, escapeMenuHeight)
+	m.deathMode = true
 	m.action = EscapeMenuActionNone
 	m.pending = false
 	m.pendingAction = EscapeMenuActionNone
 	m.CloseOnEsc = true
-	m.Window.Open(ctx, m.widgetTree(ctx))
+	if m.IsOpen() {
+		m.SetContent(m.widgetTree(ctx))
+	} else {
+		m.Window.Open(ctx, m.widgetTree(ctx))
+	}
 	m.Publish(ctx)
+}
+
+// ResetDeath returns the escape menu to its regular mode after resurrection or
+// a map change. It also closes a death menu that the player left visible.
+func (m *EscapeMenu) ResetDeath(ctx client.Context) {
+	if !m.deathMode {
+		return
+	}
+	m.ctx = ctx
+	m.Window.Close()
+	m.Publish(ctx)
+	m.deathMode = false
+	m.action = EscapeMenuActionNone
+	m.pending = false
+	m.pendingAction = EscapeMenuActionNone
+}
+
+func (m *EscapeMenu) DeathMode() bool {
+	return m.deathMode
 }
 
 func (m *EscapeMenu) Update(ctx client.Context) bool {
@@ -74,7 +115,24 @@ func (m *EscapeMenu) Update(ctx client.Context) bool {
 		}
 		return true
 	}
-	return true
+	return !m.deathMode
+}
+
+func (m *EscapeMenu) ReturnToSavePoint(ctx client.Context) {
+	m.pending = true
+	m.pendingAction = EscapeMenuActionSavePoint
+	if ctx.Network == nil {
+		m.pending = false
+		m.pendingAction = EscapeMenuActionNone
+		m.refresh(ctx)
+		return
+	}
+	if err := ctx.Network.SendRestart(network.RestartTypeRespawn); err != nil {
+		m.pending = false
+		m.pendingAction = EscapeMenuActionNone
+		glog.Warnf("escape menu respawn failed: %v", err)
+	}
+	m.refresh(ctx)
 }
 
 func (m *EscapeMenu) RequestCharacterSelect(ctx client.Context) {
@@ -185,6 +243,9 @@ func (m *EscapeMenu) refresh(ctx client.Context) {
 }
 
 func (m *EscapeMenu) widgetTree(ctx client.Context) widget.Widget {
+	if m.deathMode {
+		return m.deathWidgetTree(ctx)
+	}
 	return Win(
 		Title("Menu"),
 		CloseButton(false),
@@ -204,6 +265,35 @@ func (m *EscapeMenu) widgetTree(ctx client.Context) widget.Widget {
 				}),
 				rotheme.LargeButtonDisabled("Exit to Windows", m.pending, func() {
 					m.RequestQuitGame(ctx)
+				}),
+			).
+				Padding(escapeMenuPad).
+				Gap(escapeMenuGap).
+				CrossAlign(primitives.CrossAxisStretch),
+		),
+	)
+}
+
+func (m *EscapeMenu) deathWidgetTree(ctx client.Context) widget.Widget {
+	return Win(
+		Title("Menu"),
+		CloseButton(false),
+		Size(escapeMenuWidth, escapeMenuHeight),
+		Content(
+			primitives.Box(
+				rotheme.LargeButtonDisabled("Return to Save Point", m.pending, func() {
+					m.action = EscapeMenuActionSavePoint
+					m.refresh(ctx)
+				}),
+				rotheme.LargeButtonDisabled("Character Select", m.pending, func() {
+					m.action = EscapeMenuActionCharacterSelect
+					m.refresh(ctx)
+				}),
+				rotheme.LargeButtonDisabled("Exit to Windows", m.pending, func() {
+					m.RequestQuitGame(ctx)
+				}),
+				rotheme.LargeButton("Cancel", func() {
+					m.Window.Close()
 				}),
 			).
 				Padding(escapeMenuPad).

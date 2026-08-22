@@ -226,7 +226,7 @@ func (b *luaBot) registerAPI(ctx client.Context, mode *WorldMode) {
 }
 
 func (m *WorldMode) scriptAttack(ctx client.Context, id uint32) bool {
-	if ctx.World == nil {
+	if playerIsDead(ctx) || ctx.World == nil {
 		return false
 	}
 	actor, ok := ctx.World.Actors[id]

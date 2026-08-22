@@ -254,6 +254,9 @@ func maxDuration(a, b time.Duration) time.Duration {
 }
 
 func (m *WorldMode) requestAttack(ctx client.Context, actor world.Actor, source string) {
+	if playerIsDead(ctx) {
+		return
+	}
 	if ctx.Network == nil {
 		m.setWalkCooldown(walkErrorCooldown)
 		return
@@ -1224,14 +1227,17 @@ func (m *WorldMode) clearLocalDeathStateIfAlive(ctx client.Context) {
 	// rAthena restores HP before sending the map change for a save-point
 	// respawn. Keep the held death pose during that gap; handleMapChange clears
 	// it only after the fade-out has reached black.
-	if m.ui.deathModal.PendingAction() == ui.DeathModalActionSavePoint {
+	if m.ui.escapeMenu.PendingAction() == ui.EscapeMenuActionSavePoint {
 		return
 	}
 	m.clearLocalDeathState(ctx)
 }
 
 func (m *WorldMode) clearLocalDeathState(ctx client.Context) {
-	m.ui.deathModal.Reset()
+	m.ui.escapeMenu.ResetDeath(ctx)
+	if ctx.Session != nil {
+		ctx.Session.Dead = false
+	}
 	if ctx.Session == nil || m.actorAnims == nil {
 		return
 	}
@@ -1754,7 +1760,17 @@ func (m *WorldMode) startActorDeath(ctx client.Context, id uint32) {
 		ctx.World.Player.MoveStartX = 0
 		ctx.World.Player.MoveStartY = 0
 		ctx.World.Player.WalkDistance = 0
-		m.ui.deathModal.OpenDeath()
+		if ctx.Session != nil {
+			ctx.Session.Dead = true
+		}
+		m.cancelAttackIntent()
+		m.pendingPickup = pickupIntent{}
+		m.pendingSkill = pendingSkillTarget{}
+		m.ui.petContext.Close()
+		m.ui.homunculusContext.Close()
+		m.ui.mercenaryContext.Close()
+		m.ui.playerContext.Close()
+		m.ui.escapeMenu.OpenDeath(ctx)
 	} else {
 		upsertActor(ctx, actor)
 	}

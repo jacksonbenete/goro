@@ -10,6 +10,7 @@ type Session struct {
 	Sex                  byte
 	AdminList            []uint32
 	Playing              bool
+	Dead                 bool
 	NoShift              bool
 	NoCtrl               bool
 	LessEffects          bool
@@ -63,6 +64,7 @@ func (s *Session) SelectCharacter(character Character) {
 	s.CharID = character.ID
 	s.Selected = character
 	s.AttackRange = 0
+	s.Dead = false
 	s.ShowEquip = false
 	s.GuildID = 0
 	s.EmblemVersion = 0

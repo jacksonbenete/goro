@@ -26,6 +26,7 @@ func TestSelectCharacterClearsCharacterScopedState(t *testing.T) {
 	s.Characters = []Character{{ID: 150000, Name: "Old"}, {ID: 150001, Name: "New"}}
 
 	s.AttackRange = 14
+	s.Dead = true
 	s.ShowEquip = true
 	s.Zone = ZoneServer{MapName: "prontera"}
 	s.ServerTick = 100
@@ -89,7 +90,7 @@ func TestSelectCharacterClearsCharacterScopedState(t *testing.T) {
 	if s.Stats.Str != 1 || s.Stats.Agi != 2 || s.Stats.Vit != 3 || s.Stats.Int != 4 || s.Stats.Dex != 5 || s.Stats.Luk != 6 || s.Stats.Points != 0 {
 		t.Fatalf("stats not reset and seeded: %+v", s.Stats)
 	}
-	if s.AttackRange != 0 || s.ShowEquip || s.Zone != (ZoneServer{}) || s.ServerTick != 0 || !s.ServerTickAt.IsZero() || s.PlayerX != 0 || s.PlayerY != 0 || s.PlayerDir != 0 {
+	if s.AttackRange != 0 || s.Dead || s.ShowEquip || s.Zone != (ZoneServer{}) || s.ServerTick != 0 || !s.ServerTickAt.IsZero() || s.PlayerX != 0 || s.PlayerY != 0 || s.PlayerDir != 0 {
 		t.Fatalf("runtime state leaked: %+v", s)
 	}
 	if len(s.Storage.Items) != 0 || s.Storage.Open || len(s.Cart.Items) != 0 || s.Cart.Open || len(s.Skills.List) != 0 || s.Skills.Points != 0 || len(s.Hotkeys.Slots) != 0 || s.Hotkeys.Loaded || len(s.Statuses.Active) != 0 || len(s.Friends.List) != 0 || s.Party.Active() || s.Movement.HasServerSpeed {

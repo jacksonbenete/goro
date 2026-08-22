@@ -10,6 +10,9 @@ import (
 
 // UseInventoryItem requests use of a consumable inventory entry.
 func UseInventoryItem(ctx Context, item session.InventoryItem) error {
+	if ctx.Session != nil && ctx.Session.Dead {
+		return fmt.Errorf("player is dead")
+	}
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
 	}

@@ -88,6 +88,61 @@ func TestEscapeMenuEscapeKeyTogglesWindow(t *testing.T) {
 	}
 }
 
+func TestEscapeMenuDeathModeSurvivesEscapeToggle(t *testing.T) {
+	manager := &escapeMenuTestUIManager{}
+	inputState := input.NewState()
+	menu := EscapeMenu{}
+	ctx := client.Context{Input: inputState, UIManager: manager, ScreenW: 800, ScreenH: 600}
+	menu.OpenDeath(ctx)
+
+	if !menu.IsOpen() || !menu.DeathMode() {
+		t.Fatal("death menu did not open in death mode")
+	}
+
+	inputState.SetKey(input.KeyEscape, true)
+	if !menu.Update(ctx) {
+		t.Fatal("escape did not hide death menu")
+	}
+	if menu.IsOpen() || !menu.DeathMode() {
+		t.Fatal("hiding death menu ended death mode")
+	}
+
+	inputState.EndFrame()
+	inputState.SetKey(input.KeyEscape, false)
+	inputState.EndFrame()
+	inputState.SetKey(input.KeyEscape, true)
+	if !menu.Update(ctx) {
+		t.Fatal("escape did not reopen death menu")
+	}
+	if !menu.IsOpen() || !menu.DeathMode() {
+		t.Fatal("death menu did not reopen in death mode")
+	}
+}
+
+func TestEscapeMenuDeathModeDoesNotBlockPointerOutsideWindow(t *testing.T) {
+	inputState := input.NewState()
+	inputState.SetMousePosition(799, 599)
+	menu := EscapeMenu{}
+	ctx := client.Context{Input: inputState, ScreenW: 800, ScreenH: 600}
+	menu.OpenDeath(ctx)
+
+	if menu.Update(ctx) {
+		t.Fatal("death menu consumed pointer input outside its window")
+	}
+}
+
+func TestEscapeMenuResetDeathRestoresRegularMode(t *testing.T) {
+	menu := EscapeMenu{}
+	ctx := client.Context{Input: input.NewState(), ScreenW: 800, ScreenH: 600}
+	menu.OpenDeath(ctx)
+
+	menu.ResetDeath(ctx)
+
+	if menu.IsOpen() || menu.DeathMode() {
+		t.Fatal("death reset left the menu open or in death mode")
+	}
+}
+
 func TestEscapeMenuCharacterSelectAckRequestsModeSwitch(t *testing.T) {
 	menu := EscapeMenu{pending: true, pendingAction: EscapeMenuActionCharacterSelect}
 
@@ -178,6 +233,14 @@ func TestEscapeMenuPendingOnlyDisablesServerActions(t *testing.T) {
 		if got := buttons[i].IsFocusable(); got != want {
 			t.Fatalf("button %d focusable = %t, want %t", i, got, want)
 		}
+	}
+}
+
+func TestEscapeMenuDeathModeUsesDeathActions(t *testing.T) {
+	menu := EscapeMenu{deathMode: true}
+	buttons := collectEscapeMenuButtons(menu.widgetTree(client.Context{}))
+	if len(buttons) != 4 {
+		t.Fatalf("buttons = %d, want 4", len(buttons))
 	}
 }
 

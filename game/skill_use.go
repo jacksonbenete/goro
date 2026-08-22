@@ -232,6 +232,9 @@ const skillChangeCart = 154
 const skillGroundTextMaxBytes = 79
 
 func (c skillController) Use(ctx client.Context, skill session.Skill, source string) error {
+	if playerIsDead(ctx) {
+		return fmt.Errorf("player is dead")
+	}
 	if skill.ID == 0 || skill.Level <= 0 {
 		return fmt.Errorf("skill is not learned")
 	}
@@ -277,6 +280,9 @@ func (c skillController) Use(ctx client.Context, skill session.Skill, source str
 }
 
 func (c skillController) SendToID(ctx client.Context, skill session.Skill, target uint32, source string) error {
+	if playerIsDead(ctx) {
+		return fmt.Errorf("player is dead")
+	}
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -305,6 +311,9 @@ func (c skillController) SendToID(ctx client.Context, skill session.Skill, targe
 }
 
 func (c skillController) SendToGround(ctx client.Context, skill session.Skill, x, y int, source string) error {
+	if playerIsDead(ctx) {
+		return fmt.Errorf("player is dead")
+	}
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -323,6 +332,9 @@ func (c skillController) SendToGround(ctx client.Context, skill session.Skill, x
 }
 
 func (c skillController) SendToGroundWithText(ctx client.Context, skill session.Skill, x, y int, text string, source string) error {
+	if playerIsDead(ctx) {
+		return fmt.Errorf("player is dead")
+	}
 	if ctx.Network == nil {
 		return fmt.Errorf("not connected")
 	}
@@ -436,6 +448,9 @@ func (c skillController) HandleClick(ctx client.Context, projection sceneProject
 }
 
 func (c skillController) UseTarget(ctx client.Context, skill session.Skill, actor worldstate.Actor, source string) error {
+	if playerIsDead(ctx) {
+		return fmt.Errorf("player is dead")
+	}
 	if skill.ID == 0 || skill.Level <= 0 {
 		return fmt.Errorf("skill is not learned")
 	}

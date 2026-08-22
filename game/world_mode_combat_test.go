@@ -1441,6 +1441,54 @@ func TestEscapeKeyOpensEscapeMenuGlobally(t *testing.T) {
 	}
 }
 
+func TestDeathEscapeBypassesInactiveChatConsole(t *testing.T) {
+	mode := &WorldMode{}
+	inputState := input.NewState()
+	manager := &worldModeTestUIManager{}
+	ctx := client.Context{Input: inputState, UIManager: manager, ScreenW: 800, ScreenH: 600}
+	mode.ui.console.UpdatePresentation(ctx)
+	mode.ui.escapeMenu.OpenDeath(ctx)
+
+	inputState.SetKey(input.KeyEscape, true)
+	if !mode.updateDeathUIInput(ctx) {
+		t.Fatal("death UI did not consume Escape")
+	}
+	if mode.ui.escapeMenu.IsOpen() {
+		t.Fatal("inactive chat console consumed Escape before the death menu")
+	}
+	if !mode.ui.escapeMenu.DeathMode() {
+		t.Fatal("hiding the death menu ended death mode")
+	}
+}
+
+func TestActiveChatGetsFirstDeathEscape(t *testing.T) {
+	mode := &WorldMode{}
+	inputState := input.NewState()
+	manager := &worldModeTestUIManager{}
+	ctx := client.Context{Input: inputState, UIManager: manager, ScreenW: 800, ScreenH: 600}
+	mode.ui.console.UpdatePresentation(ctx)
+	mode.ui.escapeMenu.OpenDeath(ctx)
+
+	inputState.SetKey(input.KeyEnter, true)
+	if !mode.updateDeathUIInput(ctx) || !mode.ui.console.Active() {
+		t.Fatal("Enter did not activate chat while dead")
+	}
+	inputState.EndFrame()
+	inputState.SetKey(input.KeyEnter, false)
+	inputState.EndFrame()
+	inputState.SetKey(input.KeyEscape, true)
+
+	if !mode.updateDeathUIInput(ctx) {
+		t.Fatal("active chat did not consume Escape")
+	}
+	if mode.ui.console.Active() {
+		t.Fatal("Escape did not leave chat input")
+	}
+	if !mode.ui.escapeMenu.IsOpen() {
+		t.Fatal("chat Escape also hid the death menu")
+	}
+}
+
 func TestPendingSkillTargetCancelWithRightClick(t *testing.T) {
 	mode := &WorldMode{
 		pendingSkill: pendingSkillTarget{skill: session.Skill{ID: 6, Level: 2, Range: 9}},
@@ -1647,8 +1695,11 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 
 	mode.startActorDeath(ctx, 150000)
 
-	if !mode.ui.deathModal.IsOpen() {
-		t.Fatal("death modal should open for local death")
+	if !mode.ui.escapeMenu.IsOpen() || !mode.ui.escapeMenu.DeathMode() {
+		t.Fatal("death escape menu should open for local death")
+	}
+	if !ctx.Session.Dead {
+		t.Fatal("session should be marked dead")
 	}
 	anim, ok := mode.actorAnims[150000]
 	if !ok {
@@ -1671,8 +1722,11 @@ func TestLocalDeathAnimationHoldsUntilPlayerAlive(t *testing.T) {
 	ctx.Session.Vitals.HP = 1
 	mode.clearLocalDeathStateIfAlive(ctx)
 
-	if mode.ui.deathModal.IsOpen() {
-		t.Fatal("death modal should clear when player is alive")
+	if mode.ui.escapeMenu.IsOpen() || mode.ui.escapeMenu.DeathMode() {
+		t.Fatal("death escape menu should clear when player is alive")
+	}
+	if ctx.Session.Dead {
+		t.Fatal("session should be marked alive")
 	}
 	if _, ok := mode.actorAnims[150000]; ok {
 		t.Fatal("character death animation should clear when player is alive")
@@ -1723,8 +1777,8 @@ func TestSavePointRespawnHoldsDeathAnimationUntilMapChange(t *testing.T) {
 	}
 
 	mode.startActorDeath(ctx, 150000)
-	mode.ui.deathModal.ReturnToSavePoint(ctx)
-	if got := mode.ui.deathModal.PendingAction(); got != gameui.DeathModalActionSavePoint {
+	mode.ui.escapeMenu.ReturnToSavePoint(ctx)
+	if got := mode.ui.escapeMenu.PendingAction(); got != gameui.EscapeMenuActionSavePoint {
 		t.Fatalf("pending death action = %d, want save point", got)
 	}
 
@@ -1734,8 +1788,8 @@ func TestSavePointRespawnHoldsDeathAnimationUntilMapChange(t *testing.T) {
 	if _, ok := mode.actorAnims[150000]; !ok {
 		t.Fatal("positive HP cleared death animation before respawn map change")
 	}
-	if !mode.ui.deathModal.IsOpen() {
-		t.Fatal("positive HP closed death modal before respawn map change")
+	if !mode.ui.escapeMenu.IsOpen() || !mode.ui.escapeMenu.DeathMode() {
+		t.Fatal("positive HP closed death menu before respawn map change")
 	}
 
 	next := mode.handleMapChange(ctx, network.MapChange{MapName: "geffen", X: 120, Y: 80})
@@ -1745,8 +1799,11 @@ func TestSavePointRespawnHoldsDeathAnimationUntilMapChange(t *testing.T) {
 	if _, ok := mode.actorAnims[150000]; ok {
 		t.Fatal("death animation remained after respawn map change")
 	}
-	if mode.ui.deathModal.IsOpen() {
-		t.Fatal("death modal remained open after respawn map change")
+	if mode.ui.escapeMenu.IsOpen() || mode.ui.escapeMenu.DeathMode() {
+		t.Fatal("death menu remained open after respawn map change")
+	}
+	if ctx.Session.Dead {
+		t.Fatal("session remained dead after respawn map change")
 	}
 }
 

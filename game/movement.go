@@ -150,6 +150,9 @@ func actorCurrentCell(actor worldstate.Actor, now time.Time) (int, int) {
 }
 
 func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source string) bool {
+	if playerIsDead(ctx) {
+		return false
+	}
 	if ctx.World == nil || ctx.Network == nil || !walkTargetInBounds(ctx, targetX, targetY) {
 		m.setWalkCooldown(walkRequestCooldown)
 		return false
@@ -171,7 +174,7 @@ func (m *WorldMode) requestWalk(ctx client.Context, targetX, targetY int, source
 // that path bends around an obstacle.
 func (m *WorldMode) requestWalkStop(ctx client.Context, source string) bool {
 	now := time.Now()
-	if ctx.World == nil || ctx.Network == nil {
+	if playerIsDead(ctx) || ctx.World == nil || ctx.Network == nil {
 		return false
 	}
 	player := ctx.World.Player

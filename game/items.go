@@ -131,6 +131,9 @@ func itemPickupAckAddsItem(ack network.ItemPickupAck) bool {
 }
 
 func (m *WorldMode) requestPickup(ctx client.Context, item worldstate.FloorItem, source string) bool {
+	if playerIsDead(ctx) {
+		return false
+	}
 	if ctx.Network == nil {
 		m.setWalkCooldown(walkErrorCooldown)
 		return false

@@ -29,6 +29,17 @@ func TestSkillTargetModes(t *testing.T) {
 	}
 }
 
+func TestDeadPlayerCannotStartSkillUse(t *testing.T) {
+	mode := &WorldMode{}
+	err := mode.skills().Use(client.Context{
+		Session: &session.Session{Dead: true},
+	}, session.Skill{ID: 28, Type: skillTargetSelf, Level: 1}, "test")
+
+	if err == nil {
+		t.Fatal("dead player started a skill")
+	}
+}
+
 func TestLevelOneTeleportQueuesRandomSelectionWithCast(t *testing.T) {
 	ln, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
