@@ -1,11 +1,32 @@
 package rotheme
 
 import (
+	"math"
+	"strings"
 	"testing"
 
 	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/widget"
 )
+
+type svgRecordingCanvas struct {
+	*tableViewHeaderCanvas
+	fills []struct {
+		path    string
+		viewBox float32
+		bounds  geometry.Rect
+		color   widget.Color
+	}
+}
+
+func (c *svgRecordingCanvas) FillSVGPath(path string, viewBox float32, bounds geometry.Rect, color widget.Color) {
+	c.fills = append(c.fills, struct {
+		path    string
+		viewBox float32
+		bounds  geometry.Rect
+		color   widget.Color
+	}{path: path, viewBox: viewBox, bounds: bounds, color: color})
+}
 
 func TestIconButtonGlyphKeepsIntegerXAndQuarterPixelY(t *testing.T) {
 	canvas := &tableViewHeaderCanvas{}
@@ -22,18 +43,49 @@ func TestIconButtonGlyphKeepsIntegerXAndQuarterPixelY(t *testing.T) {
 	}
 }
 
-func TestIconButtonChevronKeepsIntegerXAndQuarterPixelY(t *testing.T) {
-	canvas := &tableViewHeaderCanvas{}
-	drawIconGlyph(canvas, geometry.NewRect(0, 0, IconButtonSize, IconButtonSize), IconButtonLeft, widget.ColorBlack)
+func TestDirectionalIconButtonIsFilledAndBorderedWithoutButtonBox(t *testing.T) {
+	bounds := geometry.NewRect(0, 0, IconButtonSize, IconButtonSize)
+	canvas := &svgRecordingCanvas{tableViewHeaderCanvas: &tableViewHeaderCanvas{}}
+	DrawIconButton(canvas, bounds, IconButtonLeft, false, false)
 
-	if len(canvas.lines) != 2 {
-		t.Fatalf("left icon lines = %d, want 2", len(canvas.lines))
+	if len(canvas.fills) != 2 {
+		t.Fatalf("left icon fills = %d, want border and interior", len(canvas.fills))
 	}
-	if got := canvas.lines[0].from; got != geometry.Pt(11, 4.25) {
-		t.Fatalf("left icon first point = %v, want 11,4.25", got)
+	border := canvas.fills[0]
+	if strings.Count(border.path, "Q") != 3 {
+		t.Fatalf("left icon border path = %q, want rounded triangle", border.path)
 	}
-	if got := canvas.lines[0].to; got != geometry.Pt(5, 8.25) {
-		t.Fatalf("left icon second point = %v, want 5,8.25", got)
+	if border.viewBox != IconButtonSize || border.bounds != bounds {
+		t.Fatalf("left icon border geometry = viewBox %v, bounds %v", border.viewBox, border.bounds)
+	}
+	if border.color != Default.Colors.ButtonBorder {
+		t.Fatalf("left icon border = %v, want %v", border.color, Default.Colors.ButtonBorder)
+	}
+	fill := canvas.fills[1]
+	_, wantFill := lighterTitleBarGradient(2)
+	if fill.color != wantFill {
+		t.Fatalf("left icon fill = %v, want %v", fill.color, wantFill)
+	}
+	if len(canvas.lines) != 0 {
+		t.Fatalf("rounded directional icon drew %d sharp border lines, want none", len(canvas.lines))
+	}
+	if len(canvas.rects) != 0 {
+		t.Fatalf("directional icon drew %d rectangular backgrounds, want none", len(canvas.rects))
+	}
+}
+
+func TestDirectionalIconButtonBorderInsetIsUniform(t *testing.T) {
+	outer := directionalArrows[IconButtonLeft].points
+	inner := insetTriangle(outer, directionalArrowBorderInset)
+	for i := range outer {
+		start, end := outer[i], outer[(i+1)%len(outer)]
+		direction := geometry.Pt(end.X-start.X, end.Y-start.Y)
+		toInner := geometry.Pt(inner[i].X-start.X, inner[i].Y-start.Y)
+		distance := float32(math.Abs(float64(crossProduct(direction, toInner)))) /
+			float32(math.Hypot(float64(direction.X), float64(direction.Y)))
+		if math.Abs(float64(distance-directionalArrowBorderInset)) > 0.001 {
+			t.Fatalf("edge %d inset = %.3f, want %.3f", i, distance, directionalArrowBorderInset)
+		}
 	}
 }
 
