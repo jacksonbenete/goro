@@ -357,6 +357,12 @@ func (w *Window) Update(ctx client.Context) bool {
 	if !w.open || ctx.Input == nil {
 		return false
 	}
+	// The world updates windows in a stable order, not z-order. While another
+	// window owns the renderer's drag capture, yielding here prevents an
+	// overlapped window from consuming the frame before the owner is updated.
+	if !w.dragging && windowDragActive(ctx) {
+		return false
+	}
 	w.ensurePosition(ctx)
 	screenW, screenH := ctx.ScreenSize()
 	if w.dragging {
@@ -573,6 +579,15 @@ type windowDragLayerUIApp interface {
 	MoveWindowDragLayer(token any, rect geometry.Rect)
 	EndWindowDragLayer(token any)
 	CancelWindowDragLayer(token any)
+}
+
+type windowDragStateUIApp interface {
+	WindowDragActive() bool
+}
+
+func windowDragActive(ctx client.Context) bool {
+	app, ok := ctx.UIApp.(windowDragStateUIApp)
+	return ok && app.WindowDragActive()
 }
 
 func invalidateWindowRect(ctx client.Context, rect geometry.Rect) {

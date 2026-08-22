@@ -249,6 +249,45 @@ func TestWindowCloseCancelsDragLayer(t *testing.T) {
 	}
 }
 
+func TestWindowDragContinuesAcrossEarlierUpdatedWindow(t *testing.T) {
+	app := &windowDragTestApp{}
+	inputState := input.NewState()
+	ctx := client.Context{
+		Input:   inputState,
+		UIApp:   app,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	dragged := NewWindow(100, 80)
+	dragged.OpenAt(10, 20, primitives.Box())
+	blocker := NewWindow(120, 90)
+	blocker.OpenAt(50, 50, primitives.Box())
+
+	inputState.SetMousePosition(20, 25)
+	inputState.SetMouseButton(input.MouseButtonLeft, true)
+	if !dragged.Update(ctx) {
+		t.Fatal("drag start was not consumed")
+	}
+
+	inputState.EndFrame()
+	inputState.SetMousePosition(80, 65) // Inside the other window.
+	if blocker.Update(ctx) {
+		t.Fatal("overlapped window consumed a frame owned by the active drag")
+	}
+	if !dragged.Update(ctx) {
+		t.Fatal("active window did not continue dragging across overlap")
+	}
+	if dragged.x != 70 || dragged.y != 60 {
+		t.Fatalf("dragged window position = %d,%d; want 70,60", dragged.x, dragged.y)
+	}
+
+	inputState.EndFrame()
+	inputState.SetMouseButton(input.MouseButtonLeft, false)
+	if !dragged.Update(ctx) || app.WindowDragActive() {
+		t.Fatal("drag release did not relinquish shared drag capture")
+	}
+}
+
 func TestDamagedPositionedOverlayClearsPreexistingChildDirty(t *testing.T) {
 	child := newWindowDragEventRecorder()
 	overlay := positionedWidget(child, 10, 20, 100, 80).(*positionedOverlay)

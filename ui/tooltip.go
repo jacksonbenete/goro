@@ -16,16 +16,11 @@ type tooltipState struct {
 	open     bool
 }
 
-type windowDragStateUIApp interface {
-	WindowDragActive() bool
-}
-
 // TooltipsSuppressed reports whether transient hover UI should stay hidden.
 // Window dragging uses a renderer-owned fast path, so that drag state is the
 // authoritative signal shared by every window and tooltip.
 func TooltipsSuppressed(ctx Context) bool {
-	app, ok := ctx.UIApp.(windowDragStateUIApp)
-	return ok && app.WindowDragActive()
+	return windowDragActive(ctx)
 }
 
 func (t *tooltipState) Show(ctx Context, text string, centerX, belowY, aboveY int) {
