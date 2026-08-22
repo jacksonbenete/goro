@@ -32,10 +32,15 @@ const (
 	inventoryBagRows    = 5
 	inventoryBagTabOver = 1
 	inventoryBagGridW   = inventoryBagCols * inventoryBagCell
-	inventoryBagViewW   = inventoryBagGridW + ROScrollbarGutter
+	inventoryBagWidth   = characterWindowWidth
+	inventoryBagViewW   = inventoryBagWidth - inventoryBagTabW - inventoryBagTabOver*2
 	inventoryBagViewH   = inventoryBagRows * inventoryBagCell
-	inventoryBagWidth   = inventoryBagTabW + inventoryBagViewW + 2
 	inventoryBagHeight  = ROWindowTitleHeight + inventoryBagViewH
+
+	inventoryBagCellShadowInset  float32 = 3
+	inventoryBagCellShadowRadius float32 = 3
+	inventoryBagCellShadowAlpha  float32 = 0.4
+	inventoryBagCellHoverAlpha   float32 = 0.75
 )
 
 const (
@@ -195,12 +200,13 @@ func (w *InventoryBagWindow) PendingCardIndex() uint16 {
 func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow, cart *CartWindow) widget.Widget {
 	items := w.tabItems(ctx.Session)
 	grid := newInventoryGridWidget(inventoryGridConfig{
-		items:   items,
-		icons:   w.itemIcons(ctx, items),
-		amounts: inventoryGridAmountLabels(items),
-		onPress: func(item session.InventoryItem) { w.startItemDragOrActivate(ctx, item) },
-		onHover: func(item session.InventoryItem) { w.showTooltip(ctx, item) },
-		onLeave: func() { w.hideTooltip() },
+		items:     items,
+		icons:     w.itemIcons(ctx, items),
+		amounts:   inventoryGridAmountLabels(items),
+		viewWidth: inventoryBagViewW,
+		onPress:   func(item session.InventoryItem) { w.startItemDragOrActivate(ctx, item) },
+		onHover:   func(item session.InventoryItem) { w.showTooltip(ctx, item) },
+		onLeave:   func() { w.hideTooltip() },
 		onRightClick: func(item session.InventoryItem, mx, my int) {
 			w.hideTooltip()
 			w.dragActive = false
@@ -547,19 +553,13 @@ func (w *inventoryGridWidget) Layout(ctx widget.Context, constraints geometry.Co
 func (w *inventoryGridWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 	bounds := w.Bounds()
 	canvas.DrawRect(bounds, rotheme.Default.Colors.WindowBody)
-	canvas.StrokeRect(bounds, rotheme.Default.Colors.WindowBorder, 1)
 	startRow, endRow := w.visibleRows(canvas)
 	cols := w.cols()
 	for row := startRow; row < endRow; row++ {
 		for col := 0; col < cols; col++ {
 			index := row*cols + col
 			cell := w.cellBounds(index)
-			fill := widget.RGBA8(255, 255, 250, 64)
-			if index == w.hovered {
-				fill = widget.RGBA8(118, 150, 204, 92)
-			}
-			canvas.DrawRect(cell, fill)
-			canvas.StrokeRect(cell, widget.RGBA8(216, 224, 232, 160), 1)
+			drawInventoryGridCellShadow(canvas, cell, index == w.hovered)
 		}
 	}
 	startIndex := startRow * cols
@@ -584,6 +584,26 @@ func (w *inventoryGridWidget) Draw(ctx widget.Context, canvas widget.Canvas) {
 			rotheme.DrawText(canvas, "E", geometry.NewRect(cell.Min.X+2, cell.Min.Y+2, 12, 12), rotheme.Default.Typography.TextSize, widget.RGBA8(54, 128, 76, 255), false, widget.TextAlignLeft)
 		}
 	}
+}
+
+func drawInventoryGridCellShadow(canvas widget.Canvas, cell geometry.Rect, hovered bool) {
+	width := cell.Width() - inventoryBagCellShadowInset*2
+	height := (cell.Height() - inventoryBagCellShadowInset*2) / 2
+	if width <= 0 || height <= 0 {
+		return
+	}
+	shadow := geometry.NewRect(
+		cell.Min.X+inventoryBagCellShadowInset,
+		cell.Max.Y-inventoryBagCellShadowInset-height,
+		width,
+		height,
+	)
+	color := rotheme.Default.Colors.ButtonHover
+	color.A = inventoryBagCellShadowAlpha
+	if hovered {
+		color.A = inventoryBagCellHoverAlpha
+	}
+	canvas.DrawRoundRect(shadow, color, min(inventoryBagCellShadowRadius, height/2))
 }
 
 func (w *inventoryGridWidget) visibleRows(canvas widget.Canvas) (int, int) {

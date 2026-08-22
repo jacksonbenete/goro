@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gogpu/ui/geometry"
+	"github.com/gogpu/ui/uitest"
 	"github.com/gogpu/ui/widget"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/input"
@@ -327,6 +328,90 @@ func TestInventoryBagClampScrollUsesPixelOffset(t *testing.T) {
 func TestInventoryBagWindowHeightEndsAtGridBottom(t *testing.T) {
 	if got, want := inventoryBagHeight-ROWindowTitleHeight, inventoryBagViewH; got != want {
 		t.Fatalf("inventory content height = %d, want grid height %d", got, want)
+	}
+}
+
+func TestInventoryBagMatchesCharacterWindowWidth(t *testing.T) {
+	if inventoryBagWidth != characterWindowWidth {
+		t.Fatalf("inventory width = %d, want character width %d", inventoryBagWidth, characterWindowWidth)
+	}
+	wantViewWidth := inventoryBagWidth - inventoryBagTabW - inventoryBagTabOver*2
+	if inventoryBagViewW != wantViewWidth {
+		t.Fatalf("inventory view width = %d, want remaining width %d", inventoryBagViewW, wantViewWidth)
+	}
+	if inventoryBagGridW+ROScrollbarGutter >= inventoryBagViewW {
+		t.Fatal("wider inventory should leave trailing room while keeping the grid left aligned")
+	}
+}
+
+func TestInventoryGridStartsAtLeftEdge(t *testing.T) {
+	grid := newInventoryGridWidget(inventoryGridConfig{
+		items:     []session.InventoryItem{{Index: 1, ItemID: 501}},
+		viewWidth: inventoryBagViewW,
+	})
+	grid.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(inventoryBagViewW, inventoryBagViewH)))
+
+	if got := grid.indexAt(geometry.Pt(inventoryBagCell/2, inventoryBagCell/2)); got != 0 {
+		t.Fatalf("first cell hit index %d, want 0", got)
+	}
+	if got := grid.cellBounds(0).Min.X; got != 0 {
+		t.Fatalf("first cell x = %.1f, want left edge 0", got)
+	}
+}
+
+func TestInventoryGridDrawsOnlyBottomShadowInEveryCell(t *testing.T) {
+	grid := newInventoryGridWidget(inventoryGridConfig{
+		items:     []session.InventoryItem{{Index: 1, ItemID: 501}},
+		viewWidth: inventoryBagViewW,
+	})
+	grid.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(inventoryBagViewW, inventoryBagViewH)))
+	canvas := &uitest.MockCanvas{}
+	grid.Draw(widget.NewContext(), canvas)
+
+	wantCells := inventoryBagCols * inventoryBagRows
+	if len(canvas.RoundRects) != wantCells {
+		t.Fatalf("cell shadows = %d, want one for each of %d cells", len(canvas.RoundRects), wantCells)
+	}
+	if len(canvas.Rects) != 1 || canvas.Rects[0].Bounds != grid.Bounds() {
+		t.Fatalf("grid rectangles = %v, want only the window-body background", canvas.Rects)
+	}
+	if len(canvas.StrokeRects) != 0 {
+		t.Fatalf("grid lines = %d, want none", len(canvas.StrokeRects))
+	}
+	first := canvas.RoundRects[0]
+	cell := grid.cellBounds(0)
+	height := (cell.Height() - inventoryBagCellShadowInset*2) / 2
+	wantBounds := geometry.NewRect(
+		cell.Min.X+inventoryBagCellShadowInset,
+		cell.Max.Y-inventoryBagCellShadowInset-height,
+		cell.Width()-inventoryBagCellShadowInset*2,
+		height,
+	)
+	if first.Bounds != wantBounds || first.Radius != inventoryBagCellShadowRadius {
+		t.Fatalf("first cell shadow = bounds %v radius %.1f, want %v radius %.1f", first.Bounds, first.Radius, wantBounds, inventoryBagCellShadowRadius)
+	}
+	wantColor := rotheme.Default.Colors.ButtonHover
+	wantColor.A = inventoryBagCellShadowAlpha
+	uitest.AssertColorEqual(t, first.Color, wantColor)
+}
+
+func TestPushcartGridUsesBottomCellShadows(t *testing.T) {
+	grid := newInventoryGridWidget(inventoryGridConfig{
+		items:     []session.InventoryItem{{Index: 1, ItemID: 501}},
+		cols:      cartGridCols,
+		minRows:   cartGridRows,
+		cellSize:  cartGridCell,
+		viewWidth: cartGridViewW,
+	})
+	grid.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(cartGridViewW, cartGridViewH)))
+	canvas := &uitest.MockCanvas{}
+	grid.Draw(widget.NewContext(), canvas)
+
+	if got, want := len(canvas.RoundRects), cartGridCols*cartGridRows; got != want {
+		t.Fatalf("pushcart cell shadows = %d, want %d", got, want)
+	}
+	if len(canvas.StrokeRects) != 0 {
+		t.Fatalf("pushcart grid lines = %d, want none", len(canvas.StrokeRects))
 	}
 }
 
