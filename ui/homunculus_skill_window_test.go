@@ -131,7 +131,7 @@ func TestHomunculusSkillWindowTablePlusStagesSkill(t *testing.T) {
 		},
 	}
 	window := &HomunculusSkillWindow{}
-	bounds := skillTableLevelUpButtonBounds(0)
+	bounds := companionSkillTableLevelUpButtonBounds(0)
 
 	consumed := window.handleSkillTableRowEvent(
 		nil,
@@ -157,6 +157,16 @@ func TestHomunculusSkillWindowTablePlusStagesSkill(t *testing.T) {
 	}
 	if !window.dirty {
 		t.Fatal("plus press should mark the window dirty")
+	}
+}
+
+func TestHomunculusSkillWindowLevelUpColumnFitsVisibleTableWidth(t *testing.T) {
+	bounds := companionSkillTableLevelUpButtonBounds(0)
+	if bounds.IsEmpty() {
+		t.Fatal("homunculus level-up button bounds are empty")
+	}
+	if bounds.Max.X > float32(scrollbarSafeIntWidth(homunculusSkillWindowWidth)) {
+		t.Fatalf("homunculus level-up button right edge = %.1f, visible table width = %d", bounds.Max.X, scrollbarSafeIntWidth(homunculusSkillWindowWidth))
 	}
 }
 

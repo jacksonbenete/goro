@@ -828,8 +828,12 @@ var skillTableColumns = []rotheme.TableViewColumn{
 }
 
 func skillTableButtonBounds(row int, key string) geometry.Rect {
+	return skillTableButtonBoundsForColumns(skillTableColumns, row, key)
+}
+
+func skillTableButtonBoundsForColumns(columns []rotheme.TableViewColumn, row int, key string) geometry.Rect {
 	x := float32(0)
-	for _, col := range skillTableColumns {
+	for _, col := range columns {
 		if col.Key == key {
 			return geometry.NewRect(
 				x+(col.Width-rotheme.IconButtonSize)/2,

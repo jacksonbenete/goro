@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gogpu/ui/event"
+	"github.com/gogpu/ui/geometry"
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/state"
 	"github.com/gogpu/ui/widget"
@@ -22,6 +23,17 @@ const (
 	homunculusSkillTableViewH   = homunculusSkillWindowHeight - ROWindowTitleHeight - ROWindowFooterHeight
 	homunculusSkillTableBodyH   = homunculusSkillTableViewH - skillHeaderH
 )
+
+var companionSkillTableColumns = []rotheme.TableViewColumn{
+	{Key: "icon", Width: 34},
+	{Key: "type", Width: 16},
+	{Key: "name", Title: "Name", Width: 142},
+	{Key: "level", Title: "Lv", Width: 40, Align: widget.TextAlignCenter},
+	{Key: "sp", Title: "SP", Width: 38},
+	{Key: "range", Title: "Range", Width: 56},
+	{Key: "levelup", Width: 22},
+	{Key: "fill", Flex: 1},
+}
 
 type HomunculusSkillWindow struct {
 	Window
@@ -290,7 +302,7 @@ func (w *HomunculusSkillWindow) widgetTreeWithAssets(ctx Context, assets AssetPr
 func (w *HomunculusSkillWindow) skillTableWidget(ctx Context, assets AssetProvider, actions GameActions) *rotheme.TableViewWidget {
 	skills := w.visibleSkills(ctx)
 	return rotheme.TableView(
-		rotheme.TableViewColumns(skillTableColumns),
+		rotheme.TableViewColumns(companionSkillTableColumns),
 		rotheme.TableViewRowCount(len(skills)),
 		rotheme.TableViewRowHeight(skillRowH),
 		rotheme.TableViewHeaderHeight(skillHeaderH),
@@ -376,7 +388,7 @@ func (w *HomunculusSkillWindow) handleSkillTableRowEvent(widgetCtx widget.Contex
 		if mouse.Button != event.ButtonLeft {
 			return false
 		}
-		if skillTableLevelUpButtonBounds(row).Contains(mouse.Position) {
+		if companionSkillTableLevelUpButtonBounds(row).Contains(mouse.Position) {
 			if !w.canStageSkill(ctx.Session, skill) {
 				glog.Debugf("%s skill level up ignored id=%d: no points or maxed", w.kindLabelLower(), skill.ID)
 				return true
@@ -661,6 +673,10 @@ func (w *HomunculusSkillWindow) companionSkills(s *session.Session) []session.Sk
 
 func (w *HomunculusSkillWindow) companionSkillPoints(s *session.Session) int {
 	return w.companion(s).Skills.Points
+}
+
+func companionSkillTableLevelUpButtonBounds(row int) geometry.Rect {
+	return skillTableButtonBoundsForColumns(companionSkillTableColumns, row, "levelup")
 }
 
 func companionSkillByID(companion session.Companion, skillID uint16) (session.Skill, bool) {
