@@ -38,6 +38,12 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	if handleDisconnectPacket(ctx, &m.ui.disconnectDialog, pkt) {
 		return nil, false
 	}
+	if notify, ok, err := network.ParseMapInfoNotify(pkt); err != nil {
+		glog.Errorf("parse map info notification 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyMapInfoNotify(notify)
+		return nil, false
+	}
 	if property, ok, err := network.ParseMapPropertyNotify(pkt); err != nil {
 		glog.Errorf("parse map property 0x%04X: %v", pkt.ID, err)
 	} else if ok {

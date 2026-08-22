@@ -43,6 +43,27 @@ func (m *WorldMode) applyRememberWarpPointAck(_ client.Context, ack network.Reme
 	glog.Debugf("remember warp point ack result=%d", ack.Result)
 }
 
+func (m *WorldMode) applyMapInfoNotify(notify network.MapInfoNotify) {
+	message := mapInfoNotifyMessage(notify.Result)
+	m.ui.console.AddErrorMessage("%s", message)
+	glog.Debugf("map info notification result=%d message=%q", notify.Result, message)
+}
+
+func mapInfoNotifyMessage(result uint16) string {
+	switch result {
+	case 0:
+		return "Unable to teleport in this area."
+	case 1:
+		return "Saved point cannot be memorized."
+	case 2:
+		return "This skill cannot be used in this area."
+	case 3:
+		return "This item cannot be used in this area."
+	default:
+		return "Action cannot be used in this area."
+	}
+}
+
 func (m *WorldMode) autoSelectTeleportRandom(ctx client.Context, list network.WarpPointList) {
 	mapName := gameui.TeleportRandomMap
 	for _, name := range list.MapNames {

@@ -92,6 +92,22 @@ func TestPacketLengths2008DoesNotContainClientOnlyPartyPackets(t *testing.T) {
 	}
 }
 
+func TestPacketLengths2008FramesCoupleNameBeforeSkillNotify(t *testing.T) {
+	framer := NewFramer(PacketLengths2008())
+	data := make([]byte, 26+15)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01E6)
+	copy(data[2:26], []byte("Zambla"))
+	binary.LittleEndian.PutUint16(data[26:28], 0x011A)
+
+	packets, err := framer.Push(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(packets) != 2 || packets[0].ID != 0x01E6 || packets[1].ID != 0x011A {
+		t.Fatalf("packets = %+v", packets)
+	}
+}
+
 func TestPacketLengths2008ResyncsThroughPartyPayloadToSkillList(t *testing.T) {
 	framer := NewFramer(PacketLengths2008())
 	data := []byte{

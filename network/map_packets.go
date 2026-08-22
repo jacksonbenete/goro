@@ -23,6 +23,12 @@ type MapCellUpdate struct {
 	RawType uint32
 }
 
+const PacketZCNotifyMapInfo uint16 = 0x0189
+
+type MapInfoNotify struct {
+	Result uint16
+}
+
 func ParseMapChange(packet Packet) (MapChange, bool, error) {
 	switch packet.ID {
 	case 0x0091, 0x0092, 0x0AC7:
@@ -63,6 +69,18 @@ func ParseMapCellUpdate(packet Packet) (MapCellUpdate, bool, error) {
 		Y:       int(binary.LittleEndian.Uint16(packet.Data[4:6])),
 		RawType: uint32(binary.LittleEndian.Uint16(packet.Data[6:8])),
 		MapName: normalizeMapName(fixedString(packet.Data[8:24])),
+	}, true, nil
+}
+
+func ParseMapInfoNotify(packet Packet) (MapInfoNotify, bool, error) {
+	if packet.ID != PacketZCNotifyMapInfo {
+		return MapInfoNotify{}, false, nil
+	}
+	if len(packet.Data) < 4 {
+		return MapInfoNotify{}, true, fmt.Errorf("ZC_NOTIFY_MAPINFO too short: %d", len(packet.Data))
+	}
+	return MapInfoNotify{
+		Result: binary.LittleEndian.Uint16(packet.Data[2:4]),
 	}, true, nil
 }
 
