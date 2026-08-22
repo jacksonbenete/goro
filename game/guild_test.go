@@ -43,6 +43,45 @@ func TestApplyLocalGuildDetailsClearsMasterWhenSelectedCharacterIsNotMaster(t *t
 	}
 }
 
+func TestApplyLocalGuildBelongingStoresInviteRight(t *testing.T) {
+	s := &session.Session{}
+	applyLocalGuildBelonging(client.Context{Session: s}, network.GuildBelonging{
+		GuildID: 1,
+		Mode:    guildPermissionInvite,
+	})
+
+	if s.Guild.Right != guildPermissionInvite {
+		t.Fatalf("guild right = 0x%X, want invite right", s.Guild.Right)
+	}
+	applyLocalGuildDetails(client.Context{Session: s}, network.GuildInfo{GuildID: 1, GuildName: "Mandala"})
+	if s.Guild.Right != guildPermissionInvite {
+		t.Fatalf("guild details cleared invite right: 0x%X", s.Guild.Right)
+	}
+}
+
+func TestGuildCanInvitePlayerMatchesRobrowserRequirements(t *testing.T) {
+	tests := []struct {
+		name          string
+		session       *session.Session
+		targetGuildID uint32
+		want          bool
+	}{
+		{name: "no session"},
+		{name: "not in guild", session: &session.Session{Guild: session.Guild{Right: guildPermissionInvite}}},
+		{name: "no invite right", session: &session.Session{GuildID: 1}},
+		{name: "target already in guild", session: &session.Session{GuildID: 1, Guild: session.Guild{Right: guildPermissionInvite}}, targetGuildID: 2},
+		{name: "invite permitted", session: &session.Session{GuildID: 1, Guild: session.Guild{Right: guildPermissionInvite}}, want: true},
+		{name: "nested guild id", session: &session.Session{Guild: session.Guild{ID: 1, Right: guildPermissionInvite}}, want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := guildCanInvitePlayer(test.session, test.targetGuildID); got != test.want {
+				t.Fatalf("guildCanInvitePlayer() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func TestActorGuildEmblemRequestsFromUninitializedCache(t *testing.T) {
 	mode := &WorldMode{}
 	ctx := client.Context{

@@ -14,6 +14,19 @@ import (
 	gameui "github.com/kivutar/goro/ui"
 )
 
+const guildPermissionInvite uint32 = 0x01
+
+func guildCanInvitePlayer(s *session.Session, targetGuildID uint32) bool {
+	if s == nil || targetGuildID != 0 {
+		return false
+	}
+	guildID := s.GuildID
+	if guildID == 0 {
+		guildID = s.Guild.ID
+	}
+	return guildID != 0 && s.Guild.Right&guildPermissionInvite != 0
+}
+
 func (m *WorldMode) sendGuildInvite(ctx client.Context, actorID uint32, name string) {
 	name = strings.TrimSpace(name)
 	if actorID == 0 {
@@ -330,6 +343,7 @@ func applyLocalGuildBelonging(ctx client.Context, belonging network.GuildBelongi
 	applyLocalGuildInfo(ctx, belonging.GuildID, belonging.EmblemVersion, belonging.GuildName)
 	if ctx.Session != nil {
 		ctx.Session.Guild.IsMaster = belonging.IsMaster
+		ctx.Session.Guild.Right = belonging.Mode
 	}
 }
 
@@ -337,6 +351,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 	applyLocalGuildInfo(ctx, info.GuildID, info.EmblemVersion, info.GuildName)
 	if ctx.Session != nil {
 		isMaster := ctx.Session.Guild.IsMaster
+		right := ctx.Session.Guild.Right
 		masterName := strings.TrimSpace(info.MasterName)
 		if selectedName := strings.TrimSpace(ctx.Session.Selected.Name); selectedName != "" && masterName != "" {
 			isMaster = selectedName == masterName
@@ -351,6 +366,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 		ctx.Session.Guild = session.Guild{
 			ID:               info.GuildID,
 			IsMaster:         isMaster,
+			Right:            right,
 			Level:            info.Level,
 			UserNum:          info.UserNum,
 			MaxUserNum:       info.MaxUserNum,

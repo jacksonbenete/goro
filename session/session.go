@@ -221,6 +221,7 @@ type Character struct {
 type Guild struct {
 	ID               uint32
 	IsMaster         bool
+	Right            uint32
 	Level            uint32
 	UserNum          uint32
 	MaxUserNum       uint32
