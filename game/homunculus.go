@@ -16,7 +16,7 @@ import (
 )
 
 func (m *WorldMode) openHomunculusContextFromInput(ctx client.Context, now time.Time) bool {
-	if ctx.Input == nil || !ctx.Input.MouseJustPressed(input.MouseButtonRight) || ctx.Input.Pressed(input.KeyAlt) || uiPointerBlocked(ctx) {
+	if ctx.Input == nil || !ctx.Input.MouseJustPressed(input.MouseButtonRight) || ctx.Input.Pressed(input.KeyAlt) || m.mapPointerBlocked(ctx) {
 		return false
 	}
 	screenW, screenH := ctx.ScreenSize()

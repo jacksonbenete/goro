@@ -155,6 +155,9 @@ func (s *roCursorState) frameAt(action int, info cursorActionInfo, start, now ti
 
 func (m *WorldMode) cursorDesiredAction(ctx client.Context, projection sceneProjection, now time.Time) int {
 	mouseX, mouseY := ctx.Input.MouseX, ctx.Input.MouseY
+	if m.petSlotMachine.active {
+		return cursorActionClick
+	}
 	if action, ok := uiCursorAction(ctx); ok {
 		return action
 	}
@@ -393,6 +396,12 @@ func uiPointerBlocked(ctx client.Context) bool {
 		PointerBlocked(x, y int) bool
 	})
 	return ok && blocker.PointerBlocked(ctx.Input.MouseX, ctx.Input.MouseY)
+}
+
+func (m *WorldMode) mapPointerBlocked(ctx client.Context) bool {
+	// The pet slot machine is drawn outside the gogpu UI manager, so include it
+	// explicitly alongside regular UI overlays when gating map interactions.
+	return m.petSlotMachine.active || uiPointerBlocked(ctx)
 }
 
 func hoveredCursorActor(ctx client.Context, projection sceneProjection, mouseX, mouseY int, now time.Time, deadActors map[uint32]time.Time) (world.Actor, bool) {

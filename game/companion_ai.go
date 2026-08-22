@@ -119,7 +119,7 @@ func (m *WorldMode) updateCompanionAI(ctx client.Context, now time.Time) {
 }
 
 func (m *WorldMode) handleCompanionAICommandClick(ctx client.Context, now time.Time) bool {
-	if ctx.Input == nil || ctx.World == nil || ctx.Session == nil || uiPointerBlocked(ctx) || !ctx.Input.Pressed(input.KeyAlt) {
+	if ctx.Input == nil || ctx.World == nil || ctx.Session == nil || m.mapPointerBlocked(ctx) || !ctx.Input.Pressed(input.KeyAlt) {
 		return false
 	}
 	kind := companionAIKind(-1)

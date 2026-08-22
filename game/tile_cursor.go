@@ -19,7 +19,7 @@ func (m *WorldMode) drawTileCursor(screen *render.Frame, ctx client.Context, pro
 	if ctx.Input == nil || ctx.World == nil || ctx.World.GAT == nil {
 		return
 	}
-	if uiPointerBlocked(ctx) {
+	if m.mapPointerBlocked(ctx) {
 		return
 	}
 	x, y, ok := m.hoveredWalkCell(ctx, projection, ctx.Input.MouseX, ctx.Input.MouseY)

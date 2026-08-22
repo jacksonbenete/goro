@@ -131,7 +131,7 @@ func (m *WorldMode) drawPetSlotMachine(screen *render.Frame, ctx client.Context,
 	x, y := petSlotMachineOrigin(ctx)
 	var opts render.DrawImageOptions
 	opts.GeoM.Translate(float64(x)+petSlotMachineAnchorX-billboard.anchorX, float64(y)+petSlotMachineAnchorY-billboard.anchorY)
-	opts.Filter = render.FilterNearest
+	opts.Filter = spriteDrawFilter()
 	opts.Blend = render.BlendSourceOver
 	screen.DrawImage(billboard.image, &opts)
 }
@@ -178,8 +178,9 @@ func (m *WorldMode) petSlotMachineFrame(act *res.ACT, now time.Time) (int, int, 
 		if motion >= len(action.Animations) {
 			if elapsed >= float64(len(action.Animations))*delay+500 {
 				m.petSlotMachine = petSlotMachineState{}
+				return actionIndex, len(action.Animations) - 1, false
 			}
-			return actionIndex, len(action.Animations) - 1, false
+			return actionIndex, len(action.Animations) - 1, true
 		}
 		return actionIndex, motion, true
 	default:

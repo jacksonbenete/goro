@@ -57,7 +57,7 @@ func (m *WorldMode) addFriendResultMessage(result network.FriendAddResult) {
 }
 
 func (m *WorldMode) openPlayerContextFromInput(ctx client.Context, now time.Time) bool {
-	if ctx.Input == nil || !ctx.Input.MouseJustPressed(input.MouseButtonRight) || uiPointerBlocked(ctx) {
+	if ctx.Input == nil || !ctx.Input.MouseJustPressed(input.MouseButtonRight) || m.mapPointerBlocked(ctx) {
 		return false
 	}
 	screenW, screenH := ctx.ScreenSize()
