@@ -503,7 +503,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	}
 	m.setGuildEmblemOptions(ctx)
 	m.ui.basicMenu.Rebind(ctx, m.basicMenuCallbacks(ctx))
-	m.ui.inventoryBag.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow)
+	m.ui.inventoryBag.Rebind(ctx, &m.ui.itemInfoWindow)
 	m.ui.equipmentWindow.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow, m)
 	m.ui.cartWindow.Rebind(ctx, &m.ui.itemInfoWindow)
 	m.ui.itemInfoWindow.Rebind(ctx, m)

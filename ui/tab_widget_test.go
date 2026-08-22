@@ -8,7 +8,6 @@ import (
 	"github.com/gogpu/ui/primitives"
 	"github.com/gogpu/ui/uitest"
 	"github.com/gogpu/ui/widget"
-	"github.com/kivutar/goro/session"
 	"github.com/kivutar/goro/ui/rotheme"
 )
 
@@ -69,15 +68,14 @@ func TestTabWidgetDrawsCounterClockwiseLabelAsCenteredImage(t *testing.T) {
 	}
 }
 
-func TestInventoryBagUsesVerticalTabsWithoutOverflowingCartButton(t *testing.T) {
+func TestInventoryBagUsesOnlyVerticalCategoryTabs(t *testing.T) {
 	window := InventoryBagWindow{}
-	ctx := Context{Session: &session.Session{Cart: session.Cart{MaxAmount: 1}}}
-	column := window.tabColumn(ctx, nil)
+	column := window.tabColumn(Context{})
 	column.Layout(widget.NewContext(), geometry.Tight(geometry.Sz(inventoryBagTabW+inventoryBagTabOver*2, inventoryBagViewH)))
 
 	children := column.Children()
-	if len(children) != len(inventoryBagTabs)+2 {
-		t.Fatalf("tab column children = %d, want tabs, spacer, and cart button", len(children))
+	if len(children) != len(inventoryBagTabs) {
+		t.Fatalf("tab column children = %d, want only %d category tabs", len(children), len(inventoryBagTabs))
 	}
 	for i := range inventoryBagTabs {
 		tab, ok := children[i].(*tabWidget)
@@ -87,10 +85,6 @@ func TestInventoryBagUsesVerticalTabsWithoutOverflowingCartButton(t *testing.T) 
 		if tab.cfg.labelRotation != rotheme.TextRotationCounterClockwise {
 			t.Fatalf("tab %q rotation = %v, want counter-clockwise", tab.cfg.label, tab.cfg.labelRotation)
 		}
-	}
-	cartBounds := children[len(children)-1].(interface{ Bounds() geometry.Rect }).Bounds()
-	if cartBounds.Max.Y > inventoryBagViewH {
-		t.Fatalf("cart button bottom = %.1f, exceeds tab column height %d", cartBounds.Max.Y, inventoryBagViewH)
 	}
 }
 
