@@ -19,11 +19,11 @@ import (
 const (
 	tradeWindowW     = 560
 	tradeWindowH     = 360
-	tradePanelW      = 250
-	tradePanelH      = 216
-	tradeRowH        = 28
 	tradePanelPad    = 10
 	tradePanelGap    = 12
+	tradePanelW      = (tradeWindowW - 2*tradePanelPad - tradePanelGap) / 2
+	tradePanelH      = 216
+	tradeRowH        = 28
 	tradeZenyFieldW  = 96
 	tradeZenyFieldH  = 24
 	tradeVisibleRows = 7
@@ -190,13 +190,7 @@ func (w *TradeWindow) widgetTree(ctx Context) widget.Widget {
 		}),
 		Size(tradeWindowW, tradeWindowH),
 		Content(
-			primitives.Box(
-				primitives.HBox(
-					w.tradePanel("My Items", w.sendItems, w.sendZeny, true),
-					w.tradePanel(w.partnerName, w.recvItems, w.recvZeny, false),
-				).
-					Gap(tradePanelGap),
-			).
+			primitives.Box(w.tradePanels()).
 				Padding(tradePanelPad),
 		),
 		Footer(
@@ -212,6 +206,14 @@ func (w *TradeWindow) widgetTree(ctx Context) widget.Widget {
 			}),
 		),
 	)
+}
+
+func (w *TradeWindow) tradePanels() widget.Widget {
+	return primitives.HBox(
+		primitives.Expanded(w.tradePanel("My Items", w.sendItems, w.sendZeny, true)),
+		primitives.Expanded(w.tradePanel(w.partnerName, w.recvItems, w.recvZeny, false)),
+	).
+		Gap(tradePanelGap)
 }
 
 func (w *TradeWindow) tradePanel(title string, items []tradeWindowItem, zeny uint32, editable bool) widget.Widget {
@@ -248,9 +250,9 @@ func (w *TradeWindow) tradePanel(title string, items []tradeWindowItem, zeny uin
 		rows = append(rows, primitives.Box(rotheme.Text(status).Color(rotheme.Default.Colors.MutedText)).Height(18))
 	}
 	return primitives.Box(rows...).
-		Width(tradePanelW).
 		Height(tradePanelH + 40).
-		Gap(2)
+		Gap(2).
+		CrossAlign(primitives.CrossAxisStretch)
 }
 
 func tradeItemRowWidget(item tradeWindowItem) widget.Widget {
@@ -264,8 +266,7 @@ func tradeItemRowWidget(item tradeWindowItem) widget.Widget {
 	}
 	return primitives.HBox(
 		newTradeIconWidget(item.icon),
-		primitives.Box(rotheme.Text(name)).
-			Width(166),
+		primitives.Expanded(primitives.Box(rotheme.Text(name))),
 		primitives.Box(rotheme.Text(qty).Align(widget.TextAlignRight)).
 			Width(42).
 			CrossAlign(primitives.CrossAxisCenter),
