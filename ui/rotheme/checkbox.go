@@ -72,8 +72,8 @@ func checkboxLabel(bounds geometry.Rect) geometry.Rect {
 func drawCheckboxV(canvas widget.Canvas, box geometry.Rect, color widget.Color) {
 	x := box.Min.X
 	y := box.Min.Y
-	canvas.DrawLine(geometry.Pt(x+4, y+6), geometry.Pt(x+8, y+11), color, 1)
-	canvas.DrawLine(geometry.Pt(x+8, y+11), geometry.Pt(x+13, y+5), color, 1)
+	canvas.DrawLine(geometry.Pt(x+4, y+8), geometry.Pt(x+7, y+11), color, 1)
+	canvas.DrawLine(geometry.Pt(x+7, y+11), geometry.Pt(x+14, y+4), color, 1)
 }
 
 func drawCheckboxDash(canvas widget.Canvas, box geometry.Rect, color widget.Color) {
