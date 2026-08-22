@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"os"
 	"testing"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/res"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -43,8 +45,8 @@ func TestPvPCounterPublishesOnlyForValidLocalPvPRanking(t *testing.T) {
 }
 
 func TestPvPCounterBoundsStayOnScreen(t *testing.T) {
-	if x, y := pvpCounterBounds(800, 600); x != 632 || y != 544 {
-		t.Fatalf("counter bounds = %d,%d, want 632,544", x, y)
+	if x, y := pvpCounterBounds(800, 600); x != 560 || y != 504 {
+		t.Fatalf("counter bounds = %d,%d, want 560,504", x, y)
 	}
 	if x, y := pvpCounterBounds(100, 30); x != 0 || y != 0 {
 		t.Fatalf("small-screen counter bounds = %d,%d, want 0,0", x, y)
@@ -64,5 +66,47 @@ func TestPvPCounterDoesNotBlockWorldPointerInput(t *testing.T) {
 	counter.Update(ctx)
 	if manager.PointerBlocked(700, 570) {
 		t.Fatal("PvP counter blocked pointer input through its transparent overlay")
+	}
+}
+
+func TestPvPCounterRankFontRealWhenConfigured(t *testing.T) {
+	root := os.Getenv("GORO_DATA_DIR")
+	if root == "" {
+		t.Skip("set GORO_DATA_DIR to test the PvP rank font against real client data")
+	}
+	manager, err := res.NewManager(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sprites pvpRankSpriteSet
+	img := sprites.image(manager, 3, 12)
+	if img == nil {
+		t.Fatal("PvP rank font image was not composed")
+	}
+	if got := img.Bounds().Size(); got.X != pvpCounterWidth || got.Y != pvpCounterHeight {
+		t.Fatalf("PvP rank font size = %v, want %dx%d", got, pvpCounterWidth, pvpCounterHeight)
+	}
+	opaque := 0
+	for y := 0; y < pvpCounterHeight; y++ {
+		for x := 0; x < pvpCounterWidth; x++ {
+			_, _, _, alpha := img.At(x, y).RGBA()
+			if alpha != 0 {
+				opaque++
+			}
+		}
+	}
+	if opaque == 0 {
+		t.Fatal("PvP rank font image is fully transparent")
+	}
+	if cached := sprites.image(manager, 3, 12); cached != img {
+		t.Fatal("unchanged PvP rank rebuilt its sprite image")
+	}
+}
+
+func TestPvPRankFontRejectsIncompleteGlyphSet(t *testing.T) {
+	act := &res.ACT{Actions: make([]res.ACTAction, 10)}
+	spr := &res.SPR{Frames: make([]res.SPRFrame, 11)}
+	if validPvPRankSpriteSet(act, spr) {
+		t.Fatal("rank font without the slash action was accepted")
 	}
 }

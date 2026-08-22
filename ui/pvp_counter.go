@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 
 	"github.com/gogpu/ui/event"
@@ -11,9 +12,8 @@ import (
 )
 
 const (
-	pvpCounterWidth  = 160
-	pvpCounterHeight = 48
-	pvpCounterMargin = 8
+	pvpCounterWidth  = 240
+	pvpCounterHeight = 96
 )
 
 var (
@@ -23,6 +23,7 @@ var (
 
 type PvPCounter struct {
 	widget  *pvpCounterWidget
+	assets  pvpRankSpriteSet
 	root    widget.Widget
 	visible bool
 	x       int
@@ -52,6 +53,9 @@ func (c *PvPCounter) Update(ctx Context) {
 	if valueChanged || c.widget.text == "" {
 		c.widget.text = fmt.Sprintf("%d/%d", c.rank, c.total)
 	}
+	rankImage := c.assets.image(ctx.Resources, c.rank, c.total)
+	imageChanged := c.widget.image != rankImage
+	c.widget.image = rankImage
 
 	if positionChanged {
 		c.Unpublish(ctx)
@@ -64,7 +68,7 @@ func (c *PvPCounter) Update(ctx Context) {
 		c.visible = true
 		valueChanged = true
 	}
-	if valueChanged {
+	if valueChanged || imageChanged {
 		c.widget.SetNeedsRedraw(true)
 		if redraw, ok := c.root.(interface{ SetNeedsRedraw(bool) }); ok {
 			redraw.SetNeedsRedraw(true)
@@ -82,8 +86,8 @@ func (c *PvPCounter) Unpublish(ctx Context) {
 }
 
 func pvpCounterBounds(width, height int) (int, int) {
-	x := width - pvpCounterWidth - pvpCounterMargin
-	y := height - pvpCounterHeight - pvpCounterMargin
+	x := width - pvpCounterWidth
+	y := height - pvpCounterHeight
 	if x < 0 {
 		x = 0
 	}
@@ -95,7 +99,8 @@ func pvpCounterBounds(width, height int) (int, int) {
 
 type pvpCounterWidget struct {
 	widget.WidgetBase
-	text string
+	text  string
+	image image.Image
 }
 
 func newPvPCounterWidget() *pvpCounterWidget {
@@ -112,6 +117,10 @@ func (w *pvpCounterWidget) Layout(_ widget.Context, constraints geometry.Constra
 }
 
 func (w *pvpCounterWidget) Draw(_ widget.Context, canvas widget.Canvas) {
+	if w.image != nil {
+		canvas.DrawImage(w.image, w.Bounds().Min)
+		return
+	}
 	if w.text == "" {
 		return
 	}

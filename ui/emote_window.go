@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"image"
-	"math"
 	"strings"
 
 	"github.com/gogpu/ui/event"
@@ -31,8 +30,6 @@ const (
 	emoteDefaultX         = 600
 	emoteDefaultY         = 200
 	emoteDoubleClickDelay = 360
-	// roBrowser's 2D SpriteRenderer subtracts half of a 35px cell from canvas Y.
-	emoteRendererMidCellY = 17.5
 )
 
 type EmoteWindow struct {
@@ -471,7 +468,7 @@ func (s *emoteSpriteSet) composeIcon(frame int) image.Image {
 		if img == nil {
 			continue
 		}
-		drawEmoteSpriteLayer(target, img, layer, centerX, centerY)
+		drawUISpriteLayer(target, img, layer, centerX, centerY)
 		rendered = true
 	}
 	if !rendered {
@@ -482,7 +479,7 @@ func (s *emoteSpriteSet) composeIcon(frame int) image.Image {
 
 func emoteIconAnchor(first res.ACTLayer) (float64, float64) {
 	return float64(emoteCellSize/2) - float64(first.X),
-		float64(emoteCellSize) - float64(first.Y) - emoteRendererMidCellY
+		float64(emoteCellSize) - float64(first.Y) - uiSpriteRendererMidCellY
 }
 
 func (s *emoteSpriteSet) frameImage(index int32, sprType int32) *render.Image {
@@ -497,31 +494,4 @@ func (s *emoteSpriteSet) frameImage(index int32, sprType int32) *render.Image {
 	img := render.NewImageFromImage(frame)
 	s.frames[key] = img
 	return img
-}
-
-func drawEmoteSpriteLayer(target *render.Image, img *render.Image, layer res.ACTLayer, centerX, centerY float64) {
-	bounds := img.Bounds()
-	width := float64(bounds.Dx())
-	height := float64(bounds.Dy())
-	scaleX := float64(layer.ScaleX)
-	scaleY := float64(layer.ScaleY)
-	if scaleX == 0 {
-		scaleX = 1
-	}
-	if scaleY == 0 {
-		scaleY = 1
-	}
-	if layer.Mirror {
-		scaleX = -scaleX
-	}
-	var opts render.DrawImageOptions
-	opts.GeoM.Translate(-width/2, -height/2)
-	opts.GeoM.Scale(scaleX, scaleY)
-	if layer.Angle != 0 {
-		opts.GeoM.Rotate(float64(-layer.Angle) * math.Pi / 180)
-	}
-	opts.GeoM.Translate(centerX+float64(layer.X), centerY+float64(layer.Y))
-	opts.Filter = render.FilterNearest
-	opts.ColorScale.Scale(layer.Color[0], layer.Color[1], layer.Color[2], layer.Color[3])
-	target.DrawImage(img, &opts)
 }
