@@ -114,34 +114,36 @@ func skillTargetFlagsForActor(ctx client.Context, actor worldstate.Actor) (uint3
 }
 
 func skillTargetMapStateAllowsMismatch(ctx client.Context, actor worldstate.Actor) bool {
-	// reference client allows target-type mismatches on PvP/GvG maps. Goro does not yet
-	// parse map state packets, so keep the rule isolated until that state exists.
-	return false
+	return ctx.World != nil &&
+		ctx.World.MapProperty.PlayerCombatEnabled() &&
+		actorRepresentsPlayer(actor)
 }
 
 func actorCanOpenPlayerContext(ctx client.Context, actor worldstate.Actor) bool {
 	if isLocalActor(ctx, actor.ID) || strings.TrimSpace(actor.Name) == "" {
 		return false
 	}
-	if actor.HasObjectType {
-		return actor.ObjectType == actorObjectTypePC
-	}
-	return res.HasPlayerJobToken(int(actor.Job))
+	return actorRepresentsPlayer(actor)
 }
 
 func actorCanBeAttackClicked(ctx client.Context, actor worldstate.Actor) bool {
-	if isLocalActor(ctx, actor.ID) {
+	if actor.ID == 0 || isLocalActor(ctx, actor.ID) {
 		return false
 	}
-	if actor.ID == 0 || !actor.HasObjectType {
-		return false
+	if actorRepresentsPlayer(actor) {
+		return ctx.World != nil && ctx.World.MapProperty.PlayerCombatEnabled()
 	}
-	switch actor.ObjectType {
-	case actorObjectTypeMob, actorObjectTypeNPCABR, actorObjectTypeNPCBionic:
-		return true
-	default:
-		return false
+	return actorHasMobObjectType(actor)
+}
+
+func actorRepresentsPlayer(actor worldstate.Actor) bool {
+	if actor.HasObjectType {
+		return actor.ObjectType == actorObjectTypePC
 	}
+	// The 2008 PC-only 0x02ED/0x02EE entries omit the object-type byte.
+	// Require their full appearance payload so a move-only update with the
+	// zero-value Novice job cannot be mistaken for a player.
+	return actor.Appearance && res.HasPlayerJobToken(int(actor.Job))
 }
 
 func upsertNetworkActor(ctx client.Context, entry network.ActorEntry) {

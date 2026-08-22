@@ -472,6 +472,7 @@ func (m *LoginMode) applyLoginCartPacket(ctx client.Context, pkt network.Packet)
 }
 
 func (m *LoginMode) applyLoginMapChange(ctx client.Context, change network.MapChange) {
+	ctx.World.ResetMapProperty()
 	ctx.World.MapName = change.MapName
 	ctx.Session.Zone.MapName = change.MapName
 	resetWorldForSelectedCharacterIfNeeded(ctx)

@@ -38,6 +38,24 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	if handleDisconnectPacket(ctx, &m.ui.disconnectDialog, pkt) {
 		return nil, false
 	}
+	if property, ok, err := network.ParseMapPropertyNotify(pkt); err != nil {
+		glog.Errorf("parse map property 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		applyMapPropertyNotify(ctx, property)
+		return nil, false
+	}
+	if ranking, ok, err := network.ParsePvPRanking(pkt); err != nil {
+		glog.Errorf("parse pvp ranking 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		applyPvPRanking(ctx, ranking)
+		return nil, false
+	}
+	if info, ok, err := network.ParsePvPInfo(pkt); err != nil {
+		glog.Errorf("parse pvp info 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyPvPInfo(info)
+		return nil, false
+	}
 	if hotkeys, ok, err := network.ParseHotkeyList(pkt); err != nil {
 		glog.Errorf("parse hotkey list 0x%04X: %v", pkt.ID, err)
 	} else if ok {

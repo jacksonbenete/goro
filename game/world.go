@@ -139,6 +139,7 @@ type WorldMode struct {
 type worldUI struct {
 	minimap           gameui.Minimap
 	statusIcons       gameui.StatusIcons
+	pvpCounter        gameui.PvPCounter
 	console           gameui.ChatConsole
 	npcDialog         gameui.NPCDialog
 	escapeMenu        gameui.EscapeMenu
@@ -579,6 +580,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if next, stop := m.handleNetworkPackets(ctx, now); stop {
 		return next, nil
 	}
+	m.ui.pvpCounter.Update(ctx)
 
 	m.updatePendingAttack(ctx, "update", false)
 	m.processPendingAttack(ctx)
@@ -1155,6 +1157,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
 	glog.Debugf("map change current=%s target=%s x=%d y=%d server_move=%t addr=%s port=%d reuse_loaded=%t", currentMap, change.MapName, change.X, change.Y, change.ServerMove, change.Address, change.Port, reuseLoadedMap)
+	ctx.World.ResetMapProperty()
 	ctx.World.MapName = change.MapName
 	ctx.Session.Zone.MapName = change.MapName
 	applyWarpPosition(ctx, change.X, change.Y)
@@ -1235,6 +1238,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.skillTextPrompt = m.ui.skillTextPrompt
 	next.ui.shortcutBar = m.ui.shortcutBar
 	next.ui.minimap = m.ui.minimap
+	next.ui.pvpCounter = m.ui.pvpCounter
 	m.companionAI.close()
 	return next
 }

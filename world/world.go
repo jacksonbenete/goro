@@ -7,17 +7,43 @@ import (
 )
 
 type World struct {
-	MapName string
-	Player  Actor
-	Actors  map[uint32]Actor
-	Items   map[uint32]FloorItem
-	Camera  Camera
-	Dir     int
-	GAT     *res.GAT
-	GND     *res.GND
-	RSW     *res.RSW
-	RSM     map[string]*res.RSM
-	RSMFail int
+	MapName     string
+	MapProperty MapProperty
+	Player      Actor
+	Actors      map[uint32]Actor
+	Items       map[uint32]FloorItem
+	Camera      Camera
+	Dir         int
+	GAT         *res.GAT
+	GND         *res.GND
+	RSW         *res.RSW
+	RSM         map[string]*res.RSM
+	RSMFail     int
+}
+
+type MapProperty uint16
+
+const (
+	MapPropertyNothing MapProperty = iota
+	MapPropertyFreePvPZone
+	MapPropertyEventPvPZone
+	MapPropertyAgitZone
+	MapPropertyPKServerZone
+	MapPropertyPvPServerZone
+	MapPropertyDenySkillZone
+)
+
+func (p MapProperty) PlayerCombatEnabled() bool {
+	switch p {
+	case MapPropertyFreePvPZone, MapPropertyEventPvPZone, MapPropertyPvPServerZone:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p MapProperty) PvPRankingEnabled() bool {
+	return p == MapPropertyFreePvPZone || p == MapPropertyPvPServerZone
 }
 
 type FloorItem struct {
@@ -96,6 +122,9 @@ type Actor struct {
 	ChatRoomCount    uint16
 	ChatRoomLimit    uint16
 	ChatRoomPublic   bool
+	PvPRank          int
+	PvPTotal         int
+	HasPvPRanking    bool
 }
 
 type WalkStep struct {
@@ -212,6 +241,11 @@ func (w *World) UpsertActor(actor Actor) {
 			actor.ChatRoomLimit = existing.ChatRoomLimit
 			actor.ChatRoomPublic = existing.ChatRoomPublic
 		}
+		if !actor.HasPvPRanking && existing.HasPvPRanking {
+			actor.PvPRank = existing.PvPRank
+			actor.PvPTotal = existing.PvPTotal
+			actor.HasPvPRanking = true
+		}
 		if existing.Sitting && !actor.Moving {
 			actor.Sitting = true
 		}
@@ -236,6 +270,29 @@ func (w *World) UpsertActor(actor Actor) {
 		actor.WalkDistance = 0
 	}
 	w.Actors[actor.ID] = actor
+}
+
+func (w *World) ResetMapProperty() {
+	if w == nil {
+		return
+	}
+	w.MapProperty = MapPropertyNothing
+	w.ClearPvPRankings()
+}
+
+func (w *World) ClearPvPRankings() {
+	if w == nil {
+		return
+	}
+	w.Player.PvPRank = 0
+	w.Player.PvPTotal = 0
+	w.Player.HasPvPRanking = false
+	for id, actor := range w.Actors {
+		actor.PvPRank = 0
+		actor.PvPTotal = 0
+		actor.HasPvPRanking = false
+		w.Actors[id] = actor
+	}
 }
 
 func (w *World) RemoveActor(id uint32) {

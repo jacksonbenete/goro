@@ -143,6 +143,7 @@ Currently implemented (not a claim of complete reference-client parity):
    * Outdoor zoom and rotation restoration after locked maps
  * Battle and Gameplay
    * Enemies
+   * Classic PvP map targeting and rank counter
    * Path finding
    * Continuous held-click walking
    * Drops

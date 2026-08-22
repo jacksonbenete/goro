@@ -57,7 +57,8 @@
 
   Rankings / PvP
 
-  - [ ] PvP info: 0x020F
+  - [x] PvP map property and actor ranking: 0x0199, 0x019A
+  - [x] PvP info: 0x020F, 0x0210
   - [ ] Blacksmith rank: 0x0217
   - [ ] Alchemist rank: 0x0218
   - [x] Taekwon mission and rank: 0x020E, 0x0224, 0x0225, 0x0226

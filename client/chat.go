@@ -31,6 +31,14 @@ func SendChat(ctx Context, input string) error {
 		return SetSitting(ctx, true)
 	case "/stand":
 		return SetSitting(ctx, false)
+	case "/pvpinfo":
+		if arguments != "" {
+			return fmt.Errorf("usage: /pvpinfo")
+		}
+		if ctx.Session == nil {
+			return fmt.Errorf("missing session")
+		}
+		return ctx.Network.SendPvPInfoRequest(ctx.Session.CharID, ctx.Session.AccountID)
 	case "/w", "/whisper":
 		target, message, ok := strings.Cut(arguments, " ")
 		target = strings.TrimSpace(target)

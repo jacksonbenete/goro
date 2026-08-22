@@ -327,8 +327,8 @@ email check.
 | `0x0196` | S->C | referenced | `0x0196` | `9` | `-` | packet.go, status_packets.go |
 | `0x0197` | C->S | referenced | `HEADER_CZ_RESET` | `sizeof( PACKET_CZ_RESET )` | `clif_parse_ResetChar` | packet.go |
 | `0x0198` | C->S | missing | `0x0198` | `8` | `clif_parse_GMChangeMapType` | - |
-| `0x0199` | S->C | referenced | `0x0199` | `4` | `-` | packet.go |
-| `0x019A` | S->C | referenced | `0x019a` | `14` | `-` | packet.go |
+| `0x0199` | S->C | implemented | `0x0199` | `4` | `-` | packet.go, pvp_packets.go |
+| `0x019A` | S->C | implemented | `0x019a` | `14` | `-` | packet.go, pvp_packets.go |
 | `0x019C` | C->S | referenced | `HEADER_CZ_LOCALBROADCAST` | `-1` | `clif_parse_LocalBroadcast` | packet.go |
 | `0x019D` | C->S | referenced | `0x019d` | `6` | `clif_parse_GMHide` | packet.go |
 | `0x019E` | S->C | implemented | `0x019e` | `2` | `-` | pet_packets.go |
@@ -417,8 +417,8 @@ email check.
 | `0x020A` | S->C | referenced | `0x020a` | `10` | `-` | friend_packets.go, packet.go |
 | `0x020D` | S->C | untracked | `0x020d` | `-1` | `-` | - |
 | `0x020E` | S->C | implemented | `0x020e` | `32` | `-` | taekwon_packets.go, packet.go |
-| `0x020F` | C->S | missing | `0x020f` | `10` | `clif_parse_PVPInfo` | - |
-| `0x0210` | S->C | untracked | `0x0210` | `22` | `-` | - |
+| `0x020F` | C->S | implemented | `0x020f` | `10` | `clif_parse_PVPInfo` | pvp_packets.go |
+| `0x0210` | S->C | implemented | `0x0210` | `22` | `-` | pvp_packets.go |
 | `0x0212` | C->S | missing | `0x0212` | `26` | `clif_parse_GMRc` | - |
 | `0x0213` | C->S | missing | `0x0213` | `26` | `clif_parse_Check` | - |
 | `0x0214` | S->C | referenced | `0x0214` | `42` | `-` | packet.go |

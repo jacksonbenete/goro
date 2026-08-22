@@ -2,6 +2,19 @@ package world
 
 import "testing"
 
+func TestMapPropertyPlayerCombatModes(t *testing.T) {
+	for _, property := range []MapProperty{MapPropertyFreePvPZone, MapPropertyEventPvPZone, MapPropertyPvPServerZone} {
+		if !property.PlayerCombatEnabled() {
+			t.Fatalf("property %d did not enable player combat", property)
+		}
+	}
+	for _, property := range []MapProperty{MapPropertyNothing, MapPropertyAgitZone, MapPropertyPKServerZone, MapPropertyDenySkillZone} {
+		if property.PlayerCombatEnabled() {
+			t.Fatalf("property %d unexpectedly enabled player combat", property)
+		}
+	}
+}
+
 func TestUpsertActorMovePreservesAppearance(t *testing.T) {
 	w := New()
 	w.UpsertActor(Actor{
