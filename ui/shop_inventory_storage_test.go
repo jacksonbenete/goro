@@ -335,7 +335,7 @@ func TestInventoryBagMatchesCharacterWindowWidth(t *testing.T) {
 	if inventoryBagWidth != characterWindowWidth {
 		t.Fatalf("inventory width = %d, want character width %d", inventoryBagWidth, characterWindowWidth)
 	}
-	wantViewWidth := inventoryBagWidth - inventoryBagTabW - inventoryBagTabOver*2
+	wantViewWidth := inventoryBagWidth - inventoryBagTabRail - verticalTabDividerW
 	if inventoryBagViewW != wantViewWidth {
 		t.Fatalf("inventory view width = %d, want remaining width %d", inventoryBagViewW, wantViewWidth)
 	}

@@ -31,9 +31,10 @@ const (
 	inventoryBagCols    = 8
 	inventoryBagRows    = 5
 	inventoryBagTabOver = 1
+	inventoryBagTabRail = inventoryBagTabW + inventoryBagTabOver*2
 	inventoryBagGridW   = inventoryBagCols * inventoryBagCell
 	inventoryBagWidth   = characterWindowWidth
-	inventoryBagViewW   = inventoryBagWidth - inventoryBagTabW - inventoryBagTabOver*2
+	inventoryBagViewW   = inventoryBagWidth - inventoryBagTabRail - verticalTabDividerW
 	inventoryBagViewH   = inventoryBagRows * inventoryBagCell
 	inventoryBagHeight  = ROWindowTitleHeight + inventoryBagViewH
 
@@ -228,13 +229,12 @@ func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) w
 		}),
 		Size(inventoryBagWidth, inventoryBagHeight),
 		Content(
-			primitives.HBox(
+			verticalTabFrame(
 				w.tabColumn(ctx),
 				primitives.Box(scroll).
 					Width(inventoryBagViewW).
 					Height(inventoryBagViewH),
-			).
-				Gap(0),
+			),
 		),
 	)
 }
@@ -259,7 +259,7 @@ func (w *InventoryBagWindow) tabColumn(ctx Context) widget.Widget {
 		}))
 	}
 	return primitives.Box(tabs...).
-		Width(inventoryBagTabW + inventoryBagTabOver*2).
+		Width(inventoryBagTabRail).
 		Height(inventoryBagViewH).
 		Gap(-inventoryBagTabOver)
 }
