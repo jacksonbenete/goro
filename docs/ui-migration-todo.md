@@ -21,13 +21,16 @@ Goal: migrate the remaining RO windows and dialogs to the gogpu/ui tree style:
 - [x] Equipment window
 - [x] Stats window
 - [x] Inventory bag window
+  - Uses shared vertical tabs to categorize carried items.
 - [x] Shop windows
   - Includes transaction choice, buy list/cart, sell inventory/cart, native datatables, and item-info right click.
 - [x] Storage window
+  - Uses the same vertical-tab presentation to filter storage categories.
 - [x] Item info window
 - [x] Identify window
 - [x] Skills window
-  - Includes staged skill increases, footer buttons, native scrolling, and skill info tooltip.
+  - Includes class-level vertical tabs, staged skill increases, footer buttons,
+    native scrolling, and skill info tooltips.
 - [x] Teleport / Warp destination modal
 - [x] Shortcut bar
   - Published as a gogpu/ui HUD overlay with native mouse events.
@@ -56,13 +59,22 @@ Goal: migrate the remaining RO windows and dialogs to the gogpu/ui tree style:
 - [x] Unified overlay text widgets
   - FPS meter, character names, speech bubbles, and item/skill tooltips share
     the same overlay text rendering path and console-style background.
+- [x] Shared window interaction behavior
+  - Focusing an overlapping window raises it to the front.
+  - Dragged windows stay visible after release, and tooltips are suppressed
+    during a drag.
+  - The character button grid follows the character information window as one
+    drag group.
 
-## Remaining
+## Completed Cross-Cutting Work
 
 - [x] Shared drag ghost overlay
   - Inventory, storage, shop, and skill drag ghosts render in the top-level game overlay, above gogpu/ui windows and below the RO cursor.
 - [x] Final UI sharpness pass
-  - Revisit text/image crispness after the migration work settles.
+  - Text and images are snapped to physical pixels, including at fractional
+    display scaling.
+  - Vertical tab text uses native rotated glyph rendering rather than a rotated
+    raster image.
 
 ## Cleanup After Each Migration
 
@@ -80,7 +92,6 @@ Goal: migrate the remaining RO windows and dialogs to the gogpu/ui tree style:
 - [ ] Remove tests that only preserve deleted hitbox helpers.
 - [ ] Replace manual title/footer/button drawing with `Window(...)` and rotheme widgets.
 - [ ] Keep network/game actions in callbacks or game-side methods, not inside pure layout code.
-- [ ] Move drag ghosts to a shared gogpu/ui drag overlay so migrated windows do not need tiny legacy `Draw(...)` methods for cross-window drags.
 - [ ] Run:
   - `GOCACHE=/tmp/goro-go-build CGO_ENABLED=0 go test -tags nofakecgo ./...`
   - `XDG_CACHE_HOME=/tmp/goro-cache GOCACHE=/tmp/goro-go-build CGO_ENABLED=0 staticcheck -tags nofakecgo ./...`

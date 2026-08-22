@@ -11,7 +11,8 @@ like ROBrowser Legacy and Open Midgard and their reverse engineering efforts.
 
 ![goro screenshot](https://github.com/kivutar/goro/releases/download/v0.0.1/goro-20260716-164507.png)
 
-You can also see Goro in action on this [Youtube Playlist](https://www.youtube.com/watch?v=5qldvYi9v-U&list=PLQhSdCGUOBwc).
+Visit the [project website](https://kivutar.github.io/goro/) or see Goro in
+action on this [YouTube playlist](https://www.youtube.com/watch?v=5qldvYi9v-U&list=PLQhSdCGUOBwc).
 
 ## Project Goals
 
@@ -30,7 +31,6 @@ You can also see Goro in action on this [Youtube Playlist](https://www.youtube.c
 
 - Provide GRF tooling.
 - Provide map, sprite, and model viewers.
-- Support optional Lua scripting for autoplay and automation experiments.
 - Support more Ragnarok Online client versions.
 - Support optional anti-cheat and security features.
 
@@ -90,6 +90,7 @@ Useful options:
 --password <password> # same for password
 --autologin=true # perform server connection and login on startup
 --force-user-ai=true # start homunculus and mercenary in USER_AI custom mode
+--script <path> # run an optional Lua character-control script in game
 ```
 
 ## Getting Started
@@ -99,6 +100,7 @@ These are tutorials on how to setup a development environment.
 - [Server setup](docs/rathena-setup.md)
 - [Client setup](docs/client-setup.md)
 - [Homunculus and mercenary support](docs/companions-20080910.md)
+- [Lua bot scripting](docs/bot-scripting.md)
 
 Runtime data is discovered from, in order:
 
@@ -117,7 +119,7 @@ The resource manager currently looks for loose files such as:
 
 ## Current Scope
 
-Mostly done:
+Currently implemented (not a claim of complete reference-client parity):
 
  * Login
  * Character selection
@@ -127,18 +129,22 @@ Mostly done:
    * Water
    * Map sounds
    * Lightmaps
-   * Fog (inaccurate)
+   * RSW fog with reference-client near/far behavior
    * Animated models
    * Weather effects
    * Map-specific effects such as Yuno clouds, pillars, and fireworks
    * Indoors
    * Granny 3D NPC models
- * Camera, zoom, rotation
+   * Black-covered map loading with first-frame prewarming and fade-in
+ * Camera
+   * Smooth character following and zoom
+   * Rotation and bounded outdoor tilt
+   * Indoor and map-authored viewpoint locks
+   * Outdoor zoom and rotation restoration after locked maps
  * Battle and Gameplay
    * Enemies
    * Path finding
    * Continuous held-click walking
-   * Smooth camera following and zoom
    * Drops
    * Playable characters animation chain
    * Attack-ready stance
@@ -166,6 +172,9 @@ Mostly done:
        * High Priest and Champion
        * Whitesmith and Creator
        * Assassin Cross and Stalker
+     * Expanded jobs, including baby variants
+       * Taekwon, Star Gladiator, and Soul Linker
+       * Gunslinger and Ninja
    * Skill effects
      * Ground skill units and cast markers
      * Song and dance effects
@@ -219,12 +228,13 @@ Mostly done:
      * Wedding sprites
      * Level 99 aura
  * UI
+   * Overlapping windows with focus-to-front ordering and stable dragging
    * Basic information
    * Button bar
    * Multi-row shortcuts bar with classic key bindings
    * Console
    * Minimap with player and NPC markers
-   * Items
+   * Items with vertical category tabs
    * Equipment
    * Option
      * Settings
@@ -233,11 +243,11 @@ Mostly done:
    * Guild management
    * Chat rooms
    * Stats
-   * Skills (flat version)
+   * Skills with class-level vertical tabs
    * Homunculus and mercenary status and skill windows
    * Emote window
    * Cart Storage
-   * Kafra Storage (simple)
+   * Kafra Storage with vertical category tabs
    * Teleport skill modal
    * Warp skill modal
    * Cart appearance modal
@@ -255,5 +265,10 @@ Mostly done:
    * FPS meter
    * Character names and HP/SP bars
    * Speech bubbles
+ * Optional Lua character scripting
+   * Player, enemy, nearby-player, companion, floor-item, and inventory state
+   * Walking, stopping, attacking, looting, item use, chat, and targeted skills
+   * Layout-independent physical keyboard input and text input
+   * Lua-defined keyboard controls for movement, combat, looting, and skill target cycling
  * Tools
    * GRF packing and extraction

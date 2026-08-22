@@ -55,8 +55,9 @@ assumptions.
     for sprite depth bias, top/head clipping, and object interaction.
 
 - **Lighting model**
-  - Current state: fog uses reference client's camera defaults, fog-table scaling,
-    shader-side depth formula, and non-additive color mix. Additive GND lightmap
+  - Current state: fog uses the reference client's camera defaults and near/far
+    table values, applies the ramp at full strength, derives depth from the
+    camera projection, and uses a non-additive color mix. Additive GND lightmap
     layers are explicitly exempt from fog so fog is applied once to the composed
     world color.
   - Ugly part: parts of the RSW/GND lighting pipeline are still approximations,
@@ -109,9 +110,11 @@ Source of truth: roBrowser's `src/DB/Effects/EffectConst.js`,
 
 - Reference active numeric `EffectTable.js` entries: `607`.
 - Reference numeric effect constants: `1147`.
-- Goro implemented active reference effect IDs: `102`.
-- Current active-table coverage: about `16.8%`.
-- Current all-constant coverage: about `8.9%`.
+- Goro effect catalog entries: `663`.
+- Catalog size relative to all numeric constants: about `57.8%`.
+- The catalog is not a strict subset of the active table: it also contains
+  inactive, later-client, and synthetic routed effects. An exact active-table
+  intersection report is still part of the backlog below.
 - Coverage only counts world/effect IDs handled through `worldEffectSpecForID`
   and direct effect trigger mappings. It does not count UI rendering, damage
   number rendering, cursor drawing, actor sprite animation, or map logic that is
@@ -149,6 +152,8 @@ Source of truth: roBrowser's `src/DB/Effects/EffectConst.js`,
   metadata, roBrowser skill actions/effects, and Ninja status routing.
 - Gunslinger expanded-class support: normal/baby jobs, full skill tree and
   level metadata, weapon actions, status icons, and roBrowser skill effects.
+- Taekwon-family support: normal/baby Taekwon, Star Gladiator, and Soul Linker
+  jobs, skill trees, stance/status behavior, mission packets, and ranking UI.
 - Common effects: hit feedback, potion/food families, Heal/recovery feedback,
   base/job level-up, teleport/portal, refine/pharmacy success/failure.
 
@@ -175,13 +180,15 @@ Source of truth: roBrowser's `src/DB/Effects/EffectConst.js`,
 
 ### Gameplay-Visible Gaps
 
-- [ ] Remaining hit variants: `EF_HIT1`, `EF_HIT3`, `EF_HIT4`, `EF_HIT5`,
-  `EF_HIT6`, elemental/poison hit variants, miss/critical/support message
-  effects, and blocked/zero-damage feedback.
-- [ ] Ground skill units from `SkillUnit.js`: Sanctuary, Magnus, Quagmire,
-  traps, Bard/Dancer songs, Volcano, Deluge, Violent Gale, Land Protector,
-  Spider Web, Basilica, Suiton, Epiclesis, and their server update/removal
-  lifecycle.
+- [ ] Finish live visual/timing parity for hit and combat feedback. Catalog
+  routing now covers `EF_HIT1` through `EF_HIT6`, elemental/poison variants,
+  critical-related effects, and blocked/zero-damage feedback, but source-level
+  coverage is not the same as verified visual parity.
+- [ ] Finish ground-skill lifecycle and visual parity. Routing exists for
+  Sanctuary, Magnus, Quagmire, traps, Bard/Dancer songs, Volcano, Deluge,
+  Violent Gale, Land Protector, Spider Web, Basilica, Suiton, and Epiclesis;
+  remaining work is exact geometry, timing, server update/removal behavior, and
+  live comparison.
 - [ ] Status loops: poison, curse, blind, silence, stun, sleep, confusion,
   frozen, stone curse, hiding/cloaking/invisible states, spirit spheres, aura
   loops, and actor-attached buff/debuff decorations.

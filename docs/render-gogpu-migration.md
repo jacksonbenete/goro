@@ -141,9 +141,9 @@ Acceptance: `render/` no longer reads like an Ebiten compatibility layer.
 - [x] `rg "RGBA\\(\\)"` has no main-frame hot path usage except texture upload/cache generation.
 - [x] `go test ./...`
 - [x] `staticcheck .`
-- [ ] Manual smoke test:
-  - login screen
-  - map rendering
-  - sprites/effects
-  - UI windows
-  - FPS meter/speech/tooltips
+- [x] Manual smoke test:
+  - [x] login screen
+  - [x] map rendering
+  - [x] sprites/effects
+  - [x] UI windows
+  - [x] FPS meter/speech/tooltips

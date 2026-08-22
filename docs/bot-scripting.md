@@ -1,14 +1,16 @@
 # Bot Scripting
 
-Goro can run a Lua script while the player is in-game. This is intended for local experimentation and simple automation.
+Goro can run a Lua script while the player is in-game. This is intended for
+local experimentation and simple automation.
 
 Run a script with:
 
 ```sh
-./goro --data-dir ~/Telechargements/OldRO --username Kivutar --password ... --script scripts/loot-and-attack.lua
+./goro --data-dir ~/OldRO --script scripts/loot-and-attack.lua
 ```
 
-The script must define a global `tick()` function. Goro calls it roughly every 150 ms while the world mode is active.
+The script must define a global `tick()` function. Goro calls it roughly every
+150 ms while the world mode is active.
 
 ```lua
 function tick()
@@ -20,17 +22,25 @@ end
 
 All functions are exposed through the global `goro` table.
 
-Scripts may also define an optional global `input()` function. Goro calls it once per frame so keyboard edges can be handled without waiting for the slower bot tick.
+Scripts may also define an optional global `input()` function. Goro calls it
+once per frame so keyboard edges can be handled without waiting for the slower
+bot tick.
 
 ### `goro.keyboard`
 
-The keyboard API uses layout-independent physical key names such as `"KeyW"`, `"Tab"`, and `"ShiftLeft"`.
+The keyboard API uses layout-independent physical key names such as `"KeyW"`,
+`"Tab"`, and `"ShiftLeft"`. Letter codes describe physical key positions, not
+the glyph printed by the current layout. For example, the physical WASD
+positions are ZQSD on an AZERTY keyboard.
 
 - `available()` reports whether keyboard input is available to the script. It is `false` while a UI control has keyboard focus.
 - `is_down(code)` reports held state.
 - `was_pressed(code)` and `was_released(code)` inspect edges without consuming them.
 - `consume_press(code)` consumes a press edge and returns whether one was available. Held state is unchanged.
 - `text()` returns the frame's layout-translated text input.
+
+The keyboard API only reports input. Movement, combat, prompts, and other
+behavior remain Lua policy built from the generic functions below.
 
 ### `goro.player()`
 
@@ -61,6 +71,22 @@ Returns two values:
 ```lua
 local sp, max_sp = goro.sp()
 ```
+
+### `goro.walk(x, y)`
+
+Requests a walk to the map cell at `x`, `y`. It returns `true` when the movement
+cooldown is ready, the target is in bounds, any available local walkability
+data accepts it, and the request was sent. Otherwise it returns `false`.
+
+This uses the normal client movement path and cancels an active attack intent,
+just like manual movement. Scripts should wait for player position updates
+instead of submitting a new destination on every frame.
+
+### `goro.stop()`
+
+Requests a controlled stop at the end of the current server-approved path
+segment. It returns `true` when the player is already stopped or the request
+was sent, otherwise `false`.
 
 ### `goro.enemies()`
 
@@ -312,4 +338,21 @@ function tick()
 end
 ```
 
-The same script is available at `scripts/loot-and-attack.lua`.
+The same script is available as
+[`scripts/loot-and-attack.lua`](../scripts/loot-and-attack.lua).
+
+## Bundled Keyboard Profile
+
+Run [`scripts/wasd.lua`](../scripts/wasd.lua) to enable an optional
+keyboard-oriented control profile:
+
+- Hold the physical WASD positions to move, including diagonally. These
+  positions are ZQSD on AZERTY.
+- Hold Space to pick up nearby items one at a time.
+- Hold the physical F key to attack a nearby enemy.
+- After arming an actor-targeted skill, use Tab or Shift+Tab to cycle valid
+  targets and Enter to cast.
+
+The profile is implemented entirely in Lua. The Go API only exposes generic
+keyboard state, movement, actions, target information, and highlighting
+primitives.
