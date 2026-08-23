@@ -887,6 +887,61 @@ func TestLoginToWorldClearsPublishedUIRoot(t *testing.T) {
 	}
 }
 
+func TestLoginActorBootstrapRestoresWeddingVisualState(t *testing.T) {
+	mode := NewLoginMode()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, Job: db.JobWizard}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150000,
+		Selected:  session.Character{ID: 150000, Job: db.JobWizard},
+		Characters: []session.Character{
+			{ID: 150000, Job: db.JobWizard},
+		},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+	data := make([]byte, 13)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0119)
+	binary.LittleEndian.PutUint32(data[2:6], sessionState.AccountID)
+	binary.LittleEndian.PutUint16(data[10:12], uint16(db.EffectStateWedding))
+
+	if !mode.applyLoginActorBootstrapPacket(ctx, network.Packet{ID: 0x0119, Data: data}) {
+		t.Fatal("wedding state packet was not handled during login")
+	}
+	if world.Player.EffectState&db.EffectStateWedding == 0 {
+		t.Fatalf("player effect state = 0x%08X, want wedding", world.Player.EffectState)
+	}
+	if sessionState.Selected.Option&db.EffectStateWedding == 0 {
+		t.Fatalf("selected option = 0x%08X, want wedding", sessionState.Selected.Option)
+	}
+	if got := localPlayerVisualJob(ctx); got != db.JobMarried {
+		t.Fatalf("visual job = %d, want married job %d", got, db.JobMarried)
+	}
+}
+
+func TestLoginActorBootstrapRestoresLocalLook(t *testing.T) {
+	mode := NewLoginMode()
+	world := worldstate.New()
+	world.Player = worldstate.Actor{ID: 150000, Job: db.JobWizard}
+	sessionState := &session.Session{
+		AccountID: 2000000,
+		CharID:    150000,
+		Selected:  session.Character{ID: 150000, Job: db.JobWizard, Weapon: 1201},
+	}
+	ctx := client.Context{Session: sessionState, World: world}
+	data := make([]byte, 11)
+	binary.LittleEndian.PutUint16(data[0:2], 0x01D7)
+	binary.LittleEndian.PutUint32(data[2:6], sessionState.AccountID)
+	data[6] = 2
+
+	if !mode.applyLoginActorBootstrapPacket(ctx, network.Packet{ID: 0x01D7, Data: data}) {
+		t.Fatal("look packet was not handled during login")
+	}
+	if sessionState.Selected.Weapon != 0 || world.Player.Weapon != 0 {
+		t.Fatalf("restored look = selected weapon %d, player weapon %d", sessionState.Selected.Weapon, world.Player.Weapon)
+	}
+}
+
 func TestCharacterSelectModePublishesRootOnEnter(t *testing.T) {
 	staleRoot := primitives.Box()
 	manager := &loginTestUIManager{overlays: []widget.Widget{staleRoot}}

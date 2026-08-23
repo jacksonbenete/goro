@@ -14,30 +14,42 @@ import (
 )
 
 func (m *WorldMode) applyActorStateChange(ctx client.Context, change network.ActorStateChange) {
-	if change.ID == 0 || ctx.World == nil {
+	oldVisualJob := localPlayerVisualJob(ctx)
+	oldState, local, ok := applyActorStateSnapshot(ctx, change)
+	if !ok {
 		return
 	}
-	if isLocalActor(ctx, change.ID) {
-		oldVisualJob := localPlayerVisualJob(ctx)
-		oldState := ctx.World.Player.EffectState
-		setActorRenderState(&ctx.World.Player, change.BodyState, change.HealthState, change.EffectState)
-		setSelectedCharacterOptionBit(ctx, db.EffectStateWedding, change.EffectState&db.EffectStateWedding != 0)
-		m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
+	m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
+	if local {
 		if newVisualJob := localPlayerVisualJob(ctx); newVisualJob != oldVisualJob {
 			m.reloadPlayerSpriteView(ctx, fmt.Sprintf("state effect=0x%08X", change.EffectState))
 		}
 		glog.Debugf("actor state local id=%d body=%d health=0x%04X effect=0x%08X", change.ID, change.BodyState, change.HealthState, change.EffectState)
 		return
 	}
+	glog.Debugf("actor state id=%d body=%d health=0x%04X effect=0x%08X", change.ID, change.BodyState, change.HealthState, change.EffectState)
+}
+
+// applyActorStateSnapshot updates state shared by the login and world modes.
+// Rendering transitions remain the responsibility of WorldMode.
+func applyActorStateSnapshot(ctx client.Context, change network.ActorStateChange) (oldState uint32, local, ok bool) {
+	if change.ID == 0 || ctx.World == nil {
+		return 0, false, false
+	}
+	if isLocalActor(ctx, change.ID) {
+		oldState = ctx.World.Player.EffectState
+		setActorRenderState(&ctx.World.Player, change.BodyState, change.HealthState, change.EffectState)
+		setSelectedCharacterOptionBit(ctx, db.EffectStateWedding, change.EffectState&db.EffectStateWedding != 0)
+		return oldState, true, true
+	}
 	actor, ok := ctx.World.Actors[change.ID]
 	if !ok {
-		return
+		return 0, false, false
 	}
-	oldState := actor.EffectState
+	oldState = actor.EffectState
 	setActorRenderState(&actor, change.BodyState, change.HealthState, change.EffectState)
-	m.applyActorEffectStateEffects(ctx, change.ID, oldState, change.EffectState)
 	upsertActor(ctx, actor)
-	glog.Debugf("actor state id=%d body=%d health=0x%04X effect=0x%08X", change.ID, change.BodyState, change.HealthState, change.EffectState)
+	return oldState, false, true
 }
 
 func (m *WorldMode) applyActorBladeStop(ctx client.Context, blade network.ActorBladeStop) {

@@ -181,6 +181,9 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		if m.applyLoginParameterChange(ctx, pkt) {
 			continue
 		}
+		if m.applyLoginActorBootstrapPacket(ctx, pkt) {
+			continue
+		}
 		if hotkeys, ok, err := network.ParseHotkeyList(pkt); err != nil {
 			m.packets = append(m.packets, "parse hotkey list: "+err.Error())
 		} else if ok {
@@ -430,6 +433,24 @@ func (m *LoginMode) applyLoginParameterChange(ctx client.Context, pkt network.Pa
 	}
 	applyParameterChange(ctx, change)
 	return true
+}
+
+func (m *LoginMode) applyLoginActorBootstrapPacket(ctx client.Context, pkt network.Packet) bool {
+	if look, ok, err := network.ParseActorLookChange(pkt); err != nil {
+		m.packets = append(m.packets, "parse actor look change: "+err.Error())
+		return true
+	} else if ok {
+		applyActorLookChange(ctx, look)
+		return true
+	}
+	if state, ok, err := network.ParseActorStateChange(pkt); err != nil {
+		m.packets = append(m.packets, "parse actor state change: "+err.Error())
+		return true
+	} else if ok {
+		applyActorStateSnapshot(ctx, state)
+		return true
+	}
+	return false
 }
 
 func (m *LoginMode) applyLoginCartPacket(ctx client.Context, pkt network.Packet) bool {
