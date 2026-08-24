@@ -148,6 +148,11 @@ func (s *StatusIcons) statusIconImage(manager *res.Manager, id uint16) image.Ima
 func VisibleStatusIconIDs(active map[uint16]session.StatusEffect) []uint16 {
 	ids := make([]uint16, 0, len(active))
 	for id := range active {
+		// EFST_SIT and its 앉기.tga icon postdate the 2008 client. rAthena may
+		// still send the status, but the original client displayed no icon.
+		if id == db.StatusSit {
+			continue
+		}
 		info, ok := db.StatusIconInfoByID(id)
 		if ok && info.Icon != "" {
 			ids = append(ids, id)

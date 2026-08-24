@@ -1276,9 +1276,10 @@ func TestCollectSceneActorEntriesPreservesLocalOpt3State(t *testing.T) {
 
 func TestVisibleStatusIconIDsAreKnownAndSorted(t *testing.T) {
 	active := map[uint16]session.StatusEffect{
-		99: {ID: 99},
-		12: {ID: 12},
-		10: {ID: 10},
+		99:           {ID: 99},
+		12:           {ID: 12},
+		10:           {ID: 10},
+		db.StatusSit: {ID: db.StatusSit},
 	}
 	ids := gameui.VisibleStatusIconIDs(active)
 	if !reflect.DeepEqual(ids, []uint16{10, 12}) {
