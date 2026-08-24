@@ -157,6 +157,20 @@ func TestLoginModeAppliesStartupCartDuringWorldFade(t *testing.T) {
 	}
 }
 
+func TestLoginModeAppliesSavedStatusDuringWorldFade(t *testing.T) {
+	mode := NewLoginMode()
+	mode.startWorldFade(time.Now())
+	ctx := client.Context{Session: &session.Session{AccountID: 2000000, CharID: 150000}}
+
+	if !mode.applyLoginStatusEffectPacket(ctx, testStatusEffectChangePacket(db.StatusAngelus, 2000000, true)) {
+		t.Fatal("Angelus status packet was not handled")
+	}
+	effect, ok := ctx.Session.Statuses.Active[db.StatusAngelus]
+	if !ok || effect.Source != 2000000 {
+		t.Fatalf("saved Angelus status = %+v, present=%t", effect, ok)
+	}
+}
+
 func TestLoginModeInitialSameMapChangeDoesNotRestartWorldFade(t *testing.T) {
 	mode := NewLoginMode()
 	start := time.Now()
@@ -237,6 +251,17 @@ func testCartAmountPacket(amount, maxAmount uint16, weight, maxWeight uint32) ne
 	binary.LittleEndian.PutUint32(data[6:10], weight)
 	binary.LittleEndian.PutUint32(data[10:14], maxWeight)
 	return network.Packet{ID: 0x0121, Data: data}
+}
+
+func testStatusEffectChangePacket(statusID uint16, actorID uint32, active bool) network.Packet {
+	data := make([]byte, 9)
+	binary.LittleEndian.PutUint16(data[0:2], 0x0196)
+	binary.LittleEndian.PutUint16(data[2:4], statusID)
+	binary.LittleEndian.PutUint32(data[4:8], actorID)
+	if active {
+		data[8] = 1
+	}
+	return network.Packet{ID: 0x0196, Data: data}
 }
 
 func testMapChangePacket(mapName string, x, y int) network.Packet {

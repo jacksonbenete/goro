@@ -22,20 +22,35 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	m.applyTrickDeadStatus(ctx, change)
 	m.applyTaekwonStatus(ctx, change)
 	m.applyTaekwonNightStatus(ctx, change)
-	localID := localSkillTarget(ctx)
-	if change.ActorID != 0 && localID != 0 && change.ActorID != localID && change.ActorID != ctx.Session.CharID {
+	if !applyLocalStatusEffectChange(ctx.Session, change, time.Now()) {
 		return
-	}
-	if ctx.Session.Statuses.Active == nil {
-		ctx.Session.Statuses.Active = make(map[uint16]session.StatusEffect)
 	}
 	m.addStatusEffectTransition(ctx, change)
 	if !change.Active {
-		delete(ctx.Session.Statuses.Active, change.StatusID)
 		glog.Debugf("status effect inactive id=%d actor=%d", change.StatusID, change.ActorID)
 		return
 	}
-	now := time.Now()
+	glog.Debugf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
+}
+
+func applyLocalStatusEffectChange(s *session.Session, change network.StatusEffectChange, now time.Time) bool {
+	if s == nil || change.StatusID == 0xFFFF || change.StatusID == db.StatusOnPushCart {
+		return false
+	}
+	localID := s.AccountID
+	if localID == 0 {
+		localID = s.CharID
+	}
+	if change.ActorID != 0 && localID != 0 && change.ActorID != localID && change.ActorID != s.CharID {
+		return false
+	}
+	if s.Statuses.Active == nil {
+		s.Statuses.Active = make(map[uint16]session.StatusEffect)
+	}
+	if !change.Active {
+		delete(s.Statuses.Active, change.StatusID)
+		return true
+	}
 	effect := session.StatusEffect{
 		ID:          change.StatusID,
 		Source:      change.ActorID,
@@ -45,8 +60,8 @@ func (m *WorldMode) applyStatusEffectChange(ctx client.Context, change network.S
 	if change.HasDuration {
 		effect.ExpiresAt = now.Add(change.Duration)
 	}
-	ctx.Session.Statuses.Active[change.StatusID] = effect
-	glog.Debugf("status effect active id=%d actor=%d duration_ms=%d", change.StatusID, change.ActorID, change.Duration.Milliseconds())
+	s.Statuses.Active[change.StatusID] = effect
+	return true
 }
 
 func (m *WorldMode) applyTaekwonNightStatus(ctx client.Context, change network.StatusEffectChange) {

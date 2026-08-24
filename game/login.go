@@ -184,6 +184,9 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		if m.applyLoginActorBootstrapPacket(ctx, pkt) {
 			continue
 		}
+		if m.applyLoginStatusEffectPacket(ctx, pkt) {
+			continue
+		}
 		if hotkeys, ok, err := network.ParseHotkeyList(pkt); err != nil {
 			m.packets = append(m.packets, "parse hotkey list: "+err.Error())
 		} else if ok {
@@ -451,6 +454,21 @@ func (m *LoginMode) applyLoginActorBootstrapPacket(ctx client.Context, pkt netwo
 		return true
 	}
 	return false
+}
+
+func (m *LoginMode) applyLoginStatusEffectPacket(ctx client.Context, pkt network.Packet) bool {
+	change, ok, err := network.ParseStatusEffectChange(pkt)
+	if err != nil {
+		m.packets = append(m.packets, "parse status effect change: "+err.Error())
+		return true
+	}
+	if !ok {
+		return false
+	}
+	if applyLocalStatusEffectChange(ctx.Session, change, time.Now()) {
+		glog.Debugf("login status effect id=%d actor=%d active=%t duration_ms=%d", change.StatusID, change.ActorID, change.Active, change.Duration.Milliseconds())
+	}
+	return true
 }
 
 func (m *LoginMode) applyLoginCartPacket(ctx client.Context, pkt network.Packet) bool {
