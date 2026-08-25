@@ -860,6 +860,8 @@ func (m *WorldMode) actorShadowRenderScale(ctx client.Context, entry sceneActorD
 	baseScale := m.actorRenderScale(entry.actor.ID, entry.scale, now)
 	if entry.isPlayer {
 		baseScale = m.playerRenderScale(ctx, entry.actor, entry.scale, now)
+	} else if actorRepresentsPlayer(entry.actor) {
+		baseScale = m.playerBodyRenderScale(entry.actor.ID, entry.actor.Job, entry.scale, now)
 	}
 	scale := baseScale * entry.shadowScale
 	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
@@ -876,7 +878,7 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	worldX, worldY := actorWorldAnchor(actor, actorX, actorY)
 	point := projection.Project(worldX, worldY, terrainZ)
 	scale := actorBillboardScreenScale(projection, worldX, worldY, terrainZ)
-	if isPlayer {
+	if isPlayer || actorRepresentsPlayer(actor) {
 		scale *= playerBodyScaleForJob(actor.Job)
 	}
 	if actorAnchorOutsideViewport(float64(point.x), float64(point.y), screenWidth, screenHeight, scale) {
@@ -1395,7 +1397,7 @@ func (m *WorldMode) drawActorSprite3D(screen *render.Frame, ctx client.Context, 
 	if !ok {
 		return false
 	}
-	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.actorRenderScale(actor.ID, entry.scale, now), m.actorVisualAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
+	drawActorSpriteBillboardTintAlpha3D(screen, projection, billboard, entry.worldX, entry.worldY, entry.worldZ, m.playerBodyRenderScale(actor.ID, actor.Job, entry.scale, now), m.actorVisualAlpha(actor.ID, now), shadow, m.actorRenderTint(actor, now))
 	return true
 }
 

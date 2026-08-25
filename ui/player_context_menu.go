@@ -123,7 +123,7 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 	}
 	if m.canAdopt {
 		rows = append(rows,
-			contextMenuItem("Adopt", func() {
+			contextMenuItem("Adopt as Baby", func() {
 				m.action = PlayerContextAction{Kind: PlayerContextActionAdopt, ActorID: m.actorID, Name: m.name}
 				m.Close()
 			}),

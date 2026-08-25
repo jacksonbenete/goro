@@ -275,25 +275,32 @@ func (m *WorldMode) actorRenderScale(actorID uint32, baseScale float64, now time
 }
 
 func (m *WorldMode) playerRenderScale(ctx client.Context, actor worldstate.Actor, baseScale float64, now time.Time) float64 {
-	bodyScale := playerBodyScaleForJob(actor.Job)
-	multiplier := m.actorBodySizeMultiplierFrom(actor.ID, now, bodyScale)
-	if multiplier != bodyScale {
-		return baseScale / bodyScale * multiplier
+	if scale := m.playerBodyRenderScale(actor.ID, actor.Job, baseScale, now); scale != baseScale {
+		return scale
 	}
 	if ctx.Session == nil {
 		return baseScale
 	}
 	if ctx.Session.AccountID != actor.ID {
-		if multiplier = m.actorBodySizeMultiplierFrom(ctx.Session.AccountID, now, bodyScale); multiplier != bodyScale {
-			return baseScale / bodyScale * multiplier
+		if scale := m.playerBodyRenderScale(ctx.Session.AccountID, actor.Job, baseScale, now); scale != baseScale {
+			return scale
 		}
 	}
 	if ctx.Session.CharID != actor.ID && ctx.Session.CharID != ctx.Session.AccountID {
-		if multiplier = m.actorBodySizeMultiplierFrom(ctx.Session.CharID, now, bodyScale); multiplier != bodyScale {
-			return baseScale / bodyScale * multiplier
+		if scale := m.playerBodyRenderScale(ctx.Session.CharID, actor.Job, baseScale, now); scale != baseScale {
+			return scale
 		}
 	}
 	return baseScale
+}
+
+func (m *WorldMode) playerBodyRenderScale(actorID uint32, job int16, baseScale float64, now time.Time) float64 {
+	bodyScale := playerBodyScaleForJob(job)
+	multiplier := m.actorBodySizeMultiplierFrom(actorID, now, bodyScale)
+	if multiplier == bodyScale {
+		return baseScale
+	}
+	return baseScale / bodyScale * multiplier
 }
 
 func (m *WorldMode) actorBodySizeMultiplier(actorID uint32, now time.Time) float64 {

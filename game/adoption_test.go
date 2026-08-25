@@ -8,6 +8,7 @@ import (
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/session"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -27,12 +28,74 @@ func TestAdoptionRequestPacketOpensConfirmation(t *testing.T) {
 	}
 }
 
+func TestAdoptionMenuRequiresEligibleParentAndPartyChild(t *testing.T) {
+	target := worldstate.Actor{ID: 2000002, Name: "Baby", Job: db.JobNovice}
+	eligible := &session.Session{
+		Selected: session.Character{ID: 150004, Job: db.JobMerchant},
+		Progress: session.Progress{BaseLevel: 70},
+		Skills: session.Skills{List: []session.Skill{{
+			ID:    db.SkillWECallpartner,
+			Level: 1,
+		}}},
+		Party: session.Party{Members: []session.PartyMember{{AccountID: target.ID, Name: target.Name}}},
+	}
+	if !canRequestAdoption(eligible, target) {
+		t.Fatal("eligible married parent could not request adoption")
+	}
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(*session.Session, *worldstate.Actor)
+	}{
+		{"under level 70", func(s *session.Session, _ *worldstate.Actor) { s.Progress.BaseLevel = 69 }},
+		{"not married", func(s *session.Session, _ *worldstate.Actor) { s.Skills.List = nil }},
+		{"already a parent", func(s *session.Session, _ *worldstate.Actor) {
+			s.Skills.List = append(s.Skills.List, session.Skill{ID: db.SkillWECallbaby, Level: 1})
+		}},
+		{"prospective baby", func(s *session.Session, _ *worldstate.Actor) { s.Selected.Job = db.JobNoviceB }},
+		{"outside party", func(s *session.Session, _ *worldstate.Actor) { s.Party.Members = nil }},
+		{"ineligible target job", func(_ *session.Session, target *worldstate.Actor) { target.Job = db.JobKnight }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := *eligible
+			s.Skills.List = append([]session.Skill(nil), eligible.Skills.List...)
+			s.Party.Members = append([]session.PartyMember(nil), eligible.Party.Members...)
+			candidate := target
+			tc.mutate(&s, &candidate)
+			if canRequestAdoption(&s, candidate) {
+				t.Fatal("adoption menu remained available")
+			}
+		})
+	}
+}
+
 func TestBabyPlayerBodyScale(t *testing.T) {
 	if got := playerBodyScaleForJob(db.JobNovice); got != 1 {
 		t.Fatalf("adult scale = %v, want 1", got)
 	}
 	if got := playerBodyScaleForJob(db.JobNoviceB); got != babyPlayerBodyScale {
 		t.Fatalf("baby scale = %v, want %v", got, babyPlayerBodyScale)
+	}
+}
+
+func TestRemoteBabyDrawEntryUsesBabyScale(t *testing.T) {
+	world := worldstate.New()
+	projection := newSceneProjectionForTarget(800, 600, 10.5, 20.5, 0)
+	baseActor := worldstate.Actor{
+		ID:         300,
+		Job:        db.JobNovice,
+		X:          10,
+		Y:          20,
+		Appearance: true,
+	}
+	adult := appendActorDrawEntry(nil, world, projection, baseActor, false, time.Now(), 800, 600)
+	baseActor.Job = db.JobNoviceB
+	baby := appendActorDrawEntry(nil, world, projection, baseActor, false, time.Now(), 800, 600)
+	if len(adult) != 1 || len(baby) != 1 {
+		t.Fatalf("draw entries adult=%d baby=%d, want one each", len(adult), len(baby))
+	}
+	if got, want := baby[0].scale, adult[0].scale*babyPlayerBodyScale; got != want {
+		t.Fatalf("remote baby scale = %v, want %v", got, want)
 	}
 }
 

@@ -5,9 +5,27 @@ import (
 	"strings"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/glog"
 	"github.com/kivutar/goro/network"
+	"github.com/kivutar/goro/session"
+	worldstate "github.com/kivutar/goro/world"
 )
+
+func canRequestAdoption(s *session.Session, target worldstate.Actor) bool {
+	if s == nil || s.Progress.BaseLevel < 70 || db.IsBabyJob(int(s.SelectedCharacter().Job)) {
+		return false
+	}
+	// The classic client identifies a married, childless character from the
+	// wedding/family skills supplied by the server. The server still performs
+	// the authoritative checks, including both equipped wedding rings.
+	if sessionSkillLevel(s, db.SkillWECallpartner) == 0 ||
+		sessionSkillLevel(s, db.SkillWECallbaby) != 0 ||
+		sessionSkillLevel(s, db.SkillWECallparent) != 0 {
+		return false
+	}
+	return db.IsAdoptableChildJob(int(target.Job)) && actorIsPartyMember(s, target, target.Name)
+}
 
 func (m *WorldMode) sendAdoptionRequest(ctx client.Context, targetAccountID uint32, name string) {
 	if targetAccountID == 0 {
