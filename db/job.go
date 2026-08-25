@@ -393,6 +393,22 @@ func duplicateJobResourceName(origin int, jobs ...int) {
 	}
 }
 
+func IsAdoptableChildJob(job int) bool {
+	return job >= JobNovice && job <= JobThief || job == JobSuperNovice
+}
+
+func IsBabyJob(job int) bool {
+	if job >= JobNoviceB && job <= JobSuperNoviceB {
+		return true
+	}
+	switch job {
+	case JobNinjaB, JobTaekwonB, JobStarB, JobLinkerB, JobGunslingerB, JobStar2B:
+		return true
+	default:
+		return false
+	}
+}
+
 func JobSpriteResourceName(id int) (string, bool) {
 	name, ok := JobResourceName[id]
 	return name, ok && name != ""

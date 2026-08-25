@@ -397,10 +397,10 @@ email check.
 | `0x01F0` | S->C | untracked | `0x01f0` | `-1` | `-` | - |
 | `0x01F1` | S->C | referenced | `0x01f1` | `-1` | `-` | packet.go |
 | `0x01F3` | S->C | referenced | `0x01f3` | `10` | `-` | packet.go |
-| `0x01F6` | S->C | untracked | `0x01f6` | `34` | `-` | - |
-| `0x01F7` | C->S | missing | `HEADER_CZ_JOIN_BABY` | `sizeof( PACKET_CZ_JOIN_BABY )` | `clif_parse_Adopt_reply` | - |
-| `0x01F8` | S->C | untracked | `0x01f8` | `2` | `-` | - |
-| `0x01F9` | C->S | missing | `0x01f9` | `6` | `clif_parse_Adopt_request` | - |
+| `0x01F6` | S->C | implemented | `0x01f6` | `34` | `-` | adoption_packets.go, packet.go |
+| `0x01F7` | C->S | implemented | `HEADER_CZ_JOIN_BABY` | `sizeof( PACKET_CZ_JOIN_BABY )` | `clif_parse_Adopt_reply` | adoption_packets.go |
+| `0x01F8` | S->C | implemented | `0x01f8` | `2` | `-` | adoption_packets.go, packet.go |
+| `0x01F9` | C->S | implemented | `0x01f9` | `6` | `clif_parse_Adopt_request` | adoption_packets.go |
 | `0x01FA` | S->C | untracked | `0x01fa` | `48` | `-` | - |
 | `0x01FB` | S->C | untracked | `0x01fb` | `56` | `-` | - |
 | `0x01FC` | S->C | implemented | `HEADER_ZC_REPAIRITEMLIST` | `-1` | `-` | item_packets.go, packet.go |
@@ -422,7 +422,7 @@ email check.
 | `0x0212` | C->S | missing | `0x0212` | `26` | `clif_parse_GMRc` | - |
 | `0x0213` | C->S | missing | `0x0213` | `26` | `clif_parse_Check` | - |
 | `0x0214` | S->C | referenced | `0x0214` | `42` | `-` | packet.go |
-| `0x0216` | S->C | untracked | `0x0216` | `6` | `-` | - |
+| `0x0216` | S->C | implemented | `0x0216` | `6` | `-` | adoption_packets.go, packet.go |
 | `0x0217` | C->S | missing | `HEADER_CZ_BLACKSMITH_RANK` | `sizeof( PACKET_CZ_BLACKSMITH_RANK )` | `clif_parse_ranklist_blacksmith` | - |
 | `0x0218` | C->S | missing | `HEADER_CZ_ALCHEMIST_RANK` | `sizeof( PACKET_CZ_ALCHEMIST_RANK )` | `clif_parse_ranklist_alchemist` | - |
 | `0x021D` | C->S | implemented | `HEADER_CZ_LESSEFFECT` | `sizeof( PACKET_CZ_LESSEFFECT )` | `clif_parse_LessEffect` | effect_packets.go |

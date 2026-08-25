@@ -275,28 +275,36 @@ func (m *WorldMode) actorRenderScale(actorID uint32, baseScale float64, now time
 }
 
 func (m *WorldMode) playerRenderScale(ctx client.Context, actor worldstate.Actor, baseScale float64, now time.Time) float64 {
-	multiplier := m.actorBodySizeMultiplier(actor.ID, now)
-	if multiplier != 1 || ctx.Session == nil {
-		return baseScale * multiplier
+	bodyScale := playerBodyScaleForJob(actor.Job)
+	multiplier := m.actorBodySizeMultiplierFrom(actor.ID, now, bodyScale)
+	if multiplier != bodyScale {
+		return baseScale / bodyScale * multiplier
+	}
+	if ctx.Session == nil {
+		return baseScale
 	}
 	if ctx.Session.AccountID != actor.ID {
-		if multiplier = m.actorBodySizeMultiplier(ctx.Session.AccountID, now); multiplier != 1 {
-			return baseScale * multiplier
+		if multiplier = m.actorBodySizeMultiplierFrom(ctx.Session.AccountID, now, bodyScale); multiplier != bodyScale {
+			return baseScale / bodyScale * multiplier
 		}
 	}
 	if ctx.Session.CharID != actor.ID && ctx.Session.CharID != ctx.Session.AccountID {
-		if multiplier = m.actorBodySizeMultiplier(ctx.Session.CharID, now); multiplier != 1 {
-			return baseScale * multiplier
+		if multiplier = m.actorBodySizeMultiplierFrom(ctx.Session.CharID, now, bodyScale); multiplier != bodyScale {
+			return baseScale / bodyScale * multiplier
 		}
 	}
 	return baseScale
 }
 
 func (m *WorldMode) actorBodySizeMultiplier(actorID uint32, now time.Time) float64 {
+	return m.actorBodySizeMultiplierFrom(actorID, now, 1)
+}
+
+func (m *WorldMode) actorBodySizeMultiplierFrom(actorID uint32, now time.Time, baseMultiplier float64) float64 {
 	if actorID == 0 {
-		return 1
+		return baseMultiplier
 	}
-	multiplier := 1.0
+	multiplier := baseMultiplier
 	var latest time.Time
 	for _, effect := range m.worldEffects {
 		if effect.actorID != actorID || now.Before(effect.starts) || now.After(effect.expires) {
@@ -313,7 +321,7 @@ func (m *WorldMode) actorBodySizeMultiplier(actorID uint32, now time.Time) float
 				duration = 300 * time.Millisecond
 			}
 			progress := clampFloat(float64(now.Sub(effect.starts))/float64(duration), 0, 1)
-			targetMultiplier = 1 + (targetMultiplier-1)*progress
+			targetMultiplier = baseMultiplier + (targetMultiplier-baseMultiplier)*progress
 		}
 		multiplier = targetMultiplier
 		latest = effect.starts

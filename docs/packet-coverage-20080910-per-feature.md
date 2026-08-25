@@ -95,7 +95,7 @@
 
   Adoption / Family
 
-  - [ ] Adoption request/reply: 0x01F9, 0x01F7
+  - [x] Adoption request/reply, confirmation, result messages, and baby start: 0x01F6, 0x01F7, 0x01F8, 0x01F9, 0x0216
 
   Quest / Instances
 

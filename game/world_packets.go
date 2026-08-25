@@ -708,6 +708,21 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		m.openTradeRequest(ctx, tradeRequest)
 		return nil, false
 	}
+	if adoptionRequest, ok, err := network.ParseAdoptionRequest(pkt); err != nil {
+		glog.Errorf("parse adoption request 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.openAdoptionRequest(ctx, adoptionRequest)
+		return nil, false
+	}
+	if adoptionMessage, ok, err := network.ParseAdoptionMessage(pkt); err != nil {
+		glog.Errorf("parse adoption message 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.handleAdoptionMessage(adoptionMessage)
+		return nil, false
+	}
+	if network.ParseAdoptionStarted(pkt) {
+		return nil, false
+	}
 	if showEquip, ok, err := network.ParseShowEquipConfig(pkt); err != nil {
 		glog.Errorf("parse show equip config 0x%04X: %v", pkt.ID, err)
 	} else if ok {

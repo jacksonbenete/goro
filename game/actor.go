@@ -685,6 +685,7 @@ const (
 const (
 	actorBillboardCellWorldUnits  = 5.0
 	actorBillboardWorldHeightUnit = 1.0 * actorBillboardCellWorldUnits
+	babyPlayerBodyScale           = 0.8
 	actorJobWarpPortal            = 45
 	actorJobWarpPortalActive      = 128
 	actorJobWarpPortalWaiting     = 129
@@ -875,6 +876,9 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 	worldX, worldY := actorWorldAnchor(actor, actorX, actorY)
 	point := projection.Project(worldX, worldY, terrainZ)
 	scale := actorBillboardScreenScale(projection, worldX, worldY, terrainZ)
+	if isPlayer {
+		scale *= playerBodyScaleForJob(actor.Job)
+	}
 	if actorAnchorOutsideViewport(float64(point.x), float64(point.y), screenWidth, screenHeight, scale) {
 		return entries
 	}
@@ -895,6 +899,13 @@ func appendActorDrawEntry(entries []sceneActorDrawEntry, world *worldstate.World
 		depth:       depth,
 		isPlayer:    isPlayer,
 	})
+}
+
+func playerBodyScaleForJob(job int16) float64 {
+	if db.IsBabyJob(int(job)) {
+		return babyPlayerBodyScale
+	}
+	return 1
 }
 
 func actorAnchorOutsideViewport(anchorX, anchorY float64, screenWidth, screenHeight int, scale float64) bool {

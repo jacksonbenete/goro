@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kivutar/goro/client"
+	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
 )
@@ -66,7 +67,7 @@ func (m *WorldMode) openPlayerContextFromInput(ctx client.Context, now time.Time
 	if !ok {
 		return false
 	}
-	m.ui.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name), partyCanInvite(ctx.Session), guildCanInvitePlayer(ctx.Session, actor.GuildID))
+	m.ui.playerContext.Open(ctx, ctx.Input.MouseX, ctx.Input.MouseY, actor.ID, actor.Name, !friendNameInSession(ctx.Session, actor.Name), partyCanInvite(ctx.Session), guildCanInvitePlayer(ctx.Session, actor.GuildID), db.IsAdoptableChildJob(int(actor.Job)))
 	return true
 }
 

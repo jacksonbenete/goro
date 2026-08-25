@@ -285,7 +285,7 @@ func (m *LoginMode) drawCharacterPreview(screen characterPreviewTarget, ctx clie
 		return
 	}
 	var opts render.DrawImageOptions
-	scale := charSelectPreviewScale
+	scale := charSelectPreviewScale * playerBodyScaleForJob(character.Job)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(float64(centerX)-billboard.anchorX*scale, float64(feetY)-billboard.anchorY*scale)
 	opts.Filter = spriteDrawFilter()

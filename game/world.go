@@ -150,6 +150,7 @@ type worldUI struct {
 	partyRequest      gameui.ConfirmModal
 	guildRequest      gameui.ConfirmModal
 	tradeRequest      gameui.ConfirmModal
+	adoptionRequest   gameui.ConfirmModal
 	characterWindow   gameui.CharacterWindow
 	basicMenu         gameui.BasicMenu
 	inventoryBag      gameui.InventoryBagWindow
@@ -218,6 +219,7 @@ func (u *worldUI) keyboardInputBlocked(ctx client.Context) bool {
 		u.partyRequest.IsOpen() ||
 		u.guildRequest.IsOpen() ||
 		u.tradeRequest.IsOpen() ||
+		u.adoptionRequest.IsOpen() ||
 		u.partyInfo.IsOpen() ||
 		u.petConfirm.IsOpen() ||
 		u.homunculusConfirm.IsOpen() ||
@@ -694,6 +696,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	case gameui.PlayerContextActionSeeEquipment:
 		m.sendViewEquipmentRequest(ctx, action.ActorID, action.Name)
 		return nil, nil
+	case gameui.PlayerContextActionAdopt:
+		m.sendAdoptionRequest(ctx, action.ActorID, action.Name)
+		return nil, nil
 	}
 	if playerContextConsumed {
 		return nil, nil
@@ -704,7 +709,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if !dead && m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.petSlotMachine.active && !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.guildRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
+	if !m.petSlotMachine.active && !m.ui.escapeMenu.IsOpen() && !m.ui.teleportModal.IsOpen() && !m.ui.friendRequest.IsOpen() && !m.ui.friendConfirm.IsOpen() && !m.ui.partyRequest.IsOpen() && !m.ui.guildRequest.IsOpen() && !m.ui.tradeRequest.IsOpen() && !m.ui.adoptionRequest.IsOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if !dead && m.ui.escapeMenu.IsOpen() {
@@ -729,6 +734,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.tradeRequest.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.adoptionRequest.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.petConfirm.Update(ctx) {
@@ -1086,7 +1094,7 @@ func (m *WorldMode) openEscapeMenuFromInput(ctx client.Context) bool {
 	if ctx.Input == nil || m.ui.escapeMenu.IsOpen() || !ctx.Input.JustPressed(input.KeyEscape) {
 		return false
 	}
-	if m.ui.teleportModal.IsOpen() || m.ui.friendRequest.IsOpen() || m.ui.friendConfirm.IsOpen() || m.ui.partyRequest.IsOpen() || m.ui.guildRequest.IsOpen() || m.ui.tradeRequest.IsOpen() {
+	if m.ui.teleportModal.IsOpen() || m.ui.friendRequest.IsOpen() || m.ui.friendConfirm.IsOpen() || m.ui.partyRequest.IsOpen() || m.ui.guildRequest.IsOpen() || m.ui.tradeRequest.IsOpen() || m.ui.adoptionRequest.IsOpen() {
 		return false
 	}
 	m.ui.escapeMenu.Toggle(ctx)

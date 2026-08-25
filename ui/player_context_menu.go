@@ -18,6 +18,7 @@ const (
 	PlayerContextActionInviteGuild
 	PlayerContextActionTrade
 	PlayerContextActionSeeEquipment
+	PlayerContextActionAdopt
 )
 
 type PlayerContextAction struct {
@@ -33,10 +34,11 @@ type PlayerContextMenu struct {
 	canAddFriend bool
 	canParty     bool
 	canGuild     bool
+	canAdopt     bool
 	action       PlayerContextAction
 }
 
-func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name string, canAddFriend bool, canParty bool, canGuild bool) {
+func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name string, canAddFriend bool, canParty bool, canGuild bool, canAdopt bool) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return
@@ -49,6 +51,7 @@ func (m *PlayerContextMenu) Open(ctx Context, x, y int, actorID uint32, name str
 	m.canAddFriend = canAddFriend
 	m.canParty = canParty
 	m.canGuild = canGuild
+	m.canAdopt = canAdopt
 	screenW, screenH := ctx.ScreenSize()
 	height := m.height()
 	m.SetSize(playerContextMenuWidth, height)
@@ -118,6 +121,14 @@ func (m *PlayerContextMenu) widgetTree(ctx Context) widget.Widget {
 			}),
 		)
 	}
+	if m.canAdopt {
+		rows = append(rows,
+			contextMenuItem("Adopt", func() {
+				m.action = PlayerContextAction{Kind: PlayerContextActionAdopt, ActorID: m.actorID, Name: m.name}
+				m.Close()
+			}),
+		)
+	}
 	return contextMenu(playerContextMenuWidth, rows...)
 }
 
@@ -130,6 +141,9 @@ func (m *PlayerContextMenu) height() int {
 		rows++
 	}
 	if m.canGuild {
+		rows++
+	}
+	if m.canAdopt {
 		rows++
 	}
 	return contextMenuHeight(rows)
