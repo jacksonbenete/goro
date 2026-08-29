@@ -89,6 +89,7 @@ type WorldMode struct {
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
 	guildAction       gameui.GuildMemberAction
+	guildOpenPending  bool
 	pendingPetCapture petCaptureState
 	petProperty       network.PetProperty
 	hasPetProperty    bool
@@ -417,6 +418,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.pendingSkill = pendingSkillTarget{}
 	m.pendingSkillText = pendingSkillTextTarget{}
 	m.guildAction = gameui.GuildMemberAction{}
+	m.guildOpenPending = false
 	m.ui.guildMemberPrompt.Close()
 	m.lockedAttackID = 0
 	m.clearAttackFocus()
@@ -1196,10 +1198,20 @@ func (m *WorldMode) toggleGuildWindow(ctx client.Context) {
 	if localGuildIDFromSession(ctx.Session) == 0 {
 		return
 	}
-	wasOpen := m.ui.guildWindow.IsOpen()
+	if m.ui.guildWindow.IsOpen() {
+		m.ui.guildWindow.Close()
+		return
+	}
+	m.openGuildWindow(ctx)
+}
+
+func (m *WorldMode) openGuildWindow(ctx client.Context) {
+	if localGuildIDFromSession(ctx.Session) == 0 || m.ui.guildWindow.IsOpen() {
+		return
+	}
 	m.setGuildEmblemOptions(ctx)
-	m.ui.guildWindow.Toggle(ctx)
-	if wasOpen || !m.ui.guildWindow.IsOpen() || ctx.Network == nil {
+	m.ui.guildWindow.OpenWindow(ctx)
+	if ctx.Network == nil {
 		return
 	}
 	if err := ctx.Network.SendGuildMenuInterfaceRequest(); err != nil {

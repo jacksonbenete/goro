@@ -587,8 +587,7 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	if guildBelonging, ok, err := network.ParseGuildBelonging(pkt); err != nil {
 		glog.Errorf("parse guild belonging 0x%04X: %v", pkt.ID, err)
 	} else if ok {
-		applyLocalGuildBelonging(ctx, guildBelonging)
-		m.requestActorGuildEmblem(ctx, guildBelonging.GuildID, guildBelonging.EmblemVersion)
+		m.handleGuildBelonging(ctx, guildBelonging)
 		return nil, false
 	}
 	if guildInfo, ok, err := network.ParseGuildInfo(pkt); err != nil {

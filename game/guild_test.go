@@ -1,9 +1,14 @@
 package game
 
 import (
+	"bytes"
+	"context"
 	"image"
 	"image/color"
+	"io"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/db"
@@ -12,6 +17,65 @@ import (
 	gameui "github.com/kivutar/goro/ui"
 	worldstate "github.com/kivutar/goro/world"
 )
+
+func TestAcceptingGuildInvitationWaitsForBelonging(t *testing.T) {
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, _ := listener.Accept()
+		accepted <- conn
+	}()
+
+	netClient := network.NewClient(20080910, false)
+	defer netClient.Close()
+	address := listener.Addr().(*net.TCPAddr)
+	if err := netClient.Connect(context.Background(), address.IP.String(), address.Port); err != nil {
+		t.Fatal(err)
+	}
+	serverConn := <-accepted
+	if serverConn == nil {
+		t.Fatal("server did not accept test client")
+	}
+	defer serverConn.Close()
+
+	world := worldstate.New()
+	sessionState := &session.Session{}
+	ctx := client.Context{
+		Network: netClient,
+		Session: sessionState,
+		World:   world,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	mode := &WorldMode{}
+	request := network.GuildInviteRequest{GuildID: 9, GuildName: "Knights"}
+
+	mode.openGuildInviteRequest(ctx, request)
+	mode.ui.guildRequest.Confirm(ctx)
+
+	if err := serverConn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	got := make([]byte, len(network.BuildGuildInviteReplyPacket(request.GuildID, true)))
+	if _, err := io.ReadFull(serverConn, got); err != nil {
+		t.Fatal(err)
+	}
+	want := network.BuildGuildInviteReplyPacket(request.GuildID, true)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("guild invite reply = %x, want %x", got, want)
+	}
+	if sessionState.GuildID != 0 || sessionState.GuildName != "" {
+		t.Fatalf("session guild changed before belonging: id=%d name=%q", sessionState.GuildID, sessionState.GuildName)
+	}
+	if world.Player.GuildID != 0 || world.Player.GuildName != "" {
+		t.Fatalf("player guild changed before belonging: id=%d name=%q", world.Player.GuildID, world.Player.GuildName)
+	}
+}
 
 func TestBuildGuildFlagEmblemTextureAddsTransparentMarginAndColorBleed(t *testing.T) {
 	source := image.NewNRGBA(image.Rect(0, 0, 2, 2))

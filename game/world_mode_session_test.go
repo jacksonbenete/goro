@@ -466,16 +466,39 @@ func TestActorNameLabelColorUsesYellowForAdmin(t *testing.T) {
 	}
 }
 
-func TestGuildCreationResultAppliesPendingLocalGuildName(t *testing.T) {
+func TestGuildCreationWaitsForBelongingBeforeOpeningGuildWindow(t *testing.T) {
 	world := worldstate.New()
 	ctx := client.Context{
 		Session: &session.Session{PendingGuildName: "Knights"},
 		World:   world,
+		ScreenW: 800,
+		ScreenH: 600,
 	}
 	var mode WorldMode
 
 	mode.handleGuildCreationResult(ctx, network.GuildCreationResult{Result: 0})
 
+	if got := ctx.Session.GuildName; got != "" {
+		t.Fatalf("session guild = %q before belonging, want empty", got)
+	}
+	if got := world.Player.GuildName; got != "" {
+		t.Fatalf("player guild = %q before belonging, want empty", got)
+	}
+	if got := ctx.Session.PendingGuildName; got != "Knights" {
+		t.Fatalf("pending guild = %q before belonging, want Knights", got)
+	}
+	if !mode.guildOpenPending {
+		t.Fatal("guild window open was not deferred")
+	}
+	if mode.ui.guildWindow.IsOpen() {
+		t.Fatal("guild window opened before belonging")
+	}
+
+	mode.handleGuildBelonging(ctx, network.GuildBelonging{GuildID: 9, GuildName: "Knights"})
+
+	if got := ctx.Session.GuildID; got != 9 {
+		t.Fatalf("session guild ID = %d, want 9", got)
+	}
 	if got := ctx.Session.GuildName; got != "Knights" {
 		t.Fatalf("session guild = %q, want Knights", got)
 	}
@@ -483,7 +506,31 @@ func TestGuildCreationResultAppliesPendingLocalGuildName(t *testing.T) {
 		t.Fatalf("player guild = %q, want Knights", got)
 	}
 	if got := ctx.Session.PendingGuildName; got != "" {
-		t.Fatalf("pending guild = %q, want empty", got)
+		t.Fatalf("pending guild = %q after belonging, want empty", got)
+	}
+	if mode.guildOpenPending {
+		t.Fatal("deferred guild window open was not consumed")
+	}
+	if !mode.ui.guildWindow.IsOpen() {
+		t.Fatal("guild window did not open after belonging")
+	}
+}
+
+func TestGuildCreationOpensWhenBelongingArrivedFirst(t *testing.T) {
+	ctx := client.Context{
+		Session: &session.Session{GuildID: 9, GuildName: "Knights"},
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	var mode WorldMode
+
+	mode.handleGuildCreationResult(ctx, network.GuildCreationResult{Result: 0})
+
+	if mode.guildOpenPending {
+		t.Fatal("guild window open remained pending after membership was known")
+	}
+	if !mode.ui.guildWindow.IsOpen() {
+		t.Fatal("guild window did not open with known membership")
 	}
 }
 

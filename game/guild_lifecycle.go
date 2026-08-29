@@ -182,6 +182,7 @@ func clearVisibleGuildMember(ctx client.Context, member session.GuildMember, nam
 
 func (m *WorldMode) clearLocalGuildState(ctx client.Context, disbanded bool) {
 	oldGuildID := localGuildIDFromSession(ctx.Session)
+	m.guildOpenPending = false
 	if ctx.Session != nil {
 		ctx.Session.GuildID = 0
 		ctx.Session.EmblemVersion = 0
