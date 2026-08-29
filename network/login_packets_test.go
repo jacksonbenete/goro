@@ -10,7 +10,7 @@ func TestBuildAccountLoginPacket(t *testing.T) {
 		Version:    55,
 		Username:   "alice",
 		Password:   "secret",
-		ClientType: 0,
+		ClientType: 1,
 	})
 
 	if len(packet) != 55 {
@@ -21,6 +21,9 @@ func TestBuildAccountLoginPacket(t *testing.T) {
 	}
 	if packet[6] != 'a' || packet[30] != 's' {
 		t.Fatalf("username/password offsets are wrong")
+	}
+	if packet[54] != 1 {
+		t.Fatalf("client type = %d, want 1", packet[54])
 	}
 }
 

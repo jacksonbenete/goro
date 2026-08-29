@@ -952,11 +952,12 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 		return
 	}
 
+	clientType := loginClientType(conn.LangType)
 	err = ctx.Network.SendAccountLogin(
 		m.username,
 		m.password,
 		uint32(conn.Version),
-		0,
+		clientType,
 	)
 	if err != nil {
 		m.status = "login packet failed: " + err.Error()
@@ -966,7 +967,14 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 		m.playConfirmSFX(ctx)
 	}
 	m.status = "CA_LOGIN sent"
-	glog.Debugf("sent CA_LOGIN user=%s version=%d", m.username, conn.Version)
+	glog.Debugf("sent CA_LOGIN user=%s version=%d client_type=%d", m.username, conn.Version, clientType)
+}
+
+func loginClientType(langType int) uint8 {
+	if langType < 0 || langType > 255 {
+		return 0
+	}
+	return uint8(langType)
 }
 
 func (m *LoginMode) enableCharServerPing(now time.Time) {

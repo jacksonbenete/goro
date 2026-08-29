@@ -858,6 +858,63 @@ func TestSelectingLoginConnectionOpensCredentialsForThatServer(t *testing.T) {
 	}
 }
 
+func TestLoginUsesSelectedConnectionLangType(t *testing.T) {
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	address := listener.Addr().(*net.TCPAddr)
+	netClient := network.NewClient(20080910, false)
+	defer netClient.Close()
+	mode := NewLoginMode()
+	mode.username = "Kivutar"
+	mode.password = "secret"
+	ctx := client.Context{
+		Network: netClient,
+		Session: &session.Session{},
+	}
+
+	mode.connectAndMaybeLogin(ctx, res.Connection{
+		Address:  address.IP.String(),
+		Port:     address.Port,
+		Version:  23,
+		LangType: 1,
+	}, false)
+
+	if tcpListener, ok := listener.(*net.TCPListener); ok {
+		if err := tcpListener.SetDeadline(time.Now().Add(time.Second)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	serverConn, err := listener.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer serverConn.Close()
+	if err := serverConn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	packet := make([]byte, 55)
+	if _, err := io.ReadFull(serverConn, packet); err != nil {
+		t.Fatal(err)
+	}
+	if packet[54] != 1 {
+		t.Fatalf("CA_LOGIN client type = %d, want 1", packet[54])
+	}
+}
+
+func TestLoginClientTypeRejectsValuesOutsidePacketRange(t *testing.T) {
+	for _, langType := range []int{-1, 256} {
+		if got := loginClientType(langType); got != 0 {
+			t.Fatalf("loginClientType(%d) = %d, want 0", langType, got)
+		}
+	}
+	if got := loginClientType(240); got != 240 {
+		t.Fatalf("loginClientType(240) = %d, want 240", got)
+	}
+}
+
 func TestAutologinSkipsXMLConnectionSelector(t *testing.T) {
 	mode := NewLoginMode()
 	ctx := client.Context{
