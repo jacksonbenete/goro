@@ -197,6 +197,7 @@ Currently implemented (not a claim of complete reference-client parity):
    * Guilds
      * Creation and invitations
      * Member and position management
+     * Leaving, member expulsion, and guild disbanding
      * Guild skills
      * Notices and expulsion history
      * Emblem selection

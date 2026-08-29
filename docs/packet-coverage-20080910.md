@@ -287,10 +287,13 @@ email check.
 | `0x0155` | C->S | referenced | `HEADER_CZ_REQ_CHANGE_MEMBERPOS` | `-1` | `clif_parse_GuildChangeMemberPosition` | guild_packets.go, packet.go |
 | `0x0157` | S->C | referenced | `0x0157` | `6` | `-` | packet.go |
 | `0x0158` | S->C | referenced | `0x0158` | `-1` | `-` | guild_packets.go, packet.go |
-| `0x0159` | C->S | referenced | `HEADER_CZ_REQ_LEAVE_GUILD` | `sizeof( PACKET_CZ_REQ_LEAVE_GUILD )` | `clif_parse_GuildLeave` | packet.go |
-| `0x015B` | C->S | referenced | `HEADER_CZ_REQ_BAN_GUILD` | `sizeof( PACKET_CZ_REQ_BAN_GUILD )` | `clif_parse_GuildExpulsion` | packet.go |
-| `0x015D` | C->S | referenced | `HEADER_CZ_REQ_DISORGANIZE_GUILD` | `sizeof( PACKET_CZ_REQ_DISORGANIZE_GUILD )` | `clif_parse_GuildBreak` | packet.go |
-| `0x015F` | S->C | untracked | `0x015f` | `42` | `-` | - |
+| `0x0159` | C->S | implemented | `HEADER_CZ_REQ_LEAVE_GUILD` | `sizeof( PACKET_CZ_REQ_LEAVE_GUILD )` | `clif_parse_GuildLeave` | guild_packets.go |
+| `0x015A` | S->C | implemented | `HEADER_ZC_ACK_LEAVE_GUILD` | `66` | `-` | guild_packets.go |
+| `0x015B` | C->S | implemented | `HEADER_CZ_REQ_BAN_GUILD` | `sizeof( PACKET_CZ_REQ_BAN_GUILD )` | `clif_parse_GuildExpulsion` | guild_packets.go |
+| `0x015C` | S->C | implemented | `HEADER_ZC_ACK_BAN_GUILD` | `90` | `-` | guild_packets.go |
+| `0x015D` | C->S | implemented | `HEADER_CZ_REQ_DISORGANIZE_GUILD` | `sizeof( PACKET_CZ_REQ_DISORGANIZE_GUILD )` | `clif_parse_GuildBreak` | guild_packets.go, console.go |
+| `0x015E` | S->C | implemented | `HEADER_ZC_ACK_DISORGANIZE_GUILD_RESULT` | `6` | `-` | guild_packets.go |
+| `0x015F` | S->C | referenced | `0x015f` | `42` | `-` | packet.go |
 | `0x0161` | C->S | implemented | `0x0161` | `-1` | `clif_parse_GuildChangePositionInfo` | guild_packets.go |
 | `0x0164` | S->C | untracked | `0x0164` | `-1` | `-` | - |
 | `0x0165` | C->S | referenced | `0x0165` | `30` | `clif_parse_CreateGuild` | guild_packets.go |
@@ -312,6 +315,7 @@ email check.
 | `0x017B` | S->C | referenced | `0x017b` | `-1` | `-` | packet.go |
 | `0x017C` | C->S | referenced | `HEADER_CZ_REQ_ITEMCOMPOSITION` | `sizeof( PACKET_CZ_REQ_ITEMCOMPOSITION )` | `clif_parse_InsertCard` | item_packets.go |
 | `0x017E` | C->S | referenced | `0x017e` | `-1` | `clif_parse_GuildMessage` | guild_packets.go |
+| `0x017F` | S->C | implemented | `HEADER_ZC_GUILD_CHAT` | `-1` | `-` | guild_packets.go, packet.go |
 | `0x0180` | C->S | missing | `0x0180` | `6` | `clif_parse_GuildOpposition` | - |
 | `0x0182` | S->C | untracked | `0x0182` | `106` | `-` | - |
 | `0x0183` | C->S | missing | `0x0183` | `10` | `clif_parse_GuildDelAlliance` | - |

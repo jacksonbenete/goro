@@ -25,6 +25,12 @@ const (
 	PacketZCAckChangeMember      uint16 = 0x0156
 	PacketCZReqOpenMember        uint16 = 0x0157
 	PacketZCAckOpenMember        uint16 = 0x0158
+	PacketCZReqLeaveGuild        uint16 = 0x0159
+	PacketZCAckLeaveGuild        uint16 = 0x015A
+	PacketCZReqExpelGuildMember  uint16 = 0x015B
+	PacketZCAckExpelGuildMember  uint16 = 0x015C
+	PacketCZReqDisbandGuild      uint16 = 0x015D
+	PacketZCAckDisbandGuild      uint16 = 0x015E
 	PacketZCGuildPositions       uint16 = 0x0160
 	PacketCZRegGuildPosInfo      uint16 = 0x0161
 	PacketZCGuildSkillInfo       uint16 = 0x0162
@@ -35,6 +41,7 @@ const (
 	PacketCZReqGuildMember       uint16 = 0x0175
 	PacketZCGuildMemberInfo      uint16 = 0x0176
 	PacketCZGuildMessage         uint16 = 0x017E
+	PacketZCGuildChat            uint16 = 0x017F
 	PacketZCUpdateGuildID        uint16 = 0x016C
 	PacketCZReqGuildMenu         uint16 = 0x014F
 	PacketCZReqGuildEmblem       uint16 = 0x0151
@@ -75,6 +82,10 @@ type GuildInviteAck struct {
 type GuildInviteRequest struct {
 	GuildID   uint32
 	GuildName string
+}
+
+type GuildChat struct {
+	Message string
 }
 
 type GuildBelonging struct {
@@ -141,6 +152,21 @@ type GuildExpelHistory struct {
 	CharName string
 	Account  string
 	Reason   string
+}
+
+type GuildMemberDeparture struct {
+	CharName string
+	Reason   string
+}
+
+type GuildMemberExpulsion struct {
+	CharName string
+	Reason   string
+	Account  string
+}
+
+type GuildDisbandResult struct {
+	Result uint32
 }
 
 type GuildNotice struct {
@@ -358,6 +384,43 @@ func ParseGuildExpelHistory(packet Packet) ([]GuildExpelHistory, bool, error) {
 		})
 	}
 	return history, true, nil
+}
+
+func ParseGuildMemberDeparture(packet Packet) (GuildMemberDeparture, bool, error) {
+	if packet.ID != PacketZCAckLeaveGuild {
+		return GuildMemberDeparture{}, false, nil
+	}
+	if len(packet.Data) < 66 {
+		return GuildMemberDeparture{}, true, fmt.Errorf("ZC_ACK_LEAVE_GUILD too short: %d", len(packet.Data))
+	}
+	return GuildMemberDeparture{
+		CharName: decodeROFixedString(packet.Data[2:26]),
+		Reason:   decodeROFixedString(packet.Data[26:66]),
+	}, true, nil
+}
+
+func ParseGuildMemberExpulsion(packet Packet) (GuildMemberExpulsion, bool, error) {
+	if packet.ID != PacketZCAckExpelGuildMember {
+		return GuildMemberExpulsion{}, false, nil
+	}
+	if len(packet.Data) < 90 {
+		return GuildMemberExpulsion{}, true, fmt.Errorf("ZC_ACK_BAN_GUILD too short: %d", len(packet.Data))
+	}
+	return GuildMemberExpulsion{
+		CharName: decodeROFixedString(packet.Data[2:26]),
+		Reason:   decodeROFixedString(packet.Data[26:66]),
+		Account:  decodeROFixedString(packet.Data[66:90]),
+	}, true, nil
+}
+
+func ParseGuildDisbandResult(packet Packet) (GuildDisbandResult, bool, error) {
+	if packet.ID != PacketZCAckDisbandGuild {
+		return GuildDisbandResult{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return GuildDisbandResult{}, true, fmt.Errorf("ZC_ACK_DISORGANIZE_GUILD_RESULT too short: %d", len(packet.Data))
+	}
+	return GuildDisbandResult{Result: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
 }
 
 func ParseGuildSkillInfo(packet Packet) (GuildSkillInfo, bool, error) {
@@ -613,6 +676,16 @@ func ParseGuildInviteRequest(packet Packet) (GuildInviteRequest, bool, error) {
 	}, true, nil
 }
 
+func ParseGuildChat(packet Packet) (GuildChat, bool, error) {
+	if packet.ID != PacketZCGuildChat {
+		return GuildChat{}, false, nil
+	}
+	if len(packet.Data) < 5 {
+		return GuildChat{}, true, fmt.Errorf("ZC_GUILD_CHAT too short: %d", len(packet.Data))
+	}
+	return GuildChat{Message: decodeROFixedString(packet.Data[4:])}, true, nil
+}
+
 func ParseGuildEmblemImage(packet Packet) (GuildEmblemImage, bool, error) {
 	if packet.ID != PacketZCGuildEmblem {
 		return GuildEmblemImage{}, false, nil
@@ -665,6 +738,31 @@ func BuildGuildInviteReplyPacket(guildID uint32, accept bool) []byte {
 	if accept {
 		binary.LittleEndian.PutUint32(packet[6:10], 1)
 	}
+	return packet
+}
+
+func BuildLeaveGuildPacket(guildID, accountID, charID uint32, reason string) []byte {
+	return buildGuildMemberDeparturePacket(PacketCZReqLeaveGuild, guildID, accountID, charID, reason)
+}
+
+func BuildExpelGuildMemberPacket(guildID, accountID, charID uint32, reason string) []byte {
+	return buildGuildMemberDeparturePacket(PacketCZReqExpelGuildMember, guildID, accountID, charID, reason)
+}
+
+func buildGuildMemberDeparturePacket(packetID uint16, guildID, accountID, charID uint32, reason string) []byte {
+	packet := make([]byte, 54)
+	binary.LittleEndian.PutUint16(packet[0:2], packetID)
+	binary.LittleEndian.PutUint32(packet[2:6], guildID)
+	binary.LittleEndian.PutUint32(packet[6:10], accountID)
+	binary.LittleEndian.PutUint32(packet[10:14], charID)
+	copy(packet[14:54], encodeROFixedString(strings.TrimSpace(reason), 40))
+	return packet
+}
+
+func BuildDisbandGuildPacket(name string) []byte {
+	packet := make([]byte, 42)
+	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqDisbandGuild)
+	copy(packet[2:42], encodeROFixedString(strings.TrimSpace(name), 40))
 	return packet
 }
 
@@ -818,6 +916,39 @@ func (c *Client) SendGuildInviteReply(guildID uint32, accept bool) error {
 		glog.Debugf("sent CZ_JOIN_GUILD opcode=0x%04X guild_id=%d accept=%t client_date=%d", ID(packet), guildID, accept, c.clientDate)
 	} else {
 		glog.Warnf("send CZ_JOIN_GUILD failed opcode=0x%04X len=%d guild_id=%d accept=%t client_date=%d: %v", ID(packet), len(packet), guildID, accept, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendLeaveGuild(guildID, accountID, charID uint32, reason string) error {
+	packet := BuildLeaveGuildPacket(guildID, accountID, charID, reason)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_LEAVE_GUILD opcode=0x%04X guild=%d account=%d char=%d client_date=%d", ID(packet), guildID, accountID, charID, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_LEAVE_GUILD failed opcode=0x%04X guild=%d account=%d char=%d client_date=%d: %v", ID(packet), guildID, accountID, charID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendExpelGuildMember(guildID, accountID, charID uint32, reason string) error {
+	packet := BuildExpelGuildMemberPacket(guildID, accountID, charID, reason)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_BAN_GUILD opcode=0x%04X guild=%d account=%d char=%d client_date=%d", ID(packet), guildID, accountID, charID, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_BAN_GUILD failed opcode=0x%04X guild=%d account=%d char=%d client_date=%d: %v", ID(packet), guildID, accountID, charID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendDisbandGuild(name string) error {
+	packet := BuildDisbandGuildPacket(name)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_DISORGANIZE_GUILD opcode=0x%04X name=%q client_date=%d", ID(packet), name, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_DISORGANIZE_GUILD failed opcode=0x%04X name=%q client_date=%d: %v", ID(packet), name, c.clientDate, err)
 	}
 	return err
 }

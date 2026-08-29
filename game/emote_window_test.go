@@ -25,3 +25,52 @@ func TestAltLTogglesEmoteWindow(t *testing.T) {
 		t.Fatal("emote window did not open")
 	}
 }
+
+func TestAltGTogglesGuildWindow(t *testing.T) {
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyAlt, true)
+	inputState.SetKey(input.KeyG, true)
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Input:   inputState,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+
+	if !mode.toggleGuildWindowFromInput(ctx) {
+		t.Fatal("Alt+G was not consumed")
+	}
+	if !mode.ui.guildWindow.IsOpen() {
+		t.Fatal("guild window did not open")
+	}
+}
+
+func TestAltGTogglesGuildWindowDuringChatInput(t *testing.T) {
+	mode := &WorldMode{}
+	activateInput := input.NewState()
+	activateInput.SetKey(input.KeyEnter, true)
+	activateCtx := client.Context{
+		Input:   activateInput,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+	if !mode.ui.console.UpdateInput(activateCtx) || !mode.ui.console.Active() {
+		t.Fatal("Enter did not activate text input")
+	}
+
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyAlt, true)
+	inputState.SetKey(input.KeyG, true)
+	ctx := client.Context{
+		Input:   inputState,
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+
+	if !mode.toggleGuildWindowFromInput(ctx) {
+		t.Fatal("Alt+G was not consumed during chat input")
+	}
+	if !mode.ui.guildWindow.IsOpen() {
+		t.Fatal("guild window did not open during chat input")
+	}
+}

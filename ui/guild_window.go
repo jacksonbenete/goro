@@ -70,6 +70,7 @@ type GuildWindow struct {
 	historyScrollY  state.Signal[float32]
 	tooltip         tooltipState
 	actions         GameActions
+	memberContext   GuildMemberContextMenu
 }
 
 type GuildWindowAction struct {
@@ -84,6 +85,7 @@ type GuildWindowAction struct {
 	NoticeSubject      string
 	Notice             string
 	DeleteRelation     *GuildRelationDelete
+	MemberAction       *GuildMemberAction
 }
 
 type GuildRelationDelete struct {
@@ -173,12 +175,20 @@ func (w *GuildWindow) Close() {
 	w.dragActive = false
 	w.dragSkill = session.Skill{}
 	w.hideTooltip()
+	w.memberContext.Close()
 	w.Window.Close()
 }
 
 func (w *GuildWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameActions) bool {
 	w.EnsureWindow(guildWindowWidth, guildWindowHeight)
 	w.ctx = ctx
+	if w.drainMemberContextAction() {
+		return true
+	}
+	if w.memberContext.Update(ctx) {
+		w.drainMemberContextAction()
+		return true
+	}
 	if !w.IsOpen() {
 		w.hideTooltip()
 		return false
@@ -238,7 +248,8 @@ func (a GuildWindowAction) hasAction() bool {
 		len(a.LevelUpSkillIDs) > 0 ||
 		a.UpdatePositions ||
 		a.UpdateNotice ||
-		a.DeleteRelation != nil
+		a.DeleteRelation != nil ||
+		a.MemberAction != nil
 }
 
 func (w *GuildWindow) SetEmblemOptions(ctx Context, options []GuildEmblemOption) {
@@ -250,6 +261,7 @@ func (w *GuildWindow) SetEmblemOptions(ctx Context, options []GuildEmblemOption)
 
 func (w *GuildWindow) Rebind(ctx Context) {
 	w.EnsureWindow(guildWindowWidth, guildWindowHeight)
+	w.memberContext.Rebind(ctx)
 	if !w.IsOpen() {
 		return
 	}
@@ -441,10 +453,41 @@ func (w *GuildWindow) membersTab(ctx Context) widget.Widget {
 				}
 				return w.guildMemberTableCell(ctx, members[cell.Row], guild.Positions, guild.IsMaster, totalExp, cell)
 			}),
+			rotheme.TableViewOnRowEventWithContext(func(_ widget.Context, row int, e event.Event) bool {
+				return w.handleGuildMemberRowEvent(w.ctx, guild, members, row, e)
+			}),
 		),
 	).
 		Background(rotheme.Default.Colors.WindowBody).
 		CrossAlign(primitives.CrossAxisStretch)
+}
+
+func (w *GuildWindow) handleGuildMemberRowEvent(ctx Context, guild session.Guild, members []session.GuildMember, row int, e event.Event) bool {
+	mouse, ok := e.(*event.MouseEvent)
+	if !ok || row < 0 || row >= len(members) || mouse.MouseType != event.MousePress || mouse.Button != event.ButtonRight {
+		return false
+	}
+	member := members[row]
+	isSelf := ctx.Session != nil && member.AccountID == ctx.Session.AccountID && member.CharID == ctx.Session.CharID
+	canExpel := guild.IsMaster || guild.Right&guildMemberPermissionExpel != 0
+	if guildMemberContextMenuRows(canExpel, isSelf, guild.IsMaster) == 0 {
+		return false
+	}
+	x, y := int(mouse.GlobalPosition.X), int(mouse.GlobalPosition.Y)
+	if ctx.Input != nil {
+		x, y = ctx.Input.MouseX, ctx.Input.MouseY
+	}
+	w.memberContext.Open(ctx, x, y, member, canExpel, isSelf, guild.IsMaster)
+	return true
+}
+
+func (w *GuildWindow) drainMemberContextAction() bool {
+	action := w.memberContext.PopAction()
+	if action.Kind == GuildMemberActionNone {
+		return false
+	}
+	w.action.MemberAction = &action
+	return true
 }
 
 var guildMemberTableColumns = []rotheme.TableViewColumn{
@@ -1620,11 +1663,12 @@ func guildWindowSnapshot(s *session.Session) string {
 	for _, relation := range s.Guild.Relations {
 		fmt.Fprintf(&relationSnapshot, "|%d:%d:%s", relation.Relation, relation.GuildID, relation.Name)
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d|%s|%s%s%s%s%s%s",
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d|%s|%s%s%s%s%s%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
 		boolSnapshot(s.Guild.IsMaster),
+		s.Guild.Right,
 		s.Guild.Level,
 		s.Guild.UserNum,
 		s.Guild.MaxUserNum,

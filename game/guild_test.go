@@ -9,6 +9,7 @@ import (
 	"github.com/kivutar/goro/db"
 	"github.com/kivutar/goro/network"
 	"github.com/kivutar/goro/session"
+	gameui "github.com/kivutar/goro/ui"
 	worldstate "github.com/kivutar/goro/world"
 )
 
@@ -104,6 +105,112 @@ func TestGuildCanInvitePlayerMatchesRobrowserRequirements(t *testing.T) {
 	}
 }
 
+func TestGuildMemberLifecyclePermissionsMatchClassicClient(t *testing.T) {
+	s := &session.Session{
+		AccountID: 10,
+		CharID:    11,
+		GuildID:   1,
+		Guild:     session.Guild{Right: guildPermissionExpel},
+	}
+	self := gameui.GuildMemberAction{Kind: gameui.GuildMemberActionLeave, Member: session.GuildMember{AccountID: 10, CharID: 11}}
+	other := gameui.GuildMemberAction{Kind: gameui.GuildMemberActionExpel, Member: session.GuildMember{AccountID: 20, CharID: 21}}
+	if !guildMemberActionAllowed(s, self) {
+		t.Fatal("ordinary guild member should be allowed to leave")
+	}
+	if !guildMemberActionAllowed(s, other) {
+		t.Fatal("member with expulsion right should be allowed to expel another member")
+	}
+	s.Guild.IsMaster = true
+	if guildMemberActionAllowed(s, self) {
+		t.Fatal("guild master should disband rather than leave")
+	}
+	s.Guild.Right = 0
+	if !guildMemberActionAllowed(s, other) {
+		t.Fatal("guild master should be allowed to expel while rights are not loaded")
+	}
+	other.Member.AccountID, other.Member.CharID = 10, 11
+	if guildMemberActionAllowed(s, other) {
+		t.Fatal("member should never be allowed to expel themself")
+	}
+}
+
+func TestGuildDepartureRemovesRemoteMemberWithoutClearingLocalGuild(t *testing.T) {
+	s := &session.Session{
+		AccountID: 1,
+		CharID:    2,
+		GuildID:   9,
+		Selected:  session.Character{Name: "Local"},
+		Guild: session.Guild{ID: 9, Members: []session.GuildMember{
+			{AccountID: 1, CharID: 2, CharName: "Local", CurrentState: 1},
+			{AccountID: 3, CharID: 4, CharName: "Alice", CurrentState: 1},
+		}},
+	}
+	w := &worldstate.World{Actors: map[uint32]worldstate.Actor{
+		3: {ID: 3, Name: "Alice", GuildID: 9, GuildName: "Mandala", EmblemVersion: 4},
+	}}
+	mode := &WorldMode{}
+	mode.handleGuildMemberDeparture(client.Context{Session: s, World: w}, network.GuildMemberDeparture{CharName: "Alice", Reason: "Moving on"})
+
+	if s.GuildID != 9 || s.Guild.ID != 9 {
+		t.Fatal("remote departure cleared the local guild")
+	}
+	if len(s.Guild.Members) != 1 || s.Guild.Members[0].CharName != "Local" || s.Guild.UserNum != 1 {
+		t.Fatalf("guild members after departure = %+v, online=%d", s.Guild.Members, s.Guild.UserNum)
+	}
+	if actor := w.Actors[3]; actor.GuildID != 0 || actor.GuildName != "" || actor.EmblemVersion != 0 {
+		t.Fatalf("departed visible actor retained guild state: %+v", actor)
+	}
+}
+
+func TestLocalGuildExpulsionClearsSessionAndPlayerState(t *testing.T) {
+	s := &session.Session{
+		AccountID:        1,
+		CharID:           2,
+		GuildID:          9,
+		GuildName:        "Mandala",
+		EmblemVersion:    4,
+		Selected:         session.Character{Name: "Local"},
+		PendingGuildName: "Pending",
+		Guild: session.Guild{ID: 9, Name: "Mandala", Members: []session.GuildMember{
+			{AccountID: 1, CharID: 2, CharName: "Local", CurrentState: 1},
+		}},
+	}
+	w := &worldstate.World{Player: worldstate.Actor{GuildID: 9, GuildName: "Mandala", EmblemVersion: 4}}
+	mode := &WorldMode{}
+	mode.handleGuildMemberExpulsion(client.Context{Session: s, World: w}, network.GuildMemberExpulsion{CharName: "Local", Reason: "Inactive"})
+
+	if s.GuildID != 0 || s.GuildName != "" || s.EmblemVersion != 0 || s.Guild.ID != 0 || s.PendingGuildName != "" {
+		t.Fatalf("stale session guild state after expulsion: %+v", s.Guild)
+	}
+	if w.Player.GuildID != 0 || w.Player.GuildName != "" || w.Player.EmblemVersion != 0 {
+		t.Fatalf("stale player guild state after expulsion: %+v", w.Player)
+	}
+	applyLocalGuildMembers(client.Context{Session: s}, []network.GuildMember{{AccountID: 3, CharID: 4, CharName: "Stale"}})
+	if len(s.Guild.Members) != 0 {
+		t.Fatalf("post-expulsion member list restored stale guild state: %+v", s.Guild.Members)
+	}
+}
+
+func TestGuildDisbandClearsVisibleMembersOfDisbandedGuildOnly(t *testing.T) {
+	s := &session.Session{GuildID: 9, Guild: session.Guild{ID: 9}}
+	w := &worldstate.World{
+		Player: worldstate.Actor{GuildID: 9},
+		Actors: map[uint32]worldstate.Actor{
+			1: {GuildID: 9, GuildName: "Mandala", EmblemVersion: 4},
+			2: {GuildID: 10, GuildName: "Other", EmblemVersion: 5},
+		},
+	}
+	mode := &WorldMode{}
+	mode.handleGuildDisbandResult(client.Context{Session: s, World: w}, network.GuildDisbandResult{Result: 0})
+
+	if got := w.Actors[1]; got.GuildID != 0 || got.GuildName != "" || got.EmblemVersion != 0 {
+		t.Fatalf("disbanded guild actor state = %+v", got)
+	}
+	if got := w.Actors[2]; got.GuildID != 10 || got.GuildName != "Other" || got.EmblemVersion != 5 {
+		t.Fatalf("unrelated guild actor state changed: %+v", got)
+	}
+}
+
 func TestGuildCanManageRelationsRequiresMasterAndOtherGuild(t *testing.T) {
 	s := &session.Session{Guild: session.Guild{ID: 10, IsMaster: true}}
 	if !guildCanManageRelations(s, 20) {
@@ -136,7 +243,7 @@ func TestApplyLocalGuildRelationsAndPreserveThroughDetails(t *testing.T) {
 }
 
 func TestGuildMemberOnlineUpdatesMaintainUserCount(t *testing.T) {
-	s := &session.Session{}
+	s := &session.Session{GuildID: 1}
 	ctx := client.Context{Session: s}
 	applyLocalGuildMembers(ctx, []network.GuildMember{
 		{AccountID: 1, CharID: 11, CurrentState: 1},

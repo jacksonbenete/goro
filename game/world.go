@@ -88,6 +88,7 @@ type WorldMode struct {
 	pendingPickup     pickupIntent
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
+	guildAction       gameui.GuildMemberAction
 	pendingPetCapture petCaptureState
 	petProperty       network.PetProperty
 	hasPetProperty    bool
@@ -152,6 +153,7 @@ type worldUI struct {
 	guildRequest         gameui.ConfirmModal
 	guildAllianceRequest gameui.ConfirmModal
 	guildRelationConfirm gameui.ConfirmModal
+	guildMemberPrompt    gameui.TextPromptWindow
 	tradeRequest         gameui.ConfirmModal
 	adoptionRequest      gameui.ConfirmModal
 	characterWindow      gameui.CharacterWindow
@@ -212,8 +214,14 @@ func (u *worldUI) keyboardInputBlocked(ctx client.Context) bool {
 	if u == nil {
 		return false
 	}
-	return u.console.Active() ||
-		u.npcDialog.IsOpen() ||
+	return u.console.Active() || u.nonConsoleKeyboardInputBlocked(ctx)
+}
+
+func (u *worldUI) nonConsoleKeyboardInputBlocked(ctx client.Context) bool {
+	if u == nil {
+		return false
+	}
+	return u.npcDialog.IsOpen() ||
 		u.escapeMenu.IsOpen() ||
 		u.disconnectDialog.IsOpen() ||
 		u.interactionModalOpen() ||
@@ -259,6 +267,7 @@ func (u *worldUI) interactionModalOpen() bool {
 		u.guildRequest.IsOpen() ||
 		u.guildAllianceRequest.IsOpen() ||
 		u.guildRelationConfirm.IsOpen() ||
+		u.guildMemberPrompt.IsOpen() ||
 		u.tradeRequest.IsOpen() ||
 		u.adoptionRequest.IsOpen()
 }
@@ -407,6 +416,8 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.pendingPickup = pickupIntent{}
 	m.pendingSkill = pendingSkillTarget{}
 	m.pendingSkillText = pendingSkillTextTarget{}
+	m.guildAction = gameui.GuildMemberAction{}
+	m.ui.guildMemberPrompt.Close()
 	m.lockedAttackID = 0
 	m.clearAttackFocus()
 	m.clearScriptHighlight()
@@ -528,6 +539,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.ui.mercenarySkill.Rebind(ctx, m)
 	m.ui.friendsWindow.Rebind(ctx)
 	m.ui.guildWindow.Rebind(ctx)
+	m.ui.guildMemberPrompt.Rebind(ctx)
 	m.ui.friendSettings.Rebind(ctx)
 	m.ui.partySettings.Rebind(ctx)
 	m.ui.partyCreate.Rebind(ctx)
@@ -630,6 +642,12 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	keyboardBlocked := m.ui.keyboardInputBlocked(ctx)
 	m.updateBotInput(ctx, !dead && !keyboardBlocked)
 	if m.updatePetSlotMachine(ctx) {
+		return nil, nil
+	}
+	// Window.Update consumes pointer hover so that map input does not pass
+	// through the UI. Handle keyboard-only window shortcuts before pointer
+	// dispatch, otherwise their JustPressed event can be lost.
+	if m.toggleEmoteWindowFromInput(ctx) || m.toggleGuildWindowFromInput(ctx) {
 		return nil, nil
 	}
 	if dead {
@@ -805,6 +823,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.updateSkillTextPrompt(ctx) {
 		return nil, nil
 	}
+	if m.updateGuildMemberPrompt(ctx) {
+		return nil, nil
+	}
 	if m.ui.makingArrow.Update(ctx) {
 		return nil, nil
 	}
@@ -904,13 +925,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.mercenarySkill.Update(ctx, &m.ui.shortcutBar, m) {
 		return nil, nil
 	}
-	if m.toggleEmoteWindowFromInput(ctx) {
-		return nil, nil
-	}
 	if m.ui.emoteWindow.Update(ctx, &m.ui.console) {
-		return nil, nil
-	}
-	if m.toggleGuildWindowFromInput(ctx) {
 		return nil, nil
 	}
 	if m.ui.friendsWindow.Update(ctx) {
@@ -966,6 +981,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 			m.updateGuildNotice(ctx, action.NoticeSubject, action.Notice)
 		} else if action.DeleteRelation != nil {
 			m.openDeleteGuildRelationConfirm(ctx, action.DeleteRelation.Relation)
+		} else if action.MemberAction != nil {
+			m.openGuildMemberPrompt(ctx, *action.MemberAction)
 		}
 		return nil, nil
 	}
@@ -1146,25 +1163,33 @@ func (m *WorldMode) basicMenuCallbacks(ctx client.Context) gameui.BasicMenuCallb
 }
 
 func (m *WorldMode) toggleEmoteWindowFromInput(ctx client.Context) bool {
-	if ctx.Input == nil || m.ui.keyboardInputBlocked(ctx) {
+	if ctx.Input == nil || m.ui.nonConsoleKeyboardInputBlocked(ctx) {
 		return false
 	}
 	if !ctx.Input.Pressed(input.KeyAlt) || !ctx.Input.JustPressed(input.KeyL) {
 		return false
 	}
+	m.discardConsoleShortcutText(ctx)
 	m.ui.emoteWindow.Toggle(ctx, &m.ui.console)
 	return true
 }
 
 func (m *WorldMode) toggleGuildWindowFromInput(ctx client.Context) bool {
-	if ctx.Input == nil || m.ui.console.Active() {
+	if ctx.Input == nil || m.ui.nonConsoleKeyboardInputBlocked(ctx) {
 		return false
 	}
 	if !ctx.Input.Pressed(input.KeyAlt) || !ctx.Input.JustPressed(input.KeyG) {
 		return false
 	}
+	m.discardConsoleShortcutText(ctx)
 	m.toggleGuildWindow(ctx)
 	return true
+}
+
+func (m *WorldMode) discardConsoleShortcutText(ctx client.Context) {
+	if ctx.Input != nil && m.ui.console.Active() {
+		m.ui.console.DiscardTextInput(ctx.Input.TextInput())
+	}
 }
 
 func (m *WorldMode) toggleGuildWindow(ctx client.Context) {

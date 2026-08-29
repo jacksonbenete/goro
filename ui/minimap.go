@@ -347,6 +347,17 @@ func (m *Minimap) ApplyGuildMemberPosition(accountID uint32, x, y int) {
 	m.markGuildDirty()
 }
 
+// ClearGuildMemberPositions removes every guild marker after the local player
+// leaves, is expelled, or loses the guild through disbanding.
+func (m *Minimap) ClearGuildMemberPositions() {
+	if len(m.guild) == 0 {
+		return
+	}
+	clear(m.guild)
+	m.guildRevision++
+	m.markGuildDirty()
+}
+
 func (m *Minimap) markGuildDirty() {
 	if m.widget != nil {
 		m.widget.SetNeedsRedraw(true)

@@ -689,12 +689,26 @@ func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
 	if isLocalActor(ctx, ack.ID) {
 		ctx.World.Player.Name = name
 		ctx.World.Player.PartyName = partyName
-		if guildName != "" {
+		if ack.HasGuildName || guildName != "" {
 			ctx.World.Player.GuildName = guildName
+			if guildName == "" {
+				ctx.World.Player.GuildID = 0
+				ctx.World.Player.EmblemVersion = 0
+			}
 		}
-		if ctx.Session != nil && guildName != "" {
-			ctx.Session.GuildName = guildName
-			ctx.Session.PendingGuildName = ""
+		if ctx.Session != nil {
+			if ack.HasGuildName || guildName != "" {
+				ctx.Session.GuildName = guildName
+				if guildName == "" {
+					ctx.Session.GuildID = 0
+					ctx.Session.EmblemVersion = 0
+					ctx.Session.Guild = session.Guild{}
+					ctx.Session.PendingGuildName = ""
+				}
+			}
+			if guildName != "" {
+				ctx.Session.PendingGuildName = ""
+			}
 		}
 		return
 	}
@@ -705,6 +719,10 @@ func applyActorNameAck(ctx client.Context, ack network.ActorNameAck) {
 	actor.Name = name
 	actor.PartyName = partyName
 	actor.GuildName = guildName
+	if ack.HasGuildName && guildName == "" {
+		actor.GuildID = 0
+		actor.EmblemVersion = 0
+	}
 	ctx.World.Actors[ack.ID] = actor
 }
 

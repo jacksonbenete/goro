@@ -76,6 +76,21 @@ func TestApplyActorNameAckPreservesLocalGuildOnEmptyNameAck(t *testing.T) {
 	}
 }
 
+func TestApplyActorNameAckClearsGuildStateFromAuthoritativeEmptyGuildName(t *testing.T) {
+	s := &session.Session{AccountID: 200, GuildID: 9, GuildName: "Goro", EmblemVersion: 4, Guild: session.Guild{ID: 9, Name: "Goro"}}
+	w := &worldstate.World{Player: worldstate.Actor{ID: 200, GuildID: 9, GuildName: "Goro", EmblemVersion: 4}}
+	ctx := client.Context{Session: s, World: w}
+
+	applyActorNameAck(ctx, network.ActorNameAck{ID: 200, Name: "Kivutar", HasGuildName: true})
+
+	if w.Player.GuildID != 0 || w.Player.GuildName != "" || w.Player.EmblemVersion != 0 {
+		t.Fatalf("player guild state = %+v, want cleared", w.Player)
+	}
+	if s.GuildID != 0 || s.GuildName != "" || s.EmblemVersion != 0 || s.Guild.ID != 0 {
+		t.Fatalf("session guild id=%d name=%q emblem=%d nested=%+v, want cleared", s.GuildID, s.GuildName, s.EmblemVersion, s.Guild)
+	}
+}
+
 func TestApplyActorNameAckClearsRemotePartyName(t *testing.T) {
 	world := worldstate.New()
 	world.UpsertActor(worldstate.Actor{ID: 300, Name: "Alice", PartyName: "Old Party"})
@@ -88,6 +103,18 @@ func TestApplyActorNameAckClearsRemotePartyName(t *testing.T) {
 
 	if got := world.Actors[300].PartyName; got != "" {
 		t.Fatalf("actor party = %q, want cleared", got)
+	}
+}
+
+func TestApplyActorNameAckClearsRemoteGuildFromAuthoritativeEmptyName(t *testing.T) {
+	world := worldstate.New()
+	world.UpsertActor(worldstate.Actor{ID: 300, Name: "Alice", GuildID: 9, GuildName: "Goro", EmblemVersion: 4})
+	ctx := client.Context{Session: &session.Session{AccountID: 100, CharID: 200}, World: world}
+
+	applyActorNameAck(ctx, network.ActorNameAck{ID: 300, Name: "Alice", HasGuildName: true})
+
+	if actor := world.Actors[300]; actor.GuildID != 0 || actor.GuildName != "" || actor.EmblemVersion != 0 {
+		t.Fatalf("remote actor guild state = %+v, want cleared", actor)
 	}
 }
 
@@ -501,6 +528,21 @@ func TestHandleGuildNoticeSkipsEmptyConsoleLines(t *testing.T) {
 	messages := mode.ui.console.Messages()
 	if len(messages) != 2 || messages[0].Text != "[ Guild event tonight. ]" || messages[1].Text != "[ Meet in Prontera. ]" {
 		t.Fatalf("console messages = %+v", messages)
+	}
+}
+
+func TestApplyGuildChatAddsGuildConsoleMessage(t *testing.T) {
+	mode := &WorldMode{}
+
+	applyGuildChat(network.GuildChat{Message: " Kivutar : hello guild "}, &mode.ui.console)
+
+	messages := mode.ui.console.Messages()
+	if len(messages) != 1 || messages[0].Text != "Kivutar : hello guild" {
+		t.Fatalf("console messages = %+v", messages)
+	}
+	wantColor := color.RGBA{R: 180, G: 255, B: 180, A: 255}
+	if messages[0].Color != wantColor {
+		t.Fatalf("guild chat color = %+v, want %+v", messages[0].Color, wantColor)
 	}
 }
 

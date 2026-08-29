@@ -370,6 +370,17 @@ func (m *WorldMode) addGuildNoticeMessage(text string) {
 	}
 }
 
+func applyGuildChat(chat network.GuildChat, console *gameui.ChatConsole) {
+	if console == nil {
+		return
+	}
+	message := strings.TrimSpace(chat.Message)
+	if message == "" {
+		return
+	}
+	console.AddGuildChatMessage("%s", message)
+}
+
 func (m *WorldMode) levelUpGuildSkills(ctx client.Context, skillIDs []uint16) {
 	if len(skillIDs) == 0 {
 		return
@@ -507,7 +518,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 }
 
 func applyLocalGuildMembers(ctx client.Context, members []network.GuildMember) {
-	if ctx.Session == nil {
+	if ctx.Session == nil || localGuildIDFromSession(ctx.Session) == 0 {
 		return
 	}
 	ctx.Session.Guild.Members = make([]session.GuildMember, 0, len(members))

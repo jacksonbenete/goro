@@ -39,7 +39,8 @@
   - [x] Change guild member positions and position info: 0x0155, 0x0156, 0x0161
   - [x] Change guild notice: 0x016E
   - [x] Guild alliances and opposition, including requests, replies, result/list updates, and deletion: 0x014C, 0x0170-0x0173, 0x0180, 0x0181, 0x0183-0x0185
-  - [x] Guild message send: 0x017E
+  - [x] Guild message send/receive: 0x017E, 0x017F
+  - [x] Leave, expel members, and disband with server-confirmed state cleanup: 0x0159-0x015E
 
   Items / Crafting / Equipment
 
