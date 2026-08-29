@@ -744,13 +744,17 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 			receiver.FrameSubmitted()
 		}
 	}
+
 	drawDur := time.Since(drawStart)
 	totalDur := r.lastUpdateDuration + drawDur
-	if totalDur > 16*time.Millisecond {
+	thresholdMs := time.Duration(40)
+
+	if totalDur > thresholdMs*time.Millisecond {
 		glog.Errorf(
-			"slow frame frame=%d total_ms=%.2f threshold_ms=16.00 update_ms=%.2f game_update_ms=%.2f ui_frame_ms=%.2f draw_ms=%.2f ui_work=%t ui_redraw=%t ui_draw_ms=%.2f ui_canvas_ms=%.2f ui_flush_ms=%.2f ui_image_ms=%.2f ui_dirty_regions=%d ui_full_repaint=%t ui_union=%.0f,%.0f %.0fx%.0f",
+			"slow frame frame=%d total_ms=%.2f threshold_ms=%.2f update_ms=%.2f game_update_ms=%.2f ui_frame_ms=%.2f draw_ms=%.2f ui_work=%t ui_redraw=%t ui_draw_ms=%.2f ui_canvas_ms=%.2f ui_flush_ms=%.2f ui_image_ms=%.2f ui_dirty_regions=%d ui_full_repaint=%t ui_union=%.0f,%.0f %.0fx%.0f",
 			r.frames,
 			durationMS(totalDur),
+			thresholdMs,
 			durationMS(r.lastUpdateDuration),
 			durationMS(r.lastGameUpdateDur),
 			durationMS(r.lastUIFrameDur),
