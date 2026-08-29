@@ -37,6 +37,28 @@ func TestParseAccountAcceptLogin(t *testing.T) {
 	}
 }
 
+func TestParseAccountRefuseLogin(t *testing.T) {
+	data := make([]byte, 23)
+	binary.LittleEndian.PutUint16(data[0:2], 0x006A)
+	data[2] = 6
+	copy(data[3:23], []byte("2026-08-29 21:40:00"))
+
+	parsed, err := ParseAccountRefuseLogin(Packet{ID: 0x006A, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.ErrorCode != 6 || parsed.UnblockTime != "2026-08-29 21:40:00" {
+		t.Fatalf("unexpected refusal: %+v", parsed)
+	}
+}
+
+func TestParseAccountRefuseLoginRejectsShortPacket(t *testing.T) {
+	_, err := ParseAccountRefuseLogin(Packet{ID: 0x006A, Data: make([]byte, 22)})
+	if err == nil {
+		t.Fatal("short AC_REFUSE_LOGIN packet was accepted")
+	}
+}
+
 func TestParseCharListLegacy108(t *testing.T) {
 	data := make([]byte, 24+108)
 	binary.LittleEndian.PutUint16(data[0:2], 0x006B)

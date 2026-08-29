@@ -78,6 +78,7 @@ func (m *LoginMode) showLoginServerSelection(ctx client.Context) {
 }
 
 func (m *LoginMode) applyAccountAcceptLogin(ctx client.Context, login network.AccountAcceptLogin) {
+	m.loginPending = false
 	ctx.Session.AccountID = login.AccountID
 	ctx.Session.AuthCode = login.AuthCode
 	ctx.Session.UserLevel = login.UserLevel

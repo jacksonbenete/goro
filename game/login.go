@@ -26,6 +26,7 @@ type LoginMode struct {
 	console             gameui.ChatConsole
 	autoAttempted       bool
 	autoCharAttempted   bool
+	loginPending        bool
 	fade                loginFadeState
 	username            string
 	password            string
@@ -189,12 +190,25 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		}
 	}
 
+	loginRefused := false
 	for _, pkt := range ctx.Network.DrainPackets() {
 		glog.Debugf("recv packet 0x%04X len=%d", pkt.ID, len(pkt.Data))
 		if handleDisconnectPacket(ctx, &m.disconnectDialog, pkt) {
+			m.loginPending = false
 			continue
 		}
 		m.packets = append(m.packets, pkt.String())
+		if pkt.ID == 0x006A {
+			refusal, err := network.ParseAccountRefuseLogin(pkt)
+			if err != nil {
+				m.loginPending = false
+				m.packets = append(m.packets, "parse AC_REFUSE_LOGIN: "+err.Error())
+			} else {
+				m.applyAccountRefuseLogin(ctx, refusal)
+				loginRefused = true
+			}
+			continue
+		}
 		if m.applyLoginParameterChange(ctx, pkt) {
 			continue
 		}
@@ -413,6 +427,14 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		}
 	}
 	networkErrors := ctx.Network.DrainErrors()
+	if loginRefused {
+		// The login server closes this short-lived connection after sending
+		// AC_REFUSE_LOGIN. Its EOF is part of the refusal, not a second error.
+		networkErrors = nil
+	}
+	if len(networkErrors) > 0 {
+		m.loginPending = false
+	}
 	if handleNetworkDisconnectErrors(ctx, &m.disconnectDialog, networkErrors) {
 		return nil, nil
 	}
@@ -932,6 +954,13 @@ func uniqueLoginStrings(values []string) []string {
 }
 
 func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection, userConfirmed bool) {
+	sendLogin := strings.TrimSpace(m.username) != "" || m.password != ""
+	if m.disconnectDialog.IsOpen() || (sendLogin && m.loginPending) {
+		return
+	}
+	if sendLogin {
+		m.loginPending = true
+	}
 	m.disableLoginServerPing()
 	m.disableCharServerPing()
 	if ctx.Session != nil {
@@ -941,6 +970,7 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 	err := ctx.Network.Connect(dialCtx, conn.Address, conn.Port)
 	cancel()
 	if err != nil {
+		m.loginPending = false
 		m.status = err.Error()
 		openConnectionFailedDialog(ctx, &m.disconnectDialog)
 		return
@@ -948,7 +978,7 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 
 	m.status = ctx.Network.Status()
 	glog.Infof("connected login server %s:%d admins=%v", conn.Address, conn.Port, conn.AdminList)
-	if strings.TrimSpace(m.username) == "" && m.password == "" {
+	if !sendLogin {
 		return
 	}
 
@@ -960,6 +990,7 @@ func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection
 		clientType,
 	)
 	if err != nil {
+		m.loginPending = false
 		m.status = "login packet failed: " + err.Error()
 		return
 	}

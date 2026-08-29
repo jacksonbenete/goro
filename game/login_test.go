@@ -904,6 +904,62 @@ func TestLoginUsesSelectedConnectionLangType(t *testing.T) {
 	}
 }
 
+func TestLoginIgnoresRepeatedSubmissionWhilePending(t *testing.T) {
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	address := listener.Addr().(*net.TCPAddr)
+	netClient := network.NewClient(20080910, false)
+	defer netClient.Close()
+	mode := NewLoginMode()
+	mode.username = "Kivutar"
+	mode.password = "wrong"
+	ctx := client.Context{
+		Network: netClient,
+		Session: &session.Session{},
+	}
+	connection := res.Connection{
+		Address: address.IP.String(),
+		Port:    address.Port,
+	}
+
+	mode.connectAndMaybeLogin(ctx, connection, false)
+	mode.connectAndMaybeLogin(ctx, connection, false)
+
+	tcpListener := listener.(*net.TCPListener)
+	if err := tcpListener.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	serverConn, err := listener.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer serverConn.Close()
+	if err := serverConn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.ReadFull(serverConn, make([]byte, 55)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := tcpListener.SetDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	secondConn, err := listener.Accept()
+	if err == nil {
+		secondConn.Close()
+		t.Fatal("repeated login submission opened a second connection")
+	}
+	if netErr, ok := err.(net.Error); !ok || !netErr.Timeout() {
+		t.Fatalf("second accept error = %v, want timeout", err)
+	}
+	if !mode.loginPending {
+		t.Fatal("login attempt is not marked pending")
+	}
+}
+
 func TestLoginClientTypeRejectsValuesOutsidePacketRange(t *testing.T) {
 	for _, langType := range []int{-1, 256} {
 		if got := loginClientType(langType); got != 0 {
