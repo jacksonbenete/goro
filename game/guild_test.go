@@ -49,6 +49,20 @@ func TestApplyLocalGuildDetailsInfersMasterFromSelectedCharacter(t *testing.T) {
 	}
 }
 
+func TestApplyLocalGuildMenuAccessRequiresMembership(t *testing.T) {
+	member := &session.Session{GuildID: 9}
+	applyLocalGuildMenuAccess(client.Context{Session: member}, network.GuildMenuAccess{Mask: 0xD7})
+	if member.Guild.MenuAccess != 0xD7 {
+		t.Fatalf("member menu access = 0x%X, want 0xD7", member.Guild.MenuAccess)
+	}
+
+	guildless := &session.Session{}
+	applyLocalGuildMenuAccess(client.Context{Session: guildless}, network.GuildMenuAccess{Mask: 0xD7})
+	if guildless.Guild.MenuAccess != 0 {
+		t.Fatalf("guildless menu access = 0x%X, want 0", guildless.Guild.MenuAccess)
+	}
+}
+
 func TestApplyLocalGuildDetailsClearsMasterWhenSelectedCharacterIsNotMaster(t *testing.T) {
 	s := &session.Session{
 		Selected: session.Character{Name: "Kivutar"},
@@ -76,9 +90,13 @@ func TestApplyLocalGuildBelongingStoresInviteRight(t *testing.T) {
 	if s.Guild.Right != guildPermissionInvite {
 		t.Fatalf("guild right = 0x%X, want invite right", s.Guild.Right)
 	}
+	s.Guild.MenuAccess = 0x57
 	applyLocalGuildDetails(client.Context{Session: s}, network.GuildInfo{GuildID: 1, GuildName: "Mandala"})
 	if s.Guild.Right != guildPermissionInvite {
 		t.Fatalf("guild details cleared invite right: 0x%X", s.Guild.Right)
+	}
+	if s.Guild.MenuAccess != 0x57 {
+		t.Fatalf("guild details cleared menu access: 0x%X", s.Guild.MenuAccess)
 	}
 }
 

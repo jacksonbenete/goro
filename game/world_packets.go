@@ -577,6 +577,13 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		m.ui.partySettings.Rebind(ctx)
 		return nil, false
 	}
+	if guildMenuAccess, ok, err := network.ParseGuildMenuAccess(pkt); err != nil {
+		glog.Errorf("parse guild menu access 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		applyLocalGuildMenuAccess(ctx, guildMenuAccess)
+		m.ui.guildWindow.Refresh(ctx)
+		return nil, false
+	}
 	if guildBelonging, ok, err := network.ParseGuildBelonging(pkt); err != nil {
 		glog.Errorf("parse guild belonging 0x%04X: %v", pkt.ID, err)
 	} else if ok {

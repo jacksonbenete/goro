@@ -277,7 +277,8 @@ email check.
 | `0x0147` | S->C | referenced | `0x0147` | `39` | `-` | packet.go, skill_packets.go |
 | `0x0149` | C->S | missing | `0x0149` | `9` | `clif_parse_GMReqNoChat` | - |
 | `0x014A` | S->C | referenced | `0x014a` | `6` | `-` | packet.go |
-| `0x014D` | C->S | referenced | `0x014d` | `2` | `clif_parse_GuildCheckMaster` | packet.go |
+| `0x014D` | C->S | implemented | `0x014d` | `2` | `clif_parse_GuildCheckMaster` | guild_packets.go |
+| `0x014E` | S->C | implemented | `HEADER_ZC_ACK_GUILD_MENUINTERFACE` | `6` | `-` | guild_packets.go, packet.go |
 | `0x014F` | C->S | referenced | `0x014f` | `6` | `clif_parse_GuildRequestInfo` | guild_packets.go, packet.go |
 | `0x0150` | S->C | referenced | `0x0150` | `110` | `-` | guild_packets.go, packet.go |
 | `0x0151` | C->S | referenced | `0x0151` | `6` | `clif_parse_GuildRequestEmblem` | guild_packets.go, packet.go |

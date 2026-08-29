@@ -203,7 +203,6 @@ func PacketLengths2008() LengthTable {
 		0x014A: 6,
 		0x014B: 27,
 		0x014C: -1,
-		0x014D: 2,
 		0x014E: 6,
 		0x0150: 110,
 		0x0152: -1,

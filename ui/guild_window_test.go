@@ -200,8 +200,9 @@ func TestPublishedGuildMemberTableRightClickOpensClassicLifecycleMenu(t *testing
 			AccountID: 10,
 			CharID:    11,
 			Guild: session.Guild{
-				Right:   guildMemberPermissionExpel,
-				Members: []session.GuildMember{member},
+				Right:      guildMemberPermissionExpel,
+				MenuAccess: 0x01,
+				Members:    []session.GuildMember{member},
 			},
 		},
 		UIManager: manager,
@@ -246,6 +247,44 @@ func TestGuildWindowSnapshotIncludesLocalRights(t *testing.T) {
 	s.Guild.Right = 0x10
 	if after := guildWindowSnapshot(s); after == before {
 		t.Fatal("guild rights change did not invalidate guild window snapshot")
+	}
+}
+
+func TestGuildWindowSnapshotIncludesMenuAccess(t *testing.T) {
+	s := &session.Session{Guild: session.Guild{MenuAccess: 0x57}}
+	before := guildWindowSnapshot(s)
+	s.Guild.MenuAccess = 0xD7
+	if after := guildWindowSnapshot(s); after == before {
+		t.Fatal("guild menu access change did not invalidate guild window snapshot")
+	}
+}
+
+func TestGuildWindowTabsUseServerAccessMask(t *testing.T) {
+	member := &session.Session{Guild: session.Guild{MenuAccess: 0x57}}
+	for _, tab := range []guildWindowTab{guildWindowTabInfo, guildWindowTabMembers, guildWindowTabPositions, guildWindowTabSkills, guildWindowTabHistory} {
+		if !guildWindowTabAllowed(member, tab) {
+			t.Fatalf("member access mask rejected tab %d", tab)
+		}
+	}
+	if guildWindowTabAllowed(member, guildWindowTabNotice) {
+		t.Fatal("member access mask allowed the notice tab")
+	}
+
+	master := &session.Session{Guild: session.Guild{MenuAccess: 0xD7}}
+	if !guildWindowTabAllowed(master, guildWindowTabNotice) {
+		t.Fatal("master access mask rejected the notice tab")
+	}
+}
+
+func TestGuildWindowReturnsToInfoWhenAccessRevokesCurrentTab(t *testing.T) {
+	ctx := Context{Session: &session.Session{Guild: session.Guild{MenuAccess: 0x57}}}
+	window := &GuildWindow{tab: guildWindowTabNotice}
+
+	if !window.ensureAuthorizedTab(ctx) {
+		t.Fatal("unauthorized tab was not changed")
+	}
+	if window.tab != guildWindowTabInfo {
+		t.Fatalf("guild tab = %d, want info", window.tab)
 	}
 }
 

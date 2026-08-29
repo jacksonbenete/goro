@@ -11,57 +11,59 @@ import (
 )
 
 const (
-	PacketCZReqMakeGuild         uint16 = 0x0165
-	PacketZCResultMakeGuild      uint16 = 0x0167
-	PacketCZReqJoinGuild         uint16 = 0x0168
-	PacketZCAckReqJoinGuild      uint16 = 0x0169
-	PacketZCReqJoinGuild         uint16 = 0x016A
-	PacketCZJoinGuild            uint16 = 0x016B
-	PacketCZGuildNotice          uint16 = 0x016E
-	PacketZCGuildInfo            uint16 = 0x0150
-	PacketZCGuildInfo2           uint16 = 0x01B6
-	PacketZCGuildMembers         uint16 = 0x0154
-	PacketCZReqChangeMember      uint16 = 0x0155
-	PacketZCAckChangeMember      uint16 = 0x0156
-	PacketCZReqOpenMember        uint16 = 0x0157
-	PacketZCAckOpenMember        uint16 = 0x0158
-	PacketCZReqLeaveGuild        uint16 = 0x0159
-	PacketZCAckLeaveGuild        uint16 = 0x015A
-	PacketCZReqExpelGuildMember  uint16 = 0x015B
-	PacketZCAckExpelGuildMember  uint16 = 0x015C
-	PacketCZReqDisbandGuild      uint16 = 0x015D
-	PacketZCAckDisbandGuild      uint16 = 0x015E
-	PacketZCGuildPositions       uint16 = 0x0160
-	PacketCZRegGuildPosInfo      uint16 = 0x0161
-	PacketZCGuildSkillInfo       uint16 = 0x0162
-	PacketZCGuildBanList         uint16 = 0x0163
-	PacketZCGuildPosNames        uint16 = 0x0166
-	PacketZCGuildNotice          uint16 = 0x016F
-	PacketZCAckGuildPosInfo      uint16 = 0x0174
-	PacketCZReqGuildMember       uint16 = 0x0175
-	PacketZCGuildMemberInfo      uint16 = 0x0176
-	PacketCZGuildMessage         uint16 = 0x017E
-	PacketZCGuildChat            uint16 = 0x017F
-	PacketZCUpdateGuildID        uint16 = 0x016C
-	PacketCZReqGuildMenu         uint16 = 0x014F
-	PacketCZReqGuildEmblem       uint16 = 0x0151
-	PacketZCGuildEmblem          uint16 = 0x0152
-	PacketCZRegGuildEmblem       uint16 = 0x0153
-	PacketZCChangeGuild          uint16 = 0x01B4
-	PacketZCGuildRelations       uint16 = 0x014C
-	PacketZCGuildMemberState     uint16 = 0x016D
-	PacketZCGuildMemberState2    uint16 = 0x01F2
-	PacketCZReqGuildAlliance     uint16 = 0x0170
-	PacketZCGuildAllianceRequest uint16 = 0x0171
-	PacketCZGuildAllianceReply   uint16 = 0x0172
-	PacketZCGuildAllianceResult  uint16 = 0x0173
-	PacketCZReqGuildHostility    uint16 = 0x0180
-	PacketZCGuildHostilityResult uint16 = 0x0181
-	PacketZCGuildMemberAdded     uint16 = 0x0182
-	PacketCZDeleteGuildRelation  uint16 = 0x0183
-	PacketZCGuildRelationDeleted uint16 = 0x0184
-	PacketZCGuildRelationAdded   uint16 = 0x0185
-	PacketZCGuildMemberLocation  uint16 = 0x01EB
+	PacketCZReqMakeGuild          uint16 = 0x0165
+	PacketZCResultMakeGuild       uint16 = 0x0167
+	PacketCZReqJoinGuild          uint16 = 0x0168
+	PacketZCAckReqJoinGuild       uint16 = 0x0169
+	PacketZCReqJoinGuild          uint16 = 0x016A
+	PacketCZJoinGuild             uint16 = 0x016B
+	PacketCZGuildNotice           uint16 = 0x016E
+	PacketZCGuildInfo             uint16 = 0x0150
+	PacketZCGuildInfo2            uint16 = 0x01B6
+	PacketZCGuildMembers          uint16 = 0x0154
+	PacketCZReqChangeMember       uint16 = 0x0155
+	PacketZCAckChangeMember       uint16 = 0x0156
+	PacketCZReqOpenMember         uint16 = 0x0157
+	PacketZCAckOpenMember         uint16 = 0x0158
+	PacketCZReqLeaveGuild         uint16 = 0x0159
+	PacketZCAckLeaveGuild         uint16 = 0x015A
+	PacketCZReqExpelGuildMember   uint16 = 0x015B
+	PacketZCAckExpelGuildMember   uint16 = 0x015C
+	PacketCZReqDisbandGuild       uint16 = 0x015D
+	PacketZCAckDisbandGuild       uint16 = 0x015E
+	PacketZCGuildPositions        uint16 = 0x0160
+	PacketCZRegGuildPosInfo       uint16 = 0x0161
+	PacketZCGuildSkillInfo        uint16 = 0x0162
+	PacketZCGuildBanList          uint16 = 0x0163
+	PacketZCGuildPosNames         uint16 = 0x0166
+	PacketZCGuildNotice           uint16 = 0x016F
+	PacketZCAckGuildPosInfo       uint16 = 0x0174
+	PacketCZReqGuildMember        uint16 = 0x0175
+	PacketZCGuildMemberInfo       uint16 = 0x0176
+	PacketCZGuildMessage          uint16 = 0x017E
+	PacketZCGuildChat             uint16 = 0x017F
+	PacketZCUpdateGuildID         uint16 = 0x016C
+	PacketCZReqGuildMenuInterface uint16 = 0x014D
+	PacketZCAckGuildMenuInterface uint16 = 0x014E
+	PacketCZReqGuildMenu          uint16 = 0x014F
+	PacketCZReqGuildEmblem        uint16 = 0x0151
+	PacketZCGuildEmblem           uint16 = 0x0152
+	PacketCZRegGuildEmblem        uint16 = 0x0153
+	PacketZCChangeGuild           uint16 = 0x01B4
+	PacketZCGuildRelations        uint16 = 0x014C
+	PacketZCGuildMemberState      uint16 = 0x016D
+	PacketZCGuildMemberState2     uint16 = 0x01F2
+	PacketCZReqGuildAlliance      uint16 = 0x0170
+	PacketZCGuildAllianceRequest  uint16 = 0x0171
+	PacketCZGuildAllianceReply    uint16 = 0x0172
+	PacketZCGuildAllianceResult   uint16 = 0x0173
+	PacketCZReqGuildHostility     uint16 = 0x0180
+	PacketZCGuildHostilityResult  uint16 = 0x0181
+	PacketZCGuildMemberAdded      uint16 = 0x0182
+	PacketCZDeleteGuildRelation   uint16 = 0x0183
+	PacketZCGuildRelationDeleted  uint16 = 0x0184
+	PacketZCGuildRelationAdded    uint16 = 0x0185
+	PacketZCGuildMemberLocation   uint16 = 0x01EB
 )
 
 const (
@@ -73,6 +75,10 @@ const (
 
 type GuildCreationResult struct {
 	Result uint8
+}
+
+type GuildMenuAccess struct {
+	Mask uint32
 }
 
 type GuildInviteAck struct {
@@ -643,6 +649,16 @@ func ParseGuildBelonging(packet Packet) (GuildBelonging, bool, error) {
 	}, true, nil
 }
 
+func ParseGuildMenuAccess(packet Packet) (GuildMenuAccess, bool, error) {
+	if packet.ID != PacketZCAckGuildMenuInterface {
+		return GuildMenuAccess{}, false, nil
+	}
+	if len(packet.Data) < 6 {
+		return GuildMenuAccess{}, true, fmt.Errorf("ZC_ACK_GUILD_MENUINTERFACE too short: %d", len(packet.Data))
+	}
+	return GuildMenuAccess{Mask: binary.LittleEndian.Uint32(packet.Data[2:6])}, true, nil
+}
+
 func ParseGuildCreationResult(packet Packet) (GuildCreationResult, bool, error) {
 	if packet.ID != PacketZCResultMakeGuild {
 		return GuildCreationResult{}, false, nil
@@ -832,6 +848,12 @@ func BuildGuildEmblemRequestPacket(guildID uint32) []byte {
 	packet := make([]byte, 6)
 	binary.LittleEndian.PutUint16(packet[0:2], PacketCZReqGuildEmblem)
 	binary.LittleEndian.PutUint32(packet[2:6], guildID)
+	return packet
+}
+
+func BuildGuildMenuInterfaceRequestPacket() []byte {
+	packet := make([]byte, 2)
+	binary.LittleEndian.PutUint16(packet, PacketCZReqGuildMenuInterface)
 	return packet
 }
 
@@ -1026,6 +1048,17 @@ func (c *Client) SendGuildEmblemRequest(guildID uint32) error {
 		glog.Debugf("sent CZ_REQ_GUILD_EMBLEM_IMG opcode=0x%04X guild_id=%d client_date=%d", ID(packet), guildID, c.clientDate)
 	} else {
 		glog.Warnf("send CZ_REQ_GUILD_EMBLEM_IMG failed opcode=0x%04X len=%d guild_id=%d client_date=%d: %v", ID(packet), len(packet), guildID, c.clientDate, err)
+	}
+	return err
+}
+
+func (c *Client) SendGuildMenuInterfaceRequest() error {
+	packet := BuildGuildMenuInterfaceRequestPacket()
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_REQ_GUILD_MENUINTERFACE opcode=0x%04X client_date=%d", ID(packet), c.clientDate)
+	} else {
+		glog.Warnf("send CZ_REQ_GUILD_MENUINTERFACE failed opcode=0x%04X client_date=%d: %v", ID(packet), c.clientDate, err)
 	}
 	return err
 }

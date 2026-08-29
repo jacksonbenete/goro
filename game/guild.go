@@ -470,11 +470,19 @@ func applyLocalGuildBelonging(ctx client.Context, belonging network.GuildBelongi
 	}
 }
 
+func applyLocalGuildMenuAccess(ctx client.Context, access network.GuildMenuAccess) {
+	if ctx.Session == nil || localGuildIDFromSession(ctx.Session) == 0 {
+		return
+	}
+	ctx.Session.Guild.MenuAccess = access.Mask
+}
+
 func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 	applyLocalGuildInfo(ctx, info.GuildID, info.EmblemVersion, info.GuildName)
 	if ctx.Session != nil {
 		isMaster := ctx.Session.Guild.IsMaster
 		right := ctx.Session.Guild.Right
+		menuAccess := ctx.Session.Guild.MenuAccess
 		masterName := strings.TrimSpace(info.MasterName)
 		if selectedName := strings.TrimSpace(ctx.Session.Selected.Name); selectedName != "" && masterName != "" {
 			isMaster = selectedName == masterName
@@ -491,6 +499,7 @@ func applyLocalGuildDetails(ctx client.Context, info network.GuildInfo) {
 			ID:               info.GuildID,
 			IsMaster:         isMaster,
 			Right:            right,
+			MenuAccess:       menuAccess,
 			Level:            info.Level,
 			UserNum:          info.UserNum,
 			MaxUserNum:       info.MaxUserNum,

@@ -5,6 +5,7 @@ import (
 
 	"github.com/kivutar/goro/client"
 	"github.com/kivutar/goro/input"
+	"github.com/kivutar/goro/session"
 )
 
 func TestAltLTogglesEmoteWindow(t *testing.T) {
@@ -26,6 +27,26 @@ func TestAltLTogglesEmoteWindow(t *testing.T) {
 	}
 }
 
+func TestAltGDoesNotOpenGuildWindowWithoutGuild(t *testing.T) {
+	inputState := input.NewState()
+	inputState.SetKey(input.KeyAlt, true)
+	inputState.SetKey(input.KeyG, true)
+	mode := &WorldMode{}
+	ctx := client.Context{
+		Input:   inputState,
+		Session: &session.Session{},
+		ScreenW: 800,
+		ScreenH: 600,
+	}
+
+	if !mode.toggleGuildWindowFromInput(ctx) {
+		t.Fatal("Alt+G was not consumed")
+	}
+	if mode.ui.guildWindow.IsOpen() {
+		t.Fatal("guild window opened for a guildless character")
+	}
+}
+
 func TestAltGTogglesGuildWindow(t *testing.T) {
 	inputState := input.NewState()
 	inputState.SetKey(input.KeyAlt, true)
@@ -33,6 +54,7 @@ func TestAltGTogglesGuildWindow(t *testing.T) {
 	mode := &WorldMode{}
 	ctx := client.Context{
 		Input:   inputState,
+		Session: &session.Session{GuildID: 1},
 		ScreenW: 800,
 		ScreenH: 600,
 	}
@@ -51,6 +73,7 @@ func TestAltGTogglesGuildWindowDuringChatInput(t *testing.T) {
 	activateInput.SetKey(input.KeyEnter, true)
 	activateCtx := client.Context{
 		Input:   activateInput,
+		Session: &session.Session{GuildID: 1},
 		ScreenW: 800,
 		ScreenH: 600,
 	}
@@ -63,6 +86,7 @@ func TestAltGTogglesGuildWindowDuringChatInput(t *testing.T) {
 	inputState.SetKey(input.KeyG, true)
 	ctx := client.Context{
 		Input:   inputState,
+		Session: &session.Session{GuildID: 1},
 		ScreenW: 800,
 		ScreenH: 600,
 	}

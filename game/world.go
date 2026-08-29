@@ -1193,11 +1193,18 @@ func (m *WorldMode) discardConsoleShortcutText(ctx client.Context) {
 }
 
 func (m *WorldMode) toggleGuildWindow(ctx client.Context) {
+	if localGuildIDFromSession(ctx.Session) == 0 {
+		return
+	}
 	wasOpen := m.ui.guildWindow.IsOpen()
 	m.setGuildEmblemOptions(ctx)
 	m.ui.guildWindow.Toggle(ctx)
 	if wasOpen || !m.ui.guildWindow.IsOpen() || ctx.Network == nil {
 		return
+	}
+	if err := ctx.Network.SendGuildMenuInterfaceRequest(); err != nil {
+		m.ui.console.AddErrorMessage("Guild access request failed.")
+		glog.Warnf("guild menu access request failed: %v", err)
 	}
 	m.requestGuildWindowTab(ctx, 0)
 }

@@ -7,6 +7,11 @@ import (
 )
 
 func TestBuildGuildPackets(t *testing.T) {
+	menuInterface := BuildGuildMenuInterfaceRequestPacket()
+	if len(menuInterface) != 2 || ID(menuInterface) != PacketCZReqGuildMenuInterface {
+		t.Fatalf("BuildGuildMenuInterfaceRequestPacket len=%d id=0x%04x", len(menuInterface), ID(menuInterface))
+	}
+
 	create := BuildCreateGuildPacket(0x01020304, "Knights")
 	if len(create) != 30 || ID(create) != PacketCZReqMakeGuild {
 		t.Fatalf("BuildCreateGuildPacket len=%d id=0x%04x", len(create), ID(create))
@@ -161,6 +166,17 @@ func TestParseGuildChat(t *testing.T) {
 }
 
 func TestParseGuildPackets(t *testing.T) {
+	menuAccessData := make([]byte, 6)
+	binary.LittleEndian.PutUint16(menuAccessData[0:2], PacketZCAckGuildMenuInterface)
+	binary.LittleEndian.PutUint32(menuAccessData[2:6], 0xD7)
+	menuAccess, ok, err := ParseGuildMenuAccess(Packet{ID: PacketZCAckGuildMenuInterface, Data: menuAccessData})
+	if !ok || err != nil || menuAccess.Mask != 0xD7 {
+		t.Fatalf("ParseGuildMenuAccess ok=%t err=%v access=%+v", ok, err, menuAccess)
+	}
+	if _, ok, err := ParseGuildMenuAccess(Packet{ID: PacketZCAckGuildMenuInterface, Data: menuAccessData[:5]}); !ok || err == nil {
+		t.Fatalf("short guild menu access ok=%t err=%v", ok, err)
+	}
+
 	info := make([]byte, 110)
 	binary.LittleEndian.PutUint16(info[0:2], PacketZCGuildInfo)
 	binary.LittleEndian.PutUint32(info[2:6], 0x01020304)
@@ -380,34 +396,35 @@ func TestParseGuildPackets(t *testing.T) {
 
 func TestGuildPacketDirections(t *testing.T) {
 	lengths := PacketLengths2008()
-	for _, id := range []uint16{PacketCZReqMakeGuild, PacketCZReqJoinGuild, PacketCZJoinGuild, PacketCZReqGuildMenu, PacketCZReqChangeMember, PacketCZReqOpenMember, PacketCZReqLeaveGuild, PacketCZReqExpelGuildMember, PacketCZReqDisbandGuild, PacketCZRegGuildPosInfo, PacketCZGuildNotice, PacketCZReqGuildMember, PacketCZGuildMessage, PacketCZReqGuildEmblem, PacketCZRegGuildEmblem} {
+	for _, id := range []uint16{PacketCZReqMakeGuild, PacketCZReqJoinGuild, PacketCZJoinGuild, PacketCZReqGuildMenuInterface, PacketCZReqGuildMenu, PacketCZReqChangeMember, PacketCZReqOpenMember, PacketCZReqLeaveGuild, PacketCZReqExpelGuildMember, PacketCZReqDisbandGuild, PacketCZRegGuildPosInfo, PacketCZGuildNotice, PacketCZReqGuildMember, PacketCZGuildMessage, PacketCZReqGuildEmblem, PacketCZRegGuildEmblem} {
 		if _, ok := lengths[id]; ok {
 			t.Fatalf("0x%04X is client-to-server and must not be in the receive framer", id)
 		}
 	}
 	for id, want := range map[uint16]int{
-		PacketZCGuildInfo:           110,
-		PacketZCGuildInfo2:          114,
-		PacketZCResultMakeGuild:     3,
-		PacketZCAckReqJoinGuild:     3,
-		PacketZCReqJoinGuild:        30,
-		PacketZCGuildMembers:        -1,
-		PacketZCAckChangeMember:     -1,
-		PacketZCAckOpenMember:       2,
-		PacketZCAckLeaveGuild:       66,
-		PacketZCAckExpelGuildMember: 90,
-		PacketZCAckDisbandGuild:     6,
-		PacketZCGuildPositions:      -1,
-		PacketZCGuildSkillInfo:      -1,
-		PacketZCGuildBanList:        -1,
-		PacketZCGuildPosNames:       -1,
-		PacketZCGuildNotice:         182,
-		PacketZCUpdateGuildID:       43,
-		PacketZCAckGuildPosInfo:     -1,
-		PacketZCGuildMemberInfo:     106,
-		PacketZCGuildChat:           -1,
-		PacketZCGuildEmblem:         -1,
-		PacketZCChangeGuild:         12,
+		PacketZCAckGuildMenuInterface: 6,
+		PacketZCGuildInfo:             110,
+		PacketZCGuildInfo2:            114,
+		PacketZCResultMakeGuild:       3,
+		PacketZCAckReqJoinGuild:       3,
+		PacketZCReqJoinGuild:          30,
+		PacketZCGuildMembers:          -1,
+		PacketZCAckChangeMember:       -1,
+		PacketZCAckOpenMember:         2,
+		PacketZCAckLeaveGuild:         66,
+		PacketZCAckExpelGuildMember:   90,
+		PacketZCAckDisbandGuild:       6,
+		PacketZCGuildPositions:        -1,
+		PacketZCGuildSkillInfo:        -1,
+		PacketZCGuildBanList:          -1,
+		PacketZCGuildPosNames:         -1,
+		PacketZCGuildNotice:           182,
+		PacketZCUpdateGuildID:         43,
+		PacketZCAckGuildPosInfo:       -1,
+		PacketZCGuildMemberInfo:       106,
+		PacketZCGuildChat:             -1,
+		PacketZCGuildEmblem:           -1,
+		PacketZCChangeGuild:           12,
 	} {
 		if got := lengths[id]; got != want {
 			t.Fatalf("0x%04X receive length = %d, want %d", id, got, want)

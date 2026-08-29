@@ -40,6 +40,12 @@ const (
 	guildNoticeFieldH    = 24
 	guildNoticeSubjectN  = 59
 	guildNoticeBodyN     = 119
+
+	guildMenuAccessMembers   uint32 = 0x01
+	guildMenuAccessPositions uint32 = 0x02
+	guildMenuAccessSkills    uint32 = 0x04
+	guildMenuAccessHistory   uint32 = 0x10
+	guildMenuAccessNotice    uint32 = 0x80
 )
 
 type GuildWindow struct {
@@ -166,6 +172,7 @@ func (w *GuildWindow) OpenWindow(ctx Context) {
 	if w.tab == 0 {
 		w.tab = guildWindowTabInfo
 	}
+	w.ensureAuthorizedTab(ctx)
 	w.snapshot = guildWindowSnapshot(ctx.Session)
 	w.Open(ctx, w.widgetTree(ctx))
 	w.Publish(ctx)
@@ -200,8 +207,9 @@ func (w *GuildWindow) Update(ctx Context, shortcuts *ShortcutBar, actions GameAc
 	if w.UpdateDrag(ctx, shortcuts) {
 		return true
 	}
+	tabChanged := w.ensureAuthorizedTab(ctx)
 	nextSnapshot := guildWindowSnapshot(ctx.Session)
-	if nextSnapshot != w.snapshot {
+	if tabChanged || nextSnapshot != w.snapshot {
 		w.snapshot = nextSnapshot
 		w.SetContent(w.widgetTree(ctx))
 	}
@@ -266,6 +274,7 @@ func (w *GuildWindow) Rebind(ctx Context) {
 		return
 	}
 	w.ctx = ctx
+	w.ensureAuthorizedTab(ctx)
 	w.snapshot = guildWindowSnapshot(ctx.Session)
 	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
@@ -287,7 +296,7 @@ func (w *GuildWindow) widgetTree(ctx Context) widget.Widget {
 
 func (w *GuildWindow) tabFrame(ctx Context) widget.Widget {
 	return primitives.Box(
-		w.tabStrip(),
+		w.tabStrip(ctx),
 		primitives.Expanded(
 			primitives.Box(w.tabContent(ctx)).
 				Background(rotheme.Default.Colors.WindowBody).
@@ -299,17 +308,22 @@ func (w *GuildWindow) tabFrame(ctx Context) widget.Widget {
 		CrossAlign(primitives.CrossAxisStretch)
 }
 
-func (w *GuildWindow) tabStrip() widget.Widget {
+func (w *GuildWindow) tabStrip(ctx Context) widget.Widget {
 	tabs := make([]widget.Widget, 0, len(guildWindowTabs)+1)
 	for _, def := range guildWindowTabs {
 		def := def
+		disabled := !guildWindowTabAllowed(ctx.Session, def.tab)
 		tabs = append(tabs,
 			newTabWidget(tabWidgetConfig{
-				label:  def.label,
-				active: w.tab == def.tab,
-				width:  guildWindowTabWidth,
-				height: guildWindowTabHeight,
+				label:    def.label,
+				active:   w.tab == def.tab,
+				disabled: disabled,
+				width:    guildWindowTabWidth,
+				height:   guildWindowTabHeight,
 				onClick: func() {
+					if !guildWindowTabAllowed(w.ctx.Session, def.tab) {
+						return
+					}
 					w.tab = def.tab
 					w.hideTooltip()
 					if menuTab, ok := guildWindowMenuRequestTab(def.tab); ok {
@@ -327,6 +341,37 @@ func (w *GuildWindow) tabStrip() widget.Widget {
 		Gap(-1).
 		CrossAlign(primitives.CrossAxisStretch).
 		Background(rotheme.Default.Colors.FooterLine)
+}
+
+func guildWindowTabAccessBit(tab guildWindowTab) uint32 {
+	switch tab {
+	case guildWindowTabMembers:
+		return guildMenuAccessMembers
+	case guildWindowTabPositions:
+		return guildMenuAccessPositions
+	case guildWindowTabSkills:
+		return guildMenuAccessSkills
+	case guildWindowTabHistory:
+		return guildMenuAccessHistory
+	case guildWindowTabNotice:
+		return guildMenuAccessNotice
+	default:
+		return 0
+	}
+}
+
+func guildWindowTabAllowed(s *session.Session, tab guildWindowTab) bool {
+	bit := guildWindowTabAccessBit(tab)
+	return bit == 0 || s != nil && s.Guild.MenuAccess&bit != 0
+}
+
+func (w *GuildWindow) ensureAuthorizedTab(ctx Context) bool {
+	if guildWindowTabAllowed(ctx.Session, w.tab) {
+		return false
+	}
+	w.tab = guildWindowTabInfo
+	w.hideTooltip()
+	return true
 }
 
 func guildWindowMenuRequestTab(tab guildWindowTab) (uint32, bool) {
@@ -1600,6 +1645,7 @@ func guildWindowPlaceholder(text string) widget.Widget {
 }
 
 func (w *GuildWindow) refresh(ctx Context) {
+	w.ensureAuthorizedTab(ctx)
 	w.snapshot = guildWindowSnapshot(ctx.Session)
 	w.SetContent(w.widgetTree(ctx))
 	w.Publish(ctx)
@@ -1663,12 +1709,13 @@ func guildWindowSnapshot(s *session.Session) string {
 	for _, relation := range s.Guild.Relations {
 		fmt.Fprintf(&relationSnapshot, "|%d:%d:%s", relation.Relation, relation.GuildID, relation.Name)
 	}
-	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d|%s|%s%s%s%s%s%s",
+	return fmt.Sprintf("%d|%d|%s|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%d|%s|%s|%s|%d|%d|%s|%s%s%s%s%s%s",
 		s.GuildID,
 		s.EmblemVersion,
 		s.GuildName,
 		boolSnapshot(s.Guild.IsMaster),
 		s.Guild.Right,
+		s.Guild.MenuAccess,
 		s.Guild.Level,
 		s.Guild.UserNum,
 		s.Guild.MaxUserNum,
