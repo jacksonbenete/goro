@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	guildPermissionExpel uint32 = 0x10
-	guildReasonMaxLength        = 39
+	guildPermissionExpel = 0x10
+	guildReasonMaxLength = 39
 )
 
 func (m *WorldMode) openGuildMemberPrompt(ctx client.Context, action gameui.GuildMemberAction) {
