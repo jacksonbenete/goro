@@ -19,40 +19,44 @@ import (
 )
 
 type LoginMode struct {
-	selected          int
-	phase             loginPhase
-	status            string
-	packets           []string
-	console           gameui.ChatConsole
-	autoAttempted     bool
-	autoCharAttempted bool
-	fade              loginFadeState
-	username          string
-	password          string
-	background        *render.Image
-	bgTiles           []*render.Image
-	bgSource          string
-	bgLoaded          bool
-	bgmStarted        bool
-	selectedSlot      int
-	maxSlots          int
-	charViews         map[uint32]*humanoidSpriteView
-	charViewFailed    map[uint32]struct{}
-	charPreviewImages map[uint32]image.Image
-	charWindow        *render.Image
-	charBox           *render.Image
-	loginWindow       *gameui.LoginWindow
-	charSelectWindow  *gameui.CharacterSelectWindow
-	charCreateWindow  *gameui.CharacterCreateWindow
-	charDeleteConfirm gameui.ConfirmModal
-	charDeletePrompt  gameui.TextPromptWindow
-	deleteCharID      uint32
-	charPingActive    bool
-	nextCharPing      time.Time
-	create            charCreateState
-	cursor            roCursorState
-	quitConfirm       gameui.ConfirmModal
-	disconnectDialog  gameui.ConfirmModal
+	selectedLoginServer int
+	phase               loginPhase
+	status              string
+	packets             []string
+	console             gameui.ChatConsole
+	autoAttempted       bool
+	autoCharAttempted   bool
+	fade                loginFadeState
+	username            string
+	password            string
+	background          *render.Image
+	bgTiles             []*render.Image
+	bgSource            string
+	bgLoaded            bool
+	bgmStarted          bool
+	selectedSlot        int
+	maxSlots            int
+	charViews           map[uint32]*humanoidSpriteView
+	charViewFailed      map[uint32]struct{}
+	charPreviewImages   map[uint32]image.Image
+	charWindow          *render.Image
+	charBox             *render.Image
+	accountStep         loginAccountStep
+	serviceWindow       *gameui.ServiceWindow
+	loginWindow         *gameui.LoginWindow
+	charSelectWindow    *gameui.CharacterSelectWindow
+	charCreateWindow    *gameui.CharacterCreateWindow
+	charDeleteConfirm   gameui.ConfirmModal
+	charDeletePrompt    gameui.TextPromptWindow
+	deleteCharID        uint32
+	loginPingActive     bool
+	nextLoginPing       time.Time
+	charPingActive      bool
+	nextCharPing        time.Time
+	create              charCreateState
+	cursor              roCursorState
+	quitConfirm         gameui.ConfirmModal
+	disconnectDialog    gameui.ConfirmModal
 }
 
 type loginPhase int
@@ -61,6 +65,15 @@ const (
 	loginPhaseAccount loginPhase = iota
 	loginPhaseCharacter
 	loginPhaseCreate
+)
+
+type loginAccountStep int
+
+const (
+	loginAccountConnection loginAccountStep = iota
+	loginAccountCredentials
+	loginAccountCharacterService
+	loginAccountCharacterConnecting
 )
 
 type loginFadePhase int
@@ -84,6 +97,7 @@ type loginFadeState struct {
 const loginTransitionDuration = 500 * time.Millisecond
 const loginWorldHandoffFrames = 1
 const loginConfirmSFX = "버튼소리.wav"
+const loginServerPingInterval = 10 * time.Second
 const charServerPingInterval = 10 * time.Second
 
 func NewLoginMode() *LoginMode {
@@ -153,7 +167,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		} else if m.phase == loginPhaseCharacter {
 			m.updateCharacterSelectInput(ctx)
 		} else {
-			m.updateFormInput(ctx)
+			m.updateAccountInput(ctx)
 		}
 
 	}
@@ -161,6 +175,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 		m.showCharacterSelectWindow(ctx)
 	}
 
+	m.maybeSendLoginServerPing(ctx, now)
 	m.maybeSendCharServerPing(ctx, now)
 
 	if len(conns) == 0 {
@@ -169,7 +184,9 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 
 	if ctx.Config.Login.AutoLogin && !m.autoAttempted {
 		m.autoAttempted = true
-		m.connectAndMaybeLogin(ctx, conns[m.selected], false)
+		if conn, ok := m.selectedLoginConnection(ctx); ok {
+			m.connectAndMaybeLogin(ctx, conn, false)
+		}
 	}
 
 	for _, pkt := range ctx.Network.DrainPackets() {
@@ -228,19 +245,7 @@ func (m *LoginMode) Update(ctx client.Context) (Mode, error) {
 			if err != nil {
 				m.packets = append(m.packets, "parse AC_ACCEPT_LOGIN: "+err.Error())
 			} else {
-				ctx.Session.AccountID = login.AccountID
-				ctx.Session.AuthCode = login.AuthCode
-				ctx.Session.UserLevel = login.UserLevel
-				ctx.Session.Sex = login.Sex
-				ctx.Session.CharServers = convertCharServers(login.CharServer)
-				m.status = fmt.Sprintf("account accepted: aid=%d char_servers=%d", login.AccountID, len(login.CharServer))
-				glog.Infof("account accepted aid=%d sex=%d admin=%t char_servers=%d", login.AccountID, login.Sex, ctx.Session.IsAdminID(login.AccountID), len(login.CharServer))
-				for _, server := range login.CharServer {
-					m.packets = append(m.packets, fmt.Sprintf("char %s %s:%d users=%d", server.Name, server.Address, server.Port, server.UserCount))
-				}
-				if len(login.CharServer) > 0 {
-					m.connectCharServer(ctx, login.CharServer[0])
-				}
+				m.applyAccountAcceptLogin(ctx, login)
 			}
 		}
 		if pkt.ID == 0x006B {
@@ -579,14 +584,22 @@ func (m *LoginMode) updatePhaseEscape(ctx client.Context, now time.Time) bool {
 	case loginPhaseCreate:
 		m.cancelCharacterCreate(now)
 	case loginPhaseCharacter:
+		m.accountStep = loginAccountCredentials
 		m.startPhaseFade(loginPhaseAccount, now)
 		if ctx.Network != nil {
 			ctx.Network.Close()
 		}
 		m.status = "char select cancelled"
 	case loginPhaseAccount:
-		m.updateLoginWindow(ctx)
-		m.openQuitConfirm(ctx)
+		switch {
+		case m.accountStep == loginAccountCharacterService || m.accountStep == loginAccountCharacterConnecting:
+			m.cancelCharacterServiceSelection(ctx)
+		case m.accountStep == loginAccountCredentials && len(loginConnections(ctx)) > 1 && !ctx.Config.Login.AutoLogin:
+			m.showLoginServerSelection(ctx)
+		default:
+			m.updateAccountWindow(ctx)
+			m.openQuitConfirm(ctx)
+		}
 	}
 	return true
 }
@@ -671,13 +684,14 @@ func (m *LoginMode) publishPhaseWindow(ctx client.Context) {
 	case loginPhaseCharacter:
 		m.showCharacterSelectWindow(ctx)
 	case loginPhaseAccount:
-		m.updateLoginWindow(ctx)
+		m.updateAccountWindow(ctx)
 	case loginPhaseCreate:
 		m.showCharacterCreateWindow(ctx)
 	}
 }
 
 func (m *LoginMode) clearLoginWindows(ctx client.Context) {
+	m.serviceWindow = nil
 	m.loginWindow = nil
 	m.charSelectWindow = nil
 	m.charCreateWindow = nil
@@ -918,6 +932,7 @@ func uniqueLoginStrings(values []string) []string {
 }
 
 func (m *LoginMode) connectAndMaybeLogin(ctx client.Context, conn res.Connection, userConfirmed bool) {
+	m.disableLoginServerPing()
 	m.disableCharServerPing()
 	if ctx.Session != nil {
 		ctx.Session.AdminList = append([]uint32(nil), conn.AdminList...)
@@ -959,6 +974,37 @@ func (m *LoginMode) enableCharServerPing(now time.Time) {
 	m.nextCharPing = now.Add(charServerPingInterval)
 }
 
+func (m *LoginMode) enableLoginServerPing(now time.Time) {
+	m.loginPingActive = true
+	m.nextLoginPing = now.Add(loginServerPingInterval)
+}
+
+func (m *LoginMode) disableLoginServerPing() {
+	m.loginPingActive = false
+	m.nextLoginPing = time.Time{}
+}
+
+func (m *LoginMode) maybeSendLoginServerPing(ctx client.Context, now time.Time) {
+	if !m.loginPingActive || m.disconnectDialog.IsOpen() || m.accountStep != loginAccountCharacterService {
+		return
+	}
+	if ctx.Network == nil || strings.TrimSpace(m.username) == "" {
+		return
+	}
+	if m.nextLoginPing.IsZero() {
+		m.nextLoginPing = now.Add(loginServerPingInterval)
+		return
+	}
+	if now.Before(m.nextLoginPing) {
+		return
+	}
+	m.nextLoginPing = now.Add(loginServerPingInterval)
+	if err := ctx.Network.SendLoginServerKeepalive(m.username); err != nil {
+		m.disableLoginServerPing()
+		glog.Warnf("login server keepalive failed user=%s: %v", m.username, err)
+	}
+}
+
 func (m *LoginMode) disableCharServerPing() {
 	m.charPingActive = false
 	m.nextCharPing = time.Time{}
@@ -989,24 +1035,30 @@ func (m *LoginMode) maybeSendCharServerPing(ctx client.Context, now time.Time) {
 	}
 }
 
-func (m *LoginMode) connectCharServer(ctx client.Context, server network.CharServer) {
+func (m *LoginMode) connectCharServer(ctx client.Context, server network.CharServer) bool {
+	m.disableLoginServerPing()
 	m.disableCharServerPing()
+	if ctx.Network == nil {
+		m.status = "char connect failed: not connected"
+		return false
+	}
 	dialCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	err := ctx.Network.Connect(dialCtx, server.Address, int(server.Port))
 	cancel()
 	if err != nil {
 		m.status = "char connect failed: " + err.Error()
 		openConnectionFailedDialog(ctx, &m.disconnectDialog)
-		return
+		return false
 	}
 
 	err = ctx.Network.SendCharServerEnter(ctx.Session.AccountID, ctx.Session.AuthCode, ctx.Session.UserLevel, ctx.Session.Sex)
 	if err != nil {
 		m.status = "CA_ENTER failed: " + err.Error()
-		return
+		return false
 	}
 	m.status = "CA_ENTER sent to char server"
 	glog.Debugf("sent CA_ENTER account_id=%d addr=%s port=%d", ctx.Session.AccountID, server.Address, server.Port)
+	return true
 }
 
 func (m *LoginMode) connectMapServer(ctx client.Context, zone network.ZoneServerNotify) {

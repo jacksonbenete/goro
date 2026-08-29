@@ -39,6 +39,19 @@ func TestBuildCharServerEnterPacket(t *testing.T) {
 	}
 }
 
+func TestBuildLoginServerKeepalivePacket(t *testing.T) {
+	packet := BuildLoginServerKeepalivePacket("Kivutar")
+	if len(packet) != 26 {
+		t.Fatalf("packet length = %d, want 26", len(packet))
+	}
+	if binary.LittleEndian.Uint16(packet[:2]) != PacketCAConnectInfoChanged {
+		t.Fatalf("opcode = 0x%04X", binary.LittleEndian.Uint16(packet[:2]))
+	}
+	if got := string(packet[2:9]); got != "Kivutar" {
+		t.Fatalf("username = %q, want Kivutar", got)
+	}
+}
+
 func TestBuildSelectCharacterPacket(t *testing.T) {
 	packet := BuildSelectCharacterPacket(2)
 	if len(packet) != 3 {

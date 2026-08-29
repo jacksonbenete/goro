@@ -28,6 +28,7 @@ type Session struct {
 	SnapItems            bool
 	AttackRange          int
 	CharServers          []CharServer
+	CharServerIndex      int
 	Characters           []Character
 	Selected             Character
 	Zone                 ZoneServer

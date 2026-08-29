@@ -143,6 +143,10 @@ func (c *Client) SendCharServerEnter(accountID, authCode, userLevel uint32, sex 
 	return c.Send(packet)
 }
 
+func (c *Client) SendLoginServerKeepalive(username string) error {
+	return c.Send(BuildLoginServerKeepalivePacket(username))
+}
+
 func (c *Client) SendSelectCharacter(slot uint8) error {
 	return c.Send(BuildSelectCharacterPacket(slot))
 }
