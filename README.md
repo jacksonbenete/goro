@@ -144,11 +144,7 @@ Currently implemented (not a claim of complete reference-client parity):
  * Battle and Gameplay
    * Enemies
    * Classic PvP map targeting and rank counter
-   * War of Emperium (2008 FE/SE client behavior)
-     * Legacy GvG targeting for characters and homunculi
-     * Guild alliance and opposition management
-     * Siege announcements and guild-member minimap markers
-     * Overhead guild emblems, hidden player names, and hidden combat damage
+   * [War of Emperium (2008 FE/SE client behavior)](docs/woe-20080910.md)
    * Path finding
    * Continuous held-click walking
    * Drops

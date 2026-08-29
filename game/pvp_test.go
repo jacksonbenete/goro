@@ -93,24 +93,41 @@ func TestWoETargetingUsesGuildRelationship(t *testing.T) {
 	}
 }
 
-func TestWoETargetingIncludesEnemyHomunculi(t *testing.T) {
+func TestWoETargetingIncludesEnemyCompanions(t *testing.T) {
 	world := worldstate.New()
 	world.MapProperty = worldstate.MapPropertyAgitZone
 	ctx := client.Context{
 		Session: &session.Session{
 			Guild:      session.Guild{ID: 10},
 			Homunculus: session.Companion{ID: 400},
+			Mercenary:  session.Companion{ID: 500},
 		},
 		World: world,
 	}
-	enemy := worldstate.Actor{ID: 401, GuildID: 20, ObjectType: actorObjectTypeHomunculus, HasObjectType: true}
-	own := worldstate.Actor{ID: 400, GuildID: 10, ObjectType: actorObjectTypeHomunculus, HasObjectType: true}
+	for _, tc := range []struct {
+		name       string
+		objectType byte
+		ownID      uint32
+		enemyID    uint32
+	}{
+		{name: "homunculus", objectType: actorObjectTypeHomunculus, ownID: 400, enemyID: 401},
+		{name: "mercenary", objectType: actorObjectTypeMercenary, ownID: 500, enemyID: 501},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			enemy := worldstate.Actor{ID: tc.enemyID, GuildID: 20, ObjectType: tc.objectType, HasObjectType: true}
+			guildmate := worldstate.Actor{ID: tc.enemyID + 100, GuildID: 10, ObjectType: tc.objectType, HasObjectType: true}
+			own := worldstate.Actor{ID: tc.ownID, GuildID: 20, ObjectType: tc.objectType, HasObjectType: true}
 
-	if !actorCanBeAttackClicked(ctx, enemy) || !actorCanBeSkillTargeted(ctx, session.Skill{Type: skillTargetEnemy}, enemy) {
-		t.Fatal("enemy homunculus was not targetable in WoE")
-	}
-	if actorCanBeAttackClicked(ctx, own) || actorCanBeSkillTargeted(ctx, session.Skill{Type: skillTargetEnemy}, own) {
-		t.Fatal("local homunculus was targetable in WoE")
+			if !actorCanBeAttackClicked(ctx, enemy) || !actorCanBeSkillTargeted(ctx, session.Skill{Type: skillTargetEnemy}, enemy) {
+				t.Fatalf("enemy %s was not targetable in WoE", tc.name)
+			}
+			if actorCanBeAttackClicked(ctx, guildmate) || actorCanBeSkillTargeted(ctx, session.Skill{Type: skillTargetEnemy}, guildmate) {
+				t.Fatalf("guild member's %s was targetable in WoE", tc.name)
+			}
+			if actorCanBeAttackClicked(ctx, own) || actorCanBeSkillTargeted(ctx, session.Skill{Type: skillTargetEnemy}, own) {
+				t.Fatalf("local %s was targetable in WoE", tc.name)
+			}
+		})
 	}
 }
 

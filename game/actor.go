@@ -124,7 +124,7 @@ func skillTargetMapStateAllowsMismatch(ctx client.Context, actor worldstate.Acto
 	if actorRepresentsPlayer(actor) {
 		return actorCanBePlayerCombatTarget(ctx, actor)
 	}
-	return ctx.World.MapProperty.IsGvG() && actorCanBeEnemyHomunculus(ctx, actor)
+	return actorCanBeEnemyWoECompanion(ctx, actor)
 }
 
 func actorCanOpenPlayerContext(ctx client.Context, actor worldstate.Actor) bool {
@@ -141,7 +141,7 @@ func actorCanBeAttackClicked(ctx client.Context, actor worldstate.Actor) bool {
 	if actorRepresentsPlayer(actor) {
 		return actorCanBePlayerCombatTarget(ctx, actor)
 	}
-	if actorCanBeEnemyHomunculus(ctx, actor) {
+	if actorCanBeEnemyWoECompanion(ctx, actor) {
 		return true
 	}
 	return actorHasMobObjectType(actor)
@@ -160,12 +160,17 @@ func actorCanBePlayerCombatTarget(ctx client.Context, actor worldstate.Actor) bo
 	return actor.GuildID == 0 || localGuildID(ctx) == 0 || actor.GuildID != localGuildID(ctx)
 }
 
-func actorCanBeEnemyHomunculus(ctx client.Context, actor worldstate.Actor) bool {
-	if ctx.World == nil || !ctx.World.MapProperty.IsGvG() || !actor.HasObjectType || actor.ObjectType != actorObjectTypeHomunculus {
+func actorCanBeEnemyWoECompanion(ctx client.Context, actor worldstate.Actor) bool {
+	if ctx.World == nil || !ctx.World.MapProperty.IsGvG() || !actor.HasObjectType {
 		return false
 	}
-	if ctx.Session != nil && ctx.Session.Homunculus.ID != 0 && actor.ID == ctx.Session.Homunculus.ID {
+	if actor.ObjectType != actorObjectTypeHomunculus && actor.ObjectType != actorObjectTypeMercenary {
 		return false
+	}
+	if ctx.Session != nil {
+		if actor.ID == ctx.Session.Homunculus.ID || actor.ID == ctx.Session.Mercenary.ID {
+			return false
+		}
 	}
 	return actor.GuildID == 0 || localGuildID(ctx) == 0 || actor.GuildID != localGuildID(ctx)
 }
