@@ -97,6 +97,7 @@ Useful options:
 
 These are tutorials on how to setup a development environment.
 
+- [macOS setup](docs/macos.md)
 - [Server setup](docs/rathena-setup.md)
 - [Client setup](docs/client-setup.md)
 - [Homunculus and mercenary support](docs/companions-20080910.md)
