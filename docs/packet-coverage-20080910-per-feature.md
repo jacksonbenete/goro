@@ -108,7 +108,7 @@
 
   Class-Specific / Skill Dialog Choices
 
-  - [ ] Sage autospell selection: 0x01CE
+  - [x] Sage autospell choice list and selection: 0x01CD, 0x01CE
   - [ ] Novice dori-dori: 0x01E7
   - [ ] Novice explosion spirits: 0x01ED
   - [ ] Star Gladiator feel save confirmation: 0x0254

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"encoding/binary"
 	"image/color"
 	"os"
 	"path/filepath"
@@ -1031,6 +1032,33 @@ func TestLegacyUseItemAckClearsConsumedItemShortcut(t *testing.T) {
 	}
 	if got := sessionState.Hotkeys.Slots[0]; got.ID != 0 {
 		t.Fatalf("shortcut hotkey = %+v, want empty", got)
+	}
+}
+
+func TestAutoSpellListPacketOpensModalChooser(t *testing.T) {
+	uiManager := &worldModeTestUIManager{}
+	ctx := client.Context{
+		ScreenW:   800,
+		ScreenH:   600,
+		UIManager: uiManager,
+	}
+	mode := &WorldMode{}
+	data := make([]byte, 30)
+	binary.LittleEndian.PutUint16(data[0:2], network.PacketZCAutoSpellList)
+	binary.LittleEndian.PutUint32(data[2:6], 11)
+	binary.LittleEndian.PutUint32(data[6:10], 14)
+
+	if next, stop := mode.handleNetworkPacket(ctx, network.Packet{ID: network.PacketZCAutoSpellList, Data: data}, time.Now()); next != nil || stop {
+		t.Fatalf("auto spell list changed mode: next=%T stop=%t", next, stop)
+	}
+	if !mode.ui.autoSpellWindow.IsOpen() {
+		t.Fatal("auto spell list did not open the chooser")
+	}
+	if !mode.ui.interactionModalOpen() {
+		t.Fatal("auto spell chooser did not block world interactions")
+	}
+	if len(uiManager.overlays) != 1 {
+		t.Fatalf("auto spell overlays = %d, want 1", len(uiManager.overlays))
 	}
 }
 

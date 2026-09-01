@@ -1159,6 +1159,12 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		m.skills().ApplyAutoRun(ctx, auto)
 		return nil, false
 	}
+	if list, ok, err := network.ParseAutoSpellList(pkt); err != nil {
+		glog.Errorf("parse auto spell list 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyAutoSpellList(ctx, list)
+		return nil, false
+	}
 	if warpList, ok, err := network.ParseWarpPointList(pkt); err != nil {
 		glog.Errorf("parse warp point list 0x%04X: %v", pkt.ID, err)
 	} else if ok {

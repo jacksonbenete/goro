@@ -375,7 +375,8 @@ email check.
 | `0x01CA` | S->C | referenced | `0x01ca` | `3` | `-` | packet.go |
 | `0x01CB` | S->C | untracked | `0x01cb` | `9` | `-` | - |
 | `0x01CC` | S->C | untracked | `0x01cc` | `9` | `-` | - |
-| `0x01CE` | C->S | missing | `HEADER_CZ_SELECTAUTOSPELL` | `sizeof( PACKET_CZ_SELECTAUTOSPELL )` | `clif_parse_AutoSpell` | - |
+| `0x01CD` | S->C | implemented | `0x01cd` | `30` | `-` | skill_packets.go, packet.go |
+| `0x01CE` | C->S | implemented | `HEADER_CZ_SELECTAUTOSPELL` | `sizeof( PACKET_CZ_SELECTAUTOSPELL )` | `clif_parse_AutoSpell` | skill_packets.go |
 | `0x01CF` | S->C | referenced | `0x01cf` | `28` | `-` | packet.go |
 | `0x01D0` | S->C | referenced | `0x01d0` | `8` | `-` | packet.go |
 | `0x01D5` | C->S | implemented | `HEADER_CZ_INPUT_EDITDLGSTR` | `-1` | `clif_parse_NpcStringInput` | npc_packets.go |

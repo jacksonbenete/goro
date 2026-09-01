@@ -147,6 +147,7 @@ type worldUI struct {
 	npcDialog            gameui.NPCDialog
 	escapeMenu           gameui.EscapeMenu
 	teleportModal        gameui.TeleportModal
+	autoSpellWindow      gameui.AutoSpellWindow
 	disconnectDialog     gameui.ConfirmModal
 	friendRequest        gameui.ConfirmModal
 	friendConfirm        gameui.ConfirmModal
@@ -231,6 +232,7 @@ func (u *worldUI) nonConsoleKeyboardInputBlocked(ctx client.Context) bool {
 		u.homunculusConfirm.IsOpen() ||
 		u.mercenaryConfirm.IsOpen() ||
 		u.settingsWindow.IsOpen() ||
+		u.autoSpellWindow.IsOpen() ||
 		u.identifyWindow.IsOpen() ||
 		u.cardWindow.IsOpen() ||
 		u.makingArrow.IsOpen() ||
@@ -262,6 +264,7 @@ func (u *worldUI) interactionModalOpen() bool {
 		return false
 	}
 	return u.teleportModal.IsOpen() ||
+		u.autoSpellWindow.IsOpen() ||
 		u.friendRequest.IsOpen() ||
 		u.friendConfirm.IsOpen() ||
 		u.partyRequest.IsOpen() ||
@@ -810,6 +813,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.teleportModal.Update(ctx, m) {
 		return nil, nil
 	}
+	if m.updateAutoSpellWindow(ctx) {
+		return nil, nil
+	}
 	if m.ui.npcDialog.Update(ctx) {
 		return nil, nil
 	}
@@ -1263,6 +1269,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	m.scheduledStops = nil
 	m.ui.npcDialog.ResetPublished(ctx)
 	m.ui.teleportModal = gameui.TeleportModal{}
+	m.ui.autoSpellWindow.Reset(ctx)
 	m.clearLocalDeathState(ctx)
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
