@@ -142,6 +142,7 @@ type worldUI struct {
 	minimap              gameui.Minimap
 	statusIcons          gameui.StatusIcons
 	pvpCounter           gameui.PvPCounter
+	levelUpNotifications gameui.LevelUpNotifications
 	announcement         gameui.Announcement
 	console              gameui.ChatConsole
 	npcDialog            gameui.NPCDialog
@@ -547,6 +548,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.ui.itemInfoWindow.Rebind(ctx, m)
 	m.ui.statsWindow.Rebind(ctx)
 	m.ui.skillWindow.Rebind(ctx, m)
+	m.ui.levelUpNotifications.Rebind(ctx)
 	m.ui.emoteWindow.Rebind(ctx, &m.ui.console)
 	m.ui.homunculusSkill.Rebind(ctx, m)
 	m.ui.mercenarySkill.Rebind(ctx, m)
@@ -618,6 +620,11 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return next, nil
 	}
 	m.ui.pvpCounter.Update(ctx)
+	if m.handleLevelUpNotificationAction(ctx, m.ui.levelUpNotifications.Update(ctx)) {
+		// The notification click belongs exclusively to the UI. Returning here
+		// prevents the same press from reaching the map after the icon closes.
+		return nil, nil
+	}
 
 	m.updatePendingAttack(ctx, "update", false)
 	m.processPendingAttack(ctx)
@@ -1332,6 +1339,16 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	return m.nextWorldMode()
 }
 
+func (m *WorldMode) handleLevelUpNotificationAction(ctx client.Context, action gameui.LevelUpNotificationAction) bool {
+	if action&gameui.LevelUpNotificationBase != 0 {
+		m.ui.statsWindow.OpenWindow(ctx)
+	}
+	if action&gameui.LevelUpNotificationJob != 0 {
+		m.ui.skillWindow.OpenWindow(ctx)
+	}
+	return action != gameui.LevelUpNotificationNone
+}
+
 func (m *WorldMode) nextWorldMode() *WorldMode {
 	next := NewWorldMode()
 	next.camera.yawOffset = m.camera.yawOffset
@@ -1374,6 +1391,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.shortcutBar = m.ui.shortcutBar
 	next.ui.minimap = m.ui.minimap
 	next.ui.pvpCounter = m.ui.pvpCounter
+	next.ui.levelUpNotifications = m.ui.levelUpNotifications
 	m.companionAI.close()
 	return next
 }

@@ -143,11 +143,11 @@ Current limitation: `inventoryDropAmount` always returns `1`.
 
 ### Level-up availability notifications
 
-- [ ] Show the small Base-level/stat notification when unspent stat points become available.
-- [ ] Show the Job-level/skill notification when unspent skill points become available.
-- [ ] Make each notification open the corresponding window or section.
-- [ ] Dismiss the notification after activation without sharing the click with the map or another window.
-- [ ] Keep these notifications distinct from the existing level-up world effect and sound.
+- [x] Show the small Base-level/stat notification when unspent stat points become available.
+- [x] Show the Job-level/skill notification when unspent skill points become available.
+- [x] Make each notification open the corresponding window or section.
+- [x] Dismiss the notification after activation without sharing the click with the map or another window.
+- [x] Keep these notifications distinct from the existing level-up world effect and sound.
 
 ### Monster information / Sense
 
