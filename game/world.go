@@ -145,6 +145,7 @@ type worldUI struct {
 	announcement         gameui.Announcement
 	console              gameui.ChatConsole
 	npcDialog            gameui.NPCDialog
+	npcCutin             gameui.NPCCutinOverlay
 	escapeMenu           gameui.EscapeMenu
 	teleportModal        gameui.TeleportModal
 	autoSpellWindow      gameui.AutoSpellWindow
@@ -362,7 +363,9 @@ var (
 )
 
 func NewWorldMode() *WorldMode {
-	return &WorldMode{}
+	m := &WorldMode{}
+	m.bindNPCDialogLifecycle()
+	return m
 }
 
 func (m *WorldMode) Name() string {
@@ -371,6 +374,7 @@ func (m *WorldMode) Name() string {
 
 func (m *WorldMode) Enter(ctx client.Context) {
 	now := time.Now()
+	m.bindNPCDialogLifecycle()
 	m.startMapPrewarm()
 	m.camera.ResetTracking()
 	ctx.World.GAT = nil
@@ -446,6 +450,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.speechBubbles = make(map[uint32]speechBubble)
 	m.syncCurrentActorEffectStateEffects(ctx)
 	m.ui.npcDialog.ResetPublished(ctx)
+	m.ui.npcCutin.Clear()
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
 	character := ctx.Session.SelectedCharacter()
@@ -753,7 +758,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if !dead && m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.petSlotMachine.active && !m.ui.escapeMenu.IsOpen() && !m.ui.interactionModalOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
+	if !m.petSlotMachine.active && !m.npcCutinPointerBlocked(ctx) && !m.ui.escapeMenu.IsOpen() && !m.ui.interactionModalOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if !dead && m.ui.escapeMenu.IsOpen() {
@@ -823,6 +828,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if m.ui.npcDialog.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.npcCutin.Update(ctx) {
 		return nil, nil
 	}
 	if m.updateWhisperWindow(ctx) {
@@ -1274,6 +1282,7 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	m.clearLocalActorAction(ctx)
 	m.scheduledStops = nil
 	m.ui.npcDialog.ResetPublished(ctx)
+	m.ui.npcCutin.Clear()
 	m.ui.teleportModal = gameui.TeleportModal{}
 	m.ui.autoSpellWindow.Reset(ctx)
 	if m.ui.starPlaceConfirm.IsOpen() {
@@ -1454,6 +1463,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	if !ctx.Config.Render.NoUI {
+		m.ui.npcCutin.Draw(screen)
 		m.ui.inventoryBag.Draw(screen, ctx, m)
 		m.ui.storageWindow.Draw(screen, ctx, m)
 		m.ui.cartWindow.Draw(screen, ctx, m)

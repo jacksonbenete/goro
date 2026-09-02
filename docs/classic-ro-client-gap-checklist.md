@@ -159,12 +159,12 @@ Current limitation: `inventoryDropAmount` always returns `1`.
 
 ### NPC cut-in illustrations
 
-- [ ] Parse NPC cut-in packet `0x01B3`.
-- [ ] Load the requested illustration from the GRF.
-- [ ] Support the original left, center, and right positions.
-- [ ] Support clearing/replacing an existing cut-in.
-- [ ] Clear cut-ins on dialog close, map transition, character change, and disconnect.
-- [ ] Ensure cut-ins and NPC dialogs compose correctly without leaking map clicks.
+- [x] Parse NPC cut-in packet `0x01B3`.
+- [x] Load the requested illustration from the GRF.
+- [x] Support the original left, center, right, windowed, and windowless positions.
+- [x] Support clearing/replacing an existing cut-in.
+- [x] Clear cut-ins on dialog close, map transition, character change, and disconnect.
+- [x] Ensure cut-ins and NPC dialogs compose correctly without leaking map clicks.
 
 ### Minimap details
 
