@@ -158,6 +158,7 @@ type worldUI struct {
 	guildMemberPrompt    gameui.TextPromptWindow
 	tradeRequest         gameui.ConfirmModal
 	adoptionRequest      gameui.ConfirmModal
+	starPlaceConfirm     gameui.ConfirmModal
 	characterWindow      gameui.CharacterWindow
 	basicMenu            gameui.BasicMenu
 	inventoryBag         gameui.InventoryBagWindow
@@ -231,6 +232,7 @@ func (u *worldUI) nonConsoleKeyboardInputBlocked(ctx client.Context) bool {
 		u.petConfirm.IsOpen() ||
 		u.homunculusConfirm.IsOpen() ||
 		u.mercenaryConfirm.IsOpen() ||
+		u.starPlaceConfirm.IsOpen() ||
 		u.settingsWindow.IsOpen() ||
 		u.autoSpellWindow.IsOpen() ||
 		u.identifyWindow.IsOpen() ||
@@ -273,7 +275,8 @@ func (u *worldUI) interactionModalOpen() bool {
 		u.guildRelationConfirm.IsOpen() ||
 		u.guildMemberPrompt.IsOpen() ||
 		u.tradeRequest.IsOpen() ||
-		u.adoptionRequest.IsOpen()
+		u.adoptionRequest.IsOpen() ||
+		u.starPlaceConfirm.IsOpen()
 }
 
 func (m *WorldMode) KeyboardShortcutsBlocked(ctx client.Context) bool {
@@ -786,6 +789,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.adoptionRequest.Update(ctx) {
 		return nil, nil
 	}
+	if m.ui.starPlaceConfirm.Update(ctx) {
+		return nil, nil
+	}
 	if m.ui.petConfirm.Update(ctx) {
 		return nil, nil
 	}
@@ -1270,6 +1276,9 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	m.ui.npcDialog.ResetPublished(ctx)
 	m.ui.teleportModal = gameui.TeleportModal{}
 	m.ui.autoSpellWindow.Reset(ctx)
+	if m.ui.starPlaceConfirm.IsOpen() {
+		m.ui.starPlaceConfirm.Close(ctx)
+	}
 	m.clearLocalDeathState(ctx)
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)

@@ -102,7 +102,7 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	if place, ok, err := network.ParseStarPlace(pkt); err != nil {
 		glog.Errorf("parse star place 0x%04X: %v", pkt.ID, err)
 	} else if ok {
-		glog.Debugf("star gladiator place request=%d", place.Place)
+		m.applyStarPlaceRequest(ctx, place)
 		return nil, false
 	}
 	if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {

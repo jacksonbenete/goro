@@ -56,7 +56,7 @@ This means the legacy mail system, not a newer RODEX-only implementation. See
 ### Skill-specific client flows
 
 - [x] Implement the Sage Auto Spell choice list and send selection packet `0x01CE`.
-- [ ] Turn the Star Gladiator place/Feel request into the original confirmation flow instead of only logging it, then send `0x0254`.
+- [x] Turn the Star Gladiator place/Feel request into the original confirmation flow instead of only logging it, then send `0x0254`.
 - [ ] Implement the original `/doridori` client behavior and packet `0x01E7`.
 - [ ] Verify whether the 2008 Novice Explosion Spirits request (`0x01ED`) needs a distinct client action, then implement it if applicable.
 - [ ] Verify and implement the 2008 auto-revive response (`0x0292`) if it is used by supported gameplay.
