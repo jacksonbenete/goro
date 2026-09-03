@@ -111,7 +111,7 @@
 
   - [x] Wizard and mercenary Sense monster information: 0x018C
   - [x] Sage autospell choice list and selection: 0x01CD, 0x01CE
-  - [ ] Novice dori-dori: 0x01E7
+  - [x] Novice dori-dori command, head motion, and recovery bonus: 0x01E7
   - [ ] Novice explosion spirits: 0x01ED
   - [x] Star Gladiator feel save confirmation: 0x0253, 0x0254
   - [ ] Auto-revive: 0x0292
