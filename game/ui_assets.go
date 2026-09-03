@@ -174,7 +174,7 @@ func (m *WorldMode) monsterInfoPreviewImage(ctx client.Context, class uint16, wi
 	view := m.nonPCSpriteView(ctx, actor)
 	state := spriteState{
 		actionFamily:   spriteActionIdle,
-		direction:      0,
+		direction:      4,
 		fixedMotion:    0,
 		hasFixedMotion: true,
 	}

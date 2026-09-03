@@ -168,11 +168,12 @@ func monsterElementCell(name string, rate uint8) widget.Widget {
 	if rate > 100 {
 		label.FontFamily(rotheme.Default.Typography.BoldFontFamily)
 	}
-	return primitives.Box(
-		label,
+	return primitives.HBox(
+		primitives.Expanded(label),
 	).
 		Width(84).
 		Height(monsterInfoElementH).
+		CrossAlign(primitives.CrossAxisCenter).
 		Background(rotheme.Default.Colors.PanelBody).
 		BorderStyle(1, rotheme.Default.Colors.WindowBorder).
 		Rounded(3)
