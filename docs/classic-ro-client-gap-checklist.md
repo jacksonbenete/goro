@@ -64,13 +64,13 @@ This means the legacy mail system, not a newer RODEX-only implementation. See
 
 ### Server-driven progress and information
 
-- [ ] Parse and render NPC progress-bar start packet `0x02F0`.
-- [ ] Send progress-bar completion/cancel acknowledgement `0x02F1`.
-- [ ] Handle server cancellation (`0x02F2`, if applicable to the 2008 profile).
-- [ ] Ensure the progress display swallows input where the original client did.
-- [ ] Implement server `ShowDigit` countdown displays.
-- [ ] Implement boss information, map marker, death, and respawn-time updates.
-- [ ] Implement remaining skill-message feedback that currently has no dedicated presentation.
+- [x] Parse and render NPC progress-bar start packet `0x02F0`.
+- [x] Send progress-bar completion/cancel acknowledgement `0x02F1`.
+- [x] Handle server cancellation (`0x02F2`, if applicable to the 2008 profile).
+- [x] Ensure the progress display swallows input where the original client did.
+- [x] Implement server `ShowDigit` countdown displays.
+- [x] Implement boss information, map marker, death, and respawn-time updates.
+- [x] Implement remaining skill-message feedback that currently has no dedicated presentation.
 
 ### Storage password
 
