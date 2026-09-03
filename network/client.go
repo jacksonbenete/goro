@@ -388,6 +388,17 @@ func (c *Client) SendRememberWarpPoint() error {
 	return err
 }
 
+func (c *Client) SendSelectAutoSpell(skillID uint16) error {
+	packet := BuildSelectAutoSpellPacket(skillID)
+	err := c.Send(packet)
+	if err == nil {
+		glog.Debugf("sent CZ_SELECTAUTOSPELL opcode=0x%04X skill=%d client_date=%d", ID(packet), skillID, c.clientDate)
+	} else {
+		glog.Warnf("send CZ_SELECTAUTOSPELL failed opcode=0x%04X len=%d skill=%d client_date=%d: %v", ID(packet), len(packet), skillID, c.clientDate, err)
+	}
+	return err
+}
+
 func (c *Client) SendUseSkillToID(skillID, level uint16, targetID uint32) error {
 	packet := BuildUseSkillToIDPacketForClientDate(skillID, level, targetID, c.clientDate)
 	err := c.Send(packet)

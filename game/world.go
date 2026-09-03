@@ -58,6 +58,8 @@ type WorldMode struct {
 	cursorLevelNums   map[string]*spriteBillboard
 	damageMsgView     *spriteView
 	damageMsgMiss     bool
+	timeFontView      *spriteView
+	timeFontMiss      bool
 	itemMarker        *render.Image
 	itemViews         map[itemSpriteKey]*spriteView
 	itemViewMiss      map[itemSpriteKey]struct{}
@@ -88,6 +90,7 @@ type WorldMode struct {
 	pendingPickup     pickupIntent
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
+	senseRequest      senseRequest
 	guildAction       gameui.GuildMemberAction
 	guildOpenPending  bool
 	pendingPetCapture petCaptureState
@@ -110,6 +113,8 @@ type WorldMode struct {
 	damageFloaters    []damageFloater
 	worldEffects      []worldEffect
 	actorCastBars     map[uint32]actorCastBar
+	serverProgress    serverProgressState
+	showDigit         showDigitState
 	scheduledSounds   []scheduledSound
 	scheduledStops    []scheduledActorStop
 	scheduledResumes  []scheduledWalkResume
@@ -142,11 +147,15 @@ type worldUI struct {
 	minimap              gameui.Minimap
 	statusIcons          gameui.StatusIcons
 	pvpCounter           gameui.PvPCounter
+	levelUpNotifications gameui.LevelUpNotifications
 	announcement         gameui.Announcement
+	poptips              gameui.Poptips
 	console              gameui.ChatConsole
 	npcDialog            gameui.NPCDialog
+	npcCutin             gameui.NPCCutinOverlay
 	escapeMenu           gameui.EscapeMenu
 	teleportModal        gameui.TeleportModal
+	autoSpellWindow      gameui.AutoSpellWindow
 	disconnectDialog     gameui.ConfirmModal
 	friendRequest        gameui.ConfirmModal
 	friendConfirm        gameui.ConfirmModal
@@ -157,18 +166,22 @@ type worldUI struct {
 	guildMemberPrompt    gameui.TextPromptWindow
 	tradeRequest         gameui.ConfirmModal
 	adoptionRequest      gameui.ConfirmModal
+	starPlaceConfirm     gameui.ConfirmModal
 	characterWindow      gameui.CharacterWindow
 	basicMenu            gameui.BasicMenu
 	inventoryBag         gameui.InventoryBagWindow
 	equipmentWindow      gameui.EquipmentWindow
 	viewEquipWindow      gameui.ViewEquipmentWindow
 	storageWindow        gameui.StorageWindow
+	storagePassword      gameui.StoragePasswordWindow
 	cartWindow           gameui.CartWindow
 	changeCartWindow     gameui.ChangeCartWindow
 	itemPickup           gameui.ItemPickupNotification
 	shopWindow           gameui.ShopWindow
 	vendingWindow        gameui.VendingWindow
 	itemInfoWindow       gameui.ItemInfoWindow
+	monsterInfoWindow    gameui.MonsterInfoWindow
+	bookWindow           gameui.BookWindow
 	identifyWindow       gameui.IdentifyWindow
 	cardWindow           gameui.CardCompositionWindow
 	makingArrow          gameui.MakingArrowWindow
@@ -230,7 +243,10 @@ func (u *worldUI) nonConsoleKeyboardInputBlocked(ctx client.Context) bool {
 		u.petConfirm.IsOpen() ||
 		u.homunculusConfirm.IsOpen() ||
 		u.mercenaryConfirm.IsOpen() ||
+		u.starPlaceConfirm.IsOpen() ||
 		u.settingsWindow.IsOpen() ||
+		u.autoSpellWindow.IsOpen() ||
+		u.monsterInfoWindow.IsOpen() ||
 		u.identifyWindow.IsOpen() ||
 		u.cardWindow.IsOpen() ||
 		u.makingArrow.IsOpen() ||
@@ -244,6 +260,8 @@ func (u *worldUI) nonConsoleKeyboardInputBlocked(ctx client.Context) bool {
 		u.mercenaryInfo.IsOpen() ||
 		u.mercenarySkill.IsOpen() ||
 		u.changeCartWindow.IsOpen() ||
+		u.inventoryBag.KeyboardShortcutsBlocked() ||
+		u.bookWindow.IsOpen() ||
 		u.shopWindow.KeyboardShortcutsBlocked() ||
 		u.vendingWindow.KeyboardShortcutsBlocked() ||
 		u.tradeWindow.IsOpen() ||
@@ -262,6 +280,8 @@ func (u *worldUI) interactionModalOpen() bool {
 		return false
 	}
 	return u.teleportModal.IsOpen() ||
+		u.autoSpellWindow.IsOpen() ||
+		u.storagePassword.IsOpen() ||
 		u.friendRequest.IsOpen() ||
 		u.friendConfirm.IsOpen() ||
 		u.partyRequest.IsOpen() ||
@@ -270,7 +290,8 @@ func (u *worldUI) interactionModalOpen() bool {
 		u.guildRelationConfirm.IsOpen() ||
 		u.guildMemberPrompt.IsOpen() ||
 		u.tradeRequest.IsOpen() ||
-		u.adoptionRequest.IsOpen()
+		u.adoptionRequest.IsOpen() ||
+		u.starPlaceConfirm.IsOpen()
 }
 
 func (m *WorldMode) KeyboardShortcutsBlocked(ctx client.Context) bool {
@@ -356,7 +377,9 @@ var (
 )
 
 func NewWorldMode() *WorldMode {
-	return &WorldMode{}
+	m := &WorldMode{}
+	m.bindNPCDialogLifecycle()
+	return m
 }
 
 func (m *WorldMode) Name() string {
@@ -365,6 +388,7 @@ func (m *WorldMode) Name() string {
 
 func (m *WorldMode) Enter(ctx client.Context) {
 	now := time.Now()
+	m.bindNPCDialogLifecycle()
 	m.startMapPrewarm()
 	m.camera.ResetTracking()
 	ctx.World.GAT = nil
@@ -388,6 +412,8 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.cursorLevelNums = make(map[string]*spriteBillboard)
 	m.damageMsgView = nil
 	m.damageMsgMiss = false
+	m.timeFontView = nil
+	m.timeFontMiss = false
 	m.itemMarker = nil
 	m.itemViews = make(map[itemSpriteKey]*spriteView)
 	m.itemViewMiss = make(map[itemSpriteKey]struct{})
@@ -427,6 +453,10 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.lastChaseAt = time.Time{}
 	m.actorAnims = make(map[uint32]actorAnimation)
 	m.damageFloaters = nil
+	m.serverProgress = serverProgressState{}
+	m.showDigit = showDigitState{}
+	m.ui.minimap.ClearBossMarker()
+	m.ui.poptips.Clear()
 	m.scheduledSounds = nil
 	m.scheduledStops = nil
 	m.mapSoundNext = make(map[int]time.Time)
@@ -440,6 +470,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.speechBubbles = make(map[uint32]speechBubble)
 	m.syncCurrentActorEffectStateEffects(ctx)
 	m.ui.npcDialog.ResetPublished(ctx)
+	m.ui.npcCutin.Clear()
 	ctx.World.Items = make(map[uint32]worldstate.FloorItem)
 	playerStatus := ""
 	character := ctx.Session.SelectedCharacter()
@@ -534,8 +565,10 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.ui.equipmentWindow.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow, m)
 	m.ui.cartWindow.Rebind(ctx, &m.ui.itemInfoWindow)
 	m.ui.itemInfoWindow.Rebind(ctx, m)
+	m.ui.bookWindow.Rebind(ctx)
 	m.ui.statsWindow.Rebind(ctx)
 	m.ui.skillWindow.Rebind(ctx, m)
+	m.ui.levelUpNotifications.Rebind(ctx)
 	m.ui.emoteWindow.Rebind(ctx, &m.ui.console)
 	m.ui.homunculusSkill.Rebind(ctx, m)
 	m.ui.mercenarySkill.Rebind(ctx, m)
@@ -607,14 +640,21 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return next, nil
 	}
 	m.ui.pvpCounter.Update(ctx)
-
-	m.updatePendingAttack(ctx, "update", false)
-	m.processPendingAttack(ctx)
-	m.updatePendingPickup(ctx, "update", false)
-	m.processPendingPickup(ctx)
-	m.skills().UpdatePendingTarget(ctx, "update", false)
-	m.skills().ProcessPendingTarget(ctx)
-	m.processLockedAttack(ctx)
+	progressBlocksActions := m.updateServerProgress(ctx, now)
+	if !progressBlocksActions && m.handleLevelUpNotificationAction(ctx, m.ui.levelUpNotifications.Update(ctx)) {
+		// The notification click belongs exclusively to the UI. Returning here
+		// prevents the same press from reaching the map after the icon closes.
+		return nil, nil
+	}
+	if !progressBlocksActions {
+		m.updatePendingAttack(ctx, "update", false)
+		m.processPendingAttack(ctx)
+		m.updatePendingPickup(ctx, "update", false)
+		m.processPendingPickup(ctx)
+		m.skills().UpdatePendingTarget(ctx, "update", false)
+		m.skills().ProcessPendingTarget(ctx)
+		m.processLockedAttack(ctx)
+	}
 	now = time.Now()
 	m.cleanupDeadActors(ctx, now)
 	m.cleanupVanishedActors(ctx, now)
@@ -640,6 +680,18 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	m.ui.console.UpdatePresentation(ctx)
+	if progressBlocksActions {
+		return nil, nil
+	}
+	if m.updateStoragePasswordWindow(ctx) {
+		return nil, nil
+	}
+	// The drop amount prompt is modal and may overlap the always-present chat
+	// field. Give it first refusal on Escape and pointer input so a focused chat
+	// field cannot consume the cancellation before the prompt sees it.
+	if m.ui.inventoryBag.UpdateDropPrompt(ctx) {
+		return nil, nil
+	}
 	dead := playerIsDead(ctx)
 	keyboardBlocked := m.ui.keyboardInputBlocked(ctx)
 	m.updateBotInput(ctx, !dead && !keyboardBlocked)
@@ -747,7 +799,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if !dead && m.openPlayerContextFromInput(ctx, now) {
 		return nil, nil
 	}
-	if !m.petSlotMachine.active && !m.ui.escapeMenu.IsOpen() && !m.ui.interactionModalOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
+	if !m.petSlotMachine.active && !m.npcCutinPointerBlocked(ctx) && !m.ui.escapeMenu.IsOpen() && !m.ui.interactionModalOpen() && !m.ui.settingsWindow.IsOpen() && !m.ui.identifyWindow.IsOpen() && !m.ui.petEggWindow.IsOpen() && !m.ui.petInfoWindow.IsOpen() && !m.ui.petConfirm.IsOpen() && !m.ui.homunculusInfo.IsOpen() && !m.ui.homunculusSkill.IsOpen() && !m.ui.homunculusConfirm.IsOpen() && !m.ui.mercenaryInfo.IsOpen() && !m.ui.mercenarySkill.IsOpen() && !m.ui.mercenaryConfirm.IsOpen() {
 		m.updateCameraRotation(ctx)
 	}
 	if !dead && m.ui.escapeMenu.IsOpen() {
@@ -783,6 +835,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.adoptionRequest.Update(ctx) {
 		return nil, nil
 	}
+	if m.ui.starPlaceConfirm.Update(ctx) {
+		return nil, nil
+	}
 	if m.ui.petConfirm.Update(ctx) {
 		return nil, nil
 	}
@@ -810,7 +865,13 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.teleportModal.Update(ctx, m) {
 		return nil, nil
 	}
+	if m.updateAutoSpellWindow(ctx) {
+		return nil, nil
+	}
 	if m.ui.npcDialog.Update(ctx) {
+		return nil, nil
+	}
+	if m.ui.npcCutin.Update(ctx) {
 		return nil, nil
 	}
 	if m.updateWhisperWindow(ctx) {
@@ -850,12 +911,27 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		m.handleEscapeMenuAction(ctx)
 		return nil, nil
 	}
+	if m.ui.bookWindow.Update(ctx) {
+		return nil, nil
+	}
 	characterWindowConsumed := m.ui.characterWindow.Update(ctx)
 	m.ui.basicMenu.FollowCharacterWindow(ctx, &m.ui.characterWindow)
 	if characterWindowConsumed {
 		return nil, nil
 	}
 	if m.ui.itemInfoWindow.Update(ctx, m) {
+		if request := m.ui.itemInfoWindow.PopReadBookRequest(); request.ItemID != 0 {
+			if err := m.ui.bookWindow.Open(ctx, request.ItemID, request.Title); err != nil {
+				m.ui.console.AddErrorMessage("Unable to read this book.")
+				glog.Warnf("book open failed item=%d: %v", request.ItemID, err)
+			} else {
+				m.ui.itemInfoWindow.Close()
+				m.ui.itemInfoWindow.Publish(ctx)
+			}
+		}
+		return nil, nil
+	}
+	if m.ui.monsterInfoWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.identifyWindow.Update(ctx) {
@@ -1256,13 +1332,22 @@ func (m *WorldMode) requestSessionGuildEmblem(ctx client.Context) {
 }
 
 func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange) Mode {
+	m.clearServerProgress()
+	m.showDigit = showDigitState{}
+	m.ui.minimap.ClearBossMarker()
+	m.ui.poptips.Clear()
 	m.pendingAttack = attackIntent{}
 	m.clearLockedAttack()
 	m.clearAttackFocus()
 	m.clearLocalActorAction(ctx)
 	m.scheduledStops = nil
 	m.ui.npcDialog.ResetPublished(ctx)
+	m.ui.npcCutin.Clear()
 	m.ui.teleportModal = gameui.TeleportModal{}
+	m.ui.autoSpellWindow.Reset(ctx)
+	if m.ui.starPlaceConfirm.IsOpen() {
+		m.ui.starPlaceConfirm.Close(ctx)
+	}
 	m.clearLocalDeathState(ctx)
 	currentMap := ctx.World.MapName
 	reuseLoadedMap := !change.ServerMove && sameLoadedMap(ctx, change.MapName)
@@ -1307,6 +1392,16 @@ func (m *WorldMode) handleMapChange(ctx client.Context, change network.MapChange
 	return m.nextWorldMode()
 }
 
+func (m *WorldMode) handleLevelUpNotificationAction(ctx client.Context, action gameui.LevelUpNotificationAction) bool {
+	if action&gameui.LevelUpNotificationBase != 0 {
+		m.ui.statsWindow.OpenWindow(ctx)
+	}
+	if action&gameui.LevelUpNotificationJob != 0 {
+		m.ui.skillWindow.OpenWindow(ctx)
+	}
+	return action != gameui.LevelUpNotificationNone
+}
+
 func (m *WorldMode) nextWorldMode() *WorldMode {
 	next := NewWorldMode()
 	next.camera.yawOffset = m.camera.yawOffset
@@ -1320,6 +1415,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.equipmentWindow = m.ui.equipmentWindow
 	next.ui.cartWindow = m.ui.cartWindow
 	next.ui.itemInfoWindow = m.ui.itemInfoWindow
+	next.ui.bookWindow = m.ui.bookWindow
 	next.ui.cardWindow = m.ui.cardWindow
 	next.ui.petEggWindow = m.ui.petEggWindow
 	next.ui.petInfoWindow = m.ui.petInfoWindow
@@ -1349,6 +1445,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.shortcutBar = m.ui.shortcutBar
 	next.ui.minimap = m.ui.minimap
 	next.ui.pvpCounter = m.ui.pvpCounter
+	next.ui.levelUpNotifications = m.ui.levelUpNotifications
 	m.companionAI.close()
 	return next
 }
@@ -1438,6 +1535,7 @@ func (m *WorldMode) Draw(ctx client.Context, screen *render.Frame) {
 	m.drawDamageFloaters(screen, ctx, projection, now)
 
 	if !ctx.Config.Render.NoUI {
+		m.ui.npcCutin.Draw(screen)
 		m.ui.inventoryBag.Draw(screen, ctx, m)
 		m.ui.storageWindow.Draw(screen, ctx, m)
 		m.ui.cartWindow.Draw(screen, ctx, m)
@@ -1471,7 +1569,9 @@ func (m *WorldMode) DrawUIOverlay(ctx client.Context, screen *render.Frame) {
 		return
 	}
 	now := time.Now()
+	m.drawShowDigit(screen, ctx, now)
 	m.ui.announcement.Draw(screen, now)
+	m.ui.poptips.Draw(screen, now)
 	m.ui.inventoryBag.DrawTooltip(ctx, screen)
 	m.ui.equipmentWindow.DrawTooltip(ctx, screen)
 	m.ui.cartWindow.DrawTooltip(ctx, screen)
@@ -1641,10 +1741,11 @@ func absInt(value int) int {
 }
 
 type sceneDrawEntry struct {
-	depth       float64
-	actorIndex  int
-	shadowIndex int
-	itemIndex   int
+	depth           float64
+	actorIndex      int
+	shadowIndex     int
+	itemIndex       int
+	itemShadowIndex int
 }
 
 func (m *WorldMode) drawSceneModelsAndActors(screen *render.Frame, ctx client.Context, projection sceneProjection, fog sceneFog, now time.Time) []sceneActorDrawEntry {
@@ -1652,20 +1753,27 @@ func (m *WorldMode) drawSceneModelsAndActors(screen *render.Frame, ctx client.Co
 	m.drawSkillUnitRSMModels(screen, ctx, projection, now)
 	actors := m.collectSceneActorEntries(screen, ctx, projection)
 	items := m.collectSceneItemEntries(screen, ctx, projection, now)
-	entries := make([]sceneDrawEntry, 0, len(actors)+len(items))
+	entries := make([]sceneDrawEntry, 0, len(actors)*2+len(items)*2)
 	for i, item := range items {
-		entries = append(entries, sceneDrawEntry{depth: item.depth, actorIndex: -1, shadowIndex: -1, itemIndex: i})
+		entries = append(entries,
+			sceneDrawEntry{depth: item.shadowDepth, actorIndex: -1, shadowIndex: -1, itemIndex: -1, itemShadowIndex: i},
+			sceneDrawEntry{depth: item.depth, actorIndex: -1, shadowIndex: -1, itemIndex: i, itemShadowIndex: -1},
+		)
 	}
 	for i, actor := range actors {
 		if actor.castShadow {
-			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, actorIndex: -1, shadowIndex: i, itemIndex: -1})
+			entries = append(entries, sceneDrawEntry{depth: actor.shadowDepth, actorIndex: -1, shadowIndex: i, itemIndex: -1, itemShadowIndex: -1})
 		}
-		entries = append(entries, sceneDrawEntry{depth: actor.depth, actorIndex: i, shadowIndex: -1, itemIndex: -1})
+		entries = append(entries, sceneDrawEntry{depth: actor.depth, actorIndex: i, shadowIndex: -1, itemIndex: -1, itemShadowIndex: -1})
 	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i].depth > entries[j].depth
 	})
 	for _, entry := range entries {
+		if entry.itemShadowIndex >= 0 {
+			m.drawGroundItemShadowEntry3D(screen, projection, items[entry.itemShadowIndex])
+			continue
+		}
 		if entry.shadowIndex >= 0 {
 			m.drawActorShadowEntry(screen, ctx, projection, actors[entry.shadowIndex])
 			continue

@@ -1223,6 +1223,17 @@ func (m *WorldMode) applySpecialEffectNotify(ctx client.Context, notify network.
 	if effectID <= 0 {
 		return
 	}
+	if isLocalActor(ctx, notify.AID) {
+		switch notify.EffectID {
+		case network.SpecialEffectBaseLevelUp,
+			network.SpecialEffectSuperNoviceBaseLevelUp,
+			network.SpecialEffectTaekwonBaseLevelUp:
+			m.ui.levelUpNotifications.NotifyBase()
+		case network.SpecialEffectJobLevelUp,
+			network.SpecialEffectSuperNoviceJobLevelUp:
+			m.ui.levelUpNotifications.NotifyJob()
+		}
+	}
 	spec, _ := worldEffectSpecForID(effectID)
 	if craftingResultSpecialEffect(notify.EffectID) {
 		m.replaceCraftingResultEffect(ctx, notify, effectID, spec)
@@ -1243,6 +1254,7 @@ func (m *WorldMode) applySkillFailAck(ctx client.Context, ack network.SkillFailA
 	if ack.Result != 0 {
 		return
 	}
+	m.clearSenseRequest(ack.SkillID)
 	message := skillFailMessage(ack)
 	glog.Debugf("skill fail ack skill=%d num=%d item=%d result=%d cause=%d msg=%q", ack.SkillID, ack.Number, ack.ItemID, ack.Result, ack.Cause, message)
 	m.ui.console.AddErrorMessage("%s", message)

@@ -22,6 +22,7 @@ func (m *WorldMode) handleNetworkPackets(ctx client.Context, now time.Time) (Mod
 	}
 	networkErrors := ctx.Network.DrainErrors()
 	if handleNetworkDisconnectErrors(ctx, &m.ui.disconnectDialog, networkErrors) {
+		m.ui.npcCutin.Clear()
 		return nil, true
 	}
 	for _, err := range networkErrors {
@@ -36,6 +37,7 @@ func (m *WorldMode) handleNetworkPackets(ctx client.Context, now time.Time) (Mod
 // transition.
 func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, now time.Time) (Mode, bool) {
 	if handleDisconnectPacket(ctx, &m.ui.disconnectDialog, pkt) {
+		m.ui.npcCutin.Clear()
 		return nil, false
 	}
 	if notify, ok, err := network.ParseMapInfoNotify(pkt); err != nil {
@@ -67,6 +69,36 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	} else if ok {
 		applyHotkeyList(ctx, hotkeys)
 		m.ui.shortcutBar.SyncFromSession(ctx)
+		return nil, false
+	}
+	if show, ok, err := network.ParseShowDigit(pkt); err != nil {
+		glog.Errorf("parse show digit 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.showDigit = newShowDigitState(show, now)
+		return nil, false
+	}
+	if message, ok, err := network.ParseSkillMessage(pkt); err != nil {
+		glog.Errorf("parse skill message 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applySkillMessage(message, now)
+		return nil, false
+	}
+	if info, ok, err := network.ParseBossInfo(pkt); err != nil {
+		glog.Errorf("parse boss information 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyBossInfo(info)
+		return nil, false
+	}
+	if progress, ok, err := network.ParseProgressBar(pkt); err != nil {
+		glog.Errorf("parse progress bar 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.startServerProgress(ctx, progress, now)
+		return nil, false
+	}
+	if ok, err := network.ParseProgressBarCancel(pkt); err != nil {
+		glog.Errorf("parse progress bar cancellation 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.finishServerProgress(ctx, "server cancel")
 		return nil, false
 	}
 	if chat, ok, err := network.ParseChatMessage(pkt); err != nil {
@@ -102,7 +134,7 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	if place, ok, err := network.ParseStarPlace(pkt); err != nil {
 		glog.Errorf("parse star place 0x%04X: %v", pkt.ID, err)
 	} else if ok {
-		glog.Debugf("star gladiator place request=%d", place.Place)
+		m.applyStarPlaceRequest(ctx, place)
 		return nil, false
 	}
 	if whisper, ok, err := network.ParseWhisperMessage(pkt); err != nil {
@@ -223,6 +255,17 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		glog.Errorf("parse npc dialog 0x%04X: %v", pkt.ID, err)
 	} else if ok {
 		m.ui.npcDialog.Apply(dialog)
+		if !m.ui.npcDialog.IsOpen() && (dialog.Kind == network.NPCDialogClear || dialog.Kind == network.NPCDialogClose) {
+			m.ui.npcCutin.Clear()
+		}
+		return nil, false
+	}
+	if cutin, ok, err := network.ParseNPCCutin(pkt); err != nil {
+		glog.Errorf("parse NPC cut-in 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		if err := m.applyNPCCutin(ctx, cutin); err != nil {
+			glog.Warnf("NPC cut-in unavailable image=%q position=%d: %v", cutin.Image, cutin.Position, err)
+		}
 		return nil, false
 	}
 	if compass, ok, err := network.ParseMinimapCompass(pkt); err != nil {
@@ -471,11 +514,25 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		m.ui.inventoryBag.ClampScroll(ctx.Session)
 		return nil, false
 	}
+	if prompt, ok, err := network.ParseStoragePasswordPrompt(pkt); err != nil {
+		glog.Errorf("parse storage password prompt 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.handleStoragePasswordPrompt(ctx, prompt)
+		return nil, false
+	}
+	if result, ok, err := network.ParseStoragePasswordResult(pkt); err != nil {
+		glog.Errorf("parse storage password result 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.handleStoragePasswordResult(ctx, result)
+		return nil, false
+	}
 	if storageItems, ok, err := network.ParseStorageItemList(pkt); err != nil {
 		glog.Errorf("parse storage item list 0x%04X: %v", pkt.ID, err)
 	} else if ok {
 		applyStorageItemList(ctx, storageItems)
-		m.ui.storageWindow.OpenWindow(ctx)
+		if ctx.Session != nil && ctx.Session.Storage.Open {
+			m.ui.storageWindow.OpenWindow(ctx)
+		}
 		return nil, false
 	}
 	if cartItems, ok, err := network.ParseCartItemList(pkt); err != nil {
@@ -491,7 +548,9 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		glog.Errorf("parse storage amount 0x%04X: %v", pkt.ID, err)
 	} else if ok {
 		applyStorageAmount(ctx, storageAmount)
-		m.ui.storageWindow.OpenWindow(ctx)
+		if ctx.Session != nil && ctx.Session.Storage.Open {
+			m.ui.storageWindow.OpenWindow(ctx)
+		}
 		return nil, false
 	}
 	if cartAmount, ok, err := network.ParseCartAmount(pkt); err != nil {
@@ -873,7 +932,9 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		glog.Errorf("parse storage item added 0x%04X: %v", pkt.ID, err)
 	} else if ok {
 		applyStorageItemAdded(ctx, storageItem)
-		m.ui.storageWindow.OpenWindow(ctx)
+		if ctx.Session != nil && ctx.Session.Storage.Open {
+			m.ui.storageWindow.OpenWindow(ctx)
+		}
 		m.ui.storageWindow.ClampScroll(ctx.Session)
 		m.ui.inventoryBag.ClampScroll(ctx.Session)
 		return nil, false
@@ -964,6 +1025,7 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 	if network.ParseStorageClosed(pkt) {
 		applyStorageClosed(ctx)
 		m.ui.storageWindow.SetOpen(false)
+		m.ui.storagePassword.CloseFromServer(ctx)
 		return nil, false
 	}
 	if network.ParseCartClosed(pkt) {
@@ -1157,6 +1219,18 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		glog.Errorf("parse auto-run skill 0x%04X: %v", pkt.ID, err)
 	} else if ok {
 		m.skills().ApplyAutoRun(ctx, auto)
+		return nil, false
+	}
+	if info, ok, err := network.ParseMonsterInfo(pkt); err != nil {
+		glog.Errorf("parse monster info 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyMonsterInfo(ctx, info, now)
+		return nil, false
+	}
+	if list, ok, err := network.ParseAutoSpellList(pkt); err != nil {
+		glog.Errorf("parse auto spell list 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyAutoSpellList(ctx, list)
 		return nil, false
 	}
 	if warpList, ok, err := network.ParseWarpPointList(pkt); err != nil {
