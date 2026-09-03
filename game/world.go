@@ -167,6 +167,7 @@ type worldUI struct {
 	equipmentWindow      gameui.EquipmentWindow
 	viewEquipWindow      gameui.ViewEquipmentWindow
 	storageWindow        gameui.StorageWindow
+	storagePassword      gameui.StoragePasswordWindow
 	cartWindow           gameui.CartWindow
 	changeCartWindow     gameui.ChangeCartWindow
 	itemPickup           gameui.ItemPickupNotification
@@ -272,6 +273,7 @@ func (u *worldUI) interactionModalOpen() bool {
 	}
 	return u.teleportModal.IsOpen() ||
 		u.autoSpellWindow.IsOpen() ||
+		u.storagePassword.IsOpen() ||
 		u.friendRequest.IsOpen() ||
 		u.friendConfirm.IsOpen() ||
 		u.partyRequest.IsOpen() ||
@@ -662,6 +664,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	m.ui.console.UpdatePresentation(ctx)
+	if m.updateStoragePasswordWindow(ctx) {
+		return nil, nil
+	}
 	// The drop amount prompt is modal and may overlap the always-present chat
 	// field. Give it first refusal on Escape and pointer input so a focused chat
 	// field cannot consume the cancellation before the prompt sees it.
