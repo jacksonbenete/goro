@@ -88,6 +88,7 @@ type WorldMode struct {
 	pendingPickup     pickupIntent
 	pendingSkill      pendingSkillTarget
 	pendingSkillText  pendingSkillTextTarget
+	senseRequest      senseRequest
 	guildAction       gameui.GuildMemberAction
 	guildOpenPending  bool
 	pendingPetCapture petCaptureState
@@ -174,6 +175,7 @@ type worldUI struct {
 	shopWindow           gameui.ShopWindow
 	vendingWindow        gameui.VendingWindow
 	itemInfoWindow       gameui.ItemInfoWindow
+	monsterInfoWindow    gameui.MonsterInfoWindow
 	bookWindow           gameui.BookWindow
 	identifyWindow       gameui.IdentifyWindow
 	cardWindow           gameui.CardCompositionWindow
@@ -239,6 +241,7 @@ func (u *worldUI) nonConsoleKeyboardInputBlocked(ctx client.Context) bool {
 		u.starPlaceConfirm.IsOpen() ||
 		u.settingsWindow.IsOpen() ||
 		u.autoSpellWindow.IsOpen() ||
+		u.monsterInfoWindow.IsOpen() ||
 		u.identifyWindow.IsOpen() ||
 		u.cardWindow.IsOpen() ||
 		u.makingArrow.IsOpen() ||
@@ -910,6 +913,9 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 				m.ui.itemInfoWindow.Publish(ctx)
 			}
 		}
+		return nil, nil
+	}
+	if m.ui.monsterInfoWindow.Update(ctx) {
 		return nil, nil
 	}
 	if m.ui.identifyWindow.Update(ctx) {

@@ -1191,6 +1191,12 @@ func (m *WorldMode) handleNetworkPacket(ctx client.Context, pkt network.Packet, 
 		m.skills().ApplyAutoRun(ctx, auto)
 		return nil, false
 	}
+	if info, ok, err := network.ParseMonsterInfo(pkt); err != nil {
+		glog.Errorf("parse monster info 0x%04X: %v", pkt.ID, err)
+	} else if ok {
+		m.applyMonsterInfo(ctx, info, now)
+		return nil, false
+	}
 	if list, ok, err := network.ParseAutoSpellList(pkt); err != nil {
 		glog.Errorf("parse auto spell list 0x%04X: %v", pkt.ID, err)
 	} else if ok {

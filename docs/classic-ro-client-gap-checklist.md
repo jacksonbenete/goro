@@ -150,11 +150,11 @@ Goro.
 
 ### Monster information / Sense
 
-- [ ] Parse the original Monster Info/Sense response (`0x018C`).
-- [ ] Implement a Monster Info window.
-- [ ] Display monster name/class, level, HP, DEF, MDEF, race, size, property, and elemental resistances.
-- [ ] Reuse the monster life information Goro already caches for Sense.
-- [ ] Do not turn this into permanent 2012-style monster HP bars.
+- [x] Parse the original Monster Info/Sense response (`0x018C`).
+- [x] Implement a Monster Info window.
+- [x] Display monster name/class, level, HP, DEF, MDEF, race, size, property, and elemental resistances.
+- [x] Reuse the monster life information Goro already caches for Sense.
+- [x] Do not turn this into permanent 2012-style monster HP bars.
 
 ### NPC cut-in illustrations
 

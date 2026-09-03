@@ -108,6 +108,7 @@
 
   Class-Specific / Skill Dialog Choices
 
+  - [x] Wizard and mercenary Sense monster information: 0x018C
   - [x] Sage autospell choice list and selection: 0x01CD, 0x01CE
   - [ ] Novice dori-dori: 0x01E7
   - [ ] Novice explosion spirits: 0x01ED
