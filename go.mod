@@ -12,13 +12,13 @@ require (
 	github.com/gogpu/naga v0.17.15
 	github.com/gogpu/ui v0.1.36
 	github.com/gogpu/wgpu v0.30.19
+	github.com/ncpa0cpl/ini v0.0.4
 	github.com/yuin/gopher-lua v1.1.2
 	golang.org/x/image v0.43.0
 	golang.org/x/text v0.38.0
 )
 
 require (
-	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
 	github.com/charmbracelet/lipgloss v1.1.0 // indirect

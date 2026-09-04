@@ -1,10 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ncpa0cpl/ini"
 )
 
 func isolateUserConfig(t *testing.T) {
@@ -280,5 +283,52 @@ fullscreen = false
 		if !strings.Contains(text, want) {
 			t.Fatalf("saved config missing %q:\n%s", want, text)
 		}
+	}
+}
+
+func TestIniParser(t *testing.T) {
+	expectedAutoLogin := true
+	expectedBgmVolume := 0.55
+	expectedVsync := true
+
+	goro_ini := fmt.Sprintf(`
+[login]
+username=a
+password=
+auto_login=%v
+
+[window]
+fullscreen = false
+
+[render]
+vsync = %v
+fps = false
+
+[audio]
+bgm_volume = %.2f
+sfx_volume = 0.55
+
+[gameplay]
+no_shift = false
+no_ctrl = true
+less_effects = false
+snap = false
+itemsnap = false`, expectedAutoLogin, expectedVsync, expectedBgmVolume)
+
+	cfg := Config{}
+
+	err := ini.Unmarshal(goro_ini, &cfg)
+	if err != nil {
+		t.Fatalf("cannot unmarshal ini: %v", err)
+	}
+
+	if cfg.Login.AutoLogin != expectedAutoLogin {
+		t.Fatalf("expected %v, got %v", expectedAutoLogin, cfg.Login.AutoLogin)
+	}
+	if cfg.Audio.BGMVolume != 0.55 {
+		t.Fatalf("expected %v, got %v", expectedBgmVolume, cfg.Audio.BGMVolume)
+	}
+	if cfg.Render.VSync != true {
+		t.Fatalf("expected %v, got %v", expectedVsync, cfg.Render.VSync)
 	}
 }

@@ -11,79 +11,79 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/kivutar/goro/glog"
+	"github.com/ncpa0cpl/ini"
 )
 
 type Config struct {
 	DataDir  string
-	Window   WindowConfig
-	Packet   PacketConfig
-	Login    LoginConfig
-	Audio    AudioConfig
-	Render   RenderConfig
-	Network  NetworkConfig
-	Fog      FogConfig
-	Gameplay GameplayConfig
-	Script   ScriptConfig
+	Window   WindowConfig   `ini:"window"`
+	Packet   PacketConfig   `ini:"packet"`
+	Login    LoginConfig    `ini:"login"`
+	Audio    AudioConfig    `ini:"audio"`
+	Render   RenderConfig   `ini:"render"`
+	Network  NetworkConfig  `ini:"network"`
+	Fog      FogConfig      `ini:"fog"`
+	Gameplay GameplayConfig `ini:"gameplay"`
+	Script   ScriptConfig   `ini:"script"`
 	Log      glog.LogConfig
 }
 
 type WindowConfig struct {
-	Title      string
-	Width      int
-	Height     int
-	Fullscreen bool
+	Title      string `ini:"title"`
+	Width      int    `ini:"width"`
+	Height     int    `ini:"height"`
+	Fullscreen bool   `ini:"fullscreen"`
 }
 
 type PacketConfig struct {
-	ClientDate int
-	Profile    int
+	ClientDate int `ini:"client_date"`
+	Profile    int `ini:"profile"`
 }
 
 type LoginConfig struct {
-	Username  string
-	Password  string
-	AutoLogin bool
+	Username  string `ini:"username"`
+	Password  string `ini:"password"`
+	AutoLogin bool   `ini:"auto_login"`
 	CharSlot  int
 }
 
 type AudioConfig struct {
-	Disabled  bool
-	BGM       bool
-	BGMVolume float64
-	SFXVolume float64
+	Disabled  bool    `ini:"disable"`
+	BGM       bool    `ini:"bgm"`
+	BGMVolume float64 `ini:"bgm_volume"`
+	SFXVolume float64 `ini:"sfx_volume"`
 }
 
 type RenderConfig struct {
-	GraphicsAPI        string
-	VSync              bool
-	FPS                bool
-	NoUI               bool
-	AsyncUI            bool
-	UIProfile          bool
-	BenchSeconds       int
-	BenchWarmupSeconds int
-	CPUProfile         string
-	Stats              bool
-	WorldDebugStats    bool
+	GraphicsAPI        string `ini:"graphics_api"`
+	VSync              bool   `ini:"vsync"`
+	FPS                bool   `ini:"fps"`
+	NoUI               bool   `ini:"no_ui"`
+	AsyncUI            bool   `ini:"async_ui"`
+	UIProfile          bool   `ini:"ui_profile"`
+	BenchSeconds       int    `ini:"bench_seconds"`
+	BenchWarmupSeconds int    `ini:"bench_warmuop_seconds"`
+	CPUProfile         string `ini:"cpu_profile"`
+	Stats              bool   `ini:"stats"`
+	WorldDebugStats    bool   `ini:"world_debug_stats"`
 }
 
 type NetworkConfig struct {
-	Trace bool
+	Trace bool `ini:"trace"`
 }
 
 type FogConfig struct {
-	Enabled bool
+	Enabled bool `ini:"enabled"`
 }
 
 type GameplayConfig struct {
-	NoShift     bool
-	NoCtrl      bool
-	LessEffects bool
-	SnapTargets bool
-	SnapItems   bool
-	ForceUserAI bool
+	NoShift     bool `ini:"no_shift"`
+	NoCtrl      bool `ini:"no_ctrl"`
+	LessEffects bool `ini:"less_effects"`
+	SnapTargets bool `ini:"snap_targets"`
+	SnapItems   bool `ini:"snap_items"`
+	ForceUserAI bool `ini:"force_user_ai"`
 }
 
 type ScriptConfig struct {
@@ -336,9 +336,9 @@ func applyCLI(cfg *Config, args []string) error {
 func applyINI(cfg *Config, r io.Reader) error {
 	b := bufio.NewScanner(r)
 
-	_, err := toml.Decode(string(b.Bytes()), cfg)
+	err := ini.Unmarshal(string(b.Bytes()), &cfg)
 	if err != nil {
-		glog.Errorf("error decoding toml/ini file %v", err)
+		glog.Errorf("error decoding ini file %v", err)
 	}
 
 	return validateConfig(cfg)
