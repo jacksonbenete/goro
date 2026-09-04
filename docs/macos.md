@@ -73,3 +73,6 @@ make tools
   -cache db/pre-re/map_cache.dat \
   -rebuild
 ```
+
+Client configuration uses `os.UserConfigDir()` which in macOS points at `$HOME/Library/Application\ Support/`.
+That means you can find goro.ini at `$HOME/Library/Application\ Support/goro/goro.ini`.

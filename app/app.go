@@ -74,6 +74,10 @@ func New(cfg config.Config) (*Game, error) {
 	return g, nil
 }
 
+func (g *Game) GetLoginConfig() config.LoginConfig {
+	return g.cfg.Login
+}
+
 func (g *Game) Update() error {
 	defer g.input.EndFrame()
 	g.network.Pump()

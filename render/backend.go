@@ -36,6 +36,7 @@ type Game interface {
 	Draw(*Frame)
 	Resize(width, height int)
 	InputState() *input.State
+	GetLoginConfig() config.LoginConfig
 }
 
 type quitReceiver interface {
@@ -326,6 +327,9 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 		vsync:      renderCfg.VSync,
 		fps:        renderCfg.FPS,
 	}
+
+	glog.Infof("DEBUG %v", r.game.GetLoginConfig())
+
 	if receiver, ok := game.(quitReceiver); ok {
 		receiver.SetQuitFunc(gg.Quit)
 	}
