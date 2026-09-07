@@ -22,8 +22,8 @@ Status meaning:
 - Effective unique map opcodes: `603`
 - Overwritten historical/remap declarations: `283`
 - Client-to-map packets accepted by rAthena: `177`
-- Effective map opcodes referenced by Goro: `224`
-- Client-to-map accepted packets referenced by Goro: `100` / `177`
+- Effective map opcodes referenced by Goro: `225`
+- Client-to-map accepted packets referenced by Goro: `101` / `177`
 - Unresolved packet aliases in this generated pass: `0`
 
 ## Homunculus Compatibility Notes
@@ -403,7 +403,7 @@ email check.
 | `0x01E4` | S->C | untracked | `0x01e4` | `2` | `-` | - |
 | `0x01E5` | S->C | untracked | `0x01e5` | `6` | `-` | - |
 | `0x01E6` | S->C | untracked | `0x01e6` | `26` | `-` | - |
-| `0x01E7` | C->S | missing | `0x01e7` | `2` | `clif_parse_NoviceDoriDori` | - |
+| `0x01E7` | C->S | implemented | `0x01e7` | `2` | `clif_parse_NoviceDoriDori` | novice_packets.go |
 | `0x01E8` | C->S | implemented | `HEADER_CZ_MAKE_GROUP2` | `sizeof( PACKET_CZ_MAKE_GROUP2 )` | `clif_parse_CreateParty2` | party_packets.go |
 | `0x01EC` | S->C | untracked | `0x01ec` | `26` | `-` | - |
 | `0x01ED` | C->S | missing | `0x01ed` | `2` | `clif_parse_NoviceExplosionSpirits` | - |
