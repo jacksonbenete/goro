@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ncpa0cpl/ini"
+	ini "github.com/jacksonbenete/encoding_ini"
+	"github.com/kivutar/goro/glog"
 )
 
 func isolateUserConfig(t *testing.T) {
@@ -315,13 +316,50 @@ less_effects = false
 snap = false
 itemsnap = false`, expectedAutoLogin, expectedVsync, expectedBgmVolume)
 
-	cfg := Config{}
+	cfg := Config{
+		Window: WindowConfig{
+			Title:      "goro",
+			Width:      1280,
+			Height:     720,
+			Fullscreen: false,
+		},
+		Packet: PacketConfig{
+			ClientDate: 20080910,
+			Profile:    23,
+		},
+		Login: LoginConfig{
+			CharSlot: -1,
+		},
+		Audio: AudioConfig{
+			BGM:       true,
+			BGMVolume: 0.55,
+			SFXVolume: 0.55,
+		},
+		Render: RenderConfig{
+			GraphicsAPI:        "vulkan",
+			AsyncUI:            true,
+			VSync:              true,
+			BenchWarmupSeconds: 0,
+		},
+		Fog: FogConfig{
+			Enabled: true,
+		},
+		Gameplay: GameplayConfig{
+			NoCtrl: true,
+		},
+		Log: glog.LogConfig{
+			Level: "info",
+		},
+	}
 
-	err := ini.Unmarshal(goro_ini, &cfg)
+	err := ini.Unmarshal([]byte(goro_ini), &cfg)
 	if err != nil {
 		t.Fatalf("cannot unmarshal ini: %v", err)
 	}
 
+	if cfg.Window.Width <= 0 {
+		t.Fatalf("expected unmarshal to preserve struct values, expect Width: 1280, got %d", cfg.Window.Width)
+	}
 	if cfg.Login.AutoLogin != expectedAutoLogin {
 		t.Fatalf("expected %v, got %v", expectedAutoLogin, cfg.Login.AutoLogin)
 	}

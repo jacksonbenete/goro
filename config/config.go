@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -11,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	ini "github.com/jacksonbenete/encoding_ini"
 	"github.com/kivutar/goro/glog"
-	"github.com/ncpa0cpl/ini"
 )
 
 type Config struct {
@@ -334,9 +333,7 @@ func applyCLI(cfg *Config, args []string) error {
 }
 
 func applyINI(cfg *Config, r io.Reader) error {
-	b := bufio.NewScanner(r)
-
-	err := ini.Unmarshal(string(b.Bytes()), &cfg)
+	err := ini.UnmarshalIO(r, cfg)
 	if err != nil {
 		glog.Errorf("error decoding ini file %v", err)
 	}
