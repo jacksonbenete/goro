@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	ini "github.com/jacksonbenete/encoding_ini"
+	"github.com/jacksonbenete/ini"
 	"github.com/kivutar/goro/glog"
 )
 
