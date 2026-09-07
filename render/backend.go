@@ -737,8 +737,6 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 	if err := r.savePendingScreenshot(ctx); err != nil {
 		return err
 	}
-	// Goro redraws the 3D scene every frame; UI canvas damage only scopes UI texture updates.
-	ctx.SetDamageRects(nil)
 	submitted, err := r.gpu.Draw(ctx, r.screen)
 	if err != nil {
 		return err
@@ -1106,7 +1104,6 @@ func (r *runner) drawUIAsync(screen *Frame, width, height int, deviceScale float
 		return nil
 	}
 	r.updateUIRasterSurface(width, height, deviceScale)
-	r.collectAsyncUIResults(width, height, deviceScale)
 
 	needsWork := !r.uiDrawnOnce || win.NeedsRedraw() || win.HasDirtyBoundaries() || win.NeedsAnimationFrame()
 	if r.shouldRecordAsyncUI(needsWork) {
@@ -1150,6 +1147,10 @@ func (r *runner) drawUIAsync(screen *Frame, width, height int, deviceScale float
 			)
 		}
 	}
+	// Record current UI changes before collecting the worker's result. If the
+	// completed image is now obsolete, enqueueUIDrawList has put its successor
+	// in uiPendingLists and collectAsyncUIResults can avoid publishing it.
+	r.collectAsyncUIResults(width, height, deviceScale)
 	return r.drawUIPublishedImage(screen, width, height)
 }
 
@@ -1247,11 +1248,17 @@ func (r *runner) collectAsyncUIResults(width, height int, deviceScale float64) {
 				r.submitPendingUIDrawLists()
 				continue
 			}
-			imageStart := time.Now()
-			r.setUIImage(result.image)
-			r.uiDrawnOnce = r.uiImage != nil
-			r.completeUIDragLayerRelease()
-			r.lastUIImageDur += time.Since(imageStart)
+			// The rasterizer must replay every incremental draw list, but an
+			// intermediate image must not reach the screen after the UI has
+			// already changed again. Keep displaying the last coherent image
+			// until the worker catches up.
+			if len(r.uiPendingLists) == 0 {
+				imageStart := time.Now()
+				r.setUIImage(result.image)
+				r.uiDrawnOnce = r.uiImage != nil
+				r.completeUIDragLayerRelease()
+				r.lastUIImageDur += time.Since(imageStart)
+			}
 			if r.renderCfg.UIProfile && result.rasterDur > 16*time.Millisecond {
 				glog.Debugf(
 					"async ui raster ms=%.2f canvas_ms=%.2f flush_ms=%.2f image_ms=%.2f generation=%d size=%dx%d scale=%.2f",

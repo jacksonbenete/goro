@@ -78,7 +78,7 @@ type WorldMode struct {
 	petAccessoryMiss  map[petAccessorySpriteKey]struct{}
 	rsmMeshCache      map[int][]retainedWorldMesh
 	rsmNodeMatrices   map[*res.RSM]map[string]mat4
-	rsmAnimNodes      map[animatedRSMNodeKey]map[string]mat4
+	rsmAnimNodes      map[*res.RSM]animatedRSMNodeCache
 	rsmBoundsCache    map[rsmBoundsCacheKey]rsmBounds
 	rsmFaceMetaCache  map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta
 	rsmAnimScratch    animatedRSMScratch
@@ -180,6 +180,7 @@ type worldUI struct {
 	shopWindow           gameui.ShopWindow
 	vendingWindow        gameui.VendingWindow
 	itemInfoWindow       gameui.ItemInfoWindow
+	cardIllustration     gameui.CardIllustrationWindow
 	monsterInfoWindow    gameui.MonsterInfoWindow
 	bookWindow           gameui.BookWindow
 	identifyWindow       gameui.IdentifyWindow
@@ -432,7 +433,7 @@ func (m *WorldMode) Enter(ctx client.Context) {
 	m.petAccessoryMiss = make(map[petAccessorySpriteKey]struct{})
 	m.rsmMeshCache = make(map[int][]retainedWorldMesh)
 	m.rsmNodeMatrices = make(map[*res.RSM]map[string]mat4)
-	m.rsmAnimNodes = make(map[animatedRSMNodeKey]map[string]mat4)
+	m.rsmAnimNodes = make(map[*res.RSM]animatedRSMNodeCache)
 	m.rsmBoundsCache = make(map[rsmBoundsCacheKey]rsmBounds)
 	m.rsmFaceMetaCache = make(map[*res.RSM]map[*res.RSMNode][]rsmFaceMeta)
 	m.rsmAnimScratch.reset()
@@ -565,6 +566,7 @@ func (m *WorldMode) rebindPersistentUI(ctx client.Context) {
 	m.ui.equipmentWindow.Rebind(ctx, &m.ui.itemInfoWindow, &m.ui.cartWindow, m)
 	m.ui.cartWindow.Rebind(ctx, &m.ui.itemInfoWindow)
 	m.ui.itemInfoWindow.Rebind(ctx, m)
+	m.ui.cardIllustration.Rebind(ctx)
 	m.ui.bookWindow.Rebind(ctx)
 	m.ui.statsWindow.Rebind(ctx)
 	m.ui.skillWindow.Rebind(ctx, m)
@@ -705,6 +707,7 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 		return nil, nil
 	}
 	if dead {
+		m.updateBot(ctx, now)
 		if m.updateDeathUIInput(ctx) {
 			return nil, nil
 		}
@@ -914,12 +917,21 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 	if m.ui.bookWindow.Update(ctx) {
 		return nil, nil
 	}
+	if m.ui.cardIllustration.Update(ctx) {
+		return nil, nil
+	}
 	characterWindowConsumed := m.ui.characterWindow.Update(ctx)
 	m.ui.basicMenu.FollowCharacterWindow(ctx, &m.ui.characterWindow)
 	if characterWindowConsumed {
 		return nil, nil
 	}
 	if m.ui.itemInfoWindow.Update(ctx, m) {
+		if request := m.ui.itemInfoWindow.PopCardIllustrationRequest(); request.ItemID != 0 {
+			if err := m.ui.cardIllustration.Open(ctx, request.ItemID, request.Title); err != nil {
+				m.ui.console.AddErrorMessage("Unable to display this card.")
+				glog.Warnf("card illustration open failed item=%d: %v", request.ItemID, err)
+			}
+		}
 		if request := m.ui.itemInfoWindow.PopReadBookRequest(); request.ItemID != 0 {
 			if err := m.ui.bookWindow.Open(ctx, request.ItemID, request.Title); err != nil {
 				m.ui.console.AddErrorMessage("Unable to read this book.")
@@ -1171,6 +1183,8 @@ func (m *WorldMode) Update(ctx client.Context) (Mode, error) {
 
 func (m *WorldMode) handleEscapeMenuAction(ctx client.Context) {
 	switch m.ui.escapeMenu.ConsumeAction() {
+	case gameui.EscapeMenuActionAutoRevive:
+		m.ui.escapeMenu.RequestAutoRevive(ctx)
 	case gameui.EscapeMenuActionSavePoint:
 		m.ui.escapeMenu.ReturnToSavePoint(ctx)
 	case gameui.EscapeMenuActionCharacterSelect:
@@ -1415,6 +1429,7 @@ func (m *WorldMode) nextWorldMode() *WorldMode {
 	next.ui.equipmentWindow = m.ui.equipmentWindow
 	next.ui.cartWindow = m.ui.cartWindow
 	next.ui.itemInfoWindow = m.ui.itemInfoWindow
+	next.ui.cardIllustration = m.ui.cardIllustration
 	next.ui.bookWindow = m.ui.bookWindow
 	next.ui.cardWindow = m.ui.cardWindow
 	next.ui.petEggWindow = m.ui.petEggWindow
