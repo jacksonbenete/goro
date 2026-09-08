@@ -624,6 +624,7 @@ func (w *minimapWidget) Draw(_ widget.Context, canvas widget.Canvas) {
 	}
 	rect := minimapContentMapRect(bounds)
 	if w.image != nil {
+		canvas.DrawRect(bounds, widget.ColorWhite)
 		canvas.DrawImage(w.image, geometry.Pt(float32(rect.x), float32(rect.y)))
 	}
 	if w.ctx.World != nil {
