@@ -2,13 +2,14 @@ package ui
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/glog"
-	"github.com/kivutar/goro/input"
 	"image"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/input"
 
 	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/event"
@@ -229,16 +230,68 @@ func (w *InventoryBagWindow) PendingCardIndex() uint16 {
 	return w.pendingCard
 }
 
+var hover = hoverItemInfo{}
+
+// hoverInfo should be global to avoid duplicating and UI bugs.
+type hoverItemInfo struct {
+	list []*ItemInfoWindow
+}
+
+func (i *hoverItemInfo) copyItemInfo(itemInfo *ItemInfoWindow) *ItemInfoWindow {
+	if itemInfo == nil {
+		return nil
+	}
+
+	hoverInfo := &ItemInfoWindow{
+		Window:          itemInfo.Window,
+		item:            itemInfo.item,
+		title:           itemInfo.title,
+		lines:           itemInfo.lines,
+		illustration:    itemInfo.illustration,
+		bookAvailable:   itemInfo.bookAvailable,
+		readBookRequest: itemInfo.readBookRequest,
+		cardArtRequest:  itemInfo.cardArtRequest,
+		tooltip:         itemInfo.tooltip,
+		slotIcons:       itemInfo.slotIcons,
+		slotIconMiss:    itemInfo.slotIconMiss,
+	}
+
+	i.list = append(i.list, hoverInfo)
+
+	return hoverInfo
+}
+
+func (i *hoverItemInfo) close() {
+	for _, w := range i.list {
+		w.Close()
+	}
+}
+
+func (i *hoverItemInfo) openItemHover(ctx Context, item session.InventoryItem, mouseX, mouseY int) {
+	for _, w := range i.list {
+		w.openItem(ctx, item, -14, 22) // Make it (0,0) on openItem.
+	}
+}
+
 func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
+	hover.copyItemInfo(itemInfo)
+
 	items := w.tabItems(ctx.Session)
 	grid := newInventoryGridWidget(inventoryGridConfig{
 		items:     items,
 		icons:     w.itemIcons(ctx, items),
 		amounts:   inventoryGridAmountLabels(items),
 		viewWidth: inventoryBagViewW,
-		onPress:   func(item session.InventoryItem) { w.startItemDragOrActivate(ctx, item) },
-		onHover:   func(item session.InventoryItem) { w.showTooltip(ctx, item) },
-		onLeave:   func() { w.hideTooltip() },
+		onPress: func(item session.InventoryItem) {
+			hover.close()
+			w.startItemDragOrActivate(ctx, item)
+		},
+		onHover: func(item session.InventoryItem, mx, my int) {
+			hover.openItemHover(ctx, item, mx, my)
+		},
+		onLeave: func() {
+			hover.close()
+		},
 		onRightClick: func(item session.InventoryItem, mx, my int) {
 			w.hideTooltip()
 			w.dragActive = false
@@ -259,6 +312,7 @@ func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) w
 		Title("Inventory"),
 		CloseButton(true),
 		OnClose(func() {
+			hover.close()
 			w.amountPrompt.Close(ctx)
 			w.Window.Close()
 			w.Publish(ctx)
@@ -546,7 +600,7 @@ type inventoryGridConfig struct {
 	cellSize     int
 	viewWidth    int
 	onPress      func(session.InventoryItem)
-	onHover      func(session.InventoryItem)
+	onHover      func(session.InventoryItem, int, int)
 	onLeave      func()
 	onRightClick func(session.InventoryItem, int, int)
 }
@@ -659,7 +713,7 @@ func (w *inventoryGridWidget) Event(ctx widget.Context, e event.Event) bool {
 			w.hovered = index
 			if index >= 0 && index < len(w.cfg.items) {
 				if w.cfg.onHover != nil {
-					w.cfg.onHover(w.cfg.items[index])
+					w.cfg.onHover(w.cfg.items[index], int(ev.GlobalPosition.X), int(ev.GlobalPosition.Y))
 				}
 				ctx.SetCursor(widget.CursorPointer)
 			} else {

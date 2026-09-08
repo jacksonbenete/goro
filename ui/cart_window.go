@@ -2,11 +2,12 @@ package ui
 
 import (
 	"fmt"
-	"github.com/kivutar/goro/glog"
-	"github.com/kivutar/goro/input"
 	"image"
 	"sort"
 	"time"
+
+	"github.com/kivutar/goro/glog"
+	"github.com/kivutar/goro/input"
 
 	"github.com/gogpu/ui/core/scrollview"
 	"github.com/gogpu/ui/primitives"
@@ -203,7 +204,7 @@ func (w *CartWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Wi
 		onPress: func(item session.InventoryItem) {
 			w.startItemDragOrWithdraw(ctx, item)
 		},
-		onHover: func(item session.InventoryItem) {
+		onHover: func(item session.InventoryItem, mx, my int) {
 			w.showTooltip(ctx, item)
 		},
 		onLeave: func() {
