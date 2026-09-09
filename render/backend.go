@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"runtime"
 	"runtime/pprof"
 	"strings"
 	"time"
@@ -36,7 +37,6 @@ type Game interface {
 	Draw(*Frame)
 	Resize(width, height int)
 	InputState() *input.State
-	GetLoginConfig() config.LoginConfig
 }
 
 type quitReceiver interface {
@@ -224,6 +224,7 @@ type uiProfileStats struct {
 type runner struct {
 	app             *gogpu.App
 	ui              *uiapp.App
+	uiWindow        *uiWindowProvider
 	uiImage         *Image
 	uiOverlayCanvas *ggcanvas.Canvas
 	uiTextCache     map[string]cachedOverlayImage
@@ -306,8 +307,9 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 	events := newFanoutEventSource(gg.EventSource())
 	uiTheme := rotheme.Default.AsTheme()
 	uiTheme.Colors.Background = widget.RGBA8(0, 0, 0, 0)
+	uiWindow := &uiWindowProvider{WindowProvider: gg}
 	ui := uiapp.New(
-		uiapp.WithWindowProvider(gg),
+		uiapp.WithWindowProvider(uiWindow),
 		uiapp.WithPlatformProvider(roCursorPlatformProvider{PlatformProvider: gg}),
 		uiapp.WithEventSource(events),
 		uiapp.WithTheme(uiTheme),
@@ -317,6 +319,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 	r := &runner{
 		app:        gg,
 		ui:         ui,
+		uiWindow:   uiWindow,
 		game:       game,
 		width:      cfg.Width,
 		height:     cfg.Height,
@@ -328,7 +331,7 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 		vsync:      renderCfg.VSync,
 		fps:        renderCfg.FPS,
 	}
-
+	defer r.close()
 	if receiver, ok := game.(quitReceiver); ok {
 		receiver.SetQuitFunc(gg.Quit)
 	}
@@ -338,6 +341,17 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 	game.Resize(cfg.Width, cfg.Height)
 	wireInput(events, game.InputState())
 
+	gg.OnSurfaceAvailable(func() {
+		// The primary window is registered before this callback, and close
+		// events are processed afterwards. X/Alt+F4 must drain UI redraws
+		// before GoGPU destroys that window, earlier than App.OnClose.
+		uiWindow.guardClose(gg.PrimaryWindow())
+		// GoGPU v0.54.0 ignores Config.Fullscreen when creating a Windows
+		// window. Apply it once the native window exists.
+		if runtime.GOOS == "windows" && cfg.Fullscreen {
+			gg.SetFullscreen(true)
+		}
+	})
 	gg.OnResize(func(width, height int) {
 		if width <= 0 || height <= 0 {
 			return
@@ -358,27 +372,38 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 			gg.Quit()
 		}
 	})
-	gg.OnClose(func() {
-		if r.cpuProfile != nil {
-			pprof.StopCPUProfile()
-			_ = r.cpuProfile.Close()
-			r.cpuProfile = nil
-		}
-		if r.gpu != nil {
-			r.gpu.release()
-			r.gpu = nil
-		}
-		r.stopAsyncUIRasterizer()
-		if r.uiCanvas != nil {
-			_ = r.uiCanvas.Close()
-			r.uiCanvas = nil
-		}
-		if r.uiOverlayCanvas != nil {
-			_ = r.uiOverlayCanvas.Close()
-			r.uiOverlayCanvas = nil
-		}
-	})
+	gg.OnClose(r.close)
 	return gg.Run()
+}
+
+func (r *runner) close() {
+	// App-level quits reach OnClose before native teardown. Window-close
+	// requests have already drained redraws through the pre-close callback.
+	if r.uiWindow != nil {
+		r.uiWindow.close()
+	}
+	if r.ui != nil {
+		r.ui.Window().Close()
+		r.ui = nil
+	}
+	if r.cpuProfile != nil {
+		pprof.StopCPUProfile()
+		_ = r.cpuProfile.Close()
+		r.cpuProfile = nil
+	}
+	if r.gpu != nil {
+		r.gpu.release()
+		r.gpu = nil
+	}
+	r.stopAsyncUIRasterizer()
+	if r.uiCanvas != nil {
+		_ = r.uiCanvas.Close()
+		r.uiCanvas = nil
+	}
+	if r.uiOverlayCanvas != nil {
+		_ = r.uiOverlayCanvas.Close()
+		r.uiOverlayCanvas = nil
+	}
 }
 
 func configureGogpuVSync(renderCfg config.RenderConfig) {
@@ -750,17 +775,13 @@ func (r *runner) draw(ctx *gogpu.Context) error {
 			receiver.FrameSubmitted()
 		}
 	}
-
 	drawDur := time.Since(drawStart)
 	totalDur := r.lastUpdateDuration + drawDur
-	thresholdMs := time.Duration(40)
-
-	if totalDur > thresholdMs*time.Millisecond {
+	if totalDur > 16*time.Millisecond {
 		glog.Errorf(
-			"slow frame frame=%d total_ms=%.2f threshold_ms=%.2f update_ms=%.2f game_update_ms=%.2f ui_frame_ms=%.2f draw_ms=%.2f ui_work=%t ui_redraw=%t ui_draw_ms=%.2f ui_canvas_ms=%.2f ui_flush_ms=%.2f ui_image_ms=%.2f ui_dirty_regions=%d ui_full_repaint=%t ui_union=%.0f,%.0f %.0fx%.0f",
+			"slow frame frame=%d total_ms=%.2f threshold_ms=16.00 update_ms=%.2f game_update_ms=%.2f ui_frame_ms=%.2f draw_ms=%.2f ui_work=%t ui_redraw=%t ui_draw_ms=%.2f ui_canvas_ms=%.2f ui_flush_ms=%.2f ui_image_ms=%.2f ui_dirty_regions=%d ui_full_repaint=%t ui_union=%.0f,%.0f %.0fx%.0f",
 			r.frames,
 			durationMS(totalDur),
-			thresholdMs,
 			durationMS(r.lastUpdateDuration),
 			durationMS(r.lastGameUpdateDur),
 			durationMS(r.lastUIFrameDur),
