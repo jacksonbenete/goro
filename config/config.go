@@ -25,7 +25,15 @@ type Config struct {
 	Fog      FogConfig      `ini:"fog"`
 	Gameplay GameplayConfig `ini:"gameplay"`
 	Script   ScriptConfig   `ini:"script"`
+	Custom   CustomConfig   `ini:"custom"`
 	Log      glog.LogConfig
+}
+
+type CustomConfig struct {
+	HoverInfo       bool `ini:"hover_info"`
+	SingleEquipItem bool `ini:"single_equip_item"`
+	UseColumns      bool `ini:"use_columns"`
+	Autoloot        bool `ini:"autoloot"`
 }
 
 type WindowConfig struct {
@@ -44,7 +52,7 @@ type LoginConfig struct {
 	Username  string `ini:"username"`
 	Password  string `ini:"password"`
 	AutoLogin bool   `ini:"auto_login"`
-	CharSlot  int
+	CharSlot  int    `ini:"char_slot"`
 }
 
 type AudioConfig struct {

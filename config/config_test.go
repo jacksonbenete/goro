@@ -293,6 +293,12 @@ func TestIniParser(t *testing.T) {
 	expectedVsync := true
 
 	goro_ini := fmt.Sprintf(`
+[custom]
+hover_info=true
+single_equip_item=true
+use_columns=true
+autoloot=true
+
 [login]
 username=a
 password=
@@ -357,6 +363,9 @@ itemsnap = false`, expectedAutoLogin, expectedVsync, expectedBgmVolume)
 		t.Fatalf("cannot unmarshal ini: %v", err)
 	}
 
+	if !cfg.Custom.HoverInfo {
+		t.Fatalf("expected hoverInfo to be true, got %v", cfg.Custom.HoverInfo)
+	}
 	if cfg.Window.Width <= 0 {
 		t.Fatalf("expected unmarshal to preserve struct values, expect Width: 1280, got %d", cfg.Window.Width)
 	}

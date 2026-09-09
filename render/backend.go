@@ -329,8 +329,6 @@ func Run(game Game, cfg config.WindowConfig, renderCfg config.RenderConfig) erro
 		fps:        renderCfg.FPS,
 	}
 
-	glog.Infof("DEBUG %v", r.game.GetLoginConfig())
-
 	if receiver, ok := game.(quitReceiver); ok {
 		receiver.SetQuitFunc(gg.Quit)
 	}

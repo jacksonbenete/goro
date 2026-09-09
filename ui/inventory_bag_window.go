@@ -230,15 +230,19 @@ func (w *InventoryBagWindow) PendingCardIndex() uint16 {
 	return w.pendingCard
 }
 
+// hoverInfo should be global to avoid duplicating and UI bugs.
 var hover = hoverItemInfo{}
 
-// hoverInfo should be global to avoid duplicating and UI bugs.
 type hoverItemInfo struct {
 	list []*ItemInfoWindow
 }
 
-func (i *hoverItemInfo) copyItemInfo(itemInfo *ItemInfoWindow) *ItemInfoWindow {
+func (i *hoverItemInfo) copyItemInfo(ctx Context, itemInfo *ItemInfoWindow) *ItemInfoWindow {
 	if itemInfo == nil {
+		return nil
+	}
+
+	if !ctx.Config.Custom.HoverInfo {
 		return nil
 	}
 
@@ -274,7 +278,7 @@ func (i *hoverItemInfo) openItemHover(ctx Context, item session.InventoryItem, m
 }
 
 func (w *InventoryBagWindow) widgetTree(ctx Context, itemInfo *ItemInfoWindow) widget.Widget {
-	hover.copyItemInfo(itemInfo)
+	hover.copyItemInfo(ctx, itemInfo)
 
 	items := w.tabItems(ctx.Session)
 	grid := newInventoryGridWidget(inventoryGridConfig{
